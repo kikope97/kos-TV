@@ -5,7 +5,6 @@ import 'package:server_core/server_core.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../util/error_message.dart';
 import '../admin_draft.dart';
-import '../admin_nav.dart';
 import '../admin_plugin_version_utils.dart';
 import '../widgets/admin_form_styles.dart';
 import '../widgets/filesystem_browser.dart';
@@ -47,18 +46,13 @@ class _AdminGeneralSettingsScreenState
   }
 
   Future<void> _load() async {
-    final emby = AdminServerScope.isEmby(context);
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
       final config = await _api.getServerConfiguration();
-      final systemInfo = emby
-          ? await GetIt.instance<MediaServerClient>().systemApi
-                .getSystemInfo()
-                .catchError((_) => <String, dynamic>{})
-          : const <String, dynamic>{};
+      const systemInfo = <String, dynamic>{};
       // Language/country lists are optional; degrade to empty on older servers.
       final cultures = await _api
           .getCultures()

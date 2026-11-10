@@ -6,13 +6,11 @@ import 'package:moonfin/data/services/remote_search_sender.dart';
 import 'package:moonfin/data/services/remote_search_session.dart';
 import 'package:moonfin/data/services/websocket_message_parser.dart';
 import 'package:server_core/server_core.dart';
-import 'package:server_emby/src/api/emby_session_api.dart';
 import 'package:server_jellyfin/src/api/jellyfin_session_api.dart';
 
 void main() {
   final factories = <String, SessionApi Function(Dio)>{
     'Jellyfin': JellyfinSessionApi.new,
-    'Emby': EmbySessionApi.new,
   };
   for (final entry in factories.entries) {
     test(

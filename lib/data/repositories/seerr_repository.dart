@@ -1,13 +1,8 @@
-import 'package:dio/dio.dart';
-import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:server_core/server_core.dart';
 
-import '../../auth/models/user.dart';
 import '../../auth/repositories/session_repository.dart';
-import '../../auth/repositories/user_repository.dart';
 import '../../auth/services/silo_token_storage.dart';
-import '../services/moonbase_endpoint.dart';
 import '../services/seerr/seerr_api_models.dart';
 import '../services/seerr/seerr_discover_sliders.dart';
 import '../services/seerr/seerr_http_client.dart';
@@ -38,14 +33,6 @@ class SeerrRepository {
   // support them. Kept in memory only so an upgrade or restart retries
   // instead of staying blocked forever.
   bool _ssoBlocked = false;
-
-  // For moonbaseEndpoint's ping, which finds Moonbase for Plex.
-  final _endpointDio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
-    ),
-  );
 
   int _lastSessionCheckMs = 0;
   int _lastInitAttemptMs = 0;
@@ -197,33 +184,12 @@ class SeerrRepository {
     }
   }
 
-  /// Where the Seerr proxy is and how to sign calls to it. Jellyfin and Emby
-  /// serve it themselves, and Plex's is Moonbase for Plex, next to it.
+  /// Where the Seerr proxy is and how to sign calls to it. Jellyfin serves it
+  /// itself.
   Future<MoonfinProxyConfig?> _proxyConfig(String baseUrl, String? token) async {
     if (token == null || token.isEmpty) return null;
-    if (_client.serverType == ServerType.plex) {
-      final ep = await moonbaseEndpoint(_client, _endpointDio);
-      if (ep == null) return null;
-      return MoonfinProxyConfig(
-        jellyfinBaseUrl: ep.base,
-        jellyfinToken: token,
-        authHeaders: ep.headers,
-      );
-    }
     if (baseUrl.isEmpty) return null;
     return MoonfinProxyConfig(jellyfinBaseUrl: baseUrl, jellyfinToken: token);
-  }
-
-  /// The plex.tv token of the Plex account signed in to the app, which is what
-  /// Seerr's Plex sign in takes. Null on other servers.
-  String? get _plexToken {
-    if (_client.serverType != ServerType.plex ||
-        !GetIt.instance.isRegistered<UserRepository>()) {
-      return null;
-    }
-    final user = GetIt.instance<UserRepository>().currentUser;
-    final token = user is PrivateUser ? user.plexToken : null;
-    return token == null || token.isEmpty ? null : token;
   }
 
   void _initClient(MoonfinProxyConfig proxyConfig) {
@@ -325,11 +291,6 @@ class SeerrRepository {
     if (status.authenticated) return;
     if (!status.enabled) return;
 
-    if (_client.serverType == ServerType.plex) {
-      await tryPlexSignIn();
-      return;
-    }
-
     final hasPassword = username != null &&
         username.isNotEmpty &&
         password != null &&
@@ -358,14 +319,6 @@ class SeerrRepository {
   Future<bool> tryQuickConnectSignIn({String? username}) => _trySsoSignIn(
     (client) => client.moonfinQuickConnectLogin(username: username),
   );
-
-  /// Signs in to Seerr with the Plex account signed in to the app, the way
-  /// [tryQuickConnectSignIn] does on Jellyfin.
-  Future<bool> tryPlexSignIn() async {
-    final token = _plexToken;
-    if (token == null) return false;
-    return _trySsoSignIn((client) => client.moonfinPlexLogin(authToken: token));
-  }
 
   Future<bool> _trySsoSignIn(
     Future<MoonfinSsoResult> Function(SeerrHttpClient client) signIn,
@@ -426,7 +379,6 @@ class SeerrRepository {
       username: username,
       password: password,
       authType: authType,
-      authToken: authType == 'plex' ? _plexToken : null,
     );
 
     await _store.setString(

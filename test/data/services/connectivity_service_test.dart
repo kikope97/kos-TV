@@ -8,7 +8,7 @@ import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonfin/data/services/connectivity_service.dart';
 import 'package:server_core/server_core.dart';
-import 'package:server_emby/server_emby.dart';
+import 'package:server_jellyfin/src/api/jellyfin_system_api.dart';
 import 'package:server_silo/server_silo.dart';
 
 class _MockConnectivity extends Mock implements Connectivity {}
@@ -61,7 +61,7 @@ void main() {
     when(() => client.serverType).thenReturn(ServerType.jellyfin);
     when(() => client.baseUrl).thenReturn(baseUrl);
     when(() => client.systemApi)
-        .thenReturn(EmbySystemApi(Dio(BaseOptions(baseUrl: baseUrl))));
+        .thenReturn(JellyfinSystemApi(Dio(BaseOptions(baseUrl: baseUrl))));
     GetIt.instance.registerSingleton<MediaServerClient>(client);
 
     connectivity = _MockConnectivity();

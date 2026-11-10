@@ -23,7 +23,7 @@ void main() {
     });
 
     test('Jellyfin and Emby keep the setting', () {
-      for (final type in [ServerType.jellyfin, ServerType.emby]) {
+      for (final type in [ServerType.jellyfin]) {
         for (final setting in RecommendationSystemSource.values) {
           expect(source(setting, serverType: type), setting);
         }

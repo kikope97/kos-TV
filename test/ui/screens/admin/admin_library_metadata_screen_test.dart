@@ -4,7 +4,6 @@ import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/ui/screens/admin/admin_draft.dart';
-import 'package:moonfin/ui/screens/admin/admin_nav.dart';
 import 'package:moonfin/ui/screens/admin/libraries/admin_library_metadata_screen.dart';
 import 'package:server_core/server_core.dart';
 
@@ -81,7 +80,7 @@ void main() {
     await GetIt.instance.reset();
   });
 
-  Future<void> pump(WidgetTester tester, {bool onEmby = false}) async {
+  Future<void> pump(WidgetTester tester) async {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -91,9 +90,7 @@ void main() {
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
-          body: onEmby
-              ? const AdminServerScope(serverType: ServerType.emby, child: page)
-              : page,
+          body: page,
         ),
       ),
     );
@@ -159,27 +156,4 @@ void main() {
     expect(api.namedPosts, isEmpty);
   });
 
-  testWidgets('on Emby date added and suggestions replace the chapters', (
-    tester,
-  ) async {
-    // Emby's base configuration, which has no chapter settings.
-    api.server = {
-      'MetadataCountryCode': 'US',
-      'EnableExternalContentInSuggestions': true,
-    };
-    await pump(tester, onEmby: true);
-
-    expect(find.text(l10n.adminLibDummyChapterDuration), findsNothing);
-    await tester.tap(find.text(l10n.adminLibDateAddedFile));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(l10n.adminLibDateAddedImport).last);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(l10n.adminLibExternalSuggestions));
-    await tester.pump();
-
-    expect(await AdminDraft.active.value!.save(), isTrue);
-    expect(api.namedPosts['metadata'], {'UseFileCreationTimeForDateAdded': false});
-    expect(api.posted.single['EnableExternalContentInSuggestions'], isFalse);
-    expect(api.posted.single.containsKey('DummyChapterDuration'), isFalse);
-  });
 }

@@ -312,21 +312,6 @@ void main() {
     expect(vm.facetValues.years, <int>[1999]);
   });
 
-  test('Emby hides the two options its items query has no answer for', () async {
-    final jellyfin = await _viewModel(_RecordingItemsApi());
-    addTearDown(jellyfin.dispose);
-    expect(jellyfin.supportsUhdFilter, isTrue);
-    expect(jellyfin.supportsUnreleasedSeriesFilter, isTrue);
-
-    final emby = await _viewModel(
-      _RecordingItemsApi(),
-      serverType: ServerType.emby,
-    );
-    addTearDown(emby.dispose);
-    expect(emby.supportsUhdFilter, isFalse);
-    expect(emby.supportsUnreleasedSeriesFilter, isFalse);
-  });
-
   test('global genre browse includes only movies and series and excludes non-root types', () async {
     final api = _RecordingItemsApi();
     final vm = await _viewModel(

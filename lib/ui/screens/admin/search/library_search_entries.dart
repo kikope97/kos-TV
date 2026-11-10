@@ -23,13 +23,6 @@ final List<AdminSearchEntry> librarySearchEntries = [
       (l) => l.adminLibMetadataLangSection),
   adminSettingRow('metadata', 'MetadataCountryCode', (l) => l.adminGeneralMetadataCountry,
       (l) => l.adminLibMetadataLangSection),
-  // Emby has no Display page, so it keeps these on Metadata.
-  adminSettingRow('metadata', 'UseFileCreationTimeForDateAdded',
-      (l) => l.adminLibDateAddedLabel, (l) => l.adminLibDisplaySection,
-      servers: embyOnly),
-  adminSettingRow('metadata', 'EnableExternalContentInSuggestions',
-      (l) => l.adminLibExternalSuggestions, (l) => l.adminLibDisplaySection,
-      servers: embyOnly),
   adminSettingRow('metadata', 'DummyChapterDuration',
       (l) => l.adminLibDummyChapterDuration, (l) => l.adminLibChaptersSection,
       servers: jellyfinOnly),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../l10n/app_localizations.dart';
-import '../admin_nav.dart';
 import '../widgets/admin_form_styles.dart';
 import 'admin_library_dialogs.dart';
 import 'library_options_defaults.dart';
@@ -82,7 +81,9 @@ class _LibraryOptionsFormState extends State<LibraryOptionsForm> {
 
   /// Rows only Jellyfin has hide on Emby, and each Emby row shows when the
   /// options carry its key.
-  bool get _emby => AdminServerScope.isEmby(context);
+  /// Kos TV has no Emby, so the Emby-only options below never show. Kept as
+  /// a flag for now so the Moonfin layout stays easy to compare.
+  bool get _emby => false;
 
   bool _has(String key) => _options.containsKey(key);
 

@@ -9,7 +9,6 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../util/error_message.dart';
 import '../../../navigation/destinations.dart';
 import '../../../widgets/adaptive/adaptive_dialog.dart';
-import '../admin_nav.dart';
 import '../admin_plugin_version_utils.dart';
 import '../providers/admin_user_providers.dart';
 import '../widgets/admin_form_styles.dart';
@@ -316,8 +315,6 @@ class _InstalledTab extends ConsumerWidget {
 
         return Column(
           children: [
-            // Emby reports no plugin status to filter by.
-            if (!AdminServerScope.isEmby(context))
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
                 child: _InstalledFilterTabs(

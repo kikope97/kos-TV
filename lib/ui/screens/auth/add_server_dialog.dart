@@ -7,7 +7,6 @@ import 'package:server_core/server_core.dart';
 
 import '../../../auth/models/server.dart';
 import '../../../auth/repositories/server_repository.dart';
-import '../../../data/services/plex_tv_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/focus/dpad_keys.dart';
@@ -28,17 +27,6 @@ class AddServerSaved extends AddServerOutcome {
   const AddServerSaved(this.serverId);
 
   final String serverId;
-}
-
-/// The Plex sign-in, with [address] when the one typed in was a Plex server.
-class AddServerPlexSignIn extends AddServerOutcome {
-  const AddServerPlexSignIn([this.address]);
-
-  final String? address;
-}
-
-class AddServerEmbyConnect extends AddServerOutcome {
-  const AddServerEmbyConnect();
 }
 
 /// Opens [AddServerDialog] centered on every platform. An address already in
@@ -78,14 +66,6 @@ const _warningText = Color(0xFFFFD27A);
     tile: const Color(0x29AA5CC3),
     glyph: const Color(0xFFC88BE0),
   ),
-  ServerType.emby => (
-    tile: const Color(0x2452B54B),
-    glyph: const Color(0xFF7BD175),
-  ),
-  ServerType.plex => (
-    tile: const Color(0x24E5A00D),
-    glyph: const Color(0xFFF2BC45),
-  ),
   ServerType.silo => (
     tile: const Color(0x245EC7BC),
     glyph: const Color(0xFF5EC7BC),
@@ -94,8 +74,6 @@ const _warningText = Color(0xFFFFD27A);
 
 String _brand(ServerType type) => switch (type) {
   ServerType.jellyfin => 'Jellyfin',
-  ServerType.emby => 'Emby',
-  ServerType.plex => 'Plex',
   ServerType.silo => 'Silo',
 };
 
@@ -274,7 +252,7 @@ class _AddServerButtonState extends State<AddServerButton> {
   }
 }
 
-enum _Step { choose, address, found }
+enum _Step { address, found }
 
 enum _Failure { none, unreachable, untrusted, clientCert, siloUpdate }
 
@@ -296,7 +274,6 @@ class AddServerDialog extends StatefulWidget {
 
 class _AddServerDialogState extends State<AddServerDialog> {
   final _userPreferences = GetIt.instance<UserPreferences>();
-  final _firstChoiceFocus = FocusNode(debugLabel: 'addServerAddressChoice');
   final _addressFocus = FocusNode(debugLabel: 'addServerAddress');
   final _connectFocus = FocusNode(debugLabel: 'addServerConnect');
   final _allowFocus = FocusNode(debugLabel: 'addServerAllowSelfSigned');
@@ -304,7 +281,6 @@ class _AddServerDialogState extends State<AddServerDialog> {
   final _continueFocus = FocusNode(debugLabel: 'addServerContinue');
   final _tvFieldKey = GlobalKey<CustomTVTextFieldState>();
 
-  late final bool _startedOnAddress;
   late _Step _step;
   bool _isConnecting = false;
   _Failure _failure = _Failure.none;
@@ -328,16 +304,16 @@ class _AddServerDialogState extends State<AddServerDialog> {
   @override
   void initState() {
     super.initState();
-    _startedOnAddress = widget.controller.text.trim().isNotEmpty;
-    _step = _startedOnAddress ? _Step.address : _Step.choose;
+    // Kos TV: Jellyfin only, so the dialog opens straight on the address
+    // (Moonfin first offered the address, Plex sign-in or Emby Connect).
+    _step = _Step.address;
     _addressFocus.addListener(_onAddressFocusChanged);
-    _focusLater(_startedOnAddress ? _addressFocus : _firstChoiceFocus);
+    _focusLater(_addressFocus);
   }
 
   @override
   void dispose() {
     _addressFocus.removeListener(_onAddressFocusChanged);
-    _firstChoiceFocus.dispose();
     _addressFocus.dispose();
     _connectFocus.dispose();
     _allowFocus.dispose();
@@ -378,7 +354,6 @@ class _AddServerDialogState extends State<AddServerDialog> {
       if (step != _Step.found) _found = null;
     });
     _focusLater(switch (step) {
-      _Step.choose => _firstChoiceFocus,
       _Step.address => _addressFocus,
       _Step.found => _continueFocus,
     });
@@ -388,8 +363,6 @@ class _AddServerDialogState extends State<AddServerDialog> {
     switch (_step) {
       case _Step.found:
         _useDifferentAddress();
-      case _Step.address when !_startedOnAddress:
-        _goTo(_Step.choose);
       default:
         _close(null, fromBackKey: fromBackKey);
     }
@@ -433,16 +406,6 @@ class _AddServerDialogState extends State<AddServerDialog> {
           _step = _Step.found;
         });
         _focusLater(_continueFocus);
-        return;
-      }
-      // Only Jellyfin, Emby and Silo answer that probe, so a Plex server goes
-      // to its plex.tv sign-in.
-      final plexUri = GetIt.instance.isRegistered<PlexTvService>()
-          ? await GetIt.instance<PlexTvService>().findServerAt(address)
-          : null;
-      if (!mounted) return;
-      if (plexUri != null) {
-        _close(AddServerPlexSignIn(plexUri));
         return;
       }
       final failure = widget.serverRepo.lastFailure;
@@ -555,7 +518,6 @@ class _AddServerDialogState extends State<AddServerDialog> {
   Widget build(BuildContext context) {
     final l10n = widget.l10n;
     final content = switch (_step) {
-      _Step.choose => _chooseStep(l10n),
       _Step.address => _addressStep(l10n),
       _Step.found => _foundStep(l10n),
     };
@@ -694,56 +656,6 @@ class _AddServerDialogState extends State<AddServerDialog> {
     onPressed: _isConnecting ? null : () => _close(null),
   );
 
-  Widget _chooseStep(AppLocalizations l10n) {
-    final accent = AppColorScheme.accent;
-    final plex = _serverTint(ServerType.plex);
-    final emby = _serverTint(ServerType.emby);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _header(
-          title: l10n.addServer,
-          subtitle: l10n.addServerChooseHow,
-          trailing: _closeButton(),
-        ),
-        const SizedBox(height: 20),
-        _ChoiceCard(
-          focusNode: _firstChoiceFocus,
-          tileColor: accent.withValues(alpha: 0.14),
-          icon: Icon(Icons.language_rounded, color: accent, size: 24),
-          title: l10n.serverAddress,
-          subtitle: l10n.addServerAddressChoice,
-          onTap: () => _goTo(_Step.address),
-        ),
-        const SizedBox(height: 10),
-        _ChoiceCard(
-          tileColor: plex.tile,
-          icon: ServerTypeIcon(
-            serverType: ServerType.plex,
-            size: 22,
-            color: plex.glyph,
-          ),
-          title: l10n.signInWithPlex,
-          subtitle: l10n.addServerPlexChoice,
-          onTap: () => _close(const AddServerPlexSignIn()),
-        ),
-        const SizedBox(height: 10),
-        _ChoiceCard(
-          tileColor: emby.tile,
-          icon: ServerTypeIcon(
-            serverType: ServerType.emby,
-            size: 24,
-            color: emby.glyph,
-          ),
-          title: l10n.embyConnect,
-          subtitle: l10n.embyConnectSignInSubtitle,
-          onTap: () => _close(const AddServerEmbyConnect()),
-        ),
-      ],
-    );
-  }
-
   Widget _addressStep(AppLocalizations l10n) {
     final isTV = PlatformDetection.isTV;
     final entered = widget.controller.text.trim();
@@ -754,13 +666,6 @@ class _AddServerDialogState extends State<AddServerDialog> {
         _header(
           title: l10n.connectToServer,
           subtitle: l10n.addServerAddressHelp,
-          leading: _startedOnAddress
-              ? null
-              : _RoundIconButton(
-                  icon: Icons.arrow_back_rounded,
-                  tooltip: l10n.back,
-                  onPressed: _isConnecting ? null : () => _goTo(_Step.choose),
-                ),
           trailing: _closeButton(),
         ),
         const SizedBox(height: 18),
@@ -1129,130 +1034,6 @@ class _StepEntrance extends StatelessWidget {
       ),
       child: child,
     );
-  }
-}
-
-class _ChoiceCard extends StatefulWidget {
-  const _ChoiceCard({
-    required this.icon,
-    required this.tileColor,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.focusNode,
-  });
-
-  final Widget icon;
-  final Color tileColor;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  final FocusNode? focusNode;
-
-  @override
-  State<_ChoiceCard> createState() => _ChoiceCardState();
-}
-
-class _ChoiceCardState extends State<_ChoiceCard> {
-  bool _hovered = false;
-  bool _focused = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final accent = AppColorScheme.accent;
-    final lit = _hovered || _focused;
-    final card = AnimatedScale(
-      scale: _focused && PlatformDetection.isTV ? 1.02 : 1,
-      duration: const Duration(milliseconds: 160),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        decoration: BoxDecoration(
-          color: _focused
-              ? accent.withValues(alpha: 0.12)
-              : _fg(lit ? 0.06 : 0.035),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _focused ? accent : _fg(lit ? 0.14 : 0.07)),
-          boxShadow: _focused
-              ? [
-                  BoxShadow(
-                    color: accent.withValues(alpha: 0.35),
-                    spreadRadius: 3,
-                  ),
-                ]
-              : const [],
-        ),
-        child: Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            focusNode: widget.focusNode,
-            onTap: widget.onTap,
-            onHover: (hovered) => setState(() => _hovered = hovered),
-            onFocusChange: (focused) => setState(() => _focused = focused),
-            borderRadius: BorderRadius.circular(18),
-            focusColor: Colors.transparent,
-            hoverColor: Colors.transparent,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: widget.tileColor,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    alignment: Alignment.center,
-                    child: widget.icon,
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.title,
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: _fg(0.95),
-                          ),
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          widget.subtitle,
-                          style: TextStyle(
-                            fontSize: 13,
-                            height: 1.35,
-                            color: _fg(0.6),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 160),
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: lit ? accent : _fg(0.06),
-                    ),
-                    child: Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 16,
-                      color: lit ? _onAccent : _fg(0.6),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    return Semantics(button: true, child: card);
   }
 }
 

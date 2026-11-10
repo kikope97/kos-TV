@@ -35,8 +35,6 @@ class Destinations {
   // Auth
   static const startup = '/';
   static const serverSelect = '/server-select';
-  static const embyConnect = '/emby-connect';
-  static const plexSignIn = '/plex-sign-in';
   static const webDiagnostics = '/_diag';
 
   static String webDiagnosticsRoute({
@@ -152,16 +150,9 @@ class Destinations {
   static const adminLogs = '/admin/logs';
   static const adminLogsFile = '/admin/logs/:fileName';
   static const adminLiveTv = '/admin/live-tv';
-  static const adminLiveTvChannels = '/admin/live-tv-channels';
   static const adminAnalytics = '/admin/analytics';
   static const adminAnalyticsItems = '/admin/analytics/items';
   static const adminMetadataEdit = '/admin/metadata/:itemId';
-  static const adminPremiere = '/admin/premiere';
-  static const adminDatabase = '/admin/database';
-  static const adminCinemaIntros = '/admin/cinema-intros';
-  static const adminDlna = '/admin/dlna';
-  static const adminCameraUpload = '/admin/camera-upload';
-  static const adminConversions = '/admin/conversions';
   static const adminGroup = '/admin/group/:groupId';
 
   // Settings

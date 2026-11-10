@@ -9,7 +9,6 @@ import 'package:server_core/server_core.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../util/error_message.dart';
 import '../../navigation/destinations.dart';
-import 'admin_nav.dart';
 import 'providers/admin_media_analytics_provider.dart';
 import 'providers/admin_status_providers.dart';
 import 'providers/admin_user_providers.dart';
@@ -174,7 +173,6 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
     );
     final activity = ref.watch(adminDashboardActivityProvider).valueOrNull;
     final alerts = ref.watch(adminDashboardAlertsProvider).valueOrNull;
-    final isEmby = AdminServerScope.isEmby(context);
 
     if (_loading) {
       return const Center(child: CircularProgressIndicator());
@@ -222,14 +220,12 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen> {
               sessionCount: sessionCount,
               alertCount: alerts?.totalRecordCount ?? 0,
               worstStorageFill: _worstStorageFill(_storageInfo),
-              // Emby reports its folders without their sizes.
-              showDisk: !isEmby,
+              showDisk: true,
             ),
             ServerInfoCard(systemInfo: _systemInfo!),
             ServerActionsCard(
               client: _client,
-              // Jellyfin's flag is obsolete, so only Emby's counts.
-              canRestart: !isEmby || _systemInfo!['CanSelfRestart'] != false,
+              canRestart: true,
             ),
             mediaSummary.when(
               loading: () => const Padding(

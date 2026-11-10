@@ -9,7 +9,6 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../util/error_message.dart';
 import '../../../../util/image_mime.dart';
 import '../admin_draft.dart';
-import '../admin_nav.dart';
 import '../widgets/admin_form_styles.dart';
 
 class AdminBrandingScreen extends StatefulWidget {
@@ -260,8 +259,6 @@ class _AdminBrandingScreenState extends State<AdminBrandingScreen>
           title: l10n.adminBrandingTitle,
           icon: Icons.brush_outlined,
         ),
-        // Emby has no splash screen.
-        if (!AdminServerScope.isEmby(context))
           adminSection(
             context,
             title: l10n.adminBrandingSplashSection,

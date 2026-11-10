@@ -316,10 +316,7 @@ class LogService extends ChangeNotifier {
       return 'Sign in to a server to send reports.';
     }
     return switch (client.serverType) {
-      ServerType.emby =>
-        'This Emby server needs the Moonfin plugin, with client log upload '
-            'turned on.',
-      ServerType.plex || ServerType.silo =>
+      ServerType.silo =>
         'This server needs Moonbase, with client log upload turned on.',
       _ => 'The active server does not support report uploads.',
     };

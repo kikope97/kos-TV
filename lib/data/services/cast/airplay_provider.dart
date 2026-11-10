@@ -1,8 +1,6 @@
 import 'package:get_it/get_it.dart';
 import 'package:playback_core/playback_core.dart';
-import 'package:playback_emby/playback_emby.dart';
 import 'package:playback_jellyfin/playback_jellyfin.dart';
-import 'package:playback_plex/playback_plex.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../l10n/current_app_localizations.dart';
@@ -40,8 +38,6 @@ class AirPlayProvider
   MediaStreamResolver _resolverForClient(MediaServerClient client) {
     return switch (client.serverType) {
       ServerType.jellyfin => JellyfinPlugin(client).createStreamResolver(),
-      ServerType.emby => EmbyPlugin(client).createStreamResolver(),
-      ServerType.plex => PlexMediaStreamResolver(client),
       // The Apple TV loads the stream itself.
       ServerType.silo => siloPluginFor(
         client,

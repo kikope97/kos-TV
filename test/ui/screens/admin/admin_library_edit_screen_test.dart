@@ -5,7 +5,6 @@ import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/ui/screens/admin/admin_draft.dart';
-import 'package:moonfin/ui/screens/admin/admin_nav.dart';
 import 'package:moonfin/ui/screens/admin/libraries/admin_library_edit_screen.dart';
 import 'package:server_core/server_core.dart';
 
@@ -157,7 +156,7 @@ void main() {
     await GetIt.instance.reset();
   });
 
-  Future<void> pump(WidgetTester tester, {bool onEmby = false}) async {
+  Future<void> pump(WidgetTester tester) async {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -168,12 +167,7 @@ void main() {
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
           home: Scaffold(
-            body: onEmby
-                ? const AdminServerScope(
-                    serverType: ServerType.emby,
-                    child: page,
-                  )
-                : page,
+            body: page,
           ),
         ),
       ),
@@ -365,135 +359,4 @@ void main() {
     expect(find.widgetWithText(FilledButton, l10n.save), findsNothing);
   });
 
-  group('on Emby', () {
-    // An Emby 4.9 series library's options, trimmed.
-    Map<String, dynamic> embyOptions() => {
-          'EnablePhotos': true,
-          'EnableRealtimeMonitor': true,
-          'EnableMarkerDetection': false,
-          'EnableMarkerDetectionDuringLibraryScan': false,
-          'EnableChapterImageExtraction': false,
-          'ExtractChapterImagesDuringLibraryScan': false,
-          'ExcludeFromSearch': false,
-          'PathInfos': [
-            {'Path': '/media/main'},
-          ],
-          'SaveLocalMetadata': false,
-          'SaveLocalThumbnailSets': false,
-          'ImportPlaylists': true,
-          'EnableAutomaticSeriesGrouping': true,
-          'EnableEmbeddedTitles': false,
-          'AutomaticRefreshIntervalDays': 0,
-          'ContentType': 'tvshows',
-          'DisabledLyricsFetchers': [],
-          'LyricsFetcherOrder': [],
-          'SaveLyricsWithMedia': true,
-          'SubtitleDownloadLanguages': [],
-          'ForcedSubtitlesOnly': false,
-          'RequirePerfectSubtitleMatch': true,
-          'SaveSubtitlesWithMedia': true,
-          'TypeOptions': [],
-          'ImportCollections': false,
-          'MinResumePct': 2,
-          'MaxResumePct': 90,
-          'MinResumeDurationSeconds': 120,
-          'ThumbnailImagesIntervalSeconds': -1,
-        };
-
-    Finder textField(String label) => find.descendant(
-          of: find
-              .ancestor(of: find.text(label), matching: find.byType(Padding))
-              .first,
-          matching: find.byType(EditableText),
-        );
-
-    testWidgets('a series library shows Emby rows and saves them', (
-      tester,
-    ) async {
-      await setUpServer(type: 'tvshows');
-      api.options = embyOptions();
-      await pump(tester, onEmby: true);
-      await openTab(tester, l10n.adminLibraryTabOptions);
-
-      for (final label in [
-        l10n.adminLibEnableLibrary,
-        l10n.adminLibTrickplayExtraction,
-        l10n.adminLibEmbeddedEpisodeInfos,
-        l10n.adminLibAllowEmbeddedSubtitles,
-      ]) {
-        expect(find.text(label), findsNothing, reason: label);
-      }
-      expect(find.text(l10n.adminLibImportPlaylists), findsOneWidget);
-
-      await tester.ensureVisible(find.text(l10n.adminLibIntroDetection));
-      await tester.tap(find.text(l10n.adminLibIntroDetection));
-      await tester.pump();
-      await tester.ensureVisible(find.text(l10n.adminLibThumbnailAtChapters));
-      await tester.tap(find.text(l10n.adminLibThumbnailAtChapters));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(l10n.adminLibThumbnailEverySeconds(10)).last);
-      await tester.pumpAndSettle();
-      await tester.ensureVisible(textField(l10n.adminResumeMinPct));
-      await tester.enterText(textField(l10n.adminResumeMinPct), '5');
-      // A blank entry keeps the stored value.
-      await tester.enterText(textField(l10n.adminResumeMaxPct), '');
-      await tester.pump();
-
-      expect(await AdminDraft.active.value!.save(), isTrue);
-      final posted = api.posted.single;
-      expect(posted['EnableMarkerDetection'], isTrue);
-      expect(posted['ThumbnailImagesIntervalSeconds'], 10);
-      expect(posted['MinResumePct'], 5);
-      expect(posted['MaxResumePct'], 90);
-      expect(posted.containsKey('Enabled'), isFalse);
-      expect(posted.containsKey('EnableTrickplayImageExtraction'), isFalse);
-    });
-
-    testWidgets('a movies library imports collections, with no intro markers', (
-      tester,
-    ) async {
-      await setUpServer();
-      api.options = embyOptions()..['ContentType'] = 'movies';
-      await pump(tester, onEmby: true);
-      await openTab(tester, l10n.adminLibraryTabOptions);
-
-      expect(find.text(l10n.adminLibIntroDetection), findsNothing);
-      expect(find.text(l10n.adminLibAutoAddToCollection), findsNothing);
-      await tester.ensureVisible(find.text(l10n.adminLibImportCollections));
-      await tester.tap(find.text(l10n.adminLibImportCollections));
-      await tester.pump();
-
-      expect(await AdminDraft.active.value!.save(), isTrue);
-      expect(api.posted.single['ImportCollections'], isTrue);
-      expect(api.posted.single.containsKey('AutomaticallyAddToCollection'),
-          isFalse);
-    });
-
-    testWidgets('a music library lists Emby lyric downloaders', (tester) async {
-      await setUpServer(type: 'music');
-      api.options = embyOptions()..['ContentType'] = 'music';
-      api.availableExtras = {
-        'LyricsFetchers': [
-          {'Name': 'Lyrics Finder', 'DefaultEnabled': true},
-        ],
-      };
-      await pump(tester, onEmby: true);
-      await openTab(tester, l10n.adminLibraryTabOptions);
-      expect(find.text(l10n.adminLibLufsScan), findsNothing);
-      expect(find.text(l10n.adminLibCustomTagDelimiters), findsNothing);
-
-      await openTab(tester, l10n.adminLibraryTabDownloaders);
-      expect(find.text(l10n.adminLibLyricDownloaders.toUpperCase()),
-          findsOneWidget);
-      await tester.tap(find.descendant(
-        of: find.widgetWithText(Row, 'Lyrics Finder').last,
-        matching: find.byType(Checkbox),
-      ));
-      await tester.pump();
-
-      expect(await AdminDraft.active.value!.save(), isTrue);
-      expect(api.posted.single['DisabledLyricsFetchers'], ['Lyrics Finder']);
-      expect(api.posted.single['LyricsFetcherOrder'], ['Lyrics Finder']);
-    });
-  });
 }

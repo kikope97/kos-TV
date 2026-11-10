@@ -52,10 +52,4 @@ void main() {
     expect(find.text('Approve a sign-in'), findsNothing);
   });
 
-  testWidgets('Emby has neither', (tester) async {
-    await openHubOn(tester, ServerType.emby);
-
-    expect(find.text('Quick Connect'), findsNothing);
-    expect(find.text('Approve a sign-in'), findsNothing);
-  });
 }

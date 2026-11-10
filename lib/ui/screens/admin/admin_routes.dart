@@ -12,13 +12,6 @@ import 'admin_nav.dart';
 import 'admin_shell_screen.dart';
 import 'backups/admin_backups_screen.dart';
 import 'devices/admin_devices_screen.dart';
-import 'emby/admin_config_form.dart';
-import 'emby/admin_emby_backups_screen.dart';
-import 'emby/admin_emby_transcoding_screen.dart';
-import 'emby/admin_live_tv_channels_screen.dart';
-import 'emby/admin_premiere_screen.dart';
-import 'emby/admin_sync_jobs_list.dart';
-import 'emby/emby_config_pages.dart';
 import 'keys/admin_api_keys_screen.dart';
 import 'libraries/admin_libraries_screen.dart';
 import 'libraries/admin_library_add_screen.dart';
@@ -96,11 +89,7 @@ final adminShellRoute = ShellRoute(
     _page(Destinations.adminSettings, (_) => const AdminGeneralSettingsScreen()),
     _page(
       Destinations.adminSettingsPlayback,
-      (_) => Builder(
-        builder: (context) => AdminServerScope.isEmby(context)
-            ? const AdminEmbyTranscodingScreen()
-            : const AdminPlaybackSettingsScreen(),
-      ),
+      (_) => const AdminPlaybackSettingsScreen(),
     ),
     _page(
       Destinations.adminSettingsResume,
@@ -110,11 +99,7 @@ final adminShellRoute = ShellRoute(
     _page(Destinations.adminSettingsTrickplay, (_) => const AdminTrickplayScreen()),
     _page(
       Destinations.adminSettingsNetworking,
-      (_) => Builder(
-        builder: (context) => AdminServerScope.isEmby(context)
-            ? AdminConfigFormScreen(page: embyNetworkingPage)
-            : const AdminNetworkingScreen(),
-      ),
+      (_) => const AdminNetworkingScreen(),
     ),
     _page(Destinations.adminSettingsBranding, (_) => const AdminBrandingScreen()),
     _page(
@@ -148,38 +133,15 @@ final adminShellRoute = ShellRoute(
     _page(Destinations.adminKeys, (_) => const AdminApiKeysScreen()),
     _page(
       Destinations.adminBackups,
-      (_) => Builder(
-        builder: (context) => AdminServerScope.isEmby(context)
-            ? const AdminEmbyBackupsScreen()
-            : const AdminBackupsScreen(),
-      ),
+      (_) => const AdminBackupsScreen(),
     ),
     _page(Destinations.adminLogs, (_) => const AdminLogsScreen()),
-    _page(Destinations.adminPremiere, (_) => const AdminPremiereScreen()),
-    for (final (route, page) in [
-      (Destinations.adminDatabase, databasePage),
-      (Destinations.adminCinemaIntros, cinemaIntrosPage),
-      (Destinations.adminDlna, dlnaPage),
-      (Destinations.adminCameraUpload, cameraUploadPage),
-    ])
-      _page(route, (_) => AdminConfigFormScreen(page: page)),
-    _page(
-      Destinations.adminConversions,
-      (_) => AdminConfigFormScreen(
-        page: conversionsPage,
-        footer: const AdminSyncJobsList(),
-      ),
-    ),
     _page(
       Destinations.adminLogsFile,
       // go_router already decodes path parameters, no need for a second decode
       (s) => AdminLogViewerScreen(fileName: s.pathParameters['fileName']!),
     ),
     _page(Destinations.adminLiveTv, (_) => const AdminLiveTvScreen()),
-    _page(
-      Destinations.adminLiveTvChannels,
-      (_) => const AdminLiveTvChannelsScreen(),
-    ),
     _page(
       Destinations.adminMetadataEdit,
       (s) => AdminMetadataEditScreen(itemId: s.pathParameters['itemId']!),

@@ -1734,8 +1734,6 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
     if (token == null || token.isEmpty) {
       return const {};
     }
-    if (_client.serverType == ServerType.plex) return {'X-Plex-Token': token};
-
     return {
       'X-Emby-Token': token,
       'Authorization': 'MediaBrowser Token="$token"',
@@ -1954,8 +1952,6 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
     AggregatedItem item, {
     required String primaryUrl,
   }) {
-    // The other routes are all Jellyfin's.
-    if (_client.serverType == ServerType.plex) return const [];
     final candidates = <String>[
       if (item.type == 'Book')
         ...BookReaderService.buildDownloadUris(
@@ -2190,15 +2186,6 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
   }
 
   String _buildDirectItemDownloadUrl(AggregatedItem item) {
-    if (_client.serverType == ServerType.plex) {
-      final part = item.mediaSources.firstOrNull?['DirectStreamUrl'];
-      final query = _encodeQuery({
-        'download': '1',
-        ..._baseDownloadParams(item, includeMediaSourceId: false),
-      });
-      return '${_client.baseUrl}$part?$query';
-    }
-    // Emby picks the version from MediaSourceId, not from the path.
     final query = _encodeQuery(
       _baseDownloadParams(
         item,
@@ -3823,9 +3810,7 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
       // answers .pgssub with an empty file. Jellyfin only takes .pgssub.
       if (!isExternal && !supportsExternal && !isPgs) continue;
       final index = stream['Index'] as int? ?? 0;
-      final format = isPgs && _client.serverType == ServerType.emby
-          ? 'sup'
-          : ext;
+      final format = ext;
       // DeliveryUrl is computed by the server during PlaybackInfo and is often
       // absent from the plain item metadata. Fall back to the stable subtitle
       // stream endpoint so offline downloads match the streaming path.

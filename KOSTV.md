@@ -22,6 +22,12 @@ git cherry-pick <commit>
 | Firebase y notificaciones push desactivados (eran del proyecto de Moonfin) | `android/app/build.gradle.kts`, `lib/data/services/push_messaging_service.dart` | Hecho |
 | Comprobador de actualizaciones conservado pero sin consultar a Moonfin | `lib/data/services/app_update_service.dart` (`_releaseRepo`) | Hecho |
 | Workflows que publican fuera (AUR, winget, Pages…) desactivados | `.github/workflows-disabled/` | Hecho |
+| Sin versiones de escritorio (Windows, Linux, macOS): carpetas, scripts y trabajos de CI | — | Hecho |
+| Sin Plex ni Emby: paquetes `server_/playback_` de ambos, `ServerType.emby/plex`, inicio de sesión con Plex y Emby Connect, búsqueda de Plex en la red, Moonbase para Plex, pantallas de administración solo de Emby y avisos de Emby Premiere | `packages/server_core`, `lib/`, `test/` | Hecho |
+| Sin Silo | — | Pendiente (ver abajo) |
+
+Un servidor Emby ya no se reconoce: la búsqueda de servidores lo descarta y al
+escribir su dirección se informa de que no hay un servidor compatible.
 
 El namespace interno de Android (`org.moonfin.androidtv`) y los nombres de los
 canales nativos se mantienen a propósito: son internos y cambiarlos solo añade
@@ -29,6 +35,14 @@ riesgo.
 
 ## Pendiente
 
+- **Quitar Silo.** Está muy entrelazado con "Ver juntos" (Watch Party): la
+  pantalla y el gestor de salas, que también usa Moonbase con Jellyfin, viven en
+  archivos `silo_*` y usan los modelos de sala de `packages/server_silo`
+  (`SiloRoom`, `SiloRoomAccess`, `SiloRoomSuggestion`…). Hay que sacar esos
+  modelos a la app antes de borrar los paquetes `server_silo` y `playback_silo`.
+- **Restos de Emby en el panel de administración.** `library_options_form.dart`
+  y `admin_user_edit_screen.dart` conservan filas solo de Emby tras un
+  `_emby => false`; se pueden borrar con calma.
 - **Clave de firma propia para el APK.** Sin ella, CI firma con una clave de
   depuración distinta en cada build y una versión nueva no se puede instalar
   encima de la anterior. Hay que crear un keystore y guardarlo como secretos del

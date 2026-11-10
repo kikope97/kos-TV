@@ -19,7 +19,7 @@ import 'package:moonfin/data/services/connectivity_service.dart';
 import 'package:moonfin/data/services/pending_rating_store.dart';
 import 'package:moonfin/data/services/sync_service.dart';
 import 'package:server_core/server_core.dart';
-import 'package:server_emby/server_emby.dart';
+import 'package:server_jellyfin/src/api/jellyfin_system_api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockClient extends Mock implements MediaServerClient {}
@@ -94,7 +94,7 @@ class _FakeServer {
     when(() => client.serverType).thenReturn(ServerType.jellyfin);
     // The connectivity probe pings through the client.
     when(() => client.systemApi)
-        .thenReturn(EmbySystemApi(Dio(BaseOptions(baseUrl: baseUrl))));
+        .thenReturn(JellyfinSystemApi(Dio(BaseOptions(baseUrl: baseUrl))));
     when(() => client.itemsApi).thenReturn(items);
     when(() => client.playbackApi).thenReturn(playback);
     when(() => client.userLibraryApi).thenReturn(library);

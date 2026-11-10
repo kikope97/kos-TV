@@ -105,20 +105,4 @@ void main() {
     expect(await AudiobookNotesService().load('s1', 'book-1'), hasLength(1));
   });
 
-  test('Emby: the same calls reach the server', () async {
-    final emby = client(ServerType.emby);
-
-    await askEverything(emby);
-
-    expect(hits, contains('/Moonfin/Tmdb/EpisodeRating'));
-    expect(hits, contains('/Moonfin/MdbList/Ratings'));
-    expect(hits, contains('/Moonfin/AnimeMarkers/Series'));
-    expect(hits, contains('/Moonfin/UserRatings/Mine'));
-    expect(hits, contains('/Moonfin/Bookmarks/book-1'));
-    expect(hits, contains('/Moonfin/Bookmarks/book-1/Notes'));
-    expect(
-      TmdbRepository(emby).thumbUrl(type: 'movie', tmdbId: '1'),
-      isNotNull,
-    );
-  });
 }

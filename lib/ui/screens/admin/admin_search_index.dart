@@ -2,7 +2,6 @@ import 'package:server_core/server_core.dart';
 
 import '../../../l10n/app_localizations.dart';
 import 'admin_nav.dart';
-import 'emby/emby_config_pages.dart';
 import 'search/library_search_entries.dart';
 import 'search/livetv_search_entries.dart';
 import 'search/overview_search_entries.dart';
@@ -42,7 +41,6 @@ class AdminSearchEntry {
 
 /// [AdminSearchEntry.servers] for a row only one server has.
 const jellyfinOnly = {ServerType.jellyfin};
-const embyOnly = {ServerType.emby};
 
 /// A settings row on [page]. Its anchor is `<page>.<key>`, the id the page
 /// gives the row's AdminSettingAnchor.
@@ -74,9 +72,7 @@ List<AdminSearchEntry> adminSearchEntries(ServerType server) => [
     ...systemSearchEntries,
   ])
     if (adminPageById(entry.pageId)?.availableOn(server) ?? false)
-      if (server != ServerType.emby || !embyOwnPages.contains(entry.pageId))
-        if (entry.servers?.contains(server) ?? true) entry,
-  if (server == ServerType.emby) ...embySearchEntries,
+      if (entry.servers?.contains(server) ?? true) entry,
 ];
 
 /// Every word of [query] has to appear in the label or where it lives.

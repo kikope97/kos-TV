@@ -161,19 +161,6 @@ void main() {
     expect(find.text('Films'), findsWidgets);
   });
 
-  testWidgets('Emby is asked for the year and rating it leaves out', (
-    tester,
-  ) async {
-    when(() => client.serverType).thenReturn(ServerType.emby);
-    await pump(tester);
-
-    final insights = items.calls.where((c) => c[#fields] != null);
-    expect(
-      insights.single[#fields],
-      'Genres,MediaSources,ProductionYear,OfficialRating',
-    );
-  });
-
   testWidgets('a tapped codec lists its items, which open the editor', (
     tester,
   ) async {

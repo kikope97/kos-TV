@@ -99,16 +99,6 @@ class _PluginScreenState extends State<_PluginScreen> {
                   bottom: 48 + MediaQuery.paddingOf(context).bottom,
                 ),
                 children: [
-                  if (_client case final client?)
-                    if (plexMoonbasePreference(client)
-                        case final moonbaseUrl?)
-                      _EditableStringPreferenceTile(
-                        preference: moonbaseUrl,
-                        title: l10n.moonbaseAddress,
-                        icon: Icons.dns_outlined,
-                        hintText: plexMoonbaseDefault(client) ?? '',
-                        onChanged: (_) => _refresh(context),
-                      ),
                   const PluginSettingsSection(),
                 ],
               ),

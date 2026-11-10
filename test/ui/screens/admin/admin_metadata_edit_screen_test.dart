@@ -260,11 +260,6 @@ void main() {
     expect(find.text(l10n.adminContentType), findsNothing);
   });
 
-  testWidgets('Emby has no content type action', (tester) async {
-    await pump(tester, server: ServerType.emby);
-    expect(find.text(l10n.adminContentType), findsNothing);
-  });
-
   testWidgets('refresh sends the picked mode', (tester) async {
     await pump(tester);
 

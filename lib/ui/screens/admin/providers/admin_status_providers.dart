@@ -111,9 +111,3 @@ final adminNotificationSummaryProvider =
   }
 });
 
-/// Emby's Premiere license, null on Jellyfin.
-final premiereStatusProvider = FutureProvider.autoDispose<PremiereStatus?>(
-  (ref) =>
-      GetIt.instance<MediaServerClient>().embyAdminApi?.getPremiereStatus() ??
-      Future.value(),
-);

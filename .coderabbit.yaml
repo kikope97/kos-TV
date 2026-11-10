@@ -36,8 +36,8 @@ reviews:
   path_instructions:
     - path: "**/*.dart"
       instructions: |
-        Moonfin is one Flutter app that ships on Android phones and tablets, Android TV and Fire TV, iOS, tvOS, macOS, Windows, Linux and the web, and it talks to both Jellyfin and Emby servers.
-        - Shared code has to work against both servers. Server specific behavior belongs in packages/server_jellyfin, packages/server_emby, packages/playback_jellyfin and packages/playback_emby. Flag code outside those packages that only works on one server type.
+        Kos TV (a fork of Moonfin) is one Flutter app that ships on Android TV first, with Android phones, iOS, tvOS and the web from the same code, and it talks to Jellyfin servers.
+        - Server specific behavior belongs in packages/server_jellyfin and packages/playback_jellyfin. Flag Jellyfin API details that leak into shared code.
         - Every screen has to work with a TV remote. New interactive widgets need a focus node, a visible focus state, and a D-pad path in and out. Flag UI that can only be reached by touch or mouse when it also shows on TV.
         - To decide whether a FocusNode is a real D-pad target, check `node.context?.mounted == true`. `context != null` stays true after the widget is gone, because detach never clears it.
         - Server image URLs send `quality=90`, the same `_artworkQuality` that JellyfinImageApi and EmbyImageApi use. Left out, the server encodes at quality 100, about three times the bytes.

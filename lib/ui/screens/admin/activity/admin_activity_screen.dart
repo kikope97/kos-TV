@@ -12,7 +12,6 @@ import '../../../util/error_message.dart';
 import '../../../../data/services/socket_handler.dart';
 import '../../../widgets/adaptive/adaptive_dialog.dart';
 import '../../detail/modern/widgets/details_tab_bar.dart';
-import '../admin_nav.dart';
 import '../widgets/activity_log_ui.dart';
 import '../widgets/admin_form_styles.dart';
 
@@ -41,8 +40,6 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
   String? _severityFilter;
   String? _userFilter;
   Map<String, String> _userNames = const {};
-  final _lookedUp = <String>{};
-  late final _isEmby = AdminServerScope.isEmby(context);
   bool _isLoading = false;
   bool _hasMore = true;
   int _totalCount = 0;
@@ -70,14 +67,13 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
     _socketSubscription = socket.events.listen((event) {
       switch (event) {
         case ServerEventMessage(:final type) when type == 'ActivityLogEntry':
-          if (primed || _isEmby) _refresh();
+          if (primed) _refresh();
           primed = true;
         default:
           break;
       }
     });
-    // On Emby, _resolveUserNames names the users instead.
-    if (!_isEmby) _loadUsers();
+    _loadUsers();
     _loadPage();
   }
 
@@ -103,24 +99,6 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
           });
     } catch (_) {
       // The list still works without names.
-    }
-  }
-
-  /// Emby's entries carry its internal user number, which the user list
-  /// doesn't have, but the user endpoint accepts. Each is looked up once.
-  Future<void> _resolveUserNames(List<ActivityLogEntry> entries) async {
-    for (final id in {for (final e in entries) ?e.userId}) {
-      if (!_lookedUp.add(id)) continue;
-      try {
-        final user = await _client.adminUsersApi.getUserById(id);
-        if (!mounted) return;
-        final name = user.name;
-        if (name != null) {
-          setState(() => _userNames = {..._userNames, id: name});
-        }
-      } catch (_) {
-        // The entry just shows without a name.
-      }
     }
   }
 
@@ -165,7 +143,6 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
         _hasMore = _entries.length < _totalCount;
         _isLoading = false;
       });
-      if (_isEmby) _resolveUserNames(result.items);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -248,9 +225,7 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              // Emby filters by start date only, with no end date, severity or
-              // user, so these would mislead.
-              if (!_isEmby) ...[
+              ...[
                 FilterChip(
                   selected: _dateRange != null,
                   label: Text(

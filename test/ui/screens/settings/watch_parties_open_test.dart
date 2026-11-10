@@ -156,7 +156,6 @@ void main() {
 
   for (final (type, shown) in [
     (ServerType.jellyfin, true),
-    (ServerType.emby, false),
   ]) {
     testWidgets('SyncPlay correction ${shown ? 'shows' : 'is hidden'} on '
         '${type.name}', (tester) async {

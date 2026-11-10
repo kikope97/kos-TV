@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playback_core/playback_core.dart';
-import 'package:playback_emby/playback_emby.dart';
 import 'package:playback_jellyfin/playback_jellyfin.dart';
 import 'package:server_core/server_core.dart';
 
@@ -277,101 +276,6 @@ void main() {
     test('anything without a type is not a channel', () {
       expect(MediaStreamResolver.isLiveTvItem(null), isFalse);
       expect(MediaStreamResolver.isLiveTvItem('ch1'), isFalse);
-    });
-  });
-
-  group('EmbyMediaStreamResolver.resolve', () {
-    test('sends the MPEG-TS HLS entry first and two 3 s segments for a '
-        'channel', () async {
-      final api = _FakePlaybackApi();
-      final resolver = EmbyMediaStreamResolver(_FakeClient(api));
-
-      final result = await resolver.resolve(
-        <String, dynamic>{'Id': 'ch1', 'Type': 'TvChannel'},
-        deviceProfile: _appleStyleProfile(),
-        enableDirectPlay: false,
-      );
-
-      final sent = api.lastBody!['DeviceProfile'] as Map<String, dynamic>;
-      expect(_containers(sent), ['Video:ts', 'Video:mp4', 'Audio:ts']);
-      expect(
-        _segmentFields(sent),
-        ['Video:3/2', 'Video:3/2', 'Audio:null/null'],
-      );
-      expect(result.playMethod, StreamPlayMethod.transcode);
-      expect(result.liveStreamId, 'ls1');
-    });
-
-    Map<String, dynamic> liveSource({
-      String path = 'http://127.0.0.1:8096/LiveTv/LiveStreamFiles/abc/stream.ts',
-      bool directStream = true,
-    }) => <String, dynamic>{
-      'Id': 'ms1',
-      'Container': 'mpegts',
-      'LiveStreamId': 'ls1',
-      'Path': path,
-      'SupportsDirectPlay': false,
-      'SupportsDirectStream': directStream,
-      'SupportsTranscoding': true,
-      if (directStream)
-        'DirectStreamUrl':
-            '/videos/ch1/original.mpegts?DeviceId=d&MediaSourceId=ms1'
-            '&LiveStreamId=ls1',
-      'TranscodingUrl': '/videos/ch1/master.m3u8?DeviceId=d&SegmentContainer=ts',
-    };
-
-    Future<StreamResolutionResult> playChannel(Map<String, dynamic> source) =>
-        EmbyMediaStreamResolver(
-          _FakeClient(_FakePlaybackApi(source: source)),
-        ).resolve(
-          <String, dynamic>{'Id': 'ch1', 'Type': 'TvChannel'},
-          deviceProfile: _appleStyleProfile(),
-        );
-
-    test("plays Emby's direct stream instead of its LiveStreamFiles copy",
-        () async {
-      final result = await playChannel(liveSource());
-
-      expect(result.playMethod, StreamPlayMethod.directStream);
-      expect(
-        result.streamUrl,
-        startsWith('https://server/videos/ch1/original.mpegts?'),
-      );
-    });
-
-    test('falls back to the transcode when Emby offers no direct stream',
-        () async {
-      final result = await playChannel(liveSource(directStream: false));
-
-      expect(result.playMethod, StreamPlayMethod.transcode);
-      expect(result.streamUrl, contains('/videos/ch1/master.m3u8'));
-    });
-
-    test('plays a remote upstream as is', () async {
-      final result = await playChannel(
-        liveSource(path: 'https://provider.example/live/1'),
-      );
-
-      expect(result.playMethod, StreamPlayMethod.directPlay);
-      expect(result.streamUrl, 'https://provider.example/live/1');
-    });
-
-    test('sends a movie profile unchanged', () async {
-      final api = _FakePlaybackApi();
-      final resolver = EmbyMediaStreamResolver(_FakeClient(api));
-
-      await resolver.resolve(
-        <String, dynamic>{'Id': 'm1', 'Type': 'Movie'},
-        deviceProfile: _appleStyleProfile(),
-        enableDirectPlay: false,
-      );
-
-      final sent = api.lastBody!['DeviceProfile'] as Map<String, dynamic>;
-      expect(_containers(sent), ['Video:mp4', 'Video:ts', 'Audio:ts']);
-      expect(
-        _segmentFields(sent),
-        ['Video:null/null', 'Video:null/null', 'Audio:null/null'],
-      );
     });
   });
 

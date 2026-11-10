@@ -16,9 +16,7 @@ class FeatureDetector {
   });
 
   bool get _isJellyfin => serverType == ServerType.jellyfin;
-  bool get _isEmby => serverType == ServerType.emby;
   bool get _isSilo => serverType == ServerType.silo;
-  bool get _isPlex => serverType == ServerType.plex;
 
   bool get supportsSyncPlay => _isJellyfin;
   /// Sprite-sheet seek previews (Jellyfin's `Trickplay`). Silo's are read
@@ -30,8 +28,7 @@ class FeatureDetector {
   bool get supportsMediaSegments => _isJellyfin || _isSilo;
 
   /// Intro and credits segments for skip overlays: Jellyfin through the
-  /// MediaSegments API, Emby through chapter markers, Plex and Silo through
-  /// their own markers.
+  /// MediaSegments API, Silo through its own markers.
   bool get supportsSkipSegments => true;
 
   /// Signing in with a code (Jellyfin's Quick Connect, Silo's device sign-in)
@@ -45,7 +42,8 @@ class FeatureDetector {
 
   bool get supportsClientLog => _isJellyfin;
 
-  bool get supportsBifTrickplay => _isEmby;
+  /// BIF trickplay files were Emby's. Kos TV dropped Emby, so never.
+  bool get supportsBifTrickplay => false;
 
   /// Seerr requests and discovery. Moonfin reaches Seerr through the Moonfin
   /// plugin's proxy (`/Moonfin/Seerr/*`) on Jellyfin and Emby. On Silo the
@@ -76,21 +74,19 @@ class FeatureDetector {
   /// Instant mix. Silo has no equivalent.
   bool get supportsInstantMix => !_isSilo;
 
-  /// Moonfin's admin panel, which speaks the Jellyfin and Emby admin APIs.
+  /// Moonfin's admin panel, which speaks the Jellyfin admin API.
   /// Silo is administered from its own web app.
-  bool get supportsAdmin => _isJellyfin || _isEmby;
+  bool get supportsAdmin => _isJellyfin;
 
-  /// The Moonfin server plugin, Moonbase. Jellyfin and Emby serve it at the
-  /// server root. Silo serves it under the plugin's installation id, and Plex,
-  /// which can't run plugins, through a companion service. Those two only have
+  /// The Moonfin server plugin, Moonbase. Jellyfin serves it at the server
+  /// root. Silo serves it under the plugin's installation id and only has
   /// part of it, see [supportsFullMoonfinPlugin].
-  bool get supportsMoonfinPlugin =>
-      _isJellyfin || _isEmby || _isSilo || _isPlex;
+  bool get supportsMoonfinPlugin => _isJellyfin || _isSilo;
 
   /// The rest of the Moonfin plugin's routes (`/Moonfin/*` at the server
   /// root: Seerr proxy, games, anime markers, custom rows, bookmarks...),
-  /// which only the Jellyfin and Emby plugins have.
-  bool get supportsFullMoonfinPlugin => _isJellyfin || _isEmby;
+  /// which only the Jellyfin plugin has.
+  bool get supportsFullMoonfinPlugin => _isJellyfin;
 
   /// Remote control: listing the account's other sessions and sending them
   /// play, pause and navigation commands (the Jellyfin/Emby Sessions API).
@@ -103,37 +99,30 @@ class FeatureDetector {
   /// wouldn't stick there. Every Silo library gets a Latest row.
   bool get supportsLatestItemsExcludes => !_isSilo;
 
-  /// Personal likes and dislikes. Plex has none, and its own rating already
-  /// stands in for favorites.
-  bool get supportsPersonalRatings => !_isPlex;
+  /// Personal likes and dislikes.
+  bool get supportsPersonalRatings => true;
 
-  /// Favoriting people. Plex can only favorite media, and Silo keeps no
-  /// person favorites.
-  bool get supportsPersonFavorites => !_isPlex && !_isSilo;
+  /// Favoriting people. Silo keeps no person favorites.
+  bool get supportsPersonFavorites => !_isSilo;
 
-  /// Trailer links on items. Plex keeps none, so a trailer is searched for on
-  /// YouTube instead.
-  bool get supportsRemoteTrailers => !_isPlex;
+  /// Trailer links on items.
+  bool get supportsRemoteTrailers => true;
 
-  /// Downloading a transcoded copy. Plex's transcoder makes streams rather
-  /// than files, so Plex only downloads originals.
-  bool get supportsTranscodedDownloads => !_isPlex;
+  /// Downloading a transcoded copy.
+  bool get supportsTranscodedDownloads => true;
 
-  /// The 4K filter in the library picker. Emby's items query takes no 4K
-  /// flag. Silo filters 4K by resolution.
-  bool get supportsUhdFilter => !_isEmby;
+  /// The 4K filter in the library picker. Silo filters 4K by resolution.
+  bool get supportsUhdFilter => true;
 
   /// The series status, likes, 3D, extras and disc source filters in the
-  /// library picker. Plex keeps none of these.
-  bool get supportsExtraLibraryFilters => !_isPlex;
+  /// library picker.
+  bool get supportsExtraLibraryFilters => true;
 
-  /// The unreleased series filter in the library picker. Emby's series
-  /// status holds only continuing and ended.
+  /// The unreleased series filter in the library picker.
   bool get supportsUnreleasedSeriesFilter => _isJellyfin;
 
-  /// The guide's sports, news and kids filters. Plex programs never carry
-  /// those flags, so the filters would always come up empty there.
-  bool get supportsGuideCategoryFilters => !_isPlex;
+  /// The guide's sports, news and kids filters.
+  bool get supportsGuideCategoryFilters => true;
 
   /// Whether adding to or removing from a collection needs the user's
   /// collection permission (or admin). Only Jellyfin gates it.

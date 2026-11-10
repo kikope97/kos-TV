@@ -75,19 +75,19 @@ abstract final class SubtitleCueLoader {
       return text == null ? null : parseSubtitleText(text);
     }
 
-    // Jellyfin and Emby turn any text track into JSON, embedded ones and ASS
+    // Jellyfin turns any text track into JSON, embedded ones and ASS
     // included, which a sidecar URL can't offer.
     final type = client?.serverType;
     if (client != null &&
         itemId != null &&
-        (type == ServerType.jellyfin || type == ServerType.emby)) {
+        type == ServerType.jellyfin) {
       final token = client.accessToken;
       final response = await _dio.get<String>(
         '${client.baseUrl}/Videos/${Uri.encodeComponent(itemId)}/'
         '${Uri.encodeComponent(resolution.mediaSourceId)}/Subtitles/$streamIndex/Stream.js',
         options: Options(headers: {
           'Authorization': buildServerAuthorizationHeader(
-            scheme: type == ServerType.emby ? 'Emby' : 'MediaBrowser',
+            scheme: 'MediaBrowser',
             deviceInfo: client.deviceInfo,
             accessToken: token,
           ),

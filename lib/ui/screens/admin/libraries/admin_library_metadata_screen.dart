@@ -6,7 +6,6 @@ import 'package:server_core/server_core.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../util/error_message.dart';
 import '../admin_draft.dart';
-import '../admin_nav.dart';
 import '../widgets/admin_form_styles.dart';
 
 /// Server-wide preferred metadata language/country and chapter image settings.
@@ -57,11 +56,10 @@ class _AdminLibraryMetadataScreenState
       _error = null;
     });
     try {
-      final emby = AdminServerScope.isEmby(context);
       final config = await _api.getServerConfiguration();
       // No fallback, because saving a blank metadata config would flip the
       // date added behavior to the server default.
-      final metadata = emby ? await _api.getNamedConfiguration('metadata') : null;
+      const Map<String, dynamic>? metadata = null;
       // Either list failing shows the error instead of the form.
       final cultures = await _api.getCultures();
       final countries = await _api.getCountries();

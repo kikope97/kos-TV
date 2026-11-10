@@ -11,15 +11,10 @@ class ServerPinAccount {
   const ServerPinAccount({
     required this.baseUrl,
     required this.accessToken,
-    this.plexServerId,
   });
 
   final String baseUrl;
   final String accessToken;
-
-  /// The saved id of a Plex server, whose PINs are kept by the Moonbase
-  /// companion rather than at [baseUrl]. Null on every other server.
-  final String? plexServerId;
 }
 
 /// Whether the server holds a PIN for the account.
@@ -90,19 +85,8 @@ class ServerPinService {
     return dio;
   }
 
-  /// Where the account's PIN routes start and how to sign them. Null on a Plex
-  /// server whose Moonbase companion can't be found, which leaves the PIN on
-  /// the device to decide.
+  /// Where the account's PIN routes start and how to sign them.
   Future<MoonbaseEndpoint?> _endpoint(ServerPinAccount account) async {
-    final plexServerId = account.plexServerId;
-    if (plexServerId != null) {
-      return plexAccountMoonbaseEndpoint(
-        serverId: plexServerId,
-        serverUrl: account.baseUrl,
-        token: account.accessToken,
-        dio: _dio,
-      );
-    }
     return (
       base: account.baseUrl,
       headers: {

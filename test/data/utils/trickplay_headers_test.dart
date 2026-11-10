@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/data/utils/trickplay_headers.dart';
 import 'package:server_core/server_core.dart';
-import 'package:server_emby/server_emby.dart';
 import 'package:server_jellyfin/server_jellyfin.dart';
 import 'package:server_silo/server_silo.dart';
 
@@ -13,7 +12,7 @@ const _device = DeviceInfo(
 );
 
 void main() {
-  test('Jellyfin and Emby: their own authorization', () {
+  test('Jellyfin: its own authorization', () {
     final jellyfin = JellyfinMediaServerClient(
       baseUrl: 'https://jf.example',
       deviceInfo: _device,
@@ -25,12 +24,6 @@ void main() {
     expect(trickplayImageHeaders(jellyfin, withUserAgent: false).keys, [
       'Authorization',
     ]);
-
-    final emby = EmbyMediaServerClient(
-      baseUrl: 'https://emby.example',
-      deviceInfo: _device,
-    )..accessToken = 'tok';
-    expect(trickplayImageHeaders(emby)['Authorization'], startsWith('Emby '));
   });
 
   test('Silo: none, its sheets are signed', () {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -151,63 +150,6 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, l10n.install));
     await tester.pumpAndSettle();
     expect(api.installs, ['2.5.0.0']);
-  });
-
-  group('on Emby', () {
-    final launched = <String>[];
-
-    setUp(() {
-      launched.clear();
-      api.pages = [
-        {
-          'Name': 'embybackup',
-          'EnableInMainMenu': true,
-          'PluginId': _embyBackup.id,
-        },
-      ];
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/url_launcher'),
-            (call) async {
-              launched.add((call.arguments as Map)['url'] as String);
-              return true;
-            },
-          );
-    });
-
-    tearDown(() {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-            const MethodChannel('plugins.flutter.io/url_launcher'),
-            null,
-          );
-    });
-
-    testWidgets('a plugin uninstalls but has no switch or repository', (
-      tester,
-    ) async {
-      await pump(tester, _embyBackup.id, server: ServerType.emby);
-
-      expect(find.text(l10n.uninstall), findsOneWidget);
-      expect(find.text(l10n.adminPluginDetailEnablePlugin), findsNothing);
-      expect(find.text(l10n.adminPluginDetailRepository), findsNothing);
-      expect(find.text(l10n.adminPluginDetailDeveloper), findsNothing);
-      final image = tester.widget<Image>(find.byType(Image)).image;
-      expect(
-        (image as NetworkImage).url,
-        'http://jf.test/Plugins/${_embyBackup.id}/Thumb?tag=1',
-      );
-    });
-
-    testWidgets('Settings opens Emby\'s own page', (tester) async {
-      await pump(tester, _embyBackup.id, server: ServerType.emby);
-
-      await tester.tap(find.text(l10n.settings));
-      await tester.pumpAndSettle();
-      expect(launched, [
-        'http://jf.test/web/index.html#!/configurationpage?name=embybackup',
-      ]);
-    });
   });
 
   test('the main-menu page wins, else the first one', () {

@@ -110,7 +110,7 @@ void main() {
         .called(1);
   });
 
-  for (final type in [ServerType.emby, ServerType.plex, ServerType.silo]) {
+  for (final type in [ServerType.silo]) {
     test(
       '${type.name} keeps its one search even when the page is full',
       () async {

@@ -184,29 +184,6 @@ void main() {
     ).called(1);
   });
 
-  testWidgets('an empty address opens on the choices', (tester) async {
-    final (controller: _, :closed) = await openDialog(tester, address: '');
-
-    expect(find.text(l10n.addServerChooseHow), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
-
-    await tester.tap(find.text(l10n.signInWithPlex));
-    await tester.pumpAndSettle();
-
-    final outcome = await closed;
-    expect(outcome, isA<AddServerPlexSignIn>());
-    expect((outcome! as AddServerPlexSignIn).address, isNull);
-  });
-
-  testWidgets('Emby Connect closes with its own outcome', (tester) async {
-    final (controller: _, :closed) = await openDialog(tester, address: '');
-
-    await tester.tap(find.text(l10n.embyConnect));
-    await tester.pumpAndSettle();
-
-    expect(await closed, isA<AddServerEmbyConnect>());
-  });
-
   testWidgets('back from the address field returns to the choices', (
     tester,
   ) async {

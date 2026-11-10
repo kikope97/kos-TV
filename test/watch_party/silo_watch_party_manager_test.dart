@@ -180,10 +180,10 @@ void main() {
       baseUrl: 'https://silo.example',
     );
     // Another account signed in later: the factory's newest client.
-    final emby = factory.getClient(
-      serverId: 'emby',
-      serverType: ServerType.emby,
-      baseUrl: 'https://emby.example',
+    final other = factory.getClient(
+      serverId: 'jellyfin',
+      serverType: ServerType.jellyfin,
+      baseUrl: 'https://jellyfin.example',
     );
     getIt.registerSingleton<MediaServerClientFactory>(factory);
     getIt.registerSingleton<MediaServerClient>(silo);
@@ -191,7 +191,7 @@ void main() {
     expect(manager.activeSiloClient, isNotNull);
 
     await getIt.unregister<MediaServerClient>();
-    getIt.registerSingleton<MediaServerClient>(emby);
+    getIt.registerSingleton<MediaServerClient>(other);
     expect(manager.activeSiloClient, isNull);
   });
 }

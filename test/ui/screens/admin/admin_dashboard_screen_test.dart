@@ -28,21 +28,6 @@ class _FakeSystemApi extends Fake implements SystemApi {
   Future<Map<String, dynamic>> getSystemInfo() async => info;
 }
 
-/// Emby 4.10's /System/Info, which is also its storage info: folder paths
-/// and no sizes.
-const _embyInfo = {
-  'ServerName': 'Emby Box',
-  'Version': '4.10.1.0',
-  'OperatingSystem': 'Linux',
-  'CanSelfRestart': true,
-  'HasPendingRestart': true,
-  'ProgramDataPath': '/config',
-  'CachePath': '/config/cache',
-  'LogPath': '/config/logs',
-  'InternalMetadataPath': '/config/metadata',
-  'TranscodingTempPath': '/config/transcoding-temp',
-};
-
 class _FakeAdminSystemApi extends Fake implements AdminSystemApi {
   final logCalls = <Map<String, Object?>>[];
   List<ActivityLogEntry> alerts = const [];
@@ -353,45 +338,6 @@ void main() {
   testWidgets('Jellyfin keeps the disk tile', (tester) async {
     await pumpDashboard(tester);
     expect(find.text(l10n.disk), findsOneWidget);
-  });
-
-  group('on Emby', () {
-    setUp(() {
-      info.info = Map.of(_embyInfo);
-      system.storage = StorageInfo.fromJson(_embyInfo);
-    });
-
-    testWidgets('folder paths show without sizes and no disk tile', (
-      tester,
-    ) async {
-      await pumpDashboard(tester, server: ServerType.emby);
-
-      expect(find.text('/config/cache'), findsOneWidget);
-      expect(find.text('/config/transcoding-temp'), findsOneWidget);
-      expect(find.text(l10n.disk), findsNothing);
-      expect(find.text(l10n.adminPercentUsed(0)), findsNothing);
-    });
-
-    testWidgets('a pending restart shows and Restart restarts', (tester) async {
-      await pumpDashboard(tester, server: ServerType.emby);
-
-      expect(find.text(l10n.adminRestartPending), findsOneWidget);
-      await tester.tap(find.text(l10n.adminRestartServer));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(l10n.confirm));
-      await tester.pumpAndSettle();
-      expect(system.restarts, 1);
-    });
-
-    testWidgets('Restart hides when Emby can\'t restart itself', (
-      tester,
-    ) async {
-      info.info = {..._embyInfo, 'CanSelfRestart': false};
-      await pumpDashboard(tester, server: ServerType.emby);
-
-      expect(find.text(l10n.adminRestartServer), findsNothing);
-      expect(find.text(l10n.adminShutdownServer), findsOneWidget);
-    });
   });
 
   testWidgets('Scan All Libraries starts the RefreshLibrary task', (

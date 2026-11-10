@@ -1,5 +1,4 @@
 import 'media_server_client.dart';
-import 'models/server_type.dart';
 import 'network/auth_header.dart';
 
 /// A client for a server with household profiles (Silo).
@@ -23,19 +22,15 @@ abstract interface class ProfileAwareClient {
 
 /// Headers that authenticate a request to [client]'s server from outside its
 /// own HTTP stack. A [ProfileAwareClient] supplies its own (for Silo: bearer
-/// token, profile and device headers). Plex takes its token as
-/// `X-Plex-Token`, and Jellyfin and Emby get the MediaBrowser/Emby
-/// `Authorization` header they already use.
+/// token, profile and device headers), and Jellyfin gets the MediaBrowser
+/// `Authorization` header it already uses.
 Map<String, String> serverAuthHeaders(MediaServerClient client) {
   if (client is ProfileAwareClient) {
     return (client as ProfileAwareClient).authHeaders();
   }
-  if (client.serverType == ServerType.plex) {
-    return {'X-Plex-Token': ?client.accessToken};
-  }
   return {
     'Authorization': buildServerAuthorizationHeader(
-      scheme: client.serverType == ServerType.emby ? 'Emby' : 'MediaBrowser',
+      scheme: 'MediaBrowser',
       deviceInfo: client.deviceInfo,
       accessToken: client.accessToken,
     ),

@@ -14,7 +14,7 @@ class ServerProbeResult {
   final ServerType serverType;
 
   /// The base URL the server actually answered on, including any path prefix
-  /// (e.g. `/emby` for reverse-proxied Emby) or a redirect-introduced base.
+  /// or a redirect-introduced base.
   /// Not application-normalized; callers should normalize as needed.
   final String resolvedBaseUrl;
 
@@ -25,11 +25,11 @@ class ServerProbeResult {
   });
 }
 
-// Emby answers at both `/System/Info/Public` and `/emby/System/Info/Public`;
-// reverse proxies often route only the latter, so both must be tried.
+// Kos TV only speaks Jellyfin (and Silo's native API, probed separately), so
+// only the root public-info endpoint is tried. Moonfin also tried Emby's
+// `/emby/System/Info/Public`.
 const _publicInfoPaths = <String>[
   '/System/Info/Public',
-  '/emby/System/Info/Public',
 ];
 
 /// Failures that concern the host, not the path: every other path on the same
@@ -46,7 +46,7 @@ const _hostLevelFailures = {
 /// Jellyfin-compatible listener, and its native host can answer
 /// `/System/Info/Public` with the web app's HTML, so checking for Silo first
 /// keeps a native Silo address from being taken for anything else. Then the
-/// Jellyfin/Emby public-info endpoint is tried at the root and under `/emby`.
+/// Jellyfin public-info endpoint is tried at the root.
 /// Returns null if no server answers. Throws [SiloApiUnsupported] when Silo
 /// answers that this build's API is retired.
 ///
@@ -174,6 +174,13 @@ Future<ServerProbeResult?> _probePath(
 
   final data = asJsonMap(response.data);
   if (data == null) return null;
+
+  // Emby answers the same endpoint, but Kos TV has no Emby client any more:
+  // report no supported server rather than treating it as Jellyfin.
+  final productName = data['ProductName'];
+  if (productName is String && productName.toLowerCase().contains('emby')) {
+    return null;
+  }
 
   return ServerProbeResult(
     info: data,

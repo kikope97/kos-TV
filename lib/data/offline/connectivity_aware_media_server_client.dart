@@ -189,9 +189,6 @@ class ConnectivityAwareMediaServerClient
   AdminBackupApi get adminBackupApi => _online.adminBackupApi;
 
   @override
-  EmbyAdminApi? get embyAdminApi => _online.embyAdminApi;
-
-  @override
   AdminLiveTvApi get adminLiveTvApi => _online.adminLiveTvApi;
 
   @override

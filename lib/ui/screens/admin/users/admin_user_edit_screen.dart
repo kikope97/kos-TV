@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
@@ -9,9 +8,7 @@ import '../../../navigation/destinations.dart';
 import '../../../widgets/adaptive/adaptive_dialog.dart';
 import '../../detail/modern/widgets/details_tab_bar.dart';
 import '../admin_draft.dart';
-import '../admin_nav.dart';
 import '../widgets/admin_form_styles.dart';
-import '../widgets/premiere_note.dart';
 import '../providers/admin_user_providers.dart';
 import 'admin_user_delete_dialog.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -53,16 +50,11 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
   final _currentPasswordController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _connectController = TextEditingController();
   final _tagControllers = <String, TextEditingController>{};
 
   bool _loading = true;
   bool _passwordBusy = false;
-  bool _connectBusy = false;
   String? _error;
-
-  /// The Emby Connect account the user is linked to, empty when none.
-  String _connectLinked = '';
 
   /// Set on every build, for the draft's posts, which may finish after the
   /// page has gone.
@@ -90,7 +82,6 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
     _currentPasswordController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _connectController.dispose();
     for (final c in _tagControllers.values) {
       c.dispose();
     }
@@ -125,10 +116,8 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
       final devicesLoad = _client.adminDevicesApi
           .getDevices()
           .catchError((_) => <DeviceInfoDto>[]);
-      // Emby keeps the remote access switch in the base configuration.
-      final networkLoad = (_emby
-              ? _client.adminSystemApi.getServerConfiguration()
-              : _client.adminSystemApi.getNamedConfiguration('network'))
+      final networkLoad = _client.adminSystemApi
+          .getNamedConfiguration('network')
           .catchError((_) => <String, dynamic>{});
       final user = await _fetchUser();
       final libraries = await _client.adminLibraryApi.getMediaFolders(
@@ -155,8 +144,6 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
         _deletableChannels = deletable;
         _devices = devices;
         _serverRemoteAccess = network['EnableRemoteAccess'] != false;
-        _connectLinked = _connectController.text =
-            '${user['ConnectUserName'] ?? ''}';
         _loading = false;
       });
       hostDraft(AdminDraft({
@@ -288,42 +275,9 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
     }
   }
 
-  /// Links or unlinks right away rather than with the draft's save.
-  Future<void> _setConnect({required bool link}) async {
-    final l10n = AppLocalizations.of(context);
-    final emby = _client.embyAdminApi!;
-    final name = _connectController.text.trim();
-    if (link && name.isEmpty) return;
-    setState(() => _connectBusy = true);
-    try {
-      var pending = false;
-      if (link) {
-        final result = await emby.linkConnectUser(widget.userId, name);
-        pending = result['IsPending'] == true;
-      } else {
-        await emby.unlinkConnectUser(widget.userId);
-      }
-      final linked = '${(await _fetchUser())['ConnectUserName'] ?? ''}';
-      if (!mounted) return;
-      setState(() => _connectLinked = _connectController.text = linked);
-      _snack(link
-          ? (pending ? l10n.adminEmbyConnectPending : l10n.adminEmbyConnectLinked)
-          : l10n.adminEmbyConnectUnlinked);
-    } catch (e) {
-      if (!mounted) return;
-      // Emby answers an unknown account with a bare 500 "NotFound".
-      final notFound = e is DioException &&
-          e.response?.statusCode == 500 &&
-          '${e.response?.data}'.contains('NotFound');
-      _snack(notFound
-          ? l10n.adminEmbyConnectNotFound
-          : l10n.adminFailed(describeError(e, l10n)));
-    } finally {
-      if (mounted) setState(() => _connectBusy = false);
-    }
-  }
-
-  bool get _emby => AdminServerScope.isEmby(context);
+  /// Kos TV has no Emby, so the Emby-only rows below never show. Kept as a
+  /// flag for now so the Moonfin layout stays easy to compare.
+  bool get _emby => false;
 
   /// A policy key only Emby has, shown when the server sent it.
   bool _embyHas(String key) => _emby && _policy.containsKey(key);
@@ -438,7 +392,6 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
           ),
         ],
       ),
-      if (_emby) _buildConnectSection(l10n),
       const SizedBox(height: 16),
       Align(
         alignment: Alignment.centerLeft,
@@ -458,47 +411,6 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
         ),
       ),
     ];
-  }
-
-  Widget _buildConnectSection(AppLocalizations l10n) {
-    final linked = _connectLinked.isNotEmpty;
-    return adminSection(
-      context,
-      title: l10n.adminEmbyConnect,
-      icon: Icons.link,
-      children: [
-        adminFieldRow(
-          label: l10n.adminEmbyConnectUser,
-          helper: linked ? l10n.adminEmbyConnectLinked : l10n.adminEmbyConnectHelp,
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _connectController,
-                  enabled: !linked && !_connectBusy,
-                  decoration: adminInputDecoration(),
-                  onChanged: (_) => setState(() {}),
-                  onSubmitted: (_) => _setConnect(link: true),
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (linked)
-                OutlinedButton(
-                  onPressed: _connectBusy ? null : () => _setConnect(link: false),
-                  child: Text(l10n.adminEmbyConnectUnlink),
-                )
-              else
-                FilledButton.tonal(
-                  onPressed: _connectBusy || _connectController.text.trim().isEmpty
-                      ? null
-                      : () => _setConnect(link: true),
-                  child: Text(l10n.adminEmbyConnectLink),
-                ),
-            ],
-          ),
-        ),
-      ],
-    );
   }
 
   List<Widget> _buildPermissionsTab(AppLocalizations l10n) {
@@ -640,7 +552,6 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
             ],
             onChanged: (v) => _setPolicy('SimultaneousStreamLimit', v ?? 0),
           ),
-          const PremiereNote(margin: EdgeInsets.only(top: 8)),
         ],
       ),
     );

@@ -23,7 +23,6 @@ import 'api/admin_api_keys_api.dart';
 import 'api/admin_backup_api.dart';
 import 'api/admin_live_tv_api.dart';
 import 'api/admin_items_api.dart';
-import 'api/emby_admin_api.dart';
 import 'api/client_log_api.dart';
 import 'api/syncplay_api.dart';
 import 'api/games_api.dart';
@@ -68,9 +67,6 @@ abstract class MediaServerClient {
   AdminItemsApi get adminItemsApi;
 
   SyncPlayApi? get syncPlayApi => null;
-
-  /// Admin endpoints only Emby has. Null on Jellyfin.
-  EmbyAdminApi? get embyAdminApi => null;
 
 
   /// Optional endpoint for uploading client-side diagnostic logs to the server

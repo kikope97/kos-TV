@@ -23,8 +23,8 @@ void main() {
       expect(liveTv(const [ServerType.silo]), isFalse);
     });
 
-    test('any Jellyfin or Emby server brings it back', () {
-      expect(liveTv(const [ServerType.silo, ServerType.emby]), isTrue);
+    test('any Jellyfin server brings it back', () {
+      expect(liveTv(const [ServerType.silo, ServerType.jellyfin]), isTrue);
       expect(liveTv(const [ServerType.jellyfin]), isTrue);
     });
   });
@@ -72,16 +72,16 @@ void main() {
       expect(liveTvOnAnySignedInServer(store: store), isFalse);
     });
 
-    test('Silo and Emby signed in: on', () async {
+    test('Silo and Jellyfin signed in: on', () async {
       await addServer('silo', ServerType.silo);
-      await addServer('emby', ServerType.emby);
+      await addServer('emby', ServerType.jellyfin);
 
       expect(liveTvOnAnySignedInServer(store: store), isTrue);
     });
 
     test('a server nobody is signed in to does not count', () async {
       await addServer('silo', ServerType.silo);
-      await addServer('emby', ServerType.emby, signedIn: false);
+      await addServer('emby', ServerType.jellyfin, signedIn: false);
 
       expect(liveTvOnAnySignedInServer(store: store), isFalse);
     });
@@ -104,7 +104,7 @@ void main() {
       expect(moonfinPluginOnAnySignedInServer(store: store), isTrue);
       expect(fullPlugin(), isFalse);
 
-      await addServer('emby', ServerType.emby);
+      await addServer('emby', ServerType.jellyfin);
       expect(fullPlugin(), isTrue);
     });
 
@@ -138,7 +138,7 @@ void main() {
       );
       final emby = factory.getClient(
         serverId: 'emby',
-        serverType: ServerType.emby,
+        serverType: ServerType.jellyfin,
         baseUrl: 'https://emby.example',
       );
       getIt.registerSingleton<MediaServerClientFactory>(factory);
@@ -150,7 +150,7 @@ void main() {
     bool playlists(String? serverId) =>
         itemServerSupports(serverId, (f) => f.supportsPlaylists);
 
-    test('a Silo item has no playlists, an Emby item does', () {
+    test('a Silo item has no playlists, a Jellyfin item does', () {
       expect(playlists('silo'), isFalse);
       expect(playlists('emby'), isTrue);
     });

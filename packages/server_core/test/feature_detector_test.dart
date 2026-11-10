@@ -24,10 +24,6 @@ void main() {
       expect(_detector(ServerType.jellyfin, '').supportsQuickConnectWebLink, isTrue);
       expect(_detector(ServerType.jellyfin, 'unknown').supportsQuickConnectWebLink, isTrue);
     });
-
-    test('is off for Emby, which has no Quick Connect', () {
-      expect(_detector(ServerType.emby, '4.8.0.0').supportsQuickConnectWebLink, isFalse);
-    });
   });
 
   test('Jellyfin keeps its existing flags', () {
@@ -43,21 +39,8 @@ void main() {
     expect(f.supportsJellyseerr, isTrue);
   });
 
-  test('Emby keeps its existing flags', () {
-    final f = _for(ServerType.emby);
-    expect(f.supportsSyncPlay, isFalse);
-    expect(f.supportsTrickplay, isFalse);
-    expect(f.supportsLyrics, isFalse);
-    expect(f.supportsMediaSegments, isFalse);
-    expect(f.supportsSkipSegments, isTrue);
-    expect(f.supportsQuickConnect, isFalse);
-    expect(f.supportsClientLog, isFalse);
-    expect(f.supportsBifTrickplay, isTrue);
-    expect(f.supportsJellyseerr, isTrue);
-  });
-
-  test('the new flags stay on for Jellyfin and Emby', () {
-    for (final type in [ServerType.jellyfin, ServerType.emby]) {
+  test('the new flags stay on for Jellyfin', () {
+    for (final type in [ServerType.jellyfin]) {
       final f = _for(type);
       expect(f.supportsLiveTv, isTrue, reason: '$type');
       expect(f.supportsMusic, isTrue, reason: '$type');
@@ -69,16 +52,6 @@ void main() {
       expect(f.supportsRemoteControl, isTrue, reason: '$type');
       expect(f.supportsLatestItemsExcludes, isTrue, reason: '$type');
     }
-  });
-
-  test('Plex has its own markers, Moonbase for Plex and no admin panel', () {
-    final f = _for(ServerType.plex);
-    expect(f.supportsSkipSegments, isTrue);
-    expect(f.supportsLiveTv, isTrue);
-    expect(f.supportsMusic, isTrue);
-    expect(f.supportsAdmin, isFalse);
-    expect(f.supportsMoonfinPlugin, isTrue);
-    expect(f.supportsFullMoonfinPlugin, isFalse);
   });
 
   test('Silo has Moonbase for Silo, not the full plugin', () {
@@ -117,74 +90,72 @@ void main() {
   });
 
   // Each flag answers what the server-type check it replaced did, in the
-  // order Jellyfin, Emby, Plex, Silo.
+  // order Jellyfin, Silo.
   group('flags that replaced server-type checks', () {
     const types = [
       ServerType.jellyfin,
-      ServerType.emby,
-      ServerType.plex,
       ServerType.silo,
     ];
     final cases = <String, (bool Function(FeatureDetector), List<bool>)>{
       'supportsPersonalRatings': (
         (f) => f.supportsPersonalRatings,
-        [true, true, false, true],
+        [true, true],
       ),
       'supportsPersonFavorites': (
         (f) => f.supportsPersonFavorites,
-        [true, true, false, false],
+        [true, false],
       ),
       'supportsRemoteTrailers': (
         (f) => f.supportsRemoteTrailers,
-        [true, true, false, true],
+        [true, true],
       ),
       'supportsTranscodedDownloads': (
         (f) => f.supportsTranscodedDownloads,
-        [true, true, false, true],
+        [true, true],
       ),
       'supportsUhdFilter': (
         (f) => f.supportsUhdFilter,
-        [true, false, true, true],
+        [true, true],
       ),
       'supportsExtraLibraryFilters': (
         (f) => f.supportsExtraLibraryFilters,
-        [true, true, false, true],
+        [true, true],
       ),
       'supportsUnreleasedSeriesFilter': (
         (f) => f.supportsUnreleasedSeriesFilter,
-        [true, false, false, false],
+        [true, false],
       ),
       'supportsGuideCategoryFilters': (
         (f) => f.supportsGuideCategoryFilters,
-        [true, true, false, true],
+        [true, true],
       ),
       'collectionsNeedPermission': (
         (f) => f.collectionsNeedPermission,
-        [true, false, false, false],
+        [true, false],
       ),
       'supportsAchievements': (
         (f) => f.supportsAchievements,
-        [true, false, false, false],
+        [true, false],
       ),
       'supportsPluginSettingsStream': (
         (f) => f.supportsPluginSettingsStream,
-        [true, false, false, false],
+        [true, false],
       ),
       'supportsMoonbaseInstall': (
         (f) => f.supportsMoonbaseInstall,
-        [true, false, false, false],
+        [true, false],
       ),
       'supportsHevcEncodingSetting': (
         (f) => f.supportsHevcEncodingSetting,
-        [true, false, false, false],
+        [true, false],
       ),
       'supportsBandwidthTest': (
         (f) => f.supportsBandwidthTest,
-        [true, true, true, false],
+        [true, false],
       ),
       'supportsBookProgressReports': (
         (f) => f.supportsBookProgressReports,
-        [true, false, false, false],
+        [true, false],
       ),
     };
     for (final MapEntry(key: name, value: (flag, expected)) in cases.entries) {

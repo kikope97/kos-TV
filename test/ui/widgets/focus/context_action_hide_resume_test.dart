@@ -33,17 +33,6 @@ AggregatedItem _episode() => AggregatedItem(
   },
 );
 
-AggregatedItem _audiobookChapter() => AggregatedItem(
-  id: 'chapter-1',
-  serverId: 'server-1',
-  rawData: {
-    'Id': 'chapter-1',
-    'Type': 'Audio',
-    'Name': 'Chapter 1',
-    'UserData': {'PlaybackPositionTicks': 6000000000, 'Played': false},
-  },
-);
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -57,10 +46,10 @@ void main() {
     prefs = UserPreferences(store);
 
     final client = _MockClient();
-    when(() => client.serverType).thenReturn(ServerType.emby);
+    when(() => client.serverType).thenReturn(ServerType.jellyfin);
     // The menu asks the item's server whether it hides Home cards itself
-    // (Silo), and Emby doesn't.
-    when(() => client.baseUrl).thenReturn('https://emby.example');
+    // (Silo), and Jellyfin doesn't.
+    when(() => client.baseUrl).thenReturn('https://jellyfin.example');
     when(() => client.itemsApi).thenReturn(_ItemsApi());
 
     final users = UserRepository();
@@ -109,33 +98,6 @@ void main() {
   }
 
   group('Hide from Continue Watching', () {
-    testWidgets('on Emby hides it on the server too and keeps the progress', (
-      tester,
-    ) async {
-      when(() => mutations.hideFromResume('ep-1')).thenAnswer((_) async => true);
-
-      await (await action(tester, 'Hide from Continue Watching')).onSelect();
-
-      verify(() => mutations.hideFromResume('ep-1')).called(1);
-      verifyNever(
-        () => mutations.setPlayed(any(), isPlayed: any(named: 'isPlayed')),
-      );
-      expect(prefs.getHiddenContinueWatchingItems().keys, ['series-1']);
-    });
-
-    testWidgets('on Emby audio still resets', (tester) async {
-      when(() => mutations.hideFromResume(any())).thenAnswer((_) async => true);
-
-      await (await action(
-        tester,
-        'Hide from Continue Watching',
-        item: _audiobookChapter(),
-      )).onSelect();
-
-      verifyNever(() => mutations.hideFromResume(any()));
-      verify(() => mutations.setPlayed('chapter-1', isPlayed: false)).called(1);
-    });
-
     testWidgets('without server support hides locally and resets as before', (
       tester,
     ) async {
@@ -148,38 +110,9 @@ void main() {
       verify(() => mutations.setPlayed('ep-1', isPlayed: false)).called(1);
       expect(prefs.getHiddenContinueWatchingItems().keys, ['series-1']);
     });
-
-    testWidgets('a failed Emby call hides locally but never resets', (
-      tester,
-    ) async {
-      when(
-        () => mutations.hideFromResume('ep-1'),
-      ).thenThrow(Exception('offline'));
-
-      await (await action(tester, 'Hide from Continue Watching')).onSelect();
-
-      verifyNever(
-        () => mutations.setPlayed(any(), isPlayed: any(named: 'isPlayed')),
-      );
-      expect(prefs.getHiddenContinueWatchingItems().keys, ['series-1']);
-    });
   });
 
   group('Hide from Next Up', () {
-    testWidgets('on Emby flags the episode instead of resetting it', (
-      tester,
-    ) async {
-      when(() => mutations.hideFromResume('ep-1')).thenAnswer((_) async => true);
-
-      await (await action(tester, 'Hide from Next Up')).onSelect();
-
-      verify(() => mutations.hideFromResume('ep-1')).called(1);
-      verifyNever(
-        () => mutations.setPlayed(any(), isPlayed: any(named: 'isPlayed')),
-      );
-      expect(prefs.getHiddenNextUpSeries().keys, ['series-1']);
-    });
-
     testWidgets('without server support still resets as before', (
       tester,
     ) async {

@@ -3,9 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/data/services/moonbase_client_log_api.dart';
 import 'package:moonfin/data/services/moonbase_endpoint.dart';
 import 'package:server_core/server_core.dart';
-import 'package:server_emby/server_emby.dart';
-import 'package:server_jellyfin/server_jellyfin.dart';
-import 'package:server_plex/server_plex.dart';
 import 'package:server_silo/server_silo.dart';
 
 const _device = DeviceInfo(
@@ -76,11 +73,6 @@ class _FakeMoonbase extends Interceptor {
   return (Dio()..interceptors.add(fake), fake);
 }
 
-// Where Moonbase was found is kept per server, so each test has its own.
-PlexMediaServerClient _plex(String host) =>
-    PlexMediaServerClient(baseUrl: 'http://$host:32400', deviceInfo: _device)
-      ..accessToken = 'pms-token';
-
 SiloMediaServerClient _silo(String host) {
   final now = DateTime.now().toUtc();
   return SiloMediaServerClient(baseUrl: 'https://$host', deviceInfo: _device)
@@ -97,50 +89,6 @@ SiloMediaServerClient _silo(String host) {
 }
 
 void main() {
-  group('Plex', () {
-    test('posts the report to the Moonbase companion as plain text', () async {
-      final (dio, moonbase) = _server();
-      final api = MoonbaseClientLogApi(_plex('192.168.50.81'), dio: dio);
-
-      final fileName = await api.uploadDocument('the report');
-
-      final request = moonbase.uploads.single;
-      expect(request.method, 'POST');
-      expect(
-        request.uri.toString(),
-        'http://192.168.50.81:32500/Moonfin/ClientLog/Document',
-      );
-      expect(request.headers['X-Plex-Token'], 'pms-token');
-      expect(request.data, 'the report');
-      expect(request.contentType, startsWith('text/plain'));
-      expect(fileName, 'upload_Moonfin_2.5.1_20260913T101500123.txt');
-    });
-
-    test('never posts to Plex itself when there is no companion', () async {
-      final (dio, moonbase) = _server();
-      moonbase.installed = false;
-      final api = MoonbaseClientLogApi(_plex('192.168.50.82'), dio: dio);
-
-      await expectLater(
-        api.uploadDocument('the report'),
-        throwsA(isA<StateError>()),
-      );
-      expect(moonbase.uploads, isEmpty);
-    });
-
-    test('lets a rejection reach the caller', () async {
-      final (dio, moonbase) = _server();
-      moonbase
-        ..status = 503
-        ..reply = {'Error': 'Client log upload is disabled'};
-      final api = MoonbaseClientLogApi(_plex('192.168.50.83'), dio: dio);
-
-      await expectLater(
-        api.uploadDocument('the report'),
-        throwsA(isA<DioException>()),
-      );
-    });
-  });
 
   group('Silo', () {
     test('posts the report to the Moonbase plugin as the profile', () async {
@@ -172,22 +120,4 @@ void main() {
     });
   });
 
-  test('Jellyfin and Emby keep their own uploader', () {
-    final jellyfin = JellyfinMediaServerClient(
-      baseUrl: 'https://jf.example',
-      deviceInfo: _device,
-    );
-    final emby = EmbyMediaServerClient(
-      baseUrl: 'https://emby.example',
-      deviceInfo: _device,
-    );
-
-    expect(clientLogApiOf(jellyfin), same(jellyfin.clientLogApi));
-    expect(clientLogApiOf(emby), same(emby.clientLogApi));
-    expect(clientLogApiOf(_plex('192.168.50.84')), isA<MoonbaseClientLogApi>());
-    expect(
-      clientLogApiOf(_silo('silo-of.example')),
-      isA<MoonbaseClientLogApi>(),
-    );
-  });
 }

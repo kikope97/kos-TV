@@ -143,31 +143,6 @@ class AutoBitrateService {
     return bps;
   }
 
-  /// The path of a movie or episode file to read, or null when the library
-  /// has none or can't be asked. Movies are asked for on their own first,
-  /// since listing episodes across every show takes Plex seconds.
-  @visibleForTesting
-  static Future<String?> plexSampleFile(ItemsApi itemsApi) async {
-    try {
-      for (final type in const ['Movie', 'Episode']) {
-        final result = await itemsApi.getItems(
-          includeItemTypes: [type],
-          limit: 1,
-          enableTotalRecordCount: false,
-        );
-        if (result case {
-          'Items': [
-            {'MediaSources': [{'DirectStreamUrl': final String path}, ...]},
-            ...,
-          ],
-        }) {
-          return path;
-        }
-      }
-    } catch (_) {}
-    return null;
-  }
-
   Future<int> _measure(MediaServerClient client) async {
     // The probe runs on its own client, so without these lines it is
     // invisible in the network log and a start waiting on it looks hung.
@@ -176,16 +151,6 @@ class AutoBitrateService {
     final base = client.baseUrl.endsWith('/')
         ? client.baseUrl.substring(0, client.baseUrl.length - 1)
         : client.baseUrl;
-
-    final plex = client.serverType == ServerType.plex;
-    final plexFile = plex ? await plexSampleFile(client.itemsApi) : null;
-    if (plex && plexFile == null) {
-      log.log(
-        LogCategory.playback,
-        'Auto bitrate: no Plex file to read, using ${_fallbackBps}bps',
-      );
-      return _fallbackBps;
-    }
 
     final dio = Dio(
       BaseOptions(
@@ -200,15 +165,8 @@ class AutoBitrateService {
 
     try {
       final measured = await stepThroughProbes(
-        (bytes) => plexFile == null
-            ? _sample(dio, '$base/Playback/BitrateTest?size=$bytes', bytes, log)
-            : _sample(
-                dio,
-                '$base$plexFile',
-                bytes,
-                log,
-                headers: {'Range': 'bytes=0-${bytes - 1}'},
-              ),
+        (bytes) =>
+            _sample(dio, '$base/Playback/BitrateTest?size=$bytes', bytes, log),
       );
       if (measured == null) {
         log.log(

@@ -507,10 +507,6 @@ class _SeerrConfigScreenState extends State<SeerrConfigScreen> {
           _SeerrLoginCard(
             status: _seerrStatus,
             statusLoading: _statusLoading,
-            plex:
-                GetIt.instance.isRegistered<MediaServerClient>() &&
-                GetIt.instance<MediaServerClient>().serverType ==
-                    ServerType.plex,
             onSignIn: _signInToSeerr,
             onSignOut: _signOutFromSeerr,
             firstFocusNode: _accountCardFocusNode,
@@ -862,14 +858,9 @@ class _SeerrLoginCard extends StatefulWidget {
   final FocusNode firstFocusNode;
   final VoidCallback onMoveUp;
 
-  /// Signs in with the Plex account signed in to the app instead of a
-  /// Jellyfin username and password.
-  final bool plex;
-
   const _SeerrLoginCard({
     required this.status,
     required this.statusLoading,
-    this.plex = false,
     required this.onSignIn,
     required this.onSignOut,
     required this.firstFocusNode,
@@ -903,9 +894,7 @@ class _SeerrLoginCardState extends State<_SeerrLoginCard> {
   bool _submitting = false;
   String? _errorMessage;
 
-  String get _firstAuthType => widget.plex ? 'plex' : 'jellyfin';
-
-  bool get _needsCredentials => _authType != 'plex';
+  static const _firstAuthType = 'jellyfin';
 
   BoxDecoration _boxDecoration(BuildContext context, {required bool focused}) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -942,7 +931,7 @@ class _SeerrLoginCardState extends State<_SeerrLoginCard> {
 
   bool get _canSignIn {
     return !_submitting &&
-        (!_needsCredentials || _usernameController.text.trim().isNotEmpty);
+        _usernameController.text.trim().isNotEmpty;
   }
 
   @override
@@ -1178,7 +1167,7 @@ class _SeerrLoginCardState extends State<_SeerrLoginCard> {
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-      (_needsCredentials ? _usernameFocus : _signInFocus).requestFocus();
+      _usernameFocus.requestFocus();
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
@@ -1232,8 +1221,7 @@ class _SeerrLoginCardState extends State<_SeerrLoginCard> {
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-      (_needsCredentials ? _passwordFocus : widget.firstFocusNode)
-          .requestFocus();
+      _passwordFocus.requestFocus();
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -1435,7 +1423,7 @@ class _SeerrLoginCardState extends State<_SeerrLoginCard> {
             order: const NumericFocusOrder(0),
             child: _buildAuthOption(
               authType: _firstAuthType,
-              label: widget.plex ? l10n.signInWithPlex : l10n.jellyfinAccount,
+              label: l10n.jellyfinAccount,
               focusNode: widget.firstFocusNode,
               onKeyEvent: PlatformDetection.isTV ? _onJellyfinAuthKey : null,
             ),
@@ -1655,7 +1643,7 @@ class _SeerrLoginCardState extends State<_SeerrLoginCard> {
                 ),
                 const SizedBox(height: 14),
                 _buildAuthTypeSelector(l10n),
-                if (_needsCredentials) ...[
+                ...[
                   const SizedBox(height: 12),
                   FocusTraversalOrder(
                     order: const NumericFocusOrder(1),

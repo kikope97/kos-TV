@@ -81,8 +81,8 @@ void main() {
   final l10n = AppLocalizationsEn();
 
   group('moonbaseFeatures', () {
-    test('Jellyfin and Emby get the full plugin', () {
-      for (final type in [ServerType.jellyfin, ServerType.emby]) {
+    test('Jellyfin gets the full plugin', () {
+      for (final type in [ServerType.jellyfin]) {
         final features = moonbaseFeatures(l10n, type);
         expect(features, contains(l10n.setupTourBulletRequests));
         expect(features, contains(l10n.moonbaseFeatureGames));
@@ -91,16 +91,12 @@ void main() {
       }
     });
 
-    test('Plex and Silo get the smaller set, and Silo has no calendar', () {
-      final plex = moonbaseFeatures(l10n, ServerType.plex);
+    test('Silo gets the smaller set, without a calendar', () {
       final silo = moonbaseFeatures(l10n, ServerType.silo);
-      for (final features in [plex, silo]) {
-        expect(features, contains(l10n.moonbaseFeatureSync));
-        expect(features, contains(l10n.moonbaseFeatureCollections));
-        expect(features, isNot(contains(l10n.setupTourBulletRequests)));
-        expect(features, isNot(contains(l10n.moonbaseFeatureRows)));
-      }
-      expect(plex, contains(l10n.moonbaseFeatureCalendar));
+      expect(silo, contains(l10n.moonbaseFeatureSync));
+      expect(silo, contains(l10n.moonbaseFeatureCollections));
+      expect(silo, isNot(contains(l10n.setupTourBulletRequests)));
+      expect(silo, isNot(contains(l10n.moonbaseFeatureRows)));
       expect(silo, isNot(contains(l10n.moonbaseFeatureCalendar)));
     });
 
@@ -246,16 +242,5 @@ void main() {
       expect(qr.data, moonbaseGuideUrl(ServerType.jellyfin));
     });
 
-    testWidgets('an Emby admin on a phone gets a link to the steps', (
-      tester,
-    ) async {
-      PlatformDetection.setInterfaceLayout(InterfaceLayout.phone);
-      await open(tester, _FakeClient(ServerType.emby), isAdmin: true);
-
-      expect(find.text(l10n.install), findsNothing);
-      expect(find.byType(SignInQrCode), findsNothing);
-      expect(find.text(l10n.setupMoonbaseManualSteps), findsOneWidget);
-      expect(find.text(l10n.openLink), findsOneWidget);
-    });
   });
 }

@@ -8,8 +8,6 @@ import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/util/platform_detection.dart';
 import 'package:server_core/server_core.dart';
 import 'package:server_jellyfin/server_jellyfin.dart';
-import 'package:server_plex/server_plex.dart';
-import 'package:server_silo/server_silo.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeClientFactory extends Fake implements MediaServerClientFactory {
@@ -318,23 +316,6 @@ void main() {
 
   group('uploading to the server', () {
     tearDown(() => GetIt.instance.reset());
-
-    test('Plex and Silo take reports once Moonbase says it does', () async {
-      final sync = _FakeSync();
-      GetIt.instance.registerSingleton<PluginSyncService>(sync);
-
-      for (final client in <MediaServerClient>[
-        PlexMediaServerClient(baseUrl: 'http://plex:32400', deviceInfo: _device),
-        SiloMediaServerClient(baseUrl: 'https://silo', deviceInfo: _device),
-      ]) {
-        final logs = await _service(active: client);
-        sync.clientLogSupported = false;
-        expect(logs.canUploadToServer, isFalse, reason: '${client.serverType}');
-        expect(logs.uploadUnavailableReason, contains('Moonbase'));
-        sync.clientLogSupported = true;
-        expect(logs.canUploadToServer, isTrue, reason: '${client.serverType}');
-      }
-    });
 
     test('Jellyfin takes reports without Moonbase', () async {
       GetIt.instance.registerSingleton<PluginSyncService>(_FakeSync());

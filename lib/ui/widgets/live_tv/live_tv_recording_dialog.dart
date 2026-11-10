@@ -8,9 +8,7 @@ import '../../../data/models/live_tv_recording_state.dart';
 import '../../../data/viewmodels/live_tv_guide_view_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/clock_format.dart';
-import '../../util/error_message.dart';
 import '../adaptive/adaptive_dialog.dart';
-import '../emby_premiere_dialog.dart';
 import '../overlay_sheet.dart';
 import 'incomplete_recording.dart';
 import 'series_recording_dialog.dart';
@@ -245,10 +243,6 @@ Future<String?> runLiveTvRecordingFlow({
     }
     return message;
   } catch (e) {
-    if (isPremiereError(e)) {
-      if (context.mounted) await showPremiereRequiredDialog(context);
-      return null;
-    }
     return switch (action) {
       LiveTvRecordingAction.recordProgram => l10n.unableToCreateRecording,
       LiveTvRecordingAction.recordSeries => l10n.unableToCreateSeriesRecording,

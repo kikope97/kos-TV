@@ -2337,7 +2337,7 @@ class _ContentRowsState extends State<_ContentRows>
       'audioBitRate': '96000',
       'audioChannels': '2',
       // No subtitle index is asked for, so leaving Drop off burns nothing in.
-      if (client.serverType.supportsSubtitleDrop) 'subtitleMethod': 'Drop',
+      'subtitleMethod': 'Drop',
       if (kIsWeb) 'container': 'mp4',
       if (kIsWeb) 'TranscodingContainer': 'mp4',
       // The server copies this into the segment urls it writes and then refuses

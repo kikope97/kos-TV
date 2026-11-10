@@ -42,7 +42,6 @@ import '../services/silo_household.dart';
 import '../services/silo_token_storage.dart';
 import '../../data/services/achievements_service.dart';
 import '../../data/services/item_membership_service.dart';
-import '../../data/services/plex_tv_service.dart';
 import '../../data/services/plugin_sync_service.dart';
 import '../../data/services/push_messaging_service.dart';
 import '../../data/services/remote_search_session.dart';
@@ -67,7 +66,6 @@ import '../../util/focus/gamepad/gamepad_key_synthesizer.dart';
 import '../store/authentication_preferences.dart';
 import '../store/authentication_store.dart';
 import '../store/credential_store.dart';
-import '../models/server.dart';
 import '../models/user.dart';
 import 'server_repository.dart';
 import 'user_repository.dart';
@@ -299,18 +297,11 @@ class SessionRepository {
       return false;
     }
 
-    // An address that never answers would hold startup for the whole probe,
-    // so the saved one is used past a short wait. The probe carries on and
-    // saves a better one for next time.
-    final address = await _bestPlexAddress(server)
-        .timeout(const Duration(seconds: 2), onTimeout: () => server.address);
     final client = _clientFactory.getClient(
       serverId: serverId,
       serverType: server.serverType,
-      baseUrl: address,
+      baseUrl: server.address,
     );
-    // A client kept from an earlier session still has the old address.
-    if (address != server.address) client.baseUrl = address;
 
     // A Silo profile restores its account's token pair and profile, because
     // the stored access token alone can't refresh.
@@ -412,22 +403,6 @@ class SessionRepository {
     return true;
   }
 
-  /// The best address a Plex server answers at right now, saved when it
-  /// changed. Without an answer the saved one stays.
-  Future<String> _bestPlexAddress(Server server) async {
-    if (server.candidateAddresses.length < 2 ||
-        !GetIt.instance.isRegistered<PlexTvService>()) {
-      return server.address;
-    }
-    final best = await GetIt.instance<PlexTvService>().findReachableUri(
-      server.candidateAddresses,
-      server.id,
-    );
-    if (best == null || best == server.address) return server.address;
-    await _serverRepository.saveServer(server.copyWith(address: best));
-    return best;
-  }
-
   Future<void> _postLoginSync(
     MediaServerClient client,
     PrivateUser user,
@@ -467,20 +442,17 @@ class SessionRepository {
 
     await _pluginSyncService.syncOnLogin(client, serverId: serverId);
 
-    // Moonbase for Plex has no push.
-    if (client.serverType != ServerType.plex) {
-      // Register the FCM token now that a session exists. Startup registration
-      // bails before login, so this is where closed-app push actually enrolls.
-      if (PlatformDetection.isMobile) {
-        try {
-          if (GetIt.instance.isRegistered<PushMessagingService>()) {
-            await GetIt.instance<PushMessagingService>()
-                .registerWithCurrentToken();
-          }
-        } catch (_) {}
-      }
-      await _pluginSyncService.syncNotificationPrefs(client);
+    // Register the FCM token now that a session exists. Startup registration
+    // bails before login, so this is where closed-app push actually enrolls.
+    if (PlatformDetection.isMobile) {
+      try {
+        if (GetIt.instance.isRegistered<PushMessagingService>()) {
+          await GetIt.instance<PushMessagingService>()
+              .registerWithCurrentToken();
+        }
+      } catch (_) {}
     }
+    await _pluginSyncService.syncNotificationPrefs(client);
 
     final seerrCameUp = await _pluginSyncService.configureSeerr(
       client,

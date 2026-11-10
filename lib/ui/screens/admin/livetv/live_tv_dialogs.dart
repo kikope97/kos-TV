@@ -909,15 +909,10 @@ class LiveTvChannelMapperDialog extends StatefulWidget {
     super.key,
     required this.api,
     required this.providerId,
-    this.emby,
   });
 
   final AdminLiveTvApi api;
   final String providerId;
-
-  /// On Emby, where the options only list the guide's channels and the tuner
-  /// side comes from the managed channels.
-  final EmbyAdminApi? emby;
 
   @override
   State<LiveTvChannelMapperDialog> createState() =>
@@ -944,10 +939,7 @@ class _LiveTvChannelMapperDialogState
       final options = await widget.api.getChannelMappingOptions(
         widget.providerId,
       );
-      final emby = widget.emby;
-      final channels = emby == null
-          ? liveTvMaps(options['TunerChannels'])
-          : await _embyChannels(emby);
+      final channels = liveTvMaps(options['TunerChannels']);
       if (!mounted) return;
       setState(() {
         _channels = channels;
@@ -963,32 +955,6 @@ class _LiveTvChannelMapperDialogState
         _error = describeError(e, AppLocalizations.of(context));
       });
     }
-  }
-
-  /// Every managed channel in the Jellyfin shape, keyed by its ManagementId,
-  /// which is what a mapping names on Emby.
-  Future<List<Map<String, dynamic>>> _embyChannels(EmbyAdminApi emby) async {
-    final all = <Map<String, dynamic>>[];
-    while (true) {
-      final page = await emby.getManagedChannels(startIndex: all.length);
-      final items = liveTvMaps(page['Items']);
-      all.addAll(items);
-      final total = (page['TotalRecordCount'] as num?)?.toInt() ?? 0;
-      if (items.isEmpty || all.length >= total) break;
-    }
-    return [
-      for (final c in all)
-        {
-          'Id': c['ManagementId'],
-          'Name': [_text(c, 'ChannelNumber'), _text(c, 'Name')]
-              .where((t) => t.isNotEmpty)
-              .join(' '),
-          if (c['ListingsProviderId'] == widget.providerId) ...{
-            'ProviderChannelId': c['ListingsChannelId'],
-            'ProviderChannelName': c['ListingsChannelName'],
-          },
-        },
-    ];
   }
 
   Future<void> _pick(Map<String, dynamic> channel) async {

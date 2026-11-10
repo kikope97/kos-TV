@@ -62,21 +62,6 @@ ResponseBody _status(int code, {String? location}) => ResponseBody.fromString(
 
 void main() {
   group('probeServerPublicInfo', () {
-    test('finds Emby served only under /emby and keeps the prefix', () async {
-      final dio = _dioWith((uri) {
-        if (uri.path == '/emby/System/Info/Public') {
-          return _json({'ProductName': 'Emby Server', 'Version': '4.9.3.30'});
-        }
-        return _status(404);
-      });
-
-      final result = await probeServerPublicInfo(dio, 'https://host');
-
-      expect(result, isNotNull);
-      expect(result!.serverType, ServerType.emby);
-      expect(result.resolvedBaseUrl, 'https://host/emby');
-    });
-
     test('finds a root server and keeps the bare base url', () async {
       final dio = _dioWith((uri) {
         if (uri.path == '/System/Info/Public') {
@@ -233,7 +218,21 @@ void main() {
     });
 
     test('an HTML page at /api/v2/system/info is not Silo', () async {
-      // A Jellyfin or Emby web client behind a catch-all proxy rule.
+      // A Jellyfin web client behind a catch-all proxy rule.
+      final dio = _dioWith((uri) {
+        if (uri.path == '/System/Info/Public') {
+          return _json({'ProductName': 'Jellyfin Server', 'Version': '10.10.7'});
+        }
+        return _html('<!doctype html><html></html>');
+      });
+
+      final result = await probeServerPublicInfo(dio, 'https://jellyfin.host');
+
+      expect(result!.serverType, ServerType.jellyfin);
+    });
+
+    test('an Emby server is not a supported server', () async {
+      // Kos TV has no Emby client, so Emby is not taken for Jellyfin.
       final dio = _dioWith((uri) {
         if (uri.path == '/System/Info/Public') {
           return _json({'ProductName': 'Emby Server', 'Version': '4.10.1.0'});
@@ -241,9 +240,7 @@ void main() {
         return _html('<!doctype html><html></html>');
       });
 
-      final result = await probeServerPublicInfo(dio, 'https://emby.host');
-
-      expect(result!.serverType, ServerType.emby);
+      expect(await probeServerPublicInfo(dio, 'https://emby.host'), isNull);
     });
 
     test('JSON that is not Silo system info is not Silo', () async {

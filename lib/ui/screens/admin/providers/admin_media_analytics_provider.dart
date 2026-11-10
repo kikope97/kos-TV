@@ -892,14 +892,10 @@ Future<List<AdminAnalyticsItem>> _loadLibraryItems(
 
   // Only ItemFields names go in Fields, and MediaSources already carry their
   // streams. Jellyfin sends ProductionYear, OfficialRating, RunTimeTicks,
-  // Container, Artists and AlbumArtists unasked, Emby leaves the year and
-  // rating out unless Fields names them.
-  var fields = (library.collectionType ?? '').toLowerCase() == 'books'
+  // Container, Artists and AlbumArtists unasked.
+  final fields = (library.collectionType ?? '').toLowerCase() == 'books'
       ? 'Genres,People,Path,MediaSources'
       : 'Genres,MediaSources';
-  if (client.serverType == ServerType.emby) {
-    fields += ',ProductionYear,OfficialRating';
-  }
 
   final raw = await _fetchAllItems(
     client,

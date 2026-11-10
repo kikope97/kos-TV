@@ -110,10 +110,6 @@ void main() {
         tokenAuthedUrl(_Client(), 'http://s/x.jpg'),
         'http://s/x.jpg?ApiKey=tok',
       );
-      expect(
-        tokenAuthedUrl(_Client(type: ServerType.emby), 'http://s/x.jpg'),
-        'http://s/x.jpg?api_key=tok',
-      );
     });
 
     test('joins onto a url that already carries a query', () {

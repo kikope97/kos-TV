@@ -13,9 +13,8 @@ void main() {
       expect(ServerType.detect('Jellyfin Server', '10.10.7'), ServerType.jellyfin);
     });
 
-    test('keeps the Jellyfin and Emby rules', () {
-      expect(ServerType.detect('Emby Server', '4.10.1.0'), ServerType.emby);
-      expect(ServerType.detect(null, '4.10.1.0'), ServerType.emby);
+    test('treats everything that is not Silo as Jellyfin', () {
+      expect(ServerType.detect(null, '4.10.1.0'), ServerType.jellyfin);
       expect(ServerType.detect(null, '10.10.7'), ServerType.jellyfin);
       expect(ServerType.detect(null, null), ServerType.jellyfin);
     });
@@ -23,11 +22,10 @@ void main() {
 
   test('tokenQueryParam per server type', () {
     expect(ServerType.jellyfin.tokenQueryParam, 'ApiKey');
-    expect(ServerType.emby.tokenQueryParam, 'api_key');
     expect(ServerType.silo.tokenQueryParam, 'token');
   });
 
   test('productName per server type', () {
-    expect(ServerType.values.map((t) => t.productName), ['Jellyfin', 'Emby', 'Plex', 'Silo']);
+    expect(ServerType.values.map((t) => t.productName), ['Jellyfin', 'Silo']);
   });
 }

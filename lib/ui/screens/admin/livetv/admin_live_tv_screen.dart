@@ -9,11 +9,9 @@ import '../../../util/error_message.dart';
 import '../../../widgets/adaptive/adaptive_dialog.dart';
 import '../../detail/modern/widgets/details_tab_bar.dart';
 import '../admin_draft.dart';
-import '../admin_nav.dart';
 import '../providers/admin_user_providers.dart';
 import '../widgets/admin_form_styles.dart';
 import '../widgets/admin_settings_search.dart';
-import '../widgets/premiere_note.dart';
 import 'live_tv_dialogs.dart';
 
 /// Live TV in two tabs: tuners and guide providers, which save at once, and
@@ -41,14 +39,10 @@ class _AdminLiveTvScreenState extends State<AdminLiveTvScreen>
   List<Map<String, dynamic>> _providers = const [];
   List<Map<String, dynamic>> _discovered = const [];
 
-  /// The guide sources Add offers. Emby lists its own.
-  List<String> _guideSources = const ['SchedulesDirect', 'xmltv'];
+  /// The guide sources Add offers.
+  final List<String> _guideSources = const ['SchedulesDirect', 'xmltv'];
 
   AdminLiveTvApi get _api => GetIt.instance<MediaServerClient>().adminLiveTvApi;
-
-  EmbyAdminApi? get _emby => AdminServerScope.isEmby(context)
-      ? GetIt.instance<MediaServerClient>().embyAdminApi
-      : null;
 
   @override
   void initState() {
@@ -96,20 +90,10 @@ class _AdminLiveTvScreenState extends State<AdminLiveTvScreen>
     });
     try {
       final config = await _api.getLiveTvConfiguration();
-      final sources = await _emby
-          ?.getAvailableListingProviders()
-          .catchError((_) => [<String, dynamic>{'Id': 'xmltv'}]);
       if (!mounted) return;
       setState(() {
         _config = config;
         _setLists(config);
-        if (sources != null) {
-          // Only the sources this page has a form for.
-          _guideSources = [
-            for (final s in sources)
-              if (const {'xmltv', 'embygn'}.contains(s['Id'])) s['Id'] as String,
-          ];
-        }
         _tab = _tabFor(AdminSettingAnchor.pending.value) ?? _tab;
         _loading = false;
       });
@@ -193,7 +177,6 @@ class _AdminLiveTvScreenState extends State<AdminLiveTvScreen>
         api: _api,
         types: types,
         seed: seed,
-        emby: AdminServerScope.isEmby(context),
       ),
     );
     if (saved != true || !mounted) return;
@@ -300,7 +283,6 @@ class _AdminLiveTvScreenState extends State<AdminLiveTvScreen>
         builder: (_) => LiveTvChannelMapperDialog(
           api: _api,
           providerId: provider['Id'].toString(),
-          emby: _emby,
         ),
       );
 
@@ -371,7 +353,6 @@ class _AdminLiveTvScreenState extends State<AdminLiveTvScreen>
           title: l10n.adminDrawerLiveTv,
           icon: Icons.live_tv,
         ),
-        PremiereNote(message: (l) => l.adminPremiereNoteLiveTv),
         DetailsTabBar(
           segmented: true,
           wrap: PlatformDetection.useMobileUi,

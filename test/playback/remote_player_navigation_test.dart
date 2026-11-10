@@ -64,7 +64,7 @@ class _Manager extends PlaybackManager {
 
 class _Client extends Fake implements MediaServerClient {
   @override
-  ServerType get serverType => ServerType.emby;
+  ServerType get serverType => ServerType.jellyfin;
   @override
   TrickplayApi? get trickplayApi => null;
 }

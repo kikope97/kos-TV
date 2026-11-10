@@ -6,7 +6,6 @@ import 'package:flutter/widgets.dart' show AppLifecycleState;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/data/models/achievement_models.dart';
 import 'package:moonfin/data/services/achievements_service.dart';
-import 'package:server_core/server_core.dart';
 
 import '../../support/achievement_plugin_fake.dart';
 
@@ -232,13 +231,6 @@ void main() {
       expect(adapter.requests, [
         'GET /Plugins/AchievementBadges/public-config',
       ]);
-    });
-
-    test('an Emby server is never probed', () async {
-      final emby = buildAchievementClient(serverType: ServerType.emby);
-
-      expect(await service.refreshAvailability(emby), isFalse);
-      expect(adapter.requests, isEmpty);
     });
 
     test(

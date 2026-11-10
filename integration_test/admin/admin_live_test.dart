@@ -6,11 +6,7 @@
 //   MOONFIN_LIVE_USER_ID=<admin user id> \
 //   dbus-run-session -- flutter test integration_test/admin -d linux
 //
-// MOONFIN_LIVE_SERVER_TYPE=emby runs it against Emby, whose URL ends in /emby.
 // MOONFIN_LIVE_READONLY=1 only opens pages and refuses anything but a GET.
-// MOONFIN_LIVE_PREMIERE=1 checks an Emby server with Premiere, and adding
-// MOONFIN_LIVE_CHANNELS=1 turns its first channel off and moves it, then puts
-// both back.
 // The saves put back what they change, but run them on a disposable server.
 // MOONFIN_LIVE_LOG names a file to write the request log to (JSON lines), and
 // MOONFIN_LIVE_SHOTS names a folder to save a screenshot of each page in.
@@ -38,7 +34,6 @@ import 'package:moonfin/ui/screens/admin/widgets/admin_settings_search.dart';
 import 'package:moonfin/ui/theme/app_theme.dart';
 import 'package:moonfin_design/moonfin_design.dart' show ThemeRegistry;
 import 'package:server_core/server_core.dart';
-import 'package:server_emby/server_emby.dart';
 import 'package:server_jellyfin/server_jellyfin.dart';
 
 class _Request {
@@ -64,13 +59,8 @@ void main() {
   final url = env['MOONFIN_LIVE_URL'];
   final token = env['MOONFIN_LIVE_TOKEN'];
   final userId = env['MOONFIN_LIVE_USER_ID'];
-  final isEmby = env['MOONFIN_LIVE_SERVER_TYPE'] == 'emby';
   final readOnly = env['MOONFIN_LIVE_READONLY'] == '1';
-  final premiere = isEmby && env['MOONFIN_LIVE_PREMIERE'] == '1';
-  final channelWrites = premiere && env['MOONFIN_LIVE_CHANNELS'] == '1';
-  // Emby 4.9 has no RefreshGuide, so Emby uses a quick task both versions
-  // have, which the feed test also starts.
-  final quickTask = isEmby ? 'ScanInternalMetadataFolderTask' : 'RefreshGuide';
+  const quickTask = 'RefreshGuide';
   final skip = url == null || token == null || userId == null
       ? 'set MOONFIN_LIVE_URL, MOONFIN_LIVE_TOKEN and MOONFIN_LIVE_USER_ID'
       : null;
@@ -106,9 +96,7 @@ void main() {
             null,
           );
           log.add(o.extra['_log'] as _Request);
-          final channelChange = channelWrites &&
-              o.uri.path.contains('/LiveTv/Manage/Channels/');
-          if (readOnly && o.method != 'GET' && !channelChange) {
+          if (readOnly && o.method != 'GET') {
             return h.reject(DioException(requestOptions: o, error: 'read only'));
           }
           h.next(o);
@@ -124,17 +112,11 @@ void main() {
         },
       ),
     ];
-    client = isEmby
-        ? EmbyMediaServerClient(
-            baseUrl: url,
-            deviceInfo: deviceInfo,
-            interceptors: interceptors,
-          )
-        : JellyfinMediaServerClient(
-            baseUrl: url,
-            deviceInfo: deviceInfo,
-            interceptors: interceptors,
-          );
+    client = JellyfinMediaServerClient(
+      baseUrl: url,
+      deviceInfo: deviceInfo,
+      interceptors: interceptors,
+    );
     client
       ..accessToken = token
       ..userId = userId;
@@ -272,17 +254,15 @@ void main() {
     'libraries': () => Destinations.adminLibraries,
     'library-add': () => Destinations.adminLibrariesAdd,
     'library-edit': () => Destinations.adminLibrary(ids['library']!),
-    if (!isEmby) 'display': () => Destinations.adminSettingsDisplay,
+    'display': () => Destinations.adminSettingsDisplay,
     'metadata': () => Destinations.adminSettingsMetadata,
     'nfo': () => Destinations.adminSettingsNfo,
     'metadata-edit': () => Destinations.adminMetadata(ids['item']!),
     'live-tv': () => Destinations.adminLiveTv,
     'transcoding': () => Destinations.adminSettingsPlayback,
-    if (!isEmby) ...{
-      'resume': () => Destinations.adminSettingsResume,
-      'trickplay': () => Destinations.adminSettingsTrickplay,
-      'repositories': () => Destinations.adminRepositories,
-    },
+    'resume': () => Destinations.adminSettingsResume,
+    'trickplay': () => Destinations.adminSettingsTrickplay,
+    'repositories': () => Destinations.adminRepositories,
     'streaming': () => Destinations.adminSettingsStreaming,
     'users': () => Destinations.adminUsers,
     'user-add': () => Destinations.adminUsersAdd,
@@ -297,15 +277,6 @@ void main() {
     'backups': () => Destinations.adminBackups,
     'logs': () => Destinations.adminLogs,
     'log-viewer': () => Destinations.adminLogFile(ids['log']!),
-    if (isEmby) ...{
-      'live-tv-channels': () => Destinations.adminLiveTvChannels,
-      'premiere': () => Destinations.adminPremiere,
-      'database': () => Destinations.adminDatabase,
-      'cinema-intros': () => Destinations.adminCinemaIntros,
-      'dlna': () => Destinations.adminDlna,
-      'camera-upload': () => Destinations.adminCameraUpload,
-      'conversions': () => Destinations.adminConversions,
-    },
     for (final g in ['overview', 'library', 'playback', 'people', 'system'])
       'group-$g': () => Destinations.adminGroupPath(g),
   };
@@ -423,7 +394,7 @@ void main() {
     final tasks = await client.adminTasksApi.getTasks(isHidden: false);
     await client.adminTasksApi.startTask(
       tasks.firstWhere(
-            (t) => t['Key'] == (isEmby ? quickTask : 'DeleteTranscodeFiles'),
+            (t) => t['Key'] == 'DeleteTranscodeFiles',
           )['Id']
           as String,
     );
@@ -439,30 +410,18 @@ void main() {
   // edit its first text field), save, check the post went through, then put
   // it back and save again.
   final draftPages = {
-    // Emby's first switch is maintenance mode, so it edits a text field.
-    'settings': _Save('POST', '/System/Configuration', text: isEmby),
+    'settings': const _Save('POST', '/System/Configuration'),
     'metadata': const _Save('POST', '/System/Configuration'),
     'nfo': const _Save('POST', '/System/Configuration/xbmcmetadata'),
     'transcoding': const _Save('POST', '/System/Configuration/encoding'),
     'streaming': const _Save('POST', '/System/Configuration', text: true),
-    if (isEmby) ...{
-      'database': const _Save('POST', '/System/Configuration'),
-      'cinema-intros': const _Save('POST', '/System/Configuration/cinemamode'),
-      'dlna': const _Save('POST', '/System/Configuration/dlna'),
-      'camera-upload': const _Save('POST', '/System/Configuration/devices'),
-      'conversions': const _Save('POST', '/System/Configuration/sync'),
-    } else ...{
-      'display': const _Save('POST', '/System/Configuration'),
-      'resume': const _Save('POST', '/System/Configuration'),
-      'trickplay': const _Save('POST', '/System/Configuration'),
-    },
+    'display': const _Save('POST', '/System/Configuration'),
+    'resume': const _Save('POST', '/System/Configuration'),
+    'trickplay': const _Save('POST', '/System/Configuration'),
     // Branding's first switch (the splash screen) saves at once and stays out
     // of the draft, so this edits a text field.
     'branding': const _Save('POST', '/System/Configuration/branding', text: true),
-    'networking': _Save(
-      'POST',
-      isEmby ? '/System/Configuration' : '/System/Configuration/network',
-    ),
+    'networking': const _Save('POST', '/System/Configuration/network'),
     // The server refuses a recording path that doesn't exist.
     'live-tv': _Save(
       'POST',
@@ -476,7 +435,7 @@ void main() {
       tab: (l) => l.adminLibraryTabOptions,
     ),
     'metadata-edit': const _Save('POST', '/Items/{item}', text: true),
-    'user-edit': _Save('POST', isEmby ? '/Users/{user}' : '/Users', text: true),
+    'user-edit': const _Save('POST', '/Users', text: true),
     'user-policy': _Save(
       'POST',
       '/Users/{user}/Policy',
@@ -576,99 +535,7 @@ void main() {
     });
   }
 
-  testWidgets('a licensed server shows no Premiere notes',
-      skip: skip != null || !premiere, (tester) async {
-    currentPage = 'premiere:licensed';
-    final router = await pumpAdmin(tester, Destinations.adminPremiere);
-    await settle(tester);
-    expect(find.text(l10n.adminPremiereActive), findsOneWidget);
-    for (final route in [
-      Destinations.adminSettingsPlayback,
-      Destinations.adminSettingsStreaming,
-      Destinations.adminLiveTv,
-      Destinations.adminLiveTvChannels,
-      Destinations.adminCinemaIntros,
-      Destinations.adminConversions,
-    ]) {
-      router.go(route);
-      await settle(tester);
-      expect(find.text(l10n.adminPremiereNote), findsNothing, reason: route);
-      expect(
-        find.text(l10n.adminPremiereNoteLiveTv),
-        findsNothing,
-        reason: route,
-      );
-    }
-    expectNoFailures(currentPage);
-    AdminDraft.active.value = null;
-  });
-
   // Only reads: the dialog closes without mapping anything.
-  testWidgets('the mapping dialog shows the current mappings',
-      skip: skip != null || !premiere, (tester) async {
-    currentPage = 'live-tv:mappings';
-    final channels = await client.embyAdminApi!.getManagedChannels(limit: 1);
-    final first = (channels['Items'] as List).first as Map;
-    await pumpAdmin(tester, Destinations.adminLiveTv);
-    await settle(tester);
-    await tester.tap(find.byTooltip(l10n.adminLiveTvMapChannels).first);
-    await settle(tester);
-    expect(find.text('${first['ListingsChannelName']}'), findsWidgets);
-    await tester.tap(find.text(l10n.close).last);
-    await settle(tester);
-    expectNoFailures(currentPage);
-  });
-
-  testWidgets('a channel turns off and moves, then goes back',
-      skip: skip != null || !channelWrites, (tester) async {
-    currentPage = 'live-tv-channels:changes';
-    final emby = client.embyAdminApi!;
-    Future<List<Map>> firstTwo() async =>
-        ((await emby.getManagedChannels(limit: 2))['Items'] as List).cast<Map>();
-    // Turning a channel back on gives it a new item id, so channels are told
-    // apart by ManagementId.
-    final [a, b] = await firstTwo();
-    final wasDisabled = a['Disabled'] == true;
-    List<Object?> order(List<Map> channels) =>
-        [for (final c in channels) c['ManagementId']];
-    // Put the server back even when a step fails.
-    addTearDown(() async {
-      final [now, next] = await firstTwo();
-      final current = now['ManagementId'] == a['ManagementId'] ? now : next;
-      if ((current['Disabled'] == true) != wasDisabled) {
-        await emby.setChannelDisabled(
-          '${current['Id']}',
-          managementId: '${a['ManagementId']}',
-          disabled: wasDisabled,
-        );
-      }
-      if (now['ManagementId'] != a['ManagementId']) {
-        await emby.setChannelSortIndex(
-          '${current['Id']}',
-          managementId: '${a['ManagementId']}',
-          newIndex: 0,
-        );
-      }
-    });
-    await pumpAdmin(tester, Destinations.adminLiveTvChannels);
-    await settle(tester);
-
-    final toggle = find.byType(Switch).first;
-    await tester.tap(toggle);
-    await settle(tester);
-    expect((await firstTwo()).first['Disabled'] == true, !wasDisabled);
-    await tester.tap(toggle);
-    await settle(tester);
-    expect((await firstTwo()).first['Disabled'] == true, wasDisabled);
-
-    await tester.tap(find.byTooltip(l10n.moveDown).first);
-    await settle(tester);
-    expect(order(await firstTwo()), order([b, a]));
-    await tester.tap(find.byTooltip(l10n.moveUp).at(1));
-    await settle(tester);
-    expect(order(await firstTwo()), order([a, b]));
-    expectNoFailures(currentPage);
-  });
 }
 
 /// One page's save check. [tab] opens that tab first, [anchor] picks the

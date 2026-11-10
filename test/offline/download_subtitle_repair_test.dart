@@ -162,22 +162,6 @@ void main() {
     expect(requests, hasLength(2));
   });
 
-  test('asks Emby for PGS as .sup', () async {
-    final emby = DownloadService(
-      _FakeClient('http://127.0.0.1:${server.port}', ServerType.emby),
-      DownloadNotificationService(),
-    );
-    addTearDown(emby.dispose);
-
-    await emby.restoreMissingSubtitles('movie-1');
-
-    expect(
-      requests,
-      contains('/Videos/movie-1/source-1/Subtitles/5/0/Stream.sup'),
-    );
-    expect(File('${tempDir.path}/Movie_sub_5.pgssub').existsSync(), isTrue);
-  });
-
   test('ignores items that are not downloaded', () async {
     await service.restoreMissingSubtitles('other');
     expect(requests, isEmpty);

@@ -14,7 +14,6 @@ import '../../../widgets/adaptive/adaptive_dialog.dart';
 import '../../../widgets/identify_dialog.dart';
 import '../../detail/modern/widgets/details_tab_bar.dart';
 import '../admin_draft.dart';
-import '../admin_nav.dart';
 import '../libraries/admin_library_dialogs.dart';
 import '../widgets/admin_form_styles.dart';
 
@@ -841,8 +840,7 @@ class _AdminMetadataEditScreenState extends State<AdminMetadataEditScreen>
       icon: const Icon(Icons.travel_explore),
       label: Text(l10n.adminMetadataIdentify),
     ),
-    // Emby has no per-item content type.
-    if (_contentTypeOptions().isNotEmpty && !AdminServerScope.isEmby(context))
+    if (_contentTypeOptions().isNotEmpty)
       FilledButton.tonalIcon(
         onPressed: _changeContentType,
         icon: const Icon(Icons.category_outlined),

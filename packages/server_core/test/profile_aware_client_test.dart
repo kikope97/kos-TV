@@ -49,18 +49,6 @@ void main() {
       });
     });
 
-    test('Emby keeps its Emby header', () {
-      final headers = serverAuthHeaders(_PlainClient(ServerType.emby));
-      expect(headers['Authorization'], startsWith('Emby '));
-      expect(headers['Authorization'], contains('Token="tok"'));
-    });
-
-    test('Plex gets its token header', () {
-      expect(serverAuthHeaders(_PlainClient(ServerType.plex)), {
-        'X-Plex-Token': 'tok',
-      });
-    });
-
     test('a profile-aware client supplies its own headers', () {
       expect(serverAuthHeaders(_ProfileClient()), {
         'Authorization': 'Bearer tok',

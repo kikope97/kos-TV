@@ -113,7 +113,7 @@ void main() {
             name: 'Other',
             address: 'http://other',
             version: '4.10',
-            serverType: ServerType.emby,
+            serverType: ServerType.jellyfin,
             dateAdded: DateTime(2026),
           ),
           userId: 'user',

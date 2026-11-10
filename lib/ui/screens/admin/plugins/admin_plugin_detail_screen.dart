@@ -6,7 +6,6 @@ import 'package:server_core/server_core.dart';
 import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../admin_nav.dart';
 import '../admin_plugin_version_utils.dart';
 import '../../../widgets/adaptive/adaptive_dialog.dart';
 import '../providers/admin_user_providers.dart';
@@ -68,10 +67,10 @@ String? configurationPageFor(
 /// Emby sends no CanUninstall since any plugin can be removed, and none can
 /// be turned off.
 bool canUninstallPlugin(BuildContext context, PluginInfo plugin) =>
-    plugin.canUninstall || AdminServerScope.isEmby(context);
+    plugin.canUninstall;
 
 bool canTogglePlugin(BuildContext context, PluginInfo plugin) =>
-    plugin.canUninstall && !AdminServerScope.isEmby(context);
+    plugin.canUninstall;
 
 /// Emby's image for a plugin, keyed by its tag, or null without one.
 String? pluginThumbUrl(String baseUrl, PluginInfo plugin) {
@@ -94,9 +93,7 @@ Future<void> openPluginSettingsPage(
   final root = base.endsWith('/') ? base.substring(0, base.length - 1) : base;
   final name = Uri.encodeComponent(pageName);
   final uri = Uri.parse(
-    AdminServerScope.isEmby(context)
-        ? '$root/web/index.html#!/configurationpage?name=$name'
-        : '$root/web/#/configurationpage?name=$name',
+    '$root/web/#/configurationpage?name=$name',
   );
   final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
   if (!opened && context.mounted) {
@@ -683,7 +680,7 @@ class _DetailsTable extends StatelessWidget {
                   _row(context, 'Version', plugin.version),
                   // Emby's catalog names no developers and has no
                   // repositories.
-                  if (!AdminServerScope.isEmby(context)) ...[
+                  ...[
                     _row(
                       context,
                       AppLocalizations.of(context).adminPluginDetailDeveloper,

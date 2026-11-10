@@ -16,9 +16,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:moonfin_native_video/moonfin_native_video.dart';
 import 'package:logger/logger.dart';
 import 'package:playback_core/playback_core.dart';
-import 'package:playback_emby/playback_emby.dart';
 import 'package:playback_jellyfin/playback_jellyfin.dart';
-import 'package:playback_plex/playback_plex.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../data/models/media_bar_slide_item.dart';
@@ -1856,8 +1854,6 @@ class _MediaBarState extends State<MediaBar>
   MediaStreamResolver _resolverForClient(MediaServerClient client) {
     return switch (client.serverType) {
       ServerType.jellyfin => JellyfinPlugin(client).createStreamResolver(),
-      ServerType.emby => EmbyPlugin(client).createStreamResolver(),
-      ServerType.plex => PlexMediaStreamResolver(client),
       ServerType.silo => siloPluginFor(client).createStreamResolver(),
     };
   }
