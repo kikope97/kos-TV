@@ -5880,6 +5880,10 @@ class AppLocalizationsKn extends AppLocalizations {
       'The installer couldn\'t be opened. Please try again.';
 
   @override
+  String get kostvServerUnreachable =>
+      'Can\'t reach the server. Check the internet connection and try again.';
+
+  @override
   String get openReleasesPage => 'ಬಿಡುಗಡೆಯ ಪುಟವನ್ನು ತೆರೆಯಿರಿ';
 
   @override

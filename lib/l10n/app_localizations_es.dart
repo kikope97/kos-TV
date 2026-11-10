@@ -5902,6 +5902,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'No se pudo abrir el instalador. Inténtalo de nuevo.';
 
   @override
+  String get kostvServerUnreachable =>
+      'No se puede conectar con el servidor. Comprueba la conexión a internet y vuelve a intentarlo.';
+
+  @override
   String get openReleasesPage => 'Abrir página de lanzamientos';
 
   @override

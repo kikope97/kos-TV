@@ -12,7 +12,9 @@ import '../../../auth/store/authentication_preferences.dart';
 import '../../../auth/store/credential_store.dart';
 import '../../../data/services/connectivity_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../util/kostv_server.dart';
 import '../../../util/pin_code_util.dart';
+import '../../../util/server_url.dart';
 import '../../../preference/preference_constants.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/adaptive/adaptive_dialog.dart';
@@ -36,6 +38,9 @@ class _StartupScreenState extends State<StartupScreen>
     with SingleTickerProviderStateMixin {
   late final AnimationController _fadeController;
   late final Animation<double> _fadeAnimation;
+
+  /// Kos TV: the built-in server couldn't be reached on a first start.
+  bool _kostvServerFailed = false;
 
   @override
   void initState() {
@@ -169,11 +174,43 @@ class _StartupScreenState extends State<StartupScreen>
           // A previously-used server is known — go straight to user selection
           // for that server rather than the Add Server page.
           context.go('${Destinations.server}?serverId=$targetServerId');
+        } else if (hasKostvServer) {
+          await _openKostvServer();
         } else {
           context.go(Destinations.serverSelect);
         }
       }
     }
+  }
+
+  /// Kos TV: with the household server built in, a first start skips the
+  /// server address and opens straight on its username and password sign-in.
+  Future<void> _openKostvServer() async {
+    final serverRepo = GetIt.instance<ServerRepository>();
+    final connectivity = GetIt.instance<ConnectivityService>();
+    if (!connectivity.isOnline) {
+      await connectivity.waitForOnline(const Duration(seconds: 10));
+    }
+    final wanted = normalizeServerBaseUrl(kostvServerUrl);
+    var server = serverRepo.servers
+        .where(
+          (s) =>
+              normalizeServerBaseUrl(s.address) == wanted ||
+              normalizeServerBaseUrl(s.displayAddress ?? '') == wanted,
+        )
+        .firstOrNull;
+    server ??= await serverRepo.addServer(kostvServerUrl);
+    if (!mounted) return;
+    if (server == null) {
+      setState(() => _kostvServerFailed = true);
+      return;
+    }
+    context.go('${Destinations.login}?serverId=${server.id}');
+  }
+
+  void _retryKostvServer() {
+    setState(() => _kostvServerFailed = false);
+    _openKostvServer();
   }
 
   Future<void> _showSecureStorageWarning() async {
@@ -233,14 +270,30 @@ class _StartupScreenState extends State<StartupScreen>
                   height: _isLargeScreen ? 80 : 56,
                 ),
                 const SizedBox(height: 32),
-                SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColorScheme.accent.withValues(alpha: 0.7),
+                if (_kostvServerFailed) ...[
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Text(
+                      AppLocalizations.of(context).kostvServerUnreachable,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColorScheme.onSurface),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    autofocus: true,
+                    onPressed: _retryKostvServer,
+                    child: Text(AppLocalizations.of(context).retry),
+                  ),
+                ] else
+                  SizedBox(
+                    height: 24,
+                    width: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColorScheme.accent.withValues(alpha: 0.7),
+                    ),
+                  ),
               ],
             ),
           ),

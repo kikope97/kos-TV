@@ -24,6 +24,7 @@ git cherry-pick <commit>
 | Publicación de versiones desde GitHub (solo Android) con la versión como única fuente | `.github/workflows/build.yml`, `scripts/kostv_set_version.sh` | Hecho |
 | APK firmados con la clave propia (secretos `ANDROID_*` del repositorio), comprobado en el certificado del APK | `.github/workflows/build.yml` | Hecho |
 | Archivos generados con el prefijo `KosTV_` | `build-android.sh` | Hecho |
+| Servidor de casa integrado: el primer arranque abre directamente el usuario y la contraseña, sin pedir dirección. La dirección viene del secreto `KOSTV_SERVER_URL` y no está en el código | `lib/util/kostv_server.dart`, `startup_screen.dart`, `build-android.sh`, `build.yml` | Hecho |
 | Workflows que publican fuera (AUR, winget, Pages…) desactivados | `.github/workflows-disabled/` | Hecho |
 | Sin versiones de escritorio (Windows, Linux, macOS): carpetas, scripts y trabajos de CI | — | Hecho |
 | Sin Plex ni Emby: paquetes `server_/playback_` de ambos, `ServerType.emby/plex`, inicio de sesión con Plex y Emby Connect, búsqueda de Plex en la red, Moonbase para Plex, pantallas de administración solo de Emby y avisos de Emby Premiere | `packages/server_core`, `lib/`, `test/` | Hecho |
@@ -54,6 +55,12 @@ La versión sale de lo que se escribe al publicar (`scripts/kostv_set_version.sh
 el número interno que compara Android es `MAJOR*1000000 + MINOR*1000 + PATCH`.
 El `pubspec.yaml` del repositorio se queda en `0.1.0`, así que cualquier APK que
 no sea una release cuenta como más antiguo y también se actualiza.
+
+Una publicación necesita el secreto `KOSTV_SERVER_URL` (la dirección del
+servidor de casa, con `https://`): sin él, la compilación falla a propósito. Se
+inyecta en la app al compilar con `--dart-define`, así que no aparece en el
+repositorio y en los registros de GitHub sale tapada. Ojo: quien descargue el
+APK y lo desmonte sí podría leerla, porque la app la necesita para conectarse.
 
 Si se pierde la clave de firma (`kostv-release.jks` y su contraseña), los APK
 nuevos ya no se podrán instalar encima: habría que desinstalar en cada aparato.

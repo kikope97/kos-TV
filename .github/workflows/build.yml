@@ -234,7 +234,22 @@ jobs:
           RELEASE_VERSION: ${{ needs.plan.outputs.release_version }}
         run: ./scripts/kostv_set_version.sh "$RELEASE_VERSION"
 
+      # Kos TV: a release must have the household server built in, so the app
+      # opens on its sign-in. It comes from a secret and stays out of the
+      # repository and, masked, out of the logs.
+      - name: Check the built-in server
+        if: needs.plan.outputs.release_version != ''
+        env:
+          KOSTV_SERVER_URL: ${{ secrets.KOSTV_SERVER_URL }}
+        run: |
+          if [ -z "$KOSTV_SERVER_URL" ]; then
+            echo "::error::A release needs the KOSTV_SERVER_URL repository secret (the server the app signs in to)."
+            exit 1
+          fi
+
       - name: Build
+        env:
+          KOSTV_SERVER_URL: ${{ secrets.KOSTV_SERVER_URL }}
         run: |
           chmod +x build-android.sh
           ./build-android.sh ${{ matrix.target }}

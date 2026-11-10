@@ -3,6 +3,13 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 APP_NAME="KosTV"
+# Kos TV: the household server, built in from the KOSTV_SERVER_URL environment
+# variable (a GitHub secret on CI) so the address never sits in the repository.
+# Without it the app asks for a server address on first start, as Moonfin does.
+KOSTV_DEFINES=()
+if [ -n "${KOSTV_SERVER_URL:-}" ]; then
+  KOSTV_DEFINES+=("--dart-define=KOSTV_SERVER_URL=${KOSTV_SERVER_URL}")
+fi
 APK_SOURCE="$REPO_ROOT/build/app/outputs/flutter-apk/app-mobile-release.apk"
 BUNDLE_SOURCE="$REPO_ROOT/build/app/outputs/bundle/mobileRelease/app-mobile-release.aab"
 TV_APK_SOURCE="$REPO_ROOT/build/app/outputs/flutter-apk/app-androidtv-release.apk"
@@ -99,6 +106,7 @@ if [ "$TARGET" != tv ]; then
     --flavor mobile \
     --build-name "$APP_VERSION" \
     --build-number "$APP_BUILD_NUMBER" \
+    ${KOSTV_DEFINES[@]+"${KOSTV_DEFINES[@]}"} \
     --dart-define=DISTRIBUTION_CHANNEL=apk
 
   if [ ! -f "$APK_SOURCE" ]; then
@@ -122,6 +130,7 @@ if [ "$TARGET" != tv ]; then
     --flavor mobile \
     --build-name "$APP_VERSION" \
     --build-number "$APP_BUILD_NUMBER" \
+    ${KOSTV_DEFINES[@]+"${KOSTV_DEFINES[@]}"} \
     --dart-define=DISTRIBUTION_CHANNEL=aab; then
     echo "Flutter appbundle build failed. Retrying with Gradle bundleRelease fallback..."
     (
@@ -153,6 +162,7 @@ if [ "$TARGET" != mobile ]; then
     --build-name "$TV_VERSION" \
     --build-number "$TV_BUILD_NUMBER" \
     --dart-define=MOONFIN_FORCE_TV=true \
+    ${KOSTV_DEFINES[@]+"${KOSTV_DEFINES[@]}"} \
     --dart-define=DISTRIBUTION_CHANNEL=android_tv_apk
 
   if [ ! -f "$TV_APK_SOURCE" ]; then
@@ -177,6 +187,7 @@ if [ "$TARGET" != mobile ]; then
     --build-name "$TV_VERSION" \
     --build-number "$TV_BUILD_NUMBER" \
     --dart-define=MOONFIN_FORCE_TV=true \
+    ${KOSTV_DEFINES[@]+"${KOSTV_DEFINES[@]}"} \
     --dart-define=DISTRIBUTION_CHANNEL=android_tv_aab; then
     echo "Flutter appbundle build failed. Retrying with Gradle bundleAndroidTvRelease fallback..."
     (

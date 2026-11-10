@@ -7688,6 +7688,10 @@
   "@updateInstallFailed": {
     "description": "Kos TV: shown when the system installer can't be started"
   },
+  "kostvServerUnreachable": "Can't reach the server. Check the internet connection and try again.",
+  "@kostvServerUnreachable": {
+    "description": "Kos TV: first start could not reach the built-in household server"
+  },
   "openReleasesPage": "Open Releases Page",
   "@openReleasesPage": {
     "description": "Option to open the GitHub releases page in a browser (Linux)"

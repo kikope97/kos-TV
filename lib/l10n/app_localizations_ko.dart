@@ -5726,6 +5726,10 @@ class AppLocalizationsKo extends AppLocalizations {
       'The installer couldn\'t be opened. Please try again.';
 
   @override
+  String get kostvServerUnreachable =>
+      'Can\'t reach the server. Check the internet connection and try again.';
+
+  @override
   String get openReleasesPage => '릴리스 페이지 열기';
 
   @override
