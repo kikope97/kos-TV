@@ -121,7 +121,6 @@ app.*.map.json
 /moonfin_*.snap
 /moonfin_*.flatpak
 /.flatpak-builder/
-/build-macos.private.env
 
 # macOS build artifacts
 /Moonfin_macOS_v*.dmg

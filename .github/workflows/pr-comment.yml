@@ -247,18 +247,13 @@ jobs:
               { platform: 'Android',       job: 'android',       artifact: 'android',              files: 'Moonfin_Android_v* (apk/aab)' },
               { platform: 'Android TV',    job: 'android',       artifact: 'android-tv',           files: 'Moonfin_AndroidTV_v* (apk/aab)' },
               { platform: 'iOS',           job: 'ios',           artifact: 'ios-ipa',              files: 'Moonfin_iOS_v*_unsigned.ipa' },
-              { platform: 'macOS',         job: 'macos',         artifact: 'macos-dmg',            files: 'Moonfin_macOS_v*.dmg' },
               { platform: 'tvOS',          job: 'tvos',          artifact: 'tvos-ipa',             files: 'Moonfin_tvOS_v*_unsigned.ipa' },
               { platform: 'Apple tests',   job: 'apple_tests',   artifact: 'apple-test-results',   files: 'test-results.json', tests: true },
-              { platform: 'Windows x64',   job: 'windows',       artifact: 'windows-exe',          files: 'Moonfin_Windows_v*.exe' },
-              { platform: 'Windows ARM64', job: 'windows_arm64', artifact: 'windows-arm64-exe',    files: 'Moonfin_WindowsARM64_v*.exe' },
-              { platform: 'Linux x64',     job: 'linux',         artifact: 'linux-packages-x64',   files: 'Moonfin_Linux_v* (deb/rpm/AppImage/snap/flatpak/tar.gz)' },
-              { platform: 'Linux ARM64',   job: 'linux',         artifact: 'linux-packages-arm64', files: 'Moonfin_LinuxARM64_v* (deb/rpm/AppImage/snap/flatpak/tar.gz)' },
               { platform: 'Web',           job: 'web',           artifact: 'web',                  files: 'build/web (static site, serve over HTTP)' },
             ];
 
-            // Android builds both flavors and Linux both architectures in one matrix
-            // job each, so a failure on either leg fails the job as a whole. An
+            // Android builds both flavors in one matrix
+            // job, so a failure on either leg fails the job as a whole. An
             // artifact only uploads when its own leg got that far, so its presence
             // is what tells the two apart. Without outcomes.json, an artifact
             // still proves its build passed, but a missing one proves nothing.
@@ -281,9 +276,7 @@ jobs:
             const planned = outcomes?.planned && typeof outcomes.planned === 'object' ? outcomes.planned : {};
             const labelFor = {
               android: 'ci:android',
-              ios: 'ci:apple', macos: 'ci:apple', tvos: 'ci:apple', apple_tests: 'ci:apple',
-              windows: 'ci:windows', windows_arm64: 'ci:windows',
-              linux: 'ci:linux',
+              ios: 'ci:apple', tvos: 'ci:apple', apple_tests: 'ci:apple',
               web: 'ci:web',
             };
             const notRun = (job) => Boolean(buildRunId) && outcomes?.[job] === 'skipped' && planned[job] === false;

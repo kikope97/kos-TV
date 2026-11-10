@@ -4,15 +4,15 @@ name: Checks
 # on a pull request in about 15 minutes, while Build All Platforms is still
 # building. The PR Comment workflow reads its results from here.
 #
-# On main it also keeps the Gradle and vcpkg caches warm. A cache saved by a
-# pull request can't be read by any other pull request, but one saved on main
-# can be read by all of them, so this is where Build All Platforms' android and
-# Windows jobs, and the kotlin suite below, get theirs.
+# On main it also keeps the Gradle cache warm. A cache saved by a pull request
+# can't be read by any other pull request, but one saved on main can be read by
+# all of them, so this is where Build All Platforms' android job, and the kotlin
+# suite below, get theirs.
 on:
   workflow_dispatch:
     inputs:
       warm_caches:
-        description: Also save the Gradle and vcpkg caches, as a push to main does
+        description: Also save the Gradle cache, as a push to main does
         type: boolean
         default: false
   pull_request:
@@ -480,58 +480,3 @@ jobs:
           print(results)
           sys.exit(1 if any(r in ('failure', 'cancelled') for r in results.values()) else 0)
           EOF
-
-  # Saves vcpkg's binary cache on main for the Windows jobs in build.yml, which
-  # build libarchive and its dependencies, OpenSSL included, from source for
-  # about 13 minutes without it. The version step, path, key and restore-keys
-  # are copied from those jobs and must stay identical to them, or the build
-  # looks up a key this never saves. With an exact hit actions/cache doesn't
-  # save, so a warm run is a restore and a no-op install. Not part of the
-  # checks gate: a cold cache only makes the next build slower.
-  warm-vcpkg:
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' || github.event_name == 'schedule' || inputs.warm_caches
-    name: warm-vcpkg (${{ matrix.triplet }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: windows-latest
-            triplet: x64-windows
-          - runner: windows-11-arm
-            triplet: arm64-windows
-    runs-on: ${{ matrix.runner }}
-    steps:
-      # vcpkg runs in the checkout like in the build, so a manifest added to
-      # the repo later would apply here too.
-      - uses: actions/checkout@v5
-
-      - name: Find the runner's vcpkg and image versions
-        id: vcpkg
-        shell: pwsh
-        run: |
-          $commit = git -C $env:VCPKG_INSTALLATION_ROOT rev-parse HEAD
-          "commit=$commit" >> $env:GITHUB_OUTPUT
-          "image=$env:ImageVersion" >> $env:GITHUB_OUTPUT
-
-      - uses: actions/cache@v5
-        with:
-          path: ~\AppData\Local\vcpkg\archives
-          key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ steps.vcpkg.outputs.commit }}-${{ steps.vcpkg.outputs.image }}
-          restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
-
-      # The same classic-mode install build-windows.ps1 runs, with the vcpkg
-      # it finds first on a runner (C:\vcpkg), so the ABI hashes are the ones
-      # the build looks up. There is no manifest or overlay port to match.
-      - name: Build libarchive into the binary cache
-        shell: pwsh
-        env:
-          VCPKG_TRIPLET: ${{ matrix.triplet }}
-        run: |
-          $vcpkg = 'C:\vcpkg\vcpkg.exe'
-          if (-not (Test-Path $vcpkg)) {
-            $vcpkg = (Get-Command vcpkg -ErrorAction Stop).Source
-          }
-          & $vcpkg install "libarchive:$env:VCPKG_TRIPLET"
-          if ($LASTEXITCODE -ne 0) {
-            throw "vcpkg install libarchive:$env:VCPKG_TRIPLET failed with exit code $LASTEXITCODE"
-          }

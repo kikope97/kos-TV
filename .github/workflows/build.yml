@@ -15,22 +15,6 @@ on:
         description: Run iOS job
         type: boolean
         default: false
-      macos:
-        description: Run macOS job
-        type: boolean
-        default: false
-      windows:
-        description: Run Windows job
-        type: boolean
-        default: false
-      windows_arm64:
-        description: Run Windows ARM64 job
-        type: boolean
-        default: false
-      linux:
-        description: Run Linux job
-        type: boolean
-        default: false
       tvos:
         description: Run tvOS job
         type: boolean
@@ -88,11 +72,7 @@ jobs:
     outputs:
       android: ${{ steps.plan.outputs.android }}
       ios: ${{ steps.plan.outputs.ios }}
-      macos: ${{ steps.plan.outputs.macos }}
       tvos: ${{ steps.plan.outputs.tvos }}
-      windows: ${{ steps.plan.outputs.windows }}
-      windows_arm64: ${{ steps.plan.outputs.windows_arm64 }}
-      linux: ${{ steps.plan.outputs.linux }}
       web: ${{ steps.plan.outputs.web }}
       apple_tests: ${{ steps.plan.outputs.apple_tests }}
     steps:
@@ -127,11 +107,7 @@ jobs:
           out = {
               'android':       want('android', ['run_all', 'android']),
               'ios':           want('apple', ['run_all', 'ios'], apple=True),
-              'macos':         want('apple', ['run_all', 'macos'], apple=True),
               'tvos':          want('apple', ['run_all', 'tvos'], apple=True),
-              'windows':       want('windows', ['run_all', 'windows']),
-              'windows_arm64': want('windows', ['run_all', 'windows_arm64']),
-              'linux':         want('linux', ['run_all', 'linux']),
               # Web has no release artifact, so it never ran on tags or manual runs.
               'web':           event in ('pull_request', 'merge_group') and want('web', []),
               'apple_tests':   want('apple', ['run_all'], apple=True),
@@ -333,90 +309,6 @@ jobs:
           asc-key-id: ${{ secrets.APPLE_ASC_API_KEY_ID }}
           asc-issuer-id: ${{ secrets.APPLE_ASC_API_ISSUER_ID }}
 
-  # macOS: a signed and notarized DMG for releases, or a TestFlight upload
-  macos:
-    needs: plan
-    if: needs.plan.outputs.macos == 'true'
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-
-      - name: Select Xcode 26.3
-        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
-
-      # On PRs from forks the certificate secret is not available, so this
-      # skips and build-macos.sh falls back to an ad-hoc signature.
-      - name: Set up Developer ID signing
-        uses: ./.github/actions/apple-signing
-        with:
-          certificate-base64: ${{ secrets.MACOS_CERTIFICATE_BASE64 }}
-          certificate-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-
-      - name: Store notarytool credentials
-        if: ${{ inputs.distribution != 'testflight' }}
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-        run: |
-          if [ -z "$APPLE_ID" ]; then
-            echo "No Apple ID configured, skipping notarytool credentials"
-            exit 0
-          fi
-          xcrun notarytool store-credentials "moonfin-notary" \
-            --apple-id "$APPLE_ID" \
-            --team-id "$APPLE_TEAM_ID" \
-            --password "$APPLE_APP_PASSWORD"
-
-      - name: Build signed DMG
-        if: ${{ inputs.distribution != 'testflight' }}
-        env:
-          APP_SIGN_ID: ${{ secrets.MACOS_APP_SIGN_ID }}
-          INSTALLER_ID: ${{ secrets.MACOS_INSTALLER_ID }}
-          NOTARYTOOL_PROFILE: ${{ secrets.APPLE_ID != '' && 'moonfin-notary' || '' }}
-          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          BUILD_APPSTORE_PKG: '0'
-        run: |
-          chmod +x build-macos.sh
-          ./build-macos.sh
-
-      - uses: actions/upload-artifact@v6
-        if: ${{ inputs.distribution != 'testflight' }}
-        with:
-          name: macos-dmg
-          path: Moonfin_macOS_v*.dmg
-
-      # The App Store build signs with the Apple Distribution identity rather
-      # than Developer ID, and needs the API key to fetch a Mac App Store
-      # profile on a runner with no Apple ID.
-      - name: Set up App Store signing
-        if: ${{ inputs.distribution == 'testflight' }}
-        id: signing
-        uses: ./.github/actions/apple-signing
-        with:
-          certificate-base64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
-          certificate-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          certificate-required: 'true'
-          asc-key-base64: ${{ secrets.APPLE_ASC_API_KEY_BASE64 }}
-
-      - name: Archive and upload to TestFlight
-        if: ${{ inputs.distribution == 'testflight' }}
-        env:
-          BUILD_APPSTORE_PKG: '1'
-          BUILD_DMG_GITHUB: '0'
-          EXPORT_DESTINATION: upload
-          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          ASC_KEY_PATH: ${{ steps.signing.outputs.asc-key-path }}
-          ASC_KEY_ID: ${{ secrets.APPLE_ASC_API_KEY_ID }}
-          ASC_ISSUER_ID: ${{ secrets.APPLE_ASC_API_ISSUER_ID }}
-        run: |
-          chmod +x build-macos.sh
-          ./build-macos.sh
-
   # tvOS: an unsigned IPA for releases, or a TestFlight upload
   tvos:
     needs: plan
@@ -592,361 +484,6 @@ jobs:
           asc-key-id: ${{ secrets.APPLE_ASC_API_KEY_ID }}
           asc-issuer-id: ${{ secrets.APPLE_ASC_API_ISSUER_ID }}
 
-  # Windows installer EXE
-  windows:
-    needs: plan
-    if: needs.plan.outputs.windows == 'true'
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-
-      - name: Install Inno Setup
-        shell: pwsh
-        run: choco install innosetup -y --no-progress
-
-      # vcpkg builds libarchive and its dependencies from source, OpenSSL
-      # included, which took about 13 minutes of every run. Its binary cache
-      # skips that once the warm-vcpkg job in checks.yml saved it on main, or
-      # an earlier run of the same PR did. Keep the version step, path, key
-      # and restore-keys the same as there.
-      - name: Find the runner's vcpkg and image versions
-        id: vcpkg
-        shell: pwsh
-        run: |
-          $commit = git -C $env:VCPKG_INSTALLATION_ROOT rev-parse HEAD
-          "commit=$commit" >> $env:GITHUB_OUTPUT
-          "image=$env:ImageVersion" >> $env:GITHUB_OUTPUT
-
-      - uses: actions/cache@v5
-        with:
-          path: ~\AppData\Local\vcpkg\archives
-          # The image version is in the key because an image update can bring
-          # a new compiler with the same vcpkg, and a cache that matched the key
-          # exactly would never be saved again. On a new image this starts from
-          # the last cache, and vcpkg's ABI hashes rebuild whatever went stale.
-          key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ steps.vcpkg.outputs.commit }}-${{ steps.vcpkg.outputs.image }}
-          restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Build installer
-        shell: pwsh
-        run: .\build-windows.ps1
-
-      - name: Verify Windows artifact
-        shell: pwsh
-        run: |
-          $artifacts = Get-ChildItem -Path . -Filter "Moonfin_Windows_v*.exe" -File -ErrorAction SilentlyContinue
-          if (-not $artifacts -or $artifacts.Count -eq 0) {
-            throw "Windows build did not produce Moonfin_Windows_v*.exe"
-          }
-          Write-Host "Found Windows artifact(s):"
-          $artifacts | ForEach-Object { Write-Host "  - $($_.Name)" }
-
-      - uses: actions/upload-artifact@v6
-        id: unsigned-windows
-        with:
-          name: windows-exe
-          path: Moonfin_Windows_v*.exe
-          if-no-files-found: error
-
-      # Tags only, so a pull request neither spends a signing request nor needs
-      # the token. Inno Setup packs moonfin.exe and its DLLs before this runs,
-      # so the installer is signed but the files it carries are not.
-      - name: Sign installer
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: SignPath/github-action-submit-signing-request@v2
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: Moonfin-Core
-          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY || 'test-signing' }}
-          artifact-configuration-slug: windows-installer
-          github-artifact-id: ${{ steps.unsigned-windows.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: signed
-
-      # Overwrites the unsigned upload, so the release job sees one artifact per
-      # architecture rather than two carrying the same filename.
-      - name: Replace with the signed installer
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v6
-        with:
-          name: windows-exe
-          path: signed/Moonfin_Windows_v*.exe
-          overwrite: true
-          if-no-files-found: error
-
-      # Tags and manual runs only, since rebuilding for the Store doubles the
-      # job's time.
-      - name: Build Microsoft Store package
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-        shell: pwsh
-        run: .\build-windows.ps1 -Store
-
-      - uses: actions/upload-artifact@v6
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-        with:
-          name: windows-msix
-          path: MoonfinStore_Windows_v*.msix
-          if-no-files-found: error
-
-  # Windows ARM64 installer EXE (native build on an ARM64 runner)
-  windows-arm64:
-    needs: plan
-    if: needs.plan.outputs.windows_arm64 == 'true'
-    runs-on: windows-11-arm
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Verify ARM64 runner
-        shell: pwsh
-        run: |
-          Write-Host "PROCESSOR_ARCHITECTURE=$env:PROCESSOR_ARCHITECTURE"
-          if ($env:PROCESSOR_ARCHITECTURE -ne "ARM64") {
-            throw "This job must run on a native ARM64 Windows runner"
-          }
-
-      # subosito/flutter-action does not provide a native ARM64 SDK, so clone the
-      # SDK directly to get the windows_arm64 Dart SDK (required for an ARM64 build).
-      - name: Set up Flutter (native ARM64)
-        shell: pwsh
-        run: |
-          git clone https://github.com/flutter/flutter.git --branch $env:FLUTTER_VERSION --depth 1 C:\flutter
-          echo "C:\flutter\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Assert Flutter is using a native ARM64 Dart SDK
-        shell: pwsh
-        run: |
-          $dartVersion = (& dart --version 2>&1 | Out-String)
-          Write-Host $dartVersion
-          if ($dartVersion -notmatch 'windows_arm64|arm64') {
-            throw "Flutter is using an x64 Dart SDK on this ARM64 runner ($($dartVersion.Trim())). Bump FLUTTER_VERSION to a release that ships the arm64 Dart SDK (>= 3.44.0)."
-          }
-
-      - name: Enable Windows desktop
-        shell: pwsh
-        run: flutter config --enable-windows-desktop
-
-      - name: Install Inno Setup
-        shell: pwsh
-        run: choco install innosetup -y --no-progress
-
-      # vcpkg builds libarchive and its dependencies from source, OpenSSL
-      # included, which took about 13 minutes of every run. Its binary cache
-      # skips that once the warm-vcpkg job in checks.yml saved it on main, or
-      # an earlier run of the same PR did. Keep the version step, path, key
-      # and restore-keys the same as there.
-      - name: Find the runner's vcpkg and image versions
-        id: vcpkg
-        shell: pwsh
-        run: |
-          $commit = git -C $env:VCPKG_INSTALLATION_ROOT rev-parse HEAD
-          "commit=$commit" >> $env:GITHUB_OUTPUT
-          "image=$env:ImageVersion" >> $env:GITHUB_OUTPUT
-
-      - uses: actions/cache@v5
-        with:
-          path: ~\AppData\Local\vcpkg\archives
-          # The image version is in the key because an image update can bring
-          # a new compiler with the same vcpkg, and a cache that matched the key
-          # exactly would never be saved again. On a new image this starts from
-          # the last cache, and vcpkg's ABI hashes rebuild whatever went stale.
-          key: vcpkg-${{ runner.os }}-${{ runner.arch }}-${{ steps.vcpkg.outputs.commit }}-${{ steps.vcpkg.outputs.image }}
-          restore-keys: vcpkg-${{ runner.os }}-${{ runner.arch }}-
-
-      - name: Build ARM64 installer
-        shell: pwsh
-        run: .\build-windows.ps1 -Architecture arm64
-
-      - name: Verify Windows ARM64 artifact
-        shell: pwsh
-        run: |
-          $artifacts = Get-ChildItem -Path . -Filter "Moonfin_WindowsARM64_v*.exe" -File -ErrorAction SilentlyContinue
-          if (-not $artifacts -or $artifacts.Count -eq 0) {
-            throw "Windows ARM64 build did not produce Moonfin_WindowsARM64_v*.exe"
-          }
-          Write-Host "Found Windows ARM64 artifact(s):"
-          $artifacts | ForEach-Object { Write-Host "  - $($_.Name)" }
-
-      - uses: actions/upload-artifact@v6
-        id: unsigned-windows-arm64
-        with:
-          name: windows-arm64-exe
-          path: Moonfin_WindowsARM64_v*.exe
-          if-no-files-found: error
-
-      # Tags only, so a pull request neither spends a signing request nor needs
-      # the token. Inno Setup packs moonfin.exe and its DLLs before this runs,
-      # so the installer is signed but the files it carries are not.
-      - name: Sign installer
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: SignPath/github-action-submit-signing-request@v2
-        with:
-          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-          project-slug: Moonfin-Core
-          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY || 'test-signing' }}
-          artifact-configuration-slug: windows-installer
-          github-artifact-id: ${{ steps.unsigned-windows-arm64.outputs.artifact-id }}
-          wait-for-completion: true
-          output-artifact-directory: signed
-
-      # Overwrites the unsigned upload, so the release job sees one artifact per
-      # architecture rather than two carrying the same filename.
-      - name: Replace with the signed installer
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: actions/upload-artifact@v6
-        with:
-          name: windows-arm64-exe
-          path: signed/Moonfin_WindowsARM64_v*.exe
-          overwrite: true
-          if-no-files-found: error
-
-      - name: Build Microsoft Store package
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-        shell: pwsh
-        run: .\build-windows.ps1 -Architecture arm64 -Store
-
-      - uses: actions/upload-artifact@v6
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
-        with:
-          name: windows-arm64-msix
-          path: MoonfinStore_WindowsARM64_v*.msix
-          if-no-files-found: error
-
-  # Linux packages, built natively for each architecture
-  linux:
-    needs: plan
-    if: needs.plan.outputs.linux == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x64
-            runner: ubuntu-24.04
-            appimagetool_arch: x86_64
-            artifact_prefix: Moonfin_Linux
-          # glibc and libstdc++ are deliberately not bundled, so the build host
-          # decides the oldest system the packages can run on. 24.04 puts that
-          # floor at glibc 2.38, newer than the Debian 12 base that Raspberry Pi
-          # OS and most other ARM64 boards run. 22.04 puts it at 2.35.
-          - arch: arm64
-            runner: ubuntu-22.04-arm
-            appimagetool_arch: aarch64
-            artifact_prefix: Moonfin_LinuxARM64
-    runs-on: ${{ matrix.runner }}
-    steps:
-      - uses: actions/checkout@v5
-
-      - uses: subosito/flutter-action@v2
-        if: matrix.arch == 'x64'
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-
-      # Flutter publishes no Linux ARM64 SDK archive for the action to fetch, so
-      # the SDK is cloned instead and its own bootstrap pulls the arm64 Dart SDK
-      # and engine artifacts to match the host.
-      - name: Set up Flutter (native ARM64)
-        if: matrix.arch == 'arm64'
-        run: |
-          set -euo pipefail
-          git clone https://github.com/flutter/flutter.git \
-            --branch "$FLUTTER_VERSION" --depth 1 "$HOME/flutter"
-          echo "$HOME/flutter/bin" >> "$GITHUB_PATH"
-
-      - name: Install system build dependencies
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y \
-            clang cmake ninja-build pkg-config \
-            libgtk-3-dev libglib2.0-dev \
-            libwebkit2gtk-4.1-dev \
-            libmpv-dev libsecret-1-dev libasound2-dev \
-            libarchive-dev \
-            rpm \
-            flatpak flatpak-builder \
-            libfuse2 \
-            zsync
-
-      - name: Verify webkit2gtk availability
-        run: |
-          set -euo pipefail
-          if pkg-config --exists webkit2gtk-4.1; then
-            echo "Found webkit2gtk-4.1: $(pkg-config --modversion webkit2gtk-4.1)"
-          elif pkg-config --exists webkit2gtk-4.2; then
-            echo "Found webkit2gtk-4.2: $(pkg-config --modversion webkit2gtk-4.2)"
-          elif pkg-config --exists webkit2gtk-4.3; then
-            echo "Found webkit2gtk-4.3: $(pkg-config --modversion webkit2gtk-4.3)"
-          else
-            echo "No supported webkit2gtk version found (need 4.1/4.2/4.3)."
-            exit 1
-          fi
-
-      - name: Install appimagetool
-        run: |
-          sudo curl -fsSL -o /usr/local/bin/appimagetool \
-            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-${{ matrix.appimagetool_arch }}.AppImage
-          sudo chmod +x /usr/local/bin/appimagetool
-
-      - name: Install snapcraft
-        run: sudo snap install snapcraft --classic
-
-      - name: Build all Linux packages
-        run: |
-          chmod +x build-linux.sh
-          ./build-linux.sh all
-
-      - name: Verify Linux artifacts
-        env:
-          PREFIX: ${{ matrix.artifact_prefix }}
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          patterns=(
-            "${PREFIX}_v*.tar.gz"
-            "${PREFIX}_v*.AppImage"
-            "${PREFIX}_v*.AppImage.zsync"
-            "${PREFIX}_v*.deb"
-            "${PREFIX}_v*.rpm"
-            "${PREFIX}_v*.snap"
-            "${PREFIX}_v*.flatpak"
-          )
-
-          missing=0
-          for pattern in "${patterns[@]}"; do
-            matches=( $pattern )
-            if [ ${#matches[@]} -eq 0 ]; then
-              echo "Missing artifact for pattern: $pattern"
-              missing=1
-            else
-              for m in "${matches[@]}"; do
-                echo "Found artifact: $m"
-              done
-            fi
-          done
-
-          if [ $missing -ne 0 ]; then
-            echo "One or more Linux package artifacts are missing."
-            exit 1
-          fi
-
-      - uses: actions/upload-artifact@v6
-        with:
-          name: linux-packages-${{ matrix.arch }}
-          path: |
-            ${{ matrix.artifact_prefix }}_v*.tar.gz
-            ${{ matrix.artifact_prefix }}_v*.AppImage
-            ${{ matrix.artifact_prefix }}_v*.AppImage.zsync
-            ${{ matrix.artifact_prefix }}_v*.deb
-            ${{ matrix.artifact_prefix }}_v*.rpm
-            ${{ matrix.artifact_prefix }}_v*.snap
-            ${{ matrix.artifact_prefix }}_v*.flatpak
-          if-no-files-found: error
-
   # Web, built at the root base href so the artifact runs from any static server
   web:
     needs: plan
@@ -1003,12 +540,6 @@ jobs:
           xcodebuild test -workspace ios/Runner.xcworkspace -scheme Runner -configuration Debug \
             -destination "id=$DEVICE" -clonedSourcePackagesDirPath build/ios/SourcePackages \
             -resultBundlePath "$RUNNER_TEMP/apple-tests/ios.xcresult" \
-            CODE_SIGNING_ALLOWED=NO || status=1
-
-          flutter build macos --debug --config-only
-          xcodebuild test -workspace macos/Runner.xcworkspace -scheme Runner -configuration Debug \
-            -destination platform=macOS -clonedSourcePackagesDirPath build/macos/SourcePackages \
-            -resultBundlePath "$RUNNER_TEMP/apple-tests/macos.xcresult" \
             CODE_SIGNING_ALLOWED=NO || status=1
 
           echo "$status" > "$RUNNER_TEMP/apple-tests/run-status"
@@ -1131,7 +662,7 @@ jobs:
   build:
     name: ${{ needs.plan.result == 'skipped' && 'build (label added, nothing to check)' || 'build' }}
     if: always() && needs.plan.result != 'skipped'
-    needs: [plan, android, ios, macos, tvos, windows, windows-arm64, linux, web, apple-tests]
+    needs: [plan, android, ios, tvos, web, apple-tests]
     runs-on: ubuntu-26.04
     steps:
       - name: Fail if any planned job failed
@@ -1150,7 +681,7 @@ jobs:
   # to report.
   save-pr-results:
     if: always() && github.event_name == 'pull_request' && needs.plan.result != 'skipped'
-    needs: [plan, android, ios, macos, tvos, windows, windows-arm64, linux, web, apple-tests]
+    needs: [plan, android, ios, tvos, web, apple-tests]
     runs-on: ubuntu-26.04
     steps:
       - name: Write outcomes.json
@@ -1161,21 +692,13 @@ jobs:
             "sha": "${{ github.event.pull_request.head.sha }}",
             "android": "${{ needs.android.result }}",
             "ios": "${{ needs.ios.result }}",
-            "macos": "${{ needs.macos.result }}",
             "tvos": "${{ needs.tvos.result }}",
-            "windows": "${{ needs.windows.result }}",
-            "windows_arm64": "${{ needs.windows-arm64.result }}",
-            "linux": "${{ needs.linux.result }}",
             "web": "${{ needs.web.result }}",
             "apple_tests": "${{ needs.apple-tests.result }}",
             "planned": {
               "android": ${{ needs.plan.outputs.android == 'true' }},
               "ios": ${{ needs.plan.outputs.ios == 'true' }},
-              "macos": ${{ needs.plan.outputs.macos == 'true' }},
               "tvos": ${{ needs.plan.outputs.tvos == 'true' }},
-              "windows": ${{ needs.plan.outputs.windows == 'true' }},
-              "windows_arm64": ${{ needs.plan.outputs.windows_arm64 == 'true' }},
-              "linux": ${{ needs.plan.outputs.linux == 'true' }},
               "web": ${{ needs.plan.outputs.web == 'true' }},
               "apple_tests": ${{ needs.plan.outputs.apple_tests == 'true' }}
             }
@@ -1190,7 +713,7 @@ jobs:
   # GitHub Release
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [android, ios, macos, tvos, windows, windows-arm64, linux]
+    needs: [android, ios, tvos]
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/download-artifact@v7

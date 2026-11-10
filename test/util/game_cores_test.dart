@@ -181,13 +181,6 @@ void main() {
         appleBundledCores,
       );
     });
-
-    test('macOS fetch script matches the catalog bundle membership', () {
-      expect(
-        _defaultFetchCores('macos/game_host/fetch_cores.sh'),
-        macosBundledCores,
-      );
-    });
   });
 
   group('Android routing', () {
