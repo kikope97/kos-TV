@@ -8,7 +8,11 @@
 ## Publicar una versión
 
 Publica tú las versiones: el usuario no entra en GitHub a hacerlo.
-Publica cuando el usuario lo pida.
+
+**Publica solo cuando el usuario diga expresamente que publiques una versión
+nueva.** Nunca por tu cuenta al terminar un cambio, aunque funcione: cada versión
+llega a las teles de toda la familia. Terminar algo es subirlo a la rama; publicar
+es otra cosa y la decide el usuario.
 
 1. Mira la última release (`get_latest_release` de `kikope97/kos-TV`) y elige la
    siguiente versión `X.Y.Z`: sube PATCH para arreglos y MINOR para novedades.
