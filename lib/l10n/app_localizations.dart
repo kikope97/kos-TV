@@ -118,7 +118,8 @@ import 'app_localizations_zh.dart';
 /// be consistent with the languages listed in the AppLocalizations.supportedLocales
 /// property.
 abstract class AppLocalizations {
-  AppLocalizations(String locale) : localeName = intl.Intl.canonicalizedLocale(locale.toString());
+  AppLocalizations(String locale)
+    : localeName = intl.Intl.canonicalizedLocale(locale.toString());
 
   final String localeName;
 
@@ -126,7 +127,8 @@ abstract class AppLocalizations {
     return Localizations.of<AppLocalizations>(context, AppLocalizations)!;
   }
 
-  static const LocalizationsDelegate<AppLocalizations> delegate = _AppLocalizationsDelegate();
+  static const LocalizationsDelegate<AppLocalizations> delegate =
+      _AppLocalizationsDelegate();
 
   /// A list of this localizations delegate along with the default localizations
   /// delegates.
@@ -138,12 +140,13 @@ abstract class AppLocalizations {
   /// Additional delegates can be added by appending to this list in
   /// MaterialApp. This list does not have to be used at all if a custom list
   /// of delegates is preferred or required.
-  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates = <LocalizationsDelegate<dynamic>>[
-    delegate,
-    GlobalMaterialLocalizations.delegate,
-    GlobalCupertinoLocalizations.delegate,
-    GlobalWidgetsLocalizations.delegate,
-  ];
+  static const List<LocalizationsDelegate<dynamic>> localizationsDelegates =
+      <LocalizationsDelegate<dynamic>>[
+        delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ];
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
@@ -214,7 +217,7 @@ abstract class AppLocalizations {
     Locale('yue', 'CN'),
     Locale('yue', 'HK'),
     Locale('zh'),
-    Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant')
+    Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
   ];
 
   /// The application title
@@ -26279,7 +26282,10 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'File bitrate ({fileBitrate}) exceeds the configured streaming limit ({maxBitrate}).'**
-  String transcodeBitrateExceededWithValues(String fileBitrate, String maxBitrate);
+  String transcodeBitrateExceededWithValues(
+    String fileBitrate,
+    String maxBitrate,
+  );
 
   /// No description provided for @transcodeBitrateHint.
   ///
@@ -28007,7 +28013,11 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{name} — {progress} · {timeRemaining}'**
-  String downloadNotificationTransfer(String name, String progress, String timeRemaining);
+  String downloadNotificationTransfer(
+    String name,
+    String progress,
+    String timeRemaining,
+  );
 
   /// System notification body before the size of a download is known
   ///
@@ -28943,7 +28953,11 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'{name} ({size}, converted from {source})'**
-  String playbackInfoResolutionConverted(String name, String size, String source);
+  String playbackInfoResolutionConverted(
+    String name,
+    String size,
+    String source,
+  );
 
   /// Playback information note under the play method for direct play
   ///
@@ -30143,7 +30157,11 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'To see Albums, Artists or Audio Playlists on Home, first turn on {setting}. Then go to Rows, open {group} under {disabled}, and turn one on.'**
-  String settingsPreviewAudioRowsOffInHomeRowsSwitchOff(String setting, String group, String disabled);
+  String settingsPreviewAudioRowsOffInHomeRowsSwitchOff(
+    String setting,
+    String group,
+    String disabled,
+  );
 
   /// Notice over the dimmed Settings live preview while a Collections Row Options setting has focus, Display Collections Rows is on, and the Collections section is turned off in Settings > Appearance > Home Screen > Rows, so Home doesn't change. It says where on the Rows screen the turned-off row is
   ///
@@ -30155,7 +30173,11 @@ abstract class AppLocalizations {
   ///
   /// In en, this message translates to:
   /// **'To see the Collections row on Home, first turn on {setting}. Then go to Rows, open {group} under {disabled}, and turn it on.'**
-  String settingsPreviewCollectionsOffInHomeRowsSwitchOff(String setting, String group, String disabled);
+  String settingsPreviewCollectionsOffInHomeRowsSwitchOff(
+    String setting,
+    String group,
+    String disabled,
+  );
 
   /// Notice over the dimmed Settings live preview while a Row Options setting has focus whose rows Kids Mode hides from Home, so Home doesn't change
   ///
@@ -31310,7 +31332,8 @@ abstract class AppLocalizations {
   String get afterHoursPixelPurgeCardRemote;
 }
 
-class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {
+class _AppLocalizationsDelegate
+    extends LocalizationsDelegate<AppLocalizations> {
   const _AppLocalizationsDelegate();
 
   @override
@@ -31319,123 +31342,254 @@ class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> 
   }
 
   @override
-  bool isSupported(Locale locale) => <String>['af', 'ar', 'be', 'bg', 'bn', 'ca', 'cs', 'cy', 'da', 'de', 'el', 'en', 'eo', 'es', 'et', 'fa', 'fi', 'fr', 'gl', 'he', 'hi', 'hr', 'hu', 'id', 'it', 'ja', 'kk', 'kn', 'ko', 'lt', 'lv', 'mk', 'ml', 'mn', 'nb', 'nl', 'pa', 'pl', 'pt', 'ro', 'ru', 'si', 'sk', 'sl', 'sq', 'sr', 'sv', 'sw', 'ta', 'te', 'th', 'tl', 'tr', 'ug', 'uk', 'vi', 'yue', 'zh'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>[
+    'af',
+    'ar',
+    'be',
+    'bg',
+    'bn',
+    'ca',
+    'cs',
+    'cy',
+    'da',
+    'de',
+    'el',
+    'en',
+    'eo',
+    'es',
+    'et',
+    'fa',
+    'fi',
+    'fr',
+    'gl',
+    'he',
+    'hi',
+    'hr',
+    'hu',
+    'id',
+    'it',
+    'ja',
+    'kk',
+    'kn',
+    'ko',
+    'lt',
+    'lv',
+    'mk',
+    'ml',
+    'mn',
+    'nb',
+    'nl',
+    'pa',
+    'pl',
+    'pt',
+    'ro',
+    'ru',
+    'si',
+    'sk',
+    'sl',
+    'sq',
+    'sr',
+    'sv',
+    'sw',
+    'ta',
+    'te',
+    'th',
+    'tl',
+    'tr',
+    'ug',
+    'uk',
+    'vi',
+    'yue',
+    'zh',
+  ].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
-
   // Lookup logic when language+script codes are specified.
   switch (locale.languageCode) {
-    case 'zh': {
-  switch (locale.scriptCode) {
-    case 'Hant': return AppLocalizationsZhHant();
-   }
-  break;
-   }
+    case 'zh':
+      {
+        switch (locale.scriptCode) {
+          case 'Hant':
+            return AppLocalizationsZhHant();
+        }
+        break;
+      }
   }
 
   // Lookup logic when language+country codes are specified.
   switch (locale.languageCode) {
-    case 'en': {
-  switch (locale.countryCode) {
-    case 'GB': return AppLocalizationsEnGb();
-   }
-  break;
-   }
-    case 'es': {
-  switch (locale.countryCode) {
-    case '419': return AppLocalizationsEs419();
-case 'AR': return AppLocalizationsEsAr();
-case 'DO': return AppLocalizationsEsDo();
-case 'MX': return AppLocalizationsEsMx();
-   }
-  break;
-   }
-    case 'pt': {
-  switch (locale.countryCode) {
-    case 'BR': return AppLocalizationsPtBr();
-case 'PT': return AppLocalizationsPtPt();
-   }
-  break;
-   }
-    case 'yue': {
-  switch (locale.countryCode) {
-    case 'CN': return AppLocalizationsYueCn();
-case 'HK': return AppLocalizationsYueHk();
-   }
-  break;
-   }
+    case 'en':
+      {
+        switch (locale.countryCode) {
+          case 'GB':
+            return AppLocalizationsEnGb();
+        }
+        break;
+      }
+    case 'es':
+      {
+        switch (locale.countryCode) {
+          case '419':
+            return AppLocalizationsEs419();
+          case 'AR':
+            return AppLocalizationsEsAr();
+          case 'DO':
+            return AppLocalizationsEsDo();
+          case 'MX':
+            return AppLocalizationsEsMx();
+        }
+        break;
+      }
+    case 'pt':
+      {
+        switch (locale.countryCode) {
+          case 'BR':
+            return AppLocalizationsPtBr();
+          case 'PT':
+            return AppLocalizationsPtPt();
+        }
+        break;
+      }
+    case 'yue':
+      {
+        switch (locale.countryCode) {
+          case 'CN':
+            return AppLocalizationsYueCn();
+          case 'HK':
+            return AppLocalizationsYueHk();
+        }
+        break;
+      }
   }
 
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'af': return AppLocalizationsAf();
-    case 'ar': return AppLocalizationsAr();
-    case 'be': return AppLocalizationsBe();
-    case 'bg': return AppLocalizationsBg();
-    case 'bn': return AppLocalizationsBn();
-    case 'ca': return AppLocalizationsCa();
-    case 'cs': return AppLocalizationsCs();
-    case 'cy': return AppLocalizationsCy();
-    case 'da': return AppLocalizationsDa();
-    case 'de': return AppLocalizationsDe();
-    case 'el': return AppLocalizationsEl();
-    case 'en': return AppLocalizationsEn();
-    case 'eo': return AppLocalizationsEo();
-    case 'es': return AppLocalizationsEs();
-    case 'et': return AppLocalizationsEt();
-    case 'fa': return AppLocalizationsFa();
-    case 'fi': return AppLocalizationsFi();
-    case 'fr': return AppLocalizationsFr();
-    case 'gl': return AppLocalizationsGl();
-    case 'he': return AppLocalizationsHe();
-    case 'hi': return AppLocalizationsHi();
-    case 'hr': return AppLocalizationsHr();
-    case 'hu': return AppLocalizationsHu();
-    case 'id': return AppLocalizationsId();
-    case 'it': return AppLocalizationsIt();
-    case 'ja': return AppLocalizationsJa();
-    case 'kk': return AppLocalizationsKk();
-    case 'kn': return AppLocalizationsKn();
-    case 'ko': return AppLocalizationsKo();
-    case 'lt': return AppLocalizationsLt();
-    case 'lv': return AppLocalizationsLv();
-    case 'mk': return AppLocalizationsMk();
-    case 'ml': return AppLocalizationsMl();
-    case 'mn': return AppLocalizationsMn();
-    case 'nb': return AppLocalizationsNb();
-    case 'nl': return AppLocalizationsNl();
-    case 'pa': return AppLocalizationsPa();
-    case 'pl': return AppLocalizationsPl();
-    case 'pt': return AppLocalizationsPt();
-    case 'ro': return AppLocalizationsRo();
-    case 'ru': return AppLocalizationsRu();
-    case 'si': return AppLocalizationsSi();
-    case 'sk': return AppLocalizationsSk();
-    case 'sl': return AppLocalizationsSl();
-    case 'sq': return AppLocalizationsSq();
-    case 'sr': return AppLocalizationsSr();
-    case 'sv': return AppLocalizationsSv();
-    case 'sw': return AppLocalizationsSw();
-    case 'ta': return AppLocalizationsTa();
-    case 'te': return AppLocalizationsTe();
-    case 'th': return AppLocalizationsTh();
-    case 'tl': return AppLocalizationsTl();
-    case 'tr': return AppLocalizationsTr();
-    case 'ug': return AppLocalizationsUg();
-    case 'uk': return AppLocalizationsUk();
-    case 'vi': return AppLocalizationsVi();
-    case 'yue': return AppLocalizationsYue();
-    case 'zh': return AppLocalizationsZh();
+    case 'af':
+      return AppLocalizationsAf();
+    case 'ar':
+      return AppLocalizationsAr();
+    case 'be':
+      return AppLocalizationsBe();
+    case 'bg':
+      return AppLocalizationsBg();
+    case 'bn':
+      return AppLocalizationsBn();
+    case 'ca':
+      return AppLocalizationsCa();
+    case 'cs':
+      return AppLocalizationsCs();
+    case 'cy':
+      return AppLocalizationsCy();
+    case 'da':
+      return AppLocalizationsDa();
+    case 'de':
+      return AppLocalizationsDe();
+    case 'el':
+      return AppLocalizationsEl();
+    case 'en':
+      return AppLocalizationsEn();
+    case 'eo':
+      return AppLocalizationsEo();
+    case 'es':
+      return AppLocalizationsEs();
+    case 'et':
+      return AppLocalizationsEt();
+    case 'fa':
+      return AppLocalizationsFa();
+    case 'fi':
+      return AppLocalizationsFi();
+    case 'fr':
+      return AppLocalizationsFr();
+    case 'gl':
+      return AppLocalizationsGl();
+    case 'he':
+      return AppLocalizationsHe();
+    case 'hi':
+      return AppLocalizationsHi();
+    case 'hr':
+      return AppLocalizationsHr();
+    case 'hu':
+      return AppLocalizationsHu();
+    case 'id':
+      return AppLocalizationsId();
+    case 'it':
+      return AppLocalizationsIt();
+    case 'ja':
+      return AppLocalizationsJa();
+    case 'kk':
+      return AppLocalizationsKk();
+    case 'kn':
+      return AppLocalizationsKn();
+    case 'ko':
+      return AppLocalizationsKo();
+    case 'lt':
+      return AppLocalizationsLt();
+    case 'lv':
+      return AppLocalizationsLv();
+    case 'mk':
+      return AppLocalizationsMk();
+    case 'ml':
+      return AppLocalizationsMl();
+    case 'mn':
+      return AppLocalizationsMn();
+    case 'nb':
+      return AppLocalizationsNb();
+    case 'nl':
+      return AppLocalizationsNl();
+    case 'pa':
+      return AppLocalizationsPa();
+    case 'pl':
+      return AppLocalizationsPl();
+    case 'pt':
+      return AppLocalizationsPt();
+    case 'ro':
+      return AppLocalizationsRo();
+    case 'ru':
+      return AppLocalizationsRu();
+    case 'si':
+      return AppLocalizationsSi();
+    case 'sk':
+      return AppLocalizationsSk();
+    case 'sl':
+      return AppLocalizationsSl();
+    case 'sq':
+      return AppLocalizationsSq();
+    case 'sr':
+      return AppLocalizationsSr();
+    case 'sv':
+      return AppLocalizationsSv();
+    case 'sw':
+      return AppLocalizationsSw();
+    case 'ta':
+      return AppLocalizationsTa();
+    case 'te':
+      return AppLocalizationsTe();
+    case 'th':
+      return AppLocalizationsTh();
+    case 'tl':
+      return AppLocalizationsTl();
+    case 'tr':
+      return AppLocalizationsTr();
+    case 'ug':
+      return AppLocalizationsUg();
+    case 'uk':
+      return AppLocalizationsUk();
+    case 'vi':
+      return AppLocalizationsVi();
+    case 'yue':
+      return AppLocalizationsYue();
+    case 'zh':
+      return AppLocalizationsZh();
   }
 
   throw FlutterError(
     'AppLocalizations.delegate failed to load unsupported locale "$locale". This is likely '
     'an issue with the localizations generation tool. Please file an issue '
     'on GitHub with a reproducible sample app and the gen-l10n configuration '
-    'that was used.'
+    'that was used.',
   );
 }
