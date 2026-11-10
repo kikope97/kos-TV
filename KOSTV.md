@@ -1,6 +1,6 @@
-# Kaos
+# Kos TV
 
-Kaos es un cliente de Jellyfin para la familia, centrado en Android TV, basado en
+Kos TV es un cliente de Jellyfin para la familia, centrado en Android TV, basado en
 [Moonfin Core](https://github.com/Moonfin-Client/Moonfin-Core) (GPL-2.0 o
 posterior). Este repositorio conserva el historial completo de Moonfin; a partir
 de aquí evoluciona por su cuenta y Moonfin queda como referencia.
@@ -17,7 +17,7 @@ git cherry-pick <commit>
 
 | Qué | Dónde | Estado |
 |---|---|---|
-| Identificador Android `com.kikope.kaos` (beta: `com.kikope.kaos.beta`) y nombre visible "Kaos" | `android/app/build.gradle.kts` | Hecho |
+| Identificador Android `com.kikope.kostv` (beta: `com.kikope.kostv.beta`) y nombre visible "Kos TV" | `android/app/build.gradle.kts` | Hecho |
 | La propia app no aparece como reproductor externo | `lib/playback/external_player_service.dart` | Hecho |
 | Firebase y notificaciones push desactivados (eran del proyecto de Moonfin) | `android/app/build.gradle.kts`, `lib/data/services/push_messaging_service.dart` | Hecho |
 | Comprobador de actualizaciones conservado pero sin consultar a Moonfin | `lib/data/services/app_update_service.dart` (`_releaseRepo`) | Hecho |

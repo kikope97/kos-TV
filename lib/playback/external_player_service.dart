@@ -168,7 +168,7 @@ class ExternalPlayerService {
                  pkg != 'com.google.android.youtube.tv' &&
                  pkg != 'com.google.android.tv.frameworkpackagestubs' &&
                  !pkg.startsWith('org.moonfin.androidtv') &&
-                 !pkg.startsWith('com.kikope.kaos');
+                 !pkg.startsWith('com.kikope.kostv');
         })
         .toList(growable: false);
   }

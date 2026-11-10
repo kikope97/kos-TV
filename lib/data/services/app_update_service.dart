@@ -46,9 +46,9 @@ class DesktopUpdateInfo {
 class AppUpdateService {
   AppUpdateService(this._store, this._userPreferences);
 
-  /// Kaos: GitHub repository whose latest release is checked for updates, as
+  /// Kos TV: GitHub repository whose latest release is checked for updates, as
   /// `owner/name`. Empty disables update checks entirely; it used to point at
-  /// Moonfin-Client/Moonfin-Core. Set it to 'kikope97/kos-TV' once Kaos
+  /// Moonfin-Client/Moonfin-Core. Set it to 'kikope97/kos-TV' once Kos TV
   /// publishes its own releases (Android TV asset name must contain "tv").
   static const String _releaseRepo = '';
 
@@ -209,7 +209,7 @@ class AppUpdateService {
 
   Future<_LatestRelease?> _fetchLatestRelease() async {
     final client = HttpClient()
-      ..userAgent = 'KaosUpdateChecker/1.0'
+      ..userAgent = 'KosTVUpdateChecker/1.0'
       ..connectionTimeout = const Duration(seconds: 10);
 
     try {

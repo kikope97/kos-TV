@@ -1,4 +1,4 @@
-# Workflows desactivados (Kaos)
+# Workflows desactivados (Kos TV)
 
 Workflows heredados de Moonfin que GitHub no ejecuta mientras estén en esta
 carpeta (solo se ejecutan los de `.github/workflows/`).
