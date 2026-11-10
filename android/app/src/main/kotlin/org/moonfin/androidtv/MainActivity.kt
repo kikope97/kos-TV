@@ -458,6 +458,14 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
                 "deviceMemory" -> {
                     result.success(deviceMemory())
                 }
+                // Kos TV: in-app updates (see UpdateInstaller).
+                "updateDownloadPath" -> result.success(UpdateInstaller.downloadPath(this))
+                "canInstallPackages" -> result.success(UpdateInstaller.canInstall(this))
+                "openInstallPermissionSettings" ->
+                    result.success(UpdateInstaller.openPermissionSettings(this))
+                "installApk" -> result.success(
+                    UpdateInstaller.install(this, call.argument<String>("path") ?: ""),
+                )
                 "exitApp" -> {
                     result.success(true)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {

@@ -10330,6 +10330,42 @@ abstract class AppLocalizations {
   /// **'Update download failed. Please try again.'**
   String get updateDownloadFailed;
 
+  /// Kos TV: button that downloads and installs an update in the app
+  ///
+  /// In en, this message translates to:
+  /// **'Update now'**
+  String get updateNow;
+
+  /// Kos TV: title of the dialog asking to let the app install updates
+  ///
+  /// In en, this message translates to:
+  /// **'Allow updates'**
+  String get updateInstallPermissionTitle;
+
+  /// Kos TV: explains the install permission before opening Settings
+  ///
+  /// In en, this message translates to:
+  /// **'To update itself, Kos TV needs permission to install apps. Settings will open: turn the permission on for Kos TV, then come back to the app.'**
+  String get updateInstallPermissionBody;
+
+  /// Kos TV: button that opens the install permission setting
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get updateOpenSettings;
+
+  /// Kos TV: shown when the install permission is still off
+  ///
+  /// In en, this message translates to:
+  /// **'Kos TV still can\'t install apps. Turn the permission on in Settings and try again.'**
+  String get updateInstallPermissionMissing;
+
+  /// Kos TV: shown when the system installer can't be started
+  ///
+  /// In en, this message translates to:
+  /// **'The installer couldn\'t be opened. Please try again.'**
+  String get updateInstallFailed;
+
   /// Option to open the GitHub releases page in a browser (Linux)
   ///
   /// In en, this message translates to:

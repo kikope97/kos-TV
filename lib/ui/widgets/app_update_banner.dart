@@ -8,6 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/services/app_update_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../util/platform_detection.dart';
+import '../navigation/app_router.dart';
+import 'app_update_dialog.dart';
 import 'status_banner_pill.dart';
 
 /// Floating glass pill announcing a newer GitHub release. Mirrors the offline
@@ -38,6 +40,11 @@ class _AppUpdateBannerState extends State<AppUpdateBanner>
   bool _dismissed = false;
   Timer? _autoDismissTimer;
 
+  /// Kos TV: TVs keep the app open for days, so the check also runs whenever
+  /// it comes back to the foreground (the service's cooldown still applies).
+  AppLifecycleListener? _lifecycle;
+  bool _checking = false;
+
   @override
   void initState() {
     super.initState();
@@ -54,27 +61,61 @@ class _AppUpdateBannerState extends State<AppUpdateBanner>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_check());
     });
+    if (widget.checkForUpdate == null) {
+      _lifecycle = AppLifecycleListener(onResume: () => unawaited(_check()));
+    }
   }
 
   @override
   void dispose() {
+    _lifecycle?.dispose();
     _autoDismissTimer?.cancel();
     _entranceCurve.dispose();
     _entrance.dispose();
     super.dispose();
   }
 
+  /// Kos TV: whether something is playing full screen right now, which an
+  /// update prompt shouldn't interrupt. Checked before asking the service,
+  /// since the service records a version as shown once it returns it.
+  static bool _isWatching() {
+    try {
+      final path = appRouter.routerDelegate.currentConfiguration.uri.path;
+      return path.startsWith('/player') ||
+          path.startsWith('/live-tv/player') ||
+          path.startsWith('/game-player');
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> _check() async {
+    if (_checking || _update != null) return;
+    if (widget.checkForUpdate == null && _isWatching()) return;
+    _checking = true;
     try {
       final check =
           widget.checkForUpdate ??
           GetIt.instance<AppUpdateService>().checkForUpdateIfDue;
       final update = await check();
       if (!mounted || update == null) return;
+      // Kos TV: on Android the update installs from the app, so it is offered
+      // in a dialog the remote can answer, not in a pill that times out.
+      if (widget.checkForUpdate == null && canInstallUpdateInApp(update)) {
+        final navContext =
+            appRouter.routerDelegate.navigatorKey.currentContext;
+        if (navContext != null && navContext.mounted) {
+          await showAppUpdateDialog(navContext, update);
+          return;
+        }
+      }
       setState(() => _update = update);
       _entrance.forward();
       _autoDismissTimer = Timer(_autoDismissDuration, _dismiss);
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      _checking = false;
+    }
   }
 
   Future<void> _dismiss() async {

@@ -6327,6 +6327,30 @@
     "@updateDownloadFailed": {
         "description": "Error shown when the update download fails"
     },
+    "updateNow": "Actualizar ahora",
+    "@updateNow": {
+        "description": "Kos TV: button that downloads and installs an update in the app"
+    },
+    "updateInstallPermissionTitle": "Permitir actualizaciones",
+    "@updateInstallPermissionTitle": {
+        "description": "Kos TV: title of the dialog asking to let the app install updates"
+    },
+    "updateInstallPermissionBody": "Para actualizarse, Kos TV necesita permiso para instalar apps. Se abrirán los ajustes: activa el permiso para Kos TV y vuelve a la app.",
+    "@updateInstallPermissionBody": {
+        "description": "Kos TV: explains the install permission before opening Settings"
+    },
+    "updateOpenSettings": "Abrir ajustes",
+    "@updateOpenSettings": {
+        "description": "Kos TV: button that opens the install permission setting"
+    },
+    "updateInstallPermissionMissing": "Kos TV aún no puede instalar apps. Activa el permiso en Ajustes y vuelve a intentarlo.",
+    "@updateInstallPermissionMissing": {
+        "description": "Kos TV: shown when the install permission is still off"
+    },
+    "updateInstallFailed": "No se pudo abrir el instalador. Inténtalo de nuevo.",
+    "@updateInstallFailed": {
+        "description": "Kos TV: shown when the system installer can't be started"
+    },
     "openReleasesPage": "Abrir página de lanzamientos",
     "@openReleasesPage": {
         "description": "Option to open the GitHub releases page in a browser (Linux)"

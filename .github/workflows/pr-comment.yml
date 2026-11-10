@@ -244,10 +244,10 @@ jobs:
             }
 
             const rows = [
-              { platform: 'Android',       job: 'android',       artifact: 'android',              files: 'Moonfin_Android_v* (apk/aab)' },
-              { platform: 'Android TV',    job: 'android',       artifact: 'android-tv',           files: 'Moonfin_AndroidTV_v* (apk/aab)' },
-              { platform: 'iOS',           job: 'ios',           artifact: 'ios-ipa',              files: 'Moonfin_iOS_v*_unsigned.ipa' },
-              { platform: 'tvOS',          job: 'tvos',          artifact: 'tvos-ipa',             files: 'Moonfin_tvOS_v*_unsigned.ipa' },
+              { platform: 'Android',       job: 'android',       artifact: 'android',              files: 'KosTV_Android_v* (apk/aab)' },
+              { platform: 'Android TV',    job: 'android',       artifact: 'android-tv',           files: 'KosTV_AndroidTV_v* (apk/aab)' },
+              { platform: 'iOS',           job: 'ios',           artifact: 'ios-ipa',              files: 'KosTV_iOS_v*_unsigned.ipa' },
+              { platform: 'tvOS',          job: 'tvos',          artifact: 'tvos-ipa',             files: 'KosTV_tvOS_v*_unsigned.ipa' },
               { platform: 'Apple tests',   job: 'apple_tests',   artifact: 'apple-test-results',   files: 'test-results.json', tests: true },
               { platform: 'Web',           job: 'web',           artifact: 'web',                  files: 'build/web (static site, serve over HTTP)' },
             ];

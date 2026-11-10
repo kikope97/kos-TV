@@ -20,7 +20,10 @@ git cherry-pick <commit>
 | Identificador Android `com.kikope.kostv` (beta: `com.kikope.kostv.beta`) y nombre visible "Kos TV" | `android/app/build.gradle.kts` | Hecho |
 | La propia app no aparece como reproductor externo | `lib/playback/external_player_service.dart` | Hecho |
 | Firebase y notificaciones push desactivados (eran del proyecto de Moonfin) | `android/app/build.gradle.kts`, `lib/data/services/push_messaging_service.dart` | Hecho |
-| Comprobador de actualizaciones conservado pero sin consultar a Moonfin | `lib/data/services/app_update_service.dart` (`_releaseRepo`) | Hecho |
+| Actualizaciones desde las releases de `kikope97/kos-TV`, con descarga e instalación dentro de la app (también en la tele) | `lib/data/services/app_update_service.dart`, `lib/ui/widgets/app_update_*.dart`, `UpdateInstaller.kt` | Hecho |
+| Publicación de versiones desde GitHub (solo Android) con la versión como única fuente | `.github/workflows/build.yml`, `scripts/kostv_set_version.sh` | Hecho |
+| APK firmados con la clave propia (secretos `ANDROID_*` del repositorio) | `.github/workflows/build.yml` | Configurado |
+| Archivos generados con el prefijo `KosTV_` | `build-android.sh` | Hecho |
 | Workflows que publican fuera (AUR, winget, Pages…) desactivados | `.github/workflows-disabled/` | Hecho |
 | Sin versiones de escritorio (Windows, Linux, macOS): carpetas, scripts y trabajos de CI | — | Hecho |
 | Sin Plex ni Emby: paquetes `server_/playback_` de ambos, `ServerType.emby/plex`, inicio de sesión con Plex y Emby Connect, búsqueda de Plex en la red, Moonbase para Plex, pantallas de administración solo de Emby y avisos de Emby Premiere | `packages/server_core`, `lib/`, `test/` | Hecho |
@@ -33,6 +36,28 @@ El namespace interno de Android (`org.moonfin.androidtv`) y los nombres de los
 canales nativos se mantienen a propósito: son internos y cambiarlos solo añade
 riesgo.
 
+## Publicar una versión
+
+1. GitHub → **Actions** → **Build All Platforms** → **Run workflow**.
+2. En **release_version** escribe la versión nueva, por ejemplo `1.0.1` (siempre
+   mayor que la anterior, con la forma `X.Y.Z`). El resto de opciones da igual:
+   una publicación compila solo Android.
+3. **Run workflow**. Unos 25 minutos después aparece la release `Kos TV 1.0.1`
+   con `KosTV_AndroidTV_v1.0.1.apk` y `KosTV_Android_v1.0.1.apk`.
+
+Desde ahí, cada app lo ve al abrirse o al volver a primer plano (como mucho cada
+6 horas) y ofrece **Actualizar ahora**: descarga el APK y abre el instalador del
+sistema. La primera vez pide permiso para instalar apps. La tele usa el APK
+`*AndroidTV*` y el móvil el otro; nunca se cruzan.
+
+La versión sale de lo que se escribe al publicar (`scripts/kostv_set_version.sh`):
+el número interno que compara Android es `MAJOR*1000000 + MINOR*1000 + PATCH`.
+El `pubspec.yaml` del repositorio se queda en `0.1.0`, así que cualquier APK que
+no sea una release cuenta como más antiguo y también se actualiza.
+
+Si se pierde la clave de firma (`kostv-release.jks` y su contraseña), los APK
+nuevos ya no se podrán instalar encima: habría que desinstalar en cada aparato.
+
 ## Pendiente
 
 - **Quitar Silo.** Está muy entrelazado con "Ver juntos" (Watch Party): la
@@ -43,15 +68,6 @@ riesgo.
 - **Restos de Emby en el panel de administración.** `library_options_form.dart`
   y `admin_user_edit_screen.dart` conservan filas solo de Emby tras un
   `_emby => false`; se pueden borrar con calma.
-- **Clave de firma propia para el APK.** Sin ella, CI firma con una clave de
-  depuración distinta en cada build y una versión nueva no se puede instalar
-  encima de la anterior. Hay que crear un keystore y guardarlo como secretos del
-  repositorio (`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_TYPE`,
-  `ANDROID_STORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`).
-- **Actualizaciones desde nuestras releases.** Cuando se publique la primera
-  release, poner `_releaseRepo = 'kikope97/kos-TV'`. El APK de Android TV debe
-  llevar "tv" en el nombre (el script ya genera `Moonfin_AndroidTV_v*.apk`).
-- **Marca.** Icono, logotipos y textos que aún dicen "Moonfin" dentro de la app,
-  y el nombre de los archivos generados (`APP_NAME` en `build-android.sh`).
+- **Marca.** Icono, logotipos y textos que aún dicen "Moonfin" dentro de la app.
 - **Apple TV.** Cambiar el bundle id (y los de la extensión Top Shelf y el App
   Group) cuando se aborde tvOS.

@@ -5881,6 +5881,27 @@ class AppLocalizationsEs extends AppLocalizations {
       'Error en la descarga de la actualización. Por favor inténtalo de nuevo.';
 
   @override
+  String get updateNow => 'Actualizar ahora';
+
+  @override
+  String get updateInstallPermissionTitle => 'Permitir actualizaciones';
+
+  @override
+  String get updateInstallPermissionBody =>
+      'Para actualizarse, Kos TV necesita permiso para instalar apps. Se abrirán los ajustes: activa el permiso para Kos TV y vuelve a la app.';
+
+  @override
+  String get updateOpenSettings => 'Abrir ajustes';
+
+  @override
+  String get updateInstallPermissionMissing =>
+      'Kos TV aún no puede instalar apps. Activa el permiso en Ajustes y vuelve a intentarlo.';
+
+  @override
+  String get updateInstallFailed =>
+      'No se pudo abrir el instalador. Inténtalo de nuevo.';
+
+  @override
   String get openReleasesPage => 'Abrir página de lanzamientos';
 
   @override

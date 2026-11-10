@@ -5798,6 +5798,27 @@ class AppLocalizationsHe extends AppLocalizations {
   String get updateDownloadFailed => 'הורדת העדכון נכשלה. אנא נסה שוב.';
 
   @override
+  String get updateNow => 'Update now';
+
+  @override
+  String get updateInstallPermissionTitle => 'Allow updates';
+
+  @override
+  String get updateInstallPermissionBody =>
+      'To update itself, Kos TV needs permission to install apps. Settings will open: turn the permission on for Kos TV, then come back to the app.';
+
+  @override
+  String get updateOpenSettings => 'Open settings';
+
+  @override
+  String get updateInstallPermissionMissing =>
+      'Kos TV still can\'t install apps. Turn the permission on in Settings and try again.';
+
+  @override
+  String get updateInstallFailed =>
+      'The installer couldn\'t be opened. Please try again.';
+
+  @override
   String get openReleasesPage => 'פתח את דף הפרסומים';
 
   @override

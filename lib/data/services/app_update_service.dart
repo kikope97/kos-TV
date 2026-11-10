@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -47,14 +48,19 @@ class AppUpdateService {
   AppUpdateService(this._store, this._userPreferences);
 
   /// Kos TV: GitHub repository whose latest release is checked for updates, as
-  /// `owner/name`. Empty disables update checks entirely; it used to point at
-  /// Moonfin-Client/Moonfin-Core. Set it to 'kikope97/kos-TV' once Kos TV
-  /// publishes its own releases (Android TV asset name must contain "tv").
-  static const String _releaseRepo = '';
+  /// `owner/name` (Moonfin pointed at Moonfin-Client/Moonfin-Core). Empty
+  /// disables update checks entirely. A release offers the APK whose name has
+  /// "AndroidTV" to the TV build and the other APK to phones (see
+  /// [_selectAsset]); build.yml's release job uploads both.
+  static const String _releaseRepo = 'kikope97/kos-TV';
 
   static const _latestReleaseHost = 'api.github.com';
   static const _latestReleasePath = '/repos/$_releaseRepo/releases/latest';
-  static const _checkCooldown = Duration(hours: 24);
+
+  /// How often the automatic check may ask GitHub. Short enough that a new
+  /// release reaches the TVs the same day, and well inside GitHub's 60
+  /// unauthenticated requests an hour for a household on one address.
+  static const _checkCooldown = Duration(hours: 6);
 
   static const _lastCheckMsKey = 'app_update_last_check_ms';
   static const _lastNotifiedVersionKey = 'app_update_last_notified_version';
@@ -156,6 +162,17 @@ class AppUpdateService {
       );
     }
 
+    final asset = _selectAsset(release.assets);
+    // Kos TV: an Android build only offers a release that carries its own APK.
+    // A release whose files are still uploading (or that has none for this
+    // build) is not an update yet, and isn't recorded as notified, so the
+    // next check offers it once the APK is there.
+    if (asset == null && _isAndroidApkChannel) {
+      return const DesktopUpdateCheckResult(
+        status: DesktopUpdateCheckStatus.upToDate,
+      );
+    }
+
     final lastNotified = _store.getString(_lastNotifiedVersionKey);
     if (suppressIfAlreadyNotified &&
         _normalizeVersion(lastNotified) == _normalizeVersion(release.version)) {
@@ -166,7 +183,6 @@ class AppUpdateService {
 
     await _store.setString(_lastNotifiedVersionKey, release.version);
 
-    final asset = _selectAsset(release.assets);
     return DesktopUpdateCheckResult(
       status: DesktopUpdateCheckStatus.updateAvailable,
       update: DesktopUpdateInfo(
@@ -178,6 +194,10 @@ class AppUpdateService {
       ),
     );
   }
+
+  static bool get _isAndroidApkChannel =>
+      AppDistribution.channel == DistributionChannel.apk ||
+      AppDistribution.channel == DistributionChannel.androidTvApk;
 
   /// Whether a store installed this copy. Only the Android APK channels can end
   /// up store-installed while still carrying the in-app updater.
@@ -267,11 +287,14 @@ class AppUpdateService {
 
     switch (AppDistribution.channel) {
       case DistributionChannel.apk:
-        return _firstWhere(assets, '.apk', excludeSubstring: 'tv') ??
-            _firstByExtension(assets, const ['.apk']);
       case DistributionChannel.androidTvApk:
-        return _firstWhere(assets, '.apk', requireSubstring: 'tv') ??
-            _firstByExtension(assets, const ['.apk']);
+        final name = androidApkFor(
+          AppDistribution.channel,
+          [for (final asset in assets) asset.name],
+        );
+        return name == null
+            ? null
+            : assets.firstWhere((asset) => asset.name == name);
       case DistributionChannel.macosDmg:
         return _firstByExtension(assets, const ['.dmg']);
       case DistributionChannel.windows:
@@ -286,6 +309,24 @@ class AppUpdateService {
       default:
         return null;
     }
+  }
+
+  /// Kos TV: the release file the Android build on [channel] installs, or
+  /// null when the release carries none for it. The phone and TV builds share
+  /// one application id, so each only ever takes its own APK: installing the
+  /// other would replace it. "KosTV" itself contains "tv", hence "androidtv".
+  @visibleForTesting
+  static String? androidApkFor(
+    DistributionChannel channel,
+    Iterable<String> names,
+  ) {
+    final apks = names.where((n) => n.toLowerCase().endsWith('.apk'));
+    bool isTv(String name) => name.toLowerCase().contains('androidtv');
+    return switch (channel) {
+      DistributionChannel.androidTvApk => apks.where(isTv).firstOrNull,
+      DistributionChannel.apk => apks.where((n) => !isTv(n)).firstOrNull,
+      _ => null,
+    };
   }
 
   _ReleaseAsset? _firstWhere(

@@ -19,6 +19,10 @@ on:
         description: Run tvOS job
         type: boolean
         default: false
+      release_version:
+        description: 'Kos TV: publish this build as a release, e.g. 1.0.1 (X.Y.Z). Empty only builds. A release builds Android alone and the apps offer it as an update.'
+        type: string
+        default: ''
       distribution:
         description: Where the Apple builds go. release keeps the artifacts, testflight uploads to App Store Connect and skips every other platform
         type: choice
@@ -75,6 +79,7 @@ jobs:
       tvos: ${{ steps.plan.outputs.tvos }}
       web: ${{ steps.plan.outputs.web }}
       apple_tests: ${{ steps.plan.outputs.apple_tests }}
+      release_version: ${{ steps.plan.outputs.release_version }}
     steps:
       - id: plan
         env:
@@ -87,7 +92,7 @@ jobs:
           INPUTS: ${{ toJSON(inputs) }}
         run: |
           python3 - <<'EOF'
-          import json, os
+          import json, os, re
           event, ref = os.environ['EVENT'], os.environ['REF']
           # Actions compares label names without case, so this does too.
           labels = {l.lower() for l in json.loads(os.environ['LABELS'] or 'null') or []}
@@ -104,6 +109,15 @@ jobs:
                   return any(inputs.get(i) for i in dispatch_inputs) and (apple or not testflight)
               return everywhere or on_push or 'ci:full' in labels or f'ci:{label}' in labels
 
+          # Kos TV: a release (the release_version input, or a pushed X.Y.Z
+          # tag) builds Android alone and is published by the release job.
+          release_version = (inputs.get('release_version') or '').strip()
+          if not release_version and ref.startswith('refs/tags/'):
+              release_version = ref[len('refs/tags/'):]
+          if release_version and not re.fullmatch(r'\d+\.\d+\.\d+', release_version):
+              print(f'::error::release_version must look like X.Y.Z (e.g. 1.0.1), not {release_version!r}')
+              raise SystemExit(1)
+
           out = {
               'android':       want('android', ['run_all', 'android']),
               'ios':           want('apple', ['run_all', 'ios'], apple=True),
@@ -112,10 +126,13 @@ jobs:
               'web':           event in ('pull_request', 'merge_group') and want('web', []),
               'apple_tests':   want('apple', ['run_all'], apple=True),
           }
+          if release_version:
+              out = {k: k == 'android' for k in out}
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               for k, v in out.items():
                   f.write(f'{k}={"true" if v else "false"}\n')
-          print(out)
+              f.write(f'release_version={release_version}\n')
+          print(out, 'release:', release_version or None)
           EOF
 
   # Android APK + AAB, with mobile and TV on their own runners
@@ -129,10 +146,10 @@ jobs:
         include:
           - target: mobile
             artifact: android
-            files: Moonfin_Android_v*.*
+            files: KosTV_Android_v*.*
           - target: tv
             artifact: android-tv
-            files: Moonfin_AndroidTV_v*.*
+            files: KosTV_AndroidTV_v*.*
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
@@ -209,6 +226,14 @@ jobs:
           kotlin.daemon.jvmargs=-Xmx2G
           EOF
 
+      # Kos TV: a release build takes its version (and the version code
+      # Android compares on an update) from the release it publishes.
+      - name: Set the release version
+        if: needs.plan.outputs.release_version != ''
+        env:
+          RELEASE_VERSION: ${{ needs.plan.outputs.release_version }}
+        run: ./scripts/kostv_set_version.sh "$RELEASE_VERSION"
+
       - name: Build
         run: |
           chmod +x build-android.sh
@@ -259,14 +284,14 @@ jobs:
           TMPDIR=$(mktemp -d)
           mkdir -p "$TMPDIR/Payload"
           cp -R "$APP_PATH" "$TMPDIR/Payload/"
-          (cd "$TMPDIR" && zip -qry "$OLDPWD/Moonfin_iOS_v${VERSION}_unsigned.ipa" Payload)
+          (cd "$TMPDIR" && zip -qry "$OLDPWD/KosTV_iOS_v${VERSION}_unsigned.ipa" Payload)
           rm -rf "$TMPDIR"
 
       - uses: actions/upload-artifact@v6
         if: ${{ inputs.distribution != 'testflight' }}
         with:
           name: ios-ipa
-          path: Moonfin_iOS_v*_unsigned.ipa
+          path: KosTV_iOS_v*_unsigned.ipa
 
       - name: Set up App Store signing
         if: ${{ inputs.distribution == 'testflight' }}
@@ -465,13 +490,13 @@ jobs:
           rm -rf "$RUNNER_TEMP/Payload"
           mkdir -p "$RUNNER_TEMP/Payload"
           cp -R "$APP" "$RUNNER_TEMP/Payload/"
-          ( cd "$RUNNER_TEMP" && zip -qry "$GITHUB_WORKSPACE/Moonfin_tvOS_v${VERSION}_unsigned.ipa" Payload )
+          ( cd "$RUNNER_TEMP" && zip -qry "$GITHUB_WORKSPACE/KosTV_tvOS_v${VERSION}_unsigned.ipa" Payload )
 
       - uses: actions/upload-artifact@v6
         if: ${{ inputs.distribution != 'testflight' }}
         with:
           name: tvos-ipa
-          path: Moonfin_tvOS_v*_unsigned.ipa
+          path: KosTV_tvOS_v*_unsigned.ipa
           if-no-files-found: error
 
       - name: Upload to TestFlight
@@ -711,17 +736,28 @@ jobs:
           path: outcomes.json
 
   # GitHub Release
+  # Kos TV: publishes the Android APKs as the latest GitHub release, which is
+  # what the apps' update check reads (AppUpdateService): the TV build takes
+  # the APK named *AndroidTV*, phones the other. Published at once, not as a
+  # draft, and only after both APKs built, so the release appears whole.
   release:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: [android, ios, tvos]
+    if: needs.plan.outputs.release_version != ''
+    needs: [plan, android]
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/download-artifact@v7
         with:
+          pattern: android*
           merge-multiple: true
 
       - uses: softprops/action-gh-release@v3
         with:
-          draft: true
-          files: Moonfin_*
+          tag_name: ${{ needs.plan.outputs.release_version }}
+          target_commitish: ${{ github.sha }}
+          name: Kos TV ${{ needs.plan.outputs.release_version }}
+          files: KosTV_*.apk
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: false
+          make_latest: 'true'
           generate_release_notes: true

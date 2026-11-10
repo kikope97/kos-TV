@@ -5695,6 +5695,27 @@ class AppLocalizationsZh extends AppLocalizations {
   String get updateDownloadFailed => '更新下载失败。请再试一次。';
 
   @override
+  String get updateNow => 'Update now';
+
+  @override
+  String get updateInstallPermissionTitle => 'Allow updates';
+
+  @override
+  String get updateInstallPermissionBody =>
+      'To update itself, Kos TV needs permission to install apps. Settings will open: turn the permission on for Kos TV, then come back to the app.';
+
+  @override
+  String get updateOpenSettings => 'Open settings';
+
+  @override
+  String get updateInstallPermissionMissing =>
+      'Kos TV still can\'t install apps. Turn the permission on in Settings and try again.';
+
+  @override
+  String get updateInstallFailed =>
+      'The installer couldn\'t be opened. Please try again.';
+
+  @override
   String get openReleasesPage => '打开发布页面';
 
   @override

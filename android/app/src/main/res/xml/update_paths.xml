@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kos TV: the only file UpdateFileProvider serves is the downloaded update
+     APK (UpdateInstaller.downloadPath). -->
+<paths>
+    <cache-path name="updates" path="updates/" />
+</paths>
