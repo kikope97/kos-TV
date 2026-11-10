@@ -184,20 +184,15 @@ void main() {
     ).called(1);
   });
 
-  testWidgets('back from the address field returns to the choices', (
+  testWidgets('an empty address opens straight on the address field', (
     tester,
   ) async {
+    // Kos TV speaks only Jellyfin, so there is no step to pick Plex or Emby.
     await openDialog(tester, address: '');
 
-    await tester.tap(find.text(l10n.serverAddress));
-    await tester.pumpAndSettle();
     expect(find.byType(TextField), findsOneWidget);
-
-    await tester.tap(find.byTooltip(l10n.back));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(TextField), findsNothing);
-    expect(find.text(l10n.addServerChooseHow), findsOneWidget);
+    expect(find.text(l10n.addServerChooseHow), findsNothing);
+    expect(find.byTooltip(l10n.back), findsNothing);
   });
 
   testWidgets('a found server is shown before Continue signs in to it', (
