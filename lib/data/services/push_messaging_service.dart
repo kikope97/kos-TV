@@ -35,7 +35,12 @@ class PushMessagingService {
   /// initialization clears itself so a later call can retry.
   Future<void> initialize() => _initFuture ??= _doInitialize();
 
+  /// Kaos: push is off. The bundled Firebase config belongs to Moonfin's
+  /// project; flip this once Kaos has its own Firebase project and config.
+  static const bool _pushEnabled = false;
+
   Future<void> _doInitialize() async {
+    if (!_pushEnabled) return;
     if (!PlatformDetection.isMobile) return;
 
     try {

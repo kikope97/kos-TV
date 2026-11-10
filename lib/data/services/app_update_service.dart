@@ -46,8 +46,14 @@ class DesktopUpdateInfo {
 class AppUpdateService {
   AppUpdateService(this._store, this._userPreferences);
 
+  /// Kaos: GitHub repository whose latest release is checked for updates, as
+  /// `owner/name`. Empty disables update checks entirely; it used to point at
+  /// Moonfin-Client/Moonfin-Core. Set it to 'kikope97/kos-TV' once Kaos
+  /// publishes its own releases (Android TV asset name must contain "tv").
+  static const String _releaseRepo = '';
+
   static const _latestReleaseHost = 'api.github.com';
-  static const _latestReleasePath = '/repos/Moonfin-Client/Moonfin-Core/releases/latest';
+  static const _latestReleasePath = '/repos/$_releaseRepo/releases/latest';
   static const _checkCooldown = Duration(hours: 24);
 
   static const _lastCheckMsKey = 'app_update_last_check_ms';
@@ -102,7 +108,7 @@ class AppUpdateService {
     required bool respectNotificationPreference,
     required bool suppressIfAlreadyNotified,
   }) async {
-    if (!AppDistribution.supportsInAppUpdates) {
+    if (_releaseRepo.isEmpty || !AppDistribution.supportsInAppUpdates) {
       return const DesktopUpdateCheckResult(
         status: DesktopUpdateCheckStatus.unsupportedPlatform,
       );
@@ -203,7 +209,7 @@ class AppUpdateService {
 
   Future<_LatestRelease?> _fetchLatestRelease() async {
     final client = HttpClient()
-      ..userAgent = 'MoonfinUpdateChecker/1.0'
+      ..userAgent = 'KaosUpdateChecker/1.0'
       ..connectionTimeout = const Duration(seconds: 10);
 
     try {
@@ -228,7 +234,7 @@ class AppUpdateService {
       }
 
       final htmlUrl = decoded['html_url']?.toString() ??
-          'https://github.com/Moonfin-Client/Moonfin-Core/releases/latest';
+          'https://github.com/$_releaseRepo/releases/latest';
 
       final assetsJson = decoded['assets'];
       final assets = <_ReleaseAsset>[];
