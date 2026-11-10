@@ -30105,6 +30105,80 @@ abstract class AppLocalizations {
   /// **'Not shown in the preview'**
   String get settingsPreviewNotShown;
 
+  /// Notice over the dimmed Settings live preview while an audio Row Options setting has focus, Display Audio Rows is on, and none of the audio sections is turned on in Settings > Appearance > Home Screen > Rows, so Home doesn't change. It says where on the Rows screen the turned-off audio rows are
+  ///
+  /// In en, this message translates to:
+  /// **'Albums, Artists and Audio Playlists are all turned off. To show one, go to Rows, open {group} under {disabled}, and turn it on.'**
+  String settingsPreviewAudioRowsOffInHomeRows(String group, String disabled);
+
+  /// Notice over the dimmed Settings live preview while an audio Row Options setting has focus, Display Audio Rows is off, and none of the audio sections is turned on in Settings > Appearance > Home Screen > Rows. The Rows screen only lists the audio rows once the switch is on, so it gives the steps in that order
+  ///
+  /// In en, this message translates to:
+  /// **'To see Albums, Artists or Audio Playlists on Home, first turn on {setting}. Then go to Rows, open {group} under {disabled}, and turn one on.'**
+  String settingsPreviewAudioRowsOffInHomeRowsSwitchOff(
+    String setting,
+    String group,
+    String disabled,
+  );
+
+  /// Notice over the dimmed Settings live preview while a Collections Row Options setting has focus, Display Collections Rows is on, and the Collections section is turned off in Settings > Appearance > Home Screen > Rows, so Home doesn't change. It says where on the Rows screen the turned-off row is
+  ///
+  /// In en, this message translates to:
+  /// **'The Collections row is turned off. To show it, go to Rows, open {group} under {disabled}, and turn it on.'**
+  String settingsPreviewCollectionsOffInHomeRows(String group, String disabled);
+
+  /// Notice over the dimmed Settings live preview while a Collections Row Options setting has focus, Display Collections Rows is off, and the Collections section is turned off in Settings > Appearance > Home Screen > Rows. The Rows screen only lists the Collections row once the switch is on, so it gives the steps in that order
+  ///
+  /// In en, this message translates to:
+  /// **'To see the Collections row on Home, first turn on {setting}. Then go to Rows, open {group} under {disabled}, and turn it on.'**
+  String settingsPreviewCollectionsOffInHomeRowsSwitchOff(
+    String setting,
+    String group,
+    String disabled,
+  );
+
+  /// Notice over the dimmed Settings live preview while a Row Options setting has focus whose rows Kids Mode hides from Home, so Home doesn't change
+  ///
+  /// In en, this message translates to:
+  /// **'Kids Mode keeps these rows off Home, so these settings don\'t change it.'**
+  String get settingsPreviewRowsOffInKidsMode;
+
+  /// Status line under the Settings live preview, in place of 'Shows on the Home preview', for a Row Options setting whose rows are all turned off in Settings > Appearance > Home Screen > Rows while the setting's Display switch is on
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on a row in Rows, under {disabled}'**
+  String settingsPreviewNeedsRowInRows(String disabled);
+
+  /// Status line under the Settings live preview, in place of 'Shows on the Home preview', for a Row Options setting whose rows are all turned off in Settings > Appearance > Home Screen > Rows while the setting's Display switch is off. The Rows screen only lists those rows once the switch is on
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on {setting}, then turn on a row in Rows'**
+  String settingsPreviewNeedsSwitchAndRow(String setting);
+
+  /// Status line under the Settings live preview, in place of 'Shows on the Home preview', for a Row Options setting whose rows Kids Mode hides from Home
+  ///
+  /// In en, this message translates to:
+  /// **'Kids Mode keeps this off Home'**
+  String get settingsPreviewKeptOffByKidsMode;
+
+  /// Note over the Settings live preview while an audio Row Options setting has focus and there are no albums, artists or audio playlists to show, so Home shows no audio rows
+  ///
+  /// In en, this message translates to:
+  /// **'There\'s no music to show, so Home leaves these rows out.'**
+  String get settingsPreviewAudioRowsEmpty;
+
+  /// Note over the Settings live preview while a Collections Row Options setting has focus and there are no collections to show, so Home shows no Collections row
+  ///
+  /// In en, this message translates to:
+  /// **'There are no collections to show, so Home leaves this row out.'**
+  String get settingsPreviewCollectionsEmpty;
+
+  /// Note over the Settings live preview while the Show Individual Episodes setting in Row Options has focus, explaining that it doesn't change the Collections row the preview shows
+  ///
+  /// In en, this message translates to:
+  /// **'This only changes rows for a single collection added in Rows. The Collections row looks the same.'**
+  String get settingsPreviewShowEpisodesNote;
+
   /// Tag on the option that is saved while another option is being tried in the Settings live preview
   ///
   /// In en, this message translates to:
