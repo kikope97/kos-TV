@@ -18773,4 +18773,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvStatWanted => 'Se busca';
+
+  @override
+  String get kostvRequestLimitReached => 'Has llegado al límite de peticiones';
 }

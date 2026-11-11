@@ -31820,6 +31820,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Looking for'**
   String get kostvStatWanted;
+
+  /// Kos TV request page: the button, switched off, when the person can't ask for more right now.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve reached your request limit'**
+  String get kostvRequestLimitReached;
 }
 
 class _AppLocalizationsDelegate

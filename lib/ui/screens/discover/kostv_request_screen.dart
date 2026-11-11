@@ -517,7 +517,8 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         tone: _Tone.muted,
       );
     }
-    final onPressed = c.atLimit || sending ? null : () => unawaited(c.ask());
+    if (c.atLimit) return _limitMain(l10n);
+    final onPressed = sending ? null : () => unawaited(c.ask());
     if (can.action == StremfinRequestAction.notify) {
       return _Main(
         label: l10n.kostvRequestNotifyMe,
@@ -560,6 +561,13 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     );
   }
 
+  /// The button, switched off, while the person can't ask for more.
+  _Main _limitMain(AppLocalizations l10n) => _Main(
+    label: l10n.kostvRequestLimitReached,
+    icon: Icons.block_rounded,
+    tone: _Tone.muted,
+  );
+
   _Main _seriesMain(KostvSeriesRequestController c, AppLocalizations l10n) {
     final detail = c.detail;
     if (detail == null) {
@@ -574,10 +582,11 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
       return _requestMain(whole, l10n);
     }
     if (detail.canRequestAll) {
+      if (c.atLimit) return _limitMain(l10n);
       return _Main(
         label: l10n.kostvRequestAskAll,
         icon: Icons.add_rounded,
-        onPressed: c.atLimit || c.sending ? null : () => unawaited(c.ask()),
+        onPressed: c.sending ? null : () => unawaited(c.ask()),
         busy: c.sending && c.sendingSeason == 0,
       );
     }
@@ -825,6 +834,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         request?.status == StremfinRequestStatus.completed;
     final othersDownload = request == null && movie?.detail?.download != null;
     if (!home && request == null && !othersDownload) {
+      if (_c.atLimit) return null;
       // Nothing under way: the way ahead, if it can be asked for.
       final series = _series;
       if (series != null) {
@@ -2085,7 +2095,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     if (own != null && own.status.isOpen) {
       chip = _requestMain(own, l10n);
       if (own.canWithdraw) onSelect = () => _confirmWithdraw(c, own, season);
-    } else if (season.canRequest) {
+    } else if (season.canRequest && !c.atLimit) {
       final joins = season.request != null && !(season.request?.mine ?? false);
       chip = _Main(
         label: joins

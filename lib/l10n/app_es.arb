@@ -12597,5 +12597,9 @@
     "kostvStatWanted": "Se busca",
     "@kostvStatWanted": {
         "description": "Kos TV request page: data strip label for the version the home wants (value: the service's words, e.g. 'En castellano de 1080p o más')."
+    },
+    "kostvRequestLimitReached": "Has llegado al límite de peticiones",
+    "@kostvRequestLimitReached": {
+        "description": "Kos TV request page: the button, switched off, when the person can't ask for more right now."
     }
 }

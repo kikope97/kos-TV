@@ -201,6 +201,10 @@ void main() {
       ),
       findsOneWidget,
     );
+    // The button, off, says so; and the costly check isn't made.
+    expect(find.text('Has llegado al límite de peticiones'), findsOneWidget);
+    expect(find.text('Solicitar'), findsNothing);
+    expect(fake.calls, isNot(contains('GET /movies/920/availability')));
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await settle(tester);
     expect(fake.requests, isEmpty);

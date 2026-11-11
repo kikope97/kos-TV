@@ -230,6 +230,95 @@ void main() {
     });
   });
 
+  bool askedAvailability() =>
+      fake.calls.contains('GET /movies/920/availability');
+
+  test('at the limit: the costly check is not made, until it frees', () {
+    fakeAsync((async) {
+      fake.atLimit = true;
+      final c = movie(async);
+      expect(c.atLimit, isTrue);
+      expect(askedAvailability(), isFalse);
+      expect(c.availability, isNull);
+      expect(c.checkingAvailability, isFalse);
+
+      // Their limit frees up (an answer came, a day went by): back in the
+      // app, the service is asked again and the page offers the button.
+      fake.atLimit = false;
+      c.service.refreshAccess();
+      settle(async);
+      expect(c.atLimit, isFalse);
+      expect(askedAvailability(), isTrue);
+      expect(c.availability?.fast, isTrue);
+      c.dispose();
+    });
+  });
+
+  test('the person\'s limit is checked afresh on opening the page', () {
+    fakeAsync((async) {
+      final service = fake.service();
+      service.onUserChanged('kiko');
+      settle(async);
+      expect(service.me?.atLimit, isFalse);
+      // They reached it on another device meanwhile.
+      fake.atLimit = true;
+      final c = KostvMovieRequestController(
+        service: service,
+        tmdbId: 920,
+        watchLifecycle: false,
+      );
+      c.load();
+      settle(async);
+      expect(c.atLimit, isTrue);
+      expect(askedAvailability(), isFalse);
+      c.dispose();
+    });
+  });
+
+  test('already asked for, or coming down: no costly check either', () {
+    fakeAsync((async) {
+      fake.mode = 'review';
+      fake.answer('POST', '/requests', {'type': 'movie', 'tmdb_id': 920});
+      final c = movie(async);
+      expect(c.request?.status, StremfinRequestStatus.pending);
+      expect(askedAvailability(), isFalse);
+      c.dispose();
+    });
+    fakeAsync((async) {
+      fake = FakeStremfinLife()
+        ..movieDownload = {
+          'status': 'downloading',
+          'phase': 'downloading',
+          'percent': 30,
+        };
+      final c = movie(async);
+      expect(c.detail?.download, isNotNull);
+      expect(askedAvailability(), isFalse);
+      c.dispose();
+    });
+  });
+
+  test('taken back: the check is made then, once', () {
+    fakeAsync((async) {
+      fake.mode = 'review';
+      final c = movie(async);
+      expect(askedAvailability(), isTrue);
+      final before = fake.calls
+          .where((call) => call == 'GET /movies/920/availability')
+          .length;
+      c.ask();
+      settle(async);
+      c.withdraw();
+      settle(async);
+      expect(
+        fake.calls.where((call) => call == 'GET /movies/920/availability'),
+        hasLength(before),
+        reason: 'asked once already',
+      );
+      c.dispose();
+    });
+  });
+
   group('a series', () {
     KostvSeriesRequestController series(FakeAsync async) {
       final service = fake.service();

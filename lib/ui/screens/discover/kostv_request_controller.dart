@@ -46,7 +46,12 @@ abstract class KostvRequestController extends ChangeNotifier {
         onHide: () => _setForeground(false),
       );
     }
+    service.addListener(onServiceChanged);
   }
+
+  /// The service said something new of the person (their limit, say).
+  @protected
+  void onServiceChanged() => _notify();
 
   final StremfinService service;
   final int tmdbId;
@@ -243,6 +248,7 @@ abstract class KostvRequestController extends ChangeNotifier {
     _disposed = true;
     _timer?.cancel();
     _lifecycle?.dispose();
+    service.removeListener(onServiceChanged);
     super.dispose();
   }
 }
@@ -294,27 +300,49 @@ class KostvMovieRequestController extends KostvRequestController {
     return null;
   }
 
+  /// Whether it has been asked how fast it could be downloaded.
+  bool _availabilityAsked = false;
+
   @override
   Future<void> read({bool initial = false}) async {
-    // How fast it would be takes a few seconds: asked at the same time, and
-    // shown when it comes.
-    final Future<StremfinAvailability>? checking =
-        initial && seed?.isInLibrary != true
-        ? service.movieAvailability(tmdbId)
-        : null;
-    if (checking != null) {
-      checkingAvailability = true;
-      unawaited(
-        checking
-            .then<StremfinAvailability?>((a) => a, onError: (_) => null)
-            .then((a) {
-              availability = a;
-              checkingAvailability = false;
-              if (!_disposed) notifyListeners();
-            }),
-      );
-    }
-    await _readMovie(initial: initial);
+    if (!initial) return _readMovie();
+    // Who the person is now (a quick call) along with the page: at their
+    // limit, the costly check below isn't made.
+    await Future.wait([service.refreshAccess(), _readMovie(initial: true)]);
+    _maybeCheckAvailability();
+  }
+
+  @override
+  void onServiceChanged() {
+    // Their limit freed up meanwhile: the button can be offered now.
+    _maybeCheckAvailability();
+    super.onServiceChanged();
+  }
+
+  /// Whether and how fast it could be downloaded. The service looks for the
+  /// file to answer, which takes seconds and costs it, so it is asked once
+  /// and only when the answer is any use: nothing asked for or coming down
+  /// yet, it can be asked for, and the person isn't at their limit.
+  void _maybeCheckAvailability() {
+    if (_availabilityAsked || _disposed || atLimit) return;
+    final read = detail;
+    if (read == null || arrivedItemId != null || request != null) return;
+    if (read.title.library.inLibrary || read.download != null) return;
+    final can = read.canRequest;
+    if (!can.allowed || can.action != StremfinRequestAction.request) return;
+    _availabilityAsked = true;
+    checkingAvailability = true;
+    _notify();
+    unawaited(
+      service
+          .movieAvailability(tmdbId)
+          .then<StremfinAvailability?>((a) => a, onError: (_) => null)
+          .then((a) {
+            availability = a;
+            checkingAvailability = false;
+            _notify();
+          }),
+    );
   }
 
   Future<void> _readMovie({bool initial = false}) async {
@@ -332,6 +360,7 @@ class KostvMovieRequestController extends KostvRequestController {
     } else if (request?.id != ref.id || initial) {
       await _readRequest(ref.id);
     }
+    if (!initial) _maybeCheckAvailability();
   }
 
   Future<void> _readRequest(int id) async {

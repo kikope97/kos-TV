@@ -78,10 +78,18 @@ class StremfinService extends ChangeNotifier {
     try {
       final me = await _client.me();
       if (_disposed) return;
+      final before = _me;
       _me = me;
-      _setAccess(
-        me.canDiscover ? StremfinAccess.allowed : StremfinAccess.denied,
-      );
+      final access = me.canDiscover
+          ? StremfinAccess.allowed
+          : StremfinAccess.denied;
+      if (access == _access &&
+          (before?.atLimit != me.atLimit || before?.mode != me.mode)) {
+        // The same access, but reaching or leaving their limit changes what
+        // a title's page offers.
+        notifyListeners();
+      }
+      _setAccess(access);
     } on StremfinException catch (e) {
       if (e.isNoAccess) {
         _setAccess(StremfinAccess.denied);
