@@ -61,6 +61,7 @@ import '../../calendar/calendar_countdown_view.dart';
 import '../../playback/osd_buttons.dart';
 import '../../setup/setup_wizard_previews.dart';
 import 'preview_row_options_home.dart';
+import '../../../widgets/kos_logo.dart';
 
 String settingsPreviewSceneName(
   AppLocalizations l10n,
@@ -1698,9 +1699,9 @@ class SettingsScreensaverPreview extends StatelessWidget {
     };
     Widget content({required bool movingLeft}) => switch (component) {
       ScreensaverComponent.none => const SizedBox.shrink(),
-      ScreensaverComponent.moonfinLogo => Image.asset(
-        'assets/images/logo_and_text.png',
+      ScreensaverComponent.moonfinLogo => const FittedBox(
         fit: BoxFit.contain,
+        child: KosLogo(height: 240),
       ),
       ScreensaverComponent.clock => ScreensaverClock(
         opacity: 1 - (dimming / 100) * 0.7,

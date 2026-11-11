@@ -123,6 +123,7 @@ import '../detail/playlist_sort_filter_bar.dart';
 import '../playback/osd_buttons.dart';
 import '../watch_party/watch_together_route.dart';
 import '../../../watch_party/silo_watch_party_manager.dart';
+import '../../widgets/kos_logo.dart';
 
 part 'panel/settings_panel_infra.dart';
 part 'panel/settings_search_field.dart';

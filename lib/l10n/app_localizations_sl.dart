@@ -10,7 +10,7 @@ class AppLocalizationsSl extends AppLocalizations {
   AppLocalizationsSl([String locale = 'sl']) : super(locale);
 
   @override
-  String get appTitle => 'Moonfin';
+  String get appTitle => 'kOS TV';
 
   @override
   String get animeMarkerFiller => 'Filler';

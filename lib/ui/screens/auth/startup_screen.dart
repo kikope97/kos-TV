@@ -1,8 +1,8 @@
-import 'package:flutter/foundation.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
-import 'package:moonfin_design/moonfin_design.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:server_core/server_core.dart';
 
@@ -21,6 +21,7 @@ import '../../widgets/adaptive/adaptive_dialog.dart';
 import '../../widgets/overlay_sheet.dart';
 import '../../widgets/pin_entry_dialog.dart';
 import '../../widgets/focus/request_initial_focus.dart';
+import '../../widgets/kos_intro.dart';
 
 class StartupScreen extends StatefulWidget {
   final bool bootstrapActiveSession;
@@ -34,33 +35,19 @@ class StartupScreen extends StatefulWidget {
   State<StartupScreen> createState() => _StartupScreenState();
 }
 
-class _StartupScreenState extends State<StartupScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _fadeController;
-  late final Animation<double> _fadeAnimation;
-
+class _StartupScreenState extends State<StartupScreen> {
   /// Kos TV: the built-in server couldn't be reached on a first start.
   bool _kostvServerFailed = false;
+
+  /// Kos TV: completes when the opening animation is over. The session is
+  /// restored meanwhile, but nothing leaves this screen or opens a dialog
+  /// over it before then.
+  final _introDone = Completer<void>();
 
   @override
   void initState() {
     super.initState();
-    _fadeController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _fadeAnimation = CurvedAnimation(
-      parent: _fadeController,
-      curve: Curves.easeIn,
-    );
-    _fadeController.forward();
     _initialize();
-  }
-
-  @override
-  void dispose() {
-    _fadeController.dispose();
-    super.dispose();
   }
 
   /// On a cold boot the app can win the race against Wi-Fi association and
@@ -102,6 +89,7 @@ class _StartupScreenState extends State<StartupScreen>
 
     if (widget.bootstrapActiveSession && session.activeUserId != null) {
       await _waitForNetworkSettle();
+      await _introDone.future;
       if (mounted) context.go(Destinations.home);
       return;
     }
@@ -135,6 +123,7 @@ class _StartupScreenState extends State<StartupScreen>
         ? false
         : await session.restoreSession();
 
+    await _introDone.future;
     if (!mounted) return;
 
     // Read the flag either way so a one-off failure doesn't carry over to the
@@ -233,71 +222,40 @@ class _StartupScreenState extends State<StartupScreen>
     );
   }
 
-  bool get _isLargeScreen {
-    final platform = defaultTargetPlatform;
-    return platform == TargetPlatform.linux ||
-        platform == TargetPlatform.macOS ||
-        platform == TargetPlatform.windows;
-  }
 
   @override
   Widget build(BuildContext context) =>
       RequestInitialFocus(child: _buildContent(context));
 
   Widget _buildContent(BuildContext context) {
-    final gradientColors = [
-      AppColorScheme.background,
-      AppColorScheme.surfaceVariant,
-      AppColorScheme.surface,
-    ];
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: gradientColors,
-          ),
-        ),
-        child: Center(
-          child: FadeTransition(
-            opacity: _fadeAnimation,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset(
-                  'assets/images/logo_and_text.png',
-                  height: _isLargeScreen ? 80 : 56,
-                ),
-                const SizedBox(height: 32),
-                if (_kostvServerFailed) ...[
+      backgroundColor: Colors.black,
+      body: KosIntro(
+        onFinished: () {
+          if (!_introDone.isCompleted) _introDone.complete();
+        },
+        footer: _kostvServerFailed
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 420),
                     child: Text(
-                      AppLocalizations.of(context).kostvServerUnreachable,
+                      l10n.kostvServerUnreachable,
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: AppColorScheme.onSurface),
+                      style: const TextStyle(color: Color(0xFFC9D2E6)),
                     ),
                   ),
                   const SizedBox(height: 16),
                   FilledButton(
                     autofocus: true,
                     onPressed: _retryKostvServer,
-                    child: Text(AppLocalizations.of(context).retry),
+                    child: Text(l10n.retry),
                   ),
-                ] else
-                  SizedBox(
-                    height: 24,
-                    width: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: AppColorScheme.accent.withValues(alpha: 0.7),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
+                ],
+              )
+            : null,
       ),
     );
   }

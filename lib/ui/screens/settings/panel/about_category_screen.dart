@@ -13,7 +13,7 @@ class _AboutCategoryScreen extends StatelessWidget {
         children: [
           const SizedBox(height: 24),
           Center(
-            child: Image.asset('assets/images/logo_and_text.png', height: 72),
+            child: const KosLogo(height: 72),
           ),
           const SizedBox(height: 8),
           Center(

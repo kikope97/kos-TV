@@ -84,7 +84,7 @@ android {
     flavorDimensions += "device"
     productFlavors {
         val baseAppId = "com.kikope.kostv"
-        val baseAppName = "Kos TV"
+        val baseAppName = "kOS TV"
         // Optional application-id suffix for on-device testing, set through the
         // environment so an unset build is byte-identical to before:
         //   MOONFIN_TEST_ID_SUFFIX=.hwtest flutter build apk --flavor androidTv --debug

@@ -38,6 +38,7 @@ import '../../widgets/login_scaffold.dart';
 import '../../widgets/pin_entry_dialog.dart';
 import '../../widgets/sign_in_qr_code.dart';
 import 'silo_password_change_dialog.dart';
+import '../../widgets/kos_logo.dart';
 
 final _kAccent = AppColorScheme.accent;
 
@@ -921,7 +922,7 @@ class _LoginScreenState extends State<LoginScreen> {
         maxWidth: _quickConnectQrBeside ? 900 : 600,
         header: Padding(
           padding: const EdgeInsets.only(bottom: 24),
-          child: Image.asset('assets/images/logo_and_text.png', height: 64),
+          child: const KosLogo(height: 64),
         ),
         footer: AnimatedContainer(
           duration: const Duration(milliseconds: 180),

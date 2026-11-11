@@ -223,7 +223,7 @@ abstract class AppLocalizations {
   /// The application title
   ///
   /// In en, this message translates to:
-  /// **'Moonfin'**
+  /// **'kOS TV'**
   String get appTitle;
 
   /// Badge on an anime episode that is filler, meaning it is not adapted from the source manga
