@@ -39,7 +39,8 @@ es otra cosa y la decide el usuario.
 Si el usuario pide un APK para probar (sin decir que publiques una versión),
 lanza `build.yml` con `inputs: {"test_apk": "true"}`. Sale como *pre-release*
 `kOS TV · prueba N` con los dos APK, y la imagen web como
-`ghcr.io/kikope97/kos-tv-web:prueba-N` (y `:prueba`). Las apps no la ofrecen como actualización
+`ghcr.io/kikope97/kos-tv-web:prueba-N` (y `:prueba` y `:latest`: `latest` es
+siempre la última imagen compilada, también en las pruebas). Las apps no la ofrecen como actualización
 (solo leen la última versión publicada). Lleva la versión de la última
 publicada más `-prueba.N`, así que se instala encima de ella y la siguiente
 versión publicada se instala encima de la prueba. Dale el enlace directo al APK

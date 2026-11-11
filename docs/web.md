@@ -66,13 +66,17 @@ detiene el contenedor con un mensaje en `docker compose logs`.
 
 ## Actualizar
 
-Cada versión publicada de kOS TV sube también la imagen web:
+Cada versión publicada de kOS TV, y cada prueba, sube también la imagen web:
 
 | Etiqueta | Qué es |
 |---|---|
-| `latest` | La última versión publicada (la de la familia) |
-| `X.Y.Z` | Una versión concreta, por ejemplo `1.1.0` |
+| `latest` | Siempre la última imagen compilada, sea una versión publicada o una prueba. Es la que usa el `compose.yml` de arriba |
+| `X.Y.Z` | Una versión publicada concreta, por ejemplo `1.1.0` |
 | `prueba` / `prueba-N` | Las compilaciones de prueba (como los APK de prueba) |
+
+Ojo: como `latest` también recibe las pruebas, al actualizar el contenedor
+después de una prueba la familia verá esa prueba en la web. Para quedarte en
+una versión concreta, pon `:X.Y.Z` en lugar de `:latest`.
 
 ```bash
 docker compose pull && docker compose up -d

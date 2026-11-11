@@ -577,10 +577,11 @@ jobs:
           if-no-files-found: error
 
   # Kos TV: the web version as a Docker image on GitHub's registry
-  # (ghcr.io/<owner>/kos-tv-web, see docs/web.md): with each release as X.Y.Z
-  # and latest, and with each test build as prueba and prueba-N. It holds no
-  # address: the container gets them in its variables, so it is built
-  # without the secrets.
+  # (ghcr.io/<owner>/kos-tv-web, see docs/web.md). latest is always the
+  # newest image built, release or test, so the server can stay on latest;
+  # each also keeps a tag of its own (X.Y.Z, or prueba and prueba-N). It
+  # holds no address: the container gets them in its variables, so it is
+  # built without the secrets.
   web-image:
     needs: plan
     if: needs.plan.outputs.release_version != '' || needs.plan.outputs.test_apk == 'true'
@@ -629,10 +630,11 @@ jobs:
         run: |
           image="ghcr.io/${OWNER,,}/kos-tv-web"
           if [ -n "$RELEASE_VERSION" ]; then
-            tags="$image:$RELEASE_VERSION,$image:latest"
+            tags="$image:$RELEASE_VERSION"
           else
             tags="$image:prueba,$image:prueba-$RUN_NUMBER"
           fi
+          tags="$tags,$image:latest"
           echo "tags=$tags" >> "$GITHUB_OUTPUT"
           echo "Imagen: $tags"
 
@@ -923,7 +925,7 @@ jobs:
 
             - Android TV: `KosTV_AndroidTV_prueba.apk`
             - Móvil y tablet: `KosTV_Android_prueba.apk`
-            - Web (Docker): `ghcr.io/${{ github.repository_owner }}/kos-tv-web:prueba-${{ github.run_number }}`
+            - Web (Docker): `ghcr.io/${{ github.repository_owner }}/kos-tv-web:prueba-${{ github.run_number }}` (también `:latest`)
 
             Compilada desde ${{ github.sha }}.
           files: KosTV_*_prueba.apk
