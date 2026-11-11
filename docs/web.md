@@ -11,11 +11,12 @@ servidor.
 
 ## Lo que hace falta
 
-- **Docker** (con Docker Compose) en el servidor.
-- **Una dirección con https** para la web, por ejemplo un subdominio en el
-  proxy inverso que ya uses para Jellyfin (Nginx Proxy Manager, Traefik,
-  Caddy…). Hace falta https: el navegador solo guarda la sesión de forma segura
-  en sitios https, y Jellyfin también va por https.
+- **Docker** (con Docker Compose, o Portainer) en el servidor.
+- **Una dirección con https** para usarla desde fuera de casa, por ejemplo un
+  subdominio en el proxy inverso que ya uses para Jellyfin (Nginx Proxy
+  Manager, Traefik, Caddy…). Por ella viajan el usuario, la contraseña y la
+  sesión, así que fuera de casa siempre con https. Dentro de casa también se
+  puede abrir por `http://IP-del-servidor:25670`, útil para probar.
 
 ## Puesta en marcha
 
@@ -34,11 +35,60 @@ En el repositorio hay un ejemplo listo para copiar:
    ```
 
 4. En el proxy inverso, apunta un subdominio con https (por ejemplo
-   `https://kostv.example.com`) al puerto 8080 de ese servidor.
+   `https://kostv.example.com`) al puerto 25670 de ese servidor.
 
 Al abrirlo, la app va directa al usuario y la contraseña de Jellyfin, igual que
 en la tele. El panel de administración está en `/admin` (por ejemplo
 `https://kostv.example.com/admin`).
+
+## En Unraid con Portainer y Nginx Proxy Manager
+
+### 1. Crear el stack en Portainer
+
+1. **Stacks → + Add stack**. Nombre: `kostv`.
+2. **Build method: Web editor**. Pega el contenido de
+   [`docker/compose.example.yml`](../docker/compose.example.yml).
+3. Más abajo, en **Environment variables**, pulsa **Advanced mode** y pega
+   las variables (las de [`docker/.env.example`](../docker/.env.example), con
+   tus valores):
+
+   ```
+   KOSTV_SERVER_URL=https://jellyfin.example.com
+   KOSTV_REQUESTS_URL=https://peticiones.example.com
+   KOSTV_ADMIN_USER=admin
+   KOSTV_ADMIN_PASSWORD=una-contraseña-larga
+   ```
+
+   Mejor una contraseña sin `$`: Portainer y Docker Compose lo toman por el
+   principio de una variable.
+4. **Deploy the stack**.
+5. En **Containers → kostv-web → Logs** deben salir las líneas `kostv:` con lo
+   configurado (servidor, servicio de peticiones y panel en `/admin`).
+6. Prueba desde casa: `http://IP-del-Unraid:25670`.
+
+Si Portainer dice que no puede descargar la imagen (`denied` o `unauthorized`),
+el paquete está privado en GitHub: ver más abajo, en «Actualizar».
+
+Si Stremfin también está en el Unraid, `KOSTV_REQUESTS_URL` puede ser
+`http://IP-del-Unraid:PUERTO-de-Stremfin`: es el contenedor quien habla con él,
+no el navegador.
+
+### 2. Publicarla con Nginx Proxy Manager
+
+1. **Hosts → Proxy Hosts → Add Proxy Host**.
+2. Pestaña **Details**:
+   - **Domain Names**: el subdominio para kOS TV (por ejemplo
+     `kostv.example.com`; en tu DNS, apuntando a casa como los demás).
+   - **Scheme**: `http`.
+   - **Forward Hostname / IP**: la IP del Unraid.
+   - **Forward Port**: `25670`.
+   - Activa **Block Common Exploits** y **Websockets Support**.
+3. Pestaña **SSL**: **Request a new SSL Certificate**, y activa **Force SSL** y
+   **HTTP/2 Support**.
+4. **Save**.
+
+Ya está: `https://kostv.example.com` abre kOS TV para la familia y
+`https://kostv.example.com/admin` el panel de administración.
 
 ## Variables
 
@@ -127,7 +177,7 @@ Desde la raíz del repositorio:
 ```bash
 flutter build web --release
 docker build -f docker/web/Dockerfile -t kostv-web .
-docker run --rm -p 8080:80 \
+docker run --rm -p 25670:80 \
   -e KOSTV_SERVER_URL=https://jellyfin.example.com \
   -e KOSTV_REQUESTS_URL=https://peticiones.example.com \
   kostv-web

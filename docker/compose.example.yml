@@ -6,7 +6,10 @@
 #   1. Copia este archivo como compose.yml y .env.example como .env.
 #   2. Rellena .env con tus direcciones y la contraseña del admin.
 #   3. docker compose up -d
-#   4. En tu proxy inverso, apunta un subdominio con https al puerto 8080.
+#   4. En tu proxy inverso, apunta un subdominio con https al puerto 25670.
+#
+# En Portainer: Stacks > Add stack, pega este archivo en el editor y pon las
+# variables de .env.example en "Environment variables". Ver docs/web.md.
 #
 # Para actualizar: docker compose pull && docker compose up -d
 # Guía completa: docs/web.md
@@ -17,7 +20,9 @@ services:
     container_name: kostv-web
     restart: unless-stopped
     ports:
-      - "8080:80"
+      # 25670 en el servidor (poco habitual, para no chocar con nada); 80
+      # dentro del contenedor. Cambia el primero si lo tienes ocupado.
+      - "25670:80"
     environment:
       # Jellyfin tal como lo abre el navegador: la dirección pública, con https.
       KOSTV_SERVER_URL: ${KOSTV_SERVER_URL:-}
