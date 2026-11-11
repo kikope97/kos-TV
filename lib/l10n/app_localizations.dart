@@ -8216,6 +8216,24 @@ abstract class AppLocalizations {
   /// **'Indigo'**
   String get indigo;
 
+  /// Kos TV: a focus border and overlay colour name
+  ///
+  /// In en, this message translates to:
+  /// **'kOS TV cyan'**
+  String get kostvColorCyan;
+
+  /// Kos TV: a focus border and overlay colour name
+  ///
+  /// In en, this message translates to:
+  /// **'Neon magenta'**
+  String get kostvColorNeonMagenta;
+
+  /// Kos TV: a focus border and overlay colour name
+  ///
+  /// In en, this message translates to:
+  /// **'8-bit gold'**
+  String get kostvColorEightBitGold;
+
   /// Section title for library display settings
   ///
   /// In en, this message translates to:

@@ -4697,6 +4697,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get indigo => 'Indigo';
 
   @override
+  String get kostvColorCyan => 'kOS TV cyan';
+
+  @override
+  String get kostvColorNeonMagenta => 'Neon magenta';
+
+  @override
+  String get kostvColorEightBitGold => '8-bit gold';
+
+  @override
   String get libraryDisplay => 'Library Display';
 
   @override

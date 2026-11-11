@@ -154,7 +154,26 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
                     preference: UserPreferences.focusColor,
                     title: l10n.focusBorderColor,
                     icon: Icons.border_color,
-                    labelOf: (v) => _formatCamelCaseLabel(v.name),
+                    // Kos TV: the colours' names, not their internal ids
+                    // (one of which says Moonfin).
+                    labelOf: (v) => switch (v) {
+                      AppTheme.white => l10n.white,
+                      AppTheme.black => l10n.black,
+                      AppTheme.gray => l10n.gray,
+                      AppTheme.darkBlue => l10n.darkBlue,
+                      AppTheme.purple => l10n.purple,
+                      AppTheme.teal => l10n.teal,
+                      AppTheme.navy => l10n.navy,
+                      AppTheme.charcoal => l10n.charcoal,
+                      AppTheme.brown => l10n.brown,
+                      AppTheme.darkRed => l10n.darkRed,
+                      AppTheme.darkGreen => l10n.darkGreen,
+                      AppTheme.slate => l10n.slate,
+                      AppTheme.indigo => l10n.indigo,
+                      AppTheme.moonfinCyan => l10n.kostvColorCyan,
+                      AppTheme.neonPulseMagenta => l10n.kostvColorNeonMagenta,
+                      AppTheme.eightBitGold => l10n.kostvColorEightBitGold,
+                    },
                   ),
                   _TvSettingsListTile(
                     leading: const Icon(Icons.storefront_outlined),

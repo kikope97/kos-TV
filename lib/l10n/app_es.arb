@@ -5527,6 +5527,18 @@
     "@indigo": {
         "description": "Color: indigo"
     },
+    "kostvColorCyan": "Cian kOS TV",
+    "@kostvColorCyan": {
+        "description": "Kos TV: a focus border and overlay colour name"
+    },
+    "kostvColorNeonMagenta": "Magenta neón",
+    "@kostvColorNeonMagenta": {
+        "description": "Kos TV: a focus border and overlay colour name"
+    },
+    "kostvColorEightBitGold": "Oro 8 bits",
+    "@kostvColorEightBitGold": {
+        "description": "Kos TV: a focus border and overlay colour name"
+    },
     "libraryDisplay": "Visualización de biblioteca",
     "@libraryDisplay": {
         "description": "Section title for library display settings"
