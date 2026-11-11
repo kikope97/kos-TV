@@ -29,7 +29,7 @@ Se actualiza al terminar cada revisión. La siguiente empieza justo aquí.
 | Copia original de kOS TV | upstream `3d87996d2` (2026-11-10), que incluye Moonfin 3.0.0 |
 | Último commit de upstream revisado | ninguno: se parte de `3d87996d2` |
 | Última versión del complemento revisada | ninguna: se parte de la 3.0.0.0 (2026-10-30) |
-| Complemento instalado en el servidor de casa | ninguno todavía (se instalará el oficial) |
+| Complemento instalado en el servidor de casa | el oficial, 3.0.0.0, instalado el 2026-11-11 (Seerr apagado, sin push) |
 | Última revisión | ninguna: punto de partida apuntado el 2026-11-11 |
 | Próxima revisión | a partir del 2026-11-18 |
 
@@ -71,6 +71,10 @@ Copiar este bloque arriba del registro y rellenarlo:
   cuenta.
 - **Complemento:** el oficial va por la 3.0.0.0 (2026-10-30, Jellyfin 10.10 o
   superior), que es la 2.5.0 renumerada para ir con las apps Moonfin 3.0.0.
-  Aún no está instalado en el servidor de casa; se decidió usar el oficial y
-  no una copia propia (que lo mantengan ellos; si un día rompe algo, se vuelve
-  a una versión anterior o se copia y lo seguimos nosotros).
+  Se decidió usar el oficial y no una copia propia (que lo mantengan ellos; si
+  un día rompe algo, se vuelve a una versión anterior o se copia y lo seguimos
+  nosotros). El usuario lo instaló el mismo 2026-11-11 desde el catálogo
+  (3.0.0.0, la última). Configuración recomendada: Seerr apagado y sin push
+  (kOS TV no se apunta a las notificaciones), clave de TMDB (y de MDBList si
+  se quiere), recomendaciones y logos de estudios encendidos, anime solo si
+  hay anime. «User defaults» sin tocar de momento.
