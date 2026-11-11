@@ -19,6 +19,7 @@ import '../../data/services/media_server_client_factory.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/services/pin_guard.dart';
 import '../../data/services/server_pin_service.dart';
+import '../../util/kostv_server.dart';
 import '../../util/platform_detection.dart';
 import '../../util/signed_in_server_features.dart';
 import '../../util/silo_failure_message.dart';
@@ -297,9 +298,12 @@ class _AccountDialogState extends State<_AccountDialog> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        ProfileStatusLine(
-          '${account.server.name} · ${account.server.serverType.productName}',
-        ),
+        // Kos TV: which server is technical, and there is only the
+        // household one.
+        if (!hasKostvServer)
+          ProfileStatusLine(
+            '${account.server.name} · ${account.server.serverType.productName}',
+          ),
         if (_isActive(account)) ...[
           const SizedBox(height: 4),
           ProfileStatusLine(
@@ -341,7 +345,8 @@ class _AccountDialogState extends State<_AccountDialog> {
     return [
       // Phones add a user from the + at the end of the avatar row.
       if (!compact) action(l10n.addUser, _addUser, icon: Icons.person),
-      if (!PlatformDetection.isWeb)
+      // Kos TV: with the household server built in there is none to pick.
+      if (!PlatformDetection.isWeb && !hasKostvServer)
         action(l10n.selectServer, _changeServer, icon: Icons.home),
       action(l10n.signOut, _signOutCurrent),
       // A lone Silo household is already all signed out by "Sign out".
@@ -367,8 +372,9 @@ class _AccountDialogState extends State<_AccountDialog> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      PlatformDetection.useMobileUi ? _buildSheet(context) : _buildWide(context);
+  Widget build(BuildContext context) => PlatformDetection.useMobileUi
+      ? _buildSheet(context)
+      : _buildWide(context);
 
   Widget _buildWide(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -413,7 +419,9 @@ class _AccountDialogState extends State<_AccountDialog> {
                     const SizedBox(width: 16),
                     _CircleActionButton(
                       icon: Icons.close,
-                      onPressed: _busy ? null : () => Navigator.of(context).pop(),
+                      onPressed: _busy
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       focusColor: Theme.of(context).colorScheme.primary,
                     ),
                   ],

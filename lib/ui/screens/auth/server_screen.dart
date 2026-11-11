@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
@@ -16,6 +19,7 @@ import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/services/pin_guard.dart';
 import '../../../data/services/server_pin_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../util/kostv_server.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/login_scaffold.dart';
@@ -288,7 +292,11 @@ class _ServerScreenState extends State<ServerScreen> {
 
   @override
   Widget build(BuildContext context) => SignInBackScope(
-    onBack: () => context.go(Destinations.serverSelect),
+    // Kos TV: with the household server built in this is the first page,
+    // so Back leaves the app as on any first page.
+    onBack: () => hasKostvServer
+        ? unawaited(SystemNavigator.pop())
+        : context.go(Destinations.serverSelect),
     child: _buildContent(context),
   );
 
@@ -336,7 +344,9 @@ class _ServerScreenState extends State<ServerScreen> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w500,
-                          color: AppColorScheme.onSurface.withValues(alpha: 0.7),
+                          color: AppColorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -344,7 +354,8 @@ class _ServerScreenState extends State<ServerScreen> {
                         entries: entries,
                         selected: _selected,
                         focusNode: _carouselFocus,
-                        onSelected: (index) => setState(() => _selected = index),
+                        onSelected: (index) =>
+                            setState(() => _selected = index),
                         onActivate: (index) => _onUserTap(_users[index]),
                         subtitle: _users.isEmpty
                             ? null
@@ -367,11 +378,13 @@ class _ServerScreenState extends State<ServerScreen> {
                   onPressed: () =>
                       context.go('${Destinations.login}?serverId=${server.id}'),
                 ),
-                _pillButton(
-                  icon: Icons.home,
-                  label: l10n.selectServer,
-                  onPressed: () => context.go(Destinations.serverSelect),
-                ),
+                // Kos TV: no other server to pick with the household one.
+                if (!hasKostvServer)
+                  _pillButton(
+                    icon: Icons.home,
+                    label: l10n.selectServer,
+                    onPressed: () => context.go(Destinations.serverSelect),
+                  ),
               ],
             ),
           ],
@@ -402,7 +415,9 @@ class _ServerScreenState extends State<ServerScreen> {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w500,
-                          color: AppColorScheme.onSurface.withValues(alpha: 0.7),
+                          color: AppColorScheme.onSurface.withValues(
+                            alpha: 0.7,
+                          ),
                         ),
                       ),
                       if (user != null) ...[
@@ -422,9 +437,11 @@ class _ServerScreenState extends State<ServerScreen> {
                       ProfileStrip(
                         entries: entries,
                         selected: _selected,
-                        onSelected: (index) => setState(() => _selected = index),
-                        onAdd: () =>
-                            context.go('${Destinations.login}?serverId=${server.id}'),
+                        onSelected: (index) =>
+                            setState(() => _selected = index),
+                        onAdd: () => context.go(
+                          '${Destinations.login}?serverId=${server.id}',
+                        ),
                         addLabel: l10n.addUser,
                       ),
                       ..._buildNotices(server),
@@ -439,14 +456,17 @@ class _ServerScreenState extends State<ServerScreen> {
                 onPressed: _signingIn ? null : () => _onUserTap(user),
               ),
             const SizedBox(height: 4),
-            TextButton(
-              onPressed: () => context.go(Destinations.serverSelect),
-              style: TextButton.styleFrom(
-                foregroundColor: AppColorScheme.onSurface.withValues(alpha: 0.78),
-                minimumSize: const Size(0, 44),
+            if (!hasKostvServer)
+              TextButton(
+                onPressed: () => context.go(Destinations.serverSelect),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppColorScheme.onSurface.withValues(
+                    alpha: 0.78,
+                  ),
+                  minimumSize: const Size(0, 44),
+                ),
+                child: Text(l10n.selectServer),
               ),
-              child: Text(l10n.selectServer),
-            ),
           ],
         ),
       ),
@@ -492,9 +512,8 @@ class _ServerScreenState extends State<ServerScreen> {
         const SizedBox(height: 20),
         Text(
           disclaimer,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Colors.white.withValues(alpha: 0.7),
-          ),
+          style: Theme.of(context).textTheme.bodySmall
+              ?.copyWith(color: Colors.white.withValues(alpha: 0.7)),
           textAlign: TextAlign.center,
         ),
       ],
@@ -511,9 +530,8 @@ class _ServerScreenState extends State<ServerScreen> {
             const SizedBox(width: 10),
             Text(
               l10n.signingIn,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.white.withValues(alpha: 0.7),
-              ),
+              style: Theme.of(context).textTheme.bodyMedium
+                  ?.copyWith(color: Colors.white.withValues(alpha: 0.7)),
             ),
           ],
         ),
@@ -545,10 +563,8 @@ class _ServerScreenState extends State<ServerScreen> {
             EdgeInsets.symmetric(horizontal: 20),
           ),
           textStyle: WidgetStatePropertyAll(
-            Theme.of(context).textTheme.labelLarge?.copyWith(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-            ),
+            Theme.of(context).textTheme.labelLarge
+                ?.copyWith(fontSize: 15, fontWeight: FontWeight.w500),
           ),
         ),
       ),

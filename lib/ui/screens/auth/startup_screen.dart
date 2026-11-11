@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:server_core/server_core.dart';
 
+import '../../../auth/kostv_household_server.dart';
 import '../../../auth/repositories/server_repository.dart';
 import '../../../auth/repositories/session_repository.dart';
 import '../../../auth/store/authentication_preferences.dart';
@@ -14,7 +15,6 @@ import '../../../data/services/connectivity_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/kostv_server.dart';
 import '../../../util/pin_code_util.dart';
-import '../../../util/server_url.dart';
 import '../../../preference/preference_constants.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/adaptive/adaptive_dialog.dart';
@@ -28,10 +28,7 @@ import '../../../data/services/stremfin/stremfin_service.dart';
 class StartupScreen extends StatefulWidget {
   final bool bootstrapActiveSession;
 
-  const StartupScreen({
-    super.key,
-    this.bootstrapActiveSession = false,
-  });
+  const StartupScreen({super.key, this.bootstrapActiveSession = false});
 
   @override
   State<StartupScreen> createState() => _StartupScreenState();
@@ -122,7 +119,8 @@ class _StartupScreenState extends State<StartupScreen> {
       pinEnabledForAutoLoginUser = pinUtil.isPinEnabled;
     }
 
-    final restored = (authPrefs.shouldAlwaysAuthenticate || pinEnabledForAutoLoginUser)
+    final restored =
+        (authPrefs.shouldAlwaysAuthenticate || pinEnabledForAutoLoginUser)
         ? false
         : await session.restoreSession();
     if (restored && session.activeUserId != null) _preloadHome();
@@ -184,15 +182,7 @@ class _StartupScreenState extends State<StartupScreen> {
     if (!connectivity.isOnline) {
       await connectivity.waitForOnline(const Duration(seconds: 10));
     }
-    final wanted = normalizeServerBaseUrl(kostvServerUrl);
-    var server = serverRepo.servers
-        .where(
-          (s) =>
-              normalizeServerBaseUrl(s.address) == wanted ||
-              normalizeServerBaseUrl(s.displayAddress ?? '') == wanted,
-        )
-        .firstOrNull;
-    server ??= await serverRepo.addServer(kostvServerUrl);
+    final server = await kostvHouseholdServer(serverRepo);
     if (!mounted) return;
     if (server == null) {
       setState(() => _kostvServerFailed = true);
@@ -228,9 +218,7 @@ class _StartupScreenState extends State<StartupScreen> {
       barrierDismissible: true,
       builder: (context) => AlertDialog.adaptive(
         title: Text(l10n.secureStorageUnavailable),
-        content: Text(
-          l10n.secureStorageUnavailableMessage,
-        ),
+        content: Text(l10n.secureStorageUnavailableMessage),
         actions: [
           adaptiveDialogAction(
             onPressed: () => Navigator.of(context).pop(),
@@ -240,7 +228,6 @@ class _StartupScreenState extends State<StartupScreen> {
       ),
     );
   }
-
 
   @override
   Widget build(BuildContext context) =>
