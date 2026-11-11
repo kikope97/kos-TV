@@ -19,6 +19,19 @@ enum DesktopUpdateCheckStatus {
   alreadyNotified,
 }
 
+/// Kos TV: what GitHub's latest-release endpoint answered.
+enum LatestReleaseAnswer {
+  /// A published release came back.
+  release,
+
+  /// The repository has no published release yet. GitHub answers 404, and
+  /// pre-releases (the test builds) don't count: there is nothing to update to.
+  noRelease,
+
+  /// No usable answer: no network, a GitHub error or a rate limit.
+  failed,
+}
+
 class DesktopUpdateCheckResult {
   final DesktopUpdateCheckStatus status;
   final DesktopUpdateInfo? update;
@@ -148,10 +161,17 @@ class AppUpdateService {
 
     await _store.setInt(_lastCheckMsKey, now.millisecondsSinceEpoch);
 
-    final release = await _fetchLatestRelease();
-    if (release == null) {
+    final fetched = await _fetchLatestRelease();
+    if (fetched.answer == LatestReleaseAnswer.failed) {
       return const DesktopUpdateCheckResult(
         status: DesktopUpdateCheckStatus.checkFailed,
+      );
+    }
+    final release = fetched.release;
+    if (release == null) {
+      // Kos TV: nothing published yet, so this build is the newest there is.
+      return const DesktopUpdateCheckResult(
+        status: DesktopUpdateCheckStatus.upToDate,
       );
     }
 
@@ -227,7 +247,22 @@ class AppUpdateService {
     return '0.0.0';
   }
 
-  Future<_LatestRelease?> _fetchLatestRelease() async {
+  /// Kos TV: what a status code from the latest-release endpoint means.
+  @visibleForTesting
+  static LatestReleaseAnswer latestReleaseAnswerFor(int statusCode) =>
+      switch (statusCode) {
+        >= 200 && < 300 => LatestReleaseAnswer.release,
+        404 => LatestReleaseAnswer.noRelease,
+        _ => LatestReleaseAnswer.failed,
+      };
+
+  static const _fetchFailed = (
+    answer: LatestReleaseAnswer.failed,
+    release: null,
+  );
+
+  Future<({LatestReleaseAnswer answer, _LatestRelease? release})>
+  _fetchLatestRelease() async {
     final client = HttpClient()
       ..userAgent = 'KosTVUpdateChecker/1.0'
       ..connectionTimeout = const Duration(seconds: 10);
@@ -237,20 +272,21 @@ class AppUpdateService {
       request.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
 
       final response = await request.close().timeout(const Duration(seconds: 10));
-      if (response.statusCode < 200 || response.statusCode >= 300) {
+      final answer = latestReleaseAnswerFor(response.statusCode);
+      if (answer != LatestReleaseAnswer.release) {
         await response.drain<void>();
-        return null;
+        return (answer: answer, release: null);
       }
 
       final body = await response.transform(utf8.decoder).join();
       final decoded = jsonDecode(body);
       if (decoded is! Map<String, dynamic>) {
-        return null;
+        return _fetchFailed;
       }
 
       final tagName = decoded['tag_name']?.toString();
       if (tagName == null || tagName.trim().isEmpty) {
-        return null;
+        return _fetchFailed;
       }
 
       final htmlUrl = decoded['html_url']?.toString() ??
@@ -272,9 +308,16 @@ class AppUpdateService {
         }
       }
 
-      return _LatestRelease(version: tagName, assets: assets, releaseNotesUrl: htmlUrl);
+      return (
+        answer: LatestReleaseAnswer.release,
+        release: _LatestRelease(
+          version: tagName,
+          assets: assets,
+          releaseNotesUrl: htmlUrl,
+        ),
+      );
     } catch (_) {
-      return null;
+      return _fetchFailed;
     } finally {
       client.close(force: true);
     }

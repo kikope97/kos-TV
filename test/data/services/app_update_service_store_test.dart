@@ -82,4 +82,31 @@ void main() {
       );
     });
   });
+
+  group('AppUpdateService.latestReleaseAnswerFor', () {
+    test('a published release is read', () {
+      expect(
+        AppUpdateService.latestReleaseAnswerFor(200),
+        LatestReleaseAnswer.release,
+      );
+    });
+
+    test('no published release yet (404) is not a failure', () {
+      // GitHub answers 404 while only pre-releases (the test builds) exist.
+      expect(
+        AppUpdateService.latestReleaseAnswerFor(404),
+        LatestReleaseAnswer.noRelease,
+      );
+    });
+
+    test('rate limits and server errors are failures', () {
+      for (final status in [403, 429, 500, 503]) {
+        expect(
+          AppUpdateService.latestReleaseAnswerFor(status),
+          LatestReleaseAnswer.failed,
+          reason: '$status',
+        );
+      }
+    });
+  });
 }
