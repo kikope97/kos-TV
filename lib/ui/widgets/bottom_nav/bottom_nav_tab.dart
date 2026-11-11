@@ -46,8 +46,9 @@ class BottomNavTabCell extends StatelessWidget {
   Widget build(BuildContext context) {
     // Labels share a narrow cell, so a large text setting shrinks them to fit
     // rather than pushing the icon out of the bar.
-    final textScaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: 1.15);
+    final textScaler = MediaQuery.textScalerOf(context).clamp(
+      maxScaleFactor: 1.15,
+    );
     final content = Column(
       mainAxisSize: MainAxisSize.min,
       children: [

@@ -176,8 +176,7 @@ class SplitBarView extends StatelessWidget {
                   count: items.length,
                   width: BottomNavMetrics.indicatorWidth + 2,
                   height: BottomNavMetrics.indicatorHeight,
-                  top:
-                      (BottomNavMetrics.splitHeight -
+                  top: (BottomNavMetrics.splitHeight -
                           BottomNavMetrics.indicatorHeight) /
                       2,
                   child: BottomNavPillIndicator(

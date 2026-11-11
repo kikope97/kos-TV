@@ -115,7 +115,10 @@ class _LibrariesSheet extends StatelessWidget {
                     lib.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: onBar, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: onBar,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   onTap: () => onOpen(lib),
                 ),

@@ -302,8 +302,9 @@ class _HubTile extends StatelessWidget {
           );
     // Capped so a large text setting can't stretch a two-line label's row
     // far past the others.
-    final textScaler = MediaQuery.textScalerOf(context)
-        .clamp(maxScaleFactor: 1.3);
+    final textScaler = MediaQuery.textScalerOf(context).clamp(
+      maxScaleFactor: 1.3,
+    );
 
     return Semantics(
       button: true,
@@ -371,17 +372,12 @@ class _HubRow extends StatelessWidget {
     return ListTile(
       onTap: onTap,
       shape: RoundedRectangleBorder(borderRadius: AppRadius.circular(18)),
-      leading: AdaptiveIcon(
-        icon,
-        size: 22,
-        color: onBar.withValues(alpha: 0.8),
-      ),
+      leading: AdaptiveIcon(icon, size: 22, color: onBar.withValues(alpha: 0.8)),
       title: Text(
         label,
         style: TextStyle(color: onBar, fontWeight: FontWeight.w600),
       ),
-      trailing:
-          trailing ??
+      trailing: trailing ??
           AdaptiveIcon(
             Icons.chevron_right_rounded,
             size: 20,

@@ -56,10 +56,8 @@ class BottomNavTheme {
       );
     } else {
       final opacity =
-          (previewValue(context, UserPreferences.navbarOpacity) / 100.0).clamp(
-            0.0,
-            1.0,
-          );
+          (previewValue(context, UserPreferences.navbarOpacity) / 100.0)
+              .clamp(0.0, 1.0);
       // The navbar colour and opacity still count, with a floor so the bar
       // never fades into the posters under it.
       surface = Color.alphaBlend(
@@ -80,8 +78,7 @@ class BottomNavTheme {
       glass: glass,
       pixel: pixel,
       neonEdge: transparent && !AppColorScheme.isGlass ? accent : null,
-      hairline:
-          spec.borders.navBorder ??
+      hairline: spec.borders.navBorder ??
           BorderSide(color: onBar.withValues(alpha: 0.08)),
       labelStyle: base.copyWith(
         fontSize: 11,
@@ -159,8 +156,8 @@ class BottomNavSurface extends StatelessWidget {
     final borderRadius = theme.pixel
         ? BorderRadius.zero
         : (topOnly
-              ? BorderRadius.only(topLeft: r, topRight: r)
-              : BorderRadius.all(r));
+            ? BorderRadius.only(topLeft: r, topRight: r)
+            : BorderRadius.all(r));
 
     // Tabs and sheet rows paint their ink on the nearest Material, which has
     // to be above the pane or the pane hides it.

@@ -35,8 +35,9 @@ class BottomNavInsetScope extends InheritedWidget {
     required super.child,
   });
 
-  static double? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<BottomNavInsetScope>()?.height;
+  static double? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<BottomNavInsetScope>()
+      ?.height;
 
   @override
   bool updateShouldNotify(BottomNavInsetScope oldWidget) =>
@@ -240,65 +241,64 @@ class _BottomNavbarState extends State<BottomNavbar> {
     }
     if (current != null) _lastActiveId = items[current].id;
     final padding = MediaQuery.paddingOf(context);
-    final horizontalInset = padding.left > padding.right
-        ? padding.left
-        : padding.right;
+    final horizontalInset =
+        padding.left > padding.right ? padding.left : padding.right;
     final style = _style;
 
-    Widget? player(BottomMiniPlayerVariant variant) =>
-        _hasTrack ? BottomMiniPlayer(variant: variant, theme: theme) : null;
+    Widget? player(BottomMiniPlayerVariant variant) => _hasTrack
+        ? BottomMiniPlayer(variant: variant, theme: theme)
+        : null;
 
     Widget split(bool minimized) => SplitBarView(
-      items: views,
-      activeIndex: active,
-      theme: theme,
-      bottomInset: padding.bottom,
-      horizontalInset: horizontalInset,
-      tabsVisible: widget.chromeVisible,
-      minimized: minimized,
-      onExpand: widget.onExpand,
-      onTap: (i) => _onTap(items[i], theme),
-      searchLabel: l10n.search,
-      searchActive:
-          !_controller.hubOpen && widget.activeRoute == Destinations.search,
-      onSearch: () {
-        HapticFeedback.selectionClick();
-        if (widget.activeRoute != Destinations.search) {
-          openBottomNavTab(context, BottomNavTab.search);
-        }
-      },
-      miniPlayer: player(BottomMiniPlayerVariant.capsule),
-      inlinePlayer: player(BottomMiniPlayerVariant.inline),
-    );
+          items: views,
+          activeIndex: active,
+          theme: theme,
+          bottomInset: padding.bottom,
+          horizontalInset: horizontalInset,
+          tabsVisible: widget.chromeVisible,
+          minimized: minimized,
+          onExpand: widget.onExpand,
+          onTap: (i) => _onTap(items[i], theme),
+          searchLabel: l10n.search,
+          searchActive: !_controller.hubOpen &&
+              widget.activeRoute == Destinations.search,
+          onSearch: () {
+            HapticFeedback.selectionClick();
+            if (widget.activeRoute != Destinations.search) {
+              openBottomNavTab(context, BottomNavTab.search);
+            }
+          },
+          miniPlayer: player(BottomMiniPlayerVariant.capsule),
+          inlinePlayer: player(BottomMiniPlayerVariant.inline),
+        );
 
     final Widget bar = switch (style) {
       BottomNavbarStyle.dock => DockBarView(
-        items: views,
-        activeIndex: active,
-        theme: theme,
-        bottomInset: padding.bottom,
-        horizontalInset: horizontalInset,
-        tabsVisible: widget.chromeVisible,
-        onTap: (i) => _onTap(items[i], theme),
-        miniPlayer: player(BottomMiniPlayerVariant.capsule),
-      ),
+          items: views,
+          activeIndex: active,
+          theme: theme,
+          bottomInset: padding.bottom,
+          horizontalInset: horizontalInset,
+          tabsVisible: widget.chromeVisible,
+          onTap: (i) => _onTap(items[i], theme),
+          miniPlayer: player(BottomMiniPlayerVariant.capsule),
+        ),
       BottomNavbarStyle.strip => StripBarView(
-        items: views,
-        activeIndex: active,
-        theme: theme,
-        bottomInset: padding.bottom,
-        horizontalInset: horizontalInset,
-        tabsVisible: widget.chromeVisible,
-        onTap: (i) => _onTap(items[i], theme),
-        miniPlayer: player(BottomMiniPlayerVariant.row),
-      ),
-      BottomNavbarStyle.split =>
-        widget.minimized == null
-            ? split(false)
-            : ValueListenableBuilder<bool>(
-                valueListenable: widget.minimized!,
-                builder: (_, minimized, _) => split(minimized),
-              ),
+          items: views,
+          activeIndex: active,
+          theme: theme,
+          bottomInset: padding.bottom,
+          horizontalInset: horizontalInset,
+          tabsVisible: widget.chromeVisible,
+          onTap: (i) => _onTap(items[i], theme),
+          miniPlayer: player(BottomMiniPlayerVariant.row),
+        ),
+      BottomNavbarStyle.split => widget.minimized == null
+          ? split(false)
+          : ValueListenableBuilder<bool>(
+              valueListenable: widget.minimized!,
+              builder: (_, minimized, _) => split(minimized),
+            ),
     };
 
     return Column(

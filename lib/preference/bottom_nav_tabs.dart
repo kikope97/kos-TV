@@ -115,16 +115,16 @@ class BottomNavTabGates {
   // Kids Mode drops Libraries (the My Media row stands in), Live TV (its route
   // bounces home), Seerr and the calendar.
   bool offers(BottomNavTab tab) => switch (tab) {
-    BottomNavTab.search => true,
-    BottomNavTab.kostvDiscover =>
-      !kidsMode && showKostvDiscover && kostvDiscoverAvailable,
-    BottomNavTab.libraries => !kidsMode && showLibraries,
-    BottomNavTab.favorites => showFavorites,
-    BottomNavTab.genres => showGenres,
-    BottomNavTab.liveTv => !kidsMode && showLiveTv,
-    BottomNavTab.discover => !kidsMode && showSeerr && seerrAvailable,
-    BottomNavTab.calendar => !kidsMode && showCalendar && calendarAvailable,
-  };
+        BottomNavTab.search => true,
+        BottomNavTab.kostvDiscover =>
+          !kidsMode && showKostvDiscover && kostvDiscoverAvailable,
+        BottomNavTab.libraries => !kidsMode && showLibraries,
+        BottomNavTab.favorites => showFavorites,
+        BottomNavTab.genres => showGenres,
+        BottomNavTab.liveTv => !kidsMode && showLiveTv,
+        BottomNavTab.discover => !kidsMode && showSeerr && seerrAvailable,
+        BottomNavTab.calendar => !kidsMode && showCalendar && calendarAvailable,
+      };
 
   /// The tabs the bar shows between Home and You. Automatic pins follow the
   /// nav button switches without anything being stored. Explicit pins are

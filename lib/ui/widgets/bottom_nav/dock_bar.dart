@@ -53,8 +53,7 @@ class DockBarView extends StatelessWidget {
                   count: items.length,
                   width: BottomNavMetrics.indicatorWidth,
                   height: BottomNavMetrics.indicatorHeight,
-                  top:
-                      (BottomNavMetrics.dockHeight -
+                  top: (BottomNavMetrics.dockHeight -
                           BottomNavMetrics.indicatorHeight) /
                       2,
                   child: BottomNavPillIndicator(

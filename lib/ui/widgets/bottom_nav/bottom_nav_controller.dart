@@ -110,39 +110,38 @@ class BottomNavController extends ChangeNotifier {
   bool get kidsMode => _prefs.get(UserPreferences.kidsModeEnabled);
 
   BottomNavTabGates get gates => BottomNavTabGates.fromPreferences(
-    _prefs,
-    seerrAvailable: _pluginSync?.seerrAvailable ?? false,
-    calendarAvailable: _pluginSync?.calendarAvailable ?? false,
-    kostvDiscoverAvailable: _stremfin?.isAllowed ?? false,
-  );
+        _prefs,
+        seerrAvailable: _pluginSync?.seerrAvailable ?? false,
+        calendarAvailable: _pluginSync?.calendarAvailable ?? false,
+        kostvDiscoverAvailable: _stremfin?.isAllowed ?? false,
+      );
 
   bool get _hasLiveTvLibrary => _libraries.any(isLiveTvLibrary);
 
   /// The libraries behind the Libraries tab. Live TV drops out of the list
   /// once it has a tab or tile of its own.
   List<AggregatedLibrary> get navLibraries => librariesForNav(
-    _libraries,
-    gates.offers(BottomNavTab.liveTv) && _hasLiveTvLibrary,
-    hideLiveTv: kidsMode,
-  );
+        _libraries,
+        gates.offers(BottomNavTab.liveTv) && _hasLiveTvLibrary,
+        hideLiveTv: kidsMode,
+      );
 
   /// Offered is decided by settings alone, available also needs the data.
   bool isAvailable(BottomNavTab tab) => switch (tab) {
-    BottomNavTab.libraries => navLibraries.isNotEmpty,
-    BottomNavTab.liveTv => _hasLiveTvLibrary,
-    _ => true,
-  };
+        BottomNavTab.libraries => navLibraries.isNotEmpty,
+        BottomNavTab.liveTv => _hasLiveTvLibrary,
+        _ => true,
+      };
 
   List<BottomNavBarItem> barItems() => resolveBarItems(
-    gates,
-    _prefs.get(UserPreferences.bottomNavbarTabs),
-    withoutSearch: style == BottomNavbarStyle.split,
-    isAvailable: isAvailable,
-  );
+        gates,
+        _prefs.get(UserPreferences.bottomNavbarTabs),
+        withoutSearch: style == BottomNavbarStyle.split,
+        isAvailable: isAvailable,
+      );
 
   List<BottomNavHubTile> hubTiles() {
-    final syncPlay =
-        !kidsMode &&
+    final syncPlay = !kidsMode &&
         _prefs.get(UserPreferences.syncPlayEnabled) &&
         _prefs.get(UserPreferences.showSyncPlayButton);
     return resolveHubTiles(
@@ -169,7 +168,8 @@ class BottomNavController extends ChangeNotifier {
 
   /// Unread count for the avatar and the hub row. Zero while the messages
   /// entry is hidden, so the avatar never nags about something unreachable.
-  int get unreadMessages => messagesVisible ? (_messages?.unreadCount ?? 0) : 0;
+  int get unreadMessages =>
+      messagesVisible ? (_messages?.unreadCount ?? 0) : 0;
 
   /// Whether the bottom navbar hub lists Friends: the user left the button on
   /// and the server's Achievement Badges plugin has friends turned on.
@@ -186,27 +186,27 @@ class BottomNavController extends ChangeNotifier {
   // Rebuilding the bar on every preference write in the app would be wasted
   // work, so only the settings the bar reads are compared.
   String _prefsSignature() => [
-    _prefs.get(UserPreferences.bottomNavbarStyle).name,
-    _prefs.get(UserPreferences.bottomNavbarTabs),
-    _prefs.get(UserPreferences.kidsModeEnabled),
-    _prefs.get(UserPreferences.showLibrariesInToolbar),
-    _prefs.get(UserPreferences.showFavoritesButton),
-    _prefs.get(UserPreferences.showGenresButton),
-    _prefs.get(UserPreferences.showLiveTvButton),
-    _prefs.get(UserPreferences.showSeerrButton),
-    _prefs.get(UserPreferences.showCalendarButton),
-    _prefs.get(UserPreferences.showShuffleButton),
-    _prefs.get(UserPreferences.syncPlayEnabled),
-    _prefs.get(UserPreferences.showSyncPlayButton),
-    _prefs.get(UserPreferences.showServerMessagesButton),
-    _prefs.get(UserPreferences.showFriendsButton),
-    _prefs.get(UserPreferences.showDownloadsButton),
-    _prefs.get(UserPreferences.enableMultiServerLibraries),
-    _prefs.get(UserPreferences.navbarColor),
-    _prefs.get(UserPreferences.navbarOpacity),
-    _pluginSync?.seerrAvailable ?? false,
-    _pluginSync?.calendarAvailable ?? false,
-  ].join('|');
+        _prefs.get(UserPreferences.bottomNavbarStyle).name,
+        _prefs.get(UserPreferences.bottomNavbarTabs),
+        _prefs.get(UserPreferences.kidsModeEnabled),
+        _prefs.get(UserPreferences.showLibrariesInToolbar),
+        _prefs.get(UserPreferences.showFavoritesButton),
+        _prefs.get(UserPreferences.showGenresButton),
+        _prefs.get(UserPreferences.showLiveTvButton),
+        _prefs.get(UserPreferences.showSeerrButton),
+        _prefs.get(UserPreferences.showCalendarButton),
+        _prefs.get(UserPreferences.showShuffleButton),
+        _prefs.get(UserPreferences.syncPlayEnabled),
+        _prefs.get(UserPreferences.showSyncPlayButton),
+        _prefs.get(UserPreferences.showServerMessagesButton),
+        _prefs.get(UserPreferences.showFriendsButton),
+        _prefs.get(UserPreferences.showDownloadsButton),
+        _prefs.get(UserPreferences.enableMultiServerLibraries),
+        _prefs.get(UserPreferences.navbarColor),
+        _prefs.get(UserPreferences.navbarOpacity),
+        _pluginSync?.seerrAvailable ?? false,
+        _pluginSync?.calendarAvailable ?? false,
+      ].join('|');
 
   void _onPrefsChanged() {
     final next = _prefsSignature();
@@ -238,7 +238,8 @@ class BottomNavController extends ChangeNotifier {
       return;
     }
     try {
-      _userImageUrl = GetIt.instance<MediaServerClient>().imageApi
+      _userImageUrl = GetIt.instance<MediaServerClient>()
+          .imageApi
           .getUserImageUrl(user.id);
     } catch (_) {
       _userImageUrl = null;
@@ -252,7 +253,7 @@ class BottomNavController extends ChangeNotifier {
       );
       final libs = useMultiServer
           ? await GetIt.instance<MultiServerRepository>()
-                .getAggregatedLibraries()
+              .getAggregatedLibraries()
           : await _viewsRepo.getUserViews();
 
       if (GetIt.instance.isRegistered<GameLibraryRegistry>()) {
@@ -260,9 +261,8 @@ class BottomNavController extends ChangeNotifier {
       }
 
       final filtered = useMultiServer
-          ? await GetIt.instance<LibraryScopeService>().withoutHiddenLibraries(
-              libs,
-            )
+          ? await GetIt.instance<LibraryScopeService>()
+              .withoutHiddenLibraries(libs)
           : libs;
 
       if (_disposed || _sameLibraries(_libraries, filtered)) return;
