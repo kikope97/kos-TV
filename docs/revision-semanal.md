@@ -26,11 +26,12 @@ Se actualiza al terminar cada revisión. La siguiente empieza justo aquí.
 
 | | |
 |---|---|
-| Copia original de kOS TV | upstream `3d87996d2` (2026-11-10) |
-| Último commit de upstream revisado | ninguno todavía (se parte de `3d87996d2`) |
-| Última versión del complemento revisada | 3.0.0.0 (2026-10-30), solo vista, sin revisión a fondo |
+| Copia original de kOS TV | upstream `3d87996d2` (2026-11-10), que incluye Moonfin 3.0.0 |
+| Último commit de upstream revisado | ninguno: se parte de `3d87996d2` |
+| Última versión del complemento revisada | ninguna: se parte de la 3.0.0.0 (2026-10-30) |
 | Complemento instalado en el servidor de casa | ninguno todavía (se instalará el oficial) |
-| Última revisión | ninguna todavía |
+| Última revisión | ninguna: punto de partida apuntado el 2026-11-11 |
+| Próxima revisión | a partir del 2026-11-18 |
 
 ## Cómo apuntar cada revisión
 
@@ -53,11 +54,16 @@ Copiar este bloque arriba del registro y rellenarlo:
 
 ## Registro
 
-### 2026-11-11 · Punto de partida (sin revisión todavía)
+### 2026-11-11 · Punto de partida (sin revisión)
 
-- **App:** la copia de kOS TV sale de upstream `3d87996d2` (2026-11-10). En
-  upstream `main` hay 23 commits nuevos desde entonces, hasta `d31a38f8b`
-  (2026-11-11), sin revisar.
+- **Decisión:** el usuario decide partir de aquí, sin revisar ahora (acabamos
+  de salir de esta versión), y hacer la primera revisión en una semana, hacia
+  el 2026-11-18.
+- **App:** la copia de kOS TV sale de upstream `3d87996d2` (2026-11-10). La
+  última versión publicada de Moonfin es la 3.0.0 (2026-10-30) y ya está
+  dentro. En upstream `main` hay 23 commits sin publicar desde la copia,
+  hasta `d31a38f8b` (2026-11-11). No están en kOS TV, así que la primera
+  revisión empieza en `3d87996d2` y los incluye.
 - **Desde la copia, kOS TV ha cambiado mucho** (ver la tabla de `KOSTV.md`):
   marca propia, sin Plex, Emby, escritorio, Seerr ni Firebase, servidor de casa
   integrado, Descubrir (Stremfin), web en Docker, aplicaciones de la tele,
