@@ -1,6 +1,5 @@
 import '../../data/models/home_row.dart';
 import '../../l10n/app_localizations.dart';
-import '../../preference/preference_constants.dart';
 
 /// The seasonal row is titled after the holiday Moonbase picked, which it names
 /// by id.

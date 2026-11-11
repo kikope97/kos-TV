@@ -144,8 +144,8 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
                 preference: UserPreferences.diagnosticLoggingEnabled,
                 title: 'Diagnostic Logging',
                 subtitle:
-                    'Capture media, Seerr login, network and other '
-                    'diagnostics so they can be sent to the server as a report.',
+                    'Capture media, network and other diagnostics so they '
+                    'can be sent to the server as a report.',
                 icon: Icons.bug_report,
               ),
               SwitchPreferenceTile(
@@ -282,7 +282,6 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
   static String _categoryLabel(LogCategory category) => switch (category) {
     LogCategory.general => 'General',
     LogCategory.media => 'Media',
-    LogCategory.seerr => 'Seerr login',
     LogCategory.network => 'Network',
     LogCategory.auth => 'Authentication',
     LogCategory.playback => 'Playback',

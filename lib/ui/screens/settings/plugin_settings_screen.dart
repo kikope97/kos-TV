@@ -250,7 +250,6 @@ class _PluginSettingsSectionState extends State<PluginSettingsSection> {
     final services = <String>[
       if (_syncService.mdblistAvailable) 'MDBList',
       if (_syncService.tmdbAvailable) 'TMDB',
-      if (_syncService.seerrEnabled) 'Seerr',
     ];
 
     return _SyncCard(

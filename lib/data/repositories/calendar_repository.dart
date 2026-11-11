@@ -10,11 +10,7 @@ import '../services/moonbase_endpoint.dart';
 enum CalendarProblem {
   adminsOnly,
 
-  /// Moonbase reads the arr settings through an admin's Seerr session and
-  /// no admin has signed in to Seerr through Moonfin yet.
-  needsAdminSeerr,
-
-  /// No Sonarr or Radarr is linked.
+  /// No Sonarr or Radarr is linked, or the server can't reach them.
   notConfigured,
   failed,
 }
@@ -175,6 +171,8 @@ class CalendarRepository {
     Map<String, String> query,
   ) async {
     try {
+      // The plugin names the route after Seerr, but it answers with the
+      // Sonarr or Radarr calendar.
       final response = await _dio.get<dynamic>(
         '${ep.base}/Moonfin/Seerr/$service/Calendar',
         queryParameters: query,
@@ -190,8 +188,6 @@ class CalendarRepository {
         null,
         switch (status) {
           403 => CalendarProblem.adminsOnly,
-          503 when body.contains('admin Seerr session') =>
-            CalendarProblem.needsAdminSeerr,
           404 || 503 => CalendarProblem.notConfigured,
           _ => CalendarProblem.failed,
         },
@@ -203,11 +199,10 @@ class CalendarRepository {
   }
 
   /// The more telling of two sources' problems, so a missing Radarr doesn't
-  /// hide that Sonarr needs an admin.
+  /// hide that Sonarr is kept to admins.
   static CalendarProblem _worst(CalendarProblem? a, CalendarProblem? b) {
     const order = [
       CalendarProblem.adminsOnly,
-      CalendarProblem.needsAdminSeerr,
       CalendarProblem.failed,
       CalendarProblem.notConfigured,
     ];

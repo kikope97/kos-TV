@@ -868,9 +868,7 @@ class _HomeFrame {
   double maxImageHeight(HomeRow row) => _tallest[row] ??= () {
     if (isSquareRow(row)) return _squareSide;
     if (isModern(row)) return modernHeight;
-    final type = isSeerrFilterRow(row)
-        ? ImageType.thumb
-        : homeRowImageTypeForRow(row, prefs);
+    final type = homeRowImageTypeForRow(row, prefs);
     var tallest = 0.0;
     for (final item in row.items) {
       final ar = aspectRatioForRowItem(item, row, type);

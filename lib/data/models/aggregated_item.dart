@@ -204,8 +204,8 @@ class AggregatedItem {
   String? get parentThumbItemId => rawData['ParentThumbItemId']?.toString();
   String? get parentThumbImageTag => rawData['ParentThumbImageTag'] as String?;
   String? get status => rawData['Status'] as String?;
+  /// `movie` or `tv` for a title that isn't in the library.
   String? get seerrMediaType => rawData['SeerrMediaType'] as String?;
-  int? get seerrStatus => _toInt(rawData['SeerrStatus']);
   int? get childCount => _toInt(rawData['ChildCount']);
 
   DateTime? get premiereDate => parseServerDate(rawData['PremiereDate']);

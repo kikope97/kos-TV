@@ -12,15 +12,11 @@ import 'package:server_core/server_core.dart';
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/repositories/multi_server_repository.dart';
-import '../../../data/repositories/seerr_repository.dart';
-import '../../../data/services/seerr/seerr_discover_sliders.dart';
 import '../../../data/utils/playlist_utils.dart';
 import '../../../data/services/plugin_sync_service.dart';
 import '../../../preference/home_section_config.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
-import '../../../preference/seerr_preferences.dart';
-import '../../../preference/seerr_row_config.dart';
 import '../../../util/extensions.dart';
 import '../../../util/focus/scroll_utils.dart';
 import '../../../util/platform_detection.dart';
@@ -118,10 +114,6 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
   /// The disabled groups that are open, by [_getSectionCategory].
   final Set<int> _openGroups = {};
   final Map<int, FocusNode> _groupHeaderFocusNodes = {};
-
-  /// Seerr slider rows whose slider Seerr still has but this client can't
-  /// show, so they stay in the layout without being offered.
-  Set<String> _unshownSeerrSliderIds = const {};
 
   /// The names of the other servers signed in on this device, by address, so
   /// a collection picked from one of them says where it's from.
@@ -502,22 +494,6 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
     return type == HomeSectionType.playlists;
   }
 
-  bool _isSeerrSectionType(HomeSectionType type) {
-    return type == HomeSectionType.seerrShortcuts ||
-        type == HomeSectionType.seerrRecentRequests ||
-        type == HomeSectionType.seerrWatchlist ||
-        type == HomeSectionType.seerrRecentlyAdded ||
-        type == HomeSectionType.seerrPopularMovies ||
-        type == HomeSectionType.seerrUpcomingMovies ||
-        type == HomeSectionType.seerrPopularSeries ||
-        type == HomeSectionType.seerrUpcomingSeries ||
-        type == HomeSectionType.seerrTrending ||
-        type == HomeSectionType.seerrMovieGenres ||
-        type == HomeSectionType.seerrStudios ||
-        type == HomeSectionType.seerrSeriesGenres ||
-        type == HomeSectionType.seerrNetworks;
-  }
-
   int _getSectionCategory(HomeSectionConfig section) {
     if (section.isPluginDynamic) {
       if (section.pluginSource == HomeSectionPluginSource.collections) {
@@ -547,8 +523,7 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
     if (section.type == HomeSectionType.playlists) {
       return 5;
     }
-    if (_isSeerrSectionType(section.type) ||
-        section.type == HomeSectionType.radarrCalendar ||
+    if (section.type == HomeSectionType.radarrCalendar ||
         section.type == HomeSectionType.sonarrCalendar) {
       return 6;
     }
@@ -581,23 +556,6 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
     final prefKey = UserPreferences.tmdbSectionEnabled[type];
     if (prefKey == null) return false;
     return _prefs.get(prefKey);
-  }
-
-  void _disableSeerrHomeRow(HomeSectionType type) {
-    final seerrType = type.seerrRowType;
-    if (seerrType == null) return;
-    final seerrPrefs = GetIt.instance<SeerrPreferences>();
-    final configs = List<SeerrRowConfig>.from(seerrPrefs.homeRowsConfig);
-    final idx = configs.indexWhere((c) => c.type == seerrType);
-    if (idx >= 0) {
-      configs[idx] = configs[idx].copyWith(enabled: false);
-      seerrPrefs.setHomeRowsConfig(configs);
-    } else {
-      configs.add(
-        SeerrRowConfig(type: seerrType, enabled: false, order: configs.length),
-      );
-      seerrPrefs.setHomeRowsConfig(configs);
-    }
   }
 
   bool _isAnyImdbSectionEnabled() {
@@ -647,7 +605,6 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
     );
     final showGenresRows = _prefs.get(UserPreferences.displayGenresRows);
     final showPlaylistsRows = _prefs.get(UserPreferences.displayPlaylistsRows);
-    final showSeerrRows = GetIt.instance<PluginSyncService>().seerrAvailable;
     final showImdbRows = _isAnyImdbSectionEnabled();
     final showTmdbRows = _isAnyTmdbSectionEnabled();
 
@@ -687,18 +644,6 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
             !_prefs.get(UserPreferences.enableRadarrCalendar)) ||
         (section.type == HomeSectionType.sonarrCalendar &&
             !_prefs.get(UserPreferences.enableSonarrCalendar));
-    final hiddenBySeerr =
-        (_isSeerrSectionType(section.type) &&
-            (!showSeerrRows ||
-                !GetIt.instance<SeerrPreferences>().isSeerrHomeRowEnabled(
-                  section.type,
-                ))) ||
-        // Like Seerr's own rows, a slider row switched off goes back to Seerr
-        // Lists, where it's switched on again.
-        (isSeerrSliderSection(section) &&
-            (!showSeerrRows ||
-                !section.enabled ||
-                _unshownSeerrSliderIds.contains(section.stableId)));
     final hiddenByImdb =
         _isImdbSectionType(section.type) &&
         (!showImdbRows || !_isImdbRowEnabled(section.type));
@@ -748,7 +693,6 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
         hiddenByStudios ||
         hiddenByLiveTv ||
         hiddenByCalendars ||
-        hiddenBySeerr ||
         hiddenByImdb ||
         hiddenByTmdb ||
         hiddenBySeasonal ||
@@ -787,7 +731,7 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
     3 => l10n.favorites,
     4 => l10n.homeRowsGenresAndStudios,
     5 => l10n.playlists,
-    6 => seerrBrand(l10n.seerr),
+    6 => l10n.upcomingCalendars,
     7 => l10n.homeRowsExternalLists,
     _ => l10n.general,
   };
@@ -962,12 +906,10 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
       final collectionsFuture = _fetchCollectionsPerServer();
       final genresFuture = _fetchGenresForHomeSections();
       final playlistsFuture = _fetchPlaylistsForHomeSections();
-      final seerrSlidersFuture = _fetchSeerrSlidersForHomeSections();
       final serverSectionsFuture = _fetchServerSectionsForHomeSections();
       final discoveredCollections = await collectionsFuture;
       final discoveredGenres = await genresFuture;
       final discoveredPlaylists = await playlistsFuture;
-      final discoveredSeerrSliders = await seerrSlidersFuture;
       final discoveredServerSections = await serverSectionsFuture;
       if (!mounted) return;
       var changed = false;
@@ -982,8 +924,6 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
         final mergedPlaylistSections = _mergePlaylistSections(
           discoveredPlaylists,
         );
-        final mergedSeerrSliderSections = discoveredSeerrSliders != null &&
-            _mergeSeerrSliderSections(discoveredSeerrSliders);
         final mergedServerSections = discoveredServerSections != null &&
             _mergeServerSections(discoveredServerSections);
 
@@ -1002,7 +942,6 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
             mergedCollectionSections ||
             mergedGenreSections ||
             mergedPlaylistSections ||
-            mergedSeerrSliderSections ||
             mergedServerSections ||
             sortChanged;
         _rebuildFocusNodes();
@@ -1490,58 +1429,6 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
     return changed;
   }
 
-  /// Every slider on Seerr's discover page. Null when Seerr can't be reached,
-  /// so a failed read leaves the rows in place instead of reading as every
-  /// slider having been deleted.
-  Future<List<SeerrDiscoverSlider>?> _fetchSeerrSlidersForHomeSections() async {
-    if (!GetIt.instance<PluginSyncService>().seerrAvailable) return null;
-    try {
-      final repo = await GetIt.instance.getAsync<SeerrRepository>();
-      await repo.ensureInitialized();
-      if (!repo.isAvailable) return null;
-      return await repo.getDiscoverSliders(force: true);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  /// Keeps the slider rows put on Home from Seerr Lists in step with Seerr.
-  /// Sliders are picked there, so none are added here.
-  bool _mergeSeerrSliderSections(List<SeerrDiscoverSlider> sliders) {
-    final serverId = GetIt.instance<MediaServerClient>().baseUrl;
-    var changed = false;
-
-    // Another server's Seerr may number its sliders the same way, so only
-    // this server's rows are matched against the list.
-    bool isOwnSlider(HomeSectionConfig s) =>
-        isSeerrSliderSection(s) && s.serverId == serverId;
-
-    for (var i = 0; i < _sections.length; i++) {
-      if (!isOwnSlider(_sections[i])) continue;
-      final slider = findSeerrSliderFor(_sections[i], sliders);
-      if (slider == null) continue;
-      if (_sections[i].pluginDisplayText != slider.title) {
-        _sections[i] = _sections[i].copyWith(pluginDisplayText: slider.title);
-        changed = true;
-      }
-    }
-
-    // Only a slider Seerr no longer has is dropped. One it still has but this
-    // client can't show, switched off for now or of a type a newer client
-    // knows, keeps its entry and state and is just left out of the list.
-    final before = _sections.length;
-    _sections.removeWhere(
-      (s) => isOwnSlider(s) && findSeerrSliderFor(s, sliders) == null,
-    );
-    if (_sections.length != before) changed = true;
-    _unshownSeerrSliderIds = {
-      for (final s in _sections.where(isOwnSlider))
-        if (findSeerrSliderFor(s, sliders)?.isSupported == false) s.stableId,
-    };
-
-    return changed;
-  }
-
   void _rebuildFocusNodes() {
     final activeIds = _sections.map((s) => s.stableId).toSet();
 
@@ -1680,9 +1567,6 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
           _sections[i].stableId,
     ];
     final at = leaving.indexOf(toggledStableId);
-    if (!enabled && _isSeerrSectionType(toggled.type)) {
-      _disableSeerrHomeRow(toggled.type);
-    }
 
     final nodeMap = <String, FocusNode>{};
     for (var i = 0; i < _sections.length; i++) {
@@ -2505,30 +2389,34 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
                               ),
                             ),
                           )
-                        : (_isSeerrSectionType(section.type)
+                        : (_isImdbSectionType(section.type)
                               ? Text(
-                                  'Seerr Discovery Rows',
+                                  'IMDb List',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    fontFamily: kCleanSettingsFontFamily,
+                                    fontFamily:
+                                        kCleanSettingsFontFamily,
                                     color: AppColorScheme.onSurface
                                         .withValues(alpha: 0.7),
                                   ),
                                 )
-                              : (_isImdbSectionType(section.type)
+                              : (_isTmdbSectionType(section.type)
                                     ? Text(
-                                        'IMDb List',
+                                        'TMDB Lists',
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontFamily:
                                               kCleanSettingsFontFamily,
-                                          color: AppColorScheme.onSurface
-                                              .withValues(alpha: 0.7),
+                                          color: AppColorScheme
+                                              .onSurface
+                                              .withValues(
+                                                alpha: 0.7,
+                                              ),
                                         ),
                                       )
-                                    : (_isTmdbSectionType(section.type)
+                                    : (section.type == HomeSectionType.mdblistWatchingNow
                                           ? Text(
-                                              'TMDB Lists',
+                                              'MDBList',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontFamily:
@@ -2540,21 +2428,7 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
                                                     ),
                                               ),
                                             )
-                                          : (section.type == HomeSectionType.mdblistWatchingNow
-                                                ? Text(
-                                                    'MDBList',
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontFamily:
-                                                          kCleanSettingsFontFamily,
-                                                      color: AppColorScheme
-                                                          .onSurface
-                                                          .withValues(
-                                                            alpha: 0.7,
-                                                          ),
-                                                    ),
-                                                  )
-                                                : null))))),
+                                          : null)))),
               onTap: isEmpty
                   ? null
                   : () => _toggleSection(sectionIndex, !section.enabled),
@@ -2648,15 +2522,13 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
             ? _pluginSubtitle(section)
             : (_isAudioSectionType(section.type)
                   ? 'Audio row'
-                  : (_isSeerrSectionType(section.type)
-                        ? 'Seerr Discovery Rows'
-                        : (_isImdbSectionType(section.type)
-                              ? 'IMDb List'
-                              : (_isTmdbSectionType(section.type)
-                                    ? 'TMDB Lists'
-                                    : (section.type == HomeSectionType.mdblistWatchingNow
-                                          ? 'MDBList'
-                                          : null))))),
+                  : (_isImdbSectionType(section.type)
+                        ? 'IMDb List'
+                        : (_isTmdbSectionType(section.type)
+                              ? 'TMDB Lists'
+                              : (section.type == HomeSectionType.mdblistWatchingNow
+                                    ? 'MDBList'
+                                    : null)))),
         enabled: section.enabled,
         isFirst: isFirst,
         isLast: isLast,
@@ -2966,15 +2838,13 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
                 ? Text(_pluginSubtitle(section))
                 : (_isAudioSectionType(section.type)
                       ? const Text('Audio row')
-                      : (_isSeerrSectionType(section.type)
-                            ? const Text('Seerr Discovery Rows')
-                            : (_isImdbSectionType(section.type)
-                                  ? const Text('IMDb List')
-                                  : (_isTmdbSectionType(section.type)
-                                        ? const Text('TMDB Lists')
-                                        : (section.type == HomeSectionType.mdblistWatchingNow
-                                              ? const Text('MDBList')
-                                              : null))))),
+                      : (_isImdbSectionType(section.type)
+                            ? const Text('IMDb List')
+                            : (_isTmdbSectionType(section.type)
+                                  ? const Text('TMDB Lists')
+                                  : (section.type == HomeSectionType.mdblistWatchingNow
+                                        ? const Text('MDBList')
+                                        : null)))),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -3014,8 +2884,6 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
       },
       HomeSectionPluginSource.genres => 'Genres row',
       HomeSectionPluginSource.playlists => 'Playlists row',
-      HomeSectionPluginSource.seerr =>
-        AppLocalizations.of(context).seerrDiscoveryRows,
       HomeSectionPluginSource.server =>
         AppLocalizations.of(context).siloServerRowSubtitle,
       HomeSectionPluginSource.custom => (() {
@@ -3443,19 +3311,6 @@ String homeSectionTypeLabel(HomeSectionType type, AppLocalizations l10n) =>
       HomeSectionType.studios => l10n.studios,
       HomeSectionType.liveTv => l10n.liveTV,
       HomeSectionType.onNow => l10n.onNow,
-      HomeSectionType.seerrShortcuts => seerrBrand(l10n.seerrShortcutsRow),
-      HomeSectionType.seerrRecentRequests => l10n.recentRequests,
-      HomeSectionType.seerrWatchlist => l10n.yourWatchlist,
-      HomeSectionType.seerrRecentlyAdded => l10n.recentlyAdded,
-      HomeSectionType.seerrPopularMovies => l10n.popularMovies,
-      HomeSectionType.seerrUpcomingMovies => l10n.upcomingMovies,
-      HomeSectionType.seerrPopularSeries => l10n.popularSeries,
-      HomeSectionType.seerrUpcomingSeries => l10n.upcomingSeries,
-      HomeSectionType.seerrTrending => l10n.trending,
-      HomeSectionType.seerrMovieGenres => l10n.movieGenres,
-      HomeSectionType.seerrStudios => l10n.studios,
-      HomeSectionType.seerrSeriesGenres => l10n.seriesGenres,
-      HomeSectionType.seerrNetworks => l10n.networks,
       HomeSectionType.radarrCalendar => 'Upcoming Movies (Radarr)',
       HomeSectionType.sonarrCalendar => 'Upcoming TV Shows (Sonarr)',
       HomeSectionType.imdbTop250Movies => l10n.imdbTop250Movies,

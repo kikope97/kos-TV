@@ -5,7 +5,6 @@ import 'package:server_core/server_core.dart';
 
 import '../../../../navigation/destinations.dart';
 import '../../../../widgets/offline_aware_image.dart';
-import '../../../../widgets/seerr/seerr_image_urls.dart';
 import '../shared/nouveau_spacing.dart';
 
 class NouveauPeopleCard extends StatefulWidget {
@@ -35,24 +34,18 @@ class NouveauPeopleCard extends StatefulWidget {
 
     final tag = person['PrimaryImageTag'] as String?;
 
-    if (personId != null &&
-        personId.isNotEmpty &&
-        tag != null &&
-        tag.isNotEmpty) {
-      return imageApi.getPrimaryImageUrl(
-        personId,
-        maxHeight: maxHeight,
-        tag: tag,
-      );
+    if (personId == null ||
+        personId.isEmpty ||
+        tag == null ||
+        tag.isEmpty) {
+      return null;
     }
 
-    final profilePath = person['ProfilePath'] as String?;
-
-    if (profilePath != null && profilePath.isNotEmpty) {
-      return '$seerrProfileBase$profilePath';
-    }
-
-    return null;
+    return imageApi.getPrimaryImageUrl(
+      personId,
+      maxHeight: maxHeight,
+      tag: tag,
+    );
   }
 
   static void openPerson(
@@ -63,12 +56,6 @@ class NouveauPeopleCard extends StatefulWidget {
     final personId = person['Id']?.toString();
 
     if (personId == null || personId.isEmpty) {
-      return;
-    }
-
-    if (serverId == 'seerr') {
-      context.push(Destinations.seerrPerson(personId));
-
       return;
     }
 

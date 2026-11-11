@@ -152,6 +152,21 @@ class StremfinService extends ChangeNotifier {
     return _loading[key] = future;
   }
 
+  /// Reads Discover's first page (every platform together) ahead of time,
+  /// while the opening plays, so it opens already filled. Quietly does nothing
+  /// for someone the service doesn't let in.
+  Future<void> prefetch() async {
+    await refreshAccess();
+    if (!isAllowed) return;
+    await Future.wait([
+      platforms(),
+      for (final type in StremfinTitleType.values)
+        for (final list in StremfinTopList.values)
+          top(platform: StremfinPlatform.allId, type: type, list: list)
+              .then<void>((_) {}, onError: (_) {}),
+    ]);
+  }
+
   /// A list as it was last read, however old, to show while it's asked again.
   List<StremfinTitle>? keptList({
     required String platform,

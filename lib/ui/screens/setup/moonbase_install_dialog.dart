@@ -25,7 +25,6 @@ List<String> moonbaseFeatures(AppLocalizations l10n, ServerType type) {
     l10n.moonbaseFeatureSync,
     l10n.moonbaseFeatureRatings,
     if (fullPlugin) ...[
-      l10n.setupTourBulletRequests,
       l10n.moonbaseFeatureRows,
       l10n.moonbaseFeatureGames,
     ],

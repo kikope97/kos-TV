@@ -830,8 +830,7 @@ class _LoginScreenState extends State<LoginScreen> {
           setState(() => _isLoading = false);
           return;
         }
-        // From here on the new password is the one that signs in (and the
-        // one handed on after sign-in, for Seerr).
+        // From here on the new password is the one that signs in.
         _passwordController.text = outcome.newPassword;
         result = outcome.state;
       }
@@ -842,8 +841,6 @@ class _LoginScreenState extends State<LoginScreen> {
           final switched = await _sessionRepo.switchCurrentSession(
             serverId: result.serverId,
             userId: result.userId,
-            username: username,
-            password: _passwordController.text,
           );
           if (!mounted) return;
           if (switched) {

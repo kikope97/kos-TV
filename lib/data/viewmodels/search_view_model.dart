@@ -9,9 +9,7 @@ import '../../util/accent_folding.dart';
 import '../models/aggregated_item.dart';
 import '../repositories/multi_server_repository.dart';
 import '../repositories/search_repository.dart';
-import '../repositories/seerr_repository.dart';
 import '../services/plugin_sync_service.dart';
-import '../services/seerr/seerr_api_models.dart';
 import '../utils/blocked_ratings.dart';
 
 class SearchResultGroup {
@@ -39,23 +37,20 @@ class GameSearchResult {
   const GameSearchResult({required this.libraryId, required this.game});
 }
 
-/// What Moonbase's natural-language search found: library items as item
-/// cards, and titles the library lacks in Seerr's own search result shape.
+/// The library items Moonbase's natural-language search found.
 class SmartSearchResults {
   final List<AggregatedItem> items;
-  final List<SeerrDiscoverItem> seerr;
 
-  const SmartSearchResults({this.items = const [], this.seerr = const []});
+  const SmartSearchResults({this.items = const []});
 
   static const empty = SmartSearchResults();
 
-  bool get isEmpty => items.isEmpty && seerr.isEmpty;
+  bool get isEmpty => items.isEmpty;
 
   /// A server still building its first index answers with Ready false.
   factory SmartSearchResults.fromJson(
     Map<String, dynamic> json, {
     required String serverId,
-    bool includeSeerr = true,
   }) {
     if (json['Ready'] != true) return empty;
     final items = [
@@ -71,13 +66,6 @@ class SmartSearchResults {
             rawData: data,
           ),
       ]),
-      seerr: includeSeerr
-          ? [
-              for (final raw
-                  in (json['Seerr'] as List? ?? const []).whereType<Map>())
-                SeerrDiscoverItem.fromJson(raw.cast<String, dynamic>()),
-            ].where((item) => !item.isBlacklisted).toList()
-          : const [],
     );
   }
 }
@@ -91,26 +79,19 @@ class SearchViewModel extends ChangeNotifier {
   // Only set when search should cover every signed-in server.
   final MultiServerRepository? _multiServerRepository;
   final PluginSyncService? _pluginSync;
-  SeerrRepository? _seerrRepository;
 
   SearchViewModel(
     this._searchRepository,
     this._client, {
-    SeerrRepository? seerrRepository,
     String? scopedParentId,
     MultiServerRepository? multiServerRepository,
     PluginSyncService? pluginSync,
-  }) : _seerrRepository = seerrRepository,
-       _multiServerRepository = multiServerRepository,
+  }) : _multiServerRepository = multiServerRepository,
        _pluginSync = pluginSync,
        _scopedParentId =
            (scopedParentId != null && scopedParentId.isNotEmpty)
                ? scopedParentId
                : null;
-
-  void setSeerrRepository(SeerrRepository repo) {
-    _seerrRepository = repo;
-  }
 
   ImageApi imageApiFor(AggregatedItem item) =>
       _multiServerRepository?.getImageApiForServer(item.serverId) ??
@@ -129,9 +110,6 @@ class SearchViewModel extends ChangeNotifier {
 
   List<SearchResultGroup> _results = const [];
   List<SearchResultGroup> get results => _results;
-
-  List<SeerrDiscoverItem> _seerrResults = const [];
-  List<SeerrDiscoverItem> get seerrResults => _seerrResults;
 
   List<GameSearchResult> _gameResults = const [];
   List<GameSearchResult> get gameResults => _gameResults;
@@ -216,7 +194,6 @@ class SearchViewModel extends ChangeNotifier {
 
     if (trimmed.isEmpty) {
       _results = const [];
-      _seerrResults = const [];
       _gameResults = const [];
       _smartResults = SmartSearchResults.empty;
       _smartQuery = '';
@@ -252,7 +229,6 @@ class SearchViewModel extends ChangeNotifier {
         final activeGroups = _scopedParentId != null
           ? _bookSearchGroups()
           : _searchGroups();
-      final seerrFuture = _fetchSeerrResults(query);
       final smartFuture = _fetchSmartResults(query);
       final gamesFuture = _scopedParentId != null
           ? Future.value(const <GameSearchResult>[])
@@ -274,15 +250,12 @@ class SearchViewModel extends ChangeNotifier {
               Future.value(const <AggregatedItem>[]),
             )
           : await _buildGroupedGlobalResults(query, activeGroups);
-      final seerr = await seerrFuture;
       final games = await gamesFuture;
 
       // With nothing else to show, the results wait for smart search and
       // people instead of coming up empty.
       final hasLibraryResults =
-          groups.any((g) => g.items.isNotEmpty) ||
-          seerr.isNotEmpty ||
-          games.isNotEmpty;
+          groups.any((g) => g.items.isNotEmpty) || games.isNotEmpty;
       final smart = hasLibraryResults ? null : await smartFuture;
       final hasOtherResults = hasLibraryResults || !(smart?.isEmpty ?? true);
       final people = hasOtherResults
@@ -294,7 +267,6 @@ class SearchViewModel extends ChangeNotifier {
       if (query != _query) return;
 
       _results = _withPeople(groups, people ?? const []);
-      _seerrResults = seerr;
       _gameResults = games;
       if (smart != null || _smartQuery != query) {
         _smartResults = smart ?? SmartSearchResults.empty;
@@ -443,21 +415,6 @@ class SearchViewModel extends ChangeNotifier {
     }
   }
 
-  Future<List<SeerrDiscoverItem>> _fetchSeerrResults(String query) async {
-    if (_scopedParentId != null) return const [];
-    if (query.trim().toLowerCase().startsWith('studio:')) return const [];
-    final repo = _seerrRepository;
-    if (repo == null) return const [];
-    try {
-      await repo.ensureInitialized();
-      if (!repo.isAvailable) return const [];
-      final page = await repo.search(query, limit: _resultLimit);
-      return page.results.where((item) => !item.isBlacklisted).toList();
-    } catch (_) {
-      return const [];
-    }
-  }
-
   Future<SmartSearchResults> _fetchSmartResults(String query) async {
     final pluginSync = _pluginSync;
     if (pluginSync == null || !pluginSync.smartSearchEnabled) {
@@ -473,11 +430,7 @@ class SearchViewModel extends ChangeNotifier {
           .fetchSmartSearch(_client, query)
           .timeout(_smartTimeout);
       if (data == null) return SmartSearchResults.empty;
-      return SmartSearchResults.fromJson(
-        data,
-        serverId: _client.baseUrl,
-        includeSeerr: _seerrRepository?.isAvailable ?? false,
-      );
+      return SmartSearchResults.fromJson(data, serverId: _client.baseUrl);
     } catch (_) {
       return SmartSearchResults.empty;
     }

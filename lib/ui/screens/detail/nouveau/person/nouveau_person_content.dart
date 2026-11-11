@@ -1,38 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../../../../../data/models/aggregated_item.dart';
-import '../../../../../data/services/seerr/seerr_api_models.dart';
 import '../../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../../l10n/app_localizations.dart';
 import '../../../../../preference/detail_section_layout.dart';
 import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/platform_detection.dart';
-import '../../../../../util/seerr_credits.dart';
 import '../shared/nouveau_segmented_selector.dart';
 import 'nouveau_filmography_section.dart';
-import 'nouveau_seerr_filmography_section.dart';
-import '../../../../../preference/seerr_preferences.dart';
 
-enum _PersonTab {
-  movies,
-  series,
-  guestAppearances,
-  musicVideos,
-  crew,
-  appearances,
-  all,
-}
+enum _PersonTab { movies, series, guestAppearances, musicVideos, all }
 
 class NouveauPersonContent extends StatefulWidget {
   final ItemDetailViewModel viewModel;
   final UserPreferences prefs;
 
-  /// Guest appearances, music videos and both Seerr credit lists each have a
-  /// switch. A hidden one has no tab, and the All fallback leaves it out too.
+  /// Guest appearances and music videos each have a switch. A hidden one has
+  /// no tab, and the All fallback leaves it out too.
   final DetailSectionVisibility visibility;
-
-  final List<SeerrDiscoverItem> seerrCrewCredits;
-  final List<SeerrDiscoverItem> seerrAppearances;
 
   final ValueChanged<AggregatedItem>? onBackdropItemFocused;
 
@@ -46,8 +31,6 @@ class NouveauPersonContent extends StatefulWidget {
     required this.viewModel,
     required this.prefs,
     this.visibility = DetailSectionVisibility.all,
-    required this.seerrCrewCredits,
-    required this.seerrAppearances,
     this.onBackdropItemFocused,
     this.onNavigateUp,
     this.onNavigateDown,
@@ -81,12 +64,6 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
 
   final GlobalKey<NouveauFilmographySectionState> _musicVideosSectionKey =
       GlobalKey<NouveauFilmographySectionState>();
-
-  final GlobalKey<NouveauSeerrFilmographySectionState> _crewSectionKey =
-      GlobalKey<NouveauSeerrFilmographySectionState>();
-
-  final GlobalKey<NouveauSeerrFilmographySectionState>
-  _appearancesSectionKey = GlobalKey<NouveauSeerrFilmographySectionState>();
 
   final GlobalKey<NouveauFilmographySectionState> _allSectionKey =
       GlobalKey<NouveauFilmographySectionState>();
@@ -166,24 +143,12 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
     }).toList();
   }
 
-  List<SeerrDiscoverItem> get _seerrCrewCredits =>
-      _shows(DetailSection.seerrPersonCrew)
-      ? widget.seerrCrewCredits
-      : const [];
-
-  List<SeerrDiscoverItem> get _seerrAppearances =>
-      _shows(DetailSection.seerrPersonAppearances)
-      ? widget.seerrAppearances
-      : const [];
-
   List<_PersonTab> get _availableTabs {
     final tabs = <_PersonTab>[
       if (_movies.isNotEmpty) _PersonTab.movies,
       if (_series.isNotEmpty) _PersonTab.series,
       if (_guestAppearances.isNotEmpty) _PersonTab.guestAppearances,
       if (_musicVideos.isNotEmpty) _PersonTab.musicVideos,
-      if (_seerrCrewCredits.isNotEmpty) _PersonTab.crew,
-      if (_seerrAppearances.isNotEmpty) _PersonTab.appearances,
     ];
 
     if (tabs.isEmpty && _allFilmography.isNotEmpty) {
@@ -215,8 +180,6 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
       _PersonTab.series => l10n.series,
       _PersonTab.guestAppearances => l10n.guestAppearances,
       _PersonTab.musicVideos => l10n.musicVideos,
-      _PersonTab.crew => seerrBrand(l10n.crewContributionsSeerr),
-      _PersonTab.appearances => seerrBrand(l10n.appearancesSeerr),
       _PersonTab.all => l10n.appearances,
     };
   }
@@ -268,12 +231,6 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
 
       case _PersonTab.musicVideos:
         return _musicVideosSectionKey.currentState?.revealKey;
-
-      case _PersonTab.crew:
-        return _crewSectionKey.currentState?.revealKey;
-
-      case _PersonTab.appearances:
-        return _appearancesSectionKey.currentState?.revealKey;
 
       case _PersonTab.all:
         return _allSectionKey.currentState?.revealKey;
@@ -357,12 +314,6 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
 
       case _PersonTab.musicVideos:
         return _musicVideosSectionKey.currentState?.requestFocus() ?? false;
-
-      case _PersonTab.crew:
-        return _crewSectionKey.currentState?.requestFocus() ?? false;
-
-      case _PersonTab.appearances:
-        return _appearancesSectionKey.currentState?.requestFocus() ?? false;
 
       case _PersonTab.all:
         return _allSectionKey.currentState?.requestFocus() ?? false;
@@ -448,26 +399,6 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
           imageApi: _vm.imageApi,
           prefs: widget.prefs,
           onBackdropItemFocused: widget.onBackdropItemFocused,
-          onNavigateUp: _navigateRailUp,
-          onNavigateDown: _navigateRailDown,
-        );
-
-      case _PersonTab.crew:
-        return NouveauSeerrFilmographySection(
-          key: _crewSectionKey,
-          title: '',
-          items: _seerrCrewCredits,
-          isCrew: true,
-          onNavigateUp: _navigateRailUp,
-          onNavigateDown: _navigateRailDown,
-        );
-
-      case _PersonTab.appearances:
-        return NouveauSeerrFilmographySection(
-          key: _appearancesSectionKey,
-          title: '',
-          items: _seerrAppearances,
-          isCrew: false,
           onNavigateUp: _navigateRailUp,
           onNavigateDown: _navigateRailDown,
         );

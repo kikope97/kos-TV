@@ -1,26 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get_it/get_it.dart';
 
 import '../../../data/models/aggregated_item.dart';
-import '../../../data/services/seerr/seerr_api_models.dart';
 import '../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/detail_section_layout.dart';
 import '../../../preference/preference_constants.dart';
-import '../../../preference/seerr_preferences.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/overview_text.dart';
 import '../../../util/playback_time_label.dart';
 import '../../widgets/horizontal_scroll_section.dart';
 import '../../widgets/media_card.dart';
 import '../../widgets/navigation_layout.dart';
-import '../../widgets/seerr/seerr_image_urls.dart';
-import '../../widgets/seerr/seerr_item_chips.dart';
-import '../../widgets/seerr/seerr_item_status.dart';
-import '../../widgets/seerr/seerr_request_dialog.dart';
-import '../../widgets/seerr/seerr_stats_card.dart';
-import '../../widgets/seerr/seerr_streaming_row.dart';
 import 'detail_layout_metrics.dart';
 import 'item_detail_screen.dart';
 import 'minimalist/widgets/minimalist_episodes_section.dart';
@@ -129,7 +120,7 @@ mixin DetailPage<T extends StatefulWidget> on State<T> {
     bool shareRow = false,
   }) {
     final choices = actionsKey.currentState?.trackChoices(l10n);
-    if (choices == null && !pageViewModel.isSeerrOnly) {
+    if (choices == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && actionsKey.currentState != null) setState(() {});
       });
@@ -254,18 +245,17 @@ mixin DetailPage<T extends StatefulWidget> on State<T> {
         expansion: pagePrefs.get(UserPreferences.cardFocusExpansion),
       );
 
-  /// The card width the season, similar, collection and Seerr rows share.
+  /// The card width the season, similar and collection rows share.
   double get posterCardWidth => detailIsCompact(context)
       ? 120.0
       : 150.0 * detailDesktopScale(prefs: pagePrefs);
 
   double get posterRowSpacing => rowSpacing(posterCardWidth * 1.5);
 
-  /// The title's own backdrop, its show's for a season or an episode, or the
-  /// TMDB one for a title that's only in Seerr.
+  /// The title's own backdrop, or its show's for a season or an episode.
   String? ownBackdropUrl(AggregatedItem item) {
     final api = pageViewModel.imageApi;
-    if (item.serverId != 'seerr' && item.backdropImageTags.isNotEmpty) {
+    if (item.backdropImageTags.isNotEmpty) {
       return api.getBackdropImageUrl(
         item.id,
         maxWidth: 1920,
@@ -280,8 +270,7 @@ mixin DetailPage<T extends StatefulWidget> on State<T> {
         tag: item.parentBackdropImageTags.first,
       );
     }
-    final path = item.rawData['BackdropPath'] as String?;
-    return path == null || path.isEmpty ? null : '$seerrBackdropBase$path';
+    return null;
   }
 
   /// The overview to show, or null when there's none or the viewer hid it.
@@ -349,35 +338,6 @@ mixin DetailPage<T extends StatefulWidget> on State<T> {
     },
     onLeftEdge: onLeftEdge,
   );
-
-  /// A show that's only in Seerr, its seasons as cards that each open the
-  /// request dialog.
-  Widget? seerrSeasonsRow(FocusNode node, AppLocalizations l10n) {
-    final seerr = pageViewModel.seerr;
-    final seasons = pageViewModel.seasons;
-    if (seasons.isEmpty || seerr == null) return null;
-    return HorizontalScrollSection(
-      title: sectionTitle(l10n.seasons),
-      titleStyle: sectionTitleStyle,
-      contentSpacing: posterRowSpacing,
-      builder: (context, controller) => DetailSeasonsRow(
-        seasons: seasons,
-        imageApi: pageViewModel.imageApi,
-        prefs: pagePrefs,
-        scrollController: controller,
-        firstItemFocusNode: node,
-        seerrSeasonStatus: seerrItemSeasonStatus(pageViewModel),
-        onSeasonTap: (number) => showSeerrRequestDialog(
-          context: context,
-          vm: seerr,
-          is4k: false,
-          qualityToggle: true,
-          season: number > 0 ? number : null,
-        ),
-        onItemKeyEvent: rowKeys(node, seasons.length),
-      ),
-    );
-  }
 
   DetailPageSection? castSection(
     AggregatedItem item,
@@ -489,86 +449,5 @@ mixin DetailPage<T extends StatefulWidget> on State<T> {
     }
 
     return out;
-  }
-
-  /// What Seerr knows that the library doesn't: the tags, the numbers behind
-  /// the title, where it streams and what it leads to.
-  List<DetailPageSection> seerrSections(
-    DetailSectionVisibility sections,
-    AppLocalizations l10n,
-  ) {
-    final state = seerrItemTabState(pageViewModel);
-    final pieces = SeerrDetailPieces.resolve(state, sections, l10n);
-    if (state == null || !pieces.hasAny) return const [];
-    final label = GetIt.instance<SeerrPreferences>().labelOrDefault(l10n.seerr);
-
-    DetailPageSection row(
-      String id,
-      String title,
-      List<SeerrDiscoverItem> items,
-    ) {
-      final node = pageNode(id);
-      return DetailPageSection(
-        node: node,
-        child: HorizontalScrollSection(
-          title: sectionTitle('$label · $title'),
-          titleStyle: sectionTitleStyle,
-          contentSpacing: posterRowSpacing,
-          builder: (context, controller) => SeerrAppearancesRow(
-            items: items,
-            prefs: pagePrefs,
-            scrollController: controller,
-            firstFocusNode: node,
-            onItemKeyEvent: rowKeys(node, items.length),
-            customCardWidth: posterCardWidth,
-          ),
-        ),
-      );
-    }
-
-    final chipsNode = pageNode('seerr-chips');
-    return [
-      if (pieces.chips || pieces.stats || pieces.streaming)
-        DetailPageSection(
-          node: pieces.chips ? chipsNode : null,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                sectionTitle(label),
-                style:
-                    sectionTitleStyle ??
-                    Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-              ),
-              if (pieces.chips) ...[
-                const SizedBox(height: 12),
-                SeerrItemChips(
-                  state: state,
-                  firstFocusNode: chipsNode,
-                  onNavigateUp: () => moveUp(chipsNode),
-                  onNavigateDown: () => moveDown(chipsNode),
-                ),
-              ],
-              if (pieces.stats) ...[
-                const SizedBox(height: 14),
-                SeerrStatsCard(state: state),
-              ],
-              if (pieces.streaming) ...[
-                const SizedBox(height: 14),
-                SeerrStreamingRow(providers: state.streamingProviders),
-              ],
-            ],
-          ),
-        ),
-      if (pieces.recommendations)
-        row(
-          'seerr-recommendations',
-          l10n.recommendations,
-          state.recommendations,
-        ),
-      if (pieces.similar) row('seerr-similar', l10n.similar, state.similar),
-    ];
   }
 }

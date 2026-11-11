@@ -16,7 +16,6 @@ import '../../data/services/download_service.dart';
 import '../../data/services/media_server_client_factory.dart';
 import '../../data/services/push_messaging_service.dart';
 import '../../data/services/saved_media_presence.dart';
-import '../../data/services/seerr_notification_service.dart';
 import '../../data/services/socket_handler.dart';
 import '../../data/services/storage_path_service.dart';
 import '../../platform/auto_download_background_binding.dart';
@@ -52,12 +51,6 @@ void registerServerModule() {
   if (!_getIt.isRegistered<BackgroundDownloadCoordinator>()) {
     _getIt.registerLazySingleton<BackgroundDownloadCoordinator>(
       () => BackgroundDownloadCoordinator(_getIt<UserPreferences>()),
-    );
-  }
-
-  if (!_getIt.isRegistered<SeerrNotificationService>()) {
-    _getIt.registerLazySingleton<SeerrNotificationService>(
-      () => SeerrNotificationService(),
     );
   }
 

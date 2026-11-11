@@ -107,8 +107,8 @@ const _missingFilter = ColorFilter.matrix([
   0,
 ]);
 
-/// The platforms' white logos, from the same TMDB images Seerr's Discover
-/// uses (nothing is bundled with the app).
+/// The platforms' white logos, from TMDB's images (nothing is bundled with
+/// the app).
 const _platformLogos = {
   'netflix': 'https://image.tmdb.org/t/p/w500_filter(duotone,ffffff,bababa)/wwemzKWzjKYJFfCeiB57q3r4Bcm.png',
   'disney': 'https://image.tmdb.org/t/p/w500_filter(duotone,ffffff,bababa)/gJ8VX6JSu3ciXHuC2dDGAo2lvwM.png',

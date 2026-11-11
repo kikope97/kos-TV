@@ -4,6 +4,7 @@ import 'package:flutter_tvos/flutter_tvos.dart'
     show TvRemoteController, TvRemoteTouchEvent, TvRemoteTouchPhase;
 import 'package:moonfin_design/moonfin_design.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../preference/preference_constants.dart';
 import '../../util/platform_detection.dart';
 import '../../util/tv_ui_scale.dart';
@@ -115,6 +116,10 @@ class MediaCard extends StatefulWidget {
   final double? playedPercentage;
   final WatchedIndicatorBehavior watchedBehavior;
   final String? itemType;
+
+  /// `movie` or `tv` puts a MOVIE / SERIES badge in the top-left corner, for
+  /// cards from outside lists. Anything else shows none.
+  final String? mediaTypeBadge;
   final Color? focusColor;
   final bool cardFocusExpansion;
   final FocusNode? focusNode;
@@ -195,6 +200,7 @@ class MediaCard extends StatefulWidget {
     this.playedPercentage,
     this.watchedBehavior = WatchedIndicatorBehavior.always,
     this.itemType,
+    this.mediaTypeBadge,
     this.focusColor,
     this.cardFocusExpansion = true,
     this.focusNode,
@@ -483,6 +489,7 @@ class _MediaCardState extends State<MediaCard> with FocusStateMixin {
                       suppressFocusGlow: widget.suppressFocusGlow,
                       isCircular: widget.itemType == 'Person',
                       itemType: widget.itemType,
+                      mediaTypeBadge: widget.mediaTypeBadge,
                       imageOverlays: widget.imageOverlays,
                       imageUnderlays: widget.imageUnderlays,
                       imageSourceAspectRatio: widget.imageSourceAspectRatio,
@@ -740,6 +747,7 @@ class _CardImage extends StatelessWidget {
   final bool suppressFocusGlow;
   final bool isCircular;
   final String? itemType;
+  final String? mediaTypeBadge;
   final List<Widget> imageOverlays;
   final List<Widget> imageUnderlays;
   final double? imageSourceAspectRatio;
@@ -766,6 +774,7 @@ class _CardImage extends StatelessWidget {
     this.suppressFocusGlow = false,
     this.isCircular = false,
     this.itemType,
+    this.mediaTypeBadge,
     this.imageOverlays = const [],
     this.imageUnderlays = const [],
     this.imageSourceAspectRatio,
@@ -911,6 +920,7 @@ class _CardImage extends StatelessWidget {
                       : _PlaceholderIcon(itemType: itemType, title: title),
                 ),
                 if (isFavorite ||
+                    _showMediaTypeBadge ||
                     animeMarkerItemId != null ||
                     posterBadgeItemId != null ||
                     recordingItemId != null)
@@ -921,6 +931,11 @@ class _CardImage extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        if (_showMediaTypeBadge) ...[
+                          _MediaTypeBadge(mediaType: mediaTypeBadge!),
+                          if (animeMarkerItemId != null || isFavorite)
+                            const SizedBox(height: 4),
+                        ],
                         // The gap sits inside the pill rather than in a sibling
                         // box, because the pill draws nothing until an audio
                         // verdict resolves and an empty one must take no space.
@@ -1033,6 +1048,11 @@ class _CardImage extends StatelessWidget {
     unplayedCount: unplayedCount,
   );
 
+  bool get _showMediaTypeBadge {
+    final type = mediaTypeBadge?.toLowerCase();
+    return type == 'movie' || type == 'tv';
+  }
+
   Widget _buildWatchedIndicator() {
     if (isPlayed) {
       return MediaWatchedBadge(size: 22);
@@ -1041,6 +1061,41 @@ class _CardImage extends StatelessWidget {
       return MediaUnplayedBadge(count: unplayedCount!);
     }
     return const SizedBox.shrink();
+  }
+}
+
+/// The MOVIE / SERIES badge on the corner of an outside list's artwork.
+class _MediaTypeBadge extends StatelessWidget {
+  /// `movie` or `tv`.
+  final String mediaType;
+
+  const _MediaTypeBadge({required this.mediaType});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final isMovie = mediaType.toLowerCase() == 'movie';
+    final color = isMovie
+        ? AppColorScheme.mediaTypeBadgeMovie
+        : AppColorScheme.mediaTypeBadgeShow;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.85),
+        borderRadius: AppRadius.circular(4),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        child: Text(
+          (isMovie ? l10n.movie : l10n.series).toUpperCase(),
+          style: TextStyle(
+            color: AppColorScheme.onBadge,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.8,
+          ),
+        ),
+      ),
+    );
   }
 }
 

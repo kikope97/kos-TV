@@ -1014,6 +1014,24 @@ Widget classicDetailContentForTesting({
   initialFocusNode: initialFocusNode,
 );
 
+/// Whether [item] is a title from outside the library, like a TMDB
+/// recommendation in More Like This. It has no page in the app, so picking it
+/// only says so.
+bool isOutsideLibraryItem(AggregatedItem item) => item.serverId == 'seerr';
+
+/// What picking an outside title does: tells the viewer it isn't here yet.
+void showOutsideLibraryTitle(BuildContext context, String title) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(
+          AppLocalizations.of(context).kostvDiscoverNotHereYet(title),
+        ),
+      ),
+    );
+}
+
 class _DetailContent extends StatefulWidget {
   final ItemDetailViewModel viewModel;
   final UserPreferences prefs;
@@ -2387,9 +2405,6 @@ class _DetailContentState extends State<_DetailContent> {
   List<Widget> _buildMovieContent(BuildContext context, AggregatedItem item) {
     final actionButtonsFocusNode =
         widget.initialFocusNode ?? _sectionFocusNode('detailActionButtons');
-    final showMissing = prefs.get(
-      UserPreferences.seerrShowMissingCollectionItems,
-    );
     final collections = [
       if (_visibility.shows(DetailSection.collections))
         for (final collection in viewModel.parentCollections)
@@ -2404,14 +2419,10 @@ class _DetailContentState extends State<_DetailContent> {
         _itemRowSpec(
           label: 'detailMovieCollection:${collection.id}',
           title: collection.name,
-          items: [
-            collection.boxSetItem,
-            ...(showMissing ? collection.itemsWithMissing : collection.items),
-          ],
+          items: [collection.boxSetItem, ...collection.items],
         ),
       ?_similarSpec(context, 'detailMovieSimilar'),
       ?_reviewsSpec(context, 'detailMovieReviews'),
-      ..._seerrSpecs(context),
     ];
 
     return [
@@ -2431,113 +2442,11 @@ class _DetailContentState extends State<_DetailContent> {
     ];
   }
 
-  void Function(int seasonNumber)? _seerrSeasonTap() {
-    final seerr = viewModel.seerr;
-    if (!viewModel.isSeerrOnly || seerr == null) return null;
-    return (seasonNumber) => showSeerrRequestDialog(
-      context: context,
-      vm: seerr,
-      is4k: false,
-      qualityToggle: true,
-      season: seasonNumber > 0 ? seasonNumber : null,
-    );
-  }
-
-  /// The Seerr side of a title, as rows under the library ones: what it is
-  /// filed under, the facts behind it, and what it leads to.
-  List<_SectionSpec> _seerrSpecs(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final state = seerrItemTabState(viewModel);
-    final pieces = SeerrDetailPieces.resolve(state, _visibility, l10n);
-    if (state == null || !pieces.hasAny) return const [];
-
-    final titleStyle = _rowTitleStyle(context);
-    final seerrLabel = GetIt.instance<SeerrPreferences>().labelOrDefault(
-      l10n.seerr,
-    );
-    final chipsNode = _sectionFocusNode('detailSeerrChips');
-    final bannerNode = _sectionFocusNode('detailSeerrCollection');
-
-    _SectionSpec row(
-      String title,
-      List<SeerrDiscoverItem> items,
-      FocusNode node,
-    ) {
-      return _SectionSpec(
-        focusNode: node,
-        build: (links) => HorizontalScrollSection(
-          title: '$seerrLabel · $title',
-          titleStyle: titleStyle,
-          builder: (_, ctrl) => SeerrAppearancesRow(
-            items: items,
-            prefs: prefs,
-            firstFocusNode: node,
-            scrollController: ctrl,
-            onItemKeyEvent: _sectionRowHandler(node, links, items.length),
-          ),
-        ),
-      );
-    }
-
-    return [
-      if (pieces.chips)
-        _SectionSpec(
-          focusNode: chipsNode,
-          build: (links) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(seerrLabel, style: titleStyle),
-              const SizedBox(height: 12),
-              SeerrItemChips(
-                state: state,
-                firstFocusNode: chipsNode,
-                onNavigateUp: links.up?.requestFocus,
-                onNavigateDown: links.down?.requestFocus,
-              ),
-            ],
-          ),
-        ),
-      if (pieces.stats)
-        _SectionSpec(gap: 24, build: (_) => SeerrStatsCard(state: state)),
-      if (pieces.streaming)
-        _SectionSpec(
-          gap: 24,
-          build: (_) => SeerrStreamingRow(providers: state.streamingProviders),
-        ),
-      if (pieces.recommendations)
-        row(
-          l10n.recommendations,
-          state.recommendations,
-          _sectionFocusNode('detailSeerrRecommendations'),
-        ),
-      if (pieces.similar)
-        row(
-          l10n.similar,
-          state.similar,
-          _sectionFocusNode('detailSeerrSimilar'),
-        ),
-      if (pieces.collection)
-        _SectionSpec(
-          focusNode: bannerNode,
-          gap: 24,
-          build: (links) => SeerrCollectionBanner(
-            collection: state.movie!.collection!,
-            focusNode: bannerNode,
-            onNavigateUp: links.up?.requestFocus,
-          ),
-        ),
-    ];
-  }
-
   List<Widget> _buildSeriesContent(BuildContext context, AggregatedItem item) {
     final l10n = AppLocalizations.of(context);
     final actionButtonsFocusNode =
         widget.initialFocusNode ?? _sectionFocusNode('detailActionButtons');
     final seasonsFocusNode = _sectionFocusNode('detailSeriesSeasons');
-    final showMissing = prefs.get(
-      UserPreferences.seerrShowMissingCollectionItems,
-    );
     final collections = [
       if (_visibility.shows(DetailSection.collections))
         for (final collection in viewModel.parentCollections)
@@ -2560,8 +2469,6 @@ class _DetailContentState extends State<_DetailContent> {
             titleStyle: _rowTitleStyle(context),
             builder: (_, ctrl) => DetailSeasonsRow(
               seasons: viewModel.seasons,
-              seerrSeasonStatus: seerrItemSeasonStatus(viewModel),
-              onSeasonTap: _seerrSeasonTap(),
               imageApi: viewModel.imageApi,
               prefs: prefs,
               onItemLongPress: _showItemContextMenu,
@@ -2583,15 +2490,11 @@ class _DetailContentState extends State<_DetailContent> {
         _itemRowSpec(
           label: 'detailSeriesCollection:${collection.id}',
           title: collection.name,
-          items: [
-            collection.boxSetItem,
-            ...(showMissing ? collection.itemsWithMissing : collection.items),
-          ],
+          items: [collection.boxSetItem, ...collection.items],
         ),
       ?_similarSpec(context, 'detailSeriesSimilar'),
       ?_reviewsSpec(context, 'detailSeriesReviews'),
       ..._chapterAndExtraSpecs(context, item),
-      ..._seerrSpecs(context),
     ];
 
     return [
@@ -2832,19 +2735,9 @@ class _DetailContentState extends State<_DetailContent> {
   List<Widget> _buildPersonContent(BuildContext context, AggregatedItem item) {
     final l10n = AppLocalizations.of(context);
     final sortOpt = widget.prefs.get(UserPreferences.personPageSortOption);
-    final groupOpt = widget.prefs.get(UserPreferences.personPageGroupItems);
 
     List<AggregatedItem> sortJellyfinItems(List<AggregatedItem> list) =>
         sortJellyfinFilmography(list, sortOpt);
-
-    List<SeerrDiscoverItem> groupSeerrItems(
-      List<SeerrDiscoverItem> list,
-      bool isCrew,
-    ) =>
-        groupOpt ? groupSeerrCredits(list, isCrew: isCrew) : list;
-
-    List<SeerrDiscoverItem> sortSeerrItems(List<SeerrDiscoverItem> list) =>
-        sortSeerrCredits(list, sortOpt);
 
     final movies = sortJellyfinItems(viewModel.filmographyMovies);
     final series = sortJellyfinItems(viewModel.filmographySeries);
@@ -2865,14 +2758,6 @@ class _DetailContentState extends State<_DetailContent> {
         item.overview!.isNotEmpty &&
         _visibility.shows(DetailSection.biography);
 
-    final hasSeerrButton =
-        item.tmdbId != null &&
-        item.tmdbId!.isNotEmpty &&
-        GetIt.instance<PluginSyncService>().seerrAvailable;
-    final seerrFocusNode = hasSeerrButton
-        ? _sectionFocusNode('detailPersonSeerrButton')
-        : null;
-
     final guestAppearances = _visibility.shows(DetailSection.guestAppearances)
         ? sortJellyfinItems(
             viewModel.filmographyEpisodes.where((episode) {
@@ -2883,24 +2768,6 @@ class _DetailContentState extends State<_DetailContent> {
             }).toList(),
           )
         : const <AggregatedItem>[];
-
-    final rawCrew = _visibility.shows(DetailSection.seerrPersonCrew)
-        ? _seerrCrewCredits
-        : null;
-    final seerrCrewCredits = rawCrew != null
-        ? sortSeerrItems(groupSeerrItems(rawCrew, true))
-        : const <SeerrDiscoverItem>[];
-
-    final rawAppearances =
-        _visibility.shows(DetailSection.seerrPersonAppearances)
-        ? _seerrAppearances
-        : null;
-    final seerrAppearances = rawAppearances != null
-        ? sortSeerrItems(groupSeerrItems(rawAppearances, false))
-        : const <SeerrDiscoverItem>[];
-    final seerrLabel = GetIt.instance<SeerrPreferences>().labelOrDefault(
-      l10n.seerr,
-    );
 
     _SectionSpec filmographyRow(
       String label,
@@ -2925,12 +2792,6 @@ class _DetailContentState extends State<_DetailContent> {
       );
     }
 
-    final seerrCrewCreditsFocusNode = _sectionFocusNode(
-      'detailPersonSeerrCrewCredits',
-    );
-    final seerrAppearancesFocusNode = _sectionFocusNode(
-      'detailPersonSeerrAppearances',
-    );
     final specs = <_SectionSpec>[
       if (movies.isNotEmpty)
         filmographyRow('detailPersonMovies', l10n.movies, movies),
@@ -2947,48 +2808,6 @@ class _DetailContentState extends State<_DetailContent> {
           'detailPersonMusicVideos',
           l10n.musicVideos,
           musicVideos,
-        ),
-      if (seerrCrewCredits.isNotEmpty)
-        _SectionSpec(
-          focusNode: seerrCrewCreditsFocusNode,
-          build: (links) => HorizontalScrollSection(
-            title: seerrBrand(l10n.crewContributionsSeerr),
-            builder: (_, ctrl) => SeerrCrewCreditsRow(
-              items: seerrCrewCredits,
-              prefs: prefs,
-              scrollController: _trackSectionScrollController(
-                seerrCrewCreditsFocusNode,
-                ctrl,
-              ),
-              firstFocusNode: seerrCrewCreditsFocusNode,
-              onItemKeyEvent: _sectionRowHandler(
-                seerrCrewCreditsFocusNode,
-                links,
-                seerrCrewCredits.length,
-              ),
-            ),
-          ),
-        ),
-      if (seerrAppearances.isNotEmpty)
-        _SectionSpec(
-          focusNode: seerrAppearancesFocusNode,
-          build: (links) => HorizontalScrollSection(
-            title: seerrBrand(l10n.appearancesSeerr),
-            builder: (_, ctrl) => SeerrAppearancesRow(
-              items: seerrAppearances,
-              prefs: prefs,
-              scrollController: _trackSectionScrollController(
-                seerrAppearancesFocusNode,
-                ctrl,
-              ),
-              firstFocusNode: seerrAppearancesFocusNode,
-              onItemKeyEvent: _sectionRowHandler(
-                seerrAppearancesFocusNode,
-                links,
-                seerrAppearances.length,
-              ),
-            ),
-          ),
         ),
     ];
     final firstRowFocusNode = _stopsOf(specs).firstOrNull;
@@ -3075,38 +2894,8 @@ class _DetailContentState extends State<_DetailContent> {
                   _tryFocusSidebar();
                 }
               },
-              onArrowRight: hasSeerrButton
-                  ? () {
-                      _requestSectionFocus(seerrFocusNode);
-                    }
-                  : () {},
+              onArrowRight: () {},
             ),
-            if (hasSeerrButton) ...[
-              const SizedBox(width: 16),
-              _DetailActionButton(
-                label: seerrLabel,
-                iconBuilder: (size, color) =>
-                    SeerrIcon(size: size, color: color),
-                onPressed: () {
-                  _openRequestsForPerson(context, item);
-                },
-                isActive: false,
-                focusNode: seerrFocusNode,
-                suppressAutoScrollToTop: true,
-                onArrowUp: () {
-                  if (hasBio && firstFocus.canRequestFocus) {
-                    _requestSectionFocus(firstFocus);
-                  } else {
-                    _tryFocusNavbar();
-                  }
-                },
-                onArrowDown: focusFirstRow,
-                onArrowLeft: () {
-                  _requestSectionFocus(displayFocusNode);
-                },
-                onArrowRight: () {},
-              ),
-            ],
           ],
         ),
       ),
@@ -3737,28 +3526,13 @@ class _DetailContentState extends State<_DetailContent> {
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     }
 
-    final showMissing = prefs.get(
-      UserPreferences.seerrShowMissingCollectionItems,
-    );
-    final libraryMovies =
+    final movies =
         viewModel.collectionItems.where((i) => i.type == 'Movie').toList()
           ..sort(releaseSort);
-    final missingMovies = viewModel.missingCollectionItems
-        .where((i) => i.type == 'Movie')
-        .toList();
-    final movies = showMissing
-        ? mergeMissingByReleaseOrder(libraryMovies, missingMovies)
-        : libraryMovies;
 
-    final librarySeries =
+    final series =
         viewModel.collectionItems.where((i) => i.type == 'Series').toList()
           ..sort(releaseSort);
-    final missingSeries = viewModel.missingCollectionItems
-        .where((i) => i.type == 'Series')
-        .toList();
-    final series = showMissing
-        ? mergeMissingByReleaseOrder(librarySeries, missingSeries)
-        : librarySeries;
 
     final other =
         viewModel.collectionItems
@@ -3934,7 +3708,6 @@ class _HeaderSection extends StatelessWidget {
         viewModel.lyrics.isNotEmpty &&
         visibility.shows(DetailSection.lyrics);
     final isCollection = item.type == 'BoxSet';
-    final seerrStatus = seerrItemStatus(viewModel);
     final isNeon = ThemeRegistry.active.id == ThemeRegistry.neonPulseId;
 
     final infoColumn = Column(
@@ -4030,7 +3803,6 @@ class _HeaderSection extends StatelessWidget {
           item: item,
           selectedMediaSource: selectedMediaSource,
           upcomingEpisode: viewModel.upcomingEpisode,
-          seerrStatus: seerrStatus,
         ),
         IncompleteRecordingDetailLine(
           itemId: item.id,
@@ -4316,9 +4088,7 @@ class DetailPosterImage extends StatelessWidget {
     final h = posterSize.height;
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
-    final posterPath = item.rawData['PosterPath'] as String?;
-    if (item.primaryImageTag == null &&
-        (posterPath == null || posterPath.isEmpty)) {
+    if (item.primaryImageTag == null) {
       return SizedBox(width: w, height: h);
     }
 
@@ -4330,17 +4100,11 @@ class DetailPosterImage extends StatelessWidget {
           ClipRRect(
             borderRadius: AppRadius.circular(8),
             child: OfflineAwareImage(
-              imageUrl: item.primaryImageTag == null
-                  ? '$seerrPosterBase$posterPath'
-                  : imageApi.getPrimaryImageUrl(
-                      item.id,
-                      maxHeight: artworkRequestWidth(
-                        h,
-                        dpr,
-                        ArtworkShape.poster,
-                      ),
-                      tag: item.primaryImageTag,
-                    ),
+              imageUrl: imageApi.getPrimaryImageUrl(
+                item.id,
+                maxHeight: artworkRequestWidth(h, dpr, ArtworkShape.poster),
+                tag: item.primaryImageTag,
+              ),
               width: w,
               height: h,
               memCacheWidth: BoundedNetworkImage.cacheWidthFor(w, dpr),
@@ -4473,7 +4237,6 @@ class DetailMetadataRow extends StatelessWidget {
   final AggregatedItem item;
   final Map<String, dynamic>? selectedMediaSource;
   final UpcomingEpisodeInfo? upcomingEpisode;
-  final SeerrMediaDetailState? seerrStatus;
 
   /// When true, render only the file size and technical badges (no year, rating,
   /// runtime, seasons, status, ends-at or genres). Used by the Modern Details
@@ -4490,7 +4253,6 @@ class DetailMetadataRow extends StatelessWidget {
     required this.item,
     this.selectedMediaSource,
     this.upcomingEpisode,
-    this.seerrStatus,
     this.technicalOnly = false,
     this.extraBadges = const [],
     this.centered = false,
@@ -4559,12 +4321,6 @@ class DetailMetadataRow extends StatelessWidget {
           case DetailMetadataItem.genres:
             if (item.genres.isNotEmpty) {
               parts.add(_text(theme, item.genres.take(3).join(' \u2022 ')));
-            }
-          case DetailMetadataItem.seerrAvailability:
-            if (seerrStatus != null) {
-              parts.add(
-                SeerrStatusPills(state: seerrStatus!, onlyNoteworthy: true),
-              );
             }
         }
       }
@@ -6889,12 +6645,8 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
     if (item.type == 'Person') {
       final canFavorite = viewModel.supportsPersonFavorites;
       // On a phone every button is a round tile with its label underneath,
-      // Seerr included, rather than one wide Favorite.
+      // rather than one wide Favorite.
       final compact = _isCompact(context);
-      final hasSeerrButton =
-          compact &&
-          (item.tmdbId?.isNotEmpty ?? false) &&
-          GetIt.instance<PluginSyncService>().seerrAvailable;
       final favoriteFocusNode = widget.tvPlayFocusNode ?? _primaryFocusNode(0);
       // Autofocus alone tries once, and misses while the row is still held
       // back. With no heart Display has this node, so it needs the same help.
@@ -6952,29 +6704,8 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
                       .requestFocus();
                 }
               : _focusSidebar,
-          onArrowRight: hasSeerrButton
-              ? () => _primaryFocusNode(2).requestFocus()
-              : widget.onArrowRightAtEnd ?? () {},
+          onArrowRight: widget.onArrowRightAtEnd ?? () {},
         ),
-        if (hasSeerrButton)
-          _DetailActionButton(
-            label: GetIt.instance<SeerrPreferences>().labelOrDefault(
-              l10n.seerr,
-            ),
-            iconBuilder: (size, color) => SeerrIcon(size: size, color: color),
-            focusNode: _primaryFocusNode(2),
-            onPressed: () {
-              _openRequestsForPerson(context, item);
-            },
-            onArrowUp:
-                NavigationLayout.focusNavbarNotifier.value != null ||
-                    widget.upTarget != null
-                ? _focusUpTarget
-                : null,
-            onArrowDown: widget.downTarget != null ? _focusDownTarget : null,
-            onArrowLeft: () => _primaryFocusNode(1).requestFocus(),
-            onArrowRight: widget.onArrowRightAtEnd ?? () {},
-          ),
       ];
 
       final alignStart = widget.modernStyle;
@@ -7168,12 +6899,6 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
           : null,
     );
 
-    // Null until the lookup lands, and null when it found nothing, so a title
-    // Seerr doesn't have never grows a request button.
-    final overlay = viewModel.seerr;
-    final seerr = overlay != null && overlay.state.tmdbId != 0 ? overlay : null;
-    final onWatchlist = seerr?.state.onUserWatchlist ?? false;
-    final seerrTrailer = seerr?.state.bestTrailer;
     final seriesName = item.seriesName?.trim() ?? '';
 
     final byButton = <DetailButton, Widget>{
@@ -7236,27 +6961,17 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
           icon: Icons.cast,
           onPressed: () => _castToDevice(context, item),
         ),
-      if (viewModel.isSeerrOnly
-          ? seerrTrailer != null && shows(DetailButton.trailer)
-          // A series keeps the button even when nothing was counted for it,
-          // since a trailer in a season folder belongs to that season and
-          // isn't counted against the series it came from.
-          : (item.type == 'Series' ||
-                    hasTrailer(item, viewModel.features) ||
-                    (item.type == 'Movie' &&
-                        viewModel.searchesYouTubeForTrailer)) &&
-                shows(DetailButton.trailer))
+      // A series keeps the button even when nothing was counted for it,
+      // since a trailer in a season folder belongs to that season and isn't
+      // counted against the series it came from.
+      if ((item.type == 'Series' ||
+              hasTrailer(item, viewModel.features) ||
+              (item.type == 'Movie' && viewModel.searchesYouTubeForTrailer)) &&
+          shows(DetailButton.trailer))
         DetailButton.trailer: _DetailActionButton(
           label: l10n.trailer,
           icon: Icons.movie_outlined,
-          onPressed: () => viewModel.isSeerrOnly
-              ? _playSeerrTrailer(
-                  context,
-                  item.name,
-                  seerr!.state.relatedVideos,
-                  seerrTrailer!,
-                )
-              : _playTrailer(context, item),
+          onPressed: () => _playTrailer(context, item),
         ),
       if (!isBook &&
           !isPhoto &&
@@ -7373,53 +7088,6 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
             );
           },
         ),
-      if (shows(DetailButton.seerrRequest))
-        DetailButton.seerrRequest: ?_seerrRequestButton(
-          context,
-          seerr,
-          l10n,
-          is4k: false,
-        ),
-      if (shows(DetailButton.seerrRequest4k))
-        DetailButton.seerrRequest4k: ?_seerrRequestButton(
-          context,
-          seerr,
-          l10n,
-          is4k: true,
-        ),
-      if (seerr != null && shows(DetailButton.seerrWatchlist))
-        DetailButton.seerrWatchlist: _DetailActionButton(
-          label: onWatchlist ? l10n.removeFromWatchlist : l10n.addToWatchlist,
-          icon: onWatchlist ? Icons.bookmark : Icons.bookmark_border,
-          onPressed: () => seerr.toggleWatchlist(),
-          isActive: onWatchlist,
-          activeColor: AppColorScheme.accent,
-        ),
-      if (seerr != null &&
-          seerr.canReportIssue &&
-          shows(DetailButton.seerrReportIssue))
-        DetailButton.seerrReportIssue: _DetailActionButton(
-          label: l10n.reportIssue,
-          icon: Icons.report_problem_outlined,
-          onPressed: () => showSeerrReportIssueDialog(
-            context: context,
-            vm: seerr,
-            initialSeason: item.type == 'Episode'
-                ? item.parentIndexNumber
-                : (item.type == 'Season' ? item.indexNumber : null),
-            initialEpisode: item.type == 'Episode' ? item.indexNumber : null,
-          ),
-        ),
-      if (seerr != null &&
-          seerr.canManageRequests &&
-          seerrPendingRequests(seerr.state).isNotEmpty &&
-          shows(DetailButton.seerrManage))
-        DetailButton.seerrManage: _DetailActionButton(
-          label: l10n.manageRequests,
-          icon: Icons.rule,
-          onPressed: () =>
-              showSeerrManageRequestsSheet(context: context, vm: seerr),
-        ),
       if (incompleteRecordingFor(item.id) != null &&
           shows(DetailButton.keepAsComplete))
         DetailButton.keepAsComplete: _DetailActionButton(
@@ -7437,79 +7105,6 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
         ),
     };
 
-    // Taking a request back rides in the same arrangement slot as the track's
-    // request button, so moving or hiding seerrRequest carries its cancel
-    // along with it.
-    final cancelByButton = <DetailButton, Widget>{
-      if (shows(DetailButton.seerrRequest))
-        DetailButton.seerrRequest: ?_seerrCancelButton(
-          context,
-          seerr,
-          l10n,
-          is4k: false,
-        ),
-      if (shows(DetailButton.seerrRequest4k))
-        DetailButton.seerrRequest4k: ?_seerrCancelButton(
-          context,
-          seerr,
-          l10n,
-          is4k: true,
-        ),
-    };
-
-    // Requesting is the only thing to do with a title you don't have, so it
-    // takes the primary slot, keeping Play's focus node so everything that
-    // reaches for that anchor still finds it. The request entry then leaves the
-    // arranged row, since it is already leading it.
-    final Widget? primaryAction;
-    if (viewModel.isSeerrOnly) {
-      // One slot covers both tracks, since the sheet it opens carries the
-      // quality switch. It is built off the HD track, falling back to the 4K
-      // one for a viewer who is only allowed that.
-      Widget? requestSlot(bool is4k) => _seerrRequestButton(
-        context,
-        seerr,
-        l10n,
-        is4k: is4k,
-        qualityToggle: true,
-        isPrimary: true,
-        focusNode: _tvPlayFocusNode,
-        autofocus: autofocusPlay,
-      );
-      // A title with nothing left to ask for leads with its cancel instead, so
-      // focus still has a primary button to land on. The row then drops that
-      // copy rather than offering the same button twice.
-      Widget? cancelSlot() {
-        for (final slot in [
-          DetailButton.seerrRequest,
-          DetailButton.seerrRequest4k,
-        ]) {
-          final cancel = _seerrCancelButton(
-            context,
-            seerr,
-            l10n,
-            is4k: slot == DetailButton.seerrRequest4k,
-            isPrimary: true,
-            focusNode: _tvPlayFocusNode,
-            autofocus: autofocusPlay,
-          );
-          if (cancel != null) {
-            cancelByButton.remove(slot);
-            return cancel;
-          }
-        }
-        return null;
-      }
-
-      primaryAction = requestSlot(false) ?? requestSlot(true) ?? cancelSlot();
-      byButton.removeWhere(
-        (button, _) =>
-            !button.availableInSeerrOnly || button == DetailButton.seerrRequest,
-      );
-    } else {
-      primaryAction = playButton;
-    }
-
     final extrasButton = widget.onExtrasPressed != null
         ? _DetailActionButton(
             label: l10n.detailSectionExtras,
@@ -7526,13 +7121,10 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
         : null;
 
     var allButtons = <Widget>[
-      ?primaryAction,
+      playButton,
       ?extrasButton,
       ?collectionsButton,
-      for (final button in _orderedButtons(prefs)) ...[
-        ?byButton[button],
-        ?cancelByButton[button],
-      ],
+      for (final button in _orderedButtons(prefs)) ?byButton[button],
     ];
 
     if (isNeon) {
@@ -7569,20 +7161,10 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
 
     if (widget.nouveauStyle) {
       final orderedSecondaryButtons = <_DetailActionButton>[
-        for (final detailButton in _orderedButtons(prefs)) ...[
+        for (final detailButton in _orderedButtons(prefs))
           if (byButton[detailButton] case final btn?)
             ?_actionForOverflow(context, btn),
-          if (cancelByButton[detailButton] case final btn?)
-            ?_actionForOverflow(context, btn),
-        ],
       ];
-
-      // A null primary only means there is nothing to play, and the secondary
-      // actions still stand on their own. NouveauActionButtons shrinks itself
-      // when every slot is empty.
-      final primaryButton = primaryAction is _DetailActionButton
-          ? primaryAction
-          : null;
 
       final primaryFocusNode =
           widget.tvPlayFocusNode ?? _primaryFocusNode(0);
@@ -7623,26 +7205,22 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
         }
       }
 
-      final nouveauPrimaryAction = primaryButton == null
-          ? null
-          : _toNouveauAction(
-              primaryButton,
-              focusNode: primaryFocusNode,
-              progress: playbackProgress,
-              trailingLabel: remainingLabel,
-              onArrowUp:
-                  NavigationLayout.focusNavbarNotifier.value != null ||
-                      widget.upTarget != null
-                  ? _focusUpTarget
-                  : null,
-              onArrowDown: widget.downTarget != null
-                  ? _focusDownTarget
-                  : null,
-              onArrowLeft: _focusSidebar,
-              onArrowRight: orderedSecondaryButtons.isNotEmpty
-                  ? () => _primaryFocusNode(1).requestFocus()
-                  : widget.onArrowRightAtEnd,
-            );
+      final nouveauPrimaryAction = _toNouveauAction(
+        playButton,
+        focusNode: primaryFocusNode,
+        progress: playbackProgress,
+        trailingLabel: remainingLabel,
+        onArrowUp:
+            NavigationLayout.focusNavbarNotifier.value != null ||
+                widget.upTarget != null
+            ? _focusUpTarget
+            : null,
+        onArrowDown: widget.downTarget != null ? _focusDownTarget : null,
+        onArrowLeft: _focusSidebar,
+        onArrowRight: orderedSecondaryButtons.isNotEmpty
+            ? () => _primaryFocusNode(1).requestFocus()
+            : widget.onArrowRightAtEnd,
+      );
 
       final secondaryActions = orderedSecondaryButtons.asMap().entries.map((
         entry,
@@ -7662,12 +7240,8 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
           onArrowDown: widget.downTarget != null
               ? _focusDownTarget
               : null,
-          // With no primary button there is nothing to the left of the first
-          // secondary, so fall back to the sidebar the primary would have used.
           onArrowLeft: index == 0
-              ? (primaryButton == null
-                    ? _focusSidebar
-                    : () => primaryFocusNode.requestFocus())
+              ? () => primaryFocusNode.requestFocus()
               : () => _primaryFocusNode(focusIndex - 1).requestFocus(),
           onArrowRight: index == orderedSecondaryButtons.length - 1
               ? widget.onArrowRightAtEnd
@@ -7681,25 +7255,10 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
         maxVisibleButtons: prefs.get(UserPreferences.detailButtonsMaxVisible),
       );
 
-      final downloads = seerrItemDownloads(viewModel);
-
-      final withDownloads = downloads == null
-          ? rowContent
-          : Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          rowContent,
-          SeerrItemDownloadBars(
-            state: downloads,
-          ),
-        ],
-      );
-
       return Focus(
         canRequestFocus: false,
         skipTraversal: true,
-        child: withDownloads,
+        child: rowContent,
       );
     }
 
@@ -8166,23 +7725,6 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
       }
     }
 
-    // Under the row rather than in it, so a bar never takes a focus slot. The
-    // row is left exactly as it was when nothing is downloading, since a Column
-    // around it would re-align it.
-    // Frost shows them in its own status line.
-    final downloads = widget.frosted ? null : seerrItemDownloads(viewModel);
-    final withDownloads = downloads == null
-        ? rowContent
-        : Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              rowContent,
-              // Space it off the buttons, or it reads as an underline.
-              SizedBox(height: buttonRunSpacing),
-              SeerrItemDownloadBars(state: downloads),
-            ],
-          );
 
     return Focus(
       canRequestFocus: false,
@@ -8204,7 +7746,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
           );
         });
       },
-      child: withDownloads,
+      child: rowContent,
     );
   }
 
@@ -10567,23 +10109,6 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
     await _playTrailerChoice(context, choice);
   }
 
-  Future<void> _playSeerrTrailer(
-    BuildContext context,
-    String itemName,
-    List<SeerrVideo> videos,
-    SeerrVideo best,
-  ) async {
-    final choices = seerrTrailerChoices(videos);
-    if (choices.length < 2) return openSeerrTrailer(context, best);
-    final choice = await TrailerPicker.show(
-      context,
-      itemName: itemName,
-      choices: choices,
-    );
-    if (choice == null || !context.mounted) return;
-    await _playTrailerChoice(context, choice);
-  }
-
   Future<void> _playTrailerChoice(
     BuildContext context,
     TrailerChoice choice,
@@ -10682,8 +10207,8 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
   ///
   /// The wait asks the item endpoint for the media streams alone rather than
   /// reloading the view model: a view model load blanks the screen behind a
-  /// loading overlay and fans out into ratings, similar items, features and
-  /// Seerr, none of which say anything about whether the subtitle has landed.
+  /// loading overlay and fans out into ratings, similar items and features,
+  /// none of which say anything about whether the subtitle has landed.
   /// One reload happens at the end, when there is something new to show.
   Future<Map<String, dynamic>?> _awaitDownloadedSubtitle(
     AggregatedItem currentItem,
@@ -10993,7 +10518,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
   /// choose between is left out, the same as its button would be.
   List<DetailTrackChoice> trackChoices(AppLocalizations l10n) {
     final item = viewModel.item;
-    if (item == null || viewModel.isSeerrOnly) return const [];
+    if (item == null) return const [];
     const videoTypes = {'Movie', 'Episode', 'Video', 'MusicVideo'};
     if (!videoTypes.contains(item.type)) return const [];
 
@@ -13881,17 +13406,13 @@ class DetailCastRow extends StatelessWidget {
           final personId = person['Id']?.toString();
           final tag = person['PrimaryImageTag'] as String?;
 
-          final profilePath = person['ProfilePath'] as String?;
-          String? imageUrl;
-          if (personId != null && tag != null) {
-            imageUrl = imageApi.getPrimaryImageUrl(
-              personId,
-              maxHeight: isMobile ? 140 : (200 * desktopScale).round(),
-              tag: tag,
-            );
-          } else if (profilePath != null && profilePath.isNotEmpty) {
-            imageUrl = '$seerrProfileBase$profilePath';
-          }
+          final imageUrl = personId != null && tag != null
+              ? imageApi.getPrimaryImageUrl(
+                  personId,
+                  maxHeight: isMobile ? 140 : (200 * desktopScale).round(),
+                  tag: tag,
+                )
+              : null;
 
           return _CastPersonCard(
             cardWidth: cardWidth,
@@ -13908,11 +13429,7 @@ class DetailCastRow extends StatelessWidget {
             onTap: personId == null
                 ? null
                 : () => context.push(
-                    // A person who only exists in Seerr has a TMDB id, which
-                    // the library wouldn't know what to do with.
-                    serverId == 'seerr'
-                        ? Destinations.seerrPerson(personId)
-                        : Destinations.item(personId, serverId: serverId),
+                    Destinations.item(personId, serverId: serverId),
                   ),
           );
         },
@@ -14116,10 +13633,9 @@ class DetailSimilarRow extends StatelessWidget {
         itemBuilder: (context, index) {
           final item = items[index];
           final ar = MediaCard.aspectRatioForType(item.type);
-          final isSeerrItem =
-              item.id.startsWith('tmdb:') || item.serverId == 'seerr';
+          final isOutside = isOutsideLibraryItem(item);
           return MediaCard(
-            posterBadgeItemId: isSeerrItem ? null : item.id,
+            posterBadgeItemId: isOutside ? null : item.id,
             title: item.name,
             titleColor: isNeon ? AppColorScheme.accent : null,
             imageUrl: item.primaryImageTag != null
@@ -14139,47 +13655,23 @@ class DetailSimilarRow extends StatelessWidget {
                 : Color(prefs.get(UserPreferences.focusColor).colorValue),
             cardFocusExpansion: cardExpansion,
             suppressFocusGlow: isNeon,
-            isFavorite: isSeerrItem ? false : item.isFavorite,
-            isPlayed: isSeerrItem ? false : item.isPlayed,
-            playedPercentage: isSeerrItem ? null : item.playedPercentage,
-            watchedBehavior: isSeerrItem
+            isFavorite: isOutside ? false : item.isFavorite,
+            isPlayed: isOutside ? false : item.isPlayed,
+            playedPercentage: isOutside ? null : item.playedPercentage,
+            watchedBehavior: isOutside
                 ? WatchedIndicatorBehavior.never
                 : watchedBehavior,
             itemType: item.type,
-            imageOverlays: [
-              if (isSeerrItem)
-                const Positioned(
-                  top: 4,
-                  right: 4,
-                  child: SeerrBadge(size: 18),
-                ),
-            ],
             focusNode: index == 0 ? firstItemFocusNode : null,
             onKeyEvent: onItemKeyEvent == null
                 ? null
                 : (_, event) => onItemKeyEvent!(index, event),
-            onLongPress: isSeerrItem || onItemLongPress == null
+            onLongPress: isOutside || onItemLongPress == null
                 ? null
                 : () => onItemLongPress!(item),
             onTap: () {
-              if (item.serverId == 'seerr') {
-                final mediaType =
-                    item.seerrMediaType ??
-                    (item.type == 'Series' ? 'tv' : 'movie');
-                final tmdbId = item.tmdbId;
-                final targetId = (tmdbId != null && tmdbId.isNotEmpty)
-                    ? tmdbId
-                    : item.id.replaceAll(
-                        RegExp(r'^tmdb:(?:movie:|tv:)?'),
-                        '',
-                      );
-                context.push(
-                  Destinations.seerrMedia(
-                    targetId,
-                    mediaType: mediaType,
-                    title: item.name,
-                  ),
-                );
+              if (isOutside) {
+                showOutsideLibraryTitle(context, item.name);
               } else {
                 context.push(
                   Destinations.itemOrPhoto(
@@ -15210,83 +14702,6 @@ class _EpisodeProgressBar extends StatelessWidget {
   }
 }
 
-/// The request slot for one quality track: Request or Request More, and
-/// nothing when there is nothing left to ask for on that track.
-Widget? _seerrRequestButton(
-  BuildContext context,
-  SeerrMediaDetailViewModel? seerr,
-  AppLocalizations l10n, {
-  required bool is4k,
-  bool qualityToggle = false,
-  bool isPrimary = false,
-  FocusNode? focusNode,
-  bool autofocus = false,
-}) {
-  if (seerr == null) return null;
-  // A series counts as continuing until it has settled. An unknown status
-  // stays false, so a lookup that found nothing never opens the button.
-  final status = (seerr.state.tv?.status ?? '').toLowerCase();
-  final isContinuing =
-      status.isNotEmpty && status != 'ended' && status != 'canceled';
-  final quality = seerr.state.quality(is4k: is4k);
-  // The same set the request sheet reads to decide which seasons it may offer.
-  final hasUnrequestedSeasons =
-      seerr.state.isTv &&
-      seerrSeasonNumbersOf(
-        seerr.state.tv?.seasons ?? const [],
-        seerr.state.numberOfSeasons ?? 0,
-      ).any((s) => !quality.unavailableOrRequestedSeasons.contains(s));
-  final action = seerrRequestActionFor(
-    quality,
-    l10n,
-    allowed: is4k ? seerr.canRequest4k : seerr.canRequest,
-    isTv: seerr.state.isTv,
-    isContinuing: isContinuing,
-    hasUnrequestedSeasons: hasUnrequestedSeasons,
-  );
-  if (action.kind != SeerrRequestActionKind.request) return null;
-  return _DetailActionButton(
-    label: action.label,
-    icon: Icons.add,
-    isPrimary: isPrimary,
-    focusNode: focusNode,
-    autofocus: autofocus,
-    onPressed: () => showSeerrRequestDialog(
-      context: context,
-      vm: seerr,
-      is4k: is4k,
-      qualityToggle: qualityToggle,
-      isContinuing: isContinuing,
-    ),
-  );
-}
-
-/// Takes this track's open request back. Rides in the same arrangement slot
-/// as the track's request button, so an open request on a partially available
-/// series shows Request More and Cancel Request side by side.
-Widget? _seerrCancelButton(
-  BuildContext context,
-  SeerrMediaDetailViewModel? seerr,
-  AppLocalizations l10n, {
-  required bool is4k,
-  bool isPrimary = false,
-  FocusNode? focusNode,
-  bool autofocus = false,
-}) {
-  if (seerr == null) return null;
-  final label = seerrCancelLabelFor(seerr.state.quality(is4k: is4k), l10n);
-  if (label == null) return null;
-  return _DetailActionButton(
-    label: label,
-    icon: Icons.close,
-    isPrimary: isPrimary,
-    focusNode: focusNode,
-    autofocus: autofocus,
-    onPressed: () =>
-        showSeerrCancelRequestDialog(context: context, vm: seerr, is4k: is4k),
-  );
-}
-
 class DetailSeasonsRow extends StatelessWidget {
   final List<AggregatedItem> seasons;
   final ImageApi imageApi;
@@ -15296,15 +14711,6 @@ class DetailSeasonsRow extends StatelessWidget {
   final KeyEventResult Function(int index, KeyEvent event)? onItemKeyEvent;
   final void Function(AggregatedItem item)? onItemLongPress;
 
-  /// Season number to Seerr media status. Drawn in the top left rather than
-  /// through MediaCard's own `seerrStatus`, which would take the top right
-  /// corner from the watched checkmark.
-  final Map<int, int>? seerrSeasonStatus;
-
-  /// Replaces opening the season, for a series with no season to open because
-  /// it is not in the library.
-  final void Function(int seasonNumber)? onSeasonTap;
-
   const DetailSeasonsRow({
     required this.seasons,
     required this.imageApi,
@@ -15313,8 +14719,6 @@ class DetailSeasonsRow extends StatelessWidget {
     this.firstItemFocusNode,
     this.onItemKeyEvent,
     this.onItemLongPress,
-    this.seerrSeasonStatus,
-    this.onSeasonTap,
   });
 
   @override
@@ -15338,12 +14742,6 @@ class DetailSeasonsRow extends StatelessWidget {
             SizedBox(width: isMobile ? 8 : 12 * desktopScale),
         itemBuilder: (context, index) {
           final season = seasons[index];
-          final seerrStatus = seerrSeasonStatus?[season.indexNumber];
-          final seerrStyle = SeerrMediaStatus.hasDot(seerrStatus)
-              ? seerrBadgeStyle(prefs)
-              : null;
-          final hasSeerrDot = seerrStyle == SeerrBadgeStyle.badge;
-          final hasSeerrBanner = seerrStyle == SeerrBadgeStyle.banner;
           return MediaCard(
             title: season.name,
             subtitle: _progressText(season),
@@ -15354,23 +14752,9 @@ class DetailSeasonsRow extends StatelessWidget {
             imageUrl: _seasonImageUrl(season, isMobile: isMobile),
             width: cardWidth,
             aspectRatio: 2 / 3,
-            // The card draws a banner itself, while its own dot would take the
-            // watched corner, so the dot goes top left here.
-            seerrStatus: hasSeerrBanner ? seerrStatus : null,
-            overlayOccupiesTopLeft: hasSeerrDot,
             imageOverlays: [
-              if (hasSeerrDot)
-                Positioned(
-                  top: 6,
-                  left: 6,
-                  child: SeerrStatusDot(status: seerrStatus, size: 18),
-                ),
-              // Top left, dropped below the Seerr dot or banner when there is one so
-              // the two stack rather than overlap.
               Positioned(
-                top: hasSeerrDot
-                    ? 30
-                    : (hasSeerrBanner ? kSeerrStatusBannerHeight : 0) + 6,
+                top: 6,
                 left: 6,
                 child: AnimeSeasonAudioBadge(
                   seriesId: season.seriesId,
@@ -15392,11 +14776,9 @@ class DetailSeasonsRow extends StatelessWidget {
             onKeyEvent: onItemKeyEvent == null
                 ? null
                 : (_, event) => onItemKeyEvent!(index, event),
-            onTap: onSeasonTap != null
-                ? () => onSeasonTap!(season.indexNumber ?? 0)
-                : () => context.push(
-                    Destinations.item(season.id, serverId: season.serverId),
-                  ),
+            onTap: () => context.push(
+              Destinations.item(season.id, serverId: season.serverId),
+            ),
             onLongPress: onItemLongPress != null
                 ? () => onItemLongPress!(season)
                 : null,
@@ -16428,19 +15810,13 @@ class PersonHeader extends StatelessWidget {
     final theme = Theme.of(context);
     final isMobile = _isCompact(context);
     final safeTop = MediaQuery.of(context).padding.top;
-    String? imageUrl;
-    if (item.primaryImageTag != null && !item.id.startsWith('tmdb:')) {
-      imageUrl = imageApi.getPrimaryImageUrl(
-        item.id,
-        maxHeight: 400,
-        tag: item.primaryImageTag,
-      );
-    } else {
-      final profilePath = item.rawData['ProfilePath'] as String?;
-      if (profilePath != null && profilePath.isNotEmpty) {
-        imageUrl = 'https://image.tmdb.org/t/p/w500$profilePath';
-      }
-    }
+    final imageUrl = item.primaryImageTag != null
+        ? imageApi.getPrimaryImageUrl(
+            item.id,
+            maxHeight: 400,
+            tag: item.primaryImageTag,
+          )
+        : null;
 
     final avatarRadius = isMobile ? 60.0 : 80.0;
     final avatar = CircleAvatar(
@@ -17071,180 +16447,6 @@ class FilmographyRow extends StatelessWidget {
             onTap: () => context.push(
               Destinations.item(item.id, serverId: item.serverId),
             ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class SeerrAppearancesRow extends StatelessWidget {
-  final List<SeerrDiscoverItem> items;
-  final UserPreferences prefs;
-  final ScrollController? scrollController;
-  final FocusNode? firstFocusNode;
-  final KeyEventResult Function(int index, KeyEvent event)? onItemKeyEvent;
-
-  /// Sizes the posters to match a row beside it rather than the Home poster
-  /// size.
-  final double? customCardWidth;
-
-  const SeerrAppearancesRow({
-    required this.items,
-    required this.prefs,
-    this.scrollController,
-    this.firstFocusNode,
-    this.onItemKeyEvent,
-    this.customCardWidth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cardExpansion = prefs.get(UserPreferences.cardFocusExpansion);
-    final isMobile = _isCompact(context);
-    final desktopScale = _desktopUiScale(prefs: prefs);
-
-    // Aligned with the Home Screen's scaling logic:
-    final platformScale = PlatformDetection.isTV
-        ? 0.8 * desktopScale
-        : desktopScale;
-    final metadataScale = desktopScale;
-    final posterSize = prefs.get(UserPreferences.posterSize).upToExtraLarge;
-    final custom = customCardWidth;
-    final cardHeight = custom != null
-        ? custom * 1.5
-        : posterSize.portraitHeight.toDouble() * platformScale;
-
-    final cardWidth = custom ?? (isMobile ? 120.0 : cardHeight * (2 / 3));
-    final rowHeight =
-        _kDetailRowTopInset +
-        (isMobile ? 240.0 : cardHeight + (56 * metadataScale));
-    final focusColor = Color(prefs.get(UserPreferences.focusColor).colorValue);
-    final suppressFocusGlow = ThemeRegistry.active.borders.focusGlow.isNotEmpty;
-    final baseGap = isMobile ? 8.0 : 12 * desktopScale;
-    final separatorWidth = cardExpansion && !isMobile
-        ? MediaCard.focusGap(cardWidth, minimum: baseGap)
-        : baseGap;
-
-    return SizedBox(
-      height: rowHeight,
-      child: ListView.separated(
-        controller: scrollController,
-        scrollDirection: Axis.horizontal,
-        clipBehavior: Clip.none,
-        padding: const EdgeInsets.only(top: _kDetailRowTopInset),
-        itemCount: items.length,
-        separatorBuilder: (_, _) => SizedBox(width: separatorWidth),
-        itemBuilder: (context, index) {
-          final item = items[index];
-
-          return MediaCard(
-            title: item.displayTitle,
-            subtitle: item.character,
-            imageUrl: item.posterPath != null
-                ? 'https://image.tmdb.org/t/p/w342${item.posterPath}'
-                : null,
-            width: cardWidth,
-            aspectRatio: 2 / 3,
-            focusColor: focusColor,
-            cardFocusExpansion: cardExpansion,
-            suppressFocusGlow: suppressFocusGlow,
-            seerrMediaType: item.mediaType,
-            seerrStatus: item.mediaInfo?.status,
-            focusNode: index == 0 ? firstFocusNode : null,
-            onKeyEvent: onItemKeyEvent == null
-                ? null
-                : (_, event) => onItemKeyEvent!(index, event),
-            onTap: () {
-              final mediaType = item.mediaType ?? 'movie';
-              context.push(
-                Destinations.seerrMedia(
-                  item.id.toString(),
-                  mediaType: mediaType,
-                ),
-              );
-            },
-          );
-        },
-      ),
-    );
-  }
-}
-
-class SeerrCrewCreditsRow extends StatelessWidget {
-  final List<SeerrDiscoverItem> items;
-  final UserPreferences prefs;
-  final ScrollController? scrollController;
-  final FocusNode? firstFocusNode;
-  final KeyEventResult Function(int index, KeyEvent event)? onItemKeyEvent;
-
-  const SeerrCrewCreditsRow({
-    required this.items,
-    required this.prefs,
-    this.scrollController,
-    this.firstFocusNode,
-    this.onItemKeyEvent,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final cardExpansion = prefs.get(UserPreferences.cardFocusExpansion);
-    final isMobile = _isCompact(context);
-    final desktopScale = _desktopUiScale(prefs: prefs);
-
-    final platformScale = PlatformDetection.isTV
-        ? 0.8 * desktopScale
-        : desktopScale;
-    final metadataScale = desktopScale;
-    final posterSize = prefs.get(UserPreferences.posterSize).upToExtraLarge;
-    final cardHeight = posterSize.portraitHeight.toDouble() * platformScale;
-
-    final cardWidth = isMobile ? 120.0 : cardHeight * (2 / 3);
-    final rowHeight =
-        _kDetailRowTopInset +
-        (isMobile ? 240.0 : cardHeight + (56 * metadataScale));
-    final focusColor = Color(prefs.get(UserPreferences.focusColor).colorValue);
-    final suppressFocusGlow = ThemeRegistry.active.borders.focusGlow.isNotEmpty;
-
-    return SizedBox(
-      height: rowHeight,
-      child: ListView.separated(
-        controller: scrollController,
-        scrollDirection: Axis.horizontal,
-        clipBehavior: Clip.none,
-        padding: const EdgeInsets.only(top: _kDetailRowTopInset),
-        itemCount: items.length,
-        separatorBuilder: (_, _) =>
-            SizedBox(width: isMobile ? 8 : 12 * desktopScale),
-        itemBuilder: (context, index) {
-          final item = items[index];
-
-          return MediaCard(
-            title: item.displayTitle,
-            subtitle: item.job ?? item.department,
-            imageUrl: item.posterPath != null
-                ? 'https://image.tmdb.org/t/p/w342${item.posterPath}'
-                : null,
-            width: cardWidth,
-            aspectRatio: 2 / 3,
-            focusColor: focusColor,
-            cardFocusExpansion: cardExpansion,
-            suppressFocusGlow: suppressFocusGlow,
-            seerrMediaType: item.mediaType,
-            seerrStatus: item.mediaInfo?.status,
-            focusNode: index == 0 ? firstFocusNode : null,
-            onKeyEvent: onItemKeyEvent == null
-                ? null
-                : (_, event) => onItemKeyEvent!(index, event),
-            onTap: () {
-              final mediaType = item.mediaType ?? 'movie';
-              context.push(
-                Destinations.seerrMedia(
-                  item.id.toString(),
-                  mediaType: mediaType,
-                ),
-              );
-            },
           );
         },
       ),
@@ -18413,7 +17615,7 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
 class _SectionSpec {
   const _SectionSpec({this.focusNode, this.gap = 32, required this.build});
 
-  /// Null for a section a remote passes over, like the Seerr stats card.
+  /// Null for a section a remote passes over.
   final FocusNode? focusNode;
 
   /// The space above it.
@@ -18498,21 +17700,18 @@ class _PersonDisplaySettingsDialog extends StatefulWidget {
 class _PersonDisplaySettingsDialogState
     extends State<_PersonDisplaySettingsDialog> {
   late String _sortOption;
-  late bool _groupItems;
   DateTime? _lastTapTime;
 
   @override
   void initState() {
     super.initState();
     _sortOption = widget.prefs.get(UserPreferences.personPageSortOption);
-    _groupItems = widget.prefs.get(UserPreferences.personPageGroupItems);
   }
 
   @override
   void didUpdateWidget(covariant _PersonDisplaySettingsDialog oldWidget) {
     super.didUpdateWidget(oldWidget);
     _sortOption = widget.prefs.get(UserPreferences.personPageSortOption);
-    _groupItems = widget.prefs.get(UserPreferences.personPageGroupItems);
   }
 
   @override
@@ -18585,25 +17784,6 @@ class _PersonDisplaySettingsDialogState
               accent: accent,
               onSurface: onSurface,
             ),
-            Divider(color: dividerColor),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 24, 4),
-              child: Text(
-                l10n.groupContributions,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: sectionColor,
-                ),
-              ),
-            ),
-            _checkboxTile(
-              label: l10n.groupMultipleRoles,
-              checked: _groupItems,
-              onTap: () => _updateGroup(!_groupItems),
-              accent: accent,
-              onSurface: onSurface,
-            ),
           ],
         ),
       ),
@@ -18626,14 +17806,6 @@ class _PersonDisplaySettingsDialogState
       _sortOption = option;
     });
     widget.prefs.set(UserPreferences.personPageSortOption, option);
-  }
-
-  void _updateGroup(bool value) {
-    if (_shouldThrottleTap()) return;
-    setState(() {
-      _groupItems = value;
-    });
-    widget.prefs.set(UserPreferences.personPageGroupItems, value);
   }
 
   Widget _radioTile({
@@ -18685,63 +17857,6 @@ class _PersonDisplaySettingsDialogState
                 style: TextStyle(
                   fontSize: 15,
                   color: selected
-                      ? onSurface
-                      : onSurface.withValues(alpha: 0.72),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _checkboxTile({
-    required String label,
-    required bool checked,
-    required VoidCallback onTap,
-    required Color accent,
-    required Color onSurface,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 18,
-              height: 18,
-              decoration: BoxDecoration(
-                borderRadius: AppRadius.circular(4),
-                border: Border.fromBorderSide(
-                  ThemeRegistry.active.borders.chipBorder.copyWith(
-                    color: checked ? accent : onSurface.withValues(alpha: 0.5),
-                    width: 2,
-                  ),
-                ),
-                color: checked ? accent : Colors.transparent,
-              ),
-              child: checked
-                  ? Center(
-                      child: Text(
-                        '✓',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: onSurface,
-                        ),
-                      ),
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 15,
-                  color: checked
                       ? onSurface
                       : onSurface.withValues(alpha: 0.72),
                 ),

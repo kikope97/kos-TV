@@ -6,10 +6,8 @@ import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/calendar_entry.dart';
 import '../../../data/repositories/calendar_repository.dart';
-import '../../../data/services/plugin_sync_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/preference_constants.dart';
-import '../../../preference/seerr_preferences.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/date_format_util.dart';
 import '../../../util/platform_detection.dart';
@@ -345,9 +343,6 @@ class CalendarMessage extends StatelessWidget {
 String calendarProblemText(AppLocalizations l10n, CalendarProblem p) =>
     switch (p) {
       CalendarProblem.adminsOnly => l10n.calendarProblemAdminsOnly,
-      CalendarProblem.needsAdminSeerr => seerrBrand(
-        l10n.calendarProblemNeedsSeerr,
-      ),
       CalendarProblem.notConfigured => l10n.calendarProblemNotConfigured,
       CalendarProblem.failed => l10n.calendarProblemFailed,
     };
@@ -382,8 +377,6 @@ Widget? calendarStateView(
   return null;
 }
 
-bool get _seerrAvailable => GetIt.instance<PluginSyncService>().seerrAvailable;
-
 /// Opens what the user picked for a card: Play when that's the setting and
 /// it's on the server, otherwise its details.
 void calendarSelect(BuildContext context, CalendarEntry e) {
@@ -403,15 +396,15 @@ void calendarPlay(BuildContext context, CalendarEntry e) {
   context.push(Destinations.item(id, autoPlay: true));
 }
 
-/// The episode or movie page when it's on the server, the series page for an
-/// episode that isn't yet, and the Seerr page for a title the server lacks.
+/// The episode or movie page when it's on the server and the series page for
+/// an episode that isn't yet. A title the server lacks has no page to open.
 void calendarOpenDetails(BuildContext context, CalendarEntry e) {
   final id = e.episodeId ?? e.itemId;
   if (id != null) {
     context.push(Destinations.item(id));
     return;
   }
-  _openSeerr(context, e);
+  _showNotHereYet(context, e);
 }
 
 void calendarOpenSeries(BuildContext context, CalendarEntry e) {
@@ -419,34 +412,19 @@ void calendarOpenSeries(BuildContext context, CalendarEntry e) {
     context.push(Destinations.item(e.itemId!));
     return;
   }
-  _openSeerr(context, e);
+  _showNotHereYet(context, e);
 }
 
-bool calendarCanOpen(CalendarEntry e) =>
-    e.itemId != null ||
-    e.episodeId != null ||
-    (_seerrAvailable && e.tmdbId != null);
+bool calendarCanOpen(CalendarEntry e) => e.itemId != null || e.episodeId != null;
 
-/// The request button belongs on titles Sonarr or Radarr won't fetch.
-bool calendarShowsRequest(CalendarEntry e) =>
-    !e.monitored &&
-    !e.inLibrary &&
-    e.tmdbId != null &&
-    _seerrAvailable &&
-    _prefs.get(UserPreferences.calendarRequestButton);
-
-void calendarRequest(BuildContext context, CalendarEntry e) =>
-    _openSeerr(context, e);
-
-void _openSeerr(BuildContext context, CalendarEntry e) {
-  if (!_seerrAvailable || e.tmdbId == null) return;
-  context.push(
-    Destinations.seerrMedia(
-      '${e.tmdbId}',
-      mediaType: e.isMovie ? 'movie' : 'tv',
-      title: e.title,
-    ),
-  );
+void _showNotHereYet(BuildContext context, CalendarEntry e) {
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(AppLocalizations.of(context).kostvDiscoverNotHereYet(e.title)),
+      ),
+    );
 }
 
 Future<void> calendarToggleReminder(

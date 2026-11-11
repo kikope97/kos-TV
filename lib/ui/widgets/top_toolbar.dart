@@ -20,7 +20,6 @@ import '../../data/services/achievements_service.dart';
 import '../../data/services/library_scope_service.dart';
 import '../../data/services/plugin_sync_service.dart';
 import '../../preference/preference_constants.dart';
-import '../../preference/seerr_preferences.dart';
 import '../../preference/user_preferences.dart';
 import '../../util/audio_artwork_url.dart';
 import '../../util/clock_format.dart';
@@ -41,7 +40,6 @@ import 'settings/settings_panel.dart';
 import '../screens/downloads/downloads_panel.dart';
 import '../screens/settings/settings_side_panel.dart';
 import '../screens/watch_party/watch_together_route.dart';
-import 'seerr_icons.dart';
 import 'server_messages_dialog.dart';
 import 'server_messages_nav_slot.dart';
 import 'shuffle_overlay.dart';
@@ -997,11 +995,6 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
         !kidsMode &&
         _prefs.get(UserPreferences.syncPlayEnabled) &&
         _prefs.get(UserPreferences.showSyncPlayButton);
-    final seerrPrefs = GetIt.instance<SeerrPreferences>();
-    final showSeerr =
-        !kidsMode &&
-        _prefs.get(UserPreferences.showSeerrButton) &&
-        GetIt.instance<PluginSyncService>().seerrAvailable;
     final showCalendar =
         !kidsMode &&
         _prefs.get(UserPreferences.showCalendarButton) &&
@@ -1009,7 +1002,6 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     // Kos TV: the TV's apps (All apps screen), on a TV with apps to list.
     final showApps = showKostvAppsButton(_prefs);
     final l10n = AppLocalizations.of(context);
-    final seerrNavLabel = seerrPrefs.labelOrDefault(l10n.seerr);
     // Desktop/macOS keeps the dropdown; inline fan-out is only used where
     // horizontal scroll is natural (TV d-pad or touch).
     final useInlineLibraries =
@@ -1175,25 +1167,6 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                         builder: (_) => watchTogetherScreen(),
                       ),
                     ),
-                  ),
-                ),
-              ],
-              if (showSeerr) ...[
-                _gap(),
-                _orderButton(
-                  order: (order++).toDouble(),
-                  child: ExpandableIconButton(
-                    key: const ValueKey('toolbar_seerr'),
-                    forceExpanded: alwaysExpanded,
-                    baseColor: nextNavColor(),
-                    iconBuilder: (size, color) => seerrPrefs.isSeerrVariant
-                        ? SeerrIcon(size: size, color: color)
-                        : SeerrIcon(size: size, color: color),
-                    label: seerrNavLabel,
-                    onPressed: () {
-                      if (_isActive(Destinations.seerrDiscover)) return;
-                      context.navigateTopLevel(Destinations.seerrDiscover);
-                    },
                   ),
                 ),
               ],

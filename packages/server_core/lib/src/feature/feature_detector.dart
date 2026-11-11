@@ -45,11 +45,6 @@ class FeatureDetector {
   /// BIF trickplay files were Emby's. Kos TV dropped Emby, so never.
   bool get supportsBifTrickplay => false;
 
-  /// Seerr requests and discovery. Moonfin reaches Seerr through the Moonfin
-  /// plugin's proxy (`/Moonfin/Seerr/*`) on Jellyfin and Emby. On Silo the
-  /// same screens use Silo's own requests (`/api/v2/requests`).
-  bool get supportsJellyseerr => true;
-
   /// A version that doesn't parse counts as recent enough, since the
   /// alternative is hiding a feature on every server that reports something
   /// unexpected.
@@ -84,7 +79,7 @@ class FeatureDetector {
   bool get supportsMoonfinPlugin => _isJellyfin || _isSilo;
 
   /// The rest of the Moonfin plugin's routes (`/Moonfin/*` at the server
-  /// root: Seerr proxy, games, anime markers, custom rows, bookmarks...),
+  /// root: games, anime markers, custom rows, bookmarks...),
   /// which only the Jellyfin plugin has.
   bool get supportsFullMoonfinPlugin => _isJellyfin;
 

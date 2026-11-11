@@ -4,7 +4,6 @@ import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../../../data/models/aggregated_item.dart';
 import '../../../../../data/viewmodels/item_detail_view_model.dart';
-import '../../../../../data/viewmodels/seerr_media_detail_view_model.dart';
 import '../../../../../l10n/app_localizations.dart';
 import '../../../../../preference/detail_metadata_layout.dart';
 import '../../../../../preference/detail_section_layout.dart';
@@ -15,10 +14,7 @@ import '../../../../widgets/logo_view.dart';
 import '../../../../widgets/navigation_layout.dart';
 import '../../../../widgets/offline_aware_image.dart';
 import '../../../../widgets/rating_display.dart';
-import '../../../../widgets/seerr/seerr_item_status.dart';
 import '../../../../widgets/live_tv/incomplete_recording.dart';
-import '../../../../widgets/seerr/seerr_status_dot.dart';
-import '../../../../widgets/seerr/seerr_status_pill.dart';
 import '../../detail_layout_metrics.dart';
 import '../../item_detail_screen.dart';
 
@@ -294,22 +290,6 @@ class NouveauHeroState extends State<NouveauHero> {
     final showStatus = !hiddenMetadata.contains(DetailMetadataItem.status.id);
     final status = showStatus ? _normalizedSeriesStatus(item) : null;
 
-    final showSeerr = !hiddenMetadata.contains(DetailMetadataItem.seerrAvailability.id);
-    final seerrStatus = showSeerr ? seerrItemStatus(viewModel) : null;
-
-    final l10n = AppLocalizations.of(context);
-
-    final hasNoteworthySeerr =
-        seerrStatus != null &&
-        seerrStatusTracks(
-          seerrStatus,
-          l10n,
-        ).any((track) => seerrStatusIsNoteworthy(track.$1));
-
-    final seerrPills = hasNoteworthySeerr
-        ? _nouveauSeerrPills(context, seerrStatus, scale)
-        : const <Widget>[];
-
     final showUpcoming = !hiddenMetadata.contains(DetailMetadataItem.upcomingEpisodeDate.id);
     final upcomingText = showUpcoming &&
             item.type == 'Series' &&
@@ -317,7 +297,7 @@ class NouveauHeroState extends State<NouveauHero> {
         ? viewModel.upcomingEpisode!.format(context)
         : null;
 
-    final hasBadges = status != null || seerrPills.isNotEmpty || upcomingText != null;
+    final hasBadges = status != null || upcomingText != null;
 
     final heroMaxWidth = isPhonePortrait
         ? size.width
@@ -461,7 +441,6 @@ class NouveauHeroState extends State<NouveauHero> {
                   ratingsRow: ratingsRow,
                   status: status,
                   upcomingText: upcomingText,
-                  seerrPills: seerrPills,
                   hasBadges: hasBadges,
                   genres: genres,
                   genreRowHeight: genreRowHeight,
@@ -482,7 +461,6 @@ class NouveauHeroState extends State<NouveauHero> {
                 ratingsRow: ratingsRow,
                 status: status,
                 upcomingText: upcomingText,
-                seerrPills: seerrPills,
                 hasBadges: hasBadges,
                 genres: genres,
                 genreRowHeight: genreRowHeight,
@@ -512,7 +490,6 @@ class NouveauHeroState extends State<NouveauHero> {
     required Widget? ratingsRow,
     required String? status,
     required String? upcomingText,
-    required List<Widget> seerrPills,
     required bool hasBadges,
     required String genres,
     required double genreRowHeight,
@@ -565,7 +542,6 @@ class NouveauHeroState extends State<NouveauHero> {
             context,
             status: status,
             upcomingText: upcomingText,
-            seerrPills: seerrPills,
             scale: 0.92,
           ),
           const SizedBox(height: 12),
@@ -624,7 +600,6 @@ class NouveauHeroState extends State<NouveauHero> {
     required Widget? ratingsRow,
     required String? status,
     required String? upcomingText,
-    required List<Widget> seerrPills,
     required bool hasBadges,
     required String genres,
     required double genreRowHeight,
@@ -676,7 +651,6 @@ class NouveauHeroState extends State<NouveauHero> {
               context,
               status: status,
               upcomingText: upcomingText,
-              seerrPills: seerrPills,
               scale: scale,
             ),
             SizedBox(height: (14.0 * scale).clamp(12.0, 15.0)),
@@ -915,7 +889,7 @@ class NouveauHeroState extends State<NouveauHero> {
     final hidden = detailMetadataLayout.hidden(widget.prefs);
     final runtime = _effectiveRuntime(item);
 
-    // Status, upcoming and Seerr have their own badge row on this hero, so
+    // Status and upcoming have their own badge row on this hero, so
     // only the items that share this line take part in the ordering.
     final ordered = detailMetadataLayout.ordered(
       const [
@@ -981,7 +955,6 @@ class NouveauHeroState extends State<NouveauHero> {
     BuildContext context, {
     required String? status,
     required String? upcomingText,
-    required List<Widget> seerrPills,
     required double scale,
   }) {
     final badges = <Widget>[];
@@ -990,14 +963,6 @@ class NouveauHeroState extends State<NouveauHero> {
     }
     if (upcomingText != null) {
       badges.add(_upcomingEpisodeBadge(context, upcomingText, scale));
-    }
-    for (var index = 0; index < seerrPills.length; index++) {
-      badges.add(
-        _NouveauBadgeEntrance(
-          key: ValueKey<String>('nouveau-seerr-badge-$index'),
-          child: seerrPills[index],
-        ),
-      );
     }
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -1052,71 +1017,6 @@ class NouveauHeroState extends State<NouveauHero> {
     );
   }
 
-  List<Widget> _nouveauSeerrPills(
-    BuildContext context,
-    SeerrMediaDetailState state,
-    double scale,
-  ) {
-    final l10n = AppLocalizations.of(context);
-
-    return [
-      for (final track in seerrStatusTracks(state, l10n))
-        if (seerrStatusIsNoteworthy(track.$1))
-          _nouveauSeerrPill(track.$1, track.$2, l10n, scale),
-    ];
-  }
-
-  Widget _nouveauSeerrPill(
-    SeerrQualityStatus track,
-    String? qualityLabel,
-    AppLocalizations l10n,
-    double scale,
-  ) {
-    final text = qualityLabel == null
-        ? seerrStatusLabel(track, l10n)
-        : '$qualityLabel · ${seerrStatusLabel(track, l10n)}';
-
-    final effectiveStatus = track.status > SeerrMediaStatus.unknown
-        ? track.status
-        : track.hasExistingRequest
-        ? SeerrMediaStatus.processing
-        : SeerrMediaStatus.unknown;
-
-    final color = seerrStatusColor(effectiveStatus);
-
-    final height = (30.0 * scale).clamp(27.0, 32.0);
-
-    return Container(
-      height: height,
-      padding: EdgeInsets.symmetric(
-        horizontal: (11.0 * scale).clamp(9.0, 12.0),
-        vertical: 4,
-      ),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.16),
-        border: Border.fromBorderSide(
-          ThemeRegistry.active.borders.chipBorder.copyWith(
-            color: color.withValues(alpha: 0.90),
-          ),
-        ),
-        borderRadius: AppRadius.circular((6.0 * scale).clamp(5.0, 7.0)),
-      ),
-      child: Center(
-        child: Text(
-          text,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.w600,
-            fontSize: (13.0 * scale).clamp(11.5, 14.0),
-            height: 1.0,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _statusBadge(BuildContext context, String status, double scale) {
     final l10n = AppLocalizations.of(context);
 
@@ -1152,61 +1052,6 @@ class NouveauHeroState extends State<NouveauHero> {
     );
   }
 
-}
-
-class _NouveauBadgeEntrance extends StatefulWidget {
-  final Widget child;
-
-  const _NouveauBadgeEntrance({super.key, required this.child});
-
-  @override
-  State<_NouveauBadgeEntrance> createState() =>
-      _NouveauBadgeEntranceState();
-}
-
-class _NouveauBadgeEntranceState extends State<_NouveauBadgeEntrance>
-    with SingleTickerProviderStateMixin {
-  static const Duration _duration = Duration(milliseconds: 220);
-
-  late final AnimationController _controller;
-  late final Animation<double> _opacity;
-  late final Animation<Offset> _slide;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = AnimationController(vsync: this, duration: _duration);
-
-    final curved = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    );
-
-    _opacity = Tween<double>(begin: 0, end: 1).animate(curved);
-
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.12),
-      end: Offset.zero,
-    ).animate(curved);
-
-    _controller.forward();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FadeTransition(
-      opacity: _opacity,
-      child: SlideTransition(position: _slide, child: widget.child),
-    );
-  }
 }
 
 class _NouveauOverview extends StatefulWidget {

@@ -36,7 +36,6 @@ void main() {
     expect(f.supportsQuickConnect, isTrue);
     expect(f.supportsClientLog, isTrue);
     expect(f.supportsBifTrickplay, isFalse);
-    expect(f.supportsJellyseerr, isTrue);
   });
 
   test('the new flags stay on for Jellyfin', () {
@@ -83,10 +82,6 @@ void main() {
     expect(f.supportsMediaSegments, isTrue);
     expect(f.supportsSkipSegments, isTrue);
     expect(f.supportsTrickplay, isTrue);
-  });
-
-  test('Silo offers the request screens through its own requests', () {
-    expect(_for(ServerType.silo).supportsJellyseerr, isTrue);
   });
 
   // Each flag answers what the server-type check it replaced did, in the

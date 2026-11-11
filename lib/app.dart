@@ -23,8 +23,6 @@ import 'data/services/cast/cast_service.dart';
 import 'data/services/connectivity_service.dart';
 import 'data/services/remove_watched_service.dart';
 import 'data/services/download_service.dart';
-import 'data/services/seerr_notification_service.dart';
-import 'data/services/plugin_sync_service.dart';
 import 'data/services/server_messages_service.dart';
 import 'data/services/retro_artwork/retro_artwork_data_source.dart';
 import 'data/services/theme_music_service.dart';
@@ -1118,7 +1116,6 @@ class _ConnectivityListenerState extends ConsumerState<_ConnectivityListener>
   StreamSubscription<String>? _downloadErrorSub;
   StreamSubscription<ChatThread>? _chatMessageSub;
   StreamSubscription<AchievementUnlocks>? _unlockSub;
-  StreamSubscription<SeerrNotificationEvent>? _seerrNotificationSub;
   StreamSubscription<MoonbaseRoomSummary>? _partyAlertSub;
 
   @override
@@ -1133,21 +1130,6 @@ class _ConnectivityListenerState extends ConsumerState<_ConnectivityListener>
     ref.read(syncPlayRuntimeCoordinatorProvider);
     final manager = ref.read(syncPlayManagerProvider);
     _syncPlayEventsSub = manager.uiEvents.listen(_handleSyncPlayEvent);
-    if (GetIt.instance.isRegistered<PluginSyncService>() &&
-        GetIt.instance.isRegistered<SeerrNotificationService>()) {
-      final notificationService = GetIt.instance<SeerrNotificationService>();
-      _seerrNotificationSub = GetIt.instance<PluginSyncService>()
-          .seerrNotifications
-          .listen(
-            (event) => notificationService.show(
-              event.title,
-              event.body,
-              event.route,
-              requestId: event.requestId,
-              isRequest: event.isRequest,
-            ),
-          );
-    }
     if (GetIt.instance.isRegistered<ServerMessagesService>()) {
       GetIt.instance<ServerMessagesService>().addListener(
         _handleServerMessagesChanged,
@@ -1174,7 +1156,6 @@ class _ConnectivityListenerState extends ConsumerState<_ConnectivityListener>
     _downloadErrorSub?.cancel();
     _chatMessageSub?.cancel();
     _unlockSub?.cancel();
-    _seerrNotificationSub?.cancel();
     _partyAlertSub?.cancel();
     if (GetIt.instance.isRegistered<ServerMessagesService>()) {
       GetIt.instance<ServerMessagesService>().removeListener(

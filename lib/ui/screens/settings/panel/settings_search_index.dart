@@ -121,7 +121,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
   required VoidCallback openAdmin,
   required VoidCallback openThemeEditor,
 }) {
-  final seerrAvailable = GetIt.instance<PluginSyncService>().seerrAvailable;
   final tmdbAvailable = GetIt.instance<PluginSyncService>().tmdbAvailable;
   final pluginAvailable = GetIt.instance<PluginSyncService>().pluginAvailable;
   final calendarAvailable =
@@ -274,12 +273,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     path: [l10n.appearance, l10n.homeScreen, l10n.upcomingCalendars],
     icon: Icons.calendar_month,
     open: () => push(const _UpcomingCalendarsScreen()),
-  );
-  final seerrLists = _SearchSection(
-    slug: 'seerr-rows',
-    path: [l10n.appearance, l10n.homeScreen, 'Seerr Rows'],
-    icon: Icons.list_alt,
-    open: () => push(const _SeerrListsScreen()),
   );
   final customRows = _SearchSection(
     slug: 'custom-rows',
@@ -794,7 +787,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       'seasons',
       'status',
       'genres',
-      'seerr',
       'reorder',
     ]),
     detailSections.screen(keywords: [
@@ -812,10 +804,8 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       'more like this',
       'episodes',
       'media info',
-      'seerr',
       'recommendations',
       'reviews',
-      'streaming',
       'biography',
       'links',
       'social media',
@@ -896,13 +886,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       subtitle: l10n.settingsAlwaysExpandNavbarLabels,
       keywords: ['labels'],
     ),
-    if (seerrAvailable)
-      navigation.leaf(
-        'pref_show_seerr_button',
-        seerrBrand(l10n.showSeerrButton),
-        subtitle: seerrBrand(l10n.settingsShowSeerrButtonInNavigation),
-        keywords: ['requests'],
-      ),
     if (calendarAvailable)
       navigation.leaf(
         'pref_show_calendar_button',
@@ -1162,7 +1145,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         keywords: ['mdblist', 'watching now', 'scrobble', 'live', 'viewers'],
       ),
       seasonalRow.screen(keywords: ['holiday', 'christmas', 'halloween', 'seasonal']),
-      seasonalRow.leaf('seasonal_row_enabled', l10n.seasonalRow, subtitle: seerrBrand(l10n.seasonalRowDescription)),
+      seasonalRow.leaf('seasonal_row_enabled', l10n.seasonalRow, subtitle: l10n.seasonalRowDescription),
       seasonalRow.leaf('seasonal_row_country', l10n.seasonalRowCountry),
       seasonalRow.leaf('seasonal_row_hidden_holidays', l10n.seasonalRowHolidays),
       if (GetIt.instance<MediaServerClient>().itemsApi is! ServerHomeSectionsApi)
@@ -1220,7 +1203,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
           'Trending All (Weekly)',
         ),
       ],
-      if (seerrAvailable) ...[
+      if (calendarAvailable) ...[
         calendars.screen(keywords: ['radarr', 'sonarr', 'upcoming releases']),
         calendars.leaf(
           'merge_radarr_sonarr_calendars',
@@ -1276,15 +1259,11 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
           l10n.sonarrCalendarHideDownloaded,
           header: 'Sonarr',
         ),
-        if (calendarAvailable)
-          calendars.leaf(
-            'pref_calendar_row_see_all',
-            l10n.calendarRowSeeAll,
-            subtitle: l10n.calendarRowSeeAllSubtitle,
-          ),
-        seerrLists.screen(keywords: ['discovery rows', 'watchlist', 'trending']),
-        seerrLists.leaf('seerr_rows_sort_by', seerrBrand(l10n.seerrRowsSorting)),
-        seerrLists.leaf('seerr_rows_sort_order', l10n.sortOrder),
+        calendars.leaf(
+          'pref_calendar_row_see_all',
+          l10n.calendarRowSeeAll,
+          subtitle: l10n.calendarRowSeeAllSubtitle,
+        ),
       ],
       customRows.screen(keywords: ['letterboxd', 'mdblist', 'tmdb', 'custom']),
     ],

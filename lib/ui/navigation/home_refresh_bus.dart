@@ -11,8 +11,7 @@ class HomeRefreshBus extends ValueNotifier<int> {
 
   /// [newMediaBar] also loads a new set into the media bar, for a refresh the
   /// viewer asked for. [newSectionsOnly] loads only the sections Home has no
-  /// rows for yet, for a change that only adds sections, such as Seerr
-  /// signing in.
+  /// rows for yet, for a change that only adds sections.
   void request({bool newMediaBar = false, bool newSectionsOnly = false}) {
     _newMediaBar = _newMediaBar || newMediaBar;
     _newSectionsOnly = newSectionsOnly;

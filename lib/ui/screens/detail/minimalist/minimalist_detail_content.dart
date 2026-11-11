@@ -451,15 +451,9 @@ class _MinimalistDetailContentState extends State<MinimalistDetailContent> {
 
   Future<void> _openCollectionsModal() {
     final l10n = AppLocalizations.of(context);
-    final showMissing = widget.prefs.get(
-      UserPreferences.seerrShowMissingCollectionItems,
-    );
 
     SpotlightModalSection section(ParentCollection collection) {
-      final items = [
-        collection.boxSetItem,
-        ...(showMissing ? collection.itemsWithMissing : collection.items),
-      ];
+      final items = [collection.boxSetItem, ...collection.items];
       return SpotlightModalSection(
         id: 'collection_${collection.id}',
         title: collection.name,
@@ -486,16 +480,8 @@ class _MinimalistDetailContentState extends State<MinimalistDetailContent> {
     );
   }
 
-  // Titles the library lacks come from Seerr and open its request page.
-  void _openCollectionItem(AggregatedItem entry) => context.push(
-    entry.serverId == 'seerr'
-        ? Destinations.seerrMedia(
-            entry.id,
-            mediaType: entry.seerrMediaType,
-            title: entry.name,
-          )
-        : Destinations.item(entry.id, serverId: entry.serverId),
-  );
+  void _openCollectionItem(AggregatedItem entry) =>
+      context.push(Destinations.item(entry.id, serverId: entry.serverId));
 
   Future<void> _openSectionModal(
     SpotlightModalContent Function() buildContent,

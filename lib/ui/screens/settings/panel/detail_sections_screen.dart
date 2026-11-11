@@ -10,8 +10,6 @@ class _DetailSectionsScreen extends StatelessWidget {
       switch (group) {
         DetailSectionGroup.header => l10n.detailSectionGroupHeader,
         DetailSectionGroup.sections => l10n.detailSectionGroupSections,
-        DetailSectionGroup.seerr =>
-          GetIt.instance<SeerrPreferences>().labelOrDefault(l10n.seerr),
         DetailSectionGroup.person => l10n.detailSectionGroupPerson,
         DetailSectionGroup.collection => l10n.detailSectionGroupCollection,
         DetailSectionGroup.other => l10n.detailSectionGroupOther,

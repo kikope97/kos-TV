@@ -12,24 +12,18 @@ import '../../preference/preference_constants.dart';
 import '../../preference/user_preferences.dart';
 import '../models/aggregated_item.dart';
 import '../models/lyrics.dart';
-import '../models/tmdb_item_ref.dart';
 import '../services/blocked_content_gate.dart';
 import '../services/row_data_source.dart';
 import '../services/series_track_sync.dart';
 import '../repositories/item_mutation_repository.dart';
 import '../repositories/mdblist_repository.dart';
 import '../repositories/tmdb_repository.dart';
-import '../repositories/seerr_repository.dart';
 import '../utils/blocked_ratings.dart';
 import '../utils/episode_cast_utils.dart';
 import '../utils/playlist_utils.dart';
-import '../../preference/seerr_preferences.dart';
 import '../../util/episode_playability.dart';
 import '../services/plugin_sync_service.dart';
 import '../services/user_data_sync.dart';
-import '../services/seerr/seerr_api_models.dart';
-import 'seerr_discover_view_model.dart';
-import 'seerr_media_detail_view_model.dart';
 import 'book_browse_view_model.dart';
 import '../models/upcoming_episode_info.dart';
 import '../services/upcoming_episode_service.dart';
@@ -101,31 +95,12 @@ class ParentCollection {
   /// The collection's library members, in release order.
   final List<AggregatedItem> items;
 
-  /// Titles TMDB files under this collection that the library lacks, from
-  /// Seerr. Kept apart from [items] because the library lists feed user-data
-  /// sync and the classic collection rows, and neither can take a Seerr id.
-  final List<AggregatedItem> missingItems;
-
   ParentCollection({
     required this.id,
     required this.name,
     required this.boxSetItem,
     required this.items,
-    this.missingItems = const [],
   });
-
-  /// Library members with the missing titles slotted in by release date.
-  List<AggregatedItem> get itemsWithMissing =>
-      mergeMissingByReleaseOrder(items, missingItems);
-
-  ParentCollection withMissingItems(List<AggregatedItem> missing) =>
-      ParentCollection(
-        id: id,
-        name: name,
-        boxSetItem: boxSetItem,
-        items: items,
-        missingItems: missing,
-      );
 
   ParentCollection withItems(List<AggregatedItem> updated) =>
       ParentCollection(
@@ -133,7 +108,6 @@ class ParentCollection {
         name: name,
         boxSetItem: boxSetItem,
         items: updated,
-        missingItems: missingItems,
       );
 }
 
@@ -145,76 +119,44 @@ enum SimilarSource { jellyfin, moonfin, tmdb }
 // the same count.
 const int _similarLimit = 20;
 
-/// Slots [missing] into [library] by release date without reordering the
-/// library entries, so a collection keeps whatever order the server gave it
-/// and each absent title lands where it belongs in the run.
-List<AggregatedItem> mergeMissingByReleaseOrder(
-  List<AggregatedItem> library,
-  List<AggregatedItem> missing,
+/// Orders a person's filmography by the person page sort preference. Items
+/// with no date at all sink to the bottom whichever way the dates run.
+List<AggregatedItem> sortJellyfinFilmography(
+  List<AggregatedItem> items,
+  String sortOption,
 ) {
-  if (missing.isEmpty) return library;
-  DateTime? released(AggregatedItem item) {
-    final date = item.premiereDate;
-    if (date != null) return date;
-    final year = item.productionYear;
-    return year == null ? null : DateTime(year);
-  }
-
-  final merged = List<AggregatedItem>.of(library);
-  for (final item in missing) {
-    final key = released(item);
-    var at = merged.length;
-    if (key != null) {
-      final later = merged.indexWhere((existing) {
-        final date = released(existing);
-        return date != null && key.isBefore(date);
-      });
-      if (later >= 0) at = later;
-    }
-    merged.insert(at, item);
-  }
-  return merged;
-}
-
-/// The parts of a TMDB collection the library lacks, as Seerr-backed items.
-/// Ids are bare TMDB numbers carrying a `SeerrMediaType`, the shape every
-/// other Seerr item in the app has, so the Seerr detail route resolves them.
-/// Adult titles are dropped under the same rule the discover rows apply.
-@visibleForTesting
-List<AggregatedItem> seerrMissingCollectionItems({
-  required Iterable<SeerrDiscoverItem> parts,
-  required Set<String> libraryTmdbIds,
-  required bool blockNsfw,
-}) {
-  final missing = <AggregatedItem>[];
-  for (final part in parts) {
-    final tmdbId = part.id.toString();
-    if (libraryTmdbIds.contains(tmdbId)) continue;
-    if (blockNsfw && SeerrDiscoverViewModel.isNsfw(part)) continue;
-    final releaseDate = part.releaseDate;
-    missing.add(
-      AggregatedItem(
-        id: tmdbId,
-        serverId: 'seerr',
-        rawData: {
-          'Id': tmdbId,
-          'Name': part.title ?? part.name ?? '',
-          'Type': 'Movie',
-          'Overview': part.overview,
-          'PosterPath': part.posterPath,
-          'BackdropPath': part.backdropPath,
-          'PremiereDate': releaseDate,
-          'ProductionYear': releaseDate != null && releaseDate.length >= 4
-              ? int.tryParse(releaseDate.substring(0, 4))
-              : null,
-          'SeerrMediaType': 'movie',
-          'SeerrStatus': part.mediaInfo?.status,
-          'ProviderIds': {'Tmdb': tmdbId},
-        },
-      ),
+  final sorted = List<AggregatedItem>.from(items);
+  if (sortOption == 'alphabetical') {
+    return sorted..sort(
+      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
     );
   }
-  return missing;
+
+  final ascending = sortOption == 'releaseDateAsc';
+  sorted.sort((a, b) {
+    final dateA =
+        a.premiereDate ??
+        (a.productionYear != null ? DateTime(a.productionYear!) : null);
+    final dateB =
+        b.premiereDate ??
+        (b.productionYear != null ? DateTime(b.productionYear!) : null);
+
+    if (dateA == null && dateB == null) {
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    }
+    if (dateA == null) return 1;
+    if (dateB == null) return -1;
+
+    final comparison = dateA.compareTo(dateB);
+    if (comparison != 0) {
+      return ascending ? comparison : -comparison;
+    }
+
+    final nameComparison = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    return ascending ? nameComparison : -nameComparison;
+  });
+
+  return sorted;
 }
 
 /// Which engine fills a detail page's "More like this" row.
@@ -308,9 +250,6 @@ class ItemDetailViewModel extends ChangeNotifier {
       return book.parentId;
     }
   }
-
-  String? _localPersonId;
-  String? get localPersonId => _localPersonId;
 
   int? _selectedAudioIndex;
   int? get selectedAudioIndex => _selectedAudioIndex;
@@ -420,9 +359,6 @@ class ItemDetailViewModel extends ChangeNotifier {
 
   List<AggregatedItem> _collectionItems = const [];
   List<AggregatedItem> get collectionItems => _collectionItems;
-
-  List<AggregatedItem> _missingCollectionItems = const [];
-  List<AggregatedItem> get missingCollectionItems => _missingCollectionItems;
 
   // --- Collection grid pagination state ---
   static const _collectionPageSize = 50;
@@ -539,10 +475,6 @@ class ItemDetailViewModel extends ChangeNotifier {
   CollectionSortOption get collectionSort => _collectionSort;
 
   List<ParentCollection> _parentCollections = const [];
-
-  /// Bumped on every publication of [_parentCollections], so a Seerr pass
-  /// started for an earlier load can tell it has gone stale.
-  int _parentCollectionsLoad = 0;
   List<ParentCollection> get parentCollections => _parentCollections;
 
   List<AggregatedItem> _features = const [];
@@ -595,14 +527,8 @@ class ItemDetailViewModel extends ChangeNotifier {
   /// a reload of the item doesn't put the placeholder back.
   List<Map<String, dynamic>>? _probedMediaSources;
 
-  /// The Seerr side of this title, when there is one. Null until the lookup
-  /// lands, and null forever when Seerr is off or doesn't know the title.
-  SeerrMediaDetailViewModel? _seerr;
-  SeerrMediaDetailViewModel? get seerr => _seerr;
-
   /// Longest the action row waits on its late inputs. Long enough for the
-  /// server's own lookups, short enough that the row still feels instant. A
-  /// slower Seerr answer adds its buttons when it lands.
+  /// server's own lookups, short enough that the row still feels instant.
   static const actionsWaitCap = Duration(milliseconds: 250);
 
   /// Whether everything that adds, removes or relabels an action button has
@@ -612,121 +538,8 @@ class ItemDetailViewModel extends ChangeNotifier {
   bool _actionsSettled = false;
   bool get actionsSettled => _actionsSettled;
 
-  /// Whether this screen stands in for a title that is not in the library, in
-  /// which case there is nothing to play, mark watched or download.
-  bool _isSeerrOnly = false;
-  bool get isSeerrOnly => _isSeerrOnly;
-
-  /// The library id of a title asked for by TMDB id that turned out to be in
-  /// the library after all. The screen swaps itself for the real item, which
-  /// has playback and everything else a synthetic one cannot offer.
-  String? _seerrResolvedLibraryId;
-  String? get seerrResolvedLibraryId => _seerrResolvedLibraryId;
-
   UpcomingEpisodeInfo? _upcomingEpisode;
   UpcomingEpisodeInfo? get upcomingEpisode => _upcomingEpisode;
-
-  /// Only used to resolve an IMDb-keyed id by searching for it.
-  String? _seerrOnlyTitle;
-  set seerrOnlyTitle(String? value) => _seerrOnlyTitle = value;
-
-  /// Resolves the Seerr side of a library item, if there is one to resolve.
-  /// A miss leaves the screen exactly as it was, so nothing here ever surfaces
-  /// an error.
-  Future<void> _loadSeerrOverlay() async {
-    final item = _item;
-    if (item == null) return;
-    final isMedia = item.type == 'Movie' || item.type == 'Series';
-    final isTvPart = item.type == 'Season' || item.type == 'Episode';
-    if (!isMedia && !isTvPart) return;
-    if (!GetIt.instance<PluginSyncService>().seerrAvailable) return;
-
-    String? lookupId;
-    String mediaType = 'movie';
-    String title = item.name;
-
-    if (item.type == 'Movie') {
-      lookupId = (item.tmdbId != null && item.tmdbId!.isNotEmpty)
-          ? item.tmdbId
-          : item.imdbId;
-      mediaType = 'movie';
-      title = item.name;
-    } else if (item.type == 'Series') {
-      lookupId = (item.tmdbId != null && item.tmdbId!.isNotEmpty)
-          ? item.tmdbId
-          : item.imdbId;
-      mediaType = 'tv';
-      title = item.name;
-    } else if (isTvPart) {
-      final seriesId = item.seriesId;
-      if (seriesId != null && seriesId.isNotEmpty) {
-        try {
-          final seriesData = await _client.itemsApi.getItem(seriesId);
-          if (_isDisposed) return;
-          final seriesItem = AggregatedItem(
-            id: seriesId,
-            serverId: _serverId ?? _client.baseUrl,
-            rawData: seriesData,
-          );
-          lookupId =
-              (seriesItem.tmdbId != null && seriesItem.tmdbId!.isNotEmpty)
-                  ? seriesItem.tmdbId
-                  : seriesItem.imdbId;
-          mediaType = 'tv';
-          title = seriesItem.name;
-        } catch (_) {}
-      }
-    }
-
-    if (lookupId == null || lookupId.isEmpty) return;
-
-    try {
-      final vm = await _ensureSeerr();
-      if (_isDisposed) return;
-      await vm.load(
-        lookupId,
-        mediaType,
-        title: title,
-      );
-    } catch (_) {}
-  }
-
-  /// One child view model for the life of this one. [load] is re-entered when
-  /// the viewer switches media source, and a second child would leak both a
-  /// view model and its download poll timer.
-  Future<SeerrMediaDetailViewModel> _ensureSeerr() async {
-    final existing = _seerr;
-    if (existing != null) return existing;
-    final repo = await GetIt.instance.getAsync<SeerrRepository>();
-    final created = SeerrMediaDetailViewModel(
-      repo,
-      GetIt.instance<SeerrPreferences>(),
-    );
-    // Disposal races the await above, so hand back a child nobody listens to
-    // rather than wiring one into a dead view model.
-    if (_isDisposed) return created;
-    created.addListener(_onSeerrChanged);
-    _seerr = created;
-    return created;
-  }
-
-  // The open page keeps refreshing a request, so a title that lands in the
-  // library while it's showing swaps the page out the same way it would on
-  // load.
-  void _onSeerrChanged() {
-    final seerr = _seerr;
-    if (_isSeerrOnly && _seerrResolvedLibraryId == null && seerr != null) {
-      _seerrResolvedLibraryId = _libraryIdFromSeerr(seerr.state);
-    }
-    notifyListeners();
-  }
-
-  // Seerr hands back the media server's own id for a title it knows is there.
-  static String? _libraryIdFromSeerr(SeerrMediaDetailState state) {
-    final id =
-        state.mediaInfo?.jellyfinMediaId ?? state.mediaInfo?.jellyfinMediaId4k;
-    return id == null || id.isEmpty ? null : id;
-  }
 
   ItemDetailViewModel({
     required this.itemId,
@@ -841,122 +654,12 @@ class ItemDetailViewModel extends ChangeNotifier {
     if (!_isDisposed && _item?.type == 'Series') await _loadNextUp();
   }
 
-  /// Builds the screen for a title that is not in the library at all, out of
-  /// what Seerr knows about it. The shape is the same, so the layouts, the
-  /// button row and the Seerr tab all work unchanged.
-  Future<void> _loadSeerrOnly(TmdbItemRef ref) async {
-    _isSeerrOnly = true;
-    final vm = await _ensureSeerr();
-    await vm.load(ref.id, ref.seerrMediaType, title: _seerrOnlyTitle);
-
-    final state = vm.state;
-    if (state.error != null || state.tmdbId == 0) {
-      _error = state.error ?? 'Media not found on Seerr';
-      _state = ItemDetailState.error;
-      notifyListeners();
-      return;
-    }
-
-    // Nothing else is set for a title already in the library, so the screen
-    // stays on its loading state until it has swapped itself out.
-    final libraryId = _libraryIdFromSeerr(state);
-    if (libraryId != null) {
-      _seerrResolvedLibraryId = libraryId;
-      notifyListeners();
-      return;
-    }
-
-    _item = AggregatedItem(
-      id: itemId,
-      // The convention the Seerr rows already use, which the detail screens
-      // read to decide where a tap should land.
-      serverId: 'seerr',
-      rawData: _seerrRawData(state),
-    );
-    // Seerr owns the seasons here, so nothing goes looking for them on a server
-    // that has never heard of this title.
-    _seasons = _seerrSeasons(state);
-    _seasonsLoaded = true;
-    _state = ItemDetailState.ready;
-    _actionsSettled = true;
-    notifyListeners();
-
-    // Everything else in _loadSecondary needs a library id, but ratings and
-    // reviews are keyed by TMDB id, which this does have.
-    unawaited(_loadRatings());
-    unawaited(_loadReviews());
-    if (state.isTv) {
-      unawaited(_loadUpcomingEpisode());
-    }
-  }
-
-  Map<String, dynamic> _seerrRawData(SeerrMediaDetailState s) {
-    final date = s.releaseDate ?? s.firstAirDate;
-    final year = date != null && date.length >= 4
-        ? int.tryParse(date.substring(0, 4))
-        : null;
-    final runtimeMinutes = s.runtime;
-    return {
-      'Name': s.displayTitle,
-      'Overview': s.overview,
-      'Type': s.isTv ? 'Series' : 'Movie',
-      'ProviderIds': {
-        'Tmdb': '${s.tmdbId}',
-        if (s.externalIds?.imdbId != null) 'Imdb': s.externalIds!.imdbId,
-      },
-      'PosterPath': s.posterPath,
-      'BackdropPath': s.backdropPath,
-      if (year != null) 'ProductionYear': year,
-      'PremiereDate': s.releaseDate ?? s.firstAirDate,
-      'CommunityRating': s.voteAverage,
-      'Genres': [for (final g in s.genres) g.name],
-      'Studios': [for (final n in s.networks) {'Name': n.name}],
-      'Taglines': [?s.tagline],
-      'People': [
-        for (final c in s.credits?.cast ?? const [])
-          {
-            'Id': '${c.id}',
-            'Name': c.name,
-            'Role': c.character,
-            'Type': 'Actor',
-            'ProfilePath': c.profilePath,
-          },
-      ],
-      if (runtimeMinutes != null && runtimeMinutes > 0)
-        'RunTimeTicks': runtimeMinutes * 600000000,
-      'Status': s.tvStatus,
-      'ChildCount': s.numberOfSeasons,
-      'SeerrMediaType': s.isTv ? 'tv' : 'movie',
-      'SeerrStatus': s.mediaInfo?.status,
-      'UserData': const {'Played': false, 'IsFavorite': false},
-      'MediaSources': const [],
-      'MediaStreams': const [],
-      'CanDelete': false,
-    };
-  }
-
-  List<AggregatedItem> _seerrSeasons(SeerrMediaDetailState s) => [
-        for (final season in s.tv?.seasons ?? const [])
-          if (season.seasonNumber > 0)
-            AggregatedItem(
-              id: '$itemId:s${season.seasonNumber}',
-              serverId: 'seerr',
-              rawData: {
-                'Name': season.name ?? '',
-                'Type': 'Season',
-                'IndexNumber': season.seasonNumber,
-                'ChildCount': season.episodeCount,
-              },
-            ),
-      ];
-
   Future<void> load({String? mediaSourceId}) async {
     _similarInitialLoadComplete = false;
     _state = ItemDetailState.loading;
     _castLoadGeneration++;
     _parentActors = const [];
     _collectionItems = const [];
-    _missingCollectionItems = const [];
     _parentCollections = const [];
     _flattenedIds = null;
     _customOrderIds = null;
@@ -975,72 +678,7 @@ class ItemDetailViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final tmdbRef = TmdbItemRef.tryParse(itemId);
-      if (tmdbRef != null && tmdbRef.kind != TmdbItemKind.person) {
-        await _loadSeerrOnly(tmdbRef);
-        return;
-      }
-      if (tmdbRef != null) {
-        final tmdbId = tmdbRef.id;
-        final seerrRepo = await GetIt.instance.getAsync<SeerrRepository>();
-        await seerrRepo.ensureInitialized();
-        final tmdbIdInt = int.tryParse(tmdbId);
-        if (tmdbIdInt == null) throw Exception('Invalid TMDB ID');
-        final seerrPerson = await seerrRepo.getPersonDetails(tmdbIdInt);
-
-        final rawData = {
-          'Name': seerrPerson.name,
-          'Overview': seerrPerson.biography,
-          'ProviderIds': {'Tmdb': tmdbId},
-          'Type': 'Person',
-          'PrimaryImageTag': seerrPerson.profilePath,
-          'ProfilePath': seerrPerson.profilePath,
-          'PremiereDate': seerrPerson.birthday,
-          'EndDate': seerrPerson.deathday,
-        };
-
-        _item = AggregatedItem(
-          id: itemId,
-          serverId: _serverId ?? _client.baseUrl,
-          rawData: rawData,
-        );
-
-        try {
-          final localPeople = await _client.itemsApi.getPersons(
-            searchTerm: seerrPerson.name,
-            limit: 20,
-            fields: 'ProviderIds',
-          );
-          final itemsList = (localPeople['Items'] as List? ?? [])
-              .map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
-              .whereType<Map<String, dynamic>>()
-              .toList();
-          for (final localItem in itemsList) {
-            final localPIds = localItem['ProviderIds'] as Map?;
-            if (localPIds?['Tmdb']?.toString() == tmdbId) {
-              _localPersonId = localItem['Id']?.toString();
-              break;
-            }
-          }
-        } catch (_) {}
-
-        if (_localPersonId != null) {
-          try {
-            final localData = await _client.itemsApi.getItem(_localPersonId!);
-            final mergedData = Map<String, dynamic>.from(localData);
-            if (mergedData['Overview'] == null ||
-                (mergedData['Overview'] as String).isEmpty) {
-              mergedData['Overview'] = seerrPerson.biography;
-            }
-            mergedData['ProfilePath'] = seerrPerson.profilePath;
-            _item = AggregatedItem(
-              id: _localPersonId!,
-              serverId: _serverId ?? _client.baseUrl,
-              rawData: mergedData,
-            );
-          } catch (_) {}
-        }
-      } else if (_isBookSeries && _libraryId != null) {
+      if (_isBookSeries && _libraryId != null) {
         final series = await BookBrowseViewModel(
           libraryId: _libraryId,
           dataSource: GetIt.instance<RowDataSource>(),
@@ -1183,9 +821,6 @@ class ItemDetailViewModel extends ChangeNotifier {
     }
 
     unawaited(forActions(_loadProbedMediaSources()));
-    // Deliberately outside the Future.wait below, so a slow Seerr server never
-    // holds up library content that is already here.
-    unawaited(forActions(_loadSeerrOverlay()));
     if (type == 'Person') {
       futures.add(_loadFilmography());
       futures.add(forActions(_loadPersonAccounts()));
@@ -1225,9 +860,6 @@ class ItemDetailViewModel extends ChangeNotifier {
       futures.add(_loadLyrics());
     } else if (type == 'BoxSet') {
       futures.add(forActions(_loadCollectionItems()));
-      // Deliberately not awaited, so a slow Seerr server never holds the
-      // collection's own members back.
-      unawaited(_loadBoxSetSeerrItems());
       futures.add(_buildPlaylistIndex());  // playlist — Phase 1, runs concurrently
     } else if (type == 'MusicVideo' ||
         type == 'Movie' ||
@@ -1837,151 +1469,6 @@ class ItemDetailViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool get _showMissingCollectionItems =>
-      GetIt.instance<UserPreferences>().get(
-        UserPreferences.seerrShowMissingCollectionItems,
-      ) &&
-      GetIt.instance<PluginSyncService>().seerrAvailable;
-
-  /// Fills [missingCollectionItems] with the titles TMDB files under this box
-  /// set's collection that the library lacks. The grid is paged, so the diff
-  /// runs against the whole membership. Every title past the first page would
-  /// otherwise come back as missing.
-  Future<void> _loadBoxSetSeerrItems() async {
-    final item = _item;
-    if (item == null || item.type != 'BoxSet') return;
-    if (!_showMissingCollectionItems) return;
-    try {
-      final repo = await GetIt.instance.getAsync<SeerrRepository>();
-      await repo.ensureInitialized();
-      final data = await _client.itemsApi.getItems(
-        parentId: itemId,
-        fields: 'ProviderIds',
-      );
-      final members = _mapItems((data['Items'] as List?) ?? []);
-      final collectionId = await _resolveSeerrCollectionId(
-        repo,
-        boxSetTmdbId: item.tmdbId,
-        members: members,
-      );
-      if (collectionId == null) return;
-      final missing = await _fetchMissingCollectionItems(
-        repo,
-        collectionId,
-        members,
-      );
-      if (_isDisposed || _item?.id != item.id) return;
-      _missingCollectionItems = missing;
-      notifyListeners();
-    } catch (_) {}
-  }
-
-  /// Seerr's missing-title pass for the parent collections, run after they
-  /// are on screen so a slow Seerr server never holds the library rows back.
-  /// [load] is the publication this pass belongs to, and a reload in the
-  /// meantime makes the result stale, so it's dropped.
-  Future<void> _loadMissingParentCollectionItems(
-    List<ParentCollection> collections,
-    int load,
-  ) async {
-    if (collections.isEmpty || !_showMissingCollectionItems) return;
-    try {
-      final repo = await GetIt.instance.getAsync<SeerrRepository>();
-      await repo.ensureInitialized();
-      for (final collection in collections) {
-        final collectionId = await _resolveSeerrCollectionId(
-          repo,
-          boxSetTmdbId: collection.boxSetItem.tmdbId,
-          members: collection.items,
-        );
-        if (collectionId == null) continue;
-        final missing = await _fetchMissingCollectionItems(
-          repo,
-          collectionId,
-          collection.items,
-        );
-        if (missing.isEmpty) continue;
-        if (_isDisposed || load != _parentCollectionsLoad) return;
-        _parentCollections = [
-          for (final current in _parentCollections)
-            current.id == collection.id
-                ? current.withMissingItems(missing)
-                : current,
-        ];
-        notifyListeners();
-      }
-    } catch (_) {}
-  }
-
-  /// TMDB's collection id for a set of library members: the box set's own
-  /// TMDB id when the server scraped one, else the first movie member TMDB
-  /// files under a collection. Movie and TV ids share no namespace on TMDB,
-  /// so only movies are probed. A series id would resolve to a stranger.
-  Future<int?> _resolveSeerrCollectionId(
-    SeerrRepository repo, {
-    required String? boxSetTmdbId,
-    required List<AggregatedItem> members,
-  }) async {
-    final own = int.tryParse(boxSetTmdbId ?? '');
-    if (own != null && own > 0) return own;
-    // Movies only, because a series id would resolve to an unrelated film.
-    // Capped, because a large hand-made set carries no shared collection and
-    // would otherwise cost one request per member every time it's opened.
-    const maxProbes = 8;
-    final candidates = <int>[
-      for (final member in members)
-        if (member.type == 'Movie')
-          if (int.tryParse(member.tmdbId ?? '') case final id? when id > 0)
-            id,
-    ].take(maxProbes).toList();
-    const maxConcurrent = 4;
-    for (var i = 0; i < candidates.length; i += maxConcurrent) {
-      final batch = candidates.skip(i).take(maxConcurrent);
-      final found = await Future.wait(
-        batch.map((id) async {
-          try {
-            return (await repo.getMovieDetails(id)).collection?.id;
-          } catch (_) {
-            return null;
-          }
-        }),
-      );
-      for (final id in found) {
-        if (id != null) return id;
-      }
-    }
-    return null;
-  }
-
-  /// The collection's parts the library lacks, or nothing when the collection
-  /// doesn't actually describe these members. A hand-made box set of
-  /// unrelated films would otherwise adopt whichever franchise its first
-  /// member happens to belong to.
-  Future<List<AggregatedItem>> _fetchMissingCollectionItems(
-    SeerrRepository repo,
-    int collectionId,
-    List<AggregatedItem> members,
-  ) async {
-    final collection = await repo.getCollectionDetails(collectionId);
-    final memberTmdbIds = <String>{
-      for (final member in members)
-        if (member.tmdbId case final id?) id,
-    };
-    final movieCount = members.where((m) => m.type == 'Movie').length;
-    final overlap = collection.parts
-        .where((part) => memberTmdbIds.contains(part.id.toString()))
-        .length;
-    // One match is enough for a single-film set, two otherwise. Nothing
-    // matching means this collection describes something else entirely.
-    if (overlap == 0) return const [];
-    if (movieCount > 1 && overlap < 2) return const [];
-    return seerrMissingCollectionItems(
-      parts: collection.parts,
-      libraryTmdbIds: memberTmdbIds,
-      blockNsfw: GetIt.instance<SeerrPreferences>().blockNsfw,
-    );
-  }
-
   /// Puts [_flattenedIds] in place, either from a saved order or by scanning
   /// the collection, then starts the first page.
   Future<void> _buildPlaylistIndex() async {
@@ -2376,8 +1863,6 @@ class ItemDetailViewModel extends ChangeNotifier {
       _parentCollections = collections;
 
       notifyListeners();
-      final load = ++_parentCollectionsLoad;
-      unawaited(_loadMissingParentCollectionItems(collections, load));
     } catch (_) {}
   }
 
@@ -2535,14 +2020,8 @@ class ItemDetailViewModel extends ChangeNotifier {
 
   Future<void> _loadFilmography() async {
     try {
-      final localId = _localPersonId ?? (itemId.startsWith('tmdb:') ? null : itemId);
-      if (localId == null) {
-        _filmography = const [];
-        notifyListeners();
-        return;
-      }
       final data = await _client.itemsApi.getItems(
-        personIds: [localId],
+        personIds: [itemId],
         includeItemTypes: ['Movie', 'Series', 'MusicVideo', 'Episode'],
         sortBy: 'PremiereDate',
         sortOrder: 'Descending',
@@ -2560,7 +2039,7 @@ class ItemDetailViewModel extends ChangeNotifier {
             serverId: item.serverId,
             rawData: {
               ...item.rawData,
-              '__moonfinPersonRole': item.roleOf(localId),
+              '__moonfinPersonRole': item.roleOf(itemId),
             }..remove('People'),
           ),
       ];
@@ -2666,8 +2145,8 @@ class ItemDetailViewModel extends ChangeNotifier {
             includeWatched: true,
           );
           // Only short-circuit when we actually have results. An empty list (e.g.
-          // the online source without Seerr configured, or no local matches)
-          // falls through to Jellyfin's similar-items below.
+          // the online source has nothing, or no local matches) falls through
+          // to Jellyfin's similar-items below.
           if (recommended.isNotEmpty) {
             _similar = recommended;
             _similarSource = isLocal ? SimilarSource.moonfin : SimilarSource.tmdb;
@@ -3001,10 +2480,6 @@ class ItemDetailViewModel extends ChangeNotifier {
   void dispose() {
     _isDisposed = true;
     userDataSync.removeListener(_onUserDataChanged);
-    // The child owns a download poll timer, so this is what stops it.
-    _seerr?.removeListener(_onSeerrChanged);
-    _seerr?.dispose();
-    _seerr = null;
     super.dispose();
   }
 }

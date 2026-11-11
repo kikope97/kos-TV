@@ -17,7 +17,6 @@ import '../../../widgets/live_tv/incomplete_recording.dart';
 import '../../../widgets/logo_view.dart';
 import '../../../widgets/navigation_layout.dart';
 import '../../../widgets/rating_display.dart';
-import '../../../widgets/seerr/seerr_item_status.dart';
 import '../detail_layout_metrics.dart';
 import '../detail_page.dart';
 import '../item_detail_screen.dart';
@@ -26,9 +25,6 @@ import '../item_detail_screen.dart';
 /// buttons and ratings under it. Every other part of the page is a section
 /// further down, each its own stop for the D-pad, and an arrow at the foot of
 /// the backdrop hints at them.
-///
-/// A title that's only in Seerr gets the same page with Request in place of
-/// play, its seasons as request cards and Seerr's own sections.
 class PremiereDetailContent extends StatefulWidget {
   final ItemDetailViewModel viewModel;
   final UserPreferences prefs;
@@ -369,7 +365,6 @@ class _PremiereDetailContentState extends State<PremiereDetailContent>
       height: 1.5,
     );
     final tagline = sections.shows(DetailSection.tagline) ? item.tagline : null;
-    final downloads = seerrItemDownloads(_vm);
 
     return Column(
       key: const ValueKey('premiere-hero'),
@@ -384,7 +379,6 @@ class _PremiereDetailContentState extends State<PremiereDetailContent>
             widget.selectedMediaSourceId,
           ),
           upcomingEpisode: _vm.upcomingEpisode,
-          seerrStatus: seerrItemStatus(_vm),
           centered: true,
         ),
         IncompleteRecordingDetailLine(
@@ -429,13 +423,6 @@ class _PremiereDetailContentState extends State<PremiereDetailContent>
                 },
               ),
             ),
-          ),
-        ],
-        if (downloads != null) ...[
-          const SizedBox(height: 12),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: SeerrItemDownloadBars(state: downloads),
           ),
         ],
       ],
@@ -600,12 +587,7 @@ class _PremiereDetailContentState extends State<PremiereDetailContent>
       ),
     );
 
-    final isShow = const {'Series', 'Season', 'Episode'}.contains(item.type);
-    if (_vm.isSeerrOnly) {
-      final node = pageNode('seasons');
-      final row = isShow ? seerrSeasonsRow(node, l10n) : null;
-      if (row != null) out.add(framed(node, row));
-    } else if (item.type == 'Series' ||
+    if (item.type == 'Series' ||
         item.type == 'Season' ||
         (item.type == 'Episode' &&
             sections.shows(DetailSection.moreEpisodes))) {
@@ -643,11 +625,9 @@ class _PremiereDetailContentState extends State<PremiereDetailContent>
     final rows = [
       ?castSection(item, sections, l10n),
       ...libraryRows(sections, l10n),
-      ...seerrSections(sections, l10n),
     ];
     for (final (index, row) in rows.indexed) {
-      // Seerr's numbers and streaming services have nothing to press, so
-      // the section itself takes the stop.
+      // A section with nothing to press takes the stop itself.
       final node = row.node ?? pageNode('row-$index');
       out.add(framed(node, row.child, whole: row.node == null));
     }

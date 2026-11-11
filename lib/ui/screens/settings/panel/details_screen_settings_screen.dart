@@ -225,7 +225,7 @@ class _DetailsScreenSettingsScreenState
                   EnumPreferenceTile<RecommendationSystemSource>(
                     preference: UserPreferences.recommendationSystemSource,
                     title: l10n.recommendationSystem,
-                    description: seerrBrand(l10n.recommendationSystemSubtitle),
+                    description: l10n.recommendationSystemSubtitle,
                     icon: Icons.auto_awesome,
                     labelOf: (v) => switch (v) {
                       RecommendationSystemSource.local =>

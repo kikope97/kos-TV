@@ -21,11 +21,8 @@ import '../utils/next_up_cutoff.dart';
 import '../utils/next_up_enrichment.dart';
 import '../utils/playlist_utils.dart';
 import 'package:flutter/foundation.dart';
-import '../repositories/seerr_repository.dart';
 import '../repositories/user_views_repository.dart';
 import 'library_scope_service.dart';
-import '../../preference/seerr_preferences.dart';
-import '../viewmodels/seerr_discover_view_model.dart';
 import '../viewmodels/live_tv_guide_view_model.dart';
 import 'custom_external_lists_service.dart';
 import 'plugin_sync_service.dart';
@@ -2382,15 +2379,6 @@ class RowDataSource {
           items: items,
           totalCount: items.length,
         );
-
-      // Seerr sliders load through the Seerr repository on Home, since they
-      // come from Seerr rather than from the media server.
-      case HomeSectionPluginSource.seerr:
-        return HomeRow(
-          id: rowId,
-          title: title,
-          rowType: HomeRowType.pluginDynamic,
-        );
     }
   }
 
@@ -2556,12 +2544,6 @@ class RowDataSource {
       return ('DateCreated', 'Descending');
     }
     return ('SortName', 'Ascending');
-  }
-
-  int? _extractYear(String? dateString) {
-    if (dateString == null || dateString.isEmpty) return null;
-    final parsed = DateTime.tryParse(dateString);
-    return parsed?.year;
   }
 
   /// Applies the row's watched and parental-rating rules. Both server paths
@@ -3128,21 +3110,6 @@ class RowDataSource {
           );
           final pIds = details['ProviderIds'] as Map?;
           tmdbId = pIds?['Tmdb']?.toString();
-          if (tmdbId == null || tmdbId.isEmpty) {
-            final imdbId = pIds?['Imdb']?.toString();
-            if (imdbId != null && imdbId.isNotEmpty) {
-              try {
-                final repo = await GetIt.instance.getAsync<SeerrRepository>();
-                await repo.ensureInitialized();
-                if (repo.isAvailable) {
-                  final searchPage = await repo.search(imdbId);
-                  if (searchPage.results.isNotEmpty) {
-                    tmdbId = searchPage.results.first.id.toString();
-                  }
-                }
-              } catch (_) {}
-            }
-          }
         } catch (e) {
           print('[RowDataSource] Failed to resolve TMDB ID for online recommendations: $e');
         }
@@ -3151,53 +3118,8 @@ class RowDataSource {
       if (tmdbId != null && tmdbId.isNotEmpty) {
         final tmdbIdInt = int.tryParse(tmdbId);
         if (tmdbIdInt != null) {
-          // Seerr goes first. Its results carry the server's mediaInfo, which
-          // is what lets the blocklist apply, including tags the server has
-          // blocklisted by keyword. Direct TMDB is the fallback and can't
-          // honor any of that.
-          try {
-            final repo = await GetIt.instance.getAsync<SeerrRepository>();
-            await repo.ensureInitialized();
-            if (repo.isAvailable) {
-              final isTv = baseItem.type == 'Series';
-              final page = isTv
-                  ? await repo.getTvRecommendations(tmdbIdInt)
-                  : await repo.getMovieRecommendations(tmdbIdInt);
-
-              final blockNsfw = GetIt.instance<SeerrPreferences>().blockNsfw;
-
-              final filtered = page.results.where((item) {
-                if (item.isBlacklisted) return false;
-                if (blockNsfw) {
-                  if (item.adult) return false;
-                  final text = '${item.displayTitle} ${item.overview ?? ''}';
-                  if (SeerrDiscoverViewModel.nsfwPatterns.any((p) => p.hasMatch(text))) {
-                    return false;
-                  }
-                }
-                return true;
-              }).toList();
-
-              recommendedItems = filtered.map((item) {
-                return AggregatedItem(
-                  id: item.id.toString(),
-                  serverId: 'seerr',
-                  rawData: {
-                    'Name': item.displayTitle,
-                    'Type': item.mediaType == 'tv' ? 'Series' : 'Movie',
-                    'Overview': item.overview ?? '',
-                    'PosterPath': item.posterPath ?? '',
-                    'BackdropPath': item.backdropPath ?? '',
-                    'ProductionYear': _extractYear(item.releaseDate ?? item.firstAirDate),
-                    'SeerrMediaType': item.mediaType,
-                  },
-                );
-              }).take(limit).toList();
-            }
-          } catch (_) {}
-
           final apiKey = prefs.get(UserPreferences.tmdbApiKey);
-          if (recommendedItems.isEmpty && apiKey.isNotEmpty) {
+          if (apiKey.isNotEmpty) {
             try {
               final dio = Dio(BaseOptions(
                 connectTimeout: const Duration(seconds: 10),

@@ -3,14 +3,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../../widgets/seerr/seerr_status_dot.dart';
 import '../shared/nouveau_segmented_selector.dart';
 
 class NouveauSeasonSelector extends StatefulWidget {
   final List<int> seasonNumbers;
   final int selectedSeasonNumber;
   final String Function(int seasonNumber) labelBuilder;
-  final int? Function(int seasonNumber)? statusBuilder;
   final ValueChanged<int> onSeasonActivated;
   final bool Function()? onNavigateUp;
   final bool Function()? onNavigateDown;
@@ -27,7 +25,6 @@ class NouveauSeasonSelector extends StatefulWidget {
     required this.onNavigateDown,
     required this.allowLeftEdgeExit,
     required this.visible,
-    this.statusBuilder,
   });
 
   @override
@@ -137,25 +134,6 @@ class NouveauSeasonSelectorState extends State<NouveauSeasonSelector>
     _selectorKey.currentState?.requestFocusAt(seasonNumber);
   }
 
-  Widget? _buildStatusIndicator(int seasonNumber) {
-    final status = widget.statusBuilder?.call(seasonNumber);
-
-    if (status == null ||
-        status == SeerrMediaStatus.available ||
-        !SeerrMediaStatus.hasDot(status)) {
-      return null;
-    }
-
-    return Container(
-      width: 7,
-      height: 7,
-      decoration: BoxDecoration(
-        color: seerrStatusColor(status),
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-
   Future<void> _showPhoneMenu() async {
     if (!_selectorFocusable || _phoneMenuOpen) {
       return;
@@ -257,7 +235,6 @@ class NouveauSeasonSelectorState extends State<NouveauSeasonSelector>
                 seasonNumbers: widget.seasonNumbers,
                 selectedSeasonNumber: widget.selectedSeasonNumber,
                 labelBuilder: widget.labelBuilder,
-                statusBuilder: _buildStatusIndicator,
                 onSelected: (seasonNumber) {
                   Navigator.of(
                     dialogContext,
@@ -393,12 +370,6 @@ class NouveauSeasonSelectorState extends State<NouveauSeasonSelector>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (_buildStatusIndicator(widget.selectedSeasonNumber)
-                      case final statusIndicator?) ...[
-                    statusIndicator,
-                    const SizedBox(width: 9),
-                  ],
-
                   Text(
                     label,
                     maxLines: 1,
@@ -439,7 +410,6 @@ class NouveauSeasonSelectorState extends State<NouveauSeasonSelector>
         values: widget.seasonNumbers,
         selectedValue: widget.selectedSeasonNumber,
         labelBuilder: widget.labelBuilder,
-        leadingBuilder: _buildStatusIndicator,
         onValueActivated: widget.onSeasonActivated,
         onNavigateUp: widget.onNavigateUp,
         onNavigateDown: widget.onNavigateDown,
@@ -493,14 +463,12 @@ class _PhoneSeasonMenu extends StatelessWidget {
   final List<int> seasonNumbers;
   final int selectedSeasonNumber;
   final String Function(int seasonNumber) labelBuilder;
-  final Widget? Function(int seasonNumber) statusBuilder;
   final ValueChanged<int> onSelected;
 
   const _PhoneSeasonMenu({
     required this.seasonNumbers,
     required this.selectedSeasonNumber,
     required this.labelBuilder,
-    required this.statusBuilder,
     required this.onSelected,
   });
 
@@ -550,7 +518,6 @@ class _PhoneSeasonMenu extends StatelessWidget {
                     _PhoneSeasonMenuItem(
                       label: labelBuilder(seasonNumber),
                       selected: seasonNumber == selectedSeasonNumber,
-                      statusIndicator: statusBuilder(seasonNumber),
                       foreground: foreground,
                       onTap: () {
                         onSelected(seasonNumber);
@@ -569,14 +536,12 @@ class _PhoneSeasonMenu extends StatelessWidget {
 class _PhoneSeasonMenuItem extends StatefulWidget {
   final String label;
   final bool selected;
-  final Widget? statusIndicator;
   final Color foreground;
   final VoidCallback onTap;
 
   const _PhoneSeasonMenuItem({
     required this.label,
     required this.selected,
-    required this.statusIndicator,
     required this.foreground,
     required this.onTap,
   });
@@ -629,16 +594,6 @@ class _PhoneSeasonMenuItemState extends State<_PhoneSeasonMenuItem> {
         ),
         child: Row(
           children: [
-            SizedBox(
-              width: 10,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: widget.statusIndicator ?? const SizedBox.shrink(),
-              ),
-            ),
-
-            const SizedBox(width: 8),
-
             Expanded(
               child: Text(
                 widget.label,

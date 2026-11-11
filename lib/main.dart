@@ -27,7 +27,6 @@ import 'data/services/auto_download_service.dart';
 import 'data/services/background_download_coordinator.dart';
 import 'data/services/download_notification_service.dart';
 import 'data/services/push_messaging_service.dart';
-import 'data/services/seerr_notification_service.dart';
 import 'data/services/media_server_client_factory.dart';
 import 'data/services/crash_report_service.dart';
 import 'data/services/log_service.dart';
@@ -1081,11 +1080,6 @@ Future<void> _initDeferredStartupServices(UserPreferences prefs) async {
   // ran while the app was suspended or dead. No-op where unsupported.
   try {
     await GetIt.instance<BackgroundDownloadCoordinator>().ensureInitialized();
-  } catch (_) {}
-
-  try {
-    await GetIt.instance<SeerrNotificationService>().initialize();
-    await GetIt.instance<SeerrNotificationService>().handleColdStart();
   } catch (_) {}
 
   if (PlatformDetection.isMobile) {

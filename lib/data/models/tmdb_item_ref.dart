@@ -1,7 +1,7 @@
 /// What a `tmdb:` item id points at.
 enum TmdbItemKind { person, movie, tv }
 
-/// A details screen item that lives in Seerr rather than in the library.
+/// A details screen item that isn't in the library, named by its TMDB id.
 ///
 /// The id travels in the route, so it has to say both what kind of thing it is
 /// and how to find it: `tmdb:movie:603`, `tmdb:tv:1399`, `tmdb:person:6384`.
@@ -41,9 +41,6 @@ class TmdbItemRef {
 
   /// The id to put in a route.
   String get itemId => 'tmdb:${kind.name}:$id';
-
-  /// What Seerr calls this kind in its own API.
-  String get seerrMediaType => kind == TmdbItemKind.tv ? 'tv' : 'movie';
 
   @override
   bool operator ==(Object other) =>

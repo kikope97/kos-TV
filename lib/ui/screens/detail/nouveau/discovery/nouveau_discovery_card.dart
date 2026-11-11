@@ -7,6 +7,8 @@ import '../../../../../data/models/aggregated_item.dart';
 import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/item_watch_state.dart';
 import '../../../../navigation/destinations.dart';
+import '../../item_detail_screen.dart'
+    show isOutsideLibraryItem, showOutsideLibraryTitle;
 import '../shared/nouveau_poster_card.dart';
 
 class NouveauDiscoveryCard extends StatelessWidget {
@@ -28,6 +30,12 @@ class NouveauDiscoveryCard extends StatelessWidget {
   static const double _aspectRatio = 2 / 3;
 
   static void openItem(BuildContext context, AggregatedItem item) {
+    if (isOutsideLibraryItem(item)) {
+      showOutsideLibraryTitle(context, item.name);
+
+      return;
+    }
+
     context.push(Destinations.item(item.id, serverId: item.serverId));
   }
 
@@ -40,11 +48,18 @@ class NouveauDiscoveryCard extends StatelessWidget {
   String? _imageUrl() {
     final tag = item.primaryImageTag;
 
-    if (tag == null) {
-      return null;
+    if (tag != null) {
+      return imageApi.getPrimaryImageUrl(item.id, maxHeight: 750, tag: tag);
     }
 
-    return imageApi.getPrimaryImageUrl(item.id, maxHeight: 750, tag: tag);
+    // A TMDB recommendation from outside the library brings its own poster.
+    final posterPath = item.rawData['PosterPath'] as String?;
+
+    if (posterPath != null && posterPath.isNotEmpty) {
+      return 'https://image.tmdb.org/t/p/w500$posterPath';
+    }
+
+    return null;
   }
 
   double get _progress {

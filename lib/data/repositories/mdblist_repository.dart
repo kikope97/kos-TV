@@ -230,9 +230,9 @@ class MdbListRepository {
   }) async {
     if (knownTmdbId != null && knownTmdbId.isNotEmpty) return knownTmdbId;
 
-    // Seerr cards, and the outside-list cards that borrow their server id,
-    // aren't on the media server, which answers a lookup for them with a 400.
-    // Seerr keys its items by TMDB id. An IMDb id has no TMDB id to give.
+    // Outside-list cards aren't on the media server, which answers a lookup
+    // for them with a 400. Their id is the TMDB one when they have it. An
+    // IMDb id has no TMDB id to give.
     if (serverId == 'seerr') {
       return int.tryParse(itemId) != null ? itemId : null;
     }

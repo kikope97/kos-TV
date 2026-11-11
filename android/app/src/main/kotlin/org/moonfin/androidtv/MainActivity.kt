@@ -479,6 +479,17 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
                     InstalledApps.launch(this, call.argument<String>("package") ?: ""),
                 )
                 "openSystemSettings" -> result.success(InstalledApps.openSystemSettings(this))
+                // Kos TV: whether the opening video plays with sound. A TV always;
+                // a phone only while its ringer is on (silent or vibrate keeps
+                // the intro quiet, whatever the media volume).
+                "introSoundAllowed" -> {
+                    val audio = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+                    result.success(
+                        isTelevision(applicationContext) ||
+                            audio == null ||
+                            audio.ringerMode == AudioManager.RINGER_MODE_NORMAL,
+                    )
+                }
                 "exitApp" -> {
                     result.success(true)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {

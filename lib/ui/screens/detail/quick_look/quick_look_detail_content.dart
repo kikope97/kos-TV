@@ -17,10 +17,6 @@ import '../../../widgets/fullscreen_backdrop_switcher.dart';
 import '../../../widgets/live_tv/incomplete_recording.dart';
 import '../../../widgets/rating_display.dart';
 import '../../../widgets/scroll_edge_arrows.dart';
-import '../../../widgets/seerr/seerr_item_status.dart';
-import '../../../widgets/seerr/seerr_request_dialog.dart';
-import '../../../widgets/seerr/seerr_status_dot.dart';
-import '../../../widgets/seerr/seerr_streaming_row.dart';
 import '../detail_layout_metrics.dart';
 import '../detail_page.dart';
 import '../item_detail_screen.dart';
@@ -112,9 +108,6 @@ class QuickLookFrame extends StatelessWidget {
 /// A title in a drawer rather than a page of its own: the backdrop, the name
 /// and its numbers, the buttons, the overview, the tracks, and the seasons or
 /// the people behind it, with the full page a press away.
-///
-/// A title that's only in Seerr gets Request in place of play, and its
-/// seasons each open the request dialog.
 class QuickLookDetailContent extends StatefulWidget {
   final ItemDetailViewModel viewModel;
   final UserPreferences prefs;
@@ -217,12 +210,6 @@ class _QuickLookDetailContentState extends State<QuickLookDetailContent>
     final facts = item.type == 'Series'
         ? null
         : _facts(item, sections, l10n, landscape);
-    final seerrState = seerrItemTabState(_vm);
-    final providers =
-        seerrState != null &&
-            SeerrDetailPieces.resolve(seerrState, sections, l10n).streaming
-        ? seerrState.streamingProviders
-        : null;
 
     final info = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,7 +224,6 @@ class _QuickLookDetailContentState extends State<QuickLookDetailContent>
             widget.selectedMediaSourceId,
           ),
           upcomingEpisode: _vm.upcomingEpisode,
-          seerrStatus: seerrItemStatus(_vm),
         ),
         IncompleteRecordingDetailLine(itemId: item.id),
       ],
@@ -282,10 +268,6 @@ class _QuickLookDetailContentState extends State<QuickLookDetailContent>
           ],
           if (seasons != null) ...[const SizedBox(height: 14), seasons.child],
           if (facts != null) ...[const SizedBox(height: 14), facts],
-          if (providers != null) ...[
-            const SizedBox(height: 14),
-            SeerrStreamingRow(providers: providers),
-          ],
         ],
       ),
     );
@@ -559,43 +541,22 @@ class _QuickLookDetailContentState extends State<QuickLookDetailContent>
   }
 
   /// A show's seasons as cards, each with how much of it was watched. A
-  /// season opens its full page, and one that's only in Seerr opens the
-  /// request dialog on it.
+  /// season opens its full page.
   DetailPageSection? _seasons(AppLocalizations l10n) {
     final seasons = _vm.seasons;
     if (seasons.isEmpty) return null;
     final node = pageNode('seasons');
-    final seerr = _vm.isSeerrOnly ? _vm.seerr : null;
-    final status = seerrItemSeasonStatus(_vm);
-    final showStatus = seerr != null && seerrBadgeStyle() != null;
     final on = AppColorScheme.onBackground;
 
     Widget card(int index, AggregatedItem season) {
-      final number = season.indexNumber ?? 0;
       final total = season.childCount ?? 0;
       final played = total - (season.unplayedItemCount ?? total);
-      final hasCount = seerr == null && total > 0;
+      final hasCount = total > 0;
       return FocusableButton(
         focusNode: index == 0 ? node : null,
-        onPressed: () {
-          if (seerr != null) {
-            showSeerrRequestDialog(
-              context: context,
-              vm: seerr,
-              is4k: false,
-              qualityToggle: true,
-              season: number > 0 ? number : null,
-            );
-          } else {
-            context.push(
-              Destinations.item(
-                season.id,
-                serverId: season.serverId,
-                full: true,
-              ),
-            );
-          }
-        },
+        onPressed: () => context.push(
+          Destinations.item(season.id, serverId: season.serverId, full: true),
+        ),
         onNavigateUp: () => moveUp(node),
         onNavigateDown: () => moveDown(node),
         onNavigateLeft: index == 0 ? () {} : null,
@@ -638,8 +599,6 @@ class _QuickLookDetailContentState extends State<QuickLookDetailContent>
                         fontSize: 12,
                       ),
                     ),
-                  if (showStatus)
-                    SeerrStatusDot(status: status[number], size: 14),
                 ],
               ),
               if (hasCount) ...[

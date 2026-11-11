@@ -608,7 +608,6 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
         _prefs.get(UserPreferences.mediaBarMode) ??
         UserPreferences.mediaBarModeMoonfin;
     final more = [
-      l10n.setupTourBulletRequests,
       l10n.setupTourBulletSyncPlay,
       l10n.liveTv,
       l10n.setupTourBulletThemes,

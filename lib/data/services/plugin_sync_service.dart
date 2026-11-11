@@ -20,7 +20,6 @@ import 'storage_path_service.dart';
 import 'synced_fields.dart';
 import '../../ui/widgets/navigation_layout.dart';
 import '../../preference/home_section_config.dart';
-import '../../l10n/current_app_localizations.dart';
 import '../../preference/preference_constants.dart' as prefs;
 import '../../preference/user_preferences.dart';
 import '../../util/platform_detection.dart';

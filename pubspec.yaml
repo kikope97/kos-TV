@@ -293,6 +293,8 @@ flutter:
     - assets/licenses/cores/
     - assets/reader/
     - assets/after_hours/
+    # Kos TV: the opening video, exactly as delivered (4K, with its sound).
+    - assets/intro/
 
   fonts:
     # The web engine fetches Roboto from fonts.gstatic.com unless it finds a

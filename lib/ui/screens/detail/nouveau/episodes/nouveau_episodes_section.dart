@@ -17,8 +17,6 @@ import '../../../../widgets/focus/context_menu_sheet.dart';
 import '../../../../widgets/focus/hub_focus_memory.dart';
 import '../../../../widgets/focus/locked_focus_row.dart';
 import '../../../../widgets/scroll_edge_arrows.dart';
-import '../../../../widgets/seerr/seerr_image_urls.dart';
-import '../../../../widgets/seerr/seerr_item_status.dart';
 import '../../item_detail_screen.dart';
 import '../shared/nouveau_landscape_media_card.dart';
 import '../shared/nouveau_spacing.dart';
@@ -926,10 +924,6 @@ class NouveauEpisodesSectionState extends State<NouveauEpisodesSection> {
           _scheduleInitialBackdropSync(selectedSeasonNumber);
         }
 
-        final seerrSeasonStatus = _isSeries
-            ? seerrItemSeasonStatus(_vm)
-            : const <int, int>{};
-
         return AnimatedSwitcher(
           duration: const Duration(milliseconds: 180),
           switchInCurve: Curves.linear,
@@ -953,9 +947,6 @@ class NouveauEpisodesSectionState extends State<NouveauEpisodesSection> {
                   selectedSeasonNumber: selectedSeasonNumber,
                   labelBuilder: (seasonNumber) {
                     return _seasonName(context, seasonNumber);
-                  },
-                  statusBuilder: (seasonNumber) {
-                    return seerrSeasonStatus[seasonNumber];
                   },
                   visible: true,
                   allowLeftEdgeExit: _navbarIsLeft,
@@ -1122,23 +1113,11 @@ class NouveauEpisodesSectionState extends State<NouveauEpisodesSection> {
   String? _imageUrl(AggregatedItem item) {
     final tag = item.primaryImageTag;
 
-    if (tag != null && !item.id.startsWith('tmdb:')) {
-      return _vm.imageApi.getPrimaryImageUrl(item.id, maxHeight: 360, tag: tag);
+    if (tag == null) {
+      return null;
     }
 
-    final posterPath = item.rawData['PosterPath'] as String?;
-
-    if (posterPath != null && posterPath.isNotEmpty) {
-      return '$seerrPosterBase$posterPath';
-    }
-
-    final profilePath = item.rawData['ProfilePath'] as String?;
-
-    if (profilePath != null && profilePath.isNotEmpty) {
-      return '$seerrProfileLargeBase$profilePath';
-    }
-
-    return null;
+    return _vm.imageApi.getPrimaryImageUrl(item.id, maxHeight: 360, tag: tag);
   }
 }
 

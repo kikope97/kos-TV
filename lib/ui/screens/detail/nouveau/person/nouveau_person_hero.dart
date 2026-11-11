@@ -13,7 +13,6 @@ import '../../../../widgets/focus/focusable_wrapper.dart';
 import '../../../../widgets/navigation_layout.dart';
 import '../../../../widgets/offline_aware_image.dart';
 import '../../../../widgets/overlay_sheet.dart';
-import '../../../../widgets/seerr/seerr_image_urls.dart';
 import '../../item_detail_screen.dart';
 import '../../person_links_row.dart';
 
@@ -161,21 +160,15 @@ class NouveauPersonHeroState extends State<NouveauPersonHero> {
   String? _profileImageUrl() {
     final tag = widget.item.primaryImageTag;
 
-    if (tag != null && !widget.item.id.startsWith('tmdb:')) {
-      return widget.imageApi.getPrimaryImageUrl(
-        widget.item.id,
-        maxHeight: 500,
-        tag: tag,
-      );
+    if (tag == null) {
+      return null;
     }
 
-    final profilePath = widget.item.rawData['ProfilePath'] as String?;
-
-    if (profilePath != null && profilePath.isNotEmpty) {
-      return '$seerrProfileLargeBase$profilePath';
-    }
-
-    return null;
+    return widget.imageApi.getPrimaryImageUrl(
+      widget.item.id,
+      maxHeight: 500,
+      tag: tag,
+    );
   }
 
   String _formatDate(DateTime date) {

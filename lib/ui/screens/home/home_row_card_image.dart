@@ -32,20 +32,10 @@ typedef HomeRowImageUrlResolver = String? Function(
 double homeRowPlatformScale(double desktopScale) =>
     PlatformDetection.isTV ? 0.8 * desktopScale : desktopScale;
 
-/// Seerr shortcut, genre, studio and network rows, which draw wide filter
-/// cards.
-bool isSeerrFilterRow(HomeRow row) =>
-    row.id == 'seerr_shortcuts' ||
-    row.id == 'seerr_movie_genres' ||
-    row.id == 'seerr_series_genres' ||
-    row.id == 'seerr_studios' ||
-    row.id == 'seerr_networks';
-
 /// Rows whose artwork is a wide logo rather than cover art. The modern style
 /// draws every card portrait, which crops those, so these rows stay on the
 /// classic layout whichever style is picked.
 bool _isWideArtworkRow(HomeRow row) =>
-    isSeerrFilterRow(row) ||
     row.id == 'mdblist_watching_now' ||
     (row.rowType == HomeRowType.studios && row.id == 'studios');
 
@@ -70,16 +60,17 @@ bool isHomeRowModernMyMediaStatic(HomeRow row, UserPreferences prefs) {
       !prefs.get(UserPreferences.modernCardsOnMyMediaRow);
 }
 
-/// A TMDB image at [width] for a stored Seerr path, which may already be a
-/// full url.
-String? seerrTmdbImageUrl(String? path, int width) {
+/// A TMDB image at [width] for the stored path of a title from an outside
+/// list, which may already be a full url.
+String? externalTmdbImageUrl(String? path, int width) {
   if (path == null || path.isEmpty) return null;
   if (path.startsWith('http')) return path;
   return 'https://image.tmdb.org/t/p/w$width$path';
 }
 
-/// [seerrThumbUrl] for a Seerr item. A numeric item id counts as its TMDB id.
-String? seerrItemThumbUrl(AggregatedItem item) => seerrThumbUrl(
+/// [seerrThumbUrl] for a title from an outside list. A numeric item id counts
+/// as its TMDB id.
+String? externalItemThumbUrl(AggregatedItem item) => seerrThumbUrl(
   type: item.seerrMediaType,
   tmdbId: item.tmdbId ?? (int.tryParse(item.id) != null ? item.id : null),
   imdbId: item.imdbId,
@@ -170,14 +161,11 @@ String? _resolveLandscapeImageUrl(
   return resolvePrimaryImageUrl(item, imageApi, maxWidth: maxW);
 }
 
-/// The image type a Classic card in [row] asks for: forced for audio, Seerr
-/// and music rows, else the universal override or the row's section setting.
+/// The image type a Classic card in [row] asks for: forced for audio and
+/// music rows, else the universal override or the row's section setting.
 ImageType homeRowImageTypeForRow(HomeRow row, UserPreferences prefs) {
   if (row.isAudio) {
     return ImageType.poster;
-  }
-  if (isSeerrFilterRow(row)) {
-    return ImageType.thumb;
   }
   if (row.rowType == HomeRowType.latestMedia && _isLatestMusicRow(row)) {
     return ImageType.poster;
@@ -225,11 +213,9 @@ HomeRowCardImage homeRowCardImage(
 }) {
   final isRowsV2 = isHomeRowModern(row, prefs);
   final isModernMyMediaStatic = isHomeRowModernMyMediaStatic(row, prefs);
-  final rowImageType = isSeerrFilterRow(row)
-      ? ImageType.thumb
-      : (isRowsV2
-            ? (isModernMyMediaStatic ? ImageType.thumb : ImageType.poster)
-            : homeRowImageTypeForRow(row, prefs));
+  final rowImageType = isRowsV2
+      ? (isModernMyMediaStatic ? ImageType.thumb : ImageType.poster)
+      : homeRowImageTypeForRow(row, prefs);
   final isMyMediaRow = row.rowType == HomeRowType.libraryTiles;
   if (row.id == 'mdblist_watching_now') {
     final height = posterSize.landscapeHeight.toDouble() * platformScale;
@@ -301,9 +287,6 @@ double aspectRatioForRowItem(
   if (row.rowType == HomeRowType.liveTvFavorites) {
     return 1.0;
   }
-  if (isSeerrFilterRow(row)) {
-    return 16 / 9;
-  }
   double thumbAspectRatio() {
     return switch (item.type) {
       'MusicAlbum' || 'MusicArtist' || 'Audio' || 'Playlist' || 'Person' => 1,
@@ -371,17 +354,18 @@ String? resolveRowImageUrl(
     }
   }
 
+  // Titles from outside lists that the library lacks carry TMDB paths.
   if (item.serverId == 'seerr') {
-    final backdrop = seerrTmdbImageUrl(
+    final backdrop = externalTmdbImageUrl(
       item.rawData['BackdropPath'] as String?,
       1280,
     );
-    final poster = seerrTmdbImageUrl(
+    final poster = externalTmdbImageUrl(
       item.rawData['PosterPath'] as String?,
       300,
     );
     if (imageType == ImageType.thumb) {
-      return seerrItemThumbUrl(item) ?? backdrop ?? poster;
+      return externalItemThumbUrl(item) ?? backdrop ?? poster;
     }
     if (imageType == ImageType.banner) return backdrop ?? poster;
     return poster ?? backdrop;

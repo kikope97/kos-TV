@@ -16,7 +16,6 @@ import '../../../widgets/live_tv/incomplete_recording.dart';
 import '../../../widgets/logo_view.dart';
 import '../../../widgets/navigation_layout.dart';
 import '../../../widgets/rating_display.dart';
-import '../../../widgets/seerr/seerr_item_status.dart';
 import '../detail_layout_metrics.dart';
 import '../detail_page.dart';
 import '../item_detail_screen.dart';
@@ -25,9 +24,6 @@ import '../item_detail_screen.dart';
 /// left with play and the other buttons under it, and the title, ratings,
 /// tracks and episodes sit beside it. Extras and the rows of other titles run
 /// full width underneath. A phone stacks the same parts down the page.
-///
-/// A title that is only in Seerr gets the same page with Request in place of
-/// play, its seasons as request cards and Seerr's own rows underneath.
 class StageDetailContent extends StatefulWidget {
   final ItemDetailViewModel viewModel;
   final UserPreferences prefs;
@@ -494,7 +490,6 @@ class _StageDetailContentState extends State<StageDetailContent>
       height: 1.5,
     );
     final tagline = sections.shows(DetailSection.tagline) ? item.tagline : null;
-    final downloads = seerrItemDownloads(_vm);
 
     return Column(
       key: const ValueKey('stage-header'),
@@ -507,7 +502,6 @@ class _StageDetailContentState extends State<StageDetailContent>
           item: item,
           selectedMediaSource: selectedSource,
           upcomingEpisode: _vm.upcomingEpisode,
-          seerrStatus: seerrItemStatus(_vm),
         ),
         IncompleteRecordingDetailLine(itemId: item.id),
         if (ratings != null) ...[const SizedBox(height: 10), ratings],
@@ -536,13 +530,6 @@ class _StageDetailContentState extends State<StageDetailContent>
                     style: overviewStyle,
                   )
                 : Text(overview, style: overviewStyle),
-          ),
-        ],
-        if (downloads != null) ...[
-          const SizedBox(height: 12),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: SeerrItemDownloadBars(state: downloads),
           ),
         ],
       ],
@@ -624,18 +611,7 @@ class _StageDetailContentState extends State<StageDetailContent>
       if (!isShow) ?factsSection(item, sections),
     ];
 
-    if (isShow && _vm.isSeerrOnly) {
-      final node = pageNode('seasons');
-      final row = seerrSeasonsRow(node, l10n);
-      if (row != null) {
-        out.add(
-          DetailPageSection(
-            node: node,
-            child: ClipRect(clipper: const _LeftEdgeClipper(), child: row),
-          ),
-        );
-      }
-    } else if (const {'Series', 'Season'}.contains(item.type)) {
+    if (const {'Series', 'Season'}.contains(item.type)) {
       out.add(_episodesSection(item, besidePoster: true));
     }
 
@@ -643,8 +619,7 @@ class _StageDetailContentState extends State<StageDetailContent>
   }
 
   /// The full width rows under the poster: an episode's run of episodes, the
-  /// cast, extras, the collections the title belongs to, more like it and
-  /// Seerr's rows.
+  /// cast, extras, the collections the title belongs to and more like it.
   List<DetailPageSection> _belowSections(
     AggregatedItem item,
     DetailSectionVisibility sections,
@@ -655,7 +630,6 @@ class _StageDetailContentState extends State<StageDetailContent>
     // An episode's still is short, so its show's episodes run full width
     // under it rather than squeezing in beside it.
     if (item.type == 'Episode' &&
-        !_vm.isSeerrOnly &&
         sections.shows(DetailSection.moreEpisodes)) {
       out.add(_episodesSection(item, besidePoster: false));
     }
@@ -664,7 +638,6 @@ class _StageDetailContentState extends State<StageDetailContent>
     if (cast != null) out.add(cast);
 
     out.addAll(libraryRows(sections, l10n));
-    out.addAll(seerrSections(sections, l10n));
     return out;
   }
 

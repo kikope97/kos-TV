@@ -13,7 +13,6 @@ import '../../widgets/settings/preference_tiles.dart';
 import '../../../util/signed_in_server_features.dart';
 import 'settings_app_bar.dart';
 import '../../widgets/focus/request_initial_focus.dart';
-import '../../../preference/seerr_preferences.dart';
 
 class HomeRowsImageTypeScreen extends StatefulWidget {
   const HomeRowsImageTypeScreen({super.key});
@@ -100,19 +99,6 @@ class _HomeRowsImageTypeScreenState extends State<HomeRowsImageTypeScreen> {
         HomeSectionType.studios => l10n.studios,
         HomeSectionType.liveTv => l10n.liveTV,
         HomeSectionType.onNow => l10n.onNow,
-        HomeSectionType.seerrShortcuts => seerrBrand(l10n.seerrShortcutsRow),
-        HomeSectionType.seerrRecentRequests => l10n.recentRequests,
-        HomeSectionType.seerrWatchlist => l10n.yourWatchlist,
-        HomeSectionType.seerrRecentlyAdded => l10n.recentlyAdded,
-        HomeSectionType.seerrPopularMovies => l10n.popularMovies,
-        HomeSectionType.seerrUpcomingMovies => l10n.upcomingMovies,
-        HomeSectionType.seerrPopularSeries => l10n.popularSeries,
-        HomeSectionType.seerrUpcomingSeries => l10n.upcomingSeries,
-        HomeSectionType.seerrTrending => l10n.trending,
-        HomeSectionType.seerrMovieGenres => l10n.movieGenres,
-        HomeSectionType.seerrStudios => l10n.studios,
-        HomeSectionType.seerrSeriesGenres => l10n.seriesGenres,
-        HomeSectionType.seerrNetworks => l10n.networks,
         HomeSectionType.radarrCalendar => 'Upcoming Movies (Radarr)',
         HomeSectionType.sonarrCalendar => 'Upcoming TV Shows (Sonarr)',
         HomeSectionType.imdbTop250Movies => l10n.imdbTop250Movies,

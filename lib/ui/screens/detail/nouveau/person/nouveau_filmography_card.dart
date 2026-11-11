@@ -6,7 +6,6 @@ import '../../../../../data/models/aggregated_item.dart';
 import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/item_watch_state.dart';
 import '../../../../navigation/destinations.dart';
-import '../../../../widgets/seerr/seerr_image_urls.dart';
 import '../shared/nouveau_poster_card.dart';
 
 class NouveauFilmographyCard extends StatelessWidget {
@@ -40,44 +39,21 @@ class NouveauFilmographyCard extends StatelessWidget {
   });
 
   static void openItem(BuildContext context, AggregatedItem item) {
-    if (item.serverId == 'seerr') {
-      final mediaType =
-          item.seerrMediaType ?? (item.type == 'Series' ? 'tv' : 'movie');
-
-      context.push(Destinations.seerrMedia(item.id, mediaType: mediaType));
-
-      return;
-    }
-
     context.push(Destinations.item(item.id, serverId: item.serverId));
   }
 
   String? _imageUrl() {
     final tag = item.primaryImageTag;
 
-    if (tag != null && !item.id.startsWith('tmdb:')) {
-      return imageApi.getPrimaryImageUrl(
-        item.id,
-        maxHeight: item.type == 'Episode' ? 420 : 750,
-        tag: tag,
-      );
+    if (tag == null) {
+      return null;
     }
 
-    if (item.type == 'Episode') {
-      final backdropPath = item.rawData['BackdropPath'] as String?;
-
-      if (backdropPath != null && backdropPath.isNotEmpty) {
-        return '$seerrBackdropSmallBase$backdropPath';
-      }
-    }
-
-    final posterPath = item.rawData['PosterPath'] as String?;
-
-    if (posterPath != null && posterPath.isNotEmpty) {
-      return '$seerrPosterLargeBase$posterPath';
-    }
-
-    return null;
+    return imageApi.getPrimaryImageUrl(
+      item.id,
+      maxHeight: item.type == 'Episode' ? 420 : 750,
+      tag: tag,
+    );
   }
 
   double get _progress {

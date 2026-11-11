@@ -241,8 +241,6 @@ class SessionRepository {
   Future<bool> switchCurrentSession({
     required String serverId,
     required String userId,
-    String? username,
-    String? password,
     bool validateToken = false,
   }) async {
     if (serverId != _activeServerId || userId != _activeUserId) {
@@ -382,8 +380,6 @@ class SessionRepository {
       client,
       user,
       serverId,
-      username,
-      password,
       preFetchedServerUser: validatedUser,
     ).catchError((_) {});
 
@@ -406,9 +402,7 @@ class SessionRepository {
   Future<void> _postLoginSync(
     MediaServerClient client,
     PrivateUser user,
-    String serverId,
-    String? username,
-    String? password, {
+    String serverId, {
     ServerUser? preFetchedServerUser,
   }) async {
     await _reportRemoteCapabilities(client);
@@ -451,16 +445,6 @@ class SessionRepository {
               .registerWithCurrentToken();
         }
       } catch (_) {}
-    }
-    await _pluginSyncService.syncNotificationPrefs(client);
-
-    final seerrCameUp = await _pluginSyncService.configureSeerr(
-      client,
-      username: username ?? user.name,
-      password: password,
-    );
-    if (seerrCameUp) {
-      homeRefreshBus.requestNowOrAfterNavigation(newSectionsOnly: true);
     }
   }
 

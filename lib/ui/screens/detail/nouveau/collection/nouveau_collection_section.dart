@@ -20,8 +20,6 @@ import '../../../../widgets/focus/hub_focus_memory.dart';
 import '../../../../widgets/focus/locked_focus_row.dart';
 import '../../../../widgets/navigation_layout.dart';
 import '../../../../widgets/overlay_sheet.dart';
-import '../../../../widgets/seerr/seerr_image_urls.dart';
-import '../../../../widgets/seerr_icons.dart';
 import '../../item_detail_screen.dart';
 import '../shared/nouveau_landscape_media_card.dart';
 import '../shared/nouveau_poster_card.dart';
@@ -109,15 +107,9 @@ class NouveauCollectionSectionState
 
   List<AggregatedItem> get _collectionItems {
     final live = _vm.collectionItems;
-    final showMissing = widget.prefs.get(
-      UserPreferences.seerrShowMissingCollectionItems,
-    );
-    final missing = _vm.missingCollectionItems;
 
-    if (live.isNotEmpty || missing.isNotEmpty) {
-      return showMissing
-          ? mergeMissingByReleaseOrder(live, missing)
-          : live;
+    if (live.isNotEmpty) {
+      return live;
     }
 
     return _stableCollectionItems;
@@ -162,13 +154,7 @@ class NouveauCollectionSectionState
   }
 
   List<AggregatedItem> _parentCollectionItems(ParentCollection col) {
-    final showMissing = widget.prefs.get(
-      UserPreferences.seerrShowMissingCollectionItems,
-    );
-    return [
-      col.boxSetItem,
-      ...(showMissing ? col.itemsWithMissing : col.items),
-    ];
+    return [col.boxSetItem, ...col.items];
   }
 
   ScrollController _parentControllerFor(String id) {
@@ -713,23 +699,6 @@ class NouveauCollectionSectionState
   }
 
   void _openItem(BuildContext context, AggregatedItem item) {
-    if (item.serverId == 'seerr') {
-      final mediaType = item.seerrMediaType ??
-          (item.type == 'Series' ? 'tv' : 'movie');
-      final tmdbId = item.tmdbId;
-      final targetId = (tmdbId != null && tmdbId.isNotEmpty)
-          ? tmdbId
-          : item.id.replaceAll(RegExp(r'^tmdb:(?:movie:|tv:)?'), '');
-      context.push(
-        Destinations.seerrMedia(
-          targetId,
-          mediaType: mediaType,
-          title: item.name,
-        ),
-      );
-      return;
-    }
-
     context.push(
       Destinations.itemOrPhoto(
         item.id,
@@ -757,10 +726,6 @@ class NouveauCollectionSectionState
   }
 
   void _showItemContextMenu(BuildContext context, AggregatedItem item) {
-    if (item.serverId == 'seerr' || item.id.startsWith('tmdb:')) {
-      return;
-    }
-
     showContextMenu(
       context,
       item,
@@ -970,39 +935,21 @@ class NouveauCollectionSectionState
   String? _primaryImageUrl(AggregatedItem item) {
     final tag = item.primaryImageTag;
 
-    if (tag != null && !item.id.startsWith('tmdb:')) {
-      return _vm.imageApi.getPrimaryImageUrl(item.id, maxHeight: 600, tag: tag);
+    if (tag == null) {
+      return null;
     }
 
-    final posterPath = item.rawData['PosterPath'] as String?;
-
-    if (posterPath != null && posterPath.isNotEmpty) {
-      return '$seerrPosterLargeBase$posterPath';
-    }
-
-    return null;
+    return _vm.imageApi.getPrimaryImageUrl(item.id, maxHeight: 600, tag: tag);
   }
 
   String? _playlistImageUrl(AggregatedItem item) {
     final tag = item.primaryImageTag;
 
-    if (tag != null && !item.id.startsWith('tmdb:')) {
-      return _vm.imageApi.getPrimaryImageUrl(item.id, maxHeight: 360, tag: tag);
+    if (tag == null) {
+      return null;
     }
 
-    final backdropPath = item.rawData['BackdropPath'] as String?;
-
-    if (backdropPath != null && backdropPath.isNotEmpty) {
-      return '$seerrBackdropSmallBase$backdropPath';
-    }
-
-    final posterPath = item.rawData['PosterPath'] as String?;
-
-    if (posterPath != null && posterPath.isNotEmpty) {
-      return '$seerrPosterLargeBase$posterPath';
-    }
-
-    return null;
+    return _vm.imageApi.getPrimaryImageUrl(item.id, maxHeight: 360, tag: tag);
   }
 
   String? _collectionSubtitle(BuildContext context, AggregatedItem item) {
@@ -1238,8 +1185,6 @@ class NouveauCollectionSectionState
                       onLeftEdge: _navbarIsLeft ? _handleLeftEdge : null,
                       itemBuilder: (context, item, index, isFocused) {
                         final hasNext = index < items.length - 1;
-                        final isSeerrItem = item.serverId == 'seerr' ||
-                            item.id.startsWith('tmdb:');
 
                         return Padding(
                           padding: EdgeInsets.only(
@@ -1252,21 +1197,16 @@ class NouveauCollectionSectionState
                             width: layout.cardWidth,
                             height: layout.cardHeight,
                             isFocused: isFocused,
-                            isFavorite: isSeerrItem ? false : item.isFavorite,
-                            isPlayed: isSeerrItem ? false : item.isPlayed,
-                            progress: isSeerrItem ? 0 : _progressFor(item),
+                            isFavorite: item.isFavorite,
+                            isPlayed: item.isPlayed,
+                            progress: _progressFor(item),
                             placeholderIcon: _placeholderIconFor(item),
-                            topRightOverlay: isSeerrItem
-                                ? const SeerrBadge(size: 18)
-                                : null,
                             onTap: () {
                               _openItem(context, item);
                             },
-                            onLongPress: isSeerrItem
-                                ? null
-                                : () {
-                                    _showItemContextMenu(context, item);
-                                  },
+                            onLongPress: () {
+                              _showItemContextMenu(context, item);
+                            },
                           ),
                         );
                       },

@@ -24,10 +24,8 @@ import '../../../data/models/aggregated_item.dart';
 import '../../../data/models/aggregated_library.dart';
 import '../../../data/models/home_row.dart';
 import '../../../data/repositories/mdblist_repository.dart';
-import '../../../data/repositories/seerr_repository.dart';
 import '../../../data/repositories/tmdb_repository.dart';
 import '../../../data/repositories/user_views_repository.dart';
-import '../../widgets/seerr/seerr_shortcuts.dart';
 import '../../../data/services/background_service.dart';
 import '../../widgets/modern_row.dart';
 import '../../../data/services/theme_music_service.dart';
@@ -104,10 +102,8 @@ import '../../widgets/watch_party/watch_party_home_card.dart';
 import '../watch_party/silo_watch_party_screen.dart';
 import '../watch_party/watch_together_route.dart';
 import '../syncplay/syncplay_screen.dart';
-import '../../widgets/seerr/seerr_genre_label.dart';
 import '../../widgets/skeleton/skeleton_home_row.dart';
 import '../../widgets/skeleton/skeleton_shimmer.dart';
-import '../../../preference/seerr_preferences.dart';
 
 Color get _homeBackground => AppColorScheme.background;
 
@@ -187,7 +183,6 @@ class _HomeShellState extends State<_HomeShell>
   final _backgroundService = GetIt.instance<BackgroundService>();
   final _userPrefs = GetIt.instance<UserPreferences>();
   final _themeMusicService = GetIt.instance<ThemeMusicService>();
-  final _pluginSyncService = GetIt.instance<PluginSyncService>();
   final _connectivity = GetIt.instance.isRegistered<ConnectivityService>()
       ? GetIt.instance<ConnectivityService>()
       : null;
@@ -210,7 +205,6 @@ class _HomeShellState extends State<_HomeShell>
   String _lastHiddenCW = '{}';
   String _lastHiddenNU = '{}';
   String _lastBlockedParentalRatings = '';
-  bool _lastSeerrAvailable = false;
   bool _themeMusicRegistered = false;
   String? _lastObservedPath;
   ModalRoute<dynamic>? _observedRoute;
@@ -260,7 +254,6 @@ class _HomeShellState extends State<_HomeShell>
     _lastBlockedParentalRatings = _userPrefs.get(
       UserPreferences.blockedParentalRatings,
     );
-    _lastSeerrAvailable = _pluginSyncService.seerrAvailable;
     _lastEnableRadarrCalendar = _userPrefs.get(UserPreferences.enableRadarrCalendar);
     _lastEnableSonarrCalendar = _userPrefs.get(UserPreferences.enableSonarrCalendar);
     _lastMergeRadarrSonarrCalendars = _userPrefs.get(UserPreferences.mergeRadarrSonarrCalendars);
@@ -274,7 +267,6 @@ class _HomeShellState extends State<_HomeShell>
     _lastSonarrCalendarHideDownloaded = _userPrefs.get(UserPreferences.sonarrCalendarHideDownloaded);
     _lastDateFormat = _userPrefs.get(UserPreferences.dateFormat);
 
-    _pluginSyncService.addListener(_onPluginSyncChanged);
     _userPrefs.addListener(_onPrefsChanged);
     _lastCanReachServer = _connectivity?.canReachServer ?? true;
     _connectivity?.addListener(_onServerReachabilityChanged);
@@ -409,7 +401,6 @@ class _HomeShellState extends State<_HomeShell>
     _backdropUrlNotifier.dispose();
     _isHoverPausedNotifier.dispose();
     _isScrolledToTopNotifier.dispose();
-    _pluginSyncService.removeListener(_onPluginSyncChanged);
     _userPrefs.removeListener(_onPrefsChanged);
     _connectivity?.removeListener(_onServerReachabilityChanged);
     if (_themeMusicRegistered) {
@@ -419,14 +410,6 @@ class _HomeShellState extends State<_HomeShell>
     super.dispose();
   }
 
-
-  void _onPluginSyncChanged() {
-    if (!mounted) return;
-    final seerrAvailable = _pluginSyncService.seerrAvailable;
-    if (seerrAvailable == _lastSeerrAvailable) return;
-    _lastSeerrAvailable = seerrAvailable;
-    _viewModel.refresh(newSectionsOnly: true);
-  }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -852,8 +835,6 @@ class _ContentRowsState extends State<_ContentRows>
   // Cache for non-focused row image URLs (independent of focus state). Cleared
   // with the extent cache on data/pref/scale change, and size-capped.
   final Map<String, String?> _rowImageUrlCache = {};
-  final Map<String, String> _dynamicBackdrops = {};
-  final Set<String> _fetchingBackdrops = {};
   final Map<int, double> _staticRowHeightCache = {};
   final ValueNotifier<int?> _activeFocusedRowNotifier = ValueNotifier(null);
   // Id of the row that last held focus. Unlike _activeFocusedRowIndex (which is
@@ -1675,16 +1656,12 @@ class _ContentRowsState extends State<_ContentRows>
   }
 
   /// What an outside card's trailer is looked up by. Null for cards that
-  /// aren't one movie or show, like genre tiles, shortcuts and calendar days.
+  /// aren't one movie or show, like calendar days.
   static ({String type, String? tmdbId, String? imdbId})? _outsideTrailerTitle(
     AggregatedItem item,
   ) {
     final raw = item.rawData;
-    if (raw.containsKey('SeerrShortcut') ||
-        raw.containsKey('FilterType') ||
-        raw.containsKey('CalendarDate')) {
-      return null;
-    }
+    if (raw.containsKey('CalendarDate')) return null;
     final type = switch (item.type) {
       'Movie' => 'movie',
       'Series' => 'tv',
@@ -2516,7 +2493,6 @@ class _ContentRowsState extends State<_ContentRows>
       v2ImageHeight,
       useSeriesThumbs,
       requestScale,
-      isPrefetch: true,
     );
     if (url == null || url.isEmpty) return;
     if (!_v2FocusPrefetchedUrls.add(url)) return;
@@ -2761,9 +2737,7 @@ class _ContentRowsState extends State<_ContentRows>
     if (isHomeRowModern(row, prefs)) {
       return modernImageHeight(posterSize, platformScale);
     }
-    final rowImageType = isSeerrFilterRow(row)
-        ? ImageType.thumb
-        : homeRowImageTypeForRow(row, prefs);
+    final rowImageType = homeRowImageTypeForRow(row, prefs);
     var maxImageHeight = 0.0;
     for (final item in row.items) {
       final aspectRatio = aspectRatioForRowItem(item, row, rowImageType);
@@ -3236,10 +3210,9 @@ class _ContentRowsState extends State<_ContentRows>
       );
       childHeight = squarePosterSide + (56 * metadataScale) + headroom;
     } else {
-      final isSeerrRowOverride = isSeerrFilterRow(row);
-      final rowImageType = isSeerrRowOverride
-          ? ImageType.thumb
-          : (isRowsV2 ? ImageType.poster : homeRowImageTypeForRow(row, prefs));
+      final rowImageType = isRowsV2
+          ? ImageType.poster
+          : homeRowImageTypeForRow(row, prefs);
       var maxCardHeight = 0.0;
       var maxImageHeight = 0.0;
       if (isRowsV2) {
@@ -4357,11 +4330,8 @@ class _ContentRowsState extends State<_ContentRows>
     double requestScale, {
     bool isMyMediaRow = false,
   }) {
-    // MediaType belongs in the key: a Seerr genre card takes the TMDB genre id
-    // as its item id, and a genre in both the movie row and the series row has
-    // the same id in each, so the second row would reuse the first row's image.
     final key =
-        '${item.serverId}|${item.id}|${item.rawData['MediaType']}'
+        '${item.serverId}|${item.id}'
         '|${imageType.index}|${height.round()}'
         '|$useSeriesThumbs|${requestScale.toStringAsFixed(2)}|$isMyMediaRow';
     final cached = _rowImageUrlCache[key];
@@ -4498,15 +4468,11 @@ class _ContentRowsState extends State<_ContentRows>
     if (row.id == 'merged_calendar') return l10n.arrCalendarsRowSubtitle;
     if (row.id == 'radarr_calendar') return l10n.radarrCalendarRowSubtitle;
     if (row.id == 'sonarr_calendar') return l10n.sonarrCalendarRowSubtitle;
-    if (row.id.startsWith('seerr_')) return seerrBrand(l10n.seerrDiscoveryRows);
     if (row.id.startsWith('tmdb_')) return 'TMDB Lists';
     if (row.id.startsWith('imdb_')) return 'IMDb List';
     if (row.id == 'seasonal') return l10n.seasonalRowSubtitle;
 
     final config = widget.prefs.homeSectionsConfig.firstWhereOrNull((c) => c.stableId == row.id);
-    if (config != null && config.pluginSource == HomeSectionPluginSource.seerr) {
-      return seerrBrand(l10n.seerrDiscoveryRows);
-    }
     if (config != null &&
         config.isPluginDynamic &&
         config.pluginSource == HomeSectionPluginSource.server) {
@@ -5543,14 +5509,11 @@ class _ContentRowsState extends State<_ContentRows>
       prefs.get(UserPreferences.mediaTypeBadgeBehavior),
       row.items,
     );
-    final isSeerrRowOverride = isSeerrFilterRow(row);
     final isRowsV2 = isHomeRowModern(row, prefs);
     final isModernMyMediaStatic = isHomeRowModernMyMediaStatic(row, prefs);
-    final rowImageType = isSeerrRowOverride
-        ? ImageType.thumb
-        : (isRowsV2
-            ? (isModernMyMediaStatic ? ImageType.thumb : ImageType.poster)
-            : homeRowImageTypeForRow(row, prefs));
+    final rowImageType = isRowsV2
+        ? (isModernMyMediaStatic ? ImageType.thumb : ImageType.poster)
+        : homeRowImageTypeForRow(row, prefs);
     final desktopScale = _desktopUiScaleFactor();
     final metadataScale = desktopScale;
     final platformScale = homeRowPlatformScale(desktopScale);
@@ -5784,7 +5747,7 @@ class _ContentRowsState extends State<_ContentRows>
           } else if (row.rowType == HomeRowType.studios && row.id == 'studios') {
             context.push(Destinations.studio(item.name, serverId: item.serverId));
           } else if (item.serverId == 'seerr') {
-            _navigateToSeerrItem(context, item);
+            _showNotHereYet(context, item);
           } else {
             context.push(
               Destinations.itemOrPhoto(
@@ -5916,7 +5879,7 @@ class _ContentRowsState extends State<_ContentRows>
                     } else if (row.rowType == HomeRowType.studios && row.id == 'studios') {
                       context.push(Destinations.studio(item.name, serverId: item.serverId));
                     } else if (item.serverId == 'seerr') {
-                      _navigateToSeerrItem(context, item);
+                      _showNotHereYet(context, item);
                     } else {
                       context.push(
                         Destinations.itemOrPhoto(
@@ -6017,25 +5980,19 @@ class _ContentRowsState extends State<_ContentRows>
             cardSubtitleWidget = null;
           }
 
-                  // Seerr genre cards print their name across the artwork,
-                  // the way the Jellyfin genre row does.
-                  final isSeerrGenreCard =
-                      isSeerrFilterRow(row) && item.type == 'Genre';
                   final isWatchingNow = row.id == 'mdblist_watching_now';
                   final card = MediaCard(
-                    animeMarkerItemId: (isSeerrGenreCard || isWatchingNow) ? null : item.id,
+                    animeMarkerItemId: isWatchingNow ? null : item.id,
                     posterBadgeItemId:
-                        isSeerrGenreCard || isWatchingNow || item.serverId == 'seerr'
+                        isWatchingNow || item.serverId == 'seerr'
                         ? null
                         : item.id,
-                    recordingItemId: (isSeerrGenreCard || isWatchingNow) ? null : item.id,
+                    recordingItemId: isWatchingNow ? null : item.id,
                     title: isWatchingNow ? item.name : cardTitle,
                     showLabel: !isWatchingNow,
                     imageOverlays: isWatchingNow
                         ? _buildWatchingNowOverlays(item, l10n)
-                        : (isSeerrGenreCard
-                            ? [Positioned.fill(child: SeerrGenreLabel(name: item.name))]
-                            : const <Widget>[]),
+                        : const <Widget>[],
                     imageUnderlays: [
                       if (glide != null &&
                           canUseExpandedV2Card &&
@@ -6069,8 +6026,8 @@ class _ContentRowsState extends State<_ContentRows>
                     width: width,
                     aspectRatio: ar,
                     // Safe to compare doubles here, since ar is assigned
-                    // this same constant and audio and Seerr filter rows
-                    // already get a different ratio.
+                    // this same constant and audio rows already get a
+                    // different ratio.
                     isBanner: ar == kBannerAspectRatio,
                     classicHomeLabel: !isRowsV2,
                     isFavorite: item.isFavorite,
@@ -6079,8 +6036,7 @@ class _ContentRowsState extends State<_ContentRows>
                     playedPercentage: hideWatchProgress ? null : item.playedPercentage,
                     watchedBehavior: watchedBehavior,
                     itemType: item.type,
-                    seerrMediaType: showMediaTypeBadges ? item.seerrMediaType : null,
-                    seerrStatus: item.seerrStatus,
+                    mediaTypeBadge: showMediaTypeBadges ? item.seerrMediaType : null,
                     isGenreFallback: (row.rowType == HomeRowType.genres && row.id == 'genres') &&
                         (() {
                           final primaryAr = item.rawData['PrimaryImageAspectRatio'] as num?;
@@ -6684,44 +6640,17 @@ class _ContentRowsState extends State<_ContentRows>
     );
   }
 
-  static void _navigateToSeerrItem(BuildContext context, AggregatedItem item) {
-    final shortcut = SeerrShortcut.fromName(
-      item.rawData['SeerrShortcut'] as String?,
-    );
-    if (shortcut != null) {
-      shortcut.open(context);
-      return;
-    }
-    final filterType = item.rawData['FilterType'] as String?;
-    if (filterType != null) {
-      final mediaType = item.rawData['MediaType'] as String? ?? 'movie';
-      final filterName = item.rawData['FilterName'] as String? ?? item.name;
-      final uri = Uri(
-        path: Destinations.seerrBrowse,
-        queryParameters: {
-          'filterId': item.id,
-          'filterName': filterName,
-          'mediaType': mediaType,
-          'filterType': filterType,
-        },
-      );
-      context.push(uri.toString());
-    } else {
-      final mediaType = item.type == 'Series' || item.type == 'tv'
-          ? 'tv'
-          : 'movie';
-      // External rows key their items by IMDb id where they have one, which
-      // Seerr can only resolve by searching, and a search can land on the
-      // wrong title. The TMDB id these items also carry names exactly one.
-      final tmdbId = item.tmdbId;
-      context.push(
-        Destinations.seerrMedia(
-          tmdbId != null && tmdbId.isNotEmpty ? tmdbId : item.id,
-          mediaType: mediaType,
-          title: item.name,
+  /// An outside title the library lacks has no page to open.
+  static void _showNotHereYet(BuildContext context, AggregatedItem item) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context).kostvDiscoverNotHereYet(item.name),
+          ),
         ),
       );
-    }
   }
 
   static bool _isContinueWatchingOrNextUp(HomeRow row) =>
@@ -6753,60 +6682,17 @@ class _ContentRowsState extends State<_ContentRows>
   }
 
   /// Whether a stored path already points at artwork. External rows hold either
-  /// a TMDB path or a full URL, and both mean there is nothing to look up.
-  static bool _hasSeerrBackdrop(String? path) =>
+  /// a TMDB path or a full URL.
+  static bool _hasExternalBackdrop(String? path) =>
       path != null && (path.startsWith('/') || path.startsWith('http'));
-
-  void _fetchBackdropIfNeeded(AggregatedItem item) async {
-    if (item.serverId != 'seerr') return;
-    if (_hasSeerrBackdrop(item.rawData['BackdropPath'] as String?)) return;
-    if (_dynamicBackdrops.containsKey(item.id)) return;
-    if (!_fetchingBackdrops.add(item.id)) return;
-
-    try {
-      final repo = await GetIt.instance.getAsync<SeerrRepository>();
-      await repo.ensureInitialized();
-
-      final title = item.rawData['Name'] as String?;
-      final searchPage = await repo.search(title != null && title.isNotEmpty ? title : item.id);
-      if (searchPage.results.isNotEmpty) {
-        final year = item.rawData['ProductionYear'] as int?;
-        var matchedItem = searchPage.results.first;
-        if (year != null) {
-          for (final result in searchPage.results) {
-            final resultYearStr = result.releaseDate ?? result.firstAirDate;
-            if (resultYearStr != null && resultYearStr.length >= 4) {
-              final resultYear = int.tryParse(resultYearStr.substring(0, 4));
-              if (resultYear == year) {
-                matchedItem = result;
-                break;
-              }
-            }
-          }
-        }
-        if (matchedItem.backdropPath != null && matchedItem.backdropPath!.isNotEmpty) {
-          if (mounted) {
-            setState(() {
-              _dynamicBackdrops[item.id] = matchedItem.backdropPath!;
-            });
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('[HomeScreen] Failed to fetch backdrop for ${item.id}: $e');
-    } finally {
-      _fetchingBackdrops.remove(item.id);
-    }
-  }
 
   String? _resolveV2FocusedImageUrl(
     AggregatedItem item,
     ImageApi imageApi,
     double height,
     bool useSeriesThumbs,
-    double requestScale, {
-    bool isPrefetch = false,
-  }) {
+    double requestScale,
+  ) {
     if (item.type == 'Genre' || item.type == 'MusicGenre') {
       final parentBackdropItemId = item.parentBackdropItemId;
       final parentBackdropTags = item.parentBackdropImageTags;
@@ -6825,20 +6711,13 @@ class _ContentRowsState extends State<_ContentRows>
     }
 
     if (item.serverId == 'seerr') {
-      final thumb = seerrItemThumbUrl(item);
+      final thumb = externalItemThumbUrl(item);
       if (thumb != null) return thumb;
-      if (!isPrefetch) {
-        _fetchBackdropIfNeeded(item);
-      }
-      final dynamicBackdrop = _dynamicBackdrops[item.id];
-      if (dynamicBackdrop != null) {
-        return seerrTmdbImageUrl(dynamicBackdrop, 1280);
-      }
       final backdrop = item.rawData['BackdropPath'] as String?;
-      if (_hasSeerrBackdrop(backdrop)) {
-        return seerrTmdbImageUrl(backdrop, 1280);
+      if (_hasExternalBackdrop(backdrop)) {
+        return externalTmdbImageUrl(backdrop, 1280);
       }
-      return seerrTmdbImageUrl(item.rawData['PosterPath'] as String?, 300);
+      return externalTmdbImageUrl(item.rawData['PosterPath'] as String?, 300);
     }
     final maxW = artworkRequestWidth(
       height * 16 / 9,

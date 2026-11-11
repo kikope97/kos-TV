@@ -21,7 +21,9 @@ import '../../widgets/adaptive/adaptive_dialog.dart';
 import '../../widgets/overlay_sheet.dart';
 import '../../widgets/pin_entry_dialog.dart';
 import '../../widgets/focus/request_initial_focus.dart';
-import '../../widgets/kos_intro.dart';
+import '../../widgets/kos_intro_video.dart';
+import '../home/home_view_model.dart';
+import '../../../data/services/stremfin/stremfin_service.dart';
 
 class StartupScreen extends StatefulWidget {
   final bool bootstrapActiveSession;
@@ -88,6 +90,7 @@ class _StartupScreenState extends State<StartupScreen> {
     await serverRepo.loadStoredServers();
 
     if (widget.bootstrapActiveSession && session.activeUserId != null) {
+      _preloadHome();
       await _waitForNetworkSettle();
       await _introDone.future;
       if (mounted) context.go(Destinations.home);
@@ -122,6 +125,7 @@ class _StartupScreenState extends State<StartupScreen> {
     final restored = (authPrefs.shouldAlwaysAuthenticate || pinEnabledForAutoLoginUser)
         ? false
         : await session.restoreSession();
+    if (restored && session.activeUserId != null) _preloadHome();
 
     await _introDone.future;
     if (!mounted) return;
@@ -197,6 +201,21 @@ class _StartupScreenState extends State<StartupScreen> {
     context.go('${Destinations.login}?serverId=${server.id}');
   }
 
+  /// Kos TV: while the opening plays, Home's rows and the first page of
+  /// Discover load behind it, so the person lands on everything ready.
+  void _preloadHome() {
+    final getIt = GetIt.instance;
+    unawaited(() async {
+      await _waitForNetworkSettle();
+      if (getIt.isRegistered<HomeViewModel>()) {
+        await getIt<HomeViewModel>().load();
+      }
+    }());
+    if (getIt.isRegistered<StremfinService>()) {
+      unawaited(getIt<StremfinService>().prefetch());
+    }
+  }
+
   void _retryKostvServer() {
     setState(() => _kostvServerFailed = false);
     _openKostvServer();
@@ -231,7 +250,7 @@ class _StartupScreenState extends State<StartupScreen> {
     final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: Colors.black,
-      body: KosIntro(
+      body: KosIntroVideo(
         onFinished: () {
           if (!_introDone.isCompleted) _introDone.complete();
         },

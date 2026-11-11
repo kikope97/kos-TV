@@ -90,8 +90,8 @@ class SyncedField {
 /// two preferences), mediaBarContentType (values outside the known set have to be rejected),
 /// sinceYouWatchedNumRows (an int on the wire against an enum locally), mdblistRatingSources
 /// and its homeRows and mediaBar copies (rating names are translated in both directions),
-/// homeSections and seerrRows (nested structures), and homeRowImageTypes (one preference
-/// per row, see [encodeHomeRowImageTypes]).
+/// homeSections (a nested structure), and homeRowImageTypes (one preference per row, see
+/// [encodeHomeRowImageTypes]).
 final List<SyncedField> syncedFields = <SyncedField>[
   SyncedField('hiddenContinueWatchingItems', UserPreferences.hiddenContinueWatchingItems, SyncCodec.text),
   SyncedField('hiddenNextUpSeries', UserPreferences.hiddenNextUpSeries, SyncCodec.text),

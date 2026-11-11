@@ -12,7 +12,6 @@ class NouveauSegmentedSelector<T> extends StatefulWidget {
   final List<T> values;
   final T? selectedValue;
   final String Function(T value) labelBuilder;
-  final Widget? Function(T value)? leadingBuilder;
   final ValueChanged<T> onValueActivated;
   final bool Function()? onNavigateUp;
   final bool Function()? onNavigateDown;
@@ -28,7 +27,6 @@ class NouveauSegmentedSelector<T> extends StatefulWidget {
     required this.selectedValue,
     required this.labelBuilder,
     required this.onValueActivated,
-    this.leadingBuilder,
     this.onNavigateUp,
     this.onNavigateDown,
     this.allowLeftEdgeExit = false,
@@ -228,7 +226,6 @@ class NouveauSegmentedSelectorState<T>
     final node = _focusNodeFor(value);
     final selected = value == widget.selectedValue;
     final hovered = value == _hoveredValue;
-    final leading = widget.leadingBuilder?.call(value);
 
     final theme = Theme.of(context);
     final foreground = AppColorScheme.onSurface;
@@ -338,7 +335,6 @@ class NouveauSegmentedSelectorState<T>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    if (leading != null) ...[leading, const SizedBox(width: 8)],
                     Flexible(
                       child: AnimatedDefaultTextStyle(
                         duration: const Duration(milliseconds: 180),

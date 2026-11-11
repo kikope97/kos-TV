@@ -21,7 +21,6 @@ import '../../data/repositories/offline_repository.dart';
 import '../../data/services/blocked_content_gate.dart';
 import '../../data/services/library_scope_service.dart';
 import '../../data/services/media_server_client_factory.dart';
-import '../../data/repositories/seerr_repository.dart';
 import '../../data/repositories/tmdb_repository.dart';
 import '../../data/repositories/user_views_repository.dart';
 import '../../data/repositories/search_repository.dart';
@@ -63,10 +62,8 @@ import '../../data/services/sync_service.dart';
 import '../../data/services/user_data_sync.dart';
 import '../../data/services/theme_music_service.dart';
 import '../../data/viewmodels/media_bar_view_model.dart';
-import '../../data/viewmodels/seerr_discover_view_model.dart';
 import '../../playback/current_playing_item.dart';
 import '../../playback/external_player_service.dart';
-import '../../preference/seerr_preferences.dart';
 import '../../preference/user_preferences.dart';
 import '../../ui/navigation/app_router.dart';
 import '../../ui/navigation/destinations.dart';
@@ -86,8 +83,6 @@ void resetUserScopedSingletons() {
     }
   }
 
-  unregister<SeerrDiscoverViewModel>();
-  unregister<SeerrRepository>();
   unregister<HomeViewModel>();
   unregister<MediaBarViewModel>();
   unregister<MultiServerRepository>();
@@ -280,12 +275,6 @@ void registerAppModule() {
     ),
     dispose: (service) => service.dispose(),
   );
-  _getIt.registerLazySingleton(
-    () => SeerrPreferences(
-      _getIt<PreferenceStore>(),
-      _getIt<SessionRepository>(),
-    ),
-  );
   _getIt.registerLazySingleton<SyncService>(
     () => SyncService(_getIt<OfflineRepository>(), _getIt<PendingRatingStore>()),
   );
@@ -412,19 +401,6 @@ void _registerUserScopedSingletons() {
       _getIt<UserPreferences>(),
       _getIt<PlaybackManager>(),
       _getIt<PlaybackArbiter>(),
-    ),
-  );
-  _getIt.registerLazySingletonAsync<SeerrRepository>(
-    () async => SeerrRepository(
-      _getIt<PreferenceStore>(),
-      _getIt<SessionRepository>(),
-      _getIt<MediaServerClient>(),
-    ),
-  );
-  _getIt.registerLazySingletonAsync<SeerrDiscoverViewModel>(
-    () async => SeerrDiscoverViewModel(
-      await _getIt.getAsync<SeerrRepository>(),
-      _getIt<SeerrPreferences>(),
     ),
   );
 }

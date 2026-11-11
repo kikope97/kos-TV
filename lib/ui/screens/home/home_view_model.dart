@@ -9,6 +9,7 @@ import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
 import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 import 'package:collection/collection.dart';
+import 'package:dio/dio.dart' show BaseOptions, Dio, Options;
 import 'package:intl/intl.dart';
 
 import '../../../data/models/aggregated_item.dart';
@@ -19,6 +20,7 @@ import '../../../data/repositories/user_views_repository.dart';
 import '../../../data/utils/latest_media_row_normalizer.dart';
 import '../../../data/services/connectivity_service.dart';
 import '../../../data/services/home_row_cache_store.dart';
+import '../../../data/services/moonbase_endpoint.dart';
 import '../../../data/services/row_data_source.dart';
 import '../../../data/services/topshelf_service.dart';
 import '../../../data/services/tv_channels_service.dart';
@@ -31,24 +33,17 @@ import '../../../preference/home_section_config.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../data/repositories/mdblist_repository.dart';
-import '../../../data/repositories/seerr_repository.dart';
 import '../../../data/repositories/tmdb_repository.dart';
 import '../../../data/services/plugin_sync_service.dart';
-import '../../../data/services/seerr/seerr_api_models.dart';
-import '../../../data/services/seerr/seerr_discover_sliders.dart';
 import '../../../data/utils/bounded_concurrency.dart';
 import '../../../util/calendar_days.dart';
 import '../../../util/date_format_util.dart';
 import '../../../util/game_library.dart';
 import '../../../util/platform_detection.dart';
 import '../../../util/server_url.dart';
-import '../../../preference/seerr_preferences.dart';
-import '../../../data/viewmodels/seerr_discover_view_model.dart';
-import '../../widgets/seerr/seerr_shortcuts.dart';
 import '../../../data/services/custom_external_lists_service.dart';
 import '../../../data/utils/blocked_ratings.dart';
 import '../../../util/seasonal_country.dart';
-import '../../../util/seerr_genre_art.dart';
 import '../../util/home_row_title_localizer.dart';
 import '../../navigation/app_router.dart' show PlayerRouteObserver;
 
@@ -273,7 +268,7 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   /// Sections the offline downloads catalog can answer. Everything else
-  /// (live TV, seerr/tmdb/arr externals, server plugin rows) is skipped when
+  /// (live TV, tmdb/arr externals, server plugin rows) is skipped when
   /// the server is unreachable.
   static bool _isOfflineCapableSection(HomeSectionConfig c) {
     if (!c.isBuiltin) return false;
@@ -287,25 +282,9 @@ class HomeViewModel extends ChangeNotifier {
       HomeSectionType.sonarrCalendar ||
       HomeSectionType.seasonal =>
         false,
-      final t when _isSeerrSectionType(t) || _isTmdbSectionType(t) => false,
+      final t when _isTmdbSectionType(t) => false,
       _ => true,
     };
-  }
-
-  static bool _isSeerrSectionType(HomeSectionType type) {
-    return type == HomeSectionType.seerrShortcuts ||
-        type == HomeSectionType.seerrRecentRequests ||
-        type == HomeSectionType.seerrWatchlist ||
-        type == HomeSectionType.seerrRecentlyAdded ||
-        type == HomeSectionType.seerrPopularMovies ||
-        type == HomeSectionType.seerrUpcomingMovies ||
-        type == HomeSectionType.seerrPopularSeries ||
-        type == HomeSectionType.seerrUpcomingSeries ||
-        type == HomeSectionType.seerrTrending ||
-        type == HomeSectionType.seerrMovieGenres ||
-        type == HomeSectionType.seerrStudios ||
-        type == HomeSectionType.seerrSeriesGenres ||
-        type == HomeSectionType.seerrNetworks;
   }
 
   static bool _isTmdbSectionType(HomeSectionType type) =>
@@ -412,9 +391,8 @@ class HomeViewModel extends ChangeNotifier {
     required bool couldReachServer,
   }) => canReachServer && !couldReachServer;
 
-  /// [newSectionsOnly] loads just the sections that have no rows yet, such as
-  /// the Seerr rows that show up once Seerr signs in, and leaves the others
-  /// as they are.
+  /// [newSectionsOnly] loads just the sections that have no rows yet and
+  /// leaves the others as they are.
   Future<void> load({
     bool preserveExisting = false,
     bool forceRefresh = false,
@@ -487,8 +465,6 @@ class HomeViewModel extends ChangeNotifier {
         UserPreferences.displayPlaylistsRows,
       );
       final showAudioRows = _prefs.get(UserPreferences.displayAudioRows);
-      final showSeerrRows = GetIt.instance<PluginSyncService>().seerrAvailable;
-      final seerrPrefs = GetIt.instance<SeerrPreferences>();
       final showImdbRows = _isAnyImdbSectionEnabled();
       final showTmdbRows = _isAnyTmdbSectionEnabled();
       final showSinceYouWatched = _prefs.get(UserPreferences.displaySinceYouWatchedRows);
@@ -525,8 +501,6 @@ class HomeViewModel extends ChangeNotifier {
                             c.pluginSource ==
                                 HomeSectionPluginSource.playlists))) &&
                 (showAudioRows || !_isAudioSectionType(c.type)) &&
-                (!_isSeerrSectionType(c.type) || (showSeerrRows && seerrPrefs.isSeerrHomeRowEnabled(c.type))) &&
-                (showSeerrRows || !isSeerrSliderSection(c)) &&
                 (!_isImdbSectionType(c.type) || (showImdbRows && _isImdbSectionEnabled(c.type))) &&
                 (!_isTmdbSectionType(c.type) || (showTmdbRows && _isTmdbSectionEnabled(c.type))) &&
                 (c.type != HomeSectionType.radarrCalendar || _prefs.get(UserPreferences.enableRadarrCalendar)) &&
@@ -966,32 +940,6 @@ class HomeViewModel extends ChangeNotifier {
         return row.rowType == HomeRowType.liveTvOnNow && row.id == 'onNow';
       case HomeSectionType.activeRecordings:
         return row.rowType == HomeRowType.activeRecordings;
-      case HomeSectionType.seerrShortcuts:
-        return row.id == 'seerr_shortcuts';
-      case HomeSectionType.seerrRecentRequests:
-        return row.id == 'seerr_recent_requests';
-      case HomeSectionType.seerrWatchlist:
-        return row.id == 'seerr_watchlist';
-      case HomeSectionType.seerrRecentlyAdded:
-        return row.id == 'seerr_recently_added';
-      case HomeSectionType.seerrPopularMovies:
-        return row.id == 'seerr_popular_movies';
-      case HomeSectionType.seerrUpcomingMovies:
-        return row.id == 'seerr_upcoming_movies';
-      case HomeSectionType.seerrPopularSeries:
-        return row.id == 'seerr_popular_series';
-      case HomeSectionType.seerrUpcomingSeries:
-        return row.id == 'seerr_upcoming_series';
-      case HomeSectionType.seerrTrending:
-        return row.id == 'seerr_trending';
-      case HomeSectionType.seerrMovieGenres:
-        return row.id == 'seerr_movie_genres';
-      case HomeSectionType.seerrStudios:
-        return row.id == 'seerr_studios';
-      case HomeSectionType.seerrSeriesGenres:
-        return row.id == 'seerr_series_genres';
-      case HomeSectionType.seerrNetworks:
-        return row.id == 'seerr_networks';
       case HomeSectionType.imdbTop250Movies:
         return row.id == 'imdb_top_250_movies';
       case HomeSectionType.imdbTop250TvShows:
@@ -1191,17 +1139,6 @@ class HomeViewModel extends ChangeNotifier {
     _inFlightPagingRowIds.add(row.id);
     _rowsPagedThisLoad.add(row.id);
     try {
-      final seerrType = _seerrRowTypeForId(row.id);
-      if (seerrType != null) {
-        await _loadMoreSeerrRow(rowIndex, seerrType);
-        return;
-      }
-      final slider = _seerrSliderRows[row.id];
-      if (slider != null) {
-        await _loadMoreSeerrSliderRow(rowIndex, slider);
-        return;
-      }
-
       // The aggregated multi-server rows take no offset, so they keep the
       // paging they already had.
       if (row.id == 'resume' &&
@@ -1283,7 +1220,6 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   Future<List<HomeRow>> _loadConfig(HomeSectionConfig cfg, {bool forceRefresh = false}) async {
-    if (isSeerrSliderSection(cfg)) return _loadSeerrSliderRow(cfg);
     if (cfg.isPluginDynamic) {
       final section = cfg.pluginSection;
       if (section == null || section.isEmpty) return const [];
@@ -1382,32 +1318,6 @@ class HomeViewModel extends ChangeNotifier {
         return const {'studios'};
       case HomeSectionType.activeRecordings:
         return const {'activeRecordings'};
-      case HomeSectionType.seerrShortcuts:
-        return const {'seerrShortcuts'};
-      case HomeSectionType.seerrRecentRequests:
-        return const {'seerrRecentRequests'};
-      case HomeSectionType.seerrWatchlist:
-        return const {'seerrWatchlist'};
-      case HomeSectionType.seerrRecentlyAdded:
-        return const {'seerrRecentlyAdded'};
-      case HomeSectionType.seerrPopularMovies:
-        return const {'seerrPopularMovies'};
-      case HomeSectionType.seerrUpcomingMovies:
-        return const {'seerrUpcomingMovies'};
-      case HomeSectionType.seerrPopularSeries:
-        return const {'seerrPopularSeries'};
-      case HomeSectionType.seerrUpcomingSeries:
-        return const {'seerrUpcomingSeries'};
-      case HomeSectionType.seerrTrending:
-        return const {'seerrTrending'};
-      case HomeSectionType.seerrMovieGenres:
-        return const {'seerrMovieGenres'};
-      case HomeSectionType.seerrStudios:
-        return const {'seerrStudios'};
-      case HomeSectionType.seerrSeriesGenres:
-        return const {'seerrSeriesGenres'};
-      case HomeSectionType.seerrNetworks:
-        return const {'seerrNetworks'};
       case HomeSectionType.audioArtists:
         return const {'audioArtists'};
       case HomeSectionType.audioAlbums:
@@ -1733,80 +1643,6 @@ class HomeViewModel extends ChangeNotifier {
       case HomeSectionType.mediaBar:
         _mediaBarViewModel.load();
         return [];
-      case HomeSectionType.seerrShortcuts:
-        return [await _loadSeerrShortcutsRow(l10n)];
-      case HomeSectionType.seerrRecentRequests:
-        return _loadSeerrRow(
-          SeerrRowType.recentRequests,
-          l10n.recentRequests,
-          'seerr_recent_requests',
-        );
-      case HomeSectionType.seerrWatchlist:
-        return _loadSeerrRow(
-          SeerrRowType.yourWatchlist,
-          l10n.yourWatchlist,
-          'seerr_watchlist',
-        );
-      case HomeSectionType.seerrRecentlyAdded:
-        return _loadSeerrRow(
-          SeerrRowType.recentlyAdded,
-          l10n.recentlyAdded,
-          'seerr_recently_added',
-        );
-      case HomeSectionType.seerrPopularMovies:
-        return _loadSeerrRow(
-          SeerrRowType.popularMovies,
-          l10n.popularMovies,
-          'seerr_popular_movies',
-        );
-      case HomeSectionType.seerrUpcomingMovies:
-        return _loadSeerrRow(
-          SeerrRowType.upcomingMovies,
-          l10n.upcomingMovies,
-          'seerr_upcoming_movies',
-        );
-      case HomeSectionType.seerrPopularSeries:
-        return _loadSeerrRow(
-          SeerrRowType.popularSeries,
-          l10n.popularSeries,
-          'seerr_popular_series',
-        );
-      case HomeSectionType.seerrUpcomingSeries:
-        return _loadSeerrRow(
-          SeerrRowType.upcomingSeries,
-          l10n.upcomingSeries,
-          'seerr_upcoming_series',
-        );
-      case HomeSectionType.seerrTrending:
-        return _loadSeerrRow(
-          SeerrRowType.trending,
-          l10n.trending,
-          'seerr_trending',
-        );
-      case HomeSectionType.seerrMovieGenres:
-        return _loadSeerrRow(
-          SeerrRowType.movieGenres,
-          l10n.movieGenres,
-          'seerr_movie_genres',
-        );
-      case HomeSectionType.seerrStudios:
-        return _loadSeerrRow(
-          SeerrRowType.studios,
-          l10n.studios,
-          'seerr_studios',
-        );
-      case HomeSectionType.seerrSeriesGenres:
-        return _loadSeerrRow(
-          SeerrRowType.seriesGenres,
-          l10n.seriesGenres,
-          'seerr_series_genres',
-        );
-      case HomeSectionType.seerrNetworks:
-        return _loadSeerrRow(
-          SeerrRowType.networks,
-          l10n.networks,
-          'seerr_networks',
-        );
       case HomeSectionType.radarrCalendar:
         return _loadRadarrCalendarRow(forceRefresh: forceRefresh);
       case HomeSectionType.sonarrCalendar:
@@ -2144,92 +1980,6 @@ class HomeViewModel extends ChangeNotifier {
           id: 'libraryTilesSmall',
           title: l10n.myMedia,
           rowType: HomeRowType.libraryTilesSmall,
-          isLoading: true,
-        );
-      case HomeSectionType.seerrRecentRequests:
-        return HomeRow(
-          id: 'seerr_recent_requests',
-          title: l10n.recentRequests,
-          rowType: HomeRowType.pluginDynamic,
-          isLoading: true,
-        );
-      case HomeSectionType.seerrWatchlist:
-        return HomeRow(
-          id: 'seerr_watchlist',
-          title: l10n.yourWatchlist,
-          rowType: HomeRowType.pluginDynamic,
-          isLoading: true,
-        );
-      case HomeSectionType.seerrRecentlyAdded:
-        return HomeRow(
-          id: 'seerr_recently_added',
-          title: l10n.recentlyAdded,
-          rowType: HomeRowType.pluginDynamic,
-          isLoading: true,
-        );
-      case HomeSectionType.seerrPopularMovies:
-        return HomeRow(
-          id: 'seerr_popular_movies',
-          title: l10n.popularMovies,
-          rowType: HomeRowType.pluginDynamic,
-          isLoading: true,
-        );
-      case HomeSectionType.seerrUpcomingMovies:
-        return HomeRow(
-          id: 'seerr_upcoming_movies',
-          title: l10n.upcomingMovies,
-          rowType: HomeRowType.pluginDynamic,
-          isLoading: true,
-        );
-      case HomeSectionType.seerrPopularSeries:
-        return HomeRow(
-          id: 'seerr_popular_series',
-          title: l10n.popularSeries,
-          rowType: HomeRowType.pluginDynamic,
-          isLoading: true,
-        );
-      case HomeSectionType.seerrUpcomingSeries:
-        return HomeRow(
-          id: 'seerr_upcoming_series',
-          title: l10n.upcomingSeries,
-          rowType: HomeRowType.pluginDynamic,
-          isLoading: true,
-        );
-      case HomeSectionType.seerrShortcuts:
-        return _seerrShortcutsRow(l10n);
-      case HomeSectionType.seerrTrending:
-        return HomeRow(
-          id: 'seerr_trending',
-          title: l10n.trending,
-          rowType: HomeRowType.pluginDynamic,
-          isLoading: true,
-        );
-      case HomeSectionType.seerrMovieGenres:
-        return HomeRow(
-          id: 'seerr_movie_genres',
-          title: l10n.movieGenres,
-          rowType: HomeRowType.pluginDynamic,
-          isLoading: true,
-        );
-      case HomeSectionType.seerrStudios:
-        return HomeRow(
-          id: 'seerr_studios',
-          title: l10n.studios,
-          rowType: HomeRowType.pluginDynamic,
-          isLoading: true,
-        );
-      case HomeSectionType.seerrSeriesGenres:
-        return HomeRow(
-          id: 'seerr_series_genres',
-          title: l10n.seriesGenres,
-          rowType: HomeRowType.pluginDynamic,
-          isLoading: true,
-        );
-      case HomeSectionType.seerrNetworks:
-        return HomeRow(
-          id: 'seerr_networks',
-          title: l10n.networks,
-          rowType: HomeRowType.pluginDynamic,
           isLoading: true,
         );
       case HomeSectionType.radarrCalendar:
@@ -2647,630 +2397,6 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  static const _seerrEnrichConcurrency = 5;
-  static const _seerrRowIdPrefix = 'seerr_';
-
-  /// Last page fetched per Seerr row. Seerr counts in pages where the rest of
-  /// the home rows count in items, so this can't share `_rowOffsets`.
-  final Map<String, int> _seerrRowPages = {};
-
-  /// The live slider behind each Seerr slider row, kept for paging.
-  final Map<String, SeerrDiscoverSlider> _seerrSliderRows = {};
-
-  /// A row for a slider an admin set up on Seerr's discover page. One Seerr
-  /// no longer has, or has switched off, is left off Home rather than shown
-  /// empty.
-  Future<List<HomeRow>> _loadSeerrSliderRow(HomeSectionConfig cfg) async {
-    try {
-      final repo = await GetIt.instance.getAsync<SeerrRepository>();
-      await repo.ensureInitialized();
-      if (!repo.isAvailable) return const [];
-
-      final slider = findSeerrSliderFor(cfg, await repo.getDiscoverSliders());
-      if (slider == null || !slider.isSupported) return const [];
-
-      final page = await repo.getSliderPage(slider);
-      final items = applyExternalRowSort(
-        _seerrAggregatedItems(
-          page.results,
-          null,
-          GetIt.instance<SeerrPreferences>().blockNsfw,
-        ),
-        _prefs.get(UserPreferences.seerrRowsSortBy),
-        _prefs.get(UserPreferences.seerrRowsSortOrder),
-      );
-      _seerrRowPages[cfg.stableId] = 1;
-      _seerrSliderRows[cfg.stableId] = slider;
-      return [
-        _seerrRow(
-          cfg.stableId,
-          slider.title,
-          items,
-          totalCount: page.totalPages > 1 ? items.length + 1 : items.length,
-        ),
-      ];
-    } catch (e) {
-      debugPrint('[SeerrHomeRow] Failed to load Seerr slider row: $e');
-      return const [];
-    }
-  }
-
-  /// Appends the next page of a slider row, the way [_loadMoreSeerrRow] does
-  /// for the built-in Seerr rows.
-  Future<void> _loadMoreSeerrSliderRow(
-    int rowIndex,
-    SeerrDiscoverSlider slider,
-  ) async {
-    final row = _rows[rowIndex];
-    final repo = await GetIt.instance.getAsync<SeerrRepository>();
-    await repo.ensureInitialized();
-    if (!repo.isAvailable) return;
-
-    final nextPage = (_seerrRowPages[row.id] ?? 1) + 1;
-    final page = await repo.getSliderPage(slider, page: nextPage);
-    _seerrRowPages[row.id] = nextPage;
-    _appendSeerrRowItems(
-      row,
-      page.results,
-      null,
-      exhausted: nextPage >= page.totalPages,
-    );
-  }
-
-  Future<List<HomeRow>> _loadSeerrRow(
-    SeerrRowType type,
-    String title,
-    String rowId,
-  ) async {
-    try {
-      final repo = await GetIt.instance.getAsync<SeerrRepository>();
-      final seerrPrefs = GetIt.instance<SeerrPreferences>();
-      await repo.ensureInitialized();
-      if (!repo.isAvailable) {
-        return [];
-      }
-
-      final blockNsfw = seerrPrefs.blockNsfw;
-      final limit = seerrPrefs.fetchLimit.limit;
-
-      List<SeerrDiscoverItem> rawItems = [];
-      var hasMorePages = false;
-
-      if (type == SeerrRowType.movieGenres) {
-        final genres = await repo.getGenreSliderMovies();
-        final items = [
-          for (final g in genres)
-            _seerrFilterItem(
-              id: g.id.toString(),
-              name: g.name,
-              imagePath: seerrGenreBackdropUrl(g.id, g.backdrops) ?? '',
-              type: 'Genre',
-              mediaType: 'movie',
-              filterType: 'genre',
-            ),
-        ];
-        return [
-          _seerrRow(
-            rowId,
-            title,
-            applyExternalRowSort(
-              items,
-              _prefs.get(UserPreferences.seerrRowsSortBy),
-              _prefs.get(UserPreferences.seerrRowsSortOrder),
-            ),
-          ),
-        ];
-      } else if (type == SeerrRowType.seriesGenres) {
-        final genres = await repo.getGenreSliderTv();
-        final items = [
-          for (final g in genres)
-            _seerrFilterItem(
-              id: g.id.toString(),
-              name: g.name,
-              imagePath: seerrGenreBackdropUrl(g.id, g.backdrops) ?? '',
-              type: 'Genre',
-              mediaType: 'tv',
-              filterType: 'genre',
-            ),
-        ];
-        return [
-          _seerrRow(
-            rowId,
-            title,
-            applyExternalRowSort(
-              items,
-              _prefs.get(UserPreferences.seerrRowsSortBy),
-              _prefs.get(UserPreferences.seerrRowsSortOrder),
-            ),
-          ),
-        ];
-      } else if (type == SeerrRowType.networks) {
-        final items = [
-          for (final n in SeerrDiscoverViewModel.popularNetworks)
-            _seerrFilterItem(
-              id: n.id.toString(),
-              name: n.name,
-              imagePath: n.logoPath ?? '',
-              type: 'Network',
-              mediaType: 'tv',
-              filterType: 'network',
-            ),
-        ];
-        return [
-          _seerrRow(
-            rowId,
-            title,
-            applyExternalRowSort(
-              items,
-              _prefs.get(UserPreferences.seerrRowsSortBy),
-              _prefs.get(UserPreferences.seerrRowsSortOrder),
-            ),
-          ),
-        ];
-      } else if (type == SeerrRowType.studios) {
-        final items = [
-          for (final s in SeerrDiscoverViewModel.popularStudios)
-            _seerrFilterItem(
-              id: s.id.toString(),
-              name: s.name,
-              imagePath: s.logoPath ?? '',
-              type: 'Studio',
-              mediaType: 'movie',
-              filterType: 'studio',
-            ),
-        ];
-        return [
-          _seerrRow(
-            rowId,
-            title,
-            applyExternalRowSort(
-              items,
-              _prefs.get(UserPreferences.seerrRowsSortBy),
-              _prefs.get(UserPreferences.seerrRowsSortOrder),
-            ),
-          ),
-        ];
-      } else if (type == SeerrRowType.recentRequests) {
-        final user = await repo.getCurrentUser();
-        final response = await repo.getRequests(
-          requestedBy: user.canViewAllRequests ? null : user.id,
-          limit: limit,
-        );
-        rawItems = await _enrichSeerrItems(
-          repo,
-          _seerrItemsFromRequests(response.results),
-        );
-        hasMorePages = (response.pageInfo?.pages ?? 1) > 1;
-      } else if (type == SeerrRowType.recentlyAdded) {
-        final media = await repo.getRecentlyAdded(limit: limit);
-        final mapped = media
-            .map(
-              (m) => SeerrDiscoverItem(
-                id: m.tmdbId ?? m.id,
-                title: m.title,
-                name: m.name,
-                overview: m.overview,
-                releaseDate: m.releaseDate,
-                firstAirDate: m.firstAirDate,
-                mediaType: m.mediaType,
-                posterPath: m.posterPath,
-                backdropPath: m.backdropPath,
-                mediaInfo: SeerrMediaInfo(
-                  id: m.id,
-                  tmdbId: m.tmdbId,
-                  status: m.status,
-                ),
-              ),
-            )
-            .toList();
-        rawItems = await _enrichSeerrItems(repo, mapped);
-      } else {
-        final page = await _loadSeerrPage(repo, type, page: 1, limit: limit);
-        if (page != null) {
-          rawItems = type == SeerrRowType.yourWatchlist
-              ? await _enrichSeerrItems(repo, page.results)
-              : page.results;
-          hasMorePages = page.totalPages > 1;
-        }
-      }
-
-      final items = applyExternalRowSort(
-        _seerrAggregatedItems(rawItems, type, blockNsfw),
-        _prefs.get(UserPreferences.seerrRowsSortBy),
-        _prefs.get(UserPreferences.seerrRowsSortOrder),
-      );
-      _seerrRowPages[rowId] = 1;
-
-      // Paging keys off `hasMore`, so a row with further pages has to claim a
-      // total above what it holds. The real total is no help because the
-      // filtering above drops items the count still includes.
-      return [
-        _seerrRow(
-          rowId,
-          title,
-          items,
-          totalCount: hasMorePages ? items.length + 1 : items.length,
-        ),
-      ];
-    } catch (e) {
-      debugPrint('[SeerrHomeRow] Failed to load Seerr row $type: $e');
-      return [];
-    }
-  }
-
-  /// Appends the next Seerr page to [rowIndex]. Called from [loadMoreForRow],
-  /// which owns the in-flight guard and the `hasMore` check.
-  Future<void> _loadMoreSeerrRow(int rowIndex, SeerrRowType type) async {
-    final row = _rows[rowIndex];
-    final repo = await GetIt.instance.getAsync<SeerrRepository>();
-    final seerrPrefs = GetIt.instance<SeerrPreferences>();
-    await repo.ensureInitialized();
-    if (!repo.isAvailable) return;
-
-    final limit = seerrPrefs.fetchLimit.limit;
-    final nextPage = (_seerrRowPages[row.id] ?? 1) + 1;
-
-    // Assume this is the last page until a response says otherwise, so a row
-    // without a paged endpoint stops asking rather than retrying forever.
-    var rawItems = const <SeerrDiscoverItem>[];
-    var exhausted = true;
-
-    if (type == SeerrRowType.recentRequests) {
-      final user = await repo.getCurrentUser();
-      final response = await repo.getRequests(
-        requestedBy: user.canViewAllRequests ? null : user.id,
-        limit: limit,
-        offset: (nextPage - 1) * limit,
-      );
-      rawItems = await _enrichSeerrItems(
-        repo,
-        _seerrItemsFromRequests(response.results),
-      );
-      exhausted = nextPage >= (response.pageInfo?.pages ?? nextPage);
-    } else {
-      final page = await _loadSeerrPage(
-        repo,
-        type,
-        page: nextPage,
-        limit: limit,
-      );
-      if (page != null) {
-        rawItems = type == SeerrRowType.yourWatchlist
-            ? await _enrichSeerrItems(repo, page.results)
-            : page.results;
-        exhausted = nextPage >= page.totalPages;
-      }
-    }
-
-    // Advance even when the page contributed nothing. Availability filtering can
-    // empty a whole page, and holding the pointer back would refetch that same
-    // page on every scroll instead of moving on.
-    _seerrRowPages[row.id] = nextPage;
-    _appendSeerrRowItems(row, rawItems, type, exhausted: exhausted);
-  }
-
-  /// Adds a fetched page to a Seerr row, skipping what it already shows.
-  void _appendSeerrRowItems(
-    HomeRow row,
-    List<SeerrDiscoverItem> rawItems,
-    SeerrRowType? type, {
-    required bool exhausted,
-  }) {
-    final existingKeys = row.items
-        .map((item) => '${item.rawData['SeerrMediaType'] ?? ''}:${item.id}')
-        .toSet();
-    final newItems = _seerrAggregatedItems(
-      rawItems,
-      type,
-      GetIt.instance<SeerrPreferences>().blockNsfw,
-    ).where(
-      (item) => !existingKeys.contains(
-        '${item.rawData['SeerrMediaType'] ?? ''}:${item.id}',
-      ),
-    ).toList();
-
-    // Only the new page is sorted. Sorting the whole row would move cards the
-    // viewer has already scrolled past.
-    final items = [
-      ...row.items,
-      ...applyExternalRowSort(
-        newItems,
-        _prefs.get(UserPreferences.seerrRowsSortBy),
-        _prefs.get(UserPreferences.seerrRowsSortOrder),
-      ),
-    ];
-
-    _replaceRowById(
-      row.copyWith(
-        items: items,
-        totalCount: exhausted ? items.length : items.length + 1,
-      ),
-    );
-  }
-
-  /// Row ids are the prefix followed by the type's serialized name, so deriving
-  /// the type keeps this in step as row types come and go.
-  SeerrRowType? _seerrRowTypeForId(String rowId) {
-    if (!rowId.startsWith(_seerrRowIdPrefix)) return null;
-    final name = rowId.substring(_seerrRowIdPrefix.length);
-    for (final type in SeerrRowType.values) {
-      if (type.serializedName == name) return type;
-    }
-    return null;
-  }
-
-  Future<List<SeerrDiscoverItem>> _enrichSeerrItems(
-    SeerrRepository repo,
-    List<SeerrDiscoverItem> items,
-  ) async =>
-      (await mapBounded(
-        items,
-        _seerrEnrichConcurrency,
-        (item) => _enrichSeerrItem(repo, item),
-      )).whereType<SeerrDiscoverItem>().toList();
-
-  List<SeerrDiscoverItem> _seerrItemsFromRequests(List<SeerrRequest> requests) {
-    return requests.where((r) => r.media != null).map((r) {
-      final media = r.media!;
-      return SeerrDiscoverItem(
-        id: media.tmdbId ?? media.id,
-        title: media.title ?? media.name,
-        name: media.name ?? media.title,
-        overview: media.overview,
-        releaseDate: media.releaseDate,
-        firstAirDate: media.firstAirDate,
-        mediaType: r.type,
-        posterPath: media.posterPath,
-        backdropPath: media.backdropPath,
-        mediaInfo: SeerrMediaInfo(
-          id: media.id,
-          tmdbId: media.tmdbId,
-          status: media.status,
-        ),
-      );
-    }).toList();
-  }
-
-  /// A null [type] is a discover slider row, which hides what is available
-  /// like the other discovery rows.
-  List<AggregatedItem> _seerrAggregatedItems(
-    List<SeerrDiscoverItem> rawItems,
-    SeerrRowType? type,
-    bool blockNsfw,
-  ) {
-    // The request, watchlist and recently added rows are meant to show media the
-    // user already has, so only the discovery rows hide what is available.
-    final hidesAvailable =
-        type != SeerrRowType.recentlyAdded &&
-        type != SeerrRowType.recentRequests &&
-        type != SeerrRowType.yourWatchlist;
-
-    return rawItems
-        .where((item) {
-          if (hidesAvailable && (item.isAvailable || item.isBlacklisted)) {
-            return false;
-          }
-          if (blockNsfw) {
-            if (item.adult) return false;
-            final text = '${item.displayTitle} ${item.overview ?? ''}';
-            if (SeerrDiscoverViewModel.nsfwPatterns.any(
-              (p) => p.hasMatch(text),
-            )) {
-              return false;
-            }
-          }
-          return true;
-        })
-        .map(
-          (item) => AggregatedItem(
-            id: item.id.toString(),
-            serverId: 'seerr',
-            rawData: {
-              'Name': item.displayTitle,
-              'Type': item.mediaType == 'tv' ? 'Series' : 'Movie',
-              'Overview': item.overview ?? '',
-              'PosterPath': item.posterPath ?? '',
-              'BackdropPath': item.backdropPath ?? '',
-              'ProductionYear': _extractYear(
-                item.releaseDate ?? item.firstAirDate,
-              ),
-              'SeerrMediaType': item.mediaType,
-              'SeerrStatus': item.mediaInfo?.status,
-              'CommunityRating': item.voteAverage,
-              'Popularity': item.popularity,
-            },
-          ),
-        )
-        .toList();
-  }
-
-  HomeRow _seerrRow(
-    String rowId,
-    String title,
-    List<AggregatedItem> items, {
-    int totalCount = 0,
-  }) {
-    return HomeRow(
-      id: rowId,
-      title: title,
-      rowType: HomeRowType.pluginDynamic,
-      items: items,
-      totalCount: totalCount,
-    );
-  }
-
-  /// Jump tiles with no fetch behind them, so the row renders complete on the
-  /// first frame while the artwork catches up.
-  HomeRow _seerrShortcutsRow(
-    AppLocalizations l10n, {
-    Map<SeerrShortcut, String> backdrops = const {},
-  }) => _seerrRow(
-    'seerr_shortcuts',
-    seerrBrand(l10n.seerrShortcutsRow),
-    [
-      for (final shortcut in SeerrShortcut.values)
-        AggregatedItem(
-          id: 'seerr_shortcut_${shortcut.name}',
-          serverId: 'seerr',
-          rawData: {
-            'Name': shortcut.label(l10n),
-            'Type': 'Folder',
-            'Overview': '',
-            'SeerrShortcut': shortcut.name,
-            'BackdropPath': backdrops[shortcut] ?? '',
-          },
-        ),
-    ],
-  );
-
-  /// One trending read dresses every tile. Artwork is the only thing it adds,
-  /// so a failure still leaves a usable row.
-  Future<HomeRow> _loadSeerrShortcutsRow(AppLocalizations l10n) async {
-    try {
-      final repo = await GetIt.instance.getAsync<SeerrRepository>();
-      await repo.ensureInitialized();
-      if (!repo.isAvailable) return _seerrShortcutsRow(l10n);
-
-      final page = await repo.getTrending(
-        limit: GetIt.instance<SeerrPreferences>().fetchLimit.limit,
-      );
-      final items = page.results.toList()..shuffle();
-      List<String> pathsFor(String mediaType) => [
-        for (final item in items)
-          if (item.mediaType == mediaType &&
-              (item.backdropPath?.isNotEmpty ?? false))
-            item.backdropPath!,
-      ];
-
-      return _seerrShortcutsRow(
-        l10n,
-        backdrops: pickShortcutBackdrops(
-          shortcuts: SeerrShortcut.values,
-          movieBackdrops: pathsFor('movie'),
-          tvBackdrops: pathsFor('tv'),
-        ),
-      );
-    } catch (_) {
-      return _seerrShortcutsRow(l10n);
-    }
-  }
-
-  AggregatedItem _seerrFilterItem({
-    required String id,
-    required String name,
-    required String imagePath,
-    required String type,
-    required String mediaType,
-    required String filterType,
-  }) {
-    return AggregatedItem(
-      id: id,
-      serverId: 'seerr',
-      rawData: {
-        'Name': name,
-        'Type': type,
-        'Overview': '',
-        'PosterPath': imagePath,
-        'BackdropPath': imagePath,
-        'MediaType': mediaType,
-        'FilterType': filterType,
-        'FilterName': name,
-      },
-    );
-  }
-
-  Future<SeerrDiscoverPage?> _loadSeerrPage(
-    SeerrRepository repo,
-    SeerrRowType type, {
-    required int page,
-    required int limit,
-  }) async {
-    final offset = (page - 1) * limit;
-    switch (type) {
-      case SeerrRowType.yourWatchlist:
-        return repo.getWatchlist(page: page);
-      case SeerrRowType.trending:
-        return repo.getTrending(limit: limit, offset: offset);
-      case SeerrRowType.popularMovies:
-        return repo.getTrendingMovies(limit: limit, offset: offset);
-      case SeerrRowType.popularSeries:
-        return repo.getTrendingTv(limit: limit, offset: offset);
-      case SeerrRowType.upcomingMovies:
-        return repo.getUpcomingMovies(page: page);
-      case SeerrRowType.upcomingSeries:
-        return repo.getUpcomingTv(page: page);
-      default:
-        return null;
-    }
-  }
-
-  Future<SeerrDiscoverItem> _enrichSeerrItem(
-    SeerrRepository repo,
-    SeerrDiscoverItem item,
-  ) async {
-    if (item.backdropPath != null &&
-        item.voteAverage != null &&
-        (item.releaseDate != null || item.firstAirDate != null)) {
-      return item;
-    }
-    final tmdbId = item.mediaInfo?.tmdbId ?? item.id;
-    if (tmdbId <= 0) return item;
-    try {
-      if (item.mediaType == 'tv') {
-        final details = await repo.getTvDetails(tmdbId);
-        return SeerrDiscoverItem(
-          id: item.id,
-          mediaType: item.mediaType,
-          title: item.title ?? details.title,
-          name: item.name ?? details.name,
-          originalTitle: item.originalTitle,
-          originalName: item.originalName,
-          posterPath: details.posterPath ?? item.posterPath,
-          backdropPath: details.backdropPath ?? item.backdropPath,
-          overview: details.overview ?? item.overview,
-          releaseDate: item.releaseDate ?? details.firstAirDate,
-          firstAirDate: item.firstAirDate ?? details.firstAirDate,
-          originalLanguage: item.originalLanguage,
-          genreIds: item.genreIds,
-          voteAverage: details.voteAverage ?? item.voteAverage,
-          voteCount: item.voteCount,
-          popularity: details.popularity ?? item.popularity,
-          adult: item.adult,
-          mediaInfo: item.mediaInfo,
-          character: item.character,
-          job: item.job,
-          department: item.department,
-        );
-      }
-      final details = await repo.getMovieDetails(tmdbId);
-      return SeerrDiscoverItem(
-        id: item.id,
-        mediaType: item.mediaType,
-        title: item.title ?? details.title,
-        name: item.name,
-        originalTitle: item.originalTitle,
-        originalName: item.originalName,
-        posterPath: details.posterPath ?? item.posterPath,
-        backdropPath: details.backdropPath ?? item.backdropPath,
-        overview: details.overview ?? item.overview,
-        releaseDate: item.releaseDate ?? details.releaseDate,
-        firstAirDate: item.firstAirDate ?? details.releaseDate,
-        originalLanguage: item.originalLanguage,
-        genreIds: item.genreIds,
-        voteAverage: details.voteAverage ?? item.voteAverage,
-        voteCount: item.voteCount,
-        popularity: details.popularity ?? item.popularity,
-        adult: item.adult,
-        mediaInfo: item.mediaInfo,
-        character: item.character,
-        job: item.job,
-        department: item.department,
-      );
-    } catch (_) {
-      return item;
-    }
-  }
-
   /// [items] in the order an external row's sort settings ask for. Ties go to
   /// the name, since a release date is often only a year and Dart's sort
   /// isn't stable.
@@ -3610,12 +2736,7 @@ class HomeViewModel extends ChangeNotifier {
       );
       if (mapped == null) return const [];
 
-      // Suggestions are Seerr cards, so a device with Seerr switched off keeps
-      // them out even though the server was happy to send them.
-      final items = [
-        ...withoutBlockedItems(mapped.owned),
-        if (sync.seerrAvailable) ...withoutUnratedOrBlockedItems(mapped.suggestions),
-      ];
+      final items = withoutBlockedItems(mapped.owned);
       if (items.isEmpty) return const [];
 
       return [
@@ -3680,50 +2801,8 @@ class HomeViewModel extends ChangeNotifier {
       owned.add(AggregatedItem(id: id, serverId: serverId, rawData: data));
     }
 
-    final suggestions = <AggregatedItem>[];
-    for (final raw in (body['suggestions'] as List? ?? const [])) {
-      if (raw is! Map) continue;
-      final providerIds = raw['providerIds'];
-      final tmdbId = (providerIds is Map ? providerIds['Tmdb'] : null)?.toString() ?? raw['id']?.toString() ?? '';
-      final imdbId = (providerIds is Map ? providerIds['Imdb'] : null)?.toString() ?? '';
-      if (tmdbId.isEmpty && imdbId.isEmpty) continue;
-      final poster = raw['posterUrl'] as String?;
-      suggestions.add(AggregatedItem(
-        id: tmdbId.isNotEmpty ? tmdbId : imdbId,
-        serverId: 'seerr',
-        rawData: {
-          'Name': raw['name'] ?? '',
-          'Type': 'Movie',
-          'Overview': raw['overview'] ?? '',
-          'PosterPath': poster ?? '',
-          'BackdropPath': raw['backdropUrl'] ?? '',
-          'ProductionYear': raw['productionYear'],
-          'CommunityRating': raw['rating'],
-          'Genres': raw['genres'],
-          'RunTimeTicks': raw['runTimeTicks'],
-          'SeerrMediaType': 'movie',
-          'OfficialRating': raw['officialRating'],
-          'ProviderIds': {
-            if (imdbId.isNotEmpty) 'Imdb': imdbId,
-            if (tmdbId.isNotEmpty) 'Tmdb': tmdbId,
-          },
-        },
-      ));
-    }
-
-    if (owned.isEmpty && suggestions.isEmpty) return null;
-    return SeasonalRowData(holiday: holiday, owned: owned, suggestions: suggestions);
-  }
-
-  int? _extractYear(String? dateString) {
-    if (dateString == null || dateString.isEmpty) return null;
-    try {
-      final parts = dateString.split('-');
-      if (parts.isNotEmpty) {
-        return int.tryParse(parts[0]);
-      }
-    } catch (_) {}
-    return null;
+    if (owned.isEmpty) return null;
+    return SeasonalRowData(holiday: holiday, owned: owned);
   }
 
   List<AggregatedItem> _filterAndFormatRadarrItems(List<AggregatedItem> rawItems) {
@@ -4089,16 +3168,43 @@ class HomeViewModel extends ChangeNotifier {
     );
   }
 
+  static final _arrCalendarDio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 20),
+    ),
+  );
+
+  /// The raw Radarr or Sonarr calendar ([service]) the plugin reads server
+  /// side. Null when there is no plugin to ask.
+  Future<List<dynamic>?> _fetchArrCalendar(
+    String service, {
+    required String start,
+    required String end,
+  }) async {
+    final ep = await moonbaseEndpoint(_client, _arrCalendarDio);
+    if (ep == null) return null;
+    // The plugin names the route after Seerr, but it answers with the Sonarr
+    // or Radarr calendar.
+    final response = await _arrCalendarDio.get<dynamic>(
+      '${ep.base}/Moonfin/Seerr/$service/Calendar',
+      queryParameters: {'start': start, 'end': end},
+      options: Options(headers: ep.headers),
+    );
+    final data = response.data;
+    return data is List ? data : null;
+  }
+
   Future<List<AggregatedItem>?> _fetchRadarrCalendarFromApi() async {
     try {
-      final repo = await GetIt.instance.getAsync<SeerrRepository>();
       final now = DateTime.now();
       final start = now.toIso8601String().substring(0, 10);
       final end = now.add(const Duration(days: 90)).toIso8601String().substring(0, 10);
 
       // The plugin fetches the Radarr calendar server side, so the API key stays on the server and
       // this still works when a remote client cant reach a LAN only Radarr.
-      final results = await repo.getRadarrCalendar(start: start, end: end);
+      final results = await _fetchArrCalendar('Radarr', start: start, end: end);
+      if (results == null) return null;
 
       final enrichCompleters = await mapBounded(
         results,
@@ -4157,14 +3263,6 @@ class HomeViewModel extends ChangeNotifier {
             }
           }
 
-          if (posterPath == null || posterPath.isEmpty) {
-            try {
-              final details = await repo.getMovieDetails(int.parse(tmdbId));
-              posterPath = _tmdbImageUrl(details.posterPath, 300) ?? '';
-              backdropPath = _tmdbImageUrl(details.backdropPath, 1280) ?? '';
-            } catch (_) {}
-          }
-
           return _CalendarItemWithDate(
             item: AggregatedItem(
               id: tmdbId,
@@ -4202,14 +3300,14 @@ class HomeViewModel extends ChangeNotifier {
 
   Future<List<AggregatedItem>?> _fetchSonarrCalendarFromApi() async {
     try {
-      final repo = await GetIt.instance.getAsync<SeerrRepository>();
       final now = DateTime.now();
       final start = now.toIso8601String().substring(0, 10);
       final end = now.add(const Duration(days: 90)).toIso8601String().substring(0, 10);
 
       // The plugin fetches the Sonarr calendar server side, so the API key stays on the server and
       // this still works when a remote client cant reach a LAN only Sonarr.
-      final results = await repo.getSonarrCalendar(start: start, end: end);
+      final results = await _fetchArrCalendar('Sonarr', start: start, end: end);
+      if (results == null) return null;
 
       final groupedEpisodes = <int, Map<String, dynamic>>{};
       for (final res in results) {
@@ -4255,23 +3353,13 @@ class HomeViewModel extends ChangeNotifier {
         5,
         (episodeInfo) async {
           final seriesMap = episodeInfo['series'] as Map;
-          final tvdbId = seriesMap['tvdbId'] as int;
           final seriesTitle = seriesMap['title'] as String? ?? 'Unknown';
           final overview = seriesMap['overview'] as String? ?? '';
           final airDateUtc = episodeInfo['airDate'] as DateTime;
 
-          int? tmdbId;
           final tmdbIdVal = seriesMap['tmdbId'];
-          if (tmdbIdVal != null && tmdbIdVal != 0) {
-            tmdbId = tmdbIdVal as int;
-          } else {
-            try {
-              final tvDetails = await repo.getTvDetailsByTvdb(tvdbId);
-              tmdbId = tvDetails.id;
-            } catch (_) {}
-          }
-
-          if (tmdbId == null || tmdbId == 0) return null;
+          if (tmdbIdVal == null || tmdbIdVal == 0) return null;
+          final tmdbId = tmdbIdVal as int;
 
           String? posterPath;
           String? backdropPath;
@@ -4291,14 +3379,6 @@ class HomeViewModel extends ChangeNotifier {
                 }
               }
             }
-          }
-
-          if (posterPath == null || posterPath.isEmpty) {
-            try {
-              final details = await repo.getTvDetails(tmdbId);
-              posterPath = _tmdbImageUrl(details.posterPath, 300) ?? '';
-              backdropPath = _tmdbImageUrl(details.backdropPath, 1280) ?? '';
-            } catch (_) {}
           }
 
           return _CalendarItemWithDate(
@@ -4330,12 +3410,6 @@ class HomeViewModel extends ChangeNotifier {
       debugPrint('[SonarrCalendarApi] Failed to fetch: $e');
       return null;
     }
-  }
-
-  String? _tmdbImageUrl(String? path, int width) {
-    if (path == null || path.isEmpty) return null;
-    if (path.startsWith('http')) return path;
-    return 'https://image.tmdb.org/t/p/w$width$path';
   }
 
   /// The day a Sonarr episode airs, such as "Oct 24". Sonarr gives the
@@ -4488,14 +3562,12 @@ class _CalendarItemWithDate {
 }
 
 /// A seasonal answer from Moonbase, mapped to Home items. Owned movies belong
-/// to this server and play, suggestions are Seerr cards.
+/// to this server and play.
 class SeasonalRowData {
   final String holiday;
   final List<AggregatedItem> owned;
-  final List<AggregatedItem> suggestions;
   const SeasonalRowData({
     required this.holiday,
     required this.owned,
-    required this.suggestions,
   });
 }

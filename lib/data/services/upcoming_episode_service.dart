@@ -9,9 +9,7 @@ import '../../preference/user_preferences.dart';
 import '../models/aggregated_item.dart';
 import '../models/calendar_entry.dart';
 import '../models/upcoming_episode_info.dart';
-import '../repositories/seerr_repository.dart';
 import 'moonbase_endpoint.dart';
-import 'plugin_sync_service.dart';
 
 /// The calendar reminder for [info], the next episode of [series]. Null when
 /// the series has no TVDB id, since the server matches episode reminders by it.
@@ -38,8 +36,8 @@ CalendarEntry? upcomingEpisodeReminder(
   );
 }
 
-/// Service that resolves upcoming episode air dates for a TV series,
-/// prioritizing Sonarr Calendar and falling back to TMDB.
+/// Service that resolves upcoming episode air dates for a TV series from
+/// TMDB (through the server plugin).
 class UpcomingEpisodeService {
   final _dio = Dio(
     BaseOptions(
@@ -55,9 +53,6 @@ class UpcomingEpisodeService {
   // both going to the network.
   final Map<String, Future<UpcomingEpisodeInfo?>> _inFlight = {};
 
-  // TvdbId -> Earliest UpcomingEpisodeInfo
-  final Map<int, UpcomingEpisodeInfo> _sonarrByTvdb = {};
-  DateTime? _lastSonarrFetch;
   static const _cacheDuration = Duration(minutes: 30);
 
   UpcomingEpisodeInfo? getCached(String seriesId) {
@@ -95,29 +90,7 @@ class UpcomingEpisodeService {
   ) async {
     final now = DateTime.now();
 
-    // 1. Try Sonarr Calendar if Seerr / Sonarr is available
-    final seerrAvailable =
-        GetIt.instance.isRegistered<PluginSyncService>() &&
-        GetIt.instance<PluginSyncService>().seerrAvailable;
-
-    if (seerrAvailable && GetIt.instance.isRegistered<SeerrRepository>()) {
-      try {
-        await _ensureSonarrCalendar(now);
-        final tvdbIdStr = providerIds['Tvdb'] ?? providerIds['tvdb'];
-        final tvdbId = tvdbIdStr != null ? int.tryParse(tvdbIdStr) : null;
-        if (tvdbId != null && _sonarrByTvdb.containsKey(tvdbId)) {
-          final info = _sonarrByTvdb[tvdbId];
-          _seriesCache[seriesId] = (info: info, at: now);
-          return info;
-        }
-      } catch (e) {
-        debugPrint(
-          '[UpcomingEpisodeService] Sonarr calendar resolution failed: $e',
-        );
-      }
-    }
-
-    // 2. Fallback to TMDB
+    // TMDB's next episode
     final tmdbIdStr = providerIds['Tmdb'] ?? providerIds['tmdb'];
     if (tmdbIdStr != null && tmdbIdStr.isNotEmpty) {
       try {
@@ -134,64 +107,6 @@ class UpcomingEpisodeService {
     // Cache negative result to avoid hammering APIs repeatedly
     _seriesCache[seriesId] = (info: null, at: now);
     return null;
-  }
-
-  Future<void> _ensureSonarrCalendar(DateTime now) async {
-    // A calendar with nothing airing is still an answer. Asking again for
-    // every series opened would refetch ninety days each time.
-    if (_lastSonarrFetch != null &&
-        now.difference(_lastSonarrFetch!) < _cacheDuration) {
-      return;
-    }
-
-    final repo = GetIt.instance<SeerrRepository>();
-    final start = now.toIso8601String().substring(0, 10);
-    final end = now
-        .add(const Duration(days: 90))
-        .toIso8601String()
-        .substring(0, 10);
-
-    final results = await repo.getSonarrCalendar(start: start, end: end);
-    _sonarrByTvdb.clear();
-
-    for (final res in results) {
-      if (res is! Map) continue;
-      final seriesMap = res['series'];
-      if (seriesMap is! Map) continue;
-
-      final tvdbIdVal = seriesMap['tvdbId'];
-      if (tvdbIdVal == null || tvdbIdVal == 0) continue;
-      final tvdbId = tvdbIdVal is int ? tvdbIdVal : int.tryParse('$tvdbIdVal');
-      if (tvdbId == null) continue;
-
-      final airDateUtcStr = res['airDateUtc'] as String?;
-      final airDateUtc =
-          airDateUtcStr != null ? DateTime.tryParse(airDateUtcStr) : null;
-      if (airDateUtc == null) continue;
-
-      // Only consider future or today's episodes
-      if (airDateUtc.toLocal().isBefore(
-            DateTime(now.year, now.month, now.day),
-          )) {
-        continue;
-      }
-
-      final seasonNumber = (res['seasonNumber'] as num?)?.toInt() ?? 1;
-      final episodeNumber = (res['episodeNumber'] as num?)?.toInt() ?? 1;
-      final title = res['title'] as String?;
-
-      final existing = _sonarrByTvdb[tvdbId];
-      if (existing == null || airDateUtc.isBefore(existing.airDate)) {
-        _sonarrByTvdb[tvdbId] = UpcomingEpisodeInfo(
-          seasonNumber: seasonNumber,
-          episodeNumber: episodeNumber,
-          airDate: airDateUtc,
-          title: title,
-        );
-      }
-    }
-
-    _lastSonarrFetch = now;
   }
 
   Future<UpcomingEpisodeInfo?> _fetchTmdbNextEpisode(String tmdbId) async {
@@ -262,8 +177,6 @@ class UpcomingEpisodeService {
 
   void clearCache() {
     _seriesCache.clear();
-    _sonarrByTvdb.clear();
-    _lastSonarrFetch = null;
   }
 
   void dispose() {

@@ -11,45 +11,11 @@ class _HomeScreenCategoryScreen extends StatefulWidget {
 class _HomeScreenCategoryScreenState extends State<_HomeScreenCategoryScreen> {
   final _prefs = GetIt.instance<UserPreferences>();
 
-  bool _radarrInstalled = false;
-  bool _sonarrInstalled = false;
-  bool _checkingServices = true;
-
   @override
   void initState() {
     super.initState();
     unawaited(_prefs.reconcileMediaPreviewMode());
     unawaited(_prefs.reconcileHomeBackdropStyle());
-    // The calendars come from Seerr's Radarr and Sonarr servers, so there is
-    // nothing to ask when Seerr isn't set up.
-    if (GetIt.instance<PluginSyncService>().seerrAvailable) {
-      _checkServices();
-    } else {
-      _checkingServices = false;
-    }
-  }
-
-  Future<void> _checkServices() async {
-    try {
-      final repo = GetIt.instance<SeerrRepository>();
-      // Seerr only lets admins read settings/*, while the calendars work for
-      // every user, so ask the service list any signed in user can read.
-      final radarr = await repo.getRadarrServers();
-      final sonarr = await repo.getSonarrServers();
-      if (mounted) {
-        setState(() {
-          _radarrInstalled = radarr.isNotEmpty;
-          _sonarrInstalled = sonarr.isNotEmpty;
-          _checkingServices = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _checkingServices = false;
-        });
-      }
-    }
   }
 
   // Older apps only read the switch, so it follows the mode.
@@ -234,12 +200,9 @@ class _HomeScreenCategoryScreenState extends State<_HomeScreenCategoryScreen> {
     final isPaddingEnabled = !isFullScreenRows && !isInfoOverlayOn;
     final syncService = GetIt.instance<PluginSyncService>();
     final pluginAvailable = syncService.pluginAvailable;
-    final seerrAvailable = syncService.seerrAvailable;
     final tmdbAvailable = syncService.tmdbAvailable;
-    final showUpcomingCalendars =
-        seerrAvailable &&
-        !_checkingServices &&
-        (_radarrInstalled || _sonarrInstalled);
+    // Only when the plugin reaches a Sonarr or Radarr this user may see.
+    final showUpcomingCalendars = syncService.calendarAvailable;
     return Scaffold(
       appBar: buildSettingsAppBar(context, Text(l10n.homeScreen)),
       body: ListView(
@@ -483,8 +446,8 @@ class _HomeScreenCategoryScreenState extends State<_HomeScreenCategoryScreen> {
             ),
           ),
 
-          // Every source here needs the Moonbase plugin. Seerr's rows and the
-          // Radarr and Sonarr calendars also need Seerr.
+          // Every source here needs the Moonbase plugin. The Radarr and Sonarr
+          // calendars also need one of them linked to it.
           if (pluginAvailable) ...[
             _SectionHeader(l10n.externalSources),
             adaptiveListSection(
@@ -520,7 +483,7 @@ class _HomeScreenCategoryScreenState extends State<_HomeScreenCategoryScreen> {
                 _TvSettingsListTile(
                   leading: const Icon(Icons.celebration_outlined),
                   title: Text(l10n.seasonalRow),
-                  subtitle: Text(seerrBrand(l10n.seasonalRowDescription)),
+                  subtitle: Text(l10n.seasonalRowDescription),
                   onTap: () =>
                       context.pushSettingsScreen(const _SeasonalRowScreen()),
                 ),
@@ -532,18 +495,6 @@ class _HomeScreenCategoryScreenState extends State<_HomeScreenCategoryScreen> {
                     onTap: () => context.pushSettingsScreen(
                       const _UpcomingCalendarsScreen(),
                     ),
-                  ),
-                if (seerrAvailable)
-                  _TvSettingsListTile(
-                    leading: Image.asset(
-                      'assets/icons/seerr.png',
-                      width: 24,
-                      height: 24,
-                    ),
-                    title: const Text('Seerr Rows'),
-                    subtitle: const Text('Configure Seerr Discovery Rows.'),
-                    onTap: () =>
-                        context.pushSettingsScreen(const _SeerrListsScreen()),
                   ),
                 _TvSettingsListTile(
                   leading: const Icon(Icons.tune_outlined),

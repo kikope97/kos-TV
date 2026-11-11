@@ -19,7 +19,6 @@ import '../../data/services/achievements_service.dart';
 import '../../data/services/library_scope_service.dart';
 import '../../data/services/plugin_sync_service.dart';
 import '../../preference/preference_constants.dart';
-import '../../preference/seerr_preferences.dart';
 import '../../preference/user_preferences.dart';
 import '../../l10n/app_localizations.dart';
 import '../../util/audio_artwork_url.dart';
@@ -40,7 +39,6 @@ import 'downloads_nav_slot.dart';
 import 'friends_nav_slot.dart';
 import '../screens/watch_party/watch_together_route.dart';
 import '../screens/settings/settings_side_panel.dart';
-import 'seerr_icons.dart';
 import 'server_messages_dialog.dart';
 import 'server_messages_nav_slot.dart';
 import 'unread_badge.dart';
@@ -969,8 +967,6 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
         !kidsMode &&
         _prefs.get(UserPreferences.syncPlayEnabled) &&
         _prefs.get(UserPreferences.showSyncPlayButton);
-    final seerrPrefs = GetIt.instance<SeerrPreferences>();
-    final seerrNavLabel = seerrPrefs.labelOrDefault(l10n.seerr);
     final clockBehavior = _prefs.get(UserPreferences.clockBehavior);
     final showClock =
         clockBehavior == ClockBehavior.always ||
@@ -1138,27 +1134,6 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                           builder: (_) => watchTogetherScreen(),
                         ),
                       );
-                    },
-                  ),
-                if (!kidsMode &&
-                    _prefs.get(UserPreferences.showSeerrButton) &&
-                    GetIt.instance<PluginSyncService>().seerrAvailable)
-                  _SidebarItem(
-                    key: const ValueKey('sidebar-seerr'),
-                    baseColor: nextMainSidebarColor(),
-                    iconBuilder: (size, color) => seerrPrefs.isSeerrVariant
-                        ? SeerrIcon(size: size, color: color)
-                        : SeerrIcon(size: size, color: color),
-                    label: seerrNavLabel,
-                    showLabel: _showLabels,
-                    onPressed: () {
-                      _onNavigate();
-                      if (_isActive(Destinations.seerrDiscover)) {
-                        _exitSidebarToContent();
-                        return;
-                      }
-                      _markNavigationAwayFromSidebar();
-                      context.navigateTopLevel(Destinations.seerrDiscover);
                     },
                   ),
                 if (!kidsMode &&
