@@ -7,12 +7,24 @@ import 'package:dio/dio.dart';
 class FakeStremfinAdapter implements HttpClientAdapter {
   FakeStremfinAdapter(this.answer);
 
+  /// Also by method, for the calls that send something.
+  FakeStremfinAdapter.withMethod(this.answerWithMethod)
+    : answer = ((_, _) => (status: 500, body: null, headers: const {}));
+
   /// Path (without `/api/v1`) and query → status, body and headers.
   ({int status, Object? body, Map<String, String> headers}) Function(
     String path,
     Map<String, String> query,
   )
   answer;
+
+  /// Method, path and the JSON sent, when it answers by method.
+  ({int status, Object? body, Map<String, String> headers}) Function(
+    String method,
+    String path,
+    Object? sent,
+  )?
+  answerWithMethod;
 
   final List<RequestOptions> calls = [];
 
@@ -24,7 +36,10 @@ class FakeStremfinAdapter implements HttpClientAdapter {
   ) async {
     calls.add(options);
     final path = options.uri.path.replaceFirst('/api/v1', '');
-    final reply = answer(path, options.uri.queryParameters);
+    final byMethod = answerWithMethod;
+    final reply = byMethod != null
+        ? byMethod(options.method, path, options.data)
+        : answer(path, options.uri.queryParameters);
     return ResponseBody.fromString(
       jsonEncode(reply.body),
       reply.status,

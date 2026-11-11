@@ -124,7 +124,80 @@ class StremfinClient {
     ];
   }
 
+  /// A film's page.
+  Future<StremfinMovieDetail> movie(int tmdbId) async {
+    final detail = StremfinMovieDetail.fromJson(await _get('/movies/$tmdbId'));
+    if (detail == null) throw const StremfinException(code: 'bad_response');
+    return detail;
+  }
+
+  /// Whether a film can be downloaded now and how fast. It asks the
+  /// service's sources, so it takes a few seconds.
+  Future<StremfinAvailability> movieAvailability(int tmdbId) async =>
+      StremfinAvailability.fromJson(await _get('/movies/$tmdbId/availability'));
+
+  /// A series' page, season by season.
+  Future<StremfinSeriesDetail> series(int tmdbId) async {
+    final detail = StremfinSeriesDetail.fromJson(await _get('/series/$tmdbId'));
+    if (detail == null) throw const StremfinException(code: 'bad_response');
+    return detail;
+  }
+
+  /// One request as it stands now.
+  Future<StremfinRequest> request(int id) async {
+    final request = StremfinRequest.fromJson(await _get('/requests/$id'));
+    if (request == null) throw const StremfinException(code: 'bad_response');
+    return request;
+  }
+
+  /// Asks for a film, a season of a series or, with no [season], all that is
+  /// missing of it. Whatever the answer says happened is a result, even when
+  /// it comes with an error status (it is there already, the limit…); only
+  /// an `error` is thrown.
+  Future<StremfinRequestResult> createRequest({
+    required StremfinTitleType type,
+    required int tmdbId,
+    int? season,
+  }) async {
+    final response = await _send(
+      'POST',
+      '/requests',
+      data: {
+        'type': type.apiValue,
+        'tmdb_id': tmdbId,
+        if (type == StremfinTitleType.series) 'season': season,
+      },
+    );
+    final body = response.data;
+    if (body is Map && body['outcome'] is String) {
+      return StremfinRequestResult.fromJson(
+        body,
+        retryAfter: _retryAfter(response),
+      );
+    }
+    throw _failure(response);
+  }
+
+  /// Takes back one of theirs that still waits for an answer.
+  Future<void> withdrawRequest(int id) async {
+    final response = await _send('DELETE', '/requests/$id');
+    final status = response.statusCode ?? 0;
+    if (status < 200 || status >= 300) throw _failure(response);
+  }
+
   Future<Object?> _get(String path, [Map<String, Object?>? query]) async {
+    final response = await _send('GET', path, query: query);
+    final status = response.statusCode ?? 0;
+    if (status >= 200 && status < 300) return response.data;
+    throw _failure(response);
+  }
+
+  Future<Response<Object?>> _send(
+    String method,
+    String path, {
+    Map<String, Object?>? query,
+    Object? data,
+  }) async {
     final base = _baseUrl;
     if (base == null) {
       throw const StremfinException(code: 'not_configured');
@@ -135,28 +208,34 @@ class StremfinClient {
     }
     final Response<Object?> response;
     try {
-      response = await _dio.get<Object?>(
+      response = await _dio.request<Object?>(
         '$base$path',
         queryParameters: query,
+        data: data,
         options: Options(
+          method: method,
           headers: {
             'Authorization': 'Bearer $token',
             'Accept': 'application/json',
           },
+          contentType: data == null ? null : Headers.jsonContentType,
           responseType: ResponseType.json,
           validateStatus: (_) => true,
         ),
       );
     } on DioException catch (e) {
-      _log('x GET $path (${e.type.name})');
+      _log('x $method $path (${e.type.name})');
       throw const StremfinException(code: 'network');
     }
-    final status = response.statusCode ?? 0;
     // Only the path: the address of the service and the token stay out of
     // the app's log.
-    _log('<- $status GET $path');
+    _log('<- ${response.statusCode ?? 0} $method $path');
+    return response;
+  }
+
+  static StremfinException _failure(Response<Object?> response) {
+    final status = response.statusCode ?? 0;
     final body = response.data;
-    if (status >= 200 && status < 300) return body;
     final error = body is Map ? body['error'] : null;
     final code = error is Map && error['code'] is String
         ? error['code'] as String
@@ -164,15 +243,17 @@ class StremfinClient {
     final message = error is Map && error['message'] is String
         ? error['message'] as String
         : null;
-    final retryAfter = int.tryParse(
-      response.headers.value('retry-after') ?? '',
-    );
-    throw StremfinException(
+    return StremfinException(
       code: code,
       status: status,
       message: message,
-      retryAfter: retryAfter == null ? null : Duration(seconds: retryAfter),
+      retryAfter: _retryAfter(response),
     );
+  }
+
+  static Duration? _retryAfter(Response<Object?> response) {
+    final seconds = int.tryParse(response.headers.value('retry-after') ?? '');
+    return seconds == null ? null : Duration(seconds: seconds);
   }
 
   static void _log(String line) {

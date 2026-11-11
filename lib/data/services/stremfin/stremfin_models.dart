@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+part 'stremfin_request_models.dart';
+
 /// Kos TV: what the requests service (Stremfin) answers, as far as Discover
 /// uses it. Unknown fields are ignored, as its API asks.
 
@@ -93,12 +95,28 @@ class StremfinRequestRef {
     required this.status,
     this.statusLabel,
     this.mine = false,
+    this.season,
+    this.direct = false,
+    this.requesters = const [],
   });
 
   final int id;
+
+  /// `pending` or `approved` (a title only carries open ones).
   final String status;
   final String? statusLabel;
   final bool mine;
+
+  /// On a series: the season asked for, or null for all that is missing.
+  final int? season;
+
+  /// It was accepted on its own.
+  final bool direct;
+
+  /// Who asked for it.
+  final List<String> requesters;
+
+  bool get isPending => status == 'pending';
 
   static StremfinRequestRef? fromJson(Object? raw) {
     if (raw is! Map) return null;
@@ -111,6 +129,9 @@ class StremfinRequestRef {
       status: status,
       statusLabel: label is String ? label : null,
       mine: raw['mine'] == true,
+      season: _int(raw['season']),
+      direct: raw['direct'] == true,
+      requesters: _texts(raw['requesters']),
     );
   }
 }
@@ -131,6 +152,8 @@ class StremfinTitle {
     this.platform,
     this.library = const StremfinLibrary(),
     this.request,
+    this.overview,
+    this.originalTitle,
   });
 
   final StremfinTitleType type;
@@ -153,8 +176,34 @@ class StremfinTitle {
   final StremfinLibrary library;
   final StremfinRequestRef? request;
 
+  /// What it is about (the lists leave it out: it comes with its page).
+  final String? overview;
+  final String? originalTitle;
+
   /// Shown in colour: it is on the home server.
   bool get isInLibrary => library.inLibrary;
+
+  /// The same title as it stands now on the home server and in the
+  /// requests, keeping what its list said of it (place, season, platform).
+  StremfinTitle copyWith({
+    StremfinLibrary? library,
+    StremfinRequestRef? Function()? request,
+  }) => StremfinTitle(
+    type: type,
+    tmdbId: tmdbId,
+    title: title,
+    year: year,
+    poster: poster,
+    backdrop: backdrop,
+    rating: rating,
+    rank: rank,
+    season: season,
+    platform: platform,
+    library: library ?? this.library,
+    request: request == null ? this.request : request(),
+    overview: overview,
+    originalTitle: originalTitle,
+  );
 
   static StremfinTitle? fromJson(Object? raw) {
     if (raw is! Map) return null;
@@ -177,6 +226,8 @@ class StremfinTitle {
       platform: raw['platform'] is String ? raw['platform'] as String : null,
       library: StremfinLibrary.fromJson(raw['library']),
       request: StremfinRequestRef.fromJson(raw['request']),
+      overview: _text(raw['overview']),
+      originalTitle: _text(raw['original_title']),
     );
   }
 }
@@ -235,11 +286,41 @@ class StremfinPlatform {
 /// Who the signed-in person is to the requests service.
 @immutable
 class StremfinMe {
-  const StremfinMe({required this.role, required this.canRequest});
+  const StremfinMe({
+    required this.role,
+    required this.canRequest,
+    this.name,
+    this.mode,
+    this.limit,
+    this.pending,
+    this.dailyLeft,
+    this.atLimit = false,
+  });
 
   /// `admin`, `member` or `none`.
   final String role;
   final bool canRequest;
+
+  /// The name the service knows them by.
+  final String? name;
+
+  /// What asking does: `admin` and `direct` start it at once, `review`
+  /// waits for the administrator.
+  final String? mode;
+
+  /// How many of theirs may wait for an answer at once (0: no limit), and
+  /// how many do.
+  final int? limit;
+  final int? pending;
+
+  /// New requests left in the last 24 hours (null: no limit).
+  final int? dailyLeft;
+
+  /// They can't ask for more right now.
+  final bool atLimit;
+
+  /// What they ask for waits for the administrator's answer.
+  bool get needsApproval => mode == 'review';
 
   /// Whether they may see the platform lists.
   bool get canDiscover => role == 'admin' || canRequest;
@@ -251,9 +332,16 @@ class StremfinMe {
     final role = user is Map && user['role'] is String
         ? user['role'] as String
         : 'none';
+    final a = access is Map ? access : const {};
     return StremfinMe(
       role: role,
-      canRequest: access is Map && access['can_request'] == true,
+      canRequest: a['can_request'] == true,
+      name: user is Map ? _text(user['name']) : null,
+      mode: _text(a['mode']),
+      limit: _int(a['limit']),
+      pending: _int(a['pending']),
+      dailyLeft: _int(a['daily_left']),
+      atLimit: a['at_limit'] == true,
     );
   }
 }
@@ -266,6 +354,16 @@ int? _int(Object? raw) => switch (raw) {
 };
 
 double? _double(Object? raw) => raw is num ? raw.toDouble() : null;
+
+String? _text(Object? raw) => raw is String && raw.isNotEmpty ? raw : null;
+
+List<String> _texts(Object? raw) => [
+  if (raw is List)
+    for (final entry in raw)
+      if (entry is String && entry.isNotEmpty) entry,
+];
+
+DateTime? _date(Object? raw) => raw is String ? DateTime.tryParse(raw) : null;
 
 /// Images load straight from TMDB or JustWatch, always over https.
 String? _https(Object? raw) =>

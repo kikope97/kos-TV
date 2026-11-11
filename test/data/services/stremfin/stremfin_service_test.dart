@@ -164,4 +164,81 @@ void main() {
     expect(platforms.map((p) => p.id), ['all', 'netflix', 'disney', 'prime']);
     stremfin.dispose();
   });
+  test('what a title page says shows on the lists kept, in place', () async {
+    adapter = FakeStremfinAdapter((path, query) {
+      if (path == '/me') return meReply;
+      return (
+        status: 200,
+        body: {
+          'items': [
+            fakeTitle(1, rank: 1),
+            {...fakeTitle(2, type: 'series'), 'season': 3},
+            fakeTitle(3, type: 'series'),
+          ],
+        },
+        headers: const {},
+      );
+    });
+    final stremfin = service();
+    stremfin.onUserChanged('user-1');
+    await stremfin.top(
+      platform: 'all',
+      type: StremfinTitleType.movie,
+      list: StremfinTopList.popular,
+    );
+    var revisions = 0;
+    stremfin.listsRevision.addListener(() => revisions++);
+    List<StremfinTitle> kept() => stremfin.keptList(
+      platform: 'all',
+      type: StremfinTitleType.movie,
+      list: StremfinTopList.popular,
+    )!;
+
+    // A film asked for: its card says so, still first on the list.
+    stremfin.noteTitle(
+      kept().first.copyWith(
+        request: () =>
+            const StremfinRequestRef(id: 7, status: 'pending', mine: true),
+      ),
+    );
+    expect(kept().first.request?.mine, isTrue);
+    expect(kept().first.rank, 1);
+    expect(revisions, 1);
+
+    // A series card announcing season 3 shows the request covering that
+    // season and keeps what it says of the season on the server.
+    stremfin.noteSeries(
+      StremfinSeriesDetail(
+        title: StremfinTitle.fromJson({
+          ...fakeTitle(2, type: 'series', inLibrary: true, itemId: 'abc'),
+        })!,
+        seasons: const [
+          StremfinSeason(
+            number: 3,
+            request: StremfinRequestRef(id: 9, status: 'approved'),
+          ),
+        ],
+      ),
+    );
+    final announced = kept()[1];
+    expect(announced.request?.id, 9);
+    expect(announced.isInLibrary, isFalse, reason: 'the card keeps its own');
+    expect(announced.season, 3);
+
+    // A series card without a season takes the page's word.
+    stremfin.noteSeries(
+      StremfinSeriesDetail(
+        title: StremfinTitle.fromJson(
+          fakeTitle(3, type: 'series', inLibrary: true, itemId: 'def'),
+        )!,
+      ),
+    );
+    expect(kept()[2].library.itemId, 'def');
+    expect(revisions, 3);
+
+    // A title that isn't on any list changes nothing.
+    stremfin.noteTitle(StremfinTitle.fromJson(fakeTitle(99))!);
+    expect(revisions, 3);
+    stremfin.dispose();
+  });
 }

@@ -40,6 +40,7 @@ class StremfinService extends ChangeNotifier {
   static const _retryDelay = Duration(minutes: 2);
 
   StremfinAccess _access = StremfinAccess.unknown;
+  StremfinMe? _me;
   Future<void>? _checking;
   Timer? _retry;
   String? _checkedFor;
@@ -55,6 +56,14 @@ class StremfinService extends ChangeNotifier {
   StremfinAccess get access => _access;
   bool get isAllowed => _access == StremfinAccess.allowed;
 
+  /// What the service last said of the signed-in person: whether what they
+  /// ask for waits for an answer, and whether they are at their limit.
+  StremfinMe? get me => _me;
+
+  /// Bumped whenever a title on a list kept in memory changes (it was asked
+  /// for, it arrived…), so Discover can show it as it stands.
+  final ValueNotifier<int> listsRevision = ValueNotifier(0);
+
   /// Asks the service who the signed-in person is. Not reaching it keeps
   /// what it said last and tries again a little later; a refusal hides
   /// Discover but never signs anyone out of the app.
@@ -68,6 +77,8 @@ class StremfinService extends ChangeNotifier {
     if (_disposed) return;
     try {
       final me = await _client.me();
+      if (_disposed) return;
+      _me = me;
       _setAccess(
         me.canDiscover ? StremfinAccess.allowed : StremfinAccess.denied,
       );
@@ -103,6 +114,7 @@ class StremfinService extends ChangeNotifier {
     _retry?.cancel();
     _lists.clear();
     _loading.clear();
+    _me = null;
     _setAccess(StremfinAccess.unknown);
     if (userId != null) unawaited(refreshAccess());
   }
@@ -162,8 +174,11 @@ class StremfinService extends ChangeNotifier {
       platforms(),
       for (final type in StremfinTitleType.values)
         for (final list in StremfinTopList.values)
-          top(platform: StremfinPlatform.allId, type: type, list: list)
-              .then<void>((_) {}, onError: (_) {}),
+          top(
+            platform: StremfinPlatform.allId,
+            type: type,
+            list: list,
+          ).then<void>((_) {}, onError: (_) {}),
     ]);
   }
 
@@ -174,6 +189,99 @@ class StremfinService extends ChangeNotifier {
     required StremfinTopList list,
   }) => _lists['$platform/${type.apiValue}/${list.apiValue}']?.items;
 
+  /// A film's page. What it says of the home server and the requests is
+  /// the reliable answer, so the lists in memory take it too.
+  Future<StremfinMovieDetail> movie(int tmdbId) async {
+    final detail = await _client.movie(tmdbId);
+    noteTitle(detail.title);
+    return detail;
+  }
+
+  /// Whether a film can be downloaded now and how fast.
+  Future<StremfinAvailability> movieAvailability(int tmdbId) =>
+      _client.movieAvailability(tmdbId);
+
+  /// A series' page, season by season.
+  Future<StremfinSeriesDetail> series(int tmdbId) async {
+    final detail = await _client.series(tmdbId);
+    noteSeries(detail);
+    return detail;
+  }
+
+  /// One request as it stands now.
+  Future<StremfinRequest> request(int id) => _client.request(id);
+
+  /// Asks for a film, a season or (with no [season]) all that is missing of
+  /// a series. Afterwards it asks again who the person is, since what they
+  /// have pending and left for the day has changed.
+  Future<StremfinRequestResult> createRequest({
+    required StremfinTitleType type,
+    required int tmdbId,
+    int? season,
+  }) async {
+    try {
+      return await _client.createRequest(
+        type: type,
+        tmdbId: tmdbId,
+        season: season,
+      );
+    } finally {
+      unawaited(refreshAccess());
+    }
+  }
+
+  /// Takes back one of theirs that still waits for an answer.
+  Future<void> withdrawRequest(int id) async {
+    try {
+      await _client.withdrawRequest(id);
+    } finally {
+      unawaited(refreshAccess());
+    }
+  }
+
+  /// [title] as it stands now: every list in memory that holds it shows it
+  /// so, keeping its place, season and platform on that list.
+  void noteTitle(StremfinTitle title) => _note(title, (kept) {
+    return kept.copyWith(library: title.library, request: () => title.request);
+  });
+
+  /// A series as its page says it stands. A card that announces a season
+  /// («Nuevo · T3») keeps what it says of that season on the home server and
+  /// shows the request that covers it.
+  void noteSeries(StremfinSeriesDetail detail) => _note(detail.title, (kept) {
+    final season = kept.season;
+    if (season == null) {
+      return kept.copyWith(
+        library: detail.title.library,
+        request: () => detail.title.request,
+      );
+    }
+    final covering = detail.seasons
+        .where((s) => s.number == season)
+        .firstOrNull
+        ?.request;
+    return kept.copyWith(request: () => covering ?? detail.title.request);
+  });
+
+  void _note(StremfinTitle title, StremfinTitle Function(StremfinTitle) apply) {
+    if (_disposed) return;
+    var changed = false;
+    for (final entry in _lists.entries.toList()) {
+      final items = entry.value.items;
+      final index = items.indexWhere(
+        (t) => t.type == title.type && t.tmdbId == title.tmdbId,
+      );
+      if (index < 0) continue;
+      final updated = apply(items[index]);
+      _lists[entry.key] = (
+        at: entry.value.at,
+        items: [...items]..[index] = updated,
+      );
+      changed = true;
+    }
+    if (changed) listsRevision.value++;
+  }
+
   bool _disposed = false;
 
   @override
@@ -181,6 +289,7 @@ class StremfinService extends ChangeNotifier {
     _disposed = true;
     _retry?.cancel();
     _lifecycle?.dispose();
+    listsRevision.dispose();
     super.dispose();
   }
 }
