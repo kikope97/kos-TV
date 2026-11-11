@@ -4802,24 +4802,6 @@ abstract class AppLocalizations {
   /// **'Seerr'**
   String get seerr;
 
-  /// Header for selecting Seerr authentication account type
-  ///
-  /// In en, this message translates to:
-  /// **'Seerr Account Type'**
-  String get seerrAccountType;
-
-  /// Auth option label for Seerr sign in using Jellyfin credentials
-  ///
-  /// In en, this message translates to:
-  /// **'Jellyfin'**
-  String get jellyfinAccount;
-
-  /// Auth option label for Seerr sign in using local Seerr credentials
-  ///
-  /// In en, this message translates to:
-  /// **'Local'**
-  String get localAccount;
-
   /// Header title for saved/downloaded media screen
   ///
   /// In en, this message translates to:
@@ -5275,12 +5257,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Quality, storage'**
   String get qualityStorage;
-
-  /// Seerr settings description
-  ///
-  /// In en, this message translates to:
-  /// **'Media request integration'**
-  String get mediaRequestIntegration;
 
   /// Button to switch to a different server
   ///
@@ -9908,161 +9884,17 @@ abstract class AppLocalizations {
   /// **'Your Watchlist'**
   String get yourWatchlist;
 
-  /// Tooltip for reset rows to defaults
-  ///
-  /// In en, this message translates to:
-  /// **'Reset rows to defaults'**
-  String get resetRowsToDefaults;
-
-  /// Setting for enabling Seerr
-  ///
-  /// In en, this message translates to:
-  /// **'Enable Seerr'**
-  String get enableSeerr;
-
-  /// Description for enable Seerr
-  ///
-  /// In en, this message translates to:
-  /// **'Show Seerr in navigation (requires server plugin)'**
-  String get showSeerrInNavigation;
-
-  /// Description when Seerr is unavailable
-  ///
-  /// In en, this message translates to:
-  /// **'Unavailable because server plugin Seerr support is disabled.'**
-  String get seerrUnavailable;
-
-  /// Setting for NSFW filter
-  ///
-  /// In en, this message translates to:
-  /// **'NSFW Filter'**
-  String get nsfwFilter;
-
-  /// Description for NSFW filter
-  ///
-  /// In en, this message translates to:
-  /// **'Hide adult content in results'**
-  String get hideAdultContent;
-
-  /// Setting title to show missing items from Seerr on Collection pages
-  ///
-  /// In en, this message translates to:
-  /// **'Show Missing Collection Items'**
-  String get showMissingCollectionItems;
-
-  /// Setting subtitle explaining that missing items will be included on Collection pages
-  ///
-  /// In en, this message translates to:
-  /// **'Include missing items on Collection pages'**
-  String get showMissingCollectionItemsDesc;
-
   /// Setting title for showing Seerr availability badges on posters across the app
   ///
   /// In en, this message translates to:
   /// **'Show Seerr Availability Badges'**
   String get showSeerrAvailabilityBadges;
 
-  /// Setting description for showing Seerr availability badges on posters across the app
-  ///
-  /// In en, this message translates to:
-  /// **'Show the Seerr status on posters and seasons across the app'**
-  String get showSeerrAvailabilityBadgesDescription;
-
   /// Setting title for how posters show their Seerr status
   ///
   /// In en, this message translates to:
   /// **'Badge Style'**
   String get seerrBadgeStyle;
-
-  /// Setting description for the Seerr badge style choices
-  ///
-  /// In en, this message translates to:
-  /// **'Badge puts Seerr\'s dot in a corner. Banner runs the status across the top of the poster.'**
-  String get seerrBadgeStyleDescription;
-
-  /// Seerr badge style that shows a status dot in a poster corner
-  ///
-  /// In en, this message translates to:
-  /// **'Badge'**
-  String get seerrBadgeStyleBadge;
-
-  /// Header for the Seerr notifications settings section
-  ///
-  /// In en, this message translates to:
-  /// **'Notifications'**
-  String get seerrNotificationsSection;
-
-  /// Title for the toggle that notifies approvers of new Seerr requests
-  ///
-  /// In en, this message translates to:
-  /// **'New Request Notifications'**
-  String get seerrNotifyNewRequestsTitle;
-
-  /// Subtitle for the new request notifications toggle
-  ///
-  /// In en, this message translates to:
-  /// **'Alert me when someone submits a request'**
-  String get seerrNotifyNewRequestsSubtitle;
-
-  /// Title for the toggle that notifies a requester about approvals, declines, and library availability
-  ///
-  /// In en, this message translates to:
-  /// **'Request Updates'**
-  String get seerrNotifyLibraryAddedTitle;
-
-  /// Subtitle for the library-added notifications toggle
-  ///
-  /// In en, this message translates to:
-  /// **'Approved, declined, and added to your library'**
-  String get seerrNotifyLibraryAddedSubtitle;
-
-  /// Title for the issue notifications toggle
-  ///
-  /// In en, this message translates to:
-  /// **'Issue Updates'**
-  String get seerrNotifyIssuesTitle;
-
-  /// Subtitle for the issue notifications toggle
-  ///
-  /// In en, this message translates to:
-  /// **'New issues, replies, and resolutions'**
-  String get seerrNotifyIssuesSubtitle;
-
-  /// Title for the toggle that notifies about anything newly added to the server library, not just requested media
-  ///
-  /// In en, this message translates to:
-  /// **'New Media Added'**
-  String get seerrNotifyNewMediaTitle;
-
-  /// Subtitle for the new media notifications toggle
-  ///
-  /// In en, this message translates to:
-  /// **'Anything new added to the server library'**
-  String get seerrNotifyNewMediaSubtitle;
-
-  /// Label showing logged in username
-  ///
-  /// In en, this message translates to:
-  /// **'Logged in as: {username}'**
-  String loggedInAs(String username);
-
-  /// Section title for discover rows
-  ///
-  /// In en, this message translates to:
-  /// **'Seerr Discovery Page'**
-  String get discoverRows;
-
-  /// Description for discover rows with plugin
-  ///
-  /// In en, this message translates to:
-  /// **'Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with the server plugin.'**
-  String get discoverRowsDescriptionPlugin;
-
-  /// Description for discover rows without plugin
-  ///
-  /// In en, this message translates to:
-  /// **'Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with the server plugin.'**
-  String get discoverRowsDescription;
 
   /// Status: enabled
   ///
@@ -23684,12 +23516,6 @@ abstract class AppLocalizations {
   /// **'Achievement Badges'**
   String get achievementBadges;
 
-  /// Subtitle of the Achievement Badges entry in Integrations
-  ///
-  /// In en, this message translates to:
-  /// **'Badges, ranks and quests earned from what you watch'**
-  String get achievementBadgesSubtitle;
-
   /// Badges section title
   ///
   /// In en, this message translates to:
@@ -28335,12 +28161,6 @@ abstract class AppLocalizations {
   /// **'Downloads, storage location, and the image cache'**
   String get settingsStorageSubtitle;
 
-  /// Subtitle for the Services settings root entry
-  ///
-  /// In en, this message translates to:
-  /// **'Seerr and Achievement Badges'**
-  String get settingsServicesSubtitle;
-
   /// Section header on the Account settings screen
   ///
   /// In en, this message translates to:
@@ -30266,210 +30086,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t load the calendar.'**
   String get calendarProblemFailed;
-
-  /// Subtitle of the Calendar entry under Integrations in settings
-  ///
-  /// In en, this message translates to:
-  /// **'Style, filters and actions for the calendar'**
-  String get calendarSettingsSubtitle;
-
-  /// Calendar settings section header for how the calendar opens and lays out weeks
-  ///
-  /// In en, this message translates to:
-  /// **'View'**
-  String get calendarSettingsView;
-
-  /// Calendar setting that picks what the Calendar button opens
-  ///
-  /// In en, this message translates to:
-  /// **'Calendar style'**
-  String get calendarSettingsStyle;
-
-  /// Description of the Calendar style setting
-  ///
-  /// In en, this message translates to:
-  /// **'What the Calendar button opens. The full month is one button away in both.'**
-  String get calendarSettingsStyleDescription;
-
-  /// Calendar style that lists episodes and movies day by day
-  ///
-  /// In en, this message translates to:
-  /// **'Agenda'**
-  String get calendarSettingsStyleAgenda;
-
-  /// Calendar style that counts down to the next episode or movie
-  ///
-  /// In en, this message translates to:
-  /// **'Countdown'**
-  String get calendarSettingsStyleCountdown;
-
-  /// Calendar setting for the first day of the week in the month grid
-  ///
-  /// In en, this message translates to:
-  /// **'Week starts on'**
-  String get calendarSettingsWeekStart;
-
-  /// Calendar settings section header for which episodes and movies the calendar lists
-  ///
-  /// In en, this message translates to:
-  /// **'What shows'**
-  String get calendarSettingsWhatShows;
-
-  /// Calendar setting that limits the calendar to the user's own series. The choices are Everything and My shows
-  ///
-  /// In en, this message translates to:
-  /// **'Show'**
-  String get calendarSettingsScope;
-
-  /// Description of the calendar Show setting
-  ///
-  /// In en, this message translates to:
-  /// **'My shows keeps the series you favorited or started watching'**
-  String get calendarSettingsScopeDescription;
-
-  /// Calendar Show choice that lists every episode and movie
-  ///
-  /// In en, this message translates to:
-  /// **'Everything'**
-  String get calendarSettingsScopeEverything;
-
-  /// Calendar Show choice that lists only series the user favorited or started watching
-  ///
-  /// In en, this message translates to:
-  /// **'My shows'**
-  String get calendarSettingsScopeMyShows;
-
-  /// Calendar setting that also lists titles Sonarr and Radarr won't download
-  ///
-  /// In en, this message translates to:
-  /// **'Include unmonitored'**
-  String get calendarSettingsUnmonitored;
-
-  /// Subtitle of the Include unmonitored calendar setting
-  ///
-  /// In en, this message translates to:
-  /// **'Also list episodes and movies Sonarr and Radarr aren\'t set to download'**
-  String get calendarSettingsUnmonitoredSubtitle;
-
-  /// Calendar setting that lists special episodes, the ones in season 0
-  ///
-  /// In en, this message translates to:
-  /// **'Specials'**
-  String get calendarSettingsSpecials;
-
-  /// Subtitle of the Specials calendar setting
-  ///
-  /// In en, this message translates to:
-  /// **'Season 0 episodes, like extras and holiday specials'**
-  String get calendarSettingsSpecialsSubtitle;
-
-  /// Calendar setting that marks premieres and finales on the calendar
-  ///
-  /// In en, this message translates to:
-  /// **'Premiere and finale tags'**
-  String get calendarSettingsBadges;
-
-  /// Subtitle of the Premiere and finale tags calendar setting
-  ///
-  /// In en, this message translates to:
-  /// **'Mark premieres, finales and new seasons'**
-  String get calendarSettingsBadgesSubtitle;
-
-  /// Calendar setting for what the colors on calendar entries mean. The choices are Type and Status
-  ///
-  /// In en, this message translates to:
-  /// **'Color by'**
-  String get calendarSettingsColorBy;
-
-  /// Description of the Color by calendar setting
-  ///
-  /// In en, this message translates to:
-  /// **'Type tells episodes from movies. Status shows what\'s in your library, coming up or missing.'**
-  String get calendarSettingsColorByDescription;
-
-  /// Color by choice that colors episodes and movies differently
-  ///
-  /// In en, this message translates to:
-  /// **'Type'**
-  String get calendarSettingsColorByType;
-
-  /// Calendar setting for the artwork on the Countdown rows
-  ///
-  /// In en, this message translates to:
-  /// **'Card image'**
-  String get calendarSettingsImageType;
-
-  /// Description of the Card image calendar setting
-  ///
-  /// In en, this message translates to:
-  /// **'The artwork on the Countdown rows'**
-  String get calendarSettingsImageTypeDescription;
-
-  /// Calendar setting that hides episode details for shows the user hasn't caught up on
-  ///
-  /// In en, this message translates to:
-  /// **'Spoiler safe'**
-  String get calendarSettingsSpoilerSafe;
-
-  /// Subtitle of the Spoiler safe calendar setting
-  ///
-  /// In en, this message translates to:
-  /// **'Hide episode titles and stills for shows you\'re behind on'**
-  String get calendarSettingsSpoilerSafeSubtitle;
-
-  /// Calendar settings section header for what buttons and selecting an entry do
-  ///
-  /// In en, this message translates to:
-  /// **'Actions'**
-  String get calendarSettingsActions;
-
-  /// Calendar setting for what OK or a tap does on an entry that is in the library
-  ///
-  /// In en, this message translates to:
-  /// **'Selecting an item'**
-  String get calendarSettingsSelectAction;
-
-  /// Description of the Selecting an item calendar setting
-  ///
-  /// In en, this message translates to:
-  /// **'What OK or a tap does on something that\'s already in your library'**
-  String get calendarSettingsSelectActionDescription;
-
-  /// Selecting an item choice that opens the details page
-  ///
-  /// In en, this message translates to:
-  /// **'Open details'**
-  String get calendarSettingsSelectDetails;
-
-  /// Selecting an item choice that starts playback when the episode or movie is in the library
-  ///
-  /// In en, this message translates to:
-  /// **'Play when in library'**
-  String get calendarSettingsSelectPlay;
-
-  /// Calendar setting that shows the request button on missing titles
-  ///
-  /// In en, this message translates to:
-  /// **'Request button'**
-  String get calendarSettingsRequestButton;
-
-  /// Subtitle of the Request button calendar setting. Seerr is a product name
-  ///
-  /// In en, this message translates to:
-  /// **'Show the Seerr request button on missing movies and seasons'**
-  String get calendarSettingsRequestButtonSubtitle;
-
-  /// Calendar setting that offers the Remind me button
-  ///
-  /// In en, this message translates to:
-  /// **'Reminders'**
-  String get calendarSettingsReminders;
-
-  /// Subtitle of the Reminders calendar setting
-  ///
-  /// In en, this message translates to:
-  /// **'Show Remind me, which sends a notification when a title lands in your library'**
-  String get calendarSettingsRemindersSubtitle;
 
   /// Home Screen setting that ends the upcoming episode and movie rows with a card that opens the calendar
   ///

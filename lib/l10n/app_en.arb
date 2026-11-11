@@ -3839,19 +3839,6 @@
     "description": "Seerr brand name"
   },
 
-  "seerrAccountType": "Seerr Account Type",
-  "@seerrAccountType": {
-    "description": "Header for selecting Seerr authentication account type"
-  },
-  "jellyfinAccount": "Jellyfin",
-  "@jellyfinAccount": {
-    "description": "Auth option label for Seerr sign in using Jellyfin credentials"
-  },
-  "localAccount": "Local",
-  "@localAccount": {
-    "description": "Auth option label for Seerr sign in using local Seerr credentials"
-  },
-
   "savedMedia": "Downloads",
   "@savedMedia": {
     "description": "Header title for saved/downloaded media screen"
@@ -4252,10 +4239,6 @@
   "qualityStorage": "Quality, storage",
   "@qualityStorage": {
     "description": "Download settings description"
-  },
-  "mediaRequestIntegration": "Media request integration",
-  "@mediaRequestIntegration": {
-    "description": "Seerr settings description"
   },
   "switchServer": "Switch Server",
   "@switchServer": {
@@ -7444,114 +7427,13 @@
   "@yourWatchlist": {
     "description": "Seerr row: watchlist"
   },
-  "resetRowsToDefaults": "Reset rows to defaults",
-  "@resetRowsToDefaults": {
-    "description": "Tooltip for reset rows to defaults"
-  },
-  "enableSeerr": "Enable Seerr",
-  "@enableSeerr": {
-    "description": "Setting for enabling Seerr"
-  },
-  "showSeerrInNavigation": "Show Seerr in navigation (requires server plugin)",
-  "@showSeerrInNavigation": {
-    "description": "Description for enable Seerr"
-  },
-  "seerrUnavailable": "Unavailable because server plugin Seerr support is disabled.",
-  "@seerrUnavailable": {
-    "description": "Description when Seerr is unavailable"
-  },
-  "nsfwFilter": "NSFW Filter",
-  "@nsfwFilter": {
-    "description": "Setting for NSFW filter"
-  },
-  "hideAdultContent": "Hide adult content in results",
-  "@hideAdultContent": {
-    "description": "Description for NSFW filter"
-  },
-  "showMissingCollectionItems": "Show Missing Collection Items",
-  "@showMissingCollectionItems": {
-    "description": "Setting title to show missing items from Seerr on Collection pages"
-  },
-  "showMissingCollectionItemsDesc": "Include missing items on Collection pages",
-  "@showMissingCollectionItemsDesc": {
-    "description": "Setting subtitle explaining that missing items will be included on Collection pages"
-  },
   "showSeerrAvailabilityBadges": "Show Seerr Availability Badges",
   "@showSeerrAvailabilityBadges": {
     "description": "Setting title for showing Seerr availability badges on posters across the app"
   },
-  "showSeerrAvailabilityBadgesDescription": "Show the Seerr status on posters and seasons across the app",
-  "@showSeerrAvailabilityBadgesDescription": {
-    "description": "Setting description for showing Seerr availability badges on posters across the app"
-  },
   "seerrBadgeStyle": "Badge Style",
   "@seerrBadgeStyle": {
     "description": "Setting title for how posters show their Seerr status"
-  },
-  "seerrBadgeStyleDescription": "Badge puts Seerr's dot in a corner. Banner runs the status across the top of the poster.",
-  "@seerrBadgeStyleDescription": {
-    "description": "Setting description for the Seerr badge style choices"
-  },
-  "seerrBadgeStyleBadge": "Badge",
-  "@seerrBadgeStyleBadge": {
-    "description": "Seerr badge style that shows a status dot in a poster corner"
-  },
-  "seerrNotificationsSection": "Notifications",
-  "@seerrNotificationsSection": {
-    "description": "Header for the Seerr notifications settings section"
-  },
-  "seerrNotifyNewRequestsTitle": "New Request Notifications",
-  "@seerrNotifyNewRequestsTitle": {
-    "description": "Title for the toggle that notifies approvers of new Seerr requests"
-  },
-  "seerrNotifyNewRequestsSubtitle": "Alert me when someone submits a request",
-  "@seerrNotifyNewRequestsSubtitle": {
-    "description": "Subtitle for the new request notifications toggle"
-  },
-  "seerrNotifyLibraryAddedTitle": "Request Updates",
-  "@seerrNotifyLibraryAddedTitle": {
-    "description": "Title for the toggle that notifies a requester about approvals, declines, and library availability"
-  },
-  "seerrNotifyLibraryAddedSubtitle": "Approved, declined, and added to your library",
-  "@seerrNotifyLibraryAddedSubtitle": {
-    "description": "Subtitle for the library-added notifications toggle"
-  },
-  "seerrNotifyIssuesTitle": "Issue Updates",
-  "@seerrNotifyIssuesTitle": {
-    "description": "Title for the issue notifications toggle"
-  },
-  "seerrNotifyIssuesSubtitle": "New issues, replies, and resolutions",
-  "@seerrNotifyIssuesSubtitle": {
-    "description": "Subtitle for the issue notifications toggle"
-  },
-  "seerrNotifyNewMediaTitle": "New Media Added",
-  "@seerrNotifyNewMediaTitle": {
-    "description": "Title for the toggle that notifies about anything newly added to the server library, not just requested media"
-  },
-  "seerrNotifyNewMediaSubtitle": "Anything new added to the server library",
-  "@seerrNotifyNewMediaSubtitle": {
-    "description": "Subtitle for the new media notifications toggle"
-  },
-  "loggedInAs": "Logged in as: {username}",
-  "@loggedInAs": {
-    "description": "Label showing logged in username",
-    "placeholders": {
-      "username": {
-        "type": "String"
-      }
-    }
-  },
-  "discoverRows": "Seerr Discovery Page",
-  "@discoverRows": {
-    "description": "Section title for discover rows"
-  },
-  "discoverRowsDescriptionPlugin": "Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with the server plugin.",
-  "@discoverRowsDescriptionPlugin": {
-    "description": "Description for discover rows with plugin"
-  },
-  "discoverRowsDescription": "Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with the server plugin.",
-  "@discoverRowsDescription": {
-    "description": "Description for discover rows without plugin"
   },
   "enabled": "Enabled",
   "@enabled": {
@@ -12334,10 +12216,6 @@
   "@achievementBadges": {
     "description": "Title of the Achievement Badges plugin panel"
   },
-  "achievementBadgesSubtitle": "Badges, ranks and quests earned from what you watch",
-  "@achievementBadgesSubtitle": {
-    "description": "Subtitle of the Achievement Badges entry in Integrations"
-  },
   "achievementsBadges": "Badges",
   "@achievementsBadges": {
     "description": "Badges section title"
@@ -15295,10 +15173,6 @@
   "@settingsStorageSubtitle": {
     "description": "Subtitle for the Storage & Downloads settings root entry"
   },
-  "settingsServicesSubtitle": "Seerr and Achievement Badges",
-  "@settingsServicesSubtitle": {
-    "description": "Subtitle for the Services settings root entry"
-  },
   "settingsSignInSection": "Sign-in",
   "@settingsSignInSection": {
     "description": "Section header on the Account settings screen"
@@ -16978,142 +16852,6 @@
   "calendarProblemFailed": "Couldn't load the calendar.",
   "@calendarProblemFailed": {
     "description": "Calendar message when loading fails"
-  },
-  "calendarSettingsSubtitle": "Style, filters and actions for the calendar",
-  "@calendarSettingsSubtitle": {
-    "description": "Subtitle of the Calendar entry under Integrations in settings"
-  },
-  "calendarSettingsView": "View",
-  "@calendarSettingsView": {
-    "description": "Calendar settings section header for how the calendar opens and lays out weeks"
-  },
-  "calendarSettingsStyle": "Calendar style",
-  "@calendarSettingsStyle": {
-    "description": "Calendar setting that picks what the Calendar button opens"
-  },
-  "calendarSettingsStyleDescription": "What the Calendar button opens. The full month is one button away in both.",
-  "@calendarSettingsStyleDescription": {
-    "description": "Description of the Calendar style setting"
-  },
-  "calendarSettingsStyleAgenda": "Agenda",
-  "@calendarSettingsStyleAgenda": {
-    "description": "Calendar style that lists episodes and movies day by day"
-  },
-  "calendarSettingsStyleCountdown": "Countdown",
-  "@calendarSettingsStyleCountdown": {
-    "description": "Calendar style that counts down to the next episode or movie"
-  },
-  "calendarSettingsWeekStart": "Week starts on",
-  "@calendarSettingsWeekStart": {
-    "description": "Calendar setting for the first day of the week in the month grid"
-  },
-  "calendarSettingsWhatShows": "What shows",
-  "@calendarSettingsWhatShows": {
-    "description": "Calendar settings section header for which episodes and movies the calendar lists"
-  },
-  "calendarSettingsScope": "Show",
-  "@calendarSettingsScope": {
-    "description": "Calendar setting that limits the calendar to the user's own series. The choices are Everything and My shows"
-  },
-  "calendarSettingsScopeDescription": "My shows keeps the series you favorited or started watching",
-  "@calendarSettingsScopeDescription": {
-    "description": "Description of the calendar Show setting"
-  },
-  "calendarSettingsScopeEverything": "Everything",
-  "@calendarSettingsScopeEverything": {
-    "description": "Calendar Show choice that lists every episode and movie"
-  },
-  "calendarSettingsScopeMyShows": "My shows",
-  "@calendarSettingsScopeMyShows": {
-    "description": "Calendar Show choice that lists only series the user favorited or started watching"
-  },
-  "calendarSettingsUnmonitored": "Include unmonitored",
-  "@calendarSettingsUnmonitored": {
-    "description": "Calendar setting that also lists titles Sonarr and Radarr won't download"
-  },
-  "calendarSettingsUnmonitoredSubtitle": "Also list episodes and movies Sonarr and Radarr aren't set to download",
-  "@calendarSettingsUnmonitoredSubtitle": {
-    "description": "Subtitle of the Include unmonitored calendar setting"
-  },
-  "calendarSettingsSpecials": "Specials",
-  "@calendarSettingsSpecials": {
-    "description": "Calendar setting that lists special episodes, the ones in season 0"
-  },
-  "calendarSettingsSpecialsSubtitle": "Season 0 episodes, like extras and holiday specials",
-  "@calendarSettingsSpecialsSubtitle": {
-    "description": "Subtitle of the Specials calendar setting"
-  },
-  "calendarSettingsBadges": "Premiere and finale tags",
-  "@calendarSettingsBadges": {
-    "description": "Calendar setting that marks premieres and finales on the calendar"
-  },
-  "calendarSettingsBadgesSubtitle": "Mark premieres, finales and new seasons",
-  "@calendarSettingsBadgesSubtitle": {
-    "description": "Subtitle of the Premiere and finale tags calendar setting"
-  },
-  "calendarSettingsColorBy": "Color by",
-  "@calendarSettingsColorBy": {
-    "description": "Calendar setting for what the colors on calendar entries mean. The choices are Type and Status"
-  },
-  "calendarSettingsColorByDescription": "Type tells episodes from movies. Status shows what's in your library, coming up or missing.",
-  "@calendarSettingsColorByDescription": {
-    "description": "Description of the Color by calendar setting"
-  },
-  "calendarSettingsColorByType": "Type",
-  "@calendarSettingsColorByType": {
-    "description": "Color by choice that colors episodes and movies differently"
-  },
-  "calendarSettingsImageType": "Card image",
-  "@calendarSettingsImageType": {
-    "description": "Calendar setting for the artwork on the Countdown rows"
-  },
-  "calendarSettingsImageTypeDescription": "The artwork on the Countdown rows",
-  "@calendarSettingsImageTypeDescription": {
-    "description": "Description of the Card image calendar setting"
-  },
-  "calendarSettingsSpoilerSafe": "Spoiler safe",
-  "@calendarSettingsSpoilerSafe": {
-    "description": "Calendar setting that hides episode details for shows the user hasn't caught up on"
-  },
-  "calendarSettingsSpoilerSafeSubtitle": "Hide episode titles and stills for shows you're behind on",
-  "@calendarSettingsSpoilerSafeSubtitle": {
-    "description": "Subtitle of the Spoiler safe calendar setting"
-  },
-  "calendarSettingsActions": "Actions",
-  "@calendarSettingsActions": {
-    "description": "Calendar settings section header for what buttons and selecting an entry do"
-  },
-  "calendarSettingsSelectAction": "Selecting an item",
-  "@calendarSettingsSelectAction": {
-    "description": "Calendar setting for what OK or a tap does on an entry that is in the library"
-  },
-  "calendarSettingsSelectActionDescription": "What OK or a tap does on something that's already in your library",
-  "@calendarSettingsSelectActionDescription": {
-    "description": "Description of the Selecting an item calendar setting"
-  },
-  "calendarSettingsSelectDetails": "Open details",
-  "@calendarSettingsSelectDetails": {
-    "description": "Selecting an item choice that opens the details page"
-  },
-  "calendarSettingsSelectPlay": "Play when in library",
-  "@calendarSettingsSelectPlay": {
-    "description": "Selecting an item choice that starts playback when the episode or movie is in the library"
-  },
-  "calendarSettingsRequestButton": "Request button",
-  "@calendarSettingsRequestButton": {
-    "description": "Calendar setting that shows the request button on missing titles"
-  },
-  "calendarSettingsRequestButtonSubtitle": "Show the Seerr request button on missing movies and seasons",
-  "@calendarSettingsRequestButtonSubtitle": {
-    "description": "Subtitle of the Request button calendar setting. Seerr is a product name"
-  },
-  "calendarSettingsReminders": "Reminders",
-  "@calendarSettingsReminders": {
-    "description": "Calendar setting that offers the Remind me button"
-  },
-  "calendarSettingsRemindersSubtitle": "Show Remind me, which sends a notification when a title lands in your library",
-  "@calendarSettingsRemindersSubtitle": {
-    "description": "Subtitle of the Reminders calendar setting"
   },
   "calendarRowSeeAll": "See All card",
   "@calendarRowSeeAll": {

@@ -2822,15 +2822,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get seerr => 'Seerr';
 
   @override
-  String get seerrAccountType => 'Seerr Account Type';
-
-  @override
-  String get jellyfinAccount => 'Jellyfin';
-
-  @override
-  String get localAccount => 'Local';
-
-  @override
   String get savedMedia => 'Downloads';
 
   @override
@@ -3113,9 +3104,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get qualityStorage => 'Quality, storage';
-
-  @override
-  String get mediaRequestIntegration => 'Media request integration';
 
   @override
   String get switchServer => 'Switch Server';
@@ -5642,95 +5630,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get yourWatchlist => 'Your Watchlist';
 
   @override
-  String get resetRowsToDefaults => 'Reset rows to defaults';
-
-  @override
-  String get enableSeerr => 'Enable Seerr';
-
-  @override
-  String get showSeerrInNavigation =>
-      'Show Seerr in navigation (requires server plugin)';
-
-  @override
-  String get seerrUnavailable =>
-      'Unavailable because server plugin Seerr support is disabled.';
-
-  @override
-  String get nsfwFilter => 'NSFW Filter';
-
-  @override
-  String get hideAdultContent => 'Hide adult content in results';
-
-  @override
-  String get showMissingCollectionItems => 'Show Missing Collection Items';
-
-  @override
-  String get showMissingCollectionItemsDesc =>
-      'Include missing items on Collection pages';
-
-  @override
   String get showSeerrAvailabilityBadges => 'Show Seerr Availability Badges';
 
   @override
-  String get showSeerrAvailabilityBadgesDescription =>
-      'Show the Seerr status on posters and seasons across the app';
-
-  @override
   String get seerrBadgeStyle => 'Badge Style';
-
-  @override
-  String get seerrBadgeStyleDescription =>
-      'Badge puts Seerr\'s dot in a corner. Banner runs the status across the top of the poster.';
-
-  @override
-  String get seerrBadgeStyleBadge => 'Badge';
-
-  @override
-  String get seerrNotificationsSection => 'Notifications';
-
-  @override
-  String get seerrNotifyNewRequestsTitle => 'New Request Notifications';
-
-  @override
-  String get seerrNotifyNewRequestsSubtitle =>
-      'Alert me when someone submits a request';
-
-  @override
-  String get seerrNotifyLibraryAddedTitle => 'Request Updates';
-
-  @override
-  String get seerrNotifyLibraryAddedSubtitle =>
-      'Approved, declined, and added to your library';
-
-  @override
-  String get seerrNotifyIssuesTitle => 'Issue Updates';
-
-  @override
-  String get seerrNotifyIssuesSubtitle =>
-      'New issues, replies, and resolutions';
-
-  @override
-  String get seerrNotifyNewMediaTitle => 'New Media Added';
-
-  @override
-  String get seerrNotifyNewMediaSubtitle =>
-      'Anything new added to the server library';
-
-  @override
-  String loggedInAs(String username) {
-    return 'Logged in as: $username';
-  }
-
-  @override
-  String get discoverRows => 'Seerr Discovery Page';
-
-  @override
-  String get discoverRowsDescriptionPlugin =>
-      'Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with the server plugin.';
-
-  @override
-  String get discoverRowsDescription =>
-      'Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with the server plugin.';
 
   @override
   String get enabled => 'Enabled';
@@ -13507,10 +13410,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get achievementBadges => 'Achievement Badges';
 
   @override
-  String get achievementBadgesSubtitle =>
-      'Badges, ranks and quests earned from what you watch';
-
-  @override
   String get achievementsBadges => 'Badges';
 
   @override
@@ -16279,9 +16178,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Downloads, storage location, and the image cache';
 
   @override
-  String get settingsServicesSubtitle => 'Seerr and Achievement Badges';
-
-  @override
   String get settingsSignInSection => 'Sign-in';
 
   @override
@@ -17524,120 +17420,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get calendarProblemFailed => 'Couldn\'t load the calendar.';
-
-  @override
-  String get calendarSettingsSubtitle =>
-      'Style, filters and actions for the calendar';
-
-  @override
-  String get calendarSettingsView => 'View';
-
-  @override
-  String get calendarSettingsStyle => 'Calendar style';
-
-  @override
-  String get calendarSettingsStyleDescription =>
-      'What the Calendar button opens. The full month is one button away in both.';
-
-  @override
-  String get calendarSettingsStyleAgenda => 'Agenda';
-
-  @override
-  String get calendarSettingsStyleCountdown => 'Countdown';
-
-  @override
-  String get calendarSettingsWeekStart => 'Week starts on';
-
-  @override
-  String get calendarSettingsWhatShows => 'What shows';
-
-  @override
-  String get calendarSettingsScope => 'Show';
-
-  @override
-  String get calendarSettingsScopeDescription =>
-      'My shows keeps the series you favorited or started watching';
-
-  @override
-  String get calendarSettingsScopeEverything => 'Everything';
-
-  @override
-  String get calendarSettingsScopeMyShows => 'My shows';
-
-  @override
-  String get calendarSettingsUnmonitored => 'Include unmonitored';
-
-  @override
-  String get calendarSettingsUnmonitoredSubtitle =>
-      'Also list episodes and movies Sonarr and Radarr aren\'t set to download';
-
-  @override
-  String get calendarSettingsSpecials => 'Specials';
-
-  @override
-  String get calendarSettingsSpecialsSubtitle =>
-      'Season 0 episodes, like extras and holiday specials';
-
-  @override
-  String get calendarSettingsBadges => 'Premiere and finale tags';
-
-  @override
-  String get calendarSettingsBadgesSubtitle =>
-      'Mark premieres, finales and new seasons';
-
-  @override
-  String get calendarSettingsColorBy => 'Color by';
-
-  @override
-  String get calendarSettingsColorByDescription =>
-      'Type tells episodes from movies. Status shows what\'s in your library, coming up or missing.';
-
-  @override
-  String get calendarSettingsColorByType => 'Type';
-
-  @override
-  String get calendarSettingsImageType => 'Card image';
-
-  @override
-  String get calendarSettingsImageTypeDescription =>
-      'The artwork on the Countdown rows';
-
-  @override
-  String get calendarSettingsSpoilerSafe => 'Spoiler safe';
-
-  @override
-  String get calendarSettingsSpoilerSafeSubtitle =>
-      'Hide episode titles and stills for shows you\'re behind on';
-
-  @override
-  String get calendarSettingsActions => 'Actions';
-
-  @override
-  String get calendarSettingsSelectAction => 'Selecting an item';
-
-  @override
-  String get calendarSettingsSelectActionDescription =>
-      'What OK or a tap does on something that\'s already in your library';
-
-  @override
-  String get calendarSettingsSelectDetails => 'Open details';
-
-  @override
-  String get calendarSettingsSelectPlay => 'Play when in library';
-
-  @override
-  String get calendarSettingsRequestButton => 'Request button';
-
-  @override
-  String get calendarSettingsRequestButtonSubtitle =>
-      'Show the Seerr request button on missing movies and seasons';
-
-  @override
-  String get calendarSettingsReminders => 'Reminders';
-
-  @override
-  String get calendarSettingsRemindersSubtitle =>
-      'Show Remind me, which sends a notification when a title lands in your library';
 
   @override
   String get calendarRowSeeAll => 'See All card';

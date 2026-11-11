@@ -2848,15 +2848,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get seerr => 'Seerr';
 
   @override
-  String get seerrAccountType => 'Tipo de cuenta de Seerr';
-
-  @override
-  String get jellyfinAccount => 'Jellyfin';
-
-  @override
-  String get localAccount => 'Local';
-
-  @override
   String get savedMedia => 'Descargas';
 
   @override
@@ -3144,10 +3135,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get qualityStorage => 'Calidad, almacenamiento';
-
-  @override
-  String get mediaRequestIntegration =>
-      'Integración de solicitudes de contenido';
 
   @override
   String get switchServer => 'Cambiar de servidor';
@@ -5713,100 +5700,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get yourWatchlist => 'Tu lista de seguimiento';
 
   @override
-  String get resetRowsToDefaults =>
-      'Restablecer filas a valores predeterminados';
-
-  @override
-  String get enableSeerr => 'Activar Seerr';
-
-  @override
-  String get showSeerrInNavigation =>
-      'Mostrar Seerr en la navegación (requiere complemento del servidor)';
-
-  @override
-  String get seerrUnavailable =>
-      'No disponible porque la compatibilidad con Seerr está desactivada en el complemento del servidor.';
-
-  @override
-  String get nsfwFilter => 'Filtro NSFW';
-
-  @override
-  String get hideAdultContent =>
-      'Ocultar contenido para adultos en los resultados';
-
-  @override
-  String get showMissingCollectionItems =>
-      'Mostrar lo que falta en las colecciones';
-
-  @override
-  String get showMissingCollectionItemsDesc =>
-      'Incluye los títulos que faltan en las páginas de colecciones';
-
-  @override
   String get showSeerrAvailabilityBadges =>
       'Mostrar insignias de disponibilidad de Seerr';
 
   @override
-  String get showSeerrAvailabilityBadgesDescription =>
-      'Muestra el estado de Seerr en los pósteres y las temporadas de toda la app';
-
-  @override
   String get seerrBadgeStyle => 'Estilo de insignia';
-
-  @override
-  String get seerrBadgeStyleDescription =>
-      'Insignia pone el punto de Seerr en una esquina. Banner muestra el estado a lo ancho de la parte superior del póster.';
-
-  @override
-  String get seerrBadgeStyleBadge => 'Insignia';
-
-  @override
-  String get seerrNotificationsSection => 'Notificaciones';
-
-  @override
-  String get seerrNotifyNewRequestsTitle =>
-      'Notificaciones de nuevas solicitudes';
-
-  @override
-  String get seerrNotifyNewRequestsSubtitle =>
-      'Avisarme cuando alguien envíe una solicitud';
-
-  @override
-  String get seerrNotifyLibraryAddedTitle => 'Novedades de solicitudes';
-
-  @override
-  String get seerrNotifyLibraryAddedSubtitle =>
-      'Aprobadas, rechazadas y añadidas a tu biblioteca';
-
-  @override
-  String get seerrNotifyIssuesTitle => 'Novedades de problemas';
-
-  @override
-  String get seerrNotifyIssuesSubtitle =>
-      'Nuevos problemas, respuestas y resoluciones';
-
-  @override
-  String get seerrNotifyNewMediaTitle => 'Contenido nuevo añadido';
-
-  @override
-  String get seerrNotifyNewMediaSubtitle =>
-      'Cualquier novedad que se añada a la biblioteca del servidor';
-
-  @override
-  String loggedInAs(String username) {
-    return 'Sesión iniciada como: $username';
-  }
-
-  @override
-  String get discoverRows => 'Página de descubrimiento de Seerr';
-
-  @override
-  String get discoverRowsDescriptionPlugin =>
-      'Activa las filas que quieres ver en la página principal de Seerr. Arrastra para reordenar. El orden personalizado se sincroniza con el complemento del servidor.';
-
-  @override
-  String get discoverRowsDescription =>
-      'Activa las filas que quieres ver en la página principal de Seerr. Arrastra para reordenar. El orden personalizado se sincroniza con el complemento del servidor.';
 
   @override
   String get enabled => 'Activado';
@@ -13777,10 +13675,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get achievementBadges => 'Insignias de logros';
 
   @override
-  String get achievementBadgesSubtitle =>
-      'Insignias, rangos y misiones que ganas con lo que ves';
-
-  @override
   String get achievementsBadges => 'Insignias';
 
   @override
@@ -16583,9 +16477,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Descargas, ubicación del almacenamiento y caché de imágenes';
 
   @override
-  String get settingsServicesSubtitle => 'Seerr e insignias de logros';
-
-  @override
   String get settingsSignInSection => 'Inicio de sesión';
 
   @override
@@ -17840,121 +17731,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get calendarProblemFailed => 'No se pudo cargar el calendario.';
-
-  @override
-  String get calendarSettingsSubtitle =>
-      'Estilo, filtros y acciones del calendario';
-
-  @override
-  String get calendarSettingsView => 'Vista';
-
-  @override
-  String get calendarSettingsStyle => 'Estilo del calendario';
-
-  @override
-  String get calendarSettingsStyleDescription =>
-      'Lo que abre el botón Calendario. El mes completo está a un botón de distancia en los dos.';
-
-  @override
-  String get calendarSettingsStyleAgenda => 'Agenda';
-
-  @override
-  String get calendarSettingsStyleCountdown => 'Cuenta atrás';
-
-  @override
-  String get calendarSettingsWeekStart => 'La semana empieza el';
-
-  @override
-  String get calendarSettingsWhatShows => 'Qué se muestra';
-
-  @override
-  String get calendarSettingsScope => 'Mostrar';
-
-  @override
-  String get calendarSettingsScopeDescription =>
-      'Mis series deja solo las series que tienes en favoritos o que has empezado a ver';
-
-  @override
-  String get calendarSettingsScopeEverything => 'Todo';
-
-  @override
-  String get calendarSettingsScopeMyShows => 'Mis series';
-
-  @override
-  String get calendarSettingsUnmonitored => 'Incluir sin seguimiento';
-
-  @override
-  String get calendarSettingsUnmonitoredSubtitle =>
-      'Muestra también los episodios y películas que Sonarr y Radarr no tienen configurados para descargar';
-
-  @override
-  String get calendarSettingsSpecials => 'Especiales';
-
-  @override
-  String get calendarSettingsSpecialsSubtitle =>
-      'Episodios de la temporada 0, como extras y especiales de Navidad';
-
-  @override
-  String get calendarSettingsBadges => 'Etiquetas de estreno y final';
-
-  @override
-  String get calendarSettingsBadgesSubtitle =>
-      'Marca estrenos, finales y nuevas temporadas';
-
-  @override
-  String get calendarSettingsColorBy => 'Colorear por';
-
-  @override
-  String get calendarSettingsColorByDescription =>
-      'Tipo distingue episodios de películas. Estado muestra lo que está en tu biblioteca, lo que está por llegar y lo que falta.';
-
-  @override
-  String get calendarSettingsColorByType => 'Tipo';
-
-  @override
-  String get calendarSettingsImageType => 'Imagen de la tarjeta';
-
-  @override
-  String get calendarSettingsImageTypeDescription =>
-      'La imagen de las filas de Cuenta atrás';
-
-  @override
-  String get calendarSettingsSpoilerSafe => 'Sin spoilers';
-
-  @override
-  String get calendarSettingsSpoilerSafeSubtitle =>
-      'Oculta títulos e imágenes de episodios de las series que llevas atrasadas';
-
-  @override
-  String get calendarSettingsActions => 'Acciones';
-
-  @override
-  String get calendarSettingsSelectAction => 'Al seleccionar un elemento';
-
-  @override
-  String get calendarSettingsSelectActionDescription =>
-      'Lo que hace pulsar OK o tocar en algo que ya está en tu biblioteca';
-
-  @override
-  String get calendarSettingsSelectDetails => 'Abrir detalles';
-
-  @override
-  String get calendarSettingsSelectPlay =>
-      'Reproducir si está en la biblioteca';
-
-  @override
-  String get calendarSettingsRequestButton => 'Botón de solicitud';
-
-  @override
-  String get calendarSettingsRequestButtonSubtitle =>
-      'Muestra el botón de solicitud de Seerr en las películas y temporadas que faltan';
-
-  @override
-  String get calendarSettingsReminders => 'Recordatorios';
-
-  @override
-  String get calendarSettingsRemindersSubtitle =>
-      'Muestra Recuérdamelo, que envía una notificación cuando un título llega a tu biblioteca';
 
   @override
   String get calendarRowSeeAll => 'Tarjeta Ver todo';

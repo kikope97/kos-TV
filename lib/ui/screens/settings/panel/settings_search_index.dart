@@ -121,19 +121,15 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
   required VoidCallback openAdmin,
   required VoidCallback openThemeEditor,
 }) {
-  final prefs = GetIt.instance<UserPreferences>();
   final seerrAvailable = GetIt.instance<PluginSyncService>().seerrAvailable;
   final tmdbAvailable = GetIt.instance<PluginSyncService>().tmdbAvailable;
   final pluginAvailable = GetIt.instance<PluginSyncService>().pluginAvailable;
   final calendarAvailable =
       GetIt.instance<PluginSyncService>().calendarAvailable;
-  final calendarRemindersAvailable =
-      GetIt.instance<PluginSyncService>().calendarRemindersAvailable;
   final liveTvOnAnyServer = liveTvOnAnySignedInServer();
   final musicOnAnyServer = musicOnAnySignedInServer();
   final playlistsOnAnyServer = playlistsOnAnySignedInServer();
   final moonfinPluginOnAnyServer = moonfinPluginOnAnySignedInServer();
-  final seerrOnAnyServer = seerrOnAnySignedInServer();
   // Retro games come from the Moonfin plugin's game libraries.
   final gamesOnAnyServer = anySignedInServerSupports(
     (f) => f.supportsFullMoonfinPlugin,
@@ -428,24 +424,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     path: [l10n.storage],
     icon: Icons.download_for_offline,
     open: () => push(const DownloadSettingsScreen()),
-  );
-  final services = _SearchSection(
-    slug: 'services',
-    path: [l10n.integrations],
-    icon: Icons.hub,
-    open: () => push(const _ServicesScreen()),
-  );
-  final calendarSettings = _SearchSection(
-    slug: 'calendar-settings',
-    path: [l10n.integrations, l10n.calendar],
-    icon: Icons.calendar_month,
-    open: () => push(const _CalendarSettingsScreen()),
-  );
-  final seerr = _SearchSection(
-    slug: 'seerr',
-    path: [l10n.integrations, seerrBrand(l10n.seerr)],
-    icon: Icons.movie_filter,
-    open: () => push(const SeerrConfigScreen()),
   );
   final about = _SearchSection(
     slug: 'about',
@@ -2220,121 +2198,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         keywords: ['mpv config'],
       ),
 
-    if (_integrationsOffered)
-      services.screen(
-        keywords: ['seerr', 'calendar', 'achievements', 'services'],
-      ),
-    if (calendarAvailable) ...[
-      calendarSettings.screen(
-        keywords: ['sonarr', 'radarr', 'upcoming', 'schedule'],
-      ),
-      calendarSettings.leaf(
-        'pref_calendar_style',
-        l10n.calendarSettingsStyle,
-        subtitle: l10n.calendarSettingsStyleDescription,
-        keywords: [
-          l10n.calendarSettingsStyleAgenda,
-          l10n.calendarSettingsStyleCountdown,
-        ],
-      ),
-      calendarSettings.leaf(
-        'pref_calendar_week_start',
-        l10n.calendarSettingsWeekStart,
-        keywords: [l10n.adminDaySunday, l10n.adminDayMonday],
-      ),
-      calendarSettings.leaf(
-        'pref_calendar_scope',
-        l10n.calendarSettingsScope,
-        subtitle: l10n.calendarSettingsScopeDescription,
-        keywords: [l10n.calendarSettingsScopeMyShows, 'favorites'],
-        header: l10n.calendarSettingsWhatShows,
-      ),
-      calendarSettings.leaf(
-        'pref_calendar_show_episodes',
-        l10n.episodes,
-        keywords: ['sonarr'],
-        header: l10n.calendarSettingsWhatShows,
-      ),
-      calendarSettings.leaf(
-        'pref_calendar_show_movies',
-        l10n.movies,
-        keywords: ['radarr'],
-        header: l10n.calendarSettingsWhatShows,
-      ),
-      calendarSettings.leaf(
-        'radarr_calendar_show_cinema',
-        l10n.radarrCalendarShowCinema,
-        header: l10n.calendarSettingsWhatShows,
-      ),
-      calendarSettings.leaf(
-        'radarr_calendar_show_digital',
-        l10n.radarrCalendarShowDigital,
-        header: l10n.calendarSettingsWhatShows,
-      ),
-      calendarSettings.leaf(
-        'radarr_calendar_show_physical',
-        l10n.radarrCalendarShowPhysical,
-        header: l10n.calendarSettingsWhatShows,
-      ),
-      calendarSettings.leaf(
-        'pref_calendar_libraries',
-        l10n.libraries,
-        header: l10n.calendarSettingsWhatShows,
-      ),
-      calendarSettings.leaf(
-        'pref_calendar_unmonitored',
-        l10n.calendarSettingsUnmonitored,
-        subtitle: l10n.calendarSettingsUnmonitoredSubtitle,
-      ),
-      calendarSettings.leaf(
-        'pref_calendar_specials',
-        l10n.calendarSettingsSpecials,
-        subtitle: l10n.calendarSettingsSpecialsSubtitle,
-        keywords: ['season 0'],
-      ),
-      calendarSettings.leaf(
-        'pref_calendar_badges',
-        l10n.calendarSettingsBadges,
-        subtitle: l10n.calendarSettingsBadgesSubtitle,
-      ),
-      calendarSettings.leaf(
-        'pref_calendar_color_by',
-        l10n.calendarSettingsColorBy,
-        subtitle: l10n.calendarSettingsColorByDescription,
-      ),
-      if (prefs.get(UserPreferences.calendarStyle) ==
-          CalendarStyle.countdown)
-        calendarSettings.leaf(
-          'pref_calendar_image_type',
-          l10n.calendarSettingsImageType,
-          subtitle: l10n.calendarSettingsImageTypeDescription,
-          keywords: [l10n.imageTypePoster, l10n.imageTypeThumbnail],
-        ),
-      calendarSettings.leaf(
-        'pref_calendar_spoiler_safe',
-        l10n.calendarSettingsSpoilerSafe,
-        subtitle: l10n.calendarSettingsSpoilerSafeSubtitle,
-        keywords: ['spoilers'],
-      ),
-      calendarSettings.leaf(
-        'pref_calendar_select_action',
-        l10n.calendarSettingsSelectAction,
-        subtitle: l10n.calendarSettingsSelectActionDescription,
-      ),
-      if (seerrAvailable)
-        calendarSettings.leaf(
-          'pref_calendar_request_button',
-          l10n.calendarSettingsRequestButton,
-          subtitle: seerrBrand(l10n.calendarSettingsRequestButtonSubtitle),
-        ),
-      if (PlatformDetection.useMobileUi && calendarRemindersAvailable)
-        calendarSettings.leaf(
-          'pref_calendar_reminders',
-          l10n.calendarSettingsReminders,
-          subtitle: l10n.calendarSettingsRemindersSubtitle,
-          keywords: [l10n.calendarRemindMe, 'notifications'],
-        ),
-    ],
     if (moonfinPluginOnAnyServer)
       settingsSync.screen(
         keywords: ['moonbase', 'plugin', 'server sync', 'status', 'profile'],
@@ -2347,17 +2210,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       'letterboxd',
       'reorder',
     ]),
-    if (seerrOnAnyServer)
-      seerr.screen(keywords: [
-        'requests',
-        'jellyseerr',
-        'overseerr',
-        'discover',
-        'nsfw',
-        'notifications',
-        'badges',
-        'banner',
-      ]),
 
     about.screen(keywords: ['version', 'update', 'discord', 'license']),
     if (PlatformDetection.useDesktopUi)

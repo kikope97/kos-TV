@@ -274,9 +274,6 @@ class SeerrRepository {
     return status;
   }
 
-  Future<MoonfinStatusResponse> checkMoonfinStatus() =>
-      _withClient((c) => c.getMoonfinStatus());
-
   Future<void> bootstrapMoonfinSso({
     required String jellyfinBaseUrl,
     required String jellyfinToken,

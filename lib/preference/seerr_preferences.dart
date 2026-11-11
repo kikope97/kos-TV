@@ -90,7 +90,6 @@ class SeerrPreferences {
       _store.setBool(_userKey('show_request_status'), value);
 
   bool get blockNsfw => _store.getBool(_userKey('block_nsfw')) ?? true;
-  Future<void> setBlockNsfw(bool value) => _store.setBool(_userKey('block_nsfw'), value);
 
   bool get notifyOnNewRequests => _store.getBool(_userKey('notify_new_requests')) ?? true;
   Future<void> setNotifyOnNewRequests(bool value) =>

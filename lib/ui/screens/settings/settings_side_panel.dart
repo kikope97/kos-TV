@@ -104,7 +104,6 @@ import 'home_sections_screen.dart';
 import 'home_row_toggles_screen.dart';
 import 'home_rows_image_type_screen.dart';
 import 'emulator_cores_screen.dart';
-import 'achievements_screen.dart';
 import 'downloaded_games_screen.dart';
 import 'library_order_screen.dart';
 import 'library_settings_screen.dart';
@@ -114,7 +113,6 @@ import 'parental_settings_screen.dart';
 import 'pin_code_settings_screen.dart';
 import 'plugin_settings_screen.dart';
 import 'ratings_config_screen.dart';
-import 'seerr_config_screen.dart';
 import 'settings_app_bar.dart';
 import 'subtitle_customization_screen.dart';
 import 'subtitle_settings_screen.dart';
@@ -140,8 +138,6 @@ part 'panel/home_screen_category_screen.dart';
 part 'panel/libraries_category_screen.dart';
 part 'panel/seasonal_effects_screen.dart';
 part 'panel/loading_animation_screen.dart';
-part 'panel/services_screen.dart';
-part 'panel/calendar_settings_screen.dart';
 part 'panel/external_lists_screen.dart';
 part 'panel/plugin_screen.dart';
 part 'panel/about_category_screen.dart';
@@ -171,16 +167,6 @@ Widget watchPartySettingsScreenForTesting() => const _SyncPlaySettingsScreen();
 
 bool get _showThemeEditorEntry =>
     PlatformDetection.isWeb && webRuntimeConfig.pluginMode;
-
-/// Whether Integrations has anything to show: Seerr, which a signed-in server
-/// with the Moonfin plugin could offer, or the calendar and achievements,
-/// which the active server's plugin answered for.
-bool get _integrationsOffered =>
-    seerrOnAnySignedInServer() ||
-    (GetIt.instance.isRegistered<PluginSyncService>() &&
-        GetIt.instance<PluginSyncService>().calendarAvailable) ||
-    (GetIt.instance.isRegistered<AchievementsService>() &&
-        GetIt.instance<AchievementsService>().available);
 
 Uri _resolveThemeEditorUri() {
   final base = Uri.base;
@@ -618,15 +604,6 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
           l10n.storage,
           l10n.settingsStorageSubtitle,
           () => const DownloadSettingsScreen(),
-          preview: false,
-        ),
-      // Seerr and achievements both come from the Moonfin plugin. With
-      // neither on offer (only Silo signed in) the screen would be empty.
-      if (_integrationsOffered)
-        _SettingsCategory(
-          l10n.integrations,
-          seerrBrand(l10n.settingsServicesSubtitle),
-          () => const _ServicesScreen(),
           preview: false,
         ),
       _SettingsCategory(

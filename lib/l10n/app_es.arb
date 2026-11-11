@@ -3795,18 +3795,6 @@
     "@seerr": {
         "description": "Seerr brand name"
     },
-    "seerrAccountType": "Tipo de cuenta de Seerr",
-    "@seerrAccountType": {
-        "description": "Header for selecting Seerr authentication account type"
-    },
-    "jellyfinAccount": "Jellyfin",
-    "@jellyfinAccount": {
-        "description": "Auth option label for Seerr sign in using Jellyfin credentials"
-    },
-    "localAccount": "Local",
-    "@localAccount": {
-        "description": "Auth option label for Seerr sign in using local Seerr credentials"
-    },
     "savedMedia": "Descargas",
     "@savedMedia": {
         "description": "Header title for saved/downloaded media screen"
@@ -4206,10 +4194,6 @@
     "qualityStorage": "Calidad, almacenamiento",
     "@qualityStorage": {
         "description": "Download settings description"
-    },
-    "mediaRequestIntegration": "Integración de solicitudes de contenido",
-    "@mediaRequestIntegration": {
-        "description": "Seerr settings description"
     },
     "switchServer": "Cambiar de servidor",
     "@switchServer": {
@@ -6302,88 +6286,8 @@
     },
     "seerrDiscoverSliders": "Carruseles de Descubrir de Seerr",
     "yourWatchlist": "Tu lista de seguimiento",
-    "resetRowsToDefaults": "Restablecer filas a valores predeterminados",
-    "@resetRowsToDefaults": {
-        "description": "Tooltip for reset rows to defaults"
-    },
-    "enableSeerr": "Activar Seerr",
-    "@enableSeerr": {
-        "description": "Setting for enabling Seerr"
-    },
-    "showSeerrInNavigation": "Mostrar Seerr en la navegación (requiere complemento del servidor)",
-    "@showSeerrInNavigation": {
-        "description": "Description for enable Seerr"
-    },
-    "seerrUnavailable": "No disponible porque la compatibilidad con Seerr está desactivada en el complemento del servidor.",
-    "@seerrUnavailable": {
-        "description": "Description when Seerr is unavailable"
-    },
-    "nsfwFilter": "Filtro NSFW",
-    "@nsfwFilter": {
-        "description": "Setting for NSFW filter"
-    },
-    "hideAdultContent": "Ocultar contenido para adultos en los resultados",
-    "@hideAdultContent": {
-        "description": "Description for NSFW filter"
-    },
-    "showMissingCollectionItems": "Mostrar lo que falta en las colecciones",
-    "showMissingCollectionItemsDesc": "Incluye los títulos que faltan en las páginas de colecciones",
     "showSeerrAvailabilityBadges": "Mostrar insignias de disponibilidad de Seerr",
-    "showSeerrAvailabilityBadgesDescription": "Muestra el estado de Seerr en los pósteres y las temporadas de toda la app",
     "seerrBadgeStyle": "Estilo de insignia",
-    "seerrBadgeStyleDescription": "Insignia pone el punto de Seerr en una esquina. Banner muestra el estado a lo ancho de la parte superior del póster.",
-    "seerrBadgeStyleBadge": "Insignia",
-    "seerrNotificationsSection": "Notificaciones",
-    "@seerrNotificationsSection": {
-        "description": "Header for the Seerr notifications settings section"
-    },
-    "seerrNotifyNewRequestsTitle": "Notificaciones de nuevas solicitudes",
-    "@seerrNotifyNewRequestsTitle": {
-        "description": "Title for the toggle that notifies approvers of new Seerr requests"
-    },
-    "seerrNotifyNewRequestsSubtitle": "Avisarme cuando alguien envíe una solicitud",
-    "@seerrNotifyNewRequestsSubtitle": {
-        "description": "Subtitle for the new request notifications toggle"
-    },
-    "seerrNotifyLibraryAddedTitle": "Novedades de solicitudes",
-    "@seerrNotifyLibraryAddedTitle": {
-        "description": "Title for the toggle that notifies a requester about approvals, declines, and library availability"
-    },
-    "seerrNotifyLibraryAddedSubtitle": "Aprobadas, rechazadas y añadidas a tu biblioteca",
-    "@seerrNotifyLibraryAddedSubtitle": {
-        "description": "Subtitle for the library-added notifications toggle"
-    },
-    "seerrNotifyIssuesTitle": "Novedades de problemas",
-    "@seerrNotifyIssuesTitle": {
-        "description": "Title for the issue notifications toggle"
-    },
-    "seerrNotifyIssuesSubtitle": "Nuevos problemas, respuestas y resoluciones",
-    "@seerrNotifyIssuesSubtitle": {
-        "description": "Subtitle for the issue notifications toggle"
-    },
-    "seerrNotifyNewMediaTitle": "Contenido nuevo añadido",
-    "seerrNotifyNewMediaSubtitle": "Cualquier novedad que se añada a la biblioteca del servidor",
-    "loggedInAs": "Sesión iniciada como: {username}",
-    "@loggedInAs": {
-        "description": "Label showing logged in username",
-        "placeholders": {
-            "username": {
-                "type": "String"
-            }
-        }
-    },
-    "discoverRows": "Página de descubrimiento de Seerr",
-    "@discoverRows": {
-        "description": "Section title for discover rows"
-    },
-    "discoverRowsDescriptionPlugin": "Activa las filas que quieres ver en la página principal de Seerr. Arrastra para reordenar. El orden personalizado se sincroniza con el complemento del servidor.",
-    "@discoverRowsDescriptionPlugin": {
-        "description": "Description for discover rows with plugin"
-    },
-    "discoverRowsDescription": "Activa las filas que quieres ver en la página principal de Seerr. Arrastra para reordenar. El orden personalizado se sincroniza con el complemento del servidor.",
-    "@discoverRowsDescription": {
-        "description": "Description for discover rows without plugin"
-    },
     "enabled": "Activado",
     "@enabled": {
         "description": "Status: enabled"
@@ -10426,7 +10330,6 @@
     "disk": "Disco",
     "openInBrowser": "Abrir en el navegador",
     "achievementBadges": "Insignias de logros",
-    "achievementBadgesSubtitle": "Insignias, rangos y misiones que ganas con lo que ves",
     "achievementsBadges": "Insignias",
     "achievementsBadgeCount": "{unlocked} de {total} insignias",
     "achievementsUnlockToasts": "Avisos de desbloqueo",
@@ -11494,7 +11397,6 @@
     "settingsDetailsPageSubtitle": "Diseño, botones, secciones, valoraciones y música de tema",
     "settingsPlaybackSubtitle": "Reproductor, calidad, audio, subtítulos, saltos y Ver juntos",
     "settingsStorageSubtitle": "Descargas, ubicación del almacenamiento y caché de imágenes",
-    "settingsServicesSubtitle": "Seerr e insignias de logros",
     "settingsSignInSection": "Inicio de sesión",
     "settingsFamilySection": "Familia",
     "settingsServersSection": "Servidores",
@@ -11814,40 +11716,6 @@
     "calendarProblemNeedsSeerr": "Un administrador tiene que iniciar sesión en Seerr en kOS TV para que se pueda cargar el calendario.",
     "calendarProblemNotConfigured": "Todavía no hay ningún servidor Sonarr o Radarr vinculado.",
     "calendarProblemFailed": "No se pudo cargar el calendario.",
-    "calendarSettingsSubtitle": "Estilo, filtros y acciones del calendario",
-    "calendarSettingsView": "Vista",
-    "calendarSettingsStyle": "Estilo del calendario",
-    "calendarSettingsStyleDescription": "Lo que abre el botón Calendario. El mes completo está a un botón de distancia en los dos.",
-    "calendarSettingsStyleAgenda": "Agenda",
-    "calendarSettingsStyleCountdown": "Cuenta atrás",
-    "calendarSettingsWeekStart": "La semana empieza el",
-    "calendarSettingsWhatShows": "Qué se muestra",
-    "calendarSettingsScope": "Mostrar",
-    "calendarSettingsScopeDescription": "Mis series deja solo las series que tienes en favoritos o que has empezado a ver",
-    "calendarSettingsScopeEverything": "Todo",
-    "calendarSettingsScopeMyShows": "Mis series",
-    "calendarSettingsUnmonitored": "Incluir sin seguimiento",
-    "calendarSettingsUnmonitoredSubtitle": "Muestra también los episodios y películas que Sonarr y Radarr no tienen configurados para descargar",
-    "calendarSettingsSpecials": "Especiales",
-    "calendarSettingsSpecialsSubtitle": "Episodios de la temporada 0, como extras y especiales de Navidad",
-    "calendarSettingsBadges": "Etiquetas de estreno y final",
-    "calendarSettingsBadgesSubtitle": "Marca estrenos, finales y nuevas temporadas",
-    "calendarSettingsColorBy": "Colorear por",
-    "calendarSettingsColorByDescription": "Tipo distingue episodios de películas. Estado muestra lo que está en tu biblioteca, lo que está por llegar y lo que falta.",
-    "calendarSettingsColorByType": "Tipo",
-    "calendarSettingsImageType": "Imagen de la tarjeta",
-    "calendarSettingsImageTypeDescription": "La imagen de las filas de Cuenta atrás",
-    "calendarSettingsSpoilerSafe": "Sin spoilers",
-    "calendarSettingsSpoilerSafeSubtitle": "Oculta títulos e imágenes de episodios de las series que llevas atrasadas",
-    "calendarSettingsActions": "Acciones",
-    "calendarSettingsSelectAction": "Al seleccionar un elemento",
-    "calendarSettingsSelectActionDescription": "Lo que hace pulsar OK o tocar en algo que ya está en tu biblioteca",
-    "calendarSettingsSelectDetails": "Abrir detalles",
-    "calendarSettingsSelectPlay": "Reproducir si está en la biblioteca",
-    "calendarSettingsRequestButton": "Botón de solicitud",
-    "calendarSettingsRequestButtonSubtitle": "Muestra el botón de solicitud de Seerr en las películas y temporadas que faltan",
-    "calendarSettingsReminders": "Recordatorios",
-    "calendarSettingsRemindersSubtitle": "Muestra Recuérdamelo, que envía una notificación cuando un título llega a tu biblioteca",
     "calendarRowSeeAll": "Tarjeta Ver todo",
     "calendarRowSeeAllSubtitle": "Termina las filas de próximos estrenos con una tarjeta que abre el calendario",
     "showNextAirDate": "Próxima emisión al final",
