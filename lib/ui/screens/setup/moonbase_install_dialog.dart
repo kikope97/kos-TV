@@ -63,7 +63,7 @@ Future<bool> showMoonbaseDialog(
   var installed = false;
   await showStyledPlayerDialog<void>(
     context,
-    title: _moonbaseName,
+    title: AppLocalizations.of(context).kostvServerPlugin,
     maxWidth: PlatformDetection.isTV ? 600 : 440,
     builder: (ctx) => _MoonbaseDialogBody(
       client: client,

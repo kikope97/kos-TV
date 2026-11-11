@@ -49,7 +49,7 @@ void main() {
 
     final dirs = await service.getRemovableDownloadDirs();
 
-    expect(dirs.map((d) => d.path), ['${card.path}/Moonfin']);
+    expect(dirs.map((d) => d.path), ['${card.path}/KosTV']);
   });
 
   test('offers nothing on a device with only built-in storage', () async {
@@ -66,7 +66,7 @@ void main() {
 
     await service.getRemovableDownloadDirs();
 
-    expect(Directory('${card.path}/Moonfin').existsSync(), isFalse);
+    expect(Directory('${card.path}/KosTV').existsSync(), isFalse);
   });
 
   test('skips a volume that is no longer mounted', () async {
@@ -102,7 +102,7 @@ void main() {
       ]);
 
       expect(
-        await service.isOnRemovableStorage('${card.path}/Moonfin/TV/ep.mkv'),
+        await service.isOnRemovableStorage('${card.path}/KosTV/TV/ep.mkv'),
         isTrue,
       );
     });
@@ -114,7 +114,7 @@ void main() {
       ]);
 
       expect(
-        await service.isOnRemovableStorage('${builtIn.path}/Moonfin/ep.mkv'),
+        await service.isOnRemovableStorage('${builtIn.path}/KosTV/ep.mkv'),
         isFalse,
       );
     });
@@ -127,7 +127,7 @@ void main() {
       ]);
 
       expect(
-        await service.isOnRemovableStorage('${card.path}-2/Moonfin/ep.mkv'),
+        await service.isOnRemovableStorage('${card.path}-2/KosTV/ep.mkv'),
         isFalse,
       );
     });
@@ -140,7 +140,7 @@ void main() {
       ]);
 
       expect(
-        await service.isOnRemovableStorage('${card.path}/Moonfin/ep.mkv'),
+        await service.isOnRemovableStorage('${card.path}/KosTV/ep.mkv'),
         isFalse,
       );
     });

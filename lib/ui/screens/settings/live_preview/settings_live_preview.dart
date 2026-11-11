@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:custom_tv_text_field/custom_tv_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HardwareKeyboard, KeyUpEvent;
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:media_kit_video/media_kit_video.dart' show SubtitleViewState;
@@ -1589,10 +1588,7 @@ Widget _sampleTrickplayFrame(int index, {bool large = false}) {
               child: SizedBox(
                 width: logoSize,
                 height: logoSize,
-                child: SvgPicture.asset(
-                  'assets/icons/moonfin_logo.svg',
-                  fit: BoxFit.contain,
-                ),
+                child: const FittedBox(child: KosLogo(height: 240)),
               ),
             );
           },

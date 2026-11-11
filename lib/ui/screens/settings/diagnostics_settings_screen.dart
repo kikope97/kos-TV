@@ -111,7 +111,7 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
         Scaffold(
           appBar: buildSettingsAppBar(
             context,
-            const Text('Diagnostics & Logging'),
+            Text(AppLocalizations.of(context).kostvDiagnostics),
           ),
           body: AnimatedBuilder(
             animation: _log,

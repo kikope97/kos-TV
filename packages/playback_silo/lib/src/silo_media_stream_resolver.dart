@@ -693,4 +693,4 @@ const siloPlaybackUnavailableMessage =
 /// Shown when Silo answers `426` or `410 client_upgrade_required`: it no
 /// longer speaks the playback protocol or API this build does.
 const siloUpgradeRequiredMessage =
-    'This Silo server needs a newer version of Moonfin to play.';
+    'This Silo server needs a newer version of kOS TV to play.';

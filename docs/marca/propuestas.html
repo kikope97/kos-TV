@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kOS TV · Propuestas de icono y logo</title>
+<style>
+  @font-face{font-family:'Outfit';font-weight:200;font-display:block;src:url(../../assets/fonts/Outfit-ExtraLight.ttf) format('truetype')}
+  @font-face{font-family:'Outfit';font-weight:300;font-display:block;src:url(../../assets/fonts/Outfit-Light.ttf) format('truetype')}
+  @font-face{font-family:'Outfit';font-weight:700;font-display:block;src:url(../../assets/fonts/Outfit-Bold.ttf) format('truetype')}
+  /* Un solo mundo visual: el negro de la intro "Power 4K", con su degradado
+     cian → violeta → rosa. Página en columna: cabecera, tres propuestas y
+     las preguntas para decidir. */
+  :root{
+    --bg:#05060a;
+    --panel:#0d0f17;
+    --line:#1d2130;
+    --ink:#f3f5fa;
+    --muted:#8d96aa;
+    --cyan:#4fd8ff;
+    --violet:#8f6bff;
+    --pink:#ff5ccf;
+    --grad:linear-gradient(100deg,var(--cyan),var(--violet) 55%,var(--pink));
+    --display:'Outfit',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --body:'Outfit',system-ui,-apple-system,'Segoe UI',sans-serif;
+    color-scheme:dark;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{background:var(--bg);color:var(--ink);font-family:var(--body);font-weight:300}
+  body{padding:clamp(20px,4vw,48px) clamp(16px,4vw,48px) 64px}
+  a{color:var(--cyan)}
+  header{max-width:1180px;margin:0 auto 32px;display:grid;gap:12px}
+  header h1{font-family:var(--display);font-weight:500;font-size:clamp(26px,4vw,40px);letter-spacing:-.01em;text-wrap:balance}
+  header p{color:var(--muted);max-width:68ch;line-height:1.55;font-size:16px}
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+  button{font:500 14px var(--body);color:#dfe7ff;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);
+         padding:9px 16px;border-radius:999px;cursor:pointer}
+  button:hover{background:rgba(255,255,255,.12)}
+  button:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+  .grid{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px}
+  .prop{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px;display:grid;gap:16px;align-content:start}
+  .prop h2{font-family:var(--display);font-weight:500;font-size:20px;display:flex;align-items:baseline;gap:10px}
+  .prop h2 span{font-size:13px;font-weight:400;color:var(--muted);letter-spacing:.08em}
+  .prop p.desc{color:var(--muted);line-height:1.5;font-size:15px}
+  .label{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:#6c7488}
+
+  /* ---------- Pantalla 16:9 con la apertura ---------- */
+  .tv{position:relative;aspect-ratio:16/9;background:#000;border-radius:12px;overflow:hidden;container-type:inline-size;
+      border:1px solid #151826}
+  .tv .stage{position:absolute;inset:0;display:grid;place-items:center}
+  .tv .mark{font-size:12.5cqw}
+  .tv .mark.v{font-size:15cqw}
+  .tv .play{position:absolute;right:10px;bottom:10px;font-size:13px;padding:7px 13px}
+  .fx{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none}
+  .fx > *{position:absolute;opacity:0;border-radius:50%}
+  .glow{width:90cqw;height:90cqw;margin:-45cqw 0 0 -45cqw;
+        background:radial-gradient(circle,rgba(130,180,255,.38) 0%,rgba(110,120,255,.13) 28%,transparent 62%)}
+  .rip{width:34cqw;height:34cqw;margin:-17cqw 0 0 -17cqw;border:.35cqw solid var(--cyan);
+       box-shadow:0 0 2cqw rgba(79,216,255,.5)}
+  .rip.r2{border-color:var(--violet);box-shadow:0 0 2cqw rgba(143,107,255,.5)}
+  .beam{width:.5cqw;height:120cqw;margin:-60cqw 0 0 -.25cqw;border-radius:0;
+        background:linear-gradient(180deg,transparent,var(--cyan) 30%,#fff 50%,var(--violet) 70%,transparent);
+        box-shadow:0 0 2.4cqw .5cqw rgba(120,200,255,.45)}
+
+  /* ---------- Logotipo (componente común) ---------- */
+  .mark{font-family:var(--display);font-weight:700;line-height:1;white-space:nowrap;color:var(--ink);display:inline-flex;align-items:baseline}
+  .mark .ch,.mark .slot,.mark .tvw{display:inline-block}
+  .slot{width:.74em;height:.74em;margin:0 .015em;position:relative;transform-origin:50% 50%}
+  .slot svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .ring .arc{fill:none;stroke:url(#kgrad);stroke-width:16;stroke-linecap:round}
+  .ring .comet{fill:none;stroke:#fff;stroke-width:9;stroke-linecap:round;stroke-dasharray:9 91;stroke-dashoffset:-14;
+               filter:drop-shadow(0 0 4px rgba(79,216,255,.95))}
+  .ring .bar{stroke:var(--ink);stroke-width:5;stroke-linecap:round;stroke-dasharray:100;stroke-dashoffset:100;opacity:0}
+  .tvw{font-weight:200;letter-spacing:.01em;margin-left:.17em}
+  .tvw i,.grad{font-style:normal;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  /* Variante B: apilado */
+  .mark.v{display:inline-grid;justify-items:center;row-gap:.12em}
+  .mark.v .top{display:inline-flex;align-items:baseline}
+  .mark.v .tvw{margin:0;font-size:.3em;font-weight:300;letter-spacing:.6em;padding-left:.6em}
+  /* Variante C: placa "TV" */
+  .tvw.badge{font-size:.42em;font-weight:500;letter-spacing:.06em;margin-left:.36em;padding:.12em .34em .1em;border-radius:.24em;
+             border:.07em solid transparent;align-self:center;transform:translateY(-.02em);
+             background:linear-gradient(#000,#000) padding-box,var(--grad) border-box}
+  .tvw.badge i{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+  /* ---------- Animación de apertura (≈3,4 s) ---------- */
+  .run .slot{animation:slot 1.75s both}
+  .run .ring .arc{animation:arc 1.75s both}
+  .run .ring .bar{animation:bar 1.75s both}
+  .run .ring .comet{animation:cometIn .5s ease 1.9s both, cometSpin 1.4s linear 1.9s infinite}
+  .run .glow{animation:glow 1.2s ease-out .82s forwards}
+  .run .rip.r1{animation:rip 1.2s cubic-bezier(.1,.6,.3,1) .84s forwards}
+  .run .rip.r2{animation:rip 1.3s cubic-bezier(.1,.6,.3,1) .98s forwards}
+  .run .beam{animation:beam .6s cubic-bezier(.2,.8,.2,1) .82s forwards}
+  .run .ch.k{animation:letL .9s cubic-bezier(.16,1,.3,1) 1.48s both}
+  .run .ch.s{animation:letR .9s cubic-bezier(.16,1,.3,1) 1.54s both}
+  .run .tvw{animation:letR 1s cubic-bezier(.16,1,.3,1) 1.7s both}
+  @keyframes slot{
+    0%,46%{transform:translate(var(--dx),var(--dy)) scale(var(--sc));animation-timing-function:cubic-bezier(.3,0,.2,1)}
+    51%{transform:translate(var(--dx),var(--dy)) scale(calc(var(--sc) * .9))}
+    57%{transform:translate(var(--dx),var(--dy)) scale(var(--sc));animation-timing-function:cubic-bezier(.65,0,.2,1)}
+    100%{transform:none}}
+  @keyframes arc{
+    0%{stroke-dasharray:0 100;stroke-dashoffset:-6;stroke-width:5}
+    40%,47%{stroke-dasharray:88 12;stroke-dashoffset:-6;stroke-width:5}
+    55%{stroke-dasharray:100 0;stroke-dashoffset:0;stroke-width:6}
+    100%{stroke-dasharray:100 0;stroke-dashoffset:0;stroke-width:16}}
+  @keyframes bar{
+    0%,22%{opacity:0;stroke-dashoffset:100}
+    34%,47%{opacity:1;stroke-dashoffset:0}
+    56%,100%{opacity:0;stroke-dashoffset:100}}
+  @keyframes cometIn{from{opacity:0}to{opacity:1}}
+  @keyframes cometSpin{from{stroke-dashoffset:-14}to{stroke-dashoffset:-114}}
+  @keyframes glow{0%{opacity:0;transform:scale(.5)}18%{opacity:1}100%{opacity:0;transform:scale(1.3)}}
+  @keyframes rip{0%{opacity:.9;transform:scale(1)}100%{opacity:0;transform:scale(3.2)}}
+  @keyframes beam{0%{opacity:1;transform:scaleY(0)}35%{opacity:1;transform:scaleY(1)}100%{opacity:0;transform:scaleY(1) scaleX(.2)}}
+  @keyframes letL{0%{opacity:0;transform:translateX(.3em);filter:blur(.06em)}
+                  45%{opacity:1;filter:blur(0) drop-shadow(0 0 .09em rgba(120,210,255,.95))}
+                  100%{opacity:1;transform:none;filter:none}}
+  @keyframes letR{0%{opacity:0;transform:translateX(-.3em);filter:blur(.06em)}
+                  45%{opacity:1;filter:blur(0) drop-shadow(0 0 .09em rgba(150,140,255,.95))}
+                  100%{opacity:1;transform:none;filter:none}}
+  @media (prefers-reduced-motion:reduce){
+    .run *{animation-duration:.01s !important;animation-delay:0s !important;animation-iteration-count:1 !important}
+  }
+
+  /* ---------- Iconos y banner ---------- */
+  .icons{display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:center}
+  .icon{width:120px;height:120px;border-radius:26%;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.6),0 0 0 1px #20243a}
+  .icon svg{width:100%;height:100%;display:block}
+  .sizes{display:grid;gap:10px}
+  .row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+  .row .round{width:64px;height:64px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 1px #20243a}
+  .row .tiny{width:40px;height:40px;border-radius:26%;overflow:hidden}
+  .row .round svg,.row .tiny svg{width:100%;height:100%;display:block}
+  .row small{color:var(--muted);font-size:13px}
+  .wall{background:linear-gradient(135deg,#2a3350,#5b3a6b 60%,#7a3a59);border-radius:12px;padding:10px 12px}
+
+  .launcher{background:linear-gradient(180deg,#141826,#0b0d14);border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:8px}
+  .launcher .apps{display:flex;gap:12px;align-items:center;justify-content:center;overflow:hidden;padding:6px 0}
+  .banner{flex:none;width:200px;aspect-ratio:16/9;border-radius:8px;overflow:hidden;background:#000;display:grid;place-items:center;
+          container-type:inline-size;box-shadow:0 0 0 2px #fff,0 8px 26px rgba(0,0,0,.6);transform:scale(1.04)}
+  .banner .mark{font-size:14cqw}
+  .banner.b2{display:flex;justify-content:center;align-items:center;gap:6cqw}
+  .banner.b2 .mini{width:27cqw;height:27cqw;border-radius:26%;overflow:hidden}
+  .banner.b2 .mini svg{width:100%;height:100%;display:block}
+  .banner.b2 .mark{font-size:10.5cqw}
+  .ghost{flex:none;width:70px;aspect-ratio:16/9;border-radius:8px;background:#1b2030;opacity:.7}
+
+  .logos{display:grid;gap:10px}
+  .logo-on{background:#000;border-radius:12px;padding:18px;display:grid;place-items:center}
+  .logo-on .mark{font-size:44px}
+  .logo-on .mark.v{font-size:52px}
+
+  /* ---------- Decidir ---------- */
+  .decide{max-width:1180px;margin:28px auto 0;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;display:grid;gap:12px}
+  .decide h2{font-family:var(--display);font-weight:500;font-size:20px}
+  .decide ol{display:grid;gap:10px;padding-left:22px;color:#c9d2e6;line-height:1.5;max-width:80ch}
+  .decide ol b{font-weight:500;color:var(--ink)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="kgrad" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#4fd8ff"/><stop offset=".55" stop-color="#8f6bff"/><stop offset="1" stop-color="#ff5ccf"/>
+    </linearGradient>
+    <radialGradient id="ibg" cx="50%" cy="42%" r="70%">
+      <stop offset="0" stop-color="#161a2b"/><stop offset="1" stop-color="#040509"/>
+    </radialGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+    <!-- Iconos (lienzo de icono adaptativo de Android: 108, zona segura 66 centrada) -->
+    <symbol id="icon-a" viewBox="0 0 108 108">
+      <rect width="108" height="108" fill="url(#ibg)"/>
+      <g filter="url(#soft)" opacity=".7">
+        <path d="M36.64 37.32 A27 27 0 1 0 71.36 37.32" fill="none" stroke="url(#kgrad)" stroke-width="9" stroke-linecap="round"/>
+      </g>
+      <path d="M36.64 37.32 A27 27 0 1 0 71.36 37.32" fill="none" stroke="url(#kgrad)" stroke-width="9" stroke-linecap="round"/>
+      <line x1="54" y1="27" x2="54" y2="54" stroke="#f3f5fa" stroke-width="9" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="icon-b" viewBox="0 0 108 108">
+      <rect width="108" height="108" fill="url(#ibg)"/>
+      <text x="22.5" y="70" font-family="Outfit, sans-serif" font-weight="700" font-size="46" fill="#f3f5fa">k</text>
+      <g filter="url(#soft)" opacity=".6"><circle cx="69.5" cy="54" r="12.8" fill="none" stroke="url(#kgrad)" stroke-width="6.5"/></g>
+      <circle cx="69.5" cy="54" r="12.8" fill="none" stroke="url(#kgrad)" stroke-width="6.5"/>
+      <circle cx="69.5" cy="54" r="12.8" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"
+              pathLength="100" stroke-dasharray="9 91" stroke-dashoffset="-6" transform="rotate(-90 69.5 54)"/>
+    </symbol>
+    <symbol id="icon-c" viewBox="0 0 108 108">
+      <rect width="108" height="108" fill="url(#ibg)"/>
+      <g filter="url(#soft)" opacity=".6"><circle cx="54" cy="54" r="24" fill="none" stroke="url(#kgrad)" stroke-width="8"/></g>
+      <circle cx="54" cy="54" r="24" fill="none" stroke="url(#kgrad)" stroke-width="8"/>
+      <circle cx="54" cy="54" r="24" fill="none" stroke="#fff" stroke-width="4.4" stroke-linecap="round"
+              pathLength="100" stroke-dasharray="9 91" stroke-dashoffset="-6" transform="rotate(-90 54 54)"/>
+      <path d="M48.5 44.5 L48.5 63.5 L65 54 Z" fill="#f3f5fa" stroke="#f3f5fa" stroke-width="3.2" stroke-linejoin="round"/>
+    </symbol>
+  </defs>
+</svg>
+
+<template id="ring">
+  <svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+    <path class="arc" pathLength="100" d="M50 8 A42 42 0 1 1 49.99 8"/>
+    <path class="comet" pathLength="100" d="M50 8 A42 42 0 1 1 49.99 8"/>
+    <line class="bar" pathLength="100" x1="50" y1="-4" x2="50" y2="38"/>
+  </svg>
+</template>
+
+<header>
+  <h1>kOS TV · Icono y logotipo</h1>
+  <p>Las tres propuestas salen de tu intro “Power 4K”: la O es el botón de encendido que se convierte en un anillo con el degradado cian, violeta y rosa. Cambian el icono de la app, el banner que sale en la fila de apps de la tele y la forma del logotipo. Cada pantalla muestra cómo se vería la apertura, en una versión de unos 3 segundos de tu intro.</p>
+  <div class="toolbar"><button type="button" id="playAll">▶ Ver las tres aperturas</button></div>
+</header>
+
+<main class="grid">
+  <!-- A -->
+  <section class="prop" id="prop-a">
+    <h2>A · Encendido <span>EL BOTÓN DE TU INTRO</span></h2>
+    <p class="desc">El icono es el símbolo de encendido tal cual se dibuja al principio de la intro. Logotipo en una línea, como en tu animación.</p>
+    <div class="tv" data-tv>
+      <div class="fx"><div class="glow"></div><div class="rip r1"></div><div class="rip r2"></div><div class="beam"></div></div>
+      <div class="stage">
+        <div class="mark h"><span class="ch k">k</span><span class="slot" data-ring></span><span class="ch s">S</span><span class="tvw"><i>TV</i></span></div>
+      </div>
+      <button type="button" class="play">▶ Ver apertura</button>
+    </div>
+    <div class="label">Icono de la app</div>
+    <div class="icons">
+      <div class="icon"><svg viewBox="0 0 108 108" role="img" aria-label="Icono A"><use href="#icon-a"/></svg></div>
+      <div class="sizes">
+        <div class="row"><div class="round"><svg viewBox="0 0 108 108"><use href="#icon-a"/></svg></div><small>Recortado en círculo (móviles que lo usan así)</small></div>
+        <div class="row wall"><div class="tiny"><svg viewBox="0 0 108 108"><use href="#icon-a"/></svg></div><small style="color:#e6e9f5">Tamaño real en el móvil</small></div>
+      </div>
+    </div>
+    <div class="label">Banner en la fila de apps de la tele</div>
+    <div class="launcher"><div class="apps"><div class="ghost"></div>
+      <div class="banner"><div class="mark h"><span class="ch">k</span><span class="slot" data-ring></span><span class="ch">S</span><span class="tvw"><i>TV</i></span></div></div>
+      <div class="ghost"></div></div></div>
+  </section>
+
+  <!-- B -->
+  <section class="prop" id="prop-b">
+    <h2>B · Monograma <span>LA k Y LA O</span></h2>
+    <p class="desc">El icono son las dos primeras letras, “kO”, para que se lea el nombre incluso en pequeño. Logotipo apilado, con “TV” debajo y espaciado.</p>
+    <div class="tv" data-tv>
+      <div class="fx"><div class="glow"></div><div class="rip r1"></div><div class="rip r2"></div><div class="beam"></div></div>
+      <div class="stage">
+        <div class="mark v"><span class="top"><span class="ch k">k</span><span class="slot" data-ring></span><span class="ch s">S</span></span><span class="tvw"><i>TV</i></span></div>
+      </div>
+      <button type="button" class="play">▶ Ver apertura</button>
+    </div>
+    <div class="label">Icono de la app</div>
+    <div class="icons">
+      <div class="icon"><svg viewBox="0 0 108 108" role="img" aria-label="Icono B"><use href="#icon-b"/></svg></div>
+      <div class="sizes">
+        <div class="row"><div class="round"><svg viewBox="0 0 108 108"><use href="#icon-b"/></svg></div><small>Recortado en círculo (móviles que lo usan así)</small></div>
+        <div class="row wall"><div class="tiny"><svg viewBox="0 0 108 108"><use href="#icon-b"/></svg></div><small style="color:#e6e9f5">Tamaño real en el móvil</small></div>
+      </div>
+    </div>
+    <div class="label">Banner en la fila de apps de la tele</div>
+    <div class="launcher"><div class="apps"><div class="ghost"></div>
+      <div class="banner b2"><div class="mini"><svg viewBox="0 0 108 108"><use href="#icon-b"/></svg></div>
+        <div class="mark h"><span class="ch">k</span><span class="slot" data-ring></span><span class="ch">S</span><span class="tvw"><i>TV</i></span></div></div>
+      <div class="ghost"></div></div></div>
+  </section>
+
+  <!-- C -->
+  <section class="prop" id="prop-c">
+    <h2>C · Anillo y play <span>ENCENDER Y VER</span></h2>
+    <p class="desc">El icono es el anillo final de la intro con un “play” dentro: deja claro que es la app para ver cosas. Logotipo con “TV” en una placa con el degradado.</p>
+    <div class="tv" data-tv>
+      <div class="fx"><div class="glow"></div><div class="rip r1"></div><div class="rip r2"></div><div class="beam"></div></div>
+      <div class="stage">
+        <div class="mark h"><span class="ch k">k</span><span class="slot" data-ring></span><span class="ch s">S</span><span class="tvw badge"><i>TV</i></span></div>
+      </div>
+      <button type="button" class="play">▶ Ver apertura</button>
+    </div>
+    <div class="label">Icono de la app</div>
+    <div class="icons">
+      <div class="icon"><svg viewBox="0 0 108 108" role="img" aria-label="Icono C"><use href="#icon-c"/></svg></div>
+      <div class="sizes">
+        <div class="row"><div class="round"><svg viewBox="0 0 108 108"><use href="#icon-c"/></svg></div><small>Recortado en círculo (móviles que lo usan así)</small></div>
+        <div class="row wall"><div class="tiny"><svg viewBox="0 0 108 108"><use href="#icon-c"/></svg></div><small style="color:#e6e9f5">Tamaño real en el móvil</small></div>
+      </div>
+    </div>
+    <div class="label">Banner en la fila de apps de la tele</div>
+    <div class="launcher"><div class="apps"><div class="ghost"></div>
+      <div class="banner b2"><div class="mini"><svg viewBox="0 0 108 108"><use href="#icon-c"/></svg></div>
+        <div class="mark h"><span class="ch">k</span><span class="slot" data-ring></span><span class="ch">S</span><span class="tvw badge"><i>TV</i></span></div></div>
+      <div class="ghost"></div></div></div>
+  </section>
+</main>
+
+<section class="decide">
+  <h2>Para decidir</h2>
+  <ol>
+    <li><b>Propuesta:</b> A, B o C. También se pueden mezclar, por ejemplo el icono de C con el logotipo de A.</li>
+    <li><b>Duración de la apertura:</b> te propongo esta versión corta, de unos 3 segundos, cada vez que se abre la app. La intro completa de 7 segundos queda bonita la primera vez, pero se hace larga si se abre la app varias veces al día.</li>
+    <li><b>Sonido:</b> te propongo sin sonido, porque en la tele suele pillar con el volumen alto. Si lo quieres, se puede poner.</li>
+    <li><b>Nombre en la tele:</b> ahora pone “Kos TV”. Te propongo que pase a “kOS TV”, como en tu intro.</li>
+  </ol>
+</section>
+
+<script>
+(() => {
+  const tpl = document.getElementById('ring');
+  document.querySelectorAll('[data-ring]').forEach(slot => slot.appendChild(tpl.content.cloneNode(true)));
+
+  // Sitúa el anillo en el centro de la pantalla, en grande, para que desde ahí
+  // "viaje" a su hueco dentro del logotipo (como la O de la intro).
+  function prepare(tv){
+    const slot = tv.querySelector('.slot');
+    const f = tv.getBoundingClientRect(), s = slot.getBoundingClientRect();
+    const dx = (f.left + f.width / 2) - (s.left + s.width / 2);
+    const dy = (f.top + f.height / 2) - (s.top + s.height / 2);
+    const sc = (f.height * 0.46) / s.height;
+    slot.style.setProperty('--dx', dx + 'px');
+    slot.style.setProperty('--dy', dy + 'px');
+    slot.style.setProperty('--sc', sc);
+  }
+  function play(tv){
+    clearTimeout(tv._t);
+    tv.classList.remove('run');
+    prepare(tv);
+    void tv.offsetWidth;
+    tv.classList.add('run');
+    tv._t = setTimeout(() => tv.classList.remove('run'), 3600);
+  }
+  const tvs = [...document.querySelectorAll('[data-tv]')];
+  tvs.forEach(tv => tv.querySelector('.play').addEventListener('click', () => play(tv)));
+  document.getElementById('playAll').addEventListener('click', () => tvs.forEach(play));
+})();
+</script>
+</body>
+</html>

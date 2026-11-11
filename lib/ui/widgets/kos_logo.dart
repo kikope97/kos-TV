@@ -108,6 +108,69 @@ void paintKosRing(
   canvas.drawArc(rect, start, cometLength * 2 * math.pi, false, comet);
 }
 
+/// The ring alone, as a square mark [size] across: the O of the wordmark,
+/// used where Moonfin showed its moon (loading animation, admin exit).
+/// With [color] it is painted flat in that colour, without the comet; else
+/// in the brand gradient with the comet at [cometTurn].
+class KosRingMark extends StatelessWidget {
+  const KosRingMark({
+    super.key,
+    required this.size,
+    this.color,
+    this.cometTurn = 0.14,
+  });
+
+  final double size;
+  final Color? color;
+  final double cometTurn;
+
+  @override
+  Widget build(BuildContext context) => SizedBox.square(
+    dimension: size,
+    child: CustomPaint(painter: _RingMarkPainter(color, cometTurn)),
+  );
+}
+
+class _RingMarkPainter extends CustomPainter {
+  _RingMarkPainter(this.color, this.cometTurn);
+
+  final Color? color;
+  final double cometTurn;
+
+  // Outfit Bold's stroke to the O's outer size, as in [KosRingMetrics].
+  static const _strokeRatio = KosRingMetrics._stroke / KosRingMetrics._outer;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final outer = size.shortestSide * 0.92;
+    final stroke = outer * _strokeRatio;
+    final radius = (outer - stroke) / 2;
+    final center = size.center(Offset.zero);
+    if (color != null) {
+      canvas.drawCircle(
+        center,
+        radius,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke
+          ..color = color!,
+      );
+      return;
+    }
+    paintKosRing(
+      canvas,
+      center: center,
+      radius: radius,
+      stroke: stroke,
+      cometTurn: cometTurn,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RingMarkPainter old) =>
+      old.color != color || old.cometTurn != cometTurn;
+}
+
 /// One of the parts of the wordmark, so the opening animation can bring
 /// each in on its own.
 enum KosLogoPart { k, s, tv }

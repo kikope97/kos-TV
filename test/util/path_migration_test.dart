@@ -13,17 +13,17 @@ void main() {
     });
 
     test('migrateIosPath translates path if /Documents/ is found', () {
-      const oldPath = '/var/mobile/Containers/Data/Application/OLD-UUID-1234/Documents/Moonfin/Movies/video.mp4';
+      const oldPath = '/var/mobile/Containers/Data/Application/OLD-UUID-1234/Documents/KosTV/Movies/video.mp4';
       const currentDocsPath = '/var/mobile/Containers/Data/Application/NEW-UUID-5678/Documents';
-      const expected = '/var/mobile/Containers/Data/Application/NEW-UUID-5678/Documents/Moonfin/Movies/video.mp4';
+      const expected = '/var/mobile/Containers/Data/Application/NEW-UUID-5678/Documents/KosTV/Movies/video.mp4';
 
       expect(migrateIosPath(oldPath, currentDocsPath), expected);
     });
 
     test('migrateIosPath handles nested folder paths correctly', () {
-      const oldPath = '/var/mobile/Containers/Data/Application/OLD-UUID-1234/Documents/Moonfin/images/poster.png';
+      const oldPath = '/var/mobile/Containers/Data/Application/OLD-UUID-1234/Documents/KosTV/images/poster.png';
       const currentDocsPath = '/var/mobile/Containers/Data/Application/NEW-UUID-5678/Documents';
-      const expected = '/var/mobile/Containers/Data/Application/NEW-UUID-5678/Documents/Moonfin/images/poster.png';
+      const expected = '/var/mobile/Containers/Data/Application/NEW-UUID-5678/Documents/KosTV/images/poster.png';
 
       expect(migrateIosPath(oldPath, currentDocsPath), expected);
     });

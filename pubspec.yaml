@@ -1,5 +1,5 @@
 name: moonfin
-description: "Moonfin - Jellyfin & Emby media client for mobile, tablet, and desktop"
+description: "kOS TV, el cliente de Jellyfin de casa para Android TV"
 publish_to: 'none'
 version: 0.1.0+1000
 

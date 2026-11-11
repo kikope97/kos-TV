@@ -266,7 +266,7 @@ class LogService extends ChangeNotifier {
       start = _entries.length - maxEntries;
     }
     final buffer = StringBuffer()
-      ..writeln('Moonfin diagnostic report')
+      ..writeln('kOS TV diagnostic report')
       ..writeln('Generated: ${DateTime.now().toIso8601String()}')
       ..writeln('App: ${_deviceInfo.appName} ${_deviceInfo.appVersion}')
       ..writeln('Device: ${_deviceInfo.name} (${_deviceInfo.id})')
@@ -317,7 +317,7 @@ class LogService extends ChangeNotifier {
     }
     return switch (client.serverType) {
       ServerType.silo =>
-        'This server needs Moonbase, with client log upload turned on.',
+        'This server needs the server plugin, with client log upload turned on.',
       _ => 'The active server does not support report uploads.',
     };
   }

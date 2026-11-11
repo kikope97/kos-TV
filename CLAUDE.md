@@ -1,9 +1,15 @@
-# Kos TV — notas para Claude
+# kOS TV — notas para Claude
 
 - Responde siempre en español.
-- Kos TV es un cliente de Jellyfin para la familia, centrado en Android TV,
+- kOS TV es un cliente de Jellyfin para la familia, centrado en Android TV,
   basado en Moonfin (Flutter). Lee `KOSTV.md` para saber qué se ha cambiado
   respecto a Moonfin y qué queda pendiente.
+- La app va en español por defecto y solo trae español e inglés. Todo texto
+  nuevo va en `lib/l10n/app_en.arb` y `lib/l10n/app_es.arb` (español de España,
+  de tú), nunca escrito a mano en el código.
+- Nada de "Moonfin" ni "Moonbase" a la vista de quien usa la app: se llama
+  **kOS TV** y el complemento es "el complemento del servidor". La marca (colores,
+  logotipo, iconos) está en `docs/marca/README.md`.
 
 ## Publicar una versión
 

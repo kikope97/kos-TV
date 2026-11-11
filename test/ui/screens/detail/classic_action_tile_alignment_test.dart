@@ -8,6 +8,7 @@ import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/data/viewmodels/item_detail_view_model.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
+import 'package:moonfin/l10n/app_localizations_es.dart';
 import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/detail/item_detail_screen.dart';
@@ -79,10 +80,15 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        // Albanian's Favorite label wraps in an 80 pixel phone tile and its
-        // Display label doesn't.
-        locale: const Locale('sq'),
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        // A two-word Favorite label wraps in an 80 pixel phone tile and a
+        // short Display label doesn't.
+        locale: const Locale('es'),
+        localizationsDelegates: [
+          const _LongFavoriteDelegate(),
+          ...AppLocalizations.localizationsDelegates.where(
+            (d) => d.type != AppLocalizations,
+          ),
+        ],
         supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: Center(
@@ -108,4 +114,25 @@ void main() {
     expect(heights.length, greaterThan(1));
     expect(rects.map((r) => r.top).toSet(), hasLength(1));
   });
+}
+
+class _LongFavorite extends AppLocalizationsEs {
+  @override
+  String get favorite => 'Mis favoritos';
+
+  @override
+  String get display => 'Ver';
+}
+
+class _LongFavoriteDelegate extends LocalizationsDelegate<AppLocalizations> {
+  const _LongFavoriteDelegate();
+
+  @override
+  bool isSupported(Locale locale) => true;
+
+  @override
+  Future<AppLocalizations> load(Locale locale) async => _LongFavorite();
+
+  @override
+  bool shouldReload(_LongFavoriteDelegate old) => false;
 }

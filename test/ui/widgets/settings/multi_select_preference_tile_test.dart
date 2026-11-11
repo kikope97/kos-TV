@@ -118,15 +118,15 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       MaterialApp(
-        locale: const Locale('fr'),
+        locale: const Locale('es'),
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
         home: Builder(
           builder: (context) => TextButton(
             onPressed: () => showMultiSelectDialog(
               context: context,
-              title: 'Bibliothèques',
-              items: const {'a': 'Films', 'b': 'Séries'},
+              title: 'Bibliotecas',
+              items: const {'a': 'Películas', 'b': 'Series'},
               selected: const {},
             ),
             child: const Text('open'),
@@ -137,8 +137,8 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Tout sélectionner'), findsOneWidget);
-    expect(find.text('Enregistrer'), findsOneWidget);
+    expect(find.text('Seleccionar todo'), findsOneWidget);
+    expect(find.text('Guardar'), findsOneWidget);
   });
 
   testWidgets('a long list fills the Apple dialog', (tester) async {

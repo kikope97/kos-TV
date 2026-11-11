@@ -22,7 +22,7 @@ class WebRuntimeConfig {
     defaultServerUrl: null,
     discoveryProxyUrl: null,
     enableWebRtcScan: true,
-    brandingName: 'Moonfin',
+    brandingName: 'kOS TV',
     pluginMode: false,
     forcedServerUrl: null,
   );

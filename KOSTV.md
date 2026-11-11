@@ -1,6 +1,6 @@
-# Kos TV
+# kOS TV
 
-Kos TV es un cliente de Jellyfin para la familia, centrado en Android TV, basado en
+kOS TV es un cliente de Jellyfin para la familia, centrado en Android TV, basado en
 [Moonfin Core](https://github.com/Moonfin-Client/Moonfin-Core) (GPL-2.0 o
 posterior). Este repositorio conserva el historial completo de Moonfin; a partir
 de aquí evoluciona por su cuenta y Moonfin queda como referencia.
@@ -28,16 +28,22 @@ git cherry-pick <commit>
 | Workflows que publican fuera (AUR, winget, Pages…) desactivados | `.github/workflows-disabled/` | Hecho |
 | Sin versiones de escritorio (Windows, Linux, macOS): carpetas, scripts y trabajos de CI | — | Hecho |
 | Sin Plex ni Emby: paquetes `server_/playback_` de ambos, `ServerType.emby/plex`, inicio de sesión con Plex y Emby Connect, búsqueda de Plex en la red, Moonbase para Plex, pantallas de administración solo de Emby y avisos de Emby Premiere | `packages/server_core`, `lib/`, `test/` | Hecho |
-| Marca kOS TV (propuesta B, monograma "kO"): logotipo vectorial con fuente Outfit, animación de apertura de unos 3 s, icono adaptativo, banner de Android TV y `appTitle` en todos los idiomas | `lib/ui/widgets/kos_logo.dart`, `kos_intro.dart`, `startup_screen.dart`, `android/app/src/main/res/` | Hecho |
-| "Acerca de" apunta a este repositorio (código, licencia y [política de privacidad](PRIVACY_POLICY.md) propia), con un apartado "Basado en Moonfin"; fuera las fichas de incidencias, Discord y donativos de Moonfin, y su `CONTRIBUTING.md` | `about_category_screen.dart`, `PRIVACY_POLICY.md` | Hecho |
+| Marca kOS TV (propuesta B, monograma "kO"): logotipo vectorial con fuente Outfit, animación de apertura de unos 3 s, icono adaptativo, banner de Android TV. Guía, propuestas y generador de iconos en [`docs/marca/`](docs/marca/README.md) | `lib/ui/widgets/kos_logo.dart`, `kos_intro.dart`, `startup_screen.dart`, `android/app/src/main/res/` | Hecho |
+| Solo español e inglés, y en español aunque la tele esté en otro idioma (se puede cambiar en Ajustes > General). Traducción española completa y revisada (de tú, español de España) | `lib/l10n/`, `current_app_localizations.dart`, `UserPreferences.languageOverride` | Hecho |
+| Sin Moonfin a la vista: textos, nombre que ve el servidor ("kOS TV para Android TV"…), perfiles de dispositivo, carpetas (`Descargas/KosTV`), animación de carga (el anillo), temas y paletas con los colores de la marca, web (título, carga, iconos, manifiesto), iOS y Apple TV (nombre, permisos en español, iconos y estantería superior). "Moonbase" se llama "complemento del servidor" | `lib/`, `android/`, `web/`, `ios/`, `tvos/` | Hecho |
+| "Acerca de" apunta a este repositorio (código, licencia y [política de privacidad](PRIVACY_POLICY.md) propia); fuera las fichas de incidencias, Discord y donativos de Moonfin, su `CONTRIBUTING.md` y sus plantillas de incidencias | `about_category_screen.dart`, `PRIVACY_POLICY.md` | Hecho |
 | Sin Silo | — | Pendiente (ver abajo) |
 
 Un servidor Emby ya no se reconoce: la búsqueda de servidores lo descarta y al
 escribir su dirección se informa de que no hay un servidor compatible.
 
-El namespace interno de Android (`org.moonfin.androidtv`) y los nombres de los
-canales nativos se mantienen a propósito: son internos y cambiarlos solo añade
-riesgo.
+Lo que aún se llama Moonfin es interno y nadie lo ve, y se mantiene a propósito:
+el nombre del paquete Dart (`moonfin`, en los `import`), el namespace de Android
+(`org.moonfin.androidtv`), los canales nativos, el esquema de enlaces
+`moonfin://` (lo usan las invitaciones de Ver juntos que genera el complemento) y
+las rutas `/Moonfin/...` del complemento del servidor, que son las suyas y no se
+pueden cambiar desde la app. El reconocimiento a Moonfin queda en este archivo,
+el README y la licencia.
 
 ## Publicar una versión
 
@@ -77,8 +83,9 @@ nuevos ya no se podrán instalar encima: habría que desinstalar en cada aparato
 - **Restos de Emby en el panel de administración.** `library_options_form.dart`
   y `admin_user_edit_screen.dart` conservan filas solo de Emby tras un
   `_emby => false`; se pueden borrar con calma.
-- **Textos que aún dicen "Moonfin".** Quedan en las traducciones (sobre todo
-  en idiomas que no son español ni inglés) y en algunos textos de ajustes.
-  Los iconos de la web, iOS y Apple TV también siguen siendo los de Moonfin.
+- **Textos escritos en inglés dentro del código.** Algunas pantallas (sobre todo
+  de ajustes avanzados y administración) llevan textos fijos en inglés en vez de
+  usar `lib/l10n`, así que salen en inglés aunque la app esté en español. Hay que
+  pasarlos a `app_en.arb`/`app_es.arb` poco a poco.
 - **Apple TV.** Cambiar el bundle id (y los de la extensión Top Shelf y el App
   Group) cuando se aborde tvOS.

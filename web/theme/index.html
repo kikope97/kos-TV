@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Moonfin Theme Editor</title>
+<title>kOS TV · Editor de temas</title>
   <link rel="icon" type="image/png" href="../favicon.png">
   <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -11,7 +11,7 @@
 
 <div class="topbar">
   <div class="topbar-logo">
-    <img class="topbar-logo-mark" src="../assets/assets/icons/moonfin_logo.svg" alt="Moonfin">
+    <svg class="topbar-logo-mark" viewBox="0 0 100 100" role="img" aria-label="kOS TV"><defs><linearGradient id="kr" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#4fd8ff"/><stop offset=".55" stop-color="#8f6bff"/><stop offset="1" stop-color="#ff5ccf"/></linearGradient></defs><circle cx="50" cy="50" r="42" fill="none" stroke="url(#kr)" stroke-width="16"/></svg>
     <span>Theme Editor</span>
   </div>
   <div class="tf"><label>ID</label><input id="tId" value="my-theme" maxlength="40" style="width:100px" oninput="onMeta()"></div>
@@ -36,7 +36,7 @@
   <button class="btn btn-s" onclick="clearDraft()">Clear</button>
   <input type="file" id="impFile" accept=".json" style="display:none" onchange="doImport(event)">
   <button class="btn btn-s" onclick="document.getElementById('impFile').click()">↑ Import JSON</button>
-  <button class="btn btn-s" onclick="loadPreset('moonfin')">Moonfin</button>
+  <button class="btn btn-s" onclick="loadPreset('moonfin')">kOS TV</button>
   <button class="btn btn-s" onclick="loadPreset('neon')">Neon Pulse</button>
   <button class="btn btn-s" onclick="randomizeTheme()">Random</button>
   <button class="btn btn-s" onclick="runValidation(true)">Validate</button>

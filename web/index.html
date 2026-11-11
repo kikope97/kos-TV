@@ -1,22 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="description" content="Moonfin web client for self-hosted media servers">
-  <meta name="theme-color" content="#101010">
+  <meta name="description" content="kOS TV, el cliente de Jellyfin de casa">
+  <meta name="theme-color" content="#000000">
 
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Moonfin">
+  <meta name="apple-mobile-web-app-title" content="kOS TV">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
   <link rel="icon" type="image/png" href="favicon.png">
 
-  <title>Moonfin</title>
+  <title>kOS TV</title>
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 
@@ -27,82 +27,43 @@
       padding: 0;
       width: 100%;
       height: 100%;
-      background: #101010;
+      background: #000000;
       color: #ffffff;
       font-family: "Segoe UI", "Helvetica Neue", sans-serif;
     }
 
-    #moonfin-loader {
+    /* Kos TV: until Flutter draws its first frame, the ring of the kOS TV
+       logo with its comet running around it. */
+    #kostv-loader {
       position: fixed;
       inset: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.45);
+      background: #000000;
       transition: opacity 180ms ease-out;
       z-index: 9999;
       pointer-events: none;
     }
 
-    .moonfin-loader__content {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+    #kostv-loader svg {
+      width: 120px;
+      height: 120px;
+      overflow: visible;
     }
 
-    .moonfin-loader__logo-wrap {
-      width: 160px;
-      height: 160px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      perspective: 1000px;
+    #kostv-loader .comet {
+      transform-origin: 50px 50px;
+      animation: kostv-comet 1.4s linear infinite;
     }
 
-    .moonfin-loader__logo {
-      width: 100%;
-      height: 100%;
-      transform-style: preserve-3d;
-      backface-visibility: visible;
-      animation: moonfin-logo-spin 8s linear infinite;
-    }
-
-    .moonfin-loader__label {
-      margin-top: 40px;
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 6px;
-      text-transform: uppercase;
-      text-align: center;
-      background: linear-gradient(90deg, #aa5cc3, #00a4dc);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-      animation: moonfin-label-pulse 2s ease-in-out infinite alternate;
-    }
-
-    #moonfin-loader.ready {
+    #kostv-loader.ready {
       opacity: 0;
     }
 
-    @keyframes moonfin-logo-spin {
-      from {
-        transform: rotateY(0deg);
-      }
+    @keyframes kostv-comet {
       to {
-        transform: rotateY(360deg);
-      }
-    }
-
-    @keyframes moonfin-label-pulse {
-      from {
-        opacity: 0.4;
-        transform: scale(0.98);
-      }
-      to {
-        opacity: 1;
-        transform: scale(1);
+        transform: rotate(360deg);
       }
     }
   </style>
@@ -201,7 +162,7 @@
       };
 
       window.addEventListener('flutter-first-frame', function () {
-        var loader = document.getElementById('moonfin-loader');
+        var loader = document.getElementById('kostv-loader');
         if (!loader) {
           return;
         }
@@ -216,18 +177,20 @@
   </script>
 </head>
 <body>
-  <div id="moonfin-loader" aria-hidden="true">
-    <div class="moonfin-loader__content">
-      <div class="moonfin-loader__logo-wrap">
-        <img
-          class="moonfin-loader__logo"
-          src="assets/assets/icons/moonfin_logo.svg"
-          alt="Moonfin"
-          onerror="this.onerror=null;this.src='assets/icons/moonfin_logo.svg';"
-        >
-      </div>
-      <div class="moonfin-loader__label">Loading Moonfin</div>
-    </div>
+  <div id="kostv-loader" aria-hidden="true">
+    <svg viewBox="0 0 100 100">
+      <defs>
+        <linearGradient id="kostv-ring" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stop-color="#4fd8ff"/>
+          <stop offset=".55" stop-color="#8f6bff"/>
+          <stop offset="1" stop-color="#ff5ccf"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="42" fill="none" stroke="url(#kostv-ring)" stroke-width="16"/>
+      <circle class="comet" cx="50" cy="50" r="42" fill="none" stroke="#fff" stroke-width="9"
+              stroke-linecap="round" pathLength="100" stroke-dasharray="9 91"
+              style="filter: drop-shadow(0 0 4px rgba(79, 216, 255, .95))"/>
+    </svg>
   </div>
   <script src="flutter_bootstrap.js" async></script>
 </body>

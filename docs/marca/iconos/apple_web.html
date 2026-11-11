@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  @font-face{font-family:'Outfit';font-weight:700;src:url(../../../assets/fonts/Outfit-Bold.ttf) format('truetype')}
+  @font-face{font-family:'Outfit';font-weight:300;src:url(../../../assets/fonts/Outfit-Light.ttf) format('truetype')}
+  html,body{margin:0;background:transparent}
+  .box{position:relative;overflow:hidden}
+  .full{position:absolute;inset:0;width:100%;height:100%;display:block}
+  .tvbg{background:radial-gradient(ellipse at 50% 42%,#161a2b 0%,#040509 75%)}
+  .stack{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Outfit'}
+  .l1{font-weight:700;line-height:1;white-space:nowrap;color:#f3f5fa;display:inline-flex;align-items:baseline}
+  .slot{display:inline-block;width:.74em;height:.74em;margin:0 .015em;position:relative}
+  .slot svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .l2{font-weight:300;line-height:1;white-space:nowrap;margin-top:.12em;font-size:.3em;letter-spacing:.6em;padding-left:.6em}
+  .l2 i{font-style:normal;background:linear-gradient(100deg,#4fd8ff,#8f6bff 55%,#ff5ccf);-webkit-background-clip:text;background-clip:text;color:transparent}
+</style></head><body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="kgrad" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#4fd8ff"/><stop offset=".55" stop-color="#8f6bff"/><stop offset="1" stop-color="#ff5ccf"/>
+    </linearGradient>
+    <radialGradient id="ibg" cx="50%" cy="42%" r="70%">
+      <stop offset="0" stop-color="#161a2b"/><stop offset="1" stop-color="#040509"/>
+    </radialGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+    <!-- "kO" escalado al 90 % alrededor del centro: cabe en la zona segura de
+         66 de diámetro del icono adaptativo, aunque el lanzador lo recorte en círculo -->
+    <symbol id="fg" viewBox="0 0 108 108">
+      <g transform="translate(54 54) scale(.9) translate(-54 -54)">
+        <text x="22.5" y="70" font-family="Outfit" font-weight="700" font-size="46" fill="#f3f5fa">k</text>
+        <g filter="url(#soft)" opacity=".6"><circle cx="69.5" cy="54" r="12.8" fill="none" stroke="url(#kgrad)" stroke-width="6.5"/></g>
+        <circle cx="69.5" cy="54" r="12.8" fill="none" stroke="url(#kgrad)" stroke-width="6.5"/>
+        <circle cx="69.5" cy="54" r="12.8" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"
+                pathLength="100" stroke-dasharray="9 91" stroke-dashoffset="-6" transform="rotate(-90 69.5 54)"/>
+      </g>
+    </symbol>
+    <symbol id="bg" viewBox="0 0 108 108"><rect width="108" height="108" fill="url(#ibg)"/></symbol>
+  </defs>
+</svg>
+<div id="stage"></div>
+<script>
+const ring = `<svg viewBox="0 0 100 100"><path d="M50 8 A42 42 0 1 1 49.99 8" fill="none" stroke="url(#kgrad)" stroke-width="16"/>
+  <path d="M50 8 A42 42 0 1 1 49.99 8" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" pathLength="100"
+  stroke-dasharray="9 91" stroke-dashoffset="-14" style="filter:drop-shadow(0 0 4px rgba(79,216,255,.95))"/></svg>`;
+const wordmark = (fs) => `<div class="stack" style="font-size:${fs}px"><div class="l1"><span>k</span><span class="slot">${ring}</span><span>S</span></div><div class="l2"><i>TV</i></div></div>`;
+// what: 'square' (opaque, full bleed), 'rounded' (favicon), 'tvback', 'tvfront', 'shelf'
+function draw(what, w, h) {
+  const st = document.getElementById('stage');
+  let inner = '';
+  if (what === 'square') inner = `<svg class="full" viewBox="0 0 108 108"><use href="#bg"/><use href="#fg"/></svg>`;
+  if (what === 'squarecrop') inner = `<svg class="full" viewBox="18 18 72 72"><use href="#bg" x="0" y="0" width="108" height="108"/><use href="#fg" x="0" y="0" width="108" height="108"/></svg>`;
+  if (what === 'rounded') inner = `<svg class="full" viewBox="18 18 72 72"><defs><clipPath id="rr2"><rect x="18" y="18" width="72" height="72" rx="16" ry="16"/></clipPath></defs><g clip-path="url(#rr2)"><use href="#bg" x="0" y="0" width="108" height="108"/><use href="#fg" x="0" y="0" width="108" height="108"/></g></svg>`;
+  if (what === 'tvback') inner = `<div class="full tvbg"></div>`;
+  if (what === 'tvfront') inner = wordmark(h * 0.42);
+  if (what === 'shelf') inner = `<div class="full tvbg"></div>` + wordmark(h * 0.36);
+  st.innerHTML = `<div id="out" class="box" style="width:${w}px;height:${h}px">${inner}</div>`;
+}
+</script></body></html>

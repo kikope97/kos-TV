@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face{font-family:'Outfit';font-weight:700;src:url(../../../assets/fonts/Outfit-Bold.ttf) format('truetype')}
+  @font-face{font-family:'Outfit';font-weight:200;src:url(../../../assets/fonts/Outfit-ExtraLight.ttf) format('truetype')}
+  html,body{margin:0;background:transparent}
+  .box{display:block}
+  /* Banner de Android TV, 640×360 px (320×180 dp a xhdpi): icono + kOS TV */
+  #banner{width:640px;height:360px;background:radial-gradient(circle at 50% 45%,#11131d 0%,#000 70%);
+          display:flex;align-items:center;justify-content:center;gap:40px;font-family:'Outfit'}
+  #banner .mini{width:172px;height:172px;border-radius:26%;overflow:hidden;box-shadow:0 0 0 1px #20243a}
+  #banner .mini svg{width:100%;height:100%;display:block}
+  .mark{font-weight:700;line-height:1;white-space:nowrap;color:#f3f5fa;display:inline-flex;align-items:baseline;font-size:70px}
+  .slot{display:inline-block;width:.74em;height:.74em;margin:0 .015em;position:relative}
+  .slot svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+  .tvw{display:inline-block;font-weight:200;letter-spacing:.01em;margin-left:.17em}
+  .tvw i{font-style:normal;background:linear-gradient(100deg,#4fd8ff,#8f6bff 55%,#ff5ccf);-webkit-background-clip:text;background-clip:text;color:transparent}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="kgrad" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#4fd8ff"/><stop offset=".55" stop-color="#8f6bff"/><stop offset="1" stop-color="#ff5ccf"/>
+    </linearGradient>
+    <radialGradient id="ibg" cx="50%" cy="42%" r="70%">
+      <stop offset="0" stop-color="#161a2b"/><stop offset="1" stop-color="#040509"/>
+    </radialGradient>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+    <!-- "kO" escalado al 90 % alrededor del centro: cabe en la zona segura de
+         66 de diámetro del icono adaptativo, aunque el lanzador lo recorte en círculo -->
+    <symbol id="fg" viewBox="0 0 108 108">
+      <g transform="translate(54 54) scale(.9) translate(-54 -54)">
+        <text x="22.5" y="70" font-family="Outfit" font-weight="700" font-size="46" fill="#f3f5fa">k</text>
+        <g filter="url(#soft)" opacity=".6"><circle cx="69.5" cy="54" r="12.8" fill="none" stroke="url(#kgrad)" stroke-width="6.5"/></g>
+        <circle cx="69.5" cy="54" r="12.8" fill="none" stroke="url(#kgrad)" stroke-width="6.5"/>
+        <circle cx="69.5" cy="54" r="12.8" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round"
+                pathLength="100" stroke-dasharray="9 91" stroke-dashoffset="-6" transform="rotate(-90 69.5 54)"/>
+      </g>
+    </symbol>
+    <symbol id="bg" viewBox="0 0 108 108"><rect width="108" height="108" fill="url(#ibg)"/></symbol>
+  </defs>
+</svg>
+
+<!-- Capas del icono adaptativo, lienzo completo de 108 -->
+<svg id="foreground" class="box" width="432" height="432" viewBox="0 0 108 108"><use href="#fg"/></svg>
+<svg id="background" class="box" width="432" height="432" viewBox="0 0 108 108"><use href="#bg"/></svg>
+<!-- Icono clásico (Android 7): el centro de 72 que enseña el lanzador, con esquinas redondeadas -->
+<svg id="legacy" class="box" width="192" height="192" viewBox="18 18 72 72">
+  <defs><clipPath id="rr"><rect x="18" y="18" width="72" height="72" rx="16" ry="16"/></clipPath></defs>
+  <g clip-path="url(#rr)"><use href="#bg" x="0" y="0" width="108" height="108"/><use href="#fg" x="0" y="0" width="108" height="108"/></g>
+</svg>
+
+<div id="banner">
+  <div class="mini"><svg viewBox="18 18 72 72"><use href="#bg" x="0" y="0" width="108" height="108"/><use href="#fg" x="0" y="0" width="108" height="108"/></svg></div>
+  <div class="mark"><span>k</span><span class="slot"><svg viewBox="0 0 100 100">
+      <path d="M50 8 A42 42 0 1 1 49.99 8" fill="none" stroke="url(#kgrad)" stroke-width="16"/>
+      <path d="M50 8 A42 42 0 1 1 49.99 8" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" pathLength="100"
+            stroke-dasharray="9 91" stroke-dashoffset="-14" style="filter:drop-shadow(0 0 4px rgba(79,216,255,.95))"/>
+    </svg></span><span>S</span><span class="tvw"><i>TV</i></span></div>
+</div>
+</body>
+</html>

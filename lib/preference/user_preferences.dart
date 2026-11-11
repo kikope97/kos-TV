@@ -2759,9 +2759,11 @@ class UserPreferences extends ChangeNotifier {
     values: DolbyVisionProfile7DirectPlayBehavior.values,
   );
 
+  // Kos TV: Spanish out of the box, whatever language the TV is set to. The
+  // picker still offers the system language and English.
   static final languageOverride = Preference<String>(
     key: 'pref_language_override',
-    defaultValue: 'system',
+    defaultValue: 'es',
   );
 
   static final defaultAudioLanguage = Preference(

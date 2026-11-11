@@ -579,7 +579,7 @@ function navItems(active){
 function shell(content, active, title){
   const topMode=ST.previewNavMode==='top';
   const nav=`<div class="mf-left">
-    <div class="mf-user"><div class="mf-avatar">MF</div><div class="mf-uname">Moonfin User</div></div>
+    <div class="mf-user"><div class="mf-avatar">K</div><div class="mf-uname">kOS TV</div></div>
     <div class="mf-divider"></div>
     ${navItems(active)}
     <div class="mf-nav-clock">12:31 AM</div>
@@ -1049,7 +1049,7 @@ function renderSettings(){
     {ic:iPlaylist,t:'Dynamic Content',s:'Media Bar and visual overlays'},
     {ic:iPlayCircle,t:'Playback & SyncPlay',s:'Audio/video settings, subtitles, downloads, and SyncPlay controls'},
     {ic:iHub,t:'Integrations',s:'Plugin sync, Seerr, ratings, and more'},
-    {ic:iBrush,t:'Theme Editor',s:'Open the Moonfin Theme Editor in your browser'},
+    {ic:iBrush,t:'Theme Editor',s:'Open the theme editor in your browser'},
     {ic:iInfo,t:'About',s:'App version, legal information, and credits'},
   ];
   const content=`

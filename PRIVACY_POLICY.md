@@ -30,7 +30,7 @@ Cuando la app falla puede enviar un informe técnico (traza del error, versión
 de la app, modelo del dispositivo y versión del sistema) **solo al servidor
 Jellyfin en el que has iniciado sesión**, nunca a terceros. Se quitan antes las
 direcciones de servidores, las IP y los tokens. Viene activado y se puede
-desactivar en Ajustes > Acerca de > Diagnostics & Logging.
+desactivar en Ajustes > Acerca de > Diagnóstico y registros.
 
 ## Búsqueda por voz
 

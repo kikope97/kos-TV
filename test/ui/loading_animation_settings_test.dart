@@ -89,7 +89,7 @@ void main() {
       );
 
       expect(find.byType(SizedBox), findsOneWidget);
-      expect(find.byType(MoonfinLogoAnimation), findsNothing);
+      expect(find.byType(KosRingLoadingAnimation), findsNothing);
       expect(find.byType(StockSpinnerAnimation), findsNothing);
       expect(find.byType(RunnerAnimation), findsNothing);
       expect(find.byType(MoonPhasesAnimation), findsNothing);

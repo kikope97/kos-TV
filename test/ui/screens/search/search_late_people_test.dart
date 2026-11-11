@@ -162,6 +162,8 @@ void main() {
     final getIt = GetIt.instance;
     getIt.registerSingleton<PreferenceStore>(store);
     getIt.registerSingleton<UserPreferences>(UserPreferences(store));
+    // The app starts in Spanish; these finders read the English strings.
+    await getIt<UserPreferences>().set(UserPreferences.languageOverride, 'en');
     getIt.registerSingleton<UserRepository>(_FakeUserRepository());
     getIt.registerSingleton<UserViewsRepository>(_FakeUserViewsRepository());
     getIt.registerSingleton<PluginSyncService>(pluginSync);

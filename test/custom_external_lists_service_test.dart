@@ -475,31 +475,22 @@ void main() {
     });
   });
 
+  // Kos TV: Spanish and English only, Spanish for everything else.
   group('currentAppLocale resolution', () {
     test('resolves supported locales', () {
-      expect(currentAppLocale(const Locale('fr')).languageCode, 'fr');
       expect(currentAppLocale(const Locale('es')).languageCode, 'es');
-      expect(currentAppLocale(const Locale('de', 'DE')).languageCode, 'de');
+      expect(currentAppLocale(const Locale('en', 'US')).languageCode, 'en');
     });
 
-    test('falls back to English for unsupported device locales', () {
-      expect(currentAppLocale(const Locale('is')).languageCode, 'en');
-      expect(currentAppLocale(const Locale('tlh')).languageCode, 'en');
+    test('falls back to Spanish for unsupported device locales', () {
+      expect(currentAppLocale(const Locale('fr')).languageCode, 'es');
+      expect(currentAppLocale(const Locale('is')).languageCode, 'es');
+      expect(currentAppLocale(const Locale('tlh')).languageCode, 'es');
     });
 
-    test('keeps the script and country the app supports', () {
-      expect(
-        currentAppLocale(
-          const Locale.fromSubtags(
-            languageCode: 'zh',
-            scriptCode: 'Hant',
-            countryCode: 'TW',
-          ),
-        ),
-        const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
-      );
-      expect(currentAppLocale(const Locale('pt', 'BR')), const Locale('pt', 'BR'));
+    test('gives Spanish to any Spanish-speaking country', () {
       expect(currentAppLocale(const Locale('es', 'CO')), const Locale('es'));
+      expect(currentAppLocale(const Locale('es', 'MX')), const Locale('es'));
     });
   });
 }

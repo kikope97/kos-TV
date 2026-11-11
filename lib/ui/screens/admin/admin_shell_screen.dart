@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
@@ -9,6 +8,7 @@ import 'admin_nav.dart';
 import 'providers/admin_websocket_handler.dart';
 import 'widgets/admin_settings_search.dart';
 import 'widgets/admin_unsaved_bar.dart';
+import '../../widgets/kos_logo.dart';
 
 /// The admin area's frame. Wide windows get the group rail, the page list
 /// and breadcrumbs. Narrow ones get a bottom bar of groups that open each
@@ -594,15 +594,7 @@ class _ExitMark extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SvgPicture.asset(
-                    'assets/icons/moonfin_logo.svg',
-                    width: size,
-                    height: size,
-                    colorFilter: ColorFilter.mode(
-                      scheme.onSurface,
-                      BlendMode.srcIn,
-                    ),
-                  ),
+                  KosRingMark(size: size, color: scheme.onSurface),
                   const SizedBox(height: 2),
                   Text(
                     l10n.exit,

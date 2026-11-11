@@ -5,64 +5,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
-import 'app_localizations_af.dart';
-import 'app_localizations_ar.dart';
-import 'app_localizations_be.dart';
-import 'app_localizations_bg.dart';
-import 'app_localizations_bn.dart';
-import 'app_localizations_ca.dart';
-import 'app_localizations_cs.dart';
-import 'app_localizations_cy.dart';
-import 'app_localizations_da.dart';
-import 'app_localizations_de.dart';
-import 'app_localizations_el.dart';
 import 'app_localizations_en.dart';
-import 'app_localizations_eo.dart';
 import 'app_localizations_es.dart';
-import 'app_localizations_et.dart';
-import 'app_localizations_fa.dart';
-import 'app_localizations_fi.dart';
-import 'app_localizations_fr.dart';
-import 'app_localizations_gl.dart';
-import 'app_localizations_he.dart';
-import 'app_localizations_hi.dart';
-import 'app_localizations_hr.dart';
-import 'app_localizations_hu.dart';
-import 'app_localizations_id.dart';
-import 'app_localizations_it.dart';
-import 'app_localizations_ja.dart';
-import 'app_localizations_kk.dart';
-import 'app_localizations_kn.dart';
-import 'app_localizations_ko.dart';
-import 'app_localizations_lt.dart';
-import 'app_localizations_lv.dart';
-import 'app_localizations_mk.dart';
-import 'app_localizations_ml.dart';
-import 'app_localizations_mn.dart';
-import 'app_localizations_nb.dart';
-import 'app_localizations_nl.dart';
-import 'app_localizations_pa.dart';
-import 'app_localizations_pl.dart';
-import 'app_localizations_pt.dart';
-import 'app_localizations_ro.dart';
-import 'app_localizations_ru.dart';
-import 'app_localizations_si.dart';
-import 'app_localizations_sk.dart';
-import 'app_localizations_sl.dart';
-import 'app_localizations_sq.dart';
-import 'app_localizations_sr.dart';
-import 'app_localizations_sv.dart';
-import 'app_localizations_sw.dart';
-import 'app_localizations_ta.dart';
-import 'app_localizations_te.dart';
-import 'app_localizations_th.dart';
-import 'app_localizations_tl.dart';
-import 'app_localizations_tr.dart';
-import 'app_localizations_ug.dart';
-import 'app_localizations_uk.dart';
-import 'app_localizations_vi.dart';
-import 'app_localizations_yue.dart';
-import 'app_localizations_zh.dart';
 
 // ignore_for_file: type=lint
 
@@ -150,74 +94,8 @@ abstract class AppLocalizations {
 
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
-    Locale('af'),
-    Locale('ar'),
-    Locale('be'),
-    Locale('bg'),
-    Locale('bn'),
-    Locale('ca'),
-    Locale('cs'),
-    Locale('cy'),
-    Locale('da'),
-    Locale('de'),
-    Locale('el'),
     Locale('en'),
-    Locale('en', 'GB'),
-    Locale('eo'),
     Locale('es'),
-    Locale('es', '419'),
-    Locale('es', 'AR'),
-    Locale('es', 'DO'),
-    Locale('es', 'MX'),
-    Locale('et'),
-    Locale('fa'),
-    Locale('fi'),
-    Locale('fr'),
-    Locale('gl'),
-    Locale('he'),
-    Locale('hi'),
-    Locale('hr'),
-    Locale('hu'),
-    Locale('id'),
-    Locale('it'),
-    Locale('ja'),
-    Locale('kk'),
-    Locale('kn'),
-    Locale('ko'),
-    Locale('lt'),
-    Locale('lv'),
-    Locale('mk'),
-    Locale('ml'),
-    Locale('mn'),
-    Locale('nb'),
-    Locale('nl'),
-    Locale('pa'),
-    Locale('pl'),
-    Locale('pt'),
-    Locale('pt', 'BR'),
-    Locale('pt', 'PT'),
-    Locale('ro'),
-    Locale('ru'),
-    Locale('si'),
-    Locale('sk'),
-    Locale('sl'),
-    Locale('sq'),
-    Locale('sr'),
-    Locale('sv'),
-    Locale('sw'),
-    Locale('ta'),
-    Locale('te'),
-    Locale('th'),
-    Locale('tl'),
-    Locale('tr'),
-    Locale('ug'),
-    Locale('uk'),
-    Locale('vi'),
-    Locale('yue'),
-    Locale('yue', 'CN'),
-    Locale('yue', 'HK'),
-    Locale('zh'),
-    Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hant'),
   ];
 
   /// The application title
@@ -511,7 +389,7 @@ abstract class AppLocalizations {
   /// App version shown in footer
   ///
   /// In en, this message translates to:
-  /// **'Moonfin version {version}'**
+  /// **'kOS TV version {version}'**
   String appVersionFooter(String version);
 
   /// Section heading for previously saved servers
@@ -607,7 +485,7 @@ abstract class AppLocalizations {
   /// Explanation when secure storage is not available
   ///
   /// In en, this message translates to:
-  /// **'Moonfin could not access your system keyring. Login can continue, but secure token storage may be unavailable until the keyring is unlocked.'**
+  /// **'kOS TV could not access your system keyring. Login can continue, but secure token storage may be unavailable until the keyring is unlocked.'**
   String get secureStorageUnavailableMessage;
 
   /// Generic OK button label
@@ -907,13 +785,13 @@ abstract class AppLocalizations {
   /// Explanation under the recommendation system setting
   ///
   /// In en, this message translates to:
-  /// **'Use the Moonfin Recommends local-library algorithm, Jellyfin Recommends server engine, or the online TMDb\'s Similarity Metrics. Note: Online recommendations require Seerr integration.'**
+  /// **'Use kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server\'s engine) or TMDb\'s similarity metrics online. Note: Online recommendations require Seerr integration.'**
   String get recommendationSystemSubtitle;
 
   /// Recommendation system option: Moonfin Recommends
   ///
   /// In en, this message translates to:
-  /// **'Moonfin Recommends'**
+  /// **'kOS TV Recommends'**
   String get recommendationSystemMoonfin;
 
   /// Recommendation system option: Jellyfin Recommends
@@ -937,7 +815,7 @@ abstract class AppLocalizations {
   /// Explanation under the parental rating cap setting toggle
   ///
   /// In en, this message translates to:
-  /// **'Limit Moonfin Recommends suggestions by parental rating of target media'**
+  /// **'Limit kOS TV Recommends suggestions by parental rating of target media'**
   String get recommendationsApplyParentalRatingCapSubtitle;
 
   /// Label for the Automatic/Apple/Material interface style setting
@@ -979,7 +857,7 @@ abstract class AppLocalizations {
   /// Subtitle for the interface layout setting
   ///
   /// In en, this message translates to:
-  /// **'Override the detected layout when this device is read wrong. Restart Moonfin for changes to take effect.'**
+  /// **'Override the detected layout when this device is read wrong. Restart kOS TV for changes to take effect.'**
   String get interfaceLayoutSubtitle;
 
   /// Interface layout option: detect from the device
@@ -1135,7 +1013,7 @@ abstract class AppLocalizations {
   /// Description under custom themes section
   ///
   /// In en, this message translates to:
-  /// **'Custom themes alter visual elements across Moonfin. Choose one of these options to suit your style.'**
+  /// **'Custom themes alter visual elements across kOS TV. Choose one of these options to suit your style.'**
   String get customThemeSubtitle;
 
   /// Label for the setting that picks how the on-screen keyboard looks, or whether the TV's own keyboard is used
@@ -1147,7 +1025,7 @@ abstract class AppLocalizations {
   /// Explanation under the keyboard style setting
   ///
   /// In en, this message translates to:
-  /// **'Native uses your TV\'s own keyboard. Classic is the original Moonfin keyboard. Glass is a frosted panel with larger keys. Docked fills the bottom of the screen and shows what you type above the keys.'**
+  /// **'Native uses your TV\'s own keyboard. Classic is the app\'s original keyboard. Glass is a frosted panel with larger keys. Docked fills the bottom of the screen and shows what you type above the keys.'**
   String get keyboardStyleDescription;
 
   /// Keyboard style option: the TV or device's own system keyboard
@@ -1213,13 +1091,13 @@ abstract class AppLocalizations {
   /// Display name for the Moonfin theme
   ///
   /// In en, this message translates to:
-  /// **'Moonfin'**
+  /// **'kOS TV'**
   String get themeMoonfin;
 
   /// Preview description for the Moonfin theme
   ///
   /// In en, this message translates to:
-  /// **'The original clean Moonfin default.'**
+  /// **'The clean default look.'**
   String get themeMoonfinSubtitle;
 
   /// Display name for the Neon Pulse theme
@@ -1387,7 +1265,7 @@ abstract class AppLocalizations {
   /// Title of exit confirmation dialog
   ///
   /// In en, this message translates to:
-  /// **'Exit Moonfin?'**
+  /// **'Exit kOS TV?'**
   String get exitApp;
 
   /// Body text of exit confirmation dialog
@@ -3409,7 +3287,7 @@ abstract class AppLocalizations {
   /// Shown in the car when no account is signed in
   ///
   /// In en, this message translates to:
-  /// **'Sign in to Moonfin on your phone'**
+  /// **'Sign in to kOS TV on your phone'**
   String get carSignInPrompt;
 
   /// Shown in the car when the media server can't be reached
@@ -3883,7 +3761,7 @@ abstract class AppLocalizations {
   /// What Ctrl+Q does on desktop
   ///
   /// In en, this message translates to:
-  /// **'Quit Moonfin'**
+  /// **'Quit kOS TV'**
   String get shortcutQuit;
 
   /// Player shortcut action
@@ -4207,7 +4085,7 @@ abstract class AppLocalizations {
   /// Body of the dialog shown on Apple TV when the user tries to open a book or comic
   ///
   /// In en, this message translates to:
-  /// **'Open it in Moonfin on a phone, tablet or computer to read it. Audiobooks still play here.'**
+  /// **'Open it in kOS TV on a phone, tablet or computer to read it. Audiobooks still play here.'**
   String get bookReadingUnavailableMessage;
 
   /// Fallback message for unsupported document format
@@ -5623,7 +5501,7 @@ abstract class AppLocalizations {
   /// Description for loading animation customization settings
   ///
   /// In en, this message translates to:
-  /// **'Customize the loading animations used throughout Moonfin'**
+  /// **'Customize the loading animations used throughout kOS TV'**
   String get loadingAnimationDescription;
 
   /// Subtitle header for loading animation settings
@@ -5641,7 +5519,7 @@ abstract class AppLocalizations {
   /// Loading animation image option: Moonfin Logo
   ///
   /// In en, this message translates to:
-  /// **'Moonfin Logo'**
+  /// **'kOS TV Logo'**
   String get loadingAnimationImageMoonfinLogo;
 
   /// Loading animation image option: Spinner
@@ -5665,13 +5543,13 @@ abstract class AppLocalizations {
   /// Loading animation image option: Moonfin Phases in brand gradient
   ///
   /// In en, this message translates to:
-  /// **'Moonfin Phases'**
+  /// **'kOS TV Phases'**
   String get loadingAnimationImageMoonfinPhases;
 
   /// Loading animation image option: Neonfin Phases in neon colors
   ///
   /// In en, this message translates to:
-  /// **'Neonfin Phases'**
+  /// **'Neon Phases'**
   String get loadingAnimationImageNeonfinPhases;
 
   /// Title for loading animation size selection
@@ -7705,7 +7583,7 @@ abstract class AppLocalizations {
   /// Description when no custom mpv.conf is set
   ///
   /// In en, this message translates to:
-  /// **'Not set. Moonfin will try a default mpv.conf in app/data folders.'**
+  /// **'Not set. kOS TV will try a default mpv.conf in app/data folders.'**
   String get notSetMpvConf;
 
   /// Dialog title for selecting mpv.conf
@@ -8233,7 +8111,7 @@ abstract class AppLocalizations {
   /// Note shown when the only download location Android allows is the default one
   ///
   /// In en, this message translates to:
-  /// **'Android only lets Moonfin write to the folders it owns, and this device has no removable storage. Turn on Save to Downloads folder above to keep downloads somewhere other apps can reach.'**
+  /// **'Android only lets kOS TV write to the folders it owns, and this device has no removable storage. Turn on Save to Downloads folder above to keep downloads somewhere other apps can reach.'**
   String get downloadLocationLimitedByAndroid;
 
   /// Setting for saving to downloads folder
@@ -8245,7 +8123,7 @@ abstract class AppLocalizations {
   /// Description for downloads folder visibility
   ///
   /// In en, this message translates to:
-  /// **'Downloads/Moonfin — visible to other apps'**
+  /// **'Downloads/KosTV — visible to other apps'**
   String get downloadsVisibleToOtherApps;
 
   /// Section title for dangerous actions
@@ -8299,7 +8177,7 @@ abstract class AppLocalizations {
   /// Description for saving to downloads folder
   ///
   /// In en, this message translates to:
-  /// **'Downloaded media will be saved to Downloads/Moonfin on your device. These files will be visible to other apps such as your gallery or music player.\n\nExisting downloads will remain in their current location.'**
+  /// **'Downloaded media will be saved to Downloads/KosTV on your device. These files will be visible to other apps such as your gallery or music player.\n\nExisting downloads will remain in their current location.'**
   String get saveToDownloadsFolderDescription;
 
   /// Notice shown below downloading text when downloading a transcoded stream
@@ -8743,7 +8621,7 @@ abstract class AppLocalizations {
   /// Explanation shown on the library visibility settings screen
   ///
   /// In en, this message translates to:
-  /// **'Toggle home page visibility per library. Restart Moonfin for changes to take effect.'**
+  /// **'Toggle home page visibility per library. Restart kOS TV for changes to take effect.'**
   String get libraryVisibilityDescription;
 
   /// Toggle for showing library in navigation
@@ -8869,7 +8747,7 @@ abstract class AppLocalizations {
   /// Media bar style option: Moonfin
   ///
   /// In en, this message translates to:
-  /// **'Moonfin'**
+  /// **'kOS TV'**
   String get mediaBarModeMoonfin;
 
   /// Media bar style option: MakD
@@ -9523,13 +9401,13 @@ abstract class AppLocalizations {
   /// Description under the Let TV Sleep After setting on Android TV, where the app closes
   ///
   /// In en, this message translates to:
-  /// **'Close Moonfin after this long without a button press so your TV\'s own screensaver and sleep timer can take over. Anything paused is stopped first, so it keeps its resume point.'**
+  /// **'Close kOS TV after this long without a button press so your TV\'s own screensaver and sleep timer can take over. Anything paused is stopped first, so it keeps its resume point.'**
   String get sleepAfterIdleDescriptionAndroid;
 
   /// Description under the Let TV Sleep After setting on Apple TV, where the app stays open
   ///
   /// In en, this message translates to:
-  /// **'After this long without a button press, hand the screen back to your Apple TV\'s own screensaver and sleep setting. Moonfin stays open, so you pick up right where you left off.'**
+  /// **'After this long without a button press, hand the screen back to your Apple TV\'s own screensaver and sleep setting. kOS TV stays open, so you pick up right where you left off.'**
   String get sleepAfterIdleDescriptionAppleTv;
 
   /// Setting for max age rating
@@ -9613,7 +9491,7 @@ abstract class AppLocalizations {
   /// Screensaver backdrop: Moonfin
   ///
   /// In en, this message translates to:
-  /// **'Moonfin'**
+  /// **'kOS TV'**
   String get screensaverBackdropMoonfin;
 
   /// Screensaver backdrop: Calm
@@ -9643,7 +9521,7 @@ abstract class AppLocalizations {
   /// Screensaver component: Moonfin Logo
   ///
   /// In en, this message translates to:
-  /// **'Moonfin Logo'**
+  /// **'kOS TV Logo'**
   String get screensaverComponentMoonfinLogo;
 
   /// Screensaver component: Runner
@@ -9859,7 +9737,7 @@ abstract class AppLocalizations {
   /// Settings Sync screen on a Plex server: where the Moonbase companion service runs, since Plex can't run plugins. Left empty, the app looks next to the Plex server.
   ///
   /// In en, this message translates to:
-  /// **'Moonbase Address'**
+  /// **'Server plugin address'**
   String get moonbaseAddress;
 
   /// Status line on the Settings Sync screen when the server plugin answers
@@ -10177,13 +10055,13 @@ abstract class AppLocalizations {
   /// Description for discover rows with plugin
   ///
   /// In en, this message translates to:
-  /// **'Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with Moonbase.'**
+  /// **'Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with the server plugin.'**
   String get discoverRowsDescriptionPlugin;
 
   /// Description for discover rows without plugin
   ///
   /// In en, this message translates to:
-  /// **'Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with Moonbase.'**
+  /// **'Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with the server plugin.'**
   String get discoverRowsDescription;
 
   /// Status: enabled
@@ -10221,12 +10099,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Source Code'**
   String get sourceCode;
-
-  /// Displayed source code repository URL
-  ///
-  /// In en, this message translates to:
-  /// **'https://github.com/Moonfin-Client/Moonfin-Core'**
-  String get sourceCodeUrl;
 
   /// Button to check for updates
   ///
@@ -10561,7 +10433,7 @@ abstract class AppLocalizations {
   /// Button to play available media in Moonfin
   ///
   /// In en, this message translates to:
-  /// **'Play in Moonfin'**
+  /// **'Play in kOS TV'**
   String get playInMoonfin;
 
   /// Label above the name of whoever requested media, where the name sits on its own line
@@ -10639,7 +10511,7 @@ abstract class AppLocalizations {
   /// Snackbar when Seerr item cannot be found in Jellyfin
   ///
   /// In en, this message translates to:
-  /// **'Item not found in your Moonfin library'**
+  /// **'Item not found in your library'**
   String get itemNotFoundInLibrary;
 
   /// Snackbar when library search fails
@@ -14185,7 +14057,7 @@ abstract class AppLocalizations {
   /// No description provided for @adminServerRebootMessage.
   ///
   /// In en, this message translates to:
-  /// **'Server reboot in progress, please restart Moonfin'**
+  /// **'Server reboot in progress, please restart kOS TV'**
   String get adminServerRebootMessage;
 
   /// No description provided for @adminActiveSessions.
@@ -20839,7 +20711,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsLibraryVisibilitySubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Toggle home page visibility per library. Restart Moonfin for changes to take effect.'**
+  /// **'Toggle home page visibility per library. Restart kOS TV for changes to take effect.'**
   String get settingsLibraryVisibilitySubtitle;
 
   /// No description provided for @settingsMediaBarAndLocalPreviews.
@@ -21016,48 +20888,6 @@ abstract class AppLocalizations {
   /// **'APP INFO'**
   String get settingsAppInfo;
 
-  /// No description provided for @settingsReportAnIssue.
-  ///
-  /// In en, this message translates to:
-  /// **'Report an Issue'**
-  String get settingsReportAnIssue;
-
-  /// No description provided for @settingsReportAnIssueSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Open the issue tracker on GitHub'**
-  String get settingsReportAnIssueSubtitle;
-
-  /// No description provided for @settingsJoinDiscord.
-  ///
-  /// In en, this message translates to:
-  /// **'Join Discord'**
-  String get settingsJoinDiscord;
-
-  /// No description provided for @settingsJoinDiscordSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Chat with the community'**
-  String get settingsJoinDiscordSubtitle;
-
-  /// No description provided for @settingsJoinTheDiscord.
-  ///
-  /// In en, this message translates to:
-  /// **'Join the Discord'**
-  String get settingsJoinTheDiscord;
-
-  /// No description provided for @settingsSupportMoonfin.
-  ///
-  /// In en, this message translates to:
-  /// **'Support Moonfin'**
-  String get settingsSupportMoonfin;
-
-  /// No description provided for @settingsSupportMoonfinSubtitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Donate a coffee to the developer'**
-  String get settingsSupportMoonfinSubtitle;
-
   /// No description provided for @settingsLegal.
   ///
   /// In en, this message translates to:
@@ -21087,18 +20917,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'How kOS TV handles your data'**
   String get settingsPrivacyPolicySubtitle;
-
-  /// Kos TV: About screen tile that credits Moonfin, the open-source client Kos TV is built on
-  ///
-  /// In en, this message translates to:
-  /// **'Based on Moonfin'**
-  String get kostvBasedOnMoonfin;
-
-  /// Kos TV: subtitle of the tile that credits Moonfin
-  ///
-  /// In en, this message translates to:
-  /// **'The open-source client kOS TV is built on'**
-  String get kostvBasedOnMoonfinSubtitle;
 
   /// No description provided for @settingsCheckForUpdates.
   ///
@@ -21889,7 +21707,7 @@ abstract class AppLocalizations {
   /// No description provided for @savedThemesDescription.
   ///
   /// In en, this message translates to:
-  /// **'These are themes downloaded from the Moonfin plugin for the current server. Deleting removes only this local copy.'**
+  /// **'These are themes downloaded from the server plugin for the current server. Deleting removes only this local copy.'**
   String get savedThemesDescription;
 
   /// No description provided for @savedThemesEmpty.
@@ -21925,7 +21743,7 @@ abstract class AppLocalizations {
   /// No description provided for @themeEditorSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Open the Moonfin Theme Editor in your browser'**
+  /// **'Open the theme editor in your browser'**
   String get themeEditorSubtitle;
 
   /// No description provided for @homeScreen.
@@ -22171,13 +21989,13 @@ abstract class AppLocalizations {
   /// No description provided for @sinceYouWatchedSourceDescription.
   ///
   /// In en, this message translates to:
-  /// **'Choose recommendation source (Moonfin Recommends custom local algorithm, Jellyfin Recommends server engine, or TMDb\'s similarity metrics. Note: Online recommendations require Seerr integration).'**
+  /// **'Choose the recommendation source: kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server\'s engine) or TMDb\'s similarity metrics. Note: Online recommendations require Seerr integration.'**
   String get sinceYouWatchedSourceDescription;
 
   /// No description provided for @sinceYouWatchedSourceLocal.
   ///
   /// In en, this message translates to:
-  /// **'Moonfin Recommends'**
+  /// **'kOS TV Recommends'**
   String get sinceYouWatchedSourceLocal;
 
   /// No description provided for @sinceYouWatchedSourceServer.
@@ -22705,7 +22523,7 @@ abstract class AppLocalizations {
   /// No description provided for @cadenceTipSlowdownHint.
   ///
   /// In en, this message translates to:
-  /// **'Or turn on Smooth 24 fps on a 60 Hz TV in Moonfin under Playback > Quality & Decoding.'**
+  /// **'Or turn on Smooth 24 fps on a 60 Hz TV in kOS TV under Playback > Quality & Decoding.'**
   String get cadenceTipSlowdownHint;
 
   /// No description provided for @useExternalPlayer.
@@ -22783,7 +22601,7 @@ abstract class AppLocalizations {
   /// No description provided for @webDiagnosticsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Moonfin Web Diagnostics'**
+  /// **'kOS TV Web Diagnostics'**
   String get webDiagnosticsTitle;
 
   /// No description provided for @webDiagnosticsIntro.
@@ -22807,13 +22625,13 @@ abstract class AppLocalizations {
   /// No description provided for @webDiagnosticsMixedContentFailureBody.
   ///
   /// In en, this message translates to:
-  /// **'Moonfin detected an HTTPS page trying to call an HTTP server URL. Browsers block this request before it reaches your server.'**
+  /// **'kOS TV detected an HTTPS page trying to call an HTTP server URL. Browsers block this request before it reaches your server.'**
   String get webDiagnosticsMixedContentFailureBody;
 
   /// No description provided for @webDiagnosticsCorsFailureBody.
   ///
   /// In en, this message translates to:
-  /// **'Moonfin detected a browser-level request failure that is commonly caused by missing CORS or preflight headers on the media server.'**
+  /// **'kOS TV detected a browser-level request failure that is commonly caused by missing CORS or preflight headers on the media server.'**
   String get webDiagnosticsCorsFailureBody;
 
   /// Target URL shown in diagnostics summary
@@ -22897,7 +22715,7 @@ abstract class AppLocalizations {
   /// No description provided for @webDiagnosticsMixedContentFix.
   ///
   /// In en, this message translates to:
-  /// **'Fix: serve your media server or proxy endpoint via HTTPS, or load Moonfin over HTTP on trusted local networks only.'**
+  /// **'Fix: serve your media server or proxy endpoint via HTTPS, or load kOS TV over HTTP on trusted local networks only.'**
   String get webDiagnosticsMixedContentFix;
 
   /// No description provided for @webDiagnosticsNoMixedContentDetected.
@@ -23353,7 +23171,7 @@ abstract class AppLocalizations {
   /// Line under the Watch Party choice of the Start parties with setting
   ///
   /// In en, this message translates to:
-  /// **'Chat, reactions and voting. Runs on Moonbase.'**
+  /// **'Chat, reactions and voting. Runs on the server plugin.'**
   String get watchPartyServiceMoonbaseHint;
 
   /// Line under the SyncPlay choice of the Start parties with setting
@@ -23431,7 +23249,7 @@ abstract class AppLocalizations {
   /// Hint under the room code field on the Watch Parties screen
   ///
   /// In en, this message translates to:
-  /// **'Pasting an invite link here works too. On a phone, the link opens Moonfin straight into the party.'**
+  /// **'Pasting an invite link here works too. On a phone, the link opens kOS TV straight into the party.'**
   String get watchPartyPasteHint;
 
   /// How many people are in a room, on room cards
@@ -23461,13 +23279,13 @@ abstract class AppLocalizations {
   /// Title when the server has no Moonbase plugin to host watch parties
   ///
   /// In en, this message translates to:
-  /// **'Watch Parties need Moonbase on this server'**
+  /// **'Watch Parties need the kOS TV server plugin'**
   String get watchPartyNeedsMoonbase;
 
   /// Body under the Watch Parties need Moonbase title
   ///
   /// In en, this message translates to:
-  /// **'Ask whoever runs the server to install the Moonbase plugin. On Jellyfin, SyncPlay still works without it.'**
+  /// **'Ask whoever runs the server to install the kOS TV server plugin. On Jellyfin, SyncPlay still works without it.'**
   String get watchPartyNeedsMoonbaseHint;
 
   /// Join error: wrong room PIN
@@ -23515,7 +23333,7 @@ abstract class AppLocalizations {
   /// Hint under Copy invite link in the lobby
   ///
   /// In en, this message translates to:
-  /// **'Paste it in any chat. It opens a page on this server with an Open in Moonfin button.'**
+  /// **'Paste it in any chat. It opens a page on this server with a button that opens the app.'**
   String get watchPartyInviteHint;
 
   /// TV lobby heading over the invite QR code
@@ -26476,7 +26294,7 @@ abstract class AppLocalizations {
   /// Explanatory description under the rendering engine setting.
   ///
   /// In en, this message translates to:
-  /// **'Impeller is Flutter\'s modern GPU renderer for smoother animations and less stutter. On some TV boxes and older GPUs it can cause glitches or black video; switch it Off if you see those. Automatic picks the best default for your device. Restart Moonfin to apply.'**
+  /// **'Impeller is Flutter\'s modern GPU renderer for smoother animations and less stutter. On some TV boxes and older GPUs it can cause glitches or black video; switch it Off if you see those. Automatic picks the best default for your device. Restart kOS TV to apply.'**
   String get impellerRenderingSubtitle;
 
   /// No description provided for @impellerAuto.
@@ -26506,7 +26324,7 @@ abstract class AppLocalizations {
   /// Body of the dialog shown after changing the rendering engine.
   ///
   /// In en, this message translates to:
-  /// **'Moonfin needs to restart to change the rendering engine. Close the app now, then reopen it to apply.'**
+  /// **'kOS TV needs to restart to change the rendering engine. Close the app now, then reopen it to apply.'**
   String get impellerRestartMessage;
 
   /// Button that closes the app so the new rendering engine takes effect on next launch.
@@ -27490,19 +27308,19 @@ abstract class AppLocalizations {
   /// Row on the last setup wizard step that opens the Moonbase server plugin dialog
   ///
   /// In en, this message translates to:
-  /// **'Add Moonbase to your server'**
+  /// **'Add the kOS TV server plugin to your server'**
   String get setupMoonbaseTitle;
 
   /// Line under the Moonbase row on the last setup wizard step
   ///
   /// In en, this message translates to:
-  /// **'A free server plugin that unlocks more of Moonfin'**
+  /// **'A free server plugin that unlocks more of kOS TV'**
   String get setupMoonbaseHint;
 
   /// First line of the Moonbase dialog, followed by a list of features
   ///
   /// In en, this message translates to:
-  /// **'Moonbase is free and runs on your server. With it, Moonfin gets:'**
+  /// **'The plugin is free and runs on your server. With it, kOS TV gets:'**
   String get setupMoonbaseIntro;
 
   /// Moonbase dialog line for users who aren't a server admin, above a QR code or link to the install steps
@@ -27520,19 +27338,19 @@ abstract class AppLocalizations {
   /// Shown in the Moonbase dialog while the plugin installs
   ///
   /// In en, this message translates to:
-  /// **'Installing Moonbase...'**
+  /// **'Installing the server plugin...'**
   String get setupMoonbaseInstalling;
 
   /// Shown in the Moonbase dialog after the plugin installed, above a Restart Server button
   ///
   /// In en, this message translates to:
-  /// **'Moonbase is installed. It turns on when the server restarts, which stops anything playing right now.'**
+  /// **'The server plugin is installed. It turns on when the server restarts, which stops anything playing right now.'**
   String get setupMoonbaseInstalled;
 
   /// Shown while the server restarts after Moonbase was installed
   ///
   /// In en, this message translates to:
-  /// **'The server is restarting. Moonbase turns on once it\'s back.'**
+  /// **'The server is restarting. The plugin turns on once it\'s back.'**
   String get setupMoonbaseRestarting;
 
   /// Moonbase dialog feature
@@ -27580,7 +27398,7 @@ abstract class AppLocalizations {
   /// Shown in the Moonbase dialog when installing or restarting failed
   ///
   /// In en, this message translates to:
-  /// **'Moonbase couldn\'t be installed. {error}'**
+  /// **'The server plugin couldn\'t be installed. {error}'**
   String setupMoonbaseInstallFailed(String error);
 
   /// Remote control hint at the bottom of the setup wizard on TVs
@@ -27736,7 +27554,7 @@ abstract class AppLocalizations {
   /// Shown under transcoded options when choosing the quality of an auto-download subscription
   ///
   /// In en, this message translates to:
-  /// **'Transcoded qualities only download while Moonfin is open. Original quality also downloads in the background.'**
+  /// **'Transcoded qualities only download while kOS TV is open. Original quality also downloads in the background.'**
   String get autoDownloadTranscodedForegroundNote;
 
   /// Shown under a running transcoded download that a subscription queued
@@ -27748,7 +27566,7 @@ abstract class AppLocalizations {
   /// Short note next to a followed series in a transcoded quality
   ///
   /// In en, this message translates to:
-  /// **'Downloads only while Moonfin is open'**
+  /// **'Downloads only while kOS TV is open'**
   String get autoDownloadForegroundOnly;
 
   /// Title of the quality sheet when it is opened to create an auto-download subscription
@@ -27784,7 +27602,7 @@ abstract class AppLocalizations {
   /// Explains the smart downloads switch, including that watched episodes are deleted
   ///
   /// In en, this message translates to:
-  /// **'When you finish an episode on any device, Moonfin downloads the next ones. Episodes it downloads are deleted once watched.'**
+  /// **'When you finish an episode on any device, kOS TV downloads the next ones. Episodes it downloads are deleted once watched.'**
   String get smartDownloadsEnableDescription;
 
   /// Setting for how many unwatched episodes of a series stay downloaded after one is watched
@@ -27928,19 +27746,19 @@ abstract class AppLocalizations {
   /// Explains the background refresh setting
   ///
   /// In en, this message translates to:
-  /// **'Allow the system to check for new episodes periodically while Moonfin is closed'**
+  /// **'Allow the system to check for new episodes periodically while kOS TV is closed'**
   String get autoDownloadBackgroundRefreshSubtitle;
 
   /// Shown when iOS forbids background refresh for the app
   ///
   /// In en, this message translates to:
-  /// **'Background App Refresh is disabled for Moonfin. Enable it in iOS Settings.'**
+  /// **'Background App Refresh is disabled for kOS TV. Enable it in iOS Settings.'**
   String get autoDownloadBackgroundRefreshDenied;
 
   /// Shown when Android restricts the app from running in the background
   ///
   /// In en, this message translates to:
-  /// **'Background usage is restricted for Moonfin in Android Settings.'**
+  /// **'Background usage is restricted for kOS TV in Android Settings.'**
   String get autoDownloadBackgroundRestrictedAndroid;
 
   /// Button that runs a subscription check immediately
@@ -28238,7 +28056,7 @@ abstract class AppLocalizations {
   /// Apple TV settings subtitle for the Top Shelf option
   ///
   /// In en, this message translates to:
-  /// **'What the Apple TV home screen shows above the Moonfin icon when it is selected. This setting stays on this device.'**
+  /// **'What the Apple TV home screen shows above the kOS TV icon when it is selected. This setting stays on this device.'**
   String get topShelfDescription;
 
   /// Top Shelf option that shows a carousel of the newest items from the home screen's Latest rows
@@ -28250,7 +28068,7 @@ abstract class AppLocalizations {
   /// Top Shelf option that shows only the static Moonfin logo banner, nothing from the library
   ///
   /// In en, this message translates to:
-  /// **'Moonfin banner'**
+  /// **'kOS TV banner'**
   String get topShelfAppBanner;
 
   /// iPhone playback setting that holds the picture back from the camera housing in landscape
@@ -28394,7 +28212,7 @@ abstract class AppLocalizations {
   /// Subtitle for the Settings Sync entry
   ///
   /// In en, this message translates to:
-  /// **'Moonbase plugin sync and customization profiles'**
+  /// **'Server plugin sync and customization profiles'**
   String get settingsSyncSubtitle;
 
   /// Settings screen for the navigation bar style and buttons
@@ -29598,7 +29416,7 @@ abstract class AppLocalizations {
   /// Body of the dialog offering to add a Silo server natively instead of through its Jellyfin-compatible service
   ///
   /// In en, this message translates to:
-  /// **'This address is the Jellyfin-compatible service of {serverName}. Moonfin can connect to Silo directly at {address}, with Silo\'s own features.'**
+  /// **'This address is the Jellyfin-compatible service of {serverName}. kOS TV can connect to Silo directly at {address}, with Silo\'s own features.'**
   String siloNativeOfferMessage(String serverName, String address);
 
   /// Button: add the Silo server through its native API
@@ -29616,13 +29434,13 @@ abstract class AppLocalizations {
   /// Shown when a Silo server no longer speaks the API this version of Moonfin uses (its API is newer)
   ///
   /// In en, this message translates to:
-  /// **'This Silo server needs a newer version of Moonfin. Update Moonfin to use it.'**
+  /// **'This Silo server needs a newer version of kOS TV. Update kOS TV to use it.'**
   String get siloAppUpdateRequired;
 
   /// Shown when a Silo server's API is older than the one this version of Moonfin uses
   ///
   /// In en, this message translates to:
-  /// **'This Silo server is too old for this version of Moonfin. Update Silo to use it.'**
+  /// **'This Silo server is too old for this version of kOS TV. Update Silo to use it.'**
   String get siloServerUpdateRequired;
 
   /// Shown when Silo refuses a request because of too many attempts (HTTP 429) without saying how long to wait
@@ -29670,7 +29488,7 @@ abstract class AppLocalizations {
   /// Player message: the Silo server no longer speaks the playback protocol this version of Moonfin uses
   ///
   /// In en, this message translates to:
-  /// **'This Silo server needs a newer version of Moonfin to play.'**
+  /// **'This Silo server needs a newer version of kOS TV to play.'**
   String get siloPlaybackUpdateRequired;
 
   /// Player message: an administrator ended this playback session on the Silo server
@@ -29802,7 +29620,7 @@ abstract class AppLocalizations {
   /// Explains what Unlink does on the RomM account screen
   ///
   /// In en, this message translates to:
-  /// **'Unlinking stops Moonfin from using your RomM key. The key stays in RomM until you remove it from your API tokens there.'**
+  /// **'Unlinking stops kOS TV from using your RomM key. The key stays in RomM until you remove it from your API tokens there.'**
   String get rommUnlinkNote;
 
   /// Button that unlinks the user's RomM account
@@ -29826,7 +29644,7 @@ abstract class AppLocalizations {
   /// Error when the server couldn't reach RomM while linking
   ///
   /// In en, this message translates to:
-  /// **'Moonfin couldn\'t reach RomM. Try again in a moment.'**
+  /// **'kOS TV couldn\'t reach RomM. Try again in a moment.'**
   String get rommUnreachable;
 
   /// Shown on the RomM account screen when the server has no RomM library
@@ -30434,7 +30252,7 @@ abstract class AppLocalizations {
   /// Calendar message when the server can't reach Sonarr and Radarr yet
   ///
   /// In en, this message translates to:
-  /// **'An admin needs to sign in to Seerr in Moonfin before the calendar can load.'**
+  /// **'An admin needs to sign in to Seerr in kOS TV before the calendar can load.'**
   String get calendarProblemNeedsSeerr;
 
   /// Calendar message when the server has no Sonarr or Radarr
@@ -31342,6 +31160,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Left and Right slide the scrubber.'**
   String get afterHoursPixelPurgeCardRemote;
+
+  /// Kos TV: name of the optional server plugin (Moonbase) in titles and status
+  ///
+  /// In en, this message translates to:
+  /// **'Server plugin'**
+  String get kostvServerPlugin;
+
+  /// Kos TV: subtitle of TMDB Lists when the server plugin has no TMDB key
+  ///
+  /// In en, this message translates to:
+  /// **'Set the TMDB API key in the server plugin settings to use this feature.'**
+  String get kostvTmdbListsUnavailable;
+
+  /// Kos TV: progress text while an external list is fetched
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading the list from the server plugin and saving it here...'**
+  String get kostvDownloadingListFromPlugin;
+
+  /// Kos TV: snackbar when an external list cannot be fetched
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t fetch {title} from the server plugin: {error}'**
+  String kostvFetchListFailed(String title, String error);
+
+  /// Kos TV: About tile that opens the diagnostics settings
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics & Logging'**
+  String get kostvDiagnostics;
+
+  /// Kos TV: subtitle of the diagnostics tile
+  ///
+  /// In en, this message translates to:
+  /// **'Capture media, login and network logs and send them to the server as a report'**
+  String get kostvDiagnosticsSubtitle;
 }
 
 class _AppLocalizationsDelegate
@@ -31354,248 +31208,20 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) => <String>[
-    'af',
-    'ar',
-    'be',
-    'bg',
-    'bn',
-    'ca',
-    'cs',
-    'cy',
-    'da',
-    'de',
-    'el',
-    'en',
-    'eo',
-    'es',
-    'et',
-    'fa',
-    'fi',
-    'fr',
-    'gl',
-    'he',
-    'hi',
-    'hr',
-    'hu',
-    'id',
-    'it',
-    'ja',
-    'kk',
-    'kn',
-    'ko',
-    'lt',
-    'lv',
-    'mk',
-    'ml',
-    'mn',
-    'nb',
-    'nl',
-    'pa',
-    'pl',
-    'pt',
-    'ro',
-    'ru',
-    'si',
-    'sk',
-    'sl',
-    'sq',
-    'sr',
-    'sv',
-    'sw',
-    'ta',
-    'te',
-    'th',
-    'tl',
-    'tr',
-    'ug',
-    'uk',
-    'vi',
-    'yue',
-    'zh',
-  ].contains(locale.languageCode);
+  bool isSupported(Locale locale) =>
+      <String>['en', 'es'].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
 }
 
 AppLocalizations lookupAppLocalizations(Locale locale) {
-  // Lookup logic when language+script codes are specified.
-  switch (locale.languageCode) {
-    case 'zh':
-      {
-        switch (locale.scriptCode) {
-          case 'Hant':
-            return AppLocalizationsZhHant();
-        }
-        break;
-      }
-  }
-
-  // Lookup logic when language+country codes are specified.
-  switch (locale.languageCode) {
-    case 'en':
-      {
-        switch (locale.countryCode) {
-          case 'GB':
-            return AppLocalizationsEnGb();
-        }
-        break;
-      }
-    case 'es':
-      {
-        switch (locale.countryCode) {
-          case '419':
-            return AppLocalizationsEs419();
-          case 'AR':
-            return AppLocalizationsEsAr();
-          case 'DO':
-            return AppLocalizationsEsDo();
-          case 'MX':
-            return AppLocalizationsEsMx();
-        }
-        break;
-      }
-    case 'pt':
-      {
-        switch (locale.countryCode) {
-          case 'BR':
-            return AppLocalizationsPtBr();
-          case 'PT':
-            return AppLocalizationsPtPt();
-        }
-        break;
-      }
-    case 'yue':
-      {
-        switch (locale.countryCode) {
-          case 'CN':
-            return AppLocalizationsYueCn();
-          case 'HK':
-            return AppLocalizationsYueHk();
-        }
-        break;
-      }
-  }
-
   // Lookup logic when only language code is specified.
   switch (locale.languageCode) {
-    case 'af':
-      return AppLocalizationsAf();
-    case 'ar':
-      return AppLocalizationsAr();
-    case 'be':
-      return AppLocalizationsBe();
-    case 'bg':
-      return AppLocalizationsBg();
-    case 'bn':
-      return AppLocalizationsBn();
-    case 'ca':
-      return AppLocalizationsCa();
-    case 'cs':
-      return AppLocalizationsCs();
-    case 'cy':
-      return AppLocalizationsCy();
-    case 'da':
-      return AppLocalizationsDa();
-    case 'de':
-      return AppLocalizationsDe();
-    case 'el':
-      return AppLocalizationsEl();
     case 'en':
       return AppLocalizationsEn();
-    case 'eo':
-      return AppLocalizationsEo();
     case 'es':
       return AppLocalizationsEs();
-    case 'et':
-      return AppLocalizationsEt();
-    case 'fa':
-      return AppLocalizationsFa();
-    case 'fi':
-      return AppLocalizationsFi();
-    case 'fr':
-      return AppLocalizationsFr();
-    case 'gl':
-      return AppLocalizationsGl();
-    case 'he':
-      return AppLocalizationsHe();
-    case 'hi':
-      return AppLocalizationsHi();
-    case 'hr':
-      return AppLocalizationsHr();
-    case 'hu':
-      return AppLocalizationsHu();
-    case 'id':
-      return AppLocalizationsId();
-    case 'it':
-      return AppLocalizationsIt();
-    case 'ja':
-      return AppLocalizationsJa();
-    case 'kk':
-      return AppLocalizationsKk();
-    case 'kn':
-      return AppLocalizationsKn();
-    case 'ko':
-      return AppLocalizationsKo();
-    case 'lt':
-      return AppLocalizationsLt();
-    case 'lv':
-      return AppLocalizationsLv();
-    case 'mk':
-      return AppLocalizationsMk();
-    case 'ml':
-      return AppLocalizationsMl();
-    case 'mn':
-      return AppLocalizationsMn();
-    case 'nb':
-      return AppLocalizationsNb();
-    case 'nl':
-      return AppLocalizationsNl();
-    case 'pa':
-      return AppLocalizationsPa();
-    case 'pl':
-      return AppLocalizationsPl();
-    case 'pt':
-      return AppLocalizationsPt();
-    case 'ro':
-      return AppLocalizationsRo();
-    case 'ru':
-      return AppLocalizationsRu();
-    case 'si':
-      return AppLocalizationsSi();
-    case 'sk':
-      return AppLocalizationsSk();
-    case 'sl':
-      return AppLocalizationsSl();
-    case 'sq':
-      return AppLocalizationsSq();
-    case 'sr':
-      return AppLocalizationsSr();
-    case 'sv':
-      return AppLocalizationsSv();
-    case 'sw':
-      return AppLocalizationsSw();
-    case 'ta':
-      return AppLocalizationsTa();
-    case 'te':
-      return AppLocalizationsTe();
-    case 'th':
-      return AppLocalizationsTh();
-    case 'tl':
-      return AppLocalizationsTl();
-    case 'tr':
-      return AppLocalizationsTr();
-    case 'ug':
-      return AppLocalizationsUg();
-    case 'uk':
-      return AppLocalizationsUk();
-    case 'vi':
-      return AppLocalizationsVi();
-    case 'yue':
-      return AppLocalizationsYue();
-    case 'zh':
-      return AppLocalizationsZh();
   }
 
   throw FlutterError(

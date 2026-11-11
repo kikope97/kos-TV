@@ -2,9 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../../preference/preference_constants.dart';
+import '../kos_logo.dart';
 
 /// Extension helpers to map loading animation enums to layout properties.
 extension LoadingAnimationSizeX on LoadingAnimationSize {
@@ -211,7 +211,7 @@ class LoadingAnimationWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (image) {
       LoadingAnimationImage.none => const SizedBox.shrink(),
-      LoadingAnimationImage.moonfinLogo => MoonfinLogoAnimation(
+      LoadingAnimationImage.moonfinLogo => KosRingLoadingAnimation(
           size: size,
           speed: speed,
         ),
@@ -244,27 +244,29 @@ class LoadingAnimationWidget extends StatelessWidget {
   }
 }
 
-/// 3D Y-axis spinning gradient Moonfin logo animation.
-class MoonfinLogoAnimation extends StatefulWidget {
+/// Kos TV: the default loading animation, the ring of the kOS TV logo with
+/// its comet running around it (it replaces Moonfin's spinning moon).
+class KosRingLoadingAnimation extends StatefulWidget {
   final double size;
   final LoadingAnimationSpeed speed;
 
-  const MoonfinLogoAnimation({
+  const KosRingLoadingAnimation({
     super.key,
     required this.size,
     this.speed = LoadingAnimationSpeed.fast,
   });
 
   @override
-  State<MoonfinLogoAnimation> createState() => _MoonfinLogoAnimationState();
+  State<KosRingLoadingAnimation> createState() =>
+      _KosRingLoadingAnimationState();
 }
 
-class _MoonfinLogoAnimationState extends State<MoonfinLogoAnimation>
+class _KosRingLoadingAnimationState extends State<KosRingLoadingAnimation>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   Duration get _duration =>
-      Duration(milliseconds: (8000 / widget.speed.multiplier).round());
+      Duration(milliseconds: (1800 / widget.speed.multiplier).round());
 
   @override
   void initState() {
@@ -276,7 +278,7 @@ class _MoonfinLogoAnimationState extends State<MoonfinLogoAnimation>
   }
 
   @override
-  void didUpdateWidget(covariant MoonfinLogoAnimation oldWidget) {
+  void didUpdateWidget(covariant KosRingLoadingAnimation oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.speed != widget.speed) {
       _controller.duration = _duration;
@@ -296,19 +298,9 @@ class _MoonfinLogoAnimationState extends State<MoonfinLogoAnimation>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _controller,
-      builder: (context, child) {
-        return Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.identity()
-            ..setEntry(3, 2, 0.001)
-            ..rotateY(_controller.value * 2 * math.pi),
-          child: child,
-        );
-      },
-      child: SvgPicture.asset(
-        'assets/icons/moonfin_logo.svg',
-        width: widget.size,
-        height: widget.size,
+      builder: (context, _) => KosRingMark(
+        size: widget.size,
+        cometTurn: 0.14 + _controller.value,
       ),
     );
   }
@@ -531,9 +523,9 @@ class RunnerPainter extends CustomPainter {
     final scale = size.width / 100.0;
     final strokeW = (6.5 * scale).clamp(3.0, 9.5);
 
-    // Moonfin signature brand colors: Cyan lead limbs & torso, Purple trail limbs, White head
-    const moonfinCyan = Color(0xFF00A4DC);
-    const moonfinPurple = Color(0xFFAA5CC3);
+    // kOS TV brand colors: cyan lead limbs & torso, violet trail limbs, white head
+    const moonfinCyan = KosBrand.cyan;
+    const moonfinPurple = KosBrand.violet;
     const headColor = Colors.white;
 
     final leadLimbPaint = Paint()
@@ -587,13 +579,13 @@ class RunnerPainter extends CustomPainter {
     _drawSprintLeg(canvas, hip, phaseTrail, trailLimbPaint, scale);
     _drawSprintArm(canvas, shoulder, phaseLead, trailLimbPaint, scale);
 
-    // Torso (Moonfin cyan)
+    // Torso (cyan)
     canvas.drawLine(hip, shoulder, torsoPaint);
 
     // Head (pure white circle)
     canvas.drawCircle(headCenter, headRadius, headPaint);
 
-    // Front leg & front arm (Moonfin cyan, drawn on top)
+    // Front leg & front arm (cyan, drawn on top)
     _drawSprintLeg(canvas, hip, phaseLead, leadLimbPaint, scale);
     _drawSprintArm(canvas, shoulder, phaseTrail, leadLimbPaint, scale);
   }
@@ -821,7 +813,7 @@ class _MoonBackdropPainter extends CustomPainter {
     // Celestial ambient glow behind the moon
     final glowColor = switch (palette) {
       MoonPhasesPalette.natural => const Color(0xFF38BDF8),
-      MoonPhasesPalette.moonfin => const Color(0xFF00A4DC),
+      MoonPhasesPalette.moonfin => KosBrand.cyan,
       MoonPhasesPalette.neonfin => const Color(0xFFFF2E92),
     };
     final glowPaint = Paint()
@@ -1053,17 +1045,12 @@ class _MoonPhasesPainter extends CustomPainter {
             ],
             stops: const [0.0, 0.40, 0.75, 1.0],
           ).createShader(Rect.fromCircle(center: center, radius: radius)),
+        // Kos TV: the brand gradient of the ring (pink, violet, cyan).
         MoonPhasesPalette.moonfin => LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: const [
-              Color(0xFFAA5CC3),
-              Color(0xFF9C62C5),
-              Color(0xFF7672CB),
-              Color(0xFF3A8CD4),
-              Color(0xFF00A4DC),
-            ],
-            stops: const [0.10, 0.20, 0.40, 0.66, 0.90],
+            begin: Alignment.topRight,
+            end: Alignment.bottomLeft,
+            colors: const [KosBrand.pink, KosBrand.violet, KosBrand.cyan],
+            stops: const [0.10, 0.45, 0.90],
           ).createShader(Rect.fromCircle(center: center, radius: radius)),
         MoonPhasesPalette.neonfin => RadialGradient(
             center: const Alignment(-0.25, -0.25),
@@ -1091,7 +1078,7 @@ class _MoonPhasesPainter extends CustomPainter {
     // Crisp outer rim highlight
     final rimColor = switch (palette) {
       MoonPhasesPalette.natural => Colors.white.withAlpha(45),
-      MoonPhasesPalette.moonfin => const Color(0xFF00A4DC).withAlpha(40),
+      MoonPhasesPalette.moonfin => KosBrand.cyan.withAlpha(40),
       MoonPhasesPalette.neonfin => const Color(0xFF00E5FF).withAlpha(50),
     };
     final rimPaint = Paint()

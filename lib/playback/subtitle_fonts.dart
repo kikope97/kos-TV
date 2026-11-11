@@ -120,7 +120,7 @@ class SubtitleFonts {
 
   /// The name Flutter knows [family] by, or null until it has loaded.
   String? flutterFamily(String family) =>
-      _loaded.contains(family) ? 'Moonfin Subtitles $family' : null;
+      _loaded.contains(family) ? 'KosTV Subtitles $family' : null;
 
   /// Both downloaded files for [family], or null unless both are on this
   /// device.
@@ -175,7 +175,7 @@ class SubtitleFonts {
       final regular = await _fetch(font, bold: false);
       final bold = await _fetch(font, bold: true);
       _downloaded.add(family);
-      await (FontLoader('Moonfin Subtitles $family')
+      await (FontLoader('KosTV Subtitles $family')
             ..addFont(Future.value(ByteData.sublistView(regular)))
             ..addFont(Future.value(ByteData.sublistView(bold))))
           .load();

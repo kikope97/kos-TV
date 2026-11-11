@@ -89,7 +89,7 @@ void main() {
       );
     });
 
-    test('410 client_upgrade_required and 426 ask to update Moonfin', () {
+    test('410 client_upgrade_required and 426 ask to update kOS TV', () {
       for (final error in [
         _failure(410, code: 'client_upgrade_required'),
         _failure(426, code: 'client_upgrade_required'),
@@ -99,8 +99,8 @@ void main() {
         expect(failure, isA<SiloUpdateRequired>());
         expect(
           failure!.message(l10n),
-          'This Silo server needs a newer version of Moonfin. '
-          'Update Moonfin to use it.',
+          'This Silo server needs a newer version of kOS TV. '
+          'Update kOS TV to use it.',
         );
       }
     });
@@ -123,7 +123,7 @@ void main() {
 
     expect(
       failure.message(l10n),
-      'This Silo server is too old for this version of Moonfin. '
+      'This Silo server is too old for this version of kOS TV. '
       'Update Silo to use it.',
     );
   });

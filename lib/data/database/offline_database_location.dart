@@ -4,7 +4,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../util/platform_detection.dart';
 
-const _databasePath = 'Moonfin/DB/offline.db';
+const _databasePath = 'KosTV/DB/offline.db';
 
 /// The offline database file, with its folder created.
 ///

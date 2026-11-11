@@ -30,7 +30,7 @@ void main() {
     expect(files?.regular, '${dir.path}/FiraSans-Regular.ttf');
     expect(files?.bold, '${dir.path}/FiraSans-Bold.ttf');
     expect(fonts.isDownloaded('Fira Sans'), isTrue);
-    expect(fonts.flutterFamily('Fira Sans'), 'Moonfin Subtitles Fira Sans');
+    expect(fonts.flutterFamily('Fira Sans'), 'KosTV Subtitles Fira Sans');
   });
 
   test('a captive portal page never lands in the fonts folder', () async {

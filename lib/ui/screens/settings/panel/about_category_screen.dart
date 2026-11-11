@@ -38,8 +38,8 @@ class _AboutCategoryScreen extends StatelessWidget {
               if (AppDistribution.supportsInAppUpdates)
                 const _CheckForUpdatesTile(),
               // Kos TV: its own repository. Moonfin's issue tracker, Discord
-              // and donation tiles are gone: this is a family app, and
-              // Moonfin keeps its credit in the tile below.
+              // and donation tiles are gone: this is a family app. Moonfin's
+              // credit stays in the README and the license.
               _TvSettingsListTile(
                 leading: const Icon(Icons.code),
                 title: Text(l10n.sourceCode),
@@ -51,22 +51,9 @@ class _AboutCategoryScreen extends StatelessWidget {
                 ),
               ),
               _TvSettingsListTile(
-                leading: const Icon(Icons.nightlight_round),
-                title: Text(l10n.kostvBasedOnMoonfin),
-                subtitle: Text(l10n.kostvBasedOnMoonfinSubtitle),
-                onTap: () => showQrOrLaunch(
-                  context,
-                  url: 'https://github.com/Moonfin-Client/Moonfin-Core',
-                  title: l10n.kostvBasedOnMoonfin,
-                ),
-              ),
-              _TvSettingsListTile(
                 leading: const Icon(Icons.troubleshoot),
-                title: const Text('Diagnostics & Logging'),
-                subtitle: const Text(
-                  'Capture media, login and network logs and send them to the '
-                  'server as a report',
-                ),
+                title: Text(l10n.kostvDiagnostics),
+                subtitle: Text(l10n.kostvDiagnosticsSubtitle),
                 onTap: () => context.pushSettingsScreen(
                   const DiagnosticsSettingsScreen(),
                 ),

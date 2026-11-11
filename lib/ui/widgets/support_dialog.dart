@@ -7,15 +7,6 @@ import '../../l10n/app_localizations.dart';
 import '../../util/platform_detection.dart';
 import 'track_selector_dialog.dart';
 
-const _supportUrl = 'https://buymeacoffee.com/moonfin';
-
-Future<void> showSupportDialog(BuildContext context) =>
-    showQrOrLaunch(
-      context,
-      url: _supportUrl,
-      title: AppLocalizations.of(context).settingsSupportMoonfin,
-    );
-
 Future<void> showQrOrLaunch(
   BuildContext context, {
   required String url,

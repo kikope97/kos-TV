@@ -503,7 +503,7 @@ class _HomeScreenCategoryScreenState extends State<_HomeScreenCategoryScreen> {
                   subtitle: Text(
                     tmdbAvailable
                         ? 'Configure Popular, Top Rated, and Trending TMDB lists.'
-                        : 'TMDB API key must be configured in Moonbase settings to use this feature.',
+                        : l10n.kostvTmdbListsUnavailable,
                   ),
                   onTap: tmdbAvailable
                       ? () => context.pushSettingsScreen(const _TmdbListsScreen())

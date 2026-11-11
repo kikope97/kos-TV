@@ -181,20 +181,20 @@ class _ImdbListsScreenState extends State<_ImdbListsScreen> {
               canPop: false,
               child: AlertDialog(
                 title: Text('Fetching $title'),
-                content: const Column(
+                content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SizedBox(height: 8),
-                    SizedBox(
+                    const SizedBox(height: 8),
+                    const SizedBox(
                       width: 50,
                       height: 50,
                       child: CircularProgressIndicator(),
                     ),
-                    SizedBox(height: 24),
+                    const SizedBox(height: 24),
                     Text(
-                      'Downloading list from Moonbase and saving locally...',
+                      AppLocalizations.of(context).kostvDownloadingListFromPlugin,
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
                     ),
                   ],
                 ),
@@ -232,8 +232,10 @@ class _ImdbListsScreenState extends State<_ImdbListsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Failed to fetch $title from Moonbase: '
-              '${describeError(e, AppLocalizations.of(context))}',
+              AppLocalizations.of(context).kostvFetchListFailed(
+                title,
+                describeError(e, AppLocalizations.of(context)),
+              ),
             ),
           ),
         );

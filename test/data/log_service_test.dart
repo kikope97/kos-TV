@@ -261,7 +261,7 @@ void main() {
       logs.logCrash('Uncaught: boom', 'stack trace');
 
       final text = logs.exportText();
-      expect(text, contains('Moonfin diagnostic report'));
+      expect(text, contains('kOS TV diagnostic report'));
       expect(text, contains('App: Moonfin 0.0.0'));
       expect(text, contains('Device: Test Device (dev-1)'));
       expect(text, contains('INFO  [general] routine event'));

@@ -1,5 +1,4 @@
 import 'audio_capability_profile.dart';
-import '../platform/web_runtime_config.dart';
 import '../preference/preference_constants.dart';
 import '../util/platform_detection.dart';
 import 'known_defects.dart';
@@ -1143,18 +1142,12 @@ class DeviceProfileBuilder {
   }
 
   static String _profileName() {
-    if (PlatformDetection.isWeb) {
-      return webRuntimeConfig.pluginMode
-          ? 'Moonfin for Web'
-          : 'Moonfin on Github';
-    }
-    if (PlatformDetection.isAndroid) return 'Moonfin for Android';
-    if (PlatformDetection.isIOS) return 'Moonfin iOS';
-    if (PlatformDetection.isMacOS) return 'Moonfin macOS';
-    if (PlatformDetection.isWindows) return 'Moonfin Windows';
-    if (PlatformDetection.isLinux) return 'Moonfin Linux';
-    return 'Moonfin';
+    if (PlatformDetection.isWeb) return 'kOS TV para la web';
+    if (PlatformDetection.isAndroid) return 'kOS TV para Android';
+    if (PlatformDetection.isIOS) return 'kOS TV para iOS';
+    return 'kOS TV';
   }
+
 
   static List<Map<String, dynamic>> _codecProfiles({
     required int maxAudioChannels,

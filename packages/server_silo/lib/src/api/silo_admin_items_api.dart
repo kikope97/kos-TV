@@ -59,7 +59,7 @@ class SiloAdminItemsApi implements AdminItemsApi {
       '/api/v2/admin/items/${Uri.encodeComponent(itemId)}';
 
   static Never _noEditor() =>
-      throw UnsupportedError("Moonfin doesn't edit Silo metadata yet");
+      throw UnsupportedError("kOS TV doesn't edit Silo metadata yet");
 
   @override
   Future<Map<String, dynamic>> getMetadataEditor(String itemId) async =>

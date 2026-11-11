@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>Moonfin</string>
+	<string>kOS TV</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -106,19 +106,19 @@
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Moonfin uses your local network to discover Jellyfin, Emby and Silo servers.</string>
+	<string>kOS TV usa la red local para encontrar tu servidor Jellyfin.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Moonfin needs microphone access for voice search.</string>
+	<string>kOS TV necesita el micrófono para la búsqueda por voz.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Moonfin needs access to your photo library so you can choose images to upload for media artwork and metadata.</string>
+	<string>kOS TV necesita acceder a tus fotos para que elijas imágenes que subir como carátulas o metadatos.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Moonfin needs camera access to let you capture images for media artwork and metadata.</string>
+	<string>kOS TV necesita la cámara para que hagas fotos que subir como carátulas o metadatos.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Moonfin does not track your location; this access is only used to read location metadata stored in images you choose for media artwork.</string>
+	<string>kOS TV no sigue tu ubicación: solo lee la ubicación guardada en las imágenes que eliges como carátulas.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Moonfin does not track your location; this access is only used to read location metadata stored in images you choose for media artwork.</string>
+	<string>kOS TV no sigue tu ubicación: solo lee la ubicación guardada en las imágenes que eliges como carátulas.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Moonfin needs speech recognition access for voice search.</string>
+	<string>kOS TV necesita el reconocimiento de voz para la búsqueda por voz.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_jellyfin._tcp</string>

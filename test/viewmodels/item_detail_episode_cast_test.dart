@@ -33,6 +33,8 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final store = PreferenceStore();
     await store.init();
+    // The app starts in Spanish; these tests read the English strings.
+    await UserPreferences(store).set(UserPreferences.languageOverride, 'en');
     prefs = UserPreferences(store);
     GetIt.instance.registerSingleton<UserPreferences>(prefs);
 

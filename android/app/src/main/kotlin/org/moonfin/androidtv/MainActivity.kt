@@ -1300,7 +1300,7 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         val targetId = args["targetId"] as? String
         val streamUrl = args["streamUrl"] as? String
         val contentType = args["contentType"] as? String
-        val title = args["title"] as? String ?: "Moonfin"
+        val title = args["title"] as? String ?: "kOS TV"
         val subtitle = args["subtitle"] as? String
         val posterUrl = args["posterUrl"] as? String
         val queueItems = parseQueueItems(args["queueItems"])
@@ -1504,7 +1504,7 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         return entries.mapNotNull { entry ->
             val map = entry as? Map<*, *> ?: return@mapNotNull null
             val streamUrl = map["streamUrl"] as? String ?: return@mapNotNull null
-            val title = map["title"] as? String ?: "Moonfin"
+            val title = map["title"] as? String ?: "kOS TV"
             buildMap<String, Any> {
                 put("streamUrl", streamUrl)
                 put("title", title)
@@ -1552,7 +1552,7 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         val mediaInfo = buildMediaInfo(
             streamUrl = url,
             contentType = contentType,
-            title = title ?: "Moonfin",
+            title = title ?: "kOS TV",
             subtitle = subtitle,
             posterUrl = posterUrl,
         )

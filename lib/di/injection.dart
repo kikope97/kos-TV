@@ -20,7 +20,6 @@ import '../data/services/media_server_client_factory.dart';
 import '../data/services/recent_searches_store.dart';
 import '../data/services/pending_rating_store.dart';
 import '../data/services/storage_path_service.dart';
-import '../platform/web_runtime_config.dart';
 import '../preference/preference_constants.dart';
 import '../preference/user_preferences.dart';
 import '../util/app_beta.dart';
@@ -46,22 +45,17 @@ bool _legacyStereoAacFallbackDefaultForPlatform() {
   return !PlatformDetection.isAndroid || PlatformDetection.isTV;
 }
 
+// Kos TV: the client name the server shows for each device (Dashboard,
+// Devices, Activity). The server plugin does not look at it.
 String _clientName() {
-  if (PlatformDetection.isAppleTV) return 'Moonfin for tvOS';
+  if (PlatformDetection.isAppleTV) return 'kOS TV para Apple TV';
   if (PlatformDetection.isAndroid && PlatformDetection.isTV) {
-    return 'Moonfin for Android TV';
+    return 'kOS TV para Android TV';
   }
-  if (PlatformDetection.isWeb) {
-    return webRuntimeConfig.pluginMode
-        ? 'Moonfin for Web'
-        : 'Moonfin on Github';
-  }
-  if (PlatformDetection.isAndroid) return 'Moonfin for Android';
-  if (PlatformDetection.isIOS) return 'Moonfin for iOS';
-  if (PlatformDetection.isMacOS) return 'Moonfin for macOS';
-  if (PlatformDetection.isWindows) return 'Moonfin for Windows';
-  if (PlatformDetection.isLinux) return 'Moonfin for Linux';
-  return 'Moonfin';
+  if (PlatformDetection.isWeb) return 'kOS TV para la web';
+  if (PlatformDetection.isAndroid) return 'kOS TV para Android';
+  if (PlatformDetection.isIOS) return 'kOS TV para iOS';
+  return 'kOS TV';
 }
 
 String _joinNonEmpty(List<String?> parts, String separator) {

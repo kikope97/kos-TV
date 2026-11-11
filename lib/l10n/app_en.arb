@@ -246,7 +246,7 @@
   "@selectServer": {
     "description": "Button to navigate back to server selection"
   },
-  "appVersionFooter": "Moonfin version {version}",
+  "appVersionFooter": "kOS TV version {version}",
   "@appVersionFooter": {
     "description": "App version shown in footer",
     "placeholders": {
@@ -320,7 +320,7 @@
   "@secureStorageUnavailable": {
     "description": "Dialog title when system keyring is inaccessible"
   },
-  "secureStorageUnavailableMessage": "Moonfin could not access your system keyring. Login can continue, but secure token storage may be unavailable until the keyring is unlocked.",
+  "secureStorageUnavailableMessage": "kOS TV could not access your system keyring. Login can continue, but secure token storage may be unavailable until the keyring is unlocked.",
   "@secureStorageUnavailableMessage": {
     "description": "Explanation when secure storage is not available"
   },
@@ -603,11 +603,11 @@
   "@recommendationSystem": {
     "description": "Label for the Recommendation System setting"
   },
-  "recommendationSystemSubtitle": "Use the Moonfin Recommends local-library algorithm, Jellyfin Recommends server engine, or the online TMDb's Similarity Metrics. Note: Online recommendations require Seerr integration.",
+  "recommendationSystemSubtitle": "Use kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server's engine) or TMDb's similarity metrics online. Note: Online recommendations require Seerr integration.",
   "@recommendationSystemSubtitle": {
     "description": "Explanation under the recommendation system setting"
   },
-  "recommendationSystemMoonfin": "Moonfin Recommends",
+  "recommendationSystemMoonfin": "kOS TV Recommends",
   "@recommendationSystemMoonfin": {
     "description": "Recommendation system option: Moonfin Recommends"
   },
@@ -623,7 +623,7 @@
   "@recommendationsApplyParentalRatingCap": {
     "description": "Label for the toggle that controls whether similar suggestions are capped by target media parental rating"
   },
-  "recommendationsApplyParentalRatingCapSubtitle": "Limit Moonfin Recommends suggestions by parental rating of target media",
+  "recommendationsApplyParentalRatingCapSubtitle": "Limit kOS TV Recommends suggestions by parental rating of target media",
   "@recommendationsApplyParentalRatingCapSubtitle": {
     "description": "Explanation under the parental rating cap setting toggle"
   },
@@ -651,7 +651,7 @@
   "@interfaceLayout": {
     "description": "Setting to override which UI layout the app uses"
   },
-  "interfaceLayoutSubtitle": "Override the detected layout when this device is read wrong. Restart Moonfin for changes to take effect.",
+  "interfaceLayoutSubtitle": "Override the detected layout when this device is read wrong. Restart kOS TV for changes to take effect.",
   "@interfaceLayoutSubtitle": {
     "description": "Subtitle for the interface layout setting"
   },
@@ -755,7 +755,7 @@
   "@customThemeTitle": {
     "description": "Title for the custom theme settings section"
   },
-  "customThemeSubtitle": "Custom themes alter visual elements across Moonfin. Choose one of these options to suit your style.",
+  "customThemeSubtitle": "Custom themes alter visual elements across kOS TV. Choose one of these options to suit your style.",
   "@customThemeSubtitle": {
     "description": "Description under custom themes section"
   },
@@ -763,7 +763,7 @@
   "@keyboardStyle": {
     "description": "Label for the setting that picks how the on-screen keyboard looks, or whether the TV's own keyboard is used"
   },
-  "keyboardStyleDescription": "Native uses your TV's own keyboard. Classic is the original Moonfin keyboard. Glass is a frosted panel with larger keys. Docked fills the bottom of the screen and shows what you type above the keys.",
+  "keyboardStyleDescription": "Native uses your TV's own keyboard. Classic is the app's original keyboard. Glass is a frosted panel with larger keys. Docked fills the bottom of the screen and shows what you type above the keys.",
   "@keyboardStyleDescription": {
     "description": "Explanation under the keyboard style setting"
   },
@@ -807,11 +807,11 @@
   "@gamepadNavigationDescription": {
     "description": "Settings subtitle for the gamepad navigation switch"
   },
-  "themeMoonfin": "Moonfin",
+  "themeMoonfin": "kOS TV",
   "@themeMoonfin": {
     "description": "Display name for the Moonfin theme"
   },
-  "themeMoonfinSubtitle": "The original clean Moonfin default.",
+  "themeMoonfinSubtitle": "The clean default look.",
   "@themeMoonfinSubtitle": {
     "description": "Preview description for the Moonfin theme"
   },
@@ -928,7 +928,7 @@
       }
     }
   },
-  "exitApp": "Exit Moonfin?",
+  "exitApp": "Exit kOS TV?",
   "@exitApp": {
     "description": "Title of exit confirmation dialog"
   },
@@ -2579,7 +2579,7 @@
   "@shuffleAllMusic": {
     "description": "Car browse action that shuffles the whole music library"
   },
-  "carSignInPrompt": "Sign in to Moonfin on your phone",
+  "carSignInPrompt": "Sign in to kOS TV on your phone",
   "@carSignInPrompt": {
     "description": "Shown in the car when no account is signed in"
   },
@@ -3005,7 +3005,7 @@
   "@shortcutToggleFullscreen": {
     "description": "F11 and Alt+Enter anywhere, F in the player"
   },
-  "shortcutQuit": "Quit Moonfin",
+  "shortcutQuit": "Quit kOS TV",
   "@shortcutQuit": {
     "description": "What Ctrl+Q does on desktop"
   },
@@ -3231,7 +3231,7 @@
   "@bookReadingUnavailableTitle": {
     "description": "Title of the dialog shown on Apple TV when the user tries to open a book or comic, which tvOS has no reader for"
   },
-  "bookReadingUnavailableMessage": "Open it in Moonfin on a phone, tablet or computer to read it. Audiobooks still play here.",
+  "bookReadingUnavailableMessage": "Open it in kOS TV on a phone, tablet or computer to read it. Audiobooks still play here.",
   "@bookReadingUnavailableMessage": {
     "description": "Body of the dialog shown on Apple TV when the user tries to open a book or comic"
   },
@@ -4406,7 +4406,7 @@
   "@loadingAnimation": {
     "description": "Setting title for custom loading animation"
   },
-  "loadingAnimationDescription": "Customize the loading animations used throughout Moonfin",
+  "loadingAnimationDescription": "Customize the loading animations used throughout kOS TV",
   "@loadingAnimationDescription": {
     "description": "Description for loading animation customization settings"
   },
@@ -4418,7 +4418,7 @@
   "@loadingAnimationImage": {
     "description": "Title for loading animation image selection"
   },
-  "loadingAnimationImageMoonfinLogo": "Moonfin Logo",
+  "loadingAnimationImageMoonfinLogo": "kOS TV Logo",
   "@loadingAnimationImageMoonfinLogo": {
     "description": "Loading animation image option: Moonfin Logo"
   },
@@ -4434,11 +4434,11 @@
   "@loadingAnimationImageMoonPhases": {
     "description": "Loading animation image option: Moon Phases"
   },
-  "loadingAnimationImageMoonfinPhases": "Moonfin Phases",
+  "loadingAnimationImageMoonfinPhases": "kOS TV Phases",
   "@loadingAnimationImageMoonfinPhases": {
     "description": "Loading animation image option: Moonfin Phases in brand gradient"
   },
-  "loadingAnimationImageNeonfinPhases": "Neonfin Phases",
+  "loadingAnimationImageNeonfinPhases": "Neon Phases",
   "@loadingAnimationImageNeonfinPhases": {
     "description": "Loading animation image option: Neonfin Phases in neon colors"
   },
@@ -5795,7 +5795,7 @@
   "@customMpvConfPath": {
     "description": "Setting for custom mpv.conf path"
   },
-  "notSetMpvConf": "Not set. Moonfin will try a default mpv.conf in app/data folders.",
+  "notSetMpvConf": "Not set. kOS TV will try a default mpv.conf in app/data folders.",
   "@notSetMpvConf": {
     "description": "Description when no custom mpv.conf is set"
   },
@@ -6186,7 +6186,7 @@
   "@sdCard": {
     "description": "Download location option for a removable storage volume"
   },
-  "downloadLocationLimitedByAndroid": "Android only lets Moonfin write to the folders it owns, and this device has no removable storage. Turn on Save to Downloads folder above to keep downloads somewhere other apps can reach.",
+  "downloadLocationLimitedByAndroid": "Android only lets kOS TV write to the folders it owns, and this device has no removable storage. Turn on Save to Downloads folder above to keep downloads somewhere other apps can reach.",
   "@downloadLocationLimitedByAndroid": {
     "description": "Note shown when the only download location Android allows is the default one"
   },
@@ -6194,7 +6194,7 @@
   "@saveToDownloadsFolder": {
     "description": "Setting for saving to downloads folder"
   },
-  "downloadsVisibleToOtherApps": "Downloads/Moonfin — visible to other apps",
+  "downloadsVisibleToOtherApps": "Downloads/KosTV — visible to other apps",
   "@downloadsVisibleToOtherApps": {
     "description": "Description for downloads folder visibility"
   },
@@ -6230,7 +6230,7 @@
   "@saveToDownloadsFolderQuestion": {
     "description": "Dialog title for saving to downloads folder"
   },
-  "saveToDownloadsFolderDescription": "Downloaded media will be saved to Downloads/Moonfin on your device. These files will be visible to other apps such as your gallery or music player.\n\nExisting downloads will remain in their current location.",
+  "saveToDownloadsFolderDescription": "Downloaded media will be saved to Downloads/KosTV on your device. These files will be visible to other apps such as your gallery or music player.\n\nExisting downloads will remain in their current location.",
   "@saveToDownloadsFolderDescription": {
     "description": "Description for saving to downloads folder"
   },
@@ -6535,7 +6535,7 @@
   "@libraryVisibility": {
     "description": "Section title for library visibility"
   },
-  "libraryVisibilityDescription": "Toggle home page visibility per library. Restart Moonfin for changes to take effect.",
+  "libraryVisibilityDescription": "Toggle home page visibility per library. Restart kOS TV for changes to take effect.",
   "@libraryVisibilityDescription": {
     "description": "Explanation shown on the library visibility settings screen"
   },
@@ -6624,7 +6624,7 @@
   "@peekHomeRowsDescription": {
     "description": "Description of the Peek Home Rows media bar setting"
   },
-  "mediaBarModeMoonfin": "Moonfin",
+  "mediaBarModeMoonfin": "kOS TV",
   "@mediaBarModeMoonfin": {
     "description": "Media bar style option: Moonfin"
   },
@@ -7062,11 +7062,11 @@
   "@sleepAfterIdle": {
     "description": "TV setting for how long without a button press before the TV's own screensaver and sleep timer take over"
   },
-  "sleepAfterIdleDescriptionAndroid": "Close Moonfin after this long without a button press so your TV's own screensaver and sleep timer can take over. Anything paused is stopped first, so it keeps its resume point.",
+  "sleepAfterIdleDescriptionAndroid": "Close kOS TV after this long without a button press so your TV's own screensaver and sleep timer can take over. Anything paused is stopped first, so it keeps its resume point.",
   "@sleepAfterIdleDescriptionAndroid": {
     "description": "Description under the Let TV Sleep After setting on Android TV, where the app closes"
   },
-  "sleepAfterIdleDescriptionAppleTv": "After this long without a button press, hand the screen back to your Apple TV's own screensaver and sleep setting. Moonfin stays open, so you pick up right where you left off.",
+  "sleepAfterIdleDescriptionAppleTv": "After this long without a button press, hand the screen back to your Apple TV's own screensaver and sleep setting. kOS TV stays open, so you pick up right where you left off.",
   "@sleepAfterIdleDescriptionAppleTv": {
     "description": "Description under the Let TV Sleep After setting on Apple TV, where the app stays open"
   },
@@ -7127,7 +7127,7 @@
   "@screensaverBackdropBlack": {
     "description": "Screensaver backdrop: Black"
   },
-  "screensaverBackdropMoonfin": "Moonfin",
+  "screensaverBackdropMoonfin": "kOS TV",
   "@screensaverBackdropMoonfin": {
     "description": "Screensaver backdrop: Moonfin"
   },
@@ -7147,7 +7147,7 @@
   "@screensaverAdditionalComponent": {
     "description": "Setting for screensaver additional component"
   },
-  "screensaverComponentMoonfinLogo": "Moonfin Logo",
+  "screensaverComponentMoonfinLogo": "kOS TV Logo",
   "@screensaverComponentMoonfinLogo": {
     "description": "Screensaver component: Moonfin Logo"
   },
@@ -7318,7 +7318,7 @@
   "@pluginNotDetectedDescription": {
     "description": "Description when plugin is not detected"
   },
-  "moonbaseAddress": "Moonbase Address",
+  "moonbaseAddress": "Server plugin address",
   "@moonbaseAddress": {
     "description": "Settings Sync screen on a Plex server: where the Moonbase companion service runs, since Plex can't run plugins. Left empty, the app looks next to the Plex server."
   },
@@ -7545,11 +7545,11 @@
   "@discoverRows": {
     "description": "Section title for discover rows"
   },
-  "discoverRowsDescriptionPlugin": "Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with Moonbase.",
+  "discoverRowsDescriptionPlugin": "Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with the server plugin.",
   "@discoverRowsDescriptionPlugin": {
     "description": "Description for discover rows with plugin"
   },
-  "discoverRowsDescription": "Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with Moonbase.",
+  "discoverRowsDescription": "Enable rows to see on Seerr mainpage. Drag to reorder. Custom order syncs with the server plugin.",
   "@discoverRowsDescription": {
     "description": "Description for discover rows without plugin"
   },
@@ -7581,10 +7581,6 @@
   "sourceCode": "Source Code",
   "@sourceCode": {
     "description": "Link to source code"
-  },
-  "sourceCodeUrl": "https://github.com/Moonfin-Client/Moonfin-Core",
-  "@sourceCodeUrl": {
-    "description": "Displayed source code repository URL"
   },
   "checkForUpdatesNow": "Check for Updates Now",
   "@checkForUpdatesNow": {
@@ -7848,7 +7844,7 @@
   "@cancelRequest4k": {
     "description": "Button/dialog title to cancel a 4K media request"
   },
-  "playInMoonfin": "Play in Moonfin",
+  "playInMoonfin": "Play in kOS TV",
   "@playInMoonfin": {
     "description": "Button to play available media in Moonfin"
   },
@@ -7918,7 +7914,7 @@
   "@keep": {
     "description": "Button to keep/dismiss a cancel dialog"
   },
-  "itemNotFoundInLibrary": "Item not found in your Moonfin library",
+  "itemNotFoundInLibrary": "Item not found in your library",
   "@itemNotFoundInLibrary": {
     "description": "Snackbar when Seerr item cannot be found in Jellyfin"
   },
@@ -8904,7 +8900,7 @@
     }
   },
   "adminServerRebootInProgress": "Server reboot in progress",
-  "adminServerRebootMessage": "Server reboot in progress, please restart Moonfin",
+  "adminServerRebootMessage": "Server reboot in progress, please restart kOS TV",
 
   "adminActiveSessions": "Active Sessions",
   "adminSessionsLoadFailed": "Failed to load sessions",
@@ -11046,7 +11042,7 @@
   "settingsShowLibrariesButtonInNavigation": "Show the libraries button in the navigation bar",
   "settingsShowSeerrButtonInNavigation": "Show the Seerr button in the navigation bar",
   "settingsAlwaysExpandNavbarLabels": "Always show text labels in the top navigation bar",
-  "settingsLibraryVisibilitySubtitle": "Toggle home page visibility per library. Restart Moonfin for changes to take effect.",
+  "settingsLibraryVisibilitySubtitle": "Toggle home page visibility per library. Restart kOS TV for changes to take effect.",
   "settingsMediaBarAndLocalPreviews": "Media Bar & Local Previews",
   "settingsVisualOverlays": "Visual Overlays",
   "settingsSeasonalSurprise": "Seasonal Surprise",
@@ -11133,26 +11129,11 @@
   "settingsConcurrentDownloads": "Concurrent Downloads",
   "settingsConcurrentDownloadsDescription": "Maximum number of items to download at once.",
   "settingsAppInfo": "APP INFO",
-  "settingsReportAnIssue": "Report an Issue",
-  "settingsReportAnIssueSubtitle": "Open the issue tracker on GitHub",
-  "settingsJoinDiscord": "Join Discord",
-  "settingsJoinDiscordSubtitle": "Chat with the community",
-  "settingsJoinTheDiscord": "Join the Discord",
-  "settingsSupportMoonfin": "Support Moonfin",
-  "settingsSupportMoonfinSubtitle": "Donate a coffee to the developer",
   "settingsLegal": "LEGAL",
   "settingsLicenses": "Licenses",
   "settingsOpenSourceLicenseNotices": "Open-source license notices",
   "settingsPrivacyPolicy": "Privacy Policy",
   "settingsPrivacyPolicySubtitle": "How kOS TV handles your data",
-  "kostvBasedOnMoonfin": "Based on Moonfin",
-  "@kostvBasedOnMoonfin": {
-    "description": "Kos TV: About screen tile that credits Moonfin, the open-source client Kos TV is built on"
-  },
-  "kostvBasedOnMoonfinSubtitle": "The open-source client kOS TV is built on",
-  "@kostvBasedOnMoonfinSubtitle": {
-    "description": "Kos TV: subtitle of the tile that credits Moonfin"
-  },
   "settingsCheckForUpdates": "Check for Updates",
   "settingsCheckForUpdatesSubtitle": "Check for the latest kOS TV release",
   "settingsBoth": "Both",
@@ -11477,7 +11458,7 @@
     }
   },
   "savedThemesTitle": "Saved Themes",
-  "savedThemesDescription": "These are themes downloaded from the Moonfin plugin for the current server. Deleting removes only this local copy.",
+  "savedThemesDescription": "These are themes downloaded from the server plugin for the current server. Deleting removes only this local copy.",
   "savedThemesEmpty": "No saved themes were found for this server.",
   "savedThemesCurrentThemeId": "{themeId} • Currently active",
   "@savedThemesCurrentThemeId": {
@@ -11491,7 +11472,7 @@
   "savedThemesDeleteTooltip": "Delete saved theme",
   "savedThemesManageSubtitle": "Manage downloaded plugin themes on this device",
   "themeEditor": "Theme Editor",
-  "themeEditorSubtitle": "Open the Moonfin Theme Editor in your browser",
+  "themeEditorSubtitle": "Open the theme editor in your browser",
   "homeScreen": "Home Screen",
   "bottomBar": "Bottom Bar",
   "homeRowsStyleClassic": "Classic",
@@ -11554,8 +11535,8 @@
   "displaySinceYouWatchedRows": "Display Since You Watched Rows",
   "displaySinceYouWatchedRowsSubtitle": "Show and customize Since You Watched rows in Home Sections.",
   "sinceYouWatchedSource": "Recommendation Source",
-  "sinceYouWatchedSourceDescription": "Choose recommendation source (Moonfin Recommends custom local algorithm, Jellyfin Recommends server engine, or TMDb's similarity metrics. Note: Online recommendations require Seerr integration).",
-  "sinceYouWatchedSourceLocal": "Moonfin Recommends",
+  "sinceYouWatchedSourceDescription": "Choose the recommendation source: kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server's engine) or TMDb's similarity metrics. Note: Online recommendations require Seerr integration.",
+  "sinceYouWatchedSourceLocal": "kOS TV Recommends",
   "sinceYouWatchedSourceServer": "Jellyfin Recommends",
   "sinceYouWatchedSourceOnline": "TMDb Similarity",
   "sinceYouWatchedSourceType": "Source Type",
@@ -11643,7 +11624,7 @@
   "cadenceSlowdownSubtitle": "When Match Frame Rate is off, play 24 fps video 0.1% slower so it fits the TV without dropped frames. Not used when audio is passed through to a receiver.",
   "cadenceTipTitle": "Turn On Match Frame Rate",
   "cadenceTipMessage": "This video can't play smoothly at your TV's current refresh rate. On your Apple TV, open Settings > Video and Audio > Match Content and turn on Match Frame Rate.",
-  "cadenceTipSlowdownHint": "Or turn on Smooth 24 fps on a 60 Hz TV in Moonfin under Playback > Quality & Decoding.",
+  "cadenceTipSlowdownHint": "Or turn on Smooth 24 fps on a 60 Hz TV in kOS TV under Playback > Quality & Decoding.",
   "useExternalPlayer": "Always Use External Player",
   "useExternalPlayerSubtitle": "Open video playback in your selected external app on Android TV.",
   "externalPlayerLiveTvOnly": "Live TV Only",
@@ -11662,12 +11643,12 @@
   "preferExternalSubtitles": "Prefer External Subtitles",
   "preferExternalSubtitlesSubtitle": "Prioritize external subtitle files over embedded tracks.",
   "webDiagnostics": "Web diagnostics",
-  "webDiagnosticsTitle": "Moonfin Web Diagnostics",
+  "webDiagnosticsTitle": "kOS TV Web Diagnostics",
   "webDiagnosticsIntro": "Use this page to diagnose browser connectivity issues (CORS, mixed content, and discovery settings).",
   "webDiagnosticsDetectedMixedContentFailure": "Detected Mixed-Content Failure",
   "webDiagnosticsDetectedCorsPreflightFailure": "Detected CORS/Preflight Failure",
-  "webDiagnosticsMixedContentFailureBody": "Moonfin detected an HTTPS page trying to call an HTTP server URL. Browsers block this request before it reaches your server.",
-  "webDiagnosticsCorsFailureBody": "Moonfin detected a browser-level request failure that is commonly caused by missing CORS or preflight headers on the media server.",
+  "webDiagnosticsMixedContentFailureBody": "kOS TV detected an HTTPS page trying to call an HTTP server URL. Browsers block this request before it reaches your server.",
+  "webDiagnosticsCorsFailureBody": "kOS TV detected a browser-level request failure that is commonly caused by missing CORS or preflight headers on the media server.",
   "webDiagnosticsTargetUrl": "Target URL: {url}",
   "@webDiagnosticsTargetUrl": {
     "description": "Target URL shown in diagnostics summary",
@@ -11697,7 +11678,7 @@
   "notConfigured": "not configured",
   "webDiagnosticsMixedContent": "Mixed Content",
   "webDiagnosticsMixedContentDetected": "This page is loaded over HTTPS, but one or more configured URLs are HTTP. Browsers block HTTPS pages from calling HTTP APIs.",
-  "webDiagnosticsMixedContentFix": "Fix: serve your media server or proxy endpoint via HTTPS, or load Moonfin over HTTP on trusted local networks only.",
+  "webDiagnosticsMixedContentFix": "Fix: serve your media server or proxy endpoint via HTTPS, or load kOS TV over HTTP on trusted local networks only.",
   "webDiagnosticsNoMixedContentDetected": "No obvious mixed-content configuration detected from current runtime settings.",
   "webDiagnosticsCorsChecklist": "CORS Checklist",
   "webDiagnosticsCorsChecklistItem1": "• Allow the browser origin in Access-Control-Allow-Origin.",
@@ -11916,7 +11897,7 @@
   "@watchPartyStartWith": {
     "description": "Setting on Jellyfin that picks what kind of party the user starts: a Moonbase Watch Party or a SyncPlay group"
   },
-  "watchPartyServiceMoonbaseHint": "Chat, reactions and voting. Runs on Moonbase.",
+  "watchPartyServiceMoonbaseHint": "Chat, reactions and voting. Runs on the server plugin.",
   "@watchPartyServiceMoonbaseHint": {
     "description": "Line under the Watch Party choice of the Start parties with setting"
   },
@@ -11973,7 +11954,7 @@
   "@watchPartyRoomsEmpty": {
     "description": "Empty room list on the Watch Parties screen"
   },
-  "watchPartyPasteHint": "Pasting an invite link here works too. On a phone, the link opens Moonfin straight into the party.",
+  "watchPartyPasteHint": "Pasting an invite link here works too. On a phone, the link opens kOS TV straight into the party.",
   "@watchPartyPasteHint": {
     "description": "Hint under the room code field on the Watch Parties screen"
   },
@@ -12003,11 +11984,11 @@
   "@watchPartyVotingNow": {
     "description": "Room card line: the lobby is voting on what to watch"
   },
-  "watchPartyNeedsMoonbase": "Watch Parties need Moonbase on this server",
+  "watchPartyNeedsMoonbase": "Watch Parties need the kOS TV server plugin",
   "@watchPartyNeedsMoonbase": {
     "description": "Title when the server has no Moonbase plugin to host watch parties"
   },
-  "watchPartyNeedsMoonbaseHint": "Ask whoever runs the server to install the Moonbase plugin. On Jellyfin, SyncPlay still works without it.",
+  "watchPartyNeedsMoonbaseHint": "Ask whoever runs the server to install the kOS TV server plugin. On Jellyfin, SyncPlay still works without it.",
   "@watchPartyNeedsMoonbaseHint": {
     "description": "Body under the Watch Parties need Moonbase title"
   },
@@ -12039,7 +12020,7 @@
   "@watchPartyYours": {
     "description": "Title of the lobby and party controls"
   },
-  "watchPartyInviteHint": "Paste it in any chat. It opens a page on this server with an Open in Moonfin button.",
+  "watchPartyInviteHint": "Paste it in any chat. It opens a page on this server with a button that opens the app.",
   "@watchPartyInviteHint": {
     "description": "Hint under Copy invite link in the lobby"
   },
@@ -13834,7 +13815,7 @@
   "@impellerRendering": {
     "description": "Title of the setting that selects the Flutter rendering engine (Impeller vs. legacy)."
   },
-  "impellerRenderingSubtitle": "Impeller is Flutter's modern GPU renderer for smoother animations and less stutter. On some TV boxes and older GPUs it can cause glitches or black video; switch it Off if you see those. Automatic picks the best default for your device. Restart Moonfin to apply.",
+  "impellerRenderingSubtitle": "Impeller is Flutter's modern GPU renderer for smoother animations and less stutter. On some TV boxes and older GPUs it can cause glitches or black video; switch it Off if you see those. Automatic picks the best default for your device. Restart kOS TV to apply.",
   "@impellerRenderingSubtitle": {
     "description": "Explanatory description under the rendering engine setting."
   },
@@ -13845,7 +13826,7 @@
   "@impellerRestartTitle": {
     "description": "Title of the dialog shown after changing the rendering engine."
   },
-  "impellerRestartMessage": "Moonfin needs to restart to change the rendering engine. Close the app now, then reopen it to apply.",
+  "impellerRestartMessage": "kOS TV needs to restart to change the rendering engine. Close the app now, then reopen it to apply.",
   "@impellerRestartMessage": {
     "description": "Body of the dialog shown after changing the rendering engine."
   },
@@ -14503,15 +14484,15 @@
   "@setupCurrent": {
     "description": "Tag beside the option that is chosen right now in a setup wizard list"
   },
-  "setupMoonbaseTitle": "Add Moonbase to your server",
+  "setupMoonbaseTitle": "Add the kOS TV server plugin to your server",
   "@setupMoonbaseTitle": {
     "description": "Row on the last setup wizard step that opens the Moonbase server plugin dialog"
   },
-  "setupMoonbaseHint": "A free server plugin that unlocks more of Moonfin",
+  "setupMoonbaseHint": "A free server plugin that unlocks more of kOS TV",
   "@setupMoonbaseHint": {
     "description": "Line under the Moonbase row on the last setup wizard step"
   },
-  "setupMoonbaseIntro": "Moonbase is free and runs on your server. With it, Moonfin gets:",
+  "setupMoonbaseIntro": "The plugin is free and runs on your server. With it, kOS TV gets:",
   "@setupMoonbaseIntro": {
     "description": "First line of the Moonbase dialog, followed by a list of features"
   },
@@ -14523,15 +14504,15 @@
   "@setupMoonbaseManualSteps": {
     "description": "Moonbase dialog line for admins of servers the app can't install it on, above a QR code or link to the install steps"
   },
-  "setupMoonbaseInstalling": "Installing Moonbase...",
+  "setupMoonbaseInstalling": "Installing the server plugin...",
   "@setupMoonbaseInstalling": {
     "description": "Shown in the Moonbase dialog while the plugin installs"
   },
-  "setupMoonbaseInstalled": "Moonbase is installed. It turns on when the server restarts, which stops anything playing right now.",
+  "setupMoonbaseInstalled": "The server plugin is installed. It turns on when the server restarts, which stops anything playing right now.",
   "@setupMoonbaseInstalled": {
     "description": "Shown in the Moonbase dialog after the plugin installed, above a Restart Server button"
   },
-  "setupMoonbaseRestarting": "The server is restarting. Moonbase turns on once it's back.",
+  "setupMoonbaseRestarting": "The server is restarting. The plugin turns on once it's back.",
   "@setupMoonbaseRestarting": {
     "description": "Shown while the server restarts after Moonbase was installed"
   },
@@ -14563,7 +14544,7 @@
   "@moonbaseFeatureMessages": {
     "description": "Moonbase dialog feature"
   },
-  "setupMoonbaseInstallFailed": "Moonbase couldn't be installed. {error}",
+  "setupMoonbaseInstallFailed": "The server plugin couldn't be installed. {error}",
   "@setupMoonbaseInstallFailed": {
     "description": "Shown in the Moonbase dialog when installing or restarting failed",
     "placeholders": {
@@ -14682,7 +14663,7 @@
       }
     }
   },
-  "autoDownloadTranscodedForegroundNote": "Transcoded qualities only download while Moonfin is open. Original quality also downloads in the background.",
+  "autoDownloadTranscodedForegroundNote": "Transcoded qualities only download while kOS TV is open. Original quality also downloads in the background.",
   "@autoDownloadTranscodedForegroundNote": {
     "description": "Shown under transcoded options when choosing the quality of an auto-download subscription"
   },
@@ -14690,7 +14671,7 @@
   "@autoDownloadTranscodedRunningNote": {
     "description": "Shown under a running transcoded download that a subscription queued"
   },
-  "autoDownloadForegroundOnly": "Downloads only while Moonfin is open",
+  "autoDownloadForegroundOnly": "Downloads only while kOS TV is open",
   "@autoDownloadForegroundOnly": {
     "description": "Short note next to a followed series in a transcoded quality"
   },
@@ -14724,7 +14705,7 @@
   "@smartDownloadsEnable": {
     "description": "Switch that swaps a watched downloaded episode for the next episodes of the series"
   },
-  "smartDownloadsEnableDescription": "When you finish an episode on any device, Moonfin downloads the next ones. Episodes it downloads are deleted once watched.",
+  "smartDownloadsEnableDescription": "When you finish an episode on any device, kOS TV downloads the next ones. Episodes it downloads are deleted once watched.",
   "@smartDownloadsEnableDescription": {
     "description": "Explains the smart downloads switch, including that watched episodes are deleted"
   },
@@ -14830,15 +14811,15 @@
   "@autoDownloadBackgroundRefresh": {
     "description": "Setting that lets the system wake the app to check for new episodes"
   },
-  "autoDownloadBackgroundRefreshSubtitle": "Allow the system to check for new episodes periodically while Moonfin is closed",
+  "autoDownloadBackgroundRefreshSubtitle": "Allow the system to check for new episodes periodically while kOS TV is closed",
   "@autoDownloadBackgroundRefreshSubtitle": {
     "description": "Explains the background refresh setting"
   },
-  "autoDownloadBackgroundRefreshDenied": "Background App Refresh is disabled for Moonfin. Enable it in iOS Settings.",
+  "autoDownloadBackgroundRefreshDenied": "Background App Refresh is disabled for kOS TV. Enable it in iOS Settings.",
   "@autoDownloadBackgroundRefreshDenied": {
     "description": "Shown when iOS forbids background refresh for the app"
   },
-  "autoDownloadBackgroundRestrictedAndroid": "Background usage is restricted for Moonfin in Android Settings.",
+  "autoDownloadBackgroundRestrictedAndroid": "Background usage is restricted for kOS TV in Android Settings.",
   "@autoDownloadBackgroundRestrictedAndroid": {
     "description": "Shown when Android restricts the app from running in the background"
   },
@@ -15132,7 +15113,7 @@
   "@topShelf": {
     "description": "Apple TV settings label for what the tvOS home screen shows above the Moonfin icon. Top Shelf is Apple's name for that area"
   },
-  "topShelfDescription": "What the Apple TV home screen shows above the Moonfin icon when it is selected. This setting stays on this device.",
+  "topShelfDescription": "What the Apple TV home screen shows above the kOS TV icon when it is selected. This setting stays on this device.",
   "@topShelfDescription": {
     "description": "Apple TV settings subtitle for the Top Shelf option"
   },
@@ -15140,7 +15121,7 @@
   "@topShelfLatestMedia": {
     "description": "Top Shelf option that shows a carousel of the newest items from the home screen's Latest rows"
   },
-  "topShelfAppBanner": "Moonfin banner",
+  "topShelfAppBanner": "kOS TV banner",
   "@topShelfAppBanner": {
     "description": "Top Shelf option that shows only the static Moonfin logo banner, nothing from the library"
   },
@@ -15230,7 +15211,7 @@
   "@settingsSync": {
     "description": "Settings screen for syncing settings through the Moonbase plugin"
   },
-  "settingsSyncSubtitle": "Moonbase plugin sync and customization profiles",
+  "settingsSyncSubtitle": "Server plugin sync and customization profiles",
   "@settingsSyncSubtitle": {
     "description": "Subtitle for the Settings Sync entry"
   },
@@ -16251,7 +16232,7 @@
   "@siloNativeOfferTitle": {
     "description": "Title of the dialog shown when the address being added is Silo's Jellyfin-compatible service and Silo's own API answers on another port of the same host"
   },
-  "siloNativeOfferMessage": "This address is the Jellyfin-compatible service of {serverName}. Moonfin can connect to Silo directly at {address}, with Silo's own features.",
+  "siloNativeOfferMessage": "This address is the Jellyfin-compatible service of {serverName}. kOS TV can connect to Silo directly at {address}, with Silo's own features.",
   "@siloNativeOfferMessage": {
     "description": "Body of the dialog offering to add a Silo server natively instead of through its Jellyfin-compatible service",
     "placeholders": {
@@ -16271,11 +16252,11 @@
   "@siloNativeOfferKeep": {
     "description": "Button: add the address as a Jellyfin server, as entered"
   },
-  "siloAppUpdateRequired": "This Silo server needs a newer version of Moonfin. Update Moonfin to use it.",
+  "siloAppUpdateRequired": "This Silo server needs a newer version of kOS TV. Update kOS TV to use it.",
   "@siloAppUpdateRequired": {
     "description": "Shown when a Silo server no longer speaks the API this version of Moonfin uses (its API is newer)"
   },
-  "siloServerUpdateRequired": "This Silo server is too old for this version of Moonfin. Update Silo to use it.",
+  "siloServerUpdateRequired": "This Silo server is too old for this version of kOS TV. Update Silo to use it.",
   "@siloServerUpdateRequired": {
     "description": "Shown when a Silo server's API is older than the one this version of Moonfin uses"
   },
@@ -16327,7 +16308,7 @@
   "@siloPlaybackUnavailable": {
     "description": "Player message: the Silo server has playback switched off for this account"
   },
-  "siloPlaybackUpdateRequired": "This Silo server needs a newer version of Moonfin to play.",
+  "siloPlaybackUpdateRequired": "This Silo server needs a newer version of kOS TV to play.",
   "@siloPlaybackUpdateRequired": {
     "description": "Player message: the Silo server no longer speaks the playback protocol this version of Moonfin uses"
   },
@@ -16445,7 +16426,7 @@
   "@rommLinked": {
     "description": "Shown when the user's RomM account is linked and the server sent no user name"
   },
-  "rommUnlinkNote": "Unlinking stops Moonfin from using your RomM key. The key stays in RomM until you remove it from your API tokens there.",
+  "rommUnlinkNote": "Unlinking stops kOS TV from using your RomM key. The key stays in RomM until you remove it from your API tokens there.",
   "@rommUnlinkNote": {
     "description": "Explains what Unlink does on the RomM account screen"
   },
@@ -16461,7 +16442,7 @@
   "@rommLinkDenied": {
     "description": "Error when the user declined the RomM link request"
   },
-  "rommUnreachable": "Moonfin couldn't reach RomM. Try again in a moment.",
+  "rommUnreachable": "kOS TV couldn't reach RomM. Try again in a moment.",
   "@rommUnreachable": {
     "description": "Error when the server couldn't reach RomM while linking"
   },
@@ -16986,7 +16967,7 @@
   "@calendarProblemAdminsOnly": {
     "description": "Calendar message when the server admin keeps the calendar to admins"
   },
-  "calendarProblemNeedsSeerr": "An admin needs to sign in to Seerr in Moonfin before the calendar can load.",
+  "calendarProblemNeedsSeerr": "An admin needs to sign in to Seerr in kOS TV before the calendar can load.",
   "@calendarProblemNeedsSeerr": {
     "description": "Calendar message when the server can't reach Sonarr and Radarr yet"
   },
@@ -17613,5 +17594,37 @@
   "afterHoursPixelPurgeCardRemote": "Left and Right slide the scrubber.",
   "@afterHoursPixelPurgeCardRemote": {
     "description": "Short remote controls of the Pixel Purge arcade game on its How to play card. The scrubber is the seek bar used as the paddle. Keep under about 90 characters, it shows as one line"
+  },
+  "kostvServerPlugin": "Server plugin",
+  "@kostvServerPlugin": {
+    "description": "Kos TV: name of the optional server plugin (Moonbase) in titles and status"
+  },
+  "kostvTmdbListsUnavailable": "Set the TMDB API key in the server plugin settings to use this feature.",
+  "@kostvTmdbListsUnavailable": {
+    "description": "Kos TV: subtitle of TMDB Lists when the server plugin has no TMDB key"
+  },
+  "kostvDownloadingListFromPlugin": "Downloading the list from the server plugin and saving it here...",
+  "@kostvDownloadingListFromPlugin": {
+    "description": "Kos TV: progress text while an external list is fetched"
+  },
+  "kostvFetchListFailed": "Couldn't fetch {title} from the server plugin: {error}",
+  "@kostvFetchListFailed": {
+    "description": "Kos TV: snackbar when an external list cannot be fetched",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDiagnostics": "Diagnostics & Logging",
+  "@kostvDiagnostics": {
+    "description": "Kos TV: About tile that opens the diagnostics settings"
+  },
+  "kostvDiagnosticsSubtitle": "Capture media, login and network logs and send them to the server as a report",
+  "@kostvDiagnosticsSubtitle": {
+    "description": "Kos TV: subtitle of the diagnostics tile"
   }
 }

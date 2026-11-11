@@ -99,6 +99,8 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final store = PreferenceStore();
     await store.init();
+    // The app starts in Spanish; these tests read the English strings.
+    await UserPreferences(store).set(UserPreferences.languageOverride, 'en');
     GetIt.instance.registerSingleton<UserPreferences>(UserPreferences(store));
     final pluginSync = _PluginSyncService();
     when(() => pluginSync.seerrAvailable).thenReturn(false);

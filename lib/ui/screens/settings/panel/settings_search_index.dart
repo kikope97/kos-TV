@@ -455,7 +455,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
   );
   final diagnostics = _SearchSection(
     slug: 'diagnostics',
-    path: [l10n.aboutTitle, 'Diagnostics & Logging'],
+    path: [l10n.aboutTitle, l10n.kostvDiagnostics],
     icon: Icons.bug_report,
     open: () => push(const DiagnosticsSettingsScreen()),
   );
@@ -2370,12 +2370,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         l10n.settingsCheckForUpdates,
         subtitle: l10n.settingsCheckForUpdatesSubtitle,
       ),
-    about.leaf(
-      'report_issue',
-      l10n.settingsReportAnIssue,
-      subtitle: l10n.settingsReportAnIssueSubtitle,
-      keywords: ['bug', 'github'],
-    ),
     about.leaf(
       'run_setup_again',
       l10n.runSetupAgain,

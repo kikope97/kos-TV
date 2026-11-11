@@ -58,7 +58,7 @@ void main() {
   testWidgets('shows the status and every profile', (tester) async {
     await pump(tester);
 
-    expect(find.text('Moonbase'), findsOneWidget);
+    expect(find.text('Server plugin'), findsOneWidget);
     expect(find.text('Connected, version 2.4.0'), findsOneWidget);
     expect(find.text('MDBList'), findsOneWidget);
     expect(find.text('Seerr'), findsNothing);

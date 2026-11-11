@@ -475,11 +475,10 @@ class _RemoteControlSheetState extends State<_RemoteControlSheet>
               session['DeviceName']?.toString() ??
               session['Client']?.toString() ??
               '',
-          // Moonfin's receivers replace the phrase. Others may insert text,
-          // so leave their SendString as an explicit one-shot send.
-          liveUpdates: (session['Client']?.toString() ?? '')
-              .toLowerCase()
-              .contains('moonfin'),
+          // kOS TV's and Moonfin's receivers replace the phrase. Others may
+          // insert text, so leave their SendString as an explicit one-shot
+          // send.
+          liveUpdates: _replacesPhrase(session['Client']?.toString()),
           connected: _searchConnected,
         ),
       );
@@ -1292,4 +1291,11 @@ class _PrimaryTransportButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Whether a session's app replaces the whole search phrase on each update
+/// (kOS TV, and Moonfin's own clients), rather than inserting text.
+bool _replacesPhrase(String? client) {
+  final name = client?.toLowerCase() ?? '';
+  return name.contains('kos tv') || name.contains('moonfin');
 }

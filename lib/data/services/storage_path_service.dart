@@ -73,10 +73,10 @@ class StoragePathService {
     if (PlatformDetection.isAndroid) {
       final extDir = await getExternalStorageDirectory();
       final base = extDir ?? await getApplicationDocumentsDirectory();
-      dir = Directory('${base.path}/Moonfin');
+      dir = Directory('${base.path}/KosTV');
     } else if (PlatformDetection.isIOS) {
       final docs = await getApplicationDocumentsDirectory();
-      dir = Directory('${docs.path}/Moonfin');
+      dir = Directory('${docs.path}/KosTV');
     } else {
       final support = PlatformDetection.isAppleTV
           ? await getApplicationCacheDirectory()
@@ -141,7 +141,7 @@ class StoragePathService {
       // writes, so it isn't worth offering twice.
       for (final volume in volumes.skip(1)) {
         if (await volume.exists()) {
-          removable.add(Directory('${volume.path}/Moonfin'));
+          removable.add(Directory('${volume.path}/KosTV'));
         }
       }
       return removable;
@@ -173,7 +173,7 @@ class StoragePathService {
   Future<Directory> getImageCacheDir() async {
     if (PlatformDetection.isAndroid && _useMediaStore) {
       final support = await getApplicationSupportDirectory();
-      final dir = Directory('${support.path}/Moonfin/images');
+      final dir = Directory('${support.path}/KosTV/images');
       if (!await dir.exists()) await dir.create(recursive: true);
       return dir;
     }
@@ -187,7 +187,7 @@ class StoragePathService {
   Future<Directory> getThemeCacheDir() async {
     if (PlatformDetection.isAndroid && _useMediaStore) {
       final support = await getApplicationSupportDirectory();
-      final dir = Directory('${support.path}/Moonfin/themes');
+      final dir = Directory('${support.path}/KosTV/themes');
       if (!await dir.exists()) await dir.create(recursive: true);
       return dir;
     }
@@ -201,7 +201,7 @@ class StoragePathService {
   Future<Directory> getMessageCacheDir() async {
     if (PlatformDetection.isAndroid && _useMediaStore) {
       final support = await getApplicationSupportDirectory();
-      final dir = Directory('${support.path}/Moonfin/messages');
+      final dir = Directory('${support.path}/KosTV/messages');
       if (!await dir.exists()) await dir.create(recursive: true);
       return dir;
     }

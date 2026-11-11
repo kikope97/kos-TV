@@ -60,7 +60,7 @@ void main() {
   testWidgets('the tab shows the app name while nothing plays', (tester) async {
     await pumpApp(tester);
 
-    expect(tabTitles.last, 'Moonfin');
+    expect(tabTitles.last, 'kOS TV');
   });
 
   testWidgets('the tab is named after the film that is playing', (
@@ -69,7 +69,7 @@ void main() {
     await pumpApp(tester);
     await play(tester, {'Id': 'film', 'Name': 'Hamilton', 'Type': 'Movie'});
 
-    expect(tabTitles.last, 'Hamilton - Moonfin');
+    expect(tabTitles.last, 'Hamilton - kOS TV');
   });
 
   testWidgets('an episode carries its series name', (tester) async {
@@ -81,7 +81,7 @@ void main() {
       'SeriesName': 'Severance',
     });
 
-    expect(tabTitles.last, 'Severance - Good News About Hell - Moonfin');
+    expect(tabTitles.last, 'Severance - Good News About Hell - kOS TV');
   });
 
   testWidgets('the app name comes back once playback stops', (tester) async {
@@ -91,6 +91,6 @@ void main() {
     manager.state.setPlaying(false);
     await tester.pumpAndSettle();
 
-    expect(tabTitles.last, 'Moonfin');
+    expect(tabTitles.last, 'kOS TV');
   });
 }

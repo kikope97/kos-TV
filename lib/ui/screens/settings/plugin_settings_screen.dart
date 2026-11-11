@@ -278,7 +278,7 @@ class _PluginSettingsSectionState extends State<PluginSettingsSection> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        available ? 'Moonbase' : l10n.pluginNotDetected,
+                        available ? l10n.kostvServerPlugin : l10n.pluginNotDetected,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: _textColor(inverted),

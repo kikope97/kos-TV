@@ -1,6 +1,5 @@
 import 'package:server_core/server_core.dart' show kIso6391To6392;
 
-import '../l10n/app_localizations.dart';
 import 'locale_names.dart';
 
 export 'package:server_core/server_core.dart' show kIso6391To6392;
@@ -53,18 +52,18 @@ const Map<String, String> kIso6392Languages = {
   'zho': 'Chinese',
 
   // ── All other languages (alphabetical) ───────────────────────────────────
-//  'aar': 'Afar',
+  //  'aar': 'Afar',
   'afr': 'Afrikaans',
   'aka': 'Akan',
   'amh': 'Amharic',
   'asm': 'Assamese',
   'aze': 'Azerbaijani',
   'bak': 'Bashkir',
-//  'bam': 'Bambara',
+  //  'bam': 'Bambara',
   'bel': 'Belarusian',
   'bem': 'Bemba',
   'ben': 'Bengali',
-//  'bis': 'Bislama',
+  //  'bis': 'Bislama',
   'bod': 'Tibetan',
   'bos': 'Bosnian',
   'bre': 'Breton',
@@ -74,7 +73,7 @@ const Map<String, String> kIso6392Languages = {
   'cha': 'Chamorro',
   'che': 'Chechen',
   'chv': 'Chuvash',
-//  'cor': 'Cornish',
+  //  'cor': 'Cornish',
   'cos': 'Corsican',
   'cre': 'Cree',
   'crh': 'Crimean Tatar',
@@ -90,22 +89,22 @@ const Map<String, String> kIso6392Languages = {
   'fij': 'Fijian',
   'fil': 'Filipino',
   'frc': 'French (Canada)',
-//  'fry': 'Western Frisian',
+  //  'fry': 'Western Frisian',
   'ful': 'Fulah',
   'gla': 'Scottish Gaelic',
   'gle': 'Irish',
   'glg': 'Galician',
-//  'glv': 'Manx',
+  //  'glv': 'Manx',
   'grn': 'Guarani',
   'guj': 'Gujarati',
   'hat': 'Haitian Creole',
   'hau': 'Hausa',
   'haw': 'Hawaiian',
   'heb': 'Hebrew',
-//  'her': 'Herero',
+  //  'her': 'Herero',
   'hil': 'Hiligaynon',
   'hmn': 'Hmong',
-//  'hmo': 'Hiri Motu',
+  //  'hmo': 'Hiri Motu',
   'hrv': 'Croatian',
   'hun': 'Hungarian',
   'hye': 'Armenian',
@@ -113,8 +112,8 @@ const Map<String, String> kIso6392Languages = {
   'iii': 'Sichuan Yi',
   'iku': 'Inuktitut',
   'ind': 'Indonesian',
-//  'inh': 'Ingush',
-//  'ipk': 'Inupiaq',
+  //  'inh': 'Ingush',
+  //  'ipk': 'Inupiaq',
   'isl': 'Icelandic',
   'jav': 'Javanese',
   'kal': 'Kalaallisut',
@@ -131,7 +130,7 @@ const Map<String, String> kIso6392Languages = {
   'kom': 'Komi',
   'kon': 'Kongo',
   'kua': 'Kuanyama',
-//  'kum': 'Kumyk',
+  //  'kum': 'Kumyk',
   'kur': 'Kurdish',
   'lao': 'Lao',
   'lat': 'Latin',
@@ -140,10 +139,10 @@ const Map<String, String> kIso6392Languages = {
   'lin': 'Lingala',
   'lit': 'Lithuanian',
   'ltz': 'Luxembourgish',
-//  'lub': 'Luba-Katanga',
+  //  'lub': 'Luba-Katanga',
   'lug': 'Ganda',
   'luo': 'Luo',
-//  'mah': 'Marshallese',
+  //  'mah': 'Marshallese',
   'mal': 'Malayalam',
   'mar': 'Marathi',
   'mkd': 'Macedonian',
@@ -153,7 +152,7 @@ const Map<String, String> kIso6392Languages = {
   'mri': 'Maori',
   'msa': 'Malay',
   'mya': 'Burmese',
-//  'nau': 'Nauru',
+  //  'nau': 'Nauru',
   'nav': 'Navajo',
   'nbl': 'South Ndebele',
   'nde': 'North Ndebele',
@@ -170,20 +169,20 @@ const Map<String, String> kIso6392Languages = {
   'orm': 'Oromo',
   'oss': 'Ossetian',
   'pan': 'Punjabi',
-//  'pli': 'Pali',
-//  'pon': 'Pohnpeian',
+  //  'pli': 'Pali',
+  //  'pon': 'Pohnpeian',
   'pus': 'Pashto',
   'que': 'Quechua',
   'roh': 'Romansh',
   'ron': 'Romanian',
   'run': 'Rundi',
-//  'sag': 'Sango',
+  //  'sag': 'Sango',
   'san': 'Sanskrit',
   'sin': 'Sinhala',
   'slk': 'Slovak',
   'slv': 'Slovenian',
   'sme': 'Northern Sami',
-//  'smo': 'Samoan',
+  //  'smo': 'Samoan',
   'sna': 'Shona',
   'snd': 'Sindhi',
   'som': 'Somali',
@@ -201,16 +200,16 @@ const Map<String, String> kIso6392Languages = {
   'tgk': 'Tajik',
   'tgl': 'Tagalog',
   'tir': 'Tigrinya',
-//  'ton': 'Tongan',
+  //  'ton': 'Tongan',
   'tsn': 'Tswana',
   'tso': 'Tsonga',
   'tuk': 'Turkmen',
-//  'twi': 'Twi',
+  //  'twi': 'Twi',
   'uig': 'Uyghur',
   'ukr': 'Ukrainian',
   'urd': 'Urdu',
   'uzb': 'Uzbek',
-//  'ven': 'Venda',
+  //  'ven': 'Venda',
   'vie': 'Vietnamese',
   'wol': 'Wolof',
   'xho': 'Xhosa',
@@ -220,17 +219,27 @@ const Map<String, String> kIso6392Languages = {
   'zul': 'Zulu',
 };
 
-/// ISO 639-2 code to display name for every language the app itself is
-/// translated into, in [kIso6392Languages] order. The audio and subtitle
-/// language pickers all offer this list, each behind its own "none" or
-/// "server default" entry.
+/// Kos TV: the languages the audio and subtitle pickers offer. They used to
+/// follow the languages the app was translated into; kOS TV only ships in
+/// Spanish and English, so the list is kept here as it was.
+const _pickerLanguageCodes = [
+  'af', 'ar', 'be', 'bg', 'bn', 'ca', 'cs', 'cy', 'da', 'de', 'el', 'en', //
+  'eo', 'es', 'et', 'fa', 'fi', 'fr', 'gl', 'he', 'hi', 'hr', 'hu', 'id', //
+  'it', 'ja', 'kk', 'kn', 'ko', 'lt', 'lv', 'mk', 'ml', 'mn', 'nb', 'nl', //
+  'pa', 'pl', 'pt', 'ro', 'ru', 'si', 'sk', 'sl', 'sq', 'sr', 'sv', 'sw', //
+  'ta', 'te', 'th', 'tl', 'tr', 'ug', 'uk', 'vi', 'yue', 'zh',
+];
+
+/// ISO 639-2 code to display name for every language in
+/// [_pickerLanguageCodes], in [kIso6392Languages] order. The audio and
+/// subtitle language pickers all offer this list, each behind its own "none"
+/// or "server default" entry.
 final Map<String, String> supportedLanguageOptions = Map.unmodifiable(() {
   final iso3ToIso1 = {
     for (final entry in kIso6391To6392.entries) entry.value: entry.key,
   };
   final supportedIso3Codes = {
-    for (final locale in AppLocalizations.supportedLocales)
-      kIso6391To6392[locale.languageCode] ?? locale.languageCode,
+    for (final code in _pickerLanguageCodes) kIso6391To6392[code] ?? code,
   };
   return {
     for (final entry in kIso6392Languages.entries)

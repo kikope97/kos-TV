@@ -11,39 +11,23 @@ import 'app_localizations.dart';
 Locale currentAppLocale([Locale? deviceLocale]) =>
     _overrideLocale() ?? _resolveSupportedLocale(deviceLocale ?? PlatformDispatcher.instance.locale);
 
-/// The locale MaterialApp runs in. Flutter hands it to the system when a
-/// character needs a fallback font, and Windows answers a bare `zh` with a
-/// Japanese font, so Simplified Chinese always carries its script.
-Locale resolveAppUiLocale(Locale? target) {
-  final locale = _resolveSupportedLocale(target ?? const Locale('en'));
-  return locale == const Locale('zh')
-      ? const Locale.fromSubtags(languageCode: 'zh', scriptCode: 'Hans')
-      : locale;
-}
+/// Kos TV: the language a device falls back to when its own is neither
+/// Spanish nor English.
+const kostvFallbackLocale = Locale('es');
 
-/// Matches the way Flutter resolves the app locale: exact, then language with
-/// script, then language with country, then language alone. Without the
-/// script step a `zh-Hant-TW` device would land on Simplified Chinese.
-/// Some platforms report Taiwan, Hong Kong and Macau without a script, so
-/// those regions count as Traditional.
+/// The locale MaterialApp runs in.
+Locale resolveAppUiLocale(Locale? target) =>
+    _resolveSupportedLocale(target ?? kostvFallbackLocale);
+
+/// Matches the way Flutter resolves the app locale: exact, then language
+/// alone (a Mexican or Argentinian device gets Spanish), then Spanish.
 Locale _resolveSupportedLocale(Locale target) {
   const supported = AppLocalizations.supportedLocales;
-  bool sameLanguage(Locale l) => l.languageCode == target.languageCode;
-  final country = target.countryCode;
-  final script =
-      target.scriptCode ??
-      (target.languageCode == 'zh' && const {'TW', 'HK', 'MO'}.contains(country)
-          ? 'Hant'
-          : null);
   return supported.where((l) => l == target).firstOrNull ??
       supported
-          .where((l) => script != null && sameLanguage(l) && l.scriptCode == script)
+          .where((l) => l.languageCode == target.languageCode)
           .firstOrNull ??
-      supported
-          .where((l) => country != null && sameLanguage(l) && l.countryCode == country)
-          .firstOrNull ??
-      supported.where(sameLanguage).firstOrNull ??
-      const Locale('en');
+      kostvFallbackLocale;
 }
 
 /// Localizations for code that runs without a [BuildContext]. The language
@@ -55,7 +39,7 @@ AppLocalizations currentAppLocalizations() {
   try {
     return lookupAppLocalizations(locale);
   } catch (_) {
-    return lookupAppLocalizations(const Locale('en'));
+    return lookupAppLocalizations(kostvFallbackLocale);
   }
 }
 

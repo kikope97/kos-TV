@@ -286,7 +286,7 @@ void main() {
         await press(tester, LogicalKeyboardKey.arrowDown);
       }
       await press(tester, LogicalKeyboardKey.enter);
-      expect(find.text('Moonbase'), findsOneWidget);
+      expect(find.text('Server plugin'), findsOneWidget);
       expect(
         find.text('Only a server admin can install it. Send them this link.'),
         findsOneWidget,
@@ -301,7 +301,7 @@ void main() {
       );
       await pumpWizard(tester);
       await toLastStep(tester);
-      expect(find.text('Add Moonbase to your server'), findsNothing);
+      expect(find.text('Add the kOS TV server plugin to your server'), findsNothing);
     });
 
     testWidgets('BACK moves to Skip first and leaves on the second press', (

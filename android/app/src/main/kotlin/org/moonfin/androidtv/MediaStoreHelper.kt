@@ -13,7 +13,7 @@ class MediaStoreHelper(private val context: Context) : MethodChannel.MethodCallH
 
     companion object {
         const val CHANNEL = "com.moonfin/media_store"
-        private const val SUBFOLDER = "Moonfin"
+        private const val SUBFOLDER = "KosTV"
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
