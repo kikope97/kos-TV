@@ -13,7 +13,6 @@ import '../../../util/platform_detection.dart';
 import '../../widgets/adaptive/adaptive_list_section.dart';
 import '../../widgets/settings/preference_binding.dart';
 import '../../widgets/settings/preference_tiles.dart';
-import '../../widgets/settings/settings_more_section.dart';
 import '../../widgets/settings/clean_settings_typography.dart';
 import 'settings_app_bar.dart';
 import '../../widgets/focus/request_initial_focus.dart';
@@ -305,25 +304,16 @@ class _ParentalSettingsScreenState extends State<ParentalSettingsScreen> {
                     ),
                   ],
                 ],
-                // Kos TV: how far the limit reaches into the suggestions,
-                // behind «Más ajustes».
-                ...settingsMore(
-                  context,
-                  id: 'account.parental',
-                  summary: l10n.kostvMoreParentalSummary,
+                SettingsSectionHeader(l10n.recommendations),
+                adaptiveListSection(
                   children: [
-                    SettingsSectionHeader(l10n.recommendations),
-                    adaptiveListSection(
-                      children: [
-                        SwitchPreferenceTile(
-                          preference: UserPreferences
-                              .recommendationsApplyParentalRatingCap,
-                          title: l10n.recommendationsApplyParentalRatingCap,
-                          subtitle: l10n
-                              .recommendationsApplyParentalRatingCapSubtitle,
-                          icon: Icons.family_restroom,
-                        ),
-                      ],
+                    SwitchPreferenceTile(
+                      preference: UserPreferences
+                          .recommendationsApplyParentalRatingCap,
+                      title: l10n.recommendationsApplyParentalRatingCap,
+                      subtitle: l10n
+                          .recommendationsApplyParentalRatingCapSubtitle,
+                      icon: Icons.family_restroom,
                     ),
                   ],
                 ),

@@ -2249,7 +2249,7 @@ class HomeViewModel extends ChangeNotifier {
     AppLocalizations l10n,
   ) {
     final filter = _favoriteFilterForSection(type);
-    return 'Favorite ${filter.displayName}';
+    return filter.rowTitle(l10n);
   }
 
   Future<void> _loadResumeAndNextUpInBackground() {

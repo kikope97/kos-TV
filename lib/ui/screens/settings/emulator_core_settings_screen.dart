@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
+import '../../../l10n/app_localizations.dart';
 import '../../../playback/native_game_player.dart';
 import '../../../util/game_cores.dart';
 import '../../../util/game_storage.dart';
@@ -31,6 +32,9 @@ class EmulatorCoreSettingsScreen extends StatefulWidget {
       _EmulatorCoreSettingsScreenState();
 }
 
+/// Why the options can't be listed, worded in [build].
+enum _CoreSettingsProblem { notDownloaded, unreadable, failed }
+
 class _EmulatorCoreSettingsScreenState
     extends State<EmulatorCoreSettingsScreen> {
   final MediaServerClient _client = GetIt.instance<MediaServerClient>();
@@ -44,7 +48,7 @@ class _EmulatorCoreSettingsScreenState
   Map<String, String> _loadTimeOnly = {};
   bool _loading = true;
   bool _saving = false;
-  String? _error;
+  _CoreSettingsProblem? _error;
 
   @override
   void initState() {
@@ -63,7 +67,7 @@ class _EmulatorCoreSettingsScreenState
         if (!mounted) return;
         setState(() {
           _loading = false;
-          _error = 'This core is not downloaded yet.';
+          _error = _CoreSettingsProblem.notDownloaded;
         });
         return;
       }
@@ -92,17 +96,13 @@ class _EmulatorCoreSettingsScreenState
         // Empty covers both "the core has no options" and "this platform
         // cannot probe" -- only Android implements it so far. Reset still
         // works either way, so point at that rather than dead-ending.
-        // TODO: Localize this.
-        _error = probed.isEmpty
-            ? 'This core\'s settings cannot be read on this device. '
-                'You can still reset them to defaults below.'
-            : null;
+        _error = probed.isEmpty ? _CoreSettingsProblem.unreadable : null;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = 'Could not read this core\'s settings.';
+        _error = _CoreSettingsProblem.failed;
       });
     }
   }
@@ -161,7 +161,11 @@ class _EmulatorCoreSettingsScreenState
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save these settings.')),
+          SnackBar(
+            content: Text(
+              AppLocalizations.of(context).kostvCoreSettingsSaveFailed,
+            ),
+          ),
         );
       }
     } finally {
@@ -187,13 +191,19 @@ class _EmulatorCoreSettingsScreenState
         _saving = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Settings reset to defaults.')),
+        SnackBar(
+          content: Text(AppLocalizations.of(context).emulatorCoreSettingsReset),
+        ),
       );
     } catch (_) {
       if (!mounted) return;
       setState(() => _saving = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not reset these settings.')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context).emulatorCoreResetSettingsFailed,
+          ),
+        ),
       );
     }
   }
@@ -201,9 +211,16 @@ class _EmulatorCoreSettingsScreenState
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    final error = switch (_error) {
+      _CoreSettingsProblem.notDownloaded => l10n.kostvCoreNotDownloaded,
+      _CoreSettingsProblem.unreadable => l10n.kostvCoreSettingsUnreadable,
+      _CoreSettingsProblem.failed => l10n.kostvCoreSettingsReadFailed,
+      null => null,
+    };
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.system} settings'),
+        title: Text(l10n.kostvCoreSettingsTitle(widget.system)),
         actions: [
           if (_saving)
             const Padding(
@@ -224,10 +241,10 @@ class _EmulatorCoreSettingsScreenState
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _WarningBanner(theme: theme),
-                if (_error != null)
+                if (error != null)
                   Padding(
                     padding: const EdgeInsets.all(24),
-                    child: Text(_error!, style: theme.textTheme.bodyLarge),
+                    child: Text(error, style: theme.textTheme.bodyLarge),
                   ),
                 Expanded(
                   child: ListView(
@@ -248,7 +265,7 @@ class _EmulatorCoreSettingsScreenState
                     child: OutlinedButton.icon(
                       onPressed: _saving ? null : _resetToDefaults,
                       icon: const Icon(Icons.settings_backup_restore),
-                      label: const Text('Reset to defaults'),
+                      label: Text(l10n.resetToDefaults),
                     ),
                   ),
                 ),
@@ -282,9 +299,7 @@ class _WarningBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'These are the emulator core\'s own settings. Some combinations '
-              'can stop a game from starting, or close the app while it runs. '
-              'If something breaks, use Reset to defaults below.',
+              AppLocalizations.of(context).kostvCoreSettingsWarning,
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onTertiaryContainer,
               ),

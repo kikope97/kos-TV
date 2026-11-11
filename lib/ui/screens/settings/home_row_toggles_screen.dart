@@ -545,7 +545,11 @@ class _HomeRowTogglesScreenState extends State<HomeRowTogglesScreen> {
                       title: l10n.genresRowItems,
                       description: l10n.genresRowItemsDescription,
                       icon: Icons.filter_list,
-                      labelOf: (v) => v.displayName,
+                      labelOf: (v) => switch (v) {
+                        GenresRowItemFilter.movies => l10n.movies,
+                        GenresRowItemFilter.series => l10n.series,
+                        GenresRowItemFilter.both => l10n.settingsBoth,
+                      },
                       onChanged: _onGenresItemFilterChanged,
                     ),
                   ],
@@ -594,44 +598,44 @@ class _HomeRowTogglesScreenState extends State<HomeRowTogglesScreen> {
                 ),
               ],
 
-              _SectionHeader('REWATCH'),
+              _SectionHeader(l10n.kostvRewatchRow),
               adaptiveListSection(
                 children: [
                   SwitchPreferenceTile(
                     preference: UserPreferences.displayRewatchRow,
-                    title: 'Display Rewatch Row',
-                    subtitle: 'Show Rewatch row in Home Sections',
+                    title: l10n.kostvDisplayRewatchRow,
+                    subtitle: l10n.kostvDisplayRewatchRowSubtitle,
                     icon: Icons.replay,
                     onChanged: _onRewatchRowToggleChanged,
                   ),
                   if (showRewatchRow) ...[
                     EnumPreferenceTile<RewatchSortBy>(
                       preference: UserPreferences.rewatchSortBy,
-                      title: 'Sort By',
-                      description: 'Choose sorting method for completed items',
+                      title: l10n.sortBy,
+                      description: l10n.kostvRewatchSortDescription,
                       icon: Icons.sort,
                       values: RewatchSortBy.values,
-                      labelOf: (v) => v.displayName,
+                      labelOf: (v) => v.label(l10n),
                       onChanged: _onRewatchConfigChanged,
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.rewatchIncludeMovies,
-                      title: 'Include Movies',
-                      subtitle: 'Show watched movies in the rewatch row',
+                      title: l10n.kostvRewatchIncludeMovies,
+                      subtitle: l10n.kostvRewatchIncludeMoviesSubtitle,
                       icon: Icons.movie,
                       onChanged: _onRewatchConfigChanged,
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.rewatchIncludeShows,
-                      title: 'Include Shows',
-                      subtitle: 'Show watched TV shows in the rewatch row',
+                      title: l10n.kostvRewatchIncludeShows,
+                      subtitle: l10n.kostvRewatchIncludeShowsSubtitle,
                       icon: Icons.tv,
                       onChanged: _onRewatchConfigChanged,
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.rewatchIncludeCollections,
-                      title: 'Include Collections',
-                      subtitle: 'Show watched collections in the rewatch row',
+                      title: l10n.kostvRewatchIncludeCollections,
+                      subtitle: l10n.kostvRewatchIncludeCollectionsSubtitle,
                       icon: Icons.collections,
                       onChanged: _onRewatchConfigChanged,
                     ),
@@ -709,7 +713,7 @@ class _HomeRowTogglesScreenState extends State<HomeRowTogglesScreen> {
                   ],
                 ],
               ),
-              _SectionHeader('STUDIOS'),
+              _SectionHeader(l10n.studios),
               adaptiveListSection(
                 children: [
                   SwitchPreferenceTile(
@@ -1059,9 +1063,9 @@ class _StudioSelectionDialogState extends State<StudioSelectionDialog> {
           child: _loading
               ? const Center(child: CircularProgressIndicator())
               : _error != null
-                  ? Center(child: Text('Error loading studios: $_error'))
+                  ? Center(child: Text(l10n.kostvStudiosLoadFailed(_error!)))
                   : _allStudios.isEmpty
-                      ? const Center(child: Text('No studios found in library.'))
+                      ? Center(child: Text(l10n.kostvNoStudiosFound))
                       : Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1072,7 +1076,11 @@ class _StudioSelectionDialogState extends State<StudioSelectionDialog> {
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 8),
                                     child: Text(
-                                      '${_selectedIds.length} of ${_allStudios.length} selected (${filtered.length} visible)',
+                                      l10n.kostvStudiosSelectedCount(
+                                        _selectedIds.length,
+                                        _allStudios.length,
+                                        filtered.length,
+                                      ),
                                       style: theme.textTheme.titleSmall?.copyWith(
                                         color: theme.colorScheme.primary,
                                         fontWeight: FontWeight.bold,

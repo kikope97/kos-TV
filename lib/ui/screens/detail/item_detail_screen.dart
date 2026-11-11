@@ -11296,7 +11296,7 @@ class _DownloadButtonState extends State<_DownloadButton> {
             final bytes? => '~${formatBytes(bytes)}',
             null => null,
           };
-    return '${estimate ?? quality.estimatedSizePerHour} • ${quality.encodingInfo}';
+    return '${estimate ?? quality.estimatedSizePerHour(AppLocalizations.of(context))} • ${quality.encodingInfo}';
   }
 
   /// Sums [bytesOf] over [items], skipping items whose size is unknown, and
@@ -11811,8 +11811,8 @@ class _DownloadButtonState extends State<_DownloadButton> {
             subscription == null
                 ? l10n.autoDownloadKeepUnwatchedSubtitle(keep)
                 : AutoDownloadService.isForegroundOnly(quality!)
-                ? '${l10n.autoDownloadStopSubtitle(quality.label)} • ${l10n.autoDownloadForegroundOnly}'
-                : l10n.autoDownloadStopSubtitle(quality.label),
+                ? '${l10n.autoDownloadStopSubtitle(quality.label(l10n))} • ${l10n.autoDownloadForegroundOnly}'
+                : l10n.autoDownloadStopSubtitle(quality.label(l10n)),
             style: isTV
                 ? null
                 : TextStyle(color: Colors.white.withValues(alpha: 0.5)),
@@ -12003,7 +12003,7 @@ class _DownloadButtonState extends State<_DownloadButton> {
                               ? Icons.compress
                               : Icons.file_copy_outlined,
                         ),
-                        title: Text(quality.label),
+                        title: Text(quality.label(AppLocalizations.of(sheetContext))),
                         subtitle: Text(subtitles[quality]!),
                         onTap: () => Navigator.pop(sheetContext, quality),
                       );
@@ -12040,7 +12040,7 @@ class _DownloadButtonState extends State<_DownloadButton> {
                   color: Colors.white70,
                 ),
                 title: Text(
-                  quality.label,
+                  quality.label(AppLocalizations.of(context)),
                   style: const TextStyle(color: Colors.white),
                 ),
                 subtitle: Text(
@@ -12090,7 +12090,7 @@ class _DownloadButtonState extends State<_DownloadButton> {
           audioStreamIndex: audioStreamIndex,
         );
       }
-      message = l10n.downloadingItem(item.name, quality.label);
+      message = l10n.downloadingItem(item.name, quality.label(l10n));
     }
 
     ScaffoldMessenger.of(context).showSnackBar(

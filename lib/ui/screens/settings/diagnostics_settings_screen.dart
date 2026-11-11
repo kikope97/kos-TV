@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
+import 'package:server_core/server_core.dart';
 
 import '../../../data/services/log_service.dart';
+import '../../../data/services/media_server_client_factory.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/artwork_timing.dart';
 import '../../../util/focus/dpad_keys.dart';
@@ -35,15 +37,16 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
     try {
       final fileName = await _log.uploadToServer();
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
       _showSnack(
         fileName == null
-            ? 'Report sent to server'
-            : 'Report sent to server: $fileName',
+            ? l10n.kostvReportSent
+            : l10n.kostvReportSentAs(fileName),
       );
     } catch (e) {
       if (!mounted) return;
-      final detail = describeError(e, AppLocalizations.of(context));
-      _showSnack('Could not send report: $detail');
+      final l10n = AppLocalizations.of(context);
+      _showSnack(l10n.kostvReportSendFailed(describeError(e, l10n)));
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -52,17 +55,19 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
   Future<void> _copyAll() async {
     ArtworkTimings.prepareReport();
     await Clipboard.setData(ClipboardData(text: _log.exportText()));
-    _showSnack('Logs copied to clipboard');
+    if (!mounted) return;
+    _showSnack(AppLocalizations.of(context).kostvLogsCopied);
   }
 
   Future<void> _copyEntry(LogEntry entry) async {
     await Clipboard.setData(ClipboardData(text: entry.format()));
-    _showSnack('Entry copied to clipboard');
+    if (!mounted) return;
+    _showSnack(AppLocalizations.of(context).kostvLogEntryCopied);
   }
 
   void _clearLogs() {
     _log.clear();
-    _showSnack('Logs cleared');
+    _showSnack(AppLocalizations.of(context).kostvLogsCleared);
   }
 
   void _showSnack(String message) {
@@ -75,6 +80,7 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
   bool get _supportsUpload => _log.canUploadToServer;
 
   Future<void> _pickFilter() async {
+    final l10n = AppLocalizations.of(context);
     final selected = await showFocusRestoringModalBottomSheet<_FilterChoice>(
       context: context,
       builder: (ctx) => SafeArea(
@@ -85,12 +91,12 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               RadioListTile<LogCategory?>(
-                title: const Text('All categories'),
+                title: Text(l10n.kostvAllCategories),
                 value: null,
               ),
               for (final category in LogCategory.values)
                 RadioListTile<LogCategory?>(
-                  title: Text(_categoryLabel(category)),
+                  title: Text(_categoryLabel(category, l10n)),
                   value: category,
                 ),
             ],
@@ -123,6 +129,7 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
   }
 
   Widget _buildBody(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final enabled = _log.isEnabled;
     final count = _log.entryCount;
     final hasEntries = count > 0;
@@ -139,33 +146,28 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const _Section(title: 'Logging'),
+              _Section(title: l10n.kostvLogging),
               SwitchPreferenceTile(
                 preference: UserPreferences.diagnosticLoggingEnabled,
-                title: 'Diagnostic Logging',
-                subtitle:
-                    'Capture media, network and other diagnostics so they '
-                    'can be sent to the server as a report.',
+                title: l10n.kostvDiagnosticLogging,
+                subtitle: l10n.kostvDiagnosticLoggingSubtitle,
                 icon: Icons.bug_report,
               ),
               SwitchPreferenceTile(
                 preference: UserPreferences.crashReportsEnabled,
-                title: 'Send Crash Reports to Server',
-                subtitle:
-                    'Save a report when the app crashes and send it to your '
-                    'own server the next time it connects. Nothing is sent '
-                    'anywhere else.',
+                title: l10n.kostvSendCrashReports,
+                subtitle: l10n.kostvSendCrashReportsSubtitle,
                 icon: Icons.report_outlined,
               ),
               _Section(
                 title: enabled
-                    ? 'Reports ($count entries captured)'
-                    : 'Reports',
+                    ? l10n.kostvReportsCaptured(count)
+                    : l10n.kostvReports,
               ),
               _ActionTile(
                 icon: Icons.cloud_upload,
-                title: 'Send report to server',
-                subtitle: _sendSubtitle(enabled),
+                title: l10n.kostvSendReport,
+                subtitle: _sendSubtitle(enabled, l10n),
                 enabled:
                     enabled && hasEntries && _supportsUpload && !_uploading,
                 trailing: _uploading
@@ -179,30 +181,30 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
               ),
               _ActionTile(
                 icon: Icons.copy_all,
-                title: 'Copy all logs',
-                subtitle: 'Copy the full report to the clipboard.',
+                title: l10n.kostvCopyAllLogs,
+                subtitle: l10n.kostvCopyAllLogsSubtitle,
                 enabled: hasEntries,
                 onTap: _copyAll,
               ),
               _ActionTile(
                 icon: Icons.delete_outline,
-                title: 'Clear captured logs',
-                subtitle: 'Discard everything in the current buffer.',
+                title: l10n.kostvClearLogs,
+                subtitle: l10n.kostvClearLogsSubtitle,
                 enabled: hasEntries,
                 destructive: true,
                 onTap: _clearLogs,
               ),
               _Section(
                 title: _filter == null
-                    ? 'Recent logs'
-                    : 'Recent logs (${entries.length} of $count)',
+                    ? l10n.kostvRecentLogs
+                    : l10n.kostvRecentLogsFiltered(entries.length, count),
               ),
               _ActionTile(
                 icon: Icons.filter_list,
-                title: 'Filter',
+                title: l10n.musicFilter,
                 subtitle: _filter == null
-                    ? 'All categories'
-                    : _categoryLabel(_filter!),
+                    ? l10n.kostvAllCategories
+                    : _categoryLabel(_filter!, l10n),
                 enabled: enabled || hasEntries,
                 trailing: const Icon(Icons.expand_more, size: 20),
                 onTap: _pickFilter,
@@ -211,7 +213,7 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
           ),
         ),
         if (entries.isEmpty)
-          SliverToBoxAdapter(child: _buildEmptyState(context, enabled))
+          SliverToBoxAdapter(child: _buildEmptyState(enabled, l10n))
         else
           SliverList(
             delegate: SliverChildBuilderDelegate(
@@ -229,14 +231,27 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
     );
   }
 
-  String _sendSubtitle(bool enabled) {
-    if (!enabled) return 'Enable diagnostic logging first.';
-    if (!_supportsUpload) return _log.uploadUnavailableReason;
-    if (_log.entryCount == 0) return 'No entries captured yet.';
-    return 'Upload the captured logs to the active server.';
+  String _sendSubtitle(bool enabled, AppLocalizations l10n) {
+    if (!enabled) return l10n.kostvTurnOnLoggingFirst;
+    if (!_supportsUpload) return _uploadUnavailableReason(l10n);
+    if (_log.entryCount == 0) return l10n.kostvNoLogEntriesCaptured;
+    return l10n.kostvSendReportSubtitle;
   }
 
-  Widget _buildEmptyState(BuildContext context, bool enabled) {
+  /// [LogService.uploadUnavailableReason], in the app's language.
+  static String _uploadUnavailableReason(AppLocalizations l10n) {
+    final MediaServerClient client;
+    try {
+      client = GetIt.instance<MediaServerClientFactory>().getActiveClient();
+    } on StateError {
+      return l10n.kostvReportNeedsSignIn;
+    }
+    return client.serverType == ServerType.silo
+        ? l10n.kostvReportNeedsPlugin
+        : l10n.kostvReportNotSupported;
+  }
+
+  Widget _buildEmptyState(bool enabled, AppLocalizations l10n) {
     final total = _log.entryCount;
     final filtered = _filter != null && total > 0;
 
@@ -244,17 +259,16 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
     final String message;
     if (filtered) {
       icon = Icons.filter_list_off;
-      message =
-          'No ${_categoryLabel(_filter!)} entries. $total captured in other '
-          'categories. Tap Filter to change.';
+      message = l10n.kostvNoLogEntriesInCategory(
+        total,
+        _categoryLabel(_filter!, l10n),
+      );
     } else if (enabled) {
       icon = Icons.hourglass_empty;
-      message = 'No log entries yet. Reproduce the issue, then send a report.';
+      message = l10n.kostvNoLogEntriesYet;
     } else {
       icon = Icons.toggle_off_outlined;
-      message =
-          'Logging is off. Turn it on, reproduce the issue, then send '
-          'a report to the server.';
+      message = l10n.kostvLoggingOff;
     }
 
     return Padding(
@@ -279,14 +293,17 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
     );
   }
 
-  static String _categoryLabel(LogCategory category) => switch (category) {
-    LogCategory.general => 'General',
-    LogCategory.media => 'Media',
-    LogCategory.network => 'Network',
-    LogCategory.auth => 'Authentication',
-    LogCategory.playback => 'Playback',
-    LogCategory.sync => 'Sync',
-    LogCategory.artwork => 'Artwork',
+  static String _categoryLabel(
+    LogCategory category,
+    AppLocalizations l10n,
+  ) => switch (category) {
+    LogCategory.general => l10n.general,
+    LogCategory.media => l10n.kostvLogCategoryMedia,
+    LogCategory.network => l10n.network,
+    LogCategory.auth => l10n.authentication,
+    LogCategory.playback => l10n.playback,
+    LogCategory.sync => l10n.kostvLogCategorySync,
+    LogCategory.artwork => l10n.kostvLogCategoryArtwork,
   };
 }
 

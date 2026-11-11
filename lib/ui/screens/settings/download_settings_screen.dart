@@ -94,7 +94,7 @@ class DownloadSettingsScreen extends ConsumerWidget {
                     useSettingsIconShell: true,
                     leading: const Icon(Icons.high_quality),
                     title: Text(l10n.defaultDownloadQuality),
-                    subtitle: Text(_qualityLabel(qualityName)),
+                    subtitle: Text(_qualityLabel(qualityName, l10n)),
                     onTap: () => showQualityPicker(context, prefs, qualityName),
                   ),
                 ],
@@ -325,19 +325,15 @@ class DownloadSettingsScreen extends ConsumerWidget {
     );
   }
 
-  String _qualityLabel(String name) {
-    return DownloadQuality.values
-            .where((q) => q.name == name)
-            .map((q) => q.label)
-            .firstOrNull ??
-        'Original';
-  }
+  String _qualityLabel(String name, AppLocalizations l10n) =>
+      DownloadQuality.fromName(name).label(l10n);
 
   static void showQualityPicker(
     BuildContext context,
     UserPreferences prefs,
     String current,
   ) {
+    final l10n = AppLocalizations.of(context);
     final values = DownloadQuality.values;
     final hasCurrent = values.any((quality) => quality.name == current);
     _showOptionSheet<String>(
@@ -348,11 +344,11 @@ class DownloadSettingsScreen extends ConsumerWidget {
         for (final q in values)
           DpadRadioListTile<String>(
             autofocus: q.name == current || (!hasCurrent && q == values.first),
-            title: Text(q.label),
+            title: Text(q.label(l10n)),
             subtitle: Text(
               q.isTranscoded
-                  ? '${q.estimatedSizePerHour} • ${q.encodingInfo}'
-                  : q.estimatedSizePerHour,
+                  ? '${q.estimatedSizePerHour(l10n)} • ${q.encodingInfo}'
+                  : q.estimatedSizePerHour(l10n),
             ),
             value: q.name,
           ),
@@ -952,8 +948,8 @@ class _AutoDownloadSettingsState extends State<_AutoDownloadSettings> {
   ) {
     final preset = DownloadQuality.fromName(subscription.qualityPreset);
     final quality = AutoDownloadService.isForegroundOnly(preset)
-        ? '${preset.label} • ${l10n.autoDownloadForegroundOnly}'
-        : preset.label;
+        ? '${preset.label(l10n)} • ${l10n.autoDownloadForegroundOnly}'
+        : preset.label(l10n);
     final checkedAt = subscription.lastCheckedAt;
     if (checkedAt == null) return '$quality • ${l10n.autoDownloadNeverChecked}';
     final check = _checkLabel(

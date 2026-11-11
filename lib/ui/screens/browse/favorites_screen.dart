@@ -490,7 +490,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
     final labels = [
       for (final type in visibleTypes)
-        '${type.displayName}: ${_vm.rowTotalCount(type)}',
+        '${type.label(AppLocalizations.of(context))}: ${_vm.rowTotalCount(type)}',
     ];
 
     final selectedType = visibleTypes[_selectedTab];

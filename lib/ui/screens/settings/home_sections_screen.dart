@@ -2380,7 +2380,7 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
                     )
                   : (_isAudioSectionType(section.type)
                         ? Text(
-                            'Audio row',
+                            l10n.kostvAudioRow,
                             style: TextStyle(
                               fontSize: 12,
                               fontFamily: kCleanSettingsFontFamily,
@@ -2391,7 +2391,7 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
                           )
                         : (_isImdbSectionType(section.type)
                               ? Text(
-                                  'IMDb List',
+                                  l10n.kostvImdbLists,
                                   style: TextStyle(
                                     fontSize: 12,
                                     fontFamily: kCleanSettingsFontFamily,
@@ -2402,7 +2402,7 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
                                 )
                               : (_isTmdbSectionType(section.type)
                                     ? Text(
-                                        'TMDB Lists',
+                                        l10n.kostvTmdbLists,
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontFamily: kCleanSettingsFontFamily,
@@ -2515,11 +2515,11 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
         subtitle: section.isPluginDynamic
             ? _pluginSubtitle(section)
             : (_isAudioSectionType(section.type)
-                  ? 'Audio row'
+                  ? l10n.kostvAudioRow
                   : (_isImdbSectionType(section.type)
-                        ? 'IMDb List'
+                        ? l10n.kostvImdbLists
                         : (_isTmdbSectionType(section.type)
-                              ? 'TMDB Lists'
+                              ? l10n.kostvTmdbLists
                               : (section.type == HomeSectionType.mdblistWatchingNow
                                     ? 'MDBList'
                                     : null)))),
@@ -2831,11 +2831,11 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
             subtitle: section.isPluginDynamic
                 ? Text(_pluginSubtitle(section))
                 : (_isAudioSectionType(section.type)
-                      ? const Text('Audio row')
+                      ? Text(l10n.kostvAudioRow)
                       : (_isImdbSectionType(section.type)
-                            ? const Text('IMDb List')
+                            ? Text(l10n.kostvImdbLists)
                             : (_isTmdbSectionType(section.type)
-                                  ? const Text('TMDB Lists')
+                                  ? Text(l10n.kostvTmdbLists)
                                   : (section.type == HomeSectionType.mdblistWatchingNow
                                         ? const Text('MDBList')
                                         : null)))),
@@ -2869,17 +2869,17 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
   }
 
   String _pluginSubtitle(HomeSectionConfig section) {
+    final l10n = AppLocalizations.of(context);
     return switch (section.pluginSource) {
       HomeSectionPluginSource.collections => switch (_otherServerName(
         section,
       )) {
-        final server? => 'Collections row from $server',
-        null => 'Collections row',
+        final server? => l10n.kostvCollectionsRowFrom(server),
+        null => l10n.kostvCollectionsRow,
       },
-      HomeSectionPluginSource.genres => 'Genres row',
-      HomeSectionPluginSource.playlists => 'Playlists row',
-      HomeSectionPluginSource.server =>
-        AppLocalizations.of(context).siloServerRowSubtitle,
+      HomeSectionPluginSource.genres => l10n.kostvGenresRow,
+      HomeSectionPluginSource.playlists => l10n.kostvPlaylistsRow,
+      HomeSectionPluginSource.server => l10n.siloServerRowSubtitle,
       HomeSectionPluginSource.custom => (() {
         Map<String, dynamic> rowConfig = {};
         try {
@@ -2897,14 +2897,16 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
           _ => source.toUpperCase(),
         };
         final typeLabel = switch (type) {
-          'user_list' => 'Custom List',
-          'watchlist' => 'Watchlist',
-          'films' => 'Films',
-          'awards_events' => 'Awards/Events',
-          'movie_collection' => 'Movie Collection',
+          'user_list' => l10n.kostvCustomRowTypeCustomList,
+          'list_url' => l10n.kostvCustomRowTypeList,
+          'user_diary' => l10n.kostvCustomRowTypeDiary,
+          'watchlist' => l10n.watchlist,
+          'films' => l10n.movies,
+          'awards_events' => l10n.kostvCustomRowTypeAwards,
+          'movie_collection' => l10n.kostvCustomRowTypeMovieCollection,
           _ => type,
         };
-        return '$sourceLabel $typeLabel';
+        return l10n.kostvCustomRowSourceAndType(sourceLabel, typeLabel);
       })(),
     };
   }
@@ -3284,55 +3286,49 @@ String homeSectionTypeLabel(HomeSectionType type, AppLocalizations l10n) =>
       HomeSectionType.audioArtists => l10n.artists,
       HomeSectionType.audioAlbums => l10n.albums,
       HomeSectionType.audioPlaylists => l10n.audioPlaylists,
-      HomeSectionType.favoriteMovies =>
-        'Favorite ${FavoriteTypeFilter.movie.displayName}',
-      HomeSectionType.favoriteSeries =>
-        'Favorite ${FavoriteTypeFilter.series.displayName}',
-      HomeSectionType.favoriteEpisodes =>
-        'Favorite ${FavoriteTypeFilter.episode.displayName}',
-      HomeSectionType.favoritePeople =>
-        'Favorite ${FavoriteTypeFilter.person.displayName}',
-      HomeSectionType.favoriteArtists =>
-        'Favorite ${FavoriteTypeFilter.musicArtist.displayName}',
-      HomeSectionType.favoriteMusicVideos =>
-        'Favorite ${FavoriteTypeFilter.musicVideo.displayName}',
-      HomeSectionType.favoriteAlbums =>
-        'Favorite ${FavoriteTypeFilter.musicAlbum.displayName}',
-      HomeSectionType.favoriteSongs =>
-        'Favorite ${FavoriteTypeFilter.audio.displayName}',
+      HomeSectionType.favoriteMovies => l10n.kostvFavoriteMovies,
+      HomeSectionType.favoriteSeries => l10n.kostvFavoriteSeries,
+      HomeSectionType.favoriteEpisodes => l10n.kostvFavoriteEpisodes,
+      HomeSectionType.favoritePeople => l10n.kostvFavoritePeople,
+      HomeSectionType.favoriteArtists => l10n.kostvFavoriteArtists,
+      HomeSectionType.favoriteMusicVideos => l10n.kostvFavoriteMusicVideos,
+      HomeSectionType.favoriteAlbums => l10n.kostvFavoriteAlbums,
+      HomeSectionType.favoriteSongs => l10n.kostvFavoriteSongs,
       HomeSectionType.collections => l10n.collections,
       HomeSectionType.genres => l10n.genres,
       HomeSectionType.studios => l10n.studios,
       HomeSectionType.liveTv => l10n.liveTV,
       HomeSectionType.onNow => l10n.onNow,
-      HomeSectionType.radarrCalendar => 'Upcoming Movies (Radarr)',
-      HomeSectionType.sonarrCalendar => 'Upcoming TV Shows (Sonarr)',
+      HomeSectionType.radarrCalendar => l10n.radarrCalendarRow,
+      HomeSectionType.sonarrCalendar => l10n.sonarrCalendarRow,
       HomeSectionType.imdbTop250Movies => l10n.imdbTop250Movies,
       HomeSectionType.imdbTop250TvShows => l10n.imdbTop250TvShows,
       HomeSectionType.imdbMostPopularMovies => l10n.imdbMostPopularMovies,
       HomeSectionType.imdbMostPopularTvShows => l10n.imdbMostPopularTvShows,
       HomeSectionType.imdbLowestRatedMovies => l10n.imdbLowestRatedMovies,
       HomeSectionType.imdbTopEnglishMovies => l10n.imdbTopEnglishMovies,
-      HomeSectionType.tmdbPopularMovies => 'Popular Movies',
-      HomeSectionType.tmdbTopRatedMovies => 'Top Rated Movies',
-      HomeSectionType.tmdbNowPlayingMovies => 'Now Playing Movies',
-      HomeSectionType.tmdbUpcomingMovies => 'Upcoming Movies',
-      HomeSectionType.tmdbPopularTv => 'Popular TV',
-      HomeSectionType.tmdbTopRatedTv => 'Top Rated TV',
-      HomeSectionType.tmdbAiringTodayTv => 'Airing Today TV',
-      HomeSectionType.tmdbOnTheAirTv => 'On The Air TV',
-      HomeSectionType.tmdbTrendingMovieDaily => 'Trending Movies (Daily)',
-      HomeSectionType.tmdbTrendingMovieWeekly => 'Trending Movies (Weekly)',
-      HomeSectionType.tmdbTrendingTvDaily => 'Trending TV (Daily)',
-      HomeSectionType.tmdbTrendingTvWeekly => 'Trending TV (Weekly)',
-      HomeSectionType.tmdbTrendingAllWeekly => 'Trending All (Weekly)',
+      HomeSectionType.tmdbPopularMovies => l10n.kostvTmdbPopularMovies,
+      HomeSectionType.tmdbTopRatedMovies => l10n.kostvTmdbTopRatedMovies,
+      HomeSectionType.tmdbNowPlayingMovies => l10n.kostvTmdbNowPlayingMovies,
+      HomeSectionType.tmdbUpcomingMovies => l10n.kostvTmdbUpcomingMovies,
+      HomeSectionType.tmdbPopularTv => l10n.kostvTmdbPopularTv,
+      HomeSectionType.tmdbTopRatedTv => l10n.kostvTmdbTopRatedTv,
+      HomeSectionType.tmdbAiringTodayTv => l10n.kostvTmdbAiringTodayTv,
+      HomeSectionType.tmdbOnTheAirTv => l10n.kostvTmdbOnTheAirTv,
+      HomeSectionType.tmdbTrendingMovieDaily =>
+        l10n.kostvTmdbTrendingMoviesDaily,
+      HomeSectionType.tmdbTrendingMovieWeekly =>
+        l10n.kostvTmdbTrendingMoviesWeekly,
+      HomeSectionType.tmdbTrendingTvDaily => l10n.kostvTmdbTrendingTvDaily,
+      HomeSectionType.tmdbTrendingTvWeekly => l10n.kostvTmdbTrendingTvWeekly,
+      HomeSectionType.tmdbTrendingAllWeekly => l10n.kostvTmdbTrendingAllWeekly,
       HomeSectionType.mdblistWatchingNow => l10n.mdblistWatchingNow,
       HomeSectionType.sinceYouWatched1 => l10n.sinceYouWatchedRowNumber(1),
       HomeSectionType.sinceYouWatched2 => l10n.sinceYouWatchedRowNumber(2),
       HomeSectionType.sinceYouWatched3 => l10n.sinceYouWatchedRowNumber(3),
       HomeSectionType.sinceYouWatched4 => l10n.sinceYouWatchedRowNumber(4),
       HomeSectionType.sinceYouWatched5 => l10n.sinceYouWatchedRowNumber(5),
-      HomeSectionType.rewatch => 'Rewatch',
+      HomeSectionType.rewatch => l10n.kostvRewatchRow,
       HomeSectionType.seasonal => l10n.seasonalRow,
       HomeSectionType.none => l10n.none,
     };

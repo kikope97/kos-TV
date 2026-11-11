@@ -663,9 +663,6 @@ Widget _designCanvas(Size size, Widget child) => FittedBox(
 
 enum _PlayerMoment { loading, intro, middle, seeking, paused, end, watching }
 
-/// The label the player shows while a stream comes up.
-const _streamLoadingLabel = 'Loading Stream...';
-
 /// Subtitle settings get the episode playing with its controls hidden, so
 /// nothing covers the line.
 bool _isSubtitleKey(String key) =>
@@ -869,7 +866,7 @@ class SettingsPlayerPreview extends StatelessWidget {
                       borderRadius: AppRadius.circular(999),
                     ),
                     child: Text(
-                      l10n.skipSegment(MediaSegmentType.intro.displayName),
+                      l10n.skipSegment(MediaSegmentType.intro.label(l10n)),
                       style: TextStyle(
                         fontSize: 15 * u,
                         fontWeight: FontWeight.w700,
@@ -1631,7 +1628,7 @@ class _PlayerLoadingPreview extends StatelessWidget {
       UserPreferences.showLoadingAnimationText,
     );
     Widget overlay({bool? movingLeft}) => PlayerLoadingOverlay(
-      label: _streamLoadingLabel,
+      label: AppLocalizations.of(context).kostvLoadingStream,
       customImage: image,
       customSize: size,
       customPosition: position,
