@@ -31,6 +31,24 @@ void main() {
       );
     });
 
+    test("a path is the web container's way in, on the same site", () {
+      expect(
+        StremfinClient.apiBaseFor(
+          '/stremfin',
+          site: Uri.parse('https://tv.example.org/#/home'),
+        ),
+        'https://tv.example.org/stremfin/api/v1',
+      );
+      // Whatever scheme the site itself is opened with.
+      expect(
+        StremfinClient.apiBaseFor(
+          '/stremfin/',
+          site: Uri.parse('http://192.168.1.10:8080/'),
+        ),
+        'http://192.168.1.10:8080/stremfin/api/v1',
+      );
+    });
+
     test('no address, no service', () {
       expect(StremfinClient.apiBaseFor(''), isNull);
       expect(StremfinClient.apiBaseFor('   '), isNull);

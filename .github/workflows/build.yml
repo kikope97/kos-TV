@@ -576,6 +576,84 @@ jobs:
           path: build/web
           if-no-files-found: error
 
+  # Kos TV: the web version as a Docker image on GitHub's registry
+  # (ghcr.io/<owner>/kos-tv-web, see docs/web.md): with each release as X.Y.Z
+  # and latest, and with each test build as prueba and prueba-N. It holds no
+  # address: the container gets them in its variables, so it is built
+  # without the secrets.
+  web-image:
+    needs: plan
+    if: needs.plan.outputs.release_version != '' || needs.plan.outputs.test_apk == 'true'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      # The same version as the APKs (scripts/kostv_set_version.sh), for
+      # About.
+      - name: Set the version
+        env:
+          RELEASE_VERSION: ${{ needs.plan.outputs.release_version }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          if [ -n "$RELEASE_VERSION" ]; then
+            ./scripts/kostv_set_version.sh "$RELEASE_VERSION"
+            exit 0
+          fi
+          base=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/releases/latest" \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["tag_name"])' || true)
+          if ! [[ "$base" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            base=0.1.0
+          fi
+          ./scripts/kostv_set_version.sh "$base" $(( (RUN_NUMBER - 1) % 99 + 1 ))
+
+      - name: Build web
+        run: flutter build web --release
+
+      - name: Image name and tags
+        id: image
+        env:
+          RELEASE_VERSION: ${{ needs.plan.outputs.release_version }}
+          OWNER: ${{ github.repository_owner }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          image="ghcr.io/${OWNER,,}/kos-tv-web"
+          if [ -n "$RELEASE_VERSION" ]; then
+            tags="$image:$RELEASE_VERSION,$image:latest"
+          else
+            tags="$image:prueba,$image:prueba-$RUN_NUMBER"
+          fi
+          echo "tags=$tags" >> "$GITHUB_OUTPUT"
+          echo "Imagen: $tags"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      # Only files are copied onto nginx's multi-platform image, so it builds
+      # for PCs and for ARM boards (Raspberry Pi) without emulation.
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/web/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.image.outputs.tags }}
+
   # The XCTest targets for the native iOS and macOS code, which flutter test
   # can't reach. tvOS has no test target of its own.
   apple-tests:
@@ -801,6 +879,10 @@ jobs:
           tag_name: ${{ needs.plan.outputs.release_version }}
           target_commitish: ${{ github.sha }}
           name: Kos TV ${{ needs.plan.outputs.release_version }}
+          body: |
+            - Android TV: `KosTV_AndroidTV_v${{ needs.plan.outputs.release_version }}.apk`
+            - Móvil y tablet: `KosTV_Android_v${{ needs.plan.outputs.release_version }}.apk`
+            - Web (Docker): `ghcr.io/${{ github.repository_owner }}/kos-tv-web:${{ needs.plan.outputs.release_version }}` (también `:latest`)
           files: KosTV_*.apk
           fail_on_unmatched_files: true
           draft: false
@@ -841,6 +923,7 @@ jobs:
 
             - Android TV: `KosTV_AndroidTV_prueba.apk`
             - Móvil y tablet: `KosTV_Android_prueba.apk`
+            - Web (Docker): `ghcr.io/${{ github.repository_owner }}/kos-tv-web:prueba-${{ github.run_number }}`
 
             Compilada desde ${{ github.sha }}.
           files: KosTV_*_prueba.apk

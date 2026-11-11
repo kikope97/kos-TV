@@ -7,6 +7,14 @@ class WebRuntimeConfig {
   final bool pluginMode;
   final String? forcedServerUrl;
 
+  /// Kos TV: the household Jellyfin server (`serverUrl`), opened straight on
+  /// its sign-in like the apps' built-in one.
+  final String? kostvServerUrl;
+
+  /// Kos TV: the requests service (`requestsUrl`), usually the path the
+  /// container passes on to it (`/stremfin`).
+  final String? kostvRequestsUrl;
+
   const WebRuntimeConfig({
     required this.schemaVersion,
     required this.defaultServerUrl,
@@ -15,6 +23,8 @@ class WebRuntimeConfig {
     required this.brandingName,
     required this.pluginMode,
     required this.forcedServerUrl,
+    this.kostvServerUrl,
+    this.kostvRequestsUrl,
   });
 
   static const defaults = WebRuntimeConfig(
@@ -37,11 +47,13 @@ class WebRuntimeConfig {
       schemaVersion: _readInt(json['schemaVersion']) ?? defaults.schemaVersion,
       defaultServerUrl: defaultServerUrl,
       discoveryProxyUrl: discoveryProxyUrl,
-      enableWebRtcScan: _readBool(json['enableWebRtcScan']) ??
-          defaults.enableWebRtcScan,
+      enableWebRtcScan:
+          _readBool(json['enableWebRtcScan']) ?? defaults.enableWebRtcScan,
       brandingName: brandingName ?? defaults.brandingName,
       pluginMode: _readBool(json['pluginMode']) ?? defaults.pluginMode,
       forcedServerUrl: forcedServerUrl,
+      kostvServerUrl: _readNullableString(json['serverUrl']),
+      kostvRequestsUrl: _readNullableString(json['requestsUrl']),
     );
   }
 

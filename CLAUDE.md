@@ -28,7 +28,9 @@ es otra cosa y la decide el usuario.
    trabajo terminado y subido, `inputs: {"release_version": "X.Y.Z"}`.
 3. Espera a que termine (unos 25 minutos) y comprueba que la release
    `Kos TV X.Y.Z` existe y tiene `KosTV_AndroidTV_vX.Y.Z.apk` y
-   `KosTV_Android_vX.Y.Z.apk`. Si falla, lee el registro del trabajo y arréglalo.
+   `KosTV_Android_vX.Y.Z.apk`, y que el trabajo `web-image` subió la imagen
+   web (`ghcr.io/kikope97/kos-tv-web:X.Y.Z` y `:latest`, ver `docs/web.md`).
+   Si falla, lee el registro del trabajo y arréglalo.
 4. Dile al usuario qué versión salió y qué trae. Las apps la ofrecen solas
    (al abrirse o al volver a primer plano, como mucho cada 6 horas).
 
@@ -36,7 +38,8 @@ es otra cosa y la decide el usuario.
 
 Si el usuario pide un APK para probar (sin decir que publiques una versión),
 lanza `build.yml` con `inputs: {"test_apk": "true"}`. Sale como *pre-release*
-`kOS TV · prueba N` con los dos APK. Las apps no la ofrecen como actualización
+`kOS TV · prueba N` con los dos APK, y la imagen web como
+`ghcr.io/kikope97/kos-tv-web:prueba-N` (y `:prueba`). Las apps no la ofrecen como actualización
 (solo leen la última versión publicada). Lleva la versión de la última
 publicada más `-prueba.N`, así que se instala encima de ella y la siguiente
 versión publicada se instala encima de la prueba. Dale el enlace directo al APK

@@ -1,8 +1,9 @@
 # kOS TV
 
 Cliente de [Jellyfin](https://jellyfin.org) para Android TV, hecho a medida de
-una configuración multimedia doméstica concreta. Más adelante también tendrá
-versión para Apple TV y para la web, a partir del mismo código.
+una configuración multimedia doméstica concreta. También hay versión para el
+móvil y para el navegador (en Docker), y más adelante la habrá para Apple TV, a
+partir del mismo código.
 
 ## Un proyecto personal
 
@@ -40,6 +41,10 @@ Instala en la tele el archivo `KosTV_AndroidTV_v….apk` de la
 A partir de ahí la app avisa sola cuando hay una versión nueva y se actualiza
 con el botón **Actualizar ahora**. La primera vez, Android pide permiso para
 que kOS TV pueda instalar actualizaciones.
+
+En el móvil, el archivo es `KosTV_Android_v….apk`. Para usarla desde el
+navegador, la versión web se instala en el servidor como un contenedor Docker:
+ver [`docs/web.md`](docs/web.md).
 
 ## Licencia
 

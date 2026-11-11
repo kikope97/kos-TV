@@ -61,13 +61,21 @@ class StremfinClient {
 
   /// The API's base from the build's address: with or without a trailing
   /// slash or `/api/v1`, and always over https, since every call carries the
-  /// person's token.
+  /// person's token. A path (`/stremfin`, the web container's way in to the
+  /// service) belongs to the site the app was opened from, [site], and keeps
+  /// that site's scheme.
   @visibleForTesting
-  static String? apiBaseFor(String raw) {
+  static String? apiBaseFor(String raw, {Uri? site}) {
     var url = raw.trim();
     if (url.isEmpty) return null;
-    if (url.startsWith('http://')) url = 'https://${url.substring(7)}';
-    if (!url.startsWith('https://')) url = 'https://$url';
+    if (url.startsWith('/')) {
+      final origin = site ?? Uri.base;
+      if (!origin.hasAuthority) return null;
+      url = origin.resolve(url).toString();
+    } else {
+      if (url.startsWith('http://')) url = 'https://${url.substring(7)}';
+      if (!url.startsWith('https://')) url = 'https://$url';
+    }
     while (url.endsWith('/')) {
       url = url.substring(0, url.length - 1);
     }
