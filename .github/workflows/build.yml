@@ -262,7 +262,7 @@ jobs:
             echo "No release yet, the test build stays on 0.1.0."
             base=0.1.0
           fi
-          ./scripts/kostv_set_version.sh "$base" $(( RUN_NUMBER % 99 + 1 ))
+          ./scripts/kostv_set_version.sh "$base" $(( (RUN_NUMBER - 1) % 99 + 1 ))
 
       # Kos TV: a release must have the household server built in, so the app
       # opens on its sign-in. It comes from a secret and stays out of the
