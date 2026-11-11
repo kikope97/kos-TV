@@ -36,6 +36,7 @@ import '../../widgets/focus/dpad_list_tile.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../../widgets/settings/clean_settings_typography.dart';
 import '../../widgets/settings/preference_tiles.dart';
+import '../../widgets/settings/settings_more_section.dart';
 import '../../widgets/settings/settings_section_header.dart';
 
 class DownloadSettingsScreen extends ConsumerWidget {
@@ -112,25 +113,6 @@ class DownloadSettingsScreen extends ConsumerWidget {
                       onChanged: (v) =>
                           prefs.set(UserPreferences.downloadWifiOnly, v),
                     ),
-                  if (!PlatformDetection.isWeb)
-                    DpadSwitchListTile(
-                      useSettingsIconShell: true,
-                      secondary: const Icon(Icons.podcasts),
-                      title: Text(l10n.reportDownloadsActivity),
-                      subtitle: Text(l10n.reportDownloadsActivitySubtitle),
-                      value: reportActivity,
-                      onChanged: (v) =>
-                          prefs.set(UserPreferences.reportDownloadsAsActivity, v),
-                    ),
-                  DpadListTile(
-                    useSettingsIconShell: true,
-                    leading: const Icon(Icons.queue),
-                    title: Text(l10n.settingsConcurrentDownloads),
-                    subtitle: Text(l10n.settingsConcurrentDownloadsDescription),
-                    trailing: Text('$concurrentCount'),
-                    onTap: () =>
-                        _pickConcurrentDownloads(context, prefs, concurrentCount),
-                  ),
                 ],
               ),
               if (GetIt.instance.isRegistered<AutoDownloadService>()) ...[
@@ -139,114 +121,57 @@ class DownloadSettingsScreen extends ConsumerWidget {
                   prefs: prefs,
                   service: GetIt.instance<AutoDownloadService>(),
                 ),
-                SettingsSectionHeader(l10n.autoDownloadSection),
-                _AutoDownloadSettings(
-                  prefs: prefs,
-                  service: GetIt.instance<AutoDownloadService>(),
-                ),
               ],
             ],
-            SettingsSectionHeader(l10n.storage),
-            adaptiveListSection(
-              children: [
-                if (downloads) ...[
-                  storage.when(
-                    // Reporting only, since storage is managed from the
-                    // downloads list.
-                    data: (bytes) => DpadListTile(
-                      useSettingsIconShell: true,
-                      leading: const Icon(Icons.storage),
-                      title: Text(l10n.storageUsed),
-                      subtitle: Text(formatBytes(bytes)),
+            if (downloads) SettingsSectionHeader(l10n.storage),
+            if (downloads)
+              adaptiveListSection(
+                children: [
+                  if (downloads) ...[
+                    storage.when(
+                      // Reporting only, since storage is managed from the
+                      // downloads list.
+                      data: (bytes) => DpadListTile(
+                        useSettingsIconShell: true,
+                        leading: const Icon(Icons.storage),
+                        title: Text(l10n.storageUsed),
+                        subtitle: Text(formatBytes(bytes)),
+                      ),
+                      loading: () => DpadListTile(
+                        useSettingsIconShell: true,
+                        leading: const Icon(Icons.storage),
+                        title: Text(l10n.storageUsed),
+                        subtitle: Text(l10n.calculating),
+                      ),
+                      error: (_, _) => const SizedBox.shrink(),
                     ),
-                    loading: () => DpadListTile(
-                      useSettingsIconShell: true,
-                      leading: const Icon(Icons.storage),
-                      title: Text(l10n.storageUsed),
-                      subtitle: Text(l10n.calculating),
-                    ),
-                    error: (_, _) => const SizedBox.shrink(),
-                  ),
-                  DpadListTile(
-                    useSettingsIconShell: true,
-                    leading: const Icon(Icons.data_usage),
-                    title: Text(l10n.storageLimit),
-                    subtitle: Text(
-                      storageLimitMb == 0
-                          ? l10n.noLimit
-                          : l10n.gbValue(
-                              (storageLimitMb / 1024).toStringAsFixed(1),
-                            ),
-                    ),
-                    onTap: () =>
-                        showStorageLimitPicker(context, prefs, storageLimitMb),
-                  ),
-                  DpadListTile(
-                    useSettingsIconShell: true,
-                    leading: const Icon(Icons.auto_delete_outlined),
-                    title: Text(l10n.removeWatchedDownloads),
-                    subtitle: Text(l10n.removeWatchedDownloadsSubtitle),
-                    trailing: Text(_deleteAfterLabel(l10n, removeWatchedHours)),
-                    onTap: () => _pickDeleteAfter(
-                      context,
-                      prefs,
-                      UserPreferences.downloadRemoveWatchedAfterHours,
-                      choices: _removeWatchedChoices,
-                      save: (hours) async {
-                        await prefs.setRemoveWatchedAfterHours(hours);
-                        // A shorter delay applies to what is already watched.
-                        if (GetIt.instance.isRegistered<RemoveWatchedService>()) {
-                          await GetIt.instance<RemoveWatchedService>()
-                              .runForSignedInServer();
-                        }
-                      },
-                    ),
-                  ),
-                  if (PlatformDetection.isAndroid)
-                    DpadSwitchListTile(
-                      useSettingsIconShell: true,
-                      secondary: const Icon(Icons.folder_open),
-                      title: Text(l10n.saveToDownloadsFolder),
-                      subtitle: Text(l10n.downloadsVisibleToOtherApps),
-                      value: customPath == 'mediastore',
-                      onChanged: (v) => _toggleMediaStore(context, prefs, v),
-                    ),
-                  if (PlatformDetection.useDesktopUi ||
-                      (PlatformDetection.isAndroid && customPath != 'mediastore'))
                     DpadListTile(
                       useSettingsIconShell: true,
-                      leading: const Icon(Icons.folder_special),
-                      title: Text(l10n.downloadLocation),
-                      subtitle: Text(
-                        customPath.isEmpty ? l10n.defaultLabel : customPath,
+                      leading: const Icon(Icons.auto_delete_outlined),
+                      title: Text(l10n.removeWatchedDownloads),
+                      subtitle: Text(l10n.removeWatchedDownloadsSubtitle),
+                      trailing: Text(
+                        _deleteAfterLabel(l10n, removeWatchedHours),
                       ),
-                      onTap: () => PlatformDetection.isAndroid
-                          ? _pickAndroidLocation(context, prefs, customPath)
-                          : _pickFolder(context, prefs),
+                      onTap: () => _pickDeleteAfter(
+                        context,
+                        prefs,
+                        UserPreferences.downloadRemoveWatchedAfterHours,
+                        choices: _removeWatchedChoices,
+                        save: (hours) async {
+                          await prefs.setRemoveWatchedAfterHours(hours);
+                          // A shorter delay applies to what is already watched.
+                          if (GetIt.instance
+                              .isRegistered<RemoveWatchedService>()) {
+                            await GetIt.instance<RemoveWatchedService>()
+                                .runForSignedInServer();
+                          }
+                        },
+                      ),
                     ),
+                  ],
                 ],
-                if (!PlatformDetection.isWeb) ...[
-                  DpadListTile(
-                    useSettingsIconShell: true,
-                    autofocus: !downloads,
-                    leading: const Icon(Icons.image_outlined),
-                    title: Text(l10n.imageCacheLimit),
-                    subtitle: Text(
-                      _imageCacheLimitLabel(l10n, imageCacheLimitMb),
-                    ),
-                    onTap: () =>
-                        _pickImageCacheLimit(context, prefs, imageCacheLimitMb),
-                  ),
-                  DpadListTile(
-                    useSettingsIconShell: true,
-                    leading: const Icon(Icons.cleaning_services_outlined),
-                    title: Text(l10n.clearImageCache),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _clearImageCache(context),
-                  ),
-                ],
-              ],
-            ),
+              ),
 
             if (downloads) ...[
               SettingsSectionHeader(l10n.dangerZone),
@@ -267,6 +192,133 @@ class DownloadSettingsScreen extends ConsumerWidget {
                 ],
               ),
             ],
+            // Kos TV: the technical rest, behind «Más ajustes».
+            ...settingsMore(
+              context,
+              id: 'storage',
+              summary: l10n.kostvMoreStorageSummary,
+              children: [
+                if (downloads) ...[
+                  SettingsSectionHeader(l10n.network),
+                  adaptiveListSection(
+                    children: [
+                      if (!PlatformDetection.isWeb)
+                        DpadSwitchListTile(
+                          useSettingsIconShell: true,
+                          secondary: const Icon(Icons.podcasts),
+                          title: Text(l10n.reportDownloadsActivity),
+                          subtitle: Text(l10n.reportDownloadsActivitySubtitle),
+                          value: reportActivity,
+                          onChanged: (v) => prefs.set(
+                            UserPreferences.reportDownloadsAsActivity,
+                            v,
+                          ),
+                        ),
+                      DpadListTile(
+                        useSettingsIconShell: true,
+                        leading: const Icon(Icons.queue),
+                        title: Text(l10n.settingsConcurrentDownloads),
+                        subtitle: Text(
+                          l10n.settingsConcurrentDownloadsDescription,
+                        ),
+                        trailing: Text('$concurrentCount'),
+                        onTap: () => _pickConcurrentDownloads(
+                          context,
+                          prefs,
+                          concurrentCount,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (GetIt.instance.isRegistered<AutoDownloadService>()) ...[
+                    SettingsSectionHeader(l10n.autoDownloadSection),
+                    _AutoDownloadSettings(
+                      prefs: prefs,
+                      service: GetIt.instance<AutoDownloadService>(),
+                    ),
+                  ],
+                ],
+                if (downloads || !PlatformDetection.isWeb) ...[
+                  SettingsSectionHeader(l10n.storage),
+                  adaptiveListSection(
+                    children: [
+                      if (downloads) ...[
+                        DpadListTile(
+                          useSettingsIconShell: true,
+                          leading: const Icon(Icons.data_usage),
+                          title: Text(l10n.storageLimit),
+                          subtitle: Text(
+                            storageLimitMb == 0
+                                ? l10n.noLimit
+                                : l10n.gbValue(
+                                    (storageLimitMb / 1024).toStringAsFixed(1),
+                                  ),
+                          ),
+                          onTap: () => showStorageLimitPicker(
+                            context,
+                            prefs,
+                            storageLimitMb,
+                          ),
+                        ),
+                        if (PlatformDetection.isAndroid)
+                          DpadSwitchListTile(
+                            useSettingsIconShell: true,
+                            secondary: const Icon(Icons.folder_open),
+                            title: Text(l10n.saveToDownloadsFolder),
+                            subtitle: Text(l10n.downloadsVisibleToOtherApps),
+                            value: customPath == 'mediastore',
+                            onChanged: (v) =>
+                                _toggleMediaStore(context, prefs, v),
+                          ),
+                        if (PlatformDetection.useDesktopUi ||
+                            (PlatformDetection.isAndroid &&
+                                customPath != 'mediastore'))
+                          DpadListTile(
+                            useSettingsIconShell: true,
+                            leading: const Icon(Icons.folder_special),
+                            title: Text(l10n.downloadLocation),
+                            subtitle: Text(
+                              customPath.isEmpty
+                                  ? l10n.defaultLabel
+                                  : customPath,
+                            ),
+                            onTap: () => PlatformDetection.isAndroid
+                                ? _pickAndroidLocation(
+                                    context,
+                                    prefs,
+                                    customPath,
+                                  )
+                                : _pickFolder(context, prefs),
+                          ),
+                      ],
+                      if (!PlatformDetection.isWeb) ...[
+                        DpadListTile(
+                          useSettingsIconShell: true,
+                          autofocus: !downloads,
+                          leading: const Icon(Icons.image_outlined),
+                          title: Text(l10n.imageCacheLimit),
+                          subtitle: Text(
+                            _imageCacheLimitLabel(l10n, imageCacheLimitMb),
+                          ),
+                          onTap: () => _pickImageCacheLimit(
+                            context,
+                            prefs,
+                            imageCacheLimitMb,
+                          ),
+                        ),
+                        DpadListTile(
+                          useSettingsIconShell: true,
+                          leading: const Icon(Icons.cleaning_services_outlined),
+                          title: Text(l10n.clearImageCache),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => _clearImageCache(context),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),
@@ -295,8 +347,7 @@ class DownloadSettingsScreen extends ConsumerWidget {
       options: [
         for (final q in values)
           DpadRadioListTile<String>(
-            autofocus:
-                q.name == current || (!hasCurrent && q == values.first),
+            autofocus: q.name == current || (!hasCurrent && q == values.first),
             title: Text(q.label),
             subtitle: Text(
               q.isTranscoded
@@ -362,8 +413,7 @@ class DownloadSettingsScreen extends ConsumerWidget {
       options: [
         for (final mb in values)
           DpadRadioListTile<int>(
-            autofocus:
-                mb == current || (!values.contains(current) && mb == 0),
+            autofocus: mb == current || (!values.contains(current) && mb == 0),
             title: Text(_imageCacheLimitLabel(l10n, mb)),
             value: mb,
           ),
@@ -431,9 +481,8 @@ class DownloadSettingsScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     await clearImageDiskCache();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(l10n.imageCacheCleared)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(l10n.imageCacheCleared)));
   }
 
   Future<void> _pickFolder(BuildContext context, UserPreferences prefs) async {
@@ -463,9 +512,8 @@ class DownloadSettingsScreen extends ConsumerWidget {
     // outside the security scope. Other desktops probe the raw path.
     if (bookmark == null && !await storage.canWriteTo(result)) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.cannotWriteToFolder)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.cannotWriteToFolder)));
       }
       return;
     }
@@ -540,9 +588,8 @@ class DownloadSettingsScreen extends ConsumerWidget {
 
     if (choice.isNotEmpty && !await storage.canWriteTo(choice)) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.cannotWriteToFolder)));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(l10n.cannotWriteToFolder)));
       }
       return;
     }
@@ -643,9 +690,8 @@ class DownloadSettingsScreen extends ConsumerWidget {
       final status = await Permission.storage.request();
       if (!status.isGranted) {
         if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(l10n.cannotWriteToFolder)));
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text(l10n.cannotWriteToFolder)));
         }
         return;
       }

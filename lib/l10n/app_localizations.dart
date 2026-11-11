@@ -30302,6 +30302,180 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Discover isn\'t available right now.'**
   String get kostvDiscoverUnavailable;
+
+  /// Kos TV: the row at the end of a settings screen that shows its advanced settings
+  ///
+  /// In en, this message translates to:
+  /// **'More settings'**
+  String get kostvMoreSettings;
+
+  /// Kos TV: the same row once open, to hide the advanced settings again
+  ///
+  /// In en, this message translates to:
+  /// **'Fewer settings'**
+  String get kostvFewerSettings;
+
+  /// Kos TV: title of the dialog while the custom rows refresh
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing custom rows'**
+  String get kostvRefreshingCustomRows;
+
+  /// Kos TV: text of the dialog while the custom rows refresh
+  ///
+  /// In en, this message translates to:
+  /// **'Refreshing your custom rows and updating their caches…'**
+  String get kostvRefreshingCustomRowsDetail;
+
+  /// Kos TV: note once the custom rows refreshed
+  ///
+  /// In en, this message translates to:
+  /// **'Your custom rows are up to date.'**
+  String get kostvCustomRowsRefreshed;
+
+  /// Kos TV: note when refreshing the custom rows failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t refresh the custom rows: {detail}'**
+  String kostvCustomRowsRefreshFailed(String detail);
+
+  /// Kos TV: settings entry for the IMDb chart rows
+  ///
+  /// In en, this message translates to:
+  /// **'IMDb lists'**
+  String get kostvImdbLists;
+
+  /// Kos TV: subtitle of the IMDb lists entry
+  ///
+  /// In en, this message translates to:
+  /// **'IMDb Top 250, Popular and other charts as Home rows.'**
+  String get kostvImdbListsSubtitle;
+
+  /// Kos TV: settings entry for the TMDB list rows
+  ///
+  /// In en, this message translates to:
+  /// **'TMDB lists'**
+  String get kostvTmdbLists;
+
+  /// Kos TV: subtitle of the TMDB lists entry
+  ///
+  /// In en, this message translates to:
+  /// **'Popular, top rated and trending lists from TMDB.'**
+  String get kostvTmdbListsSubtitle;
+
+  /// Kos TV: settings entry for custom Home rows from outside lists
+  ///
+  /// In en, this message translates to:
+  /// **'Custom rows'**
+  String get kostvCustomRows;
+
+  /// Kos TV: subtitle of the custom rows entry
+  ///
+  /// In en, this message translates to:
+  /// **'Home rows built from lists on Letterboxd, TMDB, MDBList, IMDb and more.'**
+  String get kostvCustomRowsSubtitle;
+
+  /// Kos TV: setting for the MOVIE / SERIES labels on outside list cards
+  ///
+  /// In en, this message translates to:
+  /// **'Movie and series labels'**
+  String get kostvMediaTypeBadges;
+
+  /// Kos TV: description of the movie and series labels setting
+  ///
+  /// In en, this message translates to:
+  /// **'Show MOVIE or SERIES on the cards of rows from outside lists.'**
+  String get kostvMediaTypeBadgesSubtitle;
+
+  /// Kos TV: action that refetches every custom row
+  ///
+  /// In en, this message translates to:
+  /// **'Refresh custom rows'**
+  String get kostvRefreshCustomRows;
+
+  /// Kos TV: subtitle of the refresh custom rows action
+  ///
+  /// In en, this message translates to:
+  /// **'Fetch every custom row again now.'**
+  String get kostvRefreshCustomRowsSubtitle;
+
+  /// Kos TV: what the Account screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Always sign in, settings sync'**
+  String get kostvMoreAccountSummary;
+
+  /// Kos TV: what the General screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'24-hour clock, date format, exit, performance…'**
+  String get kostvMoreGeneralSummary;
+
+  /// Kos TV: what the Appearance screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Interface style, focus colour, themes, display and animations'**
+  String get kostvMoreAppearanceSummary;
+
+  /// Kos TV: what the Home screen settings' More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Row options, look of the rows, ratings and outside lists'**
+  String get kostvMoreHomeSummary;
+
+  /// Kos TV: what the Playback screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Quality and decoding, games and advanced playback'**
+  String get kostvMorePlaybackSummary;
+
+  /// Kos TV: what the Storage screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Download location, simultaneous downloads, image cache…'**
+  String get kostvMoreStorageSummary;
+
+  /// Kos TV: what the About screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Source code, diagnostics and logs, keyboard shortcuts'**
+  String get kostvMoreAboutSummary;
+
+  /// Kos TV: a TMDB list row
+  ///
+  /// In en, this message translates to:
+  /// **'Popular movies'**
+  String get kostvTmdbPopularMovies;
+
+  /// Kos TV: a TMDB list row
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming movies'**
+  String get kostvTmdbUpcomingMovies;
+
+  /// Kos TV: setting that shows the Rewatch row on Home
+  ///
+  /// In en, this message translates to:
+  /// **'Watch again row'**
+  String get kostvDisplayRewatchRow;
+
+  /// Kos TV: subtitle of the Rewatch row setting
+  ///
+  /// In en, this message translates to:
+  /// **'Show the watch again row on Home.'**
+  String get kostvDisplayRewatchRowSubtitle;
+
+  /// Kos TV: diagnostics setting that uploads crash reports
+  ///
+  /// In en, this message translates to:
+  /// **'Send error reports to the server'**
+  String get kostvSendCrashReports;
+
+  /// Kos TV: subtitle of the Are you still watching setting
+  ///
+  /// In en, this message translates to:
+  /// **'Ask whether you\'re still watching after a few episodes in a row.'**
+  String get kostvStillWatchingSubtitle;
 }
 
 class _AppLocalizationsDelegate

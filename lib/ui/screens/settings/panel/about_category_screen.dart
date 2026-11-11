@@ -37,36 +37,6 @@ class _AboutCategoryScreen extends StatelessWidget {
               ),
               if (AppDistribution.supportsInAppUpdates)
                 const _CheckForUpdatesTile(),
-              // Kos TV: its own repository. Moonfin's issue tracker, Discord
-              // and donation tiles are gone: this is a family app. Moonfin's
-              // credit stays in the README and the license.
-              _TvSettingsListTile(
-                leading: const Icon(Icons.code),
-                title: Text(l10n.sourceCode),
-                subtitle: const Text('github.com/$_kostvRepo'),
-                onTap: () => showQrOrLaunch(
-                  context,
-                  url: 'https://github.com/$_kostvRepo',
-                  title: l10n.sourceCode,
-                ),
-              ),
-              _TvSettingsListTile(
-                leading: const Icon(Icons.troubleshoot),
-                title: Text(l10n.kostvDiagnostics),
-                subtitle: Text(l10n.kostvDiagnosticsSubtitle),
-                onTap: () => context.pushSettingsScreen(
-                  const DiagnosticsSettingsScreen(),
-                ),
-              ),
-              if (PlatformDetection.useDesktopUi)
-                _TvSettingsListTile(
-                  leading: const Icon(Icons.keyboard_outlined),
-                  title: Text(l10n.keyboardShortcutsTitle),
-                  subtitle: Text(l10n.keyboardShortcutsSubtitle),
-                  onTap: () => context.pushSettingsScreen(
-                    const _KeyboardShortcutsScreen(),
-                  ),
-                ),
             ],
           ),
           _SectionHeader(l10n.settingsLegal),
@@ -92,6 +62,49 @@ class _AboutCategoryScreen extends StatelessWidget {
                       'https://github.com/$_kostvRepo/blob/HEAD/PRIVACY_POLICY.md',
                   title: l10n.settingsPrivacyPolicy,
                 ),
+              ),
+            ],
+          ),
+          // Kos TV: the technical rest, behind «Más ajustes».
+          ...settingsMore(
+            context,
+            id: 'about',
+            summary: l10n.kostvMoreAboutSummary,
+            children: [
+              _SectionHeader(l10n.settingsAppInfo),
+              adaptiveListSection(
+                children: [
+                  // Kos TV: its own repository. Moonfin's issue tracker, Discord
+                  // and donation tiles are gone: this is a family app. Moonfin's
+                  // credit stays in the README and the license.
+                  _TvSettingsListTile(
+                    leading: const Icon(Icons.code),
+                    title: Text(l10n.sourceCode),
+                    subtitle: const Text('github.com/$_kostvRepo'),
+                    onTap: () => showQrOrLaunch(
+                      context,
+                      url: 'https://github.com/$_kostvRepo',
+                      title: l10n.sourceCode,
+                    ),
+                  ),
+                  _TvSettingsListTile(
+                    leading: const Icon(Icons.troubleshoot),
+                    title: Text(l10n.kostvDiagnostics),
+                    subtitle: Text(l10n.kostvDiagnosticsSubtitle),
+                    onTap: () => context.pushSettingsScreen(
+                      const DiagnosticsSettingsScreen(),
+                    ),
+                  ),
+                  if (PlatformDetection.useDesktopUi)
+                    _TvSettingsListTile(
+                      leading: const Icon(Icons.keyboard_outlined),
+                      title: Text(l10n.keyboardShortcutsTitle),
+                      subtitle: Text(l10n.keyboardShortcutsSubtitle),
+                      onTap: () => context.pushSettingsScreen(
+                        const _KeyboardShortcutsScreen(),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),

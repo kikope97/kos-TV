@@ -24,15 +24,8 @@ class _PlaybackCategoryScreen extends StatelessWidget {
                     leading: const Icon(Icons.play_circle),
                     title: Text(l10n.player),
                     subtitle: Text(l10n.playerSettingsSubtitle),
-                    onTap: () =>
-                        context.pushSettingsScreen(const _VideoPlaybackScreen()),
-                  ),
-                  _TvSettingsListTile(
-                    leading: const Icon(Icons.high_quality_outlined),
-                    title: Text(l10n.qualityAndDecoding),
-                    subtitle: Text(l10n.qualityAndDecodingSubtitle),
                     onTap: () => context.pushSettingsScreen(
-                      const _QualityDecodingScreen(),
+                      const _VideoPlaybackScreen(),
                     ),
                   ),
                 ],
@@ -84,73 +77,95 @@ class _PlaybackCategoryScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              if ((canToggleGameBackend && _gamesOnAnyServer) ||
-                  usesNativeGameBackend) ...[
-                _SectionHeader(l10n.games),
-                adaptiveListSection(
-                  children: [
-                    if (canToggleGameBackend && _gamesOnAnyServer)
-                      SwitchPreferenceTile(
-                        preference: UserPreferences.useNativeEmulator,
-                        title: l10n.useNativeEmulator,
-                        subtitle: l10n.useNativeEmulatorSubtitle,
-                        icon: Icons.sports_esports,
-                      ),
-                    if (usesOnScreenControls)
-                      EnumPreferenceTile<GamePlaybackOrientation>(
-                        preference: UserPreferences.gamePlaybackOrientation,
-                        title: l10n.gameOrientation,
-                        description: l10n.gameOrientationSubtitle,
-                        icon: Icons.screen_rotation_outlined,
-                        labelOf: (v) => switch (v) {
-                          GamePlaybackOrientation.landscape => l10n.landscape,
-                          GamePlaybackOrientation.portrait => l10n.portrait,
-                          GamePlaybackOrientation.auto => l10n.auto,
-                        },
-                      ),
-                    if (supportsCoreDownloads &&
-                        usesNativeGameBackend &&
-                        _gamesOnAnyServer)
+              // Kos TV: the technical rest, behind «Más ajustes».
+              ...settingsMore(
+                context,
+                id: 'playback',
+                summary: l10n.kostvMorePlaybackSummary,
+                children: [
+                  _SectionHeader(l10n.video),
+                  adaptiveListSection(
+                    children: [
                       _TvSettingsListTile(
-                        leading: const Icon(Icons.videogame_asset),
-                        title: Text(l10n.emulatorCores),
-                        subtitle: Text(l10n.emulatorCoresSubtitle),
+                        leading: const Icon(Icons.high_quality_outlined),
+                        title: Text(l10n.qualityAndDecoding),
+                        subtitle: Text(l10n.qualityAndDecodingSubtitle),
                         onTap: () => context.pushSettingsScreen(
-                          const EmulatorCoresScreen(),
+                          const _QualityDecodingScreen(),
                         ),
                       ),
-                    if (usesNativeGameBackend)
-                      _TvSettingsListTile(
-                        leading: const Icon(Icons.sd_storage),
-                        title: Text(l10n.downloadedGames),
-                        subtitle: Text(l10n.downloadedGamesSubtitle),
-                        onTap: () => context.pushSettingsScreen(
-                          const DownloadedGamesScreen(),
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-              // Everything left on Advanced Playback is either Android player
-              // routing or mpv, so other platforms would open an empty screen.
-              if (PlatformDetection.isAndroid ||
-                  (!PlatformDetection.isTV &&
-                      !PlatformDetection.isIOS &&
-                      !PlatformDetection.isWeb)) ...[
-                _SectionHeader(l10n.settingsAdvancedSection),
-                adaptiveListSection(
-                  children: [
-                    _TvSettingsListTile(
-                      leading: const Icon(Icons.settings),
-                      title: Text(l10n.advancedPlayback),
-                      subtitle: Text(l10n.advancedPlaybackSubtitle),
-                      onTap: () => context.pushSettingsScreen(
-                        const _AdvancedOptionsScreen(),
-                      ),
+                    ],
+                  ),
+                  if ((canToggleGameBackend && _gamesOnAnyServer) ||
+                      usesNativeGameBackend) ...[
+                    _SectionHeader(l10n.games),
+                    adaptiveListSection(
+                      children: [
+                        if (canToggleGameBackend && _gamesOnAnyServer)
+                          SwitchPreferenceTile(
+                            preference: UserPreferences.useNativeEmulator,
+                            title: l10n.useNativeEmulator,
+                            subtitle: l10n.useNativeEmulatorSubtitle,
+                            icon: Icons.sports_esports,
+                          ),
+                        if (usesOnScreenControls)
+                          EnumPreferenceTile<GamePlaybackOrientation>(
+                            preference: UserPreferences.gamePlaybackOrientation,
+                            title: l10n.gameOrientation,
+                            description: l10n.gameOrientationSubtitle,
+                            icon: Icons.screen_rotation_outlined,
+                            labelOf: (v) => switch (v) {
+                              GamePlaybackOrientation.landscape =>
+                                l10n.landscape,
+                              GamePlaybackOrientation.portrait => l10n.portrait,
+                              GamePlaybackOrientation.auto => l10n.auto,
+                            },
+                          ),
+                        if (supportsCoreDownloads &&
+                            usesNativeGameBackend &&
+                            _gamesOnAnyServer)
+                          _TvSettingsListTile(
+                            leading: const Icon(Icons.videogame_asset),
+                            title: Text(l10n.emulatorCores),
+                            subtitle: Text(l10n.emulatorCoresSubtitle),
+                            onTap: () => context.pushSettingsScreen(
+                              const EmulatorCoresScreen(),
+                            ),
+                          ),
+                        if (usesNativeGameBackend)
+                          _TvSettingsListTile(
+                            leading: const Icon(Icons.sd_storage),
+                            title: Text(l10n.downloadedGames),
+                            subtitle: Text(l10n.downloadedGamesSubtitle),
+                            onTap: () => context.pushSettingsScreen(
+                              const DownloadedGamesScreen(),
+                            ),
+                          ),
+                      ],
                     ),
                   ],
-                ),
-              ],
+                  // Everything left on Advanced Playback is either Android player
+                  // routing or mpv, so other platforms would open an empty screen.
+                  if (PlatformDetection.isAndroid ||
+                      (!PlatformDetection.isTV &&
+                          !PlatformDetection.isIOS &&
+                          !PlatformDetection.isWeb)) ...[
+                    _SectionHeader(l10n.settingsAdvancedSection),
+                    adaptiveListSection(
+                      children: [
+                        _TvSettingsListTile(
+                          leading: const Icon(Icons.settings),
+                          title: Text(l10n.advancedPlayback),
+                          subtitle: Text(l10n.advancedPlaybackSubtitle),
+                          onTap: () => context.pushSettingsScreen(
+                            const _AdvancedOptionsScreen(),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
             ],
           ),
         ),

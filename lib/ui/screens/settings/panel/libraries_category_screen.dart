@@ -27,13 +27,8 @@ class _LibrariesCategoryScreen extends StatelessWidget {
                 onTap: () =>
                     context.pushSettingsScreen(const LibraryOrderScreen()),
               ),
-              SwitchPreferenceTile(
-                preference: UserPreferences.enableMultiServerLibraries,
-                title: l10n.multiServerLibraries,
-                subtitle: l10n.showLibrariesFromAllServers,
-                icon: Icons.dns,
-                onChanged: _pushPersonalizationSync,
-              ),
+              // Kos TV: no «Bibliotecas de varios servidores»: there is only
+              // the household server.
               SwitchPreferenceTile(
                 preference: UserPreferences.showBookDiscoverTab,
                 title: l10n.showBookDiscoverTab,

@@ -252,7 +252,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
   );
   final imdbLists = _SearchSection(
     slug: 'imdb',
-    path: [l10n.appearance, l10n.homeScreen, 'IMDb Lists'],
+    path: [l10n.appearance, l10n.homeScreen, l10n.kostvImdbLists],
     icon: Icons.list_alt,
     open: () => push(const _ImdbListsScreen()),
   );
@@ -264,7 +264,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
   );
   final tmdbLists = _SearchSection(
     slug: 'tmdb',
-    path: [l10n.appearance, l10n.homeScreen, 'TMDB Lists'],
+    path: [l10n.appearance, l10n.homeScreen, l10n.kostvTmdbLists],
     icon: Icons.list_alt,
     open: () => push(const _TmdbListsScreen()),
   );
@@ -276,7 +276,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
   );
   final customRows = _SearchSection(
     slug: 'custom-rows',
-    path: [l10n.appearance, l10n.homeScreen, 'Custom Rows'],
+    path: [l10n.appearance, l10n.homeScreen, l10n.kostvCustomRows],
     icon: Icons.dashboard_customize,
     open: () => push(const _CustomListsScreen()),
   );
@@ -1126,8 +1126,8 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       ),
     rowToggles.leaf(
       'pref_display_rewatch_row',
-      'Display Rewatch Row',
-      subtitle: 'Show Rewatch row in Home Sections',
+      l10n.kostvDisplayRewatchRow,
+      subtitle: l10n.kostvDisplayRewatchRowSubtitle,
       keywords: ['watch again'],
     ),
     rowToggles.leaf(
@@ -1177,26 +1177,26 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         tmdbLists.screen(keywords: ['popular', 'top rated', 'trending']),
         tmdbLists.leaf('tmdb_rows_sort_by', l10n.tmdbRowsSorting),
         tmdbLists.leaf('tmdb_rows_sort_order', l10n.sortOrder),
-        tmdbLists.leaf('tmdb_popular_movies_enabled', 'Popular Movies'),
-        tmdbLists.leaf('tmdb_top_rated_movies_enabled', 'Top Rated Movies'),
-        tmdbLists.leaf('tmdb_now_playing_movies_enabled', 'Now Playing Movies'),
-        tmdbLists.leaf('tmdb_upcoming_movies_enabled', 'Upcoming Movies'),
-        tmdbLists.leaf('tmdb_popular_tv_enabled', 'Popular TV'),
-        tmdbLists.leaf('tmdb_top_rated_tv_enabled', 'Top Rated TV'),
-        tmdbLists.leaf('tmdb_airing_today_tv_enabled', 'Airing Today TV'),
-        tmdbLists.leaf('tmdb_on_the_air_tv_enabled', 'On The Air TV'),
+        tmdbLists.leaf('tmdb_popular_movies_enabled', l10n.kostvTmdbPopularMovies),
+        tmdbLists.leaf('tmdb_top_rated_movies_enabled', l10n.kostvTmdbTopRatedMovies),
+        tmdbLists.leaf('tmdb_now_playing_movies_enabled', l10n.kostvTmdbNowPlayingMovies),
+        tmdbLists.leaf('tmdb_upcoming_movies_enabled', l10n.kostvTmdbUpcomingMovies),
+        tmdbLists.leaf('tmdb_popular_tv_enabled', l10n.kostvTmdbPopularTv),
+        tmdbLists.leaf('tmdb_top_rated_tv_enabled', l10n.kostvTmdbTopRatedTv),
+        tmdbLists.leaf('tmdb_airing_today_tv_enabled', l10n.kostvTmdbAiringTodayTv),
+        tmdbLists.leaf('tmdb_on_the_air_tv_enabled', l10n.kostvTmdbOnTheAirTv),
         tmdbLists.leaf(
           'tmdb_trending_movie_daily_enabled',
-          'Trending Movies (Daily)',
+          l10n.kostvTmdbTrendingMoviesDaily,
         ),
         tmdbLists.leaf(
           'tmdb_trending_movie_weekly_enabled',
-          'Trending Movies (Weekly)',
+          l10n.kostvTmdbTrendingMoviesWeekly,
         ),
-        tmdbLists.leaf('tmdb_trending_tv_daily_enabled', 'Trending TV (Daily)'),
+        tmdbLists.leaf('tmdb_trending_tv_daily_enabled', l10n.kostvTmdbTrendingTvDaily),
         tmdbLists.leaf(
           'tmdb_trending_tv_weekly_enabled',
-          'Trending TV (Weekly)',
+          l10n.kostvTmdbTrendingTvWeekly,
         ),
         tmdbLists.leaf(
           'tmdb_trending_all_weekly_enabled',
@@ -1280,11 +1280,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       'my media',
       'navbar',
     ]),
-    libraries.leaf(
-      'enable_multi_server_libraries',
-      l10n.multiServerLibraries,
-      subtitle: l10n.showLibrariesFromAllServers,
-    ),
     libraries.leaf(
       'pref_show_book_discover_tab',
       l10n.showBookDiscoverTab,
@@ -2003,7 +1998,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     automation.leaf(
       'enable_still_watching',
       l10n.stillWatchingPrompt,
-      subtitle: 'Prompt to Continue Watching after X consecutive episodes.',
+      subtitle: l10n.kostvStillWatchingSubtitle,
       keywords: ['are you still watching'],
     ),
 
@@ -2213,7 +2208,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     diagnostics.screen(keywords: ['logs', 'report', 'debug']),
     diagnostics.leaf(
       'pref_crash_reports_enabled',
-      'Send Crash Reports to Server',
+      l10n.kostvSendCrashReports,
       keywords: ['error', 'bug', 'crashes'],
     ),
   ];

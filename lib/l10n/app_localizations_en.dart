@@ -17545,4 +17545,107 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvDiscoverUnavailable => 'Discover isn\'t available right now.';
+
+  @override
+  String get kostvMoreSettings => 'More settings';
+
+  @override
+  String get kostvFewerSettings => 'Fewer settings';
+
+  @override
+  String get kostvRefreshingCustomRows => 'Refreshing custom rows';
+
+  @override
+  String get kostvRefreshingCustomRowsDetail =>
+      'Refreshing your custom rows and updating their caches…';
+
+  @override
+  String get kostvCustomRowsRefreshed => 'Your custom rows are up to date.';
+
+  @override
+  String kostvCustomRowsRefreshFailed(String detail) {
+    return 'Couldn\'t refresh the custom rows: $detail';
+  }
+
+  @override
+  String get kostvImdbLists => 'IMDb lists';
+
+  @override
+  String get kostvImdbListsSubtitle =>
+      'IMDb Top 250, Popular and other charts as Home rows.';
+
+  @override
+  String get kostvTmdbLists => 'TMDB lists';
+
+  @override
+  String get kostvTmdbListsSubtitle =>
+      'Popular, top rated and trending lists from TMDB.';
+
+  @override
+  String get kostvCustomRows => 'Custom rows';
+
+  @override
+  String get kostvCustomRowsSubtitle =>
+      'Home rows built from lists on Letterboxd, TMDB, MDBList, IMDb and more.';
+
+  @override
+  String get kostvMediaTypeBadges => 'Movie and series labels';
+
+  @override
+  String get kostvMediaTypeBadgesSubtitle =>
+      'Show MOVIE or SERIES on the cards of rows from outside lists.';
+
+  @override
+  String get kostvRefreshCustomRows => 'Refresh custom rows';
+
+  @override
+  String get kostvRefreshCustomRowsSubtitle =>
+      'Fetch every custom row again now.';
+
+  @override
+  String get kostvMoreAccountSummary => 'Always sign in, settings sync';
+
+  @override
+  String get kostvMoreGeneralSummary =>
+      '24-hour clock, date format, exit, performance…';
+
+  @override
+  String get kostvMoreAppearanceSummary =>
+      'Interface style, focus colour, themes, display and animations';
+
+  @override
+  String get kostvMoreHomeSummary =>
+      'Row options, look of the rows, ratings and outside lists';
+
+  @override
+  String get kostvMorePlaybackSummary =>
+      'Quality and decoding, games and advanced playback';
+
+  @override
+  String get kostvMoreStorageSummary =>
+      'Download location, simultaneous downloads, image cache…';
+
+  @override
+  String get kostvMoreAboutSummary =>
+      'Source code, diagnostics and logs, keyboard shortcuts';
+
+  @override
+  String get kostvTmdbPopularMovies => 'Popular movies';
+
+  @override
+  String get kostvTmdbUpcomingMovies => 'Upcoming movies';
+
+  @override
+  String get kostvDisplayRewatchRow => 'Watch again row';
+
+  @override
+  String get kostvDisplayRewatchRowSubtitle =>
+      'Show the watch again row on Home.';
+
+  @override
+  String get kostvSendCrashReports => 'Send error reports to the server';
+
+  @override
+  String get kostvStillWatchingSubtitle =>
+      'Ask whether you\'re still watching after a few episodes in a row.';
 }

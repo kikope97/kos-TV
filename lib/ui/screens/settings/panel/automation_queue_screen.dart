@@ -143,11 +143,6 @@ class _AutomationQueueScreenState extends State<_AutomationQueueScreen> {
           _SectionHeader(l10n.automaticQueuing),
           adaptiveListSection(
             children: [
-              ListTile(
-                leading: const Icon(Icons.queue),
-                title: Text(l10n.mediaQueuing),
-                subtitle: Text(l10n.alwaysOn),
-              ),
               SwitchPreferenceTile(
                 preference: UserPreferences.autoplayNextEpisode,
                 title: l10n.autoplayNextEpisode,

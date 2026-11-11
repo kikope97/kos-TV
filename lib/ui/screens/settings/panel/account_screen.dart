@@ -50,12 +50,6 @@ class _AccountScreen extends StatelessWidget {
                   );
                 },
               ),
-              SwitchPreferenceTile(
-                preference: UserPreferences.alwaysAuthenticate,
-                title: l10n.alwaysAuthenticate,
-                subtitle: l10n.requirePasswordWithToken,
-                icon: Icons.lock,
-              ),
               _TvSettingsListTile(
                 leading: const Icon(Icons.pin),
                 title: Text(l10n.pinCode),
@@ -117,20 +111,35 @@ class _AccountScreen extends StatelessWidget {
               ],
             ),
           ],
-          // Settings sync is the Moonfin plugin's. Not offered when no
-          // signed-in server could have it (all Silo, say).
-          if (moonfinPluginOnAnySignedInServer())
-            adaptiveListSection(
-              children: [
-                _TvSettingsListTile(
-                  leading: const Icon(Icons.sync),
-                  title: Text(l10n.settingsSync),
-                  subtitle: Text(l10n.settingsSyncSubtitle),
-                  onTap: () =>
-                      context.pushSettingsScreen(const _PluginScreen()),
-                ),
-              ],
-            ),
+          // Kos TV: the technical rest, behind «Más ajustes».
+          ...settingsMore(
+            context,
+            id: 'account',
+            summary: l10n.kostvMoreAccountSummary,
+            children: [
+              _SectionHeader(l10n.settingsSignInSection),
+              adaptiveListSection(
+                children: [
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.alwaysAuthenticate,
+                    title: l10n.alwaysAuthenticate,
+                    subtitle: l10n.requirePasswordWithToken,
+                    icon: Icons.lock,
+                  ),
+                  // Settings sync is the Moonfin plugin's. Not offered when
+                  // no signed-in server could have it (all Silo, say).
+                  if (moonfinPluginOnAnySignedInServer())
+                    _TvSettingsListTile(
+                      leading: const Icon(Icons.sync),
+                      title: Text(l10n.settingsSync),
+                      subtitle: Text(l10n.settingsSyncSubtitle),
+                      onTap: () =>
+                          context.pushSettingsScreen(const _PluginScreen()),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
     );

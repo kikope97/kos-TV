@@ -82,6 +82,7 @@ import '../../widgets/settings/clean_settings_typography.dart';
 import '../../widgets/settings/button_layout_list.dart';
 import '../../widgets/settings/preference_tiles.dart';
 import '../../widgets/settings/settings_panel.dart';
+import '../../widgets/settings/settings_more_section.dart';
 import '../../widgets/settings/settings_preview_scope.dart';
 import '../../widgets/sliding_pill_tabs.dart';
 import 'live_preview/settings_live_preview.dart';
@@ -263,6 +264,10 @@ class SettingsSidePanel extends ConsumerStatefulWidget
 
 class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
   final _preview = SettingsPreviewController();
+
+  /// Kos TV: the «Más ajustes» folds open while the panel is, all closed
+  /// again the next time Settings opens.
+  final _more = SettingsMoreController();
   final _listNavKey = GlobalKey<NavigatorState>();
   final _listScope = FocusScopeNode(debugLabel: 'SettingsListColumn');
   final _pillFocus = FocusNode(debugLabel: 'SettingsCategoryPill');
@@ -346,6 +351,7 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
   void dispose() {
     SettingsPanel.backHandlers.remove(_handleBack);
     _preview.dispose();
+    _more.dispose();
     _listScope.dispose();
     _pillFocus.dispose();
     _scenesFocus.dispose();
@@ -679,9 +685,12 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
 
     return SettingsPreviewScope(
       controller: _preview,
-      child: _phone
-          ? _buildPhone(context, l10n, pill, search, list, searching)
-          : _buildWide(context, l10n, pill, search, list),
+      child: SettingsMoreScope(
+        controller: _more,
+        child: _phone
+            ? _buildPhone(context, l10n, pill, search, list, searching)
+            : _buildWide(context, l10n, pill, search, list),
+      ),
     );
   }
 
@@ -924,6 +933,8 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
       push: (screen) {
         final navigatorContext = _listNavKey.currentContext;
         _searchController.clear();
+        // Kos TV: whatever was searched for shows, even from a fold.
+        _more.openAll();
         if (navigatorContext == null) return;
         final before = _searchedCategory;
         final title = openingPath?.firstOrNull;

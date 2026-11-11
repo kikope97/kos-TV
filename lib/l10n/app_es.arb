@@ -11394,5 +11394,126 @@
     "kostvDiscoverDownloading": "{title} se está descargando: llegará pronto.",
     "kostvDiscoverAlreadyRequested": "Alguien de casa ya ha pedido {title}.",
     "kostvDiscoverYouRequested": "Ya has pedido {title}.",
-    "kostvDiscoverUnavailable": "Descubrir no está disponible ahora mismo."
+    "kostvDiscoverUnavailable": "Descubrir no está disponible ahora mismo.",
+    "kostvMoreSettings": "Más ajustes",
+    "@kostvMoreSettings": {
+        "description": "Kos TV: the row at the end of a settings screen that shows its advanced settings"
+    },
+    "kostvFewerSettings": "Menos ajustes",
+    "@kostvFewerSettings": {
+        "description": "Kos TV: the same row once open, to hide the advanced settings again"
+    },
+    "kostvRefreshingCustomRows": "Actualizando las filas personalizadas",
+    "@kostvRefreshingCustomRows": {
+        "description": "Kos TV: title of the dialog while the custom rows refresh"
+    },
+    "kostvRefreshingCustomRowsDetail": "Actualizando tus filas personalizadas y lo que guardan…",
+    "@kostvRefreshingCustomRowsDetail": {
+        "description": "Kos TV: text of the dialog while the custom rows refresh"
+    },
+    "kostvCustomRowsRefreshed": "Tus filas personalizadas están al día.",
+    "@kostvCustomRowsRefreshed": {
+        "description": "Kos TV: note once the custom rows refreshed"
+    },
+    "kostvCustomRowsRefreshFailed": "No se han podido actualizar las filas personalizadas: {detail}",
+    "@kostvCustomRowsRefreshFailed": {
+        "description": "Kos TV: note when refreshing the custom rows failed",
+        "placeholders": {
+            "detail": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvImdbLists": "Listas de IMDb",
+    "@kostvImdbLists": {
+        "description": "Kos TV: settings entry for the IMDb chart rows"
+    },
+    "kostvImdbListsSubtitle": "El Top 250 de IMDb, lo más popular y otras listas como filas de Inicio.",
+    "@kostvImdbListsSubtitle": {
+        "description": "Kos TV: subtitle of the IMDb lists entry"
+    },
+    "kostvTmdbLists": "Listas de TMDB",
+    "@kostvTmdbLists": {
+        "description": "Kos TV: settings entry for the TMDB list rows"
+    },
+    "kostvTmdbListsSubtitle": "Lo popular, lo mejor valorado y lo que es tendencia en TMDB.",
+    "@kostvTmdbListsSubtitle": {
+        "description": "Kos TV: subtitle of the TMDB lists entry"
+    },
+    "kostvCustomRows": "Filas personalizadas",
+    "@kostvCustomRows": {
+        "description": "Kos TV: settings entry for custom Home rows from outside lists"
+    },
+    "kostvCustomRowsSubtitle": "Filas de Inicio hechas con listas de Letterboxd, TMDB, MDBList, IMDb y más.",
+    "@kostvCustomRowsSubtitle": {
+        "description": "Kos TV: subtitle of the custom rows entry"
+    },
+    "kostvMediaTypeBadges": "Etiquetas de película y serie",
+    "@kostvMediaTypeBadges": {
+        "description": "Kos TV: setting for the MOVIE / SERIES labels on outside list cards"
+    },
+    "kostvMediaTypeBadgesSubtitle": "Muestra PELÍCULA o SERIE en las tarjetas de las filas de listas de fuera.",
+    "@kostvMediaTypeBadgesSubtitle": {
+        "description": "Kos TV: description of the movie and series labels setting"
+    },
+    "kostvRefreshCustomRows": "Actualizar las filas personalizadas",
+    "@kostvRefreshCustomRows": {
+        "description": "Kos TV: action that refetches every custom row"
+    },
+    "kostvRefreshCustomRowsSubtitle": "Vuelve a traer ahora todas las filas personalizadas.",
+    "@kostvRefreshCustomRowsSubtitle": {
+        "description": "Kos TV: subtitle of the refresh custom rows action"
+    },
+    "kostvMoreAccountSummary": "Pedir siempre la contraseña, sincronización de ajustes",
+    "@kostvMoreAccountSummary": {
+        "description": "Kos TV: what the Account screen's More settings holds"
+    },
+    "kostvMoreGeneralSummary": "Reloj de 24 horas, formato de fecha, salir, rendimiento…",
+    "@kostvMoreGeneralSummary": {
+        "description": "Kos TV: what the General screen's More settings holds"
+    },
+    "kostvMoreAppearanceSummary": "Estilo de la interfaz, color de enfoque, temas, pantalla y animaciones",
+    "@kostvMoreAppearanceSummary": {
+        "description": "Kos TV: what the Appearance screen's More settings holds"
+    },
+    "kostvMoreHomeSummary": "Opciones de las filas, su aspecto, valoraciones y listas de fuera",
+    "@kostvMoreHomeSummary": {
+        "description": "Kos TV: what the Home screen settings' More settings holds"
+    },
+    "kostvMorePlaybackSummary": "Calidad y decodificación, juegos y reproducción avanzada",
+    "@kostvMorePlaybackSummary": {
+        "description": "Kos TV: what the Playback screen's More settings holds"
+    },
+    "kostvMoreStorageSummary": "Ubicación de las descargas, descargas a la vez, caché de imágenes…",
+    "@kostvMoreStorageSummary": {
+        "description": "Kos TV: what the Storage screen's More settings holds"
+    },
+    "kostvMoreAboutSummary": "Código fuente, diagnóstico y registros, atajos de teclado",
+    "@kostvMoreAboutSummary": {
+        "description": "Kos TV: what the About screen's More settings holds"
+    },
+    "kostvTmdbPopularMovies": "Películas populares",
+    "@kostvTmdbPopularMovies": {
+        "description": "Kos TV: a TMDB list row"
+    },
+    "kostvTmdbUpcomingMovies": "Próximos estrenos",
+    "@kostvTmdbUpcomingMovies": {
+        "description": "Kos TV: a TMDB list row"
+    },
+    "kostvDisplayRewatchRow": "Fila «Volver a ver»",
+    "@kostvDisplayRewatchRow": {
+        "description": "Kos TV: setting that shows the Rewatch row on Home"
+    },
+    "kostvDisplayRewatchRowSubtitle": "Muestra en Inicio la fila de lo que puedes volver a ver.",
+    "@kostvDisplayRewatchRowSubtitle": {
+        "description": "Kos TV: subtitle of the Rewatch row setting"
+    },
+    "kostvSendCrashReports": "Enviar informes de errores al servidor",
+    "@kostvSendCrashReports": {
+        "description": "Kos TV: diagnostics setting that uploads crash reports"
+    },
+    "kostvStillWatchingSubtitle": "Pregunta si sigues viendo después de varios episodios seguidos.",
+    "@kostvStillWatchingSubtitle": {
+        "description": "Kos TV: subtitle of the Are you still watching setting"
+    }
 }

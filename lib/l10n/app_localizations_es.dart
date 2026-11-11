@@ -17858,4 +17858,110 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvDiscoverUnavailable =>
       'Descubrir no está disponible ahora mismo.';
+
+  @override
+  String get kostvMoreSettings => 'Más ajustes';
+
+  @override
+  String get kostvFewerSettings => 'Menos ajustes';
+
+  @override
+  String get kostvRefreshingCustomRows =>
+      'Actualizando las filas personalizadas';
+
+  @override
+  String get kostvRefreshingCustomRowsDetail =>
+      'Actualizando tus filas personalizadas y lo que guardan…';
+
+  @override
+  String get kostvCustomRowsRefreshed =>
+      'Tus filas personalizadas están al día.';
+
+  @override
+  String kostvCustomRowsRefreshFailed(String detail) {
+    return 'No se han podido actualizar las filas personalizadas: $detail';
+  }
+
+  @override
+  String get kostvImdbLists => 'Listas de IMDb';
+
+  @override
+  String get kostvImdbListsSubtitle =>
+      'El Top 250 de IMDb, lo más popular y otras listas como filas de Inicio.';
+
+  @override
+  String get kostvTmdbLists => 'Listas de TMDB';
+
+  @override
+  String get kostvTmdbListsSubtitle =>
+      'Lo popular, lo mejor valorado y lo que es tendencia en TMDB.';
+
+  @override
+  String get kostvCustomRows => 'Filas personalizadas';
+
+  @override
+  String get kostvCustomRowsSubtitle =>
+      'Filas de Inicio hechas con listas de Letterboxd, TMDB, MDBList, IMDb y más.';
+
+  @override
+  String get kostvMediaTypeBadges => 'Etiquetas de película y serie';
+
+  @override
+  String get kostvMediaTypeBadgesSubtitle =>
+      'Muestra PELÍCULA o SERIE en las tarjetas de las filas de listas de fuera.';
+
+  @override
+  String get kostvRefreshCustomRows => 'Actualizar las filas personalizadas';
+
+  @override
+  String get kostvRefreshCustomRowsSubtitle =>
+      'Vuelve a traer ahora todas las filas personalizadas.';
+
+  @override
+  String get kostvMoreAccountSummary =>
+      'Pedir siempre la contraseña, sincronización de ajustes';
+
+  @override
+  String get kostvMoreGeneralSummary =>
+      'Reloj de 24 horas, formato de fecha, salir, rendimiento…';
+
+  @override
+  String get kostvMoreAppearanceSummary =>
+      'Estilo de la interfaz, color de enfoque, temas, pantalla y animaciones';
+
+  @override
+  String get kostvMoreHomeSummary =>
+      'Opciones de las filas, su aspecto, valoraciones y listas de fuera';
+
+  @override
+  String get kostvMorePlaybackSummary =>
+      'Calidad y decodificación, juegos y reproducción avanzada';
+
+  @override
+  String get kostvMoreStorageSummary =>
+      'Ubicación de las descargas, descargas a la vez, caché de imágenes…';
+
+  @override
+  String get kostvMoreAboutSummary =>
+      'Código fuente, diagnóstico y registros, atajos de teclado';
+
+  @override
+  String get kostvTmdbPopularMovies => 'Películas populares';
+
+  @override
+  String get kostvTmdbUpcomingMovies => 'Próximos estrenos';
+
+  @override
+  String get kostvDisplayRewatchRow => 'Fila «Volver a ver»';
+
+  @override
+  String get kostvDisplayRewatchRowSubtitle =>
+      'Muestra en Inicio la fila de lo que puedes volver a ver.';
+
+  @override
+  String get kostvSendCrashReports => 'Enviar informes de errores al servidor';
+
+  @override
+  String get kostvStillWatchingSubtitle =>
+      'Pregunta si sigues viendo después de varios episodios seguidos.';
 }

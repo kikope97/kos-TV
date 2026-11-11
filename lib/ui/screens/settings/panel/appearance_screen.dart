@@ -78,13 +78,6 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
                       const _NavigationCategoryScreen(),
                     ),
                   ),
-                  if (GamepadNavigationScope.isConfigurable)
-                    SwitchPreferenceTile(
-                      preference: UserPreferences.gamepadNavigationEnabled,
-                      title: l10n.gamepadNavigation,
-                      subtitle: l10n.gamepadNavigationDescription,
-                      icon: Icons.sports_esports_outlined,
-                    ),
                 ],
               ),
               _SectionHeader(l10n.layout),
@@ -119,17 +112,6 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
               _SectionHeader(l10n.theme),
               adaptiveListSection(
                 children: [
-                  EnumPreferenceTile<InterfaceStyle>(
-                    preference: UserPreferences.interfaceStyle,
-                    title: l10n.interfaceStyle,
-                    description: l10n.interfaceStyleSubtitle,
-                    icon: Icons.devices_outlined,
-                    labelOf: (v) => switch (v) {
-                      InterfaceStyle.automatic => l10n.interfaceStyleAutomatic,
-                      InterfaceStyle.apple => l10n.interfaceStyleApple,
-                      InterfaceStyle.material => l10n.interfaceStyleMaterial,
-                    },
-                  ),
                   _TvSettingsListTile(
                     leading: const Icon(Icons.palette_outlined),
                     title: Text(l10n.settingsAppearanceTheme),
@@ -138,103 +120,11 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
                       const AppearanceThemeScreen(),
                     ),
                   ),
-                  if (AppColorScheme.isGlass)
-                    EnumPreferenceTile<GlassQualityMode>(
-                      preference: UserPreferences.glassQuality,
-                      title: l10n.glassQuality,
-                      description: l10n.glassQualitySubtitle,
-                      icon: Icons.blur_on,
-                      labelOf: (v) => switch (v) {
-                        GlassQualityMode.auto => l10n.glassQualityAuto,
-                        GlassQualityMode.full => l10n.glassQualityFull,
-                        GlassQualityMode.reduced => l10n.glassQualityReduced,
-                      },
-                    ),
-                  EnumPreferenceTile<AppTheme>(
-                    preference: UserPreferences.focusColor,
-                    title: l10n.focusBorderColor,
-                    icon: Icons.border_color,
-                    // Kos TV: the colours' names, not their internal ids
-                    // (one of which says Moonfin).
-                    labelOf: (v) => switch (v) {
-                      AppTheme.white => l10n.white,
-                      AppTheme.black => l10n.black,
-                      AppTheme.gray => l10n.gray,
-                      AppTheme.darkBlue => l10n.darkBlue,
-                      AppTheme.purple => l10n.purple,
-                      AppTheme.teal => l10n.teal,
-                      AppTheme.navy => l10n.navy,
-                      AppTheme.charcoal => l10n.charcoal,
-                      AppTheme.brown => l10n.brown,
-                      AppTheme.darkRed => l10n.darkRed,
-                      AppTheme.darkGreen => l10n.darkGreen,
-                      AppTheme.slate => l10n.slate,
-                      AppTheme.indigo => l10n.indigo,
-                      AppTheme.moonfinCyan => l10n.kostvColorCyan,
-                      AppTheme.neonPulseMagenta => l10n.kostvColorNeonMagenta,
-                      AppTheme.eightBitGold => l10n.kostvColorEightBitGold,
-                    },
-                  ),
-                  _TvSettingsListTile(
-                    leading: const Icon(Icons.storefront_outlined),
-                    title: Text(l10n.themeStore),
-                    subtitle: Text(l10n.themeStoreSubtitle),
-                    onTap: () =>
-                        context.pushSettingsScreen(const ThemeStoreScreen()),
-                  ),
-                  _TvSettingsListTile(
-                    leading: const Icon(Icons.download_outlined),
-                    title: Text(l10n.savedThemesTitle),
-                    subtitle: Text(l10n.savedThemesManageSubtitle),
-                    onTap: () =>
-                        context.pushSettingsScreen(const SavedThemesScreen()),
-                  ),
-                  if (_showThemeEditorEntry)
-                    _TvSettingsListTile(
-                      leading: const Icon(Icons.brush),
-                      title: Text(l10n.themeEditor),
-                      subtitle: Text(l10n.themeEditorSubtitle),
-                      onTap: () => unawaited(_openThemeEditor(context)),
-                    ),
                 ],
               ),
               _SectionHeader(l10n.display),
-              if (!PlatformDetection.useMobileUi)
-                adaptiveListSection(
-                  children: [
-                    SwitchPreferenceTile(
-                      preference: UserPreferences.cardFocusExpansion,
-                      title: l10n.focusExpansionAnimation,
-                      subtitle: l10n.scaleFocusedCards,
-                      icon: Icons.zoom_in,
-                    ),
-                  ],
-                ),
               adaptiveListSection(
                 children: [
-                  if (PlatformDetection.canOverrideInterfaceLayout)
-                    EnumPreferenceTile<InterfaceLayout>(
-                      preference: UserPreferences.interfaceLayout,
-                      title: l10n.interfaceLayout,
-                      description: l10n.interfaceLayoutSubtitle,
-                      icon: Icons.tv_outlined,
-                      // Only the layouts this platform reaches on its own,
-                      // since the other pairings have never run.
-                      values: [
-                        InterfaceLayout.automatic,
-                        InterfaceLayout.tv,
-                        if (PlatformDetection.isDesktop)
-                          InterfaceLayout.desktop,
-                        if (PlatformDetection.isAndroid) InterfaceLayout.phone,
-                      ],
-                      labelOf: (v) => switch (v) {
-                        InterfaceLayout.automatic =>
-                          l10n.interfaceLayoutAutomatic,
-                        InterfaceLayout.tv => l10n.interfaceLayoutTv,
-                        InterfaceLayout.desktop => l10n.interfaceLayoutDesktop,
-                        InterfaceLayout.phone => l10n.interfaceLayoutPhone,
-                      },
-                    ),
                   EnumPreferenceTile<DesktopUiScale>(
                     preference: UserPreferences.desktopUiScale,
                     title: l10n.desktopUiScale,
@@ -250,87 +140,8 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
                     },
                     onChanged: _pushPersonalizationSync,
                   ),
-                  EnumPreferenceTile<OledMode>(
-                    preference: UserPreferences.oledMode,
-                    title: l10n.oledMode,
-                    description: l10n.oledModeSubtitle,
-                    icon: Icons.contrast,
-                    labelOf: (v) => switch (v) {
-                      OledMode.off => l10n.off,
-                      OledMode.subtle => l10n.oledModeSubtle,
-                      OledMode.vivid => l10n.oledModeVivid,
-                    },
-                    onChanged: _pushPersonalizationSync,
-                  ),
-                  SliderPreferenceTile(
-                    preference: UserPreferences.browsingBackgroundBlurAmount,
-                    title: l10n.browsingBackgroundBlur,
-                    icon: Icons.blur_circular,
-                    min: 0,
-                    max: 25,
-                    divisions: 25,
-                    labelOf: (v) => '$v',
-                    onChangeEnd: _pushPersonalizationSync,
-                  ),
-                  EnumPreferenceTile<WatchedIndicatorBehavior>(
-                    preference: UserPreferences.watchedIndicatorBehavior,
-                    title: l10n.watchedIndicators,
-                    icon: Icons.check_circle,
-                    labelOf: (v) => switch (v) {
-                      WatchedIndicatorBehavior.always => l10n.always,
-                      WatchedIndicatorBehavior.hideUnwatched =>
-                        l10n.hideUnwatched,
-                      WatchedIndicatorBehavior.episodesOnly =>
-                        l10n.episodesOnly,
-                      WatchedIndicatorBehavior.never => l10n.never,
-                    },
-                  ),
-                  // Only when the server gives this person labels, since it
-                  // would switch nothing otherwise.
-                  if (_posterLabelsAvailable)
-                    SwitchPreferenceTile(
-                      preference: UserPreferences.showPosterLabels,
-                      title: l10n.showPosterLabels,
-                      subtitle: l10n.showPosterLabelsSubtitle,
-                      icon: Icons.label_outline,
-                    ),
                 ],
               ),
-              if (!PlatformDetection.useMobileUi) ...[
-                _SectionHeader(l10n.settingsMotionSection),
-                adaptiveListSection(
-                  children: [
-                    EnumPreferenceTile<PageTransitionSpeed>(
-                      preference: UserPreferences.pageTransitionSpeed,
-                      title: l10n.pageTransitions,
-                      description: l10n.pageTransitionsSubtitle,
-                      icon: Icons.animation_outlined,
-                      labelOf: (v) => switch (v) {
-                        PageTransitionSpeed.slow => l10n.pageTransitionFadeLong,
-                        PageTransitionSpeed.medium => l10n.pageTransitionFadeMedium,
-                        PageTransitionSpeed.fast => l10n.pageTransitionFadeShort,
-                        PageTransitionSpeed.off => l10n.pageTransitionFadeNone,
-                      },
-                    ),
-                    EnumPreferenceTile<NavigationAnimationSpeed>(
-                      preference: UserPreferences.navigationAnimationSpeed,
-                      title: l10n.navigationSpeed,
-                      description: l10n.navigationSpeedSubtitle,
-                      icon: Icons.speed_outlined,
-                      labelOf: (v) => switch (v) {
-                        NavigationAnimationSpeed.extraSlow =>
-                          l10n.animationSpeedExtraSlow,
-                        NavigationAnimationSpeed.slow =>
-                          l10n.animationSpeedSlow,
-                        NavigationAnimationSpeed.medium =>
-                          l10n.animationSpeedMedium,
-                        NavigationAnimationSpeed.fast =>
-                          l10n.animationSpeedFast,
-                      },
-                    ),
-                  ],
-                ),
-              ],
               _SectionHeader(l10n.extras),
               adaptiveListSection(
                 children: [
@@ -342,14 +153,6 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
                       const _SeasonalEffectsScreen(),
                     ),
                   ),
-                  _TvSettingsListTile(
-                    leading: const Icon(Icons.motion_photos_on_outlined),
-                    title: Text(l10n.loadingAnimation),
-                    subtitle: Text(l10n.loadingAnimationDescription),
-                    onTap: () => context.pushSettingsScreen(
-                      const _LoadingAnimationScreen(),
-                    ),
-                  ),
                   if (PlatformDetection.isTV)
                     _TvSettingsListTile(
                       leading: const Icon(Icons.wallpaper),
@@ -359,6 +162,241 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
                         const ScreensaverSettingsScreen(),
                       ),
                     ),
+                ],
+              ),
+              // Kos TV: the technical rest, behind «Más ajustes».
+              ...settingsMore(
+                context,
+                id: 'appearance',
+                summary: l10n.kostvMoreAppearanceSummary,
+                children: [
+                  if (GamepadNavigationScope.isConfigurable) ...[
+                    _SectionHeader(l10n.navigation),
+                    adaptiveListSection(
+                      children: [
+                        SwitchPreferenceTile(
+                          preference: UserPreferences.gamepadNavigationEnabled,
+                          title: l10n.gamepadNavigation,
+                          subtitle: l10n.gamepadNavigationDescription,
+                          icon: Icons.sports_esports_outlined,
+                        ),
+                      ],
+                    ),
+                  ],
+                  _SectionHeader(l10n.theme),
+                  adaptiveListSection(
+                    children: [
+                      EnumPreferenceTile<InterfaceStyle>(
+                        preference: UserPreferences.interfaceStyle,
+                        title: l10n.interfaceStyle,
+                        description: l10n.interfaceStyleSubtitle,
+                        icon: Icons.devices_outlined,
+                        labelOf: (v) => switch (v) {
+                          InterfaceStyle.automatic =>
+                            l10n.interfaceStyleAutomatic,
+                          InterfaceStyle.apple => l10n.interfaceStyleApple,
+                          InterfaceStyle.material =>
+                            l10n.interfaceStyleMaterial,
+                        },
+                      ),
+                      if (AppColorScheme.isGlass)
+                        EnumPreferenceTile<GlassQualityMode>(
+                          preference: UserPreferences.glassQuality,
+                          title: l10n.glassQuality,
+                          description: l10n.glassQualitySubtitle,
+                          icon: Icons.blur_on,
+                          labelOf: (v) => switch (v) {
+                            GlassQualityMode.auto => l10n.glassQualityAuto,
+                            GlassQualityMode.full => l10n.glassQualityFull,
+                            GlassQualityMode.reduced =>
+                              l10n.glassQualityReduced,
+                          },
+                        ),
+                      EnumPreferenceTile<AppTheme>(
+                        preference: UserPreferences.focusColor,
+                        title: l10n.focusBorderColor,
+                        icon: Icons.border_color,
+                        // Kos TV: the colours' names, not their internal ids
+                        // (one of which says Moonfin).
+                        labelOf: (v) => switch (v) {
+                          AppTheme.white => l10n.white,
+                          AppTheme.black => l10n.black,
+                          AppTheme.gray => l10n.gray,
+                          AppTheme.darkBlue => l10n.darkBlue,
+                          AppTheme.purple => l10n.purple,
+                          AppTheme.teal => l10n.teal,
+                          AppTheme.navy => l10n.navy,
+                          AppTheme.charcoal => l10n.charcoal,
+                          AppTheme.brown => l10n.brown,
+                          AppTheme.darkRed => l10n.darkRed,
+                          AppTheme.darkGreen => l10n.darkGreen,
+                          AppTheme.slate => l10n.slate,
+                          AppTheme.indigo => l10n.indigo,
+                          AppTheme.moonfinCyan => l10n.kostvColorCyan,
+                          AppTheme.neonPulseMagenta =>
+                            l10n.kostvColorNeonMagenta,
+                          AppTheme.eightBitGold => l10n.kostvColorEightBitGold,
+                        },
+                      ),
+                      _TvSettingsListTile(
+                        leading: const Icon(Icons.storefront_outlined),
+                        title: Text(l10n.themeStore),
+                        subtitle: Text(l10n.themeStoreSubtitle),
+                        onTap: () => context.pushSettingsScreen(
+                          const ThemeStoreScreen(),
+                        ),
+                      ),
+                      _TvSettingsListTile(
+                        leading: const Icon(Icons.download_outlined),
+                        title: Text(l10n.savedThemesTitle),
+                        subtitle: Text(l10n.savedThemesManageSubtitle),
+                        onTap: () => context.pushSettingsScreen(
+                          const SavedThemesScreen(),
+                        ),
+                      ),
+                      if (_showThemeEditorEntry)
+                        _TvSettingsListTile(
+                          leading: const Icon(Icons.brush),
+                          title: Text(l10n.themeEditor),
+                          subtitle: Text(l10n.themeEditorSubtitle),
+                          onTap: () => unawaited(_openThemeEditor(context)),
+                        ),
+                    ],
+                  ),
+                  _SectionHeader(l10n.display),
+                  adaptiveListSection(
+                    children: [
+                      if (!PlatformDetection.useMobileUi)
+                        SwitchPreferenceTile(
+                          preference: UserPreferences.cardFocusExpansion,
+                          title: l10n.focusExpansionAnimation,
+                          subtitle: l10n.scaleFocusedCards,
+                          icon: Icons.zoom_in,
+                        ),
+                      if (PlatformDetection.canOverrideInterfaceLayout)
+                        EnumPreferenceTile<InterfaceLayout>(
+                          preference: UserPreferences.interfaceLayout,
+                          title: l10n.interfaceLayout,
+                          description: l10n.interfaceLayoutSubtitle,
+                          icon: Icons.tv_outlined,
+                          // Only the layouts this platform reaches on its own,
+                          // since the other pairings have never run.
+                          values: [
+                            InterfaceLayout.automatic,
+                            InterfaceLayout.tv,
+                            if (PlatformDetection.isDesktop)
+                              InterfaceLayout.desktop,
+                            if (PlatformDetection.isAndroid)
+                              InterfaceLayout.phone,
+                          ],
+                          labelOf: (v) => switch (v) {
+                            InterfaceLayout.automatic =>
+                              l10n.interfaceLayoutAutomatic,
+                            InterfaceLayout.tv => l10n.interfaceLayoutTv,
+                            InterfaceLayout.desktop =>
+                              l10n.interfaceLayoutDesktop,
+                            InterfaceLayout.phone => l10n.interfaceLayoutPhone,
+                          },
+                        ),
+                      EnumPreferenceTile<OledMode>(
+                        preference: UserPreferences.oledMode,
+                        title: l10n.oledMode,
+                        description: l10n.oledModeSubtitle,
+                        icon: Icons.contrast,
+                        labelOf: (v) => switch (v) {
+                          OledMode.off => l10n.off,
+                          OledMode.subtle => l10n.oledModeSubtle,
+                          OledMode.vivid => l10n.oledModeVivid,
+                        },
+                        onChanged: _pushPersonalizationSync,
+                      ),
+                      SliderPreferenceTile(
+                        preference:
+                            UserPreferences.browsingBackgroundBlurAmount,
+                        title: l10n.browsingBackgroundBlur,
+                        icon: Icons.blur_circular,
+                        min: 0,
+                        max: 25,
+                        divisions: 25,
+                        labelOf: (v) => '$v',
+                        onChangeEnd: _pushPersonalizationSync,
+                      ),
+                      EnumPreferenceTile<WatchedIndicatorBehavior>(
+                        preference: UserPreferences.watchedIndicatorBehavior,
+                        title: l10n.watchedIndicators,
+                        icon: Icons.check_circle,
+                        labelOf: (v) => switch (v) {
+                          WatchedIndicatorBehavior.always => l10n.always,
+                          WatchedIndicatorBehavior.hideUnwatched =>
+                            l10n.hideUnwatched,
+                          WatchedIndicatorBehavior.episodesOnly =>
+                            l10n.episodesOnly,
+                          WatchedIndicatorBehavior.never => l10n.never,
+                        },
+                      ),
+                      // Only when the server gives this person labels, since it
+                      // would switch nothing otherwise.
+                      if (_posterLabelsAvailable)
+                        SwitchPreferenceTile(
+                          preference: UserPreferences.showPosterLabels,
+                          title: l10n.showPosterLabels,
+                          subtitle: l10n.showPosterLabelsSubtitle,
+                          icon: Icons.label_outline,
+                        ),
+                    ],
+                  ),
+                  if (!PlatformDetection.useMobileUi) ...[
+                    _SectionHeader(l10n.settingsMotionSection),
+                    adaptiveListSection(
+                      children: [
+                        EnumPreferenceTile<PageTransitionSpeed>(
+                          preference: UserPreferences.pageTransitionSpeed,
+                          title: l10n.pageTransitions,
+                          description: l10n.pageTransitionsSubtitle,
+                          icon: Icons.animation_outlined,
+                          labelOf: (v) => switch (v) {
+                            PageTransitionSpeed.slow =>
+                              l10n.pageTransitionFadeLong,
+                            PageTransitionSpeed.medium =>
+                              l10n.pageTransitionFadeMedium,
+                            PageTransitionSpeed.fast =>
+                              l10n.pageTransitionFadeShort,
+                            PageTransitionSpeed.off =>
+                              l10n.pageTransitionFadeNone,
+                          },
+                        ),
+                        EnumPreferenceTile<NavigationAnimationSpeed>(
+                          preference: UserPreferences.navigationAnimationSpeed,
+                          title: l10n.navigationSpeed,
+                          description: l10n.navigationSpeedSubtitle,
+                          icon: Icons.speed_outlined,
+                          labelOf: (v) => switch (v) {
+                            NavigationAnimationSpeed.extraSlow =>
+                              l10n.animationSpeedExtraSlow,
+                            NavigationAnimationSpeed.slow =>
+                              l10n.animationSpeedSlow,
+                            NavigationAnimationSpeed.medium =>
+                              l10n.animationSpeedMedium,
+                            NavigationAnimationSpeed.fast =>
+                              l10n.animationSpeedFast,
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                  _SectionHeader(l10n.extras),
+                  adaptiveListSection(
+                    children: [
+                      _TvSettingsListTile(
+                        leading: const Icon(Icons.motion_photos_on_outlined),
+                        title: Text(l10n.loadingAnimation),
+                        subtitle: Text(l10n.loadingAnimationDescription),
+                        onTap: () => context.pushSettingsScreen(
+                          const _LoadingAnimationScreen(),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ],

@@ -42,10 +42,8 @@ class _GeneralScreenState extends State<_GeneralScreen> {
 
     final showSiriSensitivity =
         GamepadNavigationScope.isConfigurable && PlatformDetection.isAppleTV;
-    final showInput =
-        PlatformDetection.isTV ||
-        showSiriSensitivity ||
-        PlatformDetection.useDesktopUi;
+    // Kos TV: the scroll sensitivity went to «Más ajustes».
+    final showInput = PlatformDetection.isTV || showSiriSensitivity;
 
     return Scaffold(
       appBar: buildSettingsAppBar(context, Text(l10n.general)),
@@ -79,23 +77,6 @@ class _GeneralScreenState extends State<_GeneralScreen> {
                     ClockBehavior.never => l10n.never,
                   },
                 ),
-                SwitchPreferenceTile(
-                  preference: UserPreferences.use24HourClock,
-                  title: l10n.settingsTwentyFourHourClock,
-                  subtitle: l10n.settingsTwentyFourHourClockSubtitle,
-                  icon: Icons.schedule,
-                ),
-                EnumPreferenceTile<DateFormatSetting>(
-                  preference: UserPreferences.dateFormat,
-                  title: l10n.settingsDateFormat,
-                  description: l10n.settingsDateFormatDescription,
-                  icon: Icons.calendar_today_outlined,
-                  labelOf: (v) => switch (v) {
-                    DateFormatSetting.system => l10n.dateFormatSystem,
-                    DateFormatSetting.monthDay => l10n.dateFormatMonthDay,
-                    DateFormatSetting.dayMonth => l10n.dateFormatDayMonth,
-                  },
-                ),
               ],
             ),
             if (showInput) ...[
@@ -127,65 +108,102 @@ class _GeneralScreenState extends State<_GeneralScreen> {
                         SiriRemoteSwipeSensitivity.high => l10n.settingsHigh,
                       },
                     ),
-                  if (PlatformDetection.useDesktopUi)
-                    SliderPreferenceTile(
-                      preference: UserPreferences.desktopScrollSensitivity,
-                      title: l10n.scrollSensitivity,
-                      description: l10n.scrollSensitivitySubtitle,
-                      icon: Icons.mouse,
-                      min: 50,
-                      max: 300,
-                      divisions: 25,
-                      labelOf: (v) => '${(v / 100).toStringAsFixed(1)}x',
-                      onChangeEnd: _pushPersonalizationSync,
+                ],
+              ),
+            ],
+            // Kos TV: the technical rest, behind «Más ajustes».
+            ...settingsMore(
+              context,
+              id: 'general',
+              summary: l10n.kostvMoreGeneralSummary,
+              children: [
+                _SectionHeader(l10n.clock),
+                adaptiveListSection(
+                  children: [
+                    SwitchPreferenceTile(
+                      preference: UserPreferences.use24HourClock,
+                      title: l10n.settingsTwentyFourHourClock,
+                      subtitle: l10n.settingsTwentyFourHourClockSubtitle,
+                      icon: Icons.schedule,
                     ),
-                ],
-              ),
-            ],
-            if (!PlatformDetection.isWeb) ...[
-              _SectionHeader(l10n.behavior),
-              adaptiveListSection(
-                children: [
-                  SwitchPreferenceTile(
-                    preference: UserPreferences.confirmExit,
-                    title: l10n.confirmExit,
-                    subtitle: l10n.showConfirmationBeforeExiting,
-                    icon: Icons.exit_to_app,
-                  ),
-                ],
-              ),
-            ],
-            if (PlatformDetection.isAndroid) ...[
-              _SectionHeader(l10n.performanceMode),
-              adaptiveListSection(
-                children: [
-                  EnumPreferenceTile<DevicePerformanceMode>(
-                    preference: UserPreferences.performanceMode,
-                    title: l10n.performanceMode,
-                    description: l10n.performanceModeSubtitle,
-                    icon: Icons.speed_outlined,
-                    labelOf: (v) => switch (v) {
-                      DevicePerformanceMode.auto => l10n.performanceModeAuto,
-                      DevicePerformanceMode.standard =>
-                        l10n.performanceModeStandard,
-                      DevicePerformanceMode.reduced =>
-                        l10n.performanceModeReduced,
-                    },
-                  ),
-                  if (PlatformDetection.isTV)
-                    EnumPreferenceTile<RendererMode>(
-                      preference: UserPreferences.rendererMode,
-                      title: l10n.rendererMode,
-                      description: l10n.rendererModeSubtitle,
-                      icon: Icons.brush_outlined,
+                    EnumPreferenceTile<DateFormatSetting>(
+                      preference: UserPreferences.dateFormat,
+                      title: l10n.settingsDateFormat,
+                      description: l10n.settingsDateFormatDescription,
+                      icon: Icons.calendar_today_outlined,
                       labelOf: (v) => switch (v) {
-                        RendererMode.auto => l10n.rendererModeAuto,
-                        RendererMode.skia => l10n.rendererModeSkia,
+                        DateFormatSetting.system => l10n.dateFormatSystem,
+                        DateFormatSetting.monthDay => l10n.dateFormatMonthDay,
+                        DateFormatSetting.dayMonth => l10n.dateFormatDayMonth,
                       },
                     ),
+                  ],
+                ),
+                if (PlatformDetection.useDesktopUi) ...[
+                  _SectionHeader(l10n.settingsInputSection),
+                  adaptiveListSection(
+                    children: [
+                      SliderPreferenceTile(
+                        preference: UserPreferences.desktopScrollSensitivity,
+                        title: l10n.scrollSensitivity,
+                        description: l10n.scrollSensitivitySubtitle,
+                        icon: Icons.mouse,
+                        min: 50,
+                        max: 300,
+                        divisions: 25,
+                        labelOf: (v) => '${(v / 100).toStringAsFixed(1)}x',
+                        onChangeEnd: _pushPersonalizationSync,
+                      ),
+                    ],
+                  ),
                 ],
-              ),
-            ],
+                if (!PlatformDetection.isWeb) ...[
+                  _SectionHeader(l10n.behavior),
+                  adaptiveListSection(
+                    children: [
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.confirmExit,
+                        title: l10n.confirmExit,
+                        subtitle: l10n.showConfirmationBeforeExiting,
+                        icon: Icons.exit_to_app,
+                      ),
+                    ],
+                  ),
+                ],
+                if (PlatformDetection.isAndroid) ...[
+                  _SectionHeader(l10n.performanceMode),
+                  adaptiveListSection(
+                    children: [
+                      EnumPreferenceTile<DevicePerformanceMode>(
+                        preference: UserPreferences.performanceMode,
+                        title: l10n.performanceMode,
+                        description: l10n.performanceModeSubtitle,
+                        icon: Icons.speed_outlined,
+                        labelOf: (v) => switch (v) {
+                          DevicePerformanceMode.auto =>
+                            l10n.performanceModeAuto,
+                          DevicePerformanceMode.standard =>
+                            l10n.performanceModeStandard,
+                          DevicePerformanceMode.reduced =>
+                            l10n.performanceModeReduced,
+                        },
+                      ),
+                      if (PlatformDetection.isTV)
+                        EnumPreferenceTile<RendererMode>(
+                          preference: UserPreferences.rendererMode,
+                          title: l10n.rendererMode,
+                          description: l10n.rendererModeSubtitle,
+                          icon: Icons.brush_outlined,
+                          labelOf: (v) => switch (v) {
+                            RendererMode.auto => l10n.rendererModeAuto,
+                            RendererMode.skia => l10n.rendererModeSkia,
+                          },
+                        ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
           ],
         ),
       ),

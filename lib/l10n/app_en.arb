@@ -16968,5 +16968,126 @@
   "kostvDiscoverUnavailable": "Discover isn't available right now.",
   "@kostvDiscoverUnavailable": {
     "description": "Kos TV: shown when the platform lists can't be read"
+  },
+  "kostvMoreSettings": "More settings",
+  "@kostvMoreSettings": {
+    "description": "Kos TV: the row at the end of a settings screen that shows its advanced settings"
+  },
+  "kostvFewerSettings": "Fewer settings",
+  "@kostvFewerSettings": {
+    "description": "Kos TV: the same row once open, to hide the advanced settings again"
+  },
+  "kostvRefreshingCustomRows": "Refreshing custom rows",
+  "@kostvRefreshingCustomRows": {
+    "description": "Kos TV: title of the dialog while the custom rows refresh"
+  },
+  "kostvRefreshingCustomRowsDetail": "Refreshing your custom rows and updating their caches…",
+  "@kostvRefreshingCustomRowsDetail": {
+    "description": "Kos TV: text of the dialog while the custom rows refresh"
+  },
+  "kostvCustomRowsRefreshed": "Your custom rows are up to date.",
+  "@kostvCustomRowsRefreshed": {
+    "description": "Kos TV: note once the custom rows refreshed"
+  },
+  "kostvCustomRowsRefreshFailed": "Couldn't refresh the custom rows: {detail}",
+  "@kostvCustomRowsRefreshFailed": {
+    "description": "Kos TV: note when refreshing the custom rows failed",
+    "placeholders": {
+      "detail": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvImdbLists": "IMDb lists",
+  "@kostvImdbLists": {
+    "description": "Kos TV: settings entry for the IMDb chart rows"
+  },
+  "kostvImdbListsSubtitle": "IMDb Top 250, Popular and other charts as Home rows.",
+  "@kostvImdbListsSubtitle": {
+    "description": "Kos TV: subtitle of the IMDb lists entry"
+  },
+  "kostvTmdbLists": "TMDB lists",
+  "@kostvTmdbLists": {
+    "description": "Kos TV: settings entry for the TMDB list rows"
+  },
+  "kostvTmdbListsSubtitle": "Popular, top rated and trending lists from TMDB.",
+  "@kostvTmdbListsSubtitle": {
+    "description": "Kos TV: subtitle of the TMDB lists entry"
+  },
+  "kostvCustomRows": "Custom rows",
+  "@kostvCustomRows": {
+    "description": "Kos TV: settings entry for custom Home rows from outside lists"
+  },
+  "kostvCustomRowsSubtitle": "Home rows built from lists on Letterboxd, TMDB, MDBList, IMDb and more.",
+  "@kostvCustomRowsSubtitle": {
+    "description": "Kos TV: subtitle of the custom rows entry"
+  },
+  "kostvMediaTypeBadges": "Movie and series labels",
+  "@kostvMediaTypeBadges": {
+    "description": "Kos TV: setting for the MOVIE / SERIES labels on outside list cards"
+  },
+  "kostvMediaTypeBadgesSubtitle": "Show MOVIE or SERIES on the cards of rows from outside lists.",
+  "@kostvMediaTypeBadgesSubtitle": {
+    "description": "Kos TV: description of the movie and series labels setting"
+  },
+  "kostvRefreshCustomRows": "Refresh custom rows",
+  "@kostvRefreshCustomRows": {
+    "description": "Kos TV: action that refetches every custom row"
+  },
+  "kostvRefreshCustomRowsSubtitle": "Fetch every custom row again now.",
+  "@kostvRefreshCustomRowsSubtitle": {
+    "description": "Kos TV: subtitle of the refresh custom rows action"
+  },
+  "kostvMoreAccountSummary": "Always sign in, settings sync",
+  "@kostvMoreAccountSummary": {
+    "description": "Kos TV: what the Account screen's More settings holds"
+  },
+  "kostvMoreGeneralSummary": "24-hour clock, date format, exit, performance…",
+  "@kostvMoreGeneralSummary": {
+    "description": "Kos TV: what the General screen's More settings holds"
+  },
+  "kostvMoreAppearanceSummary": "Interface style, focus colour, themes, display and animations",
+  "@kostvMoreAppearanceSummary": {
+    "description": "Kos TV: what the Appearance screen's More settings holds"
+  },
+  "kostvMoreHomeSummary": "Row options, look of the rows, ratings and outside lists",
+  "@kostvMoreHomeSummary": {
+    "description": "Kos TV: what the Home screen settings' More settings holds"
+  },
+  "kostvMorePlaybackSummary": "Quality and decoding, games and advanced playback",
+  "@kostvMorePlaybackSummary": {
+    "description": "Kos TV: what the Playback screen's More settings holds"
+  },
+  "kostvMoreStorageSummary": "Download location, simultaneous downloads, image cache…",
+  "@kostvMoreStorageSummary": {
+    "description": "Kos TV: what the Storage screen's More settings holds"
+  },
+  "kostvMoreAboutSummary": "Source code, diagnostics and logs, keyboard shortcuts",
+  "@kostvMoreAboutSummary": {
+    "description": "Kos TV: what the About screen's More settings holds"
+  },
+  "kostvTmdbPopularMovies": "Popular movies",
+  "@kostvTmdbPopularMovies": {
+    "description": "Kos TV: a TMDB list row"
+  },
+  "kostvTmdbUpcomingMovies": "Upcoming movies",
+  "@kostvTmdbUpcomingMovies": {
+    "description": "Kos TV: a TMDB list row"
+  },
+  "kostvDisplayRewatchRow": "Watch again row",
+  "@kostvDisplayRewatchRow": {
+    "description": "Kos TV: setting that shows the Rewatch row on Home"
+  },
+  "kostvDisplayRewatchRowSubtitle": "Show the watch again row on Home.",
+  "@kostvDisplayRewatchRowSubtitle": {
+    "description": "Kos TV: subtitle of the Rewatch row setting"
+  },
+  "kostvSendCrashReports": "Send error reports to the server",
+  "@kostvSendCrashReports": {
+    "description": "Kos TV: diagnostics setting that uploads crash reports"
+  },
+  "kostvStillWatchingSubtitle": "Ask whether you're still watching after a few episodes in a row.",
+  "@kostvStillWatchingSubtitle": {
+    "description": "Kos TV: subtitle of the Are you still watching setting"
   }
 }
