@@ -83,9 +83,16 @@ nuevos ya no se podrán instalar encima: habría que desinstalar en cada aparato
 - **Restos de Emby en el panel de administración.** `library_options_form.dart`
   y `admin_user_edit_screen.dart` conservan filas solo de Emby tras un
   `_emby => false`; se pueden borrar con calma.
+- **Color de acento.** El tema por defecto ("kOS TV") sigue usando el azul de
+  Jellyfin (`#00A4DC`) para el foco, las barras y las insignias. Pasarlo al
+  cian/violeta de la marca pide revisar el contraste del texto blanco encima
+  (el cian `#4FD8FF` es muy claro) y verlo en la tele antes de decidir.
 - **Textos escritos en inglés dentro del código.** Algunas pantallas (sobre todo
   de ajustes avanzados y administración) llevan textos fijos en inglés en vez de
-  usar `lib/l10n`, así que salen en inglés aunque la app esté en español. Hay que
-  pasarlos a `app_en.arb`/`app_es.arb` poco a poco.
+  usar `lib/l10n`, así que salen en inglés aunque la app esté en español. Los
+  del inicio ya están; quedan sobre todo en listas externas
+  (`external_lists_screen.dart`), filas del inicio en Ajustes, diagnóstico,
+  juegos, reproductores de audio y edición de metadatos. Hay que pasarlos a
+  `app_en.arb`/`app_es.arb` poco a poco.
 - **Apple TV.** Cambiar el bundle id (y los de la extensión Top Shelf y el App
   Group) cuando se aborde tvOS.
