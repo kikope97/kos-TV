@@ -3,17 +3,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:get_it/get_it.dart';
 
 import '../../../../data/models/aggregated_item.dart';
-import '../../../../data/repositories/seerr_repository.dart';
-import '../../../../data/services/plugin_sync_service.dart';
-import '../../../../data/services/seerr/seerr_api_models.dart';
 import '../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../preference/detail_section_layout.dart';
 import '../../../../preference/user_preferences.dart';
 import '../../../../util/platform_detection.dart';
-import '../../../../util/seerr_credits.dart';
 import '../../../widgets/fullscreen_backdrop_switcher.dart';
 import '../../../widgets/navigation_layout.dart';
 import '../detail_layout_metrics.dart';
@@ -109,12 +104,6 @@ class NouveauDetailContentState extends State<NouveauDetailContent> {
       GlobalKey<NouveauPersonContentState>();
 
   final GlobalKey _detailsRevealKey = GlobalKey();
-
-  List<SeerrDiscoverItem>? _seerrAppearances;
-  List<SeerrDiscoverItem>? _seerrCrewCredits;
-
-  String? _seerrLoadedForItemId;
-  String? _seerrLoadingForItemId;
 
   int _outerRevealRequest = 0;
 
@@ -709,22 +698,12 @@ class NouveauDetailContentState extends State<NouveauDetailContent> {
 
     NavigationLayout.focusDetailsPlayButtonNotifier.value =
         widget.initialFocusNode;
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        return;
-      }
-
-      _ensureSeerrPersonCreditsLoaded();
-    });
   }
 
   void _onViewModelChanged() {
     if (!mounted) {
       return;
     }
-
-    _ensureSeerrPersonCreditsLoaded();
 
     setState(() {});
   }
@@ -852,82 +831,6 @@ class NouveauDetailContentState extends State<NouveauDetailContent> {
     return _nouveauLandscapeContentInsets();
   }
 
-  Future<void> _ensureSeerrPersonCreditsLoaded() async {
-    final item = _vm.item;
-
-    if (item == null || item.type != 'Person') {
-      return;
-    }
-
-    final itemId = item.id;
-
-    if (_seerrLoadedForItemId == itemId || _seerrLoadingForItemId == itemId) {
-      return;
-    }
-
-    final tmdbId = item.tmdbId;
-
-    if (tmdbId == null || tmdbId.isEmpty) {
-      _seerrLoadedForItemId = itemId;
-      return;
-    }
-
-    if (!GetIt.instance<PluginSyncService>().seerrAvailable) {
-      _seerrLoadedForItemId = itemId;
-      return;
-    }
-
-    final personId = int.tryParse(tmdbId);
-
-    if (personId == null) {
-      _seerrLoadedForItemId = itemId;
-      return;
-    }
-
-    _seerrLoadingForItemId = itemId;
-
-    if (mounted) {
-      setState(() {
-        _seerrAppearances = null;
-        _seerrCrewCredits = null;
-      });
-    }
-
-    try {
-      final repository = await GetIt.instance.getAsync<SeerrRepository>();
-
-      await repository.ensureInitialized();
-
-      final credits = await loadSeerrPersonCredits(repository, personId);
-
-      if (!mounted || _vm.item?.id != itemId) {
-        return;
-      }
-
-      setState(() {
-        _seerrAppearances = credits.cast;
-        _seerrCrewCredits = credits.crew;
-        _seerrLoadedForItemId = itemId;
-      });
-    } catch (error) {
-      debugPrint('Error loading nouveau Seerr person credits: $error');
-
-      if (!mounted || _vm.item?.id != itemId) {
-        return;
-      }
-
-      setState(() {
-        _seerrAppearances = const [];
-        _seerrCrewCredits = const [];
-        _seerrLoadedForItemId = itemId;
-      });
-    } finally {
-      if (_seerrLoadingForItemId == itemId) {
-        _seerrLoadingForItemId = null;
-      }
-    }
-  }
-
   @override
   void didUpdateWidget(covariant NouveauDetailContent oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -947,12 +850,6 @@ class NouveauDetailContentState extends State<NouveauDetailContent> {
     final newId = widget.viewModel.item?.id;
 
     if (oldId != newId) {
-      _seerrAppearances = null;
-      _seerrCrewCredits = null;
-
-      _seerrLoadedForItemId = null;
-      _seerrLoadingForItemId = null;
-
       _outerRevealRequest++;
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -963,8 +860,6 @@ class NouveauDetailContentState extends State<NouveauDetailContent> {
         if (_scrollController.hasClients) {
           _scrollController.jumpTo(_scrollController.position.minScrollExtent);
         }
-
-        _ensureSeerrPersonCreditsLoaded();
       });
     }
   }
@@ -1100,16 +995,6 @@ class NouveauDetailContentState extends State<NouveauDetailContent> {
   }
 
   List<Widget> _buildPersonSections() {
-    final seerrCrewCredits = _processedSeerrItems(
-      _seerrCrewCredits,
-      isCrew: true,
-    );
-
-    final seerrAppearances = _processedSeerrItems(
-      _seerrAppearances,
-      isCrew: false,
-    );
-
     return [
       _NouveauSectionEntrance(
         delay: Duration.zero,
@@ -1118,8 +1003,6 @@ class NouveauDetailContentState extends State<NouveauDetailContent> {
           viewModel: _vm,
           prefs: widget.prefs,
           visibility: _visibility,
-          seerrCrewCredits: seerrCrewCredits,
-          seerrAppearances: seerrAppearances,
           onBackdropItemFocused: widget.onBackdropItemFocused,
           onNavigateUp: _focusPersonHero,
           onNavigateDown: _focusPersonRail,
@@ -1288,36 +1171,6 @@ class NouveauDetailContentState extends State<NouveauDetailContent> {
 
     return 'people';
   }
-
-  List<SeerrDiscoverItem> _processedSeerrItems(
-    List<SeerrDiscoverItem>? items, {
-    required bool isCrew,
-  }) {
-    if (items == null || items.isEmpty) {
-      return const [];
-    }
-
-    final grouped = _groupSeerrItems(items, isCrew: isCrew);
-
-    return _sortSeerrItems(grouped);
-  }
-
-  List<SeerrDiscoverItem> _groupSeerrItems(
-    List<SeerrDiscoverItem> items, {
-    required bool isCrew,
-  }) {
-    if (!widget.prefs.get(UserPreferences.personPageGroupItems)) {
-      return List<SeerrDiscoverItem>.from(items);
-    }
-
-    return groupSeerrCredits(items, isCrew: isCrew);
-  }
-
-  List<SeerrDiscoverItem> _sortSeerrItems(List<SeerrDiscoverItem> items) =>
-      sortSeerrCredits(
-        items,
-        widget.prefs.get(UserPreferences.personPageSortOption),
-      );
 
   Widget _buildBackdrop(
     BuildContext context,
@@ -1504,7 +1357,6 @@ class NouveauDetailContentState extends State<NouveauDetailContent> {
       visibility: _visibility,
       onNavigateUp: () => _moveUp(_discoverySectionKey),
       onNavigateDown: () => _moveDown(_discoverySectionKey),
-      onRevealRequested: _scheduleOuterReveal,
     );
   }
 

@@ -4,7 +4,6 @@ import 'package:flutter_tvos/flutter_tvos.dart'
     show TvRemoteController, TvRemoteTouchEvent, TvRemoteTouchPhase;
 import 'package:moonfin_design/moonfin_design.dart';
 
-import 'seerr/seerr_media_type_badge.dart';
 import '../../preference/preference_constants.dart';
 import '../../util/platform_detection.dart';
 import '../../util/tv_ui_scale.dart';
@@ -19,7 +18,6 @@ import 'marquee_text.dart';
 import 'live_tv/incomplete_recording.dart';
 import 'media_badge.dart';
 import 'poster_badges.dart';
-import 'seerr/seerr_status_dot.dart';
 import '../mixins/focus_state_mixin.dart';
 
 class MediaCard extends StatefulWidget {
@@ -117,8 +115,6 @@ class MediaCard extends StatefulWidget {
   final double? playedPercentage;
   final WatchedIndicatorBehavior watchedBehavior;
   final String? itemType;
-  final String? seerrMediaType;
-  final int? seerrStatus;
   final Color? focusColor;
   final bool cardFocusExpansion;
   final FocusNode? focusNode;
@@ -148,8 +144,8 @@ class MediaCard extends StatefulWidget {
   final String? animeMarkerItemId;
 
   /// The item behind the admin's poster badges, such as VFQ. Set only for the server's
-  /// own items: a Seerr card's id is a TMDB id, which the server could mistake for one
-  /// of its own.
+  /// own items: a card from an outside list carries a TMDB id, which the server could
+  /// mistake for one of its own.
   final String? posterBadgeItemId;
 
   /// The item behind the Incomplete badge, for cards that can show a Live TV
@@ -170,7 +166,7 @@ class MediaCard extends StatefulWidget {
   final double? imageSourceAspectRatio;
 
   /// Set when an [imageOverlays] entry occupies the top-left corner so the
-  /// favorite heart shifts down, like it does for the Seerr badge.
+  /// favorite heart shifts down.
   final bool overlayOccupiesTopLeft;
 
   /// Kos TV: a filter over the artwork alone (not the badges, the label or
@@ -199,8 +195,6 @@ class MediaCard extends StatefulWidget {
     this.playedPercentage,
     this.watchedBehavior = WatchedIndicatorBehavior.always,
     this.itemType,
-    this.seerrMediaType,
-    this.seerrStatus,
     this.focusColor,
     this.cardFocusExpansion = true,
     this.focusNode,
@@ -231,8 +225,7 @@ class MediaCard extends StatefulWidget {
   static const _genreLabelMinSize = 14.0;
   static const _genreLabelMaxSize = 24.0;
 
-  /// The Seerr genre rows draw their own label and call this, so both come out
-  /// the same size.
+  /// The genre fallback label scales with the card through this.
   static double genreLabelFontSize(double cardWidth) =>
       (cardWidth * _genreLabelRatio).clamp(
         _genreLabelMinSize,
@@ -490,8 +483,6 @@ class _MediaCardState extends State<MediaCard> with FocusStateMixin {
                       suppressFocusGlow: widget.suppressFocusGlow,
                       isCircular: widget.itemType == 'Person',
                       itemType: widget.itemType,
-                      seerrMediaType: widget.seerrMediaType,
-                      seerrStatus: widget.seerrStatus,
                       imageOverlays: widget.imageOverlays,
                       imageUnderlays: widget.imageUnderlays,
                       imageSourceAspectRatio: widget.imageSourceAspectRatio,
@@ -749,8 +740,6 @@ class _CardImage extends StatelessWidget {
   final bool suppressFocusGlow;
   final bool isCircular;
   final String? itemType;
-  final String? seerrMediaType;
-  final int? seerrStatus;
   final List<Widget> imageOverlays;
   final List<Widget> imageUnderlays;
   final double? imageSourceAspectRatio;
@@ -777,8 +766,6 @@ class _CardImage extends StatelessWidget {
     this.suppressFocusGlow = false,
     this.isCircular = false,
     this.itemType,
-    this.seerrMediaType,
-    this.seerrStatus,
     this.imageOverlays = const [],
     this.imageUnderlays = const [],
     this.imageSourceAspectRatio,
@@ -813,13 +800,6 @@ class _CardImage extends StatelessWidget {
     final borders = ThemeRegistry.active.borders;
     final showGlow =
         showBorder && !suppressFocusGlow && borders.focusGlow.isNotEmpty;
-    final seerrStyle = SeerrMediaStatus.hasDot(seerrStatus)
-        ? seerrBadgeStyle()
-        : null;
-    final showSeerrDot = seerrStyle == SeerrBadgeStyle.badge;
-    final bannerInset = seerrStyle == SeerrBadgeStyle.banner
-        ? kSeerrStatusBannerHeight
-        : 0.0;
 
     return AspectRatio(
       aspectRatio: aspectRatio,
@@ -931,22 +911,16 @@ class _CardImage extends StatelessWidget {
                       : _PlaceholderIcon(itemType: itemType, title: title),
                 ),
                 if (isFavorite ||
-                    _showSeerrMediaTypeBadge ||
                     animeMarkerItemId != null ||
                     posterBadgeItemId != null ||
                     recordingItemId != null)
                   Positioned(
-                    top: bannerInset + (overlayOccupiesTopLeft ? 32 : 6),
+                    top: overlayOccupiesTopLeft ? 32 : 6,
                     left: 6,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (_showSeerrMediaTypeBadge) ...[
-                          SeerrMediaTypeBadge(mediaType: seerrMediaType),
-                          if (animeMarkerItemId != null || isFavorite)
-                            const SizedBox(height: 4),
-                        ],
                         // The gap sits inside the pill rather than in a sibling
                         // box, because the pill draws nothing until an audio
                         // verdict resolves and an empty one must take no space.
@@ -982,22 +956,9 @@ class _CardImage extends StatelessWidget {
                       ],
                     ),
                   ),
-                if (bannerInset > 0)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    child: SeerrStatusBanner(status: seerrStatus),
-                  ),
-                if (showSeerrDot)
+                if (_showWatchedIndicator)
                   Positioned(
                     top: 6,
-                    right: 6,
-                    child: SeerrStatusDot(status: seerrStatus),
-                  )
-                else if (_showWatchedIndicator)
-                  Positioned(
-                    top: bannerInset + 6,
                     right: 6,
                     child: _buildWatchedIndicator(),
                   ),
@@ -1020,16 +981,14 @@ class _CardImage extends StatelessWidget {
                       ),
                     ),
                   ),
-                // The other corners, clear of the Seerr banner, the watched tick and
-                // the progress bar.
+                // The other corners, clear of the watched tick and the progress
+                // bar.
                 if (posterBadgeItemId != null)
                   Positioned.fill(
                     child: PosterBadgeCorners(
                       itemId: posterBadgeItemId!,
                       scale: 0.85,
-                      top:
-                          bannerInset +
-                          (showSeerrDot || _showWatchedIndicator ? 34 : 6),
+                      top: _showWatchedIndicator ? 34 : 6,
                       bottom: playedPercentage != null && playedPercentage! > 0
                           ? 18
                           : 6,
@@ -1073,11 +1032,6 @@ class _CardImage extends StatelessWidget {
     itemType: itemType,
     unplayedCount: unplayedCount,
   );
-
-  bool get _showSeerrMediaTypeBadge {
-    final type = seerrMediaType?.toLowerCase();
-    return type == 'movie' || type == 'tv';
-  }
 
   Widget _buildWatchedIndicator() {
     if (isPlayed) {

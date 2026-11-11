@@ -12,8 +12,6 @@ import 'package:server_core/server_core.dart';
 import 'package:server_silo/server_silo.dart';
 
 import '../../auth/services/silo_token_storage.dart';
-import '../../data/repositories/seerr_repository.dart';
-import 'seerr/seerr_discover_sliders.dart';
 import 'incomplete_recordings_service.dart';
 import 'moonbase_endpoint.dart';
 import 'server_messages_service.dart';
@@ -24,8 +22,6 @@ import '../../ui/widgets/navigation_layout.dart';
 import '../../preference/home_section_config.dart';
 import '../../l10n/current_app_localizations.dart';
 import '../../preference/preference_constants.dart' as prefs;
-import '../../preference/seerr_preferences.dart';
-import '../../preference/seerr_row_config.dart';
 import '../../preference/user_preferences.dart';
 import '../../util/platform_detection.dart';
 import '../../util/signed_in_server_features.dart';
@@ -56,8 +52,6 @@ class PluginSyncService extends ChangeNotifier {
   final PreferenceStore _store;
   final Dio _dio;
 
-  SeerrPreferences get _seerrPrefs => GetIt.instance<SeerrPreferences>();
-
   /// Null when the app has not registered it yet, which is the case in tests
   /// that only exercise settings sync.
   ServerMessagesService? get _messages =>
@@ -78,20 +72,6 @@ class PluginSyncService extends ChangeNotifier {
 
   int _syncRetryCount = 0;
   Timer? _syncRetryTimer;
-
-  String? _seerrUrl;
-  String? get seerrUrl => _seerrUrl;
-  bool _seerrEnabled = false;
-  bool get seerrEnabled => _seerrEnabled;
-  bool get seerrAvailable =>
-      (_siloRequestsAvailable || (_pluginAvailable && _seerrEnabled)) &&
-      _prefs.get(UserPreferences.seerrEnabled);
-
-  /// Silo's own requests, which the request screens use there in place of
-  /// Seerr. Set by [configureSeerr], and not tied to the plugin.
-  bool _siloRequestsAvailable = false;
-  bool _seerrInfoAvailable = false;
-  bool get seerrInfoAvailable => _seerrInfoAvailable;
 
   bool _mdblistAvailable = false;
   bool get mdblistAvailable => _mdblistAvailable;
@@ -139,14 +119,6 @@ class PluginSyncService extends ChangeNotifier {
   bool _clientLogSupported = false;
   bool get clientLogSupported => _pluginAvailable && _clientLogSupported;
   String? _activeThemeCacheServerId;
-
-  final _seerrNotifications =
-      StreamController<SeerrNotificationEvent>.broadcast();
-
-  /// Seerr notifications the plugin pushed. Each listener holds its own
-  /// subscription, so one going away never silences another.
-  Stream<SeerrNotificationEvent> get seerrNotifications =>
-      _seerrNotifications.stream;
 
   /// The server writes a heartbeat after 30 seconds without events, so a
   /// stream quiet for this long has missed more than one and counts as dead.
@@ -259,9 +231,6 @@ class PluginSyncService extends ChangeNotifier {
     _lastSyncedProfileJson.clear();
     _pluginAvailable = false;
     _pluginVersion = null;
-    _seerrUrl = null;
-    _seerrEnabled = false;
-    _seerrInfoAvailable = false;
     _mdblistAvailable = false;
     _tmdbAvailable = false;
     _tmdbThumbsSupported = false;
@@ -278,31 +247,8 @@ class PluginSyncService extends ChangeNotifier {
     if (!keepIncompleteRecordings) _incompleteRecordings?.setSupported(false);
     _activeThemeCacheServerId = null;
     if (notify) {
-      _siloRequestsAvailable = false;
-      _setLocalSeerrEnabled(false);
-    }
-    if (notify) {
       notifyListeners();
     }
-  }
-
-  /// The plugin's word on Seerr, which doesn't apply to Silo, whose requests
-  /// don't go through the plugin.
-  void _setPluginSeerrEnabled(MediaServerClient client, bool enabled) {
-    if (client.serverType == ServerType.silo) return;
-    _setLocalSeerrEnabled(enabled);
-  }
-
-  void _setLocalSeerrEnabled(bool enabled) {
-    _seerrPrefs.setEnabled(enabled);
-    if (_prefs.get(UserPreferences.seerrEnabled) == enabled) {
-      return;
-    }
-    _store.set(
-      _prefs.getEffectivePreference(UserPreferences.seerrEnabled),
-      enabled,
-    );
-    _prefs.notifyPreferenceChanged();
   }
 
   Future<_PluginAvailabilityStatus> _refreshAvailabilityStatus(
@@ -318,13 +264,12 @@ class PluginSyncService extends ChangeNotifier {
 
     // A server that can't have the plugin has nothing to ping. Every caller
     // then takes the path it takes for a server without the plugin: default
-    // home rows, no Seerr proxy, no plugin push enrollment. The messages flag
-    // is cleared too, since only a ping would otherwise reset it after a
-    // session on a server that had the plugin.
+    // home rows, no plugin push enrollment. The messages flag is cleared too,
+    // since only a ping would otherwise reset it after a session on a server
+    // that had the plugin.
     if (!client.features.supportsMoonfinPlugin) {
       _stopSettingsStream();
       _messages?.setSupported(false);
-      _setPluginSeerrEnabled(client, false);
       notifyListeners();
       return _PluginAvailabilityStatus.unavailable;
     }
@@ -335,7 +280,6 @@ class PluginSyncService extends ChangeNotifier {
         _incompleteRecordings?.setSupported(false);
         _stopSettingsStream();
         _messages?.setSupported(false);
-        _setPluginSeerrEnabled(client, false);
         notifyListeners();
         return _PluginAvailabilityStatus.unavailable;
       }
@@ -350,7 +294,6 @@ class PluginSyncService extends ChangeNotifier {
       if (installed != null && !installed) {
         _incompleteRecordings?.setSupported(false);
         _stopSettingsStream();
-        _setPluginSeerrEnabled(client, false);
         notifyListeners();
         return _PluginAvailabilityStatus.unavailable;
       }
@@ -359,15 +302,12 @@ class PluginSyncService extends ChangeNotifier {
       if (syncEnabled != null && !syncEnabled) {
         _incompleteRecordings?.setSupported(false);
         _stopSettingsStream();
-        _setPluginSeerrEnabled(client, false);
         notifyListeners();
         return _PluginAvailabilityStatus.unavailable;
       }
 
       _pluginAvailable = true;
       _pluginVersion = _readString(pingResult, 'version');
-      _seerrUrl = _readString(pingResult, 'seerrUrl');
-      _seerrEnabled = _readBool(pingResult, 'seerrEnabled') ?? false;
       _mdblistAvailable = _readBool(pingResult, 'mdblistAvailable') ?? false;
       _tmdbAvailable = _readBool(pingResult, 'tmdbAvailable') ?? false;
       _tmdbThumbsSupported =
@@ -396,36 +336,6 @@ class PluginSyncService extends ChangeNotifier {
         _readBool(pingResult, 'incompleteRecordingsSupported') ?? false,
         extended: _readBool(pingResult, 'extendedCompleteShowingsSupported') ?? false,
       );
-
-      // On Silo, requests are Silo's own (see configureSeerr), and Moonbase
-      // for Silo always reports its Seerr proxy off.
-      final seerrConfig = client.serverType == ServerType.silo
-          ? null
-          : await _fetchSeerrConfig(client);
-      if (seerrConfig != null) {
-        _seerrInfoAvailable = true;
-        _seerrUrl = _readString(seerrConfig, 'url') ?? _seerrUrl;
-
-        final enabled = _readBool(seerrConfig, 'enabled');
-        final userEnabled = _readBool(seerrConfig, 'userEnabled');
-        _seerrEnabled = enabled ?? _seerrEnabled;
-
-        if (userEnabled != null) {
-          _setPluginSeerrEnabled(client, userEnabled);
-        }
-
-        final variant = _readString(seerrConfig, 'variant');
-        if (variant != null && variant.trim().isNotEmpty) {
-          await _seerrPrefs.setMoonfinVariant(variant);
-        }
-
-        final displayName = _readString(seerrConfig, 'displayName');
-        if (displayName != null && displayName.trim().isNotEmpty) {
-          await _seerrPrefs.setMoonfinDisplayName(displayName);
-        }
-      } else {
-        _setPluginSeerrEnabled(client, _seerrEnabled);
-      }
 
       notifyListeners();
       return _PluginAvailabilityStatus.available;
@@ -685,26 +595,6 @@ class PluginSyncService extends ChangeNotifier {
       return;
     }
 
-    if (type == 'seerrNotification') {
-      final title = _eventValue(parsed, 'title');
-      final body = _eventValue(parsed, 'body');
-      final route = _eventValue(parsed, 'route');
-      final kind = _eventValue(parsed, 'kind');
-      final requestIdRaw = _eventValue(parsed, 'requestId');
-      // A summary of several library additions has no single page to open,
-      // so an empty route still comes through.
-      _seerrNotifications.add(
-        SeerrNotificationEvent(
-          title: title is String ? title : '',
-          body: body is String ? body : '',
-          route: route is String ? route.trim() : '',
-          requestId: requestIdRaw is String ? requestIdRaw : null,
-          isRequest: kind == 'request',
-        ),
-      );
-      return;
-    }
-
     if (type == 'themesChanged') {
       await _refreshCustomThemes(client);
       notifyListeners();
@@ -804,92 +694,6 @@ class PluginSyncService extends ChangeNotifier {
     }
   }
 
-  /// Signs this user in to Seerr through the plugin, and returns whether that
-  /// brought Seerr up, which is when the home has to load its rows again.
-  Future<bool> configureSeerr(
-    MediaServerClient client, {
-    String? username,
-    String? password,
-  }) async {
-    final token = client.accessToken;
-    if (token == null || token.isEmpty) return false;
-
-    final seerrRepo = await GetIt.instance.getAsync<SeerrRepository>();
-
-    // Silo's requests need no plugin and no Seerr sign-in: the Silo session
-    // is enough.
-    if (client.serverType == ServerType.silo) {
-      final wasAvailable = _siloRequestsAvailable;
-      await seerrRepo.ensureInitialized(force: true);
-      _siloRequestsAvailable = seerrRepo.isAvailable;
-      if (_siloRequestsAvailable) {
-        // These are Silo's own requests, so the screens call them that
-        // rather than Seerr.
-        await _seerrPrefs.setMoonfinDisplayName(
-          currentAppLocalizations().seerrRequestsTitle,
-        );
-        await _enableSeerrOnceSignedIn(client);
-      }
-      notifyListeners();
-      return _siloRequestsAvailable && !wasAvailable;
-    }
-    _siloRequestsAvailable = false;
-
-    // A session the plugin kept from an earlier sign in is already live, and
-    // the home loads its rows with it. Signing in again would swap the Seerr
-    // client under those loads and reload the home for nothing.
-    if (_pluginAvailable) {
-      await seerrRepo.ensureInitialized();
-      if (seerrRepo.isAvailable) {
-        await _enableSeerrOnceSignedIn(client);
-        return false;
-      }
-    }
-
-    // A cold start can reach this before the server answers the plugin ping, or
-    // before the plugin's Seerr session comes up after the restored token is
-    // applied. Retry across that window so Seerr recovers on its own instead of
-    // staying unavailable until the user opens its settings screen.
-    const attemptDelays = [
-      Duration.zero,
-      Duration(seconds: 3),
-      Duration(seconds: 6),
-      Duration(seconds: 10),
-    ];
-    for (final delay in attemptDelays) {
-      if (delay > Duration.zero) await Future<void>.delayed(delay);
-
-      if (!_pluginAvailable) {
-        final status = await _refreshAvailabilityStatus(client);
-        if (status == _PluginAvailabilityStatus.unavailable) return false;
-        if (!_pluginAvailable) continue;
-      }
-
-      try {
-        await seerrRepo.bootstrapMoonfinSso(
-          jellyfinBaseUrl: client.baseUrl,
-          jellyfinToken: token,
-          username: username,
-          password: password,
-        );
-        if (seerrRepo.isAvailable) await _enableSeerrOnceSignedIn(client);
-        await _refreshAvailabilityStatus(client);
-      } catch (_) {
-        continue;
-      }
-
-      if (seerrRepo.isAvailable) return true;
-    }
-
-    return seerrRepo.isAvailable;
-  }
-
-  Future<void> _enableSeerrOnceSignedIn(MediaServerClient client) async {
-    if (_prefs.get(UserPreferences.seerrEnabled)) return;
-    _setLocalSeerrEnabled(true);
-    await pushSettings(client);
-  }
-
   Future<void> pushSettings(
     MediaServerClient client, {
     bool force = false,
@@ -938,68 +742,6 @@ class PluginSyncService extends ChangeNotifier {
       );
       // Only after the POST lands, so a failed push retries on the next change.
       _lastSyncedProfileJson[snapshotKey] = payloadJson;
-    } catch (_) {}
-  }
-
-  Future<void> pushNotificationPrefs(MediaServerClient client) async {
-    // Cleared once the server has them, so a change that never got there goes
-    // up at the next sign-in instead of being replaced by the server's copy.
-    await _seerrPrefs.setNotificationPrefsUnsynced(true);
-    if (!_pluginAvailable || !serverHasMoonfinPlugin(client)) {
-      debugPrint('PluginSync: skip pushNotificationPrefs, plugin unavailable');
-      return;
-    }
-
-    try {
-      final ep = await moonbaseEndpoint(client, _dio);
-      if (ep == null) {
-        debugPrint('PluginSync: skip pushNotificationPrefs, no auth headers');
-        return;
-      }
-      final headers = ep.headers;
-
-      await _dio.post(
-        '${ep.base}/Moonfin/Notifications/Prefs',
-        data: {
-          'notifyOnNewRequests': _seerrPrefs.notifyOnNewRequests,
-          'notifyOnLibraryAdded': _seerrPrefs.notifyOnLibraryAdded,
-          'notifyOnIssues': _seerrPrefs.notifyOnIssues,
-          'notifyOnNewMedia': _seerrPrefs.notifyOnNewMedia,
-        },
-        options: Options(
-          headers: {...headers, 'Content-Type': 'application/json'},
-        ),
-      );
-      await _seerrPrefs.setNotificationPrefsUnsynced(false);
-    } catch (_) {}
-  }
-
-  /// Takes the notification choices the server keeps for this user, so a new
-  /// install shows them instead of pushing its defaults over them.
-  Future<void> syncNotificationPrefs(MediaServerClient client) async {
-    if (_seerrPrefs.notificationPrefsUnsynced) {
-      return pushNotificationPrefs(client);
-    }
-    if (!_pluginAvailable || !serverHasMoonfinPlugin(client)) return;
-
-    try {
-      final ep = await moonbaseEndpoint(client, _dio);
-      if (ep == null) return;
-      final response = await _dio.get(
-        '${ep.base}/Moonfin/Notifications/Prefs',
-        options: Options(headers: ep.headers),
-      );
-      final data = response.data;
-      if (data is! Map<String, dynamic>) return;
-      for (final (key, save) in <(String, Future<void> Function(bool))>[
-        ('notifyOnNewRequests', _seerrPrefs.setNotifyOnNewRequests),
-        ('notifyOnLibraryAdded', _seerrPrefs.setNotifyOnLibraryAdded),
-        ('notifyOnIssues', _seerrPrefs.setNotifyOnIssues),
-        ('notifyOnNewMedia', _seerrPrefs.setNotifyOnNewMedia),
-      ]) {
-        final value = _readBool(data, key);
-        if (value != null) await save(value);
-      }
     } catch (_) {}
   }
 
@@ -1275,8 +1017,6 @@ class PluginSyncService extends ChangeNotifier {
       await _prefs.removePreference(pref);
     }
 
-    await _seerrPrefs.setRowsConfig(SeerrRowConfig.defaults());
-
     // The nav chrome takes its position from this notifier rather than from
     // the store, so it would sit in the old spot until the next launch.
     final navbarPos = _prefs.get(UserPreferences.navbarPosition);
@@ -1302,25 +1042,6 @@ class PluginSyncService extends ChangeNotifier {
       // On Silo a 404 can mean Moonbase was removed or reinstalled under a
       // new installation id, so look it up again next time.
       if (e.response?.statusCode == 404) forgetMoonbaseEndpoint(client);
-    } catch (_) {}
-    return null;
-  }
-
-  Future<Map<String, dynamic>?> _fetchSeerrConfig(
-    MediaServerClient client,
-  ) async {
-    final ep = await moonbaseEndpoint(client, _dio);
-    if (ep == null) return null;
-    final headers = ep.headers;
-
-    try {
-      final response = await _dio.get(
-        '${ep.base}/Moonfin/Seerr/Config',
-        options: Options(headers: headers),
-      );
-      if (response.data is Map<String, dynamic>) {
-        return response.data as Map<String, dynamic>;
-      }
     } catch (_) {}
     return null;
   }
@@ -1752,22 +1473,9 @@ class PluginSyncService extends ChangeNotifier {
         for (final custom in existingCustom) {
           sections.add(custom.copyWith(order: order++));
         }
-        // Seerr slider rows go missing when a client from before them saves
-        // the layout, since it drops sections it can't read. They can't be
-        // removed by hand, so a missing one was lost rather than deleted.
-        final incomingSliders = sections
-            .where(isSeerrSliderSection)
-            .map((s) => s.stableId)
-            .toSet();
-        for (final slider in _prefs.homeSectionsConfig.where(
-          (c) => isSeerrSliderSection(c) && !incomingSliders.contains(c.stableId),
-        )) {
-          sections.add(slider.copyWith(order: order++));
-        }
         _appendDisabledBuiltinSections(sections, order);
         await _raiseSinceYouWatchedRowCount(sections);
         await _prefs.setHomeSectionsConfig(sections);
-        await _syncSeerrHomeRowsWithSections(sections);
         appliedHomeSections = true;
       }
     }
@@ -1841,33 +1549,6 @@ class PluginSyncService extends ChangeNotifier {
             sections.add(entry.copyWith(order: order++));
           }
           await _prefs.setHomeSectionsConfig(sections);
-          await _syncSeerrHomeRowsWithSections(sections);
-        }
-      }
-    }
-
-    if (resolved['seerrRows'] is Map<String, dynamic>) {
-      final rowsData = resolved['seerrRows'] as Map<String, dynamic>;
-      if (rowsData['rowOrder'] is List) {
-        final serverOrder = (rowsData['rowOrder'] as List).cast<String>();
-        if (serverOrder.isNotEmpty) {
-          final configs = <SeerrRowConfig>[];
-          var order = 0;
-          for (final name in serverOrder) {
-            final type = prefs.SeerrRowType.fromSerialized(name);
-            configs.add(
-              SeerrRowConfig(type: type, enabled: true, order: order++),
-            );
-          }
-          final enabledTypes = configs.map((c) => c.type).toSet();
-          for (final type in prefs.SeerrRowType.values) {
-            if (!enabledTypes.contains(type)) {
-              configs.add(
-                SeerrRowConfig(type: type, enabled: false, order: order++),
-              );
-            }
-          }
-          await _seerrPrefs.setRowsConfig(configs);
         }
       }
     }
@@ -1957,7 +1638,6 @@ class PluginSyncService extends ChangeNotifier {
     }
 
     await _prefs.setHomeSectionsConfig(sections);
-    await _syncSeerrHomeRowsWithSections(sections);
   }
 
   /// Appends a disabled entry for every built-in HomeSectionType not already in
@@ -1987,25 +1667,6 @@ class PluginSyncService extends ChangeNotifier {
       );
     }
     return order;
-  }
-
-  /// Seerr home rows keep their own copy of the enabled state that the settings
-  /// screens write alongside the section layout, so mirror it here too. Without
-  /// this the home view gates Seerr rows on stale values after a sync.
-  Future<void> _syncSeerrHomeRowsWithSections(
-    List<HomeSectionConfig> sections,
-  ) async {
-    final enabledByType = {
-      for (final section in sections) section.type: section.enabled,
-    };
-    final updated = _seerrPrefs.homeRowsConfig
-        .map(
-          (row) => row.copyWith(
-            enabled: enabledByType[row.type.homeSectionType] ?? false,
-          ),
-        )
-        .toList();
-    await _seerrPrefs.setHomeRowsConfig(updated);
   }
 
   /// Applies one table-driven field from an incoming profile.
@@ -2131,9 +1792,6 @@ class PluginSyncService extends ChangeNotifier {
     final value = data[serverKey];
     if (value is bool) {
       _store.set(_prefs.getEffectivePreference(pref), value);
-      if (pref == UserPreferences.seerrEnabled) {
-        _seerrPrefs.setEnabled(value);
-      }
     }
   }
 
@@ -2352,11 +2010,7 @@ class PluginSyncService extends ChangeNotifier {
           .toList(),
       'homeSections':
           _prefs.homeSectionsConfig.map((c) => c.toJson()).toList(),
-      'seerrRows': {
-        'rowOrder': _seerrPrefs.activeRows
-            .map((t) => t.serializedName)
-            .toList(),
-      },};
+    };
 
     // Only include keys when set. Pushing an explicit null would clear the
     // server-side profile value that other devices rely on.
@@ -2465,26 +2119,6 @@ class PluginSyncService extends ChangeNotifier {
     _pushDebounceTimer?.cancel();
     _syncRetryTimer?.cancel();
     _stopSettingsStream();
-    unawaited(_seerrNotifications.close());
     super.dispose();
   }
-}
-
-/// A Seerr notification the plugin pushed to this user.
-class SeerrNotificationEvent {
-  const SeerrNotificationEvent({
-    required this.title,
-    required this.body,
-    required this.route,
-    this.requestId,
-    this.isRequest = false,
-  });
-
-  final String title;
-  final String body;
-
-  /// Where a tap goes, or empty when there's nowhere to go.
-  final String route;
-  final String? requestId;
-  final bool isRequest;
 }

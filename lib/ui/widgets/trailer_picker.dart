@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../data/models/aggregated_item.dart';
-import '../../data/services/seerr/seerr_api_models.dart';
 import '../../data/services/youtube_stream_resolver.dart';
 import '../../l10n/app_localizations.dart';
 import '../../util/platform_detection.dart';
@@ -97,27 +96,6 @@ List<TrailerChoice> trailerChoicesFor({
           url,
           remote['Name'] is String ? remote['Name'] as String : null,
         ),
-  ];
-}
-
-/// The YouTube trailers and teasers Seerr lists, trailers first.
-List<TrailerChoice> seerrTrailerChoices(List<SeerrVideo> videos) {
-  final seen = <String>{};
-  final youtube = [
-    for (final v in videos)
-      if ((v.site ?? '').toLowerCase() == 'youtube' &&
-          (v.key ?? '').isNotEmpty &&
-          seen.add(v.key!))
-        v,
-  ];
-  return [
-    for (final type in const ['trailer', 'teaser'])
-      for (final v in youtube)
-        if ((v.type ?? '').toLowerCase() == type)
-          TrailerChoice.remote(
-            'https://www.youtube.com/watch?v=${v.key}',
-            v.name,
-          ),
   ];
 }
 

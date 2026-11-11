@@ -1,21 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 
 import '../../../../../data/models/aggregated_item.dart';
-import '../../../../../data/services/plugin_sync_service.dart';
-import '../../../../../data/services/seerr/seerr_api_models.dart';
 import '../../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../../l10n/app_localizations.dart';
 import '../../../../../preference/detail_section_layout.dart';
 import '../../../../../preference/preference_constants.dart';
 import '../../../../../preference/user_preferences.dart';
-import '../../../../../util/platform_detection.dart';
 import '../../../../widgets/navigation_layout.dart';
 import '../../../../widgets/focus/locked_focus_row.dart';
-import '../../../../widgets/seerr/seerr_item_status.dart';
-import '../shared/nouveau_spacing.dart';
 import 'nouveau_discovery_card.dart';
 import 'nouveau_discovery_rail.dart';
 
@@ -24,15 +18,13 @@ class NouveauDiscoverySection extends StatefulWidget {
 
   final UserPreferences prefs;
 
-  /// Which of the rails' sources the viewer left on. A hidden one counts as
-  /// empty, so it never holds a rail open or strips items from the other.
+  /// Whether the viewer left "More like this" on. Hidden, the rail never
+  /// shows, not even as a skeleton.
   final DetailSectionVisibility visibility;
 
   final bool Function()? onNavigateUp;
 
   final bool Function()? onNavigateDown;
-
-  final ValueChanged<GlobalKey>? onRevealRequested;
 
   const NouveauDiscoverySection({
     super.key,
@@ -41,44 +33,10 @@ class NouveauDiscoverySection extends StatefulWidget {
     this.visibility = DetailSectionVisibility.all,
     this.onNavigateUp,
     this.onNavigateDown,
-    this.onRevealRequested,
   });
 
   static bool supportsItem(AggregatedItem item) {
     return item.type == 'Movie' || item.type == 'Series';
-  }
-
-  static bool _seerrExpected(ItemDetailViewModel viewModel) {
-    final item = viewModel.item;
-
-    if (item == null || !supportsItem(item)) {
-      return false;
-    }
-
-    if (!GetIt.instance<PluginSyncService>().seerrAvailable) {
-      return false;
-    }
-
-    return (item.tmdbId?.isNotEmpty ?? false) ||
-        (item.imdbId?.isNotEmpty ?? false);
-  }
-
-  static bool _seerrRelatedResolved(ItemDetailViewModel viewModel) {
-    if (!_seerrExpected(viewModel)) {
-      return true;
-    }
-
-    final seerr = viewModel.seerr;
-
-    if (seerr == null) {
-      return false;
-    }
-
-    if (seerr.state.error != null) {
-      return true;
-    }
-
-    return seerr.relatedLoadComplete;
   }
 
   static bool shouldInclude(
@@ -87,43 +45,14 @@ class NouveauDiscoverySection extends StatefulWidget {
   ) {
     final item = viewModel.item;
 
-    if (item == null || !supportsItem(item)) {
+    if (item == null ||
+        !supportsItem(item) ||
+        !visibility.shows(DetailSection.moreLikeThis)) {
       return false;
     }
 
-    if (visibility.shows(DetailSection.moreLikeThis)) {
-      if (!viewModel.similarInitialLoadComplete) {
-        return true;
-      }
-
-      if (viewModel.similar.isNotEmpty) {
-        return true;
-      }
-    }
-
-    final showsSimilar = visibility.shows(DetailSection.seerrSimilar);
-
-    final showsRecommendations = visibility.shows(
-      DetailSection.seerrRecommendations,
-    );
-
-    if (!showsSimilar && !showsRecommendations) {
-      return false;
-    }
-
-    if (!_seerrExpected(viewModel)) {
-      return false;
-    }
-
-    if (!_seerrRelatedResolved(viewModel)) {
-      return true;
-    }
-
-    final state = seerrItemTabState(viewModel);
-
-    return state != null &&
-        ((showsSimilar && state.similar.isNotEmpty) ||
-            (showsRecommendations && state.recommendations.isNotEmpty));
+    return !viewModel.similarInitialLoadComplete ||
+        viewModel.similar.isNotEmpty;
   }
 
   @override
@@ -132,7 +61,7 @@ class NouveauDiscoverySection extends StatefulWidget {
 }
 
 class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   static int _hubSession = 0;
 
   static const Duration _skeletonGracePeriod = Duration(milliseconds: 450);
@@ -141,25 +70,14 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
 
   late final String _relatedHubKey;
 
-  late final String _recommendationsHubKey;
-
   late final AnimationController _relatedOpacityController;
 
-  late final AnimationController _recommendationsOpacityController;
-
   final ScrollController _relatedScrollController = ScrollController();
-
-  final ScrollController _recommendationsScrollController = ScrollController();
 
   final GlobalKey<LockedFocusRowState<AggregatedItem>> _relatedRowKey =
       GlobalKey<LockedFocusRowState<AggregatedItem>>();
 
-  final GlobalKey<LockedFocusRowState<AggregatedItem>> _recommendationsRowKey =
-      GlobalKey<LockedFocusRowState<AggregatedItem>>();
-
   final GlobalKey _relatedRevealKey = GlobalKey();
-
-  final GlobalKey _recommendationsRevealKey = GlobalKey();
 
   Timer? _skeletonTimer;
 
@@ -167,11 +85,7 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
 
   bool _relatedSkeletonShown = false;
 
-  bool _recommendationsSkeletonShown = false;
-
   bool _relatedCardsShown = false;
-
-  bool _recommendationsCardsShown = false;
 
   String? _trackedItemId;
 
@@ -181,35 +95,9 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
 
   ItemDetailViewModel get _vm => widget.viewModel;
 
-  bool _isCompactMobile(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
+  GlobalKey? get topRevealKey => _related.isNotEmpty ? _relatedRevealKey : null;
 
-    return !PlatformDetection.isTV && size.shortestSide < 600;
-  }
-
-  GlobalKey? get topRevealKey {
-    if (_related.isNotEmpty) {
-      return _relatedRevealKey;
-    }
-
-    if (_recommendations.isNotEmpty) {
-      return _recommendationsRevealKey;
-    }
-
-    return null;
-  }
-
-  GlobalKey? get bottomRevealKey {
-    if (_recommendations.isNotEmpty) {
-      return _recommendationsRevealKey;
-    }
-
-    if (_related.isNotEmpty) {
-      return _relatedRevealKey;
-    }
-
-    return null;
-  }
+  GlobalKey? get bottomRevealKey => topRevealKey;
 
   @override
   void initState() {
@@ -219,14 +107,7 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
 
     _relatedHubKey = 'nouveau-discovery-related-$session';
 
-    _recommendationsHubKey = 'nouveau-discovery-recommendations-$session';
-
     _relatedOpacityController = AnimationController(
-      vsync: this,
-      duration: _railFadeDuration,
-    );
-
-    _recommendationsOpacityController = AnimationController(
       vsync: this,
       duration: _railFadeDuration,
     );
@@ -269,11 +150,7 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
 
     _relatedOpacityController.dispose();
 
-    _recommendationsOpacityController.dispose();
-
     _relatedScrollController.dispose();
-
-    _recommendationsScrollController.dispose();
 
     super.dispose();
   }
@@ -283,12 +160,6 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
       _relatedCardsShown = true;
 
       _relatedOpacityController.forward(from: 0);
-    }
-
-    if (_recommendations.isNotEmpty) {
-      _recommendationsCardsShown = true;
-
-      _recommendationsOpacityController.forward(from: 0);
     }
   }
 
@@ -324,17 +195,9 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
 
     _relatedSkeletonShown = false;
 
-    _recommendationsSkeletonShown = false;
-
     _relatedCardsShown = false;
 
-    _recommendationsCardsShown = false;
-
     _relatedOpacityController
-      ..stop()
-      ..value = 0;
-
-    _recommendationsOpacityController
       ..stop()
       ..value = 0;
 
@@ -359,13 +222,7 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
 
       _skeletonDelayElapsed = true;
 
-      final related = _related;
-
-      final recommendations = _recommendations;
-
-      var changed = false;
-
-      if (related.isEmpty &&
+      if (_related.isEmpty &&
           _relatedWaiting &&
           !_relatedCardsShown &&
           !_relatedSkeletonShown) {
@@ -373,34 +230,13 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
 
         _relatedOpacityController.forward(from: 0);
 
-        changed = true;
-      }
-
-      if (recommendations.isEmpty &&
-          _recommendationsWaiting &&
-          !_recommendationsCardsShown &&
-          !_recommendationsSkeletonShown) {
-        _recommendationsSkeletonShown = true;
-
-        _recommendationsOpacityController.forward(from: 0);
-
-        changed = true;
-      }
-
-      if (changed) {
         setState(() {});
       }
     });
   }
 
   void _syncRailContent() {
-    final related = _related;
-
-    final recommendations = _recommendations;
-
-    final hasRelated = related.isNotEmpty;
-
-    final hasRecommendations = recommendations.isNotEmpty;
+    final hasRelated = _related.isNotEmpty;
 
     if (hasRelated && !_relatedCardsShown) {
       final replacingSkeleton = _relatedSkeletonShown;
@@ -418,40 +254,12 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
       }
     }
 
-    if (hasRecommendations && !_recommendationsCardsShown) {
-      final replacingSkeleton = _recommendationsSkeletonShown;
-
-      _recommendationsCardsShown = true;
-
-      _recommendationsSkeletonShown = false;
-
-      if (replacingSkeleton) {
-        _recommendationsOpacityController
-          ..stop()
-          ..value = 1;
-      } else {
-        _recommendationsOpacityController.forward(from: 0);
-      }
-    }
-
     final relatedWaiting = _relatedWaiting;
-
-    final recommendationsWaiting = _recommendationsWaiting;
 
     if (!hasRelated && !relatedWaiting && _relatedSkeletonShown) {
       _relatedSkeletonShown = false;
 
       _relatedOpacityController
-        ..stop()
-        ..value = 0;
-    }
-
-    if (!hasRecommendations &&
-        !recommendationsWaiting &&
-        _recommendationsSkeletonShown) {
-      _recommendationsSkeletonShown = false;
-
-      _recommendationsOpacityController
         ..stop()
         ..value = 0;
     }
@@ -468,67 +276,14 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
 
       _relatedOpacityController.forward(from: 0);
     }
-
-    if (!hasRecommendations &&
-        recommendationsWaiting &&
-        !_recommendationsCardsShown &&
-        !_recommendationsSkeletonShown) {
-      _recommendationsSkeletonShown = true;
-
-      _recommendationsOpacityController.forward(from: 0);
-    }
-  }
-
-  bool get _seerrExpected {
-    final item = _vm.item;
-
-    if (item == null ||
-        !NouveauDiscoverySection.supportsItem(item) ||
-        !GetIt.instance<PluginSyncService>().seerrAvailable) {
-      return false;
-    }
-
-    return (item.tmdbId?.isNotEmpty ?? false) ||
-        (item.imdbId?.isNotEmpty ?? false);
-  }
-
-  bool get _seerrRelatedResolved {
-    if (!_seerrExpected) {
-      return true;
-    }
-
-    final seerr = _vm.seerr;
-
-    if (seerr == null) {
-      return false;
-    }
-
-    if (seerr.state.error != null) {
-      return true;
-    }
-
-    return seerr.relatedLoadComplete;
   }
 
   bool get _showsBaseRelated =>
       widget.visibility.shows(DetailSection.moreLikeThis);
 
-  bool get _showsSeerrSimilar =>
-      widget.visibility.shows(DetailSection.seerrSimilar);
-
-  bool get _showsSeerrRecommendations =>
-      widget.visibility.shows(DetailSection.seerrRecommendations);
-
-  bool get _seerrWaiting => _seerrExpected && !_seerrRelatedResolved;
-
-  /// Whether a source the related rail still shows is loading. A hidden one
-  /// never holds a skeleton up.
+  /// Whether the rail is still loading. Hidden, it never holds a skeleton up.
   bool get _relatedWaiting =>
-      (_showsBaseRelated && !_vm.similarInitialLoadComplete) ||
-      (_showsSeerrSimilar && _seerrWaiting);
-
-  bool get _recommendationsWaiting =>
-      _showsSeerrRecommendations && _seerrWaiting;
+      _showsBaseRelated && !_vm.similarInitialLoadComplete;
 
   bool get _navbarIsLeft =>
       widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.left;
@@ -573,7 +328,7 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
     return List<AggregatedItem>.unmodifiable(result);
   }
 
-  List<AggregatedItem> get _baseRelated {
+  List<AggregatedItem> get _related {
     if (!_showsBaseRelated) {
       return const [];
     }
@@ -583,134 +338,6 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
     }
 
     return _dedupeBaseRelated(_vm.similar);
-  }
-
-  int get _protectedBaseCount =>
-      NouveauSpacing.discoveryVisibleItemCount.ceil();
-
-  List<AggregatedItem> get _protectedBaseRelated {
-    return _baseRelated.take(_protectedBaseCount).toList(growable: false);
-  }
-
-  List<AggregatedItem> get _baseRelatedTail {
-    final base = _baseRelated;
-
-    if (base.length <= _protectedBaseCount) {
-      return const [];
-    }
-
-    return base.skip(_protectedBaseCount).toList(growable: false);
-  }
-
-  List<AggregatedItem> get _recommendations {
-    final state = seerrItemTabState(_vm);
-
-    if (!_showsSeerrRecommendations ||
-        state == null ||
-        state.recommendations.isEmpty) {
-      return const [];
-    }
-
-    final protectedKeys = <String>{
-      for (final item in _protectedBaseRelated) ..._identityKeys(item),
-    };
-
-    final currentItem = _vm.item;
-
-    final currentKeys = currentItem == null
-        ? const <String>{}
-        : _identityKeys(currentItem);
-
-    final seen = <String>{};
-
-    final result = <AggregatedItem>[];
-
-    for (final item in state.recommendations) {
-      final converted = _seerrItemToAggregated(item);
-
-      final keys = _identityKeys(converted);
-
-      if (_sharesIdentity(keys, currentKeys) ||
-          _sharesIdentity(keys, protectedKeys) ||
-          _sharesIdentity(keys, seen)) {
-        continue;
-      }
-
-      seen.addAll(keys);
-
-      result.add(converted);
-    }
-
-    return result;
-  }
-
-  List<AggregatedItem> get _related {
-    final protectedBase = _protectedBaseRelated;
-
-    final baseTail = _baseRelatedTail;
-
-    final state = seerrItemTabState(_vm);
-
-    if (state == null) {
-      return [...protectedBase, ...baseTail];
-    }
-
-    final recommendations = _recommendations;
-
-    final recommendationKeys = <String>{
-      for (final item in recommendations) ..._identityKeys(item),
-    };
-
-    final filteredTail = <AggregatedItem>[];
-
-    final tailSeen = <String>{};
-
-    for (final item in baseTail) {
-      final keys = _identityKeys(item);
-
-      if (_sharesIdentity(keys, recommendationKeys) ||
-          _sharesIdentity(keys, tailSeen)) {
-        continue;
-      }
-
-      tailSeen.addAll(keys);
-
-      filteredTail.add(item);
-    }
-
-    final result = <AggregatedItem>[...protectedBase, ...filteredTail];
-
-    final currentItem = _vm.item;
-
-    final currentKeys = currentItem == null
-        ? const <String>{}
-        : _identityKeys(currentItem);
-
-    final seen = <String>{for (final item in result) ..._identityKeys(item)};
-
-    final seerrSimilar = _showsSeerrSimilar
-        ? state.similar
-        : const <SeerrDiscoverItem>[];
-
-    // Source API calls this collection "similar". Inside Nouveau Discovery
-    // it is treated as the related-content rail.
-    for (final item in seerrSimilar) {
-      final converted = _seerrItemToAggregated(item);
-
-      final keys = _identityKeys(converted);
-
-      if (_sharesIdentity(keys, currentKeys) ||
-          _sharesIdentity(keys, seen) ||
-          _sharesIdentity(keys, recommendationKeys)) {
-        continue;
-      }
-
-      seen.addAll(keys);
-
-      result.add(converted);
-    }
-
-    return result;
   }
 
   Set<String> _identityKeys(AggregatedItem item) {
@@ -757,221 +384,68 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
     return false;
   }
 
-  AggregatedItem _seerrItemToAggregated(SeerrDiscoverItem item) {
-    final mediaType = item.mediaType ?? 'movie';
-
-    final date = item.releaseDate ?? item.firstAirDate;
-
-    final year = date != null && date.length >= 4
-        ? int.tryParse(date.substring(0, 4))
-        : null;
-
-    return AggregatedItem(
-      id: item.id.toString(),
-      serverId: 'seerr',
-      rawData: {
-        'Name': item.displayTitle,
-        'Overview': item.overview,
-        'Type': mediaType == 'tv' ? 'Series' : 'Movie',
-        'ProviderIds': {'Tmdb': item.id.toString()},
-        'PosterPath': item.posterPath,
-        'BackdropPath': item.backdropPath,
-        'ProductionYear': ?year,
-        'PremiereDate': ?date,
-        'CommunityRating': item.voteAverage,
-        'SeerrMediaType': mediaType,
-        'SeerrStatus': item.mediaInfo?.status,
-        'UserData': const {'Played': false, 'IsFavorite': false},
-        'MediaSources': const [],
-        'MediaStreams': const [],
-        'CanDelete': false,
-      },
-    );
-  }
-
   bool get canFocusTop {
     if (!mounted) {
       return false;
     }
 
-    if (_related.isNotEmpty) {
-      return _relatedRowKey.currentState != null;
-    }
-
-    if (_recommendations.isNotEmpty) {
-      return _recommendationsRowKey.currentState != null;
-    }
-
-    return false;
+    return _related.isNotEmpty && _relatedRowKey.currentState != null;
   }
 
   bool focusTop() {
-    if (_related.isNotEmpty && _relatedRowKey.currentState != null) {
-      _relatedRowKey.currentState!.requestFocusFromMemory();
+    final row = _relatedRowKey.currentState;
 
-      return true;
-    }
-
-    if (_recommendations.isNotEmpty &&
-        _recommendationsRowKey.currentState != null) {
-      _recommendationsRowKey.currentState!.requestFocusFromMemory();
-
-      return true;
-    }
-
-    return false;
-  }
-
-  bool focusBottom() {
-    if (_recommendations.isNotEmpty &&
-        _recommendationsRowKey.currentState != null) {
-      _recommendationsRowKey.currentState!.requestFocusFromMemory();
-
-      return true;
-    }
-
-    if (_related.isNotEmpty && _relatedRowKey.currentState != null) {
-      _relatedRowKey.currentState!.requestFocusFromMemory();
-
-      return true;
-    }
-
-    return false;
-  }
-
-  bool _focusRelated() {
-    if (_related.isEmpty || _relatedRowKey.currentState == null) {
+    if (_related.isEmpty || row == null) {
       return false;
     }
 
-    _relatedRowKey.currentState!.requestFocusFromMemory();
-
-    widget.onRevealRequested?.call(_relatedRevealKey);
+    row.requestFocusFromMemory();
 
     return true;
   }
 
-  bool _focusRecommendations() {
-    if (_recommendations.isEmpty ||
-        _recommendationsRowKey.currentState == null) {
-      return false;
-    }
-
-    _recommendationsRowKey.currentState!.requestFocusFromMemory();
-
-    widget.onRevealRequested?.call(_recommendationsRevealKey);
-
-    return true;
-  }
+  bool focusBottom() => focusTop();
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-
     final related = _related;
 
-    final recommendations = _recommendations;
-
-    final showRelated = related.isNotEmpty || _relatedWaiting;
-
-    final showRecommendations =
-        _seerrExpected &&
-        (recommendations.isNotEmpty || _recommendationsWaiting);
-
-    if (!showRelated && !showRecommendations) {
+    if (related.isEmpty && !_relatedWaiting) {
       return const SizedBox.shrink();
     }
 
-    final compact = _isCompactMobile(context);
-
-    final interRailSpacing = compact
-        ? NouveauSpacing.mobileSectionGap
-        : NouveauSpacing.sectionGap;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (showRelated)
-          KeyedSubtree(
-            key: _relatedRevealKey,
-            child: NouveauDiscoveryRail(
-              // Existing localization key kept because changing generated
-              // localization API is outside this UI cleanup.
-              title: l10n.similar,
-              items: related,
-              showSkeleton: _relatedSkeletonShown && related.isEmpty,
-              opacity: _relatedOpacityController,
-              rowKey: _relatedRowKey,
-              hubKey: _relatedHubKey,
-              controller: _relatedScrollController,
-              onNavigateUp: () {
-                return widget.onNavigateUp?.call() ?? false;
-              },
-              onNavigateDown: () {
-                if (_focusRecommendations()) {
-                  return true;
-                }
-
-                return widget.onNavigateDown?.call() ?? false;
-              },
-              onTap: (item) {
-                NouveauDiscoveryCard.openItem(context, item);
-              },
-              onLeftEdge: _navbarIsLeft ? _handleLeftEdge : null,
-              itemBuilder: (context, item, width, isFocused) {
-                return NouveauDiscoveryCard(
-                  item: item,
-                  imageApi: _vm.imageApi,
-                  prefs: widget.prefs,
-                  width: width,
-                  isFocused: isFocused,
-                );
-              },
-            ),
-          ),
-
-        if (showRelated && showRecommendations)
-          SizedBox(height: interRailSpacing),
-
-        if (showRecommendations)
-          KeyedSubtree(
-            key: _recommendationsRevealKey,
-            child: NouveauDiscoveryRail(
-              title: l10n.recommendations,
-              items: recommendations,
-              showSkeleton:
-                  _recommendationsSkeletonShown && recommendations.isEmpty,
-              opacity: _recommendationsOpacityController,
-              rowKey: _recommendationsRowKey,
-              hubKey: _recommendationsHubKey,
-              controller: _recommendationsScrollController,
-              onNavigateUp: () {
-                if (_focusRelated()) {
-                  return true;
-                }
-
-                return widget.onNavigateUp?.call() ?? false;
-              },
-              onNavigateDown: () {
-                return widget.onNavigateDown?.call() ?? false;
-              },
-              onTap: (item) {
-                NouveauDiscoveryCard.openItem(context, item);
-              },
-              onLeftEdge: _navbarIsLeft ? _handleLeftEdge : null,
-              itemBuilder: (context, item, width, isFocused) {
-                return NouveauDiscoveryCard(
-                  item: item,
-                  imageApi: _vm.imageApi,
-                  prefs: widget.prefs,
-                  width: width,
-                  isFocused: isFocused,
-                );
-              },
-            ),
-          ),
-      ],
+    return KeyedSubtree(
+      key: _relatedRevealKey,
+      child: NouveauDiscoveryRail(
+        // Existing localization key kept because changing generated
+        // localization API is outside this UI cleanup.
+        title: AppLocalizations.of(context).similar,
+        items: related,
+        showSkeleton: _relatedSkeletonShown && related.isEmpty,
+        opacity: _relatedOpacityController,
+        rowKey: _relatedRowKey,
+        hubKey: _relatedHubKey,
+        controller: _relatedScrollController,
+        onNavigateUp: () {
+          return widget.onNavigateUp?.call() ?? false;
+        },
+        onNavigateDown: () {
+          return widget.onNavigateDown?.call() ?? false;
+        },
+        onTap: (item) {
+          NouveauDiscoveryCard.openItem(context, item);
+        },
+        onLeftEdge: _navbarIsLeft ? _handleLeftEdge : null,
+        itemBuilder: (context, item, width, isFocused) {
+          return NouveauDiscoveryCard(
+            item: item,
+            imageApi: _vm.imageApi,
+            prefs: widget.prefs,
+            width: width,
+            isFocused: isFocused,
+          );
+        },
+      ),
     );
   }
 }

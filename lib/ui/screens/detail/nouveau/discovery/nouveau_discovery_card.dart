@@ -4,13 +4,10 @@ import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../../../data/models/aggregated_item.dart';
-import '../../../../../l10n/app_localizations.dart';
 import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/item_watch_state.dart';
 import '../../../../navigation/destinations.dart';
-import '../../../../widgets/seerr/seerr_image_urls.dart';
 import '../shared/nouveau_poster_card.dart';
-import '../../../../../preference/seerr_preferences.dart';
 
 class NouveauDiscoveryCard extends StatelessWidget {
   final AggregatedItem item;
@@ -30,18 +27,7 @@ class NouveauDiscoveryCard extends StatelessWidget {
 
   static const double _aspectRatio = 2 / 3;
 
-  static const Color _seerrColor = Color(0xFF615FFF);
-
   static void openItem(BuildContext context, AggregatedItem item) {
-    if (item.serverId == 'seerr') {
-      final mediaType =
-          item.seerrMediaType ?? (item.type == 'Series' ? 'tv' : 'movie');
-
-      context.push(Destinations.seerrMedia(item.id, mediaType: mediaType));
-
-      return;
-    }
-
     context.push(Destinations.item(item.id, serverId: item.serverId));
   }
 
@@ -51,22 +37,14 @@ class NouveauDiscoveryCard extends StatelessWidget {
     return size.height > size.width && size.width < 600;
   }
 
-  bool get _isSeerr => item.serverId == 'seerr';
-
   String? _imageUrl() {
     final tag = item.primaryImageTag;
 
-    if (tag != null) {
-      return imageApi.getPrimaryImageUrl(item.id, maxHeight: 750, tag: tag);
+    if (tag == null) {
+      return null;
     }
 
-    final posterPath = item.rawData['PosterPath'] as String?;
-
-    if (posterPath != null && posterPath.isNotEmpty) {
-      return '$seerrPosterLargeBase$posterPath';
-    }
-
-    return null;
+    return imageApi.getPrimaryImageUrl(item.id, maxHeight: 750, tag: tag);
   }
 
   double get _progress {
@@ -86,43 +64,6 @@ class NouveauDiscoveryCard extends StatelessWidget {
     unplayedCount: item.unplayedItemCount,
   );
 
-  Widget? _buildSeerrBadge(BuildContext context) {
-    if (!_isSeerr) {
-      return null;
-    }
-
-    final l10n = AppLocalizations.of(context);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: _seerrColor.withValues(alpha: 0.92),
-        borderRadius: AppRadius.circular(999),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.14),
-          width: 0.75,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.20),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Text(
-        seerrBrand(l10n.seerr),
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 10.5,
-          fontWeight: FontWeight.w600,
-          height: 1,
-          letterSpacing: 0.1,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final phonePortrait = _isPhonePortrait(context);
@@ -141,7 +82,6 @@ class NouveauDiscoveryCard extends StatelessWidget {
       isPlayed: _showPlayedIndicator(),
       progress: _progress,
       placeholderIcon: Icons.movie_outlined,
-      topRightOverlay: _buildSeerrBadge(context),
       onTap: () {
         openItem(context, item);
       },

@@ -37,7 +37,6 @@ import '../../../data/services/book_reader_service.dart';
 import '../../../data/services/theme_music_service.dart';
 import '../../../data/services/youtube_stream_resolver.dart';
 import '../../../data/viewmodels/item_detail_view_model.dart';
-import '../../../data/viewmodels/seerr_media_detail_view_model.dart';
 import '../../../data/services/incomplete_recordings_service.dart';
 import '../../../data/services/plugin_sync_service.dart';
 import '../../navigation/route_lifecycle_observer.dart';
@@ -63,8 +62,6 @@ import 'person_links_row.dart';
 import 'playlist_sort_filter_bar.dart';
 import '../../widgets/skeleton/skeleton_detail_screen.dart';
 import '../../widgets/skeleton/skeleton_shimmer.dart';
-import '../../../data/repositories/seerr_repository.dart';
-import '../../../data/services/seerr/seerr_api_models.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../util/error_message.dart';
 import '../../widgets/quick_return_wrapper.dart';
@@ -75,12 +72,10 @@ import '../../../util/remote_subtitle_labels.dart';
 import '../../../util/subtitle_appearance_schedule.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
-import '../../../preference/seerr_preferences.dart';
 import '../../../ui/mixins/focus_state_mixin.dart';
 import '../../../auth/repositories/user_repository.dart';
 import '../../../util/focus/key_event_utils.dart';
 import '../../../util/overview_text.dart';
-import '../../../util/seerr_credits.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/adaptive/adaptive_dialog.dart';
 import '../../widgets/adaptive/sf_symbol.dart';
@@ -90,19 +85,6 @@ import '../../widgets/add_to_playlist_dialog.dart';
 import '../../widgets/logo_view.dart';
 import '../../widgets/media_card.dart';
 import '../../widgets/marquee_text.dart';
-import '../../widgets/seerr/seerr_cancel_request_dialog.dart';
-import '../../widgets/seerr/seerr_collection_banner.dart';
-import '../../widgets/seerr/seerr_image_urls.dart';
-import '../../widgets/seerr/seerr_item_chips.dart';
-import '../../widgets/seerr/seerr_item_status.dart';
-import '../../widgets/seerr/seerr_manage_requests_sheet.dart';
-import '../../widgets/seerr/seerr_report_issue_dialog.dart';
-import '../../widgets/seerr/seerr_request_action.dart';
-import '../../widgets/seerr/seerr_request_dialog.dart';
-import '../../widgets/seerr/seerr_stats_card.dart';
-import '../../widgets/seerr/seerr_streaming_row.dart';
-import '../../widgets/seerr/seerr_status_dot.dart';
-import '../../widgets/seerr/seerr_status_pill.dart';
 import '../../widgets/change_artwork_dialog.dart';
 import '../../widgets/navigation_layout.dart';
 import '../../widgets/bottom_nav/bottom_navbar.dart';
@@ -113,7 +95,6 @@ import '../../widgets/track_action_dialog.dart';
 import '../../widgets/track_selector_dialog.dart';
 import '../../widgets/remote_play_to_session_dialog.dart';
 import '../../widgets/fullscreen_backdrop_switcher.dart';
-import '../../widgets/seerr_icons.dart';
 import '../../widgets/focus/can_claim_initial_focus.dart';
 import '../../widgets/focus/context_action.dart';
 import '../../widgets/focus/context_menu_sheet.dart';
@@ -290,9 +271,6 @@ class ItemDetailScreen extends StatefulWidget {
   final bool autoPlay;
   final String? libraryId;
 
-  /// Only used to resolve an IMDb-keyed Seerr id by searching for it.
-  final String? seerrTitle;
-
   /// The season the viewer came from, when it is not this item's own season —
   /// see [ItemDetailViewModel.contextSeasonId].
   final String? contextSeasonId;
@@ -306,7 +284,6 @@ class ItemDetailScreen extends StatefulWidget {
     required this.itemId,
     this.serverId,
     this.autoPlay = false,
-    this.seerrTitle,
     this.contextSeasonId,
     this.quickLook = false,
     this.libraryId,
@@ -327,7 +304,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
   final ValueNotifier<String?> _backdropUrl = ValueNotifier<String?>(null);
   StreamSubscription<String?>? _backgroundSub;
   bool _themeMusicStarted = false;
-  bool _seerrRedirectDone = false;
   String? _selectedMediaSourceId;
   bool _showNavbar = true;
   bool _actionsExpanded = false;
@@ -367,7 +343,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
       tmdbRepository: GetIt.instance<TmdbRepository>(),
       libraryId: widget.libraryId,
     );
-    _viewModel.seerrOnlyTitle = widget.seerrTitle;
     _viewModel.addListener(_onChanged);
     _sectionVisibility = DetailSectionVisibility.of(_prefs);
     _prefs.addListener(_onPrefsChanged);
@@ -497,17 +472,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
 
   void _onChanged() {
     if (!mounted) return;
-    final resolvedLibraryId = _viewModel.seerrResolvedLibraryId;
-    if (resolvedLibraryId != null && !_seerrRedirectDone) {
-      _seerrRedirectDone = true;
-      // A notify can arrive mid build, and pushing a route from there throws.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          context.pushReplacement(Destinations.item(resolvedLibraryId));
-        }
-      });
-      return;
-    }
     setState(() {});
     final item = _viewModel.item;
     if (item != null &&
@@ -660,8 +624,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
   void _resumeThemeMusicIfEligible() {
     final item = _viewModel.item;
     if (item == null || widget.quickLook) return;
-    // There is no theme song on a server that has never heard of this title.
-    if (_viewModel.isSeerrOnly) return;
 
     _themeMusicStarted = true;
     _themeMusicService.playForItem(item);
@@ -1052,21 +1014,6 @@ Widget classicDetailContentForTesting({
   initialFocusNode: initialFocusNode,
 );
 
-/// Silo's requests have no people, so there the person's name is searched
-/// instead.
-void _openRequestsForPerson(BuildContext context, AggregatedItem item) {
-  final client =
-      GetIt.instance<MediaServerClientFactory>().getClientIfExists(
-        item.serverId,
-      ) ??
-      GetIt.instance<MediaServerClient>();
-  context.push(
-    client.serverType == ServerType.silo
-        ? Destinations.searchRequestsWith(item.name)
-        : Destinations.seerrPerson(item.tmdbId!),
-  );
-}
-
 class _DetailContent extends StatefulWidget {
   final ItemDetailViewModel viewModel;
   final UserPreferences prefs;
@@ -1155,42 +1102,6 @@ class _DetailContentState extends State<_DetailContent> {
     debugLabel: 'playlistClearFiltersButton',
   );
   String? _tvAlbumPlayFocusAppliedForItemId;
-  List<SeerrDiscoverItem>? _seerrAppearances;
-  List<SeerrDiscoverItem>? _seerrCrewCredits;
-
-  Future<void> _loadSeerrAppearances() async {
-    final item = widget.viewModel.item;
-    if (item == null || item.type != 'Person') return;
-    final tmdbId = item.tmdbId;
-    if (tmdbId == null || tmdbId.isEmpty) return;
-    if (!GetIt.instance<PluginSyncService>().seerrAvailable) {
-      return;
-    }
-
-    if (mounted) {
-      setState(() {
-        _seerrAppearances = null;
-        _seerrCrewCredits = null;
-      });
-    }
-
-    try {
-      final repo = await GetIt.instance.getAsync<SeerrRepository>();
-      await repo.ensureInitialized();
-      final personId = int.tryParse(tmdbId);
-      if (personId != null) {
-        final credits = await loadSeerrPersonCredits(repo, personId);
-        if (mounted) {
-          setState(() {
-            _seerrAppearances = credits.cast;
-            _seerrCrewCredits = credits.crew;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error loading Seerr appearances: $e');
-    }
-  }
 
   ItemDetailViewModel get viewModel => widget.viewModel;
   UserPreferences get prefs => widget.prefs;
@@ -1253,10 +1164,7 @@ class _DetailContentState extends State<_DetailContent> {
     final favoriteFocusNode =
         widget.initialFocusNode ?? _sectionFocusNodes['detailPersonFavorite'];
     final displayFocusNode = _sectionFocusNodes['detailPersonDisplayButton'];
-    final seerrFocusNode = _sectionFocusNodes['detailPersonSeerrButton'];
-    if (target == favoriteFocusNode ||
-        target == displayFocusNode ||
-        target == seerrFocusNode) {
+    if (target == favoriteFocusNode || target == displayFocusNode) {
       return true;
     }
     return target.context
@@ -1464,10 +1372,7 @@ class _DetailContentState extends State<_DetailContent> {
         if (upTarget != null) {
           final displayFocusNode =
               _sectionFocusNodes['detailPersonDisplayButton'];
-          final seerrFocusNode = _sectionFocusNodes['detailPersonSeerrButton'];
-          if (upTarget == favoriteFocusNode ||
-              upTarget == displayFocusNode ||
-              upTarget == seerrFocusNode) {
+          if (upTarget == favoriteFocusNode || upTarget == displayFocusNode) {
             _scrollMainToTop();
           }
           _requestSectionFocus(upTarget);
@@ -1500,7 +1405,6 @@ class _DetailContentState extends State<_DetailContent> {
       skipTraversal: true,
     );
     widget.prefs.addListener(_onPrefsChanged);
-    _loadSeerrAppearances();
   }
 
   void _onPrefsChanged() {
@@ -1516,7 +1420,6 @@ class _DetailContentState extends State<_DetailContent> {
       _tvAlbumPlayFocusAppliedForItemId = null;
       _sectionScrollControllers.clear();
       _pendingSectionFocusRetries.clear();
-      _loadSeerrAppearances();
       _playlistSortBy = LibrarySortBy.playlistOrder;
       _playlistSortDirection = SortDirection.ascending;
       _playlistPlayedFilter = PlayedStatusFilter.all;
@@ -1627,19 +1530,13 @@ class _DetailContentState extends State<_DetailContent> {
     final safeTop = MediaQuery.of(context).padding.top;
     final topOffset = safeTop + 80.0;
 
-    String? imageUrl;
-    if (item.primaryImageTag != null && !item.id.startsWith('tmdb:')) {
-      imageUrl = viewModel.imageApi.getPrimaryImageUrl(
-        item.id,
-        maxHeight: 400,
-        tag: item.primaryImageTag,
-      );
-    } else {
-      final profilePath = item.rawData['ProfilePath'] as String?;
-      if (profilePath != null && profilePath.isNotEmpty) {
-        imageUrl = 'https://image.tmdb.org/t/p/w500$profilePath';
-      }
-    }
+    final imageUrl = item.primaryImageTag != null
+        ? viewModel.imageApi.getPrimaryImageUrl(
+            item.id,
+            maxHeight: 400,
+            tag: item.primaryImageTag,
+          )
+        : null;
 
     final isNeon = ThemeRegistry.active.id == ThemeRegistry.neonPulseId;
     final focusColor = Color(prefs.get(UserPreferences.focusColor).colorValue);

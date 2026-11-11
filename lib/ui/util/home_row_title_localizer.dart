@@ -1,26 +1,6 @@
 import '../../data/models/home_row.dart';
 import '../../l10n/app_localizations.dart';
 import '../../preference/preference_constants.dart';
-import '../../preference/seerr_preferences.dart';
-
-/// The Seerr page builds its rows from the type alone, so it localizes the
-/// title here rather than carrying one around.
-String localizeSeerrRowTitle(SeerrRowType type, AppLocalizations l10n) =>
-    switch (type) {
-      SeerrRowType.shortcuts => seerrBrand(l10n.seerrShortcutsRow),
-      SeerrRowType.recentRequests => l10n.recentRequests,
-      SeerrRowType.recentlyAdded => l10n.recentlyAdded,
-      SeerrRowType.yourWatchlist => l10n.yourWatchlist,
-      SeerrRowType.trending => l10n.trending,
-      SeerrRowType.popularMovies => l10n.popularMovies,
-      SeerrRowType.movieGenres => l10n.movieGenres,
-      SeerrRowType.upcomingMovies => l10n.upcomingMovies,
-      SeerrRowType.studios => l10n.studios,
-      SeerrRowType.popularSeries => l10n.popularSeries,
-      SeerrRowType.seriesGenres => l10n.seriesGenres,
-      SeerrRowType.upcomingSeries => l10n.upcomingSeries,
-      SeerrRowType.networks => l10n.networks,
-    };
 
 /// The seasonal row is titled after the holiday Moonbase picked, which it names
 /// by id.
@@ -84,30 +64,6 @@ String localizeHomeRowTitle({
       return l10n.sonarrCalendarRow;
     case 'merged_calendar':
       return l10n.mergedCalendarRow;
-    case 'seerr_recent_requests':
-      return l10n.recentRequests;
-    case 'seerr_recently_added':
-      return l10n.recentlyAdded;
-    case 'seerr_popular_movies':
-      return l10n.popularMovies;
-    case 'seerr_upcoming_movies':
-      return l10n.upcomingMovies;
-    case 'seerr_popular_series':
-      return l10n.popularSeries;
-    case 'seerr_upcoming_series':
-      return l10n.upcomingSeries;
-    case 'seerr_shortcuts':
-      return seerrBrand(l10n.seerrShortcutsRow);
-    case 'seerr_trending':
-      return l10n.trending;
-    case 'seerr_movie_genres':
-      return l10n.movieGenres;
-    case 'seerr_studios':
-      return l10n.studios;
-    case 'seerr_series_genres':
-      return l10n.seriesGenres;
-    case 'seerr_networks':
-      return l10n.networks;
     case 'rewatch':
       return 'Rewatch';
     case 'mdblist_watching_now':
