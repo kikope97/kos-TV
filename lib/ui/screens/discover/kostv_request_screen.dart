@@ -1433,6 +1433,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
             child: ClipRRect(
               borderRadius: radius,
               child: Stack(
+                alignment: Alignment.center,
                 children: [
                   if (progress != null)
                     Positioned.fill(
