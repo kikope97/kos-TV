@@ -25,6 +25,10 @@ enum HomeRowType {
 
   /// Watch Parties, shown first while rooms exist. Not a layout section.
   watchParties,
+
+  /// Kos TV: the TV's installed apps, under the media bar. Not a layout
+  /// section either; its cards are InstalledApps, not server items.
+  apps,
 }
 
 class HomeRow {

@@ -18097,4 +18097,42 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvRewatchRow => 'Rewatch';
+
+  @override
+  String get kostvAppsRow => 'Apps';
+
+  @override
+  String get kostvAllApps => 'All apps';
+
+  @override
+  String get kostvTvSettings => 'TV settings';
+
+  @override
+  String get kostvAppOpen => 'Open';
+
+  @override
+  String get kostvAppAddToHome => 'Add to Home';
+
+  @override
+  String get kostvAppRemoveFromHome => 'Remove from Home';
+
+  @override
+  String get kostvAppMoveLeft => 'Move left';
+
+  @override
+  String get kostvAppMoveRight => 'Move right';
+
+  @override
+  String kostvAppCouldNotOpen(String app) {
+    return 'Couldn\'t open $app.';
+  }
+
+  @override
+  String get kostvShowAppsRow => 'Apps row';
+
+  @override
+  String get kostvShowAppsRowSubtitle => 'Show the TV\'s apps on Home';
+
+  @override
+  String get kostvShowAppsButton => 'Apps button';
 }

@@ -2768,6 +2768,18 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: '',
   );
 
+  /// Kos TV: whether Home shows the Apps row (on a TV). Kept on each device.
+  static final showAppsRow = Preference<bool>(
+    key: 'kostv_show_apps_row',
+    defaultValue: true,
+  );
+
+  /// Kos TV: whether the navigation bar has an Apps button (on a TV).
+  static final showAppsButton = Preference<bool>(
+    key: 'kostv_show_apps_button',
+    defaultValue: true,
+  );
+
   // Kos TV: Spanish out of the box, whatever language the TV is set to. The
   // picker still offers the system language and English.
   static final languageOverride = Preference<String>(

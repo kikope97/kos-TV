@@ -80,6 +80,9 @@ class Destinations {
 
   /// Opens the user's calendar style. The month grid sits under it.
   static const calendar = '/calendar';
+
+  /// Kos TV: every app installed on the TV.
+  static const apps = '/apps';
   static const calendarMonth = '/calendar/month';
 
   static const folderBrowse = '/folder/:folderId';

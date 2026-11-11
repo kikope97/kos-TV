@@ -258,6 +258,13 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
                       ),
                       onChanged: _pushPersonalizationSync,
                     ),
+                  // Kos TV: the Apps button (a TV whose apps can be listed).
+                  if (kostvAppsAvailable())
+                    SwitchPreferenceTile(
+                      preference: UserPreferences.showAppsButton,
+                      title: l10n.kostvShowAppsButton,
+                      icon: Icons.apps_rounded,
+                    ),
                   if (_syncService.calendarAvailable &&
                       !onBar.contains(BottomNavTab.calendar))
                     SwitchPreferenceTile(

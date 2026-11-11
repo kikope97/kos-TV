@@ -31268,6 +31268,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Rewatch'**
   String get kostvRewatchRow;
+
+  /// Kos TV: title of the Home row with the TV's installed apps
+  ///
+  /// In en, this message translates to:
+  /// **'Apps'**
+  String get kostvAppsRow;
+
+  /// Kos TV: card at the end of the Apps row and title of the screen with every installed app
+  ///
+  /// In en, this message translates to:
+  /// **'All apps'**
+  String get kostvAllApps;
+
+  /// Kos TV: card that opens the TV's own system settings
+  ///
+  /// In en, this message translates to:
+  /// **'TV settings'**
+  String get kostvTvSettings;
+
+  /// Kos TV: menu action that opens an installed app
+  ///
+  /// In en, this message translates to:
+  /// **'Open'**
+  String get kostvAppOpen;
+
+  /// Kos TV: menu action that adds an app to the Apps row on Home
+  ///
+  /// In en, this message translates to:
+  /// **'Add to Home'**
+  String get kostvAppAddToHome;
+
+  /// Kos TV: menu action that takes an app off the Apps row on Home
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from Home'**
+  String get kostvAppRemoveFromHome;
+
+  /// Kos TV: menu action that moves an app one place left on the Apps row
+  ///
+  /// In en, this message translates to:
+  /// **'Move left'**
+  String get kostvAppMoveLeft;
+
+  /// Kos TV: menu action that moves an app one place right on the Apps row
+  ///
+  /// In en, this message translates to:
+  /// **'Move right'**
+  String get kostvAppMoveRight;
+
+  /// Kos TV: shown when an installed app fails to open
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open {app}.'**
+  String kostvAppCouldNotOpen(String app);
+
+  /// Kos TV: setting that shows the Apps row on Home
+  ///
+  /// In en, this message translates to:
+  /// **'Apps row'**
+  String get kostvShowAppsRow;
+
+  /// Kos TV: subtitle of the Apps row setting
+  ///
+  /// In en, this message translates to:
+  /// **'Show the TV\'s apps on Home'**
+  String get kostvShowAppsRowSubtitle;
+
+  /// Kos TV: setting that shows the Apps button in the navigation bar
+  ///
+  /// In en, this message translates to:
+  /// **'Apps button'**
+  String get kostvShowAppsButton;
 }
 
 class _AppLocalizationsDelegate

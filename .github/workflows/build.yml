@@ -244,6 +244,26 @@ jobs:
           RELEASE_VERSION: ${{ needs.plan.outputs.release_version }}
         run: ./scripts/kostv_set_version.sh "$RELEASE_VERSION"
 
+      # Kos TV: a test build goes on top of the latest release (its version
+      # plus "-prueba.N"), so it installs over that release and the next
+      # release installs over it. See scripts/kostv_set_version.sh.
+      - name: Set the test version
+        if: needs.plan.outputs.test_apk == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          base=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO/releases/latest" \
+            | python3 -c 'import json, sys; print(json.load(sys.stdin)["tag_name"])' || true)
+          if ! [[ "$base" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "No release yet, the test build stays on 0.1.0."
+            base=0.1.0
+          fi
+          ./scripts/kostv_set_version.sh "$base" $(( RUN_NUMBER % 99 + 1 ))
+
       # Kos TV: a release must have the household server built in, so the app
       # opens on its sign-in. It comes from a secret and stays out of the
       # repository and, masked, out of the logs.
@@ -801,6 +821,13 @@ jobs:
           pattern: android*
           merge-multiple: true
 
+      # Fixed names, so the link to type on the TV is always the same but for
+      # the number: .../releases/download/prueba-N/KosTV_AndroidTV_prueba.apk
+      - name: Name the APKs
+        run: |
+          mv KosTV_AndroidTV_v*.apk KosTV_AndroidTV_prueba.apk
+          mv KosTV_Android_v*.apk KosTV_Android_prueba.apk
+
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: prueba-${{ github.run_number }}
@@ -808,13 +835,14 @@ jobs:
           name: kOS TV · prueba ${{ github.run_number }}
           body: |
             Versión de prueba para instalar a mano. No es una versión publicada:
-            las apps no la ofrecen como actualización.
+            las apps no la ofrecen como actualización. Se instala encima de la
+            última versión publicada, y la siguiente se instala encima de ella.
 
-            - Android TV: `KosTV_AndroidTV_v0.1.0.apk`
-            - Móvil y tablet: `KosTV_Android_v0.1.0.apk`
+            - Android TV: `KosTV_AndroidTV_prueba.apk`
+            - Móvil y tablet: `KosTV_Android_prueba.apk`
 
             Compilada desde ${{ github.sha }}.
-          files: KosTV_*.apk
+          files: KosTV_*_prueba.apk
           fail_on_unmatched_files: true
           draft: false
           prerelease: true

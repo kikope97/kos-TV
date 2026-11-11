@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
+import 'package:get_it/get_it.dart';
+
 import '../../preference/user_preferences.dart';
 import '../../util/platform_detection.dart';
 
@@ -201,3 +203,17 @@ class InstalledAppsService extends ChangeNotifier {
     notifyListeners();
   }
 }
+
+/// Kos TV: whether this is a TV whose apps can be listed, which is where the
+/// Apps row, the Apps button and their settings appear.
+bool kostvAppsAvailable() {
+  final getIt = GetIt.instance;
+  return PlatformDetection.isTV &&
+      getIt.isRegistered<InstalledAppsService>() &&
+      getIt<InstalledAppsService>().isSupported;
+}
+
+/// Kos TV: whether the navigation bar shows the Apps button: where
+/// [kostvAppsAvailable], while it is turned on in Settings.
+bool showKostvAppsButton(UserPreferences prefs) =>
+    kostvAppsAvailable() && prefs.get(UserPreferences.showAppsButton);

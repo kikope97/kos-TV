@@ -11,6 +11,7 @@ import 'package:server_core/server_core.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../../auth/repositories/user_repository.dart';
+import '../../data/services/installed_apps_service.dart';
 import '../../data/models/aggregated_library.dart';
 import '../../data/repositories/multi_server_repository.dart';
 import '../../data/repositories/user_views_repository.dart';
@@ -998,6 +999,8 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
         !kidsMode &&
         _prefs.get(UserPreferences.showCalendarButton) &&
         GetIt.instance<PluginSyncService>().calendarAvailable;
+    // Kos TV: the TV's apps (All apps screen), on a TV with apps to list.
+    final showApps = showKostvAppsButton(_prefs);
     final l10n = AppLocalizations.of(context);
     final seerrNavLabel = seerrPrefs.labelOrDefault(l10n.seerr);
     // Desktop/macOS keeps the dropdown; inline fan-out is only used where
@@ -1182,6 +1185,23 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                     onPressed: () {
                       if (_isActive(Destinations.calendar)) return;
                       context.navigateTopLevel(Destinations.calendar);
+                    },
+                  ),
+                ),
+              ],
+              if (showApps) ...[
+                _gap(),
+                _orderButton(
+                  order: (order++).toDouble(),
+                  child: ExpandableIconButton(
+                    key: const ValueKey('toolbar_apps'),
+                    forceExpanded: alwaysExpanded,
+                    baseColor: nextNavColor(),
+                    icon: Icons.apps_rounded,
+                    label: l10n.kostvAppsRow,
+                    onPressed: () {
+                      if (_isActive(Destinations.apps)) return;
+                      context.navigateTopLevel(Destinations.apps);
                     },
                   ),
                 ),

@@ -65,6 +65,9 @@ import '../../../util/platform_detection.dart';
 import '../../../util/server_url.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
+import '../../../data/services/installed_apps_service.dart';
+import '../../widgets/apps/app_tile.dart';
+import '../downloads/widgets/saved_media_menu.dart';
 import '../../../data/models/media_bar_state.dart';
 import '../../../data/viewmodels/media_bar_view_model.dart';
 import '../../widgets/grid_button_card.dart';
@@ -280,6 +283,54 @@ class _HomeShellState extends State<_HomeShell>
     _partyRooms?.addListener(_onPartyRoomsChanged);
     _onPartyRoomsChanged();
     _partyRooms?.setHomeVisible(_isHomeRouteActive());
+    _installedApps?.addListener(_onInstalledAppsChanged);
+    _userPrefs.addListener(_onInstalledAppsChanged);
+    _onInstalledAppsChanged();
+    unawaited(_installedApps?.ensureLoaded());
+  }
+
+  final InstalledAppsService? _installedApps =
+      GetIt.instance.isRegistered<InstalledAppsService>()
+      ? GetIt.instance<InstalledAppsService>()
+      : null;
+  String? _appsRowSignature;
+
+  /// Kos TV: the Apps row, on a TV while it is turned on in Settings. Rebuilt
+  /// only when its apps or their order change.
+  void _onInstalledAppsChanged() {
+    final apps = _installedApps;
+    final show =
+        apps != null &&
+        apps.isSupported &&
+        apps.isLoaded &&
+        PlatformDetection.isTV &&
+        _userPrefs.get(UserPreferences.showAppsRow);
+    if (!show) {
+      if (_appsRowSignature != null) {
+        _appsRowSignature = null;
+        _viewModel.setAppsRow(null);
+      }
+      return;
+    }
+    final onHome = apps.homeApps;
+    final signature = onHome.map((a) => a.packageName).join(',');
+    if (signature == _appsRowSignature) return;
+    _appsRowSignature = signature;
+    _viewModel.setAppsRow(
+      HomeRow(
+        id: 'kostv_apps',
+        title: currentAppLocalizations().kostvAppsRow,
+        rowType: HomeRowType.apps,
+        items: [
+          for (final app in onHome)
+            AggregatedItem(
+              id: 'app:${app.packageName}',
+              serverId: '',
+              rawData: {'Name': app.label},
+            ),
+        ],
+      ),
+    );
   }
 
   final WatchPartyRoomsService? _partyRooms =
@@ -340,6 +391,8 @@ class _HomeShellState extends State<_HomeShell>
   void dispose() {
     _partyRooms?.removeListener(_onPartyRoomsChanged);
     _partyRooms?.setHomeVisible(false);
+    _installedApps?.removeListener(_onInstalledAppsChanged);
+    _userPrefs.removeListener(_onInstalledAppsChanged);
     if (_observedRoute != null) {
       routeLifecycleObserver.unsubscribe(this);
       _observedRoute = null;
@@ -379,6 +432,8 @@ class _HomeShellState extends State<_HomeShell>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _partyRooms?.setForeground(true);
+      // Kos TV: an app may have been installed or removed meanwhile.
+      unawaited(_installedApps?.refresh());
     } else if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       _partyRooms?.setForeground(false);
@@ -3143,6 +3198,7 @@ class _ContentRowsState extends State<_ContentRows>
     if (row.isLoading) {
       if (row.rowType == HomeRowType.liveTv ||
           row.rowType == HomeRowType.watchParties ||
+          row.rowType == HomeRowType.apps ||
           row.rowType == HomeRowType.libraryTilesSmall) {
         final squarePosterSide = _squarePosterSide(posterSize);
         childHeight = squarePosterSide + (56 * metadataScale);
@@ -3171,6 +3227,7 @@ class _ContentRowsState extends State<_ContentRows>
       }
     } else if (row.rowType == HomeRowType.liveTv ||
         row.rowType == HomeRowType.watchParties ||
+        row.rowType == HomeRowType.apps ||
         row.rowType == HomeRowType.libraryTilesSmall) {
       final squarePosterSide = _squarePosterSide(posterSize);
       final headroom = _focusHeadroom(
@@ -3220,6 +3277,7 @@ class _ContentRowsState extends State<_ContentRows>
     final hasSubtitle = subtitle != null &&
         (row.rowType != HomeRowType.liveTv &&
             row.rowType != HomeRowType.watchParties &&
+            row.rowType != HomeRowType.apps &&
             row.rowType != HomeRowType.libraryTilesSmall);
     final headerPaddingTop = _rowHeaderPaddingTop(isRowsV2);
     final headerPaddingBottom = (row.id == 'mdblist_watching_now') ? 12.0 : (isRowsV2 ? 1.0 : 8.0);
@@ -3527,7 +3585,8 @@ class _ContentRowsState extends State<_ContentRows>
     }
 
     return switch (row.rowType) {
-      HomeRowType.liveTv || HomeRowType.watchParties => true,
+      HomeRowType.liveTv || HomeRowType.watchParties || HomeRowType.apps =>
+        true,
       _ => row.items.isNotEmpty,
     };
   }
@@ -4164,6 +4223,7 @@ class _ContentRowsState extends State<_ContentRows>
       );
     } else if (row.rowType == HomeRowType.liveTv ||
         row.rowType == HomeRowType.watchParties ||
+        row.rowType == HomeRowType.apps ||
         row.rowType == HomeRowType.libraryTilesSmall) {
       final squarePosterSide = _squarePosterSide(posterSize);
       final rowHeight = squarePosterSide + (56 * metadataScale);
@@ -4869,6 +4929,14 @@ class _ContentRowsState extends State<_ContentRows>
                         rowIndex: rowIndex,
                         rows: rows,
                       );
+                    } else if (row.rowType == HomeRowType.apps) {
+                      rowChild = _buildAppsRow(
+                        row,
+                        focusColor,
+                        posterSize: posterSize,
+                        rowIndex: rowIndex,
+                        rows: rows,
+                      );
                     } else if (row.rowType == HomeRowType.liveTv) {
                       rowChild = _buildLiveTvRow(
                         row,
@@ -5243,6 +5311,129 @@ class _ContentRowsState extends State<_ContentRows>
           }
           return Align(alignment: Alignment.topCenter, child: body);
         },
+      ),
+    );
+  }
+
+  /// Kos TV: the Apps row. Each card opens its app and the last one opens All
+  /// apps. A long press (or the menu key) on an app opens it, moves it along
+  /// the row or takes it off.
+  Widget _buildAppsRow(
+    HomeRow row,
+    Color focusColor, {
+    required PosterSize posterSize,
+    required int rowIndex,
+    required List<HomeRow> rows,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    final metadataScale = _desktopUiScaleFactor();
+    final side = _squarePosterSide(posterSize);
+    final rowHeight = side + (56 * metadataScale);
+    final width = side * 16 / 9;
+    final service = GetIt.instance<InstalledAppsService>();
+    final cards = <InstalledApp?>[...service.homeApps, null];
+
+    Future<void> open(InstalledApp? app) async {
+      if (app == null) {
+        context.navigateTopLevel(Destinations.apps);
+        return;
+      }
+      final opened = await service.launch(app);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.kostvAppCouldNotOpen(app.label))),
+        );
+      }
+    }
+
+    Future<void> showAppMenu(InstalledApp? app) async {
+      if (app == null) return;
+      final onHome = service.homeApps;
+      final at = onHome.indexWhere((a) => a.packageName == app.packageName);
+      int? focusAfter;
+      await showSavedMediaMenu(
+        context,
+        title: app.label,
+        actions: [
+          SavedMediaAction(
+            icon: Icons.open_in_new_rounded,
+            label: l10n.kostvAppOpen,
+            onSelect: () => open(app),
+          ),
+          if (at > 0)
+            SavedMediaAction(
+              icon: Icons.chevron_left_rounded,
+              label: l10n.kostvAppMoveLeft,
+              onSelect: () async {
+                await service.moveOnHome(app, -1);
+                focusAfter = at - 1;
+              },
+            ),
+          if (at >= 0 && at < onHome.length - 1)
+            SavedMediaAction(
+              icon: Icons.chevron_right_rounded,
+              label: l10n.kostvAppMoveRight,
+              onSelect: () async {
+                await service.moveOnHome(app, 1);
+                focusAfter = at + 1;
+              },
+            ),
+          SavedMediaAction(
+            icon: Icons.remove_circle_outline_rounded,
+            label: l10n.kostvAppRemoveFromHome,
+            isDestructive: true,
+            onSelect: () => service.removeFromHome(app),
+          ),
+        ],
+      );
+      final index = focusAfter;
+      if (index == null || !mounted) return;
+      // Keep the moved app under the focus, so it can be moved again.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _rowStateOf(rowIndex)?.requestFocusAt(index);
+      });
+    }
+
+    return _buildTitledRow(
+      key: _rowContainerKey(rowIndex),
+      title: row.title,
+      rowIndex: rowIndex,
+      hasItems: true,
+      height: rowHeight,
+      child: LockedFocusRow<InstalledApp?>(
+        key: _rowKey(rowIndex),
+        items: cards,
+        hubKey: _hubKeyForRow(row),
+        controller: _rowHorizontalController(rowIndex),
+        height: rowHeight,
+        itemExtent: width,
+        itemSpacing: _rowItemSpacing(side, false),
+        leadingPadding: _isHomeRowsStyleV2() ? _kHomeRowLabelInset : 0,
+        clipBehavior: Clip.hardEdge,
+        padding: const EdgeInsets.fromLTRB(_kHomeRowLabelInset, 5, 20, 5),
+        onIndexChanged: (_, _) => _onHomeRowTileFocused(null),
+        onFocusChange: (has) => _onRowFocusTracked(rowIndex, has),
+        onVerticalNavigation: (isUp) => _onRowVerticalNavigation(
+          rowIndex: rowIndex,
+          rows: rows,
+          isUp: isUp,
+        ),
+        onLeftEdge: _onRowLeftEdge,
+        onTap: (_, app) => unawaited(open(app)),
+        onLongPress: (_, app) => unawaited(showAppMenu(app)),
+        itemBuilder: (ctx, app, idx, isFocused) => Align(
+          alignment: Alignment.topCenter,
+          child: AppTile(
+            width: width,
+            height: side,
+            focused: isFocused,
+            focusColor: focusColor,
+            app: app,
+            icon: Icons.apps_rounded,
+            label: l10n.kostvAllApps,
+            onTap: () => unawaited(open(app)),
+          ),
+        ),
       ),
     );
   }
@@ -6789,6 +6980,7 @@ class _ContentRowsState extends State<_ContentRows>
         row.items.isNotEmpty &&
         row.rowType != HomeRowType.liveTv &&
         row.rowType != HomeRowType.watchParties &&
+        row.rowType != HomeRowType.apps &&
         row.rowType != HomeRowType.libraryTilesSmall;
 
     ({String? url, double width, double aspectRatio}) imageOf(

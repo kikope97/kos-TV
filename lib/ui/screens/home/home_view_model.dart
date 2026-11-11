@@ -80,8 +80,29 @@ class HomeViewModel extends ChangeNotifier {
     final base = _emptySectionIds.isEmpty
         ? _rows
         : _rows.where((row) => !_isEmptySectionPlaceholder(row)).toList();
+    final apps = _appsRow;
+    final withApps = apps == null ? base : withAppsRow(base, apps);
     final party = _watchPartyRow;
-    return party == null ? base : [party, ...base];
+    return party == null ? withApps : [party, ...withApps];
+  }
+
+  /// Kos TV: the Apps row goes right under the media bar, or first without one.
+  @visibleForTesting
+  static List<HomeRow> withAppsRow(List<HomeRow> base, HomeRow apps) {
+    final at = base.isNotEmpty && base.first.rowType == HomeRowType.mediaBar
+        ? 1
+        : 0;
+    return [...base.take(at), apps, ...base.skip(at)];
+  }
+
+  /// Kos TV: the row of the TV's apps. Like the Watch Parties row it isn't
+  /// one of the layout's sections, so it never reaches the row cache.
+  HomeRow? _appsRow;
+
+  void setAppsRow(HomeRow? row) {
+    if (identical(row, _appsRow)) return;
+    _appsRow = row;
+    notifyListeners();
   }
 
   /// The Watch Parties row, first while rooms exist. It isn't one of the

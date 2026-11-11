@@ -1815,6 +1815,7 @@ class RowDataSource {
       case HomeRowType.mediaBar:
       case HomeRowType.pluginDynamic:
       case HomeRowType.watchParties:
+      case HomeRowType.apps:
         return (row.items, row.totalCount);
     }
 

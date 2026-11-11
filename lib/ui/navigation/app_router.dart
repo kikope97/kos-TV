@@ -15,6 +15,7 @@ import '../../preference/user_preferences.dart';
 import '../../preference/preference_constants.dart';
 import '../../util/game_cores.dart';
 import '../../util/platform_detection.dart';
+import '../screens/apps/all_apps_screen.dart';
 import '../screens/admin/admin_nav.dart';
 import '../screens/admin/admin_routes.dart';
 import '../../util/signed_in_server_features.dart';
@@ -371,6 +372,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: Destinations.allGenres,
       builder: (context, state) => const AllGenresScreen(),
+    ),
+    GoRoute(
+      path: Destinations.apps,
+      builder: (context, state) => const AllAppsScreen(),
     ),
     GoRoute(
       path: Destinations.calendar,

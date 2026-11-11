@@ -32,6 +32,8 @@ git cherry-pick <commit>
 | Solo español e inglés, y en español aunque la tele esté en otro idioma (se puede cambiar en Ajustes > General). Traducción española completa y revisada (de tú, español de España) | `lib/l10n/`, `current_app_localizations.dart`, `UserPreferences.languageOverride` | Hecho |
 | Sin Moonfin a la vista: textos, nombre que ve el servidor ("kOS TV para Android TV"…), perfiles de dispositivo, carpetas (`Descargas/KosTV`), animación de carga (el anillo), temas y paletas con los colores de la marca, web (título, carga, iconos, manifiesto), iOS y Apple TV (nombre, permisos en español, iconos y estantería superior). "Moonbase" se llama "complemento del servidor" | `lib/`, `android/`, `web/`, `ios/`, `tvos/` | Hecho |
 | "Acerca de" apunta a este repositorio (código, licencia y [política de privacidad](PRIVACY_POLICY.md) propia); fuera las fichas de incidencias, Discord y donativos de Moonfin, su `CONTRIBUTING.md` y sus plantillas de incidencias | `about_category_screen.dart`, `PRIVACY_POLICY.md` | Hecho |
+| Aplicaciones de la tele: fila "Aplicaciones" en Inicio (debajo del banner; mantener OK o tecla de menú para abrir, mover o quitar) y pantalla "Todas las aplicaciones" (botón en la barra y al final de la fila; añadir a Inicio, ajustes de la tele). Solo en tele; interruptores en Ajustes > Inicio y Ajustes > Navegación | `InstalledApps.kt`, `installed_apps_service.dart`, `home_screen.dart`, `all_apps_screen.dart`, `app_tile.dart` | Hecho |
+| APK de prueba encima de la última versión publicada (`X.Y.Z-prueba.N`) y código de versión ×100 para dejar sitio a las pruebas | `scripts/kostv_set_version.sh`, `build.yml` | Hecho |
 | Sin Silo | — | Pendiente (ver abajo) |
 
 Un servidor Emby ya no se reconoce: la búsqueda de servidores lo descarta y al
@@ -94,5 +96,15 @@ nuevos ya no se podrán instalar encima: habría que desinstalar en cada aparato
   (`external_lists_screen.dart`), filas del inicio en Ajustes, diagnóstico,
   juegos, reproductores de audio y edición de metadatos. Hay que pasarlos a
   `app_en.arb`/`app_es.arb` poco a poco.
+- **kOS TV como inicio de la tele.** Declararla como pantalla de inicio
+  (HOME) y una guía en Ajustes que detecte si la tele es Google TV (allí hace
+  falta un servicio de accesibilidad que intercepte el botón de inicio) o
+  Android TV clásico (basta con elegirla como predeterminada). Al hacer de
+  inicio: la animación solo al encender y que Atrás en Inicio no pregunte si
+  salir.
+- **Fila de aplicaciones como sección de Inicio.** Ahora es una fila fija
+  debajo del banner; pasarla a `HomeSectionType` permitiría moverla entre las
+  demás filas (ver el mapa en el historial: sincronización con el complemento,
+  modo infantil y los `switch` sobre `HomeSectionType`).
 - **Apple TV.** Cambiar el bundle id (y los de la extensión Top Shelf y el App
   Group) cuando se aborde tvOS.

@@ -36,13 +36,18 @@ es otra cosa y la decide el usuario.
 
 Si el usuario pide un APK para probar (sin decir que publiques una versión),
 lanza `build.yml` con `inputs: {"test_apk": "true"}`. Sale como *pre-release*
-`kOS TV · prueba N` con los dos APK: las apps no la ofrecen como actualización
-(solo leen la última versión publicada) y cualquier versión real se instala
-encima. Dale el enlace directo al APK de la tele
-(`https://github.com/kikope97/kos-TV/releases/download/prueba-N/KosTV_AndroidTV_v0.1.0.apk`).
+`kOS TV · prueba N` con los dos APK. Las apps no la ofrecen como actualización
+(solo leen la última versión publicada). Lleva la versión de la última
+publicada más `-prueba.N`, así que se instala encima de ella y la siguiente
+versión publicada se instala encima de la prueba. Dale el enlace directo al APK
+de la tele:
+`https://github.com/kikope97/kos-TV/releases/download/prueba-N/KosTV_AndroidTV_prueba.apk`.
 
 No cambies a mano la versión del `pubspec.yaml` (se queda en `0.1.0`): la fija
-`scripts/kostv_set_version.sh` a partir de `release_version` al compilar.
+`scripts/kostv_set_version.sh` al compilar, a partir de `release_version` o, en
+las pruebas, de la última versión publicada. El código de versión de Android es
+`(MAJOR*1000000 + MINOR*1000 + PATCH) * 100`, más N en las pruebas; la 1.0.0 se
+publicó con el esquema anterior (1000000) y todos los nuevos son mayores.
 
 ## Firma
 

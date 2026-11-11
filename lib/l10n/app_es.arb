@@ -11980,5 +11980,17 @@
     "kostvTmdbTrendingTvDaily": "Series en tendencia (hoy)",
     "kostvTmdbTrendingTvWeekly": "Series en tendencia (esta semana)",
     "kostvTmdbTrendingAllWeekly": "En tendencia (esta semana)",
-    "kostvRewatchRow": "Volver a ver"
+    "kostvRewatchRow": "Volver a ver",
+    "kostvAppsRow": "Aplicaciones",
+    "kostvAllApps": "Todas las aplicaciones",
+    "kostvTvSettings": "Ajustes de la tele",
+    "kostvAppOpen": "Abrir",
+    "kostvAppAddToHome": "Añadir a Inicio",
+    "kostvAppRemoveFromHome": "Quitar de Inicio",
+    "kostvAppMoveLeft": "Mover a la izquierda",
+    "kostvAppMoveRight": "Mover a la derecha",
+    "kostvAppCouldNotOpen": "No se ha podido abrir {app}.",
+    "kostvShowAppsRow": "Fila de aplicaciones",
+    "kostvShowAppsRowSubtitle": "Muestra en Inicio las aplicaciones de la tele",
+    "kostvShowAppsButton": "Botón de aplicaciones"
 }

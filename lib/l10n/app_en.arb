@@ -17674,5 +17674,58 @@
   "kostvRewatchRow": "Rewatch",
   "@kostvRewatchRow": {
     "description": "Kos TV: title of the home row with finished items to watch again"
+  },
+  "kostvAppsRow": "Apps",
+  "@kostvAppsRow": {
+    "description": "Kos TV: title of the Home row with the TV's installed apps"
+  },
+  "kostvAllApps": "All apps",
+  "@kostvAllApps": {
+    "description": "Kos TV: card at the end of the Apps row and title of the screen with every installed app"
+  },
+  "kostvTvSettings": "TV settings",
+  "@kostvTvSettings": {
+    "description": "Kos TV: card that opens the TV's own system settings"
+  },
+  "kostvAppOpen": "Open",
+  "@kostvAppOpen": {
+    "description": "Kos TV: menu action that opens an installed app"
+  },
+  "kostvAppAddToHome": "Add to Home",
+  "@kostvAppAddToHome": {
+    "description": "Kos TV: menu action that adds an app to the Apps row on Home"
+  },
+  "kostvAppRemoveFromHome": "Remove from Home",
+  "@kostvAppRemoveFromHome": {
+    "description": "Kos TV: menu action that takes an app off the Apps row on Home"
+  },
+  "kostvAppMoveLeft": "Move left",
+  "@kostvAppMoveLeft": {
+    "description": "Kos TV: menu action that moves an app one place left on the Apps row"
+  },
+  "kostvAppMoveRight": "Move right",
+  "@kostvAppMoveRight": {
+    "description": "Kos TV: menu action that moves an app one place right on the Apps row"
+  },
+  "kostvAppCouldNotOpen": "Couldn't open {app}.",
+  "@kostvAppCouldNotOpen": {
+    "description": "Kos TV: shown when an installed app fails to open",
+    "placeholders": {
+      "app": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvShowAppsRow": "Apps row",
+  "@kostvShowAppsRow": {
+    "description": "Kos TV: setting that shows the Apps row on Home"
+  },
+  "kostvShowAppsRowSubtitle": "Show the TV's apps on Home",
+  "@kostvShowAppsRowSubtitle": {
+    "description": "Kos TV: subtitle of the Apps row setting"
+  },
+  "kostvShowAppsButton": "Apps button",
+  "@kostvShowAppsButton": {
+    "description": "Kos TV: setting that shows the Apps button in the navigation bar"
   }
 }

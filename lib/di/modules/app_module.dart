@@ -30,6 +30,7 @@ import '../../util/game_library.dart';
 import '../../data/services/background_service.dart';
 import '../../data/services/access_schedule_service.dart';
 import '../../data/services/app_update_service.dart';
+import '../../data/services/installed_apps_service.dart';
 import '../../data/services/upcoming_episode_service.dart';
 import '../../data/services/cast/airplay_provider.dart';
 import '../../data/services/cast/airplay_command_bridge.dart';
@@ -170,6 +171,11 @@ void registerAppModule() {
   _getIt.registerLazySingleton(
     () =>
         AppUpdateService(_getIt<PreferenceStore>(), _getIt<UserPreferences>()),
+  );
+  // Kos TV: the TV's installed apps (Apps row and All apps). Per device, so
+  // it outlives sign-outs like AppUpdateService.
+  _getIt.registerLazySingleton(
+    () => InstalledAppsService(_getIt<UserPreferences>()),
   );
   _getIt.registerLazySingleton(
     () => ScreensaverController(

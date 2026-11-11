@@ -10,6 +10,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../auth/repositories/user_repository.dart';
+import '../../data/services/installed_apps_service.dart';
 import '../../data/models/aggregated_library.dart';
 import '../../data/repositories/multi_server_repository.dart';
 import '../../data/repositories/user_views_repository.dart';
@@ -1152,6 +1153,24 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                       }
                       _markNavigationAwayFromSidebar();
                       context.navigateTopLevel(Destinations.calendar);
+                    },
+                  ),
+                // Kos TV: the TV's apps (All apps screen).
+                if (showKostvAppsButton(_prefs))
+                  _SidebarItem(
+                    key: const ValueKey('sidebar-apps'),
+                    baseColor: nextMainSidebarColor(),
+                    icon: Icons.apps_rounded,
+                    label: l10n.kostvAppsRow,
+                    showLabel: _showLabels,
+                    onPressed: () {
+                      _onNavigate();
+                      if (_isActive(Destinations.apps)) {
+                        _exitSidebarToContent();
+                        return;
+                      }
+                      _markNavigationAwayFromSidebar();
+                      context.navigateTopLevel(Destinations.apps);
                     },
                   ),
                 if (showLibraries && showLibrariesIndividually)
