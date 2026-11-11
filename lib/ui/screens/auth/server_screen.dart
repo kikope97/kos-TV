@@ -344,9 +344,7 @@ class _ServerScreenState extends State<ServerScreen> {
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w500,
-                          color: AppColorScheme.onSurface.withValues(
-                            alpha: 0.7,
-                          ),
+                          color: AppColorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                       const SizedBox(height: 32),
@@ -354,8 +352,7 @@ class _ServerScreenState extends State<ServerScreen> {
                         entries: entries,
                         selected: _selected,
                         focusNode: _carouselFocus,
-                        onSelected: (index) =>
-                            setState(() => _selected = index),
+                        onSelected: (index) => setState(() => _selected = index),
                         onActivate: (index) => _onUserTap(_users[index]),
                         subtitle: _users.isEmpty
                             ? null
@@ -415,9 +412,7 @@ class _ServerScreenState extends State<ServerScreen> {
                         style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w500,
-                          color: AppColorScheme.onSurface.withValues(
-                            alpha: 0.7,
-                          ),
+                          color: AppColorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                       if (user != null) ...[
@@ -437,11 +432,9 @@ class _ServerScreenState extends State<ServerScreen> {
                       ProfileStrip(
                         entries: entries,
                         selected: _selected,
-                        onSelected: (index) =>
-                            setState(() => _selected = index),
-                        onAdd: () => context.go(
-                          '${Destinations.login}?serverId=${server.id}',
-                        ),
+                        onSelected: (index) => setState(() => _selected = index),
+                        onAdd: () =>
+                            context.go('${Destinations.login}?serverId=${server.id}'),
                         addLabel: l10n.addUser,
                       ),
                       ..._buildNotices(server),
@@ -460,9 +453,7 @@ class _ServerScreenState extends State<ServerScreen> {
               TextButton(
                 onPressed: () => context.go(Destinations.serverSelect),
                 style: TextButton.styleFrom(
-                  foregroundColor: AppColorScheme.onSurface.withValues(
-                    alpha: 0.78,
-                  ),
+                  foregroundColor: AppColorScheme.onSurface.withValues(alpha: 0.78),
                   minimumSize: const Size(0, 44),
                 ),
                 child: Text(l10n.selectServer),
@@ -512,8 +503,9 @@ class _ServerScreenState extends State<ServerScreen> {
         const SizedBox(height: 20),
         Text(
           disclaimer,
-          style: Theme.of(context).textTheme.bodySmall
-              ?.copyWith(color: Colors.white.withValues(alpha: 0.7)),
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.7),
+          ),
           textAlign: TextAlign.center,
         ),
       ],
@@ -530,8 +522,9 @@ class _ServerScreenState extends State<ServerScreen> {
             const SizedBox(width: 10),
             Text(
               l10n.signingIn,
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(color: Colors.white.withValues(alpha: 0.7)),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.7),
+              ),
             ),
           ],
         ),
@@ -563,8 +556,10 @@ class _ServerScreenState extends State<ServerScreen> {
             EdgeInsets.symmetric(horizontal: 20),
           ),
           textStyle: WidgetStatePropertyAll(
-            Theme.of(context).textTheme.labelLarge
-                ?.copyWith(fontSize: 15, fontWeight: FontWeight.w500),
+            Theme.of(context).textTheme.labelLarge?.copyWith(
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
       ),

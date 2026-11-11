@@ -230,6 +230,15 @@
       }
     }
   },
+  "kostvSignedInAs": "Signed in as {user}",
+  "@kostvSignedInAs": {
+    "description": "Kos TV: line at the top of the Switch User screen when the household server is built in (no server named)",
+    "placeholders": {
+      "user": {
+        "type": "String"
+      }
+    }
+  },
   "accountActive": "Active",
   "@accountActive": {
     "description": "Marks the account that is signed in now in the Switch User screen"

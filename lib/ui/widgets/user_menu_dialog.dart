@@ -372,9 +372,8 @@ class _AccountDialogState extends State<_AccountDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => PlatformDetection.useMobileUi
-      ? _buildSheet(context)
-      : _buildWide(context);
+  Widget build(BuildContext context) =>
+      PlatformDetection.useMobileUi ? _buildSheet(context) : _buildWide(context);
 
   Widget _buildWide(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -402,10 +401,13 @@ class _AccountDialogState extends State<_AccountDialog> {
                     child: active == null
                         ? const SizedBox.shrink()
                         : Text(
-                            l10n.signedInAsOnServer(
-                              active.user.name,
-                              active.server.name,
-                            ),
+                            // Kos TV: the household server goes unnamed.
+                            hasKostvServer
+                                ? l10n.kostvSignedInAs(active.user.name)
+                                : l10n.signedInAsOnServer(
+                                    active.user.name,
+                                    active.server.name,
+                                  ),
                             textAlign: TextAlign.end,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -419,9 +421,7 @@ class _AccountDialogState extends State<_AccountDialog> {
                     const SizedBox(width: 16),
                     _CircleActionButton(
                       icon: Icons.close,
-                      onPressed: _busy
-                          ? null
-                          : () => Navigator.of(context).pop(),
+                      onPressed: _busy ? null : () => Navigator.of(context).pop(),
                       focusColor: Theme.of(context).colorScheme.primary,
                     ),
                   ],

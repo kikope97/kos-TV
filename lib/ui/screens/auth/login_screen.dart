@@ -26,6 +26,7 @@ import '../../../data/services/pin_guard.dart';
 import '../../../data/services/server_pin_service.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/focus/dpad_keys.dart';
+import '../../../util/kostv_server.dart';
 import '../../../util/pin_code_util.dart';
 import '../../../util/platform_detection.dart';
 import '../../../util/server_url.dart';
@@ -623,7 +624,15 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  /// Kos TV: with the household server built in and nobody to pick on it,
+  /// this is the first page: Back leaves the app and there is no Back button.
+  bool get _isFirstPage => hasKostvServer && widget.backToServerList;
+
   void _navigateBack() {
+    if (_isFirstPage) {
+      unawaited(SystemNavigator.pop());
+      return;
+    }
     final server = _server;
     if (server == null || widget.backToServerList) {
       context.go(Destinations.serverSelect);
@@ -1221,12 +1230,14 @@ class _LoginScreenState extends State<LoginScreen> {
             onPressed: _importClientCertAndLogin,
           ),
         ],
-        const SizedBox(height: 24),
-        _buildActionButton(
-          label: l10n.back,
-          focusNode: _backFocus,
-          onPressed: _navigateBack,
-        ),
+        if (!_isFirstPage) ...[
+          const SizedBox(height: 24),
+          _buildActionButton(
+            label: l10n.back,
+            focusNode: _backFocus,
+            onPressed: _navigateBack,
+          ),
+        ],
       ],
     );
   }
@@ -1287,11 +1298,12 @@ class _LoginScreenState extends State<LoginScreen> {
           spacing: 12,
           runSpacing: 12,
           children: [
-            _buildActionButton(
-              label: l10n.back,
-              focusNode: _backFocus,
-              onPressed: _navigateBack,
-            ),
+            if (!_isFirstPage)
+              _buildActionButton(
+                label: l10n.back,
+                focusNode: _backFocus,
+                onPressed: _navigateBack,
+              ),
             _buildActionButton(
               label: l10n.signIn,
               focusNode: _signInFocus,

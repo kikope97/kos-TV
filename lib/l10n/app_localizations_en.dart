@@ -164,6 +164,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String kostvSignedInAs(String user) {
+    return 'Signed in as $user';
+  }
+
+  @override
   String get accountActive => 'Active';
 
   @override

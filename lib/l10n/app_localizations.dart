@@ -362,6 +362,12 @@ abstract class AppLocalizations {
   /// **'Signed in as {user} on {server}'**
   String signedInAsOnServer(String user, String server);
 
+  /// Kos TV: line at the top of the Switch User screen when the household server is built in (no server named)
+  ///
+  /// In en, this message translates to:
+  /// **'Signed in as {user}'**
+  String kostvSignedInAs(String user);
+
   /// Marks the account that is signed in now in the Switch User screen
   ///
   /// In en, this message translates to:

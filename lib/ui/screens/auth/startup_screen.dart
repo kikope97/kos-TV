@@ -28,7 +28,10 @@ import '../../../data/services/stremfin/stremfin_service.dart';
 class StartupScreen extends StatefulWidget {
   final bool bootstrapActiveSession;
 
-  const StartupScreen({super.key, this.bootstrapActiveSession = false});
+  const StartupScreen({
+    super.key,
+    this.bootstrapActiveSession = false,
+  });
 
   @override
   State<StartupScreen> createState() => _StartupScreenState();
@@ -119,8 +122,7 @@ class _StartupScreenState extends State<StartupScreen> {
       pinEnabledForAutoLoginUser = pinUtil.isPinEnabled;
     }
 
-    final restored =
-        (authPrefs.shouldAlwaysAuthenticate || pinEnabledForAutoLoginUser)
+    final restored = (authPrefs.shouldAlwaysAuthenticate || pinEnabledForAutoLoginUser)
         ? false
         : await session.restoreSession();
     if (restored && session.activeUserId != null) _preloadHome();
@@ -175,7 +177,8 @@ class _StartupScreenState extends State<StartupScreen> {
   }
 
   /// Kos TV: with the household server built in, a first start skips the
-  /// server address and opens straight on its username and password sign-in.
+  /// server address and opens that server: who's watching, if it shows its
+  /// users, or straight on its username and password sign-in.
   Future<void> _openKostvServer() async {
     final serverRepo = GetIt.instance<ServerRepository>();
     final connectivity = GetIt.instance<ConnectivityService>();
@@ -188,7 +191,8 @@ class _StartupScreenState extends State<StartupScreen> {
       setState(() => _kostvServerFailed = true);
       return;
     }
-    context.go('${Destinations.login}?serverId=${server.id}');
+    // Its users, if it shows any; its sign-in otherwise.
+    context.go('${Destinations.server}?serverId=${server.id}');
   }
 
   /// Kos TV: while the opening plays, Home's rows and the first page of
@@ -218,7 +222,9 @@ class _StartupScreenState extends State<StartupScreen> {
       barrierDismissible: true,
       builder: (context) => AlertDialog.adaptive(
         title: Text(l10n.secureStorageUnavailable),
-        content: Text(l10n.secureStorageUnavailableMessage),
+        content: Text(
+          l10n.secureStorageUnavailableMessage,
+        ),
         actions: [
           adaptiveDialogAction(
             onPressed: () => Navigator.of(context).pop(),
@@ -228,6 +234,7 @@ class _StartupScreenState extends State<StartupScreen> {
       ),
     );
   }
+
 
   @override
   Widget build(BuildContext context) =>

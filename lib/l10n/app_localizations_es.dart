@@ -164,6 +164,11 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String kostvSignedInAs(String user) {
+    return 'Sesión iniciada como $user';
+  }
+
+  @override
   String get accountActive => 'Activo';
 
   @override
