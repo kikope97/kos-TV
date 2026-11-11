@@ -73,6 +73,14 @@ void main() {
       expect(bottomNavTabMatchesRoute(BottomNavTab.discover, '/seerr/requests'),
           isTrue);
     });
+
+    test('Kos TV: Discover lights up on its own screen only', () {
+      expect(bottomNavTabMatchesRoute(BottomNavTab.kostvDiscover, '/discover'),
+          isTrue);
+      expect(
+          bottomNavTabMatchesRoute(BottomNavTab.kostvDiscover, '/seerr/discover'),
+          isFalse);
+    });
   });
 
   group('resolveHubTiles', () {

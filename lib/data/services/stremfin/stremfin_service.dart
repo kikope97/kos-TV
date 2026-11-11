@@ -170,6 +170,14 @@ class StremfinService extends ChangeNotifier {
   }
 }
 
+/// Kos TV: whether the requests service lets the signed-in person use
+/// Discover (before the Settings switch and kids mode are counted).
+bool kostvDiscoverAllowed() {
+  final getIt = GetIt.instance;
+  return getIt.isRegistered<StremfinService>() &&
+      getIt<StremfinService>().isAllowed;
+}
+
 /// Kos TV: whether the navigation shows the Discover button: a build that
 /// knows the requests service, a person it lets in, outside kids mode, while
 /// it is turned on in Settings.

@@ -35,6 +35,7 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
         prefs,
         seerrAvailable: _syncService.seerrAvailable,
         calendarAvailable: _syncService.calendarAvailable,
+        kostvDiscoverAvailable: kostvDiscoverAllowed(),
       ).resolvePins(prefs.get(UserPreferences.bottomNavbarTabs));
 
   String _bottomTabsSummary(AppLocalizations l10n, UserPreferences prefs) {
@@ -267,9 +268,10 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
                     ),
                   // Kos TV: the Discover button, for a person the requests
                   // service lets in.
-                  if (GetIt.instance.isRegistered<StremfinService>() &&
-                      GetIt.instance<StremfinService>().isAllowed)
+                  if (kostvDiscoverAllowed() &&
+                      !onBar.contains(BottomNavTab.kostvDiscover))
                     SwitchPreferenceTile(
+                      key: const ValueKey(BottomNavTab.kostvDiscover),
                       preference: UserPreferences.showDiscoverButton,
                       title: l10n.kostvShowDiscoverButton,
                       icon: Icons.explore_rounded,

@@ -5,6 +5,9 @@ import 'user_preferences.dart';
 /// so renaming one breaks every synced profile that holds it.
 enum BottomNavTab {
   search,
+
+  /// Kos TV: what's on the streaming platforms (the requests service).
+  kostvDiscover,
   libraries,
   favorites,
   genres,
@@ -16,8 +19,11 @@ enum BottomNavTab {
 const int kMaxPinnedBottomNavTabs = 3;
 
 // Libraries sits second so a user on default settings keeps it on the bar.
+// Kos TV: Discover goes before it, where the requests service lets the person
+// in; Favorites then moves to the You hub.
 const List<BottomNavTab> _autoOrder = [
   BottomNavTab.search,
+  BottomNavTab.kostvDiscover,
   BottomNavTab.libraries,
   BottomNavTab.favorites,
   BottomNavTab.liveTv,
@@ -66,6 +72,11 @@ class BottomNavTabGates {
   final bool showCalendar;
   final bool calendarAvailable;
 
+  /// Kos TV: the Discover switch, and whether the requests service lets the
+  /// signed-in person in.
+  final bool showKostvDiscover;
+  final bool kostvDiscoverAvailable;
+
   const BottomNavTabGates({
     this.kidsMode = false,
     this.showLibraries = true,
@@ -76,12 +87,15 @@ class BottomNavTabGates {
     this.seerrAvailable = false,
     this.showCalendar = true,
     this.calendarAvailable = false,
+    this.showKostvDiscover = true,
+    this.kostvDiscoverAvailable = false,
   });
 
   factory BottomNavTabGates.fromPreferences(
     UserPreferences prefs, {
     required bool seerrAvailable,
     bool calendarAvailable = false,
+    bool kostvDiscoverAvailable = false,
   }) {
     return BottomNavTabGates(
       kidsMode: prefs.get(UserPreferences.kidsModeEnabled),
@@ -93,20 +107,24 @@ class BottomNavTabGates {
       seerrAvailable: seerrAvailable,
       showCalendar: prefs.get(UserPreferences.showCalendarButton),
       calendarAvailable: calendarAvailable,
+      showKostvDiscover: prefs.get(UserPreferences.showDiscoverButton),
+      kostvDiscoverAvailable: kostvDiscoverAvailable,
     );
   }
 
   // Kids Mode drops Libraries (the My Media row stands in), Live TV (its route
   // bounces home), Seerr and the calendar.
   bool offers(BottomNavTab tab) => switch (tab) {
-        BottomNavTab.search => true,
-        BottomNavTab.libraries => !kidsMode && showLibraries,
-        BottomNavTab.favorites => showFavorites,
-        BottomNavTab.genres => showGenres,
-        BottomNavTab.liveTv => !kidsMode && showLiveTv,
-        BottomNavTab.discover => !kidsMode && showSeerr && seerrAvailable,
-        BottomNavTab.calendar => !kidsMode && showCalendar && calendarAvailable,
-      };
+    BottomNavTab.search => true,
+    BottomNavTab.kostvDiscover =>
+      !kidsMode && showKostvDiscover && kostvDiscoverAvailable,
+    BottomNavTab.libraries => !kidsMode && showLibraries,
+    BottomNavTab.favorites => showFavorites,
+    BottomNavTab.genres => showGenres,
+    BottomNavTab.liveTv => !kidsMode && showLiveTv,
+    BottomNavTab.discover => !kidsMode && showSeerr && seerrAvailable,
+    BottomNavTab.calendar => !kidsMode && showCalendar && calendarAvailable,
+  };
 
   /// The tabs the bar shows between Home and You. Automatic pins follow the
   /// nav button switches without anything being stored. Explicit pins are

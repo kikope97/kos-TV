@@ -18,6 +18,7 @@ import '../../widgets/focus/request_initial_focus.dart';
 import '../../widgets/horizontal_scroll_section.dart';
 import '../../widgets/kos_logo.dart';
 import '../../widgets/media_card.dart';
+import '../../widgets/bottom_nav/bottom_navbar.dart';
 import '../../widgets/modern_row.dart';
 import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
@@ -365,9 +366,8 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
       backgroundColor: AppColorScheme.background,
       body: NavigationLayout(
         activeRoute: Destinations.kostvDiscover,
-        child: RequestInitialFocus(
-          targetNode: _platformFocus,
-          child: Stack(
+        child: _withInitialFocus(
+          Stack(
             fit: StackFit.expand,
             children: [
               // The chosen platform's colour, faint, from the top corner.
@@ -386,46 +386,49 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
                   ),
                 ),
               ),
-              ListView(
-                controller: _scrollController,
-                padding: EdgeInsets.only(top: insets.top, bottom: 48),
-                children: [
-                  _section(
-                    scrollToTop: true,
-                    child: _buildPlatforms(sizes, insets),
-                  ),
-                  if (allFailed)
-                    Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        insets.left,
-                        48,
-                        insets.right,
-                        0,
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            l10n.kostvDiscoverUnavailable,
-                            style: TextStyle(
-                              color: AppColorScheme.onSurface.withValues(
-                                alpha: 0.8,
+              BottomNavPadded(
+                fallback: 48,
+                builder: (context, bottom) => ListView(
+                  controller: _scrollController,
+                  padding: EdgeInsets.only(top: insets.top, bottom: bottom),
+                  children: [
+                    _section(
+                      scrollToTop: true,
+                      child: _buildPlatforms(sizes, insets),
+                    ),
+                    if (allFailed)
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          insets.left,
+                          48,
+                          insets.right,
+                          0,
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              l10n.kostvDiscoverUnavailable,
+                              style: TextStyle(
+                                color: AppColorScheme.onSurface.withValues(
+                                  alpha: 0.8,
+                                ),
+                                fontSize: 18,
                               ),
-                              fontSize: 18,
                             ),
-                          ),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () =>
-                                setState(() => _loadLists(refresh: true)),
-                            child: Text(l10n.retry),
-                          ),
-                        ],
-                      ),
-                    )
-                  else
-                    for (final spec in rows)
-                      _section(child: _buildRow(spec, sizes, insets, l10n)),
-                ],
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () =>
+                                  setState(() => _loadLists(refresh: true)),
+                              child: Text(l10n.retry),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      for (final spec in rows)
+                        _section(child: _buildRow(spec, sizes, insets, l10n)),
+                  ],
+                ),
               ),
             ],
           ),
@@ -433,6 +436,12 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
       ),
     );
   }
+
+  /// With a remote or a keyboard the platforms take focus on arrival; on a
+  /// touch screen nothing does, so no focus ring sits on a tile.
+  Widget _withInitialFocus(Widget child) => PlatformDetection.useMobileUi
+      ? child
+      : RequestInitialFocus(targetNode: _platformFocus, child: child);
 
   /// Keeps whatever takes focus in view.
   Widget _section({required Widget child, bool scrollToTop = false}) {
@@ -472,8 +481,21 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
     ({double imageHeight, double cardWidth, double scale}) sizes,
     EdgeInsets insets,
   ) {
-    final tileHeight = (sizes.imageHeight * 0.42).clamp(64.0, 120.0);
-    final tileWidth = tileHeight * 2.3;
+    // On a phone the four share the width; elsewhere they follow the posters.
+    final mobile = PlatformDetection.useMobileUi;
+    final spacing = mobile ? 10.0 : 20.0;
+    final double tileWidth;
+    final double tileHeight;
+    if (mobile) {
+      final usable =
+          MediaQuery.sizeOf(context).width - insets.left - insets.right;
+      final count = _platforms.length.clamp(1, 4);
+      tileWidth = ((usable - spacing * (count - 1)) / count).clamp(72.0, 200.0);
+      tileHeight = tileWidth * 0.56;
+    } else {
+      tileHeight = (sizes.imageHeight * 0.42).clamp(64.0, 120.0);
+      tileWidth = tileHeight * 2.3;
+    }
     final growth = tileHeight * 0.08;
     final focusColor = Color(_prefs.get(UserPreferences.focusColor).colorValue);
     return LockedFocusRow<StremfinPlatform>(
@@ -482,9 +504,9 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
       items: _platforms,
       itemKey: (p, _) => p.id,
       focusNode: _platformFocus,
-      autofocus: true,
+      autofocus: !mobile,
       itemExtent: tileWidth,
-      itemSpacing: 20,
+      itemSpacing: spacing,
       height: tileHeight + growth * 2 + 12,
       clipBehavior: Clip.none,
       padding: EdgeInsets.fromLTRB(
@@ -853,7 +875,7 @@ class _PlatformTile extends StatelessWidget {
                       ]
                     : null,
               ),
-              child: content,
+              child: FittedBox(fit: BoxFit.scaleDown, child: content),
             ),
           ),
         ),

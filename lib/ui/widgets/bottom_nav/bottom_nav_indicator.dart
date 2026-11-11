@@ -36,21 +36,21 @@ class BottomNavSlidingMarker extends StatelessWidget {
         final visible = index != null;
 
         Widget place(double start) => Stack(
-              clipBehavior: Clip.none,
-              children: [
-                PositionedDirectional(
-                  start: start,
-                  top: top,
-                  width: markerWidth,
-                  height: height,
-                  child: AnimatedOpacity(
-                    opacity: visible ? 1 : 0,
-                    duration: const Duration(milliseconds: 180),
-                    child: child,
-                  ),
-                ),
-              ],
-            );
+          clipBehavior: Clip.none,
+          children: [
+            PositionedDirectional(
+              start: start,
+              top: top,
+              width: markerWidth,
+              height: height,
+              child: AnimatedOpacity(
+                opacity: visible ? 1 : 0,
+                duration: const Duration(milliseconds: 180),
+                child: child,
+              ),
+            ),
+          ],
+        );
 
         if (MediaQuery.disableAnimationsOf(context)) return place(target);
         return SpringBuilder(

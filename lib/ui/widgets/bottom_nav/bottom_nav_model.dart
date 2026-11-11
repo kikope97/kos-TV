@@ -15,16 +15,16 @@ class BottomNavBarItem {
   const BottomNavBarItem.home() : this._(BottomNavItemKind.home, null, 0);
 
   const BottomNavBarItem.tab(BottomNavTab tab, int slot)
-      : this._(BottomNavItemKind.tab, tab, slot);
+    : this._(BottomNavItemKind.tab, tab, slot);
 
   const BottomNavBarItem.you(int slot)
-      : this._(BottomNavItemKind.you, null, slot);
+    : this._(BottomNavItemKind.you, null, slot);
 
   String get id => switch (kind) {
-        BottomNavItemKind.home => 'home',
-        BottomNavItemKind.you => 'you',
-        BottomNavItemKind.tab => tab!.name,
-      };
+    BottomNavItemKind.home => 'home',
+    BottomNavItemKind.you => 'you',
+    BottomNavItemKind.tab => tab!.name,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -70,12 +70,14 @@ bool bottomNavTabMatchesRoute(BottomNavTab tab, String route) {
   bool under(String prefix) => route == prefix || route.startsWith('$prefix/');
   return switch (tab) {
     BottomNavTab.search => route == Destinations.search,
-    BottomNavTab.libraries => under('/library') ||
-        under('/library-view') ||
-        under('/folder') ||
-        under('/music') ||
-        under('/books') ||
-        under('/games'),
+    BottomNavTab.kostvDiscover => route == Destinations.kostvDiscover,
+    BottomNavTab.libraries =>
+      under('/library') ||
+          under('/library-view') ||
+          under('/folder') ||
+          under('/music') ||
+          under('/books') ||
+          under('/games'),
     BottomNavTab.favorites => route == Destinations.allFavorites,
     BottomNavTab.genres => route == Destinations.allGenres,
     BottomNavTab.liveTv => under(Destinations.liveTv),

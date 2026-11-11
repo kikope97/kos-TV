@@ -47,8 +47,7 @@ abstract final class BottomNavMetrics {
     const capsule = capsulePlayerHeight + capsulePlayerGap;
     return switch (style) {
       BottomNavbarStyle.dock => dockHeight + gap + (miniPlayer ? capsule : 0),
-      BottomNavbarStyle.split =>
-        splitHeight + gap + (miniPlayer ? capsule : 0),
+      BottomNavbarStyle.split => splitHeight + gap + (miniPlayer ? capsule : 0),
       BottomNavbarStyle.strip =>
         stripHeight + bottomInset + (miniPlayer ? rowPlayerHeight : 0),
     };

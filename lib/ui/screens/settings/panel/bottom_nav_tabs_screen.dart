@@ -18,6 +18,7 @@ class _BottomNavTabsScreenState extends State<_BottomNavTabsScreen> {
         seerrAvailable: GetIt.instance<PluginSyncService>().seerrAvailable,
         calendarAvailable:
             GetIt.instance<PluginSyncService>().calendarAvailable,
+        kostvDiscoverAvailable: kostvDiscoverAllowed(),
       );
 
   String get _raw => _prefs.get(UserPreferences.bottomNavbarTabs);
@@ -147,7 +148,10 @@ class _BottomNavTabsScreenState extends State<_BottomNavTabsScreen> {
               children: [
                 for (final tab in BottomNavTab.values)
                   if (!pinned.contains(tab) &&
-                      (tab != BottomNavTab.liveTv || liveTvOnAnyServer))
+                      (tab != BottomNavTab.liveTv || liveTvOnAnyServer) &&
+                      // Kos TV: only for someone the requests service lets in.
+                      (tab != BottomNavTab.kostvDiscover ||
+                          kostvDiscoverAllowed()))
                     ListTile(
                       enabled: gates.offers(tab) && !full,
                       leading: icon(tab, enabled: gates.offers(tab) && !full),

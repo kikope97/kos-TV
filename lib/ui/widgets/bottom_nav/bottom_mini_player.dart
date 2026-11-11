@@ -85,10 +85,10 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
   }
 
   String? _artUrl(AggregatedItem item) => audioArtUrl(
-        item,
-        clientFactory: GetIt.instance<MediaServerClientFactory>(),
-        maxHeight: 120,
-      );
+    item,
+    clientFactory: GetIt.instance<MediaServerClientFactory>(),
+    maxHeight: 120,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -170,53 +170,48 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
 
     final Widget body = switch (variant) {
       BottomMiniPlayerVariant.capsule => SizedBox(
-          height: BottomNavMetrics.capsulePlayerHeight,
-          child: BottomNavSurface(
-            theme: theme,
-            radius: BottomNavMetrics.capsulePlayerRadius,
-            child: Stack(
-              children: [
-                Padding(
-                  padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 6, 0),
-                  child: row,
-                ),
-                PositionedDirectional(
-                  start: 18,
-                  end: 18,
-                  bottom: 0,
-                  child: progress,
-                ),
-              ],
-            ),
-          ),
-        ),
-      BottomMiniPlayerVariant.inline => Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 4, 0),
-              child: row,
-            ),
-            PositionedDirectional(
-              start: 22,
-              end: 22,
-              bottom: 0,
-              child: progress,
-            ),
-          ],
-        ),
-      BottomMiniPlayerVariant.row => Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            progress,
-            SizedBox(
-              height: BottomNavMetrics.rowPlayerHeight - 2,
-              child: Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 8, 0),
+        height: BottomNavMetrics.capsulePlayerHeight,
+        child: BottomNavSurface(
+          theme: theme,
+          radius: BottomNavMetrics.capsulePlayerRadius,
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 6, 0),
                 child: row,
               ),
-            ),
-          ],
+              PositionedDirectional(
+                start: 18,
+                end: 18,
+                bottom: 0,
+                child: progress,
+              ),
+            ],
+          ),
         ),
+      ),
+      BottomMiniPlayerVariant.inline => Stack(
+        children: [
+          Padding(
+            padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 4, 0),
+            child: row,
+          ),
+          PositionedDirectional(start: 22, end: 22, bottom: 0, child: progress),
+        ],
+      ),
+      BottomMiniPlayerVariant.row => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          progress,
+          SizedBox(
+            height: BottomNavMetrics.rowPlayerHeight - 2,
+            child: Padding(
+              padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 8, 0),
+              child: row,
+            ),
+          ),
+        ],
+      ),
     };
 
     return Semantics(
@@ -371,7 +366,9 @@ class _ProgressLineState extends State<_ProgressLine> {
       child: Stack(
         children: [
           Positioned.fill(
-            child: ColoredBox(color: widget.theme.onBar.withValues(alpha: 0.10)),
+            child: ColoredBox(
+              color: widget.theme.onBar.withValues(alpha: 0.10),
+            ),
           ),
           FractionallySizedBox(
             widthFactor: value,

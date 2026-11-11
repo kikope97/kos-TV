@@ -101,6 +101,43 @@ void main() {
     });
   });
 
+  group('Kos TV: Discover', () {
+    test('takes the second slot for someone the requests service lets in', () {
+      const gates = BottomNavTabGates(kostvDiscoverAvailable: true);
+      expect(gates.resolvePins(''), [
+        BottomNavTab.search,
+        BottomNavTab.kostvDiscover,
+        BottomNavTab.libraries,
+      ]);
+    });
+
+    test('is not offered without access, in Kids Mode or switched off', () {
+      expect(
+        const BottomNavTabGates().offers(BottomNavTab.kostvDiscover),
+        isFalse,
+      );
+      expect(
+        const BottomNavTabGates(kostvDiscoverAvailable: true, kidsMode: true)
+            .offers(BottomNavTab.kostvDiscover),
+        isFalse,
+      );
+      expect(
+        const BottomNavTabGates(
+          kostvDiscoverAvailable: true,
+          showKostvDiscover: false,
+        ).offers(BottomNavTab.kostvDiscover),
+        isFalse,
+      );
+    });
+
+    test('its pin is stored by name', () {
+      expect(parsePinnedBottomNavTabs('kostvDiscover,search'), [
+        BottomNavTab.kostvDiscover,
+        BottomNavTab.search,
+      ]);
+    });
+  });
+
   group('explicit pins', () {
     test('keep their order', () {
       expect(const BottomNavTabGates().resolvePins('favorites,search'), [
