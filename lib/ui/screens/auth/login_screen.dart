@@ -26,6 +26,7 @@ import '../../../data/services/pin_guard.dart';
 import '../../../data/services/server_pin_service.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/focus/dpad_keys.dart';
+import '../../../util/app_exit.dart';
 import '../../../util/kostv_server.dart';
 import '../../../util/pin_code_util.dart';
 import '../../../util/platform_detection.dart';
@@ -630,7 +631,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _navigateBack() {
     if (_isFirstPage) {
-      unawaited(SystemNavigator.pop());
+      unawaited(AppExit.closeApp());
       return;
     }
     final server = _server;

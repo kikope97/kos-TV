@@ -5,6 +5,7 @@ import 'package:window_manager/window_manager.dart';
 
 import '../data/database/offline_database.dart';
 import '../playback/mpv_player_registry.dart';
+import 'kostv_intro_policy.dart';
 import 'platform_detection.dart';
 
 class AppExit {
@@ -35,6 +36,8 @@ class AppExit {
   }
 
   static Future<void> closeApp() async {
+    // Kos TV: closed on purpose, so it opens with the intro video next time.
+    await KostvIntroPolicy.markClosed();
     await prepareForExit();
 
     if (PlatformDetection.isAndroid) {

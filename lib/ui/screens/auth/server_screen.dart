@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
@@ -19,6 +18,7 @@ import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/services/pin_guard.dart';
 import '../../../data/services/server_pin_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../util/app_exit.dart';
 import '../../../util/kostv_server.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
@@ -295,7 +295,7 @@ class _ServerScreenState extends State<ServerScreen> {
     // Kos TV: with the household server built in this is the first page,
     // so Back leaves the app as on any first page.
     onBack: () => hasKostvServer
-        ? unawaited(SystemNavigator.pop())
+        ? unawaited(AppExit.closeApp())
         : context.go(Destinations.serverSelect),
     child: _buildContent(context),
   );

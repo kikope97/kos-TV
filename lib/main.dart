@@ -31,6 +31,7 @@ import 'data/services/media_server_client_factory.dart';
 import 'data/services/crash_report_service.dart';
 import 'data/services/log_service.dart';
 import 'data/services/storage_path_service.dart';
+import 'util/kostv_intro_policy.dart';
 import 'util/macos_touch_input.dart';
 import 'util/scroll_sensitivity_binding.dart';
 import 'util/silo_image_hooks.dart';
@@ -1037,6 +1038,9 @@ void main() async {
   try {
     GetIt.instance<AirPlayCommandBridge>().start();
   } catch (_) {}
+
+  // Kos TV: whether this launch opens with the intro video.
+  await KostvIntroPolicy.init();
 
   runApp(const MoonfinApp());
 }

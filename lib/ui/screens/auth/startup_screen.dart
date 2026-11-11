@@ -13,6 +13,7 @@ import '../../../auth/store/authentication_preferences.dart';
 import '../../../auth/store/credential_store.dart';
 import '../../../data/services/connectivity_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../util/kostv_intro_policy.dart';
 import '../../../util/kostv_server.dart';
 import '../../../util/pin_code_util.dart';
 import '../../../preference/preference_constants.dart';
@@ -22,6 +23,7 @@ import '../../widgets/overlay_sheet.dart';
 import '../../widgets/pin_entry_dialog.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../../widgets/kos_intro_video.dart';
+import '../../widgets/kos_logo.dart';
 import '../home/home_view_model.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 
@@ -46,9 +48,17 @@ class _StartupScreenState extends State<StartupScreen> {
   /// over it before then.
   final _introDone = Completer<void>();
 
+  /// Kos TV: the intro video plays only when the app is opened after being
+  /// closed, not when it comes back from the background or on switching
+  /// user (see [KostvIntroPolicy]). Without it the logo shows for the moment
+  /// the session takes to come back.
+  late final bool _playIntro =
+      !widget.bootstrapActiveSession && KostvIntroPolicy.takeIntro();
+
   @override
   void initState() {
     super.initState();
+    if (!_playIntro) _introDone.complete();
     _initialize();
   }
 
@@ -242,34 +252,54 @@ class _StartupScreenState extends State<StartupScreen> {
 
   Widget _buildContent(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final footer = _kostvServerFailed
+        ? Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Text(
+                  l10n.kostvServerUnreachable,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Color(0xFFC9D2E6)),
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                autofocus: true,
+                onPressed: _retryKostvServer,
+                child: Text(l10n.retry),
+              ),
+            ],
+          )
+        : null;
     return Scaffold(
       backgroundColor: Colors.black,
-      body: KosIntroVideo(
-        onFinished: () {
-          if (!_introDone.isCompleted) _introDone.complete();
-        },
-        footer: _kostvServerFailed
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: Text(
-                      l10n.kostvServerUnreachable,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(color: Color(0xFFC9D2E6)),
-                    ),
+      body: _playIntro
+          ? KosIntroVideo(
+              onFinished: () {
+                if (!_introDone.isCompleted) _introDone.complete();
+              },
+              footer: footer,
+            )
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                Center(
+                  child: KosLogo(
+                    height: (MediaQuery.sizeOf(context).shortestSide * 0.12)
+                        .clamp(48.0, 120.0),
                   ),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    autofocus: true,
-                    onPressed: _retryKostvServer,
-                    child: Text(l10n.retry),
+                ),
+                if (footer != null)
+                  Positioned(
+                    left: 24,
+                    right: 24,
+                    bottom: 48,
+                    child: Center(child: footer),
                   ),
-                ],
-              )
-            : null,
-      ),
+              ],
+            ),
     );
   }
 }
