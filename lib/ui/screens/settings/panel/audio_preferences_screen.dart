@@ -181,13 +181,11 @@ class _AudioPreferencesScreenState extends State<_AudioPreferencesScreen> {
         ]
       : const [AudioPassthroughMode.auto, AudioPassthroughMode.disabled];
 
-  Widget _buildRedetectTile() {
+  Widget _buildRedetectTile(AppLocalizations l10n) {
     return _TvSettingsListTile(
       leading: const Icon(Icons.refresh),
-      title: const Text('Re-detect & apply recommended'),
-      subtitle: const Text(
-        'Re-run audio detection and reset to the recommended settings.',
-      ),
+      title: Text(l10n.kostvAudioRedetect),
+      subtitle: Text(l10n.kostvAudioRedetectSubtitle),
       onTap: _redetectAndReset,
     );
   }
@@ -214,7 +212,7 @@ class _AudioPreferencesScreenState extends State<_AudioPreferencesScreen> {
         : _audioRouteLabel(l10n, profile.activeRouteType);
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text('Audio re-detected: $route')));
+    ).showSnackBar(SnackBar(content: Text(l10n.kostvAudioRedetected(route))));
   }
 
   @override
@@ -247,7 +245,7 @@ class _AudioPreferencesScreenState extends State<_AudioPreferencesScreen> {
               ),
             ],
           ),
-          const _SectionHeader('Audio Stream'),
+          _SectionHeader(l10n.audioTrack),
           adaptiveListSection(
             children: [
               StringPickerPreferenceTile(
@@ -256,202 +254,219 @@ class _AudioPreferencesScreenState extends State<_AudioPreferencesScreen> {
                 icon: Icons.language,
                 options: defaultAudioLangOptions,
               ),
-              StringPickerPreferenceTile(
-                preference: UserPreferences.fallbackAudioLanguage,
-                title: l10n.fallbackAudioLanguage,
-                icon: Icons.language,
-                options: fallbackAudioLangOptions,
-              ),
               SwitchPreferenceTile(
                 preference: UserPreferences.preferDefaultAudioTrack,
                 title: l10n.preferDefaultAudioTrack,
                 subtitle: l10n.preferDefaultAudioTrackDescription,
                 icon: Icons.audiotrack,
               ),
-              SwitchPreferenceTile(
-                preference: UserPreferences.preferAudioDescription,
-                title: l10n.preferAudioDescription,
-                subtitle: l10n.preferAudioDescriptionDescription,
-                icon: Icons.hearing,
-              ),
             ],
           ),
-
-          if (!PlatformDetection.isWeb) ...[
-            const _SectionHeader('Audio Output'),
-            adaptiveListSection(
-              children: [
-                EnumPreferenceTile<AudioPassthroughMode>(
-                  preference: UserPreferences.audioPassthroughMode,
-                  values: _availableModes,
-                  title: l10n.settingsAudioPassthroughMode,
-                  description: l10n.settingsAudioPassthroughModeDescription,
-                  icon: Icons.surround_sound,
-                  // The chip has room for the value, not the explanation, so
-                  // that stays on the picker rows.
-                  labelOf: (mode) => switch (mode) {
-                    AudioPassthroughMode.disabled => l10n.disabled,
-                    AudioPassthroughMode.auto => l10n.auto,
-                    AudioPassthroughMode.manual => l10n.manual,
-                  },
-                  dialogLabelOf: (mode) => switch (mode) {
-                    AudioPassthroughMode.disabled =>
-                      l10n.settingsAudioPassthroughModeDisabled,
-                    AudioPassthroughMode.auto =>
-                      l10n.settingsAudioPassthroughModeAuto,
-                    AudioPassthroughMode.manual =>
-                      l10n.settingsAudioPassthroughModeManual,
-                  },
-                  onChangedValue: (mode) =>
-                      _prefs.setAudioPassthroughMode(mode),
-                ),
-                // The IEC option packs IEC 61937 in the app instead of
-                // trusting the platform packer, which is broken on some
-                // devices.
-                if (_showPassthroughOutputTile)
-                  EnumPreferenceTile<AudioPassthroughOutput>(
-                    preference: UserPreferences.audioPassthroughOutput,
-                    title: l10n.settingsAudioPassthroughOutput,
-                    description: _capabilitySubtitle(
-                      l10n,
-                      baseSubtitle:
-                          l10n.settingsAudioPassthroughOutputDescription,
-                      isSupported: capabilities.canIecLow,
-                    ),
-                    icon: Icons.settings_input_hdmi,
-                    labelOf: (output) => switch (output) {
-                      AudioPassthroughOutput.platform => l10n.auto,
-                      AudioPassthroughOutput.iecPacker =>
-                        l10n.settingsAudioPassthroughOutputIecLabel,
-                    },
-                    dialogLabelOf: (output) => switch (output) {
-                      AudioPassthroughOutput.platform =>
-                        l10n.settingsAudioPassthroughOutputPlatform,
-                      AudioPassthroughOutput.iecPacker =>
-                        l10n.settingsAudioPassthroughOutputIec,
-                    },
-                  ),
-                SwitchPreferenceTile(
-                  preference: UserPreferences.downmixToStereo,
-                  title: l10n.downmixToStereo,
-                  subtitle: l10n.settingsDownmixToStereoDescription,
-                  icon: Icons.speaker,
-                ),
-              ],
-            ),
-            if (isManual && _showPassthroughToggles) ...[
-              const _SectionHeader('Passthrough Settings'),
+          // Kos TV: the technical rest, behind «Más ajustes».
+          ...settingsMore(
+            context,
+            id: 'playback.audio',
+            // The web app has no passthrough or codec settings.
+            summary: PlatformDetection.isWeb
+                ? l10n.kostvMoreAudioSummaryWeb
+                : l10n.kostvMoreAudioSummary,
+            children: [
+              _SectionHeader(l10n.audioTrack),
               adaptiveListSection(
                 children: [
-                  SwitchPreferenceTile(
-                    preference: UserPreferences.ac3PassthroughEnabled,
-                    title: l10n.ac3Passthrough,
-                    subtitle: _capabilitySubtitle(
-                      l10n,
-                      baseSubtitle: l10n.settingsBitstreamAc3ToExternalDecoder,
-                      isSupported: capabilities.canPassthroughAc3,
-                    ),
-                    icon: Icons.speaker,
+                  StringPickerPreferenceTile(
+                    preference: UserPreferences.fallbackAudioLanguage,
+                    title: l10n.fallbackAudioLanguage,
+                    icon: Icons.language,
+                    options: fallbackAudioLangOptions,
                   ),
                   SwitchPreferenceTile(
-                    preference: UserPreferences.eac3PassthroughEnabled,
-                    title: l10n.settingsAudioEac3Passthrough,
-                    subtitle: _capabilitySubtitle(
-                      l10n,
-                      baseSubtitle: l10n.settingsAudioEac3IncludesAtmos,
-                      isSupported: capabilities.canPassthroughEac3,
-                    ),
-                    icon: Icons.surround_sound,
-                  ),
-                  SwitchPreferenceTile(
-                    preference: UserPreferences.dtsCorePassthroughEnabled,
-                    title: l10n.settingsAudioDtsCorePassthrough,
-                    subtitle: _capabilitySubtitle(
-                      l10n,
-                      baseSubtitle: l10n.enableDtsPassthrough,
-                      isSupported: capabilities.canPassthroughDts,
-                    ),
-                    icon: Icons.audiotrack,
-                  ),
-                  SwitchPreferenceTile(
-                    preference: UserPreferences.dtsHdPassthroughEnabled,
-                    title: l10n.settingsAudioDtsHdPassthrough,
-                    subtitle: _capabilitySubtitle(
-                      l10n,
-                      baseSubtitle: l10n.settingsAudioDtsHdIncludesDtsX,
-                      isSupported: capabilities.canPassthroughDtsHd,
-                    ),
-                    icon: Icons.high_quality,
-                  ),
-                  SwitchPreferenceTile(
-                    preference: UserPreferences.trueHdPassthroughEnabled,
-                    title: l10n.settingsAudioTrueHdPassthrough,
-                    subtitle: _capabilitySubtitle(
-                      l10n,
-                      baseSubtitle: l10n.settingsAudioTrueHdIncludesAtmos,
-                      isSupported: capabilities.canPassthroughTrueHd,
-                    ),
-                    icon: Icons.graphic_eq,
+                    preference: UserPreferences.preferAudioDescription,
+                    title: l10n.preferAudioDescription,
+                    subtitle: l10n.preferAudioDescriptionDescription,
+                    icon: Icons.hearing,
                   ),
                 ],
               ),
-            ],
-            const _SectionHeader('Advanced'),
-            adaptiveListSection(
-              children: [
-                IntPickerPreferenceTile(
-                  preference: UserPreferences.maxAudioChannels,
-                  title: l10n.settingsMaxAudioChannels,
-                  description: l10n.settingsMaxAudioChannelsDescription,
-                  icon: Icons.speaker_group,
-                  options: <int, String>{
-                    0: l10n.autoDetect,
-                    1: l10n.settingsMaxAudioChannelsMono,
-                    2: l10n.settingsMaxAudioChannelsStereo,
-                    3: l10n.settingsMaxAudioChannels3_0,
-                    4: l10n.settingsMaxAudioChannels4_0,
-                    5: l10n.settingsMaxAudioChannels5_0,
-                    6: l10n.settingsMaxAudioChannels5_1,
-                    7: l10n.settingsMaxAudioChannels6_1,
-                    8: l10n.settingsMaxAudioChannels7_1,
-                  },
-                  dialogOptions: <int, String>{
-                    0: l10n.settingsMaxAudioChannelsAuto,
-                  },
+              if (!PlatformDetection.isWeb) ...[
+                _SectionHeader(l10n.kostvAudioOutputSection),
+                adaptiveListSection(
+                  children: [
+                    EnumPreferenceTile<AudioPassthroughMode>(
+                      preference: UserPreferences.audioPassthroughMode,
+                      values: _availableModes,
+                      title: l10n.settingsAudioPassthroughMode,
+                      description: l10n.settingsAudioPassthroughModeDescription,
+                      icon: Icons.surround_sound,
+                      // The chip has room for the value, not the explanation,
+                      // so that stays on the picker rows.
+                      labelOf: (mode) => switch (mode) {
+                        AudioPassthroughMode.disabled => l10n.disabled,
+                        AudioPassthroughMode.auto => l10n.auto,
+                        AudioPassthroughMode.manual => l10n.manual,
+                      },
+                      dialogLabelOf: (mode) => switch (mode) {
+                        AudioPassthroughMode.disabled =>
+                          l10n.settingsAudioPassthroughModeDisabled,
+                        AudioPassthroughMode.auto =>
+                          l10n.settingsAudioPassthroughModeAuto,
+                        AudioPassthroughMode.manual =>
+                          l10n.settingsAudioPassthroughModeManual,
+                      },
+                      onChangedValue: (mode) =>
+                          _prefs.setAudioPassthroughMode(mode),
+                    ),
+                    // The IEC option packs IEC 61937 in the app instead of
+                    // trusting the platform packer, which is broken on some
+                    // devices.
+                    if (_showPassthroughOutputTile)
+                      EnumPreferenceTile<AudioPassthroughOutput>(
+                        preference: UserPreferences.audioPassthroughOutput,
+                        title: l10n.settingsAudioPassthroughOutput,
+                        description: _capabilitySubtitle(
+                          l10n,
+                          baseSubtitle:
+                              l10n.settingsAudioPassthroughOutputDescription,
+                          isSupported: capabilities.canIecLow,
+                        ),
+                        icon: Icons.settings_input_hdmi,
+                        labelOf: (output) => switch (output) {
+                          AudioPassthroughOutput.platform => l10n.auto,
+                          AudioPassthroughOutput.iecPacker =>
+                            l10n.settingsAudioPassthroughOutputIecLabel,
+                        },
+                        dialogLabelOf: (output) => switch (output) {
+                          AudioPassthroughOutput.platform =>
+                            l10n.settingsAudioPassthroughOutputPlatform,
+                          AudioPassthroughOutput.iecPacker =>
+                            l10n.settingsAudioPassthroughOutputIec,
+                        },
+                      ),
+                    SwitchPreferenceTile(
+                      preference: UserPreferences.downmixToStereo,
+                      title: l10n.downmixToStereo,
+                      subtitle: l10n.settingsDownmixToStereoDescription,
+                      icon: Icons.speaker,
+                    ),
+                  ],
                 ),
-                EnumPreferenceTile<AudioFallbackCodec>(
-                  preference: UserPreferences.audioFallbackCodec,
-                  title: l10n.settingsAudioFallbackCodec,
-                  description: l10n.settingsAudioFallbackCodecDescription,
-                  icon: Icons.hearing,
-                  labelOf: (v) => v == AudioFallbackCodec.auto
-                      ? l10n.autoDetect
-                      : _fallbackCodecLabel(l10n, v),
-                  dialogLabelOf: (v) => v == AudioFallbackCodec.auto
-                      ? l10n.settingsAudioFallbackCodecAuto
-                      : _fallbackCodecLabel(l10n, v),
-                ),
-                MultiSelectPreferenceTile(
-                  preference: UserPreferences.transcodeAudioCodecs,
-                  title: l10n.transcodeAudioCodecs,
-                  description: l10n.transcodeAudioCodecsDescription,
-                  icon: Icons.transform,
-                  options: DeviceProfileBuilder.transcodableAudioCodecs,
-                  emptyLabel: l10n.none,
+                if (isManual && _showPassthroughToggles) ...[
+                  _SectionHeader(l10n.settingsAudioCodecPassthrough),
+                  adaptiveListSection(
+                    children: [
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.ac3PassthroughEnabled,
+                        title: l10n.ac3Passthrough,
+                        subtitle: _capabilitySubtitle(
+                          l10n,
+                          baseSubtitle:
+                              l10n.settingsBitstreamAc3ToExternalDecoder,
+                          isSupported: capabilities.canPassthroughAc3,
+                        ),
+                        icon: Icons.speaker,
+                      ),
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.eac3PassthroughEnabled,
+                        title: l10n.settingsAudioEac3Passthrough,
+                        subtitle: _capabilitySubtitle(
+                          l10n,
+                          baseSubtitle: l10n.settingsAudioEac3IncludesAtmos,
+                          isSupported: capabilities.canPassthroughEac3,
+                        ),
+                        icon: Icons.surround_sound,
+                      ),
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.dtsCorePassthroughEnabled,
+                        title: l10n.settingsAudioDtsCorePassthrough,
+                        subtitle: _capabilitySubtitle(
+                          l10n,
+                          baseSubtitle: l10n.enableDtsPassthrough,
+                          isSupported: capabilities.canPassthroughDts,
+                        ),
+                        icon: Icons.audiotrack,
+                      ),
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.dtsHdPassthroughEnabled,
+                        title: l10n.settingsAudioDtsHdPassthrough,
+                        subtitle: _capabilitySubtitle(
+                          l10n,
+                          baseSubtitle: l10n.settingsAudioDtsHdIncludesDtsX,
+                          isSupported: capabilities.canPassthroughDtsHd,
+                        ),
+                        icon: Icons.high_quality,
+                      ),
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.trueHdPassthroughEnabled,
+                        title: l10n.settingsAudioTrueHdPassthrough,
+                        subtitle: _capabilitySubtitle(
+                          l10n,
+                          baseSubtitle: l10n.settingsAudioTrueHdIncludesAtmos,
+                          isSupported: capabilities.canPassthroughTrueHd,
+                        ),
+                        icon: Icons.graphic_eq,
+                      ),
+                    ],
+                  ),
+                ],
+                _SectionHeader(l10n.settingsAdvancedSection),
+                adaptiveListSection(
+                  children: [
+                    IntPickerPreferenceTile(
+                      preference: UserPreferences.maxAudioChannels,
+                      title: l10n.settingsMaxAudioChannels,
+                      description: l10n.settingsMaxAudioChannelsDescription,
+                      icon: Icons.speaker_group,
+                      options: <int, String>{
+                        0: l10n.autoDetect,
+                        1: l10n.settingsMaxAudioChannelsMono,
+                        2: l10n.settingsMaxAudioChannelsStereo,
+                        3: l10n.settingsMaxAudioChannels3_0,
+                        4: l10n.settingsMaxAudioChannels4_0,
+                        5: l10n.settingsMaxAudioChannels5_0,
+                        6: l10n.settingsMaxAudioChannels5_1,
+                        7: l10n.settingsMaxAudioChannels6_1,
+                        8: l10n.settingsMaxAudioChannels7_1,
+                      },
+                      dialogOptions: <int, String>{
+                        0: l10n.settingsMaxAudioChannelsAuto,
+                      },
+                    ),
+                    EnumPreferenceTile<AudioFallbackCodec>(
+                      preference: UserPreferences.audioFallbackCodec,
+                      title: l10n.settingsAudioFallbackCodec,
+                      description: l10n.settingsAudioFallbackCodecDescription,
+                      icon: Icons.hearing,
+                      labelOf: (v) => v == AudioFallbackCodec.auto
+                          ? l10n.autoDetect
+                          : _fallbackCodecLabel(l10n, v),
+                      dialogLabelOf: (v) => v == AudioFallbackCodec.auto
+                          ? l10n.settingsAudioFallbackCodecAuto
+                          : _fallbackCodecLabel(l10n, v),
+                    ),
+                    MultiSelectPreferenceTile(
+                      preference: UserPreferences.transcodeAudioCodecs,
+                      title: l10n.transcodeAudioCodecs,
+                      description: l10n.transcodeAudioCodecsDescription,
+                      icon: Icons.transform,
+                      options: DeviceProfileBuilder.transcodableAudioCodecs,
+                      emptyLabel: l10n.none,
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
 
-          if (!PlatformDetection.isWeb) ...[
-            _SectionHeader(l10n.settingsDetectedAudioCapabilities),
-            adaptiveListSection(
-              children: [
-                ..._buildDetectedCapabilities(l10n),
-                if (AudioCapabilityProbe.isSupported) _buildRedetectTile(),
+              if (!PlatformDetection.isWeb) ...[
+                _SectionHeader(l10n.settingsDetectedAudioCapabilities),
+                adaptiveListSection(
+                  children: [
+                    ..._buildDetectedCapabilities(l10n),
+                    if (AudioCapabilityProbe.isSupported)
+                      _buildRedetectTile(l10n),
+                  ],
+                ),
               ],
-            ),
-          ],
+            ],
+          ),
         ],
       ),
     );

@@ -1,5 +1,9 @@
 part of '../settings_side_panel.dart';
 
+/// Kos TV: the segments shown before «Más ajustes» (intros and credits);
+/// the rest wait inside it.
+const _shownSegmentTypes = {MediaSegmentType.intro, MediaSegmentType.outro};
+
 class _AutomationQueueScreen extends StatefulWidget {
   const _AutomationQueueScreen();
 
@@ -75,31 +79,14 @@ class _AutomationQueueScreenState extends State<_AutomationQueueScreen> {
           _SectionHeader(l10n.playbackEnhancements),
           adaptiveListSection(
             children: [
-              SwitchPreferenceTile(
-                preference: UserPreferences.cinemaModeEnabled,
-                title: l10n.settingsCinemaMode,
-                subtitle: l10n.settingsCinemaModeSubtitle,
-                icon: Icons.movie_filter,
-              ),
-              SwitchPreferenceTile(
-                preference: UserPreferences.cinemaModeEpisodesEnabled,
-                title: l10n.settingsCinemaModeEpisodes,
-                subtitle: l10n.settingsCinemaModeEpisodesSubtitle,
-                icon: Icons.live_tv,
-              ),
-              if (cinemaEnabled)
-                SwitchPreferenceTile(
-                  preference: UserPreferences.cinemaModeSkipEnabled,
-                  title: l10n.cinemaSkipPrerolls,
-                  subtitle: l10n.cinemaSkipPrerollsDescription,
-                  icon: Icons.skip_next,
-                ),
               // Every type writes to the one preference, so each tile is
               // keyed on the current value. The tiles seed their notifier in
               // initState, so without the key a tile left over from the
               // previous value would keep showing it and overwrite a
               // sibling's change on the next pick.
-              for (final type in configurableMediaSegmentTypes)
+              for (final type in configurableMediaSegmentTypes.where(
+                _shownSegmentTypes.contains,
+              ))
                 StringPickerPreferenceTile(
                   key: ValueKey(
                     'segmentAction_${type.name}_$mediaSegmentActions',
@@ -114,30 +101,6 @@ class _AutomationQueueScreenState extends State<_AutomationQueueScreen> {
                     type,
                   ),
                 ),
-              if (promptsForAnySegment || showNextUpOptions)
-                EnumPreferenceTile<MediaSegmentCountdown>(
-                  preference: UserPreferences.mediaSegmentCountdown,
-                  title: l10n.settingsMediaSegmentCountdown,
-                  icon: Icons.timer_outlined,
-                  labelOf: (v) => switch (v) {
-                    MediaSegmentCountdown.progressBar =>
-                      l10n.settingsProgressBar,
-                    MediaSegmentCountdown.timer => l10n.settingsTimer,
-                    MediaSegmentCountdown.both => l10n.settingsBoth,
-                    MediaSegmentCountdown.none => l10n.settingsNone,
-                  },
-                ),
-              if (promptsForAnySegment)
-                EnumPreferenceTile<MediaSegmentAutoHide>(
-                  preference: UserPreferences.mediaSegmentAutoHide,
-                  title: l10n.settingsSkipButtonAutoHide,
-                  description: l10n.settingsSkipButtonAutoHideDescription,
-                  icon: Icons.visibility_off_outlined,
-                  labelOf: (v) => switch (v) {
-                    MediaSegmentAutoHide.off => l10n.off,
-                    _ => l10n.secondsValue(v.seconds),
-                  },
-                ),
             ],
           ),
           _SectionHeader(l10n.automaticQueuing),
@@ -149,54 +112,133 @@ class _AutomationQueueScreenState extends State<_AutomationQueueScreen> {
                 subtitle: l10n.autoplayNextEpisodeSubtitle,
                 icon: Icons.play_circle,
               ),
-              EnumPreferenceTile<NextUpBehavior>(
-                preference: UserPreferences.nextUpBehavior,
-                title: l10n.nextUpDisplay,
-                description: l10n.settingsNextUpDisplayDescription,
-                icon: Icons.skip_next,
-                labelOf: (v) => switch (v) {
-                  NextUpBehavior.extended => l10n.extended,
-                  NextUpBehavior.minimal => l10n.minimal,
-                  NextUpBehavior.disabled => l10n.disabled,
-                },
-              ),
-              if (showNextUpOptions)
-                SliderPreferenceTile(
-                  preference: UserPreferences.nextUpTimeout,
-                  title: l10n.nextUpTimeout,
-                  icon: Icons.timer,
-                  min: 0,
-                  max: 30000,
-                  divisions: 30,
-                  labelOf: (v) => l10n.secondsValue((v / 1000).round()),
-                ),
-              if (showReplaceSkipOutroWithNextUp)
-                SwitchPreferenceTile(
-                  preference: UserPreferences.replaceSkipOutroWithNextUp,
-                  title: l10n.replaceSkipOutroWithNextUpDisplay,
-                  subtitle: l10n.replaceSkipOutroWithNextUpDisplaySubtitle,
-                  icon: Icons.skip_next,
-                ),
-              if (showNextUpOptions)
-                SwitchPreferenceTile(
-                  preference: UserPreferences.showNextAirDate,
-                  title: l10n.showNextAirDate,
-                  subtitle: l10n.showNextAirDateSubtitle,
-                  icon: Icons.event_available_outlined,
-                ),
               EnumPreferenceTile<StillWatchingBehavior>(
                 preference: UserPreferences.stillWatchingBehavior,
                 title: l10n.stillWatchingPrompt,
-                description:
-                    'Prompt to Continue Watching after X consecutive episodes.',
+                description: l10n.kostvStillWatchingSubtitle,
                 icon: Icons.visibility,
                 labelOf: (v) => switch (v) {
-                  StillWatchingBehavior.short_ => '2 episodes',
-                  StillWatchingBehavior.medium => '3 episodes',
-                  StillWatchingBehavior.long_ => '5 episodes',
-                  StillWatchingBehavior.veryLong => '8 episodes',
-                  StillWatchingBehavior.disabled => 'Off',
+                  StillWatchingBehavior.short_ => l10n.episodeCount(2),
+                  StillWatchingBehavior.medium => l10n.episodeCount(3),
+                  StillWatchingBehavior.long_ => l10n.episodeCount(5),
+                  StillWatchingBehavior.veryLong => l10n.episodeCount(8),
+                  StillWatchingBehavior.disabled => l10n.off,
                 },
+              ),
+            ],
+          ),
+          // Kos TV: the technical rest, behind «Más ajustes».
+          ...settingsMore(
+            context,
+            id: 'playback.skips',
+            summary: l10n.kostvMoreSkipsSummary,
+            children: [
+              _SectionHeader(l10n.playbackEnhancements),
+              adaptiveListSection(
+                children: [
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.cinemaModeEnabled,
+                    title: l10n.settingsCinemaMode,
+                    subtitle: l10n.settingsCinemaModeSubtitle,
+                    icon: Icons.movie_filter,
+                  ),
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.cinemaModeEpisodesEnabled,
+                    title: l10n.settingsCinemaModeEpisodes,
+                    subtitle: l10n.settingsCinemaModeEpisodesSubtitle,
+                    icon: Icons.live_tv,
+                  ),
+                  if (cinemaEnabled)
+                    SwitchPreferenceTile(
+                      preference: UserPreferences.cinemaModeSkipEnabled,
+                      title: l10n.cinemaSkipPrerolls,
+                      subtitle: l10n.cinemaSkipPrerollsDescription,
+                      icon: Icons.skip_next,
+                    ),
+                  for (final type in configurableMediaSegmentTypes.where(
+                    (type) => !_shownSegmentTypes.contains(type),
+                  ))
+                    StringPickerPreferenceTile(
+                      key: ValueKey(
+                        'segmentAction_${type.name}_$mediaSegmentActions',
+                      ),
+                      preference: UserPreferences.mediaSegmentActions,
+                      title: l10n.settingsMediaSegmentTypeAction(
+                        type.displayName,
+                      ),
+                      icon: Icons.content_cut,
+                      options: _segmentActionOptions(
+                        l10n,
+                        mediaSegmentActions,
+                        segmentActions,
+                        type,
+                      ),
+                    ),
+                  if (promptsForAnySegment || showNextUpOptions)
+                    EnumPreferenceTile<MediaSegmentCountdown>(
+                      preference: UserPreferences.mediaSegmentCountdown,
+                      title: l10n.settingsMediaSegmentCountdown,
+                      icon: Icons.timer_outlined,
+                      labelOf: (v) => switch (v) {
+                        MediaSegmentCountdown.progressBar =>
+                          l10n.settingsProgressBar,
+                        MediaSegmentCountdown.timer => l10n.settingsTimer,
+                        MediaSegmentCountdown.both => l10n.settingsBoth,
+                        MediaSegmentCountdown.none => l10n.settingsNone,
+                      },
+                    ),
+                  if (promptsForAnySegment)
+                    EnumPreferenceTile<MediaSegmentAutoHide>(
+                      preference: UserPreferences.mediaSegmentAutoHide,
+                      title: l10n.settingsSkipButtonAutoHide,
+                      description: l10n.settingsSkipButtonAutoHideDescription,
+                      icon: Icons.visibility_off_outlined,
+                      labelOf: (v) => switch (v) {
+                        MediaSegmentAutoHide.off => l10n.off,
+                        _ => l10n.secondsValue(v.seconds),
+                      },
+                    ),
+                ],
+              ),
+              _SectionHeader(l10n.automaticQueuing),
+              adaptiveListSection(
+                children: [
+                  EnumPreferenceTile<NextUpBehavior>(
+                    preference: UserPreferences.nextUpBehavior,
+                    title: l10n.nextUpDisplay,
+                    description: l10n.settingsNextUpDisplayDescription,
+                    icon: Icons.skip_next,
+                    labelOf: (v) => switch (v) {
+                      NextUpBehavior.extended => l10n.extended,
+                      NextUpBehavior.minimal => l10n.minimal,
+                      NextUpBehavior.disabled => l10n.disabled,
+                    },
+                  ),
+                  if (showNextUpOptions)
+                    SliderPreferenceTile(
+                      preference: UserPreferences.nextUpTimeout,
+                      title: l10n.nextUpTimeout,
+                      icon: Icons.timer,
+                      min: 0,
+                      max: 30000,
+                      divisions: 30,
+                      labelOf: (v) => l10n.secondsValue((v / 1000).round()),
+                    ),
+                  if (showReplaceSkipOutroWithNextUp)
+                    SwitchPreferenceTile(
+                      preference: UserPreferences.replaceSkipOutroWithNextUp,
+                      title: l10n.replaceSkipOutroWithNextUpDisplay,
+                      subtitle: l10n.replaceSkipOutroWithNextUpDisplaySubtitle,
+                      icon: Icons.skip_next,
+                    ),
+                  if (showNextUpOptions)
+                    SwitchPreferenceTile(
+                      preference: UserPreferences.showNextAirDate,
+                      title: l10n.showNextAirDate,
+                      subtitle: l10n.showNextAirDateSubtitle,
+                      icon: Icons.event_available_outlined,
+                    ),
+                ],
               ),
             ],
           ),

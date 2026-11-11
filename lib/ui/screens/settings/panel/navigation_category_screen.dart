@@ -118,188 +118,210 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
                         ],
                       ),
               ),
-              _NavbarColorPickerTile(onChanged: _pushPersonalizationSync),
-              SliderPreferenceTile(
-                preference: UserPreferences.navbarOpacity,
-                title: l10n.navbarOpacity,
-                icon: Icons.opacity,
-                min: 0,
-                max: 100,
-                divisions: 20,
-                labelOf: (v) => '$v%',
-              ),
-              // The bottom navbar always labels its tabs.
-              ListenableBuilder(
-                listenable: prefs,
-                builder: (context, _) => NavigationLayout.usesBottomNavbar
-                    ? const SizedBox.shrink()
-                    : SwitchPreferenceTile(
-                        preference: UserPreferences.navbarAlwaysExpanded,
-                        title: l10n.navbarAlwaysExpanded,
-                        subtitle: l10n.settingsAlwaysExpandNavbarLabels,
-                        icon: Icons.unfold_more,
-                        onChanged: _pushPersonalizationSync,
-                      ),
-              ),
             ],
           ),
-          _SectionHeader(l10n.navButtons),
-          ListenableBuilder(
-            listenable: prefs,
-            builder: (context, _) {
-              if (!NavigationLayout.usesBottomNavbar) {
-                return const SizedBox.shrink();
-              }
-              final theme = Theme.of(context);
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: Text(
-                  l10n.bottomNavbarButtonsNote,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              );
-            },
-          ),
-          // The switches write through their own bindings, so this watches
-          // the preferences to show the shuffle picker and follow the pins,
-          // and the libraries to offer Live TV once it turns out to be set up.
-          ListenableBuilder(
-            listenable: Listenable.merge([prefs, SetupPreviewData.libraries]),
-            builder: (context, _) {
-              // Tabs on the bottom bar are set from the tab pins, so this only
-              // lists what the bottom navbar hub holds.
-              final onBar = NavigationLayout.usesBottomNavbar
-                  ? _barTabs(prefs).toSet()
-                  : const <BottomNavTab>{};
-              return adaptiveListSection(
+          // Kos TV: the bar's color, its labels and its buttons, behind
+          // «Más ajustes».
+          ...settingsMore(
+            context,
+            id: 'appearance.navigation',
+            summary: l10n.kostvMoreNavigationSummary,
+            children: [
+              _SectionHeader(l10n.appearance),
+              adaptiveListSection(
                 children: [
-                  SwitchPreferenceTile(
-                    preference: UserPreferences.showShuffleButton,
-                    title: l10n.showShuffleButton,
-                    subtitle: l10n.settingsShowShuffleButtonInNavigation,
-                    icon: Icons.shuffle,
-                    onChanged: _pushPersonalizationSync,
+                  _NavbarColorPickerTile(onChanged: _pushPersonalizationSync),
+                  SliderPreferenceTile(
+                    preference: UserPreferences.navbarOpacity,
+                    title: l10n.navbarOpacity,
+                    icon: Icons.opacity,
+                    min: 0,
+                    max: 100,
+                    divisions: 20,
+                    labelOf: (v) => '$v%',
                   ),
-                  if (prefs.get(UserPreferences.showShuffleButton))
-                    _ShuffleContentTypePickerTile(
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  if (!onBar.contains(BottomNavTab.genres))
-                    SwitchPreferenceTile(
-                      key: const ValueKey(BottomNavTab.genres),
-                      preference: UserPreferences.showGenresButton,
-                      title: l10n.showGenresButton,
-                      subtitle: l10n.settingsShowGenresButtonInNavigation,
-                      icon: Icons.theater_comedy,
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  if (!onBar.contains(BottomNavTab.favorites))
-                    SwitchPreferenceTile(
-                      key: const ValueKey(BottomNavTab.favorites),
-                      preference: UserPreferences.showFavoritesButton,
-                      title: l10n.showFavoritesButton,
-                      subtitle: l10n.settingsShowFavoritesButtonInNavigation,
-                      icon: Icons.favorite,
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  if (SetupPreviewData.hasLiveTv &&
-                      !onBar.contains(BottomNavTab.liveTv))
-                    SwitchPreferenceTile(
-                      key: const ValueKey(BottomNavTab.liveTv),
-                      preference: UserPreferences.showLiveTvButton,
-                      title: l10n.showLiveTvButton,
-                      subtitle: l10n.settingsShowLiveTvButtonInNavigation,
-                      icon: Icons.live_tv,
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  if (!onBar.contains(BottomNavTab.libraries))
-                    SwitchPreferenceTile(
-                      key: const ValueKey(BottomNavTab.libraries),
-                      preference: UserPreferences.showLibrariesInToolbar,
-                      title: l10n.showLibrariesInToolbar,
-                      subtitle: l10n.settingsShowLibrariesButtonInNavigation,
-                      icon: Icons.video_library,
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  // The bottom navbar keeps its Libraries sheet, so this only
-                  // applies to the top bar and the sidebar.
-                  if (!NavigationLayout.usesBottomNavbar &&
-                      prefs.get(UserPreferences.showLibrariesInToolbar))
-                    SwitchPreferenceTile(
-                      preference: UserPreferences.showLibrariesIndividually,
-                      title: l10n.showLibrariesIndividually,
-                      subtitle: l10n.showLibrariesIndividuallySubtitle,
-                      icon: Icons.video_library,
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  if (prefs.get(UserPreferences.syncPlayEnabled))
-                    SwitchPreferenceTile(
-                      preference: UserPreferences.showSyncPlayButton,
-                      title: l10n.settingsSyncplayButton,
-                      subtitle: l10n.settingsSyncplayButtonSubtitle,
-                      icon: Icons.groups,
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  // Kos TV: the Apps button (a TV whose apps can be listed).
-                  if (kostvAppsAvailable())
-                    SwitchPreferenceTile(
-                      preference: UserPreferences.showAppsButton,
-                      title: l10n.kostvShowAppsButton,
-                      icon: Icons.apps_rounded,
-                    ),
-                  // Kos TV: the Discover button, for a person the requests
-                  // service lets in.
-                  if (kostvDiscoverAllowed() &&
-                      !onBar.contains(BottomNavTab.kostvDiscover))
-                    SwitchPreferenceTile(
-                      key: const ValueKey(BottomNavTab.kostvDiscover),
-                      preference: UserPreferences.showDiscoverButton,
-                      title: l10n.kostvShowDiscoverButton,
-                      icon: Icons.explore_rounded,
-                    ),
-                  if (_syncService.calendarAvailable &&
-                      !onBar.contains(BottomNavTab.calendar))
-                    SwitchPreferenceTile(
-                      key: const ValueKey(BottomNavTab.calendar),
-                      preference: UserPreferences.showCalendarButton,
-                      title: l10n.showCalendarButton,
-                      subtitle: l10n.showCalendarButtonSubtitle,
-                      icon: Icons.calendar_month_rounded,
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  // Saved downloads keep the button even after downloading is turned off
-                  if (DownloadsNavSlot.isAvailable() ||
-                      DownloadsNavSlot.hasSavedMedia())
-                    SwitchPreferenceTile(
-                      preference: UserPreferences.showDownloadsButton,
-                      title: l10n.showDownloadsButton,
-                      icon: Icons.download_for_offline,
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  // Server messages come from the Moonfin plugin.
-                  if (moonfinPluginOnAnySignedInServer())
-                    SwitchPreferenceTile(
-                      preference: UserPreferences.showServerMessagesButton,
-                      title: l10n.serverMessagesShowButton,
-                      subtitle: l10n.serverMessagesShowButtonSubtitle,
-                      icon: Icons.info_outline_rounded,
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  // Only where the plugin has friends on, so nobody is offered
-                  // a button that would never show.
-                  if (GetIt.instance<AchievementsService>().socialAvailable)
-                    SwitchPreferenceTile(
-                      preference: UserPreferences.showFriendsButton,
-                      title: l10n.friendsShowButton,
-                      subtitle: l10n.friendsShowButtonSubtitle,
-                      icon: Icons.people_alt_rounded,
-                      onChanged: _pushPersonalizationSync,
-                    ),
+                  // The bottom navbar always labels its tabs.
+                  ListenableBuilder(
+                    listenable: prefs,
+                    builder: (context, _) => NavigationLayout.usesBottomNavbar
+                        ? const SizedBox.shrink()
+                        : SwitchPreferenceTile(
+                            preference: UserPreferences.navbarAlwaysExpanded,
+                            title: l10n.navbarAlwaysExpanded,
+                            subtitle: l10n.settingsAlwaysExpandNavbarLabels,
+                            icon: Icons.unfold_more,
+                            onChanged: _pushPersonalizationSync,
+                          ),
+                  ),
                 ],
-              );
-            },
+              ),
+              _SectionHeader(l10n.navButtons),
+              ListenableBuilder(
+                listenable: prefs,
+                builder: (context, _) {
+                  if (!NavigationLayout.usesBottomNavbar) {
+                    return const SizedBox.shrink();
+                  }
+                  final theme = Theme.of(context);
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                    child: Text(
+                      l10n.bottomNavbarButtonsNote,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              // The switches write through their own bindings, so this
+              // watches the preferences to show the shuffle picker and follow
+              // the pins, and the libraries to offer Live TV once it turns out
+              // to be set up.
+              ListenableBuilder(
+                listenable: Listenable.merge([
+                  prefs,
+                  SetupPreviewData.libraries,
+                ]),
+                builder: (context, _) {
+                  // Tabs on the bottom bar are set from the tab pins, so this
+                  // only lists what the bottom navbar hub holds.
+                  final onBar = NavigationLayout.usesBottomNavbar
+                      ? _barTabs(prefs).toSet()
+                      : const <BottomNavTab>{};
+                  return adaptiveListSection(
+                    children: [
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.showShuffleButton,
+                        title: l10n.showShuffleButton,
+                        subtitle: l10n.settingsShowShuffleButtonInNavigation,
+                        icon: Icons.shuffle,
+                        onChanged: _pushPersonalizationSync,
+                      ),
+                      if (prefs.get(UserPreferences.showShuffleButton))
+                        _ShuffleContentTypePickerTile(
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      if (!onBar.contains(BottomNavTab.genres))
+                        SwitchPreferenceTile(
+                          key: const ValueKey(BottomNavTab.genres),
+                          preference: UserPreferences.showGenresButton,
+                          title: l10n.showGenresButton,
+                          subtitle: l10n.settingsShowGenresButtonInNavigation,
+                          icon: Icons.theater_comedy,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      if (!onBar.contains(BottomNavTab.favorites))
+                        SwitchPreferenceTile(
+                          key: const ValueKey(BottomNavTab.favorites),
+                          preference: UserPreferences.showFavoritesButton,
+                          title: l10n.showFavoritesButton,
+                          subtitle:
+                              l10n.settingsShowFavoritesButtonInNavigation,
+                          icon: Icons.favorite,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      if (SetupPreviewData.hasLiveTv &&
+                          !onBar.contains(BottomNavTab.liveTv))
+                        SwitchPreferenceTile(
+                          key: const ValueKey(BottomNavTab.liveTv),
+                          preference: UserPreferences.showLiveTvButton,
+                          title: l10n.showLiveTvButton,
+                          subtitle: l10n.settingsShowLiveTvButtonInNavigation,
+                          icon: Icons.live_tv,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      if (!onBar.contains(BottomNavTab.libraries))
+                        SwitchPreferenceTile(
+                          key: const ValueKey(BottomNavTab.libraries),
+                          preference: UserPreferences.showLibrariesInToolbar,
+                          title: l10n.showLibrariesInToolbar,
+                          subtitle:
+                              l10n.settingsShowLibrariesButtonInNavigation,
+                          icon: Icons.video_library,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      // The bottom navbar keeps its Libraries sheet, so this
+                      // only applies to the top bar and the sidebar.
+                      if (!NavigationLayout.usesBottomNavbar &&
+                          prefs.get(UserPreferences.showLibrariesInToolbar))
+                        SwitchPreferenceTile(
+                          preference: UserPreferences.showLibrariesIndividually,
+                          title: l10n.showLibrariesIndividually,
+                          subtitle: l10n.showLibrariesIndividuallySubtitle,
+                          icon: Icons.video_library,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      if (prefs.get(UserPreferences.syncPlayEnabled))
+                        SwitchPreferenceTile(
+                          preference: UserPreferences.showSyncPlayButton,
+                          title: l10n.settingsSyncplayButton,
+                          subtitle: l10n.settingsSyncplayButtonSubtitle,
+                          icon: Icons.groups,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      // Kos TV: the Apps button (a TV whose apps can be
+                      // listed).
+                      if (kostvAppsAvailable())
+                        SwitchPreferenceTile(
+                          preference: UserPreferences.showAppsButton,
+                          title: l10n.kostvShowAppsButton,
+                          icon: Icons.apps_rounded,
+                        ),
+                      // Kos TV: the Discover button, for a person the requests
+                      // service lets in.
+                      if (kostvDiscoverAllowed() &&
+                          !onBar.contains(BottomNavTab.kostvDiscover))
+                        SwitchPreferenceTile(
+                          key: const ValueKey(BottomNavTab.kostvDiscover),
+                          preference: UserPreferences.showDiscoverButton,
+                          title: l10n.kostvShowDiscoverButton,
+                          icon: Icons.explore_rounded,
+                        ),
+                      if (_syncService.calendarAvailable &&
+                          !onBar.contains(BottomNavTab.calendar))
+                        SwitchPreferenceTile(
+                          key: const ValueKey(BottomNavTab.calendar),
+                          preference: UserPreferences.showCalendarButton,
+                          title: l10n.showCalendarButton,
+                          subtitle: l10n.showCalendarButtonSubtitle,
+                          icon: Icons.calendar_month_rounded,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      // Saved downloads keep the button even after
+                      // downloading is turned off
+                      if (DownloadsNavSlot.isAvailable() ||
+                          DownloadsNavSlot.hasSavedMedia())
+                        SwitchPreferenceTile(
+                          preference: UserPreferences.showDownloadsButton,
+                          title: l10n.showDownloadsButton,
+                          icon: Icons.download_for_offline,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      // Server messages come from the Moonfin plugin.
+                      if (moonfinPluginOnAnySignedInServer())
+                        SwitchPreferenceTile(
+                          preference: UserPreferences.showServerMessagesButton,
+                          title: l10n.serverMessagesShowButton,
+                          subtitle: l10n.serverMessagesShowButtonSubtitle,
+                          icon: Icons.info_outline_rounded,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      // Only where the plugin has friends on, so nobody is
+                      // offered a button that would never show.
+                      if (GetIt.instance<AchievementsService>().socialAvailable)
+                        SwitchPreferenceTile(
+                          preference: UserPreferences.showFriendsButton,
+                          title: l10n.friendsShowButton,
+                          subtitle: l10n.friendsShowButtonSubtitle,
+                          icon: Icons.people_alt_rounded,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),

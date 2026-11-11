@@ -1,3 +1,5 @@
+import '../../l10n/app_localizations.dart';
+
 enum MediaSegmentType {
   intro,
   outro,
@@ -15,6 +17,8 @@ enum MediaSegmentType {
     _ => unknown,
   };
 
+  /// The server's English name, for logs and native players that word the
+  /// prompt themselves. On screen, use [label].
   String get displayName => switch (this) {
     intro => 'Intro',
     outro => 'Outro',
@@ -22,6 +26,17 @@ enum MediaSegmentType {
     recap => 'Recap',
     commercial => 'Commercial',
     unknown => 'Unknown',
+  };
+
+  /// The name shown on screen, as it reads inside "Skip {segment}" and
+  /// "{segment} Segments".
+  String label(AppLocalizations l10n) => switch (this) {
+    intro => l10n.kostvSegmentIntro,
+    outro => l10n.kostvSegmentOutro,
+    preview => l10n.kostvSegmentPreview,
+    recap => l10n.kostvSegmentRecap,
+    commercial => l10n.kostvSegmentCommercial,
+    unknown => l10n.kostvSegmentUnknown,
   };
 }
 

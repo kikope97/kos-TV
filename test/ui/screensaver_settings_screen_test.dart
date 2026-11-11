@@ -10,6 +10,7 @@ import 'package:moonfin/ui/screensaver/bouncing_box.dart';
 import 'package:moonfin/ui/screensaver/screensaver_gradient_backdrops.dart';
 import 'package:moonfin/ui/screensaver/screensaver_view.dart';
 import 'package:moonfin/ui/widgets/playback/loading_animation_widget.dart';
+import 'package:moonfin/ui/widgets/settings/settings_more_section.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -266,12 +267,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(find.text('General Settings'), findsOneWidget);
+      // On its own, without the Settings panel, the screen shows its «Más
+      // ajustes» part too, headers and all: some of them show twice.
+      expect(find.text('General Settings'), findsWidgets);
       expect(find.text('In-App Screensaver'), findsOneWidget);
       expect(find.text('Timeout'), findsOneWidget);
       expect(find.text('Dimming Level'), findsOneWidget);
 
-      expect(find.text('Visual Components'), findsOneWidget);
+      expect(find.text('Visual Components'), findsWidgets);
       expect(find.text('Backdrop'), findsOneWidget);
       expect(find.text('Additional Component'), findsOneWidget);
 
@@ -303,8 +306,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(find.text('General Settings'), findsOneWidget);
-      expect(find.text('Visual Components'), findsOneWidget);
+      expect(find.text('General Settings'), findsWidgets);
+      expect(find.text('Visual Components'), findsWidgets);
 
       // Library Content section should be hidden for moonfin backdrop
       expect(find.text('Library Content'), findsNothing);
@@ -330,7 +333,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(find.text('Visual Components'), findsOneWidget);
+      expect(find.text('Visual Components'), findsWidgets);
       expect(find.text('PREVIEW'), findsNothing);
       expect(find.byType(AnimatedGradientBackdrop), findsNothing);
     });
@@ -353,7 +356,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(find.text('Visual Components'), findsOneWidget);
+      expect(find.text('Visual Components'), findsWidgets);
 
       // Toggle the In-App Screensaver switch to false
       final switchTile = tester.widget<SwitchListTile>(find.byType(SwitchListTile).first);
@@ -480,6 +483,79 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.text('All (Default)'), findsOneWidget);
+    });
+
+    // Kos TV: in Settings the finer details wait behind «Más ajustes».
+    testWidgets('in Settings the finer details wait behind More settings', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1920, 1080);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      prefs.set(UserPreferences.screensaverEnabled, true);
+      prefs.set(
+        UserPreferences.screensaverBackdrop,
+        ScreensaverBackdrop.library,
+      );
+      final controller = SettingsMoreController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SettingsMoreScope(
+            controller: controller,
+            child: const ScreensaverSettingsScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.text('In-App Screensaver'), findsOneWidget);
+      expect(find.text('Timeout'), findsOneWidget);
+      expect(find.text('Backdrop'), findsOneWidget);
+      expect(find.text('Additional Component'), findsOneWidget);
+      expect(find.text('General Settings'), findsOneWidget);
+      expect(find.text('Visual Components'), findsOneWidget);
+      expect(find.text('More settings'), findsOneWidget);
+      expect(find.text('Dimming Level'), findsNothing);
+      expect(find.text('Component Movement'), findsNothing);
+      expect(find.text('Library Content'), findsNothing);
+
+      await tester.tap(find.text('More settings'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(controller.isOpen('appearance.screensaver'), isTrue);
+      expect(find.text('Dimming Level'), findsOneWidget);
+      expect(find.text('Component Movement'), findsOneWidget);
+      expect(find.text('Library Content'), findsOneWidget);
+    });
+
+    testWidgets('with the screensaver off the fold stays away', (tester) async {
+      prefs.set(UserPreferences.screensaverEnabled, false);
+      final controller = SettingsMoreController();
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SettingsMoreScope(
+            controller: controller,
+            child: const ScreensaverSettingsScreen(),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Off a TV nothing is left to fold away.
+      expect(find.text('In-App Screensaver'), findsOneWidget);
+      expect(find.text('More settings'), findsNothing);
     });
   });
 

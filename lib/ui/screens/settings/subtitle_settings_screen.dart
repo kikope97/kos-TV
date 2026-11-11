@@ -11,6 +11,7 @@ import '../../../util/platform_detection.dart';
 import '../../widgets/adaptive/adaptive_list_section.dart';
 import '../../widgets/settings/settings_section_header.dart';
 import '../../widgets/settings/preference_tiles.dart';
+import '../../widgets/settings/settings_more_section.dart';
 import '../../widgets/settings/settings_panel.dart';
 import '../../widgets/settings/settings_preview_scope.dart';
 import '../../widgets/settings/clean_settings_typography.dart';
@@ -72,17 +73,6 @@ class SubtitleSettingsScreen extends StatelessWidget {
                         SubtitleMode.none => l10n.subtitleModeNoneDescription,
                       },
                     ),
-                    MultiSelectPreferenceTile(
-                      preference: UserPreferences.subtitleDownloadLanguages,
-                      title: l10n.subtitleDownloadLanguages,
-                      description: l10n.subtitleDownloadLanguagesDescription,
-                      icon: Icons.download,
-                      // Every language, since the providers cover far more
-                      // than the app is translated into.
-                      options: kIso6392Languages,
-                      emptyLabel: l10n.auto,
-                      maxSelected: maxSubtitleDownloadLanguages,
-                    ),
                   ],
                 ),
                 if (showStreamSettings) ...[
@@ -94,44 +84,6 @@ class SubtitleSettingsScreen extends StatelessWidget {
                         title: l10n.defaultSubtitleLanguage,
                         icon: Icons.language,
                         options: langOptions,
-                      ),
-                      SwitchPreferenceTile(
-                        preference: UserPreferences.secondarySubtitlesEnabled,
-                        title: l10n.secondarySubtitleTrack,
-                        subtitle: l10n.secondarySubtitlesEnabledSubtitle,
-                        icon: Icons.subtitles_outlined,
-                      ),
-                      if (prefs.get(UserPreferences.secondarySubtitlesEnabled))
-                        StringPickerPreferenceTile(
-                          preference: UserPreferences
-                              .preferredSecondarySubtitleLanguage,
-                          title: l10n.preferredSecondarySubtitleLanguage,
-                          icon: Icons.language,
-                          options: langOptions,
-                        ),
-                      StringPickerPreferenceTile(
-                        preference: UserPreferences.fallbackSubtitleLanguage,
-                        title: l10n.fallbackSubtitleLanguage,
-                        icon: Icons.language,
-                        options: langOptions,
-                      ),
-                      SwitchPreferenceTile(
-                        preference: UserPreferences.preferSdhSubtitles,
-                        title: l10n.preferSdhSubtitles,
-                        subtitle: l10n.preferSdhSubtitlesSubtitle,
-                        icon: Icons.hearing,
-                      ),
-                      SwitchPreferenceTile(
-                        preference: UserPreferences.preferTextSubtitles,
-                        title: l10n.preferTextSubtitles,
-                        subtitle: l10n.preferTextSubtitlesSubtitle,
-                        icon: Icons.subtitles,
-                      ),
-                      SwitchPreferenceTile(
-                        preference: UserPreferences.preferExternalSubtitles,
-                        title: l10n.preferExternalSubtitles,
-                        subtitle: l10n.preferExternalSubtitlesSubtitle,
-                        icon: Icons.file_download,
                       ),
                     ],
                   ),
@@ -186,42 +138,125 @@ class SubtitleSettingsScreen extends StatelessWidget {
                           },
                         ),
                       ),
-                      if (PlatformDetection.isAndroid) ...[
-                        SwitchPreferenceTile(
-                          preference:
-                              UserPreferences.subtitlesUseEmbeddedStyles,
-                          title: l10n.subtitlesUseEmbeddedStyles,
-                          subtitle: l10n.subtitlesUseEmbeddedStylesSubtitle,
-                          icon: Icons.format_paint,
-                        ),
-                        SwitchPreferenceTile(
-                          preference:
-                              UserPreferences.subtitlesUseEmbeddedFontSizes,
-                          title: l10n.subtitlesUseEmbeddedFontSizes,
-                          subtitle: l10n.subtitlesUseEmbeddedFontSizesSubtitle,
-                          icon: Icons.format_size,
-                        ),
-                      ],
-                    ],
-                  ),
-                  SettingsSectionHeader(l10n.subtitleRendering),
-                  adaptiveListSection(
-                    children: [
-                      SwitchPreferenceTile(
-                        preference: UserPreferences.pgsDirectPlay,
-                        title: l10n.pgsDirectPlay,
-                        subtitle: l10n.directPlayPgsSubtitles,
-                        icon: Icons.image,
-                      ),
-                      SwitchPreferenceTile(
-                        preference: UserPreferences.assDirectPlay,
-                        title: l10n.assSsaDirectPlay,
-                        subtitle: l10n.directPlayAssSsaSubtitles,
-                        icon: Icons.text_snippet,
-                      ),
                     ],
                   ),
                 ],
+                // Kos TV: the technical rest, behind «Más ajustes».
+                ...settingsMore(
+                  context,
+                  id: 'playback.subtitles',
+                  // With subtitles off only the download languages are left.
+                  summary: showStreamSettings
+                      ? l10n.kostvMoreSubtitlesSummary
+                      : l10n.subtitleDownloadLanguages,
+                  children: [
+                    SettingsSectionHeader(l10n.general),
+                    adaptiveListSection(
+                      children: [
+                        MultiSelectPreferenceTile(
+                          preference: UserPreferences.subtitleDownloadLanguages,
+                          title: l10n.subtitleDownloadLanguages,
+                          description:
+                              l10n.subtitleDownloadLanguagesDescription,
+                          icon: Icons.download,
+                          // Every language, since the providers cover far more
+                          // than the app is translated into.
+                          options: kIso6392Languages,
+                          emptyLabel: l10n.auto,
+                          maxSelected: maxSubtitleDownloadLanguages,
+                        ),
+                      ],
+                    ),
+                    if (showStreamSettings) ...[
+                      SettingsSectionHeader(l10n.subtitleStream),
+                      adaptiveListSection(
+                        children: [
+                          SwitchPreferenceTile(
+                            preference:
+                                UserPreferences.secondarySubtitlesEnabled,
+                            title: l10n.secondarySubtitleTrack,
+                            subtitle: l10n.secondarySubtitlesEnabledSubtitle,
+                            icon: Icons.subtitles_outlined,
+                          ),
+                          if (prefs.get(
+                            UserPreferences.secondarySubtitlesEnabled,
+                          ))
+                            StringPickerPreferenceTile(
+                              preference: UserPreferences
+                                  .preferredSecondarySubtitleLanguage,
+                              title: l10n.preferredSecondarySubtitleLanguage,
+                              icon: Icons.language,
+                              options: langOptions,
+                            ),
+                          StringPickerPreferenceTile(
+                            preference:
+                                UserPreferences.fallbackSubtitleLanguage,
+                            title: l10n.fallbackSubtitleLanguage,
+                            icon: Icons.language,
+                            options: langOptions,
+                          ),
+                          SwitchPreferenceTile(
+                            preference: UserPreferences.preferSdhSubtitles,
+                            title: l10n.preferSdhSubtitles,
+                            subtitle: l10n.preferSdhSubtitlesSubtitle,
+                            icon: Icons.hearing,
+                          ),
+                          SwitchPreferenceTile(
+                            preference: UserPreferences.preferTextSubtitles,
+                            title: l10n.preferTextSubtitles,
+                            subtitle: l10n.preferTextSubtitlesSubtitle,
+                            icon: Icons.subtitles,
+                          ),
+                          SwitchPreferenceTile(
+                            preference: UserPreferences.preferExternalSubtitles,
+                            title: l10n.preferExternalSubtitles,
+                            subtitle: l10n.preferExternalSubtitlesSubtitle,
+                            icon: Icons.file_download,
+                          ),
+                        ],
+                      ),
+                      if (PlatformDetection.isAndroid) ...[
+                        SettingsSectionHeader(l10n.subtitleCustomization),
+                        adaptiveListSection(
+                          children: [
+                            SwitchPreferenceTile(
+                              preference:
+                                  UserPreferences.subtitlesUseEmbeddedStyles,
+                              title: l10n.subtitlesUseEmbeddedStyles,
+                              subtitle: l10n.subtitlesUseEmbeddedStylesSubtitle,
+                              icon: Icons.format_paint,
+                            ),
+                            SwitchPreferenceTile(
+                              preference:
+                                  UserPreferences.subtitlesUseEmbeddedFontSizes,
+                              title: l10n.subtitlesUseEmbeddedFontSizes,
+                              subtitle:
+                                  l10n.subtitlesUseEmbeddedFontSizesSubtitle,
+                              icon: Icons.format_size,
+                            ),
+                          ],
+                        ),
+                      ],
+                      SettingsSectionHeader(l10n.subtitleRendering),
+                      adaptiveListSection(
+                        children: [
+                          SwitchPreferenceTile(
+                            preference: UserPreferences.pgsDirectPlay,
+                            title: l10n.pgsDirectPlay,
+                            subtitle: l10n.directPlayPgsSubtitles,
+                            icon: Icons.image,
+                          ),
+                          SwitchPreferenceTile(
+                            preference: UserPreferences.assDirectPlay,
+                            title: l10n.assSsaDirectPlay,
+                            subtitle: l10n.directPlayAssSsaSubtitles,
+                            icon: Icons.text_snippet,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
               ],
             );
           },

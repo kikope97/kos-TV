@@ -5613,7 +5613,7 @@
     "@groupItemsIntoCollectionsDialogTitle": {
         "description": "Title of the alert dialog explaining server settings requirement"
     },
-    "groupItemsIntoCollectionsDialogMessage": "Para usar este ajuste, asegúrate de que los ajustes de biblioteca \"Agrupar películas en colecciones\" o \"Agrupar series en colecciones\" estén activados en los ajustes de Visualización de tu biblioteca en el servidor de Jellyfin o Emby.",
+    "groupItemsIntoCollectionsDialogMessage": "Para usar este ajuste, asegúrate de que los ajustes de biblioteca \"Agrupar películas en colecciones\" o \"Agrupar series en colecciones\" estén activados en los ajustes de Visualización de tu biblioteca en tu servidor de Jellyfin.",
     "@groupItemsIntoCollectionsDialogMessage": {
         "description": "Message of the alert dialog explaining server settings requirement"
     },
@@ -11515,5 +11515,680 @@
     "kostvStillWatchingSubtitle": "Pregunta si sigues viendo después de varios episodios seguidos.",
     "@kostvStillWatchingSubtitle": {
         "description": "Kos TV: subtitle of the Are you still watching setting"
+    },
+    "kostvMorePlayerSummary": "Zoom, retroceso al reanudar, controles, botones y miniaturas",
+    "@kostvMorePlayerSummary": {
+        "description": "Kos TV: what the Player screen's More settings holds"
+    },
+    "kostvMoreAudioSummary": "Idioma alternativo, audiodescripción, passthrough y códecs",
+    "@kostvMoreAudioSummary": {
+        "description": "Kos TV: what the Audio screen's More settings holds"
+    },
+    "kostvMoreAudioSummaryWeb": "Idioma alternativo y audiodescripción",
+    "@kostvMoreAudioSummaryWeb": {
+        "description": "Kos TV: what the Audio screen's More settings holds in the web app, which has no passthrough or codec settings"
+    },
+    "kostvMoreSubtitlesSummary": "Idiomas para descargar, subtítulos secundarios, SDH, PGS y ASS",
+    "@kostvMoreSubtitlesSummary": {
+        "description": "Kos TV: what the Subtitles screen's More settings holds"
+    },
+    "kostvMoreSubtitleStyleSummary": "Trazo, negrita, fuente, sombra y estilo para HDR",
+    "@kostvMoreSubtitleStyleSummary": {
+        "description": "Kos TV: what the Subtitle Customization screen's More settings holds"
+    },
+    "kostvMoreSkipsSummary": "Modo cine, otros segmentos, botón de saltar y A continuación",
+    "@kostvMoreSkipsSummary": {
+        "description": "Kos TV: what the Skipping & Autoplay screen's More settings holds"
+    },
+    "kostvMoreWatchTogetherSummary": "Chat, avisos de salas y sincronización de SyncPlay",
+    "@kostvMoreWatchTogetherSummary": {
+        "description": "Kos TV: what the Watch Parties screen's More settings holds"
+    },
+    "kostvAudioOutputSection": "Salida de audio",
+    "@kostvAudioOutputSection": {
+        "description": "Kos TV: Audio settings section with passthrough and downmix"
+    },
+    "kostvAudioRedetect": "Volver a detectar el audio",
+    "@kostvAudioRedetect": {
+        "description": "Kos TV: Audio settings row that re-runs audio detection and restores the recommended settings"
+    },
+    "kostvAudioRedetectSubtitle": "Vuelve a detectar la salida de audio y recupera los ajustes recomendados.",
+    "@kostvAudioRedetectSubtitle": {
+        "description": "Kos TV: subtitle of the re-detect audio row"
+    },
+    "kostvAudioRedetected": "Audio detectado de nuevo: {route}",
+    "@kostvAudioRedetected": {
+        "description": "Kos TV: message after re-detecting the audio, naming the output found (HDMI, Bluetooth…)",
+        "placeholders": {
+            "route": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvDecodingRenderingSection": "Decodificación y renderizado",
+    "@kostvDecodingRenderingSection": {
+        "description": "Kos TV: Quality and decoding settings section with hardware decoding, display and renderer options"
+    },
+    "kostvMoreNavigationSummary": "Color y opacidad de la barra, etiquetas y qué botones salen",
+    "@kostvMoreNavigationSummary": {
+        "description": "Kos TV: what the Navigation bar screen's More settings holds"
+    },
+    "kostvMoreMediaBarSummary": "Qué títulos salen y de dónde, valoraciones, avance automático…",
+    "@kostvMoreMediaBarSummary": {
+        "description": "Kos TV: what the Media bar screen's More settings holds"
+    },
+    "kostvMoreLibrariesSummary": "Estilos de biblioteca, colecciones, títulos bajo los pósteres, libros…",
+    "@kostvMoreLibrariesSummary": {
+        "description": "Kos TV: what the Libraries screen's More settings holds"
+    },
+    "kostvMoreDetailsSummary": "Fondo, botones, datos y secciones, recomendaciones, valoraciones…",
+    "@kostvMoreDetailsSummary": {
+        "description": "Kos TV: what the Details page screen's More settings holds"
+    },
+    "kostvMoreScreensaverSummary": "Atenuación, suspender la tele, movimiento y qué imágenes salen",
+    "@kostvMoreScreensaverSummary": {
+        "description": "Kos TV: what the Screensaver screen's More settings holds"
+    },
+    "kostvMoreParentalSummary": "Límite de clasificación en las recomendaciones",
+    "@kostvMoreParentalSummary": {
+        "description": "Kos TV: what the Parental controls screen's More settings holds"
+    },
+    "kostvLogging": "Registro",
+    "@kostvLogging": {
+        "description": "Kos TV: diagnostics screen section with the logging switches"
+    },
+    "kostvDiagnosticLogging": "Registro de diagnóstico",
+    "@kostvDiagnosticLogging": {
+        "description": "Kos TV: switch that captures diagnostic logs"
+    },
+    "kostvDiagnosticLoggingSubtitle": "Guarda datos de reproducción, de red y otros diagnósticos para poder enviarlos al servidor como informe.",
+    "@kostvDiagnosticLoggingSubtitle": {
+        "description": "Kos TV: subtitle of the diagnostic logging switch"
+    },
+    "kostvSendCrashReportsSubtitle": "Si la app se cierra por un fallo, guarda un informe y lo envía a tu servidor la próxima vez que se conecte. No se envía a ningún otro sitio.",
+    "@kostvSendCrashReportsSubtitle": {
+        "description": "Kos TV: subtitle of the crash reports switch"
+    },
+    "kostvReports": "Informes",
+    "@kostvReports": {
+        "description": "Kos TV: diagnostics screen section with the report actions"
+    },
+    "kostvReportsCaptured": "{count, plural, =1{Informes (1 entrada guardada)} other{Informes ({count} entradas guardadas)}}",
+    "@kostvReportsCaptured": {
+        "description": "Kos TV: reports section header while logging is on, with how many entries are captured",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvSendReport": "Enviar informe al servidor",
+    "@kostvSendReport": {
+        "description": "Kos TV: diagnostics action that uploads the captured logs"
+    },
+    "kostvSendReportSubtitle": "Sube los registros guardados al servidor que estás usando.",
+    "@kostvSendReportSubtitle": {
+        "description": "Kos TV: subtitle of the send report action"
+    },
+    "kostvTurnOnLoggingFirst": "Primero activa el registro de diagnóstico.",
+    "@kostvTurnOnLoggingFirst": {
+        "description": "Kos TV: why a report can't be sent while logging is off"
+    },
+    "kostvNoLogEntriesCaptured": "Todavía no se ha guardado nada.",
+    "@kostvNoLogEntriesCaptured": {
+        "description": "Kos TV: why a report can't be sent before anything is captured"
+    },
+    "kostvReportNeedsSignIn": "Inicia sesión en un servidor para enviar informes.",
+    "@kostvReportNeedsSignIn": {
+        "description": "Kos TV: why a report can't be sent with no server signed in"
+    },
+    "kostvReportNeedsPlugin": "Este servidor necesita el complemento del servidor con la subida de registros activada.",
+    "@kostvReportNeedsPlugin": {
+        "description": "Kos TV: why a report can't be sent to a server without the plugin"
+    },
+    "kostvReportNotSupported": "El servidor que estás usando no admite informes.",
+    "@kostvReportNotSupported": {
+        "description": "Kos TV: why a report can't be sent to this server"
+    },
+    "kostvCopyAllLogs": "Copiar todos los registros",
+    "@kostvCopyAllLogs": {
+        "description": "Kos TV: diagnostics action that copies the report"
+    },
+    "kostvCopyAllLogsSubtitle": "Copia el informe completo al portapapeles.",
+    "@kostvCopyAllLogsSubtitle": {
+        "description": "Kos TV: subtitle of the copy all logs action"
+    },
+    "kostvClearLogs": "Borrar los registros guardados",
+    "@kostvClearLogs": {
+        "description": "Kos TV: diagnostics action that discards the captured logs"
+    },
+    "kostvClearLogsSubtitle": "Descarta todo lo que se ha guardado hasta ahora.",
+    "@kostvClearLogsSubtitle": {
+        "description": "Kos TV: subtitle of the clear logs action"
+    },
+    "kostvRecentLogs": "Registros recientes",
+    "@kostvRecentLogs": {
+        "description": "Kos TV: diagnostics section listing the captured entries"
+    },
+    "kostvRecentLogsFiltered": "Registros recientes ({shown} de {total})",
+    "@kostvRecentLogsFiltered": {
+        "description": "Kos TV: recent logs header while a category filter is on",
+        "placeholders": {
+            "shown": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvAllCategories": "Todas las categorías",
+    "@kostvAllCategories": {
+        "description": "Kos TV: log filter option that shows every category"
+    },
+    "kostvLogCategoryMedia": "Multimedia",
+    "@kostvLogCategoryMedia": {
+        "description": "Kos TV: log category for media"
+    },
+    "kostvLogCategorySync": "Sincronización",
+    "@kostvLogCategorySync": {
+        "description": "Kos TV: log category for sync"
+    },
+    "kostvLogCategoryArtwork": "Imágenes",
+    "@kostvLogCategoryArtwork": {
+        "description": "Kos TV: log category for artwork"
+    },
+    "kostvNoLogEntriesInCategory": "{total, plural, =1{Nada en «{category}». Hay 1 entrada en otra categoría: cambia el filtro para verla.} other{Nada en «{category}». Hay {total} en otras categorías: cambia el filtro para verlas.}}",
+    "@kostvNoLogEntriesInCategory": {
+        "description": "Kos TV: empty log list when the filter hides every captured entry",
+        "placeholders": {
+            "total": {
+                "type": "int"
+            },
+            "category": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvNoLogEntriesYet": "Todavía no hay registros. Haz que vuelva a pasar el problema y luego envía un informe.",
+    "@kostvNoLogEntriesYet": {
+        "description": "Kos TV: empty log list while logging is on"
+    },
+    "kostvLoggingOff": "El registro está apagado. Actívalo, haz que vuelva a pasar el problema y luego envía un informe al servidor.",
+    "@kostvLoggingOff": {
+        "description": "Kos TV: empty log list while logging is off"
+    },
+    "kostvReportSent": "Informe enviado al servidor",
+    "@kostvReportSent": {
+        "description": "Kos TV: note once the report is uploaded"
+    },
+    "kostvReportSentAs": "Informe enviado al servidor: {fileName}",
+    "@kostvReportSentAs": {
+        "description": "Kos TV: note once the report is uploaded, with the file name the server gave it",
+        "placeholders": {
+            "fileName": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvReportSendFailed": "No se ha podido enviar el informe: {detail}",
+    "@kostvReportSendFailed": {
+        "description": "Kos TV: note when the report upload failed",
+        "placeholders": {
+            "detail": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvLogsCopied": "Registros copiados al portapapeles",
+    "@kostvLogsCopied": {
+        "description": "Kos TV: note once every log is copied"
+    },
+    "kostvLogEntryCopied": "Entrada copiada al portapapeles",
+    "@kostvLogEntryCopied": {
+        "description": "Kos TV: note once one log entry is copied"
+    },
+    "kostvLogsCleared": "Registros borrados",
+    "@kostvLogsCleared": {
+        "description": "Kos TV: note once the captured logs are cleared"
+    },
+    "kostvFetchingList": "Descargando «{title}»",
+    "@kostvFetchingList": {
+        "description": "Kos TV: title of the dialog while an outside list downloads",
+        "placeholders": {
+            "title": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvServerReturnedNoItems": "El servidor no ha devuelto nada.",
+    "@kostvServerReturnedNoItems": {
+        "description": "Kos TV: why an outside list could not be fetched"
+    },
+    "kostvDeleteCustomRow": "Eliminar la fila personalizada",
+    "@kostvDeleteCustomRow": {
+        "description": "Kos TV: title of the dialog that deletes a custom row"
+    },
+    "kostvDeleteCustomRowConfirm": "¿Seguro que quieres eliminar «{name}»?",
+    "@kostvDeleteCustomRowConfirm": {
+        "description": "Kos TV: question in the dialog that deletes a custom row",
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvCustomRowTypeList": "Lista",
+    "@kostvCustomRowTypeList": {
+        "description": "Kos TV: custom row type, a list"
+    },
+    "kostvCustomRowTypeListFromUser": "Lista por ID de usuario",
+    "@kostvCustomRowTypeListFromUser": {
+        "description": "Kos TV: custom row type, a list found by its user and name"
+    },
+    "kostvCustomRowTypeListFromUrl": "Lista desde una URL",
+    "@kostvCustomRowTypeListFromUrl": {
+        "description": "Kos TV: custom row type, a list found by its URL"
+    },
+    "kostvCustomRowTypeDiary": "Diario",
+    "@kostvCustomRowTypeDiary": {
+        "description": "Kos TV: custom row type, a Letterboxd diary"
+    },
+    "kostvCustomRowTypeFilms": "Todas las películas",
+    "@kostvCustomRowTypeFilms": {
+        "description": "Kos TV: custom row type, every film a user logged"
+    },
+    "kostvCustomRowTypeAwards": "Premios y eventos",
+    "@kostvCustomRowTypeAwards": {
+        "description": "Kos TV: custom row type, awards and events"
+    },
+    "kostvCustomRowTypeMovieCollection": "Colección de películas",
+    "@kostvCustomRowTypeMovieCollection": {
+        "description": "Kos TV: custom row type, a movie collection"
+    },
+    "kostvCustomRowTypeTmdbList": "Lista de TMDB (por ID o URL)",
+    "@kostvCustomRowTypeTmdbList": {
+        "description": "Kos TV: custom row wizard type, a TMDB list"
+    },
+    "kostvCustomRowTypeTmdbCollection": "Colección de TMDB (por ID o URL)",
+    "@kostvCustomRowTypeTmdbCollection": {
+        "description": "Kos TV: custom row wizard type, a TMDB collection"
+    },
+    "kostvCustomRowTypeCustomList": "Lista personalizada",
+    "@kostvCustomRowTypeCustomList": {
+        "description": "Kos TV: custom row type, a user's own list"
+    },
+    "kostvCustomRowSourceAndType": "{type} de {source}",
+    "@kostvCustomRowSourceAndType": {
+        "description": "Kos TV: subtitle of a custom row in Home sections, e.g. 'TMDB Custom list'",
+        "placeholders": {
+            "source": {
+                "type": "String"
+            },
+            "type": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvAddCustomRow": "Añadir una fila personalizada a Inicio",
+    "@kostvAddCustomRow": {
+        "description": "Kos TV: action that opens the custom row wizard"
+    },
+    "kostvAddCustomRowSubtitle": "Crea una fila con una lista de TMDB, Letterboxd o MDBList.",
+    "@kostvAddCustomRowSubtitle": {
+        "description": "Kos TV: subtitle of the add custom row action"
+    },
+    "kostvSavedCustomRows": "Filas personalizadas guardadas",
+    "@kostvSavedCustomRows": {
+        "description": "Kos TV: section listing the saved custom rows"
+    },
+    "kostvCustomRow": "Fila personalizada",
+    "@kostvCustomRow": {
+        "description": "Kos TV: name of a custom row that has none"
+    },
+    "kostvCustomRowSourceType": "Origen: {source} · Tipo: {type}",
+    "@kostvCustomRowSourceType": {
+        "description": "Kos TV: subtitle of a saved custom row",
+        "placeholders": {
+            "source": {
+                "type": "String"
+            },
+            "type": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvDiscardChangesTitle": "¿Descartar los cambios?",
+    "@kostvDiscardChangesTitle": {
+        "description": "Kos TV: title of the dialog when leaving the custom row wizard"
+    },
+    "kostvDiscardChangesMessage": "Tienes cambios sin guardar. ¿Quieres salir sin guardarlos?",
+    "@kostvDiscardChangesMessage": {
+        "description": "Kos TV: question when leaving the custom row wizard"
+    },
+    "kostvCustomRowNoResults": "La lista no ha devuelto ningún resultado.",
+    "@kostvCustomRowNoResults": {
+        "description": "Kos TV: why a custom row could not be checked"
+    },
+    "kostvCustomRowCheckFailedTitle": "No se ha podido comprobar la fila",
+    "@kostvCustomRowCheckFailedTitle": {
+        "description": "Kos TV: title of the dialog when a custom row can't be fetched"
+    },
+    "kostvCustomRowCheckFailedMessage": "No se han podido traer los títulos de esta fila personalizada.",
+    "@kostvCustomRowCheckFailedMessage": {
+        "description": "Kos TV: text of the dialog when a custom row can't be fetched"
+    },
+    "kostvErrorDetails": "Detalles del error: {detail}",
+    "@kostvErrorDetails": {
+        "description": "Kos TV: the error behind a failed custom row",
+        "placeholders": {
+            "detail": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvEditCustomRow": "Editar la fila personalizada",
+    "@kostvEditCustomRow": {
+        "description": "Kos TV: title of the custom row wizard when editing"
+    },
+    "kostvNewCustomRow": "Nueva fila personalizada",
+    "@kostvNewCustomRow": {
+        "description": "Kos TV: title of the custom row wizard when adding"
+    },
+    "kostvLetterboxdUsername": "Usuario de Letterboxd",
+    "@kostvLetterboxdUsername": {
+        "description": "Kos TV: custom row wizard field"
+    },
+    "kostvLetterboxdNeedsTmdbKey": "Aviso: hace falta una clave de la API de TMDB en los ajustes para encontrar los títulos de las listas de Letterboxd.",
+    "@kostvLetterboxdNeedsTmdbKey": {
+        "description": "Kos TV: custom row wizard warning without a TMDB key"
+    },
+    "kostvTmdbCollectionIdOrUrl": "ID o URL de la colección de TMDB",
+    "@kostvTmdbCollectionIdOrUrl": {
+        "description": "Kos TV: custom row wizard field"
+    },
+    "kostvTmdbListIdOrUrl": "ID o URL de la lista de TMDB",
+    "@kostvTmdbListIdOrUrl": {
+        "description": "Kos TV: custom row wizard field"
+    },
+    "kostvTmdbCollectionHint": "12345 o https://www.themoviedb.org/collection/12345",
+    "@kostvTmdbCollectionHint": {
+        "description": "Kos TV: hint of the TMDB collection field"
+    },
+    "kostvTmdbListHint": "12345 o https://www.themoviedb.org/list/12345",
+    "@kostvTmdbListHint": {
+        "description": "Kos TV: hint of the TMDB list field"
+    },
+    "kostvTmdbNeedsKey": "Aviso: hace falta una clave de la API de TMDB en los ajustes para traer listas de TMDB.",
+    "@kostvTmdbNeedsKey": {
+        "description": "Kos TV: custom row wizard warning without a TMDB key"
+    },
+    "kostvMdblistUrl": "URL de MDBList",
+    "@kostvMdblistUrl": {
+        "description": "Kos TV: custom row wizard field"
+    },
+    "kostvMdblistUrlHint": "p. ej., https://mdblist.com/lists/usuario/nombre-de-la-lista",
+    "@kostvMdblistUrlHint": {
+        "description": "Kos TV: hint of the MDBList URL field"
+    },
+    "kostvMdblistUsername": "Usuario de MDBList",
+    "@kostvMdblistUsername": {
+        "description": "Kos TV: custom row wizard field"
+    },
+    "kostvMdblistListName": "Nombre de la lista (como sale en su URL)",
+    "@kostvMdblistListName": {
+        "description": "Kos TV: custom row wizard field for the MDBList list slug"
+    },
+    "kostvMdblistListNameHint": "nombre-de-la-lista",
+    "@kostvMdblistListNameHint": {
+        "description": "Kos TV: hint of the MDBList list name field"
+    },
+    "kostvMdblistNeedsKey": "Aviso: para traer listas de MDBList hace falta una clave de la API de MDBList en los ajustes (o que quien administra el servidor la configure para todos).",
+    "@kostvMdblistNeedsKey": {
+        "description": "Kos TV: custom row wizard warning without an MDBList key"
+    },
+    "kostvSortAToZ": "De la A a la Z",
+    "@kostvSortAToZ": {
+        "description": "Kos TV: custom row sort order by title"
+    },
+    "kostvSortMostPopularFirst": "Más populares primero",
+    "@kostvSortMostPopularFirst": {
+        "description": "Kos TV: custom row sort order by popularity"
+    },
+    "kostvSortLeastPopularFirst": "Menos populares primero",
+    "@kostvSortLeastPopularFirst": {
+        "description": "Kos TV: custom row sort order by popularity"
+    },
+    "kostvSortHighestRatedFirst": "Mejor valoradas primero",
+    "@kostvSortHighestRatedFirst": {
+        "description": "Kos TV: custom row sort order by rating"
+    },
+    "kostvSortLowestRatedFirst": "Peor valoradas primero",
+    "@kostvSortLowestRatedFirst": {
+        "description": "Kos TV: custom row sort order by rating"
+    },
+    "kostvShowUserRatings": "Mostrar las valoraciones del usuario",
+    "@kostvShowUserRatings": {
+        "description": "Kos TV: custom row wizard switch for a Letterboxd user's ratings"
+    },
+    "kostvCustomRowName": "Nombre de la fila en Inicio",
+    "@kostvCustomRowName": {
+        "description": "Kos TV: custom row wizard field for the row's name"
+    },
+    "kostvCustomRowNameHint": "Escribe un nombre para la fila…",
+    "@kostvCustomRowNameHint": {
+        "description": "Kos TV: hint of the custom row name field"
+    },
+    "kostvRewatchSortDescription": "Elige cómo ordenar lo que ya has visto.",
+    "@kostvRewatchSortDescription": {
+        "description": "Kos TV: description of the watch again row sort"
+    },
+    "kostvRewatchIncludeMovies": "Incluir películas",
+    "@kostvRewatchIncludeMovies": {
+        "description": "Kos TV: watch again row switch"
+    },
+    "kostvRewatchIncludeMoviesSubtitle": "Muestra en «Volver a ver» las películas que ya has visto.",
+    "@kostvRewatchIncludeMoviesSubtitle": {
+        "description": "Kos TV: subtitle of the watch again row movies switch"
+    },
+    "kostvRewatchIncludeShows": "Incluir series",
+    "@kostvRewatchIncludeShows": {
+        "description": "Kos TV: watch again row switch"
+    },
+    "kostvRewatchIncludeShowsSubtitle": "Muestra en «Volver a ver» las series que ya has visto.",
+    "@kostvRewatchIncludeShowsSubtitle": {
+        "description": "Kos TV: subtitle of the watch again row series switch"
+    },
+    "kostvRewatchIncludeCollections": "Incluir colecciones",
+    "@kostvRewatchIncludeCollections": {
+        "description": "Kos TV: watch again row switch"
+    },
+    "kostvRewatchIncludeCollectionsSubtitle": "Muestra en «Volver a ver» las colecciones que ya has visto.",
+    "@kostvRewatchIncludeCollectionsSubtitle": {
+        "description": "Kos TV: subtitle of the watch again row collections switch"
+    },
+    "kostvStudiosLoadFailed": "No se han podido cargar los estudios: {detail}",
+    "@kostvStudiosLoadFailed": {
+        "description": "Kos TV: studio picker error",
+        "placeholders": {
+            "detail": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvNoStudiosFound": "No hay estudios en tus bibliotecas.",
+    "@kostvNoStudiosFound": {
+        "description": "Kos TV: studio picker with nothing to pick"
+    },
+    "kostvStudiosSelectedCount": "{selected} de {total} elegidos ({visible} a la vista)",
+    "@kostvStudiosSelectedCount": {
+        "description": "Kos TV: studio picker count",
+        "placeholders": {
+            "selected": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
+            },
+            "visible": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvAudioRow": "Fila de audio",
+    "@kostvAudioRow": {
+        "description": "Kos TV: subtitle of a music row in Home sections"
+    },
+    "kostvCollectionsRow": "Fila de colecciones",
+    "@kostvCollectionsRow": {
+        "description": "Kos TV: subtitle of a collection row in Home sections"
+    },
+    "kostvCollectionsRowFrom": "Fila de colecciones de {server}",
+    "@kostvCollectionsRowFrom": {
+        "description": "Kos TV: subtitle of a collection row from another server",
+        "placeholders": {
+            "server": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvGenresRow": "Fila de géneros",
+    "@kostvGenresRow": {
+        "description": "Kos TV: subtitle of a genre row in Home sections"
+    },
+    "kostvPlaylistsRow": "Fila de listas de reproducción",
+    "@kostvPlaylistsRow": {
+        "description": "Kos TV: subtitle of a playlist row in Home sections"
+    },
+    "kostvFavoriteMovies": "Películas favoritas",
+    "@kostvFavoriteMovies": {
+        "description": "Kos TV: Home row of favorite movies"
+    },
+    "kostvFavoriteSeries": "Series favoritas",
+    "@kostvFavoriteSeries": {
+        "description": "Kos TV: Home row of favorite series"
+    },
+    "kostvFavoriteEpisodes": "Episodios favoritos",
+    "@kostvFavoriteEpisodes": {
+        "description": "Kos TV: Home row of favorite episodes"
+    },
+    "kostvFavoritePeople": "Personas favoritas",
+    "@kostvFavoritePeople": {
+        "description": "Kos TV: Home row of favorite people"
+    },
+    "kostvFavoriteArtists": "Artistas favoritos",
+    "@kostvFavoriteArtists": {
+        "description": "Kos TV: Home row of favorite artists"
+    },
+    "kostvFavoriteMusicVideos": "Vídeos musicales favoritos",
+    "@kostvFavoriteMusicVideos": {
+        "description": "Kos TV: Home row of favorite music videos"
+    },
+    "kostvFavoriteAlbums": "Álbumes favoritos",
+    "@kostvFavoriteAlbums": {
+        "description": "Kos TV: Home row of favorite albums"
+    },
+    "kostvFavoriteSongs": "Canciones favoritas",
+    "@kostvFavoriteSongs": {
+        "description": "Kos TV: Home row of favorite songs"
+    },
+    "kostvFavoriteCollections": "Colecciones favoritas",
+    "@kostvFavoriteCollections": {
+        "description": "Kos TV: Home row of favorite collections"
+    },
+    "kostvCoreNotDownloaded": "Este núcleo aún no está descargado.",
+    "@kostvCoreNotDownloaded": {
+        "description": "Kos TV: emulator core settings for a core not downloaded"
+    },
+    "kostvCoreSettingsUnreadable": "Los ajustes de este núcleo no se pueden leer en este dispositivo. Aun así, puedes restablecerlos abajo.",
+    "@kostvCoreSettingsUnreadable": {
+        "description": "Kos TV: emulator core settings this device can't read"
+    },
+    "kostvCoreSettingsReadFailed": "No se han podido leer los ajustes de este núcleo.",
+    "@kostvCoreSettingsReadFailed": {
+        "description": "Kos TV: emulator core settings failed to load"
+    },
+    "kostvCoreSettingsSaveFailed": "No se han podido guardar estos ajustes.",
+    "@kostvCoreSettingsSaveFailed": {
+        "description": "Kos TV: emulator core settings failed to save"
+    },
+    "kostvCoreSettingsTitle": "Ajustes de {system}",
+    "@kostvCoreSettingsTitle": {
+        "description": "Kos TV: title of one emulator core's settings",
+        "placeholders": {
+            "system": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvCoreSettingsWarning": "Son los ajustes propios del núcleo del emulador. Algunas combinaciones pueden impedir que un juego arranque o cerrar la app mientras juegas. Si algo falla, usa «Restablecer valores predeterminados», abajo.",
+    "@kostvCoreSettingsWarning": {
+        "description": "Kos TV: warning above an emulator core's settings"
+    },
+    "kostvSegmentIntro": "intro",
+    "@kostvSegmentIntro": {
+        "description": "Kos TV: media segment name, used in 'Skip {segment}' and '{segment} Segments'"
+    },
+    "kostvSegmentOutro": "créditos",
+    "@kostvSegmentOutro": {
+        "description": "Kos TV: media segment name, used in 'Skip {segment}' and '{segment} Segments'"
+    },
+    "kostvSegmentPreview": "avance",
+    "@kostvSegmentPreview": {
+        "description": "Kos TV: media segment name, used in 'Skip {segment}' and '{segment} Segments'"
+    },
+    "kostvSegmentRecap": "resumen",
+    "@kostvSegmentRecap": {
+        "description": "Kos TV: media segment name, used in 'Skip {segment}' and '{segment} Segments'"
+    },
+    "kostvSegmentCommercial": "anuncios",
+    "@kostvSegmentCommercial": {
+        "description": "Kos TV: media segment name, used in 'Skip {segment}' and '{segment} Segments'"
+    },
+    "kostvSegmentUnknown": "segmento",
+    "@kostvSegmentUnknown": {
+        "description": "Kos TV: media segment of an unknown type, used in 'Skip {segment}'"
+    },
+    "kostvDownloadQualityHigh": "Alta (1080p)",
+    "@kostvDownloadQualityHigh": {
+        "description": "Kos TV: download quality"
+    },
+    "kostvDownloadQualityLow": "Baja (480p)",
+    "@kostvDownloadQualityLow": {
+        "description": "Kos TV: download quality"
+    },
+    "kostvDownloadQualityMobile": "Móvil (360p)",
+    "@kostvDownloadQualityMobile": {
+        "description": "Kos TV: download quality"
+    },
+    "kostvSizeVaries": "Variable",
+    "@kostvSizeVaries": {
+        "description": "Kos TV: download size of the original quality, which depends on the file"
+    },
+    "kostvSizePerHourGb": "~{size} GB/h",
+    "@kostvSizePerHourGb": {
+        "description": "Kos TV: estimated download size per hour",
+        "placeholders": {
+            "size": {
+                "type": "double",
+                "format": "decimalPatternDigits",
+                "optionalParameters": {
+                    "decimalDigits": 1
+                }
+            }
+        }
+    },
+    "kostvSizePerHourMb": "~{size} MB/h",
+    "@kostvSizePerHourMb": {
+        "description": "Kos TV: estimated download size per hour",
+        "placeholders": {
+            "size": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvLoadingStream": "Cargando el vídeo…",
+    "@kostvLoadingStream": {
+        "description": "Kos TV: player label while a stream comes up"
     }
 }

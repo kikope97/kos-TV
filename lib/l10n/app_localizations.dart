@@ -8483,7 +8483,7 @@ abstract class AppLocalizations {
   /// Message of the alert dialog explaining server settings requirement
   ///
   /// In en, this message translates to:
-  /// **'To use this setting, please ensure the \"Group movies into collections\" and/or \"Group shows into collections\" Library settings are enabled under your library\'s Display settings on your Jellyfin or Emby server.'**
+  /// **'To use this setting, please ensure the \"Group movies into collections\" and/or \"Group shows into collections\" Library settings are enabled under your library\'s Display settings on your Jellyfin server.'**
   String get groupItemsIntoCollectionsDialogMessage;
 
   /// Section title for library visibility
@@ -30476,6 +30476,858 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Ask whether you\'re still watching after a few episodes in a row.'**
   String get kostvStillWatchingSubtitle;
+
+  /// Kos TV: what the Player screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom, rewind on resume, controls, buttons and thumbnails'**
+  String get kostvMorePlayerSummary;
+
+  /// Kos TV: what the Audio screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Fallback language, audio description, passthrough and codecs'**
+  String get kostvMoreAudioSummary;
+
+  /// Kos TV: what the Audio screen's More settings holds in the web app, which has no passthrough or codec settings
+  ///
+  /// In en, this message translates to:
+  /// **'Fallback language and audio description'**
+  String get kostvMoreAudioSummaryWeb;
+
+  /// Kos TV: what the Subtitles screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Download languages, secondary subtitles, SDH, PGS and ASS'**
+  String get kostvMoreSubtitlesSummary;
+
+  /// Kos TV: what the Subtitle Customization screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Outline, bold, font, shadow and HDR style'**
+  String get kostvMoreSubtitleStyleSummary;
+
+  /// Kos TV: what the Skipping & Autoplay screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Cinema mode, other segments, skip button and Next Up'**
+  String get kostvMoreSkipsSummary;
+
+  /// Kos TV: what the Watch Parties screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Chat, party alerts and SyncPlay sync'**
+  String get kostvMoreWatchTogetherSummary;
+
+  /// Kos TV: Audio settings section with passthrough and downmix
+  ///
+  /// In en, this message translates to:
+  /// **'Audio Output'**
+  String get kostvAudioOutputSection;
+
+  /// Kos TV: Audio settings row that re-runs audio detection and restores the recommended settings
+  ///
+  /// In en, this message translates to:
+  /// **'Re-detect & apply recommended'**
+  String get kostvAudioRedetect;
+
+  /// Kos TV: subtitle of the re-detect audio row
+  ///
+  /// In en, this message translates to:
+  /// **'Re-run audio detection and reset to the recommended settings.'**
+  String get kostvAudioRedetectSubtitle;
+
+  /// Kos TV: message after re-detecting the audio, naming the output found (HDMI, Bluetooth…)
+  ///
+  /// In en, this message translates to:
+  /// **'Audio re-detected: {route}'**
+  String kostvAudioRedetected(String route);
+
+  /// Kos TV: Quality and decoding settings section with hardware decoding, display and renderer options
+  ///
+  /// In en, this message translates to:
+  /// **'Decoding & Rendering'**
+  String get kostvDecodingRenderingSection;
+
+  /// Kos TV: what the Navigation bar screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Bar color and opacity, labels and which buttons show'**
+  String get kostvMoreNavigationSummary;
+
+  /// Kos TV: what the Media bar screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Which titles show and where from, ratings, auto-advance…'**
+  String get kostvMoreMediaBarSummary;
+
+  /// Kos TV: what the Libraries screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Library styles, collections, titles under posters, books…'**
+  String get kostvMoreLibrariesSummary;
+
+  /// Kos TV: what the Details page screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Backdrop, buttons, details and sections, recommendations, ratings…'**
+  String get kostvMoreDetailsSummary;
+
+  /// Kos TV: what the Screensaver screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Dimming, letting the TV sleep, movement and which pictures show'**
+  String get kostvMoreScreensaverSummary;
+
+  /// Kos TV: what the Parental controls screen's More settings holds
+  ///
+  /// In en, this message translates to:
+  /// **'Rating limit on recommendations'**
+  String get kostvMoreParentalSummary;
+
+  /// Kos TV: diagnostics screen section with the logging switches
+  ///
+  /// In en, this message translates to:
+  /// **'Logging'**
+  String get kostvLogging;
+
+  /// Kos TV: switch that captures diagnostic logs
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostic logging'**
+  String get kostvDiagnosticLogging;
+
+  /// Kos TV: subtitle of the diagnostic logging switch
+  ///
+  /// In en, this message translates to:
+  /// **'Capture playback, network and other diagnostics so they can be sent to the server as a report.'**
+  String get kostvDiagnosticLoggingSubtitle;
+
+  /// Kos TV: subtitle of the crash reports switch
+  ///
+  /// In en, this message translates to:
+  /// **'Save a report when the app crashes and send it to your own server the next time it connects. Nothing is sent anywhere else.'**
+  String get kostvSendCrashReportsSubtitle;
+
+  /// Kos TV: diagnostics screen section with the report actions
+  ///
+  /// In en, this message translates to:
+  /// **'Reports'**
+  String get kostvReports;
+
+  /// Kos TV: reports section header while logging is on, with how many entries are captured
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Reports (1 entry captured)} other{Reports ({count} entries captured)}}'**
+  String kostvReportsCaptured(int count);
+
+  /// Kos TV: diagnostics action that uploads the captured logs
+  ///
+  /// In en, this message translates to:
+  /// **'Send report to server'**
+  String get kostvSendReport;
+
+  /// Kos TV: subtitle of the send report action
+  ///
+  /// In en, this message translates to:
+  /// **'Upload the captured logs to the active server.'**
+  String get kostvSendReportSubtitle;
+
+  /// Kos TV: why a report can't be sent while logging is off
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on diagnostic logging first.'**
+  String get kostvTurnOnLoggingFirst;
+
+  /// Kos TV: why a report can't be sent before anything is captured
+  ///
+  /// In en, this message translates to:
+  /// **'No entries captured yet.'**
+  String get kostvNoLogEntriesCaptured;
+
+  /// Kos TV: why a report can't be sent with no server signed in
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in to a server to send reports.'**
+  String get kostvReportNeedsSignIn;
+
+  /// Kos TV: why a report can't be sent to a server without the plugin
+  ///
+  /// In en, this message translates to:
+  /// **'This server needs the server plugin, with client log upload turned on.'**
+  String get kostvReportNeedsPlugin;
+
+  /// Kos TV: why a report can't be sent to this server
+  ///
+  /// In en, this message translates to:
+  /// **'The active server doesn\'t accept reports.'**
+  String get kostvReportNotSupported;
+
+  /// Kos TV: diagnostics action that copies the report
+  ///
+  /// In en, this message translates to:
+  /// **'Copy all logs'**
+  String get kostvCopyAllLogs;
+
+  /// Kos TV: subtitle of the copy all logs action
+  ///
+  /// In en, this message translates to:
+  /// **'Copy the full report to the clipboard.'**
+  String get kostvCopyAllLogsSubtitle;
+
+  /// Kos TV: diagnostics action that discards the captured logs
+  ///
+  /// In en, this message translates to:
+  /// **'Clear captured logs'**
+  String get kostvClearLogs;
+
+  /// Kos TV: subtitle of the clear logs action
+  ///
+  /// In en, this message translates to:
+  /// **'Discard everything captured so far.'**
+  String get kostvClearLogsSubtitle;
+
+  /// Kos TV: diagnostics section listing the captured entries
+  ///
+  /// In en, this message translates to:
+  /// **'Recent logs'**
+  String get kostvRecentLogs;
+
+  /// Kos TV: recent logs header while a category filter is on
+  ///
+  /// In en, this message translates to:
+  /// **'Recent logs ({shown} of {total})'**
+  String kostvRecentLogsFiltered(int shown, int total);
+
+  /// Kos TV: log filter option that shows every category
+  ///
+  /// In en, this message translates to:
+  /// **'All categories'**
+  String get kostvAllCategories;
+
+  /// Kos TV: log category for media
+  ///
+  /// In en, this message translates to:
+  /// **'Media'**
+  String get kostvLogCategoryMedia;
+
+  /// Kos TV: log category for sync
+  ///
+  /// In en, this message translates to:
+  /// **'Sync'**
+  String get kostvLogCategorySync;
+
+  /// Kos TV: log category for artwork
+  ///
+  /// In en, this message translates to:
+  /// **'Artwork'**
+  String get kostvLogCategoryArtwork;
+
+  /// Kos TV: empty log list when the filter hides every captured entry
+  ///
+  /// In en, this message translates to:
+  /// **'{total, plural, =1{No {category} entries. 1 captured in another category: change the filter to see it.} other{No {category} entries. {total} captured in other categories: change the filter to see them.}}'**
+  String kostvNoLogEntriesInCategory(int total, String category);
+
+  /// Kos TV: empty log list while logging is on
+  ///
+  /// In en, this message translates to:
+  /// **'No log entries yet. Reproduce the issue, then send a report.'**
+  String get kostvNoLogEntriesYet;
+
+  /// Kos TV: empty log list while logging is off
+  ///
+  /// In en, this message translates to:
+  /// **'Logging is off. Turn it on, reproduce the issue, then send a report to the server.'**
+  String get kostvLoggingOff;
+
+  /// Kos TV: note once the report is uploaded
+  ///
+  /// In en, this message translates to:
+  /// **'Report sent to server'**
+  String get kostvReportSent;
+
+  /// Kos TV: note once the report is uploaded, with the file name the server gave it
+  ///
+  /// In en, this message translates to:
+  /// **'Report sent to server: {fileName}'**
+  String kostvReportSentAs(String fileName);
+
+  /// Kos TV: note when the report upload failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t send the report: {detail}'**
+  String kostvReportSendFailed(String detail);
+
+  /// Kos TV: note once every log is copied
+  ///
+  /// In en, this message translates to:
+  /// **'Logs copied to clipboard'**
+  String get kostvLogsCopied;
+
+  /// Kos TV: note once one log entry is copied
+  ///
+  /// In en, this message translates to:
+  /// **'Entry copied to clipboard'**
+  String get kostvLogEntryCopied;
+
+  /// Kos TV: note once the captured logs are cleared
+  ///
+  /// In en, this message translates to:
+  /// **'Logs cleared'**
+  String get kostvLogsCleared;
+
+  /// Kos TV: title of the dialog while an outside list downloads
+  ///
+  /// In en, this message translates to:
+  /// **'Fetching {title}'**
+  String kostvFetchingList(String title);
+
+  /// Kos TV: why an outside list could not be fetched
+  ///
+  /// In en, this message translates to:
+  /// **'The server returned no items.'**
+  String get kostvServerReturnedNoItems;
+
+  /// Kos TV: title of the dialog that deletes a custom row
+  ///
+  /// In en, this message translates to:
+  /// **'Delete custom row'**
+  String get kostvDeleteCustomRow;
+
+  /// Kos TV: question in the dialog that deletes a custom row
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to delete \"{name}\"?'**
+  String kostvDeleteCustomRowConfirm(String name);
+
+  /// Kos TV: custom row type, a list
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
+  String get kostvCustomRowTypeList;
+
+  /// Kos TV: custom row type, a list found by its user and name
+  ///
+  /// In en, this message translates to:
+  /// **'List from user ID'**
+  String get kostvCustomRowTypeListFromUser;
+
+  /// Kos TV: custom row type, a list found by its URL
+  ///
+  /// In en, this message translates to:
+  /// **'List from URL'**
+  String get kostvCustomRowTypeListFromUrl;
+
+  /// Kos TV: custom row type, a Letterboxd diary
+  ///
+  /// In en, this message translates to:
+  /// **'Diary'**
+  String get kostvCustomRowTypeDiary;
+
+  /// Kos TV: custom row type, every film a user logged
+  ///
+  /// In en, this message translates to:
+  /// **'Complete films'**
+  String get kostvCustomRowTypeFilms;
+
+  /// Kos TV: custom row type, awards and events
+  ///
+  /// In en, this message translates to:
+  /// **'Awards/Events'**
+  String get kostvCustomRowTypeAwards;
+
+  /// Kos TV: custom row type, a movie collection
+  ///
+  /// In en, this message translates to:
+  /// **'Movie collection'**
+  String get kostvCustomRowTypeMovieCollection;
+
+  /// Kos TV: custom row wizard type, a TMDB list
+  ///
+  /// In en, this message translates to:
+  /// **'List from a TMDB list ID or URL'**
+  String get kostvCustomRowTypeTmdbList;
+
+  /// Kos TV: custom row wizard type, a TMDB collection
+  ///
+  /// In en, this message translates to:
+  /// **'Collection from a TMDB collection ID or URL'**
+  String get kostvCustomRowTypeTmdbCollection;
+
+  /// Kos TV: custom row type, a user's own list
+  ///
+  /// In en, this message translates to:
+  /// **'Custom list'**
+  String get kostvCustomRowTypeCustomList;
+
+  /// Kos TV: subtitle of a custom row in Home sections, e.g. 'TMDB Custom list'
+  ///
+  /// In en, this message translates to:
+  /// **'{source} {type}'**
+  String kostvCustomRowSourceAndType(String source, String type);
+
+  /// Kos TV: action that opens the custom row wizard
+  ///
+  /// In en, this message translates to:
+  /// **'Add a new custom Home row'**
+  String get kostvAddCustomRow;
+
+  /// Kos TV: subtitle of the add custom row action
+  ///
+  /// In en, this message translates to:
+  /// **'Create a custom row from TMDB, Letterboxd or MDBList.'**
+  String get kostvAddCustomRowSubtitle;
+
+  /// Kos TV: section listing the saved custom rows
+  ///
+  /// In en, this message translates to:
+  /// **'Saved custom Home rows'**
+  String get kostvSavedCustomRows;
+
+  /// Kos TV: name of a custom row that has none
+  ///
+  /// In en, this message translates to:
+  /// **'Custom row'**
+  String get kostvCustomRow;
+
+  /// Kos TV: subtitle of a saved custom row
+  ///
+  /// In en, this message translates to:
+  /// **'Source: {source} | Type: {type}'**
+  String kostvCustomRowSourceType(String source, String type);
+
+  /// Kos TV: title of the dialog when leaving the custom row wizard
+  ///
+  /// In en, this message translates to:
+  /// **'Discard changes?'**
+  String get kostvDiscardChangesTitle;
+
+  /// Kos TV: question when leaving the custom row wizard
+  ///
+  /// In en, this message translates to:
+  /// **'You have unsaved changes. Leave without saving?'**
+  String get kostvDiscardChangesMessage;
+
+  /// Kos TV: why a custom row could not be checked
+  ///
+  /// In en, this message translates to:
+  /// **'The list returned no results.'**
+  String get kostvCustomRowNoResults;
+
+  /// Kos TV: title of the dialog when a custom row can't be fetched
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t check the custom row'**
+  String get kostvCustomRowCheckFailedTitle;
+
+  /// Kos TV: text of the dialog when a custom row can't be fetched
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t fetch the items for this custom row.'**
+  String get kostvCustomRowCheckFailedMessage;
+
+  /// Kos TV: the error behind a failed custom row
+  ///
+  /// In en, this message translates to:
+  /// **'Error details: {detail}'**
+  String kostvErrorDetails(String detail);
+
+  /// Kos TV: title of the custom row wizard when editing
+  ///
+  /// In en, this message translates to:
+  /// **'Edit custom Home row'**
+  String get kostvEditCustomRow;
+
+  /// Kos TV: title of the custom row wizard when adding
+  ///
+  /// In en, this message translates to:
+  /// **'Add custom Home row'**
+  String get kostvNewCustomRow;
+
+  /// Kos TV: custom row wizard field
+  ///
+  /// In en, this message translates to:
+  /// **'Letterboxd username'**
+  String get kostvLetterboxdUsername;
+
+  /// Kos TV: custom row wizard warning without a TMDB key
+  ///
+  /// In en, this message translates to:
+  /// **'Warning: a TMDB API key must be set in settings to find the titles on Letterboxd lists.'**
+  String get kostvLetterboxdNeedsTmdbKey;
+
+  /// Kos TV: custom row wizard field
+  ///
+  /// In en, this message translates to:
+  /// **'TMDB collection ID or URL'**
+  String get kostvTmdbCollectionIdOrUrl;
+
+  /// Kos TV: custom row wizard field
+  ///
+  /// In en, this message translates to:
+  /// **'TMDB list ID or URL'**
+  String get kostvTmdbListIdOrUrl;
+
+  /// Kos TV: hint of the TMDB collection field
+  ///
+  /// In en, this message translates to:
+  /// **'12345 or https://www.themoviedb.org/collection/12345'**
+  String get kostvTmdbCollectionHint;
+
+  /// Kos TV: hint of the TMDB list field
+  ///
+  /// In en, this message translates to:
+  /// **'12345 or https://www.themoviedb.org/list/12345'**
+  String get kostvTmdbListHint;
+
+  /// Kos TV: custom row wizard warning without a TMDB key
+  ///
+  /// In en, this message translates to:
+  /// **'Warning: a TMDB API key must be set in settings to fetch TMDB lists.'**
+  String get kostvTmdbNeedsKey;
+
+  /// Kos TV: custom row wizard field
+  ///
+  /// In en, this message translates to:
+  /// **'MDBList URL'**
+  String get kostvMdblistUrl;
+
+  /// Kos TV: hint of the MDBList URL field
+  ///
+  /// In en, this message translates to:
+  /// **'e.g. https://mdblist.com/lists/username/list-slug'**
+  String get kostvMdblistUrlHint;
+
+  /// Kos TV: custom row wizard field
+  ///
+  /// In en, this message translates to:
+  /// **'MDBList username'**
+  String get kostvMdblistUsername;
+
+  /// Kos TV: custom row wizard field for the MDBList list slug
+  ///
+  /// In en, this message translates to:
+  /// **'List name (as in its URL)'**
+  String get kostvMdblistListName;
+
+  /// Kos TV: hint of the MDBList list name field
+  ///
+  /// In en, this message translates to:
+  /// **'list-name'**
+  String get kostvMdblistListNameHint;
+
+  /// Kos TV: custom row wizard warning without an MDBList key
+  ///
+  /// In en, this message translates to:
+  /// **'Warning: an MDBList API key must be set in settings (or for the whole server by its admin) to fetch MDBList lists.'**
+  String get kostvMdblistNeedsKey;
+
+  /// Kos TV: custom row sort order by title
+  ///
+  /// In en, this message translates to:
+  /// **'A to Z'**
+  String get kostvSortAToZ;
+
+  /// Kos TV: custom row sort order by popularity
+  ///
+  /// In en, this message translates to:
+  /// **'Most popular first'**
+  String get kostvSortMostPopularFirst;
+
+  /// Kos TV: custom row sort order by popularity
+  ///
+  /// In en, this message translates to:
+  /// **'Least popular first'**
+  String get kostvSortLeastPopularFirst;
+
+  /// Kos TV: custom row sort order by rating
+  ///
+  /// In en, this message translates to:
+  /// **'Highest rated first'**
+  String get kostvSortHighestRatedFirst;
+
+  /// Kos TV: custom row sort order by rating
+  ///
+  /// In en, this message translates to:
+  /// **'Lowest rated first'**
+  String get kostvSortLowestRatedFirst;
+
+  /// Kos TV: custom row wizard switch for a Letterboxd user's ratings
+  ///
+  /// In en, this message translates to:
+  /// **'Show the user\'s ratings'**
+  String get kostvShowUserRatings;
+
+  /// Kos TV: custom row wizard field for the row's name
+  ///
+  /// In en, this message translates to:
+  /// **'Row name on Home'**
+  String get kostvCustomRowName;
+
+  /// Kos TV: hint of the custom row name field
+  ///
+  /// In en, this message translates to:
+  /// **'Type a name for the row…'**
+  String get kostvCustomRowNameHint;
+
+  /// Kos TV: description of the watch again row sort
+  ///
+  /// In en, this message translates to:
+  /// **'Choose how to sort what you\'ve already watched.'**
+  String get kostvRewatchSortDescription;
+
+  /// Kos TV: watch again row switch
+  ///
+  /// In en, this message translates to:
+  /// **'Include movies'**
+  String get kostvRewatchIncludeMovies;
+
+  /// Kos TV: subtitle of the watch again row movies switch
+  ///
+  /// In en, this message translates to:
+  /// **'Show movies you\'ve watched in the watch again row.'**
+  String get kostvRewatchIncludeMoviesSubtitle;
+
+  /// Kos TV: watch again row switch
+  ///
+  /// In en, this message translates to:
+  /// **'Include series'**
+  String get kostvRewatchIncludeShows;
+
+  /// Kos TV: subtitle of the watch again row series switch
+  ///
+  /// In en, this message translates to:
+  /// **'Show series you\'ve watched in the watch again row.'**
+  String get kostvRewatchIncludeShowsSubtitle;
+
+  /// Kos TV: watch again row switch
+  ///
+  /// In en, this message translates to:
+  /// **'Include collections'**
+  String get kostvRewatchIncludeCollections;
+
+  /// Kos TV: subtitle of the watch again row collections switch
+  ///
+  /// In en, this message translates to:
+  /// **'Show collections you\'ve watched in the watch again row.'**
+  String get kostvRewatchIncludeCollectionsSubtitle;
+
+  /// Kos TV: studio picker error
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the studios: {detail}'**
+  String kostvStudiosLoadFailed(String detail);
+
+  /// Kos TV: studio picker with nothing to pick
+  ///
+  /// In en, this message translates to:
+  /// **'No studios found in your libraries.'**
+  String get kostvNoStudiosFound;
+
+  /// Kos TV: studio picker count
+  ///
+  /// In en, this message translates to:
+  /// **'{selected} of {total} selected ({visible} shown)'**
+  String kostvStudiosSelectedCount(int selected, int total, int visible);
+
+  /// Kos TV: subtitle of a music row in Home sections
+  ///
+  /// In en, this message translates to:
+  /// **'Audio row'**
+  String get kostvAudioRow;
+
+  /// Kos TV: subtitle of a collection row in Home sections
+  ///
+  /// In en, this message translates to:
+  /// **'Collections row'**
+  String get kostvCollectionsRow;
+
+  /// Kos TV: subtitle of a collection row from another server
+  ///
+  /// In en, this message translates to:
+  /// **'Collections row from {server}'**
+  String kostvCollectionsRowFrom(String server);
+
+  /// Kos TV: subtitle of a genre row in Home sections
+  ///
+  /// In en, this message translates to:
+  /// **'Genres row'**
+  String get kostvGenresRow;
+
+  /// Kos TV: subtitle of a playlist row in Home sections
+  ///
+  /// In en, this message translates to:
+  /// **'Playlists row'**
+  String get kostvPlaylistsRow;
+
+  /// Kos TV: Home row of favorite movies
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite Movies'**
+  String get kostvFavoriteMovies;
+
+  /// Kos TV: Home row of favorite series
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite Series'**
+  String get kostvFavoriteSeries;
+
+  /// Kos TV: Home row of favorite episodes
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite Episodes'**
+  String get kostvFavoriteEpisodes;
+
+  /// Kos TV: Home row of favorite people
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite People'**
+  String get kostvFavoritePeople;
+
+  /// Kos TV: Home row of favorite artists
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite Artists'**
+  String get kostvFavoriteArtists;
+
+  /// Kos TV: Home row of favorite music videos
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite Music Videos'**
+  String get kostvFavoriteMusicVideos;
+
+  /// Kos TV: Home row of favorite albums
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite Albums'**
+  String get kostvFavoriteAlbums;
+
+  /// Kos TV: Home row of favorite songs
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite Songs'**
+  String get kostvFavoriteSongs;
+
+  /// Kos TV: Home row of favorite collections
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite Collections'**
+  String get kostvFavoriteCollections;
+
+  /// Kos TV: emulator core settings for a core not downloaded
+  ///
+  /// In en, this message translates to:
+  /// **'This core isn\'t downloaded yet.'**
+  String get kostvCoreNotDownloaded;
+
+  /// Kos TV: emulator core settings this device can't read
+  ///
+  /// In en, this message translates to:
+  /// **'This core\'s settings can\'t be read on this device. You can still reset them to defaults below.'**
+  String get kostvCoreSettingsUnreadable;
+
+  /// Kos TV: emulator core settings failed to load
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read this core\'s settings.'**
+  String get kostvCoreSettingsReadFailed;
+
+  /// Kos TV: emulator core settings failed to save
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save these settings.'**
+  String get kostvCoreSettingsSaveFailed;
+
+  /// Kos TV: title of one emulator core's settings
+  ///
+  /// In en, this message translates to:
+  /// **'{system} settings'**
+  String kostvCoreSettingsTitle(String system);
+
+  /// Kos TV: warning above an emulator core's settings
+  ///
+  /// In en, this message translates to:
+  /// **'These are the emulator core\'s own settings. Some combinations can stop a game from starting, or close the app while it runs. If something breaks, use Reset to defaults below.'**
+  String get kostvCoreSettingsWarning;
+
+  /// Kos TV: media segment name, used in 'Skip {segment}' and '{segment} Segments'
+  ///
+  /// In en, this message translates to:
+  /// **'Intro'**
+  String get kostvSegmentIntro;
+
+  /// Kos TV: media segment name, used in 'Skip {segment}' and '{segment} Segments'
+  ///
+  /// In en, this message translates to:
+  /// **'Outro'**
+  String get kostvSegmentOutro;
+
+  /// Kos TV: media segment name, used in 'Skip {segment}' and '{segment} Segments'
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get kostvSegmentPreview;
+
+  /// Kos TV: media segment name, used in 'Skip {segment}' and '{segment} Segments'
+  ///
+  /// In en, this message translates to:
+  /// **'Recap'**
+  String get kostvSegmentRecap;
+
+  /// Kos TV: media segment name, used in 'Skip {segment}' and '{segment} Segments'
+  ///
+  /// In en, this message translates to:
+  /// **'Commercial'**
+  String get kostvSegmentCommercial;
+
+  /// Kos TV: media segment of an unknown type, used in 'Skip {segment}'
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get kostvSegmentUnknown;
+
+  /// Kos TV: download quality
+  ///
+  /// In en, this message translates to:
+  /// **'High (1080p)'**
+  String get kostvDownloadQualityHigh;
+
+  /// Kos TV: download quality
+  ///
+  /// In en, this message translates to:
+  /// **'Low (480p)'**
+  String get kostvDownloadQualityLow;
+
+  /// Kos TV: download quality
+  ///
+  /// In en, this message translates to:
+  /// **'Mobile (360p)'**
+  String get kostvDownloadQualityMobile;
+
+  /// Kos TV: download size of the original quality, which depends on the file
+  ///
+  /// In en, this message translates to:
+  /// **'Varies'**
+  String get kostvSizeVaries;
+
+  /// Kos TV: estimated download size per hour
+  ///
+  /// In en, this message translates to:
+  /// **'~{size} GB/hr'**
+  String kostvSizePerHourGb(double size);
+
+  /// Kos TV: estimated download size per hour
+  ///
+  /// In en, this message translates to:
+  /// **'~{size} MB/hr'**
+  String kostvSizePerHourMb(int size);
+
+  /// Kos TV: player label while a stream comes up
+  ///
+  /// In en, this message translates to:
+  /// **'Loading Stream...'**
+  String get kostvLoadingStream;
 }
 
 class _AppLocalizationsDelegate

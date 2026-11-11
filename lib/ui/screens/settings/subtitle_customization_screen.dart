@@ -14,6 +14,7 @@ import '../../../util/platform_detection.dart';
 import '../../widgets/settings/clean_settings_typography.dart';
 import '../../widgets/settings/preference_binding.dart';
 import '../../widgets/settings/preference_tiles.dart';
+import '../../widgets/settings/settings_more_section.dart';
 import '../../widgets/settings/settings_preview_scope.dart';
 import '../../widgets/settings/settings_section_header.dart';
 import 'settings_app_bar.dart';
@@ -183,28 +184,9 @@ class _SubtitleCustomizationScreenState
               allowTransparent: false,
             ),
             _ColorPickerTile(
-              title: l10n.textStrokeColor,
-              icon: Icons.border_color,
-              preference: UserPreferences.subtitleTextStrokeColor,
-            ),
-            IntPickerPreferenceTile(
-              preference: UserPreferences.subtitlesStrokeWidth,
-              title: l10n.subtitleStrokeWidth,
-              icon: Icons.line_weight,
-              options: {
-                100: l10n.defaultLabel,
-                150: l10n.medium,
-                200: l10n.large,
-              },
-            ),
-            _ColorPickerTile(
               title: l10n.backgroundColor,
               icon: Icons.format_color_fill,
               preference: UserPreferences.subtitlesBackgroundColor,
-            ),
-            _BoldTile(
-              title: l10n.subtitleBold,
-              preference: UserPreferences.subtitlesTextWeight,
             ),
             _sliderTile(
               context: context,
@@ -247,136 +229,168 @@ class _SubtitleCustomizationScreenState
               normalizeStepGrid: true,
               labelBuilder: (v) => l10n.percentValue((v * 100).round()),
             ),
-            const _FontTile(),
-            SwitchPreferenceTile(
-              preference: UserPreferences.subtitlesShadow,
-              title: l10n.subtitleShadow,
-              icon: Icons.flip_to_back,
-            ),
-            ListenableBuilder(
-              listenable: GetIt.instance<UserPreferences>(),
-              builder: (context, _) =>
-                  GetIt.instance<UserPreferences>().get(
-                    UserPreferences.subtitlesShadow,
-                  )
-                  ? Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SliderPreferenceTile(
-                          preference: UserPreferences.subtitlesShadowIntensity,
-                          title: l10n.subtitleShadowIntensity,
-                          icon: Icons.opacity,
-                          min: 10,
-                          max: 100,
-                          divisions: 9,
-                          labelOf: l10n.percentValue,
-                        ),
-                        SliderPreferenceTile(
-                          preference: UserPreferences.subtitlesShadowOffset,
-                          title: l10n.subtitleShadowOffset,
-                          icon: Icons.south_east,
-                          min: 0,
-                          max: 8,
-                          divisions: 8,
-                          labelOf: (v) => '$v',
-                        ),
-                        SliderPreferenceTile(
-                          preference: UserPreferences.subtitlesShadowBlur,
-                          title: l10n.subtitleShadowBlur,
-                          icon: Icons.blur_on,
-                          min: 0,
-                          max: 8,
-                          divisions: 8,
-                          labelOf: (v) => '$v',
-                        ),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
-            ),
-            SettingsSectionHeader(l10n.hdr),
-            SwitchPreferenceTile(
-              preference: UserPreferences.subtitlesHdrSeparate,
-              title: l10n.subtitleHdrSeparate,
-              subtitle: l10n.subtitleHdrSeparateSubtitle,
-              icon: Icons.hdr_on,
-            ),
-            ListenableBuilder(
-              listenable: GetIt.instance<UserPreferences>(),
-              builder: (context, _) => GetIt.instance<UserPreferences>().get(
-                UserPreferences.subtitlesHdrSeparate,
-              )
-                  ? Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _ColorPickerTile(
-                          title: l10n.textFillColor,
-                          icon: Icons.format_color_text,
-                          preference: UserPreferences.subtitlesHdrTextColor,
-                          allowTransparent: false,
-                        ),
-                        _ColorPickerTile(
-                          title: l10n.textStrokeColor,
-                          icon: Icons.border_color,
-                          preference:
-                              UserPreferences.subtitlesHdrTextStrokeColor,
-                        ),
-                        _ColorPickerTile(
-                          title: l10n.backgroundColor,
-                          icon: Icons.format_color_fill,
-                          preference:
-                              UserPreferences.subtitlesHdrBackgroundColor,
-                        ),
-                        _BoldTile(
-                          title: l10n.subtitleBold,
-                          preference: UserPreferences.subtitlesHdrTextWeight,
-                        ),
-                        _sliderTile(
-                          context: context,
-                          icon: Icons.format_size,
-                          label: l10n.subtitleSize,
-                          binding: _hdrSizeBind,
-                          previewKey: UserPreferences.subtitlesHdrTextSize.key,
-                          outerNode: _hdrSizeOuterNode,
-                          innerNode: _hdrSizeInnerNode,
-                          focused: _hdrSizeFocused,
-                          onFocusChange: (f) {
-                            if (_hdrSizeFocused != f && mounted) {
-                              setState(() => _hdrSizeFocused = f);
-                            }
-                          },
-                          min: 12,
-                          max: 48,
-                          divisions: 18,
-                          step: 2,
-                          labelBuilder: (v) => l10n.pixelValue(v.round()),
-                        ),
-                        _sliderTile(
-                          context: context,
-                          icon: Icons.vertical_align_bottom,
-                          label: l10n.verticalOffset,
-                          binding: _hdrOffsetBind,
-                          previewKey:
-                              UserPreferences.subtitlesHdrOffsetPosition.key,
-                          outerNode: _hdrOffsetOuterNode,
-                          innerNode: _hdrOffsetInnerNode,
-                          focused: _hdrOffsetFocused,
-                          onFocusChange: (f) {
-                            if (_hdrOffsetFocused != f && mounted) {
-                              setState(() => _hdrOffsetFocused = f);
-                            }
-                          },
-                          min: 0.0,
-                          max: primarySubtitleMaxOffset,
-                          divisions: 18,
-                          step: 0.02,
-                          swallowDown: true,
-                          normalizeStepGrid: true,
-                          labelBuilder: (v) =>
-                              l10n.percentValue((v * 100).round()),
-                        ),
-                      ],
-                    )
-                  : const SizedBox.shrink(),
+            // Kos TV: the technical rest, behind «Más ajustes».
+            ...settingsMore(
+              context,
+              id: 'playback.subtitleStyle',
+              summary: l10n.kostvMoreSubtitleStyleSummary,
+              children: [
+                _ColorPickerTile(
+                  title: l10n.textStrokeColor,
+                  icon: Icons.border_color,
+                  preference: UserPreferences.subtitleTextStrokeColor,
+                ),
+                IntPickerPreferenceTile(
+                  preference: UserPreferences.subtitlesStrokeWidth,
+                  title: l10n.subtitleStrokeWidth,
+                  icon: Icons.line_weight,
+                  options: {
+                    100: l10n.defaultLabel,
+                    150: l10n.medium,
+                    200: l10n.large,
+                  },
+                ),
+                _BoldTile(
+                  title: l10n.subtitleBold,
+                  preference: UserPreferences.subtitlesTextWeight,
+                ),
+                const _FontTile(),
+                SwitchPreferenceTile(
+                  preference: UserPreferences.subtitlesShadow,
+                  title: l10n.subtitleShadow,
+                  icon: Icons.flip_to_back,
+                ),
+                ListenableBuilder(
+                  listenable: GetIt.instance<UserPreferences>(),
+                  builder: (context, _) =>
+                      GetIt.instance<UserPreferences>().get(
+                        UserPreferences.subtitlesShadow,
+                      )
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SliderPreferenceTile(
+                              preference:
+                                  UserPreferences.subtitlesShadowIntensity,
+                              title: l10n.subtitleShadowIntensity,
+                              icon: Icons.opacity,
+                              min: 10,
+                              max: 100,
+                              divisions: 9,
+                              labelOf: l10n.percentValue,
+                            ),
+                            SliderPreferenceTile(
+                              preference: UserPreferences.subtitlesShadowOffset,
+                              title: l10n.subtitleShadowOffset,
+                              icon: Icons.south_east,
+                              min: 0,
+                              max: 8,
+                              divisions: 8,
+                              labelOf: (v) => '$v',
+                            ),
+                            SliderPreferenceTile(
+                              preference: UserPreferences.subtitlesShadowBlur,
+                              title: l10n.subtitleShadowBlur,
+                              icon: Icons.blur_on,
+                              min: 0,
+                              max: 8,
+                              divisions: 8,
+                              labelOf: (v) => '$v',
+                            ),
+                          ],
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                SettingsSectionHeader(l10n.hdr),
+                SwitchPreferenceTile(
+                  preference: UserPreferences.subtitlesHdrSeparate,
+                  title: l10n.subtitleHdrSeparate,
+                  subtitle: l10n.subtitleHdrSeparateSubtitle,
+                  icon: Icons.hdr_on,
+                ),
+                ListenableBuilder(
+                  listenable: GetIt.instance<UserPreferences>(),
+                  builder: (context, _) =>
+                      GetIt.instance<UserPreferences>().get(
+                        UserPreferences.subtitlesHdrSeparate,
+                      )
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _ColorPickerTile(
+                              title: l10n.textFillColor,
+                              icon: Icons.format_color_text,
+                              preference: UserPreferences.subtitlesHdrTextColor,
+                              allowTransparent: false,
+                            ),
+                            _ColorPickerTile(
+                              title: l10n.textStrokeColor,
+                              icon: Icons.border_color,
+                              preference:
+                                  UserPreferences.subtitlesHdrTextStrokeColor,
+                            ),
+                            _ColorPickerTile(
+                              title: l10n.backgroundColor,
+                              icon: Icons.format_color_fill,
+                              preference:
+                                  UserPreferences.subtitlesHdrBackgroundColor,
+                            ),
+                            _BoldTile(
+                              title: l10n.subtitleBold,
+                              preference:
+                                  UserPreferences.subtitlesHdrTextWeight,
+                            ),
+                            _sliderTile(
+                              context: context,
+                              icon: Icons.format_size,
+                              label: l10n.subtitleSize,
+                              binding: _hdrSizeBind,
+                              previewKey:
+                                  UserPreferences.subtitlesHdrTextSize.key,
+                              outerNode: _hdrSizeOuterNode,
+                              innerNode: _hdrSizeInnerNode,
+                              focused: _hdrSizeFocused,
+                              onFocusChange: (f) {
+                                if (_hdrSizeFocused != f && mounted) {
+                                  setState(() => _hdrSizeFocused = f);
+                                }
+                              },
+                              min: 12,
+                              max: 48,
+                              divisions: 18,
+                              step: 2,
+                              labelBuilder: (v) => l10n.pixelValue(v.round()),
+                            ),
+                            _sliderTile(
+                              context: context,
+                              icon: Icons.vertical_align_bottom,
+                              label: l10n.verticalOffset,
+                              binding: _hdrOffsetBind,
+                              previewKey: UserPreferences
+                                  .subtitlesHdrOffsetPosition
+                                  .key,
+                              outerNode: _hdrOffsetOuterNode,
+                              innerNode: _hdrOffsetInnerNode,
+                              focused: _hdrOffsetFocused,
+                              onFocusChange: (f) {
+                                if (_hdrOffsetFocused != f && mounted) {
+                                  setState(() => _hdrOffsetFocused = f);
+                                }
+                              },
+                              min: 0.0,
+                              max: primarySubtitleMaxOffset,
+                              divisions: 18,
+                              step: 0.02,
+                              swallowDown: true,
+                              normalizeStepGrid: true,
+                              labelBuilder: (v) =>
+                                  l10n.percentValue((v * 100).round()),
+                            ),
+                          ],
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
             ),
           ],
         ),

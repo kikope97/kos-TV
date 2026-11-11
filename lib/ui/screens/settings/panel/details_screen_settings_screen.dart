@@ -66,186 +66,7 @@ class _DetailsScreenSettingsScreenState
                       DetailScreenStyle.frost => l10n.detailScreenStyleFrost,
                     },
                   ),
-                  EnumPreferenceTile<PersonalRatingStyle>(
-                    preference: UserPreferences.personalRatingStyle,
-                    title: l10n.personalRatingStyle,
-                    icon: Icons.rate_review,
-                    values: GetIt.instance<MediaServerClient>()
-                            .userLibraryApi
-                            .supportsNumericUserRatings
-                        ? PersonalRatingStyle.values
-                        : const [PersonalRatingStyle.thumbs],
-                    labelOf: (style) => switch (style) {
-                      PersonalRatingStyle.thumbs => l10n.personalRatingThumbs,
-                      PersonalRatingStyle.stars => l10n.personalRatingStars,
-                      PersonalRatingStyle.numeric => l10n.personalRatingNumeric,
-                    },
-                  ),
-                  SwitchPreferenceTile(
-                    preference: UserPreferences.detailsBackdropEnabled,
-                    title: l10n.detailsScreenBackdrop,
-                    icon: Icons.photo,
-                    onChanged: _pushPersonalizationSync,
-                  ),
-                  if (PlatformDetection.useMobileUi)
-                    StringPickerPreferenceTile(
-                      preference: UserPreferences.detailsBackdropSize,
-                      title: l10n.detailsBackdropSize,
-                      icon: Icons.fit_screen,
-                      options: {
-                        UserPreferences.detailsBackdropFullScreen:
-                            l10n.detailsBackdropFullScreen,
-                        UserPreferences.detailsBackdropFit:
-                            l10n.detailsBackdropFit,
-                      },
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  if (prefs.get(UserPreferences.detailScreenStyle) == DetailScreenStyle.classic)
-                    SliderPreferenceTile(
-                      preference: UserPreferences.detailsBackgroundBlurAmount,
-                      title: l10n.detailsBackgroundBlur,
-                      icon: Icons.blur_on,
-                      min: 0,
-                      max: 25,
-                      divisions: 25,
-                      labelOf: (v) => '$v',
-                      onChangeEnd: _pushPersonalizationSync,
-                    )
-                  else
-                    SliderPreferenceTile(
-                      preference: UserPreferences.detailsBackgroundBlurAmount,
-                      title: l10n.detailsBackgroundOpacity,
-                      icon: Icons.opacity,
-                      min: 0,
-                      max: 25,
-                      divisions: 25,
-                      labelOf: (v) => '$v',
-                      onChangeEnd: _pushPersonalizationSync,
-                    ),
-                  _TvSettingsListTile(
-                    previewKey: detailButtonLayout.orderPreference.key,
-                    leading: const Icon(Icons.smart_button_outlined),
-                    title: Text(l10n.detailButtons),
-                    subtitle: Text(l10n.detailButtonsDescription),
-                    onTap: () => context.pushSettingsScreen(
-                      const _DetailButtonsScreen(),
-                    ),
-                  ),
-                  IntPickerPreferenceTile(
-                    preference: UserPreferences.detailButtonsMaxVisible,
-                    title: l10n.actionButtonsOnScreen,
-                    description: l10n.actionButtonsOnScreenDescription,
-                    icon: Icons.more_horiz,
-                    options: {
-                      0: l10n.actionButtonsOnScreenAuto,
-                      1: l10n.actionButtonsOnScreenPlayOnly,
-                      2: '2',
-                      3: '3',
-                      4: '4',
-                      5: '5',
-                      6: '6',
-                      7: '7',
-                      8: '8',
-                      9: '9',
-                      10: '10',
-                      -1: l10n.actionButtonsOnScreenAll,
-                    },
-                  ),
                 ],
-              ),
-              _SectionHeader(l10n.mediaDetailsAndSpoilers),
-              adaptiveListSection(
-                children: [
-                  _TvSettingsListTile(
-                    previewKey: detailMetadataLayout.orderPreference.key,
-                    leading: const Icon(Icons.view_headline_outlined),
-                    title: Text(l10n.detailMetadata),
-                    subtitle: Text(l10n.detailMetadataDescription),
-                    onTap: () => context.pushSettingsScreen(
-                      const _DetailMetadataScreen(),
-                    ),
-                  ),
-                  _TvSettingsListTile(
-                    leading: const Icon(Icons.dashboard_customize_outlined),
-                    title: Text(l10n.detailSections),
-                    subtitle: Text(l10n.detailSectionsDescription),
-                    onTap: () => context.pushSettingsScreen(
-                      const _DetailSectionsScreen(),
-                    ),
-                  ),
-                  if (prefs.get(UserPreferences.detailScreenStyle) == DetailScreenStyle.modern)
-                    SwitchPreferenceTile(
-                      preference: UserPreferences.detailExpandedTabs,
-                      title: l10n.expandedTabs,
-                      subtitle: l10n.expandedTabsSubtitle,
-                      icon: Icons.tab,
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  SwitchPreferenceTile(
-                    preference: UserPreferences.detailShowTechnicalDetails,
-                    title: l10n.showTechnicalDetails,
-                    subtitle: l10n.showTechnicalDetailsSubtitle,
-                    icon: Icons.info_outline,
-                    onChanged: _pushPersonalizationSync,
-                  ),
-                  SwitchPreferenceTile(
-                    preference: UserPreferences.detailTrailersExternal,
-                    title: l10n.openTrailersExternally,
-                    subtitle: l10n.openTrailersExternallySubtitle,
-                    icon: Icons.open_in_new,
-                    onChanged: _pushPersonalizationSync,
-                  ),
-                  SwitchPreferenceTile(
-                    preference: UserPreferences.mediaBarTrailerCaptions,
-                    title: l10n.trailerCaptions,
-                    subtitle: l10n.trailerCaptionsDescription,
-                    icon: Icons.closed_caption_outlined,
-                    onChanged: _pushPersonalizationSync,
-                  ),
-                  SwitchPreferenceTile(
-                    preference: UserPreferences.hideDetailsMediaDescription,
-                    title: l10n.hideDetailsMediaDescription,
-                    subtitle: l10n.hideDetailsMediaDescriptionSubtitle,
-                    icon: Icons.description_outlined,
-                    onChanged: _pushPersonalizationSync,
-                  ),
-                  if (prefs.get(UserPreferences.detailScreenStyle) == DetailScreenStyle.classic)
-                    SwitchPreferenceTile(
-                      preference: UserPreferences.detailUseSeriesThumbnails,
-                      title: l10n.detailUseSeriesThumbnails,
-                      subtitle: l10n.detailUseSeriesThumbnailsSubtitle,
-                      icon: Icons.image_outlined,
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                ],
-              ),
-              _SectionHeader(l10n.recommendations),
-              adaptiveListSection(
-                children: [
-                  EnumPreferenceTile<RecommendationSystemSource>(
-                    preference: UserPreferences.recommendationSystemSource,
-                    title: l10n.recommendationSystem,
-                    description: l10n.recommendationSystemSubtitle,
-                    icon: Icons.auto_awesome,
-                    labelOf: (v) => switch (v) {
-                      RecommendationSystemSource.local =>
-                        l10n.recommendationSystemMoonfin,
-                      RecommendationSystemSource.server =>
-                        l10n.recommendationSystemJellyfin,
-                      RecommendationSystemSource.online =>
-                        l10n.recommendationSystemTmdb,
-                    },
-                    onChanged: _pushPersonalizationSync,
-                  ),
-                ],
-              ),
-              _SectionHeader(l10n.ratings),
-              adaptiveListSection(
-                children: _ratingsSettingsTiles(
-                  context,
-                  l10n,
-                  UserPreferences.detailsRatings,
-                ),
               ),
               _SectionHeader(l10n.themeMusic),
               adaptiveListSection(
@@ -267,20 +88,226 @@ class _DetailsScreenSettingsScreenState
                     labelOf: (v) => '$v%',
                     onChangeEnd: _pushPersonalizationSync,
                   ),
-                  if (!PlatformDetection.isMobile)
-                    SwitchPreferenceTile(
-                      preference: UserPreferences.themeMusicOnHomeRows,
-                      title: l10n.themeMusicOnHomeRows,
-                      subtitle: l10n.playWhenBrowsingHomeScreen,
-                      icon: Icons.queue_music,
-                      onChanged: _pushPersonalizationSync,
+                ],
+              ),
+              // Kos TV: the rest of what the page shows and how, behind «Más
+              // ajustes».
+              ...settingsMore(
+                context,
+                id: 'appearance.details',
+                summary: l10n.kostvMoreDetailsSummary,
+                children: [
+                  _SectionHeader(l10n.display),
+                  adaptiveListSection(
+                    children: [
+                      EnumPreferenceTile<PersonalRatingStyle>(
+                        preference: UserPreferences.personalRatingStyle,
+                        title: l10n.personalRatingStyle,
+                        icon: Icons.rate_review,
+                        values:
+                            GetIt.instance<MediaServerClient>()
+                                .userLibraryApi
+                                .supportsNumericUserRatings
+                            ? PersonalRatingStyle.values
+                            : const [PersonalRatingStyle.thumbs],
+                        labelOf: (style) => switch (style) {
+                          PersonalRatingStyle.thumbs =>
+                            l10n.personalRatingThumbs,
+                          PersonalRatingStyle.stars => l10n.personalRatingStars,
+                          PersonalRatingStyle.numeric =>
+                            l10n.personalRatingNumeric,
+                        },
+                      ),
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.detailsBackdropEnabled,
+                        title: l10n.detailsScreenBackdrop,
+                        icon: Icons.photo,
+                        onChanged: _pushPersonalizationSync,
+                      ),
+                      if (PlatformDetection.useMobileUi)
+                        StringPickerPreferenceTile(
+                          preference: UserPreferences.detailsBackdropSize,
+                          title: l10n.detailsBackdropSize,
+                          icon: Icons.fit_screen,
+                          options: {
+                            UserPreferences.detailsBackdropFullScreen:
+                                l10n.detailsBackdropFullScreen,
+                            UserPreferences.detailsBackdropFit:
+                                l10n.detailsBackdropFit,
+                          },
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      if (prefs.get(UserPreferences.detailScreenStyle) ==
+                          DetailScreenStyle.classic)
+                        SliderPreferenceTile(
+                          preference:
+                              UserPreferences.detailsBackgroundBlurAmount,
+                          title: l10n.detailsBackgroundBlur,
+                          icon: Icons.blur_on,
+                          min: 0,
+                          max: 25,
+                          divisions: 25,
+                          labelOf: (v) => '$v',
+                          onChangeEnd: _pushPersonalizationSync,
+                        )
+                      else
+                        SliderPreferenceTile(
+                          preference:
+                              UserPreferences.detailsBackgroundBlurAmount,
+                          title: l10n.detailsBackgroundOpacity,
+                          icon: Icons.opacity,
+                          min: 0,
+                          max: 25,
+                          divisions: 25,
+                          labelOf: (v) => '$v',
+                          onChangeEnd: _pushPersonalizationSync,
+                        ),
+                      _TvSettingsListTile(
+                        previewKey: detailButtonLayout.orderPreference.key,
+                        leading: const Icon(Icons.smart_button_outlined),
+                        title: Text(l10n.detailButtons),
+                        subtitle: Text(l10n.detailButtonsDescription),
+                        onTap: () => context.pushSettingsScreen(
+                          const _DetailButtonsScreen(),
+                        ),
+                      ),
+                      IntPickerPreferenceTile(
+                        preference: UserPreferences.detailButtonsMaxVisible,
+                        title: l10n.actionButtonsOnScreen,
+                        description: l10n.actionButtonsOnScreenDescription,
+                        icon: Icons.more_horiz,
+                        options: {
+                          0: l10n.actionButtonsOnScreenAuto,
+                          1: l10n.actionButtonsOnScreenPlayOnly,
+                          2: '2',
+                          3: '3',
+                          4: '4',
+                          5: '5',
+                          6: '6',
+                          7: '7',
+                          8: '8',
+                          9: '9',
+                          10: '10',
+                          -1: l10n.actionButtonsOnScreenAll,
+                        },
+                      ),
+                    ],
+                  ),
+                  _SectionHeader(l10n.mediaDetailsAndSpoilers),
+                  adaptiveListSection(
+                    children: [
+                      _TvSettingsListTile(
+                        previewKey: detailMetadataLayout.orderPreference.key,
+                        leading: const Icon(Icons.view_headline_outlined),
+                        title: Text(l10n.detailMetadata),
+                        subtitle: Text(l10n.detailMetadataDescription),
+                        onTap: () => context.pushSettingsScreen(
+                          const _DetailMetadataScreen(),
+                        ),
+                      ),
+                      _TvSettingsListTile(
+                        leading: const Icon(Icons.dashboard_customize_outlined),
+                        title: Text(l10n.detailSections),
+                        subtitle: Text(l10n.detailSectionsDescription),
+                        onTap: () => context.pushSettingsScreen(
+                          const _DetailSectionsScreen(),
+                        ),
+                      ),
+                      if (prefs.get(UserPreferences.detailScreenStyle) ==
+                          DetailScreenStyle.modern)
+                        SwitchPreferenceTile(
+                          preference: UserPreferences.detailExpandedTabs,
+                          title: l10n.expandedTabs,
+                          subtitle: l10n.expandedTabsSubtitle,
+                          icon: Icons.tab,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.detailShowTechnicalDetails,
+                        title: l10n.showTechnicalDetails,
+                        subtitle: l10n.showTechnicalDetailsSubtitle,
+                        icon: Icons.info_outline,
+                        onChanged: _pushPersonalizationSync,
+                      ),
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.detailTrailersExternal,
+                        title: l10n.openTrailersExternally,
+                        subtitle: l10n.openTrailersExternallySubtitle,
+                        icon: Icons.open_in_new,
+                        onChanged: _pushPersonalizationSync,
+                      ),
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.mediaBarTrailerCaptions,
+                        title: l10n.trailerCaptions,
+                        subtitle: l10n.trailerCaptionsDescription,
+                        icon: Icons.closed_caption_outlined,
+                        onChanged: _pushPersonalizationSync,
+                      ),
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.hideDetailsMediaDescription,
+                        title: l10n.hideDetailsMediaDescription,
+                        subtitle: l10n.hideDetailsMediaDescriptionSubtitle,
+                        icon: Icons.description_outlined,
+                        onChanged: _pushPersonalizationSync,
+                      ),
+                      if (prefs.get(UserPreferences.detailScreenStyle) ==
+                          DetailScreenStyle.classic)
+                        SwitchPreferenceTile(
+                          preference: UserPreferences.detailUseSeriesThumbnails,
+                          title: l10n.detailUseSeriesThumbnails,
+                          subtitle: l10n.detailUseSeriesThumbnailsSubtitle,
+                          icon: Icons.image_outlined,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                    ],
+                  ),
+                  _SectionHeader(l10n.recommendations),
+                  adaptiveListSection(
+                    children: [
+                      EnumPreferenceTile<RecommendationSystemSource>(
+                        preference: UserPreferences.recommendationSystemSource,
+                        title: l10n.recommendationSystem,
+                        description: l10n.recommendationSystemSubtitle,
+                        icon: Icons.auto_awesome,
+                        labelOf: (v) => switch (v) {
+                          RecommendationSystemSource.local =>
+                            l10n.recommendationSystemMoonfin,
+                          RecommendationSystemSource.server =>
+                            l10n.recommendationSystemJellyfin,
+                          RecommendationSystemSource.online =>
+                            l10n.recommendationSystemTmdb,
+                        },
+                        onChanged: _pushPersonalizationSync,
+                      ),
+                    ],
+                  ),
+                  _SectionHeader(l10n.ratings),
+                  adaptiveListSection(
+                    children: _ratingsSettingsTiles(
+                      context,
+                      l10n,
+                      UserPreferences.detailsRatings,
                     ),
-                  SwitchPreferenceTile(
-                    preference: UserPreferences.themeMusicLoop,
-                    title: l10n.loopThemeMusic,
-                    subtitle: l10n.loopThemeMusicSubtitle,
-                    icon: Icons.repeat,
-                    onChanged: _pushPersonalizationSync,
+                  ),
+                  _SectionHeader(l10n.themeMusic),
+                  adaptiveListSection(
+                    children: [
+                      if (!PlatformDetection.isMobile)
+                        SwitchPreferenceTile(
+                          preference: UserPreferences.themeMusicOnHomeRows,
+                          title: l10n.themeMusicOnHomeRows,
+                          subtitle: l10n.playWhenBrowsingHomeScreen,
+                          icon: Icons.queue_music,
+                          onChanged: _pushPersonalizationSync,
+                        ),
+                      SwitchPreferenceTile(
+                        preference: UserPreferences.themeMusicLoop,
+                        title: l10n.loopThemeMusic,
+                        subtitle: l10n.loopThemeMusicSubtitle,
+                        icon: Icons.repeat,
+                        onChanged: _pushPersonalizationSync,
+                      ),
+                    ],
                   ),
                 ],
               ),

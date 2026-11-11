@@ -15,6 +15,7 @@ import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/syncplay/syncplay_manager.dart';
 import 'package:moonfin/ui/screens/settings/settings_side_panel.dart';
 import 'package:moonfin/ui/screens/setup/setup_wizard_previews.dart';
+import 'package:moonfin/ui/widgets/settings/settings_more_section.dart';
 import 'package:moonfin/util/platform_detection.dart';
 import 'package:moonfin/watch_party/silo_watch_party_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -86,20 +87,48 @@ void main() {
     serverId: 'server',
   );
 
-  Future<void> pump(WidgetTester tester) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    SettingsMoreController? controller,
+  }) async {
     tester.view.physicalSize = const Size(1000, 4000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    final screen = navigationSettingsScreenForTesting();
     await tester.pumpWidget(
       MaterialApp(
         localizationsDelegates: AppLocalizations.localizationsDelegates,
         supportedLocales: AppLocalizations.supportedLocales,
-        home: navigationSettingsScreenForTesting(),
+        home: controller == null
+            ? screen
+            : SettingsMoreScope(controller: controller, child: screen),
       ),
     );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   }
+
+  // Kos TV: in Settings the bar's color and its buttons wait behind «Más
+  // ajustes», and the navigation style shows straight away.
+  testWidgets('in Settings the buttons wait behind More settings', (
+    tester,
+  ) async {
+    signIn(canDownload: true);
+    final controller = SettingsMoreController();
+    addTearDown(controller.dispose);
+    await pump(tester, controller: controller);
+    expect(find.text(l10n.navigationStyle), findsOneWidget);
+    expect(find.text(l10n.kostvMoreSettings), findsOneWidget);
+    expect(find.text(l10n.navbarOpacity), findsNothing);
+    expect(find.text(l10n.showShuffleButton), findsNothing);
+
+    await tester.tap(find.text(l10n.kostvMoreSettings));
+    await tester.pumpAndSettle();
+    expect(controller.isOpen('appearance.navigation'), isTrue);
+    expect(find.text(l10n.navbarOpacity), findsOneWidget);
+    expect(find.text(l10n.showShuffleButton), findsOneWidget);
+    expect(find.text(l10n.showDownloadsButton), findsOneWidget);
+  });
 
   testWidgets('Live TV is offered once a Live TV library turns up', (
     tester,

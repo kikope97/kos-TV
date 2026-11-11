@@ -4856,7 +4856,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get groupItemsIntoCollectionsDialogMessage =>
-      'To use this setting, please ensure the \"Group movies into collections\" and/or \"Group shows into collections\" Library settings are enabled under your library\'s Display settings on your Jellyfin or Emby server.';
+      'To use this setting, please ensure the \"Group movies into collections\" and/or \"Group shows into collections\" Library settings are enabled under your library\'s Display settings on your Jellyfin server.';
 
   @override
   String get libraryVisibility => 'Library Visibility';
@@ -17648,4 +17648,523 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvStillWatchingSubtitle =>
       'Ask whether you\'re still watching after a few episodes in a row.';
+
+  @override
+  String get kostvMorePlayerSummary =>
+      'Zoom, rewind on resume, controls, buttons and thumbnails';
+
+  @override
+  String get kostvMoreAudioSummary =>
+      'Fallback language, audio description, passthrough and codecs';
+
+  @override
+  String get kostvMoreAudioSummaryWeb =>
+      'Fallback language and audio description';
+
+  @override
+  String get kostvMoreSubtitlesSummary =>
+      'Download languages, secondary subtitles, SDH, PGS and ASS';
+
+  @override
+  String get kostvMoreSubtitleStyleSummary =>
+      'Outline, bold, font, shadow and HDR style';
+
+  @override
+  String get kostvMoreSkipsSummary =>
+      'Cinema mode, other segments, skip button and Next Up';
+
+  @override
+  String get kostvMoreWatchTogetherSummary =>
+      'Chat, party alerts and SyncPlay sync';
+
+  @override
+  String get kostvAudioOutputSection => 'Audio Output';
+
+  @override
+  String get kostvAudioRedetect => 'Re-detect & apply recommended';
+
+  @override
+  String get kostvAudioRedetectSubtitle =>
+      'Re-run audio detection and reset to the recommended settings.';
+
+  @override
+  String kostvAudioRedetected(String route) {
+    return 'Audio re-detected: $route';
+  }
+
+  @override
+  String get kostvDecodingRenderingSection => 'Decoding & Rendering';
+
+  @override
+  String get kostvMoreNavigationSummary =>
+      'Bar color and opacity, labels and which buttons show';
+
+  @override
+  String get kostvMoreMediaBarSummary =>
+      'Which titles show and where from, ratings, auto-advance…';
+
+  @override
+  String get kostvMoreLibrariesSummary =>
+      'Library styles, collections, titles under posters, books…';
+
+  @override
+  String get kostvMoreDetailsSummary =>
+      'Backdrop, buttons, details and sections, recommendations, ratings…';
+
+  @override
+  String get kostvMoreScreensaverSummary =>
+      'Dimming, letting the TV sleep, movement and which pictures show';
+
+  @override
+  String get kostvMoreParentalSummary => 'Rating limit on recommendations';
+
+  @override
+  String get kostvLogging => 'Logging';
+
+  @override
+  String get kostvDiagnosticLogging => 'Diagnostic logging';
+
+  @override
+  String get kostvDiagnosticLoggingSubtitle =>
+      'Capture playback, network and other diagnostics so they can be sent to the server as a report.';
+
+  @override
+  String get kostvSendCrashReportsSubtitle =>
+      'Save a report when the app crashes and send it to your own server the next time it connects. Nothing is sent anywhere else.';
+
+  @override
+  String get kostvReports => 'Reports';
+
+  @override
+  String kostvReportsCaptured(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Reports ($count entries captured)',
+      one: 'Reports (1 entry captured)',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvSendReport => 'Send report to server';
+
+  @override
+  String get kostvSendReportSubtitle =>
+      'Upload the captured logs to the active server.';
+
+  @override
+  String get kostvTurnOnLoggingFirst => 'Turn on diagnostic logging first.';
+
+  @override
+  String get kostvNoLogEntriesCaptured => 'No entries captured yet.';
+
+  @override
+  String get kostvReportNeedsSignIn => 'Sign in to a server to send reports.';
+
+  @override
+  String get kostvReportNeedsPlugin =>
+      'This server needs the server plugin, with client log upload turned on.';
+
+  @override
+  String get kostvReportNotSupported =>
+      'The active server doesn\'t accept reports.';
+
+  @override
+  String get kostvCopyAllLogs => 'Copy all logs';
+
+  @override
+  String get kostvCopyAllLogsSubtitle =>
+      'Copy the full report to the clipboard.';
+
+  @override
+  String get kostvClearLogs => 'Clear captured logs';
+
+  @override
+  String get kostvClearLogsSubtitle => 'Discard everything captured so far.';
+
+  @override
+  String get kostvRecentLogs => 'Recent logs';
+
+  @override
+  String kostvRecentLogsFiltered(int shown, int total) {
+    return 'Recent logs ($shown of $total)';
+  }
+
+  @override
+  String get kostvAllCategories => 'All categories';
+
+  @override
+  String get kostvLogCategoryMedia => 'Media';
+
+  @override
+  String get kostvLogCategorySync => 'Sync';
+
+  @override
+  String get kostvLogCategoryArtwork => 'Artwork';
+
+  @override
+  String kostvNoLogEntriesInCategory(int total, String category) {
+    String _temp0 = intl.Intl.pluralLogic(
+      total,
+      locale: localeName,
+      other:
+          'No $category entries. $total captured in other categories: change the filter to see them.',
+      one:
+          'No $category entries. 1 captured in another category: change the filter to see it.',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvNoLogEntriesYet =>
+      'No log entries yet. Reproduce the issue, then send a report.';
+
+  @override
+  String get kostvLoggingOff =>
+      'Logging is off. Turn it on, reproduce the issue, then send a report to the server.';
+
+  @override
+  String get kostvReportSent => 'Report sent to server';
+
+  @override
+  String kostvReportSentAs(String fileName) {
+    return 'Report sent to server: $fileName';
+  }
+
+  @override
+  String kostvReportSendFailed(String detail) {
+    return 'Couldn\'t send the report: $detail';
+  }
+
+  @override
+  String get kostvLogsCopied => 'Logs copied to clipboard';
+
+  @override
+  String get kostvLogEntryCopied => 'Entry copied to clipboard';
+
+  @override
+  String get kostvLogsCleared => 'Logs cleared';
+
+  @override
+  String kostvFetchingList(String title) {
+    return 'Fetching $title';
+  }
+
+  @override
+  String get kostvServerReturnedNoItems => 'The server returned no items.';
+
+  @override
+  String get kostvDeleteCustomRow => 'Delete custom row';
+
+  @override
+  String kostvDeleteCustomRowConfirm(String name) {
+    return 'Are you sure you want to delete \"$name\"?';
+  }
+
+  @override
+  String get kostvCustomRowTypeList => 'List';
+
+  @override
+  String get kostvCustomRowTypeListFromUser => 'List from user ID';
+
+  @override
+  String get kostvCustomRowTypeListFromUrl => 'List from URL';
+
+  @override
+  String get kostvCustomRowTypeDiary => 'Diary';
+
+  @override
+  String get kostvCustomRowTypeFilms => 'Complete films';
+
+  @override
+  String get kostvCustomRowTypeAwards => 'Awards/Events';
+
+  @override
+  String get kostvCustomRowTypeMovieCollection => 'Movie collection';
+
+  @override
+  String get kostvCustomRowTypeTmdbList => 'List from a TMDB list ID or URL';
+
+  @override
+  String get kostvCustomRowTypeTmdbCollection =>
+      'Collection from a TMDB collection ID or URL';
+
+  @override
+  String get kostvCustomRowTypeCustomList => 'Custom list';
+
+  @override
+  String kostvCustomRowSourceAndType(String source, String type) {
+    return '$source $type';
+  }
+
+  @override
+  String get kostvAddCustomRow => 'Add a new custom Home row';
+
+  @override
+  String get kostvAddCustomRowSubtitle =>
+      'Create a custom row from TMDB, Letterboxd or MDBList.';
+
+  @override
+  String get kostvSavedCustomRows => 'Saved custom Home rows';
+
+  @override
+  String get kostvCustomRow => 'Custom row';
+
+  @override
+  String kostvCustomRowSourceType(String source, String type) {
+    return 'Source: $source | Type: $type';
+  }
+
+  @override
+  String get kostvDiscardChangesTitle => 'Discard changes?';
+
+  @override
+  String get kostvDiscardChangesMessage =>
+      'You have unsaved changes. Leave without saving?';
+
+  @override
+  String get kostvCustomRowNoResults => 'The list returned no results.';
+
+  @override
+  String get kostvCustomRowCheckFailedTitle => 'Couldn\'t check the custom row';
+
+  @override
+  String get kostvCustomRowCheckFailedMessage =>
+      'Couldn\'t fetch the items for this custom row.';
+
+  @override
+  String kostvErrorDetails(String detail) {
+    return 'Error details: $detail';
+  }
+
+  @override
+  String get kostvEditCustomRow => 'Edit custom Home row';
+
+  @override
+  String get kostvNewCustomRow => 'Add custom Home row';
+
+  @override
+  String get kostvLetterboxdUsername => 'Letterboxd username';
+
+  @override
+  String get kostvLetterboxdNeedsTmdbKey =>
+      'Warning: a TMDB API key must be set in settings to find the titles on Letterboxd lists.';
+
+  @override
+  String get kostvTmdbCollectionIdOrUrl => 'TMDB collection ID or URL';
+
+  @override
+  String get kostvTmdbListIdOrUrl => 'TMDB list ID or URL';
+
+  @override
+  String get kostvTmdbCollectionHint =>
+      '12345 or https://www.themoviedb.org/collection/12345';
+
+  @override
+  String get kostvTmdbListHint =>
+      '12345 or https://www.themoviedb.org/list/12345';
+
+  @override
+  String get kostvTmdbNeedsKey =>
+      'Warning: a TMDB API key must be set in settings to fetch TMDB lists.';
+
+  @override
+  String get kostvMdblistUrl => 'MDBList URL';
+
+  @override
+  String get kostvMdblistUrlHint =>
+      'e.g. https://mdblist.com/lists/username/list-slug';
+
+  @override
+  String get kostvMdblistUsername => 'MDBList username';
+
+  @override
+  String get kostvMdblistListName => 'List name (as in its URL)';
+
+  @override
+  String get kostvMdblistListNameHint => 'list-name';
+
+  @override
+  String get kostvMdblistNeedsKey =>
+      'Warning: an MDBList API key must be set in settings (or for the whole server by its admin) to fetch MDBList lists.';
+
+  @override
+  String get kostvSortAToZ => 'A to Z';
+
+  @override
+  String get kostvSortMostPopularFirst => 'Most popular first';
+
+  @override
+  String get kostvSortLeastPopularFirst => 'Least popular first';
+
+  @override
+  String get kostvSortHighestRatedFirst => 'Highest rated first';
+
+  @override
+  String get kostvSortLowestRatedFirst => 'Lowest rated first';
+
+  @override
+  String get kostvShowUserRatings => 'Show the user\'s ratings';
+
+  @override
+  String get kostvCustomRowName => 'Row name on Home';
+
+  @override
+  String get kostvCustomRowNameHint => 'Type a name for the row…';
+
+  @override
+  String get kostvRewatchSortDescription =>
+      'Choose how to sort what you\'ve already watched.';
+
+  @override
+  String get kostvRewatchIncludeMovies => 'Include movies';
+
+  @override
+  String get kostvRewatchIncludeMoviesSubtitle =>
+      'Show movies you\'ve watched in the watch again row.';
+
+  @override
+  String get kostvRewatchIncludeShows => 'Include series';
+
+  @override
+  String get kostvRewatchIncludeShowsSubtitle =>
+      'Show series you\'ve watched in the watch again row.';
+
+  @override
+  String get kostvRewatchIncludeCollections => 'Include collections';
+
+  @override
+  String get kostvRewatchIncludeCollectionsSubtitle =>
+      'Show collections you\'ve watched in the watch again row.';
+
+  @override
+  String kostvStudiosLoadFailed(String detail) {
+    return 'Couldn\'t load the studios: $detail';
+  }
+
+  @override
+  String get kostvNoStudiosFound => 'No studios found in your libraries.';
+
+  @override
+  String kostvStudiosSelectedCount(int selected, int total, int visible) {
+    return '$selected of $total selected ($visible shown)';
+  }
+
+  @override
+  String get kostvAudioRow => 'Audio row';
+
+  @override
+  String get kostvCollectionsRow => 'Collections row';
+
+  @override
+  String kostvCollectionsRowFrom(String server) {
+    return 'Collections row from $server';
+  }
+
+  @override
+  String get kostvGenresRow => 'Genres row';
+
+  @override
+  String get kostvPlaylistsRow => 'Playlists row';
+
+  @override
+  String get kostvFavoriteMovies => 'Favorite Movies';
+
+  @override
+  String get kostvFavoriteSeries => 'Favorite Series';
+
+  @override
+  String get kostvFavoriteEpisodes => 'Favorite Episodes';
+
+  @override
+  String get kostvFavoritePeople => 'Favorite People';
+
+  @override
+  String get kostvFavoriteArtists => 'Favorite Artists';
+
+  @override
+  String get kostvFavoriteMusicVideos => 'Favorite Music Videos';
+
+  @override
+  String get kostvFavoriteAlbums => 'Favorite Albums';
+
+  @override
+  String get kostvFavoriteSongs => 'Favorite Songs';
+
+  @override
+  String get kostvFavoriteCollections => 'Favorite Collections';
+
+  @override
+  String get kostvCoreNotDownloaded => 'This core isn\'t downloaded yet.';
+
+  @override
+  String get kostvCoreSettingsUnreadable =>
+      'This core\'s settings can\'t be read on this device. You can still reset them to defaults below.';
+
+  @override
+  String get kostvCoreSettingsReadFailed =>
+      'Couldn\'t read this core\'s settings.';
+
+  @override
+  String get kostvCoreSettingsSaveFailed => 'Couldn\'t save these settings.';
+
+  @override
+  String kostvCoreSettingsTitle(String system) {
+    return '$system settings';
+  }
+
+  @override
+  String get kostvCoreSettingsWarning =>
+      'These are the emulator core\'s own settings. Some combinations can stop a game from starting, or close the app while it runs. If something breaks, use Reset to defaults below.';
+
+  @override
+  String get kostvSegmentIntro => 'Intro';
+
+  @override
+  String get kostvSegmentOutro => 'Outro';
+
+  @override
+  String get kostvSegmentPreview => 'Preview';
+
+  @override
+  String get kostvSegmentRecap => 'Recap';
+
+  @override
+  String get kostvSegmentCommercial => 'Commercial';
+
+  @override
+  String get kostvSegmentUnknown => 'Unknown';
+
+  @override
+  String get kostvDownloadQualityHigh => 'High (1080p)';
+
+  @override
+  String get kostvDownloadQualityLow => 'Low (480p)';
+
+  @override
+  String get kostvDownloadQualityMobile => 'Mobile (360p)';
+
+  @override
+  String get kostvSizeVaries => 'Varies';
+
+  @override
+  String kostvSizePerHourGb(double size) {
+    final intl.NumberFormat sizeNumberFormat =
+        intl.NumberFormat.decimalPatternDigits(
+          locale: localeName,
+          decimalDigits: 1,
+        );
+    final String sizeString = sizeNumberFormat.format(size);
+
+    return '~$sizeString GB/hr';
+  }
+
+  @override
+  String kostvSizePerHourMb(int size) {
+    return '~$size MB/hr';
+  }
+
+  @override
+  String get kostvLoadingStream => 'Loading Stream...';
 }

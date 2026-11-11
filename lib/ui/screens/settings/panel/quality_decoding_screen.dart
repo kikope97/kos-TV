@@ -55,7 +55,7 @@ class _QualityDecodingScreen extends StatelessWidget {
             ],
           ),
 
-          const _SectionHeader('Decoding & Rendering'),
+          _SectionHeader(l10n.kostvDecodingRenderingSection),
           adaptiveListSection(
             children: [
               // Hidden on Apple TV: AetherEngine always uses VideoToolbox for

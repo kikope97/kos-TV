@@ -1,3 +1,5 @@
+import '../l10n/app_localizations.dart';
+
 enum SubtitleMode {
   flagged,
   always,
@@ -861,18 +863,33 @@ enum FavoriteTypeFilter {
   collection,
   watchlist;
 
-  String get displayName => switch (this) {
-    all => 'All',
-    movie => 'Movies',
-    series => 'Series',
-    episode => 'Episodes',
-    person => 'People',
-    musicVideo => 'Music Videos',
-    musicAlbum => 'Albums',
-    musicArtist => 'Artists',
-    audio => 'Songs',
-    collection => 'Collections',
-    watchlist => 'Watchlist',
+  String label(AppLocalizations l10n) => switch (this) {
+    all => l10n.all,
+    movie => l10n.movies,
+    series => l10n.series,
+    episode => l10n.episodes,
+    person => l10n.people,
+    musicVideo => l10n.musicVideos,
+    musicAlbum => l10n.albums,
+    musicArtist => l10n.artists,
+    audio => l10n.songs,
+    collection => l10n.collections,
+    watchlist => l10n.watchlist,
+  };
+
+  /// The name of the Home row of these favorites.
+  String rowTitle(AppLocalizations l10n) => switch (this) {
+    all => l10n.favorites,
+    movie => l10n.kostvFavoriteMovies,
+    series => l10n.kostvFavoriteSeries,
+    episode => l10n.kostvFavoriteEpisodes,
+    person => l10n.kostvFavoritePeople,
+    musicVideo => l10n.kostvFavoriteMusicVideos,
+    musicAlbum => l10n.kostvFavoriteAlbums,
+    musicArtist => l10n.kostvFavoriteArtists,
+    audio => l10n.kostvFavoriteSongs,
+    collection => l10n.kostvFavoriteCollections,
+    watchlist => l10n.watchlist,
   };
 
   List<String>? get itemTypes => switch (this) {
@@ -1020,7 +1037,10 @@ enum RewatchSortBy {
   recentlyWatched,
   random;
 
-  String get displayName => this == recentlyWatched ? 'Recently Watched' : 'Random';
+  String label(AppLocalizations l10n) => switch (this) {
+    recentlyWatched => l10n.sinceYouWatchedRecentlyWatched,
+    random => l10n.mediaBarSourceRandom,
+  };
 }
 
 /// Which record dates a show in the recently released row of a TV library. A

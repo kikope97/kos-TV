@@ -11,137 +11,9 @@ class _VideoPlaybackScreen extends StatelessWidget {
       appBar: buildSettingsAppBar(context, Text(l10n.player)),
       body: ListView(
         children: [
-          const _SectionHeader('Media Player Behavior'),
+          _SectionHeader(l10n.mediaPlayerBehavior),
           adaptiveListSection(
             children: [
-              if (PlatformDetection.isAndroid)
-                EnumPreferenceTile<PlaybackEnginePreference>(
-                  preference: UserPreferences.playbackEnginePreference,
-                  title: PlatformDetection.isTV
-                      ? l10n.settingsPlaybackEngineAndroidTv
-                      : l10n.settingsPlaybackEngineAndroidTv.replaceAll(
-                          'Android TV',
-                          'Android',
-                        ),
-                  description: PlatformDetection.isTV
-                      ? l10n.settingsPlaybackEngineAndroidTvDescription
-                      : l10n.settingsPlaybackEngineAndroidTvDescription
-                            .replaceAll('Android TV', 'Android'),
-                  icon: Icons.video_settings,
-                  labelOf: (v) => switch (v) {
-                    PlaybackEnginePreference.media3 =>
-                      l10n.settingsPlaybackEngineMedia3Recommended,
-                    PlaybackEnginePreference.mpv =>
-                      l10n.settingsPlaybackEngineMpvLegacy,
-                  },
-                ),
-              if (offersApplePlayerChoice)
-                EnumPreferenceTile<ApplePlayerUi>(
-                  preference: UserPreferences.applePlayerUi,
-                  title: l10n.settingsApplePlayerUi,
-                  // The description lists what the native player lacks on a
-                  // phone or tablet, which doesn't hold on a television.
-                  description: PlatformDetection.isAppleTV
-                      ? null
-                      : l10n.settingsApplePlayerUiDescription,
-                  icon: Icons.smart_display_outlined,
-                  labelOf: (v) => switch (v) {
-                    ApplePlayerUi.flutter => l10n.settingsApplePlayerUiStandard,
-                    ApplePlayerUi.native => l10n.settingsApplePlayerUiNative,
-                  },
-                ),
-              SwitchPreferenceTile(
-                preference: UserPreferences.showDescriptionOnPause,
-                title: l10n.showDescriptionOnPause,
-                subtitle: l10n.dimVideoShowOverview,
-                icon: Icons.pause_circle_outline,
-              ),
-              EnumPreferenceTile<ZoomMode>(
-                preference: UserPreferences.playerZoomMode,
-                title: l10n.playerZoomMode,
-                description: l10n.settingsPlayerZoomDescription,
-                icon: Icons.zoom_out_map,
-                labelOf: (v) => switch (v) {
-                  ZoomMode.fit => l10n.fit,
-                  ZoomMode.autoCrop => l10n.autoCrop,
-                  ZoomMode.stretch => l10n.stretch,
-                },
-              ),
-              if (PlatformDetection.isIOS)
-                SwitchPreferenceTile(
-                  preference: UserPreferences.keepVideoClearOfDynamicIsland,
-                  title: l10n.keepVideoClearOfDynamicIsland,
-                  subtitle: l10n.keepVideoClearOfDynamicIslandDescription,
-                  icon: Icons.crop_free,
-                ),
-              if (letterboxCropSettingVisible()) ...[
-                SwitchPreferenceTile(
-                  preference: UserPreferences.cropBlackBars,
-                  title: l10n.cropBlackBars,
-                  subtitle: l10n.settingsCropBlackBarsDescription,
-                  icon: Icons.crop_16_9_outlined,
-                ),
-                IntPickerPreferenceTile(
-                  preference: UserPreferences.cropBlackBarsIntervalSeconds,
-                  title: l10n.cropBlackBarsRecropInterval,
-                  description: l10n.settingsCropBlackBarsIntervalDescription,
-                  icon: Icons.timelapse_outlined,
-                  options: {
-                    0: l10n.cropBlackBarsOnce,
-                    1: l10n.cropBlackBarsEverySecond,
-                    5: l10n.fiveSeconds,
-                    10: l10n.tenSeconds,
-                  },
-                ),
-              ],
-              _TvSettingsListTile(
-                leading: const Icon(Icons.timer_outlined),
-                title: Text(l10n.playbackTimeDisplay),
-                subtitle: Text(l10n.settingsPlaybackTimeDisplayDescription),
-                previewKey: UserPreferences.playbackTimeAboveLeft.key,
-                onTap: () => context.pushSettingsScreen(
-                  const _PlaybackTimeLayoutScreen(),
-                ),
-              ),
-              if (PlatformDetection.useDesktopUi)
-                EnumPreferenceTile<DesktopScrollWheelAction>(
-                  preference: UserPreferences.desktopScrollWheelAction,
-                  title: l10n.settingsScrollWheelAction,
-                  description: l10n.settingsScrollWheelActionDescription,
-                  icon: Icons.mouse_outlined,
-                  labelOf: (v) => switch (v) {
-                    DesktopScrollWheelAction.off => l10n.scrollWheelActionOff,
-                    DesktopScrollWheelAction.seek => l10n.scrollWheelActionSeek,
-                    DesktopScrollWheelAction.volume =>
-                      l10n.scrollWheelActionVolume,
-                  },
-                ),
-              StringPickerPreferenceTile(
-                preference: UserPreferences.resumeSubtractDuration,
-                title: l10n.resumeRewind,
-                description: l10n.settingsResumeRewindDescription,
-                icon: Icons.replay,
-                options: {
-                  '0': l10n.disabled,
-                  '5': l10n.fiveSeconds,
-                  '10': l10n.tenSeconds,
-                  '15': l10n.fifteenSeconds,
-                  '30': l10n.thirtySeconds,
-                },
-              ),
-              IntPickerPreferenceTile(
-                preference: UserPreferences.unpauseRewindDuration,
-                title: l10n.unpauseRewind,
-                description: l10n.settingsUnpauseRewindDescription,
-                icon: Icons.replay_circle_filled,
-                options: {
-                  0: l10n.disabled,
-                  5000: l10n.fiveSeconds,
-                  10000: l10n.tenSeconds,
-                  15000: l10n.fifteenSeconds,
-                  30000: l10n.thirtySeconds,
-                },
-              ),
               IntPickerPreferenceTile(
                 preference: UserPreferences.skipBackLength,
                 title: l10n.skipBackLength,
@@ -174,40 +46,7 @@ class _VideoPlaybackScreen extends StatelessWidget {
                   60000: l10n.settingsSixtySeconds,
                 },
               ),
-              IntPickerPreferenceTile(
-                preference: UserPreferences.controlsHideDelay,
-                title: l10n.settingsHideControlsAfter,
-                description: l10n.settingsHideControlsAfterDescription,
-                icon: Icons.timer_outlined,
-                options: {
-                  1000: l10n.settingsOneSecond,
-                  3000: l10n.settingsThreeSeconds,
-                  5000: l10n.fiveSeconds,
-                },
-              ),
-              SliderPreferenceTile(
-                preference: UserPreferences.hdrControlsDimming,
-                title: l10n.settingsHdrControlsDimming,
-                description: l10n.settingsHdrControlsDimmingDescription,
-                icon: Icons.hdr_on,
-                min: 0,
-                max: 70,
-                divisions: 7,
-                labelOf: (value) => value == 0 ? l10n.off : '$value%',
-              ),
-              SwitchPreferenceTile(
-                preference: UserPreferences.showChapterMarkers,
-                title: l10n.showChapterMarkers,
-                subtitle: l10n.showChapterMarkersDescription,
-                icon: Icons.straighten,
-              ),
               if (PlatformDetection.useMobileUi) ...[
-                SwitchPreferenceTile(
-                  preference: UserPreferences.osdLockEnabled,
-                  title: l10n.osdLockButton,
-                  subtitle: l10n.osdLockButtonDescription,
-                  icon: Icons.lock,
-                ),
                 SwitchPreferenceTile(
                   preference: UserPreferences.playerSwipeGestures,
                   title: l10n.playerSwipeGestures,
@@ -218,96 +57,279 @@ class _VideoPlaybackScreen extends StatelessWidget {
                   listenable: prefs,
                   builder: (context, _) =>
                       !prefs.get(UserPreferences.playerSwipeGestures)
-                          ? const SizedBox.shrink()
-                          : EnumPreferenceTile<GestureIndicatorPlacement>(
-                              preference:
-                                  UserPreferences.gestureIndicatorPlacement,
-                              title: l10n.invertGestureIndicators,
-                              description:
-                                  l10n.invertGestureIndicatorsDescription,
-                              icon: Icons.swap_horiz,
-                              labelOf: (v) => switch (v) {
-                                GestureIndicatorPlacement.same =>
-                                  l10n.gestureIndicatorSame,
-                                GestureIndicatorPlacement.inverted =>
-                                  l10n.gestureIndicatorInverted,
-                              },
-                            ),
+                      ? const SizedBox.shrink()
+                      : EnumPreferenceTile<GestureIndicatorPlacement>(
+                          preference: UserPreferences.gestureIndicatorPlacement,
+                          title: l10n.invertGestureIndicators,
+                          description: l10n.invertGestureIndicatorsDescription,
+                          icon: Icons.swap_horiz,
+                          labelOf: (v) => switch (v) {
+                            GestureIndicatorPlacement.same =>
+                              l10n.gestureIndicatorSame,
+                            GestureIndicatorPlacement.inverted =>
+                              l10n.gestureIndicatorInverted,
+                          },
+                        ),
                 ),
               ],
-              _TvSettingsListTile(
-                leading: const Icon(Icons.tune),
-                title: Text(l10n.osdButtons),
-                subtitle: Text(l10n.osdButtonsDescription),
-                previewKey: osdButtonLayout.orderPreference.key,
-                onTap: () =>
-                    context.pushSettingsScreen(const _OsdButtonsScreen()),
-              ),
             ],
           ),
-
-          _SectionHeader(l10n.trickPlay),
-          // Only this section reacts to the mode, so the rest of the page is
-          // not rebuilt every time any preference anywhere changes.
-          ListenableBuilder(
-            listenable: prefs,
-            builder: (context, _) {
-              final showsPreviews =
-                  prefs.get(UserPreferences.trickPlayMode) !=
-                  TrickplayMode.disabled;
-              return adaptiveListSection(
+          // Kos TV: the technical rest, behind «Más ajustes».
+          ...settingsMore(
+            context,
+            id: 'playback.player',
+            summary: l10n.kostvMorePlayerSummary,
+            children: [
+              _SectionHeader(l10n.mediaPlayerBehavior),
+              adaptiveListSection(
                 children: [
-                  EnumPreferenceTile<TrickplayMode>(
-                    preference: UserPreferences.trickPlayMode,
-                    title: l10n.trickPlay,
-                    description: l10n.showPreviewThumbnailsWhenSeeking,
-                    icon: Icons.image_search,
+                  if (PlatformDetection.isAndroid)
+                    EnumPreferenceTile<PlaybackEnginePreference>(
+                      preference: UserPreferences.playbackEnginePreference,
+                      title: PlatformDetection.isTV
+                          ? l10n.settingsPlaybackEngineAndroidTv
+                          : l10n.settingsPlaybackEngineAndroidTv.replaceAll(
+                              'Android TV',
+                              'Android',
+                            ),
+                      description: PlatformDetection.isTV
+                          ? l10n.settingsPlaybackEngineAndroidTvDescription
+                          : l10n.settingsPlaybackEngineAndroidTvDescription
+                                .replaceAll('Android TV', 'Android'),
+                      icon: Icons.video_settings,
+                      labelOf: (v) => switch (v) {
+                        PlaybackEnginePreference.media3 =>
+                          l10n.settingsPlaybackEngineMedia3Recommended,
+                        PlaybackEnginePreference.mpv =>
+                          l10n.settingsPlaybackEngineMpvLegacy,
+                      },
+                    ),
+                  if (offersApplePlayerChoice)
+                    EnumPreferenceTile<ApplePlayerUi>(
+                      preference: UserPreferences.applePlayerUi,
+                      title: l10n.settingsApplePlayerUi,
+                      // The description lists what the native player lacks on a
+                      // phone or tablet, which doesn't hold on a television.
+                      description: PlatformDetection.isAppleTV
+                          ? null
+                          : l10n.settingsApplePlayerUiDescription,
+                      icon: Icons.smart_display_outlined,
+                      labelOf: (v) => switch (v) {
+                        ApplePlayerUi.flutter =>
+                          l10n.settingsApplePlayerUiStandard,
+                        ApplePlayerUi.native =>
+                          l10n.settingsApplePlayerUiNative,
+                      },
+                    ),
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.showDescriptionOnPause,
+                    title: l10n.showDescriptionOnPause,
+                    subtitle: l10n.dimVideoShowOverview,
+                    icon: Icons.pause_circle_outline,
+                  ),
+                  EnumPreferenceTile<ZoomMode>(
+                    preference: UserPreferences.playerZoomMode,
+                    title: l10n.playerZoomMode,
+                    description: l10n.settingsPlayerZoomDescription,
+                    icon: Icons.zoom_out_map,
                     labelOf: (v) => switch (v) {
-                      TrickplayMode.disabled => l10n.disabled,
-                      TrickplayMode.single => l10n.trickplayDisplayStyleSingle,
-                      TrickplayMode.strip => l10n.trickplayDisplayStyleStrip,
-                      TrickplayMode.full => l10n.trickplayModeFull,
+                      ZoomMode.fit => l10n.fit,
+                      ZoomMode.autoCrop => l10n.autoCrop,
+                      ZoomMode.stretch => l10n.stretch,
                     },
                   ),
-                  // Everything the mode governs sits after the mode itself, so
-                  // turning it on adds rows below the one being used rather
-                  // than shifting it down and taking its focus with it.
-                  if (showsPreviews) ...[
-                    SliderPreferenceTile(
-                      preference: UserPreferences.trickPlayPreviewScalePercent,
-                      title: l10n.trickplayPreviewScale,
-                      icon: Icons.photo_size_select_large_outlined,
-                      min: 10,
-                      max: 100,
-                      divisions: 18,
-                      labelOf: (v) => l10n.percentValue(v),
-                    ),
-                    SliderPreferenceTile(
-                      preference:
-                          UserPreferences.trickPlayVerticalPositionPercent,
-                      title: l10n.trickplayVerticalOffset,
-                      icon: Icons.height,
-                      min: 0,
-                      max: 100,
-                      divisions: 20,
-                      labelOf: (v) => l10n.percentValue(v),
-                    ),
+                  if (PlatformDetection.isIOS)
                     SwitchPreferenceTile(
-                      preference: UserPreferences.trickPlayFollowScrubPosition,
-                      title: l10n.trickplayFollowScrubPosition,
-                      subtitle: l10n.trickplayFollowScrubPositionSubtitle,
-                      icon: Icons.swipe,
+                      preference: UserPreferences.keepVideoClearOfDynamicIsland,
+                      title: l10n.keepVideoClearOfDynamicIsland,
+                      subtitle: l10n.keepVideoClearOfDynamicIslandDescription,
+                      icon: Icons.crop_free,
                     ),
+                  if (letterboxCropSettingVisible()) ...[
                     SwitchPreferenceTile(
-                      preference: UserPreferences.trickPlayPauseWhileScrubbing,
-                      title: l10n.trickplayPauseWhileScrubbing,
-                      subtitle: l10n.trickplayPauseWhileScrubbingSubtitle,
-                      icon: Icons.pause_circle_outline,
+                      preference: UserPreferences.cropBlackBars,
+                      title: l10n.cropBlackBars,
+                      subtitle: l10n.settingsCropBlackBarsDescription,
+                      icon: Icons.crop_16_9_outlined,
+                    ),
+                    IntPickerPreferenceTile(
+                      preference: UserPreferences.cropBlackBarsIntervalSeconds,
+                      title: l10n.cropBlackBarsRecropInterval,
+                      description:
+                          l10n.settingsCropBlackBarsIntervalDescription,
+                      icon: Icons.timelapse_outlined,
+                      options: {
+                        0: l10n.cropBlackBarsOnce,
+                        1: l10n.cropBlackBarsEverySecond,
+                        5: l10n.fiveSeconds,
+                        10: l10n.tenSeconds,
+                      },
                     ),
                   ],
+                  _TvSettingsListTile(
+                    leading: const Icon(Icons.timer_outlined),
+                    title: Text(l10n.playbackTimeDisplay),
+                    subtitle: Text(l10n.settingsPlaybackTimeDisplayDescription),
+                    previewKey: UserPreferences.playbackTimeAboveLeft.key,
+                    onTap: () => context.pushSettingsScreen(
+                      const _PlaybackTimeLayoutScreen(),
+                    ),
+                  ),
+                  if (PlatformDetection.useDesktopUi)
+                    EnumPreferenceTile<DesktopScrollWheelAction>(
+                      preference: UserPreferences.desktopScrollWheelAction,
+                      title: l10n.settingsScrollWheelAction,
+                      description: l10n.settingsScrollWheelActionDescription,
+                      icon: Icons.mouse_outlined,
+                      labelOf: (v) => switch (v) {
+                        DesktopScrollWheelAction.off =>
+                          l10n.scrollWheelActionOff,
+                        DesktopScrollWheelAction.seek =>
+                          l10n.scrollWheelActionSeek,
+                        DesktopScrollWheelAction.volume =>
+                          l10n.scrollWheelActionVolume,
+                      },
+                    ),
+                  StringPickerPreferenceTile(
+                    preference: UserPreferences.resumeSubtractDuration,
+                    title: l10n.resumeRewind,
+                    description: l10n.settingsResumeRewindDescription,
+                    icon: Icons.replay,
+                    options: {
+                      '0': l10n.disabled,
+                      '5': l10n.fiveSeconds,
+                      '10': l10n.tenSeconds,
+                      '15': l10n.fifteenSeconds,
+                      '30': l10n.thirtySeconds,
+                    },
+                  ),
+                  IntPickerPreferenceTile(
+                    preference: UserPreferences.unpauseRewindDuration,
+                    title: l10n.unpauseRewind,
+                    description: l10n.settingsUnpauseRewindDescription,
+                    icon: Icons.replay_circle_filled,
+                    options: {
+                      0: l10n.disabled,
+                      5000: l10n.fiveSeconds,
+                      10000: l10n.tenSeconds,
+                      15000: l10n.fifteenSeconds,
+                      30000: l10n.thirtySeconds,
+                    },
+                  ),
+                  IntPickerPreferenceTile(
+                    preference: UserPreferences.controlsHideDelay,
+                    title: l10n.settingsHideControlsAfter,
+                    description: l10n.settingsHideControlsAfterDescription,
+                    icon: Icons.timer_outlined,
+                    options: {
+                      1000: l10n.settingsOneSecond,
+                      3000: l10n.settingsThreeSeconds,
+                      5000: l10n.fiveSeconds,
+                    },
+                  ),
+                  SliderPreferenceTile(
+                    preference: UserPreferences.hdrControlsDimming,
+                    title: l10n.settingsHdrControlsDimming,
+                    description: l10n.settingsHdrControlsDimmingDescription,
+                    icon: Icons.hdr_on,
+                    min: 0,
+                    max: 70,
+                    divisions: 7,
+                    labelOf: (value) => value == 0 ? l10n.off : '$value%',
+                  ),
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.showChapterMarkers,
+                    title: l10n.showChapterMarkers,
+                    subtitle: l10n.showChapterMarkersDescription,
+                    icon: Icons.straighten,
+                  ),
+                  if (PlatformDetection.useMobileUi)
+                    SwitchPreferenceTile(
+                      preference: UserPreferences.osdLockEnabled,
+                      title: l10n.osdLockButton,
+                      subtitle: l10n.osdLockButtonDescription,
+                      icon: Icons.lock,
+                    ),
+                  _TvSettingsListTile(
+                    leading: const Icon(Icons.tune),
+                    title: Text(l10n.osdButtons),
+                    subtitle: Text(l10n.osdButtonsDescription),
+                    previewKey: osdButtonLayout.orderPreference.key,
+                    onTap: () =>
+                        context.pushSettingsScreen(const _OsdButtonsScreen()),
+                  ),
                 ],
-              );
-            },
+              ),
+              _SectionHeader(l10n.trickPlay),
+              // Only this section reacts to the mode, so the rest of the page
+              // is not rebuilt every time any preference anywhere changes.
+              ListenableBuilder(
+                listenable: prefs,
+                builder: (context, _) {
+                  final showsPreviews =
+                      prefs.get(UserPreferences.trickPlayMode) !=
+                      TrickplayMode.disabled;
+                  return adaptiveListSection(
+                    children: [
+                      EnumPreferenceTile<TrickplayMode>(
+                        preference: UserPreferences.trickPlayMode,
+                        title: l10n.trickPlay,
+                        description: l10n.showPreviewThumbnailsWhenSeeking,
+                        icon: Icons.image_search,
+                        labelOf: (v) => switch (v) {
+                          TrickplayMode.disabled => l10n.disabled,
+                          TrickplayMode.single =>
+                            l10n.trickplayDisplayStyleSingle,
+                          TrickplayMode.strip =>
+                            l10n.trickplayDisplayStyleStrip,
+                          TrickplayMode.full => l10n.trickplayModeFull,
+                        },
+                      ),
+                      // Everything the mode governs sits after the mode
+                      // itself, so turning it on adds rows below the one being
+                      // used rather than shifting it down and taking its focus
+                      // with it.
+                      if (showsPreviews) ...[
+                        SliderPreferenceTile(
+                          preference:
+                              UserPreferences.trickPlayPreviewScalePercent,
+                          title: l10n.trickplayPreviewScale,
+                          icon: Icons.photo_size_select_large_outlined,
+                          min: 10,
+                          max: 100,
+                          divisions: 18,
+                          labelOf: (v) => l10n.percentValue(v),
+                        ),
+                        SliderPreferenceTile(
+                          preference:
+                              UserPreferences.trickPlayVerticalPositionPercent,
+                          title: l10n.trickplayVerticalOffset,
+                          icon: Icons.height,
+                          min: 0,
+                          max: 100,
+                          divisions: 20,
+                          labelOf: (v) => l10n.percentValue(v),
+                        ),
+                        SwitchPreferenceTile(
+                          preference:
+                              UserPreferences.trickPlayFollowScrubPosition,
+                          title: l10n.trickplayFollowScrubPosition,
+                          subtitle: l10n.trickplayFollowScrubPositionSubtitle,
+                          icon: Icons.swipe,
+                        ),
+                        SwitchPreferenceTile(
+                          preference:
+                              UserPreferences.trickPlayPauseWhileScrubbing,
+                          title: l10n.trickplayPauseWhileScrubbing,
+                          subtitle: l10n.trickplayPauseWhileScrubbingSubtitle,
+                          icon: Icons.pause_circle_outline,
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ],
           ),
         ],
       ),

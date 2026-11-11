@@ -1,3 +1,5 @@
+import '../../l10n/app_localizations.dart';
+
 /// Quality presets for downloading media with server-side transcoding.
 ///
 /// When [isTranscoded] is true, the server uses ffmpeg to re-encode the media
@@ -10,12 +12,12 @@ enum DownloadQuality {
   low480p,
   mobile360p;
 
-  String get label => switch (this) {
-        original => 'Original',
-        high1080p => 'High (1080p)',
-        medium720p => 'Medium (720p)',
-        low480p => 'Low (480p)',
-        mobile360p => 'Mobile (360p)',
+  String label(AppLocalizations l10n) => switch (this) {
+        original => l10n.original,
+        high1080p => l10n.kostvDownloadQualityHigh,
+        medium720p => l10n.resolutionMedium,
+        low480p => l10n.kostvDownloadQualityLow,
+        mobile360p => l10n.kostvDownloadQualityMobile,
       };
 
   // HEVC (H.265) bitrates deliver equivalent perceived quality to H.264 at
@@ -51,15 +53,15 @@ enum DownloadQuality {
     return (videoBitRate ?? 0) + (audioBitRate ?? 0);
   }
 
-  String get estimatedSizePerHour {
-    if (!isTranscoded) return 'Varies';
+  String estimatedSizePerHour(AppLocalizations l10n) {
+    if (!isTranscoded) return l10n.kostvSizeVaries;
     final bitRate = totalBitRate;
-    if (bitRate == null) return 'Varies';
+    if (bitRate == null) return l10n.kostvSizeVaries;
     final bytesPerHour = bitRate * 3600 ~/ 8;
     if (bytesPerHour >= 1024 * 1024 * 1024) {
-      return '~${(bytesPerHour / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB/hr';
+      return l10n.kostvSizePerHourGb(bytesPerHour / (1024 * 1024 * 1024));
     }
-    return '~${(bytesPerHour / (1024 * 1024)).round()} MB/hr';
+    return l10n.kostvSizePerHourMb((bytesPerHour / (1024 * 1024)).round());
   }
 
   String get videoCodec => 'hevc';
