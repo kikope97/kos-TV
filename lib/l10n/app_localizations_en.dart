@@ -4223,9 +4223,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get mediaQueuing => 'Media Queuing';
-
-  @override
   String get autoQueueNextEpisodes => 'Auto-queue next episodes';
 
   @override
@@ -4723,13 +4720,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get applyImageTypeToAllLibraries =>
       'Apply image type to all libraries';
-
-  @override
-  String get multiServerLibraries => 'Multi-Server Libraries';
-
-  @override
-  String get showLibrariesFromAllServers =>
-      'Show libraries from all connected servers';
 
   @override
   String get mergeRecentRowsByType => 'Merge Recent Rows by Type';
@@ -12227,9 +12217,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get playbackEnhancements => 'Playback Enhancements';
 
   @override
-  String get alwaysOn => 'Always on.';
-
-  @override
   String get replaceSkipOutroWithNextUpDisplay =>
       'Replace Skip Outro with Next Up Display';
 
@@ -17716,9 +17703,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Dimming, letting the TV sleep, movement and which pictures show';
 
   @override
-  String get kostvMoreParentalSummary => 'Rating limit on recommendations';
-
-  @override
   String get kostvLogging => 'Logging';
 
   @override
@@ -18167,4 +18151,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvLoadingStream => 'Loading Stream...';
+
+  @override
+  String get kostvStoppingPreviousPlayback => 'Stopping the previous video…';
+
+  @override
+  String get kostvRestoringPosition => 'Going back to where you were…';
 }

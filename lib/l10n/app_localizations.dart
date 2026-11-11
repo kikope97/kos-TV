@@ -7358,12 +7358,6 @@ abstract class AppLocalizations {
   /// **'{value}s'**
   String secondsValue(int value);
 
-  /// Setting for media queuing
-  ///
-  /// In en, this message translates to:
-  /// **'Media Queuing'**
-  String get mediaQueuing;
-
   /// Description for media queuing
   ///
   /// In en, this message translates to:
@@ -8269,18 +8263,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Apply image type to all libraries'**
   String get applyImageTypeToAllLibraries;
-
-  /// Setting for multi-server libraries
-  ///
-  /// In en, this message translates to:
-  /// **'Multi-Server Libraries'**
-  String get multiServerLibraries;
-
-  /// Description for multi-server libraries
-  ///
-  /// In en, this message translates to:
-  /// **'Show libraries from all connected servers'**
-  String get showLibrariesFromAllServers;
 
   /// Setting for merging recently added and recently released libraries by media type
   ///
@@ -21554,12 +21536,6 @@ abstract class AppLocalizations {
   /// **'Playback Enhancements'**
   String get playbackEnhancements;
 
-  /// No description provided for @alwaysOn.
-  ///
-  /// In en, this message translates to:
-  /// **'Always on.'**
-  String get alwaysOn;
-
   /// No description provided for @replaceSkipOutroWithNextUpDisplay.
   ///
   /// In en, this message translates to:
@@ -30579,12 +30555,6 @@ abstract class AppLocalizations {
   /// **'Dimming, letting the TV sleep, movement and which pictures show'**
   String get kostvMoreScreensaverSummary;
 
-  /// Kos TV: what the Parental controls screen's More settings holds
-  ///
-  /// In en, this message translates to:
-  /// **'Rating limit on recommendations'**
-  String get kostvMoreParentalSummary;
-
   /// Kos TV: diagnostics screen section with the logging switches
   ///
   /// In en, this message translates to:
@@ -31328,6 +31298,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Loading Stream...'**
   String get kostvLoadingStream;
+
+  /// Kos TV: player note while the previous playback stops
+  ///
+  /// In en, this message translates to:
+  /// **'Stopping the previous video…'**
+  String get kostvStoppingPreviousPlayback;
+
+  /// Kos TV: player note while it seeks to the resume point
+  ///
+  /// In en, this message translates to:
+  /// **'Going back to where you were…'**
+  String get kostvRestoringPosition;
 }
 
 class _AppLocalizationsDelegate

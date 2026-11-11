@@ -5628,10 +5628,6 @@
       }
     }
   },
-  "mediaQueuing": "Media Queuing",
-  "@mediaQueuing": {
-    "description": "Setting for media queuing"
-  },
   "autoQueueNextEpisodes": "Auto-queue next episodes",
   "@autoQueueNextEpisodes": {
     "description": "Description for media queuing"
@@ -6282,14 +6278,6 @@
   "applyImageTypeToAllLibraries": "Apply image type to all libraries",
   "@applyImageTypeToAllLibraries": {
     "description": "Description for override per-library settings"
-  },
-  "multiServerLibraries": "Multi-Server Libraries",
-  "@multiServerLibraries": {
-    "description": "Setting for multi-server libraries"
-  },
-  "showLibrariesFromAllServers": "Show libraries from all connected servers",
-  "@showLibrariesFromAllServers": {
-    "description": "Description for multi-server libraries"
   },
   "mergeRecentRowsByType": "Merge Recent Rows by Type",
   "@mergeRecentRowsByType": {
@@ -10900,7 +10888,6 @@
   "notSupportedOnThisDevice": "Not Supported on this device",
   "mediaPlayerBehavior": "Media Player Behavior",
   "playbackEnhancements": "Playback Enhancements",
-  "alwaysOn": "Always on.",
   "replaceSkipOutroWithNextUpDisplay": "Replace Skip Outro with Next Up Display",
   "replaceSkipOutroWithNextUpDisplaySubtitle": "Show the Next Up overlay instead of the Skip Outro button.",
   "playerRouting": "Player Routing",
@@ -17163,10 +17150,6 @@
   "@kostvMoreScreensaverSummary": {
     "description": "Kos TV: what the Screensaver screen's More settings holds"
   },
-  "kostvMoreParentalSummary": "Rating limit on recommendations",
-  "@kostvMoreParentalSummary": {
-    "description": "Kos TV: what the Parental controls screen's More settings holds"
-  },
   "kostvLogging": "Logging",
   "@kostvLogging": {
     "description": "Kos TV: diagnostics screen section with the logging switches"
@@ -17764,5 +17747,13 @@
   "kostvLoadingStream": "Loading Stream...",
   "@kostvLoadingStream": {
     "description": "Kos TV: player label while a stream comes up"
+  },
+  "kostvStoppingPreviousPlayback": "Stopping the previous video…",
+  "@kostvStoppingPreviousPlayback": {
+    "description": "Kos TV: player note while the previous playback stops"
+  },
+  "kostvRestoringPosition": "Going back to where you were…",
+  "@kostvRestoringPosition": {
+    "description": "Kos TV: player note while it seeks to the resume point"
   }
 }

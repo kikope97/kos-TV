@@ -1200,7 +1200,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         ),
         tmdbLists.leaf(
           'tmdb_trending_all_weekly_enabled',
-          'Trending All (Weekly)',
+          l10n.kostvTmdbTrendingAllWeekly,
         ),
       ],
       if (calendarAvailable) ...[
@@ -1956,7 +1956,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     for (final type in configurableMediaSegmentTypes)
       automation.leaf(
         'media_segment_actions_${type.name}',
-        l10n.settingsMediaSegmentTypeAction(type.displayName),
+        l10n.settingsMediaSegmentTypeAction(type.label(l10n)),
         keywords: [
           'skip',
           'segments',

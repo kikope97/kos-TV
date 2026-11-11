@@ -755,7 +755,7 @@ class _VideoMiniPlayerBarState extends State<_VideoMiniPlayerBar> {
                     if (_askSegment case final segment?)
                       Flexible(
                         child: _SkipSegmentButton(
-                          label: l10n.skipSegment(segment.type.displayName),
+                          label: l10n.skipSegment(segment.type.label(l10n)),
                           onPressed: _skipAskedSegment,
                         ),
                       ),
@@ -850,7 +850,7 @@ class _VideoMiniPlayerBarState extends State<_VideoMiniPlayerBar> {
             ),
             if (_askSegment case final segment?)
               _SkipSegmentButton(
-                label: l10n.skipSegment(segment.type.displayName),
+                label: l10n.skipSegment(segment.type.label(l10n)),
                 onPressed: _skipAskedSegment,
               ),
             _TransportButton(

@@ -167,7 +167,8 @@ class VideoPlayerScreen extends StatefulWidget {
 
 class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     with WidgetsBindingObserver, WindowListener, ImmersiveSystemUi {
-  static const _streamLoadingLabel = 'Loading Stream...';
+  /// Kos TV: the player's own words, in the app's language.
+  String get _streamLoadingLabel => AppLocalizations.of(context).kostvLoadingStream;
 
   /// How long away counts as having moved on rather than stepped out.
   static const _staleSuspendExit = Duration(minutes: 30);
@@ -4592,13 +4593,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       case PlaybackBringupPhase.preparing:
         return _streamLoadingLabel;
       case PlaybackBringupPhase.stoppingPrevious:
-        return 'Stopping previous playback...';
+        return AppLocalizations.of(context).kostvStoppingPreviousPlayback;
       case PlaybackBringupPhase.resolving:
       case PlaybackBringupPhase.opening:
       case PlaybackBringupPhase.waitingForReady:
         return _streamLoadingLabel;
       case PlaybackBringupPhase.seekingResume:
-        return 'Restoring position...';
+        return AppLocalizations.of(context).kostvRestoringPosition;
       default:
         return _streamLoadingLabel;
     }

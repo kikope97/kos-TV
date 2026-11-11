@@ -92,7 +92,7 @@ class _AutomationQueueScreenState extends State<_AutomationQueueScreen> {
                     'segmentAction_${type.name}_$mediaSegmentActions',
                   ),
                   preference: UserPreferences.mediaSegmentActions,
-                  title: l10n.settingsMediaSegmentTypeAction(type.displayName),
+                  title: l10n.settingsMediaSegmentTypeAction(type.label(l10n)),
                   icon: Icons.content_cut,
                   options: _segmentActionOptions(
                     l10n,
@@ -164,7 +164,7 @@ class _AutomationQueueScreenState extends State<_AutomationQueueScreen> {
                       ),
                       preference: UserPreferences.mediaSegmentActions,
                       title: l10n.settingsMediaSegmentTypeAction(
-                        type.displayName,
+                        type.label(l10n),
                       ),
                       icon: Icons.content_cut,
                       options: _segmentActionOptions(

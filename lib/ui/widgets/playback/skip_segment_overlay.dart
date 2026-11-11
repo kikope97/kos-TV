@@ -210,7 +210,7 @@ class _SkipSegmentOverlayState extends State<SkipSegmentOverlay> {
                               Text(
                                 widget.actionLabel ??
                                     l10n.skipSegment(
-                                      widget.segment.type.displayName,
+                                      widget.segment.type.label(l10n),
                                     ),
                                 style: TextStyle(
                                   color: AppColorScheme.onSurface,

@@ -4274,9 +4274,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get mediaQueuing => 'Cola de reproducción';
-
-  @override
   String get autoQueueNextEpisodes =>
       'Añadir automáticamente los siguientes episodios a la cola';
 
@@ -4780,13 +4777,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get applyImageTypeToAllLibraries =>
       'Aplicar tipo de imagen a todas las bibliotecas';
-
-  @override
-  String get multiServerLibraries => 'Bibliotecas de varios servidores';
-
-  @override
-  String get showLibrariesFromAllServers =>
-      'Mostrar bibliotecas de todos los servidores conectados';
 
   @override
   String get mergeRecentRowsByType => 'Unir filas recientes por tipo';
@@ -12478,9 +12468,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get playbackEnhancements => 'Mejoras de reproducción';
 
   @override
-  String get alwaysOn => 'Siempre activado.';
-
-  @override
   String get replaceSkipOutroWithNextUpDisplay =>
       'Mostrar A continuación en lugar de Saltar créditos';
 
@@ -18032,10 +18019,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Atenuación, suspender la tele, movimiento y qué imágenes salen';
 
   @override
-  String get kostvMoreParentalSummary =>
-      'Límite de clasificación en las recomendaciones';
-
-  @override
   String get kostvLogging => 'Registro';
 
   @override
@@ -18490,4 +18473,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvLoadingStream => 'Cargando el vídeo…';
+
+  @override
+  String get kostvStoppingPreviousPlayback => 'Parando el vídeo anterior…';
+
+  @override
+  String get kostvRestoringPosition => 'Volviendo a donde lo dejaste…';
 }

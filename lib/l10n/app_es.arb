@@ -5034,10 +5034,6 @@
             }
         }
     },
-    "mediaQueuing": "Cola de reproducción",
-    "@mediaQueuing": {
-        "description": "Setting for media queuing"
-    },
     "autoQueueNextEpisodes": "Añadir automáticamente los siguientes episodios a la cola",
     "@autoQueueNextEpisodes": {
         "description": "Description for media queuing"
@@ -5562,14 +5558,6 @@
     "applyImageTypeToAllLibraries": "Aplicar tipo de imagen a todas las bibliotecas",
     "@applyImageTypeToAllLibraries": {
         "description": "Description for override per-library settings"
-    },
-    "multiServerLibraries": "Bibliotecas de varios servidores",
-    "@multiServerLibraries": {
-        "description": "Setting for multi-server libraries"
-    },
-    "showLibrariesFromAllServers": "Mostrar bibliotecas de todos los servidores conectados",
-    "@showLibrariesFromAllServers": {
-        "description": "Description for multi-server libraries"
     },
     "mergeRecentRowsByType": "Unir filas recientes por tipo",
     "mergeRecentRowsByTypeDescription": "Combina bibliotecas distintas del mismo tipo en las filas «Añadido recientemente» y «Lanzado recientemente» de Inicio.",
@@ -9639,7 +9627,6 @@
     "notSupportedOnThisDevice": "No compatible con este dispositivo",
     "mediaPlayerBehavior": "Comportamiento del reproductor multimedia",
     "playbackEnhancements": "Mejoras de reproducción",
-    "alwaysOn": "Siempre activado.",
     "replaceSkipOutroWithNextUpDisplay": "Mostrar A continuación en lugar de Saltar créditos",
     "replaceSkipOutroWithNextUpDisplaySubtitle": "Muestra la superposición de A continuación en lugar del botón Saltar créditos.",
     "playerRouting": "Selección de reproductor",
@@ -11589,10 +11576,6 @@
     "@kostvMoreScreensaverSummary": {
         "description": "Kos TV: what the Screensaver screen's More settings holds"
     },
-    "kostvMoreParentalSummary": "Límite de clasificación en las recomendaciones",
-    "@kostvMoreParentalSummary": {
-        "description": "Kos TV: what the Parental controls screen's More settings holds"
-    },
     "kostvLogging": "Registro",
     "@kostvLogging": {
         "description": "Kos TV: diagnostics screen section with the logging switches"
@@ -12190,5 +12173,13 @@
     "kostvLoadingStream": "Cargando el vídeo…",
     "@kostvLoadingStream": {
         "description": "Kos TV: player label while a stream comes up"
+    },
+    "kostvStoppingPreviousPlayback": "Parando el vídeo anterior…",
+    "@kostvStoppingPreviousPlayback": {
+        "description": "Kos TV: player note while the previous playback stops"
+    },
+    "kostvRestoringPosition": "Volviendo a donde lo dejaste…",
+    "@kostvRestoringPosition": {
+        "description": "Kos TV: player note while it seeks to the resume point"
     }
 }
