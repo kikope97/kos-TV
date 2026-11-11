@@ -652,7 +652,7 @@ class UserPreferences extends ChangeNotifier {
     'pref_show_shuffle_button',
     'pref_show_genres_button',
     'pref_show_favorites_button',
-    'kostv_show_live_tv_button',
+    'pref_show_live_tv_button',
     'pref_show_syncplay_button',
     'pref_show_downloads_button',
     'pref_show_libraries_in_toolbar',
@@ -1999,13 +1999,11 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: true,
   );
 
-  /// Kos TV: on, so the family finds the channels the home server has (the
-  /// button only shows when the server offers Live TV to that user). Kept on
-  /// each device under a key of its own, not synced with the server plugin:
-  /// a profile saved there while it was still off by default would switch it
-  /// off again.
+  /// Kos TV: on for whoever starts afresh, so the channels the home server
+  /// has are in sight (the button only shows when the server offers Live TV
+  /// to that user). Someone who already has a value saved keeps it.
   static final showLiveTvButton = Preference(
-    key: 'kostv_show_live_tv_button',
+    key: 'pref_show_live_tv_button',
     defaultValue: true,
   );
 

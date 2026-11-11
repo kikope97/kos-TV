@@ -7,13 +7,11 @@ AggregatedLibrary _lib(String id, String type) =>
     AggregatedLibrary(id: id, name: id, collectionType: type, serverId: 's1');
 
 void main() {
-  test('the live tv button starts on, on each device', () {
-    // Kos TV: the family should find the home server's channels. The button
-    // only shows when the server offers Live TV, and the setting stays on the
-    // device rather than syncing, so an old profile saved on the server with
-    // it off can't switch it off again.
+  test('the live tv button starts on for whoever starts afresh', () {
+    // Kos TV: the channels the home server has are in sight. The button only
+    // shows when the server offers Live TV, and a value already saved stays.
     expect(UserPreferences.showLiveTvButton.defaultValue, isTrue);
-    expect(UserPreferences.showLiveTvButton.key, 'kostv_show_live_tv_button');
+    expect(UserPreferences.showLiveTvButton.key, 'pref_show_live_tv_button');
   });
 
   test('the guide is still reachable with the button off', () {

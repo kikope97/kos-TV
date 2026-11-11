@@ -57,7 +57,7 @@ class SettingsPreviewController extends ChangeNotifier {
     'pref_show_shuffle_button': SettingsPreviewScene.home,
     'pref_show_genres_button': SettingsPreviewScene.home,
     'pref_show_favorites_button': SettingsPreviewScene.home,
-    'kostv_show_live_tv_button': SettingsPreviewScene.home,
+    'pref_show_live_tv_button': SettingsPreviewScene.home,
     'pref_show_syncplay_button': SettingsPreviewScene.home,
     'pref_show_calendar_button': SettingsPreviewScene.home,
     'pref_show_libraries_in_toolbar': SettingsPreviewScene.home,

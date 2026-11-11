@@ -860,7 +860,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     ),
     if (liveTvOnAnyServer)
       navigation.leaf(
-        'kostv_show_live_tv_button',
+        'pref_show_live_tv_button',
         l10n.showLiveTvButton,
         subtitle: l10n.settingsShowLiveTvButtonInNavigation,
         keywords: ['guide', 'channels'],
