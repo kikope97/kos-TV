@@ -603,7 +603,7 @@
     "@recommendationSystem": {
         "description": "Label for the Recommendation System setting"
     },
-    "recommendationSystemSubtitle": "Usa kOS TV Recomienda (un algoritmo sobre tu propia biblioteca), Jellyfin Recomienda (el motor del servidor) o las métricas de similitud en línea de TMDb. Nota: las recomendaciones en línea requieren la integración con Seerr.",
+    "recommendationSystemSubtitle": "Usa kOS TV Recomienda (un algoritmo sobre tu propia biblioteca), Jellyfin Recomienda (el motor del servidor) o las métricas de similitud en línea de TMDb.",
     "@recommendationSystemSubtitle": {
         "description": "Explanation under the recommendation system setting"
     },
@@ -4422,7 +4422,7 @@
     "seasonalFollowerDescription": "Una pieza festiva, como la plancheta de ouija de Halloween, sigue lo que seleccionas en Inicio",
     "seasonalFollowerPointerDescription": "Una pieza festiva, como la plancheta de ouija de Halloween, sustituye al puntero del ratón en Inicio",
     "seasonalRow": "Fila de temporada",
-    "seasonalRowDescription": "Muestra una fila de películas festivas de tu biblioteca, con sugerencias de Seerr si están disponibles.",
+    "seasonalRowDescription": "Muestra una fila de películas festivas de tu biblioteca.",
     "seasonalRowSubtitle": "De temporada",
     "seasonalRowCountry": "País",
     "seasonalRowCountryAuto": "Automático",
@@ -10031,7 +10031,7 @@
     "displaySinceYouWatchedRows": "Mostrar filas «Porque has visto»",
     "displaySinceYouWatchedRowsSubtitle": "Muestra y personaliza las filas «Porque has visto» en las secciones de Inicio.",
     "sinceYouWatchedSource": "Fuente de recomendaciones",
-    "sinceYouWatchedSourceDescription": "Elige la fuente de recomendaciones: kOS TV Recomienda (un algoritmo sobre tu propia biblioteca), Jellyfin Recomienda (el motor del servidor) o las métricas de similitud de TMDb. Nota: las recomendaciones en línea requieren la integración con Seerr.",
+    "sinceYouWatchedSourceDescription": "Elige la fuente de recomendaciones: kOS TV Recomienda (un algoritmo sobre tu propia biblioteca), Jellyfin Recomienda (el motor del servidor) o las métricas de similitud de TMDb.",
     "sinceYouWatchedSourceLocal": "kOS TV Recomienda",
     "sinceYouWatchedSourceServer": "Jellyfin Recomienda",
     "sinceYouWatchedSourceOnline": "Similitud de TMDb",

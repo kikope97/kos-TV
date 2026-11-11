@@ -23,7 +23,6 @@ import '../../../../preference/detail_section_layout.dart';
 import '../../../../preference/user_preferences.dart';
 import '../../../../preference/preference_constants.dart';
 import '../upcoming_episode_badge.dart';
-import '../../../../util/seerr_credits.dart';
 import '../../../../util/detail_playback_info.dart';
 import '../../../../util/detail_track_highlight.dart';
 import '../../../../util/direct_play_reasons_formatter.dart';
@@ -52,9 +51,7 @@ import '../../../widgets/navigation_layout.dart';
 import '../../../widgets/quick_return_wrapper.dart';
 import '../../../widgets/top_toolbar.dart';
 import '../../../widgets/skeleton/skeleton_home_row.dart';
-import '../../../../data/repositories/seerr_repository.dart';
 import '../../../../data/repositories/tmdb_repository.dart';
-import '../../../../data/services/seerr/seerr_api_models.dart';
 import '../../../../data/services/plugin_sync_service.dart';
 import '../../../../data/services/book_reader_service.dart';
 import '../collection_sort_dialog.dart';
@@ -73,26 +70,16 @@ import '../item_detail_screen.dart'
         selectedMediaSourceForItem,
         PersonDates,
         FilmographyRow,
-        SeerrAppearancesRow,
-        SeerrCrewCreditsRow,
+        isOutsideLibraryItem,
+        showOutsideLibraryTitle,
         technicalDetailsFor;
 import 'modern_landscape_layout.dart';
 import 'modern_portrait_layout.dart';
 import 'widgets/details_tab_bar.dart';
 import 'widgets/season_card.dart';
 import 'widgets/up_next_card.dart';
-import '../../../../data/viewmodels/seerr_media_detail_view_model.dart';
-import '../../../../preference/seerr_preferences.dart';
 import '../../../widgets/overlay_sheet.dart';
-import '../../../widgets/seerr/seerr_collection_banner.dart';
-import '../../../widgets/seerr/seerr_item_chips.dart';
-import '../../../widgets/seerr/seerr_request_dialog.dart';
-import '../../../widgets/seerr/seerr_item_status.dart';
-import '../../../widgets/seerr/seerr_status_pill.dart';
-import '../../../widgets/seerr/seerr_stats_card.dart';
-import '../../../widgets/seerr/seerr_streaming_row.dart';
 import '../../../widgets/detail_reviews.dart';
-import '../../../widgets/seerr_icons.dart';
 
 double _desktopUiScale({UserPreferences? prefs}) {
   final effectivePrefs = prefs ?? GetIt.instance<UserPreferences>();
@@ -275,16 +262,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
   final FocusNode _booksFirstFocusNode = FocusNode(debugLabel: 'booksFirst');
   final FocusNode _personMoviesFirstFocusNode = FocusNode(debugLabel: 'personMoviesFirst');
   final FocusNode _personSeriesFirstFocusNode = FocusNode(debugLabel: 'personSeriesFirst');
-  final FocusNode _personSeerrAppearancesFirstFocusNode = FocusNode(debugLabel: 'personSeerrAppearancesFirst');
-  final FocusNode _seerrChipsFocusNode =
-      FocusNode(debugLabel: 'seerrChipsFirst');
-  final FocusNode _seerrRecommendationsFocusNode =
-      FocusNode(debugLabel: 'seerrRecommendationsFirst');
-  final FocusNode _seerrSimilarFocusNode =
-      FocusNode(debugLabel: 'seerrSimilarFirst');
-  final FocusNode _seerrBannerFocusNode =
-      FocusNode(debugLabel: 'seerrCollectionBanner');
-  final FocusNode _personSeerrCrewCreditsFirstFocusNode = FocusNode(debugLabel: 'personSeerrCrewCreditsFirst');
   final Map<String, FocusNode> _boxSetHeadingFocusNodes = {};
   final Map<String, FocusNode> _boxSetRowFirstFocusNodes = {};
   final Map<String, FocusNode> _collectionRowFocusNodes = {};
@@ -309,11 +286,8 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
   bool _subtitlesExpanded = false;
   int? _loadedAudioIndex;
   int? _loadedSubtitleIndex;
-  List<SeerrDiscoverItem>? _seerrAppearances;
-  List<SeerrDiscoverItem>? _seerrCrewCredits;
-  // Item ids these one-shot loaders already ran for, so repeated view-model
-  // notifications don't re-issue the network calls or re-roll the backdrop.
-  String? _seerrLoadedForItemId;
+  // The person the backdrop was picked for, so repeated view-model
+  // notifications don't re-roll it.
   String? _randomBackdropForItemId;
   String? _randomBackdropUrl;
 
@@ -437,51 +411,9 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     }
   }
 
-  Future<void> _loadSeerrAppearances() async {
-    final item = _vm.item;
-    if (item == null || item.type != 'Person') return;
-    final tmdbId = item.tmdbId;
-    if (tmdbId == null || tmdbId.isEmpty) return;
-    if (!GetIt.instance<PluginSyncService>().seerrAvailable) {
-      return;
-    }
-    // Run once per person; the view-model notifies many times as data streams
-    // in and each call would otherwise re-issue the same combined-credits fetch.
-    if (_seerrLoadedForItemId == item.id) return;
-    _seerrLoadedForItemId = item.id;
-
-    try {
-      final repo = await GetIt.instance.getAsync<SeerrRepository>();
-      await repo.ensureInitialized();
-      final personId = int.tryParse(tmdbId);
-      if (personId != null) {
-        final credits = await loadSeerrPersonCredits(repo, personId);
-        if (mounted) {
-          setState(() {
-            _seerrAppearances = credits.cast;
-            _seerrCrewCredits = credits.crew;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error loading Seerr appearances: $e');
-    }
-  }
-
   List<AggregatedItem> _sortJellyfinItems(List<AggregatedItem> list) =>
       sortJellyfinFilmography(
         list,
-        widget.prefs.get(UserPreferences.personPageSortOption),
-      );
-
-  List<SeerrDiscoverItem> _groupSeerrItems(List<SeerrDiscoverItem> list, bool isCrew) {
-    if (!widget.prefs.get(UserPreferences.personPageGroupItems)) return list;
-    return groupSeerrCredits(list, isCrew: isCrew);
-  }
-
-  List<SeerrDiscoverItem> _sortSeerrItems(List<SeerrDiscoverItem> items) =>
-      sortSeerrCredits(
-        items,
         widget.prefs.get(UserPreferences.personPageSortOption),
       );
 
@@ -516,12 +448,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     _booksFirstFocusNode.onKeyEvent = leftToSidebarHandler;
     _personMoviesFirstFocusNode.onKeyEvent = leftToSidebarHandler;
     _personSeriesFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _personSeerrAppearancesFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _seerrChipsFocusNode.onKeyEvent = leftToSidebarHandler;
-    _seerrRecommendationsFocusNode.onKeyEvent = leftToSidebarHandler;
-    _seerrSimilarFocusNode.onKeyEvent = leftToSidebarHandler;
-    _seerrBannerFocusNode.onKeyEvent = leftToSidebarHandler;
-    _personSeerrCrewCreditsFirstFocusNode.onKeyEvent = leftToSidebarHandler;
     _gridFirstFocusNode.onKeyEvent = leftToSidebarHandler;
     _moviesFirstFocusNode.onKeyEvent = leftToSidebarHandler;
     _seriesFirstFocusNode.onKeyEvent = leftToSidebarHandler;
@@ -537,12 +463,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
       });
     }
 
-    // _seerrChipsFocusNode is left out on purpose. It lands on a
-    // SeerrBrowseChip, which scrolls itself, and two calls racing over the same
-    // viewport settle wherever the slower one happens to finish.
-    attachAutoScroll(_seerrRecommendationsFocusNode);
-    attachAutoScroll(_seerrSimilarFocusNode);
-    attachAutoScroll(_seerrBannerFocusNode);
     attachAutoScroll(_castFirstFocusNode);
     attachAutoScroll(_crewFirstFocusNode);
     attachAutoScroll(_similarFirstFocusNode);
@@ -591,7 +511,8 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     }
     _loadSeriesLogo();
     _loadStudioLogos();
-    _loadSeerrAppearances().then((_) {
+    // It sets state, which initState can't.
+    scheduleMicrotask(() {
       if (mounted) _selectRandomBackdrop();
     });
   }
@@ -614,9 +535,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
       });
       NavigationLayout.focusDetailsPlayButtonNotifier.value = widget.initialFocusNode;
     }
-    _loadSeerrAppearances().then((_) {
-      if (mounted) _selectRandomBackdrop();
-    });
+    _selectRandomBackdrop();
   }
 
   void _onScroll() {
@@ -664,9 +583,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
       setState(() {});
       _loadSeriesLogo();
       _loadStudioLogos();
-      _loadSeerrAppearances().then((_) {
-        if (mounted) _selectRandomBackdrop();
-      });
+      _selectRandomBackdrop();
     }
   }
 
@@ -714,12 +631,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     _booksFirstFocusNode.dispose();
     _personMoviesFirstFocusNode.dispose();
     _personSeriesFirstFocusNode.dispose();
-    _personSeerrAppearancesFirstFocusNode.dispose();
-    _seerrChipsFocusNode.dispose();
-    _seerrRecommendationsFocusNode.dispose();
-    _seerrSimilarFocusNode.dispose();
-    _seerrBannerFocusNode.dispose();
-    _personSeerrCrewCreditsFirstFocusNode.dispose();
     for (final node in _boxSetHeadingFocusNodes.values) {
       node.dispose();
     }
@@ -910,20 +821,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
             case 'other':
               _otherFirstFocusNode.requestFocus();
               break;
-            case 'seerr':
-              final pieces = SeerrDetailPieces.resolve(
-                seerrItemTabState(_vm),
-                _sections,
-                l10n,
-              );
-              _seerrTabChain(pieces).firstOrNull?.requestFocus();
-              break;
-            case 'seerrAppearances':
-              _personSeerrAppearancesFirstFocusNode.requestFocus();
-              break;
-            case 'seerrCrewContributions':
-              _personSeerrCrewCreditsFirstFocusNode.requestFocus();
-              break;
             case 'albums':
             case 'appearances':
               _gridFirstFocusNode.requestFocus();
@@ -990,25 +887,10 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     final sections = _sections;
     final hasCast = sections.shows(DetailSection.cast) && _vm.actors.isNotEmpty;
     final cast = _ModernTab('cast', l10n.castMembers, _castTab);
-    final seerrState = seerrItemTabState(_vm);
-    final seerrPieces = SeerrDetailPieces.resolve(seerrState, sections, l10n);
-    final seerrTab = seerrState == null || !seerrPieces.hasAny
-        ? null
-        : _ModernTab(
-            'seerr',
-            GetIt.instance<SeerrPreferences>().labelOrDefault(l10n.seerr),
-            (context, item) => _seerrTab(context, seerrState, seerrPieces),
-          );
 
     final hasReviews =
         sections.shows(DetailSection.reviews) && _vm.reviews.isNotEmpty;
     final reviews = _ModernTab('reviews', l10n.reviews, (_, _) => _reviewsTab());
-
-    // A title that isn't in the library has no episodes to list, no chapters,
-    // no extras and no file to describe, so the rest would all be empty.
-    if (_vm.isSeerrOnly) {
-      return [if (hasCast) cast, if (hasReviews) reviews, ?seerrTab];
-    }
 
     final hasCrew = sections.shows(DetailSection.crew) &&
         (_vm.directors.isNotEmpty || _vm.writers.isNotEmpty);
@@ -1066,7 +948,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
             ),
           if (hasSimilar) similar,
           if (hasReviews) reviews,
-          ?seerrTab,
         ];
       case 'Season':
         return [
@@ -1113,30 +994,17 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
       case 'Person':
         final movies = _sortJellyfinItems(_vm.filmographyMovies);
         final series = _sortJellyfinItems(_vm.filmographySeries);
-        final hasSeerrAppearances = sections.shows(DetailSection.seerrPersonAppearances) &&
-            _seerrAppearances != null && _seerrAppearances!.isNotEmpty;
-        final hasSeerrCrewCredits = sections.shows(DetailSection.seerrPersonCrew) &&
-            _seerrCrewCredits != null && _seerrCrewCredits!.isNotEmpty;
-        final sortedSeerrAppearances = hasSeerrAppearances ? _sortSeerrItems(_groupSeerrItems(_seerrAppearances!, false)) : const <SeerrDiscoverItem>[];
-        final sortedSeerrCrewCredits = hasSeerrCrewCredits ? _sortSeerrItems(_groupSeerrItems(_seerrCrewCredits!, true)) : const <SeerrDiscoverItem>[];
         return [
           if (movies.isNotEmpty)
             _ModernTab('movies', l10n.movies, (context, item) => _moviesTab(context, movies)),
           if (series.isNotEmpty)
             _ModernTab('series', l10n.series, (context, item) => _seriesTab(context, series)),
-          if (sortedSeerrAppearances.isNotEmpty)
-            _ModernTab('seerrAppearances', seerrBrand(l10n.appearancesSeerr), (context, item) => _seerrAppearancesTab(context, sortedSeerrAppearances)),
-          if (sortedSeerrCrewCredits.isNotEmpty)
-            _ModernTab('seerrCrewContributions', seerrBrand(l10n.crewContributionsSeerr), (context, item) => _seerrCrewCreditsTab(context, sortedSeerrCrewCredits)),
-          if (movies.isEmpty && series.isEmpty && sortedSeerrAppearances.isEmpty && sortedSeerrCrewCredits.isEmpty && _vm.filmography.isNotEmpty)
+          if (movies.isEmpty && series.isEmpty && _vm.filmography.isNotEmpty)
             _ModernTab('appearances', l10n.appearances, (_, _) => _itemGrid(_sortJellyfinItems(_vm.filmography))),
         ];
       case 'BoxSet':
-        final showMissing = widget.prefs.get(
-          UserPreferences.seerrShowMissingCollectionItems,
-        );
-        final libraryMovies = _vm.collectionItems.where((i) => i.type == 'Movie').toList();
-        libraryMovies.sort((a, b) {
+        final moviesList = _vm.collectionItems.where((i) => i.type == 'Movie').toList();
+        moviesList.sort((a, b) {
           final aIndex = _vm.playlistItems.indexWhere((p) => p.id == a.id);
           final bIndex = _vm.playlistItems.indexWhere((p) => p.id == b.id);
           if (aIndex == -1 && bIndex == -1) return 0;
@@ -1144,13 +1012,9 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
           if (bIndex == -1) return -1;
           return aIndex.compareTo(bIndex);
         });
-        final missingMovies = _vm.missingCollectionItems.where((i) => i.type == 'Movie').toList();
-        final moviesList = showMissing
-            ? mergeMissingByReleaseOrder(libraryMovies, missingMovies)
-            : libraryMovies;
 
-        final librarySeries = _vm.collectionItems.where((i) => i.type == 'Series').toList();
-        librarySeries.sort((a, b) {
+        final seriesList = _vm.collectionItems.where((i) => i.type == 'Series').toList();
+        seriesList.sort((a, b) {
           final aIndex = _vm.playlistItems.indexWhere((p) => p.seriesId == a.id || p.id == a.id);
           final bIndex = _vm.playlistItems.indexWhere((p) => p.seriesId == b.id || p.id == b.id);
           if (aIndex == -1 && bIndex == -1) return 0;
@@ -1158,10 +1022,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
           if (bIndex == -1) return -1;
           return aIndex.compareTo(bIndex);
         });
-        final missingSeries = _vm.missingCollectionItems.where((i) => i.type == 'Series').toList();
-        final seriesList = showMissing
-            ? mergeMissingByReleaseOrder(librarySeries, missingSeries)
-            : librarySeries;
 
         final otherItems = _vm.collectionItems
             .where((i) => i.type != 'Movie' && i.type != 'Series')
@@ -1288,7 +1148,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
             ),
           if (hasSimilar) similar,
           if (hasReviews) reviews,
-          ?seerrTab,
         ];
     }
   }
@@ -1358,10 +1217,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     // unplayed episode's seasonId so the cyan border always renders correctly.
     final nextUpSeasonId = _vm.nextUp?.seasonId ??
         _vm.seriesEpisodes.firstWhereOrNull((e) => !e.isPlayed)?.seasonId;
-    final seerrSeasonStatus = seerrItemSeasonStatus(_vm);
-    // Set only for a series with no season to open, where the card offers to
-    // request that season instead.
-    final seerrOnlyVm = _vm.isSeerrOnly ? _vm.seerr : null;
     SeasonCard buildSeasonCard(
       int i, {
       double? width,
@@ -1393,7 +1248,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
       );
 
       return SeasonCard(
-        seerrStatus: seerrSeasonStatus[season.indexNumber],
         badge: AnimeSeasonAudioBadge(
           seriesId: season.seriesId,
           seasonId: season.id,
@@ -1414,20 +1268,9 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
         width: width,
         height: height,
         autoScroll: true,
-        onTap: () => seerrOnlyVm != null
-            ? showSeerrRequestDialog(
-                context: context,
-                vm: seerrOnlyVm,
-                is4k: false,
-                qualityToggle: true,
-                season: season.indexNumber,
-              )
-            : context.push(
-                Destinations.item(
-                  season.id,
-                  serverId: season.serverId,
-                ),
-              ),
+        onTap: () => context.push(
+          Destinations.item(season.id, serverId: season.serverId),
+        ),
       );
     }
     final seasonLabelStyle = textTheme.labelMedium?.copyWith(
@@ -2504,188 +2347,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     );
   }
 
-  Widget _seerrAppearancesTab(BuildContext context, List<SeerrDiscoverItem> items) {
-    return Focus(
-      canRequestFocus: false,
-      onFocusChange: (focused) {
-        if (focused && mounted) {
-          widget.onToggleNavbar?.call(false);
-        } else if (!focused && mounted) {
-          widget.onToggleNavbar?.call(true);
-        }
-      },
-      child: HorizontalScrollSection(
-        title: '',
-        contentSpacing: 0,
-        builder: (context, controller) => SeerrAppearancesRow(
-          items: items,
-          prefs: widget.prefs,
-          scrollController: controller,
-          firstFocusNode: _personSeerrAppearancesFirstFocusNode,
-          onItemKeyEvent: (index, event) {
-            if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowUp) {
-              _focusSelectedTab();
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-          },
-        ),
-      ),
-    );
-  }
-
-  /// The focusable pieces of the Seerr tab, in the order they appear, so each
-  /// can hand off to its neighbour without every branch restating the order.
-  /// The tab draws from the same [pieces], so the chain never names a row
-  /// that isn't there.
-  List<FocusNode> _seerrTabChain(SeerrDetailPieces pieces) => [
-        if (pieces.chips) _seerrChipsFocusNode,
-        if (pieces.recommendations) _seerrRecommendationsFocusNode,
-        if (pieces.similar) _seerrSimilarFocusNode,
-        if (pieces.collection) _seerrBannerFocusNode,
-      ];
-
-  /// The Seerr side of a title: what it is filed under, the facts behind it,
-  /// and what it leads to.
-  Widget _seerrTab(
-    BuildContext context,
-    SeerrMediaDetailState state,
-    SeerrDetailPieces pieces,
-  ) {
-    final l10n = AppLocalizations.of(context);
-    final collection = state.movie?.collection;
-    final chain = _seerrTabChain(pieces);
-
-    VoidCallback above(FocusNode node) {
-      final i = chain.indexOf(node);
-      return i > 0 ? chain[i - 1].requestFocus : _focusSelectedTab;
-    }
-
-    VoidCallback? below(FocusNode node) {
-      final i = chain.indexOf(node);
-      return i >= 0 && i < chain.length - 1 ? chain[i + 1].requestFocus : null;
-    }
-
-    final sections = <Widget>[
-      if (pieces.chips)
-        SeerrItemChips(
-          state: state,
-          firstFocusNode: _seerrChipsFocusNode,
-          onNavigateUp: above(_seerrChipsFocusNode),
-          onNavigateDown: below(_seerrChipsFocusNode),
-        ),
-      if (pieces.stats) SeerrStatsCard(state: state),
-      if (pieces.streaming)
-        SeerrStreamingRow(providers: state.streamingProviders),
-      if (pieces.recommendations)
-        _seerrTabRow(
-          l10n.recommendations,
-          state.recommendations,
-          firstFocusNode: _seerrRecommendationsFocusNode,
-          onNavigateUp: above(_seerrRecommendationsFocusNode),
-          onNavigateDown: below(_seerrRecommendationsFocusNode),
-        ),
-      if (pieces.similar)
-        _seerrTabRow(
-          l10n.similar,
-          state.similar,
-          firstFocusNode: _seerrSimilarFocusNode,
-          onNavigateUp: above(_seerrSimilarFocusNode),
-          onNavigateDown: below(_seerrSimilarFocusNode),
-        ),
-      if (pieces.collection && collection != null)
-        SeerrCollectionBanner(
-          collection: collection,
-          focusNode: _seerrBannerFocusNode,
-          onNavigateUp: above(_seerrBannerFocusNode),
-        ),
-    ];
-
-    return Focus(
-      canRequestFocus: false,
-      onFocusChange: (focused) {
-        if (!mounted) return;
-        widget.onToggleNavbar?.call(!focused);
-      },
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (var i = 0; i < sections.length; i++) ...[
-            if (i > 0) const SizedBox(height: 16),
-            sections[i],
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _seerrTabRow(
-    String title,
-    List<SeerrDiscoverItem> items, {
-    FocusNode? firstFocusNode,
-    VoidCallback? onNavigateUp,
-    VoidCallback? onNavigateDown,
-  }) {
-    final textTheme = Theme.of(context).textTheme;
-    return HorizontalScrollSection(
-      title: title,
-      titleStyle: textTheme.titleMedium?.copyWith(
-        color: Colors.white,
-        fontWeight: FontWeight.w700,
-      ),
-      contentSpacing: 8,
-      builder: (context, controller) => SeerrAppearancesRow(
-        items: items,
-        prefs: widget.prefs,
-        scrollController: controller,
-        firstFocusNode: firstFocusNode,
-        onItemKeyEvent: (index, event) {
-          if (event is! KeyDownEvent) return KeyEventResult.ignored;
-          if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-            (onNavigateUp ?? _focusSelectedTab)();
-            return KeyEventResult.handled;
-          }
-          if (event.logicalKey == LogicalKeyboardKey.arrowDown &&
-              onNavigateDown != null) {
-            onNavigateDown();
-            return KeyEventResult.handled;
-          }
-          return KeyEventResult.ignored;
-        },
-      ),
-    );
-  }
-
-  Widget _seerrCrewCreditsTab(BuildContext context, List<SeerrDiscoverItem> items) {
-    return Focus(
-      canRequestFocus: false,
-      onFocusChange: (focused) {
-        if (focused && mounted) {
-          widget.onToggleNavbar?.call(false);
-        } else if (!focused && mounted) {
-          widget.onToggleNavbar?.call(true);
-        }
-      },
-      child: HorizontalScrollSection(
-        title: '',
-        contentSpacing: 0,
-        builder: (context, controller) => SeerrCrewCreditsRow(
-          items: items,
-          prefs: widget.prefs,
-          scrollController: controller,
-          firstFocusNode: _personSeerrCrewCreditsFirstFocusNode,
-          onItemKeyEvent: (index, event) {
-            if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowUp) {
-              _focusSelectedTab();
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-          },
-        ),
-      ),
-    );
-  }
-
   Widget _chaptersTab(BuildContext context, AggregatedItem item) {
     if (item.chapters.isEmpty) {
       return const SizedBox.shrink();
@@ -2756,16 +2417,9 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
       return const SizedBox.shrink();
     }
 
-    final showMissing = widget.prefs.get(
-      UserPreferences.seerrShowMissingCollectionItems,
-    );
-
     if (collections.length == 1) {
       final col = collections.first;
-      final items = [
-        col.boxSetItem,
-        ...(showMissing ? col.itemsWithMissing : col.items),
-      ];
+      final items = [col.boxSetItem, ...col.items];
       return _mediaGrid(context, items,
           firstFocusNode: _collectionFirstFocusNode);
     }
@@ -2798,10 +2452,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
         itemBuilder: (context, index) {
           final col = collections[index];
           final rowFocusNode = _collectionRowFocusNodeFor(col.id);
-          final items = [
-            col.boxSetItem,
-            ...(showMissing ? col.itemsWithMissing : col.items),
-          ];
+          final items = [col.boxSetItem, ...col.items];
 
           return Builder(
             builder: (rowContext) {

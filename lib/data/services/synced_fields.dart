@@ -277,7 +277,6 @@ final List<SyncedField> syncedFields = <SyncedField>[
   SyncedField('calendarImageType', UserPreferences.calendarImageType, SyncCodec.enumName, enumValues: prefs.CalendarImageType.values),
   SyncedField('calendarSpoilerSafe', UserPreferences.calendarSpoilerSafe, SyncCodec.boolean),
   SyncedField('calendarSelectAction', UserPreferences.calendarSelectAction, SyncCodec.enumName, enumValues: prefs.CalendarSelectAction.values),
-  SyncedField('calendarRequestButton', UserPreferences.calendarRequestButton, SyncCodec.boolean),
   SyncedField('calendarReminders', UserPreferences.calendarReminders, SyncCodec.boolean),
   SyncedField('calendarRowSeeAll', UserPreferences.calendarRowSeeAll, SyncCodec.boolean),
   SyncedField('showNextAirDate', UserPreferences.showNextAirDate, SyncCodec.boolean),

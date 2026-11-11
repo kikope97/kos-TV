@@ -317,7 +317,6 @@ final appRouter = GoRouter(
             : null,
         initialQuery: state.uri.queryParameters['query'],
         scopedLibraryId: state.uri.queryParameters['libraryId'],
-        preferRequests: state.uri.queryParameters['tab'] == 'requests',
       ),
     ),
 

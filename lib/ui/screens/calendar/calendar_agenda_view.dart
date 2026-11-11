@@ -520,13 +520,6 @@ class _Preview extends StatelessWidget {
           primary: true,
           onPressed: () => calendarPlay(context, e),
         ),
-      if (calendarShowsRequest(e))
-        CalendarButton(
-          label: l10n.request,
-          icon: Icons.add_rounded,
-          primary: true,
-          onPressed: () => calendarRequest(context, e),
-        ),
       if (calendarCanOpen(e))
         CalendarButton(
           label: e.isEpisode ? l10n.goToSeries : l10n.calendarMovieDetails,

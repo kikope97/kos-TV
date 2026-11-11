@@ -779,7 +779,6 @@ class UserPreferences extends ChangeNotifier {
     'pref_calendar_image_type',
     'pref_calendar_spoiler_safe',
     'pref_calendar_select_action',
-    'pref_calendar_request_button',
     'pref_calendar_reminders',
     'pref_calendar_row_see_all',
     'pref_show_next_air_date',
@@ -3691,11 +3690,6 @@ class UserPreferences extends ChangeNotifier {
     key: 'pref_calendar_select_action',
     defaultValue: CalendarSelectAction.details,
     values: CalendarSelectAction.values,
-  );
-
-  static final calendarRequestButton = Preference(
-    key: 'pref_calendar_request_button',
-    defaultValue: true,
   );
 
   static final calendarReminders = Preference(

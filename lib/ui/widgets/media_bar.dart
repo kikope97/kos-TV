@@ -30,6 +30,7 @@ import '../../preference/preference_constants.dart';
 import '../../preference/user_preferences.dart';
 import '../navigation/app_router.dart';
 import '../navigation/destinations.dart';
+import '../util/outside_library_title.dart';
 import '../screensaver/screensaver_controller.dart';
 import '../../util/language_matching.dart';
 import '../../util/overlay_color_palette.dart';
@@ -3009,22 +3010,34 @@ class _MediaBarState extends State<MediaBar>
     final item = items.elementAtOrNull(_currentIndex);
     if (item != null) {
       _cancelTrailerPreview();
-      context.push(_destinationFor(item));
+      _open(context, item);
     }
   }
 
-  /// Where a slide opens. Outside titles open in Seerr like their Home cards.
-  static String _destinationFor(
+  /// A slide from an outside list opens the server's own copy, if it has one
+  /// (else a note says it isn't there yet), like its Home card does.
+  void _open(
+    BuildContext context,
     MediaBarSlideItem item, {
     bool autoPlay = false,
   }) {
     if (item.isExternal) {
-      return Destinations.seerrMedia(
-        item.tmdbId ?? item.itemId,
-        mediaType: item.itemType == 'Series' ? 'tv' : 'movie',
+      openOutsideLibraryTitle(
+        context,
         title: item.title,
+        tmdbId: item.tmdbId,
+        imdbId: item.imdbId,
+        series: item.itemType == 'Series',
       );
+      return;
     }
+    context.push(_destinationFor(item, autoPlay: autoPlay));
+  }
+
+  static String _destinationFor(
+    MediaBarSlideItem item, {
+    bool autoPlay = false,
+  }) {
     return Destinations.item(
       item.itemId,
       serverId: item.serverId,
@@ -3167,7 +3180,7 @@ class _MediaBarState extends State<MediaBar>
     final item = items.elementAtOrNull(_currentIndex);
     if (item != null) {
       _cancelTrailerPreview();
-      context.push(_destinationFor(item, autoPlay: true));
+      _open(context, item, autoPlay: true);
     }
   }
 

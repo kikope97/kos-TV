@@ -263,12 +263,6 @@ class _Hero extends StatelessWidget {
           primary: !c.hasReminder(e),
           onPressed: () => calendarToggleReminder(context, c, e),
         ),
-      if (calendarShowsRequest(e))
-        CalendarButton(
-          label: l10n.request,
-          icon: Icons.add_rounded,
-          onPressed: () => calendarRequest(context, e),
-        ),
       if (calendarCanOpen(e))
         CalendarButton(
           label: e.isEpisode ? l10n.goToSeries : l10n.calendarMovieDetails,

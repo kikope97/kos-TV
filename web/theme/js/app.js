@@ -1048,7 +1048,7 @@ function renderSettings(){
     {ic:iPalette,t:'Personalization',s:'Theme, navigation, home rows, and library visibility'},
     {ic:iPlaylist,t:'Dynamic Content',s:'Media Bar and visual overlays'},
     {ic:iPlayCircle,t:'Playback & SyncPlay',s:'Audio/video settings, subtitles, downloads, and SyncPlay controls'},
-    {ic:iHub,t:'Integrations',s:'Plugin sync, Seerr, ratings, and more'},
+    {ic:iHub,t:'Integrations',s:'Plugin sync, ratings, and more'},
     {ic:iBrush,t:'Theme Editor',s:'Open the theme editor in your browser'},
     {ic:iInfo,t:'About',s:'App version, legal information, and credits'},
   ];

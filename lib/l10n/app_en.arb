@@ -603,7 +603,7 @@
   "@recommendationSystem": {
     "description": "Label for the Recommendation System setting"
   },
-  "recommendationSystemSubtitle": "Use kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server's engine) or TMDb's similarity metrics online. Note: Online recommendations require Seerr integration.",
+  "recommendationSystemSubtitle": "Use kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server's engine) or TMDb's similarity metrics online.",
   "@recommendationSystemSubtitle": {
     "description": "Explanation under the recommendation system setting"
   },
@@ -4581,7 +4581,7 @@
   "@seasonalRow": {
     "description": "Name of the Home row that shows holiday movies"
   },
-  "seasonalRowDescription": "Show a row of holiday movies from your library, with Seerr suggestions when available.",
+  "seasonalRowDescription": "Show a row of holiday movies from your library.",
   "@seasonalRowDescription": {
     "description": "Explains the seasonal Home row setting"
   },
@@ -11417,7 +11417,7 @@
   "displaySinceYouWatchedRows": "Display Since You Watched Rows",
   "displaySinceYouWatchedRowsSubtitle": "Show and customize Since You Watched rows in Home Sections.",
   "sinceYouWatchedSource": "Recommendation Source",
-  "sinceYouWatchedSourceDescription": "Choose the recommendation source: kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server's engine) or TMDb's similarity metrics. Note: Online recommendations require Seerr integration.",
+  "sinceYouWatchedSourceDescription": "Choose the recommendation source: kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server's engine) or TMDb's similarity metrics.",
   "sinceYouWatchedSourceLocal": "kOS TV Recommends",
   "sinceYouWatchedSourceServer": "Jellyfin Recommends",
   "sinceYouWatchedSourceOnline": "TMDb Similarity",

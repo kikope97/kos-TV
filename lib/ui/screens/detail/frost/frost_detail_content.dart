@@ -4,17 +4,14 @@ import 'dart:ui';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../../data/models/aggregated_item.dart';
-import '../../../../data/services/seerr/seerr_api_models.dart';
 import '../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../preference/detail_section_layout.dart';
-import '../../../../preference/seerr_preferences.dart';
 import '../../../../preference/user_preferences.dart';
 import '../../../../util/focus/dpad_keys.dart';
 import '../../../../util/media_source_summary.dart';
@@ -26,43 +23,26 @@ import '../../../widgets/navigation_layout.dart';
 import '../../../widgets/offline_aware_image.dart';
 import '../../../widgets/rating_display.dart';
 import '../../../widgets/scroll_edge_arrows.dart';
-import '../../../widgets/seerr/seerr_image_urls.dart';
-import '../../../widgets/seerr/seerr_item_status.dart';
-import '../../../widgets/seerr/seerr_request_dialog.dart';
-import '../../../widgets/seerr/seerr_stats_card.dart';
-import '../../../widgets/seerr/seerr_status_dot.dart';
-import '../../../widgets/seerr/seerr_status_pill.dart';
-import '../../../widgets/seerr_icons.dart';
 import '../../../widgets/top_toolbar.dart';
 import '../detail_layout_metrics.dart';
 import '../detail_page.dart';
 import '../item_detail_screen.dart';
 import '../play_item_on_screen.dart';
 
-enum _Tab { overview, episodes, seasons, cast, extras, related, seerr, details }
+enum _Tab { overview, episodes, cast, extras, related, details }
 
-enum _Seg { recommended, similar, about }
-
-/// A title Frost can point at. A Seerr one carries its request status, and a
-/// library one has none.
-typedef _Poster = ({
-  String title,
-  String? imageUrl,
-  int? seerrStatus,
-  VoidCallback open,
-});
+/// A title Frost can point at.
+typedef _Poster = ({String title, String? imageUrl, VoidCallback open});
 
 /// A card of rows, under a heading when it has one.
 typedef _InfoGroup = (String?, List<_Row>);
 
-/// A label and value line in a Details card, with a logo when it names a
-/// streaming service.
+/// A label and value line in a Details card.
 class _Row {
   final String label;
   final String value;
-  final String? logoPath;
 
-  const _Row(this.label, this.value, [this.logoPath]);
+  const _Row(this.label, this.value);
 }
 
 // Frost takes its colors from the theme. Its text, icons and hairlines are
@@ -154,7 +134,6 @@ class FrostDetailContent extends StatefulWidget {
 class _FrostDetailContentState extends State<FrostDetailContent>
     with DetailPage<FrostDetailContent> {
   _Tab _tab = _Tab.overview;
-  _Seg? _seg;
   int? _season;
   bool _overviewOpen = false;
 
@@ -189,17 +168,12 @@ class _FrostDetailContentState extends State<FrostDetailContent>
       ? GlassTier.sheen
       : GlassSettings.tier;
 
-  String get _seerrLabel => GetIt.instance<SeerrPreferences>().labelOrDefault(
-    AppLocalizations.of(context).seerr,
-  );
-
   @override
   void initState() {
     super.initState();
     FocusManager.instance.addListener(_trackHome);
     final type = _vm.item?.type;
-    if (!_vm.isSeerrOnly &&
-        (type == 'Series' || type == 'Episode') &&
+    if ((type == 'Series' || type == 'Episode') &&
         _vm.seriesEpisodes.isEmpty) {
       final vm = _vm;
       vm.loadAllSeriesEpisodes().whenComplete(() {
@@ -294,42 +268,20 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     return true;
   }
 
-  SeerrDetailPieces _pieces(DetailSectionVisibility sections) =>
-      SeerrDetailPieces.resolve(
-        seerrItemTabState(_vm),
-        sections,
-        AppLocalizations.of(context),
-      );
-
-  /// A phone has no Seerr tab, so its Seerr titles join the related ones.
-  List<_Tab> _tabs(
-    AggregatedItem item,
-    DetailSectionVisibility sections, {
-    required bool phone,
-  }) {
+  List<_Tab> _tabs(AggregatedItem item, DetailSectionVisibility sections) {
     final isShow = const {'Series', 'Season', 'Episode'}.contains(item.type);
-    final seerrOnly = _vm.isSeerrOnly;
-    final pieces = _pieces(sections);
-    final seerrPosters = pieces.recommendations || pieces.similar;
     return [
       _Tab.overview,
-      if (!seerrOnly &&
-          isShow &&
+      if (isShow &&
           (item.type != 'Episode' ||
               sections.shows(DetailSection.moreEpisodes)))
         _Tab.episodes,
-      if (seerrOnly && isShow && _vm.seasons.isNotEmpty) _Tab.seasons,
       if (sections.shows(DetailSection.cast) && _vm.actors.isNotEmpty)
         _Tab.cast,
       if (sections.shows(DetailSection.extras) && _vm.features.isNotEmpty)
         _Tab.extras,
-      if ((!seerrOnly &&
-              sections.shows(DetailSection.moreLikeThis) &&
-              _vm.similar.isNotEmpty) ||
-          (seerrPosters && (seerrOnly || phone)))
+      if (sections.shows(DetailSection.moreLikeThis) && _vm.similar.isNotEmpty)
         _Tab.related,
-      if (!seerrOnly && !phone && _segs(_Tab.seerr, pieces).isNotEmpty)
-        _Tab.seerr,
       _Tab.details,
     ];
   }
@@ -338,11 +290,9 @@ class _FrostDetailContentState extends State<FrostDetailContent>
       switch (tab) {
         _Tab.overview => l10n.overview,
         _Tab.episodes => l10n.episodes,
-        _Tab.seasons => l10n.seasons,
         _Tab.cast => short ? l10n.cast : l10n.castAndCrew,
         _Tab.extras => l10n.extras,
         _Tab.related => short ? l10n.similar : l10n.moreLikeThis,
-        _Tab.seerr => _seerrLabel,
         _Tab.details => l10n.details,
       };
 
@@ -350,41 +300,13 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     final icon = switch (tab) {
       _Tab.overview => Icons.smart_display_outlined,
       _Tab.episodes => Icons.format_list_bulleted,
-      _Tab.seasons => Icons.layers_outlined,
       _Tab.cast => Icons.people_outline,
       _Tab.extras => Icons.video_library_outlined,
       _Tab.related => Icons.grid_view,
-      _Tab.seerr => null,
       _Tab.details => Icons.info_outline,
     };
-    return icon == null
-        ? SeerrIcon(size: 22, color: _ink())
-        : Icon(icon, color: _ink(), size: 22);
+    return Icon(icon, color: _ink(), size: 22);
   }
-
-  /// The Seerr tab's segments, and the related ones for a title that's only
-  /// in Seerr.
-  List<_Seg> _segs(_Tab tab, SeerrDetailPieces pieces) {
-    if (tab != _Tab.seerr && (tab != _Tab.related || !_vm.isSeerrOnly)) {
-      return const [];
-    }
-    return [
-      if (pieces.recommendations) _Seg.recommended,
-      if (pieces.similar) _Seg.similar,
-      if (tab == _Tab.seerr &&
-          _seerrInfo(pieces, AppLocalizations.of(context)).isNotEmpty)
-        _Seg.about,
-    ];
-  }
-
-  _Seg? _shownSeg(List<_Seg> segs) =>
-      segs.contains(_seg) ? _seg : segs.firstOrNull;
-
-  String _segLabel(_Seg seg, AppLocalizations l10n) => switch (seg) {
-    _Seg.recommended => l10n.recommendations,
-    _Seg.similar => l10n.similar,
-    _Seg.about => l10n.aboutTitle,
-  };
 
   List<AggregatedItem> get _allEpisodes =>
       _vm.item?.type == 'Season' ? _vm.episodes : _vm.seriesEpisodes;
@@ -431,9 +353,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
   }
 
   List<_Poster> _libraryPosters(DetailSectionVisibility sections) {
-    if (_vm.isSeerrOnly || !sections.shows(DetailSection.moreLikeThis)) {
-      return const [];
-    }
+    if (!sections.shows(DetailSection.moreLikeThis)) return const [];
     return [
       for (final item in _vm.similar)
         (
@@ -445,31 +365,11 @@ class _FrostDetailContentState extends State<FrostDetailContent>
                   maxHeight: 360,
                   tag: item.primaryImageTag,
                 ),
-          seerrStatus: null,
-          open: () =>
-              context.push(Destinations.item(item.id, serverId: item.serverId)),
-        ),
-    ];
-  }
-
-  List<_Poster> _seerrPosters(_Seg seg) {
-    final state = seerrItemTabState(_vm);
-    if (state == null) return const [];
-    return [
-      for (final item
-          in seg == _Seg.similar ? state.similar : state.recommendations)
-        (
-          title: item.title ?? item.name ?? '',
-          imageUrl: item.posterPath == null
-              ? null
-              : '$seerrPosterBase${item.posterPath}',
-          seerrStatus: item.mediaInfo?.status ?? SeerrMediaStatus.unknown,
-          open: () => context.push(
-            Destinations.seerrMedia(
-              item.id.toString(),
-              mediaType: item.mediaType ?? 'movie',
-            ),
-          ),
+          open: () => isOutsideLibraryItem(item)
+              ? showOutsideLibraryTitle(context, item.name)
+              : context.push(
+                  Destinations.item(item.id, serverId: item.serverId),
+                ),
         ),
     ];
   }
@@ -579,51 +479,19 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     ];
   }
 
-  List<_InfoGroup> _seerrInfo(SeerrDetailPieces pieces, AppLocalizations l10n) {
-    final state = seerrItemTabState(_vm);
-    if (state == null) return const [];
-    final keywords = state.keywords.map((keyword) => keyword.name).join(', ');
-    return [
-      if (pieces.stats)
-        (
-          _seerrLabel,
-          [
-            for (final (label, value) in SeerrStatsCard.rows(state, l10n))
-              _Row(label, value),
-          ],
-        ),
-      if (pieces.streaming)
-        (
-          l10n.seerrStreamingOn,
-          [
-            for (final provider in state.streamingProviders)
-              _Row(provider.name, '', provider.logoPath),
-          ],
-        ),
-      if (pieces.chips && keywords.isNotEmpty)
-        (null, [_Row(l10n.tags, keywords)]),
-    ];
-  }
-
   String? _imageFor(Map<String, dynamic> person) {
     final id = person['Id']?.toString();
     final tag = person['PrimaryImageTag'] as String?;
     if (id != null && tag != null) {
       return _vm.imageApi.getPrimaryImageUrl(id, maxHeight: 240, tag: tag);
     }
-    final path = person['ProfilePath'] as String?;
-    return path == null || path.isEmpty ? null : '$seerrProfileBase$path';
+    return null;
   }
 
   void _openPerson(Map<String, dynamic> person) {
     final id = person['Id']?.toString();
     if (id == null) return;
-    final serverId = _vm.item?.serverId;
-    context.push(
-      serverId == 'seerr'
-          ? Destinations.seerrPerson(id)
-          : Destinations.item(id, serverId: serverId),
-    );
+    context.push(Destinations.item(id, serverId: _vm.item?.serverId));
   }
 
   void _openEpisode(AggregatedItem episode) {
@@ -632,19 +500,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
       return;
     }
     context.push(Destinations.item(episode.id, serverId: episode.serverId));
-  }
-
-  void _requestSeason(AggregatedItem season) {
-    final seerr = _vm.seerr;
-    if (seerr == null) return;
-    final number = season.indexNumber ?? 0;
-    showSeerrRequestDialog(
-      context: context,
-      vm: seerr,
-      is4k: false,
-      qualityToggle: true,
-      season: number > 0 ? number : null,
-    );
   }
 
   void _readMore(AggregatedItem item, String overview) {
@@ -702,7 +557,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     final l10n = AppLocalizations.of(context);
     final sections = DetailSectionVisibility.of(widget.prefs);
     final phone = !detailUsesLandscapeLayout(context);
-    final tabs = _tabs(item, sections, phone: phone);
+    final tabs = _tabs(item, sections);
     if (!tabs.contains(_tab)) _tab = _Tab.overview;
 
     if (phone) return _phone(item, sections, tabs, l10n);
@@ -819,7 +674,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
   /// The audio, subtitle and version pickers, which the button row owns.
   List<DetailTrackChoice> _trackChoices(AppLocalizations l10n) {
     final actions = actionsKey.currentState;
-    if (actions == null && !_vm.isSeerrOnly) {
+    if (actions == null) {
       // The button row holds the tracks, so they show a frame after it.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && actionsKey.currentState != null) setState(() {});
@@ -1050,11 +905,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     DetailSectionVisibility sections,
     AppLocalizations l10n,
   ) {
-    final pieces = _pieces(sections);
-    final segs = _segs(_tab, pieces);
-    final seg = _shownSeg(segs);
-    final segIndex = seg == null ? -1 : segs.indexOf(seg);
-
     final Widget? picker;
     final VoidCallback? upFromTop;
     if (_tab == _Tab.episodes && _seasonNumbers.length > 1) {
@@ -1063,20 +913,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
         _Tab.episodes,
         'seg-${_seasonNumbers.indexOf(_shownSeason!)}',
       ).requestFocus();
-    } else if (segs.length > 1) {
-      final tab = _tab;
-      picker = _segmentPicker(
-        tab: tab,
-        labels: [for (final option in segs) _segLabel(option, l10n)],
-        selected: segIndex,
-        onPick: (index) => setState(() {
-          _seg = segs[index];
-          _memory.remove(tab);
-        }),
-        onDown: () => _enter(_node(tab, 0)),
-        phone: false,
-      );
-      upFromTop = () => _node(tab, 'seg-$segIndex').requestFocus();
     } else {
       picker = null;
       upFromTop = null;
@@ -1099,37 +935,25 @@ class _FrostDetailContentState extends State<FrostDetailContent>
           ),
         ),
       ),
-      _Tab.seasons => area(
-        top: 108,
-        _scroll(Column(spacing: 8, children: _seasonTiles(phone: false))),
-      ),
       _Tab.cast => area(
         left: 48,
         top: 108,
         _scroll(_castGrid(columns: 5, phone: false)),
       ),
       _Tab.extras => area(_scroll(_extrasGrid(columns: 3, phone: false))),
-      _Tab.seerr when seg == _Seg.about => area(
-        left: 56,
-        _details(_seerrInfo(pieces, l10n), phone: false, upFromTop: upFromTop),
-      ),
-      _Tab.related || _Tab.seerr => area(
+      _Tab.related => area(
         _scroll(
           _posterGrid(
-            seg == null ? _libraryPosters(sections) : _seerrPosters(seg),
+            _libraryPosters(sections),
             columns: 7,
             gap: 6,
             phone: false,
-            upFromTop: upFromTop,
           ),
         ),
       ),
       _Tab.details => area(
         left: 56,
-        _details([
-          ..._info(item, sections, l10n),
-          if (_vm.isSeerrOnly) ..._seerrInfo(pieces, l10n),
-        ], phone: false),
+        _details(_info(item, sections, l10n), phone: false),
       ),
     };
 
@@ -1189,123 +1013,11 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     ),
   );
 
-  Widget _logo(String? path, {required double size}) => ClipRRect(
-    borderRadius: AppRadius.circular(size / 4),
-    child: SizedBox.square(
-      dimension: size,
-      child: path == null
-          ? ColoredBox(color: _ink(0.12))
-          : OfflineAwareImage(
-              imageUrl: '$seerrLogoBase$path',
-              fit: BoxFit.cover,
-              errorWidget: (_, _, _) => const SizedBox.shrink(),
-            ),
-    ),
-  );
-
-  /// How far in the viewer is, what's downloading, or for a title that's
-  /// only in Seerr, where its request stands.
+  /// How far in the viewer is.
   Widget? _status(AggregatedItem item, AppLocalizations l10n) {
-    final downloads = seerrItemDownloads(_vm);
-    if (downloads != null) return SeerrItemDownloadBars(state: downloads);
     final phone = !detailUsesLandscapeLayout(context);
-    if (!_vm.isSeerrOnly) {
-      final resume = resumeLine(item, l10n);
-      return resume == null ? null : _resumeBar(resume, phone: phone);
-    }
-    final state = _vm.seerr?.state;
-    if (state == null || state.tmdbId == 0) return null;
-    final dot = phone ? 8.0 : 10.0;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: dot,
-          height: dot,
-          decoration: BoxDecoration(
-            color: seerrStatusColor(state.hd.status),
-            shape: BoxShape.circle,
-          ),
-        ),
-        SizedBox(width: phone ? 8 : 12),
-        Flexible(
-          child: Text(
-            seerrStatusLabel(state.hd, l10n),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: _ink(0.8),
-              fontSize: phone ? 13 : 16,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Where a title that's only in Seerr streams, in place of the track
-  /// pickers it has none of.
-  Widget? _whereToWatch(
-    DetailSectionVisibility sections,
-    AppLocalizations l10n, {
-    required bool phone,
-  }) {
-    final state = seerrItemTabState(_vm);
-    if (!_vm.isSeerrOnly || state == null || !_pieces(sections).streaming) {
-      return null;
-    }
-    final providers = state.streamingProviders;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _heading(l10n.seerrStreamingOn, phone: phone),
-        Container(
-          padding: phone
-              ? const EdgeInsets.fromLTRB(10, 10, 16, 10)
-              : const EdgeInsets.fromLTRB(12, 12, 16, 12),
-          decoration: BoxDecoration(
-            color: _ink(phone ? 0.07 : 0.1),
-            borderRadius: AppRadius.circular(phone ? 20 : 22),
-          ),
-          child: Row(
-            children: [
-              _logo(providers.first.logoPath, size: phone ? 44 : 52),
-              SizedBox(width: phone ? 12 : 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      providers.first.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: _ink(),
-                        fontSize: phone ? 16 : 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (providers.length > 1)
-                      Text(
-                        providers.skip(1).map((p) => p.name).join(', '),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: _muted,
-                          fontSize: phone ? 13 : 15,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+    final resume = resumeLine(item, l10n);
+    return resume == null ? null : _resumeBar(resume, phone: phone);
   }
 
   Widget _tvOverview(
@@ -1324,9 +1036,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     final overview = overviewText(item);
     final credits = _credits(sections, l10n);
     final choices = _trackChoices(l10n);
-    final watch = choices.isEmpty
-        ? _whereToWatch(sections, l10n, phone: false)
-        : null;
     final textNode = _node(_Tab.overview, 'text');
     final hasText = overview != null;
 
@@ -1408,7 +1117,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
               widget.selectedMediaSourceId,
             ),
             upcomingEpisode: _vm.upcomingEpisode,
-            seerrStatus: _vm.isSeerrOnly ? null : seerrItemStatus(_vm),
           ),
           if (status != null) ...[const SizedBox(height: 14), status],
           if (ratings != null) ...[
@@ -1445,7 +1153,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
                     ],
                   ),
                 ),
-              if (watch != null) SizedBox(width: 356, child: watch),
             ],
           ),
         ],
@@ -1889,8 +1596,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     required double radius,
     double? progress,
     double aspect = 16 / 9,
-    int? seerrStatus,
-    double badge = 26,
   }) => ClipRRect(
     borderRadius: AppRadius.circular(radius),
     child: SizedBox(
@@ -1906,26 +1611,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
               fit: BoxFit.cover,
               errorWidget: (_, _, _) => const SizedBox.shrink(),
             ),
-          ...switch (SeerrMediaStatus.hasDot(seerrStatus)
-              ? seerrBadgeStyle()
-              : null) {
-            SeerrBadgeStyle.badge => [
-              Positioned(
-                right: badge / 3,
-                top: badge / 3,
-                child: SeerrStatusDot(status: seerrStatus, size: badge),
-              ),
-            ],
-            SeerrBadgeStyle.banner => [
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: SeerrStatusBanner(status: seerrStatus),
-              ),
-            ],
-            null => const <Widget>[],
-          },
           if (progress != null)
             Positioned(
               left: 8,
@@ -1945,158 +1630,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
       ),
     ),
   );
-
-  /// A show that's only in Seerr, season by season, each with its poster and
-  /// where its request stands. Picking one asks for it.
-  List<Widget> _seasonTiles({required bool phone}) {
-    final l10n = AppLocalizations.of(context);
-    final seasons = _vm.seasons;
-    final state = _vm.seerr?.state;
-    final status = state?.hd.seasonStatus ?? const <int, int>{};
-    final details = {
-      for (final season in state?.tv?.seasons ?? const <SeerrSeason>[])
-        season.seasonNumber: season,
-    };
-    return [
-      for (final (index, season) in seasons.indexed)
-        _seasonTile(
-          season,
-          details[season.indexNumber],
-          index,
-          seasons.length,
-          status[season.indexNumber],
-          l10n,
-          phone: phone,
-        ),
-    ];
-  }
-
-  Widget _seasonTile(
-    AggregatedItem season,
-    SeerrSeason? details,
-    int index,
-    int count,
-    int? status,
-    AppLocalizations l10n, {
-    required bool phone,
-  }) {
-    final node = _node(_Tab.seasons, index);
-    final keys = _gridKeys(index, count, 1);
-    final number = season.indexNumber;
-    final episodes = season.childCount;
-    final airDate = details?.airDate;
-    final year = airDate != null && airDate.length >= 4
-        ? airDate.substring(0, 4)
-        : null;
-    final caps = [
-      if (number != null) l10n.seasonNumber(number).toUpperCase(),
-      ?year,
-    ].join(' · ');
-    final poster = details?.posterPath;
-    return _FrostFocus(
-      focusNode: node,
-      onFocusChange: (focused) => _remember(_Tab.seasons, node, focused),
-      onSelect: () => _requestSeason(season),
-      onLeft: keys.left,
-      onRight: keys.right,
-      onUp: keys.up,
-      onDown: keys.down,
-      autoScroll: true,
-      builder: (context, focused) => AnimatedContainer(
-        duration: _duration,
-        height: phone ? null : 120,
-        padding: phone
-            ? const EdgeInsets.symmetric(vertical: 8)
-            : const EdgeInsets.fromLTRB(6, 6, 26, 6),
-        decoration: BoxDecoration(
-          color: focused ? _platter : Colors.transparent,
-          borderRadius: AppRadius.circular(28),
-        ),
-        child: Row(
-          children: [
-            AnimatedScale(
-              scale: focused ? 1.05 : 1,
-              duration: _duration,
-              child: _thumb(
-                poster == null ? null : '$seerrPosterBase$poster',
-                width: phone ? 56 : 72,
-                radius: phone ? 12 : 16,
-                aspect: 2 / 3,
-              ),
-            ),
-            SizedBox(width: phone ? 14 : 22),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (caps.isNotEmpty)
-                    Text(
-                      caps,
-                      style: TextStyle(
-                        color: _muted,
-                        fontSize: phone ? 11 : 13,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.6,
-                      ),
-                    ),
-                  Text(
-                    season.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _ink(),
-                      fontSize: phone ? 16 : 22,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  if (episodes != null && episodes > 0)
-                    Text(
-                      l10n.episodeCount(episodes),
-                      style: TextStyle(
-                        color: _muted,
-                        fontSize: phone ? 13 : 15,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Container(
-              height: phone ? 28 : 34,
-              padding: EdgeInsets.symmetric(horizontal: phone ? 12 : 16),
-              decoration: BoxDecoration(
-                color: _ink(0.08),
-                borderRadius: AppRadius.circular(phone ? 14 : 17),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                spacing: phone ? 7 : 9,
-                children: [
-                  Container(
-                    width: phone ? 8 : 10,
-                    height: phone ? 8 : 10,
-                    decoration: BoxDecoration(
-                      color: seerrStatusColor(status),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  Text(
-                    seerrMediaStatusLabel(status, l10n),
-                    style: TextStyle(
-                      color: _ink(),
-                      fontSize: phone ? 13 : 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _castGrid({required int columns, required bool phone}) {
     final people = _vm.actors;
@@ -2272,21 +1805,13 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     required int columns,
     required double gap,
     required bool phone,
-    VoidCallback? upFromTop,
   }) => _grid(
     columns: columns,
     gap: gap,
     runGap: gap,
     children: [
       for (final (index, poster) in posters.indexed)
-        _posterTile(
-          poster,
-          index,
-          posters.length,
-          columns,
-          phone: phone,
-          upFromTop: upFromTop,
-        ),
+        _posterTile(poster, index, posters.length, columns, phone: phone),
     ],
   );
 
@@ -2296,13 +1821,9 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     int count,
     int columns, {
     required bool phone,
-    VoidCallback? upFromTop,
-    String prefix = '',
   }) {
-    final node = _node(_tab, '$prefix$index');
-    final keys = _gridKeys(index, count, columns, upFromTop: upFromTop);
-    final l10n = AppLocalizations.of(context);
-    final status = poster.seerrStatus;
+    final node = _node(_tab, index);
+    final keys = _gridKeys(index, count, columns);
     return _FrostFocus(
       focusNode: node,
       onFocusChange: (focused) => _remember(_tab, node, focused),
@@ -2333,8 +1854,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
                   width: constraints.maxWidth,
                   radius: phone ? 12 : 16,
                   aspect: 2 / 3,
-                  seerrStatus: status,
-                  badge: phone ? 22 : 26,
                 ),
               ),
             ),
@@ -2349,17 +1868,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
                 fontWeight: FontWeight.w600,
               ),
             ),
-            if (status != null)
-              Text(
-                seerrMediaStatusLabel(status, l10n),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: seerrStatusColor(status),
-                  fontSize: phone ? 12 : 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
           ],
         ),
       ),
@@ -2369,11 +1877,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
   /// Grouped label and value rows. On a TV the whole of it is one stop, so
   /// there's somewhere to land and Back and the toolbar are a press away, and
   /// Up and Down scroll it while there's more to see.
-  Widget _details(
-    List<_InfoGroup> groups, {
-    required bool phone,
-    VoidCallback? upFromTop,
-  }) {
+  Widget _details(List<_InfoGroup> groups, {required bool phone}) {
     Widget group(_InfoGroup info, bool focused) => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -2403,10 +1907,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
                   ),
                   child: Row(
                     children: [
-                      if (row.logoPath != null) ...[
-                        _logo(row.logoPath, size: phone ? 28 : 30),
-                        SizedBox(width: phone ? 12 : 16),
-                      ],
                       Text(
                         row.label,
                         style: TextStyle(
@@ -2448,7 +1948,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
       onLeft: _toSidebar,
       onRight: () {},
       onUp: () {
-        if (!_scrollDetails(-160)) (upFromTop ?? _toNavbar)();
+        if (!_scrollDetails(-160)) _toNavbar();
       },
       onDown: () {
         if (!_scrollDetails(160)) _toActions();
@@ -2545,7 +2045,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
                 widget.selectedMediaSourceId,
               ),
               upcomingEpisode: _vm.upcomingEpisode,
-              seerrStatus: _vm.isSeerrOnly ? null : seerrItemStatus(_vm),
             ),
             const SizedBox(height: 14),
             _phoneTabs(tabs, l10n),
@@ -2647,72 +2146,20 @@ class _FrostDetailContentState extends State<FrostDetailContent>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [_seasonPicker(phone: true), ..._episodeTiles(phone: true)],
         );
-      case _Tab.seasons:
-        return Column(spacing: 8, children: _seasonTiles(phone: true));
       case _Tab.cast:
         return _castGrid(columns: 3, phone: true);
       case _Tab.extras:
         return _extrasGrid(columns: 1, phone: true);
       case _Tab.related:
-      case _Tab.seerr:
-        return _phoneRelated(sections, l10n);
+        return _posterGrid(
+          _libraryPosters(sections),
+          columns: 3,
+          gap: 10,
+          phone: true,
+        );
       case _Tab.details:
-        return _details([
-          ..._info(item, sections, l10n),
-          ..._seerrInfo(_pieces(sections), l10n),
-        ], phone: true);
+        return _details(_info(item, sections, l10n), phone: true);
     }
-  }
-
-  /// The library's own matches in a grid, then Seerr's lists as rows that
-  /// scroll across.
-  Widget _phoneRelated(
-    DetailSectionVisibility sections,
-    AppLocalizations l10n,
-  ) {
-    final library = _libraryPosters(sections);
-    final pieces = _pieces(sections);
-    final rows = [
-      if (pieces.recommendations)
-        (_Seg.recommended, _seerrPosters(_Seg.recommended)),
-      if (pieces.similar) (_Seg.similar, _seerrPosters(_Seg.similar)),
-    ];
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (library.isNotEmpty) ...[
-          if (rows.isNotEmpty) _heading(l10n.moreLikeThis, phone: true),
-          _posterGrid(library, columns: 3, gap: 10, phone: true),
-          const SizedBox(height: 22),
-        ],
-        for (final (seg, posters) in rows) ...[
-          _heading('$_seerrLabel · ${_segLabel(seg, l10n)}', phone: true),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            clipBehavior: Clip.none,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 10,
-              children: [
-                for (final (index, poster) in posters.indexed)
-                  SizedBox(
-                    width: 108,
-                    child: _posterTile(
-                      poster,
-                      index,
-                      posters.length,
-                      posters.length,
-                      phone: true,
-                      prefix: '${seg.name}-',
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 22),
-        ],
-      ],
-    );
   }
 
   Widget _phoneOverview(
@@ -2730,7 +2177,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     final overview = overviewText(item);
     final credits = _credits(sections, l10n);
     final choices = _trackChoices(l10n);
-    final watch = _whereToWatch(sections, l10n, phone: true);
     const tints = [Color(0xFF0A84FF), Color(0xFFFF9F0A), Color(0xFF5E5CE6)];
 
     return Column(
@@ -2855,7 +2301,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
             ),
           ),
         ],
-        if (watch != null) ...[const SizedBox(height: 22), watch],
       ],
     );
   }

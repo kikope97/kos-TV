@@ -88,6 +88,7 @@ import '../../widgets/bounded_network_image.dart';
 import '../../navigation/route_lifecycle_observer.dart';
 import '../../screensaver/screensaver_controller.dart';
 import '../../util/home_row_title_localizer.dart';
+import '../../util/outside_library_title.dart';
 import '../../../util/game_library.dart';
 import 'home_backdrop.dart';
 import 'home_row_card_image.dart';
@@ -6640,17 +6641,20 @@ class _ContentRowsState extends State<_ContentRows>
     );
   }
 
-  /// An outside title the library lacks has no page to open.
+  /// A title from an outside list opens the server's own copy, if it has
+  /// one; otherwise a note says it isn't there yet.
   static void _showNotHereYet(BuildContext context, AggregatedItem item) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            AppLocalizations.of(context).kostvDiscoverNotHereYet(item.name),
-          ),
-        ),
-      );
+    openOutsideLibraryTitle(
+      context,
+      title: item.name,
+      tmdbId: item.tmdbId,
+      imdbId: item.imdbId,
+      series: switch (item.type) {
+        'Series' => true,
+        'Movie' => false,
+        _ => null,
+      },
+    );
   }
 
   static bool _isContinueWatchingOrNextUp(HomeRow row) =>
