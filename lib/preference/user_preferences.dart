@@ -2030,9 +2030,10 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: true,
   );
 
+  // Kos TV: 24-hour time, as is usual in Spain.
   static final use24HourClock = Preference(
     key: 'pref_use_24_hour_clock',
-    defaultValue: false,
+    defaultValue: true,
   );
 
   static final dateFormat = EnumPreference(

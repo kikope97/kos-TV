@@ -13,6 +13,7 @@ import '../../mixins/focus_state_mixin.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/apps/app_tile.dart';
 import '../../widgets/navigation_layout.dart';
+import '../calendar/calendar_common.dart';
 import '../downloads/widgets/saved_media_menu.dart';
 
 /// Kos TV: every app installed on the TV, like a launcher's app drawer. The
@@ -91,11 +92,12 @@ class _AllAppsScreenState extends State<AllAppsScreen> {
     if (!_apps.isLoaded) {
       content = const Center(child: CircularProgressIndicator());
     } else {
+      // The same room around the navigation bar as Calendar leaves.
+      final insets = calendarChromeInsets(context);
       content = LayoutBuilder(
         builder: (context, constraints) {
-          const padding = 48.0;
           const spacing = 20.0;
-          final usable = constraints.maxWidth - padding * 2;
+          final usable = constraints.maxWidth - insets.left - insets.right;
           final columns = (usable / 260).floor().clamp(2, 8);
           final tileWidth = (usable - spacing * (columns - 1)) / columns;
           final tileHeight = tileWidth * 9 / 16;
@@ -103,7 +105,12 @@ class _AllAppsScreenState extends State<AllAppsScreen> {
           return CustomScrollView(
             slivers: [
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(padding, 24, padding, 16),
+                padding: EdgeInsets.fromLTRB(
+                  insets.left,
+                  insets.top,
+                  insets.right,
+                  16,
+                ),
                 sliver: SliverToBoxAdapter(
                   child: Text(
                     l10n.kostvAllApps,
@@ -116,7 +123,7 @@ class _AllAppsScreenState extends State<AllAppsScreen> {
                 ),
               ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(padding, 0, padding, 48),
+                padding: EdgeInsets.fromLTRB(insets.left, 0, insets.right, 48),
                 sliver: SliverGrid(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: columns,
@@ -157,7 +164,24 @@ class _AllAppsScreenState extends State<AllAppsScreen> {
     }
     return Scaffold(
       backgroundColor: AppColorScheme.background,
-      body: NavigationLayout(activeRoute: Destinations.apps, child: content),
+      body: NavigationLayout(
+        activeRoute: Destinations.apps,
+        // The arrows move between cards, as on the Live TV guide; on the web
+        // they would otherwise scroll the page.
+        child: Shortcuts(
+          shortcuts: const {
+            SingleActivator(LogicalKeyboardKey.arrowUp):
+                DirectionalFocusIntent(TraversalDirection.up),
+            SingleActivator(LogicalKeyboardKey.arrowDown):
+                DirectionalFocusIntent(TraversalDirection.down),
+            SingleActivator(LogicalKeyboardKey.arrowLeft):
+                DirectionalFocusIntent(TraversalDirection.left),
+            SingleActivator(LogicalKeyboardKey.arrowRight):
+                DirectionalFocusIntent(TraversalDirection.right),
+          },
+          child: content,
+        ),
+      ),
     );
   }
 }

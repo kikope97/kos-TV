@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -50,7 +51,14 @@ class InstalledAppsService extends ChangeNotifier {
     @visibleForTesting MethodChannel? channel,
     @visibleForTesting bool? supported,
   }) : _channel = channel ?? const MethodChannel('org.moonfin.androidtv/platform'),
-       isSupported = supported ?? (!kIsWeb && PlatformDetection.isAndroid);
+       isSupported =
+           supported ?? (_demoApps || (!kIsWeb && PlatformDetection.isAndroid));
+
+  /// For screenshots off a TV: with --dart-define=KOSTV_DEMO_APPS=true the
+  /// list comes from kostv_demo_apps.json next to the web page (entries like
+  /// the TV's, with the art in base64) and opening an app does nothing.
+  /// Release builds never set it.
+  static const _demoApps = bool.fromEnvironment('KOSTV_DEMO_APPS');
 
   final UserPreferences _prefs;
   final MethodChannel _channel;
@@ -97,6 +105,10 @@ class InstalledAppsService extends ChangeNotifier {
   Future<void> ensureLoaded() => _loaded ? Future.value() : refresh();
 
   Future<void> _load() async {
+    if (_demoApps) {
+      await _loadDemo();
+      return;
+    }
     try {
       final raw = await _channel.invokeMethod<List<Object?>>('listInstalledApps');
       _apps = [
@@ -112,8 +124,31 @@ class InstalledAppsService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _loadDemo() async {
+    try {
+      final response = await Dio().get<List<dynamic>>(
+        Uri.base.resolve('kostv_demo_apps.json').toString(),
+      );
+      _apps = [
+        for (final entry in response.data ?? const [])
+          if (entry is Map)
+            ?InstalledApp.fromMap({
+              ...entry,
+              'art': entry['art'] is String
+                  ? base64Decode(entry['art'] as String)
+                  : null,
+            }),
+      ];
+    } catch (e) {
+      debugPrint('[InstalledApps] demo list failed: $e');
+    }
+    _loaded = true;
+    notifyListeners();
+  }
+
   /// Opens [app]. False if the TV couldn't open it (uninstalled meanwhile).
   Future<bool> launch(InstalledApp app) async {
+    if (_demoApps) return true;
     try {
       final opened = await _channel.invokeMethod<bool>(
         'launchInstalledApp',
