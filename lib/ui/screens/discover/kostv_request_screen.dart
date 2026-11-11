@@ -1911,15 +1911,18 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
                     : null,
               ),
             SizedBox(width: fontSize * 0.5),
+            // A long one shrinks a little to fit rather than being cut.
             Flexible(
-              child: Text(
-                main.label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: onColor,
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w700,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  main.label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: onColor,
+                    fontSize: fontSize,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ),
