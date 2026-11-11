@@ -466,6 +466,19 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
                 "installApk" -> result.success(
                     UpdateInstaller.install(this, call.argument<String>("path") ?: ""),
                 )
+                // Kos TV: the installed apps (see InstalledApps). Drawing the
+                // banners takes a moment, so the list is built off the main thread.
+                "listInstalledApps" -> {
+                    val context = applicationContext
+                    Thread {
+                        val apps = runCatching { InstalledApps.list(context) }.getOrElse { emptyList() }
+                        runOnUiThread { result.success(apps) }
+                    }.start()
+                }
+                "launchInstalledApp" -> result.success(
+                    InstalledApps.launch(this, call.argument<String>("package") ?: ""),
+                )
+                "openSystemSettings" -> result.success(InstalledApps.openSystemSettings(this))
                 "exitApp" -> {
                     result.success(true)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {

@@ -2759,6 +2759,15 @@ class UserPreferences extends ChangeNotifier {
     values: DolbyVisionProfile7DirectPlayBehavior.values,
   );
 
+  // Kos TV: the apps on the Apps row of Home, as a JSON list of package names
+  // in their order. Empty until the user changes it: the row then shows the
+  // usual streaming apps that are installed (InstalledAppsService). Kept on
+  // each device, since each TV has its own apps.
+  static final homeApps = Preference<String>(
+    key: 'kostv_home_apps',
+    defaultValue: '',
+  );
+
   // Kos TV: Spanish out of the box, whatever language the TV is set to. The
   // picker still offers the system language and English.
   static final languageOverride = Preference<String>(
