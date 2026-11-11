@@ -173,8 +173,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     super.initState();
     FocusManager.instance.addListener(_trackHome);
     final type = _vm.item?.type;
-    if ((type == 'Series' || type == 'Episode') &&
-        _vm.seriesEpisodes.isEmpty) {
+    if ((type == 'Series' || type == 'Episode') && _vm.seriesEpisodes.isEmpty) {
       final vm = _vm;
       vm.loadAllSeriesEpisodes().whenComplete(() {
         if (mounted && identical(vm, _vm)) setState(() {});

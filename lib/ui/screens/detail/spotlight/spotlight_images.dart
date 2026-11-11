@@ -55,7 +55,11 @@ String? spotlightLandscapeImageUrl(
 }) {
   final thumbTag = item.thumbImageTag;
   if (thumbTag != null) {
-    return imageApi.getThumbImageUrl(item.id, maxWidth: maxWidth, tag: thumbTag);
+    return imageApi.getThumbImageUrl(
+      item.id,
+      maxWidth: maxWidth,
+      tag: thumbTag,
+    );
   }
   if (item.backdropImageTags.isNotEmpty) {
     return imageApi.getBackdropImageUrl(

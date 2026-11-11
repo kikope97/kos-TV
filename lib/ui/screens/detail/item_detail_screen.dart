@@ -7725,7 +7725,6 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
       }
     }
 
-
     return Focus(
       canRequestFocus: false,
       skipTraversal: true,

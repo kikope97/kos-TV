@@ -629,8 +629,7 @@ class _StageDetailContentState extends State<StageDetailContent>
 
     // An episode's still is short, so its show's episodes run full width
     // under it rather than squeezing in beside it.
-    if (item.type == 'Episode' &&
-        sections.shows(DetailSection.moreEpisodes)) {
+    if (item.type == 'Episode' && sections.shows(DetailSection.moreEpisodes)) {
       out.add(_episodesSection(item, besidePoster: false));
     }
 

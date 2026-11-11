@@ -113,14 +113,9 @@ class SeasonCard extends StatelessWidget {
                 ),
               ),
               // Top left, with the watched badges top right.
-              if (badge != null)
-                Positioned(top: 6, left: 6, child: badge!),
+              if (badge != null) Positioned(top: 6, left: 6, child: badge!),
               if (isPlayed)
-                Positioned(
-                  top: 6,
-                  right: 6,
-                  child: MediaWatchedBadge(size: 22),
-                )
+                Positioned(top: 6, right: 6, child: MediaWatchedBadge(size: 22))
               else if (unplayedCount != null && unplayedCount! > 0)
                 Positioned(
                   top: 6,

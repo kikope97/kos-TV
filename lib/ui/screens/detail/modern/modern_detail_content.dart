@@ -3193,19 +3193,9 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
                 isFavorite: entry.isFavorite,
                 itemType: entry.type,
                 watchedBehavior: watchedBehavior,
-                onTap: () {
-                  if (entry.serverId == 'seerr') {
-                    final mediaType = entry.seerrMediaType ??
-                        (entry.type == 'Series' ? 'tv' : 'movie');
-                    context.push(
-                      Destinations.seerrMedia(entry.id, mediaType: mediaType),
-                    );
-                  } else {
-                    context.push(
-                      Destinations.item(entry.id, serverId: entry.serverId),
-                    );
-                  }
-                },
+                onTap: () => context.push(
+                  Destinations.item(entry.id, serverId: entry.serverId),
+                ),
               );
             },
           ),
@@ -3294,35 +3284,26 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
                 Builder(
                   builder: (cellContext) {
                     final entry = items[i];
-                    final isSeerrItem =
-                        entry.id.startsWith('tmdb:') || entry.serverId == 'seerr';
+                    final isOutside = isOutsideLibraryItem(entry);
                     final topRow = i < columns;
                     return MediaCard(
-                      posterBadgeItemId: isSeerrItem ? null : entry.id,
+                      posterBadgeItemId: isOutside ? null : entry.id,
                       title: entry.name,
                       titleColor: titleColor,
                       imageUrl: _imageUrl(entry),
                       width: cardWidth,
                       aspectRatio: cardRatio,
-                      isPlayed: isSeerrItem ? false : entry.isPlayed,
-                      isFavorite: isSeerrItem ? false : entry.isFavorite,
+                      isPlayed: isOutside ? false : entry.isPlayed,
+                      isFavorite: isOutside ? false : entry.isFavorite,
                       itemType: entry.type,
                       focusNode: i == 0 ? firstFocusNode : null,
                       focusColor: focusColor,
                       cardFocusExpansion: cardExpansion,
                       suppressFocusGlow: isNeon,
-                      watchedBehavior: isSeerrItem
+                      watchedBehavior: isOutside
                           ? WatchedIndicatorBehavior.never
                           : watchedBehavior,
-                      imageOverlays: [
-                        if (isSeerrItem)
-                          const Positioned(
-                            top: 4,
-                            right: 4,
-                            child: SeerrBadge(size: 18),
-                          ),
-                      ],
-                      onLongPress: isSeerrItem || onItemLongPress == null
+                      onLongPress: isOutside || onItemLongPress == null
                           ? null
                           : () => onItemLongPress(entry),
                       onFocus: () => Scrollable.ensureVisible(
@@ -3343,23 +3324,8 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
                             }
                           : null,
                       onTap: () {
-                        if (entry.serverId == 'seerr') {
-                          final mediaType = entry.seerrMediaType ??
-                              (entry.type == 'Series' ? 'tv' : 'movie');
-                          final tmdbId = entry.tmdbId;
-                          final targetId = (tmdbId != null && tmdbId.isNotEmpty)
-                              ? tmdbId
-                              : entry.id.replaceAll(
-                                  RegExp(r'^tmdb:(?:movie:|tv:)?'),
-                                  '',
-                                );
-                          context.push(
-                            Destinations.seerrMedia(
-                              targetId,
-                              mediaType: mediaType,
-                              title: entry.name,
-                            ),
-                          );
+                        if (isOutside) {
+                          showOutsideLibraryTitle(context, entry.name);
                         } else {
                           context.push(
                             Destinations.itemOrPhoto(
@@ -4470,11 +4436,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
           if (item.genres.isNotEmpty) {
             addText(item.genres.take(3).join(' · '));
           }
-        case DetailMetadataItem.seerrAvailability:
-          final seerrStatus = seerrItemStatus(_vm);
-          if (seerrStatus != null) {
-            pieces.add(SeerrStatusPills(state: seerrStatus, onlyNoteworthy: true));
-          }
       }
     }
 
@@ -4864,16 +4825,13 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
 
   String? _imageUrl(AggregatedItem item) {
     final tag = item.primaryImageTag;
-    if (tag != null && !item.id.startsWith('tmdb:')) {
+    if (tag != null) {
       return _vm.imageApi.getPrimaryImageUrl(item.id, maxHeight: 360, tag: tag);
     }
+    // A title from outside the library carries a TMDB poster instead.
     final posterPath = item.rawData['PosterPath'] as String?;
     if (posterPath != null && posterPath.isNotEmpty) {
       return 'https://image.tmdb.org/t/p/w342$posterPath';
-    }
-    final profilePath = item.rawData['ProfilePath'] as String?;
-    if (profilePath != null && profilePath.isNotEmpty) {
-      return 'https://image.tmdb.org/t/p/w500$profilePath';
     }
     return null;
   }

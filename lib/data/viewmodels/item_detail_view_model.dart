@@ -102,13 +102,12 @@ class ParentCollection {
     required this.items,
   });
 
-  ParentCollection withItems(List<AggregatedItem> updated) =>
-      ParentCollection(
-        id: id,
-        name: name,
-        boxSetItem: boxSetItem,
-        items: updated,
-      );
+  ParentCollection withItems(List<AggregatedItem> updated) => ParentCollection(
+    id: id,
+    name: name,
+    boxSetItem: boxSetItem,
+    items: updated,
+  );
 }
 
 /// Where the detail page's similar-titles list came from, so a section can be
@@ -127,9 +126,8 @@ List<AggregatedItem> sortJellyfinFilmography(
 ) {
   final sorted = List<AggregatedItem>.from(items);
   if (sortOption == 'alphabetical') {
-    return sorted..sort(
-      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
-    );
+    return sorted
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
   }
 
   final ascending = sortOption == 'releaseDateAsc';
