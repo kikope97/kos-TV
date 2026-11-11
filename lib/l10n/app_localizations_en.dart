@@ -78,9 +78,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get username => 'Username';
 
   @override
-  String get email => 'Email';
-
-  @override
   String get quickConnectInstruction =>
       'Enter this code on your server\'s web dashboard:';
 
@@ -287,40 +284,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get spotlightMoviesAndShows => 'Movies & Shows';
 
   @override
-  String get spotlightSimilarSeerr => 'Similar (Seerr)';
-
-  @override
-  String get spotlightRecommendationsSeerr => 'Recommendations (Seerr)';
-
-  @override
   String spotlightPeopleCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: '$count people',
       one: '1 person',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String spotlightFactsCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count facts',
-      one: '1 fact',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String spotlightTagsCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count tags',
-      one: '1 tag',
     );
     return '$_temp0';
   }
@@ -505,7 +474,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get recommendationSystemSubtitle =>
-      'Use kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server\'s engine) or TMDb\'s similarity metrics online. Note: Online recommendations require Seerr integration.';
+      'Use kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server\'s engine) or TMDb\'s similarity metrics online.';
 
   @override
   String get recommendationSystemMoonfin => 'kOS TV Recommends';
@@ -2918,11 +2887,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String seasonChip(int number) {
-    return 'S$number';
-  }
-
-  @override
   String get specials => 'Specials';
 
   @override
@@ -3370,7 +3334,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get seasonalRowDescription =>
-      'Show a row of holiday movies from your library, with Seerr suggestions when available.';
+      'Show a row of holiday movies from your library.';
 
   @override
   String get seasonalRowSubtitle => 'Seasonal';
@@ -3698,13 +3662,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get detailMetadataGenres => 'Genres';
 
   @override
-  String get detailMetadataSeerrAvailability => 'Seerr Availability';
-
-  @override
-  String get detailMetadataSeerrAvailabilitySubtitle =>
-      'Shows request and media availability status from Seerr';
-
-  @override
   String get detailMetadataUpcomingEpisodeDate => 'Upcoming Episodes';
 
   @override
@@ -3798,36 +3755,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get detailSectionMediaInfoSubtitle =>
       'File, streams and Direct Play check';
-
-  @override
-  String get detailSectionSeerrGenresTags => 'Genres & tags';
-
-  @override
-  String get detailSectionSeerrStats => 'Stats';
-
-  @override
-  String get detailSectionSeerrStreaming => 'Streaming services';
-
-  @override
-  String get seerrStreamingOn => 'Streaming on';
-
-  @override
-  String get detailSectionSeerrRecommendations => 'Recommendations';
-
-  @override
-  String get detailSectionSeerrSimilar => 'Similar titles';
-
-  @override
-  String get detailSectionSeerrCollection => 'Collection banner';
-
-  @override
-  String get detailSectionSeerrPersonAppearances => 'Appearances';
-
-  @override
-  String get detailSectionSeerrPersonCrew => 'Crew credits';
-
-  @override
-  String get detailSectionPersonPagesSubtitle => 'On person pages';
 
   @override
   String get detailSectionBiography => 'Biography';
@@ -3993,9 +3920,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get autoServerDefault => 'Auto (Server Default)';
-
-  @override
-  String get english => 'English';
 
   @override
   String get spanish => 'Spanish';
@@ -4730,9 +4654,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get navbarAlwaysExpanded => 'Always Expand Navbar Labels';
-
-  @override
-  String get showSeerrButton => 'Show Seerr Button';
 
   @override
   String get navbarOpacity => 'Navbar Opacity';
@@ -5582,9 +5503,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get recentRequests => 'Recent Requests';
-
-  @override
   String get recentlyAdded => 'Recently Added';
 
   @override
@@ -5594,46 +5512,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get popularMovies => 'Popular Movies';
 
   @override
-  String get movieGenres => 'Movie Genres';
-
-  @override
   String get upcomingMovies => 'Upcoming Movies';
 
   @override
   String get studios => 'Studios';
 
   @override
-  String get popularSeries => 'Popular Series';
-
-  @override
-  String get seriesGenres => 'Series Genres';
-
-  @override
-  String get upcomingSeries => 'Upcoming Series';
-
-  @override
   String get networks => 'Networks';
 
   @override
   String get tags => 'Tags';
-
-  @override
-  String get genresAndTags => 'Genres and Tags';
-
-  @override
-  String get seerrDiscoveryRows => 'Seerr Discovery Rows';
-
-  @override
-  String get seerrDiscoverSliders => 'Seerr Discover Sliders';
-
-  @override
-  String get yourWatchlist => 'Your Watchlist';
-
-  @override
-  String get showSeerrAvailabilityBadges => 'Show Seerr Availability Badges';
-
-  @override
-  String get seerrBadgeStyle => 'Badge Style';
 
   @override
   String get enabled => 'Enabled';
@@ -5790,36 +5678,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noResults => 'No results';
 
   @override
-  String get seerrAvailableStatus => 'Available';
-
-  @override
-  String get seerrRequestedStatus => 'Requested';
-
-  @override
-  String get seerrDownloading => 'Downloading';
-
-  @override
-  String seerrDownloadingSize(String done, String total) {
-    return 'Downloading · $done / $total';
-  }
-
-  @override
-  String seerrDownloadedOfTotal(String done, String total) {
-    return '$done / $total';
-  }
-
-  @override
-  String seerrPercentValue(int percent) {
-    return '$percent%';
-  }
-
-  @override
   String seerrDownloadingPercent(int percent) {
     return 'Downloading · $percent%';
   }
-
-  @override
-  String get seerrImportingStatus => 'Importing';
 
   @override
   String itemsCount(int count) {
@@ -5827,70 +5688,25 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get seerrSettings => 'Seerr Settings';
-
-  @override
-  String get requestMore => 'Request More';
-
-  @override
-  String get requestMore4k => 'Request More in 4K';
-
-  @override
   String get request => 'Request';
-
-  @override
-  String get request4k => 'Request 4K';
-
-  @override
-  String get requested4k => '4K Requested';
 
   @override
   String get cancelRequest => 'Cancel Request';
 
   @override
-  String get cancelRequest4k => 'Cancel 4K Request';
-
-  @override
   String get playInMoonfin => 'Play in kOS TV';
-
-  @override
-  String get requestedByLabel => 'Requested by';
-
-  @override
-  String requestedByName(String name) {
-    return 'Requested by $name';
-  }
-
-  @override
-  String get manageRequests => 'Manage Requests';
 
   @override
   String get watchlist => 'Watchlist';
 
   @override
-  String get onWatchlist => 'On Watchlist';
-
-  @override
   String get approve => 'Approve';
-
-  @override
-  String get declineAction => 'Decline';
 
   @override
   String get similar => 'Similar';
 
   @override
   String get recommendations => 'Recommendations';
-
-  @override
-  String cancelRequestForTitle(String title) {
-    return 'Cancel request for \"$title\"?';
-  }
-
-  @override
-  String cancelCountRequestsForTitle(int count, String title) {
-    return 'Cancel $count requests for \"$title\"?';
-  }
 
   @override
   String get keep => 'Keep';
@@ -5917,54 +5733,7 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String requestSeriesOrMovie(String type) {
-    return 'Request $type';
-  }
-
-  @override
-  String requestSeriesOrMovie4k(String type) {
-    return 'Request 4K $type';
-  }
-
-  @override
-  String get submitRequest => 'Submit Request';
-
-  @override
-  String get allSeasons => 'All Seasons';
-
-  @override
-  String get seerrSeriesContinuing =>
-      'Series Continuing · Future Seasons Can Be Requested';
-
-  @override
-  String get seerrSeriesMatchDescription =>
-      'We couldn\'t match this series automatically. Pick the right one below.';
-
-  @override
-  String get seerrSeriesNoMatch =>
-      'We couldn\'t find a match for this series, so it can\'t be requested.';
-
-  @override
-  String get seerrSeriesMatchFailed =>
-      'Sonarr couldn\'t find a match for this series, or couldn\'t be reached. Try again, or check the series on Seerr.';
-
-  @override
-  String get advancedOptions => 'Advanced Options';
-
-  @override
-  String get noServiceServersConfigured => 'No service servers configured';
-
-  @override
   String get server => 'Server';
-
-  @override
-  String get qualityProfile => 'Quality Profile';
-
-  @override
-  String get rootFolder => 'Root Folder';
-
-  @override
-  String get showMore => 'Show More';
 
   @override
   String get appearances => 'Appearances';
@@ -5973,42 +5742,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get crewSection => 'Crew';
 
   @override
-  String ageValue(int age) {
-    return 'age $age';
-  }
-
-  @override
-  String get noRequests => 'No requests';
-
-  @override
-  String get pendingStatus => 'Pending';
-
-  @override
-  String get declinedStatus => 'Declined';
-
-  @override
-  String get partiallyAvailable => 'Partially Available';
-
-  @override
   String get downloadingStatus => 'Downloading';
-
-  @override
-  String get approvedStatus => 'Approved';
-
-  @override
-  String get notRequestedStatus => 'Not Requested';
-
-  @override
-  String get blocklistedStatus => 'Blocklisted';
-
-  @override
-  String get deletedStatus => 'Deleted';
-
-  @override
-  String get failedStatus => 'Failed';
-
-  @override
-  String get processingStatus => 'Processing';
 
   @override
   String modifiedByName(String name) {
@@ -6022,94 +5756,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get requestErrorDuplicate => 'This title was already requested';
 
   @override
-  String get requestErrorQuota => 'Request limit reached';
-
-  @override
-  String get requestErrorBlocklisted => 'This title is blocklisted';
-
-  @override
   String get requestErrorNoSeasons => 'No seasons left to request';
 
   @override
   String get requestErrorPermission =>
       'You don\'t have permission to make this request';
-
-  @override
-  String get seerrRequestsTitle => 'Requests';
-
-  @override
-  String get seerrIssuesTitle => 'Issues';
-
-  @override
-  String get sortNewest => 'Newest';
-
-  @override
-  String get sortLastModified => 'Last Modified';
-
-  @override
-  String get noIssues => 'No issues';
-
-  @override
-  String movieQuotaRemaining(int remaining, int limit) {
-    return '$remaining of $limit movie requests remaining';
-  }
-
-  @override
-  String seasonQuotaRemaining(int remaining, int limit) {
-    return '$remaining of $limit season requests remaining';
-  }
-
-  @override
-  String partOfCollectionName(String name) {
-    return 'Part of $name';
-  }
-
-  @override
-  String get viewCollection => 'View Collection';
-
-  @override
-  String get requestCollection => 'Request Collection';
-
-  @override
-  String collectionMoviesSummary(int total, int available) {
-    return '$total movies · $available available';
-  }
-
-  @override
-  String requestMoviesCount(int count) {
-    return 'Request $count movies';
-  }
-
-  @override
-  String requestingProgress(int current, int total) {
-    return 'Requesting $current of $total...';
-  }
-
-  @override
-  String requestedMoviesCount(int count) {
-    return 'Requested $count movies';
-  }
-
-  @override
-  String requestedMoviesPartial(int ok, int total) {
-    return 'Requested $ok of $total movies';
-  }
-
-  @override
-  String get collectionAllRequested =>
-      'All movies are already available or requested';
-
-  @override
-  String get reportIssue => 'Report Issue';
-
-  @override
-  String get issueTypeVideo => 'Video';
-
-  @override
-  String get issueTypeAudio => 'Audio';
-
-  @override
-  String get whatsWrong => 'What\'s wrong?';
 
   @override
   String get allEpisodes => 'All Episodes';
@@ -6118,62 +5769,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get episode => 'Episode';
 
   @override
-  String get openStatus => 'Open';
-
-  @override
-  String get resolvedStatus => 'Resolved';
-
-  @override
-  String get resolveAction => 'Resolve';
-
-  @override
-  String get reopenAction => 'Reopen';
-
-  @override
-  String reportedByName(String name) {
-    return 'Reported by $name';
-  }
-
-  @override
-  String commentsCount(int count) {
-    return '$count comments';
-  }
-
-  @override
-  String get addComment => 'Add a comment';
-
-  @override
-  String get deleteIssueConfirm => 'Delete this issue?';
-
-  @override
-  String get submitReport => 'Submit Report';
-
-  @override
-  String get tmdbScore => 'TMDB Score';
-
-  @override
   String get releaseDateLabel => 'Release Date';
-
-  @override
-  String get firstAirDateLabel => 'First Air Date';
-
-  @override
-  String get revenueLabel => 'Revenue';
 
   @override
   String get runtimeLabel => 'Runtime';
 
   @override
-  String get budgetLabel => 'Budget';
-
-  @override
   String get originalLanguageLabel => 'Original Language';
-
-  @override
-  String get seasonsLabel => 'Seasons';
-
-  @override
-  String get episodesLabel => 'Episodes';
 
   @override
   String get access => 'Access';
@@ -7952,9 +7554,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionVolumeUp => 'Vol +';
 
   @override
-  String get uhd4k => '4K';
-
-  @override
   String get nowPlaying => 'Now Playing';
 
   @override
@@ -9335,9 +8934,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get whitelist => 'Whitelist';
-
-  @override
-  String get blacklist => 'Blacklist';
 
   @override
   String get notSet => 'Not set';
@@ -11652,10 +11248,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show the libraries button in the navigation bar';
 
   @override
-  String get settingsShowSeerrButtonInNavigation =>
-      'Show the Seerr button in the navigation bar';
-
-  @override
   String get settingsAlwaysExpandNavbarLabels =>
       'Always show text labels in the top navigation bar';
 
@@ -12403,7 +11995,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sinceYouWatchedSourceDescription =>
-      'Choose the recommendation source: kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server\'s engine) or TMDb\'s similarity metrics. Note: Online recommendations require Seerr integration.';
+      'Choose the recommendation source: kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server\'s engine) or TMDb\'s similarity metrics.';
 
   @override
   String get sinceYouWatchedSourceLocal => 'kOS TV Recommends';
@@ -12553,17 +12145,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get tmdbRowsSortOrderDescription =>
       'Sort TMDB rows in ascending or descending order.';
-
-  @override
-  String get seerrRowsSorting => 'Seerr Row Sorting';
-
-  @override
-  String get seerrRowsSortingDescription =>
-      'Sort Seerr rows by name, release date, rating, and more.';
-
-  @override
-  String get seerrRowsSortOrderDescription =>
-      'Sort Seerr rows in ascending or descending order.';
 
   @override
   String get externalRowSortDefault => 'Default (List Order)';
@@ -12920,12 +12501,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get guestAppearances => 'Guest Appearances';
-
-  @override
-  String get appearancesSeerr => 'Appearances (Seerr)';
-
-  @override
-  String get crewContributionsSeerr => 'Crew Contributions (Seerr)';
 
   @override
   String get personWebsite => 'Official website';
@@ -14701,12 +14276,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get releaseDateDescending => 'Release Date (Descending)';
 
   @override
-  String get groupContributions => 'Group Contributions';
-
-  @override
-  String get groupMultipleRoles => 'Group multiple roles';
-
-  @override
   String get libraryWriteAccessWarningTitle => 'Library Write Access Warning';
 
   @override
@@ -15042,12 +14611,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get imdbTopEnglishMovies => 'IMDb Top Rated English Movies';
 
   @override
-  String get addToWatchlist => 'Add to Watchlist';
-
-  @override
-  String get removeFromWatchlist => 'Remove from Watchlist';
-
-  @override
   String get watchlistUpdateFailed => 'Couldn\'t update watchlist';
 
   @override
@@ -15271,24 +14834,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clearFilters => 'Clear Filters';
 
   @override
-  String get seerrShortcutsRow => 'Seerr Browse';
-
-  @override
-  String get seerrReleased => 'Released';
-
-  @override
-  String get seerrMinRating => 'Minimum Rating';
-
-  @override
-  String get seerrMinVotes => 'Minimum Votes';
-
-  @override
-  String get seerrOriginalLanguage => 'Original Language';
-
-  @override
-  String get seerrRuntime => 'Runtime';
-
-  @override
   String get subtitleHdrSeparate => 'Separate HDR Style';
 
   @override
@@ -15494,9 +15039,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get setupTourMoreHeader => 'There is more waiting in Settings';
-
-  @override
-  String get setupTourBulletRequests => 'Seerr requests';
 
   @override
   String get setupTourBulletSyncPlay => 'SyncPlay watch parties';
@@ -17312,11 +16854,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get smartSearch => 'Smart Search';
 
   @override
-  String smartSearchOnSeerr(String seerr) {
-    return 'Smart Search on $seerr';
-  }
-
-  @override
   String get calendar => 'Calendar';
 
   @override
@@ -17409,10 +16946,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get calendarProblemAdminsOnly =>
       'The calendar is limited to admins on this server.';
-
-  @override
-  String get calendarProblemNeedsSeerr =>
-      'An admin needs to sign in to Seerr in kOS TV before the calendar can load.';
 
   @override
   String get calendarProblemNotConfigured =>

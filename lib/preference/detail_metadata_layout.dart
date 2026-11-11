@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 
-import '../data/services/plugin_sync_service.dart';
 import '../l10n/app_localizations.dart';
 import 'button_layout.dart';
 import 'user_preferences.dart';

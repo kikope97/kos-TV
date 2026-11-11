@@ -93,10 +93,6 @@
     "@username": {
         "description": "Username field label"
     },
-    "email": "Correo electrónico",
-    "@email": {
-        "description": "Email field label"
-    },
     "quickConnectInstruction": "Introduce este código en el panel web de tu servidor:",
     "@quickConnectInstruction": {
         "description": "Instruction text for Quick Connect code entry"
@@ -396,35 +392,9 @@
     "@spotlightMoviesAndShows": {
         "description": "Subtitle of the spotlight similar and recommendations card"
     },
-    "spotlightSimilarSeerr": "Similares (Seerr)",
-    "@spotlightSimilarSeerr": {
-        "description": "Header of the Seerr similar-titles section when it appears beside the library's own similar section"
-    },
-    "spotlightRecommendationsSeerr": "Recomendaciones (Seerr)",
-    "@spotlightRecommendationsSeerr": {
-        "description": "Header of the Seerr recommendations section when it appears in the Spotlight recommendations modal"
-    },
     "spotlightPeopleCount": "{count, plural, =1{1 persona} other{{count} personas}}",
     "@spotlightPeopleCount": {
         "description": "Count fragment on spotlight summary cards: people",
-        "placeholders": {
-            "count": {
-                "type": "int"
-            }
-        }
-    },
-    "spotlightFactsCount": "{count, plural, =1{1 dato} other{{count} datos}}",
-    "@spotlightFactsCount": {
-        "description": "Count fragment on spotlight summary cards: Seerr facts",
-        "placeholders": {
-            "count": {
-                "type": "int"
-            }
-        }
-    },
-    "spotlightTagsCount": "{count, plural, =1{1 etiqueta} other{{count} etiquetas}}",
-    "@spotlightTagsCount": {
-        "description": "Count fragment on spotlight summary cards: genres, networks and keywords",
         "placeholders": {
             "count": {
                 "type": "int"
@@ -3947,15 +3917,6 @@
             }
         }
     },
-    "seasonChip": "T{number}",
-    "@seasonChip": {
-        "description": "Compact season chip label",
-        "placeholders": {
-            "number": {
-                "type": "int"
-            }
-        }
-    },
     "specials": "Especiales",
     "@specials": {
         "description": "Label for special episodes"
@@ -4632,8 +4593,6 @@
     "detailMetadataStatus": "Estado de la serie",
     "detailMetadataStatusSubtitle": "Indica si la serie continúa, ha terminado o va a volver",
     "detailMetadataGenres": "Géneros",
-    "detailMetadataSeerrAvailability": "Disponibilidad en Seerr",
-    "detailMetadataSeerrAvailabilitySubtitle": "Muestra el estado de solicitud y disponibilidad de Seerr",
     "detailMetadataUpcomingEpisodeDate": "Próximos episodios",
     "detailMetadataUpcomingEpisodeDateSubtitle": "Usa Sonarr y TMDB para mostrar las próximas fechas de estreno",
     "detailSections": "Secciones",
@@ -4664,16 +4623,6 @@
     "detailSectionMoreEpisodesSubtitle": "En las páginas de episodios",
     "detailSectionMediaInfo": "Información multimedia",
     "detailSectionMediaInfoSubtitle": "Archivo, pistas y comprobación de reproducción directa",
-    "detailSectionSeerrGenresTags": "Géneros y etiquetas",
-    "detailSectionSeerrStats": "Datos",
-    "detailSectionSeerrStreaming": "Servicios de streaming",
-    "seerrStreamingOn": "Disponible en",
-    "detailSectionSeerrRecommendations": "Recomendaciones",
-    "detailSectionSeerrSimilar": "Títulos similares",
-    "detailSectionSeerrCollection": "Banner de la colección",
-    "detailSectionSeerrPersonAppearances": "Apariciones",
-    "detailSectionSeerrPersonCrew": "Créditos en el equipo técnico",
-    "detailSectionPersonPagesSubtitle": "En las páginas de personas",
     "detailSectionBiography": "Biografía",
     "detailSectionBirthplace": "Lugar de nacimiento",
     "detailSectionPersonLinks": "Enlaces",
@@ -4749,10 +4698,6 @@
     "autoServerDefault": "Automático (predeterminado del servidor)",
     "@autoServerDefault": {
         "description": "Option: auto server default"
-    },
-    "english": "Inglés",
-    "@english": {
-        "description": "Language: English"
     },
     "spanish": "Español",
     "@spanish": {
@@ -5525,10 +5470,6 @@
     "@navbarAlwaysExpanded": {
         "description": "Setting to keep every top navbar heading's text label visible at all times, tvOS-style"
     },
-    "showSeerrButton": "Mostrar botón de Seerr",
-    "@showSeerrButton": {
-        "description": "Setting for showing Seerr button"
-    },
     "navbarOpacity": "Opacidad de la barra de navegación",
     "@navbarOpacity": {
         "description": "Setting for navbar opacity"
@@ -6234,10 +6175,6 @@
     "profileLoadSubtitle": "Del servidor a este dispositivo",
     "profileSaveSubtitle": "De este dispositivo al servidor",
     "resetNamedProfile": "Restablecer perfil {profile}",
-    "recentRequests": "Solicitudes recientes",
-    "@recentRequests": {
-        "description": "Seerr row: recent requests"
-    },
     "recentlyAdded": "Añadido recientemente",
     "@recentlyAdded": {
         "description": "Seerr row: recently added"
@@ -6250,10 +6187,6 @@
     "@popularMovies": {
         "description": "Seerr row: popular movies"
     },
-    "movieGenres": "Géneros de películas",
-    "@movieGenres": {
-        "description": "Seerr row: movie genres"
-    },
     "upcomingMovies": "Próximas películas",
     "@upcomingMovies": {
         "description": "Seerr row: upcoming movies"
@@ -6262,32 +6195,11 @@
     "@studios": {
         "description": "Seerr row: studios"
     },
-    "popularSeries": "Series populares",
-    "@popularSeries": {
-        "description": "Seerr row: popular series"
-    },
-    "seriesGenres": "Géneros de series",
-    "@seriesGenres": {
-        "description": "Seerr row: series genres"
-    },
-    "upcomingSeries": "Próximas series",
-    "@upcomingSeries": {
-        "description": "Seerr row: upcoming series"
-    },
     "networks": "Cadenas",
     "@networks": {
         "description": "Seerr row: networks"
     },
     "tags": "Etiquetas",
-    "genresAndTags": "Géneros y etiquetas",
-    "seerrDiscoveryRows": "Filas de descubrimiento de Seerr",
-    "@seerrDiscoveryRows": {
-        "description": "Subtitle shown under Seerr discovery home rows"
-    },
-    "seerrDiscoverSliders": "Carruseles de Descubrir de Seerr",
-    "yourWatchlist": "Tu lista de seguimiento",
-    "showSeerrAvailabilityBadges": "Mostrar insignias de disponibilidad de Seerr",
-    "seerrBadgeStyle": "Estilo de insignia",
     "enabled": "Activado",
     "@enabled": {
         "description": "Status: enabled"
@@ -6480,18 +6392,6 @@
     "@noResults": {
         "description": "Shown when a search or browse returns no items"
     },
-    "seerrAvailableStatus": "Disponible",
-    "@seerrAvailableStatus": {
-        "description": "Seerr media status when item is available"
-    },
-    "seerrRequestedStatus": "Solicitado",
-    "@seerrRequestedStatus": {
-        "description": "Seerr media status when item has been requested"
-    },
-    "seerrDownloading": "Descargando",
-    "seerrDownloadingSize": "Descargando · {done} / {total}",
-    "seerrDownloadedOfTotal": "{done} / {total}",
-    "seerrPercentValue": "{percent}%",
     "seerrDownloadingPercent": "Descargando · {percent}%",
     "@seerrDownloadingPercent": {
         "description": "Label above the Seerr download progress bar",
@@ -6500,10 +6400,6 @@
                 "type": "int"
             }
         }
-    },
-    "seerrImportingStatus": "Importando",
-    "@seerrImportingStatus": {
-        "description": "Label when a Seerr download has finished and is importing"
     },
     "itemsCount": "{count} elementos",
     "@itemsCount": {
@@ -6514,50 +6410,22 @@
             }
         }
     },
-    "seerrSettings": "Ajustes de Seerr",
-    "@seerrSettings": {
-        "description": "Dialog title for Seerr browse settings"
-    },
-    "requestMore": "Solicitar más",
-    "@requestMore": {
-        "description": "Button to request more seasons"
-    },
-    "requestMore4k": "Solicitar más en 4K",
     "request": "Solicitar",
     "@request": {
         "description": "Button to submit a media request"
     },
-    "request4k": "Solicitar en 4K",
-    "requested4k": "Solicitado en 4K",
     "cancelRequest": "Cancelar solicitud",
     "@cancelRequest": {
         "description": "Button/dialog title to cancel a media request"
     },
-    "cancelRequest4k": "Cancelar solicitud en 4K",
     "playInMoonfin": "Reproducir en kOS TV",
     "@playInMoonfin": {
         "description": "Button to play available media in Moonfin"
     },
-    "requestedByLabel": "Solicitado por",
-    "requestedByName": "Solicitado por {name}",
-    "@requestedByName": {
-        "description": "Label showing who requested media",
-        "placeholders": {
-            "name": {
-                "type": "String"
-            }
-        }
-    },
-    "manageRequests": "Gestionar solicitudes",
     "watchlist": "Lista de seguimiento",
-    "onWatchlist": "En tu lista",
     "approve": "Aprobar",
     "@approve": {
         "description": "Tooltip/button to approve a request"
-    },
-    "declineAction": "Rechazar",
-    "@declineAction": {
-        "description": "Tooltip/button to decline a request"
     },
     "similar": "Similares",
     "@similar": {
@@ -6566,27 +6434,6 @@
     "recommendations": "Recomendaciones",
     "@recommendations": {
         "description": "Section title for recommended media"
-    },
-    "cancelRequestForTitle": "¿Cancelar la solicitud de «{title}»?",
-    "@cancelRequestForTitle": {
-        "description": "Confirmation message for single request cancellation",
-        "placeholders": {
-            "title": {
-                "type": "String"
-            }
-        }
-    },
-    "cancelCountRequestsForTitle": "¿Cancelar {count} solicitudes de «{title}»?",
-    "@cancelCountRequestsForTitle": {
-        "description": "Confirmation message for multiple request cancellation",
-        "placeholders": {
-            "count": {
-                "type": "int"
-            },
-            "title": {
-                "type": "String"
-            }
-        }
     },
     "keep": "Mantener",
     "@keep": {
@@ -6630,51 +6477,9 @@
             }
         }
     },
-    "requestSeriesOrMovie": "Solicitar {type}",
-    "@requestSeriesOrMovie": {
-        "description": "Bottom sheet title for requesting media",
-        "placeholders": {
-            "type": {
-                "type": "String"
-            }
-        }
-    },
-    "requestSeriesOrMovie4k": "Solicitar {type} en 4K",
-    "submitRequest": "Enviar solicitud",
-    "@submitRequest": {
-        "description": "Button to finalize a media request"
-    },
-    "allSeasons": "Todas las temporadas",
-    "@allSeasons": {
-        "description": "Checkbox label for selecting all seasons"
-    },
-    "seerrSeriesContinuing": "Serie en emisión · Se pueden solicitar las próximas temporadas",
-    "seerrSeriesMatchDescription": "No hemos podido identificar esta serie automáticamente. Elige la correcta abajo.",
-    "seerrSeriesNoMatch": "No hemos encontrado ninguna coincidencia para esta serie, así que no se puede solicitar.",
-    "seerrSeriesMatchFailed": "Sonarr no ha encontrado ninguna coincidencia para esta serie o no se ha podido conectar con él. Vuelve a intentarlo o revisa la serie en Seerr.",
-    "advancedOptions": "Opciones avanzadas",
-    "@advancedOptions": {
-        "description": "Expansion tile for advanced request options"
-    },
-    "noServiceServersConfigured": "No hay servidores de servicio configurados",
-    "@noServiceServersConfigured": {
-        "description": "Shown when no Radarr/Sonarr servers are set up"
-    },
     "server": "Servidor",
     "@server": {
         "description": "Dropdown label for server selection"
-    },
-    "qualityProfile": "Perfil de calidad",
-    "@qualityProfile": {
-        "description": "Dropdown label for quality profile selection"
-    },
-    "rootFolder": "Carpeta raíz",
-    "@rootFolder": {
-        "description": "Dropdown label for root folder selection"
-    },
-    "showMore": "Mostrar más",
-    "@showMore": {
-        "description": "Button to expand truncated content"
     },
     "appearances": "Apariciones",
     "@appearances": {
@@ -6684,58 +6489,9 @@
     "@crewSection": {
         "description": "Section title for crew credits"
     },
-    "ageValue": "{age} años",
-    "@ageValue": {
-        "description": "Person age display",
-        "placeholders": {
-            "age": {
-                "type": "int"
-            }
-        }
-    },
-    "noRequests": "Sin solicitudes",
-    "@noRequests": {
-        "description": "Shown when request list is empty"
-    },
-    "pendingStatus": "Pendiente",
-    "@pendingStatus": {
-        "description": "Request status label"
-    },
-    "declinedStatus": "Rechazado",
-    "@declinedStatus": {
-        "description": "Request status label"
-    },
-    "partiallyAvailable": "Parcialmente disponible",
-    "@partiallyAvailable": {
-        "description": "Request status label"
-    },
     "downloadingStatus": "Descargando",
     "@downloadingStatus": {
         "description": "Request status label"
-    },
-    "approvedStatus": "Aprobado",
-    "@approvedStatus": {
-        "description": "Request status label"
-    },
-    "notRequestedStatus": "No solicitado",
-    "@notRequestedStatus": {
-        "description": "Request status label when no request exists"
-    },
-    "blocklistedStatus": "En la lista de bloqueo",
-    "@blocklistedStatus": {
-        "description": "Request status label for blocklisted media"
-    },
-    "deletedStatus": "Eliminado",
-    "@deletedStatus": {
-        "description": "Request status label for deleted media"
-    },
-    "failedStatus": "Fallida",
-    "@failedStatus": {
-        "description": "Request status label when the request failed to send to Radarr/Sonarr"
-    },
-    "processingStatus": "En proceso",
-    "@processingStatus": {
-        "description": "Filter label for approved requests being processed"
     },
     "modifiedByName": "Modificado por {name}",
     "@modifiedByName": {
@@ -6754,14 +6510,6 @@
     "@requestErrorDuplicate": {
         "description": "Error when creating a request that already exists"
     },
-    "requestErrorQuota": "Has alcanzado el límite de solicitudes",
-    "@requestErrorQuota": {
-        "description": "Error when the user is out of request quota"
-    },
-    "requestErrorBlocklisted": "Este título está en la lista de bloqueo",
-    "@requestErrorBlocklisted": {
-        "description": "Error when requesting blocklisted media"
-    },
     "requestErrorNoSeasons": "No quedan temporadas por solicitar",
     "@requestErrorNoSeasons": {
         "description": "Error when every season is already requested or available"
@@ -6769,141 +6517,6 @@
     "requestErrorPermission": "No tienes permiso para hacer esta solicitud",
     "@requestErrorPermission": {
         "description": "Error when the user lacks request permission"
-    },
-    "seerrRequestsTitle": "Solicitudes",
-    "@seerrRequestsTitle": {
-        "description": "Requests tab and screen title"
-    },
-    "seerrIssuesTitle": "Problemas",
-    "@seerrIssuesTitle": {
-        "description": "Issues tab title on the requests hub"
-    },
-    "sortNewest": "Más recientes",
-    "@sortNewest": {
-        "description": "Request sort option, most recently added first"
-    },
-    "sortLastModified": "Última modificación",
-    "@sortLastModified": {
-        "description": "Request sort option, most recently updated first"
-    },
-    "noIssues": "No hay problemas",
-    "@noIssues": {
-        "description": "Shown when the issue list is empty"
-    },
-    "movieQuotaRemaining": "Te quedan {remaining} de {limit} solicitudes de películas",
-    "@movieQuotaRemaining": {
-        "description": "Quota line in the request dialog",
-        "placeholders": {
-            "remaining": {
-                "type": "int"
-            },
-            "limit": {
-                "type": "int"
-            }
-        }
-    },
-    "seasonQuotaRemaining": "Te quedan {remaining} de {limit} solicitudes de temporadas",
-    "@seasonQuotaRemaining": {
-        "description": "Quota line in the request dialog for series",
-        "placeholders": {
-            "remaining": {
-                "type": "int"
-            },
-            "limit": {
-                "type": "int"
-            }
-        }
-    },
-    "partOfCollectionName": "Parte de {name}",
-    "@partOfCollectionName": {
-        "description": "Banner on a movie that belongs to a collection",
-        "placeholders": {
-            "name": {
-                "type": "String"
-            }
-        }
-    },
-    "viewCollection": "Ver colección",
-    "@viewCollection": {
-        "description": "Link to open the collection screen"
-    },
-    "requestCollection": "Solicitar colección",
-    "@requestCollection": {
-        "description": "Button to request movies from a collection"
-    },
-    "collectionMoviesSummary": "{total} películas · {available} disponibles",
-    "@collectionMoviesSummary": {
-        "description": "Collection header summary line",
-        "placeholders": {
-            "total": {
-                "type": "int"
-            },
-            "available": {
-                "type": "int"
-            }
-        }
-    },
-    "requestMoviesCount": "Solicitar {count} películas",
-    "@requestMoviesCount": {
-        "description": "Submit button on the collection request sheet",
-        "placeholders": {
-            "count": {
-                "type": "int"
-            }
-        }
-    },
-    "requestingProgress": "Solicitando {current} de {total}...",
-    "@requestingProgress": {
-        "description": "Progress label while collection requests are submitted",
-        "placeholders": {
-            "current": {
-                "type": "int"
-            },
-            "total": {
-                "type": "int"
-            }
-        }
-    },
-    "requestedMoviesCount": "Se han solicitado {count} películas",
-    "@requestedMoviesCount": {
-        "description": "Snackbar after a collection request succeeds",
-        "placeholders": {
-            "count": {
-                "type": "int"
-            }
-        }
-    },
-    "requestedMoviesPartial": "Se han solicitado {ok} de {total} películas",
-    "@requestedMoviesPartial": {
-        "description": "Snackbar when some collection requests failed",
-        "placeholders": {
-            "ok": {
-                "type": "int"
-            },
-            "total": {
-                "type": "int"
-            }
-        }
-    },
-    "collectionAllRequested": "Todas las películas ya están disponibles o solicitadas",
-    "@collectionAllRequested": {
-        "description": "Shown instead of the request button when nothing is requestable"
-    },
-    "reportIssue": "Informar de un problema",
-    "@reportIssue": {
-        "description": "Button on the seerr detail screen to report a media issue"
-    },
-    "issueTypeVideo": "Vídeo",
-    "@issueTypeVideo": {
-        "description": "Issue type option"
-    },
-    "issueTypeAudio": "Audio",
-    "@issueTypeAudio": {
-        "description": "Issue type option"
-    },
-    "whatsWrong": "¿Qué ocurre?",
-    "@whatsWrong": {
-        "description": "Label for the issue description field"
     },
     "allEpisodes": "Todos los episodios",
     "@allEpisodes": {
@@ -6913,87 +6526,17 @@
     "@episode": {
         "description": "Episode dropdown label"
     },
-    "openStatus": "Abierto",
-    "@openStatus": {
-        "description": "Issue status label"
-    },
-    "resolvedStatus": "Resuelto",
-    "@resolvedStatus": {
-        "description": "Issue status label"
-    },
-    "resolveAction": "Resolver",
-    "@resolveAction": {
-        "description": "Button to resolve an issue"
-    },
-    "reopenAction": "Reabrir",
-    "@reopenAction": {
-        "description": "Button to reopen a resolved issue"
-    },
-    "reportedByName": "Notificado por {name}",
-    "@reportedByName": {
-        "description": "Label showing who reported an issue",
-        "placeholders": {
-            "name": {
-                "type": "String"
-            }
-        }
-    },
-    "commentsCount": "{count} comentarios",
-    "@commentsCount": {
-        "description": "Number of comments on an issue",
-        "placeholders": {
-            "count": {
-                "type": "int"
-            }
-        }
-    },
-    "addComment": "Añadir un comentario",
-    "@addComment": {
-        "description": "Hint for the issue comment field"
-    },
-    "deleteIssueConfirm": "¿Eliminar este problema?",
-    "@deleteIssueConfirm": {
-        "description": "Confirmation before deleting an issue"
-    },
-    "submitReport": "Enviar informe",
-    "@submitReport": {
-        "description": "Button to submit an issue report"
-    },
-    "tmdbScore": "Puntuación TMDB",
-    "@tmdbScore": {
-        "description": "Stat label for TMDB user score"
-    },
     "releaseDateLabel": "Fecha de estreno",
     "@releaseDateLabel": {
         "description": "Stat label for release date"
-    },
-    "firstAirDateLabel": "Primera emisión",
-    "@firstAirDateLabel": {
-        "description": "Stat label for first air date"
-    },
-    "revenueLabel": "Recaudación",
-    "@revenueLabel": {
-        "description": "Stat label for revenue"
     },
     "runtimeLabel": "Duración",
     "@runtimeLabel": {
         "description": "Stat label for runtime"
     },
-    "budgetLabel": "Presupuesto",
-    "@budgetLabel": {
-        "description": "Stat label for budget"
-    },
     "originalLanguageLabel": "Idioma original",
     "@originalLanguageLabel": {
         "description": "Stat label for original language"
-    },
-    "seasonsLabel": "Temporadas",
-    "@seasonsLabel": {
-        "description": "Stat label for number of seasons"
-    },
-    "episodesLabel": "Episodios",
-    "@episodesLabel": {
-        "description": "Stat label for number of episodes"
     },
     "access": "Acceso",
     "add": "Añadir",
@@ -7557,7 +7100,6 @@
     "sessionNext": "Siguiente",
     "sessionVolumeDown": "Vol –",
     "sessionVolumeUp": "Vol +",
-    "uhd4k": "4K",
     "nowPlaying": "Reproduciendo ahora",
     "volume": "Volumen",
     "actions": "Acciones",
@@ -8430,7 +7972,6 @@
     "adminRemoteIpFilterEntries": "Filtro de IP remota",
     "adminCertificatePath": "Ruta del certificado",
     "whitelist": "Lista blanca",
-    "blacklist": "Lista negra",
     "notSet": "No establecido",
     "adminMetadataLoadFailed": "No se pudieron cargar los metadatos: {error}",
     "@adminMetadataLoadFailed": {
@@ -9669,7 +9210,6 @@
     "settingsShowFavoritesButtonInNavigation": "Mostrar el botón de favoritos en la barra de navegación",
     "settingsShowLiveTvButtonInNavigation": "Mostrar el botón de TV en directo en la barra de navegación cuando el servidor tenga una biblioteca de TV en directo",
     "settingsShowLibrariesButtonInNavigation": "Mostrar el botón de bibliotecas en la barra de navegación",
-    "settingsShowSeerrButtonInNavigation": "Mostrar el botón de Seerr en la barra de navegación",
     "settingsAlwaysExpandNavbarLabels": "Mostrar siempre las etiquetas de texto en la barra de navegación superior",
     "settingsLibraryVisibilitySubtitle": "Muestra u oculta cada biblioteca en la página de inicio. Reinicia kOS TV para aplicar los cambios.",
     "settingsMediaBarAndLocalPreviews": "Barra multimedia y vistas previas locales",
@@ -10076,9 +9616,6 @@
     "tmdbRowsSorting": "Orden de las filas de TMDb",
     "tmdbRowsSortingDescription": "Ordena las filas de TMDb por nombre, fecha de estreno, valoración y más.",
     "tmdbRowsSortOrderDescription": "Ordena las filas de TMDb de forma ascendente o descendente.",
-    "seerrRowsSorting": "Orden de las filas de Seerr",
-    "seerrRowsSortingDescription": "Ordena las filas de Seerr por nombre, fecha de estreno, valoración y más.",
-    "seerrRowsSortOrderDescription": "Ordena las filas de Seerr de forma ascendente o descendente.",
     "externalRowSortDefault": "Predeterminado (orden de la lista)",
     "externalRowSortName": "Nombre",
     "externalRowSortReleaseDate": "Fecha de estreno",
@@ -10201,8 +9738,6 @@
     "recentlyReleasedEpisodes": "Episodios estrenados recientemente",
     "watchAgain": "Ver de nuevo",
     "guestAppearances": "Apariciones como invitado",
-    "appearancesSeerr": "Apariciones (Seerr)",
-    "crewContributionsSeerr": "Créditos en el equipo técnico (Seerr)",
     "personWebsite": "Web oficial",
     "watchWithGroup": "Ver juntos",
     "watchPartyGroupSubtitles": "Subtítulos para todos",
@@ -10878,14 +10413,6 @@
     "@releaseDateDescending": {
         "description": "Sort option for crew/cast contributions in descending release date order"
     },
-    "groupContributions": "Agrupar contribuciones",
-    "@groupContributions": {
-        "description": "Section header for grouping person contributions"
-    },
-    "groupMultipleRoles": "Agrupar varios roles",
-    "@groupMultipleRoles": {
-        "description": "Option to group multiple roles for a person"
-    },
     "libraryWriteAccessWarningTitle": "Aviso de acceso de escritura a la biblioteca",
     "@libraryWriteAccessWarningTitle": {
         "description": "Title for library write access warning dialog"
@@ -11075,8 +10602,6 @@
     "imdbMostPopularTvShows": "Series más populares de IMDb",
     "imdbLowestRatedMovies": "Películas peor valoradas de IMDb",
     "imdbTopEnglishMovies": "Películas en inglés mejor valoradas de IMDb",
-    "addToWatchlist": "Añadir a la lista de seguimiento",
-    "removeFromWatchlist": "Quitar de la lista de seguimiento",
     "watchlistUpdateFailed": "No se ha podido actualizar la lista de seguimiento",
     "adminSearchParameters": "Parámetros de búsqueda",
     "adminCurrentMetadata": "Metadatos actuales",
@@ -11149,12 +10674,6 @@
     "audioLanguage": "Idioma del audio",
     "subtitleLanguage": "Idioma de los subtítulos",
     "clearFilters": "Quitar filtros",
-    "seerrShortcutsRow": "Explorar Seerr",
-    "seerrReleased": "Estreno",
-    "seerrMinRating": "Puntuación mínima",
-    "seerrMinVotes": "Votos mínimos",
-    "seerrOriginalLanguage": "Idioma original",
-    "seerrRuntime": "Duración",
     "subtitleHdrSeparate": "Estilo aparte para HDR",
     "subtitleHdrSeparateSubtitle": "El blanco brilla mucho más en HDR que en SDR, así que un estilo más tenue aquí evita que deslumbre",
     "subtitleBold": "Texto en negrita",
@@ -11216,7 +10735,6 @@
     "setupNavbarStyleStripHint": "Una barra a todo lo ancho del borde inferior.",
     "setupPickALook": "Elige un aspecto",
     "setupTourMoreHeader": "Hay más esperándote en Ajustes",
-    "setupTourBulletRequests": "Solicitudes de Seerr",
     "setupTourBulletSyncPlay": "Ver juntos con SyncPlay",
     "setupTourBulletThemes": "Temas personalizados",
     "setupTourBulletDownloads": "Descargas sin conexión",
@@ -11682,7 +11200,6 @@
     "settingsPreviewShowEpisodesNote": "Esto solo cambia las filas de una colección concreta añadida en Filas. La fila Colecciones se ve igual.",
     "settingsPreviewSaved": "Guardado",
     "smartSearch": "Búsqueda inteligente",
-    "smartSearchOnSeerr": "Búsqueda inteligente en {seerr}",
     "calendar": "Calendario",
     "showCalendarButton": "Mostrar botón de calendario",
     "showCalendarButtonSubtitle": "Muestra el calendario de próximos episodios y películas en la barra de navegación",
@@ -11713,7 +11230,6 @@
     "calendarNotMonitored": "Sin seguimiento",
     "calendarMovieDetails": "Detalles de la película",
     "calendarProblemAdminsOnly": "En este servidor, el calendario es solo para administradores.",
-    "calendarProblemNeedsSeerr": "Un administrador tiene que iniciar sesión en Seerr en kOS TV para que se pueda cargar el calendario.",
     "calendarProblemNotConfigured": "Todavía no hay ningún servidor Sonarr o Radarr vinculado.",
     "calendarProblemFailed": "No se pudo cargar el calendario.",
     "calendarRowSeeAll": "Tarjeta Ver todo",

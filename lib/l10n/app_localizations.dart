@@ -230,12 +230,6 @@ abstract class AppLocalizations {
   /// **'Username'**
   String get username;
 
-  /// Email field label
-  ///
-  /// In en, this message translates to:
-  /// **'Email'**
-  String get email;
-
   /// Instruction text for Quick Connect code entry
   ///
   /// In en, this message translates to:
@@ -596,35 +590,11 @@ abstract class AppLocalizations {
   /// **'Movies & Shows'**
   String get spotlightMoviesAndShows;
 
-  /// Header of the Seerr similar-titles section when it appears beside the library's own similar section
-  ///
-  /// In en, this message translates to:
-  /// **'Similar (Seerr)'**
-  String get spotlightSimilarSeerr;
-
-  /// Header of the Seerr recommendations section when it appears in the Spotlight recommendations modal
-  ///
-  /// In en, this message translates to:
-  /// **'Recommendations (Seerr)'**
-  String get spotlightRecommendationsSeerr;
-
   /// Count fragment on spotlight summary cards: people
   ///
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 person} other{{count} people}}'**
   String spotlightPeopleCount(int count);
-
-  /// Count fragment on spotlight summary cards: Seerr facts
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 fact} other{{count} facts}}'**
-  String spotlightFactsCount(int count);
-
-  /// Count fragment on spotlight summary cards: genres, networks and keywords
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{1 tag} other{{count} tags}}'**
-  String spotlightTagsCount(int count);
 
   /// Count fragment on spotlight summary cards: studios
   ///
@@ -785,7 +755,7 @@ abstract class AppLocalizations {
   /// Explanation under the recommendation system setting
   ///
   /// In en, this message translates to:
-  /// **'Use kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server\'s engine) or TMDb\'s similarity metrics online. Note: Online recommendations require Seerr integration.'**
+  /// **'Use kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server\'s engine) or TMDb\'s similarity metrics online.'**
   String get recommendationSystemSubtitle;
 
   /// Recommendation system option: Moonfin Recommends
@@ -4958,12 +4928,6 @@ abstract class AppLocalizations {
   /// **'Season {number}'**
   String seasonNumber(int number);
 
-  /// Compact season chip label
-  ///
-  /// In en, this message translates to:
-  /// **'S{number}'**
-  String seasonChip(int number);
-
   /// Label for special episodes
   ///
   /// In en, this message translates to:
@@ -5765,7 +5729,7 @@ abstract class AppLocalizations {
   /// Explains the seasonal Home row setting
   ///
   /// In en, this message translates to:
-  /// **'Show a row of holiday movies from your library, with Seerr suggestions when available.'**
+  /// **'Show a row of holiday movies from your library.'**
   String get seasonalRowDescription;
 
   /// Source label shown under the seasonal row's title
@@ -6368,18 +6332,6 @@ abstract class AppLocalizations {
   /// **'Genres'**
   String get detailMetadataGenres;
 
-  /// Item label for Seerr request and availability badge in metadata row
-  ///
-  /// In en, this message translates to:
-  /// **'Seerr Availability'**
-  String get detailMetadataSeerrAvailability;
-
-  /// Subtitle explaining the Seerr availability metadata badge
-  ///
-  /// In en, this message translates to:
-  /// **'Shows request and media availability status from Seerr'**
-  String get detailMetadataSeerrAvailabilitySubtitle;
-
   /// Item label for upcoming episode air date badge in metadata row
   ///
   /// In en, this message translates to:
@@ -6559,66 +6511,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'File, streams and Direct Play check'**
   String get detailSectionMediaInfoSubtitle;
-
-  /// Details screen Seerr section: genre and keyword chips
-  ///
-  /// In en, this message translates to:
-  /// **'Genres & tags'**
-  String get detailSectionSeerrGenresTags;
-
-  /// Details screen Seerr section: TMDB score, status, budget and revenue
-  ///
-  /// In en, this message translates to:
-  /// **'Stats'**
-  String get detailSectionSeerrStats;
-
-  /// Details screen Seerr section: logos of the services streaming the title in the user's region
-  ///
-  /// In en, this message translates to:
-  /// **'Streaming services'**
-  String get detailSectionSeerrStreaming;
-
-  /// Heading over the logos of the services streaming a Seerr title
-  ///
-  /// In en, this message translates to:
-  /// **'Streaming on'**
-  String get seerrStreamingOn;
-
-  /// Details screen Seerr section: recommended titles
-  ///
-  /// In en, this message translates to:
-  /// **'Recommendations'**
-  String get detailSectionSeerrRecommendations;
-
-  /// Details screen Seerr section: similar titles
-  ///
-  /// In en, this message translates to:
-  /// **'Similar titles'**
-  String get detailSectionSeerrSimilar;
-
-  /// Details screen Seerr section: the banner for the collection a movie is part of
-  ///
-  /// In en, this message translates to:
-  /// **'Collection banner'**
-  String get detailSectionSeerrCollection;
-
-  /// Details screen Seerr section: a person's appearances
-  ///
-  /// In en, this message translates to:
-  /// **'Appearances'**
-  String get detailSectionSeerrPersonAppearances;
-
-  /// Details screen Seerr section: a person's crew credits
-  ///
-  /// In en, this message translates to:
-  /// **'Crew credits'**
-  String get detailSectionSeerrPersonCrew;
-
-  /// Subtitle for Seerr sections only shown on a person's Details screen
-  ///
-  /// In en, this message translates to:
-  /// **'On person pages'**
-  String get detailSectionPersonPagesSubtitle;
 
   /// Details screen section: a person's biography
   ///
@@ -6913,12 +6805,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Auto (Server Default)'**
   String get autoServerDefault;
-
-  /// Language: English
-  ///
-  /// In en, this message translates to:
-  /// **'English'**
-  String get english;
 
   /// Language: Spanish
   ///
@@ -8251,12 +8137,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Always Expand Navbar Labels'**
   String get navbarAlwaysExpanded;
-
-  /// Setting for showing Seerr button
-  ///
-  /// In en, this message translates to:
-  /// **'Show Seerr Button'**
-  String get showSeerrButton;
 
   /// Setting for navbar opacity
   ///
@@ -9788,12 +9668,6 @@ abstract class AppLocalizations {
   /// **'Reset {profile} Profile'**
   String resetNamedProfile(String profile);
 
-  /// Seerr row: recent requests
-  ///
-  /// In en, this message translates to:
-  /// **'Recent Requests'**
-  String get recentRequests;
-
   /// Seerr row: recently added
   ///
   /// In en, this message translates to:
@@ -9812,12 +9686,6 @@ abstract class AppLocalizations {
   /// **'Popular Movies'**
   String get popularMovies;
 
-  /// Seerr row: movie genres
-  ///
-  /// In en, this message translates to:
-  /// **'Movie Genres'**
-  String get movieGenres;
-
   /// Seerr row: upcoming movies
   ///
   /// In en, this message translates to:
@@ -9830,24 +9698,6 @@ abstract class AppLocalizations {
   /// **'Studios'**
   String get studios;
 
-  /// Seerr row: popular series
-  ///
-  /// In en, this message translates to:
-  /// **'Popular Series'**
-  String get popularSeries;
-
-  /// Seerr row: series genres
-  ///
-  /// In en, this message translates to:
-  /// **'Series Genres'**
-  String get seriesGenres;
-
-  /// Seerr row: upcoming series
-  ///
-  /// In en, this message translates to:
-  /// **'Upcoming Series'**
-  String get upcomingSeries;
-
   /// Seerr row: networks
   ///
   /// In en, this message translates to:
@@ -9859,42 +9709,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tags'**
   String get tags;
-
-  /// Button and dialog title for browsing a title's genres, networks and tags
-  ///
-  /// In en, this message translates to:
-  /// **'Genres and Tags'**
-  String get genresAndTags;
-
-  /// Subtitle shown under Seerr discovery home rows
-  ///
-  /// In en, this message translates to:
-  /// **'Seerr Discovery Rows'**
-  String get seerrDiscoveryRows;
-
-  /// Seerr Lists heading for the sliders an admin set up on Seerr's discover page
-  ///
-  /// In en, this message translates to:
-  /// **'Seerr Discover Sliders'**
-  String get seerrDiscoverSliders;
-
-  /// Seerr row: watchlist
-  ///
-  /// In en, this message translates to:
-  /// **'Your Watchlist'**
-  String get yourWatchlist;
-
-  /// Setting title for showing Seerr availability badges on posters across the app
-  ///
-  /// In en, this message translates to:
-  /// **'Show Seerr Availability Badges'**
-  String get showSeerrAvailabilityBadges;
-
-  /// Setting title for how posters show their Seerr status
-  ///
-  /// In en, this message translates to:
-  /// **'Badge Style'**
-  String get seerrBadgeStyle;
 
   /// Status: enabled
   ///
@@ -10160,53 +9974,11 @@ abstract class AppLocalizations {
   /// **'No results'**
   String get noResults;
 
-  /// Seerr media status when item is available
-  ///
-  /// In en, this message translates to:
-  /// **'Available'**
-  String get seerrAvailableStatus;
-
-  /// Seerr media status when item has been requested
-  ///
-  /// In en, this message translates to:
-  /// **'Requested'**
-  String get seerrRequestedStatus;
-
-  /// Seerr download bar label when the server reports no usable file sizes
-  ///
-  /// In en, this message translates to:
-  /// **'Downloading'**
-  String get seerrDownloading;
-
-  /// Label above the Seerr download progress bar when byte counts are known
-  ///
-  /// In en, this message translates to:
-  /// **'Downloading · {done} / {total}'**
-  String seerrDownloadingSize(String done, String total);
-
-  /// Short form of the Seerr download label, used when the card is too narrow for the verb
-  ///
-  /// In en, this message translates to:
-  /// **'{done} / {total}'**
-  String seerrDownloadedOfTotal(String done, String total);
-
-  /// Standalone percentage shown at the end of the Seerr download bar label
-  ///
-  /// In en, this message translates to:
-  /// **'{percent}%'**
-  String seerrPercentValue(int percent);
-
   /// Label above the Seerr download progress bar
   ///
   /// In en, this message translates to:
   /// **'Downloading · {percent}%'**
   String seerrDownloadingPercent(int percent);
-
-  /// Label when a Seerr download has finished and is importing
-  ///
-  /// In en, this message translates to:
-  /// **'Importing'**
-  String get seerrImportingStatus;
 
   /// Status bar item count
   ///
@@ -10214,41 +9986,11 @@ abstract class AppLocalizations {
   /// **'{count} Items'**
   String itemsCount(int count);
 
-  /// Dialog title for Seerr browse settings
-  ///
-  /// In en, this message translates to:
-  /// **'Seerr Settings'**
-  String get seerrSettings;
-
-  /// Button to request more seasons
-  ///
-  /// In en, this message translates to:
-  /// **'Request More'**
-  String get requestMore;
-
-  /// Button to request more seasons in 4K, shown next to the non-4K Request More button
-  ///
-  /// In en, this message translates to:
-  /// **'Request More in 4K'**
-  String get requestMore4k;
-
   /// Button to submit a media request
   ///
   /// In en, this message translates to:
   /// **'Request'**
   String get request;
-
-  /// Button to submit a 4K media request, shown next to the non-4K Request button
-  ///
-  /// In en, this message translates to:
-  /// **'Request 4K'**
-  String get request4k;
-
-  /// Disabled label shown when a 4K request already exists and the user cannot cancel it
-  ///
-  /// In en, this message translates to:
-  /// **'4K Requested'**
-  String get requested4k;
 
   /// Button/dialog title to cancel a media request
   ///
@@ -10256,35 +9998,11 @@ abstract class AppLocalizations {
   /// **'Cancel Request'**
   String get cancelRequest;
 
-  /// Button/dialog title to cancel a 4K media request
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel 4K Request'**
-  String get cancelRequest4k;
-
   /// Button to play available media in Moonfin
   ///
   /// In en, this message translates to:
   /// **'Play in kOS TV'**
   String get playInMoonfin;
-
-  /// Label above the name of whoever requested media, where the name sits on its own line
-  ///
-  /// In en, this message translates to:
-  /// **'Requested by'**
-  String get requestedByLabel;
-
-  /// Label showing who requested media
-  ///
-  /// In en, this message translates to:
-  /// **'Requested by {name}'**
-  String requestedByName(String name);
-
-  /// Details screen button opening the pending requests to approve or decline
-  ///
-  /// In en, this message translates to:
-  /// **'Manage Requests'**
-  String get manageRequests;
 
   /// Details screen button adding the title to the Seerr watchlist
   ///
@@ -10292,23 +10010,11 @@ abstract class AppLocalizations {
   /// **'Watchlist'**
   String get watchlist;
 
-  /// Details screen button label when the title is already on the Seerr watchlist
-  ///
-  /// In en, this message translates to:
-  /// **'On Watchlist'**
-  String get onWatchlist;
-
   /// Tooltip/button to approve a request
   ///
   /// In en, this message translates to:
   /// **'Approve'**
   String get approve;
-
-  /// Tooltip/button to decline a request
-  ///
-  /// In en, this message translates to:
-  /// **'Decline'**
-  String get declineAction;
 
   /// Section title for similar media
   ///
@@ -10321,18 +10027,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recommendations'**
   String get recommendations;
-
-  /// Confirmation message for single request cancellation
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel request for \"{title}\"?'**
-  String cancelRequestForTitle(String title);
-
-  /// Confirmation message for multiple request cancellation
-  ///
-  /// In en, this message translates to:
-  /// **'Cancel {count} requests for \"{title}\"?'**
-  String cancelCountRequestsForTitle(int count, String title);
 
   /// Button to keep/dismiss a cancel dialog
   ///
@@ -10370,89 +10064,11 @@ abstract class AppLocalizations {
   /// **'{count} {label}'**
   String seasonsCount(int count, String label);
 
-  /// Bottom sheet title for requesting media
-  ///
-  /// In en, this message translates to:
-  /// **'Request {type}'**
-  String requestSeriesOrMovie(String type);
-
-  /// Bottom sheet title for requesting media in 4K
-  ///
-  /// In en, this message translates to:
-  /// **'Request 4K {type}'**
-  String requestSeriesOrMovie4k(String type);
-
-  /// Button to finalize a media request
-  ///
-  /// In en, this message translates to:
-  /// **'Submit Request'**
-  String get submitRequest;
-
-  /// Checkbox label for selecting all seasons
-  ///
-  /// In en, this message translates to:
-  /// **'All Seasons'**
-  String get allSeasons;
-
-  /// Banner in the Seerr request dialog for a continuing series whose aired seasons are all in the library
-  ///
-  /// In en, this message translates to:
-  /// **'Series Continuing · Future Seasons Can Be Requested'**
-  String get seerrSeriesContinuing;
-
-  /// Shown above Sonarr's matches in the Seerr request dialog when the series has no TVDB id, so the user has to pick which series to request
-  ///
-  /// In en, this message translates to:
-  /// **'We couldn\'t match this series automatically. Pick the right one below.'**
-  String get seerrSeriesMatchDescription;
-
-  /// Shown in the Seerr request dialog when the series has no TVDB id and Sonarr found no series to match it with
-  ///
-  /// In en, this message translates to:
-  /// **'We couldn\'t find a match for this series, so it can\'t be requested.'**
-  String get seerrSeriesNoMatch;
-
-  /// Shown in the Seerr request dialog above a Retry button when looking up Sonarr's matches for a series with no TVDB id fails. Seerr reports a series Sonarr doesn't know and an unreachable Sonarr the same way, so the text covers both
-  ///
-  /// In en, this message translates to:
-  /// **'Sonarr couldn\'t find a match for this series, or couldn\'t be reached. Try again, or check the series on Seerr.'**
-  String get seerrSeriesMatchFailed;
-
-  /// Expansion tile for advanced request options
-  ///
-  /// In en, this message translates to:
-  /// **'Advanced Options'**
-  String get advancedOptions;
-
-  /// Shown when no Radarr/Sonarr servers are set up
-  ///
-  /// In en, this message translates to:
-  /// **'No service servers configured'**
-  String get noServiceServersConfigured;
-
   /// Dropdown label for server selection
   ///
   /// In en, this message translates to:
   /// **'Server'**
   String get server;
-
-  /// Dropdown label for quality profile selection
-  ///
-  /// In en, this message translates to:
-  /// **'Quality Profile'**
-  String get qualityProfile;
-
-  /// Dropdown label for root folder selection
-  ///
-  /// In en, this message translates to:
-  /// **'Root Folder'**
-  String get rootFolder;
-
-  /// Button to expand truncated content
-  ///
-  /// In en, this message translates to:
-  /// **'Show More'**
-  String get showMore;
 
   /// Section title for cast appearances
   ///
@@ -10466,77 +10082,11 @@ abstract class AppLocalizations {
   /// **'Crew'**
   String get crewSection;
 
-  /// Person age display
-  ///
-  /// In en, this message translates to:
-  /// **'age {age}'**
-  String ageValue(int age);
-
-  /// Shown when request list is empty
-  ///
-  /// In en, this message translates to:
-  /// **'No requests'**
-  String get noRequests;
-
-  /// Request status label
-  ///
-  /// In en, this message translates to:
-  /// **'Pending'**
-  String get pendingStatus;
-
-  /// Request status label
-  ///
-  /// In en, this message translates to:
-  /// **'Declined'**
-  String get declinedStatus;
-
-  /// Request status label
-  ///
-  /// In en, this message translates to:
-  /// **'Partially Available'**
-  String get partiallyAvailable;
-
   /// Request status label
   ///
   /// In en, this message translates to:
   /// **'Downloading'**
   String get downloadingStatus;
-
-  /// Request status label
-  ///
-  /// In en, this message translates to:
-  /// **'Approved'**
-  String get approvedStatus;
-
-  /// Request status label when no request exists
-  ///
-  /// In en, this message translates to:
-  /// **'Not Requested'**
-  String get notRequestedStatus;
-
-  /// Request status label for blocklisted media
-  ///
-  /// In en, this message translates to:
-  /// **'Blocklisted'**
-  String get blocklistedStatus;
-
-  /// Request status label for deleted media
-  ///
-  /// In en, this message translates to:
-  /// **'Deleted'**
-  String get deletedStatus;
-
-  /// Request status label when the request failed to send to Radarr/Sonarr
-  ///
-  /// In en, this message translates to:
-  /// **'Failed'**
-  String get failedStatus;
-
-  /// Filter label for approved requests being processed
-  ///
-  /// In en, this message translates to:
-  /// **'Processing'**
-  String get processingStatus;
 
   /// Label showing which manager acted on a request
   ///
@@ -10556,18 +10106,6 @@ abstract class AppLocalizations {
   /// **'This title was already requested'**
   String get requestErrorDuplicate;
 
-  /// Error when the user is out of request quota
-  ///
-  /// In en, this message translates to:
-  /// **'Request limit reached'**
-  String get requestErrorQuota;
-
-  /// Error when requesting blocklisted media
-  ///
-  /// In en, this message translates to:
-  /// **'This title is blocklisted'**
-  String get requestErrorBlocklisted;
-
   /// Error when every season is already requested or available
   ///
   /// In en, this message translates to:
@@ -10579,126 +10117,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You don\'t have permission to make this request'**
   String get requestErrorPermission;
-
-  /// Requests tab and screen title
-  ///
-  /// In en, this message translates to:
-  /// **'Requests'**
-  String get seerrRequestsTitle;
-
-  /// Issues tab title on the requests hub
-  ///
-  /// In en, this message translates to:
-  /// **'Issues'**
-  String get seerrIssuesTitle;
-
-  /// Request sort option, most recently added first
-  ///
-  /// In en, this message translates to:
-  /// **'Newest'**
-  String get sortNewest;
-
-  /// Request sort option, most recently updated first
-  ///
-  /// In en, this message translates to:
-  /// **'Last Modified'**
-  String get sortLastModified;
-
-  /// Shown when the issue list is empty
-  ///
-  /// In en, this message translates to:
-  /// **'No issues'**
-  String get noIssues;
-
-  /// Quota line in the request dialog
-  ///
-  /// In en, this message translates to:
-  /// **'{remaining} of {limit} movie requests remaining'**
-  String movieQuotaRemaining(int remaining, int limit);
-
-  /// Quota line in the request dialog for series
-  ///
-  /// In en, this message translates to:
-  /// **'{remaining} of {limit} season requests remaining'**
-  String seasonQuotaRemaining(int remaining, int limit);
-
-  /// Banner on a movie that belongs to a collection
-  ///
-  /// In en, this message translates to:
-  /// **'Part of {name}'**
-  String partOfCollectionName(String name);
-
-  /// Link to open the collection screen
-  ///
-  /// In en, this message translates to:
-  /// **'View Collection'**
-  String get viewCollection;
-
-  /// Button to request movies from a collection
-  ///
-  /// In en, this message translates to:
-  /// **'Request Collection'**
-  String get requestCollection;
-
-  /// Collection header summary line
-  ///
-  /// In en, this message translates to:
-  /// **'{total} movies · {available} available'**
-  String collectionMoviesSummary(int total, int available);
-
-  /// Submit button on the collection request sheet
-  ///
-  /// In en, this message translates to:
-  /// **'Request {count} movies'**
-  String requestMoviesCount(int count);
-
-  /// Progress label while collection requests are submitted
-  ///
-  /// In en, this message translates to:
-  /// **'Requesting {current} of {total}...'**
-  String requestingProgress(int current, int total);
-
-  /// Snackbar after a collection request succeeds
-  ///
-  /// In en, this message translates to:
-  /// **'Requested {count} movies'**
-  String requestedMoviesCount(int count);
-
-  /// Snackbar when some collection requests failed
-  ///
-  /// In en, this message translates to:
-  /// **'Requested {ok} of {total} movies'**
-  String requestedMoviesPartial(int ok, int total);
-
-  /// Shown instead of the request button when nothing is requestable
-  ///
-  /// In en, this message translates to:
-  /// **'All movies are already available or requested'**
-  String get collectionAllRequested;
-
-  /// Button on the seerr detail screen to report a media issue
-  ///
-  /// In en, this message translates to:
-  /// **'Report Issue'**
-  String get reportIssue;
-
-  /// Issue type option
-  ///
-  /// In en, this message translates to:
-  /// **'Video'**
-  String get issueTypeVideo;
-
-  /// Issue type option
-  ///
-  /// In en, this message translates to:
-  /// **'Audio'**
-  String get issueTypeAudio;
-
-  /// Label for the issue description field
-  ///
-  /// In en, this message translates to:
-  /// **'What\'s wrong?'**
-  String get whatsWrong;
 
   /// Episode dropdown option covering the whole season
   ///
@@ -10712,83 +10130,11 @@ abstract class AppLocalizations {
   /// **'Episode'**
   String get episode;
 
-  /// Issue status label
-  ///
-  /// In en, this message translates to:
-  /// **'Open'**
-  String get openStatus;
-
-  /// Issue status label
-  ///
-  /// In en, this message translates to:
-  /// **'Resolved'**
-  String get resolvedStatus;
-
-  /// Button to resolve an issue
-  ///
-  /// In en, this message translates to:
-  /// **'Resolve'**
-  String get resolveAction;
-
-  /// Button to reopen a resolved issue
-  ///
-  /// In en, this message translates to:
-  /// **'Reopen'**
-  String get reopenAction;
-
-  /// Label showing who reported an issue
-  ///
-  /// In en, this message translates to:
-  /// **'Reported by {name}'**
-  String reportedByName(String name);
-
-  /// Number of comments on an issue
-  ///
-  /// In en, this message translates to:
-  /// **'{count} comments'**
-  String commentsCount(int count);
-
-  /// Hint for the issue comment field
-  ///
-  /// In en, this message translates to:
-  /// **'Add a comment'**
-  String get addComment;
-
-  /// Confirmation before deleting an issue
-  ///
-  /// In en, this message translates to:
-  /// **'Delete this issue?'**
-  String get deleteIssueConfirm;
-
-  /// Button to submit an issue report
-  ///
-  /// In en, this message translates to:
-  /// **'Submit Report'**
-  String get submitReport;
-
-  /// Stat label for TMDB user score
-  ///
-  /// In en, this message translates to:
-  /// **'TMDB Score'**
-  String get tmdbScore;
-
   /// Stat label for release date
   ///
   /// In en, this message translates to:
   /// **'Release Date'**
   String get releaseDateLabel;
-
-  /// Stat label for first air date
-  ///
-  /// In en, this message translates to:
-  /// **'First Air Date'**
-  String get firstAirDateLabel;
-
-  /// Stat label for revenue
-  ///
-  /// In en, this message translates to:
-  /// **'Revenue'**
-  String get revenueLabel;
 
   /// Stat label for runtime
   ///
@@ -10796,29 +10142,11 @@ abstract class AppLocalizations {
   /// **'Runtime'**
   String get runtimeLabel;
 
-  /// Stat label for budget
-  ///
-  /// In en, this message translates to:
-  /// **'Budget'**
-  String get budgetLabel;
-
   /// Stat label for original language
   ///
   /// In en, this message translates to:
   /// **'Original Language'**
   String get originalLanguageLabel;
-
-  /// Stat label for number of seasons
-  ///
-  /// In en, this message translates to:
-  /// **'Seasons'**
-  String get seasonsLabel;
-
-  /// Stat label for number of episodes
-  ///
-  /// In en, this message translates to:
-  /// **'Episodes'**
-  String get episodesLabel;
 
   /// No description provided for @access.
   ///
@@ -13982,12 +13310,6 @@ abstract class AppLocalizations {
   /// **'Vol +'**
   String get sessionVolumeUp;
 
-  /// No description provided for @uhd4k.
-  ///
-  /// In en, this message translates to:
-  /// **'4K'**
-  String get uhd4k;
-
   /// No description provided for @nowPlaying.
   ///
   /// In en, this message translates to:
@@ -16411,12 +15733,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Whitelist'**
   String get whitelist;
-
-  /// No description provided for @blacklist.
-  ///
-  /// In en, this message translates to:
-  /// **'Blacklist'**
-  String get blacklist;
 
   /// No description provided for @notSet.
   ///
@@ -20528,12 +19844,6 @@ abstract class AppLocalizations {
   /// **'Show the libraries button in the navigation bar'**
   String get settingsShowLibrariesButtonInNavigation;
 
-  /// No description provided for @settingsShowSeerrButtonInNavigation.
-  ///
-  /// In en, this message translates to:
-  /// **'Show the Seerr button in the navigation bar'**
-  String get settingsShowSeerrButtonInNavigation;
-
   /// No description provided for @settingsAlwaysExpandNavbarLabels.
   ///
   /// In en, this message translates to:
@@ -21821,7 +21131,7 @@ abstract class AppLocalizations {
   /// No description provided for @sinceYouWatchedSourceDescription.
   ///
   /// In en, this message translates to:
-  /// **'Choose the recommendation source: kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server\'s engine) or TMDb\'s similarity metrics. Note: Online recommendations require Seerr integration.'**
+  /// **'Choose the recommendation source: kOS TV Recommends (an algorithm over your own library), Jellyfin Recommends (the server\'s engine) or TMDb\'s similarity metrics.'**
   String get sinceYouWatchedSourceDescription;
 
   /// No description provided for @sinceYouWatchedSourceLocal.
@@ -22087,24 +21397,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sort TMDB rows in ascending or descending order.'**
   String get tmdbRowsSortOrderDescription;
-
-  /// No description provided for @seerrRowsSorting.
-  ///
-  /// In en, this message translates to:
-  /// **'Seerr Row Sorting'**
-  String get seerrRowsSorting;
-
-  /// No description provided for @seerrRowsSortingDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Sort Seerr rows by name, release date, rating, and more.'**
-  String get seerrRowsSortingDescription;
-
-  /// No description provided for @seerrRowsSortOrderDescription.
-  ///
-  /// In en, this message translates to:
-  /// **'Sort Seerr rows in ascending or descending order.'**
-  String get seerrRowsSortOrderDescription;
 
   /// No description provided for @externalRowSortDefault.
   ///
@@ -22741,18 +22033,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Guest Appearances'**
   String get guestAppearances;
-
-  /// No description provided for @appearancesSeerr.
-  ///
-  /// In en, this message translates to:
-  /// **'Appearances (Seerr)'**
-  String get appearancesSeerr;
-
-  /// No description provided for @crewContributionsSeerr.
-  ///
-  /// In en, this message translates to:
-  /// **'Crew Contributions (Seerr)'**
-  String get crewContributionsSeerr;
 
   /// Tooltip for the button on a person page that opens their own website
   ///
@@ -25694,18 +24974,6 @@ abstract class AppLocalizations {
   /// **'Release Date (Descending)'**
   String get releaseDateDescending;
 
-  /// Section header for grouping person contributions
-  ///
-  /// In en, this message translates to:
-  /// **'Group Contributions'**
-  String get groupContributions;
-
-  /// Option to group multiple roles for a person
-  ///
-  /// In en, this message translates to:
-  /// **'Group multiple roles'**
-  String get groupMultipleRoles;
-
   /// Title for library write access warning dialog
   ///
   /// In en, this message translates to:
@@ -26243,18 +25511,6 @@ abstract class AppLocalizations {
   /// **'IMDb Top Rated English Movies'**
   String get imdbTopEnglishMovies;
 
-  /// Button label to add media to the user's Seerr watchlist
-  ///
-  /// In en, this message translates to:
-  /// **'Add to Watchlist'**
-  String get addToWatchlist;
-
-  /// Button label to remove media from the user's Seerr watchlist
-  ///
-  /// In en, this message translates to:
-  /// **'Remove from Watchlist'**
-  String get removeFromWatchlist;
-
   /// Snackbar shown when adding/removing a Seerr watchlist item fails
   ///
   /// In en, this message translates to:
@@ -26687,42 +25943,6 @@ abstract class AppLocalizations {
   /// **'Clear Filters'**
   String get clearFilters;
 
-  /// Title of the Seerr shortcuts row that jumps to Discover, Movies, Series, Requests and Issues.
-  ///
-  /// In en, this message translates to:
-  /// **'Seerr Browse'**
-  String get seerrShortcutsRow;
-
-  /// Heading for the release window filter in the Seerr browse dialog.
-  ///
-  /// In en, this message translates to:
-  /// **'Released'**
-  String get seerrReleased;
-
-  /// Heading for the TMDB score floor filter in the Seerr browse dialog.
-  ///
-  /// In en, this message translates to:
-  /// **'Minimum Rating'**
-  String get seerrMinRating;
-
-  /// Heading for the TMDB vote count floor filter in the Seerr browse dialog.
-  ///
-  /// In en, this message translates to:
-  /// **'Minimum Votes'**
-  String get seerrMinVotes;
-
-  /// Heading for the original language filter in the Seerr browse dialog.
-  ///
-  /// In en, this message translates to:
-  /// **'Original Language'**
-  String get seerrOriginalLanguage;
-
-  /// Heading for the runtime window filter in the Seerr browse dialog.
-  ///
-  /// In en, this message translates to:
-  /// **'Runtime'**
-  String get seerrRuntime;
-
   /// Toggle for a second subtitle appearance used only while HDR is playing.
   ///
   /// In en, this message translates to:
@@ -27088,12 +26308,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'There is more waiting in Settings'**
   String get setupTourMoreHeader;
-
-  /// Bullet on the closing setup screen for the Seerr request feature
-  ///
-  /// In en, this message translates to:
-  /// **'Seerr requests'**
-  String get setupTourBulletRequests;
 
   /// Bullet on the closing setup screen for SyncPlay
   ///
@@ -29883,12 +29097,6 @@ abstract class AppLocalizations {
   /// **'Smart Search'**
   String get smartSearch;
 
-  /// Title of the search results row with titles not in the library that the server's natural-language search found, which open in Seerr
-  ///
-  /// In en, this message translates to:
-  /// **'Smart Search on {seerr}'**
-  String smartSearchOnSeerr(String seerr);
-
   /// Name of the screen of upcoming episodes and movies from Sonarr and Radarr, on the navigation bar and as the screen title
   ///
   /// In en, this message translates to:
@@ -30068,12 +29276,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The calendar is limited to admins on this server.'**
   String get calendarProblemAdminsOnly;
-
-  /// Calendar message when the server can't reach Sonarr and Radarr yet
-  ///
-  /// In en, this message translates to:
-  /// **'An admin needs to sign in to Seerr in kOS TV before the calendar can load.'**
-  String get calendarProblemNeedsSeerr;
 
   /// Calendar message when the server has no Sonarr or Radarr
   ///

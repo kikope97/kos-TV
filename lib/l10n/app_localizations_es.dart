@@ -78,9 +78,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get username => 'Nombre de usuario';
 
   @override
-  String get email => 'Correo electrónico';
-
-  @override
   String get quickConnectInstruction =>
       'Introduce este código en el panel web de tu servidor:';
 
@@ -287,40 +284,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get spotlightMoviesAndShows => 'Películas y series';
 
   @override
-  String get spotlightSimilarSeerr => 'Similares (Seerr)';
-
-  @override
-  String get spotlightRecommendationsSeerr => 'Recomendaciones (Seerr)';
-
-  @override
   String spotlightPeopleCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
       other: '$count personas',
       one: '1 persona',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String spotlightFactsCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count datos',
-      one: '1 dato',
-    );
-    return '$_temp0';
-  }
-
-  @override
-  String spotlightTagsCount(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: '$count etiquetas',
-      one: '1 etiqueta',
     );
     return '$_temp0';
   }
@@ -505,7 +474,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get recommendationSystemSubtitle =>
-      'Usa kOS TV Recomienda (un algoritmo sobre tu propia biblioteca), Jellyfin Recomienda (el motor del servidor) o las métricas de similitud en línea de TMDb. Nota: las recomendaciones en línea requieren la integración con Seerr.';
+      'Usa kOS TV Recomienda (un algoritmo sobre tu propia biblioteca), Jellyfin Recomienda (el motor del servidor) o las métricas de similitud en línea de TMDb.';
 
   @override
   String get recommendationSystemMoonfin => 'kOS TV Recomienda';
@@ -2944,11 +2913,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String seasonChip(int number) {
-    return 'T$number';
-  }
-
-  @override
   String get specials => 'Especiales';
 
   @override
@@ -3404,7 +3368,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get seasonalRowDescription =>
-      'Muestra una fila de películas festivas de tu biblioteca, con sugerencias de Seerr si están disponibles.';
+      'Muestra una fila de películas festivas de tu biblioteca.';
 
   @override
   String get seasonalRowSubtitle => 'De temporada';
@@ -3737,13 +3701,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get detailMetadataGenres => 'Géneros';
 
   @override
-  String get detailMetadataSeerrAvailability => 'Disponibilidad en Seerr';
-
-  @override
-  String get detailMetadataSeerrAvailabilitySubtitle =>
-      'Muestra el estado de solicitud y disponibilidad de Seerr';
-
-  @override
   String get detailMetadataUpcomingEpisodeDate => 'Próximos episodios';
 
   @override
@@ -3839,36 +3796,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get detailSectionMediaInfoSubtitle =>
       'Archivo, pistas y comprobación de reproducción directa';
-
-  @override
-  String get detailSectionSeerrGenresTags => 'Géneros y etiquetas';
-
-  @override
-  String get detailSectionSeerrStats => 'Datos';
-
-  @override
-  String get detailSectionSeerrStreaming => 'Servicios de streaming';
-
-  @override
-  String get seerrStreamingOn => 'Disponible en';
-
-  @override
-  String get detailSectionSeerrRecommendations => 'Recomendaciones';
-
-  @override
-  String get detailSectionSeerrSimilar => 'Títulos similares';
-
-  @override
-  String get detailSectionSeerrCollection => 'Banner de la colección';
-
-  @override
-  String get detailSectionSeerrPersonAppearances => 'Apariciones';
-
-  @override
-  String get detailSectionSeerrPersonCrew => 'Créditos en el equipo técnico';
-
-  @override
-  String get detailSectionPersonPagesSubtitle => 'En las páginas de personas';
 
   @override
   String get detailSectionBiography => 'Biografía';
@@ -4040,9 +3967,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get autoServerDefault => 'Automático (predeterminado del servidor)';
-
-  @override
-  String get english => 'Inglés';
 
   @override
   String get spanish => 'Español';
@@ -4787,9 +4711,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get navbarAlwaysExpanded =>
       'Expandir siempre las etiquetas de la barra de navegación';
-
-  @override
-  String get showSeerrButton => 'Mostrar botón de Seerr';
 
   @override
   String get navbarOpacity => 'Opacidad de la barra de navegación';
@@ -5652,9 +5573,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get recentRequests => 'Solicitudes recientes';
-
-  @override
   String get recentlyAdded => 'Añadido recientemente';
 
   @override
@@ -5664,47 +5582,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get popularMovies => 'Películas populares';
 
   @override
-  String get movieGenres => 'Géneros de películas';
-
-  @override
   String get upcomingMovies => 'Próximas películas';
 
   @override
   String get studios => 'Estudios';
 
   @override
-  String get popularSeries => 'Series populares';
-
-  @override
-  String get seriesGenres => 'Géneros de series';
-
-  @override
-  String get upcomingSeries => 'Próximas series';
-
-  @override
   String get networks => 'Cadenas';
 
   @override
   String get tags => 'Etiquetas';
-
-  @override
-  String get genresAndTags => 'Géneros y etiquetas';
-
-  @override
-  String get seerrDiscoveryRows => 'Filas de descubrimiento de Seerr';
-
-  @override
-  String get seerrDiscoverSliders => 'Carruseles de Descubrir de Seerr';
-
-  @override
-  String get yourWatchlist => 'Tu lista de seguimiento';
-
-  @override
-  String get showSeerrAvailabilityBadges =>
-      'Mostrar insignias de disponibilidad de Seerr';
-
-  @override
-  String get seerrBadgeStyle => 'Estilo de insignia';
 
   @override
   String get enabled => 'Activado';
@@ -5864,36 +5751,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get noResults => 'Sin resultados';
 
   @override
-  String get seerrAvailableStatus => 'Disponible';
-
-  @override
-  String get seerrRequestedStatus => 'Solicitado';
-
-  @override
-  String get seerrDownloading => 'Descargando';
-
-  @override
-  String seerrDownloadingSize(String done, String total) {
-    return 'Descargando · $done / $total';
-  }
-
-  @override
-  String seerrDownloadedOfTotal(String done, String total) {
-    return '$done / $total';
-  }
-
-  @override
-  String seerrPercentValue(int percent) {
-    return '$percent%';
-  }
-
-  @override
   String seerrDownloadingPercent(int percent) {
     return 'Descargando · $percent%';
   }
-
-  @override
-  String get seerrImportingStatus => 'Importando';
 
   @override
   String itemsCount(int count) {
@@ -5901,70 +5761,25 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get seerrSettings => 'Ajustes de Seerr';
-
-  @override
-  String get requestMore => 'Solicitar más';
-
-  @override
-  String get requestMore4k => 'Solicitar más en 4K';
-
-  @override
   String get request => 'Solicitar';
-
-  @override
-  String get request4k => 'Solicitar en 4K';
-
-  @override
-  String get requested4k => 'Solicitado en 4K';
 
   @override
   String get cancelRequest => 'Cancelar solicitud';
 
   @override
-  String get cancelRequest4k => 'Cancelar solicitud en 4K';
-
-  @override
   String get playInMoonfin => 'Reproducir en kOS TV';
-
-  @override
-  String get requestedByLabel => 'Solicitado por';
-
-  @override
-  String requestedByName(String name) {
-    return 'Solicitado por $name';
-  }
-
-  @override
-  String get manageRequests => 'Gestionar solicitudes';
 
   @override
   String get watchlist => 'Lista de seguimiento';
 
   @override
-  String get onWatchlist => 'En tu lista';
-
-  @override
   String get approve => 'Aprobar';
-
-  @override
-  String get declineAction => 'Rechazar';
 
   @override
   String get similar => 'Similares';
 
   @override
   String get recommendations => 'Recomendaciones';
-
-  @override
-  String cancelRequestForTitle(String title) {
-    return '¿Cancelar la solicitud de «$title»?';
-  }
-
-  @override
-  String cancelCountRequestsForTitle(int count, String title) {
-    return '¿Cancelar $count solicitudes de «$title»?';
-  }
 
   @override
   String get keep => 'Mantener';
@@ -5992,55 +5807,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String requestSeriesOrMovie(String type) {
-    return 'Solicitar $type';
-  }
-
-  @override
-  String requestSeriesOrMovie4k(String type) {
-    return 'Solicitar $type en 4K';
-  }
-
-  @override
-  String get submitRequest => 'Enviar solicitud';
-
-  @override
-  String get allSeasons => 'Todas las temporadas';
-
-  @override
-  String get seerrSeriesContinuing =>
-      'Serie en emisión · Se pueden solicitar las próximas temporadas';
-
-  @override
-  String get seerrSeriesMatchDescription =>
-      'No hemos podido identificar esta serie automáticamente. Elige la correcta abajo.';
-
-  @override
-  String get seerrSeriesNoMatch =>
-      'No hemos encontrado ninguna coincidencia para esta serie, así que no se puede solicitar.';
-
-  @override
-  String get seerrSeriesMatchFailed =>
-      'Sonarr no ha encontrado ninguna coincidencia para esta serie o no se ha podido conectar con él. Vuelve a intentarlo o revisa la serie en Seerr.';
-
-  @override
-  String get advancedOptions => 'Opciones avanzadas';
-
-  @override
-  String get noServiceServersConfigured =>
-      'No hay servidores de servicio configurados';
-
-  @override
   String get server => 'Servidor';
-
-  @override
-  String get qualityProfile => 'Perfil de calidad';
-
-  @override
-  String get rootFolder => 'Carpeta raíz';
-
-  @override
-  String get showMore => 'Mostrar más';
 
   @override
   String get appearances => 'Apariciones';
@@ -6049,42 +5816,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get crewSection => 'Equipo técnico';
 
   @override
-  String ageValue(int age) {
-    return '$age años';
-  }
-
-  @override
-  String get noRequests => 'Sin solicitudes';
-
-  @override
-  String get pendingStatus => 'Pendiente';
-
-  @override
-  String get declinedStatus => 'Rechazado';
-
-  @override
-  String get partiallyAvailable => 'Parcialmente disponible';
-
-  @override
   String get downloadingStatus => 'Descargando';
-
-  @override
-  String get approvedStatus => 'Aprobado';
-
-  @override
-  String get notRequestedStatus => 'No solicitado';
-
-  @override
-  String get blocklistedStatus => 'En la lista de bloqueo';
-
-  @override
-  String get deletedStatus => 'Eliminado';
-
-  @override
-  String get failedStatus => 'Fallida';
-
-  @override
-  String get processingStatus => 'En proceso';
 
   @override
   String modifiedByName(String name) {
@@ -6098,95 +5830,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String get requestErrorDuplicate => 'Este título ya se ha solicitado';
 
   @override
-  String get requestErrorQuota => 'Has alcanzado el límite de solicitudes';
-
-  @override
-  String get requestErrorBlocklisted =>
-      'Este título está en la lista de bloqueo';
-
-  @override
   String get requestErrorNoSeasons => 'No quedan temporadas por solicitar';
 
   @override
   String get requestErrorPermission =>
       'No tienes permiso para hacer esta solicitud';
-
-  @override
-  String get seerrRequestsTitle => 'Solicitudes';
-
-  @override
-  String get seerrIssuesTitle => 'Problemas';
-
-  @override
-  String get sortNewest => 'Más recientes';
-
-  @override
-  String get sortLastModified => 'Última modificación';
-
-  @override
-  String get noIssues => 'No hay problemas';
-
-  @override
-  String movieQuotaRemaining(int remaining, int limit) {
-    return 'Te quedan $remaining de $limit solicitudes de películas';
-  }
-
-  @override
-  String seasonQuotaRemaining(int remaining, int limit) {
-    return 'Te quedan $remaining de $limit solicitudes de temporadas';
-  }
-
-  @override
-  String partOfCollectionName(String name) {
-    return 'Parte de $name';
-  }
-
-  @override
-  String get viewCollection => 'Ver colección';
-
-  @override
-  String get requestCollection => 'Solicitar colección';
-
-  @override
-  String collectionMoviesSummary(int total, int available) {
-    return '$total películas · $available disponibles';
-  }
-
-  @override
-  String requestMoviesCount(int count) {
-    return 'Solicitar $count películas';
-  }
-
-  @override
-  String requestingProgress(int current, int total) {
-    return 'Solicitando $current de $total...';
-  }
-
-  @override
-  String requestedMoviesCount(int count) {
-    return 'Se han solicitado $count películas';
-  }
-
-  @override
-  String requestedMoviesPartial(int ok, int total) {
-    return 'Se han solicitado $ok de $total películas';
-  }
-
-  @override
-  String get collectionAllRequested =>
-      'Todas las películas ya están disponibles o solicitadas';
-
-  @override
-  String get reportIssue => 'Informar de un problema';
-
-  @override
-  String get issueTypeVideo => 'Vídeo';
-
-  @override
-  String get issueTypeAudio => 'Audio';
-
-  @override
-  String get whatsWrong => '¿Qué ocurre?';
 
   @override
   String get allEpisodes => 'Todos los episodios';
@@ -6195,62 +5843,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get episode => 'Episodio';
 
   @override
-  String get openStatus => 'Abierto';
-
-  @override
-  String get resolvedStatus => 'Resuelto';
-
-  @override
-  String get resolveAction => 'Resolver';
-
-  @override
-  String get reopenAction => 'Reabrir';
-
-  @override
-  String reportedByName(String name) {
-    return 'Notificado por $name';
-  }
-
-  @override
-  String commentsCount(int count) {
-    return '$count comentarios';
-  }
-
-  @override
-  String get addComment => 'Añadir un comentario';
-
-  @override
-  String get deleteIssueConfirm => '¿Eliminar este problema?';
-
-  @override
-  String get submitReport => 'Enviar informe';
-
-  @override
-  String get tmdbScore => 'Puntuación TMDB';
-
-  @override
   String get releaseDateLabel => 'Fecha de estreno';
-
-  @override
-  String get firstAirDateLabel => 'Primera emisión';
-
-  @override
-  String get revenueLabel => 'Recaudación';
 
   @override
   String get runtimeLabel => 'Duración';
 
   @override
-  String get budgetLabel => 'Presupuesto';
-
-  @override
   String get originalLanguageLabel => 'Idioma original';
-
-  @override
-  String get seasonsLabel => 'Temporadas';
-
-  @override
-  String get episodesLabel => 'Episodios';
 
   @override
   String get access => 'Acceso';
@@ -8077,9 +7676,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get sessionVolumeUp => 'Vol +';
 
   @override
-  String get uhd4k => '4K';
-
-  @override
   String get nowPlaying => 'Reproduciendo ahora';
 
   @override
@@ -9510,9 +9106,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get whitelist => 'Lista blanca';
-
-  @override
-  String get blacklist => 'Lista negra';
 
   @override
   String get notSet => 'No establecido';
@@ -11884,10 +11477,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Mostrar el botón de bibliotecas en la barra de navegación';
 
   @override
-  String get settingsShowSeerrButtonInNavigation =>
-      'Mostrar el botón de Seerr en la barra de navegación';
-
-  @override
   String get settingsAlwaysExpandNavbarLabels =>
       'Mostrar siempre las etiquetas de texto en la barra de navegación superior';
 
@@ -12655,7 +12244,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get sinceYouWatchedSourceDescription =>
-      'Elige la fuente de recomendaciones: kOS TV Recomienda (un algoritmo sobre tu propia biblioteca), Jellyfin Recomienda (el motor del servidor) o las métricas de similitud de TMDb. Nota: las recomendaciones en línea requieren la integración con Seerr.';
+      'Elige la fuente de recomendaciones: kOS TV Recomienda (un algoritmo sobre tu propia biblioteca), Jellyfin Recomienda (el motor del servidor) o las métricas de similitud de TMDb.';
 
   @override
   String get sinceYouWatchedSourceLocal => 'kOS TV Recomienda';
@@ -12807,17 +12396,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get tmdbRowsSortOrderDescription =>
       'Ordena las filas de TMDb de forma ascendente o descendente.';
-
-  @override
-  String get seerrRowsSorting => 'Orden de las filas de Seerr';
-
-  @override
-  String get seerrRowsSortingDescription =>
-      'Ordena las filas de Seerr por nombre, fecha de estreno, valoración y más.';
-
-  @override
-  String get seerrRowsSortOrderDescription =>
-      'Ordena las filas de Seerr de forma ascendente o descendente.';
 
   @override
   String get externalRowSortDefault => 'Predeterminado (orden de la lista)';
@@ -13182,12 +12760,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get guestAppearances => 'Apariciones como invitado';
-
-  @override
-  String get appearancesSeerr => 'Apariciones (Seerr)';
-
-  @override
-  String get crewContributionsSeerr => 'Créditos en el equipo técnico (Seerr)';
 
   @override
   String get personWebsite => 'Web oficial';
@@ -14970,12 +14542,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get releaseDateDescending => 'Fecha de estreno (descendente)';
 
   @override
-  String get groupContributions => 'Agrupar contribuciones';
-
-  @override
-  String get groupMultipleRoles => 'Agrupar varios roles';
-
-  @override
   String get libraryWriteAccessWarningTitle =>
       'Aviso de acceso de escritura a la biblioteca';
 
@@ -15321,12 +14887,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Películas en inglés mejor valoradas de IMDb';
 
   @override
-  String get addToWatchlist => 'Añadir a la lista de seguimiento';
-
-  @override
-  String get removeFromWatchlist => 'Quitar de la lista de seguimiento';
-
-  @override
   String get watchlistUpdateFailed =>
       'No se ha podido actualizar la lista de seguimiento';
 
@@ -15553,24 +15113,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get clearFilters => 'Quitar filtros';
 
   @override
-  String get seerrShortcutsRow => 'Explorar Seerr';
-
-  @override
-  String get seerrReleased => 'Estreno';
-
-  @override
-  String get seerrMinRating => 'Puntuación mínima';
-
-  @override
-  String get seerrMinVotes => 'Votos mínimos';
-
-  @override
-  String get seerrOriginalLanguage => 'Idioma original';
-
-  @override
-  String get seerrRuntime => 'Duración';
-
-  @override
   String get subtitleHdrSeparate => 'Estilo aparte para HDR';
 
   @override
@@ -15780,9 +15322,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get setupTourMoreHeader => 'Hay más esperándote en Ajustes';
-
-  @override
-  String get setupTourBulletRequests => 'Solicitudes de Seerr';
 
   @override
   String get setupTourBulletSyncPlay => 'Ver juntos con SyncPlay';
@@ -17623,11 +17162,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get smartSearch => 'Búsqueda inteligente';
 
   @override
-  String smartSearchOnSeerr(String seerr) {
-    return 'Búsqueda inteligente en $seerr';
-  }
-
-  @override
   String get calendar => 'Calendario';
 
   @override
@@ -17720,10 +17254,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get calendarProblemAdminsOnly =>
       'En este servidor, el calendario es solo para administradores.';
-
-  @override
-  String get calendarProblemNeedsSeerr =>
-      'Un administrador tiene que iniciar sesión en Seerr en kOS TV para que se pueda cargar el calendario.';
 
   @override
   String get calendarProblemNotConfigured =>

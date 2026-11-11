@@ -4514,11 +4514,6 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: 'alphabetical',
   );
 
-  static final personPageGroupItems = Preference<bool>(
-    key: 'pref_person_page_group_items',
-    defaultValue: false,
-  );
-
   SeriesTrackPreference getSeriesSubtitlePreference(String seriesId) {
     final pref = Preference(
       key: 'pref_series_subtitle_lang_$seriesId',

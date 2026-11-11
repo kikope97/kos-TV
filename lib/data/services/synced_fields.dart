@@ -343,7 +343,6 @@ final List<SyncedField> syncedFields = <SyncedField>[
   SyncedField('hiddenOsdButtonsTv', UserPreferences.hiddenOsdButtonsTv, SyncCodec.csvList),
   SyncedField('hiddenOsdButtonsMobile', UserPreferences.hiddenOsdButtonsMobile, SyncCodec.csvList),
   SyncedField('hiddenOsdButtonsDesktop', UserPreferences.hiddenOsdButtonsDesktop, SyncCodec.csvList),
-  SyncedField('personPageGroupItems', UserPreferences.personPageGroupItems, SyncCodec.boolean),
   SyncedField('personPageSortOption', UserPreferences.personPageSortOption, SyncCodec.text),
   SyncedField('pgsDirectPlay', UserPreferences.pgsDirectPlay, SyncCodec.boolean),
   SyncedField('playbackTimeAboveLeft', UserPreferences.playbackTimeAboveLeft, SyncCodec.enumName, enumValues: prefs.PlaybackTimeSlot.values),
