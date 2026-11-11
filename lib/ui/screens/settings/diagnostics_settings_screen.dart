@@ -293,18 +293,16 @@ class _DiagnosticsSettingsScreenState extends State<DiagnosticsSettingsScreen> {
     );
   }
 
-  static String _categoryLabel(
-    LogCategory category,
-    AppLocalizations l10n,
-  ) => switch (category) {
-    LogCategory.general => l10n.general,
-    LogCategory.media => l10n.kostvLogCategoryMedia,
-    LogCategory.network => l10n.network,
-    LogCategory.auth => l10n.authentication,
-    LogCategory.playback => l10n.playback,
-    LogCategory.sync => l10n.kostvLogCategorySync,
-    LogCategory.artwork => l10n.kostvLogCategoryArtwork,
-  };
+  static String _categoryLabel(LogCategory category, AppLocalizations l10n) =>
+      switch (category) {
+        LogCategory.general => l10n.general,
+        LogCategory.media => l10n.kostvLogCategoryMedia,
+        LogCategory.network => l10n.network,
+        LogCategory.auth => l10n.authentication,
+        LogCategory.playback => l10n.playback,
+        LogCategory.sync => l10n.kostvLogCategorySync,
+        LogCategory.artwork => l10n.kostvLogCategoryArtwork,
+      };
 }
 
 class _FilterChoice {

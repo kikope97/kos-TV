@@ -169,6 +169,7 @@ class _ImdbListsScreenState extends State<_ImdbListsScreen> {
     _isFetching = true;
 
     var dialogDismissed = false;
+    final noItems = AppLocalizations.of(context).kostvServerReturnedNoItems;
 
     unawaited(
       showFocusRestoringDialog<void>(
@@ -180,7 +181,7 @@ class _ImdbListsScreenState extends State<_ImdbListsScreen> {
             PopScope(
               canPop: false,
               child: AlertDialog(
-                title: Text('Fetching $title'),
+                title: Text(AppLocalizations.of(context).kostvFetchingList(title)),
                 content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -224,7 +225,7 @@ class _ImdbListsScreenState extends State<_ImdbListsScreen> {
           .fetchCustomRow(config, forceRefresh: true)
           .timeout(const Duration(seconds: 15));
       if (items.isEmpty) {
-        throw Exception('Server returned no items.');
+        throw Exception(noItems);
       }
       return true;
     } catch (e) {
@@ -297,7 +298,7 @@ class _ImdbListsScreenState extends State<_ImdbListsScreen> {
         child: Scaffold(
           appBar: buildSettingsAppBar(
             context,
-            const Text('IMDb Lists'),
+            Text(l10n.kostvImdbLists),
           ),
           body: FocusScope(
             node: _scope,
@@ -337,7 +338,7 @@ class _ImdbListsScreenState extends State<_ImdbListsScreen> {
                     ),
                   ],
                 ),
-                const _SectionHeader('IMDb Lists'),
+                _SectionHeader(l10n.kostvImdbLists),
                 adaptiveListSection(
                   children: [
                     SwitchPreferenceTile(
@@ -556,7 +557,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
         child: Scaffold(
           appBar: buildSettingsAppBar(
             context,
-            const Text('TMDB Lists'),
+            Text(l10n.kostvTmdbLists),
           ),
           body: FocusScope(
             node: _scope,
@@ -596,12 +597,12 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                   ],
                 ),
-                const _SectionHeader('TMDB Lists'),
+                _SectionHeader(l10n.kostvTmdbLists),
                 adaptiveListSection(
                   children: [
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbPopularMoviesEnabled,
-                      title: 'Popular Movies',
+                      title: l10n.kostvTmdbPopularMovies,
                       icon: Icons.movie_outlined,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -609,7 +610,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbPopularMovies,
-                            'Popular Movies',
+                            l10n.kostvTmdbPopularMovies,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbPopularMoviesEnabled, false);
@@ -625,7 +626,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbTopRatedMoviesEnabled,
-                      title: 'Top Rated Movies',
+                      title: l10n.kostvTmdbTopRatedMovies,
                       icon: Icons.star_border,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -633,7 +634,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbTopRatedMovies,
-                            'Top Rated Movies',
+                            l10n.kostvTmdbTopRatedMovies,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbTopRatedMoviesEnabled, false);
@@ -649,7 +650,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbNowPlayingMoviesEnabled,
-                      title: 'Now Playing Movies',
+                      title: l10n.kostvTmdbNowPlayingMovies,
                       icon: Icons.play_arrow_outlined,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -657,7 +658,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbNowPlayingMovies,
-                            'Now Playing Movies',
+                            l10n.kostvTmdbNowPlayingMovies,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbNowPlayingMoviesEnabled, false);
@@ -673,7 +674,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbUpcomingMoviesEnabled,
-                      title: 'Upcoming Movies',
+                      title: l10n.kostvTmdbUpcomingMovies,
                       icon: Icons.upcoming,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -681,7 +682,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbUpcomingMovies,
-                            'Upcoming Movies',
+                            l10n.kostvTmdbUpcomingMovies,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbUpcomingMoviesEnabled, false);
@@ -697,7 +698,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbPopularTvEnabled,
-                      title: 'Popular TV',
+                      title: l10n.kostvTmdbPopularTv,
                       icon: Icons.live_tv,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -705,7 +706,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbPopularTv,
-                            'Popular TV',
+                            l10n.kostvTmdbPopularTv,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbPopularTvEnabled, false);
@@ -721,7 +722,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbTopRatedTvEnabled,
-                      title: 'Top Rated TV',
+                      title: l10n.kostvTmdbTopRatedTv,
                       icon: Icons.live_tv,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -729,7 +730,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbTopRatedTv,
-                            'Top Rated TV',
+                            l10n.kostvTmdbTopRatedTv,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbTopRatedTvEnabled, false);
@@ -745,7 +746,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbAiringTodayTvEnabled,
-                      title: 'Airing Today TV',
+                      title: l10n.kostvTmdbAiringTodayTv,
                       icon: Icons.calendar_today,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -753,7 +754,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbAiringTodayTv,
-                            'Airing Today TV',
+                            l10n.kostvTmdbAiringTodayTv,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbAiringTodayTvEnabled, false);
@@ -769,7 +770,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbOnTheAirTvEnabled,
-                      title: 'On The Air TV',
+                      title: l10n.kostvTmdbOnTheAirTv,
                       icon: Icons.live_tv,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -777,7 +778,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbOnTheAirTv,
-                            'On The Air TV',
+                            l10n.kostvTmdbOnTheAirTv,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbOnTheAirTvEnabled, false);
@@ -793,7 +794,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbTrendingMovieDailyEnabled,
-                      title: 'Trending Movies (Daily)',
+                      title: l10n.kostvTmdbTrendingMoviesDaily,
                       icon: Icons.trending_up,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -801,7 +802,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbTrendingMovieDaily,
-                            'Trending Movies (Daily)',
+                            l10n.kostvTmdbTrendingMoviesDaily,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbTrendingMovieDailyEnabled, false);
@@ -817,7 +818,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbTrendingMovieWeeklyEnabled,
-                      title: 'Trending Movies (Weekly)',
+                      title: l10n.kostvTmdbTrendingMoviesWeekly,
                       icon: Icons.trending_up,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -825,7 +826,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbTrendingMovieWeekly,
-                            'Trending Movies (Weekly)',
+                            l10n.kostvTmdbTrendingMoviesWeekly,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbTrendingMovieWeeklyEnabled, false);
@@ -841,7 +842,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbTrendingTvDailyEnabled,
-                      title: 'Trending TV (Daily)',
+                      title: l10n.kostvTmdbTrendingTvDaily,
                       icon: Icons.trending_up,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -849,7 +850,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbTrendingTvDaily,
-                            'Trending TV (Daily)',
+                            l10n.kostvTmdbTrendingTvDaily,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbTrendingTvDailyEnabled, false);
@@ -865,7 +866,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbTrendingTvWeeklyEnabled,
-                      title: 'Trending TV (Weekly)',
+                      title: l10n.kostvTmdbTrendingTvWeekly,
                       icon: Icons.trending_up,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -873,7 +874,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbTrendingTvWeekly,
-                            'Trending TV (Weekly)',
+                            l10n.kostvTmdbTrendingTvWeekly,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbTrendingTvWeeklyEnabled, false);
@@ -889,7 +890,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                     ),
                     SwitchPreferenceTile(
                       preference: UserPreferences.tmdbTrendingAllWeeklyEnabled,
-                      title: 'Trending All (Weekly)',
+                      title: l10n.kostvTmdbTrendingAllWeekly,
                       icon: Icons.trending_up,
                       enabled: !_isFetching,
                       onChangedValue: (isEnabled) async {
@@ -897,7 +898,7 @@ class _TmdbListsScreenState extends State<_TmdbListsScreen> {
                         if (isEnabled) {
                           final success = await _fetchAndCacheList(
                             HomeSectionType.tmdbTrendingAllWeekly,
-                            'Trending All (Weekly)',
+                            l10n.kostvTmdbTrendingAllWeekly,
                           );
                           if (!success) {
                             await prefs.set(UserPreferences.tmdbTrendingAllWeeklyEnabled, false);
@@ -1169,16 +1170,23 @@ class _CustomListsScreenState extends State<_CustomListsScreen> {
       builder: (ctx) => withCleanSettingsTypography(
         ctx,
         AlertDialog(
-          title: const Text('Delete Custom Row'),
-          content: Text('Are you sure you want to delete "${config.pluginDisplayText}"?'),
+          title: Text(AppLocalizations.of(ctx).kostvDeleteCustomRow),
+          content: Text(
+            AppLocalizations.of(ctx).kostvDeleteCustomRowConfirm(
+              config.pluginDisplayText ?? AppLocalizations.of(ctx).kostvCustomRow,
+            ),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Cancel'),
+              child: Text(AppLocalizations.of(ctx).cancel),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Delete', style: TextStyle(color: Colors.red)),
+              child: Text(
+                AppLocalizations.of(ctx).delete,
+                style: const TextStyle(color: Colors.red),
+              ),
             ),
           ],
         ),
@@ -1220,34 +1228,31 @@ class _CustomListsScreenState extends State<_CustomListsScreen> {
     }
   }
 
-  String _getTypeLabel(String type, String source) {
+  String _getTypeLabel(String type, String source, AppLocalizations l10n) {
     switch (type) {
       case 'user_list':
         if (source == 'tmdb') {
-          return 'List';
+          return l10n.kostvCustomRowTypeList;
         }
         if (source == 'mdblist') {
-          return 'List from User ID';
+          return l10n.kostvCustomRowTypeListFromUser;
         }
-        return 'List from URL';
+        return l10n.kostvCustomRowTypeListFromUrl;
       case 'list_url':
-        if (source == 'mdblist') {
-          return 'List from URL';
-        }
-        return 'List from URL';
+        return l10n.kostvCustomRowTypeListFromUrl;
       case 'user_diary':
-        return 'Diary';
+        return l10n.kostvCustomRowTypeDiary;
       case 'watchlist':
-        return 'Watchlist';
+        return l10n.watchlist;
       case 'films':
-        return 'Complete Films';
+        return l10n.kostvCustomRowTypeFilms;
       case 'awards_events':
-        return 'Awards/Events';
+        return l10n.kostvCustomRowTypeAwards;
       case 'movie_collection':
         if (source == 'tmdb') {
-          return 'Collection';
+          return l10n.collection;
         }
-        return 'Movie Collection';
+        return l10n.kostvCustomRowTypeMovieCollection;
       default:
         return type;
     }
@@ -1262,6 +1267,7 @@ class _CustomListsScreenState extends State<_CustomListsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final customConfigs = _getCustomConfigs();
 
     return withCleanSettingsTypography(
@@ -1271,7 +1277,7 @@ class _CustomListsScreenState extends State<_CustomListsScreen> {
         child: Scaffold(
           appBar: buildSettingsAppBar(
             context,
-            const Text('Custom Rows'),
+            Text(l10n.kostvCustomRows),
           ),
           body: FocusScope(
             node: _scope,
@@ -1283,14 +1289,14 @@ class _CustomListsScreenState extends State<_CustomListsScreen> {
                     _TvSettingsListTile(
                       focusNode: _addFocusNode,
                       leading: const Icon(Icons.add),
-                      title: const Text('Add a New Custom Home Row'),
-                      subtitle: const Text('Create a custom row from TMDB, Letterboxd, or MDBList.'),
+                      title: Text(l10n.kostvAddCustomRow),
+                      subtitle: Text(l10n.kostvAddCustomRowSubtitle),
                       onTap: () => _showAddEditDialog(null),
                     ),
                   ],
                 ),
                 if (customConfigs.isNotEmpty) ...[
-                  const _SectionHeader('Saved Custom Home Rows'),
+                  _SectionHeader(l10n.kostvSavedCustomRows),
                   adaptiveListSection(
                     children: customConfigs.map((config) {
                       Map<String, dynamic> rowConfig = {};
@@ -1320,7 +1326,7 @@ class _CustomListsScreenState extends State<_CustomListsScreen> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    config.pluginDisplayText ?? 'Custom Row',
+                                    config.pluginDisplayText ?? l10n.kostvCustomRow,
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -1344,7 +1350,10 @@ class _CustomListsScreenState extends State<_CustomListsScreen> {
                               ],
                             ),
                             subtitle: Text(
-                              'Source: ${_getSourceLabel(source)} | Type: ${_getTypeLabel(type, source)}',
+                              l10n.kostvCustomRowSourceType(
+                                _getSourceLabel(source),
+                                _getTypeLabel(type, source, l10n),
+                              ),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: focused ? Colors.black54 : AppColorScheme.onSurface.withValues(alpha: 0.5),
@@ -1490,34 +1499,31 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
     }
   }
 
-  String _getTypeLabel(String type) {
+  String _getTypeLabel(String type, AppLocalizations l10n) {
     switch (type) {
       case 'user_list':
         if (_source == 'tmdb') {
-          return 'List from TMDB List ID or URL';
+          return l10n.kostvCustomRowTypeTmdbList;
         }
         if (_source == 'mdblist') {
-          return 'List from User ID';
+          return l10n.kostvCustomRowTypeListFromUser;
         }
-        return 'List from URL';
+        return l10n.kostvCustomRowTypeListFromUrl;
       case 'list_url':
-        if (_source == 'mdblist') {
-          return 'List from URL';
-        }
-        return 'List from URL';
+        return l10n.kostvCustomRowTypeListFromUrl;
       case 'user_diary':
-        return 'Diary';
+        return l10n.kostvCustomRowTypeDiary;
       case 'watchlist':
-        return 'Watchlist';
+        return l10n.watchlist;
       case 'films':
-        return 'Complete Films';
+        return l10n.kostvCustomRowTypeFilms;
       case 'awards_events':
-        return 'Awards/Events';
+        return l10n.kostvCustomRowTypeAwards;
       case 'movie_collection':
         if (_source == 'tmdb') {
-          return 'Collection from TMDB Collection ID or URL';
+          return l10n.kostvCustomRowTypeTmdbCollection;
         }
-        return 'Movie Collection';
+        return l10n.kostvCustomRowTypeMovieCollection;
       default:
         return type;
     }
@@ -1535,22 +1541,22 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
         ctx,
         AlertDialog(
           backgroundColor: Colors.grey[900],
-          title: const Text(
-            'Discard Changes?',
-            style: TextStyle(color: Colors.white),
+          title: Text(
+            AppLocalizations.of(ctx).kostvDiscardChangesTitle,
+            style: const TextStyle(color: Colors.white),
           ),
-          content: const Text(
-            'Unsaved changes, do you want to exit the wizard?',
-            style: TextStyle(color: Colors.white70),
+          content: Text(
+            AppLocalizations.of(ctx).kostvDiscardChangesMessage,
+            style: const TextStyle(color: Colors.white70),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('No'),
+              child: Text(AppLocalizations.of(ctx).no),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Yes'),
+              child: Text(AppLocalizations.of(ctx).yes),
             ),
           ],
         ),
@@ -1639,6 +1645,7 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
 
     setState(() => _isValidating = true);
 
+    final noResults = AppLocalizations.of(context).kostvCustomRowNoResults;
     final isEditing = widget.existing != null;
     final newConfig = HomeSectionConfig.pluginDynamic(
       serverId: 'custom',
@@ -1654,7 +1661,7 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
       final customService = GetIt.instance<CustomExternalListsService>();
       final items = await customService.fetchCustomRow(newConfig, throwOnError: true);
       if (items.isEmpty) {
-        throw Exception('No results returned.');
+        throw Exception(noResults);
       }
     } catch (e) {
       if (!mounted) return;
@@ -1672,17 +1679,17 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
           ctx,
           AlertDialog(
             backgroundColor: Colors.grey[900],
-            title: const Text(
-              'Warning: Custom Row Validation Failed',
-              style: TextStyle(color: Colors.white),
+            title: Text(
+              AppLocalizations.of(ctx).kostvCustomRowCheckFailedTitle,
+              style: const TextStyle(color: Colors.white),
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Failed to fetch items from the custom row.',
-                  style: TextStyle(color: Colors.white),
+                Text(
+                  AppLocalizations.of(ctx).kostvCustomRowCheckFailedMessage,
+                  style: const TextStyle(color: Colors.white),
                 ),
                 const SizedBox(height: 16),
                 Center(
@@ -1697,7 +1704,7 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  'Error details: $errorString',
+                  AppLocalizations.of(ctx).kostvErrorDetails(errorString),
                   style: const TextStyle(color: Colors.white70),
                 ),
               ],
@@ -1705,7 +1712,7 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('OK'),
+                child: Text(AppLocalizations.of(ctx).ok),
               ),
             ],
           ),
@@ -1750,6 +1757,7 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
       _type = typeOptions.first;
     }
 
+    final l10n = AppLocalizations.of(context);
     final prefs = GetIt.instance<UserPreferences>();
     final tmdbApiKey = prefs.get(UserPreferences.tmdbApiKey);
     // A server-wide admin key also works and never syncs to this device, so only
@@ -1777,7 +1785,7 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
                     ? EdgeInsets.fromLTRB(40, 24, 40, isKeyboardVisible ? 280 : 24)
                     : const EdgeInsets.symmetric(horizontal: 40.0, vertical: 24.0),
                 title: Text(
-                  widget.existing != null ? 'Edit Custom Home Row' : 'Add Custom Home Row',
+                  widget.existing != null ? l10n.kostvEditCustomRow : l10n.kostvNewCustomRow,
                   style: const TextStyle(color: Colors.white),
                 ),
                 content: child!,
@@ -1795,11 +1803,11 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
                     : [
                         TextButton(
                           onPressed: () => _dismiss(false),
-                          child: const Text('Cancel'),
+                          child: Text(l10n.cancel),
                         ),
                         TextButton(
                           onPressed: _save,
-                          child: const Text('Save'),
+                          child: Text(l10n.save),
                         ),
                       ],
               );
@@ -1815,7 +1823,7 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
                   mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                   const Text('Source', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                   Text(l10n.source, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                    const SizedBox(height: 4),
                    ListenableBuilder(
                      listenable: _sourceFocusNode,
@@ -1882,7 +1890,7 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
                    ),
                      if (typeOptions.length > 1) ...[
                        const SizedBox(height: 16),
-                       const Text('Type', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                       Text(l10n.type, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                        const SizedBox(height: 4),
                        ListenableBuilder(
                          listenable: _typeFocusNode,
@@ -1931,7 +1939,7 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
                                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                                ),
                                items: typeOptions.map((t) {
-                                 return DropdownMenuItem(value: t, child: Text(_getTypeLabel(t)));
+                                 return DropdownMenuItem(value: t, child: Text(_getTypeLabel(t, l10n)));
                                }).toList(),
                                onChanged: (val) {
                                  if (val != null) {
@@ -1950,78 +1958,78 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
                    // Source + Type specific parameters
  
                    if (_source == 'letterboxd') ...[
-                     const Text('Letterboxd Username', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                     Text(l10n.kostvLetterboxdUsername, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                      const SizedBox(height: 4),
                      _SettingsTextField(
                        controller: _letterboxdUsernameController,
-                       hint: 'Username',
+                       hint: l10n.username,
                        focusNode: _letterboxdUsernameFocusNode,
                      ),
                      if (tmdbApiKey.isEmpty) ...[
                        const SizedBox(height: 12),
-                       const Text(
-                         'WARNING: TMDB API Key must be configured in settings to resolve Letterboxd list items.',
-                         style: TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                       Text(
+                         l10n.kostvLetterboxdNeedsTmdbKey,
+                         style: const TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold),
                        ),
                      ],
                    ],
  
                    if (_source == 'tmdb') ...[
-                     Text(_type == 'movie_collection' ? 'TMDB Collection ID or URL' : 'TMDB List ID or URL', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                     Text(_type == 'movie_collection' ? l10n.kostvTmdbCollectionIdOrUrl : l10n.kostvTmdbListIdOrUrl, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                      const SizedBox(height: 4),
                      _SettingsTextField(
                        controller: _tmdbIdController,
                        hint: _type == 'movie_collection'
-                           ? '12345 OR https://www.themoviedb.org/collection/12345'
-                           : '12345 OR https://www.themoviedb.org/list/12345',
+                           ? l10n.kostvTmdbCollectionHint
+                           : l10n.kostvTmdbListHint,
                        focusNode: _tmdbIdFocusNode,
                      ),
                      if (tmdbApiKey.isEmpty) ...[
                        const SizedBox(height: 12),
-                       const Text(
-                         'WARNING: TMDB API Key must be configured in settings to fetch TMDB lists.',
-                         style: TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                       Text(
+                         l10n.kostvTmdbNeedsKey,
+                         style: const TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold),
                        ),
                      ],
                    ],
  
                    if (_source == 'mdblist') ...[
                      if (_type == 'list_url') ...[
-                       const Text('MDBList URL', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                       Text(l10n.kostvMdblistUrl, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                        const SizedBox(height: 4),
                        _SettingsTextField(
                          controller: _mdblistListNameController,
-                         hint: 'e.g. https://mdblist.com/lists/username/list-slug',
+                         hint: l10n.kostvMdblistUrlHint,
                          focusNode: _mdblistListNameFocusNode,
                        ),
                      ] else ...[
-                       const Text('MDBList Username', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                       Text(l10n.kostvMdblistUsername, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                        const SizedBox(height: 4),
                        _SettingsTextField(
                          controller: _mdblistUsernameController,
-                         hint: 'Username',
+                         hint: l10n.username,
                          focusNode: _mdblistUsernameFocusNode,
                        ),
                        const SizedBox(height: 16),
-                       const Text('List Name (slug)', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                       Text(l10n.kostvMdblistListName, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                        const SizedBox(height: 4),
                        _SettingsTextField(
                          controller: _mdblistListNameController,
-                         hint: 'list-name-slug',
+                         hint: l10n.kostvMdblistListNameHint,
                          focusNode: _mdblistListNameFocusNode,
                        ),
                      ],
                      if (!mdblistConfigured) ...[
                        const SizedBox(height: 12),
-                       const Text(
-                         'WARNING: MDBList API Key must be configured in settings (or server-wide by your admin) to fetch MDBList lists.',
-                         style: TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                       Text(
+                         l10n.kostvMdblistNeedsKey,
+                         style: const TextStyle(color: Colors.orangeAccent, fontSize: 11, fontWeight: FontWeight.bold),
                        ),
                      ],
                    ],
  
                    const SizedBox(height: 16),
-                   const Text('Sort By', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                   Text(l10n.sortBy, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                    const SizedBox(height: 4),
                    ListenableBuilder(
                      listenable: _sortByFocusNode,
@@ -2069,13 +2077,13 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
                              ),
                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                            ),
-                           items: const [
-                             DropdownMenuItem(value: 'none', child: Text('Default (When Added)')),
-                             DropdownMenuItem(value: 'title', child: Text('Film Name')),
-                             DropdownMenuItem(value: 'popularity', child: Text('Film Popularity')),
-                             DropdownMenuItem(value: 'year', child: Text('Release Date')),
-                             DropdownMenuItem(value: 'rating', child: Text('Average Rating')),
-                             DropdownMenuItem(value: 'shuffle', child: Text('Shuffle')),
+                           items: [
+                             DropdownMenuItem(value: 'none', child: Text(l10n.externalRowSortDefault)),
+                             DropdownMenuItem(value: 'title', child: Text(l10n.externalRowSortName)),
+                             DropdownMenuItem(value: 'popularity', child: Text(l10n.externalRowSortPopularity)),
+                             DropdownMenuItem(value: 'year', child: Text(l10n.externalRowSortReleaseDate)),
+                             DropdownMenuItem(value: 'rating', child: Text(l10n.externalRowSortRating)),
+                             DropdownMenuItem(value: 'shuffle', child: Text(l10n.externalRowSortShuffle)),
                            ],
                            onChanged: (val) {
                              if (val != null) {
@@ -2095,7 +2103,7 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
                    ),
                    if (_sortBy != 'none' && _sortBy != 'shuffle') ...[
                      const SizedBox(height: 16),
-                     const Text('Sort Order', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                     Text(l10n.sortOrder, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                      const SizedBox(height: 4),
                      ListenableBuilder(
                        listenable: _sortOrderFocusNode,
@@ -2144,23 +2152,23 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                              ),
                              items: _sortBy == 'title'
-                                 ? const [
-                                     DropdownMenuItem(value: 'asc', child: Text('A to Z')),
-                                     DropdownMenuItem(value: 'desc', child: Text('Z to A')),
+                                 ? [
+                                     DropdownMenuItem(value: 'asc', child: Text(l10n.kostvSortAToZ)),
+                                     DropdownMenuItem(value: 'desc', child: Text(l10n.libraryZToA)),
                                    ]
                                  : (_sortBy == 'year'
-                                     ? const [
-                                         DropdownMenuItem(value: 'desc', child: Text('Newest First')),
-                                         DropdownMenuItem(value: 'asc', child: Text('Earliest First')),
+                                     ? [
+                                         DropdownMenuItem(value: 'desc', child: Text(l10n.adminLogsNewestFirst)),
+                                         DropdownMenuItem(value: 'asc', child: Text(l10n.adminLogsOldestFirst)),
                                        ]
                                      : (_sortBy == 'popularity'
-                                         ? const [
-                                             DropdownMenuItem(value: 'desc', child: Text('Most Popular First')),
-                                             DropdownMenuItem(value: 'asc', child: Text('Least Popular First')),
+                                         ? [
+                                             DropdownMenuItem(value: 'desc', child: Text(l10n.kostvSortMostPopularFirst)),
+                                             DropdownMenuItem(value: 'asc', child: Text(l10n.kostvSortLeastPopularFirst)),
                                            ]
-                                         : const [
-                                             DropdownMenuItem(value: 'desc', child: Text('Highest First')),
-                                             DropdownMenuItem(value: 'asc', child: Text('Lowest First')),
+                                         : [
+                                             DropdownMenuItem(value: 'desc', child: Text(l10n.kostvSortHighestRatedFirst)),
+                                             DropdownMenuItem(value: 'asc', child: Text(l10n.kostvSortLowestRatedFirst)),
                                            ])),
                              onChanged: (val) {
                                if (val != null) {
@@ -2190,7 +2198,7 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
                                 focusNode: _showUserRatingsFocusNode,
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                                 title: Text(
-                                  'Show User Ratings?',
+                                  l10n.kostvShowUserRatings,
                                   style: TextStyle(
                                     color: focused && settingsTileInvertsOnFocus
                                         ? AppColors.black.withValues(alpha: 0.87)
@@ -2214,11 +2222,11 @@ class _AddEditCustomRowDialogState extends State<_AddEditCustomRowDialog> {
                   })(),
 
                   const SizedBox(height: 16),
-                  const Text('Home Row Custom Name', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  Text(l10n.kostvCustomRowName, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                   const SizedBox(height: 4),
                   _SettingsTextField(
                     controller: _nameController,
-                    hint: 'Enter row name...',
+                    hint: l10n.kostvCustomRowNameHint,
                     focusNode: _nameFocusNode,
                   ),
                 ],
