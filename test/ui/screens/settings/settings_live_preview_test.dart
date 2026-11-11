@@ -1176,7 +1176,7 @@ void main() {
       expect(find.byIcon(Icons.groups_rounded), findsNothing);
 
       // Live TV waits for a Live TV library, as the real button does.
-      controller.tryValue('pref_show_live_tv_button', true);
+      controller.tryValue('kostv_show_live_tv_button', true);
       await pumpPreview(tester, controller);
       expect(find.byIcon(Icons.live_tv_rounded), findsNothing);
 
@@ -1861,7 +1861,10 @@ void main() {
           prefKey: 'pref_show_favorites_button',
         ),
       )
-      ..tryValue('pref_navbar_position', NavbarPosition.bottom);
+      ..tryValue('pref_navbar_position', NavbarPosition.bottom)
+      // Kos TV: Live TV is on by default and would take the freed slot
+      // before Genres.
+      ..tryValue('kostv_show_live_tv_button', false);
     Future<void> pump() async {
       await tester.pumpWidget(
         host(

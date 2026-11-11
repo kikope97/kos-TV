@@ -292,7 +292,6 @@ void main() {
     'showGenresButton',
     'showLibrariesIndividually',
     'showLibrariesInToolbar',
-    'showLiveTvButton',
     'showLoadingAnimationText',
     'showMediaDetailsOnLibraryPage',
     'showPosterLabels',

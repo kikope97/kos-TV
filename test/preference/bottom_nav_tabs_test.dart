@@ -178,10 +178,12 @@ void main() {
           BottomNavbarStyle.dock);
 
       final gates = BottomNavTabGates.fromPreferences(prefs);
+      // Kos TV: Live TV is on by default, and the bar only shows it when the
+      // server has Live TV.
       expect(gates.resolvePins(prefs.get(UserPreferences.bottomNavbarTabs)), [
         BottomNavTab.search,
         BottomNavTab.libraries,
-        BottomNavTab.genres,
+        BottomNavTab.liveTv,
       ]);
 
       // Other constructor steps seed their own keys, so only the navbar's
