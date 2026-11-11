@@ -10,6 +10,11 @@ KOSTV_DEFINES=()
 if [ -n "${KOSTV_SERVER_URL:-}" ]; then
   KOSTV_DEFINES+=("--dart-define=KOSTV_SERVER_URL=${KOSTV_SERVER_URL}")
 fi
+# Kos TV: the household requests service (movies and shows asked for from the
+# app), from the KOSTV_REQUESTS_URL environment variable, a GitHub secret too.
+if [ -n "${KOSTV_REQUESTS_URL:-}" ]; then
+  KOSTV_DEFINES+=("--dart-define=KOSTV_REQUESTS_URL=${KOSTV_REQUESTS_URL}")
+fi
 APK_SOURCE="$REPO_ROOT/build/app/outputs/flutter-apk/app-mobile-release.apk"
 BUNDLE_SOURCE="$REPO_ROOT/build/app/outputs/bundle/mobileRelease/app-mobile-release.aab"
 TV_APK_SOURCE="$REPO_ROOT/build/app/outputs/flutter-apk/app-androidtv-release.apk"
