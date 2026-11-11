@@ -154,6 +154,7 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
     super.initState();
     _setPlatformMemory();
     _service.addListener(_onAccessChanged);
+    _service.listsRevision.addListener(_onListsChanged);
     unawaited(_loadPlatforms());
     _loadLists();
   }
@@ -162,6 +163,7 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
   void dispose() {
     _selectDebounce?.cancel();
     _service.removeListener(_onAccessChanged);
+    _service.listsRevision.removeListener(_onListsChanged);
     _scrollController.dispose();
     _platformFocus.dispose();
     super.dispose();
@@ -315,29 +317,35 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
     NavigationLayout.focusNavbarNotifier.value?.call();
   }
 
+  /// What's on the home server opens its page there. The rest, and a series
+  /// missing the season its card announces, opens its page to request it.
   void _openTitle(StremfinTitle title) {
-    final l10n = AppLocalizations.of(context);
     final itemId = title.library.itemId;
-    if (title.isInLibrary && itemId != null) {
+    final partial = title.library.status == StremfinLibraryStatus.partial;
+    if (title.isInLibrary && itemId != null && !partial) {
       context.push(Destinations.item(itemId));
       return;
     }
-    final request = title.request;
-    final String message;
-    if (title.isInLibrary) {
-      message = l10n.kostvDiscoverJustArrived(title.title);
-    } else if (title.library.downloading) {
-      message = l10n.kostvDiscoverDownloading(title.title);
-    } else if (request != null) {
-      message = request.mine
-          ? l10n.kostvDiscoverYouRequested(title.title)
-          : l10n.kostvDiscoverAlreadyRequested(title.title);
-    } else {
-      message = l10n.kostvDiscoverNotHereYet(title.title);
-    }
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    context.push(
+      Destinations.kostvRequestOf(title.type.apiValue, title.tmdbId),
+      extra: title,
+    );
+  }
+
+  /// A title changed on the lists kept (asked for, arrived…): the cards
+  /// show it as it stands.
+  void _onListsChanged() {
+    if (!mounted) return;
+    setState(() {
+      for (final spec in _rowSpecs) {
+        final kept = _service.keptList(
+          platform: _platformId,
+          type: spec.type,
+          list: spec.list,
+        );
+        if (kept != null) _rows[spec]!.items = kept;
+      }
+    });
   }
 
   ({double imageHeight, double cardWidth, double scale}) _sizes() {

@@ -30249,30 +30249,6 @@ abstract class AppLocalizations {
   /// **'{title} isn\'t on kOS TV yet.'**
   String kostvDiscoverNotHereYet(String title);
 
-  /// Kos TV: shown when a Discover title that is still being added is pressed
-  ///
-  /// In en, this message translates to:
-  /// **'{title} has just arrived: it will show up in a few minutes.'**
-  String kostvDiscoverJustArrived(String title);
-
-  /// Kos TV: shown when a Discover title being downloaded is pressed
-  ///
-  /// In en, this message translates to:
-  /// **'{title} is downloading: it will be here soon.'**
-  String kostvDiscoverDownloading(String title);
-
-  /// Kos TV: shown when a Discover title someone requested is pressed
-  ///
-  /// In en, this message translates to:
-  /// **'Someone at home has already requested {title}.'**
-  String kostvDiscoverAlreadyRequested(String title);
-
-  /// Kos TV: shown when a Discover title the person requested is pressed
-  ///
-  /// In en, this message translates to:
-  /// **'You\'ve already requested {title}.'**
-  String kostvDiscoverYouRequested(String title);
-
   /// Kos TV: shown when the platform lists can't be read
   ///
   /// In en, this message translates to:
@@ -31310,6 +31286,408 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Going back to where you were…'**
   String get kostvRestoringPosition;
+
+  /// Kos TV request page: button that asks the household for a film or series that isn't on the home server.
+  ///
+  /// In en, this message translates to:
+  /// **'Request'**
+  String get kostvRequestAsk;
+
+  /// Kos TV request page: button for a film with no good version yet; once requested it downloads on its own when one shows up.
+  ///
+  /// In en, this message translates to:
+  /// **'Request and notify me'**
+  String get kostvRequestAskAndNotify;
+
+  /// Kos TV request page: button for a film already downloading for someone else; pressing it adds the person to whoever is told when it arrives.
+  ///
+  /// In en, this message translates to:
+  /// **'Notify me when it\'s here'**
+  String get kostvRequestNotifyMe;
+
+  /// Kos TV request page: button that requests every missing episode of a series.
+  ///
+  /// In en, this message translates to:
+  /// **'Request everything missing'**
+  String get kostvRequestAskAll;
+
+  /// Kos TV request page: button that requests one season of a series.
+  ///
+  /// In en, this message translates to:
+  /// **'Request season {season}'**
+  String kostvRequestAskSeason(int season);
+
+  /// Kos TV request page: button on a season someone else already requested; pressing it adds the person to that request.
+  ///
+  /// In en, this message translates to:
+  /// **'Me too'**
+  String get kostvRequestMeToo;
+
+  /// Kos TV request page: button that takes back the person's own request while it waits for an answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Withdraw request'**
+  String get kostvRequestWithdraw;
+
+  /// Kos TV request page: button on a series already partly on the home server, opening its normal page.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in the library'**
+  String get kostvRequestOpenInLibrary;
+
+  /// Kos TV request page: shown while the service checks whether the film can be downloaded now (takes a few seconds).
+  ///
+  /// In en, this message translates to:
+  /// **'Checking whether it\'s available…'**
+  String get kostvRequestChecking;
+
+  /// Kos TV request page: short label next to the lightning icon when the film's download would start at once.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast'**
+  String get kostvRequestFast;
+
+  /// Kos TV request page: note under the button when the film's download would start at once.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast download: it starts right away'**
+  String get kostvRequestFastNote;
+
+  /// Kos TV request page: note under the button when the film can be downloaded but not at once.
+  ///
+  /// In en, this message translates to:
+  /// **'It will take a while to start downloading'**
+  String get kostvRequestSlowNote;
+
+  /// Kos TV request page: the film has versions but none good enough. criterion is the service's own words, e.g. 'en castellano de 1080p o más'.
+  ///
+  /// In en, this message translates to:
+  /// **'There\'s no version {criterion} yet'**
+  String kostvRequestNoGoodVersion(String criterion);
+
+  /// Kos TV request page: the film has no versions at all yet.
+  ///
+  /// In en, this message translates to:
+  /// **'There\'s no version of it yet'**
+  String get kostvRequestNoVersionYet;
+
+  /// Kos TV request page: explains what requesting a film with no good version does.
+  ///
+  /// In en, this message translates to:
+  /// **'Request it and it downloads on its own as soon as a good one is out'**
+  String get kostvRequestDownloadsWhenReady;
+
+  /// Kos TV request page: note under the button for someone whose requests wait for the administrator.
+  ///
+  /// In en, this message translates to:
+  /// **'The administrator has to approve it'**
+  String get kostvRequestNeedsApproval;
+
+  /// Kos TV request page: the title can't be had.
+  ///
+  /// In en, this message translates to:
+  /// **'It can\'t be found'**
+  String get kostvRequestUnavailable;
+
+  /// Kos TV request page: the person reached how many requests may wait for an answer at once.
+  ///
+  /// In en, this message translates to:
+  /// **'{pending, plural, =1{You have 1 request waiting for an answer} other{You have {pending} requests waiting for an answer}}: you can ask for more once they reply'**
+  String kostvRequestAtLimitPending(int pending);
+
+  /// Kos TV request page: the person reached their daily number of requests.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve made all your requests for today: you can ask for more tomorrow'**
+  String get kostvRequestAtLimitDaily;
+
+  /// Kos TV request page: the person reached a request limit (which one isn't known).
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t request anything else right now'**
+  String get kostvRequestAtLimit;
+
+  /// Kos TV request page: the request waits for the administrator's answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending approval'**
+  String get kostvRequestPending;
+
+  /// Kos TV request page: note under a request waiting for the administrator.
+  ///
+  /// In en, this message translates to:
+  /// **'This page updates on its own as soon as they answer'**
+  String get kostvRequestUpdatesOnItsOwn;
+
+  /// Kos TV request page: who asked for it (the person themselves).
+  ///
+  /// In en, this message translates to:
+  /// **'You requested it'**
+  String get kostvRequestRequestedByYou;
+
+  /// Kos TV request page: who asked for it (the person and others).
+  ///
+  /// In en, this message translates to:
+  /// **'Requested by you and {names}'**
+  String kostvRequestRequestedByYouAnd(String names);
+
+  /// Kos TV request page: who asked for it.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested by {names}'**
+  String kostvRequestRequestedBy(String names);
+
+  /// Kos TV request page: accepted, nothing downloading yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepted: it starts soon'**
+  String get kostvRequestAccepted;
+
+  /// Kos TV request page: a series request, the service is finding its episodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for the episodes'**
+  String get kostvRequestLookingForEpisodes;
+
+  /// Kos TV request page: an accepted film waits for a version in the home's language and quality; it downloads as soon as there is one.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for a good version'**
+  String get kostvRequestWaitingVersion;
+
+  /// Kos TV request page: the download waits its turn.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get kostvRequestQueued;
+
+  /// Kos TV request page: the download service is being asked for the file.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing'**
+  String get kostvRequestPreparing;
+
+  /// Kos TV request page: the download service is getting the file ready (it wasn't a fast one).
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for the file to be ready'**
+  String get kostvRequestWaitingFile;
+
+  /// Kos TV request page: how much has come down.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading {percent}%'**
+  String kostvRequestDownloadingPercent(int percent);
+
+  /// Kos TV request page: downloading, amount unknown.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading'**
+  String get kostvRequestDownloading;
+
+  /// Kos TV request page: the downloaded video is being checked.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking the video'**
+  String get kostvRequestVerifying;
+
+  /// Kos TV request page: the downloaded file is being put in its place on the home server.
+  ///
+  /// In en, this message translates to:
+  /// **'Adding it to the library'**
+  String get kostvRequestMoving;
+
+  /// Kos TV request page: the download failed and needs the administrator.
+  ///
+  /// In en, this message translates to:
+  /// **'Under review: the administrator has to choose another version'**
+  String get kostvRequestAttention;
+
+  /// Kos TV request page: the administrator paused every download.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get kostvRequestPaused;
+
+  /// Kos TV request page: how long the download still takes.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} left'**
+  String kostvRequestTimeLeft(String time);
+
+  /// Kos TV request page: time left under a minute.
+  ///
+  /// In en, this message translates to:
+  /// **'less than a minute'**
+  String get kostvRequestLessThanAMinute;
+
+  /// Kos TV: a duration in hours and minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours} h {minutes} min'**
+  String kostvHoursMinutes(int hours, int minutes);
+
+  /// Kos TV request page: episodes of a series request already on the home server.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total, plural, =1{1 episode} other{{total} episodes}}'**
+  String kostvRequestEpisodesDone(int done, int total);
+
+  /// Kos TV request page: the administrator turned the request down.
+  ///
+  /// In en, this message translates to:
+  /// **'Not accepted'**
+  String get kostvRequestRejected;
+
+  /// Kos TV request page: turned down because there is no good version yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not accepted: there\'s no good version yet'**
+  String get kostvRequestRejectedQuality;
+
+  /// Kos TV request page: turned down for now.
+  ///
+  /// In en, this message translates to:
+  /// **'Not accepted: better later on'**
+  String get kostvRequestRejectedLater;
+
+  /// Kos TV request page: the title has just arrived on the home server; the page turns into its normal page.
+  ///
+  /// In en, this message translates to:
+  /// **'It\'s here!'**
+  String get kostvRequestArrived;
+
+  /// Kos TV request page: it is on the home server but not ready to open yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Just arrived: it\'ll show up in the library in a few minutes'**
+  String get kostvRequestArrivingSoon;
+
+  /// Kos TV request page: the service didn't answer.
+  ///
+  /// In en, this message translates to:
+  /// **'This page couldn\'t be opened'**
+  String get kostvRequestLoadFailed;
+
+  /// Kos TV request page: episodes of a season on the home server, of those already aired.
+  ///
+  /// In en, this message translates to:
+  /// **'{have} of {aired, plural, =1{1 episode} other{{aired} episodes}}'**
+  String kostvRequestSeasonEpisodes(int have, int aired);
+
+  /// Kos TV request page: every aired episode of the season is there.
+  ///
+  /// In en, this message translates to:
+  /// **'Complete'**
+  String get kostvRequestSeasonComplete;
+
+  /// Kos TV request page: no episode of the season has aired yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not out yet'**
+  String get kostvRequestSeasonUpcoming;
+
+  /// Kos TV request page: what is missing of the season is downloading or waiting for an answer.
+  ///
+  /// In en, this message translates to:
+  /// **'On its way'**
+  String get kostvRequestSeasonOnItsWay;
+
+  /// Kos TV request page: how many aired episodes of the series aren't on the home server.
+  ///
+  /// In en, this message translates to:
+  /// **'{missing, plural, =1{1 episode missing} other{{missing} episodes missing}}'**
+  String kostvRequestSeriesMissing(int missing);
+
+  /// Kos TV request page: message after requesting, when it waits for the administrator.
+  ///
+  /// In en, this message translates to:
+  /// **'Request sent: the administrator has to approve it'**
+  String get kostvRequestOutcomeCreated;
+
+  /// Kos TV request page: message after requesting, when it started at once.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested! It\'s already being prepared'**
+  String get kostvRequestOutcomeStarted;
+
+  /// Kos TV request page: message after requesting something someone else asked for.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone had already requested it: you\'ve been added'**
+  String get kostvRequestOutcomeJoined;
+
+  /// Kos TV request page: message after asking to be told about a film that was already downloading.
+  ///
+  /// In en, this message translates to:
+  /// **'It was already downloading: you\'re on the list for when it arrives'**
+  String get kostvRequestOutcomeWatching;
+
+  /// Kos TV request page: message after requesting a season when everything missing was asked for already.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything missing had already been requested, this season included'**
+  String get kostvRequestOutcomeIncluded;
+
+  /// Kos TV request page: message after requesting something the person had asked for already.
+  ///
+  /// In en, this message translates to:
+  /// **'You had already requested it'**
+  String get kostvRequestOutcomeAlready;
+
+  /// Kos TV request page: message after requesting something already on the home server.
+  ///
+  /// In en, this message translates to:
+  /// **'It\'s already in the library'**
+  String get kostvRequestOutcomeHave;
+
+  /// Kos TV request page: message after requesting something already downloading.
+  ///
+  /// In en, this message translates to:
+  /// **'It\'s already downloading'**
+  String get kostvRequestOutcomeBusy;
+
+  /// Kos TV request page: message after taking a request back.
+  ///
+  /// In en, this message translates to:
+  /// **'Request withdrawn'**
+  String get kostvRequestWithdrawn;
+
+  /// Kos TV request page: asking or withdrawing failed.
+  ///
+  /// In en, this message translates to:
+  /// **'The request couldn\'t be sent. Try again.'**
+  String get kostvRequestFailed;
+
+  /// Kos TV request page: the service asked to slow down.
+  ///
+  /// In en, this message translates to:
+  /// **'Too many in a row: wait a moment and try again'**
+  String get kostvRequestTooFast;
+
+  /// Kos TV request page: how long the download service has been getting the file ready.
+  ///
+  /// In en, this message translates to:
+  /// **'for {minutes} min'**
+  String kostvRequestWaitingSince(int minutes);
+
+  /// Kos TV request page: short status when the download failed and the administrator has to choose another version.
+  ///
+  /// In en, this message translates to:
+  /// **'Under review'**
+  String get kostvRequestUnderReview;
+
+  /// Kos TV request page: confirmation before taking back a season's request.
+  ///
+  /// In en, this message translates to:
+  /// **'Withdraw the request for {title}?'**
+  String kostvRequestWithdrawQuestion(String title);
+
+  /// Kos TV request page: how many seasons a series has.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 season} other{{count} seasons}}'**
+  String kostvSeasonsCount(int count);
 }
 
 class _AppLocalizationsDelegate

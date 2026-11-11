@@ -11,6 +11,7 @@ import '../../util/kostv_server.dart';
 import '../../data/services/connectivity_service.dart';
 import '../../data/services/remote_search_session.dart';
 import '../../data/services/retro_artwork/retro_artwork_activity_gate.dart';
+import '../../data/services/stremfin/stremfin_models.dart';
 import '../../di/injection.dart';
 import '../../playback/apple_player_ui.dart';
 import '../../playback/external_player_policy.dart';
@@ -20,6 +21,7 @@ import '../../util/game_cores.dart';
 import '../../util/platform_detection.dart';
 import '../screens/apps/all_apps_screen.dart';
 import '../screens/discover/kostv_discover_screen.dart';
+import '../screens/discover/kostv_request_screen.dart';
 import '../screens/admin/admin_nav.dart';
 import '../screens/admin/admin_routes.dart';
 import '../../util/signed_in_server_features.dart';
@@ -390,6 +392,21 @@ final appRouter = GoRouter(
     GoRoute(
       path: Destinations.kostvDiscover,
       builder: (context, state) => const KostvDiscoverScreen(),
+    ),
+    GoRoute(
+      path: Destinations.kostvRequest,
+      builder: (context, state) {
+        final type = StremfinTitleType.fromApi(state.pathParameters['type']);
+        final tmdbId = int.tryParse(state.pathParameters['tmdbId'] ?? '');
+        if (type == null || tmdbId == null) return const KostvDiscoverScreen();
+        final seed = state.extra;
+        return KostvRequestScreen(
+          key: ValueKey('kostv-request-${type.apiValue}-$tmdbId'),
+          type: type,
+          tmdbId: tmdbId,
+          seed: seed is StremfinTitle && seed.tmdbId == tmdbId ? seed : null,
+        );
+      },
     ),
     GoRoute(
       path: Destinations.calendar,

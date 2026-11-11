@@ -85,6 +85,12 @@ class Destinations {
   static const apps = '/apps';
   // Kos TV: what's on the streaming platforms (requests service).
   static const kostvDiscover = '/discover';
+
+  /// Kos TV: the page of a film or series from Discover that isn't on the
+  /// home server yet, to request it. [type] is `movie` or `series`.
+  static const kostvRequest = '/discover/:type/:tmdbId';
+  static String kostvRequestOf(String type, int tmdbId) =>
+      '/discover/$type/$tmdbId';
   static const calendarMonth = '/calendar/month';
 
   static const folderBrowse = '/folder/:folderId';

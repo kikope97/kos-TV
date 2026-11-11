@@ -17804,10 +17804,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvDiscoverComingSoon => 'Llega pronto';
 
   @override
-  String get kostvDiscoverRequested => 'Pedida';
+  String get kostvDiscoverRequested => 'Solicitada';
 
   @override
-  String get kostvDiscoverRequestedByYou => 'Pedida por ti';
+  String get kostvDiscoverRequestedByYou => 'Solicitada por ti';
 
   @override
   String get kostvDiscoverBrandNewSeries => 'Serie nueva';
@@ -17820,26 +17820,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String kostvDiscoverNotHereYet(String title) {
     return '$title todavía no está en kOS TV.';
-  }
-
-  @override
-  String kostvDiscoverJustArrived(String title) {
-    return '$title acaba de llegar: aparecerá en unos minutos.';
-  }
-
-  @override
-  String kostvDiscoverDownloading(String title) {
-    return '$title se está descargando: llegará pronto.';
-  }
-
-  @override
-  String kostvDiscoverAlreadyRequested(String title) {
-    return 'Alguien de casa ya ha pedido $title.';
-  }
-
-  @override
-  String kostvDiscoverYouRequested(String title) {
-    return 'Ya has pedido $title.';
   }
 
   @override
@@ -18479,4 +18459,276 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvRestoringPosition => 'Volviendo a donde lo dejaste…';
+
+  @override
+  String get kostvRequestAsk => 'Solicitar';
+
+  @override
+  String get kostvRequestAskAndNotify => 'Solicitar y avisarme';
+
+  @override
+  String get kostvRequestNotifyMe => 'Avísame cuando esté';
+
+  @override
+  String get kostvRequestAskAll => 'Solicitar todo lo que falta';
+
+  @override
+  String kostvRequestAskSeason(int season) {
+    return 'Solicitar la T$season';
+  }
+
+  @override
+  String get kostvRequestMeToo => 'Yo también';
+
+  @override
+  String get kostvRequestWithdraw => 'Retirar petición';
+
+  @override
+  String get kostvRequestOpenInLibrary => 'Ver en la biblioteca';
+
+  @override
+  String get kostvRequestChecking => 'Mirando si está disponible…';
+
+  @override
+  String get kostvRequestFast => 'Rápida';
+
+  @override
+  String get kostvRequestFastNote => 'Descarga rápida: empieza al momento';
+
+  @override
+  String get kostvRequestSlowNote => 'Tardará un poco en empezar a descargarse';
+
+  @override
+  String kostvRequestNoGoodVersion(String criterion) {
+    return 'Aún no hay una versión $criterion';
+  }
+
+  @override
+  String get kostvRequestNoVersionYet => 'Aún no hay ninguna versión';
+
+  @override
+  String get kostvRequestDownloadsWhenReady =>
+      'Si la solicitas, se descargará sola en cuanto haya una buena';
+
+  @override
+  String get kostvRequestNeedsApproval =>
+      'El administrador tiene que aceptarla';
+
+  @override
+  String get kostvRequestUnavailable => 'No se puede conseguir';
+
+  @override
+  String kostvRequestAtLimitPending(int pending) {
+    String _temp0 = intl.Intl.pluralLogic(
+      pending,
+      locale: localeName,
+      other: 'Tienes $pending peticiones esperando respuesta',
+      one: 'Tienes 1 petición esperando respuesta',
+    );
+    return '$_temp0: podrás pedir más cuando te contesten';
+  }
+
+  @override
+  String get kostvRequestAtLimitDaily =>
+      'Has hecho todas las peticiones de hoy: mañana podrás pedir más';
+
+  @override
+  String get kostvRequestAtLimit => 'Ahora mismo no puedes solicitar nada más';
+
+  @override
+  String get kostvRequestPending => 'Pendiente de aprobación';
+
+  @override
+  String get kostvRequestUpdatesOnItsOwn =>
+      'Esta ficha cambia sola en cuanto conteste';
+
+  @override
+  String get kostvRequestRequestedByYou => 'La has solicitado tú';
+
+  @override
+  String kostvRequestRequestedByYouAnd(String names) {
+    return 'La habéis solicitado tú y $names';
+  }
+
+  @override
+  String kostvRequestRequestedBy(String names) {
+    return 'La ha solicitado $names';
+  }
+
+  @override
+  String get kostvRequestAccepted => 'Aceptada: empieza en seguida';
+
+  @override
+  String get kostvRequestLookingForEpisodes => 'Buscando los episodios';
+
+  @override
+  String get kostvRequestWaitingVersion => 'Esperando una versión buena';
+
+  @override
+  String get kostvRequestQueued => 'En cola';
+
+  @override
+  String get kostvRequestPreparing => 'Preparando';
+
+  @override
+  String get kostvRequestWaitingFile => 'Esperando a que el archivo esté listo';
+
+  @override
+  String kostvRequestDownloadingPercent(int percent) {
+    return 'Descargando $percent %';
+  }
+
+  @override
+  String get kostvRequestDownloading => 'Descargando';
+
+  @override
+  String get kostvRequestVerifying => 'Comprobando el vídeo';
+
+  @override
+  String get kostvRequestMoving => 'Colocándola en la biblioteca';
+
+  @override
+  String get kostvRequestAttention =>
+      'En revisión: el administrador tiene que elegir otra versión';
+
+  @override
+  String get kostvRequestPaused => 'En pausa';
+
+  @override
+  String kostvRequestTimeLeft(String time) {
+    return 'quedan $time';
+  }
+
+  @override
+  String get kostvRequestLessThanAMinute => 'menos de un minuto';
+
+  @override
+  String kostvHoursMinutes(int hours, int minutes) {
+    return '$hours h $minutes min';
+  }
+
+  @override
+  String kostvRequestEpisodesDone(int done, int total) {
+    String _temp0 = intl.Intl.pluralLogic(
+      total,
+      locale: localeName,
+      other: '$total episodios',
+      one: '1 episodio',
+    );
+    return '$done de $_temp0';
+  }
+
+  @override
+  String get kostvRequestRejected => 'No aceptada';
+
+  @override
+  String get kostvRequestRejectedQuality =>
+      'No aceptada: aún no hay una versión buena';
+
+  @override
+  String get kostvRequestRejectedLater => 'No aceptada: mejor más adelante';
+
+  @override
+  String get kostvRequestArrived => '¡Ya está aquí!';
+
+  @override
+  String get kostvRequestArrivingSoon =>
+      'Recién llegada: aparecerá en la biblioteca en unos minutos';
+
+  @override
+  String get kostvRequestLoadFailed => 'No se ha podido abrir esta ficha';
+
+  @override
+  String kostvRequestSeasonEpisodes(int have, int aired) {
+    String _temp0 = intl.Intl.pluralLogic(
+      aired,
+      locale: localeName,
+      other: '$aired episodios',
+      one: '1 episodio',
+    );
+    return '$have de $_temp0';
+  }
+
+  @override
+  String get kostvRequestSeasonComplete => 'Completa';
+
+  @override
+  String get kostvRequestSeasonUpcoming => 'Aún no se ha estrenado';
+
+  @override
+  String get kostvRequestSeasonOnItsWay => 'De camino';
+
+  @override
+  String kostvRequestSeriesMissing(int missing) {
+    String _temp0 = intl.Intl.pluralLogic(
+      missing,
+      locale: localeName,
+      other: 'Faltan $missing episodios',
+      one: 'Falta 1 episodio',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvRequestOutcomeCreated =>
+      'Petición enviada: el administrador tiene que aceptarla';
+
+  @override
+  String get kostvRequestOutcomeStarted => '¡Solicitada! Ya se está preparando';
+
+  @override
+  String get kostvRequestOutcomeJoined =>
+      'Alguien ya la había solicitado: te hemos apuntado';
+
+  @override
+  String get kostvRequestOutcomeWatching =>
+      'Ya se estaba descargando: te apuntamos para cuando llegue';
+
+  @override
+  String get kostvRequestOutcomeIncluded =>
+      'Ya estaba solicitado todo lo que falta, también esta temporada';
+
+  @override
+  String get kostvRequestOutcomeAlready => 'Ya lo habías solicitado';
+
+  @override
+  String get kostvRequestOutcomeHave => 'Ya está en la biblioteca';
+
+  @override
+  String get kostvRequestOutcomeBusy => 'Ya se está descargando';
+
+  @override
+  String get kostvRequestWithdrawn => 'Petición retirada';
+
+  @override
+  String get kostvRequestFailed =>
+      'No se ha podido enviar la petición. Inténtalo otra vez.';
+
+  @override
+  String get kostvRequestTooFast =>
+      'Demasiadas seguidas: espera un momento y vuelve a intentarlo';
+
+  @override
+  String kostvRequestWaitingSince(int minutes) {
+    return 'desde hace $minutes min';
+  }
+
+  @override
+  String get kostvRequestUnderReview => 'En revisión';
+
+  @override
+  String kostvRequestWithdrawQuestion(String title) {
+    return '¿Retiras la petición de $title?';
+  }
+
+  @override
+  String kostvSeasonsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count temporadas',
+      one: '1 temporada',
+    );
+    return '$_temp0';
+  }
 }

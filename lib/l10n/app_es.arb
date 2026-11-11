@@ -11372,15 +11372,11 @@
     "kostvDiscoverInLibrary": "Ya está",
     "kostvDiscoverMissingSeason": "Falta la T{season}",
     "kostvDiscoverComingSoon": "Llega pronto",
-    "kostvDiscoverRequested": "Pedida",
-    "kostvDiscoverRequestedByYou": "Pedida por ti",
+    "kostvDiscoverRequested": "Solicitada",
+    "kostvDiscoverRequestedByYou": "Solicitada por ti",
     "kostvDiscoverBrandNewSeries": "Serie nueva",
     "kostvDiscoverNewSeason": "T{season} nueva",
     "kostvDiscoverNotHereYet": "{title} todavía no está en kOS TV.",
-    "kostvDiscoverJustArrived": "{title} acaba de llegar: aparecerá en unos minutos.",
-    "kostvDiscoverDownloading": "{title} se está descargando: llegará pronto.",
-    "kostvDiscoverAlreadyRequested": "Alguien de casa ya ha pedido {title}.",
-    "kostvDiscoverYouRequested": "Ya has pedido {title}.",
     "kostvDiscoverUnavailable": "Descubrir no está disponible ahora mismo.",
     "kostvMoreSettings": "Más ajustes",
     "@kostvMoreSettings": {
@@ -12181,5 +12177,352 @@
     "kostvRestoringPosition": "Volviendo a donde lo dejaste…",
     "@kostvRestoringPosition": {
         "description": "Kos TV: player note while it seeks to the resume point"
+    },
+    "kostvRequestAsk": "Solicitar",
+    "@kostvRequestAsk": {
+        "description": "Kos TV request page: button that asks the household for a film or series that isn't on the home server."
+    },
+    "kostvRequestAskAndNotify": "Solicitar y avisarme",
+    "@kostvRequestAskAndNotify": {
+        "description": "Kos TV request page: button for a film with no good version yet; once requested it downloads on its own when one shows up."
+    },
+    "kostvRequestNotifyMe": "Avísame cuando esté",
+    "@kostvRequestNotifyMe": {
+        "description": "Kos TV request page: button for a film already downloading for someone else; pressing it adds the person to whoever is told when it arrives."
+    },
+    "kostvRequestAskAll": "Solicitar todo lo que falta",
+    "@kostvRequestAskAll": {
+        "description": "Kos TV request page: button that requests every missing episode of a series."
+    },
+    "kostvRequestAskSeason": "Solicitar la T{season}",
+    "@kostvRequestAskSeason": {
+        "description": "Kos TV request page: button that requests one season of a series.",
+        "placeholders": {
+            "season": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvRequestMeToo": "Yo también",
+    "@kostvRequestMeToo": {
+        "description": "Kos TV request page: button on a season someone else already requested; pressing it adds the person to that request."
+    },
+    "kostvRequestWithdraw": "Retirar petición",
+    "@kostvRequestWithdraw": {
+        "description": "Kos TV request page: button that takes back the person's own request while it waits for an answer."
+    },
+    "kostvRequestOpenInLibrary": "Ver en la biblioteca",
+    "@kostvRequestOpenInLibrary": {
+        "description": "Kos TV request page: button on a series already partly on the home server, opening its normal page."
+    },
+    "kostvRequestChecking": "Mirando si está disponible…",
+    "@kostvRequestChecking": {
+        "description": "Kos TV request page: shown while the service checks whether the film can be downloaded now (takes a few seconds)."
+    },
+    "kostvRequestFast": "Rápida",
+    "@kostvRequestFast": {
+        "description": "Kos TV request page: short label next to the lightning icon when the film's download would start at once."
+    },
+    "kostvRequestFastNote": "Descarga rápida: empieza al momento",
+    "@kostvRequestFastNote": {
+        "description": "Kos TV request page: note under the button when the film's download would start at once."
+    },
+    "kostvRequestSlowNote": "Tardará un poco en empezar a descargarse",
+    "@kostvRequestSlowNote": {
+        "description": "Kos TV request page: note under the button when the film can be downloaded but not at once."
+    },
+    "kostvRequestNoGoodVersion": "Aún no hay una versión {criterion}",
+    "@kostvRequestNoGoodVersion": {
+        "description": "Kos TV request page: the film has versions but none good enough. criterion is the service's own words, e.g. 'en castellano de 1080p o más'.",
+        "placeholders": {
+            "criterion": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvRequestNoVersionYet": "Aún no hay ninguna versión",
+    "@kostvRequestNoVersionYet": {
+        "description": "Kos TV request page: the film has no versions at all yet."
+    },
+    "kostvRequestDownloadsWhenReady": "Si la solicitas, se descargará sola en cuanto haya una buena",
+    "@kostvRequestDownloadsWhenReady": {
+        "description": "Kos TV request page: explains what requesting a film with no good version does."
+    },
+    "kostvRequestNeedsApproval": "El administrador tiene que aceptarla",
+    "@kostvRequestNeedsApproval": {
+        "description": "Kos TV request page: note under the button for someone whose requests wait for the administrator."
+    },
+    "kostvRequestUnavailable": "No se puede conseguir",
+    "@kostvRequestUnavailable": {
+        "description": "Kos TV request page: the title can't be had."
+    },
+    "kostvRequestAtLimitPending": "{pending, plural, =1{Tienes 1 petición esperando respuesta} other{Tienes {pending} peticiones esperando respuesta}}: podrás pedir más cuando te contesten",
+    "@kostvRequestAtLimitPending": {
+        "description": "Kos TV request page: the person reached how many requests may wait for an answer at once.",
+        "placeholders": {
+            "pending": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvRequestAtLimitDaily": "Has hecho todas las peticiones de hoy: mañana podrás pedir más",
+    "@kostvRequestAtLimitDaily": {
+        "description": "Kos TV request page: the person reached their daily number of requests."
+    },
+    "kostvRequestAtLimit": "Ahora mismo no puedes solicitar nada más",
+    "@kostvRequestAtLimit": {
+        "description": "Kos TV request page: the person reached a request limit (which one isn't known)."
+    },
+    "kostvRequestPending": "Pendiente de aprobación",
+    "@kostvRequestPending": {
+        "description": "Kos TV request page: the request waits for the administrator's answer."
+    },
+    "kostvRequestUpdatesOnItsOwn": "Esta ficha cambia sola en cuanto conteste",
+    "@kostvRequestUpdatesOnItsOwn": {
+        "description": "Kos TV request page: note under a request waiting for the administrator."
+    },
+    "kostvRequestRequestedByYou": "La has solicitado tú",
+    "@kostvRequestRequestedByYou": {
+        "description": "Kos TV request page: who asked for it (the person themselves)."
+    },
+    "kostvRequestRequestedByYouAnd": "La habéis solicitado tú y {names}",
+    "@kostvRequestRequestedByYouAnd": {
+        "description": "Kos TV request page: who asked for it (the person and others).",
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvRequestRequestedBy": "La ha solicitado {names}",
+    "@kostvRequestRequestedBy": {
+        "description": "Kos TV request page: who asked for it.",
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvRequestAccepted": "Aceptada: empieza en seguida",
+    "@kostvRequestAccepted": {
+        "description": "Kos TV request page: accepted, nothing downloading yet."
+    },
+    "kostvRequestLookingForEpisodes": "Buscando los episodios",
+    "@kostvRequestLookingForEpisodes": {
+        "description": "Kos TV request page: a series request, the service is finding its episodes."
+    },
+    "kostvRequestWaitingVersion": "Esperando una versión buena",
+    "@kostvRequestWaitingVersion": {
+        "description": "Kos TV request page: an accepted film waits for a version in the home's language and quality; it downloads as soon as there is one."
+    },
+    "kostvRequestQueued": "En cola",
+    "@kostvRequestQueued": {
+        "description": "Kos TV request page: the download waits its turn."
+    },
+    "kostvRequestPreparing": "Preparando",
+    "@kostvRequestPreparing": {
+        "description": "Kos TV request page: the download service is being asked for the file."
+    },
+    "kostvRequestWaitingFile": "Esperando a que el archivo esté listo",
+    "@kostvRequestWaitingFile": {
+        "description": "Kos TV request page: the download service is getting the file ready (it wasn't a fast one)."
+    },
+    "kostvRequestDownloadingPercent": "Descargando {percent} %",
+    "@kostvRequestDownloadingPercent": {
+        "description": "Kos TV request page: how much has come down.",
+        "placeholders": {
+            "percent": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvRequestDownloading": "Descargando",
+    "@kostvRequestDownloading": {
+        "description": "Kos TV request page: downloading, amount unknown."
+    },
+    "kostvRequestVerifying": "Comprobando el vídeo",
+    "@kostvRequestVerifying": {
+        "description": "Kos TV request page: the downloaded video is being checked."
+    },
+    "kostvRequestMoving": "Colocándola en la biblioteca",
+    "@kostvRequestMoving": {
+        "description": "Kos TV request page: the downloaded file is being put in its place on the home server."
+    },
+    "kostvRequestAttention": "En revisión: el administrador tiene que elegir otra versión",
+    "@kostvRequestAttention": {
+        "description": "Kos TV request page: the download failed and needs the administrator."
+    },
+    "kostvRequestPaused": "En pausa",
+    "@kostvRequestPaused": {
+        "description": "Kos TV request page: the administrator paused every download."
+    },
+    "kostvRequestTimeLeft": "quedan {time}",
+    "@kostvRequestTimeLeft": {
+        "description": "Kos TV request page: how long the download still takes.",
+        "placeholders": {
+            "time": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvRequestLessThanAMinute": "menos de un minuto",
+    "@kostvRequestLessThanAMinute": {
+        "description": "Kos TV request page: time left under a minute."
+    },
+    "kostvHoursMinutes": "{hours} h {minutes} min",
+    "@kostvHoursMinutes": {
+        "description": "Kos TV: a duration in hours and minutes.",
+        "placeholders": {
+            "hours": {
+                "type": "int"
+            },
+            "minutes": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvRequestEpisodesDone": "{done} de {total, plural, =1{1 episodio} other{{total} episodios}}",
+    "@kostvRequestEpisodesDone": {
+        "description": "Kos TV request page: episodes of a series request already on the home server.",
+        "placeholders": {
+            "done": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvRequestRejected": "No aceptada",
+    "@kostvRequestRejected": {
+        "description": "Kos TV request page: the administrator turned the request down."
+    },
+    "kostvRequestRejectedQuality": "No aceptada: aún no hay una versión buena",
+    "@kostvRequestRejectedQuality": {
+        "description": "Kos TV request page: turned down because there is no good version yet."
+    },
+    "kostvRequestRejectedLater": "No aceptada: mejor más adelante",
+    "@kostvRequestRejectedLater": {
+        "description": "Kos TV request page: turned down for now."
+    },
+    "kostvRequestArrived": "¡Ya está aquí!",
+    "@kostvRequestArrived": {
+        "description": "Kos TV request page: the title has just arrived on the home server; the page turns into its normal page."
+    },
+    "kostvRequestArrivingSoon": "Recién llegada: aparecerá en la biblioteca en unos minutos",
+    "@kostvRequestArrivingSoon": {
+        "description": "Kos TV request page: it is on the home server but not ready to open yet."
+    },
+    "kostvRequestLoadFailed": "No se ha podido abrir esta ficha",
+    "@kostvRequestLoadFailed": {
+        "description": "Kos TV request page: the service didn't answer."
+    },
+    "kostvRequestSeasonEpisodes": "{have} de {aired, plural, =1{1 episodio} other{{aired} episodios}}",
+    "@kostvRequestSeasonEpisodes": {
+        "description": "Kos TV request page: episodes of a season on the home server, of those already aired.",
+        "placeholders": {
+            "have": {
+                "type": "int"
+            },
+            "aired": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvRequestSeasonComplete": "Completa",
+    "@kostvRequestSeasonComplete": {
+        "description": "Kos TV request page: every aired episode of the season is there."
+    },
+    "kostvRequestSeasonUpcoming": "Aún no se ha estrenado",
+    "@kostvRequestSeasonUpcoming": {
+        "description": "Kos TV request page: no episode of the season has aired yet."
+    },
+    "kostvRequestSeasonOnItsWay": "De camino",
+    "@kostvRequestSeasonOnItsWay": {
+        "description": "Kos TV request page: what is missing of the season is downloading or waiting for an answer."
+    },
+    "kostvRequestSeriesMissing": "{missing, plural, =1{Falta 1 episodio} other{Faltan {missing} episodios}}",
+    "@kostvRequestSeriesMissing": {
+        "description": "Kos TV request page: how many aired episodes of the series aren't on the home server.",
+        "placeholders": {
+            "missing": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvRequestOutcomeCreated": "Petición enviada: el administrador tiene que aceptarla",
+    "@kostvRequestOutcomeCreated": {
+        "description": "Kos TV request page: message after requesting, when it waits for the administrator."
+    },
+    "kostvRequestOutcomeStarted": "¡Solicitada! Ya se está preparando",
+    "@kostvRequestOutcomeStarted": {
+        "description": "Kos TV request page: message after requesting, when it started at once."
+    },
+    "kostvRequestOutcomeJoined": "Alguien ya la había solicitado: te hemos apuntado",
+    "@kostvRequestOutcomeJoined": {
+        "description": "Kos TV request page: message after requesting something someone else asked for."
+    },
+    "kostvRequestOutcomeWatching": "Ya se estaba descargando: te apuntamos para cuando llegue",
+    "@kostvRequestOutcomeWatching": {
+        "description": "Kos TV request page: message after asking to be told about a film that was already downloading."
+    },
+    "kostvRequestOutcomeIncluded": "Ya estaba solicitado todo lo que falta, también esta temporada",
+    "@kostvRequestOutcomeIncluded": {
+        "description": "Kos TV request page: message after requesting a season when everything missing was asked for already."
+    },
+    "kostvRequestOutcomeAlready": "Ya lo habías solicitado",
+    "@kostvRequestOutcomeAlready": {
+        "description": "Kos TV request page: message after requesting something the person had asked for already."
+    },
+    "kostvRequestOutcomeHave": "Ya está en la biblioteca",
+    "@kostvRequestOutcomeHave": {
+        "description": "Kos TV request page: message after requesting something already on the home server."
+    },
+    "kostvRequestOutcomeBusy": "Ya se está descargando",
+    "@kostvRequestOutcomeBusy": {
+        "description": "Kos TV request page: message after requesting something already downloading."
+    },
+    "kostvRequestWithdrawn": "Petición retirada",
+    "@kostvRequestWithdrawn": {
+        "description": "Kos TV request page: message after taking a request back."
+    },
+    "kostvRequestFailed": "No se ha podido enviar la petición. Inténtalo otra vez.",
+    "@kostvRequestFailed": {
+        "description": "Kos TV request page: asking or withdrawing failed."
+    },
+    "kostvRequestTooFast": "Demasiadas seguidas: espera un momento y vuelve a intentarlo",
+    "@kostvRequestTooFast": {
+        "description": "Kos TV request page: the service asked to slow down."
+    },
+    "kostvRequestWaitingSince": "desde hace {minutes} min",
+    "@kostvRequestWaitingSince": {
+        "description": "Kos TV request page: how long the download service has been getting the file ready.",
+        "placeholders": {
+            "minutes": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvRequestUnderReview": "En revisión",
+    "@kostvRequestUnderReview": {
+        "description": "Kos TV request page: short status when the download failed and the administrator has to choose another version."
+    },
+    "kostvRequestWithdrawQuestion": "¿Retiras la petición de {title}?",
+    "@kostvRequestWithdrawQuestion": {
+        "description": "Kos TV request page: confirmation before taking back a season's request.",
+        "placeholders": {
+            "title": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvSeasonsCount": "{count, plural, =1{1 temporada} other{{count} temporadas}}",
+    "@kostvSeasonsCount": {
+        "description": "Kos TV request page: how many seasons a series has.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
     }
 }
