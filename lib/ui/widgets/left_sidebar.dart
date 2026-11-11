@@ -11,6 +11,7 @@ import 'package:server_core/server_core.dart';
 
 import '../../auth/repositories/user_repository.dart';
 import '../../data/services/installed_apps_service.dart';
+import '../../data/services/stremfin/stremfin_service.dart';
 import '../../data/models/aggregated_library.dart';
 import '../../data/repositories/multi_server_repository.dart';
 import '../../data/repositories/user_views_repository.dart';
@@ -174,6 +175,9 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     _prefs.addListener(_onPrefsChanged);
     _viewsRepo.addListener(_onUserViewsChanged);
     GetIt.instance<PluginSyncService>().addListener(_onPrefsChanged);
+    if (GetIt.instance.isRegistered<StremfinService>()) {
+      GetIt.instance<StremfinService>().addListener(_onPrefsChanged);
+    }
     if (GetIt.instance.isRegistered<AchievementsService>()) {
       GetIt.instance<AchievementsService>().addListener(_onAchievementsChanged);
     }
@@ -256,6 +260,9 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     } catch (_) {}
     try {
       GetIt.instance<PluginSyncService>().removeListener(_onPrefsChanged);
+      if (GetIt.instance.isRegistered<StremfinService>()) {
+        GetIt.instance<StremfinService>().removeListener(_onPrefsChanged);
+      }
     } catch (_) {}
     try {
       GetIt.instance<AchievementsService>().removeListener(
@@ -1030,6 +1037,24 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     context.navigateTopLevel(Destinations.search);
                   },
                 ),
+                // Kos TV: what's on the streaming platforms.
+                if (showKostvDiscoverButton(_prefs, kidsMode: _kidsMode))
+                  _SidebarItem(
+                    key: const ValueKey('sidebar-kostv-discover'),
+                    icon: Icons.explore_rounded,
+                    label: l10n.kostvDiscover,
+                    baseColor: nextMainSidebarColor(),
+                    showLabel: _showLabels,
+                    onPressed: () {
+                      _onNavigate();
+                      if (_isActive(Destinations.kostvDiscover)) {
+                        _exitSidebarToContent();
+                        return;
+                      }
+                      _markNavigationAwayFromSidebar();
+                      context.navigateTopLevel(Destinations.kostvDiscover);
+                    },
+                  ),
                 if (showShuffle)
                   _SidebarItem(
                     key: const ValueKey('sidebar-shuffle'),

@@ -15,6 +15,7 @@ import 'package:server_core/server_core.dart' hide ImageType;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/services/installed_apps_service.dart';
+import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../data/repositories/poster_badge_repository.dart';
 import '../../../data/services/achievements_service.dart';
 import '../../../data/services/auto_download_service.dart';

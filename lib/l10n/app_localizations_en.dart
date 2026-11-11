@@ -18145,4 +18145,98 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvCustomizeLookSubtitle =>
       'Choose how navigation, Home and details pages look';
+
+  @override
+  String get kostvDiscover => 'Discover';
+
+  @override
+  String get kostvDiscoverAll => 'All';
+
+  @override
+  String get kostvShowDiscoverButton => 'Discover button';
+
+  @override
+  String get kostvDiscoverPopularSeries => 'Most watched series';
+
+  @override
+  String get kostvDiscoverNewSeries => 'New series';
+
+  @override
+  String get kostvDiscoverPopularMovies => 'Most watched movies';
+
+  @override
+  String get kostvDiscoverNewMovies => 'New movies';
+
+  @override
+  String kostvDiscoverPopularSeriesOn(String platform) {
+    return 'Most watched series on $platform';
+  }
+
+  @override
+  String kostvDiscoverNewSeriesOn(String platform) {
+    return 'New series on $platform';
+  }
+
+  @override
+  String kostvDiscoverPopularMoviesOn(String platform) {
+    return 'Most watched movies on $platform';
+  }
+
+  @override
+  String kostvDiscoverNewMoviesOn(String platform) {
+    return 'New movies on $platform';
+  }
+
+  @override
+  String get kostvDiscoverInLibrary => 'Already here';
+
+  @override
+  String kostvDiscoverMissingSeason(int season) {
+    return 'Missing S$season';
+  }
+
+  @override
+  String get kostvDiscoverComingSoon => 'Coming soon';
+
+  @override
+  String get kostvDiscoverRequested => 'Requested';
+
+  @override
+  String get kostvDiscoverRequestedByYou => 'Requested by you';
+
+  @override
+  String get kostvDiscoverBrandNewSeries => 'New series';
+
+  @override
+  String kostvDiscoverNewSeason(int season) {
+    return 'New S$season';
+  }
+
+  @override
+  String kostvDiscoverNotHereYet(String title) {
+    return '$title isn\'t on kOS TV yet.';
+  }
+
+  @override
+  String kostvDiscoverJustArrived(String title) {
+    return '$title has just arrived: it will show up in a few minutes.';
+  }
+
+  @override
+  String kostvDiscoverDownloading(String title) {
+    return '$title is downloading: it will be here soon.';
+  }
+
+  @override
+  String kostvDiscoverAlreadyRequested(String title) {
+    return 'Someone at home has already requested $title.';
+  }
+
+  @override
+  String kostvDiscoverYouRequested(String title) {
+    return 'You\'ve already requested $title.';
+  }
+
+  @override
+  String get kostvDiscoverUnavailable => 'Discover isn\'t available right now.';
 }

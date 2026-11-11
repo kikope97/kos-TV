@@ -265,6 +265,15 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
                       title: l10n.kostvShowAppsButton,
                       icon: Icons.apps_rounded,
                     ),
+                  // Kos TV: the Discover button, for a person the requests
+                  // service lets in.
+                  if (GetIt.instance.isRegistered<StremfinService>() &&
+                      GetIt.instance<StremfinService>().isAllowed)
+                    SwitchPreferenceTile(
+                      preference: UserPreferences.showDiscoverButton,
+                      title: l10n.kostvShowDiscoverButton,
+                      icon: Icons.explore_rounded,
+                    ),
                   if (_syncService.calendarAvailable &&
                       !onBar.contains(BottomNavTab.calendar))
                     SwitchPreferenceTile(

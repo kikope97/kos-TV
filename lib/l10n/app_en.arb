@@ -17739,5 +17739,156 @@
   "kostvCustomizeLookSubtitle": "Choose how navigation, Home and details pages look",
   "@kostvCustomizeLookSubtitle": {
     "description": "Kos TV: subtitle of Customize the look"
+  },
+  "kostvDiscover": "Discover",
+  "@kostvDiscover": {
+    "description": "Kos TV: navigation button and screen with what's on the streaming platforms"
+  },
+  "kostvDiscoverAll": "All",
+  "@kostvDiscoverAll": {
+    "description": "Kos TV: Discover platform button that mixes every platform"
+  },
+  "kostvShowDiscoverButton": "Discover button",
+  "@kostvShowDiscoverButton": {
+    "description": "Kos TV: setting that shows the Discover button in the navigation"
+  },
+  "kostvDiscoverPopularSeries": "Most watched series",
+  "@kostvDiscoverPopularSeries": {
+    "description": "Kos TV: Discover row, all platforms"
+  },
+  "kostvDiscoverNewSeries": "New series",
+  "@kostvDiscoverNewSeries": {
+    "description": "Kos TV: Discover row, all platforms"
+  },
+  "kostvDiscoverPopularMovies": "Most watched movies",
+  "@kostvDiscoverPopularMovies": {
+    "description": "Kos TV: Discover row, all platforms"
+  },
+  "kostvDiscoverNewMovies": "New movies",
+  "@kostvDiscoverNewMovies": {
+    "description": "Kos TV: Discover row, all platforms"
+  },
+  "kostvDiscoverPopularSeriesOn": "Most watched series on {platform}",
+  "@kostvDiscoverPopularSeriesOn": {
+    "description": "Kos TV: Discover row for one platform",
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDiscoverNewSeriesOn": "New series on {platform}",
+  "@kostvDiscoverNewSeriesOn": {
+    "description": "Kos TV: Discover row for one platform",
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDiscoverPopularMoviesOn": "Most watched movies on {platform}",
+  "@kostvDiscoverPopularMoviesOn": {
+    "description": "Kos TV: Discover row for one platform",
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDiscoverNewMoviesOn": "New movies on {platform}",
+  "@kostvDiscoverNewMoviesOn": {
+    "description": "Kos TV: Discover row for one platform",
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDiscoverInLibrary": "Already here",
+  "@kostvDiscoverInLibrary": {
+    "description": "Kos TV: Discover badge on a title that is on the home server"
+  },
+  "kostvDiscoverMissingSeason": "Missing S{season}",
+  "@kostvDiscoverMissingSeason": {
+    "description": "Kos TV: Discover badge on a series that is on the server without its new season",
+    "placeholders": {
+      "season": {
+        "type": "int"
+      }
+    }
+  },
+  "kostvDiscoverComingSoon": "Coming soon",
+  "@kostvDiscoverComingSoon": {
+    "description": "Kos TV: Discover badge on a title being downloaded"
+  },
+  "kostvDiscoverRequested": "Requested",
+  "@kostvDiscoverRequested": {
+    "description": "Kos TV: Discover badge on a title someone has requested"
+  },
+  "kostvDiscoverRequestedByYou": "Requested by you",
+  "@kostvDiscoverRequestedByYou": {
+    "description": "Kos TV: Discover badge on a title the person has requested"
+  },
+  "kostvDiscoverBrandNewSeries": "New series",
+  "@kostvDiscoverBrandNewSeries": {
+    "description": "Kos TV: Discover badge on a series whose first season has just come out"
+  },
+  "kostvDiscoverNewSeason": "New S{season}",
+  "@kostvDiscoverNewSeason": {
+    "description": "Kos TV: Discover badge on a series with a season that has just come out",
+    "placeholders": {
+      "season": {
+        "type": "int"
+      }
+    }
+  },
+  "kostvDiscoverNotHereYet": "{title} isn't on kOS TV yet.",
+  "@kostvDiscoverNotHereYet": {
+    "description": "Kos TV: shown when a Discover title that isn't on the server is pressed",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDiscoverJustArrived": "{title} has just arrived: it will show up in a few minutes.",
+  "@kostvDiscoverJustArrived": {
+    "description": "Kos TV: shown when a Discover title that is still being added is pressed",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDiscoverDownloading": "{title} is downloading: it will be here soon.",
+  "@kostvDiscoverDownloading": {
+    "description": "Kos TV: shown when a Discover title being downloaded is pressed",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDiscoverAlreadyRequested": "Someone at home has already requested {title}.",
+  "@kostvDiscoverAlreadyRequested": {
+    "description": "Kos TV: shown when a Discover title someone requested is pressed",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDiscoverYouRequested": "You've already requested {title}.",
+  "@kostvDiscoverYouRequested": {
+    "description": "Kos TV: shown when a Discover title the person requested is pressed",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDiscoverUnavailable": "Discover isn't available right now.",
+  "@kostvDiscoverUnavailable": {
+    "description": "Kos TV: shown when the platform lists can't be read"
   }
 }

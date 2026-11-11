@@ -83,6 +83,8 @@ class Destinations {
 
   /// Kos TV: every app installed on the TV.
   static const apps = '/apps';
+  // Kos TV: what's on the streaming platforms (requests service).
+  static const kostvDiscover = '/discover';
   static const calendarMonth = '/calendar/month';
 
   static const folderBrowse = '/folder/:folderId';

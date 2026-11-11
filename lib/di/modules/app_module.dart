@@ -31,6 +31,8 @@ import '../../data/services/background_service.dart';
 import '../../data/services/access_schedule_service.dart';
 import '../../data/services/app_update_service.dart';
 import '../../data/services/installed_apps_service.dart';
+import '../../data/services/stremfin/stremfin_client.dart';
+import '../../data/services/stremfin/stremfin_service.dart';
 import '../../data/services/upcoming_episode_service.dart';
 import '../../data/services/cast/airplay_provider.dart';
 import '../../data/services/cast/airplay_command_bridge.dart';
@@ -120,6 +122,7 @@ void resetUserScopedSingletons() {
 }
 
 StreamSubscription<User?>? _accessScheduleUserSubscription;
+StreamSubscription<User?>? _stremfinUserSubscription;
 
 /// The signed in user's access schedule, or null when it can't be read.
 Future<List<AccessSchedule>?> _loadAccessSchedules(String userId) =>
@@ -176,6 +179,23 @@ void registerAppModule() {
   // it outlives sign-outs like AppUpdateService.
   _getIt.registerLazySingleton(
     () => InstalledAppsService(_getIt<UserPreferences>()),
+  );
+  // Kos TV: the requests service (Discover). Asks who the person is each
+  // time someone signs in.
+  _getIt.registerLazySingleton<StremfinService>(
+    () {
+      final service = StremfinService(StremfinClient());
+      final users = _getIt<UserRepository>();
+      service.onUserChanged(users.currentUser?.id);
+      _stremfinUserSubscription = users.currentUserStream.listen(
+        (user) => service.onUserChanged(user?.id),
+      );
+      return service;
+    },
+    dispose: (service) {
+      unawaited(_stremfinUserSubscription?.cancel());
+      service.dispose();
+    },
   );
   _getIt.registerLazySingleton(
     () => ScreensaverController(

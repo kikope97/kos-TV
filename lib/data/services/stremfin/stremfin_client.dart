@@ -1,0 +1,176 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:get_it/get_it.dart';
+import 'package:server_core/server_core.dart';
+
+import '../../../util/kostv_server.dart';
+import '../log_service.dart';
+import 'stremfin_models.dart';
+
+/// Kos TV: a failed call to the requests service.
+class StremfinException implements Exception {
+  const StremfinException({
+    required this.code,
+    this.status,
+    this.message,
+    this.retryAfter,
+  });
+
+  /// The API's error code (`invalid_token`, `api_disabled`…), `network` when
+  /// the service could not be reached, or `bad_response`.
+  final String code;
+  final int? status;
+
+  /// Spanish text from the service, ready to show.
+  final String? message;
+  final Duration? retryAfter;
+
+  /// The person has no access (signed out, not linked, no access).
+  bool get isNoAccess => status == 401 || status == 403;
+
+  @override
+  String toString() => 'StremfinException($status $code)';
+}
+
+/// Kos TV: talks to the requests service (Stremfin) with the person's own
+/// home-server token, which it never puts in a URL or a log.
+class StremfinClient {
+  StremfinClient({
+    Dio? dio,
+    String? baseUrl,
+    @visibleForTesting String? Function()? token,
+  }) : _baseUrl = baseUrl ?? apiBaseFor(kostvRequestsUrl),
+       _token = token ?? _sessionToken,
+       _dio =
+           dio ??
+           Dio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 15),
+               receiveTimeout: const Duration(seconds: 20),
+             ),
+           );
+
+  final Dio _dio;
+  final String? _baseUrl;
+  final String? Function() _token;
+
+  /// Whether this build knows where the service is.
+  bool get isConfigured => _baseUrl != null;
+
+  /// The API's base from the build's address: with or without a trailing
+  /// slash or `/api/v1`, and always over https, since every call carries the
+  /// person's token.
+  @visibleForTesting
+  static String? apiBaseFor(String raw) {
+    var url = raw.trim();
+    if (url.isEmpty) return null;
+    if (url.startsWith('http://')) url = 'https://${url.substring(7)}';
+    if (!url.startsWith('https://')) url = 'https://$url';
+    while (url.endsWith('/')) {
+      url = url.substring(0, url.length - 1);
+    }
+    if (url.endsWith('/api/v1')) url = url.substring(0, url.length - 7);
+    final uri = Uri.tryParse(url);
+    if (uri == null || uri.host.isEmpty) return null;
+    return '$url/api/v1';
+  }
+
+  static String? _sessionToken() {
+    final getIt = GetIt.instance;
+    if (getIt.isRegistered<MediaServerClient>()) {
+      final token = getIt<MediaServerClient>().accessToken;
+      if (token != null && token.isNotEmpty) return token;
+    }
+    return null;
+  }
+
+  Future<StremfinMe> me() async => StremfinMe.fromJson(await _get('/me'));
+
+  Future<List<StremfinPlatform>> platforms() async {
+    final body = await _get('/platforms');
+    final raw = body is Map ? body['platforms'] : null;
+    return [
+      if (raw is List)
+        for (final entry in raw) ?StremfinPlatform.fromJson(entry),
+    ];
+  }
+
+  Future<List<StremfinTitle>> top({
+    required String platform,
+    required StremfinTitleType type,
+    required StremfinTopList list,
+    int? limit,
+  }) async {
+    final body = await _get('/top', {
+      'platform': platform,
+      'type': type.apiValue,
+      'list': list.apiValue,
+      'limit': ?limit,
+    });
+    final raw = body is Map ? body['items'] : null;
+    return [
+      if (raw is List)
+        for (final entry in raw) ?StremfinTitle.fromJson(entry),
+    ];
+  }
+
+  Future<Object?> _get(String path, [Map<String, Object?>? query]) async {
+    final base = _baseUrl;
+    if (base == null) {
+      throw const StremfinException(code: 'not_configured');
+    }
+    final token = _token();
+    if (token == null) {
+      throw const StremfinException(code: 'unauthenticated', status: 401);
+    }
+    final Response<Object?> response;
+    try {
+      response = await _dio.get<Object?>(
+        '$base$path',
+        queryParameters: query,
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Accept': 'application/json',
+          },
+          responseType: ResponseType.json,
+          validateStatus: (_) => true,
+        ),
+      );
+    } on DioException catch (e) {
+      _log('x GET $path (${e.type.name})');
+      throw const StremfinException(code: 'network');
+    }
+    final status = response.statusCode ?? 0;
+    // Only the path: the address of the service and the token stay out of
+    // the app's log.
+    _log('<- $status GET $path');
+    final body = response.data;
+    if (status >= 200 && status < 300) return body;
+    final error = body is Map ? body['error'] : null;
+    final code = error is Map && error['code'] is String
+        ? error['code'] as String
+        : 'http_$status';
+    final message = error is Map && error['message'] is String
+        ? error['message'] as String
+        : null;
+    final retryAfter = int.tryParse(
+      response.headers.value('retry-after') ?? '',
+    );
+    throw StremfinException(
+      code: code,
+      status: status,
+      message: message,
+      retryAfter: retryAfter == null ? null : Duration(seconds: retryAfter),
+    );
+  }
+
+  static void _log(String line) {
+    final getIt = GetIt.instance;
+    if (getIt.isRegistered<LogService>()) {
+      getIt<LogService>().network('[Stremfin] $line');
+    }
+  }
+}

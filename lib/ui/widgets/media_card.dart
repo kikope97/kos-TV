@@ -173,6 +173,10 @@ class MediaCard extends StatefulWidget {
   /// favorite heart shifts down, like it does for the Seerr badge.
   final bool overlayOccupiesTopLeft;
 
+  /// Kos TV: a filter over the artwork alone (not the badges, the label or
+  /// the focus ring), such as the grey of a title that isn't on the server.
+  final ColorFilter? imageColorFilter;
+
   const MediaCard({
     super.key,
     this.title,
@@ -211,6 +215,7 @@ class MediaCard extends StatefulWidget {
     this.imageUnderlays = const [],
     this.imageSourceAspectRatio,
     this.overlayOccupiesTopLeft = false,
+    this.imageColorFilter,
     this.isGenreFallback = false,
     this.isBanner = false,
     this.showLabel = true,
@@ -491,6 +496,7 @@ class _MediaCardState extends State<MediaCard> with FocusStateMixin {
                       imageUnderlays: widget.imageUnderlays,
                       imageSourceAspectRatio: widget.imageSourceAspectRatio,
                       overlayOccupiesTopLeft: widget.overlayOccupiesTopLeft,
+                      imageColorFilter: widget.imageColorFilter,
                       animeMarkerItemId: widget.animeMarkerItemId,
                       posterBadgeItemId: widget.posterBadgeItemId,
                       recordingItemId: widget.recordingItemId,
@@ -749,6 +755,7 @@ class _CardImage extends StatelessWidget {
   final List<Widget> imageUnderlays;
   final double? imageSourceAspectRatio;
   final bool overlayOccupiesTopLeft;
+  final ColorFilter? imageColorFilter;
   final bool isGenreFallback;
   final String? animeMarkerItemId;
   final String? posterBadgeItemId;
@@ -776,11 +783,17 @@ class _CardImage extends StatelessWidget {
     this.imageUnderlays = const [],
     this.imageSourceAspectRatio,
     this.overlayOccupiesTopLeft = false,
+    this.imageColorFilter,
     this.isGenreFallback = false,
     this.animeMarkerItemId,
     this.posterBadgeItemId,
     this.recordingItemId,
   });
+
+  Widget _filtered(Widget image) {
+    final filter = imageColorFilter;
+    return filter == null ? image : ColorFiltered(colorFilter: filter, child: image);
+  }
 
   /// How far the focus ring sits outside the artwork. The ring is 3px thick
   /// and drawn inside its own box, so this also decides the gap between the
@@ -855,21 +868,23 @@ class _CardImage extends StatelessWidget {
                       ? Stack(
                           fit: StackFit.expand,
                           children: [
-                            BoundedNetworkImage(
-                              imageUrl: imageUrl!,
-                              fit:
-                                  (itemType == 'Network' ||
-                                      itemType == 'Studio')
-                                  ? BoxFit.contain
-                                  : BoxFit.cover,
-                              fadeInDuration: Duration.zero,
-                              maxWidth: MediaCard.decodeMaxWidthFor(
-                                imageSourceAspectRatio ?? aspectRatio,
-                              ),
-                              sourceAspectRatio: imageSourceAspectRatio,
-                              errorBuilder: (_, _, _) => _PlaceholderIcon(
-                                itemType: itemType,
-                                title: title,
+                            _filtered(
+                              BoundedNetworkImage(
+                                imageUrl: imageUrl!,
+                                fit:
+                                    (itemType == 'Network' ||
+                                        itemType == 'Studio')
+                                    ? BoxFit.contain
+                                    : BoxFit.cover,
+                                fadeInDuration: Duration.zero,
+                                maxWidth: MediaCard.decodeMaxWidthFor(
+                                  imageSourceAspectRatio ?? aspectRatio,
+                                ),
+                                sourceAspectRatio: imageSourceAspectRatio,
+                                errorBuilder: (_, _, _) => _PlaceholderIcon(
+                                  itemType: itemType,
+                                  title: title,
+                                ),
                               ),
                             ),
                             ...imageUnderlays,

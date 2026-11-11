@@ -2781,6 +2781,13 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: true,
   );
 
+  /// Kos TV: the Discover button (what's on the streaming platforms), where
+  /// the requests service lets the person in.
+  static final showDiscoverButton = Preference<bool>(
+    key: 'kostv_show_discover_button',
+    defaultValue: true,
+  );
+
   // Kos TV: Spanish out of the box, whatever language the TV is set to. The
   // picker still offers the system language and English.
   static final languageOverride = Preference<String>(

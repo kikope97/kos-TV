@@ -31358,6 +31358,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Choose how navigation, Home and details pages look'**
   String get kostvCustomizeLookSubtitle;
+
+  /// Kos TV: navigation button and screen with what's on the streaming platforms
+  ///
+  /// In en, this message translates to:
+  /// **'Discover'**
+  String get kostvDiscover;
+
+  /// Kos TV: Discover platform button that mixes every platform
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get kostvDiscoverAll;
+
+  /// Kos TV: setting that shows the Discover button in the navigation
+  ///
+  /// In en, this message translates to:
+  /// **'Discover button'**
+  String get kostvShowDiscoverButton;
+
+  /// Kos TV: Discover row, all platforms
+  ///
+  /// In en, this message translates to:
+  /// **'Most watched series'**
+  String get kostvDiscoverPopularSeries;
+
+  /// Kos TV: Discover row, all platforms
+  ///
+  /// In en, this message translates to:
+  /// **'New series'**
+  String get kostvDiscoverNewSeries;
+
+  /// Kos TV: Discover row, all platforms
+  ///
+  /// In en, this message translates to:
+  /// **'Most watched movies'**
+  String get kostvDiscoverPopularMovies;
+
+  /// Kos TV: Discover row, all platforms
+  ///
+  /// In en, this message translates to:
+  /// **'New movies'**
+  String get kostvDiscoverNewMovies;
+
+  /// Kos TV: Discover row for one platform
+  ///
+  /// In en, this message translates to:
+  /// **'Most watched series on {platform}'**
+  String kostvDiscoverPopularSeriesOn(String platform);
+
+  /// Kos TV: Discover row for one platform
+  ///
+  /// In en, this message translates to:
+  /// **'New series on {platform}'**
+  String kostvDiscoverNewSeriesOn(String platform);
+
+  /// Kos TV: Discover row for one platform
+  ///
+  /// In en, this message translates to:
+  /// **'Most watched movies on {platform}'**
+  String kostvDiscoverPopularMoviesOn(String platform);
+
+  /// Kos TV: Discover row for one platform
+  ///
+  /// In en, this message translates to:
+  /// **'New movies on {platform}'**
+  String kostvDiscoverNewMoviesOn(String platform);
+
+  /// Kos TV: Discover badge on a title that is on the home server
+  ///
+  /// In en, this message translates to:
+  /// **'Already here'**
+  String get kostvDiscoverInLibrary;
+
+  /// Kos TV: Discover badge on a series that is on the server without its new season
+  ///
+  /// In en, this message translates to:
+  /// **'Missing S{season}'**
+  String kostvDiscoverMissingSeason(int season);
+
+  /// Kos TV: Discover badge on a title being downloaded
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon'**
+  String get kostvDiscoverComingSoon;
+
+  /// Kos TV: Discover badge on a title someone has requested
+  ///
+  /// In en, this message translates to:
+  /// **'Requested'**
+  String get kostvDiscoverRequested;
+
+  /// Kos TV: Discover badge on a title the person has requested
+  ///
+  /// In en, this message translates to:
+  /// **'Requested by you'**
+  String get kostvDiscoverRequestedByYou;
+
+  /// Kos TV: Discover badge on a series whose first season has just come out
+  ///
+  /// In en, this message translates to:
+  /// **'New series'**
+  String get kostvDiscoverBrandNewSeries;
+
+  /// Kos TV: Discover badge on a series with a season that has just come out
+  ///
+  /// In en, this message translates to:
+  /// **'New S{season}'**
+  String kostvDiscoverNewSeason(int season);
+
+  /// Kos TV: shown when a Discover title that isn't on the server is pressed
+  ///
+  /// In en, this message translates to:
+  /// **'{title} isn\'t on kOS TV yet.'**
+  String kostvDiscoverNotHereYet(String title);
+
+  /// Kos TV: shown when a Discover title that is still being added is pressed
+  ///
+  /// In en, this message translates to:
+  /// **'{title} has just arrived: it will show up in a few minutes.'**
+  String kostvDiscoverJustArrived(String title);
+
+  /// Kos TV: shown when a Discover title being downloaded is pressed
+  ///
+  /// In en, this message translates to:
+  /// **'{title} is downloading: it will be here soon.'**
+  String kostvDiscoverDownloading(String title);
+
+  /// Kos TV: shown when a Discover title someone requested is pressed
+  ///
+  /// In en, this message translates to:
+  /// **'Someone at home has already requested {title}.'**
+  String kostvDiscoverAlreadyRequested(String title);
+
+  /// Kos TV: shown when a Discover title the person requested is pressed
+  ///
+  /// In en, this message translates to:
+  /// **'You\'ve already requested {title}.'**
+  String kostvDiscoverYouRequested(String title);
+
+  /// Kos TV: shown when the platform lists can't be read
+  ///
+  /// In en, this message translates to:
+  /// **'Discover isn\'t available right now.'**
+  String get kostvDiscoverUnavailable;
 }
 
 class _AppLocalizationsDelegate

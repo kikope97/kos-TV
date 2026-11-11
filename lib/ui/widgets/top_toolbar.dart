@@ -12,6 +12,7 @@ import 'package:server_core/server_core.dart';
 import '../../l10n/app_localizations.dart';
 import '../../auth/repositories/user_repository.dart';
 import '../../data/services/installed_apps_service.dart';
+import '../../data/services/stremfin/stremfin_service.dart';
 import '../../data/models/aggregated_library.dart';
 import '../../data/repositories/multi_server_repository.dart';
 import '../../data/repositories/user_views_repository.dart';
@@ -187,6 +188,9 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     _prefs.addListener(_onPrefsChanged);
     _viewsRepo.addListener(_onUserViewsChanged);
     GetIt.instance<PluginSyncService>().addListener(_onPrefsChanged);
+    if (GetIt.instance.isRegistered<StremfinService>()) {
+      GetIt.instance<StremfinService>().addListener(_onPrefsChanged);
+    }
     if (GetIt.instance.isRegistered<AchievementsService>()) {
       GetIt.instance<AchievementsService>().addListener(_onAchievementsChanged);
     }
@@ -266,6 +270,9 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     } catch (_) {}
     try {
       GetIt.instance<PluginSyncService>().removeListener(_onPrefsChanged);
+      if (GetIt.instance.isRegistered<StremfinService>()) {
+        GetIt.instance<StremfinService>().removeListener(_onPrefsChanged);
+      }
     } catch (_) {}
     try {
       GetIt.instance<AchievementsService>().removeListener(
@@ -1064,6 +1071,24 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   },
                 ),
               ),
+              // Kos TV: what's on the streaming platforms.
+              if (showKostvDiscoverButton(_prefs, kidsMode: kidsMode)) ...[
+                _gap(),
+                _orderButton(
+                  order: (order++).toDouble(),
+                  child: ExpandableIconButton(
+                    key: const ValueKey('toolbar_kostv_discover'),
+                    forceExpanded: alwaysExpanded,
+                    icon: Icons.explore_rounded,
+                    label: l10n.kostvDiscover,
+                    baseColor: nextNavColor(),
+                    onPressed: () {
+                      if (_isActive(Destinations.kostvDiscover)) return;
+                      context.navigateTopLevel(Destinations.kostvDiscover);
+                    },
+                  ),
+                ),
+              ],
               if (showShuffle) ...[
                 _gap(),
                 _orderButton(
