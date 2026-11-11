@@ -26,7 +26,7 @@ Se actualiza al terminar cada revisión. La siguiente empieza justo aquí.
 
 | | |
 |---|---|
-| Copia original de kOS TV | upstream `3d87996d2` (2026-11-10), que incluye Moonfin 3.0.0 |
+| Copia original de kOS TV | upstream `3d87996d2` (2026-11-10): Moonfin 3.0.0 más 658 commits posteriores sin publicar |
 | Último commit de upstream revisado | ninguno: se parte de `3d87996d2` |
 | Última versión del complemento revisada | ninguna: se parte de la 3.0.0.0 (2026-10-30) |
 | Complemento instalado en el servidor de casa | el oficial, 3.0.0.0, instalado el 2026-11-11 (Seerr apagado, sin push) |
@@ -61,9 +61,12 @@ Copiar este bloque arriba del registro y rellenarlo:
   el 2026-11-18.
 - **App:** la copia de kOS TV sale de upstream `3d87996d2` (2026-11-10). La
   última versión publicada de Moonfin es la 3.0.0 (2026-10-30) y ya está
-  dentro. En upstream `main` hay 23 commits sin publicar desde la copia,
-  hasta `d31a38f8b` (2026-11-11). No están en kOS TV, así que la primera
-  revisión empieza en `3d87996d2` y los incluye.
+  dentro, junto con los 658 commits que hicieron después hasta el 10 de
+  noviembre (trabajo aún sin publicar como versión). Desde la copia, en
+  upstream `main` hay 23 commits más, también sin publicar, hasta
+  `d31a38f8b` (2026-11-11). No son versiones sino cambios sueltos (arreglos,
+  traducciones, cosas de Seerr, Silo y Plex…). No están en kOS TV, así que la
+  primera revisión empieza en `3d87996d2` y los incluye.
 - **Desde la copia, kOS TV ha cambiado mucho** (ver la tabla de `KOSTV.md`):
   marca propia, sin Plex, Emby, escritorio, Seerr ni Firebase, servidor de casa
   integrado, Descubrir (Stremfin), web en Docker, aplicaciones de la tele,
