@@ -84,8 +84,9 @@ class _AccountScreen extends StatelessWidget {
             ],
           ),
           // Certificate trust is the browser's job on web, so this is
-          // native-only.
-          if (!PlatformDetection.isWeb) ...[
+          // native-only. Kos TV: and gone with the household server built
+          // in, which is the only server there is.
+          if (!PlatformDetection.isWeb && !hasKostvServer) ...[
             _SectionHeader(l10n.settingsServersSection),
             adaptiveListSection(
               children: [

@@ -250,22 +250,25 @@ final appRouter = GoRouter(
       path: Destinations.startup,
       builder: (context, state) {
         final bootstrap = state.uri.queryParameters['bootstrap'] == '1';
-        return StartupScreen(bootstrapActiveSession: bootstrap);
+        return StartupScreen(
+          bootstrapActiveSession: bootstrap,
+          householdServerOnly: state.uri.queryParameters['household'] == '1',
+        );
       },
     ),
     GoRoute(
       path: Destinations.serverSelect,
       // Kos TV: with the household server built in there is no server to
-      // pick: whatever leads here (signing out, Back from the sign-in…)
-      // opens that server's users instead. Only if it can't be reached does
-      // the server list show, so it can be tried again.
+      // pick, nor one to add: whatever leads here (signing out, Back from
+      // the sign-in…) opens that server's users instead, or, if it can't be
+      // reached, the start screen's note with a Retry button.
       redirect: (context, state) async {
         if (!hasKostvServer) return null;
         final server = await kostvHouseholdServer(
           GetIt.instance<ServerRepository>(),
         );
         return server == null
-            ? null
+            ? '${Destinations.startup}?household=1'
             : '${Destinations.server}?serverId=${server.id}';
       },
       builder: (context, state) => const ServerSelectScreen(),

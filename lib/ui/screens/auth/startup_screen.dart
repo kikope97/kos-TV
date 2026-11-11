@@ -30,9 +30,14 @@ import '../../../data/services/stremfin/stremfin_service.dart';
 class StartupScreen extends StatefulWidget {
   final bool bootstrapActiveSession;
 
+  /// Kos TV: only open the household server (it couldn't be reached from
+  /// the sign-in screens), with no session restore and no intro.
+  final bool householdServerOnly;
+
   const StartupScreen({
     super.key,
     this.bootstrapActiveSession = false,
+    this.householdServerOnly = false,
   });
 
   @override
@@ -53,7 +58,9 @@ class _StartupScreenState extends State<StartupScreen> {
   /// user (see [KostvIntroPolicy]). Without it the logo shows for the moment
   /// the session takes to come back.
   late final bool _playIntro =
-      !widget.bootstrapActiveSession && KostvIntroPolicy.takeIntro();
+      !widget.bootstrapActiveSession &&
+      !widget.householdServerOnly &&
+      KostvIntroPolicy.takeIntro();
 
   @override
   void initState() {
@@ -98,6 +105,13 @@ class _StartupScreenState extends State<StartupScreen> {
     }
 
     await serverRepo.loadStoredServers();
+
+    // Kos TV: sent here because the household server couldn't be reached
+    // to sign in to it: try again, with a Retry button if it still can't.
+    if (widget.householdServerOnly && hasKostvServer) {
+      await _openKostvServer();
+      return;
+    }
 
     if (widget.bootstrapActiveSession && session.activeUserId != null) {
       _preloadHome();

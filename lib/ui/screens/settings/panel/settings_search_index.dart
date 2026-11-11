@@ -470,7 +470,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       subtitle: l10n.requirePasswordWithToken,
       keywords: ['password'],
     ),
-    if (!PlatformDetection.isWeb) ...[
+    if (!PlatformDetection.isWeb && !hasKostvServer) ...[
       account.leaf('pref_user_sort_by', l10n.settingsSortServersBy, keywords: [
         'server order',
       ]),
