@@ -11701,6 +11701,13 @@ class AppLocalizationsYue extends AppLocalizations {
   String get settingsPrivacyPolicySubtitle => 'Moonfin 如何處理您的數據';
 
   @override
+  String get kostvBasedOnMoonfin => 'Based on Moonfin';
+
+  @override
+  String get kostvBasedOnMoonfinSubtitle =>
+      'The open-source client kOS TV is built on';
+
+  @override
   String get settingsCheckForUpdates => '檢查更新';
 
   @override

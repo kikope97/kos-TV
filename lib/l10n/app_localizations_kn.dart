@@ -12026,6 +12026,13 @@ class AppLocalizationsKn extends AppLocalizations {
       'Moonfin ನಿಮ್ಮ ಡೇಟಾವನ್ನು ಹೇಗೆ ನಿರ್ವಹಿಸುತ್ತದೆ';
 
   @override
+  String get kostvBasedOnMoonfin => 'Based on Moonfin';
+
+  @override
+  String get kostvBasedOnMoonfinSubtitle =>
+      'The open-source client kOS TV is built on';
+
+  @override
   String get settingsCheckForUpdates => 'ನವೀಕರಣಗಳಿಗಾಗಿ ಪರಿಶೀಲಿಸಿ';
 
   @override

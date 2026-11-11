@@ -11757,6 +11757,13 @@ class AppLocalizationsJa extends AppLocalizations {
   String get settingsPrivacyPolicySubtitle => 'Moonfin によるデータの処理方法';
 
   @override
+  String get kostvBasedOnMoonfin => 'Based on Moonfin';
+
+  @override
+  String get kostvBasedOnMoonfinSubtitle =>
+      'The open-source client kOS TV is built on';
+
+  @override
   String get settingsCheckForUpdates => 'アップデートをチェックする';
 
   @override

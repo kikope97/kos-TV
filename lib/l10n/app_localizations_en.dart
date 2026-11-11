@@ -11900,14 +11900,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsPrivacyPolicy => 'Privacy Policy';
 
   @override
-  String get settingsPrivacyPolicySubtitle => 'How Moonfin handles your data';
+  String get settingsPrivacyPolicySubtitle => 'How kOS TV handles your data';
+
+  @override
+  String get kostvBasedOnMoonfin => 'Based on Moonfin';
+
+  @override
+  String get kostvBasedOnMoonfinSubtitle =>
+      'The open-source client kOS TV is built on';
 
   @override
   String get settingsCheckForUpdates => 'Check for Updates';
 
   @override
   String get settingsCheckForUpdatesSubtitle =>
-      'Check for the latest Moonfin release';
+      'Check for the latest kOS TV release';
 
   @override
   String get settingsBoth => 'Both';

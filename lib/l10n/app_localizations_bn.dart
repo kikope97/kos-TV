@@ -11959,6 +11959,13 @@ class AppLocalizationsBn extends AppLocalizations {
       'Moonfin কীভাবে আপনার ডেটা পরিচালনা করে';
 
   @override
+  String get kostvBasedOnMoonfin => 'Based on Moonfin';
+
+  @override
+  String get kostvBasedOnMoonfinSubtitle =>
+      'The open-source client kOS TV is built on';
+
+  @override
   String get settingsCheckForUpdates => 'আপডেটের জন্য চেক করুন';
 
   @override

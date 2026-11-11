@@ -21085,8 +21085,20 @@ abstract class AppLocalizations {
   /// No description provided for @settingsPrivacyPolicySubtitle.
   ///
   /// In en, this message translates to:
-  /// **'How Moonfin handles your data'**
+  /// **'How kOS TV handles your data'**
   String get settingsPrivacyPolicySubtitle;
+
+  /// Kos TV: About screen tile that credits Moonfin, the open-source client Kos TV is built on
+  ///
+  /// In en, this message translates to:
+  /// **'Based on Moonfin'**
+  String get kostvBasedOnMoonfin;
+
+  /// Kos TV: subtitle of the tile that credits Moonfin
+  ///
+  /// In en, this message translates to:
+  /// **'The open-source client kOS TV is built on'**
+  String get kostvBasedOnMoonfinSubtitle;
 
   /// No description provided for @settingsCheckForUpdates.
   ///
@@ -21097,7 +21109,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsCheckForUpdatesSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Check for the latest Moonfin release'**
+  /// **'Check for the latest kOS TV release'**
   String get settingsCheckForUpdatesSubtitle;
 
   /// Option label to show both progress bar and countdown timer on media segment countdown overlay

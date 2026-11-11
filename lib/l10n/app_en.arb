@@ -11144,9 +11144,17 @@
   "settingsLicenses": "Licenses",
   "settingsOpenSourceLicenseNotices": "Open-source license notices",
   "settingsPrivacyPolicy": "Privacy Policy",
-  "settingsPrivacyPolicySubtitle": "How Moonfin handles your data",
+  "settingsPrivacyPolicySubtitle": "How kOS TV handles your data",
+  "kostvBasedOnMoonfin": "Based on Moonfin",
+  "@kostvBasedOnMoonfin": {
+    "description": "Kos TV: About screen tile that credits Moonfin, the open-source client Kos TV is built on"
+  },
+  "kostvBasedOnMoonfinSubtitle": "The open-source client kOS TV is built on",
+  "@kostvBasedOnMoonfinSubtitle": {
+    "description": "Kos TV: subtitle of the tile that credits Moonfin"
+  },
   "settingsCheckForUpdates": "Check for Updates",
-  "settingsCheckForUpdatesSubtitle": "Check for the latest Moonfin release",
+  "settingsCheckForUpdatesSubtitle": "Check for the latest kOS TV release",
   "settingsBoth": "Both",
   "settingsShuffleContentTypeFilter": "Shuffle Content Type Filter",
   "settingsAudioPreferencesSubtitle": "Audio tracks, processing, and passthrough options",

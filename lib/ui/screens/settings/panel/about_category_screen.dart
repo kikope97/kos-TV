@@ -1,5 +1,7 @@
 part of '../settings_side_panel.dart';
 
+const _kostvRepo = 'kikope97/kos-TV';
+
 class _AboutCategoryScreen extends StatelessWidget {
   const _AboutCategoryScreen();
 
@@ -12,9 +14,7 @@ class _AboutCategoryScreen extends StatelessWidget {
       body: ListView(
         children: [
           const SizedBox(height: 24),
-          Center(
-            child: const KosLogo(height: 72),
-          ),
+          Center(child: const KosLogo(height: 72)),
           const SizedBox(height: 8),
           Center(
             child: Text(
@@ -37,24 +37,27 @@ class _AboutCategoryScreen extends StatelessWidget {
               ),
               if (AppDistribution.supportsInAppUpdates)
                 const _CheckForUpdatesTile(),
+              // Kos TV: its own repository. Moonfin's issue tracker, Discord
+              // and donation tiles are gone: this is a family app, and
+              // Moonfin keeps its credit in the tile below.
               _TvSettingsListTile(
                 leading: const Icon(Icons.code),
                 title: Text(l10n.sourceCode),
-                subtitle: Text(l10n.sourceCodeUrl),
+                subtitle: const Text('github.com/$_kostvRepo'),
                 onTap: () => showQrOrLaunch(
                   context,
-                  url: 'https://github.com/Moonfin-Client/Moonfin-Core',
+                  url: 'https://github.com/$_kostvRepo',
                   title: l10n.sourceCode,
                 ),
               ),
               _TvSettingsListTile(
-                leading: const Icon(Icons.bug_report),
-                title: Text(l10n.settingsReportAnIssue),
-                subtitle: Text(l10n.settingsReportAnIssueSubtitle),
+                leading: const Icon(Icons.nightlight_round),
+                title: Text(l10n.kostvBasedOnMoonfin),
+                subtitle: Text(l10n.kostvBasedOnMoonfinSubtitle),
                 onTap: () => showQrOrLaunch(
                   context,
-                  url: 'https://github.com/Moonfin-Client/Moonfin-Core/issues',
-                  title: l10n.settingsReportAnIssue,
+                  url: 'https://github.com/Moonfin-Client/Moonfin-Core',
+                  title: l10n.kostvBasedOnMoonfin,
                 ),
               ),
               _TvSettingsListTile(
@@ -87,22 +90,6 @@ class _AboutCategoryScreen extends StatelessWidget {
                   context.navigateTopLevel(Destinations.setup);
                 },
               ),
-              _TvSettingsListTile(
-                leading: const Icon(Icons.forum),
-                title: Text(l10n.settingsJoinDiscord),
-                subtitle: Text(l10n.settingsJoinDiscordSubtitle),
-                onTap: () => showQrOrLaunch(
-                  context,
-                  url: 'https://discord.gg/moonfin',
-                  title: l10n.settingsJoinTheDiscord,
-                ),
-              ),
-              _TvSettingsListTile(
-                leading: const Icon(Icons.favorite),
-                title: Text(l10n.settingsSupportMoonfin),
-                subtitle: Text(l10n.settingsSupportMoonfinSubtitle),
-                onTap: () => showSupportDialog(context),
-              ),
             ],
           ),
           _SectionHeader(l10n.settingsLegal),
@@ -114,8 +101,7 @@ class _AboutCategoryScreen extends StatelessWidget {
                 subtitle: Text(l10n.settingsOpenSourceLicenseNotices),
                 onTap: () => showQrOrLaunch(
                   context,
-                  url:
-                      'https://github.com/Moonfin-Client/Moonfin-Core/blob/main/LICENSE',
+                  url: 'https://github.com/$_kostvRepo/blob/HEAD/LICENSE',
                   title: l10n.settingsLicenses,
                 ),
               ),
@@ -125,7 +111,8 @@ class _AboutCategoryScreen extends StatelessWidget {
                 subtitle: Text(l10n.settingsPrivacyPolicySubtitle),
                 onTap: () => showQrOrLaunch(
                   context,
-                  url: 'https://moonfin.io/privacy',
+                  url:
+                      'https://github.com/$_kostvRepo/blob/HEAD/PRIVACY_POLICY.md',
                   title: l10n.settingsPrivacyPolicy,
                 ),
               ),

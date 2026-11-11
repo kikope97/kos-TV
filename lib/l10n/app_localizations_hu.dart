@@ -12061,6 +12061,13 @@ class AppLocalizationsHu extends AppLocalizations {
       'Hogyan kezeli a Moonfin az adataidat';
 
   @override
+  String get kostvBasedOnMoonfin => 'Based on Moonfin';
+
+  @override
+  String get kostvBasedOnMoonfinSubtitle =>
+      'The open-source client kOS TV is built on';
+
+  @override
   String get settingsCheckForUpdates => 'Frissítések ellenőrzése';
 
   @override

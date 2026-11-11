@@ -1,81 +1,43 @@
-# Privacy Policy
+# Política de privacidad de kOS TV
 
-**Moonfin**
-Last updated: March 30, 2026
+kOS TV es un cliente de Jellyfin para uso familiar (ver el [README](README.md)).
+No tiene servidores propios, no muestra publicidad y no usa servicios de
+analítica ni de seguimiento.
 
-## Overview
+## Qué guarda en el dispositivo
 
-Moonfin is a third-party client application for Jellyfin media servers. Moonfin does not operate any servers, collect user data, or track usage. All media data stays between your device and your self-hosted Jellyfin server.
+Solo en el propio dispositivo, en el almacenamiento privado de la app:
 
-## Data Collection
+- La dirección del servidor Jellyfin y la sesión iniciada (el token de acceso).
+- Los ajustes y preferencias.
+- Imágenes en caché, para que las portadas carguen más rápido.
 
-### Data We Do NOT Collect
+## Con quién se comunica
 
-- We do not collect personal information
-- We do not track your usage or behavior
-- We do not serve advertisements
-- We do not share any data with third parties
-- We do not use analytics services (e.g., Google Analytics, Firebase)
+- **El servidor Jellyfin** en el que has iniciado sesión: para ver el
+  contenido, iniciar sesión y guardar los ajustes que se sincronizan.
+- **GitHub** (`api.github.com` y `github.com`): para comprobar si hay una
+  versión nueva de kOS TV y descargarla. Como cualquier web, GitHub ve la
+  dirección IP desde la que se pregunta.
+- Solo si usas la función correspondiente: Seerr, para pedir contenido; TMDB y
+  MDBList, para listas y recomendaciones; YouTube y SponsorBlock, para los
+  tráileres; Open Library y Google Books, para descubrir libros; y el catálogo de libretro,
+  para descargar los núcleos de los juegos.
 
-### Data Stored Locally on Your Device
+## Informes de errores
 
-Moonfin stores the following data locally on your device only:
+Cuando la app falla puede enviar un informe técnico (traza del error, versión
+de la app, modelo del dispositivo y versión del sistema) **solo al servidor
+Jellyfin en el que has iniciado sesión**, nunca a terceros. Se quitan antes las
+direcciones de servidores, las IP y los tokens. Viene activado y se puede
+desactivar en Ajustes > Acerca de > Diagnostics & Logging.
 
-- **Server addresses** — The URLs of Jellyfin servers you connect to
-- **Authentication tokens** — Used to maintain your session with your Jellyfin server
-- **User preferences** — Display, playback, and customization settings
-- **Cached images** — Temporarily cached artwork for performance
+## Búsqueda por voz
 
-This data never leaves your device except when communicating directly with your Jellyfin server.
+Si usas la búsqueda por voz, el audio lo procesa el reconocedor de voz del
+propio dispositivo; kOS TV no lo graba ni lo envía.
 
-### Crash Reports (Optional)
+## Código abierto
 
-Moonfin can send crash reports to **your own server** when the app encounters an error. This feature:
-
-- Is **on by default** and can be turned off in Settings > About > Diagnostics & Logging
-- Sends crash data **only to your own server**, never to us or any third party
-- May include: stack traces, app version, device model, and operating system version
-- Does not include personal information, media content, or browsing history
-- Has server addresses, IP addresses and access tokens stripped out before anything is sent
-
-Capture always stays on the device. The setting controls only whether a captured report is uploaded. Reports go to the server you are signed in to: on Jellyfin through its own client log endpoint, and on Emby through the Moonfin server plugin, which is the only way an Emby server can accept one.
-
-### Network Communication
-
-Moonfin communicates only with:
-
-- **Your Jellyfin server(s)** — To stream media, authenticate, and sync settings
-- **Your Seerr server** (if configured) — To browse and request media
-- **GitHub API** (libre/sideloaded builds only) — To check for app updates
-
-Moonfin supports cleartext (HTTP) connections because many self-hosted Jellyfin servers run on local networks without HTTPS. No data is sent to any Moonfin-operated servers.
-
-### Voice Search
-
-Moonfin may request microphone access for voice search functionality on supported platforms. Audio is processed by the device's speech recognizer and is not recorded, stored, or transmitted by Moonfin.
-
-## Data Security
-
-All sensitive data (authentication tokens, server credentials) is stored in the app's private storage on your device, protected by platform security mechanisms and app sandboxing where available. Moonfin supports HTTPS connections to your servers for encrypted communication.
-
-## Children's Privacy
-
-Moonfin is not directed at children under the age of 13. We do not knowingly collect any information from children.
-
-## Third-Party Services
-
-Moonfin does not integrate with any third-party analytics, advertising, or tracking services. The only external services Moonfin communicates with are the servers you explicitly configure (Jellyfin, Seerr).
-
-## Changes to This Policy
-
-We may update this privacy policy from time to time. Changes will be posted to this page with an updated revision date.
-
-## Contact
-
-If you have questions about this privacy policy, you can open an issue on our GitHub repository:
-https://github.com/Moonfin-Client/Moonfin-Core/issues
-
-## Open Source
-
-Moonfin is open-source software. You can review the complete source code to verify our privacy practices:
-https://github.com/Moonfin-Client/Moonfin-Core
+El código está en este repositorio para quien quiera comprobar lo que hace.
+kOS TV parte de [Moonfin](https://github.com/Moonfin-Client/Moonfin-Core).

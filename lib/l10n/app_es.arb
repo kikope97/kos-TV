@@ -6594,10 +6594,18 @@
     "settingsLegal": "LEGAL",
     "settingsLicenses": "Licencias",
     "settingsOpenSourceLicenseNotices": "Avisos de licencia de código abierto",
-    "settingsPrivacyPolicy": "política de privacidad",
-    "settingsPrivacyPolicySubtitle": "Cómo maneja Moonfin tus datos",
+    "settingsPrivacyPolicy": "Política de privacidad",
+    "settingsPrivacyPolicySubtitle": "Cómo trata kOS TV tus datos",
+    "kostvBasedOnMoonfin": "Basado en Moonfin",
+    "@kostvBasedOnMoonfin": {
+        "description": "Kos TV: About screen tile that credits Moonfin, the open-source client Kos TV is built on"
+    },
+    "kostvBasedOnMoonfinSubtitle": "El cliente de código abierto del que parte kOS TV",
+    "@kostvBasedOnMoonfinSubtitle": {
+        "description": "Kos TV: subtitle of the tile that credits Moonfin"
+    },
     "settingsCheckForUpdates": "Buscar actualizaciones",
-    "settingsCheckForUpdatesSubtitle": "Busque la última versión de Moonfin",
+    "settingsCheckForUpdatesSubtitle": "Busca la última versión de kOS TV",
     "settingsPoweredByFlutter": "Desarrollado por Flutter",
     "settingsLicenseNoticesCount": "{count, plural, one {# aviso de licencia} other {# avisos de licencia}}",
     "@settingsLicenseNoticesCount": {

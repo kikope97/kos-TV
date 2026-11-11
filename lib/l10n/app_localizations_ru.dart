@@ -12034,6 +12034,13 @@ class AppLocalizationsRu extends AppLocalizations {
       'Как Moonfin обрабатывает ваши данные';
 
   @override
+  String get kostvBasedOnMoonfin => 'Based on Moonfin';
+
+  @override
+  String get kostvBasedOnMoonfinSubtitle =>
+      'The open-source client kOS TV is built on';
+
+  @override
   String get settingsCheckForUpdates => 'Проверьте наличие обновлений';
 
   @override

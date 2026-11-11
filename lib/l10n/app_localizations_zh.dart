@@ -11662,6 +11662,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsPrivacyPolicySubtitle => 'Moonfin 如何处理你的数据';
 
   @override
+  String get kostvBasedOnMoonfin => 'Based on Moonfin';
+
+  @override
+  String get kostvBasedOnMoonfinSubtitle =>
+      'The open-source client kOS TV is built on';
+
+  @override
   String get settingsCheckForUpdates => '检查更新';
 
   @override

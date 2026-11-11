@@ -12018,6 +12018,13 @@ class AppLocalizationsLt extends AppLocalizations {
       'Kaip Moonfin tvarko jūsų duomenis';
 
   @override
+  String get kostvBasedOnMoonfin => 'Based on Moonfin';
+
+  @override
+  String get kostvBasedOnMoonfinSubtitle =>
+      'The open-source client kOS TV is built on';
+
+  @override
   String get settingsCheckForUpdates => 'Patikrinkite, ar nėra atnaujinimų';
 
   @override

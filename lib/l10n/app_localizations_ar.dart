@@ -11958,6 +11958,13 @@ class AppLocalizationsAr extends AppLocalizations {
   String get settingsPrivacyPolicySubtitle => 'كيف يتعامل Moonfin مع بياناتك';
 
   @override
+  String get kostvBasedOnMoonfin => 'Based on Moonfin';
+
+  @override
+  String get kostvBasedOnMoonfinSubtitle =>
+      'The open-source client kOS TV is built on';
+
+  @override
   String get settingsCheckForUpdates => 'التحقق من وجود تحديثات';
 
   @override

@@ -12030,6 +12030,13 @@ class AppLocalizationsTe extends AppLocalizations {
       'Moonfin మీ డేటాను ఎలా నిర్వహిస్తుంది';
 
   @override
+  String get kostvBasedOnMoonfin => 'Based on Moonfin';
+
+  @override
+  String get kostvBasedOnMoonfinSubtitle =>
+      'The open-source client kOS TV is built on';
+
+  @override
   String get settingsCheckForUpdates => 'నవీకరణల కోసం తనిఖీ చేయండి';
 
   @override

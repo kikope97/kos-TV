@@ -12071,17 +12071,24 @@ class AppLocalizationsEs extends AppLocalizations {
       'Avisos de licencia de código abierto';
 
   @override
-  String get settingsPrivacyPolicy => 'política de privacidad';
+  String get settingsPrivacyPolicy => 'Política de privacidad';
 
   @override
-  String get settingsPrivacyPolicySubtitle => 'Cómo maneja Moonfin tus datos';
+  String get settingsPrivacyPolicySubtitle => 'Cómo trata kOS TV tus datos';
+
+  @override
+  String get kostvBasedOnMoonfin => 'Basado en Moonfin';
+
+  @override
+  String get kostvBasedOnMoonfinSubtitle =>
+      'El cliente de código abierto del que parte kOS TV';
 
   @override
   String get settingsCheckForUpdates => 'Buscar actualizaciones';
 
   @override
   String get settingsCheckForUpdatesSubtitle =>
-      'Busque la última versión de Moonfin';
+      'Busca la última versión de kOS TV';
 
   @override
   String get settingsBoth => 'Ambos';
