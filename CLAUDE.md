@@ -19,6 +19,40 @@
   tele es lo que no tiene sentido fuera de ella (por ejemplo, la fila de
   aplicaciones instaladas), y hay que decirlo al terminar.
 
+## Revisión semanal del proyecto principal y del complemento
+
+kOS TV parte de Moonfin-Core (`upstream` en git) y usa el complemento oficial
+del servidor (Moonbase, `Moonfin-Client/Plugin`), que mantienen ellos. Una vez
+a la semana se revisa qué han cambiado. El registro está en
+`docs/revision-semanal.md`.
+
+- **Cuándo:** al empezar a hablar con el usuario, mira la fecha de la última
+  revisión en ese registro. Si han pasado 7 días o más (o no hay ninguna),
+  pregúntale si la hacemos ahora. No la hagas sin preguntar, y no lo repitas
+  más de una vez por conversación si dice que no.
+- **La app:** `git fetch upstream` y repasa los commits de `upstream/main`
+  desde el último revisado. Sepáralos en: merece la pena traer (arreglos del
+  reproductor, fallos, rendimiento, seguridad, mejoras que encajen con la
+  familia), no aplica (Plex, Emby, Silo, escritorio, Seerr, Firebase y todo lo
+  que ya quitamos) y dudoso. Propón qué integrar y no integres nada sin el
+  visto bueno del usuario. Lo que se integre cumple todas las normas de este
+  archivo (español, nada de Moonfin a la vista, tele, móvil y web).
+- **El complemento, con especial cuidado:** mira las versiones nuevas de su
+  `manifest.json` y sus commits. Compara con las rutas `/Moonfin/...` que usa
+  la app y señala lo que cambia o desaparece (puede romper la app), lo nuevo
+  que se pueda aprovechar y si conviene actualizarlo en el servidor o esperar.
+  Si una versión rompe algo sin arreglo fácil, se vuelve a la anterior o, como
+  último recurso, se copia el complemento y lo mantenemos nosotros.
+- **Desde dónde:** empieza siempre justo donde terminó la anterior (la tabla
+  «Dónde estamos ahora» del registro: último commit de upstream y versión del
+  complemento revisados). Nunca des por revisado algo que no esté apuntado.
+- **Al terminar, apúntalo siempre** en el registro con el bloque que hay allí:
+  qué rango de upstream y qué versiones del complemento se revisaron, qué se
+  integró (con nuestro commit), qué se descartó y por qué, lo pendiente y la
+  decisión sobre el complemento; y actualiza «Dónde estamos ahora». También si
+  no se integra nada o el usuario la pospone. Es el historial de dónde venimos:
+  solo se añade, no se borra ni se reescribe lo anterior.
+
 ## Publicar una versión
 
 Publica tú las versiones: el usuario no entra en GitHub a hacerlo.

@@ -81,6 +81,13 @@ APK y lo desmonte sí podría leerla, porque la app la necesita para conectarse.
 Si se pierde la clave de firma (`kostv-release.jks` y su contraseña), los APK
 nuevos ya no se podrán instalar encima: habría que desinstalar en cada aparato.
 
+## De dónde venimos
+
+kOS TV parte de Moonfin-Core (upstream `3d87996d2`, 2026-11-10) y usa el
+complemento oficial del servidor (Moonbase). Cada semana se revisa qué han
+cambiado los dos y se apunta en [`docs/revision-semanal.md`](docs/revision-semanal.md),
+que es el historial de lo que se ha mirado, traído o descartado.
+
 ## Pendiente
 
 - **Quitar Silo.** Está muy entrelazado con "Ver juntos" (Watch Party): la
