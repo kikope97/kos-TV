@@ -23,7 +23,13 @@ class FakeStremfinLife {
     'status': 'ready',
     'cached': true,
     'fast': true,
-    'version': {'summary': '1080p · Castellano · 9,0 GB'},
+    'version': {
+      'resolution': '1080p',
+      'hdr': null,
+      'language': 'Castellano',
+      'size': 9663676416,
+      'summary': '1080p · Castellano · 9,0 GB',
+    },
     'criterion': 'en castellano de 1080p o más',
     'on_request': 'download',
   };

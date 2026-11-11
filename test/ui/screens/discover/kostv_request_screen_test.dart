@@ -91,10 +91,12 @@ void main() {
       expect(find.text('Cars'), findsOneWidget);
       expect(find.text('Solicitar'), findsOneWidget);
       expect(find.text('Rápida'), findsOneWidget);
-      expect(
-        find.textContaining('Descarga rápida: empieza al momento'),
-        findsOneWidget,
-      );
+      // What it would bring, on the strip, and the way ahead.
+      expect(find.text('1080p'), findsOneWidget);
+      expect(find.text('Castellano'), findsOneWidget);
+      expect(find.text('9,0 GB'), findsOneWidget);
+      expect(find.text('TODAVÍA NO ESTÁ EN CASA'), findsOneWidget);
+      expect(find.text('En casa'), findsOneWidget);
       // The art is grey.
       expect(find.byType(ColorFiltered), findsWidgets);
 
@@ -108,11 +110,14 @@ void main() {
       fake.download(id, 42);
       await settle(tester, KostvRequestController.slowInterval);
       expect(find.text('Descargando 42 %'), findsOneWidget);
-      expect(find.textContaining('12,0 MB/s · quedan 4 min'), findsOneWidget);
+      expect(find.text('42 %'), findsOneWidget);
+      expect(find.text('12,0 MB/s'), findsOneWidget);
+      expect(find.text('4 min'), findsOneWidget);
 
       fake.complete(id);
       await settle(tester, KostvRequestController.quickInterval);
       expect(find.text('¡Ya está aquí!'), findsOneWidget);
+      expect(find.text('¡YA ESTÁ AQUÍ!'), findsOneWidget);
 
       // The colour comes in, then its page on the home server.
       await settle(tester, const Duration(milliseconds: 1500));
@@ -134,7 +139,15 @@ void main() {
     await tester.tap(find.text('Solicitar'));
     await settle(tester);
     expect(find.text('Pendiente de aprobación'), findsOneWidget);
-    expect(find.text('La has solicitado tú'), findsOneWidget);
+    // Who asked for it, on the strip (the navbar has a «Tú» of its own).
+    final requestedBy = find.ancestor(
+      of: find.text('SOLICITADA POR'),
+      matching: find.byType(Column),
+    );
+    expect(
+      find.descendant(of: requestedBy.first, matching: find.text('Tú')),
+      findsOneWidget,
+    );
     expect(
       find.text('Petición enviada: el administrador tiene que aceptarla'),
       findsOneWidget,
@@ -157,7 +170,7 @@ void main() {
     expect(find.text('Marea alta'), findsOneWidget);
     expect(find.text('Solicitar todo lo que falta'), findsOneWidget);
     expect(find.text('Temporada 1'), findsOneWidget);
-    expect(find.text('Completa'), findsWidgets);
+    expect(find.textContaining('Completa'), findsWidgets);
     expect(find.text('Temporada 3'), findsOneWidget);
 
     // «Solicitar» on season 2's row.

@@ -18487,24 +18487,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvRequestOpenInLibrary => 'Ver en la biblioteca';
 
   @override
-  String get kostvRequestChecking => 'Mirando si está disponible…';
-
-  @override
   String get kostvRequestFast => 'Rápida';
-
-  @override
-  String get kostvRequestFastNote => 'Descarga rápida: empieza al momento';
-
-  @override
-  String get kostvRequestSlowNote => 'Tardará un poco en empezar a descargarse';
-
-  @override
-  String kostvRequestNoGoodVersion(String criterion) {
-    return 'Aún no hay una versión $criterion';
-  }
-
-  @override
-  String get kostvRequestNoVersionYet => 'Aún no hay ninguna versión';
 
   @override
   String get kostvRequestDownloadsWhenReady =>
@@ -18541,19 +18524,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvRequestUpdatesOnItsOwn =>
       'Esta ficha cambia sola en cuanto conteste';
-
-  @override
-  String get kostvRequestRequestedByYou => 'La has solicitado tú';
-
-  @override
-  String kostvRequestRequestedByYouAnd(String names) {
-    return 'La habéis solicitado tú y $names';
-  }
-
-  @override
-  String kostvRequestRequestedBy(String names) {
-    return 'La ha solicitado $names';
-  }
 
   @override
   String get kostvRequestAccepted => 'Aceptada: empieza en seguida';
@@ -18595,27 +18565,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvRequestPaused => 'En pausa';
 
   @override
-  String kostvRequestTimeLeft(String time) {
-    return 'quedan $time';
-  }
-
-  @override
-  String get kostvRequestLessThanAMinute => 'menos de un minuto';
-
-  @override
   String kostvHoursMinutes(int hours, int minutes) {
     return '$hours h $minutes min';
-  }
-
-  @override
-  String kostvRequestEpisodesDone(int done, int total) {
-    String _temp0 = intl.Intl.pluralLogic(
-      total,
-      locale: localeName,
-      other: '$total episodios',
-      one: '1 episodio',
-    );
-    return '$done de $_temp0';
   }
 
   @override
@@ -18639,17 +18590,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvRequestLoadFailed => 'No se ha podido abrir esta ficha';
 
   @override
-  String kostvRequestSeasonEpisodes(int have, int aired) {
-    String _temp0 = intl.Intl.pluralLogic(
-      aired,
-      locale: localeName,
-      other: '$aired episodios',
-      one: '1 episodio',
-    );
-    return '$have de $_temp0';
-  }
-
-  @override
   String get kostvRequestSeasonComplete => 'Completa';
 
   @override
@@ -18657,17 +18597,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvRequestSeasonOnItsWay => 'De camino';
-
-  @override
-  String kostvRequestSeriesMissing(int missing) {
-    String _temp0 = intl.Intl.pluralLogic(
-      missing,
-      locale: localeName,
-      other: 'Faltan $missing episodios',
-      one: 'Falta 1 episodio',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get kostvRequestOutcomeCreated =>
@@ -18722,13 +18651,126 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String kostvSeasonsCount(int count) {
+  String get kostvRequestNotHomeYet => 'Todavía no está en casa';
+
+  @override
+  String get kostvStatQuality => 'Calidad';
+
+  @override
+  String get kostvStatLanguage => 'Idioma';
+
+  @override
+  String get kostvStatSize => 'Tamaño';
+
+  @override
+  String get kostvStatDownload => 'Descarga';
+
+  @override
+  String get kostvStatRelease => 'Estreno';
+
+  @override
+  String get kostvStatVersion => 'Versión';
+
+  @override
+  String get kostvStatAvailability => 'Disponibilidad';
+
+  @override
+  String get kostvStatProgress => 'Progreso';
+
+  @override
+  String get kostvStatSpeed => 'Velocidad';
+
+  @override
+  String get kostvStatTimeLeft => 'Quedan';
+
+  @override
+  String get kostvStatStatus => 'Estado';
+
+  @override
+  String get kostvStatRequestedBy => 'Solicitada por';
+
+  @override
+  String get kostvStatEpisodes => 'Episodios';
+
+  @override
+  String get kostvStatAtHome => 'En casa';
+
+  @override
+  String get kostvStatMissing => 'Faltan';
+
+  @override
+  String get kostvValueNormal => 'Normal';
+
+  @override
+  String get kostvValueNoneYet => 'Aún no hay';
+
+  @override
+  String get kostvValueNoGoodOneYet => 'Aún no hay buena';
+
+  @override
+  String get kostvValueChecking => 'Mirando…';
+
+  @override
+  String get kostvValueYou => 'Tú';
+
+  @override
+  String kostvValueYouAnd(String names) {
+    return 'Tú y $names';
+  }
+
+  @override
+  String kostvValueOf(int done, int total) {
+    return '$done de $total';
+  }
+
+  @override
+  String get kostvValueUnderAMinute => '< 1 min';
+
+  @override
+  String get kostvStepAsk => 'Solicitud';
+
+  @override
+  String get kostvStepAsked => 'Solicitada';
+
+  @override
+  String get kostvStepApproval => 'Aceptación';
+
+  @override
+  String get kostvStepApproved => 'Aceptada';
+
+  @override
+  String get kostvStepRejected => 'No aceptada';
+
+  @override
+  String get kostvStepDownload => 'Descarga';
+
+  @override
+  String get kostvStepHome => 'En casa';
+
+  @override
+  String kostvSeasonEpisodeCount(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count temporadas',
-      one: '1 temporada',
+      other: '$count episodios',
+      one: '1 episodio',
     );
     return '$_temp0';
   }
+
+  @override
+  String kostvSeasonAtHome(int have, int aired) {
+    return '$have de $aired en casa';
+  }
+
+  @override
+  String kostvPercent(int percent) {
+    return '$percent %';
+  }
+
+  @override
+  String get kostvValuePending => 'Pendiente';
+
+  @override
+  String get kostvStatWanted => 'Se busca';
 }

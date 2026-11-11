@@ -235,6 +235,10 @@ class StremfinAvailability {
     this.fast = false,
     this.cached,
     this.summary,
+    this.resolution,
+    this.hdr,
+    this.language,
+    this.sizeBytes,
     this.release,
     this.criterion,
     this.needsApproval = false,
@@ -252,6 +256,13 @@ class StremfinAvailability {
 
   /// The version it would bring, ready to show: «1080p · Castellano · 9,0 GB».
   final String? summary;
+
+  /// Of that version: «1080p», its HDR («HDR10», «Dolby Vision»), its main
+  /// language («Castellano») and its size.
+  final String? resolution;
+  final String? hdr;
+  final String? language;
+  final int? sizeBytes;
   final StremfinRelease? release;
 
   /// What counts as a good version at home: «en castellano de 1080p o más».
@@ -275,6 +286,10 @@ class StremfinAvailability {
       fast: raw['fast'] == true && status == StremfinAvailabilityStatus.ready,
       cached: cached is bool ? cached : null,
       summary: version is Map ? _text(version['summary']) : null,
+      resolution: version is Map ? _text(version['resolution']) : null,
+      hdr: version is Map ? _text(version['hdr']) : null,
+      language: version is Map ? _text(version['language']) : null,
+      sizeBytes: version is Map ? _int(version['size']) : null,
       release: StremfinRelease.fromJson(raw['release']),
       criterion: _text(raw['criterion']),
       needsApproval: raw['on_request'] == 'review',

@@ -12215,34 +12215,9 @@
     "@kostvRequestOpenInLibrary": {
         "description": "Kos TV request page: button on a series already partly on the home server, opening its normal page."
     },
-    "kostvRequestChecking": "Mirando si está disponible…",
-    "@kostvRequestChecking": {
-        "description": "Kos TV request page: shown while the service checks whether the film can be downloaded now (takes a few seconds)."
-    },
     "kostvRequestFast": "Rápida",
     "@kostvRequestFast": {
         "description": "Kos TV request page: short label next to the lightning icon when the film's download would start at once."
-    },
-    "kostvRequestFastNote": "Descarga rápida: empieza al momento",
-    "@kostvRequestFastNote": {
-        "description": "Kos TV request page: note under the button when the film's download would start at once."
-    },
-    "kostvRequestSlowNote": "Tardará un poco en empezar a descargarse",
-    "@kostvRequestSlowNote": {
-        "description": "Kos TV request page: note under the button when the film can be downloaded but not at once."
-    },
-    "kostvRequestNoGoodVersion": "Aún no hay una versión {criterion}",
-    "@kostvRequestNoGoodVersion": {
-        "description": "Kos TV request page: the film has versions but none good enough. criterion is the service's own words, e.g. 'en castellano de 1080p o más'.",
-        "placeholders": {
-            "criterion": {
-                "type": "String"
-            }
-        }
-    },
-    "kostvRequestNoVersionYet": "Aún no hay ninguna versión",
-    "@kostvRequestNoVersionYet": {
-        "description": "Kos TV request page: the film has no versions at all yet."
     },
     "kostvRequestDownloadsWhenReady": "Si la solicitas, se descargará sola en cuanto haya una buena",
     "@kostvRequestDownloadsWhenReady": {
@@ -12280,28 +12255,6 @@
     "kostvRequestUpdatesOnItsOwn": "Esta ficha cambia sola en cuanto conteste",
     "@kostvRequestUpdatesOnItsOwn": {
         "description": "Kos TV request page: note under a request waiting for the administrator."
-    },
-    "kostvRequestRequestedByYou": "La has solicitado tú",
-    "@kostvRequestRequestedByYou": {
-        "description": "Kos TV request page: who asked for it (the person themselves)."
-    },
-    "kostvRequestRequestedByYouAnd": "La habéis solicitado tú y {names}",
-    "@kostvRequestRequestedByYouAnd": {
-        "description": "Kos TV request page: who asked for it (the person and others).",
-        "placeholders": {
-            "names": {
-                "type": "String"
-            }
-        }
-    },
-    "kostvRequestRequestedBy": "La ha solicitado {names}",
-    "@kostvRequestRequestedBy": {
-        "description": "Kos TV request page: who asked for it.",
-        "placeholders": {
-            "names": {
-                "type": "String"
-            }
-        }
     },
     "kostvRequestAccepted": "Aceptada: empieza en seguida",
     "@kostvRequestAccepted": {
@@ -12356,19 +12309,6 @@
     "@kostvRequestPaused": {
         "description": "Kos TV request page: the administrator paused every download."
     },
-    "kostvRequestTimeLeft": "quedan {time}",
-    "@kostvRequestTimeLeft": {
-        "description": "Kos TV request page: how long the download still takes.",
-        "placeholders": {
-            "time": {
-                "type": "String"
-            }
-        }
-    },
-    "kostvRequestLessThanAMinute": "menos de un minuto",
-    "@kostvRequestLessThanAMinute": {
-        "description": "Kos TV request page: time left under a minute."
-    },
     "kostvHoursMinutes": "{hours} h {minutes} min",
     "@kostvHoursMinutes": {
         "description": "Kos TV: a duration in hours and minutes.",
@@ -12377,18 +12317,6 @@
                 "type": "int"
             },
             "minutes": {
-                "type": "int"
-            }
-        }
-    },
-    "kostvRequestEpisodesDone": "{done} de {total, plural, =1{1 episodio} other{{total} episodios}}",
-    "@kostvRequestEpisodesDone": {
-        "description": "Kos TV request page: episodes of a series request already on the home server.",
-        "placeholders": {
-            "done": {
-                "type": "int"
-            },
-            "total": {
                 "type": "int"
             }
         }
@@ -12417,18 +12345,6 @@
     "@kostvRequestLoadFailed": {
         "description": "Kos TV request page: the service didn't answer."
     },
-    "kostvRequestSeasonEpisodes": "{have} de {aired, plural, =1{1 episodio} other{{aired} episodios}}",
-    "@kostvRequestSeasonEpisodes": {
-        "description": "Kos TV request page: episodes of a season on the home server, of those already aired.",
-        "placeholders": {
-            "have": {
-                "type": "int"
-            },
-            "aired": {
-                "type": "int"
-            }
-        }
-    },
     "kostvRequestSeasonComplete": "Completa",
     "@kostvRequestSeasonComplete": {
         "description": "Kos TV request page: every aired episode of the season is there."
@@ -12440,15 +12356,6 @@
     "kostvRequestSeasonOnItsWay": "De camino",
     "@kostvRequestSeasonOnItsWay": {
         "description": "Kos TV request page: what is missing of the season is downloading or waiting for an answer."
-    },
-    "kostvRequestSeriesMissing": "{missing, plural, =1{Falta 1 episodio} other{Faltan {missing} episodios}}",
-    "@kostvRequestSeriesMissing": {
-        "description": "Kos TV request page: how many aired episodes of the series aren't on the home server.",
-        "placeholders": {
-            "missing": {
-                "type": "int"
-            }
-        }
     },
     "kostvRequestOutcomeCreated": "Petición enviada: el administrador tiene que aceptarla",
     "@kostvRequestOutcomeCreated": {
@@ -12516,13 +12423,179 @@
             }
         }
     },
-    "kostvSeasonsCount": "{count, plural, =1{1 temporada} other{{count} temporadas}}",
-    "@kostvSeasonsCount": {
-        "description": "Kos TV request page: how many seasons a series has.",
+    "kostvRequestNotHomeYet": "Todavía no está en casa",
+    "@kostvRequestNotHomeYet": {
+        "description": "Kos TV request page: small label above the title of something not on the home server."
+    },
+    "kostvStatQuality": "Calidad",
+    "@kostvStatQuality": {
+        "description": "Kos TV request page: data strip label for the resolution of the version it would bring."
+    },
+    "kostvStatLanguage": "Idioma",
+    "@kostvStatLanguage": {
+        "description": "Kos TV request page: data strip label for the version's main language."
+    },
+    "kostvStatSize": "Tamaño",
+    "@kostvStatSize": {
+        "description": "Kos TV request page: data strip label for the download's size."
+    },
+    "kostvStatDownload": "Descarga",
+    "@kostvStatDownload": {
+        "description": "Kos TV request page: data strip label for whether the download would start at once (value: Fast / Normal)."
+    },
+    "kostvStatRelease": "Estreno",
+    "@kostvStatRelease": {
+        "description": "Kos TV request page: data strip label for when it comes out to watch at home."
+    },
+    "kostvStatVersion": "Versión",
+    "@kostvStatVersion": {
+        "description": "Kos TV request page: data strip label for whether there is a version to download."
+    },
+    "kostvStatAvailability": "Disponibilidad",
+    "@kostvStatAvailability": {
+        "description": "Kos TV request page: data strip label for whether it can be had."
+    },
+    "kostvStatProgress": "Progreso",
+    "@kostvStatProgress": {
+        "description": "Kos TV request page: data strip label for how much has come down."
+    },
+    "kostvStatSpeed": "Velocidad",
+    "@kostvStatSpeed": {
+        "description": "Kos TV request page: data strip label for the download speed."
+    },
+    "kostvStatTimeLeft": "Quedan",
+    "@kostvStatTimeLeft": {
+        "description": "Kos TV request page: data strip label for the time the download still takes."
+    },
+    "kostvStatStatus": "Estado",
+    "@kostvStatStatus": {
+        "description": "Kos TV request page: data strip label for how the request stands."
+    },
+    "kostvStatRequestedBy": "Solicitada por",
+    "@kostvStatRequestedBy": {
+        "description": "Kos TV request page: data strip label for who asked for it."
+    },
+    "kostvStatEpisodes": "Episodios",
+    "@kostvStatEpisodes": {
+        "description": "Kos TV request page: data strip label for episodes."
+    },
+    "kostvStatAtHome": "En casa",
+    "@kostvStatAtHome": {
+        "description": "Kos TV request page: data strip label for how many episodes are already on the home server."
+    },
+    "kostvStatMissing": "Faltan",
+    "@kostvStatMissing": {
+        "description": "Kos TV request page: data strip label for how many episodes aren't on the home server."
+    },
+    "kostvValueNormal": "Normal",
+    "@kostvValueNormal": {
+        "description": "Kos TV request page: download value when it won't start at once."
+    },
+    "kostvValueNoneYet": "Aún no hay",
+    "@kostvValueNoneYet": {
+        "description": "Kos TV request page: version value when there is no version at all yet."
+    },
+    "kostvValueNoGoodOneYet": "Aún no hay buena",
+    "@kostvValueNoGoodOneYet": {
+        "description": "Kos TV request page: version value when none is in the home's language and quality."
+    },
+    "kostvValueChecking": "Mirando…",
+    "@kostvValueChecking": {
+        "description": "Kos TV request page: value while the service checks whether it can be downloaded."
+    },
+    "kostvValueYou": "Tú",
+    "@kostvValueYou": {
+        "description": "Kos TV request page: requested by the person themselves."
+    },
+    "kostvValueYouAnd": "Tú y {names}",
+    "@kostvValueYouAnd": {
+        "description": "Kos TV request page: requested by the person and others.",
+        "placeholders": {
+            "names": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvValueOf": "{done} de {total}",
+    "@kostvValueOf": {
+        "description": "Kos TV request page: a count out of a total, e.g. episodes.",
+        "placeholders": {
+            "done": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvValueUnderAMinute": "< 1 min",
+    "@kostvValueUnderAMinute": {
+        "description": "Kos TV request page: time left under a minute, short."
+    },
+    "kostvStepAsk": "Solicitud",
+    "@kostvStepAsk": {
+        "description": "Kos TV request page: first step of the request's way (not done yet)."
+    },
+    "kostvStepAsked": "Solicitada",
+    "@kostvStepAsked": {
+        "description": "Kos TV request page: first step of the request's way, done."
+    },
+    "kostvStepApproval": "Aceptación",
+    "@kostvStepApproval": {
+        "description": "Kos TV request page: step where the administrator accepts it (not done yet)."
+    },
+    "kostvStepApproved": "Aceptada",
+    "@kostvStepApproved": {
+        "description": "Kos TV request page: the administrator accepted it."
+    },
+    "kostvStepRejected": "No aceptada",
+    "@kostvStepRejected": {
+        "description": "Kos TV request page: the administrator turned it down."
+    },
+    "kostvStepDownload": "Descarga",
+    "@kostvStepDownload": {
+        "description": "Kos TV request page: step where it comes down."
+    },
+    "kostvStepHome": "En casa",
+    "@kostvStepHome": {
+        "description": "Kos TV request page: last step, it is on the home server."
+    },
+    "kostvSeasonEpisodeCount": "{count, plural, =1{1 episodio} other{{count} episodios}}",
+    "@kostvSeasonEpisodeCount": {
+        "description": "Kos TV request page: episodes a season has.",
         "placeholders": {
             "count": {
                 "type": "int"
             }
         }
+    },
+    "kostvSeasonAtHome": "{have} de {aired} en casa",
+    "@kostvSeasonAtHome": {
+        "description": "Kos TV request page: episodes of a season on the home server, of those aired.",
+        "placeholders": {
+            "have": {
+                "type": "int"
+            },
+            "aired": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvPercent": "{percent} %",
+    "@kostvPercent": {
+        "description": "Kos TV request page: a percentage (Spanish writes a space before %).",
+        "placeholders": {
+            "percent": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvValuePending": "Pendiente",
+    "@kostvValuePending": {
+        "description": "Kos TV request page: status value while the request waits for the administrator."
+    },
+    "kostvStatWanted": "Se busca",
+    "@kostvStatWanted": {
+        "description": "Kos TV request page: data strip label for the version the home wants (value: the service's words, e.g. 'En castellano de 1080p o más')."
     }
 }
