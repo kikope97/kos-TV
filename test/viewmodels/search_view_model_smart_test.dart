@@ -23,12 +23,11 @@ Map<String, dynamic> _answer(List<String> itemIds) => {
   'Items': [
     for (final id in itemIds) {'Id': id, 'Name': id, 'Type': 'Movie'},
   ],
-  'Seerr': <Object>[],
 };
 
 void main() {
   group('SmartSearchResults.fromJson', () {
-    test('reads library items and Seerr titles', () {
+    test('reads library items', () {
       final results = SmartSearchResults.fromJson({
         'Ready': true,
         'Items': [
@@ -42,49 +41,33 @@ void main() {
           },
           {'Id': 'p1', 'Name': 'Jim Carrey', 'Type': 'Person'},
         ],
-        'Seerr': [
-          {
-            'id': 8844,
-            'mediaType': 'movie',
-            'title': 'Jumanji',
-            'name': null,
-            'releaseDate': '1995-12-15',
-            'firstAirDate': null,
-            'posterPath': '/abc.jpg',
-            'backdropPath': '/def.jpg',
-            'overview': 'A board game.',
-            'voteAverage': 7.2,
-          },
-        ],
       }, serverId: 'http://jf');
 
       expect([for (final i in results.items) i.type], ['Movie', 'Person']);
       expect(results.items.first.serverId, 'http://jf');
       expect(results.items.first.productionYear, 1994);
       expect(results.items.first.isPlayed, isTrue);
-      expect(results.seerr.single.id, 8844);
-      expect(results.seerr.single.displayTitle, 'Jumanji');
-      expect(results.seerr.single.posterPath, '/abc.jpg');
     });
 
     test('a server still building its index gives nothing', () {
       final results = SmartSearchResults.fromJson({
         'Ready': false,
         'Items': <Object>[],
-        'Seerr': <Object>[],
       }, serverId: 'http://jf');
 
       expect(results.isEmpty, isTrue);
     });
 
-    test('leaves Seerr titles out when Seerr is not usable', () {
+    // The server may still send titles from outside the library; the app
+    // leaves them out.
+    test('leaves out titles from outside the library', () {
       final results = SmartSearchResults.fromJson({
         'Ready': true,
         'Items': <Object>[],
         'Seerr': [
           {'id': 1, 'mediaType': 'movie', 'title': 'Jumanji'},
         ],
-      }, serverId: 'http://jf', includeSeerr: false);
+      }, serverId: 'http://jf');
 
       expect(results.isEmpty, isTrue);
     });

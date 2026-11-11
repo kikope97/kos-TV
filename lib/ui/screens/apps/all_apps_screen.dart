@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,14 +12,20 @@ import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/key_event_utils.dart';
 import '../../mixins/focus_state_mixin.dart';
 import '../../navigation/destinations.dart';
+import '../../widgets/apps/app_accent_color.dart';
 import '../../widgets/apps/app_tile.dart';
+import '../../widgets/apps/apps_ambient_background.dart';
 import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
 import '../downloads/widgets/saved_media_menu.dart';
 
 /// Kos TV: every app installed on the TV, like a launcher's app drawer. The
-/// first card opens the TV's own settings. A long press (or the menu key) on
-/// an app adds it to the Apps row on Home or takes it off.
+/// first card opens the TV's own settings (the TV's Settings app isn't listed
+/// again). A long press (or the menu key) on an app adds it to the Apps row
+/// on Home or takes it off.
+///
+/// The background takes on the colour of the focused app and the cards come
+/// in one after another when the screen opens.
 class AllAppsScreen extends StatefulWidget {
   const AllAppsScreen({super.key});
 
@@ -26,8 +33,25 @@ class AllAppsScreen extends StatefulWidget {
   State<AllAppsScreen> createState() => _AllAppsScreenState();
 }
 
-class _AllAppsScreenState extends State<AllAppsScreen> {
+class _AllAppsScreenState extends State<AllAppsScreen>
+    with SingleTickerProviderStateMixin {
   final InstalledAppsService _apps = GetIt.instance<InstalledAppsService>();
+
+  /// The colour of the focused app and where it is, for the background.
+  final _ambience = ValueNotifier(
+    const AppsAmbience(color: AppAccentColors.neutral),
+  );
+  InstalledApp? _focused;
+  int _columns = 1;
+
+  /// The cards coming in, once, when the list is first there.
+  late final AnimationController _entrance = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 750),
+  );
+
+  /// Animations turned off on the device: the cards are just there.
+  bool _still = false;
 
   @override
   void initState() {
@@ -37,13 +61,75 @@ class _AllAppsScreenState extends State<AllAppsScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _still = MediaQuery.disableAnimationsOf(context);
+    _startOnceLoaded();
+  }
+
+  @override
   void dispose() {
     _apps.removeListener(_onAppsChanged);
+    _ambience.dispose();
+    _entrance.dispose();
     super.dispose();
   }
 
   void _onAppsChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    _startOnceLoaded();
+    setState(() {});
+  }
+
+  /// Once the list is there: the cards come in and their colours are read.
+  void _startOnceLoaded() {
+    if (!_apps.isLoaded || !_entrance.isDismissed) return;
+    if (_still) {
+      _entrance.value = 1;
+    } else {
+      // From the frame after the grid is first drawn, so a slow first frame
+      // (the banners being decoded) doesn't eat into it.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _entrance.isDismissed) unawaited(_entrance.forward());
+      });
+    }
+    unawaited(_readAccents(_apps.apps));
+  }
+
+  /// Reads every app's colour ahead, one after another, so the background is
+  /// ready as the focus gets to each.
+  Future<void> _readAccents(List<InstalledApp> apps) async {
+    for (final app in apps) {
+      if (!mounted) return;
+      await AppAccentColors.of(app);
+    }
+  }
+
+  /// The focus is on the card at [index]: [app], or the TV settings card
+  /// when null.
+  void _onTileFocused(int index, InstalledApp? app) {
+    _focused = app;
+    final column = index % _columns;
+    final across = _columns > 1 ? column / (_columns - 1) : 0.0;
+    void show(Color? color) => _ambience.value = AppsAmbience(
+      color: color ?? AppAccentColors.neutral,
+      across: across,
+    );
+    if (app == null) {
+      show(null);
+      return;
+    }
+    if (AppAccentColors.isKnown(app)) {
+      show(AppAccentColors.cached(app));
+      return;
+    }
+    // Moves over at once in the old colour, then takes on the new one.
+    show(_ambience.value.color);
+    unawaited(
+      AppAccentColors.of(app).then((color) {
+        if (mounted && identical(_focused, app)) show(color);
+      }),
+    );
   }
 
   Future<void> _open(InstalledApp app) async {
@@ -99,6 +185,7 @@ class _AllAppsScreenState extends State<AllAppsScreen> {
           const spacing = 20.0;
           final usable = constraints.maxWidth - insets.left - insets.right;
           final columns = (usable / 260).floor().clamp(2, 8);
+          _columns = columns;
           final tileWidth = (usable - spacing * (columns - 1)) / columns;
           final tileHeight = tileWidth * 9 / 16;
           final apps = _apps.apps;
@@ -134,24 +221,35 @@ class _AllAppsScreenState extends State<AllAppsScreen> {
                   delegate: SliverChildBuilderDelegate(
                     childCount: apps.length + 1,
                     (context, index) {
+                      final Widget tile;
                       if (index == 0) {
-                        return _AppGridTile(
+                        tile = _AppGridTile(
                           autofocus: true,
                           width: tileWidth,
                           height: tileHeight,
                           icon: Icons.settings_rounded,
                           label: l10n.kostvTvSettings,
                           onTap: () => unawaited(_apps.openSystemSettings()),
+                          onFocused: () => _onTileFocused(index, null),
+                        );
+                      } else {
+                        final app = apps[index - 1];
+                        tile = _AppGridTile(
+                          key: ValueKey(app.packageName),
+                          width: tileWidth,
+                          height: tileHeight,
+                          app: app,
+                          onTap: () => unawaited(_open(app)),
+                          onLongPress: () => unawaited(_showMenu(app)),
+                          onFocused: () => _onTileFocused(index, app),
                         );
                       }
-                      final app = apps[index - 1];
-                      return _AppGridTile(
-                        key: ValueKey(app.packageName),
-                        width: tileWidth,
-                        height: tileHeight,
-                        app: app,
-                        onTap: () => unawaited(_open(app)),
-                        onLongPress: () => unawaited(_showMenu(app)),
+                      return _Entrance(
+                        animation: _entrance,
+                        // Row by row, then along it, so they come in like a
+                        // wave from the top corner.
+                        order: index ~/ columns + index % columns,
+                        child: tile,
                       );
                     },
                   ),
@@ -170,8 +268,9 @@ class _AllAppsScreenState extends State<AllAppsScreen> {
         // they would otherwise scroll the page.
         child: Shortcuts(
           shortcuts: const {
-            SingleActivator(LogicalKeyboardKey.arrowUp):
-                DirectionalFocusIntent(TraversalDirection.up),
+            SingleActivator(LogicalKeyboardKey.arrowUp): DirectionalFocusIntent(
+              TraversalDirection.up,
+            ),
             SingleActivator(LogicalKeyboardKey.arrowDown):
                 DirectionalFocusIntent(TraversalDirection.down),
             SingleActivator(LogicalKeyboardKey.arrowLeft):
@@ -179,9 +278,55 @@ class _AllAppsScreenState extends State<AllAppsScreen> {
             SingleActivator(LogicalKeyboardKey.arrowRight):
                 DirectionalFocusIntent(TraversalDirection.right),
           },
-          child: content,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              AppsAmbientBackground(ambience: _ambience),
+              content,
+            ],
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// A card coming in: it fades in and rises a little, [order] steps after the
+/// first.
+class _Entrance extends StatelessWidget {
+  const _Entrance({
+    required this.animation,
+    required this.order,
+    required this.child,
+  });
+
+  final Animation<double> animation;
+  final int order;
+  final Widget child;
+
+  static const _step = 0.05;
+  static const _span = 0.5;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = math.min(order * _step, 1 - _span);
+    return AnimatedBuilder(
+      animation: animation,
+      child: child,
+      builder: (context, child) {
+        final t = Curves.easeOutCubic.transform(
+          ((animation.value - start) / _span).clamp(0.0, 1.0),
+        );
+        // The same widgets all along, so the card keeps its state (and its
+        // focus) when it has come in.
+        return Opacity(
+          opacity: t,
+          child: Transform.translate(
+            offset: Offset(0, 24 * (1 - t)),
+            child: child,
+          ),
+        );
+      },
     );
   }
 }
@@ -198,6 +343,7 @@ class _AppGridTile extends StatefulWidget {
     this.icon,
     this.label,
     this.onLongPress,
+    this.onFocused,
     this.autofocus = false,
   });
 
@@ -208,6 +354,7 @@ class _AppGridTile extends StatefulWidget {
   final String? label;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onFocused;
   final bool autofocus;
 
   @override
@@ -228,7 +375,10 @@ class _AppGridTileState extends State<_AppGridTile> with FocusStateMixin {
     final onLongPress = widget.onLongPress;
     return Focus(
       autofocus: widget.autofocus,
-      onFocusChange: setFocused,
+      onFocusChange: (focused) {
+        setFocused(focused);
+        if (focused) widget.onFocused?.call();
+      },
       onKeyEvent: (_, event) {
         if (onLongPress != null) {
           final handled = _selectKeys.handleKeyEvent(
@@ -249,7 +399,10 @@ class _AppGridTileState extends State<_AppGridTile> with FocusStateMixin {
       },
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
-        onEnter: (_) => setHovered(true),
+        onEnter: (_) {
+          setHovered(true);
+          widget.onFocused?.call();
+        },
         onExit: (_) => setHovered(false),
         child: GestureDetector(
           onLongPress: onLongPress,
@@ -266,6 +419,7 @@ class _AppGridTileState extends State<_AppGridTile> with FocusStateMixin {
               icon: widget.icon,
               label: widget.label,
               onTap: widget.onTap,
+              wideGlow: true,
             ),
           ),
         ),

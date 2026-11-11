@@ -208,7 +208,7 @@ class _StartupScreenState extends State<StartupScreen> {
     unawaited(() async {
       await _waitForNetworkSettle();
       if (getIt.isRegistered<HomeViewModel>()) {
-        await getIt<HomeViewModel>().load();
+        await getIt<HomeViewModel>().preload();
       }
     }());
     if (getIt.isRegistered<StremfinService>()) {

@@ -31,12 +31,17 @@ object InstalledApps {
         var infos = if (leanback) query(pm, Intent.CATEGORY_LEANBACK_LAUNCHER) else emptyList()
         if (infos.isEmpty()) infos = query(pm, Intent.CATEGORY_LAUNCHER)
 
+        // The TV's own Settings app: All apps opens it from its first card,
+        // so it isn't listed a second time.
+        val settings = SETTINGS_PACKAGES + listOfNotNull(settingsPackage(pm))
         val seen = HashSet<String>()
         return infos
             .mapNotNull { info ->
                 val activity = info.activityInfo ?: return@mapNotNull null
                 val pkg = activity.packageName
-                if (pkg == context.packageName || !seen.add(pkg)) return@mapNotNull null
+                if (pkg == context.packageName || pkg in settings || !seen.add(pkg)) {
+                    return@mapNotNull null
+                }
                 val label = info.loadLabel(pm)?.toString()?.trim().orEmpty().ifEmpty { pkg }
                 val banner = runCatching { activity.loadBanner(pm) }.getOrNull()
                 val art = if (banner != null) {
@@ -76,6 +81,25 @@ object InstalledApps {
     } catch (_: SecurityException) {
         false
     }
+
+    /** The usual packages of the TV's Settings app. */
+    private val SETTINGS_PACKAGES = setOf("com.android.tv.settings", "com.android.settings")
+
+    /** The app that opens for the system settings on this TV, if it can be told. */
+    private fun settingsPackage(pm: PackageManager): String? = runCatching {
+        val intent = Intent(Settings.ACTION_SETTINGS)
+        val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.resolveActivity(
+                intent,
+                PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong()),
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        }
+        // "android" is the chooser, when more than one app claims it.
+        info?.activityInfo?.packageName?.takeIf { it != "android" }
+    }.getOrNull()
 
     private fun query(pm: PackageManager, category: String): List<ResolveInfo> {
         val intent = Intent(Intent.ACTION_MAIN).addCategory(category)

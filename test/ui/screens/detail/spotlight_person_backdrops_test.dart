@@ -11,51 +11,35 @@ PersonBackdropCandidate _candidate(String key) => PersonBackdropCandidate(
 
 void main() {
   final local = [_candidate('l1'), _candidate('l2')];
-  final appearances = [_candidate('a1'), _candidate('a2')];
-  final crew = [_candidate('c1')];
 
   Map<String, String?> pick({String? mainBackdropKey}) =>
       personCardBackdropsFor(
         local: local,
-        appearances: appearances,
-        crew: crew,
         mainBackdropKey: mainBackdropKey,
         random: math.Random(7),
       );
 
-  test('each card takes from its own pool', () {
+  test('the filmography card takes from the local pool', () {
     final picked = pick();
+    expect(picked.keys, ['filmography']);
     expect(picked['filmography'], anyOf('card/l1', 'card/l2'));
-    expect(picked['appearances'], anyOf('card/a1', 'card/a2'));
-    expect(picked['crew'], 'card/c1');
-  });
-
-  test('no two cards land on the same backdrop', () {
-    final picked = pick().values.toList();
-    expect(picked.toSet(), hasLength(picked.length));
   });
 
   test('the hero keeps the backdrop it took', () {
-    expect(pick(mainBackdropKey: 'c1')['crew'], isNot('card/c1'));
+    expect(pick(mainBackdropKey: 'l1')['filmography'], 'card/l2');
   });
 
   test('one backdrop between them is repeated rather than left out', () {
-    final only = [_candidate('solo')];
     final picked = personCardBackdropsFor(
-      local: only,
-      appearances: only,
-      crew: only,
+      local: [_candidate('solo')],
+      mainBackdropKey: 'solo',
       random: math.Random(7),
     );
     expect(picked.values, everyElement('card/solo'));
   });
 
   test('a person with nothing to draw gets nothing', () {
-    final picked = personCardBackdropsFor(
-      local: const [],
-      appearances: const [],
-      crew: const [],
-    );
+    final picked = personCardBackdropsFor(local: const []);
     expect(picked.values, everyElement(isNull));
   });
 }

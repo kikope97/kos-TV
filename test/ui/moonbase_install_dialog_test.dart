@@ -84,7 +84,7 @@ void main() {
     test('Jellyfin gets the full plugin', () {
       for (final type in [ServerType.jellyfin]) {
         final features = moonbaseFeatures(l10n, type);
-        expect(features, contains(l10n.setupTourBulletRequests));
+        expect(features, contains(l10n.moonbaseFeatureRows));
         expect(features, contains(l10n.moonbaseFeatureGames));
         expect(features, contains(l10n.moonbaseFeatureCalendar));
         expect(features, isNot(contains(l10n.moonbaseFeatureCollections)));
@@ -95,7 +95,6 @@ void main() {
       final silo = moonbaseFeatures(l10n, ServerType.silo);
       expect(silo, contains(l10n.moonbaseFeatureSync));
       expect(silo, contains(l10n.moonbaseFeatureCollections));
-      expect(silo, isNot(contains(l10n.setupTourBulletRequests)));
       expect(silo, isNot(contains(l10n.moonbaseFeatureRows)));
       expect(silo, isNot(contains(l10n.moonbaseFeatureCalendar)));
     });

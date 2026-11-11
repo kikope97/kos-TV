@@ -10,7 +10,6 @@ import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/data/services/row_data_source.dart';
 import 'package:moonfin/data/viewmodels/media_bar_view_model.dart';
 import 'package:moonfin/preference/home_section_config.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/home/home_view_model.dart';
 import 'package:server_core/server_core.dart';
@@ -27,8 +26,6 @@ class _MediaBar extends Mock implements MediaBarViewModel {}
 class _MultiServer extends Mock implements MultiServerRepository {}
 
 class _PluginSync extends Mock implements PluginSyncService {}
-
-class _SeerrPrefs extends Mock implements SeerrPreferences {}
 
 class _Cache extends Fake implements HomeRowCacheStore {
   @override
@@ -74,10 +71,8 @@ void main() {
     );
 
     final pluginSync = _PluginSync();
-    when(() => pluginSync.seerrAvailable).thenReturn(false);
     when(() => pluginSync.pluginAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(pluginSync);
-    GetIt.instance.registerSingleton<SeerrPreferences>(_SeerrPrefs());
 
     source = _DataSource();
     otherItems = _ItemsApi();

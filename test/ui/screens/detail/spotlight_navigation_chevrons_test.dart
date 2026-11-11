@@ -10,7 +10,6 @@ import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/data/viewmodels/item_detail_view_model.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/preference_constants.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/detail/spotlight/spotlight_detail_content.dart';
 import 'package:moonfin/util/platform_detection.dart';
@@ -23,8 +22,6 @@ class _Vm extends Mock implements ItemDetailViewModel {}
 class _ImageApi extends Mock implements ImageApi {}
 
 class _PluginSyncService extends Mock implements PluginSyncService {}
-
-class _SeerrPreferences extends Mock implements SeerrPreferences {}
 
 class _MediaServerClient extends Mock implements MediaServerClient {}
 
@@ -55,7 +52,6 @@ void main() {
   late _Vm vm;
   late _ImageApi imageApi;
   late _PluginSyncService pluginSyncService;
-  late _SeerrPreferences seerrPrefs;
   late _MediaServerClient mediaClient;
   late _UserRepository userRepo;
   late _OfflineRepository offlineRepo;
@@ -77,14 +73,8 @@ void main() {
     GetIt.instance.registerSingleton<UserPreferences>(prefs);
 
     pluginSyncService = _PluginSyncService();
-    when(() => pluginSyncService.seerrAvailable).thenReturn(false);
     when(() => pluginSyncService.pluginAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(pluginSyncService);
-
-    seerrPrefs = _SeerrPreferences();
-    when(() => seerrPrefs.labelOrDefault(any())).thenReturn('Discover');
-    when(() => seerrPrefs.showRequestStatus).thenReturn(false);
-    GetIt.instance.registerSingleton<SeerrPreferences>(seerrPrefs);
 
     mediaClient = _MediaServerClient();
     when(() => mediaClient.serverType).thenReturn(ServerType.jellyfin);
@@ -143,7 +133,6 @@ void main() {
 
     vm = _Vm();
     when(() => vm.imageApi).thenReturn(imageApi);
-    when(() => vm.isSeerrOnly).thenReturn(false);
     when(() => vm.actors).thenReturn([
       {'Id': 'actor-1', 'Name': 'Actor One', 'Type': 'Person'},
     ]);
@@ -179,19 +168,16 @@ void main() {
     when(() => vm.filmographyMovies).thenReturn(const []);
     when(() => vm.filmographySeries).thenReturn(const []);
     when(() => vm.collectionItems).thenReturn(const []);
-    when(() => vm.missingCollectionItems).thenReturn(const []);
     when(() => vm.playlistItems).thenReturn(const []);
     when(() => vm.playlistIndexBuilding).thenReturn(false);
     when(() => vm.parentCollections).thenReturn(const []);
     when(() => vm.canManagePlaylistTracks).thenReturn(false);
     when(() => vm.playlistLoadingMore).thenReturn(false);
-    when(() => vm.seerr).thenReturn(null);
     when(() => vm.state).thenReturn(ItemDetailState.ready);
     when(() => vm.error).thenReturn(null);
     when(() => vm.effectiveSeasonId).thenReturn(null);
     when(() => vm.selectedAudioIndex).thenReturn(null);
     when(() => vm.selectedSubtitleIndex).thenReturn(null);
-    when(() => vm.localPersonId).thenReturn(null);
     when(() => vm.addListener(any())).thenReturn(null);
     when(() => vm.removeListener(any())).thenReturn(null);
     when(() => vm.ratings).thenReturn({});

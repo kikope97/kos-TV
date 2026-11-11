@@ -7,19 +7,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
-import 'package:moonfin/data/repositories/seerr_repository.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:server_core/server_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockClient extends Mock implements MediaServerClient {}
-
-class _MockSessionRepository extends Mock implements SessionRepository {}
-
-class _MockSeerrRepository extends Mock implements SeerrRepository {}
 
 /// Answers the plugin, except for the settings stream, which stays open
 /// without sending anything the way a server holding back its first flush
@@ -60,27 +53,12 @@ void main() {
 
   late PluginSyncService service;
   late _MockClient client;
-  late _MockSeerrRepository seerr;
-  late bool seerrSignedIn;
-
-  Future<void> signInToSeerr() => seerr.bootstrapMoonfinSso(
-    jellyfinBaseUrl: any(named: 'jellyfinBaseUrl'),
-    jellyfinToken: any(named: 'jellyfinToken'),
-    username: any(named: 'username'),
-    password: any(named: 'password'),
-  );
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({'pref_last_server_id': 'srv1'});
     final store = PreferenceStore();
     await store.init();
     final prefs = UserPreferences(store);
-
-    final session = _MockSessionRepository();
-    when(() => session.activeUserId).thenReturn('user1');
-    GetIt.instance.registerSingleton<SeerrPreferences>(
-      SeerrPreferences(store, session),
-    );
 
     client = _MockClient();
     when(() => client.baseUrl).thenReturn('http://plugin.test');
@@ -96,17 +74,6 @@ void main() {
     );
     GetIt.instance.registerSingleton<MediaServerClient>(client);
 
-    seerr = _MockSeerrRepository();
-    seerrSignedIn = false;
-    when(
-      () => seerr.ensureInitialized(force: any(named: 'force')),
-    ).thenAnswer((_) async {});
-    when(() => seerr.isAvailable).thenAnswer((_) => seerrSignedIn);
-    when(signInToSeerr).thenAnswer((_) async => seerrSignedIn = true);
-    GetIt.instance.registerLazySingletonAsync<SeerrRepository>(
-      () async => seerr,
-    );
-
     final dio = Dio()..httpClientAdapter = _PluginAdapter();
     service = PluginSyncService(prefs, store, dio: dio);
     await prefs.set(UserPreferences.pluginSyncEnabled, true);
@@ -118,20 +85,5 @@ void main() {
     await service
         .syncOnLogin(client, serverId: 'srv1')
         .timeout(const Duration(seconds: 2));
-  });
-
-  test('a live Seerr session skips signing in again', () async {
-    expect(await service.refreshAvailability(client), isTrue);
-    seerrSignedIn = true;
-
-    expect(await service.configureSeerr(client), isFalse);
-    verifyNever(signInToSeerr);
-  });
-
-  test('signing in to Seerr asks the home to load its rows again', () async {
-    expect(await service.refreshAvailability(client), isTrue);
-
-    expect(await service.configureSeerr(client), isTrue);
-    verify(signInToSeerr).called(1);
   });
 }

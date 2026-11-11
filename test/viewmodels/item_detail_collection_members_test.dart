@@ -31,7 +31,6 @@ void main() {
     await store.init();
     GetIt.instance.registerSingleton<UserPreferences>(UserPreferences(store));
     final pluginSync = _PluginSyncService();
-    when(() => pluginSync.seerrAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(pluginSync);
 
     client = _Client();

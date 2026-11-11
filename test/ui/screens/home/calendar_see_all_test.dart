@@ -54,7 +54,7 @@ void main() {
 
   test('no other row does', () {
     expect(
-      HomeScreen.showsCalendarSeeAll(_row('seerr_trending'), prefs),
+      HomeScreen.showsCalendarSeeAll(_row('tmdb_popular_movies'), prefs),
       isFalse,
     );
   });

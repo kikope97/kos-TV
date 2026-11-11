@@ -108,11 +108,6 @@ void main() {
       expect(fullPlugin(), isTrue);
     });
 
-    test('Seerr is offered on Silo, through its own requests', () async {
-      await addServer('silo', ServerType.silo);
-      expect(seerrOnAnySignedInServer(store: store), isTrue);
-    });
-
     test('nobody signed in anywhere: on', () async {
       await addServer('silo', ServerType.silo, signedIn: false);
 

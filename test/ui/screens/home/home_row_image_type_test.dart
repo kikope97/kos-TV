@@ -117,19 +117,6 @@ void main() {
           HomeSectionType.liveTv,
       _row('activeRecordings', HomeRowType.activeRecordings):
           HomeSectionType.activeRecordings,
-      _row('seerr_shortcuts'): HomeSectionType.seerrShortcuts,
-      _row('seerr_recent_requests'): HomeSectionType.seerrRecentRequests,
-      _row('seerr_watchlist'): HomeSectionType.seerrWatchlist,
-      _row('seerr_recently_added'): HomeSectionType.seerrRecentlyAdded,
-      _row('seerr_popular_movies'): HomeSectionType.seerrPopularMovies,
-      _row('seerr_upcoming_movies'): HomeSectionType.seerrUpcomingMovies,
-      _row('seerr_popular_series'): HomeSectionType.seerrPopularSeries,
-      _row('seerr_upcoming_series'): HomeSectionType.seerrUpcomingSeries,
-      _row('seerr_trending'): HomeSectionType.seerrTrending,
-      _row('seerr_movie_genres'): HomeSectionType.seerrMovieGenres,
-      _row('seerr_studios'): HomeSectionType.seerrStudios,
-      _row('seerr_series_genres'): HomeSectionType.seerrSeriesGenres,
-      _row('seerr_networks'): HomeSectionType.seerrNetworks,
       _row('imdb_top_250_movies'): HomeSectionType.imdbTop250Movies,
       _row('imdb_top_250_tv_shows'): HomeSectionType.imdbTop250TvShows,
       _row('imdb_most_popular_movies'): HomeSectionType.imdbMostPopularMovies,
@@ -228,7 +215,6 @@ void main() {
       final prefs = await createPreferences();
       final rows = <HomeSectionType, HomeRow>{
         HomeSectionType.seasonal: _row('seasonal'),
-        HomeSectionType.seerrTrending: _row('seerr_trending'),
         HomeSectionType.imdbTop250Movies: _row('imdb_top_250_movies'),
         HomeSectionType.tmdbPopularMovies: _row('tmdb_popular_movies'),
         HomeSectionType.radarrCalendar: _row('radarr_calendar'),
@@ -311,23 +297,6 @@ void main() {
         imageType(_row('latest_lib1', HomeRowType.latestMedia), prefs),
         ImageType.banner,
       );
-    });
-
-    test('Seerr filter rows keep their tile art whatever their row says',
-        () async {
-      final prefs = await createPreferences();
-      const filterRows = {
-        'seerr_shortcuts': HomeSectionType.seerrShortcuts,
-        'seerr_movie_genres': HomeSectionType.seerrMovieGenres,
-        'seerr_series_genres': HomeSectionType.seerrSeriesGenres,
-        'seerr_studios': HomeSectionType.seerrStudios,
-        'seerr_networks': HomeSectionType.seerrNetworks,
-      };
-
-      for (final MapEntry(key: id, value: type) in filterRows.entries) {
-        await prefs.set(UserPreferences.homeRowImageType(type), ImageType.poster);
-        expect(imageType(_row(id), prefs), ImageType.thumb, reason: id);
-      }
     });
 
     test('the universal override still wins', () async {

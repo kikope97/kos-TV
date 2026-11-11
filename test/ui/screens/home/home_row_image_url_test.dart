@@ -256,7 +256,7 @@ void main() {
       'P/item?h=280&t=p',
     ),
     _case(
-      'a Seerr poster row uses the TMDB poster',
+      'an outside list title in a poster row uses the TMDB poster',
       'Movie',
       {'PosterPath': '/poster.jpg', 'BackdropPath': 'https://full/bd.jpg'},
       ImageType.poster,
@@ -264,7 +264,7 @@ void main() {
       serverId: 'seerr',
     ),
     _case(
-      'a Seerr thumb row uses the backdrop as is',
+      'an outside list title in a thumb row uses the backdrop as is',
       'Movie',
       {'PosterPath': '/poster.jpg', 'BackdropPath': 'https://full/bd.jpg'},
       ImageType.thumb,
@@ -272,7 +272,7 @@ void main() {
       serverId: 'seerr',
     ),
     _case(
-      'a Seerr banner row with only a poster uses the poster',
+      'an outside list title in a banner row with only a poster uses the poster',
       'Movie',
       {'PosterPath': '/poster.jpg'},
       ImageType.banner,

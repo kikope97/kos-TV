@@ -8,15 +8,12 @@ import 'package:moonfin/auth/repositories/user_repository.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/repositories/offline_repository.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
-import 'package:moonfin/data/services/seerr/seerr_api_models.dart';
 import 'package:moonfin/data/viewmodels/item_detail_view_model.dart';
-import 'package:moonfin/data/viewmodels/seerr_media_detail_view_model.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/ui/widgets/navigation_layout.dart';
 import 'package:moonfin/ui/widgets/rating_display.dart';
 import 'package:moonfin/preference/detail_section_layout.dart';
 import 'package:moonfin/preference/preference_constants.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/detail/item_detail_screen.dart';
 import 'package:moonfin/ui/screens/detail/modern/modern_detail_content.dart';
@@ -30,15 +27,12 @@ import 'package:playback_core/playback_core.dart';
 
 class MockItemDetailViewModel extends Mock implements ItemDetailViewModel {}
 class MockPluginSyncService extends Mock implements PluginSyncService {}
-class MockSeerrPreferences extends Mock implements SeerrPreferences {}
 class MockMediaServerClient extends Mock implements MediaServerClient {}
 class MockImageApi extends Mock implements ImageApi {}
 class MockUserRepository extends Mock implements UserRepository {}
 class MockOfflineRepository extends Mock implements OfflineRepository {}
 class MockPlaybackManager extends Mock implements PlaybackManager {}
 class MockQueueService extends Mock implements QueueService {}
-class MockSeerrMediaDetailViewModel extends Mock
-    implements SeerrMediaDetailViewModel {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -46,7 +40,6 @@ void main() {
   late UserPreferences prefs;
   late MockItemDetailViewModel vm;
   late MockPluginSyncService pluginSyncService;
-  late MockSeerrPreferences seerrPrefs;
   late MockMediaServerClient mediaClient;
   late MockImageApi imageApi;
   late MockUserRepository userRepo;
@@ -64,14 +57,8 @@ void main() {
     GetIt.instance.registerSingleton<UserPreferences>(prefs);
 
     pluginSyncService = MockPluginSyncService();
-    when(() => pluginSyncService.seerrAvailable).thenReturn(false);
     when(() => pluginSyncService.pluginAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(pluginSyncService);
-
-    seerrPrefs = MockSeerrPreferences();
-    when(() => seerrPrefs.labelOrDefault(any())).thenReturn('Discover');
-    when(() => seerrPrefs.showRequestStatus).thenReturn(false);
-    GetIt.instance.registerSingleton<SeerrPreferences>(seerrPrefs);
 
     mediaClient = MockMediaServerClient();
     when(() => mediaClient.serverType).thenReturn(ServerType.jellyfin);
@@ -117,7 +104,6 @@ void main() {
     when(() => vm.similar).thenReturn([]);
     when(() => vm.reviews).thenReturn(const []);
     when(() => vm.collectionItems).thenReturn([]);
-    when(() => vm.missingCollectionItems).thenReturn([]);
     when(() => vm.parentCollections).thenReturn([]);
     when(() => vm.playlistItems).thenReturn([]);
     when(() => vm.playlistIndexBuilding).thenReturn(false);
@@ -125,7 +111,6 @@ void main() {
     when(() => vm.albums).thenReturn([]);
     when(() => vm.filmography).thenReturn([]);
     when(() => vm.features).thenReturn([]);
-    when(() => vm.seerr).thenReturn(null);
     when(() => vm.state).thenReturn(ItemDetailState.ready);
     when(() => vm.error).thenReturn(null);
     when(() => vm.effectiveSeasonId).thenReturn(null);
@@ -134,8 +119,6 @@ void main() {
     when(() => vm.actors).thenReturn([]);
     when(() => vm.directors).thenReturn([]);
     when(() => vm.writers).thenReturn([]);
-    when(() => vm.isSeerrOnly).thenReturn(false);
-    when(() => vm.localPersonId).thenReturn(null);
     when(() => vm.nextUp).thenReturn(null);
     when(() => vm.loadAllSeriesEpisodes()).thenAnswer((_) async {});
     when(() => vm.addListener(any())).thenReturn(null);
@@ -548,42 +531,5 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(navbarFocused, 0);
-  });
-
-  testWidgets('with the Seerr genres hidden, Down from the Seerr tab lands on its recommendations', (tester) async {
-    final seerr = MockSeerrMediaDetailViewModel();
-    when(() => seerr.state).thenReturn(
-      const SeerrMediaDetailState(
-        movie: SeerrMovieDetails(
-          id: 42,
-          title: 'Alien',
-          genres: [SeerrGenre(id: 1, name: 'Horror')],
-        ),
-        recommendations: [SeerrDiscoverItem(id: 1, title: 'Aliens')],
-      ),
-    );
-    when(() => seerr.canReportIssue).thenReturn(false);
-    when(() => seerr.canManageRequests).thenReturn(false);
-    when(() => vm.seerr).thenReturn(seerr);
-    when(() => vm.item).thenReturn(movieItem());
-    // Leaves the Seerr tab as the only one.
-    await hideSections('seerrGenresTags,mediaInfo');
-
-    await tester.pumpWidget(buildTestWidget());
-    await tester.pump(const Duration(milliseconds: 100));
-
-    final bar = tester.widget<DetailsTabBar>(find.byType(DetailsTabBar));
-    expect(bar.labels, ['Discover']);
-    expect(find.text('Aliens'), findsOneWidget);
-
-    bar.focusNodeFor(0).requestFocus();
-    await tester.pump();
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-    await tester.pump(const Duration(milliseconds: 100));
-
-    expect(
-      FocusManager.instance.primaryFocus?.debugLabel,
-      'seerrRecommendationsFirst',
-    );
   });
 }

@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
 import 'package:moonfin/auth/repositories/user_repository.dart';
 import 'package:moonfin/data/repositories/item_mutation_repository.dart';
 import 'package:moonfin/data/repositories/mdblist_repository.dart';
@@ -15,7 +14,6 @@ import 'package:moonfin/data/services/row_data_source.dart';
 import 'package:moonfin/data/viewmodels/item_detail_view_model.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/detail_section_layout.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/detail/item_detail_screen.dart';
 import 'package:moonfin/ui/theme/app_theme.dart';
@@ -34,8 +32,6 @@ class _UserLibraryApi extends Mock implements UserLibraryApi {}
 class _ImageApi extends Mock implements ImageApi {}
 
 class _PluginSync extends Mock implements PluginSyncService {}
-
-class _SessionRepository extends Mock implements SessionRepository {}
 
 class _PlaybackManager extends Mock implements PlaybackManager {}
 
@@ -66,7 +62,6 @@ void main() {
     when(() => userLibrary.supportsNumericUserRatings).thenReturn(false);
 
     final plugin = _PluginSync();
-    when(() => plugin.seerrAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(plugin);
     GetIt.instance.registerSingleton<UserPreferences>(prefs);
     GetIt.instance.registerSingleton<UserRepository>(UserRepository());
@@ -76,12 +71,6 @@ void main() {
         .thenReturn(_QueueService());
     when(() => GetIt.instance<OfflineRepository>().getItem(any()))
         .thenAnswer((_) async => null);
-    final seerrStore = PreferenceStore();
-    await seerrStore.init();
-    GetIt.instance.registerSingleton<SeerrPreferences>(
-      SeerrPreferences(seerrStore, _SessionRepository()),
-    );
-
     when(() => client.itemsApi).thenReturn(itemsApi);
     when(() => client.userLibraryApi).thenReturn(userLibrary);
     final imageApi = _ImageApi();

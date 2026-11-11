@@ -121,6 +121,36 @@ class HomeViewModel extends ChangeNotifier {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  /// Kos TV: when the load started behind the intro video ended, until Home
+  /// takes it (see [takePreload]).
+  DateTime? _preloadDoneAt;
+  bool _preloadPending = false;
+  bool _loadStarted = false;
+
+  /// Kos TV: loads Home behind the intro video, before Home is up, so it is
+  /// all there when the video ends. Not if Home got there first (the video
+  /// was skipped).
+  Future<void> preload() async {
+    if (_loadStarted) return;
+    _preloadPending = true;
+    _preloadDoneAt = null;
+    await load();
+    if (_preloadPending) _preloadDoneAt = DateTime.now();
+  }
+
+  /// Kos TV: whether Home, as it first comes up, can show what [preload]
+  /// loaded (or is still loading) instead of loading it all again. Only once.
+  bool takePreload() {
+    if (!_preloadPending) return false;
+    _preloadPending = false;
+    if (_isLoading) return true;
+    final done = _preloadDoneAt;
+    _preloadDoneAt = null;
+    return done != null &&
+        _rows.isNotEmpty &&
+        DateTime.now().difference(done) < const Duration(minutes: 2);
+  }
   Future<void> _loadDone = Future<void>.value();
   Future<void> _bgMerge = Future<void>.value();
   bool _bgMergeInFlight = false;
@@ -412,6 +442,7 @@ class HomeViewModel extends ChangeNotifier {
     newSectionsOnly = newSectionsOnly && _rows.isNotEmpty;
     if (newSectionsOnly) preserveExisting = true;
     _isLoading = true;
+    _loadStarted = true;
     final done = Completer<void>();
     _loadDone = done.future;
     if (!newSectionsOnly) {

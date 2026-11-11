@@ -7,7 +7,6 @@ import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/ui/widgets/anime_marker_badge.dart';
 import 'package:moonfin/ui/widgets/media_badge.dart';
 import 'package:moonfin/ui/widgets/media_card.dart';
-import 'package:moonfin/ui/widgets/seerr/seerr_media_type_badge.dart';
 
 class _MockAnimeMarkerRepository extends Mock
     implements AnimeMarkerRepository {}
@@ -16,7 +15,7 @@ void main() {
   Widget testCard({
     required bool isFavorite,
     String? animeMarkerItemId,
-    String? seerrMediaType,
+    String? mediaTypeBadge,
     bool overlayOccupiesTopLeft = false,
   }) => MaterialApp(
     localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -29,7 +28,7 @@ void main() {
         itemType: 'Movie',
         isFavorite: isFavorite,
         animeMarkerItemId: animeMarkerItemId,
-        seerrMediaType: seerrMediaType,
+        mediaTypeBadge: mediaTypeBadge,
         overlayOccupiesTopLeft: overlayOccupiesTopLeft,
         onTap: () {},
       ),
@@ -47,6 +46,11 @@ void main() {
     GetIt.instance.registerSingleton<AnimeMarkerRepository>(repository);
     addTearDown(() => GetIt.instance.reset());
   }
+
+  /// The MOVIE badge's box, around its label.
+  Finder typeBadge() => find
+      .ancestor(of: find.text('MOVIE'), matching: find.byType(DecoratedBox))
+      .first;
 
   Offset offsetFromCard(WidgetTester tester, Finder finder) {
     expect(finder, findsOneWidget);
@@ -118,21 +122,21 @@ void main() {
     'favorite badge sits under the media type badge',
     (tester) async {
       await tester.pumpWidget(
-        testCard(isFavorite: true, seerrMediaType: 'movie'),
+        testCard(isFavorite: true, mediaTypeBadge: 'movie'),
       );
 
-      final typeBadge = tester.getRect(find.byType(SeerrMediaTypeBadge));
+      final badge = tester.getRect(typeBadge());
       final favorite = tester.getRect(find.byType(MediaFavoriteBadge));
 
       expect(
-        offsetFromCard(tester, find.byType(SeerrMediaTypeBadge)).dy,
+        offsetFromCard(tester, typeBadge()).dy,
         closeTo(6.0, 0.1),
       );
       expect(
         offsetFromCard(tester, find.byType(MediaFavoriteBadge)).dx,
         closeTo(6.0, 0.1),
       );
-      expect(favorite.top - typeBadge.bottom, closeTo(4.0, 0.1));
+      expect(favorite.top - badge.bottom, closeTo(4.0, 0.1));
     },
   );
 
@@ -142,19 +146,19 @@ void main() {
       await tester.pumpWidget(
         testCard(
           isFavorite: true,
-          seerrMediaType: 'movie',
+          mediaTypeBadge: 'movie',
           overlayOccupiesTopLeft: true,
         ),
       );
 
-      final typeBadge = tester.getRect(find.byType(SeerrMediaTypeBadge));
+      final badge = tester.getRect(typeBadge());
       final favorite = tester.getRect(find.byType(MediaFavoriteBadge));
 
       expect(
-        offsetFromCard(tester, find.byType(SeerrMediaTypeBadge)).dy,
+        offsetFromCard(tester, typeBadge()).dy,
         closeTo(32.0, 0.1),
       );
-      expect(favorite.top - typeBadge.bottom, closeTo(4.0, 0.1));
+      expect(favorite.top - badge.bottom, closeTo(4.0, 0.1));
     },
   );
 }

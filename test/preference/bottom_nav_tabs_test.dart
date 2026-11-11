@@ -45,7 +45,7 @@ void main() {
     });
 
     test('round-trips through serialize', () {
-      const tabs = [BottomNavTab.discover, BottomNavTab.search];
+      const tabs = [BottomNavTab.kostvDiscover, BottomNavTab.search];
       expect(
         parsePinnedBottomNavTabs(serializePinnedBottomNavTabs(tabs)),
         tabs,
@@ -77,27 +77,13 @@ void main() {
       ]);
     });
 
-    test('Kids Mode leaves out Libraries, Live TV and Seerr', () {
-      const gates = BottomNavTabGates(
-        kidsMode: true,
-        showLiveTv: true,
-        seerrAvailable: true,
-      );
+    test('Kids Mode leaves out Libraries and Live TV', () {
+      const gates = BottomNavTabGates(kidsMode: true, showLiveTv: true);
       expect(gates.resolvePins(''), [
         BottomNavTab.search,
         BottomNavTab.favorites,
         BottomNavTab.genres,
       ]);
-    });
-
-    test('Seerr only counts once the plugin reports it available', () {
-      const without = BottomNavTabGates(showLibraries: false);
-      const withSeerr = BottomNavTabGates(
-        showLibraries: false,
-        seerrAvailable: true,
-      );
-      expect(without.resolvePins(''), isNot(contains(BottomNavTab.discover)));
-      expect(withSeerr.resolvePins(''), contains(BottomNavTab.discover));
     });
   });
 
@@ -191,10 +177,7 @@ void main() {
       expect(prefs.get(UserPreferences.bottomNavbarStyle),
           BottomNavbarStyle.dock);
 
-      final gates = BottomNavTabGates.fromPreferences(
-        prefs,
-        seerrAvailable: false,
-      );
+      final gates = BottomNavTabGates.fromPreferences(prefs);
       expect(gates.resolvePins(prefs.get(UserPreferences.bottomNavbarTabs)), [
         BottomNavTab.search,
         BottomNavTab.libraries,

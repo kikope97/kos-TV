@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
-import 'package:moonfin/data/services/seerr/seerr_api_models.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/ui/theme/app_theme.dart';
 import 'package:moonfin/ui/widgets/trailer_picker.dart';
@@ -90,23 +89,6 @@ void main() {
       'https://i.ytimg.com/vi/JtqIas3bYhg/mqdefault.jpg',
     );
     expect(choices[2].subtitled, isFalse);
-  });
-
-  test('offers YouTube trailers from Seerr ahead of its teasers', () {
-    final choices = seerrTrailerChoices(const [
-      SeerrVideo(key: 't1', name: 'Teaser', type: 'Teaser', site: 'YouTube'),
-      SeerrVideo(
-        key: 'f1',
-        name: 'Featurette',
-        type: 'Featurette',
-        site: 'YouTube',
-      ),
-      SeerrVideo(key: 'v1', name: 'Elsewhere', type: 'Trailer', site: 'Vimeo'),
-      SeerrVideo(key: 'a1', name: 'Trailer', type: 'Trailer', site: 'YouTube'),
-    ]);
-
-    expect(choices.map((c) => c.title), ['Trailer', 'Teaser']);
-    expect(choices.first.url, 'https://www.youtube.com/watch?v=a1');
   });
 
   testWidgets('a phone picks a trailer from a bottom sheet', (tester) async {

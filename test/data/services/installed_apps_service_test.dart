@@ -69,6 +69,19 @@ void main() {
     expect(apps.apps.last.isBanner, isFalse);
   });
 
+  test("the TV's own Settings app isn't listed twice", () async {
+    installed.add(app('com.android.tv.settings', 'Ajustes'));
+    final apps = service();
+    await apps.refresh();
+
+    // All apps opens the TV settings from its first card already.
+    expect(
+      apps.apps.map((a) => a.packageName),
+      isNot(contains('com.android.tv.settings')),
+    );
+    expect(apps.apps, hasLength(4));
+  });
+
   test('the Apps row starts with the usual streaming apps, then others', () async {
     final apps = service();
     await apps.refresh();

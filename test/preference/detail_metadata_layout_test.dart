@@ -16,7 +16,6 @@ void main() {
       expect(ids, contains('runtimeAndSeasons'));
       expect(ids, contains('status'));
       expect(ids, contains('genres'));
-      expect(ids, contains('seerrAvailability'));
       expect(ids, contains('upcomingEpisodeDate'));
     });
 
@@ -46,10 +45,6 @@ void main() {
       expect(
         DetailMetadataItem.status.subtitle(l10n),
         'Shows whether the series is continuing, ended, or returning',
-      );
-      expect(
-        DetailMetadataItem.seerrAvailability.subtitle(l10n),
-        'Shows request and media availability status from Seerr',
       );
       expect(DetailMetadataItem.year.subtitle(l10n), isNull);
       expect(DetailMetadataItem.genres.subtitle(l10n), isNull);

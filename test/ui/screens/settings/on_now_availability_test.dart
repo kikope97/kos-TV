@@ -54,7 +54,6 @@ void main() {
 
     final sync = _MockSyncService();
     when(() => sync.pluginAvailable).thenReturn(false);
-    when(() => sync.seerrAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(sync);
   });
 

@@ -84,6 +84,18 @@ class InstalledAppsService extends ChangeNotifier {
   /// fewer of the usual ones are installed.
   static const _defaultHomeCount = 8;
 
+  /// The TV's own Settings app, which All apps already opens from its first
+  /// card, so it isn't listed a second time. (The TV side leaves it out too,
+  /// whatever its package on that TV.)
+  @visibleForTesting
+  static const settingsPackages = {
+    'com.android.tv.settings',
+    'com.android.settings',
+  };
+
+  static bool _listed(InstalledApp app) =>
+      !settingsPackages.contains(app.packageName);
+
   List<InstalledApp> _apps = const [];
   bool _loaded = false;
   Future<void>? _loading;
@@ -114,7 +126,7 @@ class InstalledAppsService extends ChangeNotifier {
       _apps = [
         for (final entry in raw ?? const <Object?>[])
           ?InstalledApp.fromMap(entry),
-      ];
+      ].where(_listed).toList();
     } on PlatformException catch (e) {
       debugPrint('[InstalledApps] list failed: $e');
     } on MissingPluginException {
@@ -138,7 +150,7 @@ class InstalledAppsService extends ChangeNotifier {
                   ? base64Decode(entry['art'] as String)
                   : null,
             }),
-      ];
+      ].where(_listed).toList();
     } catch (e) {
       debugPrint('[InstalledApps] demo list failed: $e');
     }

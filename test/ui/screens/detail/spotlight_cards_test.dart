@@ -10,19 +10,15 @@ import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/repositories/tmdb_repository.dart';
-import 'package:moonfin/data/services/seerr/seerr_api_models.dart';
 import 'package:moonfin/data/viewmodels/item_detail_view_model.dart';
-import 'package:moonfin/data/viewmodels/seerr_media_detail_view_model.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/l10n/app_localizations_en.dart';
 import 'package:moonfin/preference/detail_section_layout.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/detail/spotlight/spotlight_cards.dart';
 import 'package:moonfin/ui/screens/detail/spotlight/widgets/spotlight_modal_grids.dart';
 import 'package:moonfin/ui/screens/detail/spotlight/widgets/spotlight_section_modal.dart';
 import 'package:moonfin/ui/widgets/detail_reviews.dart';
-import 'package:moonfin/ui/widgets/seerr/seerr_collection_banner.dart';
 import 'package:moonfin/util/platform_detection.dart';
 import 'package:server_core/server_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -31,11 +27,7 @@ class _Context extends Mock implements BuildContext {}
 
 class _Vm extends Mock implements ItemDetailViewModel {}
 
-class _SeerrVm extends Mock implements SeerrMediaDetailViewModel {}
-
 class _ImageApi extends Mock implements ImageApi {}
-
-class _SeerrPrefs extends Mock implements SeerrPreferences {}
 
 final _l10n = AppLocalizationsEn();
 
@@ -52,20 +44,6 @@ AggregatedItem _child(String id, String type) => AggregatedItem(
   rawData: {'Id': id, 'Type': type, 'Name': id},
 );
 
-/// Shaped like the view model's real missing items: a bare TMDB id with the
-/// Seerr media type, the way every other Seerr item in the app is built.
-AggregatedItem _seerrMissing(String tmdbId, String name) => AggregatedItem(
-  id: tmdbId,
-  serverId: 'seerr',
-  rawData: {
-    'Id': tmdbId,
-    'Name': name,
-    'Type': 'Movie',
-    'SeerrMediaType': 'movie',
-    'ProviderIds': {'Tmdb': tmdbId},
-  },
-);
-
 const TmdbReview _review = (
   author: 'Critic',
   rating: 8.0,
@@ -80,9 +58,6 @@ SpotlightCardActions _actions({
   FocusNode? collectionSortFocusNode,
 }) => SpotlightCardActions(
   openItem: (_) {},
-  openSeerrItem: (_) {},
-  openSeerrBrowse: (_, _, _, _) {},
-  openSeerrCollection: (_) {},
   openPerson: (_) {},
   openStudio: (_) {},
   playFromChapter: (_) {},
@@ -104,15 +79,6 @@ void main() {
     final store = PreferenceStore();
     await store.init();
     prefs = UserPreferences(store);
-
-    // The seasons card reads Seerr's per-season status, and the app always has
-    // these preferences registered.
-    final seerrPrefs = _SeerrPrefs();
-    when(() => seerrPrefs.brand(any())).thenAnswer(
-      (i) => i.positionalArguments.first as String,
-    );
-    when(() => seerrPrefs.showRequestStatus).thenReturn(false);
-    GetIt.instance.registerSingleton<SeerrPreferences>(seerrPrefs);
 
     final imageApi = _ImageApi();
     when(
@@ -149,7 +115,6 @@ void main() {
 
     vm = _Vm();
     when(() => vm.imageApi).thenReturn(imageApi);
-    when(() => vm.isSeerrOnly).thenReturn(false);
     when(() => vm.actors).thenReturn(const []);
     when(() => vm.directors).thenReturn(const []);
     when(() => vm.writers).thenReturn(const []);
@@ -170,21 +135,15 @@ void main() {
     when(() => vm.filmographySeries).thenReturn(const []);
     when(() => vm.collectionItems).thenReturn(const []);
     when(() => vm.collectionPlaylistItems).thenReturn(const []);
-    when(() => vm.missingCollectionItems).thenReturn(const []);
     when(() => vm.playlistItems).thenReturn(const []);
     when(() => vm.parentCollections).thenReturn(const []);
     when(() => vm.canManagePlaylistTracks).thenReturn(false);
-    when(() => vm.seerr).thenReturn(null);
   });
 
   tearDown(() => GetIt.instance.reset());
 
   List<SpotlightCardSpec> cardsFor(
     AggregatedItem item, {
-    List<SeerrDiscoverItem> seerrAppearances = const [],
-    List<SeerrDiscoverItem> seerrCrewCredits = const [],
-    String? mainBackdropKey,
-    bool seerrAvailable = false,
     String? selectedMediaSourceId,
   }) => spotlightCardsFor(
     vm: vm,
@@ -193,10 +152,6 @@ void main() {
     l10n: _l10n,
     tmdbStudios: const [],
     actions: _actions(),
-    seerrAppearances: seerrAppearances,
-    seerrCrewCredits: seerrCrewCredits,
-    mainBackdropKey: mainBackdropKey,
-    seerrAvailable: seerrAvailable,
     selectedMediaSourceId: selectedMediaSourceId,
   );
 
@@ -213,30 +168,6 @@ void main() {
 
   Future<void> hide(String ids) =>
       prefs.set(detailSectionLayout.hiddenPreference, ids);
-
-  /// A Seerr-only movie with three facts, three tags and a collection.
-  void seerrOnlyWithDetails() {
-    when(() => vm.isSeerrOnly).thenReturn(true);
-    final seerrVm = _SeerrVm();
-    when(() => seerrVm.state).thenReturn(
-      SeerrMediaDetailState(
-        movie: const SeerrMovieDetails(
-          id: 42,
-          title: 'The Movie',
-          status: 'Released',
-          releaseDate: '2025-06-18',
-          budget: 60000000,
-          genres: [
-            SeerrGenre(id: 1, name: 'Horror'),
-            SeerrGenre(id: 2, name: 'Thriller'),
-          ],
-          keywords: [SeerrKeyword(id: 3, name: 'zombie')],
-          collection: SeerrCollectionRef(id: 9, name: 'The Collection'),
-        ),
-      ),
-    );
-    when(() => vm.seerr).thenReturn(seerrVm);
-  }
 
   test('an item with no loaded content gets no cards', () {
     expect(cardsFor(_item('Movie')), isEmpty);
@@ -458,65 +389,6 @@ void main() {
     ]);
   });
 
-  test('a person does not include seerr cards when seerr is disabled', () {
-    when(() => vm.filmographyMovies).thenReturn([_child('m1', 'Movie')]);
-    final cards = cardsFor(
-      _item('Person'),
-      seerrAppearances: const [
-        SeerrDiscoverItem(id: 101, title: 'Appearance', backdropPath: '/app.jpg'),
-      ],
-      seerrCrewCredits: const [
-        SeerrDiscoverItem(id: 102, title: 'Crew Credit', backdropPath: '/crew.jpg'),
-      ],
-      seerrAvailable: false,
-    );
-
-    expect(cards.map((c) => c.id), ['filmography']);
-    expect(cards.single.sections.map((s) => s.title), [_l10n.movies]);
-  });
-
-  test('a person splits into filmography, appearances, and crew cards when seerr is enabled', () {
-    when(() => vm.filmographyMovies).thenReturn([
-      AggregatedItem(
-        id: 'm1',
-        serverId: 'server-1',
-        rawData: const {
-          'Id': 'm1',
-          'Type': 'Movie',
-          'Name': 'Local Movie',
-          'BackdropImageTags': ['tag1'],
-        },
-      ),
-    ]);
-    final cards = cardsFor(
-      _item('Person'),
-      seerrAppearances: const [
-        SeerrDiscoverItem(id: 101, title: 'Cast Item', backdropPath: '/cast_bg.jpg'),
-      ],
-      seerrCrewCredits: const [
-        SeerrDiscoverItem(id: 102, title: 'Crew Item', backdropPath: '/crew_bg.jpg'),
-      ],
-      seerrAvailable: true,
-    );
-
-    expect(cards.map((c) => c.id), ['filmography', 'appearances', 'crew']);
-
-    final filmography = cards[0];
-    expect(filmography.title, _l10n.spotlightFilmography);
-    expect(filmography.subtitle, '1 movie');
-    expect(filmography.sections.map((s) => s.title), [_l10n.movies]);
-
-    final appearances = cards[1];
-    expect(appearances.title, _l10n.appearancesSeerr);
-    expect(appearances.subtitle, _l10n.spotlightItemsCount(1));
-    expect(appearances.sections.single.title, _l10n.appearancesSeerr);
-
-    final crew = cards[2];
-    expect(crew.title, _l10n.crewContributionsSeerr);
-    expect(crew.subtitle, _l10n.spotlightItemsCount(1));
-    expect(crew.sections.single.title, _l10n.crewContributionsSeerr);
-  });
-
   test('a person filmography card sorts movies and series according to sort preference', () async {
     when(() => vm.filmographyMovies).thenReturn([
       AggregatedItem(
@@ -594,192 +466,6 @@ void main() {
     );
   });
 
-  test('a person Seerr cards sort and group credits according to preferences', () async {
-    const rawAppearances = [
-      SeerrDiscoverItem(id: 1, mediaType: 'tv', title: 'Zeta Show', releaseDate: '2020-01-01'),
-      SeerrDiscoverItem(id: 2, mediaType: 'movie', title: 'Alpha Show', releaseDate: '2024-01-01'),
-      SeerrDiscoverItem(id: 1, mediaType: 'movie', title: 'Alpha Movie Same ID', releaseDate: '2024-01-01'),
-    ];
-    const rawCrew = [
-      SeerrDiscoverItem(id: 10, mediaType: 'movie', title: 'Film A', job: 'Director', releaseDate: '2018-01-01'),
-      SeerrDiscoverItem(id: 10, mediaType: 'movie', title: 'Film A', job: 'Writer', releaseDate: '2018-01-01'),
-      SeerrDiscoverItem(id: 20, mediaType: 'movie', title: 'Film B', job: 'Producer', releaseDate: '2023-01-01'),
-    ];
-
-    final ctx = _Context();
-
-    // Default: alphabetical, group=false
-    await prefs.set(UserPreferences.personPageSortOption, 'alphabetical');
-    await prefs.set(UserPreferences.personPageGroupItems, false);
-    var cards = cardsFor(
-      _item('Person'),
-      seerrAppearances: rawAppearances,
-      seerrCrewCredits: rawCrew,
-      seerrAvailable: true,
-    );
-    var appearancesCard = cards.firstWhere((c) => c.id == 'appearances');
-    var crewCard = cards.firstWhere((c) => c.id == 'crew');
-
-    expect(
-      (appearancesCard.sections.single.builder(ctx, null) as SpotlightSeerrGridSection).items.map((i) => i.title),
-      ['Alpha Movie Same ID', 'Alpha Show', 'Zeta Show'],
-    );
-    // Ungrouped crew: has length 3
-    var crewItems = (crewCard.sections.single.builder(ctx, null) as SpotlightSeerrGridSection).items;
-    expect(crewItems, hasLength(3));
-    expect(crewItems.map((i) => i.title), ['Film A', 'Film A', 'Film B']);
-
-    // Group items enabled: joins roles, keeps movie & tv separate even with same ID
-    await prefs.set(UserPreferences.personPageGroupItems, true);
-    cards = cardsFor(
-      _item('Person'),
-      seerrAppearances: rawAppearances,
-      seerrCrewCredits: rawCrew,
-      seerrAvailable: true,
-    );
-    appearancesCard = cards.firstWhere((c) => c.id == 'appearances');
-    final appearanceItems = (appearancesCard.sections.single.builder(ctx, null) as SpotlightSeerrGridSection).items;
-    expect(appearanceItems, hasLength(3)); // id:1 tv and id:1 movie are separate
-    expect(appearanceItems.map((i) => i.mediaType), containsAll(['tv', 'movie']));
-
-    crewCard = cards.firstWhere((c) => c.id == 'crew');
-    crewItems = (crewCard.sections.single.builder(ctx, null) as SpotlightSeerrGridSection).items;
-    expect(crewItems, hasLength(2));
-    expect(crewItems.first.job, 'Director, Writer');
-
-    // Release date ascending
-    await prefs.set(UserPreferences.personPageSortOption, 'releaseDateAsc');
-    cards = cardsFor(
-      _item('Person'),
-      seerrAppearances: rawAppearances,
-      seerrCrewCredits: rawCrew,
-      seerrAvailable: true,
-    );
-    appearancesCard = cards.firstWhere((c) => c.id == 'appearances');
-    expect(
-      (appearancesCard.sections.single.builder(ctx, null) as SpotlightSeerrGridSection).items.map((i) => i.title),
-      ['Zeta Show', 'Alpha Movie Same ID', 'Alpha Show'],
-    );
-
-    // Release date descending with tie-break
-    await prefs.set(UserPreferences.personPageSortOption, 'releaseDateDesc');
-    cards = cardsFor(
-      _item('Person'),
-      seerrAppearances: rawAppearances,
-      seerrCrewCredits: rawCrew,
-      seerrAvailable: true,
-    );
-    appearancesCard = cards.firstWhere((c) => c.id == 'appearances');
-    expect(
-      (appearancesCard.sections.single.builder(ctx, null) as SpotlightSeerrGridSection).items.map((i) => i.title),
-      ['Alpha Show', 'Alpha Movie Same ID', 'Zeta Show'],
-    );
-  });
-
-  test('a person assigns unique backdrops across main backdrop and cards', () {
-    final imageApi = vm.imageApi;
-    when(
-      () => imageApi.getBackdropImageUrl(
-        'm1',
-        maxWidth: any(named: 'maxWidth'),
-        tag: any(named: 'tag'),
-      ),
-    ).thenReturn('http://img/local_m1_backdrop');
-
-    when(() => vm.filmographyMovies).thenReturn([
-      AggregatedItem(
-        id: 'm1',
-        serverId: 'server-1',
-        rawData: const {
-          'Id': 'm1',
-          'Type': 'Movie',
-          'Name': 'Movie One',
-          'BackdropImageTags': ['tag-m1'],
-        },
-      ),
-    ]);
-
-    final cards = cardsFor(
-      _item('Person'),
-      seerrAppearances: const [
-        SeerrDiscoverItem(id: 101, title: 'Cast 1', backdropPath: '/cast1.jpg'),
-        SeerrDiscoverItem(id: 102, title: 'Cast 2', backdropPath: '/cast2.jpg'),
-      ],
-      seerrCrewCredits: const [
-        SeerrDiscoverItem(id: 201, title: 'Crew 1', backdropPath: '/crew1.jpg'),
-      ],
-      mainBackdropKey: 'local:m1:tag-m1',
-      seerrAvailable: true,
-    );
-
-    expect(cards.map((c) => c.id), ['filmography', 'appearances', 'crew']);
-    final filmographyBg = cards[0].imageUrl;
-    final appearancesBg = cards[1].imageUrl;
-    final crewBg = cards[2].imageUrl;
-
-    expect(filmographyBg, isNotNull);
-    expect(appearancesBg, isNotNull);
-    expect(crewBg, isNotNull);
-
-    expect(filmographyBg, isNot(equals(appearancesBg)));
-    expect(appearancesBg, isNot(equals(crewBg)));
-    expect(filmographyBg, isNot(equals(crewBg)));
-  });
-
-  test('seerr recommendations join the similar card with a seerr title', () {
-    final seerrVm = _SeerrVm();
-    when(() => seerrVm.state).thenReturn(
-      SeerrMediaDetailState(
-        movie: const SeerrMovieDetails(id: 42, title: 'The Movie'),
-        recommendations: const [
-          SeerrDiscoverItem(id: 1, title: 'Rec', posterPath: '/rec.jpg'),
-        ],
-        similar: const [
-          SeerrDiscoverItem(id: 2, title: 'Sim', posterPath: '/sim.jpg'),
-        ],
-      ),
-    );
-    when(() => vm.seerr).thenReturn(seerrVm);
-    when(() => vm.similar).thenReturn([_child('s1', 'Movie')]);
-    when(() => vm.similarSource).thenReturn(SimilarSource.moonfin);
-
-    final cards = cardsFor(_item('Movie'));
-
-    final similarCard = cards.singleWhere((c) => c.id == 'similar');
-    expect(similarCard.title, _l10n.recommendations);
-    expect(similarCard.sections.map((s) => s.title), [
-      _l10n.recommendationSystemMoonfin,
-      _l10n.spotlightRecommendationsSeerr,
-      'Similar (Seerr)',
-    ]);
-  });
-
-  test('seerr genres and stats lead the recommendations card', () {
-    final seerrVm = _SeerrVm();
-    when(() => seerrVm.state).thenReturn(
-      SeerrMediaDetailState(
-        movie: const SeerrMovieDetails(
-          id: 42,
-          title: 'The Movie',
-          status: 'Released',
-          genres: [SeerrGenre(id: 1, name: 'Action')],
-        ),
-        recommendations: const [
-          SeerrDiscoverItem(id: 1, title: 'Rec', posterPath: '/rec.jpg'),
-        ],
-      ),
-    );
-    when(() => vm.seerr).thenReturn(seerrVm);
-
-    final card = cardsFor(_item('Movie')).singleWhere((c) => c.id == 'similar');
-
-    // Untitled sections, so they read as context rather than another list.
-    expect(card.sections.first.title, isNull);
-    expect(card.sections.map((s) => s.title).last, isNotNull);
-    // The counted subtitle still describes only the titles on offer.
-    expect(card.subtitle, '1 title');
-  });
-
   test('the library similar list keeps the Similar label when Jellyfin made it', () {
     when(() => vm.similar).thenReturn([_child('s1', 'Movie')]);
     // The default recommendation source is Moonfin, but the view model fell
@@ -831,161 +517,15 @@ void main() {
     expect(collectionsCard.sections.single.count, 3);
   });
 
-  test('collections card slots in the titles the library is missing', () async {
-    when(() => vm.parentCollections).thenReturn([
-      ParentCollection(
-        id: 'box-1',
-        name: 'Alien Anthology',
-        boxSetItem: _child('box-1', 'BoxSet'),
-        items: [_child('m1', 'Movie'), _child('m2', 'Movie')],
-        missingItems: [_seerrMissing('999', 'Missing Sequel')],
-      ),
-    ]);
-
-    var section = cardsFor(_item('Movie'))
-        .singleWhere((c) => c.id == 'collections')
-        .sections
-        .single;
-    expect(section.count, 4);
-
-    // The toggle hides them again without a reload.
-    await prefs.set(UserPreferences.seerrShowMissingCollectionItems, false);
-    section = cardsFor(_item('Movie'))
-        .singleWhere((c) => c.id == 'collections')
-        .sections
-        .single;
-    expect(section.count, 3);
-  });
-
-  test('boxset items card combines library items and missing seerr items', () {
+  test('boxset items card lists the library items', () {
     when(() => vm.collectionItems).thenReturn([
       _child('m1', 'Movie'),
       _child('m2', 'Movie'),
     ]);
-    when(() => vm.missingCollectionItems).thenReturn([
-      _seerrMissing('999', 'Missing Sequel'),
-    ]);
     final cards = cardsFor(_item('BoxSet'));
     final boxSetCard = cards.singleWhere((c) => c.id == 'boxset_items');
     expect(boxSetCard.title, _l10n.spotlightMoviesAndShows);
-    expect(boxSetCard.sections.first.count, 3);
-  });
-
-  test('a person separates seerr credits into appearances and crew cards when library has no items', () {
-    final cards = spotlightCardsFor(
-      vm: vm,
-      item: _item('Person'),
-      prefs: prefs,
-      l10n: _l10n,
-      tmdbStudios: const [],
-      actions: _actions(),
-      seerrAppearances: const [
-        SeerrDiscoverItem(id: 1, title: 'Cast In', posterPath: '/a.jpg'),
-      ],
-      seerrCrewCredits: const [
-        SeerrDiscoverItem(id: 2, title: 'Wrote', posterPath: '/b.jpg'),
-      ],
-      seerrAvailable: true,
-    );
-
-    expect(cards.map((c) => c.id), ['appearances', 'crew']);
-    expect(cards[0].sections.single.title, _l10n.appearancesSeerr);
-    expect(cards[1].sections.single.title, _l10n.crewContributionsSeerr);
-  });
-
-  test('a seerr-only title only offers what seerr can fill', () {
-    when(() => vm.isSeerrOnly).thenReturn(true);
-    when(() => vm.actors).thenReturn([
-      {'Id': 'p1', 'Name': 'Actor', 'ProfilePath': '/x.jpg'},
-    ]);
-    when(() => vm.similar).thenReturn([_child('s1', 'Movie')]);
-    // Chapters and features never apply to an unlibraried title.
-    final cards = cardsFor(_item('Movie'));
-
-    expect(cards.map((c) => c.id), ['people', 'similar']);
-  });
-
-  test('a seerr-only title leads with a details card of its seerr facts', () {
-    when(() => vm.isSeerrOnly).thenReturn(true);
-    final seerrVm = _SeerrVm();
-    when(() => seerrVm.state).thenReturn(
-      SeerrMediaDetailState(
-        movie: const SeerrMovieDetails(
-          id: 42,
-          title: 'The Movie',
-          status: 'Released',
-          releaseDate: '2025-06-18',
-          budget: 60000000,
-          genres: [
-            SeerrGenre(id: 1, name: 'Horror'),
-            SeerrGenre(id: 2, name: 'Thriller'),
-          ],
-          keywords: [SeerrKeyword(id: 3, name: 'zombie')],
-          collection: SeerrCollectionRef(id: 9, name: 'The Collection'),
-        ),
-      ),
-    );
-    when(() => vm.seerr).thenReturn(seerrVm);
-    when(() => vm.similar).thenReturn([_child('s1', 'Movie')]);
-
-    final cards = cardsFor(_item('Movie'));
-
-    final details = cards.first;
-    expect(details.id, 'seerr_details');
-    expect(details.title, _l10n.details);
-    // Status, release date and budget make three facts, two genres and a
-    // keyword make three tags.
-    expect(details.subtitle, '3 facts · 3 tags');
-    expect(details.sections.map((s) => s.title), [
-      _l10n.genresAndTags,
-      isNull,
-      isNull,
-    ]);
-    expect(details.sections.first.count, 3);
-  });
-
-  test('a seerr-only title does not repeat its facts on the similar card', () {
-    when(() => vm.isSeerrOnly).thenReturn(true);
-    final seerrVm = _SeerrVm();
-    when(() => seerrVm.state).thenReturn(
-      SeerrMediaDetailState(
-        movie: const SeerrMovieDetails(
-          id: 42,
-          title: 'The Movie',
-          status: 'Released',
-          genres: [SeerrGenre(id: 1, name: 'Horror')],
-        ),
-        recommendations: const [
-          SeerrDiscoverItem(id: 1, title: 'Rec', posterPath: '/rec.jpg'),
-        ],
-      ),
-    );
-    when(() => vm.seerr).thenReturn(seerrVm);
-
-    final cards = cardsFor(_item('Movie'));
-
-    expect(cards.map((c) => c.id), ['seerr_details', 'similar']);
-    final similar = cards.singleWhere((c) => c.id == 'similar');
-    expect(similar.sections.map((s) => s.title), [
-      _l10n.spotlightRecommendationsSeerr,
-    ]);
-  });
-
-  test('a seerr-only title with nothing extra gets no details card', () {
-    when(() => vm.isSeerrOnly).thenReturn(true);
-    final seerrVm = _SeerrVm();
-    when(() => seerrVm.state).thenReturn(
-      SeerrMediaDetailState(
-        movie: const SeerrMovieDetails(id: 42, title: 'The Movie'),
-      ),
-    );
-    when(() => vm.seerr).thenReturn(seerrVm);
-    when(() => vm.similar).thenReturn([_child('s1', 'Movie')]);
-
-    expect(
-      cardsFor(_item('Movie')).map((c) => c.id),
-      isNot(contains('seerr_details')),
-    );
+    expect(boxSetCard.sections.first.count, 2);
   });
 
   test('hiding every section of a card leaves the card out', () async {
@@ -1045,19 +585,6 @@ void main() {
       _child('s1', 'Movie'),
       _child('s2', 'Movie'),
     ]);
-    final seerrVm = _SeerrVm();
-    when(() => seerrVm.state).thenReturn(
-      SeerrMediaDetailState(
-        movie: const SeerrMovieDetails(id: 42, title: 'The Movie'),
-        recommendations: const [
-          SeerrDiscoverItem(id: 1, title: 'Rec', posterPath: '/rec.jpg'),
-        ],
-        similar: const [
-          SeerrDiscoverItem(id: 2, title: 'Sim', posterPath: '/sim.jpg'),
-        ],
-      ),
-    );
-    when(() => vm.seerr).thenReturn(seerrVm);
     final item = _item('Movie', {
       'Studios': [
         {'Name': 'A24'},
@@ -1067,7 +594,7 @@ void main() {
       ],
     });
 
-    await hide('cast,chapters,moreLikeThis,seerrRecommendations');
+    await hide('cast,chapters,moreLikeThis');
     final cards = cardsFor(item);
 
     final people = cards.singleWhere((c) => c.id == 'people');
@@ -1084,34 +611,8 @@ void main() {
     // A hidden chapter list doesn't lend the card its artwork either.
     expect(extras.imageUrl, isNot('http://img/chapter'));
 
-    final similar = cards.singleWhere((c) => c.id == 'similar');
-    expect(similar.subtitle, '1 title');
-    // With the library list gone, Seerr's similar list takes the plain label
-    // the same way it does when the library has nothing similar.
-    expect(similar.sections.map((s) => s.title), [_l10n.similar]);
-  });
-
-  test('a details card left with only its facts is dropped', () async {
-    seerrOnlyWithDetails();
-    final item = _item('Movie');
-    expect(cardFor('seerr_details', item), isNotNull);
-
-    // The facts can't take focus, so a modal of only those would leave the
-    // remote with nowhere to land.
-    await hide('seerrGenresTags,seerrCollection');
-
-    expect(cardsFor(item).map((c) => c.id), isNot(contains('seerr_details')));
-    expect(cardFor('seerr_details', item), isNull);
-  });
-
-  test('a details card with its chips hidden keeps the facts and banner', () async {
-    seerrOnlyWithDetails();
-    await hide('seerrGenresTags');
-
-    final details = cardFor('seerr_details', _item('Movie'))!;
-
-    expect(details.subtitle, '3 facts');
-    expect(details.sections.map((s) => s.focusable), [false, true]);
+    // With the library list gone there is nothing similar left to show.
+    expect(cards.map((c) => c.id), isNot(contains('similar')));
   });
 
   test('a hidden more episodes card never loads the other seasons', () async {
@@ -1127,23 +628,6 @@ void main() {
     verifyNever(() => vm.loadAllSeriesEpisodes());
     // A season's own episodes are what the page is about, so they stay.
     expect(cardsFor(_item('Season')).map((c) => c.id), ['episodes']);
-  });
-
-  test('the person Seerr cards follow their own switches', () async {
-    await hide('seerrPersonAppearances');
-
-    final cards = cardsFor(
-      _item('Person'),
-      seerrAppearances: const [
-        SeerrDiscoverItem(id: 1, title: 'Cast In', posterPath: '/a.jpg'),
-      ],
-      seerrCrewCredits: const [
-        SeerrDiscoverItem(id: 2, title: 'Wrote', posterPath: '/b.jpg'),
-      ],
-      seerrAvailable: true,
-    );
-
-    expect(cards.map((c) => c.id), ['crew']);
   });
 
   test('a collection drops its playlist order and the hidden people', () async {
@@ -1175,49 +659,6 @@ void main() {
     expect(cards.map((c) => c.id), ['boxset_items', 'people']);
     expect(cards[1].subtitle, '1 person');
     expect(cards[1].sections.map((s) => s.title), [_l10n.crewSection]);
-  });
-
-  testWidgets('with the chips hidden the details modal opens on the banner', (
-    tester,
-  ) async {
-    PlatformDetection.setTvMode(true);
-    addTearDown(() => PlatformDetection.setTvMode(false));
-    // The banner reads the focus colour once it holds focus.
-    GetIt.instance.registerSingleton<UserPreferences>(prefs);
-    seerrOnlyWithDetails();
-    await hide('seerrGenresTags');
-    final details = cardFor('seerr_details', _item('Movie'))!;
-
-    await tester.pumpWidget(
-      MaterialApp(
-        localizationsDelegates: AppLocalizations.localizationsDelegates,
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => SpotlightSectionModal.show(
-                context,
-                title: details.effectiveModalTitle,
-                sections: details.sections,
-              ),
-              child: const Text('open'),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-
-    final focused = FocusManager.instance.primaryFocus;
-    final bannerText = find.descendant(
-      of: find.byType(SeerrCollectionBanner),
-      matching: find.byType(Text),
-    );
-    expect(Focus.of(tester.element(bannerText.first)), same(focused));
-    // Through the modal's own opening node, rather than the trap scope's
-    // fallback walk that happens to find the same banner.
-    expect(focused?.debugLabel, 'SpotlightModalFirstCell');
   });
 
   testWidgets('the reviews modal opens on the first review', (tester) async {

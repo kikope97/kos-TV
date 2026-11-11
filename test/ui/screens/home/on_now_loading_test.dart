@@ -11,7 +11,6 @@ import 'package:moonfin/data/services/row_data_source.dart';
 import 'package:moonfin/data/viewmodels/media_bar_view_model.dart';
 import 'package:moonfin/preference/home_section_config.dart';
 import 'package:moonfin/preference/preference_constants.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/home/home_view_model.dart';
 import 'package:server_core/server_core.dart';
@@ -26,8 +25,6 @@ class _MockMediaBar extends Mock implements MediaBarViewModel {}
 class _MockMultiServer extends Mock implements MultiServerRepository {}
 
 class _MockSync extends Mock implements PluginSyncService {}
-
-class _MockSeerrPrefs extends Mock implements SeerrPreferences {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -51,10 +48,8 @@ void main() {
     );
 
     final sync = _MockSync();
-    when(() => sync.seerrAvailable).thenReturn(false);
     when(() => sync.pluginAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(sync);
-    GetIt.instance.registerSingleton<SeerrPreferences>(_MockSeerrPrefs());
 
     source = _MockDataSource();
     final client = _MockClient();

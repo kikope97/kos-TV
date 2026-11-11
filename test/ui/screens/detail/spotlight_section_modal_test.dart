@@ -4,16 +4,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
-import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/detail/spotlight/widgets/spotlight_modal_grids.dart';
 import 'package:moonfin/ui/screens/detail/spotlight/widgets/spotlight_section_modal.dart';
 import 'package:moonfin/ui/widgets/overlay_sheet.dart';
-import 'package:moonfin/ui/widgets/seerr/seerr_status_dot.dart';
 import 'package:moonfin/util/platform_detection.dart';
 import 'package:server_core/server_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -147,51 +144,6 @@ void main() {
     }
   });
 
-  testWidgets('on TV the opening focus skips a section that cannot take it', (
-    tester,
-  ) async {
-    // Like the Seerr facts ahead of the collection banner once the genre chips
-    // are hidden.
-    PlatformDetection.setTvMode(true);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => SpotlightSectionModal.show(
-                context,
-                title: 'Details',
-                sections: [
-                  SpotlightModalSection(
-                    focusable: false,
-                    builder: (context, firstFocusNode) => const Text('facts'),
-                  ),
-                  SpotlightModalSection(
-                    title: 'Collection',
-                    builder: (context, firstFocusNode) => Row(
-                      children: [
-                        cell('lead'),
-                        cell('banner', focusNode: firstFocusNode),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              child: const Text('open'),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.tap(find.text('open'));
-    await tester.pumpAndSettle();
-
-    // Handed to the facts, the node would never attach and the fallback walk
-    // would land on the first cell instead.
-    expect(Focus.of(tester.element(find.text('banner'))).hasFocus, isTrue);
-    expect(Focus.of(tester.element(find.text('lead'))).hasFocus, isFalse);
-  });
-
   testWidgets('back closes the modal and restores the card focus', (
     tester,
   ) async {
@@ -213,12 +165,12 @@ void main() {
   testWidgets('sections that arrive while the modal is open are shown', (
     tester,
   ) async {
-    // Seerr is fetched without being awaited so a slow server never holds up
-    // library content, so its rows routinely land after a card is opened.
+    // Some rows are fetched without being awaited so a slow lookup never holds
+    // up library content, so they routinely land after a card is opened.
     PlatformDetection.setTvMode(false);
     final notifier = ChangeNotifier();
     addTearDown(notifier.dispose);
-    var seerrArrived = false;
+    var recommendationsArrived = false;
 
     List<SpotlightModalSection> current() => [
       SpotlightModalSection(
@@ -227,7 +179,7 @@ void main() {
         builder: (context, firstFocusNode) =>
             Row(children: [cell('similar-0', focusNode: firstFocusNode)]),
       ),
-      if (seerrArrived)
+      if (recommendationsArrived)
         SpotlightModalSection(
           title: 'Recommendations',
           count: 3,
@@ -243,13 +195,13 @@ void main() {
             builder: (context) => ElevatedButton(
               onPressed: () => SpotlightSectionModal.show(
                 context,
-                title: 'Similar and Recommendations',
+                title: 'More Like This',
                 sections: current(),
                 refreshOn: notifier,
                 refresh: () => (
-                  title: seerrArrived
-                      ? 'Similar and Seerr Recommendations'
-                      : 'Similar and Recommendations',
+                  title: recommendationsArrived
+                      ? 'More Like This and Recommendations'
+                      : 'More Like This',
                   icon: null,
                   sections: current(),
                 ),
@@ -266,13 +218,13 @@ void main() {
     expect(find.text('Similar'), findsOneWidget);
     expect(find.text('Recommendations'), findsNothing);
 
-    seerrArrived = true;
+    recommendationsArrived = true;
     notifier.notifyListeners();
     await tester.pumpAndSettle();
 
     expect(find.text('Recommendations'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
-    expect(find.text('Similar and Seerr Recommendations'), findsOneWidget);
+    expect(find.text('More Like This and Recommendations'), findsOneWidget);
   });
 
   testWidgets('touch: the close button dismisses without the suppressor', (
@@ -361,127 +313,4 @@ void main() {
     expect(returnedAction, isNotNull);
     expect(actionExecuted, isTrue);
   });
-
-  testWidgets(
-    'SpotlightMediaGridSection displays SeerrStatusDot on season cards when showSeerrAvailabilityBadges is true',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      final store = PreferenceStore();
-      await store.init();
-      final prefs = UserPreferences(store);
-      await prefs.set(UserPreferences.showSeerrAvailabilityBadges, true);
-
-      final season = AggregatedItem(
-        id: 's1',
-        serverId: 'server-1',
-        rawData: const {
-          'Id': 's1',
-          'Type': 'Season',
-          'Name': 'Season 1',
-          'IndexNumber': 1,
-        },
-      );
-      final imageApi = _ImageApi();
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SpotlightMediaGridSection(
-              items: [season],
-              imageApi: imageApi,
-              prefs: prefs,
-              seerrSeasonStatus: const {1: SeerrMediaStatus.available},
-              onItemTap: (_) {},
-            ),
-          ),
-        ),
-      );
-
-      expect(find.byType(SeerrStatusDot), findsOneWidget);
-    },
-  );
-
-  testWidgets(
-    'SpotlightMediaGridSection hides SeerrStatusDot on season cards when showSeerrAvailabilityBadges is false',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      final store = PreferenceStore();
-      await store.init();
-      final prefs = UserPreferences(store);
-      await prefs.set(UserPreferences.showSeerrAvailabilityBadges, false);
-
-      final season = AggregatedItem(
-        id: 's1',
-        serverId: 'server-1',
-        rawData: const {
-          'Id': 's1',
-          'Type': 'Season',
-          'Name': 'Season 1',
-          'IndexNumber': 1,
-        },
-      );
-      final imageApi = _ImageApi();
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: SpotlightMediaGridSection(
-              items: [season],
-              imageApi: imageApi,
-              prefs: prefs,
-              seerrSeasonStatus: const {1: SeerrMediaStatus.available},
-              onItemTap: (_) {},
-            ),
-          ),
-        ),
-      );
-
-      expect(find.byType(SeerrStatusDot), findsNothing);
-    },
-  );
-
-  testWidgets(
-    'SpotlightMediaGridSection runs a banner across season cards in the banner style',
-    (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      final store = PreferenceStore();
-      await store.init();
-      final prefs = UserPreferences(store);
-      await prefs.set(UserPreferences.seerrBadgeStyle, SeerrBadgeStyle.banner);
-      GetIt.instance.registerSingleton<UserPreferences>(prefs);
-      addTearDown(GetIt.instance.reset);
-
-      final season = AggregatedItem(
-        id: 's1',
-        serverId: 'server-1',
-        rawData: const {
-          'Id': 's1',
-          'Type': 'Season',
-          'Name': 'Season 1',
-          'IndexNumber': 1,
-        },
-      );
-
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: Scaffold(
-            body: SpotlightMediaGridSection(
-              items: [season],
-              imageApi: _ImageApi(),
-              prefs: prefs,
-              seerrSeasonStatus: const {1: SeerrMediaStatus.available},
-              onItemTap: (_) {},
-            ),
-          ),
-        ),
-      );
-
-      expect(find.byType(SeerrStatusBanner), findsOneWidget);
-      expect(find.byType(SeerrStatusDot), findsNothing);
-    },
-  );
 }
-
-

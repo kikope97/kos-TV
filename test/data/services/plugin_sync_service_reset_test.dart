@@ -6,17 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
 import 'package:moonfin/data/services/incomplete_recordings_service.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:server_core/server_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockClient extends Mock implements MediaServerClient {}
-
-class _MockSessionRepository extends Mock implements SessionRepository {}
 
 /// Serves canned plugin responses and records every request, so the tests can
 /// assert exactly which calls the reset made.
@@ -35,12 +31,6 @@ class _RecordingAdapter implements HttpClientAdapter {
   /// What the ping says about incomplete recordings.
   bool incompleteRecordingsSupported = false;
 
-  /// The notification choices the server keeps for the user.
-  Map<String, dynamic> notificationPrefs = {};
-
-  /// Set when the server should refuse to save notification choices.
-  bool failNotificationPosts = false;
-
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -55,12 +45,7 @@ class _RecordingAdapter implements HttpClientAdapter {
     }
 
     Map<String, dynamic>? body;
-    if (path.endsWith('/Moonfin/Notifications/Prefs')) {
-      if (options.method == 'POST') {
-        return ResponseBody.fromString('', failNotificationPosts ? 500 : 204);
-      }
-      body = notificationPrefs;
-    } else if (path.endsWith('/Moonfin/Ping')) {
+    if (path.endsWith('/Moonfin/Ping')) {
       body = {
         'installed': true,
         'settingsSyncEnabled': true,
@@ -109,12 +94,6 @@ void main() {
     final store = PreferenceStore();
     await store.init();
     prefs = UserPreferences(store);
-
-    final session = _MockSessionRepository();
-    when(() => session.activeUserId).thenReturn('user1');
-    GetIt.instance.registerSingleton<SeerrPreferences>(
-      SeerrPreferences(store, session),
-    );
 
     client = _MockClient();
     when(() => client.baseUrl).thenReturn('http://plugin.test');
@@ -248,43 +227,5 @@ void main() {
 
     expect(incomplete.supported, isFalse);
     incomplete.dispose();
-  });
-
-  test('signing in takes the notification choices the server keeps', () async {
-    final seerrPrefs = GetIt.instance<SeerrPreferences>();
-    adapter.notificationPrefs = {
-      'notifyOnNewMedia': true,
-      'notifyOnIssues': false,
-    };
-
-    await service.syncNotificationPrefs(client);
-
-    expect(seerrPrefs.notifyOnNewMedia, isTrue);
-    expect(seerrPrefs.notifyOnIssues, isFalse);
-    expect(
-      adapter.requests,
-      isNot(contains('POST /Moonfin/Notifications/Prefs')),
-    );
-  });
-
-  test('a change the server never got goes up at the next sign-in', () async {
-    final seerrPrefs = GetIt.instance<SeerrPreferences>();
-    adapter.failNotificationPosts = true;
-    await seerrPrefs.setNotifyOnNewMedia(true);
-    await service.pushNotificationPrefs(client);
-    expect(seerrPrefs.notificationPrefsUnsynced, isTrue);
-
-    adapter.failNotificationPosts = false;
-    adapter.notificationPrefs = {'notifyOnNewMedia': false};
-    adapter.requests.clear();
-    await service.syncNotificationPrefs(client);
-
-    expect(seerrPrefs.notifyOnNewMedia, isTrue);
-    expect(seerrPrefs.notificationPrefsUnsynced, isFalse);
-    expect(adapter.requests, contains('POST /Moonfin/Notifications/Prefs'));
-    expect(
-      adapter.requests,
-      isNot(contains('GET /Moonfin/Notifications/Prefs')),
-    );
   });
 }

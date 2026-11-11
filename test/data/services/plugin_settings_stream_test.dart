@@ -8,21 +8,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:server_core/server_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockClient extends Mock implements MediaServerClient {}
 
-class _MockSessionRepository extends Mock implements SessionRepository {}
-
 /// Answers the plugin and keeps every settings stream open for the test to
 /// write into, the way the server holds it open between events.
 class _StreamAdapter implements HttpClientAdapter {
   final List<StreamController<Uint8List>> streams = [];
+
+  /// Every path asked for, in order.
+  final List<String> paths = [];
 
   void send(String text) =>
       streams.last.add(Uint8List.fromList(utf8.encode(text)));
@@ -34,6 +33,7 @@ class _StreamAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     final path = options.uri.path;
+    paths.add(path);
     if (path.endsWith('/Moonfin/Settings/Stream')) {
       final body = StreamController<Uint8List>();
       streams.add(body);
@@ -65,12 +65,7 @@ class _StreamAdapter implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-Map<String, dynamic> _seerrEvent({String route = '/seerr/media/1'}) => {
-  'type': 'seerrNotification',
-  'title': 'New request',
-  'body': 'Ada requested Heat',
-  'route': route,
-};
+const _settingsUpdatedEvent = {'type': 'settingsUpdated'};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -84,12 +79,6 @@ void main() {
     final store = PreferenceStore();
     await store.init();
     final prefs = UserPreferences(store);
-
-    final session = _MockSessionRepository();
-    when(() => session.activeUserId).thenReturn('user1');
-    GetIt.instance.registerSingleton<SeerrPreferences>(
-      SeerrPreferences(store, session),
-    );
 
     client = _MockClient();
     when(() => client.baseUrl).thenReturn('http://plugin.test');
@@ -119,18 +108,23 @@ void main() {
   group('settings stream', () {
     test('a quiet stream stays open past the server heartbeat', () {
       fakeAsync((async) {
-        final heard = <SeerrNotificationEvent>[];
-        service.seerrNotifications.listen(heard.add);
+        int profileReads() => adapter.paths
+            .where((p) => p.contains('/Moonfin/Settings/Resolved/'))
+            .length;
         service.syncOnLogin(client, serverId: 'srv1');
         async.elapse(const Duration(seconds: 5));
         adapter.send(':connected\n\n');
 
         async.elapse(const Duration(seconds: 45));
-        adapter.send('data: ${jsonEncode(_seerrEvent())}\n\n');
-        async.flushMicrotasks();
+        final readsBefore = profileReads();
+        adapter.send('data: ${jsonEncode(_settingsUpdatedEvent)}\n\n');
+        // Long enough for the read to go out, nowhere near the idle limit.
+        async.elapse(const Duration(seconds: 1));
 
         expect(adapter.streams, hasLength(1));
-        expect(heard.single.title, 'New request');
+        // The event came through the open stream, so the profile was read
+        // again.
+        expect(profileReads(), readsBefore + 1);
         service.dispose();
       });
     });
@@ -146,31 +140,6 @@ void main() {
         expect(adapter.streams, hasLength(2));
         service.dispose();
       });
-    });
-  });
-
-  group('Seerr notifications', () {
-    test('every listener hears one, even after another stops', () async {
-      final kept = <SeerrNotificationEvent>[];
-      final dropped = service.seerrNotifications.listen((_) {});
-      service.seerrNotifications.listen(kept.add);
-      await dropped.cancel();
-
-      await service.handleServerEvent(client, _seerrEvent());
-      await pumpEventQueue();
-
-      expect(kept.single.route, '/seerr/media/1');
-    });
-
-    test('one with nowhere to go still comes through', () async {
-      final heard = <SeerrNotificationEvent>[];
-      service.seerrNotifications.listen(heard.add);
-
-      await service.handleServerEvent(client, _seerrEvent(route: ''));
-      await pumpEventQueue();
-
-      expect(heard.single.route, isEmpty);
-      expect(heard.single.body, 'Ada requested Heat');
     });
   });
 }

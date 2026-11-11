@@ -11,7 +11,6 @@ import 'package:moonfin/data/services/achievements_service.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/data/services/saved_media_presence.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/syncplay/syncplay_manager.dart';
 import 'package:moonfin/ui/screens/settings/settings_side_panel.dart';
@@ -21,8 +20,6 @@ import 'package:moonfin/watch_party/silo_watch_party_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _Sync extends Mock implements PluginSyncService {}
-
-class _Seerr extends Mock implements SeerrPreferences {}
 
 class _Achievements extends Mock implements AchievementsService {}
 
@@ -50,13 +47,9 @@ void main() {
       ..registerSingleton<UserPreferences>(prefs);
 
     final sync = _Sync();
-    when(() => sync.seerrAvailable).thenReturn(false);
     when(() => sync.pluginAvailable).thenReturn(false);
     when(() => sync.calendarAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(sync);
-    final seerr = _Seerr();
-    when(() => seerr.enabled).thenReturn(false);
-    GetIt.instance.registerSingleton<SeerrPreferences>(seerr);
     final achievements = _Achievements();
     when(() => achievements.socialAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<AchievementsService>(achievements);

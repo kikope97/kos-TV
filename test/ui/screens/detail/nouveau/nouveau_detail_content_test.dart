@@ -11,20 +11,15 @@ import 'package:moonfin/data/repositories/offline_repository.dart';
 import 'package:moonfin/data/repositories/tmdb_repository.dart';
 import 'package:moonfin/data/services/row_data_source.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
-import 'package:moonfin/data/services/seerr/seerr_api_models.dart';
 import 'package:moonfin/data/viewmodels/item_detail_view_model.dart';
-import 'package:moonfin/data/viewmodels/seerr_media_detail_view_model.dart';
 import 'package:moonfin/auth/repositories/user_repository.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/detail_section_layout.dart';
 import 'package:moonfin/preference/preference_constants.dart'
     show DetailScreenStyle;
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
 import 'package:moonfin/ui/screens/detail/nouveau/chapters/nouveau_chapters_section.dart';
 import 'package:moonfin/ui/screens/detail/nouveau/details/nouveau_details_section.dart';
-import 'package:moonfin/ui/screens/detail/nouveau/discovery/nouveau_discovery_rail.dart';
 import 'package:moonfin/ui/screens/detail/nouveau/hero/nouveau_action_buttons.dart';
 import 'package:moonfin/ui/screens/detail/nouveau/hero/nouveau_hero.dart';
 import 'package:moonfin/ui/screens/detail/nouveau/nouveau_detail_content.dart';
@@ -35,8 +30,6 @@ import 'package:moonfin/ui/screens/detail/nouveau/reviews/nouveau_reviews_sectio
 import 'package:moonfin/ui/screens/detail/nouveau/shared/nouveau_segmented_selector.dart';
 import 'package:moonfin/ui/theme/app_theme.dart';
 import 'package:moonfin/ui/widgets/rating_display.dart';
-import 'package:moonfin/ui/widgets/seerr/seerr_item_chips.dart';
-import 'package:moonfin/ui/widgets/seerr/seerr_stats_card.dart';
 import 'package:moonfin/ui/widgets/skeleton/skeleton_detail_screen.dart';
 import 'package:moonfin/ui/widgets/skeleton/skeleton_shimmer.dart';
 import 'package:moonfin/util/platform_detection.dart';
@@ -55,18 +48,14 @@ class _ImageApi extends Mock implements ImageApi {}
 
 class _PluginSync extends Mock implements PluginSyncService {}
 
-class _SessionRepository extends Mock implements SessionRepository {}
-
 class _PlaybackManager extends Mock implements PlaybackManager {}
 
 class _OfflineRepository extends Mock implements OfflineRepository {}
 
 class _QueueService extends Mock implements QueueService {}
 
-class _SeerrViewModel extends Mock implements SeerrMediaDetailViewModel {}
-
-/// A real view model with the lists that need a server, or a Seerr lookup, to
-/// fill handed in directly.
+/// A real view model with the lists that need a server to fill handed in
+/// directly.
 class _StubbedViewModel extends ItemDetailViewModel {
   _StubbedViewModel({
     required super.itemId,
@@ -76,13 +65,9 @@ class _StubbedViewModel extends ItemDetailViewModel {
     required super.tmdbRepository,
   });
 
-  SeerrMediaDetailViewModel? seerrOverride;
   List<AggregatedItem>? similarOverride;
   List<AggregatedItem>? filmographyOverride;
   List<TmdbReview>? reviewsOverride;
-
-  @override
-  SeerrMediaDetailViewModel? get seerr => seerrOverride ?? super.seerr;
 
   @override
   List<TmdbReview> get reviews => reviewsOverride ?? super.reviews;
@@ -147,7 +132,6 @@ void main() {
     when(() => userLibrary.supportsNumericUserRatings).thenReturn(false);
 
     plugin = _PluginSync();
-    when(() => plugin.seerrAvailable).thenReturn(false);
     when(() => plugin.tmdbReviewsAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(plugin);
     GetIt.instance.registerSingleton<UserPreferences>(prefs);
@@ -165,11 +149,6 @@ void main() {
     when(
       () => GetIt.instance<OfflineRepository>().getSeasonEpisodes(any()),
     ).thenAnswer((_) async => const []);
-    final seerrStore = PreferenceStore();
-    await seerrStore.init();
-    GetIt.instance.registerSingleton<SeerrPreferences>(
-      SeerrPreferences(seerrStore, _SessionRepository()),
-    );
 
     when(() => client.itemsApi).thenReturn(itemsApi);
     when(() => client.userLibraryApi).thenReturn(userLibrary);
@@ -618,19 +597,6 @@ void main() {
       expect(play.hasPrimaryFocus, isTrue);
     }
 
-    // A lookup that landed with nothing the viewer can request or report.
-    _SeerrViewModel seerrWith(SeerrMediaDetailState state) {
-      final seerr = _SeerrViewModel();
-      when(() => seerr.state).thenReturn(state);
-      when(() => seerr.relatedLoadComplete).thenReturn(true);
-      when(() => seerr.canRequest).thenReturn(false);
-      when(() => seerr.canRequest4k).thenReturn(false);
-      when(() => seerr.canRequestAdvanced).thenReturn(false);
-      when(() => seerr.canManageRequests).thenReturn(false);
-      when(() => seerr.canReportIssue).thenReturn(false);
-      return seerr;
-    }
-
     final actor = {'Name': 'Actor', 'Type': 'Actor', 'Id': 'person-1'};
     final chapter = {'StartPositionTicks': 1000, 'Name': 'Chapter one'};
 
@@ -738,19 +704,6 @@ void main() {
       tester,
     ) async {
       useTv(tester);
-      final seerr = seerrWith(
-        const SeerrMediaDetailState(
-          movie: SeerrMovieDetails(
-            id: 603,
-            title: 'Movie title',
-            status: 'Released',
-            voteAverage: 8.1,
-            genres: [SeerrGenre(id: 28, name: 'Action')],
-          ),
-          similar: [SeerrDiscoverItem(id: 604, title: 'Sequel')],
-        ),
-      );
-
       final vm = viewModel(
         'Movie',
         data: {
@@ -769,23 +722,19 @@ void main() {
             },
           ],
         },
-      )..seerrOverride = seerr;
+      );
       await pumpContent(tester, vm, initialFocusNode: play, size: tvSize);
 
       final details = tester.state<NouveauDetailsSectionState>(
         find.byType(NouveauDetailsSection),
       );
       expect(find.text('Studio One'), findsOneWidget);
-      expect(find.byType(SeerrItemChips), findsOneWidget);
-      expect(find.byType(SeerrStatsCard), findsOneWidget);
       expect(details.canFocusTop, isTrue);
 
-      // The reading node was mounted for the stats and the file details, and
-      // keeps its context after they go, which used to keep it in the chain.
-      await hide(tester, vm, 'studios,seerrGenresTags,seerrStats,mediaInfo');
+      // The reading node was mounted for the file details, and keeps its
+      // context after they go, which used to keep it in the chain.
+      await hide(tester, vm, 'studios,mediaInfo');
       expect(find.text('Studio One'), findsNothing);
-      expect(find.byType(SeerrItemChips), findsNothing);
-      expect(find.byType(SeerrStatsCard), findsNothing);
       expect(details.canFocusTop, isFalse);
 
       await focusPlay(tester);
@@ -795,84 +744,6 @@ void main() {
       // The people rail is the last stop now, so Down stays put.
       await press(tester, LogicalKeyboardKey.arrowDown);
       expect(focusIn<NouveauPeopleSection>(), isTrue);
-    });
-
-    testWidgets('hidden Seerr recommendations stop stripping the related rail', (
-      tester,
-    ) async {
-      when(() => plugin.seerrAvailable).thenReturn(true);
-
-      AggregatedItem library(int index, {int? tmdb, String? name}) =>
-          AggregatedItem(
-            id: 'similar-$index',
-            serverId: 'server',
-            rawData: {
-              'Id': 'similar-$index',
-              'Name': name ?? 'Similar $index',
-              'Type': 'Movie',
-              'ProductionYear': 2000 + index,
-              'ProviderIds': {'Tmdb': '${tmdb ?? 200 + index}'},
-            },
-          );
-
-      // The first seven are the protected head of the rail. The two after it
-      // are the tail, and one of them is also a Seerr recommendation.
-      final similar = [
-        for (var i = 0; i < 7; i++) library(i),
-        library(7, tmdb: 900, name: 'Shared pick'),
-        library(8),
-      ];
-
-      final seerr = seerrWith(
-        const SeerrMediaDetailState(
-          movie: SeerrMovieDetails(id: 100, title: 'Movie title'),
-          recommendations: [
-            SeerrDiscoverItem(id: 900, mediaType: 'movie', title: 'Shared'),
-            SeerrDiscoverItem(id: 901, mediaType: 'movie', title: 'Both'),
-          ],
-          similar: [
-            SeerrDiscoverItem(id: 901, mediaType: 'movie', title: 'Both'),
-            SeerrDiscoverItem(id: 902, mediaType: 'movie', title: 'Only here'),
-          ],
-        ),
-      );
-
-      final vm =
-          viewModel(
-              'Movie',
-              data: {
-                ...itemData('Movie'),
-                'ProviderIds': const {'Tmdb': '100'},
-              },
-            )
-            ..similarOverride = similar
-            ..seerrOverride = seerr;
-      await pumpContent(tester, vm);
-
-      List<List<String>> rails() => [
-        for (final rail in tester.widgetList<NouveauDiscoveryRail>(
-          find.byType(NouveauDiscoveryRail),
-        ))
-          [for (final item in rail.items) item.id],
-      ];
-
-      final head = [for (var i = 0; i < 7; i++) 'similar-$i'];
-
-      expect(rails(), [
-        [...head, 'similar-8', '902'],
-        ['900', '901'],
-      ]);
-
-      await prefs.set(
-        detailSectionLayout.hiddenPreference,
-        'seerrRecommendations',
-      );
-      await tester.pumpWidget(content(vm));
-      await tester.pump(const Duration(milliseconds: 500));
-
-      expect(rails(), [
-        [...head, 'similar-7', 'similar-8', '901', '902'],
-      ]);
     });
 
     testWidgets('person tabs and the All fallback leave hidden credits out', (

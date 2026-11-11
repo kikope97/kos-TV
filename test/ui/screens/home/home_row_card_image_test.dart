@@ -157,20 +157,6 @@ void main() {
       expect(lookups.single.useSeriesThumbs, isTrue);
     });
 
-    test('a Seerr filter row keeps its wide Classic cards', () async {
-      final prefs = await createPreferences(HomeRowsStyle.v2);
-      const seerrStudios = HomeRow(
-        id: 'seerr_studios',
-        title: 'Studios',
-        rowType: HomeRowType.pluginDynamic,
-      );
-      final card = image(seerrStudios, _item('s1', 'Studio'), prefs);
-
-      expect(card.aspectRatio, 16 / 9);
-      expect(lookups.single.imageType, ImageType.thumb);
-      expect(lookups.single.height, closeTo(110 * 0.8, 0.001));
-    });
-
     test('My Media asks for posters as a My Media row', () async {
       final prefs = await createPreferences(HomeRowsStyle.v2);
       const myMedia = HomeRow(

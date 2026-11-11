@@ -70,15 +70,13 @@ void main() {
     test('a route that only starts with a tab name doesn\'t match it', () {
       expect(bottomNavTabMatchesRoute(BottomNavTab.libraries, '/library-x'),
           isFalse);
-      expect(bottomNavTabMatchesRoute(BottomNavTab.discover, '/seerr/requests'),
-          isTrue);
     });
 
     test('Kos TV: Discover lights up on its own screen only', () {
       expect(bottomNavTabMatchesRoute(BottomNavTab.kostvDiscover, '/discover'),
           isTrue);
       expect(
-          bottomNavTabMatchesRoute(BottomNavTab.kostvDiscover, '/seerr/discover'),
+          bottomNavTabMatchesRoute(BottomNavTab.kostvDiscover, '/discover-x'),
           isFalse);
     });
   });
@@ -126,18 +124,21 @@ void main() {
       );
     });
 
-        test('Kids Mode keeps what children may use', () {
+    test('Kids Mode keeps what children may use', () {
       final kids = tiles(
         gates: const BottomNavTabGates(
           kidsMode: true,
           showLiveTv: true,
-          seerrAvailable: true,
+          kostvDiscoverAvailable: true,
         ),
         saved: true,
       );
       expect(kids.map((t) => t.tab), isNot(contains(BottomNavTab.libraries)));
       expect(kids.map((t) => t.tab), isNot(contains(BottomNavTab.liveTv)));
-      expect(kids.map((t) => t.tab), isNot(contains(BottomNavTab.discover)));
+      expect(
+        kids.map((t) => t.tab),
+        isNot(contains(BottomNavTab.kostvDiscover)),
+      );
       expect(kids,
           contains(const BottomNavHubTile.action(BottomNavHubAction.saved)));
     });

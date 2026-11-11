@@ -7,19 +7,15 @@ import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonfin/auth/models/user.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
 import 'package:moonfin/auth/repositories/user_repository.dart';
 import 'package:moonfin/data/models/aggregated_library.dart';
 import 'package:moonfin/data/repositories/search_repository.dart';
-import 'package:moonfin/data/repositories/seerr_repository.dart';
 import 'package:moonfin/data/repositories/user_views_repository.dart';
 import 'package:moonfin/data/services/media_server_client_factory.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/data/services/recent_searches_store.dart';
-import 'package:moonfin/data/services/seerr/seerr_api_models.dart';
 import 'package:moonfin/data/services/server_messages_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/search/search_screen.dart';
 import 'package:moonfin/ui/widgets/navigation_layout.dart';
@@ -53,9 +49,6 @@ class _FakePluginSyncService extends ChangeNotifier
   Map<String, dynamic>? smartAnswer;
 
   @override
-  bool get seerrAvailable => false;
-
-  @override
   bool get calendarAvailable => false;
 
   @override
@@ -70,27 +63,6 @@ class _FakePluginSyncService extends ChangeNotifier
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakeSeerrRepository extends Fake implements SeerrRepository {
-  @override
-  Future<void> ensureInitialized({bool force = false}) async {}
-
-  @override
-  bool get isAvailable => true;
-
-  @override
-  Future<SeerrDiscoverPage> search(
-    String query, {
-    String? mediaType,
-    int limit = 20,
-    int offset = 0,
-  }) async => const SeerrDiscoverPage();
-}
-
-class _FakeSessionRepository extends Fake implements SessionRepository {
-  @override
-  String? get activeUserId => null;
 }
 
 class _FakeGameLibraryRegistry extends Fake implements GameLibraryRegistry {
@@ -167,9 +139,6 @@ void main() {
     getIt.registerSingleton<UserRepository>(_FakeUserRepository());
     getIt.registerSingleton<UserViewsRepository>(_FakeUserViewsRepository());
     getIt.registerSingleton<PluginSyncService>(pluginSync);
-    getIt.registerSingleton<SeerrPreferences>(
-      SeerrPreferences(store, _FakeSessionRepository()),
-    );
     getIt.registerSingleton<GameLibraryRegistry>(_FakeGameLibraryRegistry());
     getIt.registerSingleton<PlaybackManager>(_FakePlaybackManager());
     getIt.registerSingleton<MediaServerClientFactory>(_FakeClientFactory());
@@ -251,20 +220,14 @@ void main() {
     );
   });
 
-  testWidgets('smart search rows sit above the results and take D-pad focus', (
+  testWidgets('smart search sits above the results and takes D-pad focus', (
     tester,
   ) async {
     PlatformDetection.setInterfaceLayout(InterfaceLayout.tv);
-    GetIt.instance.registerSingletonAsync<SeerrRepository>(
-      () async => _FakeSeerrRepository(),
-    );
     pluginSync.smartAnswer = {
       'Ready': true,
       'Items': [
         {'Id': 's1', 'Name': 'Smart One', 'Type': 'Movie'},
-      ],
-      'Seerr': [
-        {'id': 7, 'mediaType': 'movie', 'title': 'Seerr Smart'},
       ],
     };
     tester.view.physicalSize = const Size(1920, 1080);
@@ -284,8 +247,7 @@ void main() {
     }
 
     double top(String text) => tester.getTopLeft(find.text(text)).dy;
-    expect(top('Smart Search'), lessThan(top('Smart Search on Seerr')));
-    expect(top('Smart Search on Seerr'), lessThan(top('Movies')));
+    expect(top('Smart Search'), lessThan(top('Movies')));
 
     FocusNode cardNode(String title) =>
         Focus.of(tester.element(find.text(title).first));
@@ -294,15 +256,11 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await settle();
-    expect(FocusManager.instance.primaryFocus, cardNode('Seerr Smart'));
-
-    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
-    await settle();
     expect(FocusManager.instance.primaryFocus, cardNode('Movie One'));
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
     await settle();
-    expect(FocusManager.instance.primaryFocus, cardNode('Seerr Smart'));
+    expect(FocusManager.instance.primaryFocus, cardNode('Smart One'));
 
     itemsApi.people!.complete({'Items': []});
     await settle();

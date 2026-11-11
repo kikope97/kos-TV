@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonfin/auth/models/user.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
 import 'package:moonfin/auth/repositories/user_repository.dart';
 import 'package:moonfin/data/models/aggregated_library.dart';
 import 'package:moonfin/data/repositories/item_mutation_repository.dart';
@@ -18,7 +17,6 @@ import 'package:moonfin/data/services/row_data_source.dart';
 import 'package:moonfin/data/services/server_messages_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/preference_constants.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/browse/immersive_music_screen.dart';
 import 'package:moonfin/ui/screens/browse/music_browse_screen.dart';
@@ -56,18 +54,10 @@ class _FakeUserViewsRepository extends ChangeNotifier
 class _FakePluginSyncService extends ChangeNotifier
     implements PluginSyncService {
   @override
-  bool get seerrAvailable => false;
-
-  @override
   bool get calendarAvailable => false;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakeSessionRepository extends Fake implements SessionRepository {
-  @override
-  String? get activeUserId => null;
 }
 
 class _FakeGameLibraryRegistry extends Fake implements GameLibraryRegistry {
@@ -185,9 +175,6 @@ void main() {
     getIt.registerSingleton<UserRepository>(_FakeUserRepository());
     getIt.registerSingleton<UserViewsRepository>(_FakeUserViewsRepository());
     getIt.registerSingleton<PluginSyncService>(_FakePluginSyncService());
-    getIt.registerSingleton<SeerrPreferences>(
-      SeerrPreferences(store, _FakeSessionRepository()),
-    );
     getIt.registerSingleton<GameLibraryRegistry>(_FakeGameLibraryRegistry());
     getIt.registerSingleton<PlaybackManager>(_FakePlaybackManager());
     getIt.registerSingleton<MediaServerClientFactory>(_FakeClientFactory());

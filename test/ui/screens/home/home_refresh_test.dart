@@ -8,7 +8,6 @@ import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/data/services/row_data_source.dart';
 import 'package:moonfin/data/viewmodels/media_bar_view_model.dart';
 import 'package:moonfin/preference/home_section_config.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/navigation/home_refresh_bus.dart';
 import 'package:moonfin/ui/screens/home/home_view_model.dart';
@@ -24,8 +23,6 @@ class _MockMediaBar extends Mock implements MediaBarViewModel {}
 class _MockMultiServer extends Mock implements MultiServerRepository {}
 
 class _MockSync extends Mock implements PluginSyncService {}
-
-class _MockSeerrPrefs extends Mock implements SeerrPreferences {}
 
 // Issue #1332: a Home tap or a pull down refreshes Home with a new media bar
 // set, while the refreshes that run on their own keep the current one.
@@ -62,10 +59,8 @@ void main() {
       );
 
       final sync = _MockSync();
-      when(() => sync.seerrAvailable).thenReturn(false);
       when(() => sync.pluginAvailable).thenReturn(false);
       GetIt.instance.registerSingleton<PluginSyncService>(sync);
-      GetIt.instance.registerSingleton<SeerrPreferences>(_MockSeerrPrefs());
 
       final client = _MockClient();
       when(() => client.userId).thenReturn('user');

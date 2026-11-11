@@ -39,7 +39,6 @@ void main() {
     GetIt.instance.registerSingleton<UserPreferences>(prefs);
 
     final pluginSync = _PluginSyncService();
-    when(() => pluginSync.seerrAvailable).thenReturn(false);
     when(() => pluginSync.tmdbPersonLinksAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(pluginSync);
 

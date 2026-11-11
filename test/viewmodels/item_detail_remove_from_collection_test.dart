@@ -81,7 +81,6 @@ void main() {
     await store.init();
     GetIt.instance.registerSingleton<UserPreferences>(UserPreferences(store));
     final pluginSync = _PluginSyncService();
-    when(() => pluginSync.seerrAvailable).thenReturn(false);
     when(() => pluginSync.pluginAvailable).thenReturn(false);
     when(() => pluginSync.collectionOrderSupported(any())).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(pluginSync);

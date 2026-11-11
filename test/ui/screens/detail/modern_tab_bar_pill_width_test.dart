@@ -37,7 +37,7 @@ void main() {
               width: 800,
               child: DetailsTabBar(
                 pill: true,
-                labels: const ['Cast', 'Seerr'],
+                labels: const ['Cast', 'Similar'],
                 selectedIndex: 1,
                 onSelect: (_) {},
                 focusNodeFor: (i) => focusNodes[i],
@@ -79,7 +79,7 @@ void main() {
               width: 200,
               child: DetailsTabBar(
                 pill: true,
-                labels: const ['Cast', 'Crew', 'Studios', 'Chapters', 'Details', 'Seerr'],
+                labels: const ['Cast', 'Crew', 'Studios', 'Chapters', 'Details', 'Similar'],
                 selectedIndex: 5,
                 onSelect: (_) {},
                 focusNodeFor: (i) => focusNodes[i],

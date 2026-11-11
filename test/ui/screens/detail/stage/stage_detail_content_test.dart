@@ -12,9 +12,7 @@ import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/data/viewmodels/item_detail_view_model.dart';
 import 'package:moonfin/auth/repositories/user_repository.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
 import 'package:moonfin/ui/screens/detail/detail_layout_metrics.dart';
 import 'package:moonfin/ui/screens/detail/stage/stage_detail_content.dart';
 import 'package:moonfin/ui/screens/detail/stage/stage_track_chips.dart';
@@ -33,8 +31,6 @@ class _UserLibraryApi extends Mock implements UserLibraryApi {}
 class _ImageApi extends Mock implements ImageApi {}
 
 class _PluginSync extends Mock implements PluginSyncService {}
-
-class _SessionRepository extends Mock implements SessionRepository {}
 
 class _PlaybackManager extends Mock implements PlaybackManager {}
 
@@ -65,7 +61,6 @@ void main() {
     when(() => userLibrary.supportsNumericUserRatings).thenReturn(false);
 
     final plugin = _PluginSync();
-    when(() => plugin.seerrAvailable).thenReturn(false);
     when(() => plugin.pluginAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(plugin);
     GetIt.instance.registerSingleton<UserPreferences>(prefs);
@@ -80,12 +75,6 @@ void main() {
         .thenAnswer((_) async => const []);
     when(() => GetIt.instance<OfflineRepository>().getSeasonEpisodes(any()))
         .thenAnswer((_) async => const []);
-    final seerrStore = PreferenceStore();
-    await seerrStore.init();
-    GetIt.instance.registerSingleton<SeerrPreferences>(
-      SeerrPreferences(seerrStore, _SessionRepository()),
-    );
-
     when(() => client.itemsApi).thenReturn(itemsApi);
     when(() => client.userLibraryApi).thenReturn(userLibrary);
     final imageApi = _ImageApi();

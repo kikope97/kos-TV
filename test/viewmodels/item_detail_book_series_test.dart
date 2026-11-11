@@ -103,7 +103,6 @@ void main() {
     await UserPreferences(store).set(UserPreferences.languageOverride, 'en');
     GetIt.instance.registerSingleton<UserPreferences>(UserPreferences(store));
     final pluginSync = _PluginSyncService();
-    when(() => pluginSync.seerrAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(pluginSync);
     GetIt.instance.registerSingleton<RowDataSource>(_RowDataSource());
     client = _Client();

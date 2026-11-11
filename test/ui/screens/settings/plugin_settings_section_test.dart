@@ -28,7 +28,6 @@ void main() {
     when(() => sync.pluginVersion).thenReturn('2.4.0');
     when(() => sync.mdblistAvailable).thenReturn(true);
     when(() => sync.tmdbAvailable).thenReturn(true);
-    when(() => sync.seerrEnabled).thenReturn(false);
     when(() => sync.currentDeviceProfile).thenReturn('tv');
     when(() => sync.syncProfile).thenReturn('tv');
     when(() => sync.setSyncProfile(any())).thenAnswer((_) async {});
@@ -61,7 +60,6 @@ void main() {
     expect(find.text('Server plugin'), findsOneWidget);
     expect(find.text('Connected, version 2.4.0'), findsOneWidget);
     expect(find.text('MDBList'), findsOneWidget);
-    expect(find.text('Seerr'), findsNothing);
     for (final label in ['Global', 'Desktop', 'Mobile', 'TV']) {
       expect(find.text(label), findsOneWidget);
     }

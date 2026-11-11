@@ -5,7 +5,6 @@ import 'package:moonfin/ui/screens/home/home_view_model.dart';
 Map<String, dynamic> _body({
   String? holiday = 'christmas',
   List<Map<String, dynamic>>? items,
-  List<Map<String, dynamic>>? suggestions,
 }) => {
   'holiday': holiday,
   'country': 'US',
@@ -20,23 +19,23 @@ Map<String, dynamic> _body({
           'UserData': {'Played': true},
         },
       ],
-  'suggestions': suggestions ??
-      [
-        {
-          'id': 10719,
-          'name': 'The Polar Express',
-          'type': 'Movie',
-          'productionYear': 2004,
-          'officialRating': 'G',
-          'providerIds': {'Tmdb': '10719', 'Imdb': 'tt0338348'},
-          'posterUrl': '/poster.jpg',
-          'backdropUrl': '/backdrop.jpg',
-          'overview': 'A boy rides a train to the North Pole.',
-          'rating': 6.7,
-          'genres': ['Animation', 'Adventure'],
-          'runTimeTicks': 60000000000,
-        },
-      ],
+  // Titles from outside the library. Kos TV leaves them out of the row.
+  'suggestions': [
+    {
+      'id': 10719,
+      'name': 'The Polar Express',
+      'type': 'Movie',
+      'productionYear': 2004,
+      'officialRating': 'G',
+      'providerIds': {'Tmdb': '10719', 'Imdb': 'tt0338348'},
+      'posterUrl': '/poster.jpg',
+      'backdropUrl': '/backdrop.jpg',
+      'overview': 'A boy rides a train to the North Pole.',
+      'rating': 6.7,
+      'genres': ['Animation', 'Adventure'],
+      'runTimeTicks': 60000000000,
+    },
+  ],
 };
 
 void main() {
@@ -64,50 +63,12 @@ void main() {
     expect(owned.rawData['UserData'], {'Played': true});
   });
 
-  test('suggestions become Seerr cards carrying their rating', () {
-    final suggestion = map(_body())!.suggestions.single;
-
-    expect(suggestion.id, '10719');
-    expect(suggestion.serverId, 'seerr');
-    expect(suggestion.officialRating, 'G');
-    expect(suggestion.rawData['SeerrMediaType'], 'movie');
-    expect(suggestion.rawData['PosterPath'], '/poster.jpg');
-    expect(suggestion.rawData['BackdropPath'], '/backdrop.jpg');
-    expect(suggestion.rawData['ProviderIds'], {'Imdb': 'tt0338348', 'Tmdb': '10719'});
-    expect(suggestion.rawData['ProductionYear'], 2004);
-    expect(suggestion.overview, 'A boy rides a train to the North Pole.');
-    expect(suggestion.communityRating, 6.7);
-    expect(suggestion.genres, ['Animation', 'Adventure']);
-    expect(suggestion.runTimeTicks, 60000000000);
+  test('a holiday with nothing from the library means no row', () {
+    expect(map(_body(items: [])), isNull);
   });
 
-  test('a suggestion with no rating comes through unrated for the filter to judge', () {
-    final body = _body(suggestions: [
-      {'id': 1, 'name': 'Unknown', 'type': 'Movie', 'providerIds': {'Tmdb': '1'}},
-    ]);
-
-    expect(map(body)!.suggestions.single.officialRating, isNull);
-  });
-
-  test('a suggestion with no backdrop leaves it empty instead of using the poster', () {
-    final body = _body(suggestions: [
-      {'id': 1, 'name': 'No Backdrop', 'type': 'Movie', 'posterUrl': '/poster.jpg', 'providerIds': {'Tmdb': '1'}},
-    ]);
-    final suggestion = map(body)!.suggestions.single;
-
-    expect(suggestion.rawData['PosterPath'], '/poster.jpg');
-    expect(suggestion.rawData['BackdropPath'], '');
-  });
-
-  test('a holiday with nothing to show means no row', () {
-    expect(map(_body(items: [], suggestions: [])), isNull);
-  });
-
-  test('items without an id and suggestions without any provider id are skipped', () {
-    final body = _body(
-      items: [{'Name': 'no id'}],
-      suggestions: [{'name': 'no ids', 'type': 'Movie'}],
-    );
+  test('items without an id are skipped', () {
+    final body = _body(items: [{'Name': 'no id'}]);
 
     expect(map(body), isNull);
   });

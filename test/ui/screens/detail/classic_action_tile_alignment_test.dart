@@ -9,7 +9,6 @@ import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/data/viewmodels/item_detail_view_model.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/l10n/app_localizations_es.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/detail/item_detail_screen.dart';
 import 'package:moonfin/util/platform_detection.dart';
@@ -19,12 +18,10 @@ class _ViewModel extends Mock implements ItemDetailViewModel {}
 
 class _Sync extends Mock implements PluginSyncService {}
 
-class _SeerrPrefs extends Mock implements SeerrPreferences {}
-
 class _Users extends Mock implements UserRepository {}
 
-// Issue #1906: a classic tile whose label takes two lines, like Cancel Request,
-// sat higher than the tiles beside it.
+// Issue #1906: a classic tile whose label takes two lines sat higher than the
+// tiles beside it.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -35,13 +32,7 @@ void main() {
     await store.init();
     GetIt.instance.registerSingleton<UserPreferences>(UserPreferences(store));
 
-    final sync = _Sync();
-    when(() => sync.seerrAvailable).thenReturn(true);
-    GetIt.instance.registerSingleton<PluginSyncService>(sync);
-
-    final seerrPrefs = _SeerrPrefs();
-    when(() => seerrPrefs.labelOrDefault(any())).thenReturn('Seerr');
-    GetIt.instance.registerSingleton<SeerrPreferences>(seerrPrefs);
+    GetIt.instance.registerSingleton<PluginSyncService>(_Sync());
 
     final users = _Users();
     when(() => users.currentUserStream).thenAnswer((_) => const Stream.empty());

@@ -40,7 +40,6 @@ void main() {
     await GetIt.instance.reset();
     GetIt.instance.registerSingleton<UserPreferences>(await _prefs());
     final pluginSync = _PluginSyncService();
-    when(() => pluginSync.seerrAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(pluginSync);
     client = _Client();
     itemsApi = _ItemsApi();

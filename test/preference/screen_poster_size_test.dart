@@ -20,7 +20,6 @@ void main() {
   final screens = {
     'favorites': UserPreferences.favoritesPosterSize,
     'all genres': UserPreferences.allGenresPosterSize,
-    'seerr': UserPreferences.seerrPosterSize,
   };
 
   for (final MapEntry(key: name, value: preference) in screens.entries) {

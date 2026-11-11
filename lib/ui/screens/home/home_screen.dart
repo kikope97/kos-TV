@@ -272,7 +272,11 @@ class _HomeShellState extends State<_HomeShell>
     _lastCanReachServer = _connectivity?.canReachServer ?? true;
     _connectivity?.addListener(_onServerReachabilityChanged);
     _maybeRegisterThemeMusic();
-    _viewModel.load(preserveExisting: _viewModel.rows.isNotEmpty);
+    // Kos TV: the intro video may have loaded Home behind it (or still be
+    // at it); then that is what shows, without loading it all again.
+    if (!_viewModel.takePreload()) {
+      _viewModel.load(preserveExisting: _viewModel.rows.isNotEmpty);
+    }
     _partyRooms?.addListener(_onPartyRoomsChanged);
     _onPartyRoomsChanged();
     _partyRooms?.setHomeVisible(_isHomeRouteActive());

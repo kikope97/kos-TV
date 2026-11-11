@@ -51,9 +51,6 @@ class _FakeSync extends Fake implements PluginSyncService {
   final bool pluginAvailable;
 
   @override
-  bool get seerrAvailable => false;
-
-  @override
   bool get calendarAvailable => false;
 
   @override

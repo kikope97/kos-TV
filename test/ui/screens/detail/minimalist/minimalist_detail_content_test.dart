@@ -13,11 +13,9 @@ import 'package:moonfin/data/viewmodels/item_detail_view_model.dart';
 import 'package:moonfin/auth/repositories/user_repository.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/detail_section_layout.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/preference_constants.dart'
     show DesktopUiScale;
 import 'package:moonfin/preference/user_preferences.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
 import 'package:moonfin/ui/screens/detail/minimalist/minimalist_detail_content.dart';
 import 'package:moonfin/ui/screens/detail/modern/modern_detail_content.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
@@ -40,8 +38,6 @@ class _UserLibraryApi extends Mock implements UserLibraryApi {}
 class _ImageApi extends Mock implements ImageApi {}
 
 class _PluginSync extends Mock implements PluginSyncService {}
-
-class _SessionRepository extends Mock implements SessionRepository {}
 
 class _PlaybackManager extends Mock implements PlaybackManager {}
 
@@ -72,7 +68,6 @@ void main() {
     when(() => userLibrary.supportsNumericUserRatings).thenReturn(false);
 
     final plugin = _PluginSync();
-    when(() => plugin.seerrAvailable).thenReturn(false);
     // Minimalist hands non-video types to Spotlight, which asks for this.
     when(() => plugin.pluginAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(plugin);
@@ -91,12 +86,6 @@ void main() {
     when(
       () => GetIt.instance<OfflineRepository>().getSeasonEpisodes(any()),
     ).thenAnswer((_) async => const []);
-    final seerrStore = PreferenceStore();
-    await seerrStore.init();
-    GetIt.instance.registerSingleton<SeerrPreferences>(
-      SeerrPreferences(seerrStore, _SessionRepository()),
-    );
-
     when(() => client.itemsApi).thenReturn(itemsApi);
     when(() => client.userLibraryApi).thenReturn(userLibrary);
     final imageApi = _ImageApi();

@@ -6,8 +6,6 @@ import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/preference/preference_constants.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/settings/home_sections_screen.dart';
 import 'package:moonfin/ui/widgets/settings/settings_panel.dart';
@@ -21,8 +19,6 @@ class _MockItemsApi extends Mock implements ItemsApi {}
 
 class _MockSyncService extends Mock implements PluginSyncService {}
 
-class _MockSeerrPreferences extends Mock implements SeerrPreferences {}
-
 const _collections = ['Marvel', 'Pixar', 'Star Wars'];
 
 String _idOf(String collection) =>
@@ -34,8 +30,6 @@ String _idOf(String collection) =>
 void main() {
   late UserPreferences prefs;
   late _MockSyncService sync;
-
-  setUpAll(() => registerFallbackValue(HomeSectionType.none));
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -71,7 +65,6 @@ void main() {
 
     sync = _MockSyncService();
     when(() => sync.pluginAvailable).thenReturn(false);
-    when(() => sync.seerrAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(sync);
   });
 
@@ -190,7 +183,7 @@ void main() {
   ) async {
     await pump(tester, InterfaceLayout.phone);
 
-    expect(find.text('Seerr'), findsNothing);
+    expect(find.text('Upcoming Calendars'), findsNothing);
     expect(find.text('Genres and Studios'), findsNothing);
   });
 
@@ -200,28 +193,20 @@ void main() {
     await prefs.set(UserPreferences.displayStudiosRows, true);
     await prefs.set(UserPreferences.enableRadarrCalendar, true);
     await prefs.set(UserPreferences.enableSonarrCalendar, true);
-    when(() => sync.seerrAvailable).thenReturn(true);
-    final seerrPrefs = _MockSeerrPreferences();
-    when(() => seerrPrefs.isSeerrHomeRowEnabled(any())).thenAnswer(
-      (call) =>
-          call.positionalArguments.first == HomeSectionType.seerrShortcuts,
-    );
-    when(() => seerrPrefs.brand(any())).thenAnswer(
-      (i) => i.positionalArguments.first as String,
-    );
-    GetIt.instance.registerSingleton<SeerrPreferences>(seerrPrefs);
     await pump(tester, InterfaceLayout.phone);
 
-    await tester.tap(find.text('Seerr'));
+    await tester.tap(find.text('Upcoming Calendars'));
     await tester.tap(find.text('Genres and Studios'));
     await tester.pumpAndSettle();
 
     for (final label in [
-      'Seerr Browse',
       'Upcoming Movies (Radarr)',
       'Upcoming TV Shows (Sonarr)',
     ]) {
-      expect(top(tester, label), greaterThan(top(tester, 'Seerr')));
+      expect(
+        top(tester, label),
+        greaterThan(top(tester, 'Upcoming Calendars')),
+      );
     }
     expect(find.text('Studios'), findsOneWidget);
   });

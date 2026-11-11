@@ -7,10 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/settings/ratings_config_screen.dart';
 import 'package:moonfin/ui/theme/app_theme.dart';
@@ -19,8 +17,6 @@ import 'package:server_core/server_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockClient extends Mock implements MediaServerClient {}
-
-class _MockSessionRepository extends Mock implements SessionRepository {}
 
 class _RecordingAdapter implements HttpClientAdapter {
   final List<String> requests = [];
@@ -73,12 +69,6 @@ void main() {
     await store.init();
     prefs = UserPreferences(store);
     GetIt.instance.registerSingleton<UserPreferences>(prefs);
-
-    final session = _MockSessionRepository();
-    when(() => session.activeUserId).thenReturn('user1');
-    GetIt.instance.registerSingleton<SeerrPreferences>(
-      SeerrPreferences(store, session),
-    );
 
     final client = _MockClient();
     when(() => client.baseUrl).thenReturn('http://plugin.test');

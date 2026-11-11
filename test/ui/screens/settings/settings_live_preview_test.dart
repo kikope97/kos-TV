@@ -267,7 +267,6 @@ void main() {
       UserPreferences.showDownloadsButton,
       UserPreferences.showLibrariesInToolbar,
       UserPreferences.showLibrariesIndividually,
-      UserPreferences.showSeerrButton,
       UserPreferences.showServerMessagesButton,
       UserPreferences.showFriendsButton,
       UserPreferences.fullScreenRows,
@@ -2680,7 +2679,6 @@ void main() {
       registerFallbackValue(DateTime(2026));
       sync = _Sync();
       when(() => sync.pluginAvailable).thenReturn(true);
-      when(() => sync.seerrAvailable).thenReturn(false);
       when(() => sync.calendarAvailable).thenReturn(true);
       when(() => sync.calendarRemindersAvailable).thenReturn(false);
       when(() => sync.calendarDaysBack).thenReturn(14);

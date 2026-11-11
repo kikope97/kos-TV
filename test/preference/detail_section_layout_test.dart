@@ -16,25 +16,6 @@ void main() {
     expect(ids.toSet(), hasLength(ids.length));
   });
 
-  test('every Seerr piece has a switch of its own', () {
-    final seerr = DetailSection.values
-        .where((s) => s.group == DetailSectionGroup.seerr)
-        .map((s) => s.id);
-    expect(
-      seerr,
-      containsAll([
-        'seerrGenresTags',
-        'seerrStats',
-        'seerrStreaming',
-        'seerrRecommendations',
-        'seerrSimilar',
-        'seerrCollection',
-        'seerrPersonAppearances',
-        'seerrPersonCrew',
-      ]),
-    );
-  });
-
   test('a style only lists what it draws', () {
     expect(
       DetailSection.poster.isAvailableIn(DetailScreenStyle.classic),
@@ -68,24 +49,13 @@ void main() {
     expect(minimalist, isNot(contains(DetailSection.poster)));
   });
 
-  test('Seerr pieces are only offered when Seerr is', () {
-    final plugin = _PluginSync();
-    when(() => plugin.seerrAvailable).thenReturn(false);
-    GetIt.instance.registerSingleton<PluginSyncService>(plugin);
-
-    expect(DetailSection.seerrStats.isOffered, isFalse);
-    expect(DetailSection.cast.isOffered, isTrue);
-
-    when(() => plugin.seerrAvailable).thenReturn(true);
-    expect(DetailSection.seerrStats.isOffered, isTrue);
-  });
-
   test('reviews are only offered when the plugin serves them', () {
     final plugin = _PluginSync();
     when(() => plugin.tmdbReviewsAvailable).thenReturn(false);
     GetIt.instance.registerSingleton<PluginSyncService>(plugin);
 
     expect(DetailSection.reviews.isOffered, isFalse);
+    expect(DetailSection.cast.isOffered, isTrue);
 
     when(() => plugin.tmdbReviewsAvailable).thenReturn(true);
     expect(DetailSection.reviews.isOffered, isTrue);
@@ -101,10 +71,10 @@ void main() {
   });
 
   test('visibility reads the hidden ids', () {
-    const visibility = DetailSectionVisibility({'cast', 'seerrStats'});
+    const visibility = DetailSectionVisibility({'cast', 'moreLikeThis'});
 
     expect(visibility.shows(DetailSection.cast), isFalse);
-    expect(visibility.shows(DetailSection.seerrStats), isFalse);
+    expect(visibility.shows(DetailSection.moreLikeThis), isFalse);
     expect(visibility.shows(DetailSection.crew), isTrue);
     expect(DetailSectionVisibility.all.shows(DetailSection.cast), isTrue);
     expect(

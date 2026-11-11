@@ -10,7 +10,7 @@ import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/detail/spotlight/widgets/spotlight_summary_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const _title = 'Similar and Seerr Recommendations';
+const _title = 'More Like This and Recommendations';
 
 void main() {
   setUp(() async {

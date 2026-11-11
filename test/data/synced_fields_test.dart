@@ -29,7 +29,6 @@ void main() {
     'calendarImageType',
     'calendarSpoilerSafe',
     'calendarSelectAction',
-    'calendarRequestButton',
     'calendarReminders',
     'calendarRowSeeAll',
     'showNextAirDate',
@@ -219,7 +218,6 @@ void main() {
     'osdButtonOrderMobile',
     'osdButtonOrderTv',
     'osdLockEnabled',
-    'personPageGroupItems',
     'personPageSortOption',
     'personalRatingStyle',
     'musicPlaybackTimeDisplay',
@@ -284,12 +282,6 @@ void main() {
     'seasonalRowEnabled',
     'seasonalRowHiddenHolidays',
     'seasonalSurprise',
-    'seerrBadgeStyle',
-    'seerrBlockNsfw',
-    'seerrEnabled',
-    'seerrShowMissingCollectionItems',
-    'seerrRowsSortBy',
-    'seerrRowsSortOrder',
     'showBookDiscoverTab',
     'bookFoldersAsSeries',
     'showChapterMarkers',
@@ -304,8 +296,6 @@ void main() {
     'showLoadingAnimationText',
     'showMediaDetailsOnLibraryPage',
     'showPosterLabels',
-    'showSeerrAvailabilityBadges',
-    'showSeerrButton',
     'showServerMessagesButton',
     'showShuffleButton',
     'showSyncPlayButton',
@@ -468,11 +458,11 @@ void homeRowImageTypeTests() {
       final types = {
         HomeSectionType.genres: ImageType.thumb,
         HomeSectionType.nextUp: ImageType.banner,
-        HomeSectionType.seerrTrending: ImageType.poster,
+        HomeSectionType.tmdbTrendingMovieDaily: ImageType.poster,
       };
       final encoded = encodeHomeRowImageTypes(types)!;
 
-      expect(encoded, 'genres:thumb,nextup:banner,seerr_trending:poster');
+      expect(encoded, 'genres:thumb,nextup:banner,tmdb_trending_movie_daily:poster');
       expect(decodeHomeRowImageTypes(encoded), types);
     });
 

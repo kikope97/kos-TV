@@ -6,17 +6,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
-import 'package:moonfin/preference/seerr_preferences.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:server_core/server_core.dart';
 import 'package:server_silo/server_silo.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _MockClient extends Mock implements MediaServerClient {}
-
-class _MockSessionRepository extends Mock implements SessionRepository {}
 
 /// Answers the plugin ping as installed, and Silo's plugin listing with
 /// [siloPlugins], and records every request.
@@ -139,11 +135,6 @@ void main() {
     final store = PreferenceStore();
     await store.init();
     final prefs = UserPreferences(store);
-    final session = _MockSessionRepository();
-    when(() => session.activeUserId).thenReturn('user1');
-    GetIt.instance.registerSingleton<SeerrPreferences>(
-      SeerrPreferences(store, session),
-    );
 
     adapter = _RecordingAdapter();
     service = PluginSyncService(
@@ -190,7 +181,6 @@ void main() {
 
     final silo = _silo('https://silo-after.example');
     await service.syncOnLogin(silo, serverId: 'silo-1');
-    await service.pushNotificationPrefs(silo);
 
     expect(service.pluginAvailable, isFalse);
     expect(
