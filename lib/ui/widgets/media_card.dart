@@ -972,11 +972,7 @@ class _CardImage extends StatelessWidget {
                     ),
                   ),
                 if (_showWatchedIndicator)
-                  Positioned(
-                    top: 6,
-                    right: 6,
-                    child: _buildWatchedIndicator(),
-                  ),
+                  Positioned(top: 6, right: 6, child: _buildWatchedIndicator()),
                 if (playedPercentage != null && playedPercentage! > 0)
                   Positioned(
                     left: 6,

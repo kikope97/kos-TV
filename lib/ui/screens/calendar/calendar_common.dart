@@ -415,14 +415,17 @@ void calendarOpenSeries(BuildContext context, CalendarEntry e) {
   _showNotHereYet(context, e);
 }
 
-bool calendarCanOpen(CalendarEntry e) => e.itemId != null || e.episodeId != null;
+bool calendarCanOpen(CalendarEntry e) =>
+    e.itemId != null || e.episodeId != null;
 
 void _showNotHereYet(BuildContext context, CalendarEntry e) {
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
     ..showSnackBar(
       SnackBar(
-        content: Text(AppLocalizations.of(context).kostvDiscoverNotHereYet(e.title)),
+        content: Text(
+          AppLocalizations.of(context).kostvDiscoverNotHereYet(e.title),
+        ),
       ),
     );
 }

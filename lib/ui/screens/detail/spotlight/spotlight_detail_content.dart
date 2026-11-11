@@ -10,10 +10,8 @@ import 'package:moonfin_design/moonfin_design.dart';
 import 'package:playback_core/playback_core.dart';
 
 import '../../../../data/models/aggregated_item.dart';
-import '../../../../data/repositories/seerr_repository.dart';
 import '../../../../data/repositories/tmdb_repository.dart';
 import '../../../../data/services/plugin_sync_service.dart';
-import '../../../../data/services/seerr/seerr_api_models.dart';
 import '../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../preference/detail_metadata_layout.dart';
@@ -22,7 +20,6 @@ import '../../../../preference/preference_constants.dart';
 import '../../../../preference/user_preferences.dart';
 import '../upcoming_episode_badge.dart';
 import '../../../../util/overview_text.dart';
-import '../../../../util/seerr_credits.dart';
 import '../../../../util/platform_detection.dart';
 import '../../../navigation/destinations.dart';
 import '../../../navigation/playback_launcher.dart';
@@ -33,9 +30,6 @@ import '../../../widgets/navigation_layout.dart';
 import '../../../widgets/offline_aware_image.dart';
 import '../../../widgets/quick_return_wrapper.dart';
 import '../../../widgets/rating_display.dart';
-import '../../../widgets/seerr/seerr_image_urls.dart';
-import '../../../widgets/seerr/seerr_item_status.dart';
-import '../../../widgets/seerr/seerr_status_pill.dart';
 import '../../../widgets/top_toolbar.dart';
 import '../detail_layout_metrics.dart';
 import '../item_detail_screen.dart'
@@ -43,7 +37,9 @@ import '../item_detail_screen.dart'
         DetailActionButtons,
         ExpandableBiography,
         PersonDates,
+        isOutsideLibraryItem,
         selectedMediaSourceForItem,
+        showOutsideLibraryTitle,
         technicalDetailsFor;
 import '../play_item_on_screen.dart';
 import 'spotlight_cards.dart';
@@ -113,22 +109,12 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
   List<StudioCompany> _tmdbStudios = const [];
   String? _tmdbStudiosItemId;
 
-  // A person's Seerr combined credits, for the filmography modal.
-  List<SeerrDiscoverItem> _seerrAppearances = const [];
-  List<SeerrDiscoverItem> _seerrCrewCredits = const [];
-  String? _seerrLoadedForItemId;
-
   String? _personBackdropUrl;
   String? _personBackdropKey;
   String? _personBackdropForItemId;
-  int _personBackdropCreditCount = -1;
   Map<String, String?> _personCardBackdrops = const {};
 
   ItemDetailViewModel get _vm => widget.viewModel;
-
-  bool get _seerrAvailable =>
-      GetIt.instance.isRegistered<PluginSyncService>() &&
-      GetIt.instance<PluginSyncService>().seerrAvailable;
 
   double get _desktopScale =>
       widget.prefs.get(UserPreferences.desktopUiScale).scaleFactor;
@@ -137,66 +123,31 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
     _personBackdropForItemId = null;
     _personBackdropUrl = null;
     _personBackdropKey = null;
-    _personBackdropCreditCount = -1;
     _personCardBackdrops = const {};
   }
 
   void _selectPersonBackdrop({bool notify = true}) {
     final item = _vm.item;
     if (item == null || item.type != 'Person') return;
-    final isNewPerson = _personBackdropForItemId != item.id;
-    final creditCount = _seerrAppearances.length + _seerrCrewCredits.length;
-    if (!isNewPerson &&
-        _personBackdropUrl != null &&
-        _personBackdropCreditCount == creditCount) {
+    if (_personBackdropForItemId == item.id && _personBackdropUrl != null) {
       return;
     }
 
-    final localCandidates = collectPersonLocalBackdrops(_vm);
-    final appearancesCandidates =
-        collectPersonSeerrBackdrops(_seerrAppearances);
-    final crewCandidates = collectPersonSeerrBackdrops(_seerrCrewCredits);
-    final allCandidates = [
-      ...localCandidates,
-      ...appearancesCandidates,
-      ...crewCandidates,
-    ];
-
-    if (allCandidates.isEmpty) return;
+    final candidates = collectPersonLocalBackdrops(_vm);
+    if (candidates.isEmpty) return;
 
     final rng = math.Random();
-    final String? mainUrl;
-    final String? mainKey;
-    if (!isNewPerson && _personBackdropUrl != null && _personBackdropKey != null) {
-      mainUrl = _personBackdropUrl;
-      mainKey = _personBackdropKey;
-    } else {
-      final chosen = allCandidates[rng.nextInt(allCandidates.length)];
-      mainUrl = chosen.fullUrl;
-      mainKey = chosen.key;
-    }
-
-    final picked = personCardBackdropsFor(
-      local: localCandidates,
-      appearances: appearancesCandidates,
-      crew: crewCandidates,
-      mainBackdropKey: mainKey,
+    final chosen = candidates[rng.nextInt(candidates.length)];
+    final cardBackdrops = personCardBackdropsFor(
+      local: candidates,
+      mainBackdropKey: chosen.key,
       random: rng,
     );
-    // A card that already has a picture keeps it, or it would change under
-    // the viewer when the credits land.
-    final cardBackdrops = <String, String?>{
-      for (final entry in picked.entries)
-        entry.key: isNewPerson
-            ? entry.value
-            : (_personCardBackdrops[entry.key] ?? entry.value),
-    };
 
     void apply() {
-      _personBackdropUrl = mainUrl;
-      _personBackdropKey = mainKey;
+      _personBackdropUrl = chosen.fullUrl;
+      _personBackdropKey = chosen.key;
       _personBackdropForItemId = item.id;
-      _personBackdropCreditCount = creditCount;
       _personCardBackdrops = cardBackdrops;
     }
 
@@ -218,11 +169,6 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
           widget.initialFocusNode;
     }
     unawaited(_loadStudioLogos());
-    unawaited(
-      _loadSeerrAppearances().then((_) {
-        if (mounted) _selectPersonBackdrop();
-      }),
-    );
     _selectPersonBackdrop(notify: false);
   }
 
@@ -258,11 +204,6 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
     }
     _selectPersonBackdrop();
     unawaited(_loadStudioLogos());
-    unawaited(
-      _loadSeerrAppearances().then((_) {
-        if (mounted) _selectPersonBackdrop();
-      }),
-    );
   }
 
   @override
@@ -311,36 +252,6 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
     setState(() => _tmdbStudios = companies);
   }
 
-  Future<void> _loadSeerrAppearances() async {
-    final item = _vm.item;
-    if (item == null || item.type != 'Person') return;
-    final tmdbId = item.tmdbId;
-    if (tmdbId == null || tmdbId.isEmpty) return;
-    if (!GetIt.instance<PluginSyncService>().seerrAvailable) return;
-    // Run once per person. The view model notifies many times as data streams
-    // in and each call would otherwise re-issue the same combined-credits
-    // fetch.
-    if (_seerrLoadedForItemId == item.id) return;
-    _seerrLoadedForItemId = item.id;
-
-    try {
-      final repo = await GetIt.instance.getAsync<SeerrRepository>();
-      await repo.ensureInitialized();
-      final personId = int.tryParse(tmdbId);
-      if (personId == null) return;
-      final credits = await loadSeerrPersonCredits(repo, personId);
-      if (!mounted) return;
-      setState(() {
-        _seerrAppearances = credits.cast;
-        _seerrCrewCredits = credits.crew;
-      });
-      _selectPersonBackdrop();
-    } catch (_) {
-      // Seerr credits are an extra. The filmography card falls back to the
-      // library lists when the lookup fails.
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // Modal plumbing
 
@@ -360,20 +271,8 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
       openItem: (entry) => _closeModalThen(() {
         if (item.type == 'Episode' && entry.id == item.id) {
           playItemOnScreen(context);
-        } else if (entry.serverId == 'seerr') {
-          final mediaType = entry.seerrMediaType ??
-              (entry.type == 'Series' || entry.type == 'tv' ? 'tv' : 'movie');
-          final tmdbId = entry.tmdbId;
-          final targetId = (tmdbId != null && tmdbId.isNotEmpty)
-              ? tmdbId
-              : entry.id.replaceAll(RegExp(r'^tmdb:(?:movie:|tv:)?'), '');
-          context.push(
-            Destinations.seerrMedia(
-              targetId,
-              mediaType: mediaType,
-              title: entry.name,
-            ),
-          );
+        } else if (isOutsideLibraryItem(entry)) {
+          showOutsideLibraryTitle(context, entry.name);
         } else {
           final location = Destinations.itemOrPhoto(
             entry.id,
@@ -389,35 +288,8 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
         }
       }),
       openPerson: (personId) => _closeModalThen(() {
-        context.push(
-          item.serverId == 'seerr'
-              ? Destinations.seerrPerson(personId)
-              : Destinations.item(personId, serverId: item.serverId),
-        );
+        context.push(Destinations.item(personId, serverId: item.serverId));
       }),
-      openSeerrItem: (entry) => _closeModalThen(() {
-        context.push(
-          Destinations.seerrMedia(
-            entry.id.toString(),
-            mediaType: entry.mediaType ?? 'movie',
-            title: entry.displayTitle,
-          ),
-        );
-      }),
-      openSeerrBrowse: (filterId, filterName, filterType, mediaType) =>
-          _closeModalThen(() {
-            context.push(
-              Destinations.seerrBrowseWith(
-                filterId: filterId,
-                filterName: filterName,
-                mediaType: mediaType,
-                filterType: filterType,
-              ),
-            );
-          }),
-      openSeerrCollection: (collectionId) => _closeModalThen(
-        () => context.push(Destinations.seerrCollection(collectionId)),
-      ),
       openStudio: (name) =>
           _closeModalThen(
             () => context.push(
@@ -482,11 +354,9 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
         icon: spec.icon,
         sections: spec.sections,
         returnFocus: _cardFocusNodes[spec.id],
-        // The view model fires the Seerr lookup without awaiting it, so that a
-        // slow Seerr server never holds up library content. A card opened
-        // before that lands would otherwise keep the sections it was built
-        // with and never gain its Seerr rows, which is most visible on the
-        // similar card. Re-derive the card while the modal is open instead.
+        // The view model fills parts of the page in after it is up. A card
+        // opened before they land would otherwise keep the sections it was
+        // built with, so the card is re-derived while the modal is open.
         refreshOn: Listenable.merge([_vm, widget.prefs]),
         refresh: () => _liveCardContent(spec),
         // The collection grid arrives a page at a time, and this modal is the
@@ -523,11 +393,8 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
             l10n: AppLocalizations.of(context),
             tmdbStudios: _tmdbStudios,
             actions: _cardActions(item),
-            seerrAppearances: _seerrAppearances,
-            seerrCrewCredits: _seerrCrewCredits,
             fallbackImageUrl: _cardFallbackImageUrl(item),
             mainBackdropKey: _personBackdropKey,
-            seerrAvailable: _seerrAvailable,
             personCardBackdrops: _personCardBackdrops,
             selectedMediaSourceId: widget.selectedMediaSourceId,
           )
@@ -656,9 +523,7 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
     _vm.imageApi,
     id: item.id,
     tag: item.primaryImageTag,
-    profilePath: item.rawData['ProfilePath'] as String?,
     maxHeight: 720,
-    tmdbProfileBase: seerrProfileLargeBase,
   );
 
   // ---------------------------------------------------------------------------
@@ -948,11 +813,6 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
         case DetailMetadataItem.genres:
           if (item.genres.isNotEmpty) {
             addText(item.genres.take(3).join(' · '));
-          }
-        case DetailMetadataItem.seerrAvailability:
-          final seerrStatus = seerrItemStatus(_vm);
-          if (seerrStatus != null) {
-            pieces.add(SeerrStatusPills(state: seerrStatus, onlyNoteworthy: true));
           }
       }
     }
@@ -1252,11 +1112,8 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
       l10n: AppLocalizations.of(context),
       tmdbStudios: _tmdbStudios,
       actions: _cardActions(item),
-      seerrAppearances: _seerrAppearances,
-      seerrCrewCredits: _seerrCrewCredits,
       fallbackImageUrl: _cardFallbackImageUrl(item),
       mainBackdropKey: _personBackdropKey,
-      seerrAvailable: _seerrAvailable,
       personCardBackdrops: _personCardBackdrops,
       selectedMediaSourceId: widget.selectedMediaSourceId,
     );

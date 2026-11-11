@@ -2394,10 +2394,10 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
                                   'IMDb List',
                                   style: TextStyle(
                                     fontSize: 12,
-                                    fontFamily:
-                                        kCleanSettingsFontFamily,
-                                    color: AppColorScheme.onSurface
-                                        .withValues(alpha: 0.7),
+                                    fontFamily: kCleanSettingsFontFamily,
+                                    color: AppColorScheme.onSurface.withValues(
+                                      alpha: 0.7,
+                                    ),
                                   ),
                                 )
                               : (_isTmdbSectionType(section.type)
@@ -2405,27 +2405,21 @@ class _HomeSectionsScreenState extends State<HomeSectionsScreen>
                                         'TMDB Lists',
                                         style: TextStyle(
                                           fontSize: 12,
-                                          fontFamily:
-                                              kCleanSettingsFontFamily,
-                                          color: AppColorScheme
-                                              .onSurface
-                                              .withValues(
-                                                alpha: 0.7,
-                                              ),
+                                          fontFamily: kCleanSettingsFontFamily,
+                                          color: AppColorScheme.onSurface
+                                              .withValues(alpha: 0.7),
                                         ),
                                       )
-                                    : (section.type == HomeSectionType.mdblistWatchingNow
+                                    : (section.type ==
+                                              HomeSectionType.mdblistWatchingNow
                                           ? Text(
                                               'MDBList',
                                               style: TextStyle(
                                                 fontSize: 12,
                                                 fontFamily:
                                                     kCleanSettingsFontFamily,
-                                                color: AppColorScheme
-                                                    .onSurface
-                                                    .withValues(
-                                                      alpha: 0.7,
-                                                    ),
+                                                color: AppColorScheme.onSurface
+                                                    .withValues(alpha: 0.7),
                                               ),
                                             )
                                           : null)))),

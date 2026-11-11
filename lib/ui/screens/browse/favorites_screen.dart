@@ -654,11 +654,8 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               event: event,
             )
           : null,
-      onLongPress: () => showContextMenu(
-        context,
-        item,
-        onChanged: () => setState(() {}),
-      ),
+      onLongPress: () =>
+          showContextMenu(context, item, onChanged: () => setState(() {})),
       onTap: () => context.push(
         Destinations.itemOrPhoto(
           item.id,

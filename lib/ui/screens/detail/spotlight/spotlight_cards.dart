@@ -253,9 +253,7 @@ class _SpotlightCardsBuilder {
   /// modal's Back handler only hears keys while something inside it has
   /// focus.
   SpotlightCardSpec? _reachable(SpotlightCardSpec? card) =>
-      card != null && card.sections.any((section) => section.focusable)
-      ? card
-      : null;
+      card != null && card.sections.isNotEmpty ? card : null;
 
   // ---------------------------------------------------------------------------
   // Shared section builders

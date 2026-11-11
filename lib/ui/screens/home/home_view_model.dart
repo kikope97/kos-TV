@@ -3566,8 +3566,5 @@ class _CalendarItemWithDate {
 class SeasonalRowData {
   final String holiday;
   final List<AggregatedItem> owned;
-  const SeasonalRowData({
-    required this.holiday,
-    required this.owned,
-  });
+  const SeasonalRowData({required this.holiday, required this.owned});
 }

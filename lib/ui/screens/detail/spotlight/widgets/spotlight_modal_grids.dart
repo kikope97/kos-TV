@@ -3,7 +3,6 @@ import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../../../data/models/aggregated_item.dart';
-import '../../../../../data/services/seerr/seerr_api_models.dart';
 import '../../../../../preference/preference_constants.dart';
 import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/focus/dpad_keys.dart';
@@ -13,10 +12,9 @@ import '../../../../widgets/focus/focus_theme.dart';
 import '../../../../widgets/focus/focusable_wrapper.dart';
 import '../../../../widgets/media_card.dart';
 import '../../../../widgets/offline_aware_image.dart';
-import '../../../../widgets/seerr/seerr_status_dot.dart';
-import '../../../../widgets/seerr_icons.dart';
 import '../../modern/modern_detail_content.dart'
     show StudioLogoIndex, studioLogoUrlFor;
+import '../../item_detail_screen.dart' show isOutsideLibraryItem;
 import '../spotlight_images.dart';
 
 /// Column count and cell size for a responsive modal grid.
@@ -131,7 +129,6 @@ class SpotlightMediaGridSection extends StatelessWidget {
   final bool landscapeCells;
   final FocusNode? firstFocusNode;
   final ValueChanged<AggregatedItem> onItemTap;
-  final Map<int, int>? seerrSeasonStatus;
   final String? currentItemId;
 
   const SpotlightMediaGridSection({
@@ -143,7 +140,6 @@ class SpotlightMediaGridSection extends StatelessWidget {
     this.aspectRatio = 2 / 3,
     this.landscapeCells = false,
     this.firstFocusNode,
-    this.seerrSeasonStatus,
     this.currentItemId,
   });
 
@@ -157,7 +153,6 @@ class SpotlightMediaGridSection extends StatelessWidget {
         : Color(prefs.get(UserPreferences.focusColor).colorValue);
     final titleColor = isNeon ? AppColorScheme.accent : null;
     final watchedBehavior = prefs.get(UserPreferences.watchedIndicatorBehavior);
-    final seerrStyle = seerrBadgeStyle(prefs);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -184,33 +179,12 @@ class SpotlightMediaGridSection extends StatelessWidget {
                   key: ValueKey(cellKeys[i]),
                   builder: (cellContext) {
                     final entry = items[i];
-                    // A title the library lacks, standing in from Seerr. It
-                    // has no play state, so the watched slot goes to
-                    // MediaCard's own request-status dot and the Seerr mark
-                    // takes the corner a favourite would otherwise use.
-                    final isSeerrItem =
-                        entry.serverId == 'seerr' ||
-                        entry.id.startsWith('tmdb:');
-                    final isSeason = entry.type == 'Season';
-                    final seasonSeerrStatus =
-                        isSeason && entry.indexNumber != null
-                            ? (seerrSeasonStatus?[entry.indexNumber])
-                            : null;
-                    final hasSeasonStatus = SeerrMediaStatus.hasDot(
-                      seasonSeerrStatus,
-                    );
-                    final hasSeasonSeerrDot =
-                        hasSeasonStatus && seerrStyle == SeerrBadgeStyle.badge;
-                    final banner = seerrStyle == SeerrBadgeStyle.banner;
-                    final itemBanner =
-                        banner &&
-                        isSeerrItem &&
-                        SeerrMediaStatus.hasDot(entry.seerrStatus);
-                    final seasonBanner = banner && hasSeasonStatus;
+                    // A title the library lacks has no play state.
+                    final isOutside = isOutsideLibraryItem(entry);
 
                     return MediaCard(
                       key: ValueKey(cellKeys[i]),
-                      posterBadgeItemId: isSeerrItem ? null : entry.id,
+                      posterBadgeItemId: isOutside ? null : entry.id,
                       title: entry.name,
                       subtitle: entry.personRole,
                       titleColor: titleColor,
@@ -224,29 +198,10 @@ class SpotlightMediaGridSection extends StatelessWidget {
                       focusColor: focusColor,
                       cardFocusExpansion: cardExpansion,
                       suppressFocusGlow: isNeon,
-                      watchedBehavior: isSeerrItem
+                      watchedBehavior: isOutside
                           ? WatchedIndicatorBehavior.never
                           : watchedBehavior,
-                      seerrStatus: isSeerrItem
-                          ? entry.seerrStatus
-                          : (seasonBanner ? seasonSeerrStatus : null),
-                      overlayOccupiesTopLeft: isSeerrItem || hasSeasonSeerrDot,
                       imageOverlays: [
-                        if (isSeerrItem)
-                          Positioned(
-                            top: itemBanner ? kSeerrStatusBannerHeight + 6 : 6,
-                            left: 6,
-                            child: const SeerrBadge(size: 18),
-                          ),
-                        if (hasSeasonSeerrDot)
-                          Positioned(
-                            top: 6,
-                            left: 6,
-                            child: SeerrStatusDot(
-                              status: seasonSeerrStatus,
-                              size: 18,
-                            ),
-                          ),
                         if (entry.id == currentItemId)
                           Positioned.fill(
                             child: IgnorePointer(
@@ -266,88 +221,6 @@ class SpotlightMediaGridSection extends StatelessWidget {
                             ),
                           ),
                       ],
-                      onFocus: () => spotlightScrollCellIntoView(cellContext),
-                      onTap: () => onItemTap(entry),
-                    );
-                  },
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Seerr discover grid for the Spotlight section modal: TMDB poster cells for
-/// recommendations, similar titles, and a person's Seerr credits. Cells carry
-/// the media-type corner badge and request status the Seerr rows show.
-class SpotlightSeerrGridSection extends StatelessWidget {
-  final List<SeerrDiscoverItem> items;
-  final UserPreferences prefs;
-  final FocusNode? firstFocusNode;
-  final ValueChanged<SeerrDiscoverItem> onItemTap;
-
-  /// Show the character or job under the title (a person's credits).
-  final bool showCredit;
-
-  const SpotlightSeerrGridSection({
-    super.key,
-    required this.items,
-    required this.prefs,
-    required this.onItemTap,
-    this.firstFocusNode,
-    this.showCredit = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (items.isEmpty) return const SizedBox.shrink();
-    final isNeon = ThemeRegistry.active.id == ThemeRegistry.neonPulseId;
-    final cardExpansion = prefs.get(UserPreferences.cardFocusExpansion);
-    final focusColor = isNeon
-        ? AppColorScheme.accent
-        : Color(prefs.get(UserPreferences.focusColor).colorValue);
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final metrics = spotlightGridMetrics(
-          maxWidth: constraints.maxWidth,
-          desiredWidth: 150,
-          minColumns: 2,
-          maxColumns: 7,
-          focusExpansion: cardExpansion,
-          maxCellWidth: 300,
-        );
-        final cellKeys = spotlightCellKeys(items.map((i) => '${i.id}'));
-        return Padding(
-          padding: cardExpansion
-              ? EdgeInsets.symmetric(vertical: metrics.runSpacing)
-              : EdgeInsets.zero,
-          child: Wrap(
-            spacing: metrics.spacing,
-            runSpacing: metrics.runSpacing,
-            children: [
-              for (var i = 0; i < items.length; i++)
-                Builder(
-                  key: ValueKey(cellKeys[i]),
-                  builder: (cellContext) {
-                    final entry = items[i];
-                    return MediaCard(
-                      key: ValueKey(cellKeys[i]),
-                      title: entry.displayTitle,
-                      subtitle: showCredit
-                          ? (entry.character ?? entry.job)
-                          : null,
-                      imageUrl: spotlightSeerrPosterUrl(entry.posterPath),
-                      width: metrics.cellWidth,
-                      aspectRatio: 2 / 3,
-                      focusNode: i == 0 ? firstFocusNode : null,
-                      focusColor: focusColor,
-                      cardFocusExpansion: cardExpansion,
-                      suppressFocusGlow: isNeon,
-                      seerrMediaType: entry.mediaType,
-                      seerrStatus: entry.mediaInfo?.status,
                       onFocus: () => spotlightScrollCellIntoView(cellContext),
                       onTap: () => onItemTap(entry),
                     );
@@ -415,7 +288,6 @@ class SpotlightPeopleGridSection extends StatelessWidget {
                     imageApi,
                     id: personId,
                     tag: person['PrimaryImageTag'] as String?,
-                    profilePath: person['ProfilePath'] as String?,
                     maxHeight: 200,
                   );
                   return _SpotlightPersonCell(

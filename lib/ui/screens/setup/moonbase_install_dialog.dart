@@ -24,10 +24,7 @@ List<String> moonbaseFeatures(AppLocalizations l10n, ServerType type) {
   return [
     l10n.moonbaseFeatureSync,
     l10n.moonbaseFeatureRatings,
-    if (fullPlugin) ...[
-      l10n.moonbaseFeatureRows,
-      l10n.moonbaseFeatureGames,
-    ],
+    if (fullPlugin) ...[l10n.moonbaseFeatureRows, l10n.moonbaseFeatureGames],
     if (type != ServerType.silo) l10n.moonbaseFeatureCalendar,
     if (!fullPlugin) l10n.moonbaseFeatureCollections,
     l10n.setupTourBulletThemes,

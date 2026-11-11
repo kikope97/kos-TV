@@ -34,10 +34,7 @@ class NouveauPeopleCard extends StatefulWidget {
 
     final tag = person['PrimaryImageTag'] as String?;
 
-    if (personId == null ||
-        personId.isEmpty ||
-        tag == null ||
-        tag.isEmpty) {
+    if (personId == null || personId.isEmpty || tag == null || tag.isEmpty) {
       return null;
     }
 
