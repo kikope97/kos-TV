@@ -1565,15 +1565,18 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          stat.label.toUpperCase(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: _ink(0.58),
-                            fontSize: labelSize,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.6,
+                        // Shrunk to fit a narrow column rather than cut.
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            stat.label.toUpperCase(),
+                            maxLines: 1,
+                            style: TextStyle(
+                              color: _ink(0.58),
+                              fontSize: labelSize,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: wide ? 0.6 : 0.3,
+                            ),
                           ),
                         ),
                         SizedBox(height: wide ? 5 : 3),
