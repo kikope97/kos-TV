@@ -19,31 +19,26 @@ servidor.
 
 ## Puesta en marcha
 
-`compose.yml` (las direcciones son de ejemplo):
+En el repositorio hay un ejemplo listo para copiar:
+[`docker/compose.example.yml`](../docker/compose.example.yml) y
+[`docker/.env.example`](../docker/.env.example). En una carpeta del servidor:
 
-```yaml
-services:
-  kostv-web:
-    image: ghcr.io/kikope97/kos-tv-web:latest
-    container_name: kostv-web
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    environment:
-      # Jellyfin tal como lo abre el navegador: la dirección pública, con https.
-      KOSTV_SERVER_URL: https://jellyfin.example.com
-      # El servicio de peticiones (Stremfin) tal como lo alcanza el contenedor.
-      KOSTV_REQUESTS_URL: https://peticiones.example.com
-```
+1. Copia `compose.example.yml` como `compose.yml` y `.env.example` como `.env`.
+2. Rellena el `.env` con tus direcciones y la contraseña del panel de
+   administración. El `compose.yml` no hace falta tocarlo: lee todo del `.env`.
+3. Arráncalo:
 
-```bash
-docker compose up -d
-docker compose logs kostv-web   # dice qué servicios ha configurado
-```
+   ```bash
+   docker compose up -d
+   docker compose logs kostv-web   # dice qué ha configurado
+   ```
 
-Después, en el proxy inverso, apunta el subdominio de la web (por ejemplo
-`https://kostv.example.com`) al puerto 8080 de ese servidor. Al abrirlo, la app
-va directa al usuario y la contraseña de Jellyfin, igual que en la tele.
+4. En el proxy inverso, apunta un subdominio con https (por ejemplo
+   `https://kostv.example.com`) al puerto 8080 de ese servidor.
+
+Al abrirlo, la app va directa al usuario y la contraseña de Jellyfin, igual que
+en la tele. El panel de administración está en `/admin` (por ejemplo
+`https://kostv.example.com/admin`).
 
 ## Variables
 
@@ -51,6 +46,8 @@ va directa al usuario y la contraseña de Jellyfin, igual que en la tele.
 |---|---|---|
 | `KOSTV_SERVER_URL` | El Jellyfin de casa **tal como lo abre el navegador** de quien entra: la dirección pública, con https. No sirve una interna como `http://jellyfin:8096`, porque es el navegador quien habla con Jellyfin | La app pide la dirección del servidor |
 | `KOSTV_REQUESTS_URL` | El servicio de peticiones (Stremfin) **tal como lo alcanza el contenedor**. Puede ser la pública o una interna (`http://stremfin:8080` si están en la misma red de Docker) | Descubrir no aparece |
+| `KOSTV_ADMIN_USER` | El usuario del panel de administración | `admin` |
+| `KOSTV_ADMIN_PASSWORD` | Su contraseña (al menos 10 caracteres). En lugar de ella se puede usar `KOSTV_ADMIN_PASSWORD_FILE`, la ruta de un archivo que la contenga (para los *secrets* de Docker) | `/admin` queda cerrado |
 
 Da igual que lleven o no la barra final o `/api/v1`. Una dirección mal escrita
 detiene el contenedor con un mensaje en `docker compose logs`.
@@ -63,6 +60,23 @@ detiene el contenedor con un mensaje en `docker compose logs`.
   `/stremfin`, y el contenedor se lo pasa al servicio. Por eso Stremfin no
   necesita CORS ni tiene por qué estar abierto a internet. El token de la
   sesión pasa por ahí, pero no queda en ningún registro.
+
+## Panel de administración (`/admin`)
+
+De momento es un panel en blanco que iremos llenando (módulos, dispositivos,
+servicios de casa). Al entrar, el navegador pide el usuario y la contraseña de
+`KOSTV_ADMIN_USER` y `KOSTV_ADMIN_PASSWORD`.
+
+- La contraseña no se guarda tal cual: al arrancar, el contenedor guarda solo
+  su huella cifrada (SHA-512), que únicamente puede leer nginx.
+- Tras unos 30 intentos seguidos, responde "demasiadas peticiones" durante un
+  rato, para frenar a quien intente adivinarla.
+- Sin contraseña, `/admin` queda cerrado.
+- Para salir, cierra el navegador (con este tipo de acceso no hay botón de
+  cerrar sesión; llegará con el admin de verdad).
+- **Si la contraseña lleva `$`**, ponla entre comillas simples en el `.env`
+  (`KOSTV_ADMIN_PASSWORD='mi$clave'`): sin ellas, Docker Compose toma `$clave`
+  por una variable y la contraseña cambia.
 
 ## Actualizar
 
@@ -102,9 +116,9 @@ navegador no aparece:
 
 ## Más adelante
 
-El contenedor hace de puerta de entrada a los servicios de casa: cuando llegue
-el panel de administración, irá en este mismo `compose.yml`, y la web le
-pasará las peticiones igual que hace ahora con Stremfin.
+El contenedor hace de puerta de entrada a los servicios de casa. Cuando el
+admin tenga su propio servicio, irá en este mismo `compose.yml` y `/admin` le
+pasará las peticiones igual que hace ahora `/stremfin` con Stremfin.
 
 ## Construir la imagen a mano
 

@@ -12,6 +12,11 @@
 #
 # Either may be left out: without the first the app asks for a server, and
 # without the second Discover doesn't show.
+#
+#   KOSTV_ADMIN_USER      the admin panel's user (admin if left out).
+#   KOSTV_ADMIN_PASSWORD  its password (or KOSTV_ADMIN_PASSWORD_FILE, a file
+#                         holding it, for Docker secrets). Without one, /admin
+#                         stays closed.
 set -eu
 
 html=/usr/share/nginx/html
@@ -96,6 +101,61 @@ NGINX
   log "servicio de peticiones configurado (en /stremfin)"
 else
   log "sin KOSTV_REQUESTS_URL: Descubrir no aparecerá"
+fi
+
+# The admin panel at /admin, behind a user and password. The password is
+# kept only as a SHA-512 hash, readable by nginx alone.
+admin_user=$(printf '%s' "${KOSTV_ADMIN_USER:-admin}" | tr -d '\r\n')
+admin_password=${KOSTV_ADMIN_PASSWORD:-}
+if [ -z "$admin_password" ] && [ -n "${KOSTV_ADMIN_PASSWORD_FILE:-}" ]; then
+  if [ ! -r "$KOSTV_ADMIN_PASSWORD_FILE" ]; then
+    log "no se puede leer KOSTV_ADMIN_PASSWORD_FILE: $KOSTV_ADMIN_PASSWORD_FILE" >&2
+    exit 1
+  fi
+  admin_password=$(head -n 1 "$KOSTV_ADMIN_PASSWORD_FILE" | tr -d '\r')
+fi
+admin_htpasswd=/etc/nginx/kostv-admin.htpasswd
+rm -f "$admin_htpasswd"
+if [ -n "$admin_password" ]; then
+  if [ -z "$admin_user" ] || printf '%s' "$admin_user" | grep -q '[[:space:]:]'; then
+    log "KOSTV_ADMIN_USER no puede estar vacío ni llevar espacios ni dos puntos" >&2
+    exit 1
+  fi
+  if [ "${#admin_password}" -lt 10 ]; then
+    log "aviso: la contraseña de /admin es corta; usa al menos 10 caracteres" >&2
+  fi
+  hash=$(printf '%s' "$admin_password" | mkpasswd -m sha512 -s)
+  printf '%s:%s\n' "$admin_user" "$hash" > "$admin_htpasswd"
+  chown root:nginx "$admin_htpasswd"
+  chmod 640 "$admin_htpasswd"
+  cat > "$includes/admin.conf" <<NGINX
+# Written by 40-kostv-config.sh from KOSTV_ADMIN_USER and KOSTV_ADMIN_PASSWORD.
+location = /admin {
+    return 301 /admin/;
+}
+location /admin/ {
+    auth_basic "kOS TV - Administracion";
+    auth_basic_user_file $admin_htpasswd;
+    limit_req zone=kostv_admin burst=30 nodelay;
+    limit_req_status 429;
+    alias /usr/share/nginx/admin/;
+    index index.html;
+    add_header Cache-Control "no-store" always;
+    add_header X-Robots-Tag "noindex, nofollow" always;
+    add_header X-Frame-Options "DENY" always;
+}
+NGINX
+  log "panel de administración en /admin (usuario: $admin_user)"
+else
+  cat > "$includes/admin.conf" <<NGINX
+# Written by 40-kostv-config.sh: no KOSTV_ADMIN_PASSWORD, so /admin is closed.
+location /admin {
+    default_type text/plain;
+    charset utf-8;
+    return 403 "El panel de administración está cerrado: falta KOSTV_ADMIN_PASSWORD.\n";
+}
+NGINX
+  log "sin KOSTV_ADMIN_PASSWORD: /admin queda cerrado"
 fi
 
 cat > "$html/config.json" <<JSON

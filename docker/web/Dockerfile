@@ -1,8 +1,9 @@
 # kOS TV para el navegador: la app web, servida por nginx.
 #
-# La imagen no lleva ninguna dirección: el contenedor las recibe en sus
-# variables (KOSTV_SERVER_URL, KOSTV_REQUESTS_URL) y al arrancar escribe con
-# ellas el config.json que lee la app. Ver docs/web.md.
+# La imagen no lleva ninguna dirección ni contraseña: el contenedor las recibe
+# en sus variables (KOSTV_SERVER_URL, KOSTV_REQUESTS_URL, KOSTV_ADMIN_USER,
+# KOSTV_ADMIN_PASSWORD) y al arrancar escribe con ellas el config.json que lee
+# la app y la entrada a /admin. Ver docs/web.md.
 #
 # Se construye desde la raíz del repositorio, después de compilar la web:
 #   flutter build web --release
@@ -17,6 +18,7 @@ LABEL org.opencontainers.image.title="kOS TV (web)" \
 COPY docker/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --chmod=755 docker/web/40-kostv-config.sh /docker-entrypoint.d/40-kostv-config.sh
 COPY build/web /usr/share/nginx/html
+COPY docker/web/admin /usr/share/nginx/admin
 
 EXPOSE 80
 

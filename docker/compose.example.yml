@@ -1,0 +1,28 @@
+# kOS TV en el servidor de casa: la web para la familia y el panel de
+# administración en /admin. Más adelante, aquí irán también los demás servicios
+# de kOS TV (el admin de verdad, los módulos…).
+#
+# Cómo usarlo (en una carpeta del servidor):
+#   1. Copia este archivo como compose.yml y .env.example como .env.
+#   2. Rellena .env con tus direcciones y la contraseña del admin.
+#   3. docker compose up -d
+#   4. En tu proxy inverso, apunta un subdominio con https al puerto 8080.
+#
+# Para actualizar: docker compose pull && docker compose up -d
+# Guía completa: docs/web.md
+
+services:
+  kostv-web:
+    image: ghcr.io/kikope97/kos-tv-web:latest
+    container_name: kostv-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      # Jellyfin tal como lo abre el navegador: la dirección pública, con https.
+      KOSTV_SERVER_URL: ${KOSTV_SERVER_URL:-}
+      # El servicio de peticiones (Stremfin) tal como lo alcanza el contenedor.
+      KOSTV_REQUESTS_URL: ${KOSTV_REQUESTS_URL:-}
+      # Usuario y contraseña del panel de administración (/admin).
+      KOSTV_ADMIN_USER: ${KOSTV_ADMIN_USER:-admin}
+      KOSTV_ADMIN_PASSWORD: ${KOSTV_ADMIN_PASSWORD:-}

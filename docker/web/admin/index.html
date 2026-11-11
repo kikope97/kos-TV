@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>kOS TV · Administración</title>
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <style>
+    /* The brand's font, from the web app's own files. */
+    @font-face {
+      font-family: "Outfit";
+      src: url("/assets/assets/fonts/Outfit-Bold.ttf") format("truetype");
+      font-weight: 700;
+    }
+    @font-face {
+      font-family: "Outfit";
+      src: url("/assets/assets/fonts/Outfit-Light.ttf") format("truetype");
+      font-weight: 300;
+    }
+    :root {
+      --bg: #0b0d14;
+      --panel: #141826;
+      --line: #252a3d;
+      --ink: #f3f5fa;
+      --muted: #9aa3b8;
+      --cyan: #4fd8ff;
+      --violet: #8f6bff;
+      --pink: #ff5ccf;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background:
+        radial-gradient(1200px 600px at -10% -20%, rgba(143, 107, 255, .22), transparent 60%),
+        radial-gradient(900px 500px at 110% 120%, rgba(79, 216, 255, .12), transparent 60%),
+        var(--bg);
+      color: var(--ink);
+      font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 28px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(11, 13, 20, .6);
+      backdrop-filter: blur(8px);
+    }
+    header svg { width: 34px; height: 34px; flex: none; }
+    .brand {
+      font-family: "Outfit", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 22px;
+      letter-spacing: .5px;
+    }
+    .brand .tv {
+      background: linear-gradient(90deg, var(--cyan), var(--violet) 55%, var(--pink));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .section {
+      font-family: "Outfit", system-ui, sans-serif;
+      font-weight: 300;
+      font-size: 18px;
+      color: var(--muted);
+      padding-left: 14px;
+      margin-left: 2px;
+      border-left: 1px solid var(--line);
+    }
+    header .spacer { flex: 1; }
+    header a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+    }
+    header a:hover { color: var(--ink); border-color: var(--violet); }
+    main {
+      flex: 1;
+      display: grid;
+      place-items: center;
+      padding: 32px 20px;
+    }
+    .empty {
+      width: min(560px, 100%);
+      text-align: center;
+      padding: 48px 32px;
+      border: 1px dashed var(--line);
+      border-radius: 20px;
+      background: rgba(20, 24, 38, .55);
+    }
+    .empty h1 {
+      font-family: "Outfit", system-ui, sans-serif;
+      font-weight: 700;
+      font-size: 26px;
+      margin: 18px 0 8px;
+    }
+    .empty p { color: var(--muted); margin: 0; }
+    .empty svg { width: 72px; height: 72px; opacity: .9; }
+    .brand, .section, header a { white-space: nowrap; }
+    /* Phones: the brand and the button, side by side. */
+    @media (max-width: 560px) {
+      header { padding: 14px 16px; gap: 10px; }
+      .section { font-size: 15px; padding-left: 10px; }
+      header a { padding: 7px 11px; font-size: 13px; }
+      .empty { padding: 36px 20px; }
+    }
+    @media (max-width: 400px) {
+      .section { display: none; }
+    }
+    footer {
+      text-align: center;
+      color: #5d6478;
+      font-size: 13px;
+      padding: 16px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <svg viewBox="0 0 100 100" aria-hidden="true">
+      <defs>
+        <linearGradient id="ring" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stop-color="#4fd8ff"/>
+          <stop offset=".55" stop-color="#8f6bff"/>
+          <stop offset="1" stop-color="#ff5ccf"/>
+        </linearGradient>
+      </defs>
+      <circle cx="50" cy="50" r="40" fill="none" stroke="url(#ring)" stroke-width="16"/>
+    </svg>
+    <span class="brand">kOS <span class="tv">TV</span></span>
+    <span class="section">Administración</span>
+    <span class="spacer"></span>
+    <a href="/">Abrir kOS TV</a>
+  </header>
+
+  <main>
+    <section class="empty">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="40" fill="none" stroke="url(#ring)" stroke-width="10"
+                stroke-dasharray="6 10" stroke-linecap="round"/>
+      </svg>
+      <h1>Panel en construcción</h1>
+      <p>Aquí irán los módulos, los dispositivos y los servicios de casa.</p>
+    </section>
+  </main>
+
+  <footer>kOS TV · solo para la administración de casa</footer>
+</body>
+</html>
