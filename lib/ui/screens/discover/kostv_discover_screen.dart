@@ -10,6 +10,7 @@ import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
+import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/focus/hub_focus_memory.dart';
@@ -524,7 +525,8 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
         width: tileWidth,
         height: tileHeight,
         selected: platform.id == _platformId,
-        focused: focused,
+        // A ring only for a remote or the keyboard, never after a touch.
+        focused: InputModeTracker.showFocusVisuals(context, focused),
         focusColor: focusColor,
         onTap: () => _selectPlatform(platform),
       ),
@@ -607,7 +609,10 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
                       : 'Series',
                   focusColor: focusColor,
                   cardFocusExpansion: expansion,
-                  externalIsFocused: focused,
+                  externalIsFocused: InputModeTracker.showFocusVisuals(
+                    context,
+                    focused,
+                  ),
                   imageColorFilter: title.isInLibrary ? null : _missingFilter,
                   subtitleColor: title.isInLibrary
                       ? null
