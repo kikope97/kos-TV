@@ -31196,6 +31196,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Capture media, login and network logs and send them to the server as a report'**
   String get kostvDiagnosticsSubtitle;
+
+  /// Kos TV: title of a TMDB chart row on the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Top Rated Movies'**
+  String get kostvTmdbTopRatedMovies;
+
+  /// Kos TV: title of a TMDB chart row on the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Now Playing Movies'**
+  String get kostvTmdbNowPlayingMovies;
+
+  /// Kos TV: title of a TMDB chart row on the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Popular TV'**
+  String get kostvTmdbPopularTv;
+
+  /// Kos TV: title of a TMDB chart row on the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Top Rated TV'**
+  String get kostvTmdbTopRatedTv;
+
+  /// Kos TV: title of a TMDB chart row on the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Airing Today TV'**
+  String get kostvTmdbAiringTodayTv;
+
+  /// Kos TV: title of a TMDB chart row on the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'On The Air TV'**
+  String get kostvTmdbOnTheAirTv;
+
+  /// Kos TV: title of a TMDB chart row on the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Trending Movies (Daily)'**
+  String get kostvTmdbTrendingMoviesDaily;
+
+  /// Kos TV: title of a TMDB chart row on the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Trending Movies (Weekly)'**
+  String get kostvTmdbTrendingMoviesWeekly;
+
+  /// Kos TV: title of a TMDB chart row on the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Trending TV (Daily)'**
+  String get kostvTmdbTrendingTvDaily;
+
+  /// Kos TV: title of a TMDB chart row on the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Trending TV (Weekly)'**
+  String get kostvTmdbTrendingTvWeekly;
+
+  /// Kos TV: title of a TMDB chart row on the home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Trending All (Weekly)'**
+  String get kostvTmdbTrendingAllWeekly;
+
+  /// Kos TV: title of the home row with finished items to watch again
+  ///
+  /// In en, this message translates to:
+  /// **'Rewatch'**
+  String get kostvRewatchRow;
 }
 
 class _AppLocalizationsDelegate

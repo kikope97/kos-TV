@@ -18382,4 +18382,41 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvDiagnosticsSubtitle =>
       'Guarda registros de reproducción, inicio de sesión y red y envíalos al servidor como informe';
+
+  @override
+  String get kostvTmdbTopRatedMovies => 'Películas mejor valoradas';
+
+  @override
+  String get kostvTmdbNowPlayingMovies => 'En cines';
+
+  @override
+  String get kostvTmdbPopularTv => 'Series populares';
+
+  @override
+  String get kostvTmdbTopRatedTv => 'Series mejor valoradas';
+
+  @override
+  String get kostvTmdbAiringTodayTv => 'Series que se emiten hoy';
+
+  @override
+  String get kostvTmdbOnTheAirTv => 'Series en emisión';
+
+  @override
+  String get kostvTmdbTrendingMoviesDaily => 'Películas en tendencia (hoy)';
+
+  @override
+  String get kostvTmdbTrendingMoviesWeekly =>
+      'Películas en tendencia (esta semana)';
+
+  @override
+  String get kostvTmdbTrendingTvDaily => 'Series en tendencia (hoy)';
+
+  @override
+  String get kostvTmdbTrendingTvWeekly => 'Series en tendencia (esta semana)';
+
+  @override
+  String get kostvTmdbTrendingAllWeekly => 'En tendencia (esta semana)';
+
+  @override
+  String get kostvRewatchRow => 'Volver a ver';
 }

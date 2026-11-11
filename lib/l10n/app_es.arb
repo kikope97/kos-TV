@@ -11968,5 +11968,17 @@
     "kostvDownloadingListFromPlugin": "Descargando la lista del complemento del servidor y guardándola aquí...",
     "kostvFetchListFailed": "No se pudo descargar {title} del complemento del servidor: {error}",
     "kostvDiagnostics": "Diagnóstico y registros",
-    "kostvDiagnosticsSubtitle": "Guarda registros de reproducción, inicio de sesión y red y envíalos al servidor como informe"
+    "kostvDiagnosticsSubtitle": "Guarda registros de reproducción, inicio de sesión y red y envíalos al servidor como informe",
+    "kostvTmdbTopRatedMovies": "Películas mejor valoradas",
+    "kostvTmdbNowPlayingMovies": "En cines",
+    "kostvTmdbPopularTv": "Series populares",
+    "kostvTmdbTopRatedTv": "Series mejor valoradas",
+    "kostvTmdbAiringTodayTv": "Series que se emiten hoy",
+    "kostvTmdbOnTheAirTv": "Series en emisión",
+    "kostvTmdbTrendingMoviesDaily": "Películas en tendencia (hoy)",
+    "kostvTmdbTrendingMoviesWeekly": "Películas en tendencia (esta semana)",
+    "kostvTmdbTrendingTvDaily": "Series en tendencia (hoy)",
+    "kostvTmdbTrendingTvWeekly": "Series en tendencia (esta semana)",
+    "kostvTmdbTrendingAllWeekly": "En tendencia (esta semana)",
+    "kostvRewatchRow": "Volver a ver"
 }

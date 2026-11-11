@@ -17626,5 +17626,53 @@
   "kostvDiagnosticsSubtitle": "Capture media, login and network logs and send them to the server as a report",
   "@kostvDiagnosticsSubtitle": {
     "description": "Kos TV: subtitle of the diagnostics tile"
+  },
+  "kostvTmdbTopRatedMovies": "Top Rated Movies",
+  "@kostvTmdbTopRatedMovies": {
+    "description": "Kos TV: title of a TMDB chart row on the home screen"
+  },
+  "kostvTmdbNowPlayingMovies": "Now Playing Movies",
+  "@kostvTmdbNowPlayingMovies": {
+    "description": "Kos TV: title of a TMDB chart row on the home screen"
+  },
+  "kostvTmdbPopularTv": "Popular TV",
+  "@kostvTmdbPopularTv": {
+    "description": "Kos TV: title of a TMDB chart row on the home screen"
+  },
+  "kostvTmdbTopRatedTv": "Top Rated TV",
+  "@kostvTmdbTopRatedTv": {
+    "description": "Kos TV: title of a TMDB chart row on the home screen"
+  },
+  "kostvTmdbAiringTodayTv": "Airing Today TV",
+  "@kostvTmdbAiringTodayTv": {
+    "description": "Kos TV: title of a TMDB chart row on the home screen"
+  },
+  "kostvTmdbOnTheAirTv": "On The Air TV",
+  "@kostvTmdbOnTheAirTv": {
+    "description": "Kos TV: title of a TMDB chart row on the home screen"
+  },
+  "kostvTmdbTrendingMoviesDaily": "Trending Movies (Daily)",
+  "@kostvTmdbTrendingMoviesDaily": {
+    "description": "Kos TV: title of a TMDB chart row on the home screen"
+  },
+  "kostvTmdbTrendingMoviesWeekly": "Trending Movies (Weekly)",
+  "@kostvTmdbTrendingMoviesWeekly": {
+    "description": "Kos TV: title of a TMDB chart row on the home screen"
+  },
+  "kostvTmdbTrendingTvDaily": "Trending TV (Daily)",
+  "@kostvTmdbTrendingTvDaily": {
+    "description": "Kos TV: title of a TMDB chart row on the home screen"
+  },
+  "kostvTmdbTrendingTvWeekly": "Trending TV (Weekly)",
+  "@kostvTmdbTrendingTvWeekly": {
+    "description": "Kos TV: title of a TMDB chart row on the home screen"
+  },
+  "kostvTmdbTrendingAllWeekly": "Trending All (Weekly)",
+  "@kostvTmdbTrendingAllWeekly": {
+    "description": "Kos TV: title of a TMDB chart row on the home screen"
+  },
+  "kostvRewatchRow": "Rewatch",
+  "@kostvRewatchRow": {
+    "description": "Kos TV: title of the home row with finished items to watch again"
   }
 }

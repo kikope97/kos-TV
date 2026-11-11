@@ -18061,4 +18061,40 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvDiagnosticsSubtitle =>
       'Capture media, login and network logs and send them to the server as a report';
+
+  @override
+  String get kostvTmdbTopRatedMovies => 'Top Rated Movies';
+
+  @override
+  String get kostvTmdbNowPlayingMovies => 'Now Playing Movies';
+
+  @override
+  String get kostvTmdbPopularTv => 'Popular TV';
+
+  @override
+  String get kostvTmdbTopRatedTv => 'Top Rated TV';
+
+  @override
+  String get kostvTmdbAiringTodayTv => 'Airing Today TV';
+
+  @override
+  String get kostvTmdbOnTheAirTv => 'On The Air TV';
+
+  @override
+  String get kostvTmdbTrendingMoviesDaily => 'Trending Movies (Daily)';
+
+  @override
+  String get kostvTmdbTrendingMoviesWeekly => 'Trending Movies (Weekly)';
+
+  @override
+  String get kostvTmdbTrendingTvDaily => 'Trending TV (Daily)';
+
+  @override
+  String get kostvTmdbTrendingTvWeekly => 'Trending TV (Weekly)';
+
+  @override
+  String get kostvTmdbTrendingAllWeekly => 'Trending All (Weekly)';
+
+  @override
+  String get kostvRewatchRow => 'Rewatch';
 }
