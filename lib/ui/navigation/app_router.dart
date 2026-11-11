@@ -50,11 +50,6 @@ import '../screens/playback/game_emulator_screen.dart';
 import '../screens/playback/native_game_player_screen.dart';
 import '../screens/detail/item_list_screen.dart';
 import '../screens/home/home_screen.dart';
-import '../screens/seerr/seerr_browse_screen.dart';
-import '../screens/seerr/seerr_collection_screen.dart';
-import '../screens/seerr/seerr_discover_screen.dart';
-import '../screens/seerr/seerr_person_screen.dart';
-import '../screens/seerr/seerr_requests_screen.dart';
 import '../screens/livetv/live_tv_channel_player_loader.dart';
 import '../screens/livetv/live_tv_guide_screen.dart';
 import '../screens/livetv/live_tv_player_screen.dart';
@@ -114,7 +109,6 @@ bool _adminAvailable() => !PlatformDetection.isTV && adminServerSupported();
 /// against the downloads catalog.
 bool _isOfflineBlocked(String path) {
   return path.startsWith('/live-tv') ||
-      path.startsWith('/seerr') ||
       path.startsWith('/admin') ||
       path.startsWith('/games');
 }
@@ -233,9 +227,7 @@ final appRouter = GoRouter(
     // The hard gate for Kids Mode. Hiding a nav entry is presentation, but a
     // deep link reaches these screens without one.
     if (getIt<UserPreferences>().get(UserPreferences.kidsModeEnabled) &&
-        (path.startsWith('/admin') ||
-            path.startsWith('/seerr') ||
-            path.startsWith('/live-tv'))) {
+        (path.startsWith('/admin') || path.startsWith('/live-tv'))) {
       return Destinations.home;
     }
 
@@ -733,67 +725,6 @@ final appRouter = GoRouter(
     GoRoute(
       path: Destinations.settings,
       builder: (context, state) => const SettingsSidePanel(),
-    ),
-
-    // Seerr
-    GoRoute(
-      path: Destinations.seerrDiscover,
-      builder: (context, state) => const SeerrDiscoverScreen(),
-    ),
-    GoRoute(
-      path: Destinations.seerrRequests,
-      builder: (context, state) => SeerrRequestsScreen(
-        initialTab: state.uri.queryParameters['tab'] == 'issues' ? 1 : 0,
-      ),
-    ),
-    GoRoute(
-      path: Destinations.seerrBrowse,
-      builder: (context, state) {
-        final params = state.uri.queryParameters;
-        return SeerrBrowseScreen(
-          filterId: params['filterId'],
-          filterName: params['filterName'],
-          mediaType: params['mediaType'],
-          filterType: params['filterType'],
-        );
-      },
-    ),
-    GoRoute(
-      path: Destinations.seerrMediaDetail,
-      pageBuilder: (_, state) => _detailPage(state, ({quickLook = false}) {
-        final rawId = state.pathParameters['itemId']!;
-        final kind = state.uri.queryParameters['mediaType'] == 'tv'
-            ? TmdbItemKind.tv
-            : TmdbItemKind.movie;
-        final ref = TmdbItemRef.tryParse(rawId) ?? TmdbItemRef(kind, rawId);
-        return ItemDetailScreen(
-          key: ValueKey(ref.itemId),
-          itemId: ref.itemId,
-          seerrTitle: state.uri.queryParameters['title'],
-          quickLook: quickLook,
-        );
-      }),
-    ),
-    GoRoute(
-      path: Destinations.seerrCollectionDetail,
-      builder: (context, state) {
-        final collectionId = state.pathParameters['collectionId']!;
-        return SeerrCollectionScreen(collectionId: collectionId);
-      },
-    ),
-    GoRoute(
-      path: Destinations.seerrPersonDetail,
-      builder: (context, state) {
-        final personId = state.pathParameters['personId']!;
-        final prefs = GetIt.instance<UserPreferences>();
-        if (prefs.get(UserPreferences.detailScreenStyle) != DetailScreenStyle.classic) {
-          return ItemDetailScreen(
-            key: ValueKey('tmdb:$personId'),
-            itemId: 'tmdb:$personId',
-          );
-        }
-        return SeerrPersonScreen(personId: personId);
-      },
     ),
   ],
 );

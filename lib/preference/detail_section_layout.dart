@@ -19,7 +19,7 @@ const _premiere = DetailScreenStyle.premiere;
 const _frost = DetailScreenStyle.frost;
 
 /// Where a [DetailSection] sits on the settings screen.
-enum DetailSectionGroup { header, sections, seerr, person, collection, other }
+enum DetailSectionGroup { header, sections, person, collection, other }
 
 /// A part of the Details screen a user can switch off. Each style draws only
 /// some of these, in its own way: the cast is a row on Classic, a tab on
@@ -130,57 +130,6 @@ enum DetailSection {
     _spotlight,
     _frost,
   }),
-  seerrGenresTags(
-    'seerrGenresTags',
-    Icons.sell_outlined,
-    DetailSectionGroup.seerr,
-    {_classic, _modern, _spotlight, _nouveau, _stage, _premiere, _frost},
-  ),
-  seerrStats('seerrStats', Icons.bar_chart, DetailSectionGroup.seerr, {
-    _classic,
-    _modern,
-    _spotlight,
-    _nouveau,
-    _stage,
-    _premiere,
-    _frost,
-  }),
-  seerrStreaming(
-    'seerrStreaming',
-    Icons.live_tv_outlined,
-    DetailSectionGroup.seerr,
-    {_classic, _modern, _spotlight, _nouveau, _stage, _premiere, _frost},
-  ),
-  seerrRecommendations(
-    'seerrRecommendations',
-    Icons.auto_awesome_outlined,
-    DetailSectionGroup.seerr,
-    {_classic, _modern, _spotlight, _nouveau, _stage, _premiere, _frost},
-  ),
-  seerrSimilar(
-    'seerrSimilar',
-    Icons.grid_view_outlined,
-    DetailSectionGroup.seerr,
-    {_classic, _modern, _spotlight, _nouveau, _stage, _premiere, _frost},
-  ),
-  seerrCollection(
-    'seerrCollection',
-    Icons.collections_outlined,
-    DetailSectionGroup.seerr,
-    {_classic, _modern, _spotlight},
-  ),
-  seerrPersonAppearances(
-    'seerrPersonAppearances',
-    Icons.theaters_outlined,
-    DetailSectionGroup.seerr,
-    {_classic, _modern, _spotlight, _nouveau},
-  ),
-  seerrPersonCrew(
-    'seerrPersonCrew',
-    Icons.engineering_outlined,
-    DetailSectionGroup.seerr,
-    {_classic, _modern, _spotlight, _nouveau},
-  ),
   biography('biography', Icons.article_outlined, DetailSectionGroup.person, {
     _classic,
     _modern,
@@ -250,9 +199,7 @@ enum DetailSection {
 
   bool get _drawnByModern =>
       group == DetailSectionGroup.person ||
-      group == DetailSectionGroup.collection ||
-      this == DetailSection.seerrPersonAppearances ||
-      this == DetailSection.seerrPersonCrew;
+      group == DetailSectionGroup.collection;
 
   /// Whether this device and server can show it at all. A TV has no browser
   /// to open a person's links in, and reviews need a plugin that serves them.
@@ -261,9 +208,6 @@ enum DetailSection {
     DetailSection.reviews =>
       GetIt.instance.isRegistered<PluginSyncService>() &&
           GetIt.instance<PluginSyncService>().tmdbReviewsAvailable,
-    _ when group == DetailSectionGroup.seerr =>
-      GetIt.instance.isRegistered<PluginSyncService>() &&
-          GetIt.instance<PluginSyncService>().seerrAvailable,
     _ => true,
   };
 
@@ -284,16 +228,6 @@ enum DetailSection {
     DetailSection.reviews => l10n.detailSectionReviews,
     DetailSection.moreEpisodes => l10n.detailSectionMoreEpisodes,
     DetailSection.mediaInfo => l10n.detailSectionMediaInfo,
-    DetailSection.seerrGenresTags => l10n.detailSectionSeerrGenresTags,
-    DetailSection.seerrStats => l10n.detailSectionSeerrStats,
-    DetailSection.seerrStreaming => l10n.detailSectionSeerrStreaming,
-    DetailSection.seerrRecommendations =>
-      l10n.detailSectionSeerrRecommendations,
-    DetailSection.seerrSimilar => l10n.detailSectionSeerrSimilar,
-    DetailSection.seerrCollection => l10n.detailSectionSeerrCollection,
-    DetailSection.seerrPersonAppearances =>
-      l10n.detailSectionSeerrPersonAppearances,
-    DetailSection.seerrPersonCrew => l10n.detailSectionSeerrPersonCrew,
     DetailSection.biography => l10n.detailSectionBiography,
     DetailSection.birthplace => l10n.detailSectionBirthplace,
     DetailSection.personLinks => l10n.detailSectionPersonLinks,
@@ -310,8 +244,6 @@ enum DetailSection {
     DetailSection.moreLikeThis => l10n.detailSectionMoreLikeThisSubtitle,
     DetailSection.moreEpisodes => l10n.detailSectionMoreEpisodesSubtitle,
     DetailSection.mediaInfo => l10n.detailSectionMediaInfoSubtitle,
-    DetailSection.seerrPersonAppearances ||
-    DetailSection.seerrPersonCrew => l10n.detailSectionPersonPagesSubtitle,
     DetailSection.personLinks => l10n.detailSectionPersonLinksSubtitle,
     _ => null,
   };

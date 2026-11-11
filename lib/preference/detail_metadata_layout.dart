@@ -5,7 +5,6 @@ import '../data/services/plugin_sync_service.dart';
 import '../l10n/app_localizations.dart';
 import 'button_layout.dart';
 import 'user_preferences.dart';
-import 'seerr_preferences.dart';
 
 /// One metadata item shown on the Details screen's primary metadata line.
 enum DetailMetadataItem {
@@ -14,7 +13,6 @@ enum DetailMetadataItem {
   runtimeAndSeasons('runtimeAndSeasons', Icons.schedule_outlined),
   status('status', Icons.timelapse_outlined),
   genres('genres', Icons.category_outlined),
-  seerrAvailability('seerrAvailability', Icons.cloud_download_outlined),
   upcomingEpisodeDate('upcomingEpisodeDate', Icons.event_available_outlined);
 
   const DetailMetadataItem(this.id, this.icon);
@@ -29,8 +27,6 @@ enum DetailMetadataItem {
       l10n.detailMetadataRuntimeAndSeasons,
     DetailMetadataItem.status => l10n.detailMetadataStatus,
     DetailMetadataItem.genres => l10n.detailMetadataGenres,
-    DetailMetadataItem.seerrAvailability =>
-      seerrBrand(l10n.detailMetadataSeerrAvailability),
     DetailMetadataItem.upcomingEpisodeDate =>
       l10n.detailMetadataUpcomingEpisodeDate,
   };
@@ -39,18 +35,11 @@ enum DetailMetadataItem {
     DetailMetadataItem.upcomingEpisodeDate =>
       l10n.detailMetadataUpcomingEpisodeDateSubtitle,
     DetailMetadataItem.status => l10n.detailMetadataStatusSubtitle,
-    DetailMetadataItem.seerrAvailability =>
-      seerrBrand(l10n.detailMetadataSeerrAvailabilitySubtitle),
     _ => null,
   };
 
   /// Whether this item is offered on this device / server configuration.
-  bool get isOffered => switch (this) {
-    DetailMetadataItem.seerrAvailability =>
-      GetIt.instance.isRegistered<PluginSyncService>() &&
-          GetIt.instance<PluginSyncService>().seerrAvailable,
-    _ => true,
-  };
+  bool get isOffered => true;
 }
 
 /// The layout definition for the Details screen metadata row across device types.

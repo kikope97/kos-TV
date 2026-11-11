@@ -15,7 +15,6 @@ class _BottomNavTabsScreenState extends State<_BottomNavTabsScreen> {
 
   BottomNavTabGates get _gates => BottomNavTabGates.fromPreferences(
         _prefs,
-        seerrAvailable: GetIt.instance<PluginSyncService>().seerrAvailable,
         calendarAvailable:
             GetIt.instance<PluginSyncService>().calendarAvailable,
         kostvDiscoverAvailable: kostvDiscoverAllowed(),

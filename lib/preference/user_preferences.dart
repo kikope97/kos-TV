@@ -17,7 +17,6 @@ import '../util/language_matching.dart';
 import '../util/platform_detection.dart';
 import 'home_section_config.dart';
 import 'preference_constants.dart';
-import 'seerr_row_config.dart';
 
 class UserPreferences extends ChangeNotifier {
   static const _lastServerIdPreferenceKey = 'pref_last_server_id';
@@ -157,46 +156,10 @@ class UserPreferences extends ChangeNotifier {
     _repairMediaBarContentType();
     _repairMediaBarSourceType();
     _migrateDefaultAudioLanguagePreference();
-    _migrateSeerrPreferenceKeys();
-    _migrateSeerrRowsVisibility();
     _enforceMediaQueuingAlwaysOn();
     _seedClockFormatFromSystem();
     _migrateScreensaverPreferences();
     _migrateSystemImePreference();
-  }
-
-  // Carry over the pre-rename jellyseerr* preference keys to their seerr* names.
-  void _migrateSeerrPreferenceKeys() {
-    const legacyBlockNsfw = 'jellyseerrBlockNsfw';
-    if (_store.containsKey(legacyBlockNsfw)) {
-      final value = _store.get(
-        Preference(key: legacyBlockNsfw, defaultValue: false),
-      );
-      _setIfMissing(seerrBlockNsfw, value);
-    }
-  }
-
-  // The global "Display Seerr Discovery Rows" toggle (default off) was removed.
-  // Seerr rows now show whenever any Seerr row category is enabled. Preserve the
-  // opt-out for anyone who had that toggle off by disabling their stored Seerr row
-  // configs, so the rows don't suddenly appear after upgrading. Gating on the
-  // legacy key's presence makes this run once and skips users who never had it.
-  void _migrateSeerrRowsVisibility() {
-    const legacyKey = 'pref_display_seerr_rows';
-    if (!_store.containsKey(legacyKey)) return;
-
-    final wasVisible = _store.getBool(legacyKey) ?? false;
-    if (!wasVisible) {
-      for (final key in _store.keys.toList()) {
-        if (!key.startsWith('seerr_rows_config_')) continue;
-        final disabled = SeerrRowConfig.fromJsonString(
-          _store.getString(key) ?? '',
-        ).map((c) => c.copyWith(enabled: false)).toList();
-        _store.setString(key, SeerrRowConfig.toJsonString(disabled));
-      }
-    }
-
-    _store.remove(legacyKey);
   }
 
   // Navbar colour and opacity once inherited their values from the media bar overlay
@@ -522,8 +485,6 @@ class UserPreferences extends ChangeNotifier {
     'pref_screensaver_require_rating',
     'pref_screensaver_size',
     'pref_screensaver_timeout',
-    'pref_seerr_rows_sort_by',
-    'pref_seerr_rows_sort_order',
     'pref_sleep_after_idle',
     'pref_studios_row_selected_ids',
     'pref_studios_row_sort_by',
@@ -585,7 +546,6 @@ class UserPreferences extends ChangeNotifier {
     'pref_rewatch_include_movies',
     'pref_rewatch_include_shows',
     'pref_rewatch_include_collections',
-    'seerr_enabled',
     'pref_enable_tv_queuing',
     'pref_enable_cinema_mode',
     'pref_enable_cinema_mode_episodes',
@@ -606,11 +566,7 @@ class UserPreferences extends ChangeNotifier {
     'poster_size_playlist',
     'poster_size_favorites',
     'poster_size_all_genres',
-    'poster_size_seerr',
     'pref_home_rows_fullscreen',
-    'pref_show_seerr_button',
-    'pref_show_seerr_availability_badges',
-    'pref_seerr_badge_style',
     'pref_show_server_messages_button',
     'pref_show_friends_button',
     'pref_show_book_discover_tab',
@@ -761,8 +717,6 @@ class UserPreferences extends ChangeNotifier {
     'enableEpisodeRatings',
     'pref_personal_rating_style',
     'tmdbApiKey',
-    'seerrBlockNsfw',
-    'seerrShowMissingCollectionItems',
     'enabledRatings',
     'homeRowsEnableAdditionalRatings',
     'homeRowsEnabledRatings',
@@ -1007,7 +961,7 @@ class UserPreferences extends ChangeNotifier {
     return get(posterSize).upToExtraLarge;
   }
 
-  /// Favorites, All Genres and Seerr browse keep their own size, following
+  /// Favorites and All Genres keep their own size, following
   /// the library size until one is picked on that screen.
   PosterSize resolveScreenPosterSize(EnumPreference<PosterSize> preference) {
     if (containsPreference(preference, scopedOnly: true)) {
@@ -1320,12 +1274,6 @@ class UserPreferences extends ChangeNotifier {
 
   static final allGenresPosterSize = EnumPreference(
     key: 'poster_size_all_genres',
-    defaultValue: PosterSize.medium,
-    values: PosterSize.gridValues,
-  );
-
-  static final seerrPosterSize = EnumPreference(
-    key: 'poster_size_seerr',
     defaultValue: PosterSize.medium,
     values: PosterSize.gridValues,
   );
@@ -1680,18 +1628,6 @@ class UserPreferences extends ChangeNotifier {
 
   static final tmdbRowsSortOrder = EnumPreference(
     key: 'pref_tmdb_rows_sort_order',
-    defaultValue: SortDirection.ascending,
-    values: SortDirection.values,
-  );
-
-  static final seerrRowsSortBy = EnumPreference(
-    key: 'pref_seerr_rows_sort_by',
-    defaultValue: ExternalRowSortBy.none,
-    values: ExternalRowSortBy.values,
-  );
-
-  static final seerrRowsSortOrder = EnumPreference(
-    key: 'pref_seerr_rows_sort_order',
     defaultValue: SortDirection.ascending,
     values: SortDirection.values,
   );
@@ -2097,22 +2033,6 @@ class UserPreferences extends ChangeNotifier {
   static final navbarAlwaysExpanded = Preference(
     key: 'pref_navbar_always_expanded',
     defaultValue: false,
-  );
-
-  static final showSeerrButton = Preference(
-    key: 'pref_show_seerr_button',
-    defaultValue: true,
-  );
-
-  static final showSeerrAvailabilityBadges = Preference(
-    key: 'pref_show_seerr_availability_badges',
-    defaultValue: true,
-  );
-
-  static final seerrBadgeStyle = EnumPreference(
-    key: 'pref_seerr_badge_style',
-    defaultValue: SeerrBadgeStyle.badge,
-    values: SeerrBadgeStyle.values,
   );
 
   /// Off by default. An admin who wants it on for everyone can set it in the
@@ -4304,21 +4224,6 @@ class UserPreferences extends ChangeNotifier {
   static final defaultFavoritesFilter = Preference(
     key: 'defaultFavoritesFilter',
     defaultValue: '',
-  );
-
-  static final seerrEnabled = Preference(
-    key: 'seerr_enabled',
-    defaultValue: false,
-  );
-
-  static final seerrBlockNsfw = Preference(
-    key: 'seerrBlockNsfw',
-    defaultValue: false,
-  );
-
-  static final seerrShowMissingCollectionItems = Preference(
-    key: 'seerrShowMissingCollectionItems',
-    defaultValue: true,
   );
 
   static final defaultDownloadQuality = Preference(

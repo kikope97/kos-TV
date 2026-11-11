@@ -12,7 +12,6 @@ enum BottomNavTab {
   favorites,
   genres,
   liveTv,
-  discover,
   calendar,
 }
 
@@ -27,7 +26,6 @@ const List<BottomNavTab> _autoOrder = [
   BottomNavTab.libraries,
   BottomNavTab.favorites,
   BottomNavTab.liveTv,
-  BottomNavTab.discover,
   BottomNavTab.genres,
   BottomNavTab.calendar,
 ];
@@ -67,8 +65,6 @@ class BottomNavTabGates {
   final bool showFavorites;
   final bool showGenres;
   final bool showLiveTv;
-  final bool showSeerr;
-  final bool seerrAvailable;
   final bool showCalendar;
   final bool calendarAvailable;
 
@@ -83,8 +79,6 @@ class BottomNavTabGates {
     this.showFavorites = true,
     this.showGenres = true,
     this.showLiveTv = false,
-    this.showSeerr = true,
-    this.seerrAvailable = false,
     this.showCalendar = true,
     this.calendarAvailable = false,
     this.showKostvDiscover = true,
@@ -93,7 +87,6 @@ class BottomNavTabGates {
 
   factory BottomNavTabGates.fromPreferences(
     UserPreferences prefs, {
-    required bool seerrAvailable,
     bool calendarAvailable = false,
     bool kostvDiscoverAvailable = false,
   }) {
@@ -103,8 +96,6 @@ class BottomNavTabGates {
       showFavorites: prefs.get(UserPreferences.showFavoritesButton),
       showGenres: prefs.get(UserPreferences.showGenresButton),
       showLiveTv: prefs.get(UserPreferences.showLiveTvButton),
-      showSeerr: prefs.get(UserPreferences.showSeerrButton),
-      seerrAvailable: seerrAvailable,
       showCalendar: prefs.get(UserPreferences.showCalendarButton),
       calendarAvailable: calendarAvailable,
       showKostvDiscover: prefs.get(UserPreferences.showDiscoverButton),
@@ -113,7 +104,7 @@ class BottomNavTabGates {
   }
 
   // Kids Mode drops Libraries (the My Media row stands in), Live TV (its route
-  // bounces home), Seerr and the calendar.
+  // bounces home) and the calendar.
   bool offers(BottomNavTab tab) => switch (tab) {
         BottomNavTab.search => true,
         BottomNavTab.kostvDiscover =>
@@ -122,7 +113,6 @@ class BottomNavTabGates {
         BottomNavTab.favorites => showFavorites,
         BottomNavTab.genres => showGenres,
         BottomNavTab.liveTv => !kidsMode && showLiveTv,
-        BottomNavTab.discover => !kidsMode && showSeerr && seerrAvailable,
         BottomNavTab.calendar => !kidsMode && showCalendar && calendarAvailable,
       };
 

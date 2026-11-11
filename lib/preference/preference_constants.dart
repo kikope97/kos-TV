@@ -544,19 +544,6 @@ enum HomeSectionType {
   studios('studios'),
   liveTv('livetv'),
   onNow('onnow'),
-  seerrShortcuts('seerr_shortcuts'),
-  seerrRecentRequests('seerr_recent_requests'),
-  seerrWatchlist('seerr_watchlist'),
-  seerrRecentlyAdded('seerr_recently_added'),
-  seerrPopularMovies('seerr_popular_movies'),
-  seerrUpcomingMovies('seerr_upcoming_movies'),
-  seerrPopularSeries('seerr_popular_series'),
-  seerrUpcomingSeries('seerr_upcoming_series'),
-  seerrTrending('seerr_trending'),
-  seerrMovieGenres('seerr_movie_genres'),
-  seerrStudios('seerr_studios'),
-  seerrSeriesGenres('seerr_series_genres'),
-  seerrNetworks('seerr_networks'),
   imdbTop250Movies('imdb_top_250_movies'),
   imdbTop250TvShows('imdb_top_250_tv_shows'),
   imdbMostPopularMovies('imdb_most_popular_movies'),
@@ -789,10 +776,6 @@ enum SortDirection {
   final String apiValue;
 }
 
-/// How a poster shows its Seerr status: [badge] is Seerr's own dot in a corner
-/// and [banner] runs the status across the top. Stored per server and user.
-enum SeerrBadgeStyle { badge, banner }
-
 enum ExternalRowSortBy {
   none('Default (List Order)'),
   name('Name'),
@@ -920,77 +903,6 @@ enum FavoriteTypeFilter {
       _ => FavoriteTypeFilter.all,
     };
   }
-}
-
-enum SeerrFetchLimit {
-  small(25),
-  medium(50),
-  large(75);
-
-  const SeerrFetchLimit(this.limit);
-  final int limit;
-}
-
-enum SeerrRowType {
-  shortcuts('shortcuts'),
-  recentRequests('recent_requests'),
-  yourWatchlist('watchlist'),
-  recentlyAdded('recently_added'),
-  trending('trending'),
-  popularMovies('popular_movies'),
-  movieGenres('movie_genres'),
-  upcomingMovies('upcoming_movies'),
-  studios('studios'),
-  popularSeries('popular_series'),
-  seriesGenres('series_genres'),
-  upcomingSeries('upcoming_series'),
-  networks('networks');
-
-  const SeerrRowType(this.serializedName);
-  final String serializedName;
-
-  static SeerrRowType fromSerialized(String name) =>
-      SeerrRowType.values.firstWhere(
-        (e) => e.serializedName == name,
-        orElse: () => SeerrRowType.trending,
-      );
-}
-
-extension SeerrRowTypeHomeSection on SeerrRowType {
-  HomeSectionType get homeSectionType => switch (this) {
-        SeerrRowType.shortcuts => HomeSectionType.seerrShortcuts,
-        SeerrRowType.recentRequests => HomeSectionType.seerrRecentRequests,
-        SeerrRowType.yourWatchlist => HomeSectionType.seerrWatchlist,
-        SeerrRowType.recentlyAdded => HomeSectionType.seerrRecentlyAdded,
-        SeerrRowType.trending => HomeSectionType.seerrTrending,
-        SeerrRowType.popularMovies => HomeSectionType.seerrPopularMovies,
-        SeerrRowType.movieGenres => HomeSectionType.seerrMovieGenres,
-        SeerrRowType.upcomingMovies => HomeSectionType.seerrUpcomingMovies,
-        SeerrRowType.studios => HomeSectionType.seerrStudios,
-        SeerrRowType.popularSeries => HomeSectionType.seerrPopularSeries,
-        SeerrRowType.seriesGenres => HomeSectionType.seerrSeriesGenres,
-        SeerrRowType.upcomingSeries => HomeSectionType.seerrUpcomingSeries,
-        SeerrRowType.networks => HomeSectionType.seerrNetworks,
-      };
-}
-
-extension HomeSectionTypeSeerrRow on HomeSectionType {
-  SeerrRowType? get seerrRowType => switch (this) {
-        HomeSectionType.seerrShortcuts => SeerrRowType.shortcuts,
-        HomeSectionType.seerrRecentRequests => SeerrRowType.recentRequests,
-        HomeSectionType.seerrWatchlist => SeerrRowType.yourWatchlist,
-        HomeSectionType.seerrRecentlyAdded => SeerrRowType.recentlyAdded,
-        HomeSectionType.seerrTrending => SeerrRowType.trending,
-        HomeSectionType.seerrPopularMovies => SeerrRowType.popularMovies,
-        HomeSectionType.seerrMovieGenres => SeerrRowType.movieGenres,
-        HomeSectionType.seerrUpcomingMovies => SeerrRowType.upcomingMovies,
-        HomeSectionType.seerrStudios => SeerrRowType.studios,
-        HomeSectionType.seerrPopularSeries => SeerrRowType.popularSeries,
-        HomeSectionType.seerrSeriesGenres => SeerrRowType.seriesGenres,
-        HomeSectionType.seerrUpcomingSeries => SeerrRowType.upcomingSeries,
-        HomeSectionType.seerrNetworks => SeerrRowType.networks,
-        _ => null,
-      };
 }
 
 enum ScreensaverMode { library, logo }

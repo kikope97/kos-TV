@@ -5,14 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/bottom_nav_tabs.dart';
 import '../../../preference/preference_constants.dart';
-import '../../../preference/seerr_preferences.dart';
 import '../../navigation/destinations.dart';
 import '../../navigation/home_refresh_bus.dart';
 import '../../screens/downloads/downloads_panel.dart';
 import '../../screens/watch_party/watch_together_route.dart';
 import '../adaptive/sf_symbol.dart';
 import '../remote_control_dialog.dart';
-import '../seerr_icons.dart';
 import '../shuffle_overlay.dart';
 import '../user_menu_dialog.dart';
 import 'bottom_nav_model.dart';
@@ -26,9 +24,6 @@ String bottomNavTabLabel(AppLocalizations l10n, BottomNavTab tab) =>
       BottomNavTab.favorites => l10n.favorites,
       BottomNavTab.genres => l10n.genres,
       BottomNavTab.liveTv => l10n.liveTv,
-      BottomNavTab.discover => GetIt.instance.isRegistered<SeerrPreferences>()
-          ? GetIt.instance<SeerrPreferences>().labelOrDefault(l10n.seerr)
-          : seerrBrand(l10n.seerr),
       BottomNavTab.calendar => l10n.calendar,
     };
 
@@ -103,7 +98,6 @@ Widget bottomNavTabIconWidget(
         color: color,
         fit: BoxFit.contain,
       ),
-    BottomNavTab.discover => SeerrIcon(size: size, color: color, solid: active),
     BottomNavTab.calendar =>
       adaptive(Icons.calendar_month_rounded, Icons.calendar_month_outlined),
   };
@@ -158,7 +152,6 @@ void openBottomNavTab(BuildContext context, BottomNavTab tab) {
     BottomNavTab.favorites => Destinations.allFavorites,
     BottomNavTab.genres => Destinations.allGenres,
     BottomNavTab.liveTv => Destinations.liveTvGuide,
-    BottomNavTab.discover => Destinations.seerrDiscover,
     BottomNavTab.calendar => Destinations.calendar,
     BottomNavTab.libraries => null,
   };

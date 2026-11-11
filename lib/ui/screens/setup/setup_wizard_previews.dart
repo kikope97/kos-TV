@@ -22,7 +22,6 @@ import '../../../l10n/app_localizations.dart';
 import '../../../preference/bottom_nav_tabs.dart';
 import '../../../preference/detail_metadata_layout.dart';
 import '../../../preference/preference_constants.dart';
-import '../../../preference/seerr_preferences.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/clock_format.dart';
 import '../../../util/game_library.dart' show libraryIcon;
@@ -47,7 +46,6 @@ import '../../widgets/poster_badges.dart';
 import '../../widgets/mediabar/gallery_glow.dart';
 import '../../widgets/mediabar/media_bar_new_release_label.dart';
 import '../../widgets/rating_display.dart';
-import '../../widgets/seerr_icons.dart';
 import '../../widgets/settings/settings_preview_scope.dart';
 import '../../widgets/user_avatar_image.dart';
 import '../detail/detail_buttons.dart';
@@ -2014,10 +2012,6 @@ typedef _NavButton = ({
   String label,
 });
 
-bool get _seerrAvailable =>
-    GetIt.instance.isRegistered<PluginSyncService>() &&
-    GetIt.instance<PluginSyncService>().seerrAvailable;
-
 bool get _calendarAvailable =>
     GetIt.instance.isRegistered<PluginSyncService>() &&
     GetIt.instance<PluginSyncService>().calendarAvailable;
@@ -2084,9 +2078,6 @@ List<_NavButton> _navButtons(
       !kids &&
       on(UserPreferences.showLiveTvButton) &&
       SetupPreviewData.hasLiveTv;
-  final seerrLabel = GetIt.instance.isRegistered<SeerrPreferences>()
-      ? GetIt.instance<SeerrPreferences>().labelOrDefault(l10n.seerr)
-      : l10n.seerr;
   return [
     icon(Icons.home_rounded, l10n.home),
     icon(Icons.search_rounded, l10n.search),
@@ -2101,11 +2092,6 @@ List<_NavButton> _navButtons(
         on(UserPreferences.syncPlayEnabled) &&
         on(UserPreferences.showSyncPlayButton))
       icon(Icons.groups_rounded, l10n.watchParties),
-    if (!kids && on(UserPreferences.showSeerrButton) && _seerrAvailable)
-      (
-        icon: (size, color) => SeerrIcon(size: size, color: color),
-        label: seerrLabel,
-      ),
     if (!kids && on(UserPreferences.showCalendarButton) && _calendarAvailable)
       icon(Icons.calendar_month_rounded, l10n.calendar),
     if (libraries && on(UserPreferences.showLibrariesIndividually))
@@ -2458,8 +2444,6 @@ Widget _bottomNavbarPreview(
     showFavorites: previewValue(context, UserPreferences.showFavoritesButton),
     showGenres: previewValue(context, UserPreferences.showGenresButton),
     showLiveTv: previewValue(context, UserPreferences.showLiveTvButton),
-    showSeerr: previewValue(context, UserPreferences.showSeerrButton),
-    seerrAvailable: _seerrAvailable,
     showCalendar: previewValue(context, UserPreferences.showCalendarButton),
     calendarAvailable: _calendarAvailable,
   );

@@ -33,7 +33,6 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
   List<BottomNavTab> _barTabs(UserPreferences prefs) =>
       BottomNavTabGates.fromPreferences(
         prefs,
-        seerrAvailable: _syncService.seerrAvailable,
         calendarAvailable: _syncService.calendarAvailable,
         kostvDiscoverAvailable: kostvDiscoverAllowed(),
       ).resolvePins(prefs.get(UserPreferences.bottomNavbarTabs));
@@ -50,7 +49,6 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final seerrEnabledOnAccount = GetIt.instance<SeerrPreferences>().enabled;
     final availableNavbarPositions = NavigationLayout.availableNavbarPositions;
     final prefs = GetIt.instance<UserPreferences>();
     final currentNavbarPosition = prefs.get(UserPreferences.navbarPosition);
@@ -242,21 +240,6 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
                       title: l10n.settingsSyncplayButton,
                       subtitle: l10n.settingsSyncplayButtonSubtitle,
                       icon: Icons.groups,
-                      onChanged: _pushPersonalizationSync,
-                    ),
-                  if (seerrEnabledOnAccount &&
-                      _syncService.seerrAvailable &&
-                      !onBar.contains(BottomNavTab.discover))
-                    SwitchPreferenceTile(
-                      key: const ValueKey(BottomNavTab.discover),
-                      preference: UserPreferences.showSeerrButton,
-                      title: seerrBrand(l10n.showSeerrButton),
-                      subtitle: seerrBrand(l10n.settingsShowSeerrButtonInNavigation),
-                      iconBuilder: (size, color) => Image.asset(
-                        'assets/icons/seerr.png',
-                        width: size,
-                        height: size,
-                      ),
                       onChanged: _pushPersonalizationSync,
                     ),
                   // Kos TV: the Apps button (a TV whose apps can be listed).

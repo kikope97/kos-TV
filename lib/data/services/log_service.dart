@@ -17,7 +17,6 @@ enum LogLevel { debug, info, warning, error }
 enum LogCategory {
   general,
   media,
-  seerr,
   network,
   auth,
   playback,
@@ -38,7 +37,6 @@ extension LogCategoryLabel on LogCategory {
   String get label => switch (this) {
     LogCategory.general => 'general',
     LogCategory.media => 'media',
-    LogCategory.seerr => 'seerr',
     LogCategory.network => 'network',
     LogCategory.auth => 'auth',
     LogCategory.playback => 'playback',
@@ -239,9 +237,6 @@ class LogService extends ChangeNotifier {
 
   void media(String message, {LogLevel level = LogLevel.debug, Object? error}) =>
       log(LogCategory.media, message, level: level, error: error);
-
-  void seerr(String message, {LogLevel level = LogLevel.debug, Object? error}) =>
-      log(LogCategory.seerr, message, level: level, error: error);
 
   void network(String message,
           {LogLevel level = LogLevel.debug, Object? error}) =>

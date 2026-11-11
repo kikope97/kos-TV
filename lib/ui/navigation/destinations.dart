@@ -163,14 +163,6 @@ class Destinations {
   // Settings
   static const settings = '/settings';
 
-  // Seerr
-  static const seerrDiscover = '/seerr/discover';
-  static const seerrRequests = '/seerr/requests';
-  static const seerrBrowse = '/seerr/browse';
-  static const seerrMediaDetail = '/seerr/media/:itemId';
-  static const seerrPersonDetail = '/seerr/person/:personId';
-  static const seerrCollectionDetail = '/seerr/collection/:collectionId';
-
   static String library(
     String libraryId, {
     List<String>? includeItemTypes,
@@ -389,12 +381,8 @@ class Destinations {
   static String nextUpFor(String itemId) => '/player/next-up/$itemId';
   static String stillWatchingFor(String itemId) =>
       '/player/still-watching/$itemId';
-  /// Search from the request screens, landing on the Requests tab.
-  static const searchRequests = '/search?tab=requests';
   static String searchWith(String query) =>
       '/search?query=${Uri.encodeComponent(query)}';
-  static String searchRequestsWith(String query) =>
-      '$searchRequests&query=${Uri.encodeComponent(query)}';
   static String searchInLibrary(String libraryId, {String? query}) {
     final params = <String, String>{'libraryId': libraryId};
     if (query != null && query.trim().isNotEmpty) {
@@ -402,25 +390,6 @@ class Destinations {
     }
     return Uri(path: search, queryParameters: params).toString();
   }
-
-  /// Everything the screen needs travels in the route, so a restored or shared
-  /// link resolves the same way a fresh tap does.
-  static String seerrMedia(String itemId, {String? mediaType, String? title}) {
-    final base = '/seerr/media/$itemId';
-    final params = <String, String>{};
-    if (mediaType != null && mediaType.trim().isNotEmpty) {
-      params['mediaType'] = mediaType;
-    }
-    if (title != null && title.trim().isNotEmpty) {
-      params['title'] = title;
-    }
-    if (params.isEmpty) return base;
-    return Uri(path: base, queryParameters: params).toString();
-  }
-
-  static String seerrPerson(String personId) => '/seerr/person/$personId';
-  static String seerrCollection(String collectionId) =>
-      '/seerr/collection/$collectionId';
 
   static String adminUser(String userId) => '/admin/users/$userId';
   static String adminLibrary(String libraryId) => '/admin/libraries/$libraryId';
@@ -461,21 +430,4 @@ class Destinations {
       path == serverSelect ||
       path == server ||
       path == login;
-
-  static String seerrBrowseWith({
-    required String filterId,
-    required String filterName,
-    required String mediaType,
-    required String filterType,
-  }) {
-    return Uri(
-      path: '/seerr/browse',
-      queryParameters: {
-        'filterId': filterId,
-        'filterName': filterName,
-        'mediaType': mediaType,
-        'filterType': filterType,
-      },
-    ).toString();
-  }
 }
