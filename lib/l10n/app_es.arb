@@ -11992,5 +11992,8 @@
     "kostvAppCouldNotOpen": "No se ha podido abrir {app}.",
     "kostvShowAppsRow": "Fila de aplicaciones",
     "kostvShowAppsRowSubtitle": "Muestra en Inicio las aplicaciones de la tele",
-    "kostvShowAppsButton": "Botón de aplicaciones"
+    "kostvShowAppsButton": "Botón de aplicaciones",
+    "kostvPersonalization": "Personalización",
+    "kostvCustomizeLook": "Personalizar el aspecto",
+    "kostvCustomizeLookSubtitle": "Elige cómo se ven la navegación, Inicio y las fichas"
 }

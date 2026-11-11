@@ -86,14 +86,20 @@ void main() {
     await store.init();
     prefs = UserPreferences(store);
     gate = SetupWizardGate(prefs);
+    // Kos TV turns both off (see the group at the end); the rest of these
+    // tests are about the wizard as it works when they are on.
+    SetupWizardGate.runAfterSignIn = true;
+    SetupWizardGate.includeTour = true;
     // Tests run as Android, which would offer the bottom navbar. Most of these
     // are about the gate itself, so they run as a device without one.
     PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
   });
 
-  tearDown(
-    () => PlatformDetection.setInterfaceLayout(InterfaceLayout.automatic),
-  );
+  tearDown(() {
+    PlatformDetection.setInterfaceLayout(InterfaceLayout.automatic);
+    SetupWizardGate.runAfterSignIn = false;
+    SetupWizardGate.includeTour = false;
+  });
 
   group('what the wizard still has to ask', () {
     test('a fresh sign-in is asked everything, and ends on the tour', () {
@@ -337,6 +343,29 @@ void main() {
       );
 
       expect(SetupWizardGate.activeClient(), same(last));
+    });
+  });
+
+  group('kOS TV', () {
+    setUp(() {
+      SetupWizardGate.runAfterSignIn = false;
+      SetupWizardGate.includeTour = false;
+    });
+
+    test('signing in goes straight to Home, with no wizard', () {
+      expect(gate.shouldRun(client), isFalse);
+    });
+
+    test('Customize the look asks only about the look', () {
+      gate.beginRerun();
+
+      expect(gate.shouldRun(client), isTrue);
+      expect(gate.remainingSteps(), [
+        SetupStep.navbar,
+        SetupStep.mediaBar,
+        SetupStep.homeRows,
+        SetupStep.detailStyle,
+      ]);
     });
   });
 }

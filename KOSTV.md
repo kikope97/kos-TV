@@ -34,6 +34,7 @@ git cherry-pick <commit>
 | "Acerca de" apunta a este repositorio (código, licencia y [política de privacidad](PRIVACY_POLICY.md) propia); fuera las fichas de incidencias, Discord y donativos de Moonfin, su `CONTRIBUTING.md` y sus plantillas de incidencias | `about_category_screen.dart`, `PRIVACY_POLICY.md` | Hecho |
 | Aplicaciones de la tele: fila "Aplicaciones" en Inicio (debajo del banner; mantener OK o tecla de menú para abrir, mover o quitar) y pantalla "Todas las aplicaciones" (botón en la barra y al final de la fila; añadir a Inicio, ajustes de la tele). Solo en tele; interruptores en Ajustes > Inicio y Ajustes > Navegación | `InstalledApps.kt`, `installed_apps_service.dart`, `home_screen.dart`, `all_apps_screen.dart`, `app_tile.dart` | Hecho |
 | APK de prueba encima de la última versión publicada (`X.Y.Z-prueba.N`) y código de versión ×100 para dejar sitio a las pruebas | `scripts/kostv_set_version.sh`, `build.yml` | Hecho |
+| Sin asistente inicial: al iniciar sesión se entra directo a Inicio con el aspecto por defecto. El asistente queda en Ajustes > Apariencia > Personalización > "Personalizar el aspecto", solo con los pasos de diseño (sin el resumen final ni la oferta del complemento del servidor). Reloj de 24 horas por defecto | `setup_wizard_gate.dart` (`runAfterSignIn`, `includeTour`), `appearance_screen.dart` | Hecho |
 | Sin Silo | — | Pendiente (ver abajo) |
 
 Un servidor Emby ya no se reconoce: la búsqueda de servidores lo descarta y al

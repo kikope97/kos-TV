@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
@@ -93,8 +94,20 @@ class SetupWizardGate {
       _prefs.get(UserPreferences.setupWizardVersionForServer(serverKey)) >=
       UserPreferences.setupWizardVersion;
 
+  /// Kos TV: the wizard never runs on its own after signing in. The family
+  /// signs in and lands on Home with the default look; whoever wants another
+  /// one runs it from Settings > Appearance > Customize the look.
+  @visibleForTesting
+  static bool runAfterSignIn = false;
+
+  /// Kos TV: no tour at the end (a list of features and the offer to install
+  /// the server plugin). The wizard is only about the look.
+  @visibleForTesting
+  static bool includeTour = false;
+
   bool shouldRun(MediaServerClient client) {
     if (_rerunning) return true;
+    if (!runAfterSignIn) return false;
     if (_deferredThisLaunch) return false;
 
     // A server we can't reach can neither serve the previews nor resolve the
@@ -122,7 +135,9 @@ class SetupWizardGate {
     if (_rerunning) {
       return [
         for (final step in SetupStep.values)
-          if (step != SetupStep.navbarStyle || offerStyle) step,
+          if ((step != SetupStep.navbarStyle || offerStyle) &&
+              (step != SetupStep.tour || includeTour))
+            step,
       ];
     }
 
@@ -147,7 +162,7 @@ class SetupWizardGate {
     // The tour only pays for itself alongside something else. On its own it is
     // a splash screen between the user and the app they came to open.
     if (steps.isEmpty) return const [];
-    return [...steps, SetupStep.tour];
+    return includeTour ? [...steps, SetupStep.tour] : steps;
   }
 
   /// Waits for the server to hand over this user's settings.

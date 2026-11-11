@@ -18458,4 +18458,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvShowAppsButton => 'Botón de aplicaciones';
+
+  @override
+  String get kostvPersonalization => 'Personalización';
+
+  @override
+  String get kostvCustomizeLook => 'Personalizar el aspecto';
+
+  @override
+  String get kostvCustomizeLookSubtitle =>
+      'Elige cómo se ven la navegación, Inicio y las fichas';
 }

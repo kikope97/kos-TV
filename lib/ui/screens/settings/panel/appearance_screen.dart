@@ -48,11 +48,29 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
           builder: (context, _) => ListView(
             padding: EdgeInsets.only(bottom: bottomPad),
             children: [
-              _SectionHeader(l10n.navigation),
+              // Kos TV: the setup wizard, only from here. It walks through the
+              // look (navigation, the top of Home, rows, details pages).
+              _SectionHeader(l10n.kostvPersonalization),
               adaptiveListSection(
                 children: [
                   _TvSettingsListTile(
                     autofocus: true,
+                    leading: const Icon(Icons.auto_awesome),
+                    title: Text(l10n.kostvCustomizeLook),
+                    subtitle: Text(l10n.kostvCustomizeLookSubtitle),
+                    // Asking again on purpose says more than the stored
+                    // answers do, so it offers every question back.
+                    onTap: () {
+                      GetIt.instance<SetupWizardGate>().beginRerun();
+                      context.navigateTopLevel(Destinations.setup);
+                    },
+                  ),
+                ],
+              ),
+              _SectionHeader(l10n.navigation),
+              adaptiveListSection(
+                children: [
+                  _TvSettingsListTile(
                     leading: const Icon(Icons.view_sidebar),
                     title: Text(l10n.navigationBar),
                     subtitle: Text(l10n.navbarStyleToolbarAppearance),

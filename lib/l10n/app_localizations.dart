@@ -31340,6 +31340,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Apps button'**
   String get kostvShowAppsButton;
+
+  /// Kos TV: Appearance section with the look wizard
+  ///
+  /// In en, this message translates to:
+  /// **'Personalization'**
+  String get kostvPersonalization;
+
+  /// Kos TV: setting that runs the look wizard (navigation, Home, rows, details)
+  ///
+  /// In en, this message translates to:
+  /// **'Customize the look'**
+  String get kostvCustomizeLook;
+
+  /// Kos TV: subtitle of Customize the look
+  ///
+  /// In en, this message translates to:
+  /// **'Choose how navigation, Home and details pages look'**
+  String get kostvCustomizeLookSubtitle;
 }
 
 class _AppLocalizationsDelegate

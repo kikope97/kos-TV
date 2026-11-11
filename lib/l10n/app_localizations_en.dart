@@ -18135,4 +18135,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvShowAppsButton => 'Apps button';
+
+  @override
+  String get kostvPersonalization => 'Personalization';
+
+  @override
+  String get kostvCustomizeLook => 'Customize the look';
+
+  @override
+  String get kostvCustomizeLookSubtitle =>
+      'Choose how navigation, Home and details pages look';
 }

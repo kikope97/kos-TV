@@ -106,9 +106,15 @@ void main() {
         _FakeClientFactory(_FakeClient()),
       );
     SetupPreviewData.debugOverride = ValueNotifier(_fakeItems());
+    // Kos TV only runs the wizard from Settings and without the tour; these
+    // tests drive it as it works with both on.
+    SetupWizardGate.runAfterSignIn = true;
+    SetupWizardGate.includeTour = true;
   });
 
   tearDown(() async {
+    SetupWizardGate.runAfterSignIn = false;
+    SetupWizardGate.includeTour = false;
     SetupPreviewData.debugOverride = null;
     PlatformDetection.setInterfaceLayout(InterfaceLayout.automatic);
     await GetIt.instance.reset();

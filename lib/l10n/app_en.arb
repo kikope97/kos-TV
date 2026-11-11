@@ -17727,5 +17727,17 @@
   "kostvShowAppsButton": "Apps button",
   "@kostvShowAppsButton": {
     "description": "Kos TV: setting that shows the Apps button in the navigation bar"
+  },
+  "kostvPersonalization": "Personalization",
+  "@kostvPersonalization": {
+    "description": "Kos TV: Appearance section with the look wizard"
+  },
+  "kostvCustomizeLook": "Customize the look",
+  "@kostvCustomizeLook": {
+    "description": "Kos TV: setting that runs the look wizard (navigation, Home, rows, details)"
+  },
+  "kostvCustomizeLookSubtitle": "Choose how navigation, Home and details pages look",
+  "@kostvCustomizeLookSubtitle": {
+    "description": "Kos TV: subtitle of Customize the look"
   }
 }

@@ -2370,10 +2370,14 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         l10n.settingsCheckForUpdates,
         subtitle: l10n.settingsCheckForUpdatesSubtitle,
       ),
-    about.leaf(
-      'run_setup_again',
-      l10n.runSetupAgain,
-      keywords: ['setup', 'wizard', 'first run', 'onboarding', 'quick start'],
+    style.leaf(
+      'customize_look',
+      l10n.kostvCustomizeLook,
+      subtitle: l10n.kostvCustomizeLookSubtitle,
+      keywords: [
+        'setup', 'wizard', 'onboarding', 'look', 'design',
+        'personalización', 'diseño', 'aspecto', 'asistente',
+      ],
     ),
     diagnostics.screen(keywords: ['logs', 'report', 'debug']),
     diagnostics.leaf(
