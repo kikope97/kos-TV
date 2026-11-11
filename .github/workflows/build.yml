@@ -23,6 +23,10 @@ on:
         description: 'Kos TV: publish this build as a release, e.g. 1.0.1 (X.Y.Z). Empty only builds. A release builds Android alone and the apps offer it as an update.'
         type: string
         default: ''
+      test_apk:
+        description: 'Kos TV: publish the APKs of this build as a test pre-release. The apps never offer it as an update (they only read the latest release).'
+        type: boolean
+        default: false
       distribution:
         description: Where the Apple builds go. release keeps the artifacts, testflight uploads to App Store Connect and skips every other platform
         type: choice
@@ -80,6 +84,7 @@ jobs:
       web: ${{ steps.plan.outputs.web }}
       apple_tests: ${{ steps.plan.outputs.apple_tests }}
       release_version: ${{ steps.plan.outputs.release_version }}
+      test_apk: ${{ steps.plan.outputs.test_apk }}
     steps:
       - id: plan
         env:
@@ -126,13 +131,18 @@ jobs:
               'web':           event in ('pull_request', 'merge_group') and want('web', []),
               'apple_tests':   want('apple', ['run_all'], apple=True),
           }
-          if release_version:
+          # Kos TV: a test pre-release (the test_apk input) also builds
+          # Android alone. A release wins if both are asked for.
+          test_apk = (event == 'workflow_dispatch' and not release_version
+                      and inputs.get('test_apk') in (True, 'true'))
+          if release_version or test_apk:
               out = {k: k == 'android' for k in out}
           with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
               for k, v in out.items():
                   f.write(f'{k}={"true" if v else "false"}\n')
               f.write(f'release_version={release_version}\n')
-          print(out, 'release:', release_version or None)
+              f.write(f'test_apk={"true" if test_apk else "false"}\n')
+          print(out, 'release:', release_version or None, 'test apk:', test_apk)
           EOF
 
   # Android APK + AAB, with mobile and TV on their own runners
@@ -776,3 +786,36 @@ jobs:
           prerelease: false
           make_latest: 'true'
           generate_release_notes: true
+
+  # Kos TV: a test build to install by hand. Published as a pre-release, so
+  # GitHub never returns it as the latest release and the apps' update check
+  # (releases/latest) never offers it. Its APKs keep the base version
+  # (0.1.0, code 1000), so any real release installs over them.
+  test-release:
+    if: needs.plan.outputs.test_apk == 'true'
+    needs: [plan, android]
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: android*
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: prueba-${{ github.run_number }}
+          target_commitish: ${{ github.sha }}
+          name: kOS TV · prueba ${{ github.run_number }}
+          body: |
+            Versión de prueba para instalar a mano. No es una versión publicada:
+            las apps no la ofrecen como actualización.
+
+            - Android TV: `KosTV_AndroidTV_v0.1.0.apk`
+            - Móvil y tablet: `KosTV_Android_v0.1.0.apk`
+
+            Compilada desde ${{ github.sha }}.
+          files: KosTV_*.apk
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: true
+          make_latest: 'false'

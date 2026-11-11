@@ -243,6 +243,8 @@ void main() {
     final store = PreferenceStore();
     await store.init();
     prefs = UserPreferences(store);
+    // The app starts in Spanish; these tests read the English strings.
+    await prefs.set(UserPreferences.languageOverride, 'en');
 
     tempDir = await Directory.systemTemp.createTemp('moonfin_retry_test');
     db = OfflineDatabase(DatabaseConnection(NativeDatabase.memory()));

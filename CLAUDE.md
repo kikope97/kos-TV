@@ -32,6 +32,15 @@ es otra cosa y la decide el usuario.
 4. Dile al usuario qué versión salió y qué trae. Las apps la ofrecen solas
    (al abrirse o al volver a primer plano, como mucho cada 6 horas).
 
+## APK de prueba
+
+Si el usuario pide un APK para probar (sin decir que publiques una versión),
+lanza `build.yml` con `inputs: {"test_apk": "true"}`. Sale como *pre-release*
+`kOS TV · prueba N` con los dos APK: las apps no la ofrecen como actualización
+(solo leen la última versión publicada) y cualquier versión real se instala
+encima. Dale el enlace directo al APK de la tele
+(`https://github.com/kikope97/kos-TV/releases/download/prueba-N/KosTV_AndroidTV_v0.1.0.apk`).
+
 No cambies a mano la versión del `pubspec.yaml` (se queda en `0.1.0`): la fija
 `scripts/kostv_set_version.sh` a partir de `release_version` al compilar.
 
