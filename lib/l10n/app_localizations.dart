@@ -4766,12 +4766,6 @@ abstract class AppLocalizations {
   /// **'Search failed: {error}'**
   String searchFailedError(String error);
 
-  /// Seerr brand name
-  ///
-  /// In en, this message translates to:
-  /// **'Seerr'**
-  String get seerr;
-
   /// Header title for saved/downloaded media screen
   ///
   /// In en, this message translates to:
@@ -9674,12 +9668,6 @@ abstract class AppLocalizations {
   /// **'Recently Added'**
   String get recentlyAdded;
 
-  /// Seerr row: trending
-  ///
-  /// In en, this message translates to:
-  /// **'Trending'**
-  String get trending;
-
   /// Seerr row: popular movies
   ///
   /// In en, this message translates to:
@@ -9697,12 +9685,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Studios'**
   String get studios;
-
-  /// Seerr row: networks
-  ///
-  /// In en, this message translates to:
-  /// **'Networks'**
-  String get networks;
 
   /// Heading for the keyword tags a title is filed under
   ///
@@ -9974,12 +9956,6 @@ abstract class AppLocalizations {
   /// **'No results'**
   String get noResults;
 
-  /// Label above the Seerr download progress bar
-  ///
-  /// In en, this message translates to:
-  /// **'Downloading · {percent}%'**
-  String seerrDownloadingPercent(int percent);
-
   /// Status bar item count
   ///
   /// In en, this message translates to:
@@ -10033,12 +10009,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Keep'**
   String get keep;
-
-  /// Snackbar when Seerr item cannot be found in Jellyfin
-  ///
-  /// In en, this message translates to:
-  /// **'Item not found in your library'**
-  String get itemNotFoundInLibrary;
 
   /// Snackbar when library search fails
   ///
@@ -25511,12 +25481,6 @@ abstract class AppLocalizations {
   /// **'IMDb Top Rated English Movies'**
   String get imdbTopEnglishMovies;
 
-  /// Snackbar shown when adding/removing a Seerr watchlist item fails
-  ///
-  /// In en, this message translates to:
-  /// **'Couldn\'t update watchlist'**
-  String get watchlistUpdateFailed;
-
   /// Column header above the editable fields used to search metadata providers in the Identify dialog
   ///
   /// In en, this message translates to:
@@ -27236,12 +27200,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Storage & Downloads'**
   String get storageAndDownloads;
-
-  /// Settings root entry and screen for connected integrations such as Seerr and Achievement Badges
-  ///
-  /// In en, this message translates to:
-  /// **'Integrations'**
-  String get integrations;
 
   /// Settings screen for syncing settings through the Moonbase plugin
   ///

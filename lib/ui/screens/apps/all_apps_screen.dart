@@ -52,6 +52,7 @@ class _AllAppsScreenState extends State<AllAppsScreen>
 
   /// Animations turned off on the device: the cards are just there.
   bool _still = false;
+  bool _started = false;
 
   @override
   void initState() {
@@ -83,17 +84,38 @@ class _AllAppsScreenState extends State<AllAppsScreen>
 
   /// Once the list is there: the cards come in and their colours are read.
   void _startOnceLoaded() {
-    if (!_apps.isLoaded || !_entrance.isDismissed) return;
+    if (!_apps.isLoaded || _started) return;
+    _started = true;
     if (_still) {
       _entrance.value = 1;
     } else {
-      // From the frame after the grid is first drawn, so a slow first frame
-      // (the banners being decoded) doesn't eat into it.
+      _comeInOnceShown();
+    }
+    unawaited(_readAccents(_apps.apps));
+  }
+
+  /// The cards come in once the screen has faded in (they would be lost in
+  /// the fade otherwise), from the frame after, so a slow first frame doesn't
+  /// eat into it.
+  void _comeInOnceShown() {
+    final route = ModalRoute.of(context)?.animation;
+    void start() {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _entrance.isDismissed) unawaited(_entrance.forward());
       });
     }
-    unawaited(_readAccents(_apps.apps));
+
+    if (route == null || route.isCompleted) {
+      start();
+      return;
+    }
+    void onStatus(AnimationStatus status) {
+      if (!status.isCompleted) return;
+      route.removeStatusListener(onStatus);
+      start();
+    }
+
+    route.addStatusListener(onStatus);
   }
 
   /// Reads every app's colour ahead, one after another, so the background is

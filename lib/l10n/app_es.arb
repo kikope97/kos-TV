@@ -3761,10 +3761,6 @@
             }
         }
     },
-    "seerr": "Seerr",
-    "@seerr": {
-        "description": "Seerr brand name"
-    },
     "savedMedia": "Descargas",
     "@savedMedia": {
         "description": "Header title for saved/downloaded media screen"
@@ -6179,10 +6175,6 @@
     "@recentlyAdded": {
         "description": "Seerr row: recently added"
     },
-    "trending": "En tendencia",
-    "@trending": {
-        "description": "Seerr row: trending"
-    },
     "popularMovies": "Películas populares",
     "@popularMovies": {
         "description": "Seerr row: popular movies"
@@ -6194,10 +6186,6 @@
     "studios": "Estudios",
     "@studios": {
         "description": "Seerr row: studios"
-    },
-    "networks": "Cadenas",
-    "@networks": {
-        "description": "Seerr row: networks"
     },
     "tags": "Etiquetas",
     "enabled": "Activado",
@@ -6392,15 +6380,6 @@
     "@noResults": {
         "description": "Shown when a search or browse returns no items"
     },
-    "seerrDownloadingPercent": "Descargando · {percent}%",
-    "@seerrDownloadingPercent": {
-        "description": "Label above the Seerr download progress bar",
-        "placeholders": {
-            "percent": {
-                "type": "int"
-            }
-        }
-    },
     "itemsCount": "{count} elementos",
     "@itemsCount": {
         "description": "Status bar item count",
@@ -6438,10 +6417,6 @@
     "keep": "Mantener",
     "@keep": {
         "description": "Button to keep/dismiss a cancel dialog"
-    },
-    "itemNotFoundInLibrary": "No se ha encontrado el elemento en tu biblioteca",
-    "@itemNotFoundInLibrary": {
-        "description": "Snackbar when Seerr item cannot be found in Jellyfin"
     },
     "errorSearchingLibrary": "Error al buscar en la biblioteca",
     "@errorSearchingLibrary": {
@@ -10602,7 +10577,6 @@
     "imdbMostPopularTvShows": "Series más populares de IMDb",
     "imdbLowestRatedMovies": "Películas peor valoradas de IMDb",
     "imdbTopEnglishMovies": "Películas en inglés mejor valoradas de IMDb",
-    "watchlistUpdateFailed": "No se ha podido actualizar la lista de seguimiento",
     "adminSearchParameters": "Parámetros de búsqueda",
     "adminCurrentMetadata": "Metadatos actuales",
     "adminLabelYear": "Año",
@@ -10889,10 +10863,6 @@
     "cinemaSkipPrerollsDescription": "Muestra un botón Saltar durante los tráileres, anuncios y otros vídeos previos del modo cine.",
     "detailsPage": "Página de detalles",
     "storageAndDownloads": "Almacenamiento y descargas",
-    "integrations": "Integraciones",
-    "@integrations": {
-        "description": "Integrations section title"
-    },
     "settingsSync": "Sincronización de ajustes",
     "settingsSyncSubtitle": "Sincronización con el complemento del servidor y perfiles de personalización",
     "navigationBar": "Barra de navegación",

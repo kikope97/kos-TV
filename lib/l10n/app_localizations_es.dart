@@ -2814,9 +2814,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get seerr => 'Seerr';
-
-  @override
   String get savedMedia => 'Descargas';
 
   @override
@@ -5576,9 +5573,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get recentlyAdded => 'Añadido recientemente';
 
   @override
-  String get trending => 'En tendencia';
-
-  @override
   String get popularMovies => 'Películas populares';
 
   @override
@@ -5586,9 +5580,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get studios => 'Estudios';
-
-  @override
-  String get networks => 'Cadenas';
 
   @override
   String get tags => 'Etiquetas';
@@ -5751,11 +5742,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get noResults => 'Sin resultados';
 
   @override
-  String seerrDownloadingPercent(int percent) {
-    return 'Descargando · $percent%';
-  }
-
-  @override
   String itemsCount(int count) {
     return '$count elementos';
   }
@@ -5783,10 +5769,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get keep => 'Mantener';
-
-  @override
-  String get itemNotFoundInLibrary =>
-      'No se ha encontrado el elemento en tu biblioteca';
 
   @override
   String get errorSearchingLibrary => 'Error al buscar en la biblioteca';
@@ -14887,10 +14869,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Películas en inglés mejor valoradas de IMDb';
 
   @override
-  String get watchlistUpdateFailed =>
-      'No se ha podido actualizar la lista de seguimiento';
-
-  @override
   String get adminSearchParameters => 'Parámetros de búsqueda';
 
   @override
@@ -15935,9 +15913,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get storageAndDownloads => 'Almacenamiento y descargas';
-
-  @override
-  String get integrations => 'Integraciones';
 
   @override
   String get settingsSync => 'Sincronización de ajustes';

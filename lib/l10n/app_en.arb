@@ -3804,10 +3804,6 @@
       }
     }
   },
-  "seerr": "Seerr",
-  "@seerr": {
-    "description": "Seerr brand name"
-  },
 
   "savedMedia": "Downloads",
   "@savedMedia": {
@@ -7272,10 +7268,6 @@
   "@recentlyAdded": {
     "description": "Seerr row: recently added"
   },
-  "trending": "Trending",
-  "@trending": {
-    "description": "Seerr row: trending"
-  },
   "popularMovies": "Popular Movies",
   "@popularMovies": {
     "description": "Seerr row: popular movies"
@@ -7287,10 +7279,6 @@
   "studios": "Studios",
   "@studios": {
     "description": "Seerr row: studios"
-  },
-  "networks": "Networks",
-  "@networks": {
-    "description": "Seerr row: networks"
   },
   "tags": "Tags",
   "@tags": {
@@ -7488,15 +7476,6 @@
   "@noResults": {
     "description": "Shown when a search or browse returns no items"
   },
-  "seerrDownloadingPercent": "Downloading · {percent}%",
-  "@seerrDownloadingPercent": {
-    "description": "Label above the Seerr download progress bar",
-    "placeholders": {
-      "percent": {
-        "type": "int"
-      }
-    }
-  },
   "itemsCount": "{count} Items",
   "@itemsCount": {
     "description": "Status bar item count",
@@ -7537,10 +7516,6 @@
   "keep": "Keep",
   "@keep": {
     "description": "Button to keep/dismiss a cancel dialog"
-  },
-  "itemNotFoundInLibrary": "Item not found in your library",
-  "@itemNotFoundInLibrary": {
-    "description": "Snackbar when Seerr item cannot be found in Jellyfin"
   },
   "errorSearchingLibrary": "Error searching library",
   "@errorSearchingLibrary": {
@@ -13157,10 +13132,6 @@
   "imdbMostPopularTvShows": "IMDb Most Popular TV Shows",
   "imdbLowestRatedMovies": "IMDb Lowest Rated Movies",
   "imdbTopEnglishMovies": "IMDb Top Rated English Movies",
-  "watchlistUpdateFailed": "Couldn't update watchlist",
-  "@watchlistUpdateFailed": {
-    "description": "Snackbar shown when adding/removing a Seerr watchlist item fails"
-  },
   "adminSearchParameters": "Search Parameters",
   "@adminSearchParameters": {
     "description": "Column header above the editable fields used to search metadata providers in the Identify dialog"
@@ -14446,10 +14417,6 @@
   "storageAndDownloads": "Storage & Downloads",
   "@storageAndDownloads": {
     "description": "Settings root entry and screen for downloads, storage location and the image cache"
-  },
-  "integrations": "Integrations",
-  "@integrations": {
-    "description": "Settings root entry and screen for connected integrations such as Seerr and Achievement Badges"
   },
   "settingsSync": "Settings Sync",
   "@settingsSync": {
