@@ -10,6 +10,14 @@
 - Nada de "Moonfin" ni "Moonbase" a la vista de quien usa la app: se llama
   **kOS TV** y el complemento es "el complemento del servidor". La marca (colores,
   logotipo, iconos) está en `docs/marca/README.md`.
+- **Norma: todo lo que se añade a la versión de la tele tiene que quedar igual de
+  logrado en la versión móvil y en la web** (la de Docker, `docs/web.md`), y
+  verse bien en todos los diseños (barra de arriba, lateral y, en el móvil, la
+  barra de abajo; sobre todo el diseño por defecto). No basta con que funcione:
+  adaptado a cada pantalla (táctil, ratón, mando) y probado en las tres, con
+  fotos de cada una cuando se enseñe. Lo único que puede quedarse solo en la
+  tele es lo que no tiene sentido fuera de ella (por ejemplo, la fila de
+  aplicaciones instaladas), y hay que decirlo al terminar.
 
 ## Publicar una versión
 
