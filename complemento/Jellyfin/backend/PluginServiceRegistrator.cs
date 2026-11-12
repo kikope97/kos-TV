@@ -55,6 +55,9 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<TmdbThumbService>();
         serviceCollection.AddSingleton<ServerRatingLimitService>();
         serviceCollection.AddSingleton<ItemCardDtoMapper>();
+        // kOS TV: each person's home page.
+        serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvTasteCache>();
+        serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvHomeService>();
         serviceCollection.AddSingleton<SeasonalKeywordStoreService>();
         serviceCollection.AddSingleton<SeasonalSuggestionsCacheService>();
         serviceCollection.AddSingleton<SeasonalRowService>();

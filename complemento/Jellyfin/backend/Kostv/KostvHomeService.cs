@@ -1,0 +1,598 @@
+using System.Collections.Concurrent;
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Jellyfin.Data.Enums;
+using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.TV;
+using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Entities;
+using Microsoft.Extensions.Logging;
+using Moonfin.Server.Helpers;
+using Moonfin.Server.Services;
+
+namespace Moonfin.Server.Kostv;
+
+/// <summary>What TMDB said of a title or a person, kept so it's asked once a month.</summary>
+public sealed class KostvTasteEntry
+{
+    [JsonPropertyName("recs")]
+    public List<string> Recs { get; set; } = [];
+
+    [JsonPropertyName("people")]
+    public List<KostvTastePerson> People { get; set; } = [];
+
+    /// <summary>For a person: what they made or acted in.</summary>
+    [JsonPropertyName("credits")]
+    public List<string> Credits { get; set; } = [];
+
+    [JsonPropertyName("cachedAt")]
+    public DateTimeOffset CachedAt { get; set; }
+}
+
+public sealed class KostvTastePerson
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("director")]
+    public bool Director { get; set; }
+}
+
+/// <summary>kOS TV: TMDB's recommendations and credits, on disk.</summary>
+public sealed class KostvTasteCache : FileBackedCacheService<KostvTasteEntry>
+{
+    private static readonly TimeSpan MaxAge = TimeSpan.FromDays(30);
+
+    public KostvTasteCache(ILogger<KostvTasteCache> logger)
+        : base(logger, "kostv-home-tmdb.json", "kOS TV home")
+    {
+    }
+
+    public KostvTasteEntry? Get(string key) =>
+        EnsureLoaded().TryGetValue(key, out var entry) && DateTimeOffset.UtcNow - entry.CachedAt < MaxAge ? entry : null;
+
+    public void Set(string key, KostvTasteEntry entry)
+    {
+        entry.CachedAt = DateTimeOffset.UtcNow;
+        EnsureLoaded()[key] = entry;
+    }
+}
+
+/// <summary>A person's home page as worked out, with what it was worked out from.</summary>
+public sealed record KostvHomePage(
+    IReadOnlyList<KostvHomeRow> Rows,
+    int Seeds,
+    int Library,
+    bool Tmdb,
+    DateTimeOffset BuiltAt);
+
+/// <summary>
+/// kOS TV: works out each person's home page. Reads what they watched from the server's own
+/// play history, asks TMDB what people who liked those also liked (kept a month), keeps what is
+/// on the home server, not seen and within their limits, and hands it to the engine. A page is
+/// kept a while per person, so the apps only fetch.
+/// </summary>
+public sealed class KostvHomeService
+{
+    private const int MaxSeeds = 14;
+    private const int RecommendationPages = 3;
+
+    // TMDB, or a stand-in for it when the plugin is tried out against a made-up library.
+    private static readonly string TmdbUrl =
+        (Environment.GetEnvironmentVariable("KOSTV_TMDB_URL") ?? "https://api.themoviedb.org").TrimEnd('/');
+    private static readonly TimeSpan PageLife = TimeSpan.FromMinutes(20);
+
+    private static readonly PropertyInfo? OrderByProperty = typeof(InternalItemsQuery).GetProperty(nameof(InternalItemsQuery.OrderBy));
+
+    private static readonly MethodInfo? GetUserData = typeof(IUserDataManager)
+        .GetMethods()
+        .FirstOrDefault(m =>
+        {
+            if (m.Name != "GetUserData")
+            {
+                return false;
+            }
+
+            var parameters = m.GetParameters();
+            return parameters.Length == 2 &&
+                parameters[1].ParameterType == typeof(BaseItem) &&
+                typeof(UserItemData).IsAssignableFrom(m.ReturnType);
+        });
+
+    private readonly ILibraryManager _libraryManager;
+    private readonly IUserDataManager _userDataManager;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly MoonfinSettingsService _settings;
+    private readonly KostvTasteCache _cache;
+    private readonly ILogger<KostvHomeService> _logger;
+
+    private readonly ConcurrentDictionary<Guid, KostvHomePage> _pages = new();
+    private readonly ConcurrentDictionary<Guid, Task<KostvHomePage>> _building = new();
+    private readonly SemaphoreSlim _tmdbGate = new(4, 4);
+
+    public KostvHomeService(
+        ILibraryManager libraryManager,
+        IUserDataManager userDataManager,
+        IHttpClientFactory httpClientFactory,
+        MoonfinSettingsService settings,
+        KostvTasteCache cache,
+        ILogger<KostvHomeService> logger)
+    {
+        _libraryManager = libraryManager;
+        _userDataManager = userDataManager;
+        _httpClientFactory = httpClientFactory;
+        _settings = settings;
+        _cache = cache;
+        _logger = logger;
+    }
+
+    /// <summary>The page of <paramref name="userId"/>, worked out again when it's old or asked to.</summary>
+    public Task<KostvHomePage> GetAsync(Guid userId, object user, bool refresh)
+    {
+        if (!refresh &&
+            _pages.TryGetValue(userId, out var page) &&
+            DateTimeOffset.UtcNow - page.BuiltAt < PageLife)
+        {
+            return Task.FromResult(page);
+        }
+
+        // Two apps asking at once share the one build.
+        return _building.GetOrAdd(userId, _ => BuildAndKeepAsync(userId, user));
+    }
+
+    private async Task<KostvHomePage> BuildAndKeepAsync(Guid userId, object user)
+    {
+        try
+        {
+            var page = await BuildAsync(userId, user).ConfigureAwait(false);
+            _pages[userId] = page;
+            return page;
+        }
+        finally
+        {
+            _building.TryRemove(userId, out _);
+        }
+    }
+
+    private async Task<KostvHomePage> BuildAsync(Guid userId, object user)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var (library, items) = ReadLibrary(user);
+        var seeds = ReadSeeds(user, items, now);
+
+        var apiKey = await TmdbApiKeys.ResolveAsync(_settings, userId).ConfigureAwait(false);
+        var facts = new Dictionary<string, KostvSeedFacts>(StringComparer.Ordinal);
+        var credits = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+        var hasKey = !string.IsNullOrWhiteSpace(apiKey);
+        if (hasKey)
+        {
+            var asked = await Task.WhenAll(seeds.Select(async seed => (seed.Key, Entry: await SeedFactsAsync(seed.Key, apiKey!).ConfigureAwait(false)))).ConfigureAwait(false);
+            foreach (var (key, entry) in asked)
+            {
+                if (entry != null)
+                {
+                    facts[key] = new KostvSeedFacts(
+                        entry.Recs,
+                        entry.People.Select(p => new KostvPerson(p.Id, p.Name, p.Director)).ToList());
+                }
+            }
+
+            var people = KostvHomeEngine.PeopleToAsk(seeds, facts);
+            var works = await Task.WhenAll(people.Select(async person => (person.Id, Entry: await PersonCreditsAsync(person.Id, apiKey!).ConfigureAwait(false)))).ConfigureAwait(false);
+            foreach (var (id, entry) in works)
+            {
+                if (entry != null)
+                {
+                    credits[id] = entry.Credits;
+                }
+            }
+
+            await _cache.FlushAsync().ConfigureAwait(false);
+        }
+
+        // The day, and the person, so two people at home don't get the same shuffle.
+        var day = (int)(now.ToUnixTimeSeconds() / 86400) + (userId.GetHashCode() & 0xFFFF);
+        var rows = KostvHomeEngine.Build(seeds, facts, credits, library, day);
+        return new KostvHomePage(rows, seeds.Count, library.Count, hasKey, now);
+    }
+
+    // ---------------------------------------------------------------- the server
+
+    /// <summary>Every film and series the person may see, and which of them they have seen.</summary>
+    private (List<KostvCandidate> Library, Dictionary<Guid, BaseItem> Items) ReadLibrary(object user)
+    {
+        var items = new Dictionary<Guid, BaseItem>();
+        var library = new List<KostvCandidate>();
+
+        var seen = new HashSet<Guid>(Query(user, [BaseItemKind.Movie], q => q.IsPlayed = true).Select(i => i.Id));
+        // A series counts as seen once any of it has been: it's offered under "carry on", not
+        // as something new.
+        foreach (var episode in Query(user, [BaseItemKind.Episode], q => q.IsPlayed = true, 4000, ItemSortBy.DatePlayed))
+        {
+            if (episode is Episode { SeriesId: var seriesId } && seriesId != Guid.Empty)
+            {
+                seen.Add(seriesId);
+            }
+        }
+
+        foreach (var item in Query(user, [BaseItemKind.Movie, BaseItemKind.Series], null))
+        {
+            if (!UserReflection.IsVisibleTo(item, user))
+            {
+                continue;
+            }
+
+            items[item.Id] = item;
+            var key = KeyOf(item);
+            if (key == null)
+            {
+                continue;
+            }
+
+            library.Add(new KostvCandidate(
+                item.Id.ToString("N"),
+                key,
+                item is Series,
+                seen.Contains(item.Id),
+                item.CommunityRating ?? 0,
+                item.Genres ?? []));
+        }
+
+        return (library, items);
+    }
+
+    /// <summary>What the person watched lately and what they marked as favourite, weighed.</summary>
+    private List<KostvSeed> ReadSeeds(object user, Dictionary<Guid, BaseItem> items, DateTimeOffset now)
+    {
+        var seeds = new Dictionary<string, KostvSeed>(StringComparer.Ordinal);
+
+        void Add(BaseItem item, KostvSeedKind kind, double weight)
+        {
+            var key = KeyOf(item);
+            if (key == null || (seeds.TryGetValue(key, out var had) && had.Weight >= weight))
+            {
+                return;
+            }
+
+            seeds[key] = new KostvSeed(key, item.Id.ToString("N"), item.Name, item is Series, kind, weight);
+        }
+
+        foreach (var movie in Query(user, [BaseItemKind.Movie], q => q.IsPlayed = true, 40, ItemSortBy.DatePlayed))
+        {
+            Add(movie, KostvSeedKind.Finished, KostvHomeEngine.Recency(DaysSince(LastPlayed(user, movie), now)));
+        }
+
+        // Episodes come newest first, so the first of each series is its latest.
+        var series = new Dictionary<Guid, (DateTime? Last, int Count)>();
+        foreach (var episode in Query(user, [BaseItemKind.Episode], q => q.IsPlayed = true, 400, ItemSortBy.DatePlayed))
+        {
+            if (episode is not Episode { SeriesId: var seriesId } || seriesId == Guid.Empty)
+            {
+                continue;
+            }
+
+            series[seriesId] = series.TryGetValue(seriesId, out var had)
+                ? (had.Last, had.Count + 1)
+                : (LastPlayed(user, episode), 1);
+        }
+
+        foreach (var (seriesId, (last, count)) in series)
+        {
+            if (!items.TryGetValue(seriesId, out var show))
+            {
+                continue;
+            }
+
+            // One episode says little; three, that they are into it.
+            var weight = KostvHomeEngine.Recency(DaysSince(last, now)) * Math.Min(1.0, count / 3.0);
+            var unwatched = Query(user, [BaseItemKind.Episode], q =>
+            {
+                q.IsPlayed = false;
+                q.AncestorIds = [seriesId];
+            }, 1).Any();
+            Add(show, unwatched ? KostvSeedKind.Watching : KostvSeedKind.Finished, weight);
+        }
+
+        foreach (var liked in Query(user, [BaseItemKind.Movie, BaseItemKind.Series], q => q.IsFavorite = true, 30))
+        {
+            Add(liked, KostvSeedKind.Liked, 0.35);
+        }
+
+        return seeds.Values.OrderByDescending(s => s.Weight).Take(MaxSeeds).ToList();
+    }
+
+    private IEnumerable<BaseItem> Query(
+        object user,
+        BaseItemKind[] kinds,
+        Action<InternalItemsQuery>? filter,
+        int? limit = null,
+        ItemSortBy? newestBy = null)
+    {
+        var query = new InternalItemsQuery
+        {
+            IncludeItemTypes = kinds,
+            IsVirtualItem = false,
+            Recursive = true,
+            Limit = limit,
+            EnableTotalRecordCount = false
+        };
+        filter?.Invoke(query);
+        if (newestBy.HasValue)
+        {
+            OrderDescending(query, newestBy.Value);
+        }
+
+        // Without the person's limits applied nothing is read, rather than everything.
+        if (!UserReflection.ApplyUser(query, user))
+        {
+            return [];
+        }
+
+        try
+        {
+            return _libraryManager.GetItemsResult(query).Items;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "kOS TV home: a library query failed");
+            return [];
+        }
+    }
+
+    // The tuple type of OrderBy changed between server versions, so it is built by reflection.
+    private static void OrderDescending(InternalItemsQuery query, ItemSortBy sortBy)
+    {
+        if (OrderByProperty == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var elementType = OrderByProperty.PropertyType.GetGenericArguments()[0];
+            var sortOrderType = elementType.GetGenericArguments()[1];
+            var array = Array.CreateInstance(elementType, 1);
+            array.SetValue(Activator.CreateInstance(elementType, sortBy, Enum.Parse(sortOrderType, "Descending")), 0);
+            OrderByProperty.SetValue(query, array);
+        }
+        catch
+        {
+            // Unordered is still right, only less recent first.
+        }
+    }
+
+    private DateTime? LastPlayed(object user, BaseItem item)
+    {
+        try
+        {
+            return (GetUserData?.Invoke(_userDataManager, [user, item]) as UserItemData)?.LastPlayedDate;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // Played with no date known: taken as a couple of months ago.
+    private static double DaysSince(DateTime? when, DateTimeOffset now) =>
+        when.HasValue ? Math.Max(0, (now.UtcDateTime - when.Value.ToUniversalTime()).TotalDays) : 60;
+
+    internal static string? KeyOf(BaseItem item)
+    {
+        var id = item.GetProviderId(MetadataProvider.Tmdb);
+        return string.IsNullOrWhiteSpace(id) || !long.TryParse(id, out var number)
+            ? null
+            : $"{(item is Series ? "tv" : "movie")}:{number}";
+    }
+
+    // ---------------------------------------------------------------- TMDB
+
+    private async Task<KostvTasteEntry?> SeedFactsAsync(string key, string apiKey)
+    {
+        if (_cache.Get(key) is { } cached)
+        {
+            return cached;
+        }
+
+        var parts = key.Split(':');
+        var (type, id) = (parts[0], parts[1]);
+        using var first = await GetAsync($"{TmdbUrl}/3/{type}/{id}?append_to_response=recommendations,credits", apiKey).ConfigureAwait(false);
+        if (first == null)
+        {
+            return null;
+        }
+
+        var entry = ParseSeed(first.RootElement, type);
+        for (var page = 2; page <= RecommendationPages; page++)
+        {
+            using var more = await GetAsync($"{TmdbUrl}/3/{type}/{id}/recommendations?page={page}", apiKey).ConfigureAwait(false);
+            if (more == null || !AddRecommendations(entry.Recs, more.RootElement, type))
+            {
+                break;
+            }
+        }
+
+        _cache.Set(key, entry);
+        return entry;
+    }
+
+    private async Task<KostvTasteEntry?> PersonCreditsAsync(string personId, string apiKey)
+    {
+        var key = "person:" + personId;
+        if (_cache.Get(key) is { } cached)
+        {
+            return cached;
+        }
+
+        using var doc = await GetAsync($"{TmdbUrl}/3/person/{personId}/combined_credits", apiKey).ConfigureAwait(false);
+        if (doc == null)
+        {
+            return null;
+        }
+
+        var entry = new KostvTasteEntry { Credits = ParseCredits(doc.RootElement) };
+        _cache.Set(key, entry);
+        return entry;
+    }
+
+    /// <summary>A title's recommendations (first page) and its director or creator and leads.</summary>
+    internal static KostvTasteEntry ParseSeed(JsonElement root, string type)
+    {
+        var entry = new KostvTasteEntry();
+        if (root.TryGetProperty("recommendations", out var recommendations))
+        {
+            AddRecommendations(entry.Recs, recommendations, type);
+        }
+
+        void AddPerson(JsonElement person, bool director)
+        {
+            if (person.TryGetProperty("id", out var id) && id.TryGetInt64(out var number) &&
+                person.TryGetProperty("name", out var name) && name.GetString() is { Length: > 0 } text &&
+                entry.People.All(p => p.Id != number.ToString()))
+            {
+                entry.People.Add(new KostvTastePerson { Id = number.ToString(), Name = text, Director = director });
+            }
+        }
+
+        if (root.TryGetProperty("created_by", out var creators) && creators.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var creator in creators.EnumerateArray().Take(1))
+            {
+                AddPerson(creator, true);
+            }
+        }
+
+        if (root.TryGetProperty("credits", out var credits))
+        {
+            if (credits.TryGetProperty("crew", out var crew) && crew.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var member in crew.EnumerateArray()
+                    .Where(m => m.TryGetProperty("job", out var job) && job.GetString() == "Director")
+                    .Take(1))
+                {
+                    AddPerson(member, true);
+                }
+            }
+
+            if (credits.TryGetProperty("cast", out var cast) && cast.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var member in cast.EnumerateArray().Take(2))
+                {
+                    AddPerson(member, false);
+                }
+            }
+        }
+
+        return entry;
+    }
+
+    /// <summary>Adds a page of recommendations; false when the page had none.</summary>
+    internal static bool AddRecommendations(List<string> into, JsonElement page, string type)
+    {
+        if (!page.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        var any = false;
+        foreach (var result in results.EnumerateArray())
+        {
+            if (!result.TryGetProperty("id", out var id) || !id.TryGetInt64(out var number))
+            {
+                continue;
+            }
+
+            var kind = result.TryGetProperty("media_type", out var media) && media.GetString() is "movie" or "tv"
+                ? media.GetString()!
+                : type;
+            var key = $"{kind}:{number}";
+            if (!into.Contains(key))
+            {
+                into.Add(key);
+            }
+
+            any = true;
+        }
+
+        return any;
+    }
+
+    /// <summary>What a person acted in or directed, the best known first.</summary>
+    internal static List<string> ParseCredits(JsonElement root)
+    {
+        var found = new List<(string Key, double Popularity)>();
+
+        void Add(JsonElement credit)
+        {
+            if (credit.TryGetProperty("id", out var id) && id.TryGetInt64(out var number) &&
+                credit.TryGetProperty("media_type", out var media) && media.GetString() is "movie" or "tv")
+            {
+                var popularity = credit.TryGetProperty("popularity", out var p) && p.TryGetDouble(out var value) ? value : 0;
+                found.Add(($"{media.GetString()}:{number}", popularity));
+            }
+        }
+
+        if (root.TryGetProperty("cast", out var cast) && cast.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var credit in cast.EnumerateArray())
+            {
+                Add(credit);
+            }
+        }
+
+        if (root.TryGetProperty("crew", out var crew) && crew.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var credit in crew.EnumerateArray()
+                .Where(c => c.TryGetProperty("job", out var job) && job.GetString() == "Director"))
+            {
+                Add(credit);
+            }
+        }
+
+        return found.OrderByDescending(f => f.Popularity).Select(f => f.Key).Distinct().ToList();
+    }
+
+    private async Task<JsonDocument?> GetAsync(string url, string apiKey)
+    {
+        await _tmdbGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var client = _httpClientFactory.CreateClient("MoonfinHttpClient");
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                TmdbRequestHelper.ApplyAuth(request, apiKey);
+                using var response = await client.SendAsync(request).ConfigureAwait(false);
+                if ((int)response.StatusCode == 429 && attempt == 0)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                    continue;
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogDebug("kOS TV home: TMDB answered {Status}", (int)response.StatusCode);
+                    return null;
+                }
+
+                await using var stream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false);
+                return await JsonDocument.ParseAsync(stream).ConfigureAwait(false);
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "kOS TV home: TMDB could not be reached");
+            return null;
+        }
+        finally
+        {
+            _tmdbGate.Release();
+        }
+    }
+}

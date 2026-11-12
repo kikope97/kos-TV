@@ -2066,6 +2066,20 @@
                                 Déjala vacía y la pestaña Descubrir no saldrá en las apps.
                             </div>
                         </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused">Inicio con recomendaciones</label>
+                            <div class="fieldDescription">
+                                El Inicio de las apps de kOS TV se monta para cada persona con lo que ha visto: «Porque viste…»,
+                                «Recomendado para ti» y demás, siempre con títulos que están en este servidor y que no ha visto.
+                                Las recomendaciones salen de TMDB, así que hace falta la clave de TMDB de más arriba; sin ella solo
+                                salen las filas por género y las mejor valoradas. Pulsa para ver cuántas filas le salen a cada persona
+                                (una fila necesita al menos 6 títulos).
+                            </div>
+                            <button is="emby-button" type="button" id="KostvHomeCheck" class="raised" style="margin-top:.6em">
+                                <span>Comprobar el Inicio de cada persona</span>
+                            </button>
+                            <div id="KostvHomeResult" class="fieldDescription" style="margin-top:.8em;white-space:pre-wrap"></div>
+                        </div>
                         <div class="inputContainer kostvNoSeUsa">
                             <label class="inputLabel inputLabelUnfocused" for="WebDefaultServerUrl">URL del servidor por defecto (opcional)</label>
                             <input type="url" id="WebDefaultServerUrl" is="emby-input" placeholder="https://jellyfin.example.com" />
@@ -11327,6 +11341,33 @@
                     document.querySelector('#SeerrDisplayName').value = config.SeerrDisplayName || '';
                     document.querySelector('#PublicServerUrl').value = config.PublicServerUrl || '';
                     document.querySelector('#KostvRequestsUrl').value = config.KostvRequestsUrl || '';
+                    // kOS TV: how full each person's home page comes out.
+                    var kostvHomeCheck = document.querySelector('#KostvHomeCheck');
+                    if (kostvHomeCheck && !kostvHomeCheck.dataset.ready) {
+                        kostvHomeCheck.dataset.ready = '1';
+                        var kostvHomeKinds = {
+                            because_watched: 'Porque viste', because_watching: 'Porque estás viendo', for_you: 'Recomendado para ti',
+                            with_person: 'Con', genre: 'Género', hidden_gems: 'Joyas que no has visto'
+                        };
+                        kostvHomeCheck.addEventListener('click', function() {
+                            var out = document.querySelector('#KostvHomeResult');
+                            out.textContent = 'Calculando… (la primera vez tarda un poco: se pregunta a TMDB)';
+                            ApiClient.ajax({ type: 'GET', url: ApiClient.getUrl('Moonfin/Kostv/Home/Diagnostics'), dataType: 'json' }).then(function(data) {
+                                var lines = (data.People || []).map(function(person) {
+                                    var head = person.Name + ': ' + person.Rows.length + ' filas, de ' + person.Seeds +
+                                        ' títulos vistos o favoritos y ' + person.Library + ' en la biblioteca' +
+                                        (person.Tmdb ? '' : ' (sin clave de TMDB)');
+                                    var rows = person.Rows.map(function(row) {
+                                        return '   · ' + (kostvHomeKinds[row.Kind] || row.Kind) + (row.Label ? ' ' + row.Label : '') + ': ' + row.Count;
+                                    });
+                                    return [head].concat(rows).join('\n');
+                                });
+                                out.textContent = lines.length ? lines.join('\n\n') : 'No hay personas en el servidor.';
+                            }, function() {
+                                out.textContent = 'No se ha podido calcular. Mira el registro del servidor.';
+                            });
+                        });
+                    }
                     document.querySelector('#CalendarAdminsOnly').value = config.CalendarAdminsOnly === true ? 'true' : 'false';
                     document.querySelector('#CalendarDaysBack').value = config.CalendarDaysBack != null ? config.CalendarDaysBack : 14;
                     document.querySelector('#CalendarDaysAhead').value = config.CalendarDaysAhead != null ? config.CalendarDaysAhead : 90;

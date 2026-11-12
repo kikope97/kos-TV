@@ -38,6 +38,16 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   pestaña «Direcciones», y el complemento se la da a las apps en `/Moonfin/Ping`
   (`kostvRequestsUrl`) cuando inician sesión. Así no va dentro del APK y, si
   cambia, solo se cambia aquí.
+- **El Inicio de cada persona** (`/Moonfin/Kostv/Home`, en `Jellyfin/backend/Kostv/`): el
+  complemento monta las filas de recomendaciones del Inicio de las apps. Lee del propio
+  Jellyfin lo que cada persona ha visto (lo reciente pesa más) y sus favoritos, pregunta a TMDB
+  qué gustó a quien le gustaron esos títulos (se guarda un mes en `kostv-home-tmdb.json`), se
+  queda con lo que está en el servidor, la persona no ha visto y puede ver, y devuelve las
+  filas por páginas: «Porque viste…», «Porque estás viendo…», «Recomendado para ti», «Con
+  [alguien]», por género y las mejor valoradas, sin repetir títulos entre filas. Una fila
+  necesita 6 títulos. Usa la clave de TMDB del complemento; sin ella solo salen las de género
+  y las mejor valoradas. En la pestaña «Direcciones» hay un botón que dice cuántas filas le
+  salen a cada persona. A las apps se les avisa en `/Moonfin/Ping` (`kostvHome`).
 - **El botón Descubrir se sincroniza** como los demás (`showDiscoverButton`), con
   su valor por defecto en la página.
 - **Sin la web de Moonfin dentro:** el paquete no la lleva, así que el botón que
