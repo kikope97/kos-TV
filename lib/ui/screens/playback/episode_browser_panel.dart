@@ -6,12 +6,14 @@ import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/stremfin/kostv_series_gaps.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/overview_text.dart';
 import '../../widgets/adaptive/sf_symbol.dart';
 import '../../widgets/anime_marker_badge.dart';
+import '../../widgets/kostv_missing_episodes.dart';
 import '../../widgets/offline_aware_image.dart';
 import '../../widgets/sliding_pill_tabs.dart';
 import 'episode_browser.dart';
@@ -30,11 +32,15 @@ class EpisodeBrowserPanel extends StatefulWidget {
     required this.imageApi,
     required this.onSelect,
     this.fillHeight = false,
+    this.gaps,
   });
 
   final EpisodeBrowserController controller;
   final ImageApi imageApi;
   final ValueChanged<AggregatedItem> onSelect;
+
+  /// Kos TV: what the series lacks, shown greyed among its episodes.
+  final KostvSeriesGapsController? gaps;
 
   /// Fills the height it's given instead of most of the screen.
   final bool fillHeight;
@@ -57,12 +63,14 @@ class _EpisodeBrowserPanelState extends State<EpisodeBrowserPanel> {
   void initState() {
     super.initState();
     _browser.addListener(_onChanged);
+    widget.gaps?.addListener(_onChanged);
     _focusPlayingOnce();
   }
 
   @override
   void dispose() {
     _browser.removeListener(_onChanged);
+    widget.gaps?.removeListener(_onChanged);
     _tabsFocus.dispose();
     _placeholderFocus.dispose();
     for (final node in _rowFocus.values) {
@@ -99,15 +107,36 @@ class _EpisodeBrowserPanelState extends State<EpisodeBrowserPanel> {
     });
   }
 
+  /// Kos TV: the open season line by line, with the episodes the home
+  /// server lacks greyed in their place.
+  List<KostvEpisodeEntry> _entries(List<AggregatedItem> episodes) {
+    final gaps = widget.gaps;
+    final selected = _browser.seasons?.where(
+      (season) => season.id == _browser.selectedSeasonId,
+    );
+    final number = selected != null && selected.isNotEmpty
+        ? selected.first.indexNumber
+        : episodes.first.parentIndexNumber;
+    final season = gaps == null || number == null
+        ? null
+        : gaps.gapsFor(episodes).season(number);
+    return season == null
+        ? [for (final episode in episodes) (episode: episode, ghost: null)]
+        : season.merge(episodes);
+  }
+
   /// One per season, opened scrolled to the playing episode with the one
   /// before it still in view.
-  ScrollController _scrollFor(String? seasonId, List<AggregatedItem> episodes) {
+  ScrollController _scrollFor(
+    String? seasonId,
+    List<KostvEpisodeEntry> entries,
+  ) {
     final current = _scroll;
     if (current != null && _scrollSeasonId == seasonId) return current;
     // The list it belonged to is still attached until this frame swaps it out.
     WidgetsBinding.instance.addPostFrameCallback((_) => current?.dispose());
-    final playingIndex = episodes.indexWhere(
-      (episode) => episode.id == _browser.playing.id,
+    final playingIndex = entries.indexWhere(
+      (entry) => entry.episode?.id == _browser.playing.id,
     );
     _scrollSeasonId = seasonId;
     return _scroll = ScrollController(
@@ -178,14 +207,27 @@ class _EpisodeBrowserPanelState extends State<EpisodeBrowserPanel> {
     final seasonId = _browser.selectedSeasonId;
     final hideOverview =
         GetIt.instance<UserPreferences>().effectiveHideDetailsMediaDescription;
+    final entries = _entries(episodes);
     return ListView.builder(
       key: ValueKey(seasonId),
-      controller: _scrollFor(seasonId, episodes),
+      controller: _scrollFor(seasonId, entries),
       padding: const EdgeInsets.symmetric(horizontal: 20),
       itemExtent: _rowExtent,
-      itemCount: episodes.length,
+      itemCount: entries.length,
       itemBuilder: (context, index) {
-        final episode = episodes[index];
+        final entry = entries[index];
+        if (entry.ghost case final ghost?) {
+          return _GhostRow(
+            ghost: ghost,
+            focusNode: _nodeFor('ghost-${ghost.season}-${ghost.number}'),
+            onSelect: () => showKostvGhostSheet(
+              context,
+              controller: widget.gaps!,
+              ghost: ghost,
+            ),
+          );
+        }
+        final episode = entry.episode!;
         return _EpisodeRow(
           episode: episode,
           imageUrl: episodeStillUrl(widget.imageApi, episode, maxWidth: 360),
@@ -198,6 +240,147 @@ class _EpisodeBrowserPanelState extends State<EpisodeBrowserPanel> {
           onSelect: () => widget.onSelect(episode),
         );
       },
+    );
+  }
+}
+
+/// Kos TV: an episode the home server lacks, greyed among the ones it has.
+class _GhostRow extends StatefulWidget {
+  const _GhostRow({
+    required this.ghost,
+    required this.focusNode,
+    required this.onSelect,
+  });
+
+  final KostvGhostEpisode ghost;
+  final FocusNode focusNode;
+  final VoidCallback onSelect;
+
+  @override
+  State<_GhostRow> createState() => _GhostRowState();
+}
+
+class _GhostRowState extends State<_GhostRow> {
+  bool _focused = false;
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final prefs = GetIt.instance<UserPreferences>();
+    final focusColor = Color(prefs.get(UserPreferences.focusColor).colorValue);
+    final highlighted = _focused || _hovered;
+    final ghost = widget.ghost;
+    final upcoming = ghost.state == KostvGhostState.upcoming;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: _rowGap),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: Focus(
+          focusNode: widget.focusNode,
+          onFocusChange: (focused) => setState(() => _focused = focused),
+          onKeyEvent: (_, event) {
+            if (!isActivateKey(event)) return KeyEventResult.ignored;
+            widget.onSelect();
+            return KeyEventResult.handled;
+          },
+          child: GestureDetector(
+            onTap: widget.onSelect,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: highlighted
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : Colors.white.withValues(alpha: 0.02),
+                borderRadius: AppRadius.circular(12),
+                border: Border.all(
+                  color: highlighted ? focusColor : Colors.transparent,
+                  width: 2,
+                ),
+              ),
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 120),
+                opacity: highlighted ? 1 : 0.6,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    KostvGhostThumb(
+                      ghost: ghost,
+                      width: _thumbWidth,
+                      height: _thumbHeight,
+                      radius: 8,
+                      ink: Colors.white,
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '${l10n.seasonNumber(ghost.season)} · '
+                            '${l10n.episodeNumber(ghost.number)}',
+                            style: const TextStyle(
+                              color: Colors.white54,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            KostvGhostTexts.title(context, ghost),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(
+                                KostvGhostTexts.icon(ghost),
+                                size: 15,
+                                color: ghost.canAsk
+                                    ? AppColorScheme.accent
+                                    : Colors.white70,
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  upcoming
+                                      ? KostvGhostTexts.premiere(
+                                          context,
+                                          ghost.airDate,
+                                        )
+                                      : KostvGhostTexts.note(context, ghost),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12.5,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

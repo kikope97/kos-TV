@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../../data/models/aggregated_item.dart';
+import '../../../../data/services/stremfin/kostv_series_gaps.dart';
 import '../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../preference/detail_section_layout.dart';
@@ -19,6 +20,7 @@ import '../../../../util/platform_detection.dart';
 import '../../../../util/playback_time_label.dart';
 import '../../../navigation/destinations.dart';
 import '../../../widgets/bottom_nav/bottom_navbar.dart';
+import '../../../widgets/kostv_missing_episodes.dart';
 import '../../../widgets/navigation_layout.dart';
 import '../../../widgets/offline_aware_image.dart';
 import '../../../widgets/rating_display.dart';
@@ -149,6 +151,13 @@ class _FrostDetailContentState extends State<FrostDetailContent>
 
   ItemDetailViewModel get _vm => widget.viewModel;
 
+  // Kos TV: the episodes of this series the home server lacks.
+  KostvSeriesGapsController? _gaps;
+  KostvSeriesGaps _gapsShown = KostvSeriesGaps.none;
+  Object? _gapsEpisodes;
+  Object? _gapsDetail;
+  bool? _gapsEnabled;
+
   @override
   ItemDetailViewModel get pageViewModel => widget.viewModel;
 
@@ -172,6 +181,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
   void initState() {
     super.initState();
     FocusManager.instance.addListener(_trackHome);
+    _watchGaps();
     final type = _vm.item?.type;
     if ((type == 'Series' || type == 'Episode') && _vm.seriesEpisodes.isEmpty) {
       final vm = _vm;
@@ -184,10 +194,44 @@ class _FrostDetailContentState extends State<FrostDetailContent>
   @override
   void dispose() {
     FocusManager.instance.removeListener(_trackHome);
+    _gaps?.removeListener(_onGaps);
+    _gaps?.dispose();
     _sheet.dispose();
     _detailsScroll.dispose();
     _chipScroll.dispose();
     super.dispose();
+  }
+
+  /// Kos TV: reads, from the requests service, what this series lacks.
+  void _watchGaps() {
+    final item = _vm.item;
+    if (_gaps != null || item == null) return;
+    if (!const {'Series', 'Season', 'Episode'}.contains(item.type)) return;
+    final gaps = KostvSeriesGapsController()..addListener(_onGaps);
+    _gaps = gaps;
+    gaps.loadFor(item);
+  }
+
+  void _onGaps() {
+    if (mounted) setState(() {});
+  }
+
+  /// What the series lacks next to the episodes listed, worked out again
+  /// only when either changes.
+  KostvSeriesGaps get _seriesGaps {
+    final gaps = _gaps;
+    final episodes = _allEpisodes;
+    if (gaps == null || episodes.isEmpty) return KostvSeriesGaps.none;
+    final enabled = gaps.enabled;
+    if (!identical(episodes, _gapsEpisodes) ||
+        !identical(gaps.detail, _gapsDetail) ||
+        enabled != _gapsEnabled) {
+      _gapsEpisodes = episodes;
+      _gapsDetail = gaps.detail;
+      _gapsEnabled = enabled;
+      _gapsShown = gaps.gapsFor(episodes);
+    }
+    return _gapsShown;
   }
 
   void _trackHome() {
@@ -225,7 +269,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
         _node(_Tab.overview, 'text').context?.mounted == true
             ? _node(_Tab.overview, 'text')
             : _node(_Tab.overview, 'track-0'),
-      _Tab.episodes => _node(_Tab.episodes, _startEpisode()),
+      _Tab.episodes => _episodesStart(),
       _ => _node(_tab, 0),
     };
     final segment = _node(_tab, 'seg-0');
@@ -310,7 +354,8 @@ class _FrostDetailContentState extends State<FrostDetailContent>
   List<AggregatedItem> get _allEpisodes =>
       _vm.item?.type == 'Season' ? _vm.episodes : _vm.seriesEpisodes;
 
-  List<int> get _seasonNumbers =>
+  /// The seasons the home server has episodes of.
+  List<int> get _seasonsAtHome =>
       _allEpisodes
           .map((episode) => episode.parentIndexNumber)
           .whereType<int>()
@@ -318,8 +363,20 @@ class _FrostDetailContentState extends State<FrostDetailContent>
           .toList()
         ..sort();
 
-  /// The season picked, else the one the viewer is in, else the first that
-  /// isn't Specials.
+  /// Kos TV: the seasons the home server has nothing of, on a series' page
+  /// (a season's own page only lists that season).
+  Set<int> get _seasonsNotAtHome => _vm.item?.type == 'Season'
+      ? const {}
+      : {for (final season in _seriesGaps.seasonsNotAtHome) season.number};
+
+  List<int> get _seasonNumbers {
+    final notAtHome = _seasonsNotAtHome;
+    if (notAtHome.isEmpty) return _seasonsAtHome;
+    return {..._seasonsAtHome, ...notAtHome}.toList()..sort();
+  }
+
+  /// The season picked, else the one the viewer is in, else the first at
+  /// home that isn't Specials.
   int? get _shownSeason {
     final numbers = _seasonNumbers;
     if (numbers.isEmpty) return null;
@@ -329,9 +386,11 @@ class _FrostDetailContentState extends State<FrostDetailContent>
         (item?.type == 'Episode' ? item?.parentIndexNumber : null) ??
         _vm.nextUp?.parentIndexNumber;
     if (numbers.contains(current)) return current;
-    return numbers.firstWhere(
+    final atHome = _seasonsAtHome;
+    if (atHome.isEmpty) return numbers.first;
+    return atHome.firstWhere(
       (number) => number > 0,
-      orElse: () => numbers.first,
+      orElse: () => atHome.first,
     );
   }
 
@@ -343,12 +402,51 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     ];
   }
 
+  /// Kos TV: what the home server lacks of the season shown.
+  KostvSeasonGaps? get _shownGaps {
+    final season = _shownSeason;
+    return season == null ? null : _seriesGaps.season(season);
+  }
+
+  /// Kos TV: the season shown, line by line: the episodes the home server
+  /// has with the ones it lacks in their place, and those not on yet last.
+  List<KostvEpisodeEntry> get _entries {
+    final episodes = _episodes;
+    final gaps = _shownGaps;
+    if (gaps == null) {
+      return [for (final e in episodes) (episode: e, ghost: null)];
+    }
+    return gaps.merge(episodes);
+  }
+
+  /// Kos TV: what the bar over the season's episodes says, if anything.
+  KostvSeasonAsk? get _seasonAsk {
+    final gaps = _shownGaps;
+    final controller = _gaps;
+    if (gaps == null || controller == null) return null;
+    return KostvSeasonAsk.of(context, gaps, controller);
+  }
+
+  /// Where focus lands in the Episodes tab: the episode to carry on with,
+  /// or the bar over a season that isn't at home.
+  FocusNode _episodesStart() {
+    if (!_entries.any((entry) => entry.episode != null) &&
+        _seasonAsk?.button != null) {
+      return _node(_Tab.episodes, 'ask');
+    }
+    return _node(_Tab.episodes, _startEpisode());
+  }
+
   /// The episode the viewer would carry on with, or this page's own.
   int _startEpisode() {
-    final episodes = _episodes;
+    final entries = _entries;
     final wanted = _vm.item?.type == 'Episode' ? _vm.item?.id : _vm.nextUp?.id;
-    final index = episodes.indexWhere((episode) => episode.id == wanted);
-    return index < 0 ? 0 : index;
+    final index = entries.indexWhere(
+      (entry) => entry.episode != null && entry.episode!.id == wanted,
+    );
+    if (index >= 0) return index;
+    final first = entries.indexWhere((entry) => entry.episode != null);
+    return first < 0 ? 0 : first;
   }
 
   List<_Poster> _libraryPosters(DetailSectionVisibility sections) {
@@ -553,6 +651,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
   Widget build(BuildContext context) {
     final item = _vm.item;
     if (item == null) return const SizedBox.shrink();
+    _watchGaps();
     final l10n = AppLocalizations.of(context);
     final sections = DetailSectionVisibility.of(widget.prefs);
     final phone = !detailUsesLandscapeLayout(context);
@@ -1317,6 +1416,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     required ValueChanged<int> onPick,
     required VoidCallback onDown,
     required bool phone,
+    Set<int> dimmed = const {},
   }) {
     final chips = [
       for (final (index, label) in labels.indexed)
@@ -1347,7 +1447,13 @@ class _FrostDetailContentState extends State<FrostDetailContent>
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: _ink(focused || picked ? 1 : 0.68),
+                    color: _ink(
+                      focused
+                          ? 1
+                          : dimmed.contains(index)
+                          ? (picked ? 0.7 : 0.36)
+                          : (picked ? 1 : 0.68),
+                    ),
                     fontSize: phone ? 14 : 16,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1395,6 +1501,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
   Widget _seasonPicker({required bool phone}) {
     final numbers = _seasonNumbers;
     if (numbers.length < 2) return const SizedBox.shrink();
+    final notAtHome = _seasonsNotAtHome;
     final l10n = AppLocalizations.of(context);
     return _segmentPicker(
       tab: _Tab.episodes,
@@ -1407,23 +1514,317 @@ class _FrostDetailContentState extends State<FrostDetailContent>
         _season = numbers[index];
         _memory.remove(_Tab.episodes);
       }),
-      onDown: () => _node(_Tab.episodes, _startEpisode()).requestFocus(),
+      onDown: () => _episodesStart().requestFocus(),
       phone: phone,
+      dimmed: {
+        for (final (index, number) in numbers.indexed)
+          if (notAtHome.contains(number) && !_seasonsAtHome.contains(number))
+            index,
+      },
     );
   }
 
   List<Widget> _episodeTiles({required bool phone, VoidCallback? upFromTop}) {
-    final episodes = _episodes;
+    final entries = _entries;
+    final ask = _seasonAsk;
+    final askNode = _node(_Tab.episodes, 'ask');
+    final tilesUp = ask?.button != null ? askNode.requestFocus : upFromTop;
     return [
-      for (final (index, episode) in episodes.indexed)
-        _episodeTile(
-          episode,
-          index,
-          episodes.length,
+      if (ask != null)
+        _seasonAskTile(
+          ask,
+          node: askNode,
           phone: phone,
           upFromTop: upFromTop,
+          hasTiles: entries.isNotEmpty,
         ),
+      for (final (index, entry) in entries.indexed)
+        if (entry.ghost case final ghost?)
+          _ghostTile(
+            ghost,
+            index,
+            entries.length,
+            phone: phone,
+            upFromTop: tilesUp,
+          )
+        else
+          _episodeTile(
+            entry.episode!,
+            index,
+            entries.length,
+            phone: phone,
+            upFromTop: tilesUp,
+          ),
     ];
+  }
+
+  /// Kos TV: the bar over a season's episodes when several are missing, or
+  /// over a season that isn't at home.
+  Widget _seasonAskTile(
+    KostvSeasonAsk ask, {
+    required FocusNode node,
+    required bool phone,
+    required bool hasTiles,
+    VoidCallback? upFromTop,
+  }) {
+    final button = ask.button;
+    Widget bar(bool focused) => AnimatedContainer(
+      duration: _duration,
+      height: phone ? null : 72,
+      margin: phone ? const EdgeInsets.only(top: 12, bottom: 4) : null,
+      padding: phone
+          ? const EdgeInsets.fromLTRB(14, 10, 10, 10)
+          : const EdgeInsets.fromLTRB(24, 0, 16, 0),
+      decoration: BoxDecoration(
+        color: focused ? _platter : _ink(0.06),
+        borderRadius: AppRadius.circular(phone ? 18 : 28),
+      ),
+      child: Row(
+        children: [
+          Icon(ask.icon, color: _muted, size: phone ? 20 : 24),
+          SizedBox(width: phone ? 10 : 16),
+          Expanded(
+            child: Text(
+              ask.text,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: _ink(0.85),
+                fontSize: phone ? 14 : 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          if (button != null) ...[
+            SizedBox(width: phone ? 8 : 16),
+            _ghostPill(
+              button,
+              icon: ask.icon,
+              focused: focused,
+              enabled: ask.enabled,
+              phone: phone,
+            ),
+          ] else if (ask.status case final status?) ...[
+            SizedBox(width: phone ? 8 : 16),
+            Text(
+              status,
+              style: TextStyle(
+                color: _ink(0.72),
+                fontSize: phone ? 13 : 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+    if (button == null) return bar(false);
+    final season = _shownSeason;
+    return _FrostFocus(
+      focusNode: node,
+      onFocusChange: (focused) => _remember(_Tab.episodes, node, focused),
+      onSelect: ask.enabled && season != null
+          ? () => kostvAskMissing(context, _gaps!, season: season)
+          : null,
+      onLeft: _toSidebar,
+      onRight: () {},
+      onUp: upFromTop ?? _toNavbar,
+      onDown: hasTiles
+          ? () => _node(_Tab.episodes, 0).requestFocus()
+          : _toActions,
+      autoScroll: true,
+      builder: (context, focused) => bar(focused),
+    );
+  }
+
+  /// Kos TV: a missing episode's button, lit when focused, or faint when it
+  /// can't be pressed now.
+  Widget _ghostPill(
+    String label, {
+    required IconData icon,
+    required bool focused,
+    required bool enabled,
+    required bool phone,
+  }) {
+    final on = focused && enabled;
+    final color = !enabled
+        ? _ink(0.4)
+        : (on ? AppColorScheme.onButtonFocused : _ink());
+    return AnimatedContainer(
+      duration: _duration,
+      height: phone ? 32 : 40,
+      padding: EdgeInsets.symmetric(horizontal: phone ? 12 : 18),
+      decoration: BoxDecoration(
+        color: on ? AppColorScheme.buttonFocused : _ink(enabled ? 0.14 : 0.06),
+        borderRadius: AppRadius.circular(phone ? 16 : 20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        spacing: phone ? 5 : 7,
+        children: [
+          Icon(icon, color: color, size: phone ? 16 : 19),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontSize: phone ? 13 : 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Kos TV: an episode the home server lacks, greyed in its place: asking
+  /// for it opens its sheet.
+  Widget _ghostTile(
+    KostvGhostEpisode ghost,
+    int index,
+    int count, {
+    required bool phone,
+    VoidCallback? upFromTop,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    final controller = _gaps!;
+    final node = _node(_Tab.episodes, index);
+    final keys = _gridKeys(index, count, 1, upFromTop: upFromTop);
+    final upcoming = ghost.state == KostvGhostState.upcoming;
+    final askable = ghost.canAsk;
+    final enabled = askable && !controller.atLimit && !controller.sending;
+    final badge = KostvGhostTexts.badge(context, ghost);
+    final note = upcoming && phone
+        ? KostvGhostTexts.premiere(context, ghost.airDate)
+        : KostvGhostTexts.note(context, ghost);
+
+    return _FrostFocus(
+      focusNode: node,
+      onFocusChange: (focused) => _remember(_Tab.episodes, node, focused),
+      onSelect: () =>
+          showKostvGhostSheet(context, controller: controller, ghost: ghost),
+      onLeft: keys.left,
+      onRight: keys.right,
+      onUp: keys.up,
+      onDown: keys.down,
+      autoScroll: true,
+      builder: (context, focused) => AnimatedContainer(
+        duration: _duration,
+        height: phone ? null : 120,
+        padding: phone
+            ? const EdgeInsets.symmetric(vertical: 12)
+            : const EdgeInsets.fromLTRB(6, 6, 22, 6),
+        decoration: BoxDecoration(
+          color: focused ? _platter : Colors.transparent,
+          borderRadius: AppRadius.circular(28),
+        ),
+        child: Row(
+          crossAxisAlignment: phone
+              ? CrossAxisAlignment.start
+              : CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: AnimatedOpacity(
+                duration: _duration,
+                opacity: focused ? 1 : 0.6,
+                child: Row(
+                  crossAxisAlignment: phone
+                      ? CrossAxisAlignment.start
+                      : CrossAxisAlignment.center,
+                  children: [
+                    AnimatedScale(
+                      scale: focused ? 1.05 : 1,
+                      duration: _duration,
+                      child: KostvGhostThumb(
+                        ghost: ghost,
+                        width: phone ? 132 : 192,
+                        radius: phone ? 12 : 22,
+                        ink: _ink(),
+                      ),
+                    ),
+                    SizedBox(width: phone ? 12 : 22),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            l10n.episodeNumber(ghost.number).toUpperCase(),
+                            style: TextStyle(
+                              color: _muted,
+                              fontSize: phone ? 11 : 13,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            KostvGhostTexts.title(context, ghost),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _ink(0.82),
+                              fontSize: phone ? 15 : 20,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            spacing: phone ? 5 : 7,
+                            children: [
+                              Icon(
+                                KostvGhostTexts.icon(ghost),
+                                color: _muted,
+                                size: phone ? 14 : 17,
+                              ),
+                              Flexible(
+                                child: Text(
+                                  note,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: _muted,
+                                    fontSize: phone ? 13 : 15,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (!phone && badge != null)
+              SizedBox(
+                width: 160,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: askable
+                      ? _ghostPill(
+                          badge,
+                          icon: KostvGhostTexts.icon(ghost),
+                          focused: focused,
+                          enabled: enabled,
+                          phone: false,
+                        )
+                      : Text(
+                          badge,
+                          maxLines: 2,
+                          textAlign: TextAlign.end,
+                          style: TextStyle(
+                            color: _ink(upcoming ? 0.85 : 0.6),
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _episodeTile(

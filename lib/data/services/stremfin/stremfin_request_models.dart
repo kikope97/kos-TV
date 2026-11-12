@@ -319,6 +319,59 @@ enum StremfinSeasonStatus {
   };
 }
 
+/// Kos TV: one episode of a series' page, as the requests service sees it.
+@immutable
+class StremfinEpisode {
+  const StremfinEpisode({
+    required this.number,
+    this.title,
+    this.airDate,
+    this.aired = false,
+    this.inLibrary = false,
+    this.downloading = false,
+    this.request,
+    this.canRequest = false,
+  });
+
+  final int number;
+  final String? title;
+
+  /// The day it is (or was) first on, as the service gives it.
+  final DateTime? airDate;
+
+  /// It has been on already.
+  final bool aired;
+
+  /// It is on the home server.
+  final bool inLibrary;
+
+  /// It is coming down.
+  final bool downloading;
+
+  /// The request that covers it: its own, its season's or the one for all
+  /// that is missing.
+  final StremfinRequestRef? request;
+
+  /// Whether to offer asking for it (or joining someone else's request).
+  final bool canRequest;
+
+  static StremfinEpisode? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final number = _int(raw['episode']);
+    if (number == null || number < 0) return null;
+    return StremfinEpisode(
+      number: number,
+      title: _text(raw['title']),
+      airDate: _date(raw['air_date']),
+      aired: raw['aired'] == true,
+      inLibrary: raw['in_jellyfin'] == true,
+      downloading: raw['downloading'] == true,
+      request: StremfinRequestRef.fromJson(raw['request']),
+      canRequest: raw['can_request'] == true,
+    );
+  }
+}
+
 /// One season of a series' page.
 @immutable
 class StremfinSeason {
@@ -331,6 +384,7 @@ class StremfinSeason {
     this.status = StremfinSeasonStatus.unknown,
     this.request,
     this.canRequest = false,
+    this.episodes = const [],
   });
 
   final int number;
@@ -349,6 +403,9 @@ class StremfinSeason {
   /// Whether to offer asking for it (or joining someone else's request).
   final bool canRequest;
 
+  /// Kos TV: its episodes, in order (the service gives them from 1.79).
+  final List<StremfinEpisode> episodes;
+
   static StremfinSeason? fromJson(Object? raw) {
     if (raw is! Map) return null;
     final number = _int(raw['season']);
@@ -363,6 +420,10 @@ class StremfinSeason {
       status: StremfinSeasonStatus.fromApi(raw['status']),
       request: StremfinRequestRef.fromJson(raw['request']),
       canRequest: raw['can_request'] == true,
+      episodes: [
+        if (raw['episodes'] case final List<Object?> list)
+          for (final entry in list) ?StremfinEpisode.fromJson(entry),
+      ]..sort((a, b) => a.number.compareTo(b.number)),
     );
   }
 }

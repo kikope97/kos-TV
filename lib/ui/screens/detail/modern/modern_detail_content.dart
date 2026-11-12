@@ -16,6 +16,8 @@ import 'package:server_core/server_core.dart';
 import '../../../mixins/focus_state_mixin.dart';
 
 import '../../../../data/models/aggregated_item.dart';
+import '../../../../data/services/stremfin/kostv_series_gaps.dart';
+import '../../../widgets/kostv_missing_episodes.dart';
 import '../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../preference/detail_metadata_layout.dart';
@@ -521,6 +523,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
   void didUpdateWidget(ModernDetailContent oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.viewModel.item?.id != oldWidget.viewModel.item?.id) {
+      _dropGaps();
       _playlistSortBy = LibrarySortBy.playlistOrder;
       _playlistSortDirection = SortDirection.ascending;
       _playlistPlayedFilter = PlayedStatusFilter.all;
@@ -589,6 +592,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
 
   @override
   void dispose() {
+    _dropGaps();
     if (NavigationLayout.focusDetailsPlayButtonNotifier.value == widget.initialFocusNode) {
       NavigationLayout.focusDetailsPlayButtonNotifier.value = null;
     }
@@ -1346,6 +1350,91 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     );
   }
 
+  // Kos TV: the episodes of this series the home server lacks.
+  KostvSeriesGapsController? _gaps;
+
+  /// Reads, from the requests service, what this series lacks.
+  KostvSeriesGapsController? _watchGaps(AggregatedItem item) {
+    if (!const {'Series', 'Season', 'Episode'}.contains(item.type)) {
+      return null;
+    }
+    final existing = _gaps;
+    if (existing != null) return existing;
+    final gaps = KostvSeriesGapsController()..addListener(_onGaps);
+    _gaps = gaps;
+    gaps.loadFor(item);
+    return gaps;
+  }
+
+  void _onGaps() {
+    if (mounted) setState(() {});
+  }
+
+  void _dropGaps() {
+    _gaps?.removeListener(_onGaps);
+    _gaps?.dispose();
+    _gaps = null;
+  }
+
+  /// What the season numbered [season] lacks next to [episodes], the home
+  /// server's.
+  KostvSeasonGaps? _seasonGaps(
+    AggregatedItem item,
+    Iterable<AggregatedItem> episodes,
+    int? season,
+  ) {
+    final gaps = _watchGaps(item);
+    if (gaps == null || season == null || episodes.isEmpty) return null;
+    return gaps.gapsFor(episodes).season(season);
+  }
+
+  /// The bar over a season's episodes and its missing ones in place, or
+  /// [episodes] as they are when nothing is missing.
+  List<Widget> _withGaps({
+    required KostvSeasonGaps? gaps,
+    required List<AggregatedItem> episodes,
+    required Widget Function(AggregatedItem episode, int index, bool first)
+    card,
+    FocusNode? firstFocusNode,
+    VoidCallback? onNavigateUp,
+  }) {
+    final controller = _gaps;
+    if (gaps == null || controller == null) {
+      return [
+        for (final (index, episode) in episodes.indexed)
+          card(episode, index, index == 0),
+      ];
+    }
+    final entries = gaps.merge(episodes);
+    final ask = KostvSeasonAsk.of(context, gaps, controller);
+    final askTakesFocus = ask?.button != null;
+    return [
+      if (ask != null)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: KostvSeasonAskBar(
+            season: gaps,
+            controller: controller,
+            focusNode: askTakesFocus ? firstFocusNode : null,
+            onNavigateUp: askTakesFocus ? onNavigateUp : null,
+          ),
+        ),
+      for (final (index, entry) in entries.indexed)
+        if (entry.ghost case final ghost?)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: KostvGhostEpisodeCard(
+              ghost: ghost,
+              controller: controller,
+              focusNode: index == 0 && !askTakesFocus ? firstFocusNode : null,
+              onNavigateUp: index == 0 && !askTakesFocus ? onNavigateUp : null,
+            ),
+          )
+        else
+          card(entry.episode!, index, index == 0 && !askTakesFocus),
+    ];
+  }
+
   Widget _episodeListTab(BuildContext context, AggregatedItem item) {
     final l10n = AppLocalizations.of(context);
     if (_vm.episodes.isEmpty) {
@@ -1374,36 +1463,47 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
         }
       },
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (var i = 0; i < _vm.episodes.length; i++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: DetailEpisodeCard(
-                episode: _vm.episodes[i],
-                imageApi: _vm.imageApi,
-                onChanged: () => _vm.load(),
-                isActive: _vm.episodes[i].id == activeId,
-                isOnScreen: _vm.episodes[i].id == item.id,
-                contextSeasonId: _vm.effectiveSeasonId,
-                replacePage: item.type == 'Episode',
-                focusNode: i == 0
-                    ? _episodesFirstFocusNode
-                    : _vm.episodes[i].id == item.id
-                        ? _episodesCurrentFocusNode
-                        : null,
-                onKeyEvent: i == 0
-                    ? (node, event) {
-                        if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowUp) {
-                          _focusSelectedTab();
-                          return KeyEventResult.handled;
-                        }
-                        return KeyEventResult.ignored;
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: _withGaps(
+          gaps: _seasonGaps(
+            item,
+            _vm.episodes,
+            item.type == 'Season'
+                ? item.indexNumber
+                : _vm.episodes
+                      .map((e) => e.parentIndexNumber)
+                      .firstWhereOrNull((n) => n != null && n > 0),
+          ),
+          episodes: _vm.episodes,
+          firstFocusNode: _episodesFirstFocusNode,
+          onNavigateUp: _focusSelectedTab,
+          card: (episode, i, first) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: DetailEpisodeCard(
+              episode: episode,
+              imageApi: _vm.imageApi,
+              onChanged: () => _vm.load(),
+              isActive: episode.id == activeId,
+              isOnScreen: episode.id == item.id,
+              contextSeasonId: _vm.effectiveSeasonId,
+              replacePage: item.type == 'Episode',
+              focusNode: first
+                  ? _episodesFirstFocusNode
+                  : episode.id == item.id
+                      ? _episodesCurrentFocusNode
+                      : null,
+              onKeyEvent: first
+                  ? (node, event) {
+                      if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                        _focusSelectedTab();
+                        return KeyEventResult.handled;
                       }
-                    : null,
-              ),
+                      return KeyEventResult.ignored;
+                    }
+                  : null,
             ),
-        ],
+          ),
+        ),
       ),
     );
   }
@@ -1443,6 +1543,20 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
       seasonGroups.putIfAbsent(s, () => []).add(episode);
     }
 
+    // Kos TV: what the series lacks, and the seasons it has nothing of.
+    final controller = _watchGaps(item);
+    final seriesGaps = controller?.gapsFor(sorted) ?? KostvSeriesGaps.none;
+    final notAtHome = {
+      for (final s in seriesGaps.seasonsNotAtHome)
+        if (!seasonGroups.containsKey(s.number)) s.number,
+    };
+    final seasonNumbers = {...seasonGroups.keys, ...notAtHome}.toList()
+      ..sort((a, b) {
+        // Specials stay where the home server puts them: first.
+        if (a == 0 || b == 0) return a == 0 ? -1 : 1;
+        return a.compareTo(b);
+      });
+
     if (!_initializedExpandedSeasons && seasonGroups.isNotEmpty) {
       _initializedExpandedSeasons = true;
       final nextUpSeason = _vm.nextUp?.parentIndexNumber;
@@ -1454,9 +1568,9 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     }
 
     final children = <Widget>[];
-    for (final entry in seasonGroups.entries) {
-      final season = entry.key;
-      final eps = entry.value;
+    for (final season in seasonNumbers) {
+      final eps = seasonGroups[season] ?? const <AggregatedItem>[];
+      final ghostSeason = notAtHome.contains(season);
       final isExpanded = _expandedSeasons.contains(season);
       final isFirst = children.isEmpty;
 
@@ -1491,15 +1605,21 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
                     l10n.seasonNumber(season),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w700,
-                          color: Colors.white,
+                          color: ghostSeason ? Colors.white38 : Colors.white,
                         ),
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    '(${eps.length})',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: Colors.white38,
-                        ),
+                  Flexible(
+                    child: Text(
+                      ghostSeason
+                          ? l10n.kostvGhostNotAtHome
+                          : '(${eps.length})',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Colors.white38,
+                          ),
+                    ),
                   ),
                 ],
               ),
@@ -1514,8 +1634,10 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
             padding: const EdgeInsets.only(left: 12, bottom: 12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: eps.map((episode) {
-                return Padding(
+              children: _withGaps(
+                gaps: seriesGaps.season(season),
+                episodes: eps,
+                card: (episode, index, first) => Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: DetailEpisodeCard(
                     episode: episode,
@@ -1523,8 +1645,8 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
                     onChanged: () => _vm.load(),
                     isActive: episode.id == _vm.nextUp?.id,
                   ),
-                );
-              }).toList(),
+                ),
+              ),
             ),
           ),
         );

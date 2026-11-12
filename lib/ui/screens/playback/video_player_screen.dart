@@ -51,6 +51,8 @@ import '../../../playback/playback_info_sections.dart';
 import '../../../playback/hdr_stream_capability.dart';
 import '../../../playback/cinema_skip_controller.dart';
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/stremfin/kostv_series_gaps.dart';
+import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/models/calendar_entry.dart';
 import '../../../data/models/upcoming_episode_info.dart';
 import '../../../data/repositories/item_mutation_repository.dart';
@@ -95,6 +97,7 @@ import '../../widgets/playback/player_loading_overlay.dart';
 import '../../widgets/playback/loading_animation_widget.dart';
 import '../../widgets/playback/chapter_marker_track.dart';
 import '../../widgets/playback/skip_segment_overlay.dart';
+import '../../widgets/playback/kostv_gap_overlay.dart';
 import '../../widgets/playback/next_up_overlay.dart';
 import '../../widgets/playback/still_watching_dialog.dart';
 import '../../widgets/playback/stream_info_dialog.dart';
@@ -398,6 +401,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   String _nextAirDateTitle = '';
   CalendarEntry? _nextAirDateReminder;
   int _nextAirDateLookup = 0;
+
+  // Kos TV: the episodes the home server lacks right after this one, for the
+  // card that says so instead of moving on past them. It shows while
+  // [_showNextUp] and [_kostvGapShown] are set.
+  KostvSeriesGapsController? _kostvGaps;
+  List<KostvGhostEpisode> _kostvGap = const [];
+  List<AggregatedItem> _kostvGapEpisodes = const [];
+  AggregatedItem? _kostvGapNext;
+  bool _kostvGapShown = false;
+  KostvGapAsk _kostvGapAsk = KostvGapAsk.idle;
+  int _kostvGapLookup = 0;
   bool _nextUpDismissed = false;
   bool _isNextUpAdvancing = false;
   int _consecutiveEpisodes = 0;
@@ -910,6 +924,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
     _loadSegmentsForCurrentItem();
     unawaited(_loadNextAirDate());
+    unawaited(_loadKostvGap());
     unawaited(_syncAutoHdrSwitching());
     _positionSub = _state.positionStream.listen(_onPositionUpdate);
     _completedSub = _manager.sessionEndedStream.listen((_) {
@@ -974,6 +989,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _closeEpisodeBrowser();
       _loadSegmentsForCurrentItem();
       unawaited(_loadNextAirDate());
+      unawaited(_loadKostvGap());
       _manager.suppressAutoNext = false;
       _consecutiveEpisodes++;
       unawaited(_pushMedia3UiMetadata());
@@ -1177,6 +1193,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _tvSeekbarFocus.dispose();
     _tvSkipSegmentFocus.dispose();
     _tvNextUpPlayFocus.dispose();
+    _kostvGaps?.dispose();
     _tvNextUpDismissFocus.dispose();
     _tvTransportFirstFocus.dispose();
     _primaryPlayFocus.dispose();
@@ -2489,8 +2506,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   void _checkNextUp(Duration position) {
-    final showNextUp = _shouldShowNextUpOverlay();
-    if (!showNextUp && !_shouldShowNextAirDate()) {
+    final showGap = _shouldShowKostvGap();
+    final showNextUp = !showGap && _shouldShowNextUpOverlay();
+    if (!showGap && !showNextUp && !_shouldShowNextAirDate()) {
       return;
     }
 
@@ -2500,7 +2518,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (duration <= Duration.zero) return;
 
     final remaining = duration - position;
-    final threshold = nextUpBehavior == NextUpBehavior.extended
+    final threshold = showGap
+        // Early enough that the player can't move on past the gap first.
+        ? const Duration(milliseconds: 1500)
+        : nextUpBehavior == NextUpBehavior.extended
         ? const Duration(seconds: 1)
         : const Duration(milliseconds: 500);
 
@@ -2511,7 +2532,159 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
 
     if (remaining <= threshold) {
-      showNextUp ? _presentNextUpOverlay() : _presentNextAirDate();
+      if (showGap) {
+        _presentKostvGap();
+      } else {
+        showNextUp ? _presentNextUpOverlay() : _presentNextAirDate();
+      }
+    }
+  }
+
+  /// Kos TV: works out which episodes the home server lacks right after the
+  /// one playing, from the requests service, for the card at its end.
+  Future<void> _loadKostvGap() async {
+    final lookup = ++_kostvGapLookup;
+    _kostvGap = const [];
+    _kostvGapEpisodes = const [];
+    _kostvGapAsk = KostvGapAsk.idle;
+    final item = _queue.currentItem;
+    if (item is! AggregatedItem || item.type != 'Episode') return;
+    final season = item.parentIndexNumber;
+    final number = item.indexNumber;
+    final seriesId = item.seriesId;
+    if (season == null || season < 1 || number == null || seriesId == null) {
+      return;
+    }
+    final last = switch (item.rawData['IndexNumberEnd']) {
+      final num end => end.toInt(),
+      _ => number,
+    };
+    final gaps = _kostvGaps ??= KostvSeriesGapsController();
+    try {
+      await gaps.loadFor(item);
+      final detail = gaps.detail;
+      if (!mounted || lookup != _kostvGapLookup) return;
+      if (detail == null || !gaps.enabled) return;
+      // Only when the service says something after this one isn't at home
+      // is the home server asked for the season's episodes.
+      final listed = detail.seasons.where((s) => s.number == season);
+      if (listed.isEmpty ||
+          !listed.first.episodes.any(
+            (e) => e.number > last && e.aired && !e.inLibrary,
+          )) {
+        return;
+      }
+      final data = await _clientForItem(item).itemsApi.getEpisodes(
+        seriesId,
+        seasonId: item.seasonId,
+        fields: '',
+      );
+      if (!mounted || lookup != _kostvGapLookup) return;
+      final episodes = [
+        for (final raw in (data['Items'] as List?) ?? const [])
+          if (raw is Map)
+            AggregatedItem(
+              id: raw['Id']?.toString() ?? '',
+              serverId: item.serverId,
+              rawData: raw.cast<String, dynamic>(),
+            ),
+      ];
+      final next = _queue.peekNext;
+      final nextHere =
+          _hasDistinctQueueNextItem() &&
+          next is AggregatedItem &&
+          next.type == 'Episode' &&
+          next.seriesId == seriesId;
+      // After something else, or nothing of this series next: no card.
+      if (_hasDistinctQueueNextItem() && !nextHere) return;
+      _kostvGapEpisodes = episodes;
+      _kostvGap = gaps
+          .gapsFor(episodes)
+          .missingAfter(
+            season: season,
+            episode: last,
+            nextSeason: nextHere ? next.parentIndexNumber : null,
+            nextEpisode: nextHere ? next.indexNumber : null,
+          );
+    } catch (e) {
+      debugPrint('[VideoPlayer] Missing episodes lookup failed: $e');
+    }
+  }
+
+  bool _shouldShowKostvGap() =>
+      _kostvGap.isNotEmpty &&
+      !_areSeekPromptsSuppressed() &&
+      !_nextUpDismissed &&
+      !_showNextUp &&
+      !_isPrerollQueueItem(_queue.currentItem);
+
+  void _presentKostvGap() {
+    // Holds the player on the last frame: it doesn't move on past the gap.
+    _manager.suppressAutoNext = true;
+    _resetSkipSegmentAutoHide();
+    setState(() {
+      _showNextUp = true;
+      _kostvGapShown = true;
+      _nextUpItem = null;
+      _kostvGapNext = _nextUpCandidate();
+      _controlsVisible = false;
+      _skipSegment = null;
+      _skipTo = null;
+    });
+    _hideTimer?.cancel();
+    _focusNextUpPlay();
+  }
+
+  /// Asks for the missing episodes on the card: the season in one request
+  /// when they're all it lacks, else one by one.
+  Future<void> _handleKostvGapAsk() async {
+    final gaps = _kostvGaps;
+    if (gaps == null ||
+        _kostvGapAsk == KostvGapAsk.sending ||
+        _kostvGapAsk == KostvGapAsk.sent) {
+      return;
+    }
+    final ghosts = [
+      for (final ghost in _kostvGap)
+        if (ghost.canAsk) ghost,
+    ];
+    if (ghosts.isEmpty) return;
+    final season = ghosts.first.season;
+    final seasonGaps = gaps.gapsFor(_kostvGapEpisodes).season(season);
+    final wholeSeason =
+        ghosts.length > 1 &&
+        seasonGaps != null &&
+        seasonGaps.canAskSeason &&
+        seasonGaps.askable == ghosts.length;
+    setState(() => _kostvGapAsk = KostvGapAsk.sending);
+    try {
+      final result = wholeSeason
+          ? await gaps.ask(season: season)
+          : ghosts.length == 1
+          ? await gaps.ask(season: season, episode: ghosts.single.number)
+          : await gaps.askEpisodes(
+              season: season,
+              episodes: [for (final ghost in ghosts) ghost.number],
+            );
+      if (!mounted) return;
+      final sent =
+          result != null &&
+          result.outcome != StremfinOutcome.limit &&
+          result.outcome != StremfinOutcome.unavailable;
+      setState(
+        () => _kostvGapAsk = sent ? KostvGapAsk.sent : KostvGapAsk.failed,
+      );
+      // Asked: on to the next one at home.
+      if (sent && _kostvGapNext != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _showNextUp && _tvNextUpDismissFocus.context != null) {
+            _tvNextUpDismissFocus.requestFocus();
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('[VideoPlayer] Asking for missing episodes failed: $e');
+      if (mounted) setState(() => _kostvGapAsk = KostvGapAsk.failed);
     }
   }
 
@@ -2581,6 +2754,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _resetSkipSegmentAutoHide();
     setState(() {
       _showNextUp = true;
+      _kostvGapShown = false;
       _nextUpItem = null;
       _controlsVisible = false;
       _skipSegment = null;
@@ -2655,6 +2829,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   void _presentNextUpOverlay() {
+    if (_shouldShowKostvGap()) {
+      _presentKostvGap();
+      return;
+    }
     if (!_shouldShowNextUpOverlay()) return;
 
     final nextItem = _nextUpCandidate();
@@ -2664,6 +2842,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _resetSkipSegmentAutoHide();
     setState(() {
       _showNextUp = true;
+      _kostvGapShown = false;
       _nextUpItem = nextItem;
       _controlsVisible = false;
       _skipSegment = null;
@@ -4344,7 +4523,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                                   ? 16
                                   : 24),
                         ),
-                      if (_showNextUp && _nextUpItem != null)
+                      if (_showNextUp &&
+                          _kostvGapShown &&
+                          _kostvGap.isNotEmpty)
+                        KostvGapOverlay(
+                          missing: _kostvGap,
+                          next: _kostvGapNext,
+                          ask: _kostvGapAsk,
+                          atLimit: _kostvGaps?.atLimit ?? false,
+                          onAsk: _handleKostvGapAsk,
+                          onWatchNext: _handleNextUpPlay,
+                          // TV dismisses with Back, so its X exits the player.
+                          onClose: PlatformDetection.isTV
+                              ? _handleNextUpCancel
+                              : _handleNextUpDismiss,
+                          focusNode: _tvNextUpPlayFocus,
+                          secondFocusNode: _tvNextUpDismissFocus,
+                        )
+                      else if (_showNextUp && _nextUpItem != null)
                         NextUpOverlay(
                           nextItem: _nextUpItem!,
                           isMinimal:
@@ -7840,6 +8036,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             controller: browser,
             imageApi: client.imageApi,
             fillHeight: sidePanel,
+            gaps: _kostvGaps,
             onSelect: (episode) {
               _episodeBrowserRoute = null;
               Navigator.of(dialogCtx).pop(episode);

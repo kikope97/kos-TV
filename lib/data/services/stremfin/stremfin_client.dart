@@ -196,12 +196,16 @@ class StremfinClient {
     required StremfinTitleType type,
     required int tmdbId,
     int? season,
+    int? episode,
     @visibleForTesting Duration busyPause = const Duration(milliseconds: 500),
   }) async {
     final data = {
       'type': type.apiValue,
       'tmdb_id': tmdbId,
       if (type == StremfinTitleType.series) 'season': season,
+      // Kos TV: one episode of that season on its own.
+      if (type == StremfinTitleType.series && season != null && episode != null)
+        'episode': episode,
     };
     var response = await _send('POST', '/requests', data: data);
     // Kos TV: the service saves requests one at a time, and says it is busy

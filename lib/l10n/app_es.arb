@@ -12756,5 +12756,165 @@
     "kostvAgeBlockedNote": "Por su edad recomendada, este título no está disponible con tu perfil.",
     "@kostvAgeBlockedNote": {
         "description": "Kos TV requests: note on the page of a title the person may not see by age."
+    },
+    "kostvGhostNotAtHome": "No está en casa",
+    "@kostvGhostNotAtHome": {
+        "description": "Kos TV series page: an episode the home server doesn't have."
+    },
+    "kostvGhostAskedByOther": "Ya lo ha pedido otra persona",
+    "@kostvGhostAskedByOther": {
+        "description": "Kos TV series page: a missing episode someone else requested; asking joins it."
+    },
+    "kostvGhostPending": "Lo has solicitado: falta que lo acepten",
+    "@kostvGhostPending": {
+        "description": "Kos TV series page: a missing episode the person requested, not yet accepted."
+    },
+    "kostvGhostAccepted": "Solicitado y aceptado: llegará pronto",
+    "@kostvGhostAccepted": {
+        "description": "Kos TV series page: a missing episode whose request was accepted."
+    },
+    "kostvGhostDownloadingNote": "Se está descargando: llegará en seguida",
+    "@kostvGhostDownloadingNote": {
+        "description": "Kos TV series page: a missing episode being downloaded."
+    },
+    "kostvGhostNotOnYet": "Todavía no se ha emitido",
+    "@kostvGhostNotOnYet": {
+        "description": "Kos TV series page: an episode not broadcast yet."
+    },
+    "kostvGhostRequested": "Solicitado",
+    "@kostvGhostRequested": {
+        "description": "Kos TV series page: badge of a missing episode already requested."
+    },
+    "kostvGhostPremieres": "Se estrena el {date}",
+    "@kostvGhostPremieres": {
+        "description": "Kos TV series page: when an episode not on yet comes out.",
+        "placeholders": {
+            "date": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvGhostPremieresToday": "Se estrena hoy",
+    "@kostvGhostPremieresToday": {
+        "description": "Kos TV series page: an episode that comes out today."
+    },
+    "kostvGhostPremieresTomorrow": "Se estrena mañana",
+    "@kostvGhostPremieresTomorrow": {
+        "description": "Kos TV series page: an episode that comes out tomorrow."
+    },
+    "kostvGhostComingSoon": "Próximamente",
+    "@kostvGhostComingSoon": {
+        "description": "Kos TV series page: an episode not on yet with no known date."
+    },
+    "kostvGhostAired": "Se emitió el {date}",
+    "@kostvGhostAired": {
+        "description": "Kos TV series page: when a missing episode was first on.",
+        "placeholders": {
+            "date": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvGhostAskMissing": "Solicitar los {count} que faltan",
+    "@kostvGhostAskMissing": {
+        "description": "Kos TV series page: button that requests every missing episode of the season shown (two or more).",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvGhostSeasonMissing": "{count, plural, =1{Falta 1 episodio de esta temporada} other{Faltan {count} episodios de esta temporada}}",
+    "@kostvGhostSeasonMissing": {
+        "description": "Kos TV series page: above the episodes of a season with missing ones.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvGhostSeasonNotAtHome": "Esta temporada no está en casa",
+    "@kostvGhostSeasonNotAtHome": {
+        "description": "Kos TV series page: a season the home server has nothing of."
+    },
+    "kostvGhostAskSeason": "Solicitar la temporada",
+    "@kostvGhostAskSeason": {
+        "description": "Kos TV series page: button that requests a whole season that isn't at home."
+    },
+    "kostvGhostSeasonRequested": "Temporada solicitada",
+    "@kostvGhostSeasonRequested": {
+        "description": "Kos TV series page: a season whose missing episodes were requested."
+    },
+    "kostvGhostAskEpisode": "Solicitar este episodio",
+    "@kostvGhostAskEpisode": {
+        "description": "Kos TV series page: button in the sheet of a missing episode."
+    },
+    "kostvGhostOutcomeStarted": "¡Solicitado! Ya se está preparando",
+    "@kostvGhostOutcomeStarted": {
+        "description": "Kos TV series page: an episode was requested and starts at once."
+    },
+    "kostvGhostOutcomeJoined": "Alguien ya lo había solicitado: te hemos apuntado",
+    "@kostvGhostOutcomeJoined": {
+        "description": "Kos TV series page: the person joined someone else's request for an episode."
+    },
+    "kostvGapOne": "El episodio {number} no está en casa",
+    "@kostvGapOne": {
+        "description": "Kos TV player: the next episode isn't on the home server.",
+        "placeholders": {
+            "number": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvGapMany": "Los episodios del {first} al {last} no están en casa",
+    "@kostvGapMany": {
+        "description": "Kos TV player: the next episodes aren't on the home server.",
+        "placeholders": {
+            "first": {
+                "type": "int"
+            },
+            "last": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvGapAsk": "{count, plural, =1{Solicitarlo} other{Solicitarlos}}",
+    "@kostvGapAsk": {
+        "description": "Kos TV player: button that requests the missing next episode(s).",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvGapRequested": "{count, plural, =1{Solicitado} other{Solicitados}}",
+    "@kostvGapRequested": {
+        "description": "Kos TV player: the missing next episode(s) have been requested.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvGapWatch": "Ver el {number}",
+    "@kostvGapWatch": {
+        "description": "Kos TV player: button that plays the next episode at home, past the missing ones.",
+        "placeholders": {
+            "number": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvGapWatchOther": "Ver S{season}:E{episode}",
+    "@kostvGapWatchOther": {
+        "description": "Kos TV player: button that plays the next episode at home when it's in another season.",
+        "placeholders": {
+            "season": {
+                "type": "int"
+            },
+            "episode": {
+                "type": "int"
+            }
+        }
     }
 }

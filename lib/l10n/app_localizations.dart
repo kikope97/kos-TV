@@ -32012,6 +32012,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'By its recommended age, this title isn\'t available with your profile.'**
   String get kostvAgeBlockedNote;
+
+  /// Kos TV series page: an episode the home server doesn't have.
+  ///
+  /// In en, this message translates to:
+  /// **'Not at home'**
+  String get kostvGhostNotAtHome;
+
+  /// Kos TV series page: a missing episode someone else requested; asking joins it.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone else has asked for it'**
+  String get kostvGhostAskedByOther;
+
+  /// Kos TV series page: a missing episode the person requested, not yet accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'You asked for it: waiting for approval'**
+  String get kostvGhostPending;
+
+  /// Kos TV series page: a missing episode whose request was accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested and accepted: it\'ll be here soon'**
+  String get kostvGhostAccepted;
+
+  /// Kos TV series page: a missing episode being downloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading: it\'ll be here shortly'**
+  String get kostvGhostDownloadingNote;
+
+  /// Kos TV series page: an episode not broadcast yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not on yet'**
+  String get kostvGhostNotOnYet;
+
+  /// Kos TV series page: badge of a missing episode already requested.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested'**
+  String get kostvGhostRequested;
+
+  /// Kos TV series page: when an episode not on yet comes out.
+  ///
+  /// In en, this message translates to:
+  /// **'Out {date}'**
+  String kostvGhostPremieres(String date);
+
+  /// Kos TV series page: an episode that comes out today.
+  ///
+  /// In en, this message translates to:
+  /// **'Out today'**
+  String get kostvGhostPremieresToday;
+
+  /// Kos TV series page: an episode that comes out tomorrow.
+  ///
+  /// In en, this message translates to:
+  /// **'Out tomorrow'**
+  String get kostvGhostPremieresTomorrow;
+
+  /// Kos TV series page: an episode not on yet with no known date.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon'**
+  String get kostvGhostComingSoon;
+
+  /// Kos TV series page: when a missing episode was first on.
+  ///
+  /// In en, this message translates to:
+  /// **'Aired {date}'**
+  String kostvGhostAired(String date);
+
+  /// Kos TV series page: button that requests every missing episode of the season shown (two or more).
+  ///
+  /// In en, this message translates to:
+  /// **'Request the {count} missing'**
+  String kostvGhostAskMissing(int count);
+
+  /// Kos TV series page: above the episodes of a season with missing ones.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 episode of this season is missing} other{{count} episodes of this season are missing}}'**
+  String kostvGhostSeasonMissing(int count);
+
+  /// Kos TV series page: a season the home server has nothing of.
+  ///
+  /// In en, this message translates to:
+  /// **'This season isn\'t at home'**
+  String get kostvGhostSeasonNotAtHome;
+
+  /// Kos TV series page: button that requests a whole season that isn't at home.
+  ///
+  /// In en, this message translates to:
+  /// **'Request the season'**
+  String get kostvGhostAskSeason;
+
+  /// Kos TV series page: a season whose missing episodes were requested.
+  ///
+  /// In en, this message translates to:
+  /// **'Season requested'**
+  String get kostvGhostSeasonRequested;
+
+  /// Kos TV series page: button in the sheet of a missing episode.
+  ///
+  /// In en, this message translates to:
+  /// **'Request this episode'**
+  String get kostvGhostAskEpisode;
+
+  /// Kos TV series page: an episode was requested and starts at once.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested! It\'s being got ready'**
+  String get kostvGhostOutcomeStarted;
+
+  /// Kos TV series page: the person joined someone else's request for an episode.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone had already asked for it: you\'ve been added'**
+  String get kostvGhostOutcomeJoined;
+
+  /// Kos TV player: the next episode isn't on the home server.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode {number} isn\'t at home'**
+  String kostvGapOne(int number);
+
+  /// Kos TV player: the next episodes aren't on the home server.
+  ///
+  /// In en, this message translates to:
+  /// **'Episodes {first} to {last} aren\'t at home'**
+  String kostvGapMany(int first, int last);
+
+  /// Kos TV player: button that requests the missing next episode(s).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Request it} other{Request them}}'**
+  String kostvGapAsk(int count);
+
+  /// Kos TV player: the missing next episode(s) have been requested.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Requested} other{Requested}}'**
+  String kostvGapRequested(int count);
+
+  /// Kos TV player: button that plays the next episode at home, past the missing ones.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch episode {number}'**
+  String kostvGapWatch(int number);
+
+  /// Kos TV player: button that plays the next episode at home when it's in another season.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch S{season}:E{episode}'**
+  String kostvGapWatchOther(int season, int episode);
 }
 
 class _AppLocalizationsDelegate

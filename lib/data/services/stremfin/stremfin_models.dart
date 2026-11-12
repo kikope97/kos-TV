@@ -96,6 +96,7 @@ class StremfinRequestRef {
     this.statusLabel,
     this.mine = false,
     this.season,
+    this.episode,
     this.direct = false,
     this.requesters = const [],
   });
@@ -109,6 +110,10 @@ class StremfinRequestRef {
 
   /// On a series: the season asked for, or null for all that is missing.
   final int? season;
+
+  /// Kos TV: one episode of [season] asked for on its own, or null for the
+  /// whole season.
+  final int? episode;
 
   /// It was accepted on its own.
   final bool direct;
@@ -130,6 +135,7 @@ class StremfinRequestRef {
       statusLabel: label is String ? label : null,
       mine: raw['mine'] == true,
       season: _int(raw['season']),
+      episode: _int(raw['episode']),
       direct: raw['direct'] == true,
       requesters: _texts(raw['requesters']),
     );

@@ -431,12 +431,14 @@ class StremfinService extends ChangeNotifier {
     required StremfinTitleType type,
     required int tmdbId,
     int? season,
+    int? episode,
   }) async {
     try {
       final result = await _client.createRequest(
         type: type,
         tmdbId: tmdbId,
         season: season,
+        episode: episode,
       );
       final made = result.request;
       if (made != null) inbox.note(made, seen: true);

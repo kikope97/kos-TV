@@ -18576,4 +18576,122 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvAgeBlockedNote =>
       'By its recommended age, this title isn\'t available with your profile.';
+
+  @override
+  String get kostvGhostNotAtHome => 'Not at home';
+
+  @override
+  String get kostvGhostAskedByOther => 'Someone else has asked for it';
+
+  @override
+  String get kostvGhostPending => 'You asked for it: waiting for approval';
+
+  @override
+  String get kostvGhostAccepted =>
+      'Requested and accepted: it\'ll be here soon';
+
+  @override
+  String get kostvGhostDownloadingNote => 'Downloading: it\'ll be here shortly';
+
+  @override
+  String get kostvGhostNotOnYet => 'Not on yet';
+
+  @override
+  String get kostvGhostRequested => 'Requested';
+
+  @override
+  String kostvGhostPremieres(String date) {
+    return 'Out $date';
+  }
+
+  @override
+  String get kostvGhostPremieresToday => 'Out today';
+
+  @override
+  String get kostvGhostPremieresTomorrow => 'Out tomorrow';
+
+  @override
+  String get kostvGhostComingSoon => 'Coming soon';
+
+  @override
+  String kostvGhostAired(String date) {
+    return 'Aired $date';
+  }
+
+  @override
+  String kostvGhostAskMissing(int count) {
+    return 'Request the $count missing';
+  }
+
+  @override
+  String kostvGhostSeasonMissing(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count episodes of this season are missing',
+      one: '1 episode of this season is missing',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvGhostSeasonNotAtHome => 'This season isn\'t at home';
+
+  @override
+  String get kostvGhostAskSeason => 'Request the season';
+
+  @override
+  String get kostvGhostSeasonRequested => 'Season requested';
+
+  @override
+  String get kostvGhostAskEpisode => 'Request this episode';
+
+  @override
+  String get kostvGhostOutcomeStarted => 'Requested! It\'s being got ready';
+
+  @override
+  String get kostvGhostOutcomeJoined =>
+      'Someone had already asked for it: you\'ve been added';
+
+  @override
+  String kostvGapOne(int number) {
+    return 'Episode $number isn\'t at home';
+  }
+
+  @override
+  String kostvGapMany(int first, int last) {
+    return 'Episodes $first to $last aren\'t at home';
+  }
+
+  @override
+  String kostvGapAsk(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Request them',
+      one: 'Request it',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kostvGapRequested(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Requested',
+      one: 'Requested',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kostvGapWatch(int number) {
+    return 'Watch episode $number';
+  }
+
+  @override
+  String kostvGapWatchOther(int season, int episode) {
+    return 'Watch S$season:E$episode';
+  }
 }
