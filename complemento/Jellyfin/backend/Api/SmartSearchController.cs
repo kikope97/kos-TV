@@ -10,7 +10,8 @@ using Moonfin.SmartSearch;
 
 namespace Moonfin.Server.Api;
 
-/// <summary>Plain sentence search over the library and, through Seerr, titles the library lacks.</summary>
+/// <summary>Plain sentence search over the library. (kOS TV: without the titles the library
+/// lacks that the official one offered through Seerr.)</summary>
 [ApiController]
 [Route("Moonfin")]
 [Produces(MediaTypeNames.Application.Json)]
@@ -89,7 +90,7 @@ public class SmartSearchController : ControllerBase
         {
             // Turning the feature on doesn't restart the server, so the first search starts the build.
             _taskManager.QueueIfNotRunning<SmartSearchIndexTask>();
-            return Ok(new { Ready = false, Items = Array.Empty<object>(), Seerr = Array.Empty<object>() });
+            return Ok(new { Ready = false, Items = Array.Empty<object>() });
         }
 
         var max = Math.Clamp(limit ?? 20, 1, MaxLimit);
@@ -120,32 +121,6 @@ public class SmartSearchController : ControllerBase
             }
         }
 
-        var seerr = new List<JsonNode>();
-        if (MoonfinPlugin.Instance?.Configuration?.SeerrEnabled == true)
-        {
-            var allowed = await _ratings.SeerrVerdictForAsync(_ratingLimits, _settings, userId.Value, cancellationToken).ConfigureAwait(false);
-            foreach (var hit in results.Catalog)
-            {
-                if (allowed != null && !await allowed(hit.Entry.Kind == SmartQuery.Movie ? "movie" : "tv", long.Parse(hit.Entry.TmdbId)).ConfigureAwait(false))
-                {
-                    continue;
-                }
-
-                var payload = JsonNode.Parse(hit.Entry.Payload)!;
-                if (debug)
-                {
-                    payload["score"] = hit.Score;
-                    payload["similarity"] = hit.Similarity;
-                }
-
-                seerr.Add(payload);
-                if (seerr.Count >= max)
-                {
-                    break;
-                }
-            }
-        }
-
         if (debug)
         {
             var q = results.Query;
@@ -153,12 +128,11 @@ public class SmartSearchController : ControllerBase
             {
                 Ready = true,
                 Items = items,
-                Seerr = seerr,
                 Query = new { q.YearMin, q.YearMax, Kinds = q.Kinds.ToArray(), People = q.People.ToArray() },
                 Milliseconds = (DateTime.UtcNow - started).TotalMilliseconds,
             });
         }
 
-        return Ok(new { Ready = true, Items = items, Seerr = seerr });
+        return Ok(new { Ready = true, Items = items });
     }
 }

@@ -25,6 +25,14 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   de cada persona y el historial de las tareas.
 - **Solo Jellyfin:** fuera las versiones para Emby, Plex y Silo y lo de GitHub
   del oficial.
+- **Sin Seerr:** fuera todo lo suyo (la conexión, el acceso único, sus avisos de
+  peticiones, la búsqueda de lo que no tienes) y lo que colgaba de él: el
+  calendario de Sonarr y Radarr con sus recordatorios y el aviso de descargas
+  atascadas. kOS TV pide las cosas a su propio servicio. A las apps se les dice
+  que no hay Seerr ni calendario (`/Moonfin/Ping`), y en la página de ajustes
+  esos apartados están ocultos (su código sigue buscándolos por su nombre).
+- **La página de ajustes en español**, con los mismos nombres que la app para los
+  mismos ajustes.
 - **Sin la web de Moonfin dentro:** el paquete no la lleva, así que el botón que
   el oficial añade a la cabecera de la web de Jellyfin solo sale si esa web
   existe.
@@ -68,5 +76,8 @@ no debe subirse, porque las nuestras de la app son también números.)
 
 En los conflictos manda lo nuestro: nombre e identificador de kOS TV, textos en
 español, imágenes y lo quitado (Emby, Go, su `.github`, su `build.sh` y sus
-`manifest.json`). Después, pruebas, una pasada a los textos nuevos que se vean
-con el nombre del oficial y publicar `3.2.0.1`.
+`manifest.json`; Seerr, el calendario y las descargas atascadas: si traen
+cambios en esos archivos, se vuelven a borrar). Después, pruebas, una pasada a
+los textos nuevos (que se vean en español y sin el nombre del oficial; en la
+página de ajustes, lo nuevo de Seerr se oculta con la clase `kostvSinSeerr`) y
+publicar `3.2.0.1`.

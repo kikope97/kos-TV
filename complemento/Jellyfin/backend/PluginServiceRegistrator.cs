@@ -5,7 +5,6 @@ using MediaBrowser.Controller.Plugins;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moonfin.Bookmarks;
-using Moonfin.Calendar;
 using Moonfin.Games;
 using Moonfin.LiveTv;
 using Moonfin.MiniGames;
@@ -35,13 +34,10 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             new JellyfinStateFile())));
         serviceCollection.AddSingleton<MoonfinThemeValidator>();
         serviceCollection.AddSingleton<MoonfinThemeStore>();
-        serviceCollection.AddSingleton<SeerrSessionService>();
         serviceCollection.AddSingleton<NotificationStore>();
         serviceCollection.AddSingleton<FcmSender>();
         serviceCollection.AddSingleton<RelaySender>();
         serviceCollection.AddSingleton<PushDeliveryService>();
-        serviceCollection.AddSingleton<SeerrWebhookService>();
-        serviceCollection.AddSingleton<SeerrProvisioningService>();
         serviceCollection.AddSingleton<MdbListCacheService>();
         serviceCollection.AddSingleton<MdbListListsCacheService>();
         serviceCollection.AddSingleton<ImdbListsCacheService>();
@@ -61,7 +57,6 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<ItemCardDtoMapper>();
         serviceCollection.AddSingleton<SeasonalKeywordStoreService>();
         serviceCollection.AddSingleton<SeasonalSuggestionsCacheService>();
-        serviceCollection.AddSingleton<SeerrAvailabilityService>();
         serviceCollection.AddSingleton<SeasonalRowService>();
         serviceCollection.AddSingleton<CustomRowCacheService>();
         serviceCollection.AddSingleton<CustomRowFetchService>();
@@ -128,16 +123,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         // Auto-register file transformations on plugin load (no manual task needed)
         serviceCollection.AddHostedService<FileTransformationHostedService>();
 
-        // Auto-register the Seerr webhook shortly after startup when an admin session exists.
-        serviceCollection.AddHostedService<SeerrProvisioningStartupService>();
+        // kOS TV: without Seerr (its webhook, calendar reminders and stuck downloads).
         serviceCollection.AddHostedService<NewMediaNotifier>();
-        serviceCollection.AddSingleton(_ => new CalendarReminderStore(
-            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), "calendar-reminders"),
-            new JellyfinStateFile()));
-        serviceCollection.AddHostedService<CalendarReminderNotifier>();
-        serviceCollection.AddSingleton(_ => new StuckDownloadStore(
-            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), "seerr-stuck-downloads.json"),
-            new JellyfinStateFile()));
         serviceCollection.AddHostedService(provider => provider.GetRequiredService<GameArtworkReconciliationService>());
 
         // Incomplete Live TV recordings

@@ -69,7 +69,7 @@ public class SmartSearchService
             var apiKey = MoonfinPlugin.Instance?.Configuration?.TmdbApiKey;
             if (string.IsNullOrWhiteSpace(apiKey))
             {
-                _logger.LogInformation("Smart search: no server-wide TMDB key, so there are no Seerr suggestions");
+                _logger.LogInformation("Smart search: no server-wide TMDB key, so people are searched without the titles they are known for");
             }
             else
             {

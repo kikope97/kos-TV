@@ -13,7 +13,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
-using Moonfin.Calendar;
 using Moonfin.Server.Helpers;
 using Moonfin.Server.Models;
 using Moonfin.Server.Services;
@@ -131,10 +130,10 @@ public class MoonfinController : ControllerBase
             Version = MoonfinPlugin.Instance?.Version.ToString() ?? "1.0.0.0",
             SettingsSyncEnabled = config?.EnableSettingsSync ?? false,
             ServerName = "Jellyfin",
-            SeerrEnabled = config?.SeerrEnabled ?? false,
-            SeerrUrl = (config?.SeerrEnabled == true)
-                ? config.SeerrUrl
-                : null,
+            // kOS TV: without Seerr, nor what came through it (the Radarr and Sonarr
+            // calendar, its reminders and the download queue).
+            SeerrEnabled = false,
+            SeerrUrl = null,
             MdblistAvailable = !string.IsNullOrWhiteSpace(config?.MdblistApiKey),
             TmdbAvailable = !string.IsNullOrWhiteSpace(config?.TmdbApiKey),
             TmdbThumbsSupported = true,
@@ -147,13 +146,9 @@ public class MoonfinController : ControllerBase
             ExtendedCompleteShowingsSupported = config?.LiveTvDetectIncompleteRecordings ?? true,
             RecommendationsSupported = config?.RecommendationsProviderEnabled ?? true,
             SmartSearchEnabled = config?.SmartSearchEnabled ?? false,
-            CalendarAvailable = config?.SeerrEnabled == true
-                && !string.IsNullOrEmpty(config.GetEffectiveSeerrUrl())
-                && ArrCalendarWindow.Refusal(config.CalendarAdminsOnly, this.IsAdminFromClaims()) == null,
-            CalendarDaysBack = Math.Max(0, config?.CalendarDaysBack ?? 14),
-            CalendarDaysAhead = Math.Max(0, config?.CalendarDaysAhead ?? 90),
-            CalendarReminders = true,
-            ArrQueueAvailable = config?.SeerrEnabled == true && !string.IsNullOrEmpty(config.GetEffectiveSeerrUrl()),
+            CalendarAvailable = false,
+            CalendarReminders = false,
+            ArrQueueAvailable = false,
             SocketRelay = config?.EnableSocketRelay ?? false,
             DefaultSettings = _settingsService.AdminDefaultsFor(profile)
         });
@@ -1720,43 +1715,6 @@ public class MoonfinController : ControllerBase
         return allItems.Take(limit).ToList();
     }
 
-    /// <summary>
-    /// Gets the Seerr configuration (admin URL + user enablement).
-    /// </summary>
-    [HttpGet("Seerr/Config")]
-    [Authorize]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<SeerrConfigResponse>> GetSeerrConfig()
-    {
-        var config = MoonfinPlugin.Instance?.Configuration;
-        
-        var userId = this.GetUserIdFromClaims();
-        MoonfinUserSettings? userSettings = null;
-        
-        if (userId != null)
-        {
-            userSettings = await _settingsService.GetUserSettingsAsync(userId.Value);
-        }
-
-        var displayName = config?.SeerrDisplayName;
-        if (string.IsNullOrWhiteSpace(displayName))
-        {
-            displayName = "Seerr";
-        }
-
-        var userSeerrEnabled = userSettings?.Global?.SeerrEnabled
-            ?? userSettings?.SeerrEnabled  // legacy v1
-            ?? true;
-
-        return Ok(new SeerrConfigResponse
-        {
-            Enabled = config?.SeerrEnabled ?? false,
-            Url = config?.SeerrUrl,
-            DisplayName = displayName,
-            Variant = "seerr",
-            UserEnabled = userSeerrEnabled
-        });
-    }
 }
 
 public class MoonfinApplyDefaultsRequest
@@ -1920,18 +1878,6 @@ public class MoonfinPingResponse
 
     [JsonPropertyName("defaultSettings")]
     public MoonfinSettingsProfile? DefaultSettings { get; set; }
-}
-
-/// <summary>
-/// Response for Seerr configuration.
-/// </summary>
-public class SeerrConfigResponse
-{
-    public bool Enabled { get; set; }
-    public string? Url { get; set; }
-    public string DisplayName { get; set; } = "Seerr";
-    public string Variant { get; set; } = "seerr";
-    public bool UserEnabled { get; set; }
 }
 
 /// <summary>

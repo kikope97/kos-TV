@@ -1927,6 +1927,12 @@
                 color: rgba(255, 255, 255, 0.5);
                 cursor: not-allowed;
             }
+
+            /* kOS TV: sin Seerr (ni su calendario ni sus descargas atascadas). La página
+               sigue buscando sus campos por id, así que se ocultan en vez de borrarse. */
+            #MoonfinConfigPage .kostvSinSeerr {
+                display: none !important;
+            }
         </style>
         <div data-role="content">
             <div class="content-primary">
@@ -1962,7 +1968,7 @@
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="integrations">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">extension</span>
-                            <span class="moonfinNavText"><span class="moonfinNavLabel">Integrations</span><span class="moonfinNavSub">Seerr, MDBList, TMDB</span></span>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Integrations</span><span class="moonfinNavSub">MDBList, TMDB</span></span>
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="games">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">sports_esports</span>
@@ -2027,7 +2033,7 @@
                             <input type="url" id="PublicServerUrl" is="emby-input" placeholder="https://jellyfin.example.com" />
                             <div class="fieldDescription">
                                 The address people and services outside your network reach this Jellyfin server at.
-                                Watch party invite links point here, and Seerr sends its request notifications here.
+                                Watch party invite links point here.
                                 Leave it empty to use Jellyfin's published server URL, or else the address each request came in at.
                                 Use the base URL, for example <code>https://jellyfin.example.com</code>.
                             </div>
@@ -2063,7 +2069,7 @@
                     </div>
                     </section>
                     <section class="moonfinTabPanel" data-tab="integrations">
-                    <div class="verticalSection">
+                    <div class="verticalSection kostvSinSeerr">
                         <h3 class="sectionTitle">Seerr Integration</h3>
                         <div class="checkboxContainer checkboxContainer-withDescription">
                             <label class="emby-checkbox-label">
@@ -2158,7 +2164,7 @@
                         </div>
                     </div>
 
-                    <div class="verticalSection">
+                    <div class="verticalSection kostvSinSeerr">
                         <h3 class="sectionTitle">Calendar</h3>
                         <div class="fieldDescription" style="margin-bottom: 1em;">
                             The Calendar screen reads Sonarr and Radarr through the servers set up in Seerr, so it needs Seerr turned on above.
@@ -2188,7 +2194,7 @@
                         </div>
                     </div>
 
-                    <div class="verticalSection">
+                    <div class="verticalSection kostvSinSeerr">
                         <h3 class="sectionTitle">Stuck downloads</h3>
                         <div class="checkboxContainer">
                             <label>
@@ -2475,7 +2481,7 @@
                                 Lets kOS TV apps search with plain sentences like "90s movie about a kid pulled into a board game" or "electronic music duo from the 90s".
                                 Searches run on this server's CPU with a small model, so what people type never leaves the server. Turning it on downloads the model
                                 and indexes movies, shows, people, music and books with the kOS TV: índice de la búsqueda inteligente task, which starts on its own with the first search.
-                                With the TMDB key on the Integrations tab it also indexes the most popular TMDB titles, so titles you don't have show up as Seerr suggestions.
+                                With the TMDB key on the Integrations tab it also indexes the most popular TMDB titles, so people can also be found by the titles they are known for.
                                 The first run takes 15 to 30 minutes on a desktop CPU and an hour or more on a Raspberry Pi, using half the cores. After that only changes are indexed. See the Smart Search page in the wiki.
                             </div>
                         </div>
@@ -2508,7 +2514,7 @@
                         <div class="moonfinSyncDeps">
                             <span class="moonfinEyebrow">Also relies on sync</span>
                             <div class="moonfinChips">
-                                <span class="moonfinChip">Seerr requests</span>
+                                <span class="moonfinChip kostvSinSeerr">Seerr requests</span>
                                 <span class="moonfinChip">MDBList ratings</span>
                                 <span class="moonfinChip">TMDB ratings</span>
                             </div>
@@ -2565,7 +2571,7 @@
                             <button type="button" class="defaultsSubtabBtn" data-subtab="libraries">Libraries</button>
                             <button type="button" class="defaultsSubtabBtn" data-subtab="details-page">Details Page</button>
                             <button type="button" class="defaultsSubtabBtn" data-subtab="playback">Playback</button>
-                            <button type="button" class="defaultsSubtabBtn" data-subtab="integrations">Integrations</button>
+                            <button type="button" class="defaultsSubtabBtn kostvSinSeerr" data-subtab="integrations">Integrations</button>
                         </div>
 
                         <div class="defaultsSubtabPanel active" data-subtab="account">
@@ -2744,7 +2750,7 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvSinSeerr">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultShowCalendarButton">Show Calendar Button</label>
                                 <select id="DefaultShowCalendarButton" is="emby-select">
                                     <option value="">Not set (user decides)</option>
@@ -2786,7 +2792,7 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvSinSeerr">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultShowSeerrButton">Show Seerr Button</label>
                                 <select id="DefaultShowSeerrButton" is="emby-select">
                                     <option value="">Not set (user decides)</option>
@@ -4008,7 +4014,7 @@
                                 <div class="fieldDescription">Show the row outside the holiday dates too, a different ticked holiday each day. A holiday that's in season still comes first.</div>
                             </div>
 
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvSinSeerr">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultMergeRadarrSonarrCalendars">Merge Radarr and Sonarr Calendars</label>
                                 <select id="DefaultMergeRadarrSonarrCalendars" is="emby-select">
                                     <option value="">Not set (user decides)</option>
@@ -4016,7 +4022,7 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvSinSeerr">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultRadarrCalendarShowCinema">Radarr: Show Cinema Releases</label>
                                 <select id="DefaultRadarrCalendarShowCinema" is="emby-select">
                                     <option value="">Not set (user decides)</option>
@@ -4024,7 +4030,7 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvSinSeerr">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultRadarrCalendarShowDigital">Radarr: Show Digital Releases</label>
                                 <select id="DefaultRadarrCalendarShowDigital" is="emby-select">
                                     <option value="">Not set (user decides)</option>
@@ -4032,7 +4038,7 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvSinSeerr">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultRadarrCalendarShowPhysical">Radarr: Show Physical Releases</label>
                                 <select id="DefaultRadarrCalendarShowPhysical" is="emby-select">
                                     <option value="">Not set (user decides)</option>
@@ -4040,7 +4046,7 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvSinSeerr">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultRadarrCalendarShowDate">Radarr: Show Release Date</label>
                                 <select id="DefaultRadarrCalendarShowDate" is="emby-select">
                                     <option value="">Not set (user decides)</option>
@@ -4048,7 +4054,7 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvSinSeerr">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultRadarrCalendarHideDownloaded">Radarr: Hide Movies Already on the Server</label>
                                 <select id="DefaultRadarrCalendarHideDownloaded" is="emby-select">
                                     <option value="">Not set (user decides)</option>
@@ -4056,7 +4062,7 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvSinSeerr">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultSonarrCalendarShowDate">Sonarr: Show Air Date</label>
                                 <select id="DefaultSonarrCalendarShowDate" is="emby-select">
                                     <option value="">Not set (user decides)</option>
@@ -4064,7 +4070,7 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvSinSeerr">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultSonarrCalendarShowEpisodeInfo">Sonarr: Show Episode Info</label>
                                 <select id="DefaultSonarrCalendarShowEpisodeInfo" is="emby-select">
                                     <option value="">Not set (user decides)</option>
@@ -4072,7 +4078,7 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvSinSeerr">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultSonarrCalendarHideDownloaded">Sonarr: Hide Episodes Already on the Server</label>
                                 <select id="DefaultSonarrCalendarHideDownloaded" is="emby-select">
                                     <option value="">Not set (user decides)</option>
@@ -4831,7 +4837,7 @@
                             </div>
                         </div>
 
-                        <div class="defaultsSubtabPanel" data-subtab="integrations">
+                        <div class="defaultsSubtabPanel kostvSinSeerr" data-subtab="integrations">
                             <div id="DefaultSeerrOffNote" class="fieldDescription">Turn on Seerr under Integrations to set these defaults.</div>
                             <h4 id="DefaultSeerrHeading" style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Seerr</h4>
                             <div class="inputContainer">
@@ -6375,13 +6381,11 @@
             // Ids are the client's wire names for the pinnable tabs.
             var BOTTOM_NAVBAR_TABS = [
                 ['search', 'Search'],
+                ['kostvDiscover', 'Discover'],
                 ['libraries', 'Libraries'],
                 ['favorites', 'Favorites'],
                 ['genres', 'Genres'],
-                ['liveTv', 'Live TV'],
-                ['discover', 'Discover (Seerr)'],
-                ['calendar', 'Calendar'],
-                ['folders', 'Folders']
+                ['liveTv', 'Live TV']
             ];
 
             function setBottomNavbarTabSelects(tabs) {
@@ -6661,19 +6665,6 @@
                 { type: 'sinceyouwatched5', label: "Since You Watched 5" },
                 { type: 'rewatch', label: "Rewatch" },
                 { type: 'seasonal', label: 'Seasonal' },
-                { type: 'seerr_shortcuts', label: 'Seerr Browse' },
-                { type: 'seerr_recent_requests', label: 'Seerr Recent Requests' },
-                { type: 'seerr_recently_added', label: 'Seerr Recently Added' },
-                { type: 'seerr_popular_movies', label: 'Seerr Popular Movies' },
-                { type: 'seerr_upcoming_movies', label: 'Seerr Upcoming Movies' },
-                { type: 'seerr_popular_series', label: 'Seerr Popular Series' },
-                { type: 'seerr_upcoming_series', label: 'Seerr Upcoming Series' },
-                { type: 'seerr_trending', label: 'Seerr Trending' },
-                { type: 'seerr_movie_genres', label: 'Seerr Movie Genres' },
-                { type: 'seerr_studios', label: 'Seerr Studios' },
-                { type: 'seerr_series_genres', label: 'Seerr Series Genres' },
-                { type: 'seerr_networks', label: 'Seerr Networks' },
-                { type: 'seerr_watchlist', label: 'Seerr Watchlist' },
                 { type: 'imdb_top_250_movies', label: 'IMDB Top 250 Movies' },
                 { type: 'imdb_top_250_tv_shows', label: 'IMDB Top 250 Shows' },
                 { type: 'imdb_most_popular_movies', label: 'IMDB Most Popular Movies' },
@@ -6693,9 +6684,7 @@
                 { type: 'tmdb_trending_tv_daily', label: 'TMDB Trending TV (Daily)' },
                 { type: 'tmdb_trending_tv_weekly', label: 'TMDB Trending TV (Weekly)' },
                 { type: 'tmdb_trending_all_weekly', label: 'TMDB Trending All (Weekly)' },
-                { type: 'mdblist_watching_now', label: 'Watching on MDBList' },
-                { type: 'radarr_calendar', label: 'Radarr Upcoming' },
-                { type: 'sonarr_calendar', label: 'Sonarr Upcoming' }
+                { type: 'mdblist_watching_now', label: 'Watching on MDBList' }
             ];
 
             function loadAdminGenrePicker(selectedIds) {
@@ -6948,8 +6937,6 @@
             // Same ids and declaration order as DetailButton in Core, so an untouched
             // arrangement here matches what a fresh client shows.
             var DETAIL_BUTTONS = [
-                { id: 'seerrRequest', label: 'Request' },
-                { id: 'seerrRequest4k', label: 'Request 4K' },
                 { id: 'shuffle', label: 'Shuffle' },
                 { id: 'restart', label: 'Restart', canHide: false },
                 { id: 'audio', label: 'Audio' },
@@ -6965,9 +6952,6 @@
                 { id: 'download', label: 'Download' },
                 { id: 'deleteFiles', label: 'Delete files' },
                 { id: 'goToSeries', label: 'Go to series' },
-                { id: 'seerrWatchlist', label: 'Watchlist' },
-                { id: 'seerrReportIssue', label: 'Report Issue' },
-                { id: 'seerrManage', label: 'Manage Requests' },
                 { id: 'admin', label: 'Admin' }
             ];
 
@@ -6995,8 +6979,7 @@
                 { id: 'runtimeAndSeasons', label: 'Runtime & Seasons' },
                 { id: 'status', label: 'Series Status' },
                 { id: 'upcomingEpisodeDate', label: 'Upcoming Episodes' },
-                { id: 'genres', label: 'Genres' },
-                { id: 'seerrAvailability', label: 'Seerr Availability' }
+                { id: 'genres', label: 'Genres' }
             ];
 
             // The app's Details screen section ids, which are what the hidden lists store.
@@ -7017,14 +7000,6 @@
                 { id: 'reviews', label: 'Reviews' },
                 { id: 'moreEpisodes', label: 'More episodes' },
                 { id: 'mediaInfo', label: 'Media info' },
-                { id: 'seerrGenresTags', label: 'Seerr: Genres & tags' },
-                { id: 'seerrStats', label: 'Seerr: Stats' },
-                { id: 'seerrStreaming', label: 'Seerr: Streaming services' },
-                { id: 'seerrRecommendations', label: 'Seerr: Recommendations' },
-                { id: 'seerrSimilar', label: 'Seerr: Similar titles' },
-                { id: 'seerrCollection', label: 'Seerr: Collection banner' },
-                { id: 'seerrPersonAppearances', label: 'Seerr: Appearances' },
-                { id: 'seerrPersonCrew', label: 'Seerr: Crew credits' },
                 { id: 'biography', label: 'Person pages: Biography' },
                 { id: 'birthplace', label: 'Person pages: Birthplace' },
                 { id: 'personLinks', label: 'Person pages: Links (phones and desktops only)' },
@@ -7425,7 +7400,6 @@
                 { id: 'collections', label: 'Collections' },
                 { id: 'playlists', label: 'Playlists' },
                 { id: 'genres', label: 'Genres' },
-                { id: 'seerr', label: 'Seerr' },
                 { id: 'external', label: 'External Lists' },
                 { id: 'custom', label: 'Custom Lists' }
             ];
@@ -11306,7 +11280,7 @@
                 ApiClient.getPluginConfiguration(MoonfinConfig.pluginUniqueId).then(function(config) {
                     document.querySelector('#EnableSettingsSync').checked = config.EnableSettingsSync;
                     updateSyncStatus();
-                    document.querySelector('#SeerrEnabled').checked = config.SeerrEnabled;
+                    document.querySelector('#SeerrEnabled').checked = false; // kOS TV: sin Seerr
                     document.querySelector('#SeerrUrl').value = config.SeerrUrl || '';
                     document.querySelector('#SeerrDisplayName').value = config.SeerrDisplayName || '';
                     document.querySelector('#PublicServerUrl').value = config.PublicServerUrl || '';

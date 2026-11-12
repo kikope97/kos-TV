@@ -102,7 +102,6 @@ public class MoonfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
             TryEnsureWebhookSecret();
         }
 
-        var previousUrl = Configuration.PublicServerUrl;
         var previousGamesEnabled = Configuration.GamesEnabled;
         var previousGameLibraryIds = Configuration.GameLibraryIds?.ToList() ?? new List<string>();
         var previousRomm = RommSignature(Configuration);
@@ -113,19 +112,6 @@ public class MoonfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         if (HideWatchedDefaults(Configuration) != previousHideWatched)
         {
             _ = ServiceProvider?.GetService<MoonfinSettingsService>()?.SyncHideWatchedForAffectedUsersAsync(CancellationToken.None);
-        }
-
-        // Re-provision the Seerr webhook when the public URL changes, so the new URL is
-        // pushed to Seerr without waiting for a restart. The provisioning guardrail only
-        // overwrites our own webhook.
-        var newUrl = Configuration.PublicServerUrl;
-        if (!string.Equals(previousUrl, newUrl, StringComparison.Ordinal))
-        {
-            var provisioning = ServiceProvider?.GetService<SeerrProvisioningService>();
-            if (provisioning != null)
-            {
-                _ = provisioning.EnsureWebhookAsync(default);
-            }
         }
 
         // Re-watch and re-scan the ROM roots when the selected game libraries change, so a newly

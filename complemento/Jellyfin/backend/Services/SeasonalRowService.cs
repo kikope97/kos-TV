@@ -13,7 +13,8 @@ namespace Moonfin.Server.Services;
 
 /// <summary>
 /// Builds the seasonal Home row: the holiday active for the viewer's country, the movies they
-/// own for it in a daily order, and popular TMDB titles they could request through Seerr.
+/// own for it in a daily order. (kOS TV: without Seerr, so without the popular TMDB titles
+/// the official one offered to request through it.)
 /// </summary>
 public class SeasonalRowService
 {
@@ -35,7 +36,6 @@ public class SeasonalRowService
     private readonly TmdbRatingService _ratings;
     private readonly SeasonalKeywordStoreService _keywords;
     private readonly SeasonalSuggestionsCacheService _suggestions;
-    private readonly SeerrAvailabilityService _seerr;
     private readonly ItemCardDtoMapper _mapper;
     private readonly ILogger<SeasonalRowService> _logger;
 
@@ -49,7 +49,6 @@ public class SeasonalRowService
         TmdbRatingService ratings,
         SeasonalKeywordStoreService keywords,
         SeasonalSuggestionsCacheService suggestions,
-        SeerrAvailabilityService seerr,
         ItemCardDtoMapper mapper,
         ILogger<SeasonalRowService> logger)
     {
@@ -63,7 +62,6 @@ public class SeasonalRowService
         _ratings = ratings;
         _keywords = keywords;
         _suggestions = suggestions;
-        _seerr = seerr;
         _mapper = mapper;
         _logger = logger;
     }
@@ -86,9 +84,7 @@ public class SeasonalRowService
             return response;
         }
 
-        var apiKey = string.IsNullOrWhiteSpace(profile?.TmdbApiKey) ? MoonfinPlugin.Instance?.Configuration?.TmdbApiKey : profile.TmdbApiKey;
         var limit = _ratingLimits.ForUser(userId);
-        var seerrReady = !string.IsNullOrWhiteSpace(apiKey) && await _seerr.IsReadyForUserAsync(userId).ConfigureAwait(false);
 
         foreach (var candidate in active)
         {
@@ -96,9 +92,8 @@ public class SeasonalRowService
             // The query already applied the server's limits. This also drops unrated titles,
             // which the server lets through unless the user blocks them as a class.
             var owned = DistinctOwned(OwnedMovies(holiday, user).Where(item => limit.IsAllowed(item.OfficialRating)));
-            var suggestions = seerrReady
-                ? await SuggestionsAsync(holiday, apiKey!, OwnedKeys(owned, _keywords.AllTmdbIds()), limit, now, cancellationToken).ConfigureAwait(false)
-                : new List<CustomRowItem>();
+            // kOS TV: the suggestions to request came through Seerr, which is gone.
+            var suggestions = new List<CustomRowItem>();
 
             if (owned.Count + suggestions.Count < MinItems)
             {

@@ -20,18 +20,15 @@ public class MoonfinDataHealTask : IScheduledTask
 
     private readonly MoonfinSettingsService _settingsService;
     private readonly NotificationStore _notificationStore;
-    private readonly SeerrSessionService _seerrSessionService;
     private readonly ILogger<MoonfinDataHealTask> _logger;
 
     public MoonfinDataHealTask(
         MoonfinSettingsService settingsService,
         NotificationStore notificationStore,
-        SeerrSessionService seerrSessionService,
         ILogger<MoonfinDataHealTask> logger)
     {
         _settingsService = settingsService;
         _notificationStore = notificationStore;
-        _seerrSessionService = seerrSessionService;
         _logger = logger;
     }
 
@@ -47,26 +44,21 @@ public class MoonfinDataHealTask : IScheduledTask
         {
             progress.Report(0);
             var settings = await _settingsService.HealDataFilesAsync(cancellationToken).ConfigureAwait(false);
-            progress.Report(33);
+            progress.Report(50);
             var notifications = await _notificationStore.HealDataFilesAsync(cancellationToken).ConfigureAwait(false);
-            progress.Report(66);
-            var sessions = await _seerrSessionService.HealDataFilesAsync(cancellationToken).ConfigureAwait(false);
             progress.Report(100);
 
             _logger.LogInformation(
                 "Moonfin data heal complete: settings {SettingsScanned} scanned / {SettingsHealthy} healthy / " +
                 "{SettingsSalvaged} salvaged / {SettingsBak} recovered-from-backup / {SettingsQuarantined} quarantined; " +
-                "notifications {NotifScanned} scanned / {NotifQuarantined} quarantined; " +
-                "seerr-sessions {SeerrScanned} scanned / {SeerrQuarantined} quarantined",
+                "notifications {NotifScanned} scanned / {NotifQuarantined} quarantined",
                 settings.Scanned,
                 settings.Healthy,
                 settings.Salvaged,
                 settings.RecoveredFromBackup,
                 settings.Quarantined,
                 notifications.Scanned,
-                notifications.Quarantined,
-                sessions.Scanned,
-                sessions.Quarantined);
+                notifications.Quarantined);
         }
         finally
         {
