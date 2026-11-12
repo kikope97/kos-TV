@@ -78,6 +78,7 @@ bool bottomNavTabMatchesRoute(BottomNavTab tab, String route) {
         under('/books') ||
         under('/games'),
     BottomNavTab.favorites => route == Destinations.allFavorites,
+    BottomNavTab.myList => route == Destinations.myList,
     BottomNavTab.genres => route == Destinations.allGenres,
     BottomNavTab.liveTv => under(Destinations.liveTv),
     BottomNavTab.calendar => under(Destinations.calendar),

@@ -243,8 +243,24 @@ public sealed class KostvHomeEngineTests
     }
 
     [Fact]
+    public void WhatIsOnTheirListIsntRecommendedAgain()
+    {
+        var library = Enumerable.Range(1, 12).Select(n => Film(n, rating: 8.5, genres: "Drama")).ToList();
+        var facts = new Dictionary<string, KostvSeedFacts>
+        {
+            ["movie:100"] = Recs(Enumerable.Range(1, 12).ToArray()),
+        };
+
+        var rows = KostvHomeEngine.Build([Seed(100, 1)], facts, NoCredits, library, day: 2, onList: ["movie:4"]);
+
+        Assert.NotEmpty(rows);
+        Assert.DoesNotContain(rows.SelectMany(r => r.ItemIds), id => id == "item4");
+    }
+
+    [Fact]
     public void PingTellsTheAppsThisPluginWorksOutTheHomePage()
     {
         Assert.Contains("\"kostvHome\":true", JsonSerializer.Serialize(new MoonfinPingResponse { KostvHome = true }));
+        Assert.Contains("\"kostvMyList\":true", JsonSerializer.Serialize(new MoonfinPingResponse { KostvMyList = true }));
     }
 }

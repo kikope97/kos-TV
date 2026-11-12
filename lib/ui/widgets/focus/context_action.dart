@@ -20,6 +20,7 @@ import '../../../preference/user_preferences.dart';
 import '../../../util/home_refresh_helper.dart';
 import '../../../util/item_watch_state.dart';
 import '../../../data/services/item_membership_service.dart';
+import '../../../data/services/kostv_my_list.dart';
 import '../../navigation/destinations.dart';
 import '../add_to_collection_dialog.dart';
 import '../add_to_playlist_dialog.dart';
@@ -190,6 +191,37 @@ List<ItemContextAction> contextActionsFor(
           context.push(
             Destinations.item(item.id, serverId: item.serverId, autoPlay: true),
           );
+        },
+      ));
+    }
+
+    // Kos TV: the person's list; an episode or season stands for its series.
+    final myList = GetIt.instance.isRegistered<KostvMyListService>()
+        ? GetIt.instance<KostvMyListService>()
+        : null;
+    if (myList != null && myList.canList(item)) {
+      final onList = myList.contains(item);
+      actions.add(ItemContextAction(
+        icon: onList ? Icons.bookmark_remove_outlined : Icons.bookmark_add_outlined,
+        label: onList ? l10n.kostvMyListRemove : l10n.kostvMyListAdd,
+        onSelect: () async {
+          final messenger = ScaffoldMessenger.maybeOf(context);
+          final now = await myList.set(item, onList: !onList);
+          final name = item.type == 'Episode' || item.type == 'Season'
+              ? (item.seriesName ?? item.name)
+              : item.name;
+          messenger?.showSnackBar(
+            SnackBar(
+              content: Text(
+                now == null
+                    ? l10n.kostvMyListChangeFailed
+                    : now
+                    ? l10n.kostvMyListAdded(name)
+                    : l10n.kostvMyListRemoved(name),
+              ),
+            ),
+          );
+          onChanged?.call();
         },
       ));
     }

@@ -35,6 +35,7 @@ import '../../../data/repositories/offline_repository.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/services/book_reader_service.dart';
 import '../../../data/services/theme_music_service.dart';
+import '../../../data/services/kostv_my_list.dart';
 import '../../../data/services/stremfin/kostv_trailers.dart';
 import '../../../data/services/youtube_stream_resolver.dart';
 import '../../../data/viewmodels/item_detail_view_model.dart';
@@ -5815,12 +5816,47 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
       if (!mounted) return;
       setState(() {});
     });
+    _myList?.addListener(_onMyListChanged);
     _checkOffline();
     _maybeTriggerAutoPlay();
   }
 
+  /// Kos TV: the person's list, whose button shows whether this is on it.
+  final KostvMyListService? _myList =
+      GetIt.instance.isRegistered<KostvMyListService>()
+      ? GetIt.instance<KostvMyListService>()
+      : null;
+
+  void _onMyListChanged() {
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _toggleMyList(AggregatedItem item) async {
+    final myList = _myList;
+    if (myList == null) return;
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    final onList = await myList.set(item, onList: !myList.contains(item));
+    final name = item.type == 'Episode' || item.type == 'Season'
+        ? (item.seriesName ?? item.name)
+        : item.name;
+    messenger?.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 2),
+        content: Text(
+          onList == null
+              ? l10n.kostvMyListChangeFailed
+              : onList
+              ? l10n.kostvMyListAdded(name)
+              : l10n.kostvMyListRemoved(name),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _myList?.removeListener(_onMyListChanged);
     _downloadService?.removeListener(_onDownloadChanged);
     _userSub?.cancel();
     _localTvPlayFocusNode.dispose();
@@ -6973,6 +7009,19 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
           label: l10n.trailer,
           icon: Icons.movie_outlined,
           onPressed: () => _playTrailer(context, item),
+        ),
+      // Kos TV: the person's list; an episode or season stands for its series.
+      if ((_myList?.canList(item) ?? false) && shows(DetailButton.myList))
+        DetailButton.myList: _DetailActionButton(
+          label: _myList!.contains(item)
+              ? l10n.kostvMyListOn
+              : l10n.kostvMyList,
+          icon: _myList.contains(item)
+              ? Icons.bookmark_added_rounded
+              : Icons.bookmark_add_outlined,
+          onPressed: () => unawaited(_toggleMyList(item)),
+          isActive: _myList.contains(item),
+          activeColor: const Color(0xFFF472B6),
         ),
       if (!isBook &&
           !isPhoto &&

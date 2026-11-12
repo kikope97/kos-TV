@@ -18308,6 +18308,105 @@
   "@kostvUndo": {
     "description": "Kos TV: button that takes back the last «not interested»."
   },
+  "kostvMyList": "My list",
+  "@kostvMyList": {
+    "description": "Kos TV: the person's list of what they want to watch."
+  },
+  "kostvMyListOn": "On my list",
+  "@kostvMyListOn": {
+    "description": "Kos TV: the title page button when the title is on the list."
+  },
+  "kostvMyListWhy": "What you saved to watch and haven't started",
+  "@kostvMyListWhy": {
+    "description": "Kos TV recommended Home: line under the \u00abMi lista\u00bb row."
+  },
+  "kostvMyListSeeAll": "See my whole list",
+  "@kostvMyListSeeAll": {
+    "description": "Kos TV: last card of the \u00abMi lista\u00bb row, opens the page."
+  },
+  "kostvMyListCount": "{count, plural, =1{1 title} other{{count} titles}}",
+  "@kostvMyListCount": {
+    "description": "Kos TV: how many titles are on the list.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kostvMyListWatching": "Continue watching",
+  "@kostvMyListWatching": {
+    "description": "Kos TV list page: what the person is part way through."
+  },
+  "kostvMyListWatchingWhy": "From your list, what you're part way through",
+  "@kostvMyListWatchingWhy": {
+    "description": "Kos TV list page: line under \u00abContinuar viendo\u00bb."
+  },
+  "kostvMyListToStart": "To start",
+  "@kostvMyListToStart": {
+    "description": "Kos TV list page: what the person hasn't started."
+  },
+  "kostvMyListToStartWhy": "What you saved and haven't started",
+  "@kostvMyListToStartWhy": {
+    "description": "Kos TV list page: line under \u00abPor empezar\u00bb."
+  },
+  "kostvMyListWatched": "Watched",
+  "@kostvMyListWatched": {
+    "description": "Kos TV list page: what the person has watched."
+  },
+  "kostvMyListWatchedWhy": "Finished films and series with nothing left",
+  "@kostvMyListWatchedWhy": {
+    "description": "Kos TV list page: line under \u00abYa vistas\u00bb."
+  },
+  "kostvMyListClearWatched": "Remove watched",
+  "@kostvMyListClearWatched": {
+    "description": "Kos TV list page: card that takes everything watched off the list."
+  },
+  "kostvMyListCleared": "You removed what you've watched from your list",
+  "@kostvMyListCleared": {
+    "description": "Kos TV list page: message after clearing the watched ones."
+  },
+  "kostvMyListChangeFailed": "Your list couldn't be changed. Try again.",
+  "@kostvMyListChangeFailed": {
+    "description": "Kos TV: the list couldn't be changed."
+  },
+  "kostvMyListEmpty": "Your list is empty",
+  "@kostvMyListEmpty": {
+    "description": "Kos TV list page: nothing on the list."
+  },
+  "kostvMyListEmptyHint": "Save films and series to watch later with the «My list» button on their page or from a card's menu (long press).",
+  "@kostvMyListEmptyHint": {
+    "description": "Kos TV list page: how to add something."
+  },
+  "kostvMyListUnavailable": "Your list couldn't be read",
+  "@kostvMyListUnavailable": {
+    "description": "Kos TV list page: the server couldn't be asked."
+  },
+  "kostvMyListAdd": "Add to my list",
+  "@kostvMyListAdd": {
+    "description": "Kos TV: card menu action and button tooltip."
+  },
+  "kostvMyListRemove": "Remove from my list",
+  "@kostvMyListRemove": {
+    "description": "Kos TV: card menu action and button tooltip."
+  },
+  "kostvMyListAdded": "“{title}” is on your list",
+  "@kostvMyListAdded": {
+    "description": "Kos TV: message after adding to the list.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvMyListRemoved": "“{title}” is no longer on your list",
+  "@kostvMyListRemoved": {
+    "description": "Kos TV: message after taking off the list.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "kostvIntroSetting": "Opening animation",
   "@kostvIntroSetting": {
     "description": "Kos TV settings: switch for the intro video when the app opens."

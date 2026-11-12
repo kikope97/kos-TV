@@ -106,6 +106,16 @@ class KostvHomeRowStyle {
       );
     }
 
+    if (rest == KostvHomeRepository.myListKind) {
+      return KostvHomeRowStyle(
+        icon: Icons.bookmark_rounded,
+        color: const Color(0xFFF472B6),
+        before: row.title,
+        name: '',
+        after: '',
+        why: l10n.kostvMyListWhy,
+      );
+    }
     if (rest == KostvHomeRepository.newEpisodesKind) {
       return KostvHomeRowStyle(
         icon: Icons.new_releases_outlined,

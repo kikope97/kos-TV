@@ -1124,6 +1124,24 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                       context.navigateTopLevel(Destinations.allFavorites);
                     },
                   ),
+                // Kos TV: the person's list, by Favourites.
+                if (_prefs.get(UserPreferences.kostvMyListAvailable))
+                  _SidebarItem(
+                    key: const ValueKey('sidebar-my-list'),
+                    icon: Icons.bookmark_rounded,
+                    label: l10n.kostvMyList,
+                    baseColor: nextMainSidebarColor(),
+                    showLabel: _showLabels,
+                    onPressed: () {
+                      _onNavigate();
+                      if (_isActive(Destinations.myList)) {
+                        _exitSidebarToContent();
+                        return;
+                      }
+                      _markNavigationAwayFromSidebar();
+                      context.navigateTopLevel(Destinations.myList);
+                    },
+                  ),
                 if (showLiveTv)
                   _SidebarItem(
                     key: const ValueKey('sidebar-livetv'),

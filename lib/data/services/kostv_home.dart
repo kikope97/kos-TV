@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:server_core/server_core.dart';
@@ -5,6 +7,7 @@ import 'package:server_core/server_core.dart';
 import '../../l10n/app_localizations.dart';
 import '../models/aggregated_item.dart';
 import '../models/home_row.dart';
+import 'kostv_my_list.dart';
 import 'moonbase_endpoint.dart';
 import 'stremfin/stremfin_models.dart';
 import 'stremfin/stremfin_service.dart';
@@ -49,7 +52,12 @@ class KostvHomeServerRow {
 /// from what they watched, with what is most watched now in between. All of
 /// it is on the home server; nothing here is to ask for.
 class KostvHomeRepository {
-  KostvHomeRepository(this._client, {Dio? dio, this.stremfin})
+  KostvHomeRepository(
+    this._client, {
+    Dio? dio,
+    this.stremfin,
+    this.myList,
+  })
     : _dio =
           dio ??
           Dio(
@@ -64,6 +72,7 @@ class KostvHomeRepository {
   final MediaServerClient _client;
   final Dio _dio;
   final StremfinService? stremfin;
+  final KostvMyListService? myList;
 
   /// Rows from the server at a time: the first batch with Home, the rest
   /// when the person scrolls down to them.
@@ -98,6 +107,8 @@ class KostvHomeRepository {
       int total,
       List<AggregatedItem> newEpisodes,
       Set<String> hidden,
+      List<AggregatedItem> myList,
+      List<String>? myListIds,
     })?
   >
   rows({required int start, required int limit, bool refresh = false}) async {
@@ -134,8 +145,34 @@ class KostvHomeRepository {
           for (final id in ids)
             if (id is String) id.replaceAll('-', ''),
       },
+      myList: _cards(data['MyList']),
+      myListIds: data['MyListIds'] is List
+          ? [
+              for (final id in data['MyListIds'] as List)
+                if (id is String) id,
+            ]
+          : null,
     );
   }
+
+  /// The id of the row of what the person put on their list and hasn't
+  /// started.
+  static const myListKind = 'my_list';
+
+  /// The row of [toStart], or null when there is nothing.
+  static HomeRow? myListRow(
+    List<AggregatedItem> toStart,
+    String prefix,
+    AppLocalizations l10n,
+  ) => toStart.isEmpty
+      ? null
+      : HomeRow(
+          id: '$prefix$myListKind',
+          title: l10n.kostvMyList,
+          rowType: HomeRowType.latestMedia,
+          items: toStart,
+          totalCount: toStart.length,
+        );
 
   /// Tells the plugin the person isn't interested in [itemId] (a film or
   /// series), or with [undo] that they are again. False when it couldn't be
@@ -270,6 +307,14 @@ class KostvHomeRepository {
     if (recent.isEmpty) return null;
     final items = (await atHome(recent)).where(_unplayed).toList();
     if (items.isEmpty) return null;
+    // What they asked for goes on their list, so it stays to hand once it
+    // leaves this row; the first time only.
+    final myList = this.myList;
+    if (myList != null) {
+      for (final item in items) {
+        unawaited(myList.addArrived(item.id));
+      }
+    }
     return HomeRow(
       id: arrivedRowId,
       title: l10n.kostvHomeArrived,

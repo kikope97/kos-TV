@@ -1,3 +1,4 @@
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -71,8 +72,84 @@ public class KostvHomeController : ControllerBase
             NewEpisodes = first
                 ? _home.NewEpisodes(user, page).Where(item => UserReflection.IsVisibleTo(item, user)).Select(item => _cards.Map(item, user)).ToList()
                 : null,
-            Hidden = first ? _home.Hidden(userId.Value, page).Select(id => id.ToString("N")).ToList() : null
+            Hidden = first ? _home.Hidden(userId.Value, page).Select(id => id.ToString("N")).ToList() : null,
+            // Their list: what they haven't started, for its row, and every id, for the buttons.
+            MyList = first ? Cards(_home.MyList(userId.Value, user).ToStart.Take(20), user) : null,
+            MyListIds = first ? _home.MyListIds(userId.Value) : null
         });
+    }
+
+    private List<object> Cards(IEnumerable<BaseItem> items, object user) =>
+        items.Select(item => (object)_cards.Map(item, user)).ToList();
+
+    /// <summary>
+    /// The caller's list in its three parts: what they are part way through, what they haven't
+    /// started and what they have watched, and the ids of all of it.
+    /// </summary>
+    [HttpGet("/Moonfin/Kostv/MyList")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult MyList()
+    {
+        var userId = this.GetUserIdFromClaims();
+        var user = userId.HasValue ? UserReflection.ResolveUser(HttpContext.RequestServices, userId.Value) : null;
+        if (userId == null || user == null)
+        {
+            return Unauthorized(new { Error = "User not authenticated" });
+        }
+
+        var list = _home.MyList(userId.Value, user);
+        return Ok(new
+        {
+            Watching = Cards(list.Watching, user),
+            ToStart = Cards(list.ToStart, user),
+            Watched = Cards(list.Watched, user),
+            Ids = _home.MyListIds(userId.Value)
+        });
+    }
+
+    /// <summary>
+    /// Puts <paramref name="itemId"/> (a film or series, or the series of an episode) on the
+    /// caller's list, or with <paramref name="remove"/> takes it off. <paramref name="arrived"/>:
+    /// the app putting on something the person asked for that has just arrived, only the first
+    /// time, so taking it off sticks.
+    /// </summary>
+    [HttpPost("/Moonfin/Kostv/MyList")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> SetOnList([FromQuery] Guid itemId, [FromQuery] bool remove = false, [FromQuery] bool arrived = false)
+    {
+        var userId = this.GetUserIdFromClaims();
+        var user = userId.HasValue ? UserReflection.ResolveUser(HttpContext.RequestServices, userId.Value) : null;
+        if (userId == null || user == null)
+        {
+            return Unauthorized(new { Error = "User not authenticated" });
+        }
+
+        if (_home.ListItemFor(itemId, user) is not { } item)
+        {
+            return NotFound();
+        }
+
+        var onList = await _home.SetOnListAsync(userId.Value, item, remove, arrived).ConfigureAwait(false);
+        return Ok(new { ItemId = item.Id.ToString("N"), OnList = onList });
+    }
+
+    /// <summary>Takes off the caller's list everything they have watched.</summary>
+    [HttpPost("/Moonfin/Kostv/MyList/ClearWatched")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult> ClearWatched()
+    {
+        var userId = this.GetUserIdFromClaims();
+        var user = userId.HasValue ? UserReflection.ResolveUser(HttpContext.RequestServices, userId.Value) : null;
+        if (userId == null || user == null)
+        {
+            return Unauthorized(new { Error = "User not authenticated" });
+        }
+
+        return Ok(new { Removed = await _home.ClearWatchedAsync(userId.Value, user).ConfigureAwait(false) });
     }
 
     /// <summary>

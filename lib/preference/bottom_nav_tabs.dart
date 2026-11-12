@@ -10,6 +10,9 @@ enum BottomNavTab {
   kostvDiscover,
   libraries,
   favorites,
+
+  /// Kos TV: the person's list, kept by the server plugin.
+  myList,
   genres,
   liveTv,
   calendar,
@@ -25,6 +28,7 @@ const List<BottomNavTab> _autoOrder = [
   BottomNavTab.kostvDiscover,
   BottomNavTab.libraries,
   BottomNavTab.favorites,
+  BottomNavTab.myList,
   BottomNavTab.liveTv,
   BottomNavTab.genres,
   BottomNavTab.calendar,
@@ -73,6 +77,9 @@ class BottomNavTabGates {
   final bool showKostvDiscover;
   final bool kostvDiscoverAvailable;
 
+  /// Kos TV: whether the server plugin keeps lists.
+  final bool kostvMyListAvailable;
+
   const BottomNavTabGates({
     this.kidsMode = false,
     this.showLibraries = true,
@@ -83,6 +90,7 @@ class BottomNavTabGates {
     this.calendarAvailable = false,
     this.showKostvDiscover = true,
     this.kostvDiscoverAvailable = false,
+    this.kostvMyListAvailable = false,
   });
 
   factory BottomNavTabGates.fromPreferences(
@@ -100,6 +108,7 @@ class BottomNavTabGates {
       calendarAvailable: calendarAvailable,
       showKostvDiscover: prefs.get(UserPreferences.showDiscoverButton),
       kostvDiscoverAvailable: kostvDiscoverAvailable,
+      kostvMyListAvailable: prefs.get(UserPreferences.kostvMyListAvailable),
     );
   }
 
@@ -111,6 +120,7 @@ class BottomNavTabGates {
           !kidsMode && showKostvDiscover && kostvDiscoverAvailable,
         BottomNavTab.libraries => !kidsMode && showLibraries,
         BottomNavTab.favorites => showFavorites,
+        BottomNavTab.myList => kostvMyListAvailable,
         BottomNavTab.genres => showGenres,
         BottomNavTab.liveTv => !kidsMode && showLiveTv,
         BottomNavTab.calendar => !kidsMode && showCalendar && calendarAvailable,

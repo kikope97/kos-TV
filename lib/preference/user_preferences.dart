@@ -2719,6 +2719,13 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: false,
   );
 
+  /// Kos TV: whether the server plugin keeps each person's list («Mi lista»),
+  /// as its last answer said. Not a setting: the plugin sync writes it.
+  static final kostvMyListAvailable = Preference<bool>(
+    key: 'kostv_my_list_available',
+    defaultValue: false,
+  );
+
   /// Kos TV: whether Home is the recommended one. Not in Kids Mode, whose
   /// Home is a short list a child can't stray from.
   bool get kostvHomeActive =>
@@ -3062,13 +3069,22 @@ class UserPreferences extends ChangeNotifier {
     key: 'detailButtonOrderTv',
     defaultValue: '',
   );
+  /// Kos TV: on a phone «Mi lista» and Favourite stay in sight and Watched
+  /// goes to More, the row having room for four.
   static final detailButtonOrderMobile = Preference(
     key: 'detailButtonOrderMobile',
-    defaultValue: '',
+    defaultValue:
+        'shuffle,restart,audio,subtitles,version,cast,trailer,myList,'
+        'watchWithGroup,favorite,watched,personalRating,playlist,download,'
+        'deleteFiles,goToSeries,keepAsComplete,admin',
   );
+  /// Kos TV: on a computer too «Mi lista» and Favourite stay in sight.
   static final detailButtonOrderDesktop = Preference(
     key: 'detailButtonOrderDesktop',
-    defaultValue: '',
+    defaultValue:
+        'shuffle,restart,audio,subtitles,version,cast,trailer,myList,'
+        'watchWithGroup,favorite,watched,personalRating,playlist,download,'
+        'deleteFiles,goToSeries,keepAsComplete,admin',
   );
   static final osdButtonOrderTv = Preference(
     key: 'osdButtonOrderTv',

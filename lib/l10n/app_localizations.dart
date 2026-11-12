@@ -32019,6 +32019,132 @@ abstract class AppLocalizations {
   /// **'Undo'**
   String get kostvUndo;
 
+  /// Kos TV: the person's list of what they want to watch.
+  ///
+  /// In en, this message translates to:
+  /// **'My list'**
+  String get kostvMyList;
+
+  /// Kos TV: the title page button when the title is on the list.
+  ///
+  /// In en, this message translates to:
+  /// **'On my list'**
+  String get kostvMyListOn;
+
+  /// Kos TV recommended Home: line under the «Mi lista» row.
+  ///
+  /// In en, this message translates to:
+  /// **'What you saved to watch and haven\'t started'**
+  String get kostvMyListWhy;
+
+  /// Kos TV: last card of the «Mi lista» row, opens the page.
+  ///
+  /// In en, this message translates to:
+  /// **'See my whole list'**
+  String get kostvMyListSeeAll;
+
+  /// Kos TV: how many titles are on the list.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 title} other{{count} titles}}'**
+  String kostvMyListCount(int count);
+
+  /// Kos TV list page: what the person is part way through.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue watching'**
+  String get kostvMyListWatching;
+
+  /// Kos TV list page: line under «Continuar viendo».
+  ///
+  /// In en, this message translates to:
+  /// **'From your list, what you\'re part way through'**
+  String get kostvMyListWatchingWhy;
+
+  /// Kos TV list page: what the person hasn't started.
+  ///
+  /// In en, this message translates to:
+  /// **'To start'**
+  String get kostvMyListToStart;
+
+  /// Kos TV list page: line under «Por empezar».
+  ///
+  /// In en, this message translates to:
+  /// **'What you saved and haven\'t started'**
+  String get kostvMyListToStartWhy;
+
+  /// Kos TV list page: what the person has watched.
+  ///
+  /// In en, this message translates to:
+  /// **'Watched'**
+  String get kostvMyListWatched;
+
+  /// Kos TV list page: line under «Ya vistas».
+  ///
+  /// In en, this message translates to:
+  /// **'Finished films and series with nothing left'**
+  String get kostvMyListWatchedWhy;
+
+  /// Kos TV list page: card that takes everything watched off the list.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove watched'**
+  String get kostvMyListClearWatched;
+
+  /// Kos TV list page: message after clearing the watched ones.
+  ///
+  /// In en, this message translates to:
+  /// **'You removed what you\'ve watched from your list'**
+  String get kostvMyListCleared;
+
+  /// Kos TV: the list couldn't be changed.
+  ///
+  /// In en, this message translates to:
+  /// **'Your list couldn\'t be changed. Try again.'**
+  String get kostvMyListChangeFailed;
+
+  /// Kos TV list page: nothing on the list.
+  ///
+  /// In en, this message translates to:
+  /// **'Your list is empty'**
+  String get kostvMyListEmpty;
+
+  /// Kos TV list page: how to add something.
+  ///
+  /// In en, this message translates to:
+  /// **'Save films and series to watch later with the «My list» button on their page or from a card\'s menu (long press).'**
+  String get kostvMyListEmptyHint;
+
+  /// Kos TV list page: the server couldn't be asked.
+  ///
+  /// In en, this message translates to:
+  /// **'Your list couldn\'t be read'**
+  String get kostvMyListUnavailable;
+
+  /// Kos TV: card menu action and button tooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to my list'**
+  String get kostvMyListAdd;
+
+  /// Kos TV: card menu action and button tooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from my list'**
+  String get kostvMyListRemove;
+
+  /// Kos TV: message after adding to the list.
+  ///
+  /// In en, this message translates to:
+  /// **'“{title}” is on your list'**
+  String kostvMyListAdded(String title);
+
+  /// Kos TV: message after taking off the list.
+  ///
+  /// In en, this message translates to:
+  /// **'“{title}” is no longer on your list'**
+  String kostvMyListRemoved(String title);
+
   /// Kos TV settings: switch for the intro video when the app opens.
   ///
   /// In en, this message translates to:

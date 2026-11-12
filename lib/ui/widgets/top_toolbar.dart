@@ -1181,6 +1181,24 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   ),
                 ),
               ],
+              // Kos TV: the person's list, by Favourites.
+              if (_prefs.get(UserPreferences.kostvMyListAvailable)) ...[
+                _gap(),
+                _orderButton(
+                  order: (order++).toDouble(),
+                  child: ExpandableIconButton(
+                    key: const ValueKey('toolbar_my_list'),
+                    forceExpanded: alwaysExpanded,
+                    icon: Icons.bookmark_rounded,
+                    label: l10n.kostvMyList,
+                    baseColor: nextNavColor(),
+                    onPressed: () {
+                      if (_isActive(Destinations.myList)) return;
+                      context.navigateTopLevel(Destinations.myList);
+                    },
+                  ),
+                ),
+              ],
               if (showLiveTv) ...[
                 _gap(),
                 _orderButton(

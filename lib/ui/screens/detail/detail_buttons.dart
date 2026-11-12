@@ -25,6 +25,8 @@ enum DetailButton {
   version('version'),
   cast('cast'),
   trailer('trailer'),
+  // Kos TV: the person's list.
+  myList('myList'),
   watchWithGroup('watchWithGroup'),
   watched('watched'),
   favorite('favorite'),
@@ -58,6 +60,7 @@ enum DetailButton {
         _incompleteRecordingsSupported && canManageLiveTv(),
       // Not when no signed-in server has playlists (all Silo, say).
       DetailButton.playlist => playlistsOnAnySignedInServer(),
+      DetailButton.myList => _myListAvailable,
       _ => true,
     };
   }
@@ -103,6 +106,18 @@ enum DetailButton {
     }
   }
 
+  /// Kos TV: whether the server plugin keeps lists.
+  static bool get _myListAvailable {
+    try {
+      return GetIt.instance.isRegistered<UserPreferences>() &&
+          GetIt.instance<UserPreferences>().get(
+            UserPreferences.kostvMyListAvailable,
+          );
+    } catch (_) {
+      return false;
+    }
+  }
+
   static bool get _syncPlayAvailable {
     try {
       if (GetIt.instance.isRegistered<SyncPlayManager>()) {
@@ -127,6 +142,7 @@ enum DetailButton {
     DetailButton.version => Icons.video_file,
     DetailButton.cast => Icons.cast,
     DetailButton.trailer => Icons.movie_outlined,
+    DetailButton.myList => Icons.bookmark_add_outlined,
     DetailButton.watchWithGroup => Icons.groups_rounded,
     DetailButton.watched => Icons.check_circle_outline,
     DetailButton.favorite => Icons.favorite_border,
@@ -147,6 +163,7 @@ enum DetailButton {
     DetailButton.version => l10n.version,
     DetailButton.cast => l10n.cast,
     DetailButton.trailer => l10n.trailer,
+    DetailButton.myList => l10n.kostvMyList,
     DetailButton.watchWithGroup => l10n.watchWithGroup,
     DetailButton.watched => l10n.watched,
     DetailButton.favorite => l10n.favorite,

@@ -310,6 +310,12 @@ class PluginSyncService extends ChangeNotifier {
         await _prefs.set(UserPreferences.kostvHomeAvailable, kostvHome);
       }
 
+      // Kos TV: whether it keeps each person's list.
+      final kostvMyList = _readBool(pingResult, 'kostvMyList') ?? false;
+      if (_prefs.get(UserPreferences.kostvMyListAvailable) != kostvMyList) {
+        await _prefs.set(UserPreferences.kostvMyListAvailable, kostvMyList);
+      }
+
       final syncEnabled = _readBool(pingResult, 'settingsSyncEnabled');
       if (syncEnabled != null && !syncEnabled) {
         _incompleteRecordings?.setSupported(false);

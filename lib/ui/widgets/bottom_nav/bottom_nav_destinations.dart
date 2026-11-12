@@ -21,6 +21,7 @@ String bottomNavTabLabel(AppLocalizations l10n, BottomNavTab tab) =>
       BottomNavTab.kostvDiscover => l10n.kostvDiscover,
       BottomNavTab.libraries => l10n.libraries,
       BottomNavTab.favorites => l10n.favorites,
+      BottomNavTab.myList => l10n.kostvMyList,
       BottomNavTab.genres => l10n.genres,
       BottomNavTab.liveTv => l10n.liveTv,
       BottomNavTab.calendar => l10n.calendar,
@@ -88,6 +89,8 @@ Widget bottomNavTabIconWidget(
       adaptive(Icons.video_library_rounded, Icons.video_library_outlined),
     BottomNavTab.favorites =>
       adaptive(Icons.favorite_rounded, Icons.favorite_border_rounded),
+    BottomNavTab.myList =>
+      adaptive(Icons.bookmark_rounded, Icons.bookmark_border_rounded),
     BottomNavTab.liveTv =>
       adaptive(Icons.live_tv_rounded, Icons.live_tv_outlined),
     BottomNavTab.genres => Image.asset(
@@ -149,6 +152,7 @@ void openBottomNavTab(BuildContext context, BottomNavTab tab) {
     BottomNavTab.search => Destinations.search,
     BottomNavTab.kostvDiscover => Destinations.kostvDiscover,
     BottomNavTab.favorites => Destinations.allFavorites,
+    BottomNavTab.myList => Destinations.myList,
     BottomNavTab.genres => Destinations.allGenres,
     BottomNavTab.liveTv => Destinations.liveTvGuide,
     BottomNavTab.calendar => Destinations.calendar,

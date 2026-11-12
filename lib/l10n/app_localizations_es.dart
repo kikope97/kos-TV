@@ -18902,6 +18902,85 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvUndo => 'Deshacer';
 
   @override
+  String get kostvMyList => 'Mi lista';
+
+  @override
+  String get kostvMyListOn => 'En mi lista';
+
+  @override
+  String get kostvMyListWhy =>
+      'Lo que guardaste para ver y aún no has empezado';
+
+  @override
+  String get kostvMyListSeeAll => 'Ver toda mi lista';
+
+  @override
+  String kostvMyListCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count títulos',
+      one: '1 título',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvMyListWatching => 'Continuar viendo';
+
+  @override
+  String get kostvMyListWatchingWhy => 'De tu lista, lo que tienes a medias';
+
+  @override
+  String get kostvMyListToStart => 'Por empezar';
+
+  @override
+  String get kostvMyListToStartWhy => 'Lo que guardaste y aún no has empezado';
+
+  @override
+  String get kostvMyListWatched => 'Ya vistas';
+
+  @override
+  String get kostvMyListWatchedWhy =>
+      'Películas terminadas y series sin nada pendiente';
+
+  @override
+  String get kostvMyListClearWatched => 'Quitar las vistas';
+
+  @override
+  String get kostvMyListCleared => 'Has quitado de tu lista lo que ya viste';
+
+  @override
+  String get kostvMyListChangeFailed =>
+      'No se pudo cambiar tu lista. Inténtalo de nuevo.';
+
+  @override
+  String get kostvMyListEmpty => 'Tu lista está vacía';
+
+  @override
+  String get kostvMyListEmptyHint =>
+      'Guarda películas y series para ver más tarde con el botón «Mi lista» de su ficha o desde el menú de una tarjeta (pulsación larga).';
+
+  @override
+  String get kostvMyListUnavailable => 'No se pudo leer tu lista';
+
+  @override
+  String get kostvMyListAdd => 'Añadir a mi lista';
+
+  @override
+  String get kostvMyListRemove => 'Quitar de mi lista';
+
+  @override
+  String kostvMyListAdded(String title) {
+    return '«$title» está en tu lista';
+  }
+
+  @override
+  String kostvMyListRemoved(String title) {
+    return '«$title» ya no está en tu lista';
+  }
+
+  @override
   String get kostvIntroSetting => 'Animación al abrir';
 
   @override

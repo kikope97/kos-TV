@@ -122,15 +122,18 @@ public static class KostvHomeEngine
         IReadOnlyList<KostvCandidate> library,
         int day,
         IReadOnlyCollection<string>? dismissed = null,
-        IReadOnlyList<KostvSeedFacts>? avoid = null)
+        IReadOnlyList<KostvSeedFacts>? avoid = null,
+        IReadOnlyCollection<string>? onList = null)
     {
         var notWanted = new HashSet<string>(dismissed ?? [], StringComparer.Ordinal);
+        // On their list already: they know about it, so a row's place goes to something else.
+        var known = new HashSet<string>(onList ?? [], StringComparer.Ordinal);
 
         // What can be offered: on the home server, not seen and not turned down. One per TMDB title.
         var byKey = new Dictionary<string, KostvCandidate>(StringComparer.Ordinal);
         foreach (var candidate in library)
         {
-            if (!candidate.Seen && !string.IsNullOrEmpty(candidate.Key) && !notWanted.Contains(candidate.Key))
+            if (!candidate.Seen && !string.IsNullOrEmpty(candidate.Key) && !notWanted.Contains(candidate.Key) && !known.Contains(candidate.Key))
             {
                 byKey.TryAdd(candidate.Key, candidate);
             }

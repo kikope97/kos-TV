@@ -31,6 +31,7 @@ import '../../data/services/background_service.dart';
 import '../../data/services/access_schedule_service.dart';
 import '../../data/services/app_update_service.dart';
 import '../../data/services/installed_apps_service.dart';
+import '../../data/services/kostv_my_list.dart';
 import '../../data/services/stremfin/stremfin_client.dart';
 import '../../data/services/stremfin/kostv_age_gate.dart';
 import '../../data/services/stremfin/stremfin_service.dart';
@@ -177,6 +178,8 @@ void registerAppModule() {
   _getIt.registerLazySingleton(
     () => InstalledAppsService(_getIt<UserPreferences>()),
   );
+  // Kos TV: each person's list («Mi lista»), kept by the server plugin.
+  _getIt.registerLazySingleton<KostvMyListService>(KostvMyListService.new);
   // Kos TV: the requests service (Discover). Asks who the person is each
   // time someone signs in.
   _getIt.registerLazySingleton<StremfinService>(

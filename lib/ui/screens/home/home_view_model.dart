@@ -21,6 +21,7 @@ import '../../../data/utils/latest_media_row_normalizer.dart';
 import '../../../data/services/connectivity_service.dart';
 import '../../../data/services/home_row_cache_store.dart';
 import '../../../data/services/kostv_home.dart';
+import '../../../data/services/kostv_my_list.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../data/services/moonbase_endpoint.dart';
@@ -1865,7 +1866,61 @@ class HomeViewModel extends ChangeNotifier {
     stremfin: GetIt.instance.isRegistered<StremfinService>()
         ? GetIt.instance<StremfinService>()
         : null,
+    myList: _myList,
   );
+
+  /// Kos TV: the person's list, whose row follows its changes.
+  late final KostvMyListService? _myList =
+      GetIt.instance.isRegistered<KostvMyListService>()
+      ? (GetIt.instance<KostvMyListService>()..addListener(_onMyListChanged))
+      : null;
+
+  /// The list changed (something added or taken off here or in a title's
+  /// page): its row shows what is on it now and not started.
+  void _onMyListChanged() {
+    final page = _myList?.page;
+    if (page == null || !_prefs.kostvHomeActive) return;
+    final id = '$_kostvRowPrefix${KostvHomeRepository.myListKind}';
+    final at = _rows.indexWhere((r) => r.id == id);
+    final items = withoutBlockedItems(page.toStart);
+    if (at >= 0) {
+      if (listEquals(
+        _rows[at].items.map((i) => i.id).toList(),
+        items.map((i) => i.id).toList(),
+      )) {
+        return;
+      }
+      _rows = List.of(_rows);
+      if (items.isEmpty) {
+        _rows.removeAt(at);
+      } else {
+        _rows[at] = _rows[at].copyWith(items: items, totalCount: items.length);
+      }
+      notifyListeners();
+      return;
+    }
+    if (items.isEmpty) return;
+    // Under the new episodes, or first of the rows made for the person.
+    final newEpisodes = _rows.indexWhere(
+      (r) => r.id == '$_kostvRowPrefix${KostvHomeRepository.newEpisodesKind}',
+    );
+    final firstMine = _rows.indexWhere(
+      (r) => r.id.startsWith(_kostvRowPrefix) && !r.isLoading,
+    );
+    final insertAt = newEpisodes >= 0 ? newEpisodes + 1 : firstMine;
+    if (insertAt < 0) return;
+    final l10n = _l10nForRows;
+    if (l10n == null) return;
+    _rows = List.of(_rows)
+      ..insert(
+        insertAt,
+        KostvHomeRepository.myListRow(items, _kostvRowPrefix, l10n)!,
+      );
+    notifyListeners();
+  }
+
+  /// The texts the rows were last built with, for a row made later.
+  AppLocalizations? _l10nForRows;
 
   /// Kos TV: the rows made for the person by the server plugin, with what is
   /// most watched now in between: the first few with Home ([more] false, with
@@ -1885,10 +1940,19 @@ class HomeViewModel extends ChangeNotifier {
       refresh: !more && (refresh || _kostvRefreshNext),
     );
     if (page == null) return const [];
+    _l10nForRows = l10n;
     if (!more) {
       _kostvServerHidden = page.hidden;
       _kostvVisibleMemo = null;
+      if (page.myListIds case final ids?) _myList?.noteIds(ids);
     }
+    final myListRow = more
+        ? null
+        : KostvHomeRepository.myListRow(
+            withoutBlockedItems(page.myList),
+            prefix,
+            l10n,
+          );
     final newEpisodes = more
         ? null
         : KostvHomeRepository.newEpisodesRow(
@@ -1938,6 +2002,7 @@ class HomeViewModel extends ChangeNotifier {
     ]);
     return [
       ?newEpisodes,
+      ?myListRow,
       ...KostvHomeRepository.weave(rows, [
         for (final top in tops)
           if (top != null)
@@ -1982,6 +2047,7 @@ class HomeViewModel extends ChangeNotifier {
       (row.id.startsWith(_kostvRowPrefix) ||
           row.id.startsWith(_kostvMorePrefix)) &&
       !row.id.endsWith(KostvHomeRepository.newEpisodesKind) &&
+      !row.id.endsWith(KostvHomeRepository.myListKind) &&
       (item.type == 'Movie' || item.type == 'Series');
 
   /// Takes [item] off Home at once and tells the server after
@@ -3000,6 +3066,7 @@ class HomeViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _myList?.removeListener(_onMyListChanged);
     // A «not interested» still within its undo time goes through now.
     for (final pending in _kostvPending.values) {
       pending.timer.cancel();

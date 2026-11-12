@@ -34,6 +34,7 @@ import '../screens/browse/all_genres_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
 import '../screens/browse/collection_screen.dart';
 import '../screens/browse/favorites_screen.dart';
+import '../screens/browse/kostv_my_list_screen.dart';
 import '../screens/browse/folder_browse_screen.dart';
 import '../screens/browse/library_browse_screen.dart';
 import '../screens/browse/library_genres_screen.dart';
@@ -421,6 +422,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: Destinations.allFavorites,
       builder: (context, state) => const FavoritesScreen(),
+    ),
+    GoRoute(
+      path: Destinations.myList,
+      builder: (context, state) => const KostvMyListScreen(),
     ),
     GoRoute(
       path: Destinations.folderBrowse,

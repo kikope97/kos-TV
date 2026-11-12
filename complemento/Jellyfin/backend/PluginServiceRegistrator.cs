@@ -58,6 +58,7 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         // kOS TV: each person's home page.
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvTasteCache>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvDismissals>();
+        serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvMyList>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvHomeService>();
         serviceCollection.AddSingleton<SeasonalKeywordStoreService>();
         serviceCollection.AddSingleton<SeasonalSuggestionsCacheService>();

@@ -48,6 +48,17 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   necesita 6 títulos. Usa la clave de TMDB del complemento; sin ella solo salen las de género
   y las mejor valoradas. En la pestaña «Direcciones» hay un botón que dice cuántas filas le
   salen a cada persona. A las apps se les avisa en `/Moonfin/Ping` (`kostvHome`).
+- **«Mi lista»** (`Jellyfin/backend/Kostv/KostvMyList.cs`): la lista de cada persona de lo que
+  quiere ver, en `kostv-my-list.json` (hasta 1000). `GET /Moonfin/Kostv/MyList` la da en tres
+  partes (`Watching`, a medias; `ToStart`, sin empezar; `Watched`, películas vistas y series sin
+  nada pendiente, que vuelven a `Watching` si llega una temporada nueva) y con `Ids`. `POST
+  /Moonfin/Kostv/MyList?itemId=…` añade (un episodio o temporada cuenta como su serie),
+  `&remove=true` quita y `&arrived=true` es la app añadiendo algo pedido que acaba de llegar: solo
+  la primera vez, así quitarlo se respeta. `POST /Moonfin/Kostv/MyList/ClearWatched` quita lo
+  visto. Las recomendaciones no repiten lo que está en la lista y la lista cuenta como un
+  favorito para «Recomendado para ti». Con las primeras filas, `/Moonfin/Kostv/Home` devuelve
+  `MyList` (lo sin empezar) y `MyListIds`. A las apps se les avisa en `/Moonfin/Ping`
+  (`kostvMyList`).
 - **«No me interesa» y episodios nuevos** (también en `Jellyfin/backend/Kostv/`): `POST
   /Moonfin/Kostv/Home/NotInterested?itemId=…` (con `undo=true` para deshacerlo) guarda por persona
   el título de TMDB que no le interesa (`kostv-home-dismissed.json`, hasta 500), lo saca de sus

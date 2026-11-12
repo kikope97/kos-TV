@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Jellyfin.Data.Enums;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Entities;
@@ -62,6 +63,20 @@ public sealed class KostvTasteCache : FileBackedCacheService<KostvTasteEntry>
     }
 }
 
+/// <summary>How far someone is with a title of their list.</summary>
+public enum KostvListState
+{
+    ToStart,
+    Watching,
+    Watched
+}
+
+/// <summary>A person's list in its three parts.</summary>
+public sealed record KostvMyListSections(
+    IReadOnlyList<BaseItem> Watching,
+    IReadOnlyList<BaseItem> ToStart,
+    IReadOnlyList<BaseItem> Watched);
+
 /// <summary>A person's home page as worked out, with what it was worked out from.</summary>
 public sealed record KostvHomePage(
     IReadOnlyList<KostvHomeRow> Rows,
@@ -115,6 +130,7 @@ public sealed class KostvHomeService
     private readonly MoonfinSettingsService _settings;
     private readonly KostvTasteCache _cache;
     private readonly KostvDismissals _dismissals;
+    private readonly KostvMyList _myList;
     private readonly ILogger<KostvHomeService> _logger;
 
     /// <summary>How many of the titles turned down lately TMDB is asked about, to rank what is like them lower.</summary>
@@ -134,9 +150,11 @@ public sealed class KostvHomeService
         MoonfinSettingsService settings,
         KostvTasteCache cache,
         KostvDismissals dismissals,
+        KostvMyList myList,
         ILogger<KostvHomeService> logger)
     {
         _dismissals = dismissals;
+        _myList = myList;
         _libraryManager = libraryManager;
         _userDataManager = userDataManager;
         _httpClientFactory = httpClientFactory;
@@ -192,7 +210,8 @@ public sealed class KostvHomeService
         var now = DateTimeOffset.UtcNow;
         var stamp = HistoryStamp(user);
         var (library, items) = ReadLibrary(user);
-        var (seeds, followed) = ReadSeeds(user, items, now);
+        var listed = _myList.For(userId);
+        var (seeds, followed) = ReadSeeds(user, items, now, listed);
         var dismissed = _dismissals.For(userId);
         var avoid = new List<KostvSeedFacts>();
 
@@ -237,7 +256,9 @@ public sealed class KostvHomeService
 
         // The day, and the person, so two people at home don't get the same shuffle.
         var day = (int)(now.ToUnixTimeSeconds() / 86400) + (userId.GetHashCode() & 0xFFFF);
-        var rows = KostvHomeEngine.Build(seeds, facts, credits, library, day, dismissed, avoid);
+        // What is on their list they know about already: not offered again.
+        var onList = listed.Select(e => e.Key).OfType<string>().ToList();
+        var rows = KostvHomeEngine.Build(seeds, facts, credits, library, day, dismissed, avoid, onList);
         var index = new Dictionary<string, Guid>(StringComparer.Ordinal);
         foreach (var (id, item) in items)
         {
@@ -393,7 +414,7 @@ public sealed class KostvHomeService
     }
 
     /// <summary>What the person watched lately and what they marked as favourite, weighed.</summary>
-    private (List<KostvSeed> Seeds, HashSet<Guid> Followed) ReadSeeds(object user, Dictionary<Guid, BaseItem> items, DateTimeOffset now)
+    private (List<KostvSeed> Seeds, HashSet<Guid> Followed) ReadSeeds(object user, Dictionary<Guid, BaseItem> items, DateTimeOffset now, IReadOnlyList<KostvMyListEntry> listed)
     {
         var seeds = new Dictionary<string, KostvSeed>(StringComparer.Ordinal);
 
@@ -447,6 +468,15 @@ public sealed class KostvHomeService
         foreach (var liked in Query(user, [BaseItemKind.Movie, BaseItemKind.Series], q => q.IsFavorite = true, 30))
         {
             Add(liked, KostvSeedKind.Liked, 0.35);
+        }
+
+        // What they put on their list says as much of their taste as a favourite.
+        foreach (var entry in listed.Take(30))
+        {
+            if (Guid.TryParse(entry.ItemId, out var id) && items.TryGetValue(id, out var wanted))
+            {
+                Add(wanted, KostvSeedKind.Liked, 0.35);
+            }
         }
 
         return (seeds.Values.OrderByDescending(s => s.Weight).Take(MaxSeeds).ToList(), series.Keys.ToHashSet());
@@ -512,16 +542,166 @@ public sealed class KostvHomeService
         }
     }
 
-    private DateTime? LastPlayed(object user, BaseItem item)
+    private DateTime? LastPlayed(object user, BaseItem item) => UserDataOf(user, item)?.LastPlayedDate;
+
+    private UserItemData? UserDataOf(object user, BaseItem item)
     {
         try
         {
-            return (GetUserData?.Invoke(_userDataManager, [user, item]) as UserItemData)?.LastPlayedDate;
+            return GetUserData?.Invoke(_userDataManager, [user, item]) as UserItemData;
         }
         catch
         {
             return null;
         }
+    }
+
+    // ---------------------------------------------------------------- my list
+
+    /// <summary>
+    /// The film or series <paramref name="itemId"/> stands for on a list: itself, or the series
+    /// of an episode or season. Null when it is none of those or the person can't see it.
+    /// </summary>
+    public BaseItem? ListItemFor(Guid itemId, object user)
+    {
+        var item = _libraryManager.GetItemById(itemId);
+        item = item switch
+        {
+            Episode { SeriesId: var s } when s != Guid.Empty => _libraryManager.GetItemById(s),
+            Season { SeriesId: var s } when s != Guid.Empty => _libraryManager.GetItemById(s),
+            _ => item
+        };
+        return item is Movie or Series && UserReflection.IsVisibleTo(item, user) ? item : null;
+    }
+
+    /// <summary>
+    /// Puts <paramref name="item"/> on the person's list, or with <paramref name="remove"/> takes
+    /// it off. <paramref name="arrived"/>: put on by itself, because something they asked for
+    /// arrived; only the first time. Whether it is on the list afterwards.
+    /// </summary>
+    public async Task<bool> SetOnListAsync(Guid userId, BaseItem item, bool remove, bool arrived)
+    {
+        var id = item.Id.ToString("N");
+        var changed = remove
+            ? _myList.Remove(userId, [id]) > 0
+            : _myList.Add(userId, id, KeyOf(item), arrived);
+        if (changed)
+        {
+            await _myList.FlushAsync().ConfigureAwait(false);
+            // What is on the list leaves the recommendations, and the other way round.
+            _pages.TryRemove(userId, out _);
+        }
+
+        return _myList.For(userId).Any(e => e.ItemId == id);
+    }
+
+    /// <summary>The person's list, in its three parts.</summary>
+    public KostvMyListSections MyList(Guid userId, object user)
+    {
+        var watching = new List<(BaseItem Item, DateTime When)>();
+        var toStart = new List<BaseItem>();
+        var watched = new List<(BaseItem Item, DateTime When)>();
+        var gone = new List<string>();
+        foreach (var entry in _myList.For(userId))
+        {
+            if (!Guid.TryParse(entry.ItemId, out var id) || _libraryManager.GetItemById(id) is not { } item)
+            {
+                gone.Add(entry.ItemId);
+                continue;
+            }
+
+            if (!UserReflection.IsVisibleTo(item, user))
+            {
+                continue;
+            }
+
+            var (state, when) = Progress(user, item);
+            switch (state)
+            {
+                case KostvListState.Watching:
+                    watching.Add((item, when ?? entry.AddedAt.UtcDateTime));
+                    break;
+                case KostvListState.Watched:
+                    watched.Add((item, when ?? entry.AddedAt.UtcDateTime));
+                    break;
+                default:
+                    toStart.Add(item);
+                    break;
+            }
+        }
+
+        // What is no longer on the server leaves the list.
+        if (gone.Count > 0)
+        {
+            _myList.Remove(userId, gone);
+            _ = _myList.FlushAsync();
+        }
+
+        return new KostvMyListSections(
+            watching.OrderByDescending(w => w.When).Select(w => w.Item).ToList(),
+            toStart,
+            watched.OrderByDescending(w => w.When).Select(w => w.Item).ToList());
+    }
+
+    /// <summary>Takes off the person's list everything they have watched; how many went.</summary>
+    public async Task<int> ClearWatchedAsync(Guid userId, object user)
+    {
+        var done = MyList(userId, user).Watched.Select(i => i.Id.ToString("N")).ToList();
+        var removed = _myList.Remove(userId, done);
+        if (removed > 0)
+        {
+            await _myList.FlushAsync().ConfigureAwait(false);
+            _pages.TryRemove(userId, out _);
+        }
+
+        return removed;
+    }
+
+    /// <summary>The ids of what is on the person's list.</summary>
+    public IReadOnlyList<string> MyListIds(Guid userId) => _myList.For(userId).Select(e => e.ItemId).ToList();
+
+    /// <summary>
+    /// How far the person is with a film or series of their list, and when they last watched it.
+    /// A series is watched when nothing of it is left unseen, so a new season brings it back.
+    /// </summary>
+    private (KostvListState State, DateTime? When) Progress(object user, BaseItem item)
+    {
+        if (item is not Series)
+        {
+            var data = UserDataOf(user, item);
+            return data switch
+            {
+                { Played: true } => (KostvListState.Watched, data.LastPlayedDate),
+                { PlaybackPositionTicks: > 0 } => (KostvListState.Watching, data.LastPlayedDate),
+                _ => (KostvListState.ToStart, null)
+            };
+        }
+
+        var lastPlayed = Query(user, [BaseItemKind.Episode], q =>
+        {
+            q.IsPlayed = true;
+            q.AncestorIds = [item.Id];
+        }, 1, ItemSortBy.DatePlayed).FirstOrDefault();
+        var partway = Query(user, [BaseItemKind.Episode], q =>
+        {
+            q.IsResumable = true;
+            q.AncestorIds = [item.Id];
+        }, 1, ItemSortBy.DatePlayed).FirstOrDefault();
+        if (lastPlayed == null && partway == null)
+        {
+            return (KostvListState.ToStart, null);
+        }
+
+        var when = new[] { lastPlayed, partway }
+            .Where(e => e != null)
+            .Select(e => LastPlayed(user, e!))
+            .Max();
+        var left = Query(user, [BaseItemKind.Episode], q =>
+        {
+            q.IsPlayed = false;
+            q.AncestorIds = [item.Id];
+        }, 1).Any();
+        return (left ? KostvListState.Watching : KostvListState.Watched, when);
     }
 
     // Played with no date known: taken as a couple of months ago.

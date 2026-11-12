@@ -78,6 +78,9 @@ class Destinations {
   static const allGenres = '/genres';
   static const allFavorites = '/favorites';
 
+  /// Kos TV: the person's list («Mi lista»).
+  static const myList = '/my-list';
+
   /// Opens the user's calendar style. The month grid sits under it.
   static const calendar = '/calendar';
 

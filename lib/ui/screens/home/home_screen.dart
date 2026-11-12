@@ -33,6 +33,7 @@ import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/services/plugin_sync_service.dart';
 import '../../../data/services/row_data_source.dart';
 import '../../../data/services/user_data_sync.dart';
+import '../../../data/services/kostv_home.dart';
 import '../../../data/services/stremfin/kostv_trailers.dart';
 import '../../../data/services/youtube_stream_resolver.dart';
 import '../../../data/services/connectivity_service.dart';
@@ -6711,6 +6712,7 @@ class _ContentRowsState extends State<_ContentRows>
       GetIt.instance<PluginSyncService>().calendarAvailable;
 
   static bool _showsSeeAll(HomeRow row, UserPreferences prefs) =>
+      _isKostvMyListRow(row) ||
       _showsCalendarSeeAll(row, prefs) ||
       (row.items.isNotEmpty && homeRowSeeAllTarget(row) != null);
 
@@ -6719,7 +6721,14 @@ class _ContentRowsState extends State<_ContentRows>
     if (route != null && mounted) context.push(route);
   }
 
+  /// Kos TV: the row of the person's list, whose last card opens the whole list.
+  static bool _isKostvMyListRow(HomeRow row) =>
+      row.items.isNotEmpty &&
+      row.id.startsWith('kostvRec_') &&
+      row.id.endsWith(KostvHomeRepository.myListKind);
+
   static Future<String?> _seeAllRoute(HomeRow row) async {
+    if (_isKostvMyListRow(row)) return Destinations.myList;
     if (_calendarRowIds.contains(row.id)) return Destinations.calendarMonth;
     final target = homeRowSeeAllTarget(row);
     if (target == null) return null;
@@ -6754,8 +6763,9 @@ class _ContentRowsState extends State<_ContentRows>
     required bool cardExpansion,
     required bool suppressFocusGlow,
   }) {
+    final myList = _isKostvMyListRow(row);
     return MediaCard(
-      title: l10n.seeAll,
+      title: myList ? l10n.kostvMyListSeeAll : l10n.seeAll,
       showLabel: false,
       width: width,
       aspectRatio: aspectRatio,
@@ -6774,6 +6784,8 @@ class _ContentRowsState extends State<_ContentRows>
               child: Icon(
                 _calendarRowIds.contains(row.id)
                     ? Icons.calendar_month
+                    : myList
+                    ? Icons.bookmarks_outlined
                     : Icons.grid_view_rounded,
                 size: 32,
                 color: Theme.of(

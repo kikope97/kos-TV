@@ -18581,6 +18581,86 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kostvUndo => 'Undo';
 
   @override
+  String get kostvMyList => 'My list';
+
+  @override
+  String get kostvMyListOn => 'On my list';
+
+  @override
+  String get kostvMyListWhy => 'What you saved to watch and haven\'t started';
+
+  @override
+  String get kostvMyListSeeAll => 'See my whole list';
+
+  @override
+  String kostvMyListCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count titles',
+      one: '1 title',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvMyListWatching => 'Continue watching';
+
+  @override
+  String get kostvMyListWatchingWhy =>
+      'From your list, what you\'re part way through';
+
+  @override
+  String get kostvMyListToStart => 'To start';
+
+  @override
+  String get kostvMyListToStartWhy => 'What you saved and haven\'t started';
+
+  @override
+  String get kostvMyListWatched => 'Watched';
+
+  @override
+  String get kostvMyListWatchedWhy =>
+      'Finished films and series with nothing left';
+
+  @override
+  String get kostvMyListClearWatched => 'Remove watched';
+
+  @override
+  String get kostvMyListCleared =>
+      'You removed what you\'ve watched from your list';
+
+  @override
+  String get kostvMyListChangeFailed =>
+      'Your list couldn\'t be changed. Try again.';
+
+  @override
+  String get kostvMyListEmpty => 'Your list is empty';
+
+  @override
+  String get kostvMyListEmptyHint =>
+      'Save films and series to watch later with the «My list» button on their page or from a card\'s menu (long press).';
+
+  @override
+  String get kostvMyListUnavailable => 'Your list couldn\'t be read';
+
+  @override
+  String get kostvMyListAdd => 'Add to my list';
+
+  @override
+  String get kostvMyListRemove => 'Remove from my list';
+
+  @override
+  String kostvMyListAdded(String title) {
+    return '“$title” is on your list';
+  }
+
+  @override
+  String kostvMyListRemoved(String title) {
+    return '“$title” is no longer on your list';
+  }
+
+  @override
   String get kostvIntroSetting => 'Opening animation';
 
   @override
