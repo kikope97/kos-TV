@@ -31,7 +31,7 @@ Se actualiza al terminar cada revisión. La siguiente empieza justo aquí.
 | Copia original de kOS TV | upstream `3d87996d2` (2026-11-10): Moonfin 3.0.0 más 658 commits posteriores sin publicar |
 | Último commit de upstream revisado | ninguno: se parte de `3d87996d2` |
 | Última versión del complemento oficial revisada | 3.1.0.0 (2026-11-12, etiqueta `3.1.0`, commit `9e05034`): base del nuestro |
-| Nuestro complemento | «kOS TV» 3.1.0.1 (la oficial 3.1.0 con nombre, identificador y textos propios), en `complemento/`. En la rama, sin publicar: sin Seerr ni su calendario, y la página de ajustes en español (será la 3.1.0.2) |
+| Nuestro complemento | «kOS TV» 3.1.0.2, publicada el 2026-11-12 (la oficial 3.1.0 con nombre, identificador y textos propios; sin Seerr ni su calendario; página de ajustes en español; dirección de Stremfin en «Direcciones»; botón Descubrir sincronizado), en `complemento/` |
 | Complemento instalado en el servidor de casa | el oficial, 3.0.0.0, instalado el 2026-11-11 (Seerr apagado, sin push); se pasa al nuestro, 3.1.0.1, el 2026-11-12 |
 | Última revisión | ninguna: punto de partida apuntado el 2026-11-11 |
 | Próxima revisión | a partir del 2026-11-18 |
