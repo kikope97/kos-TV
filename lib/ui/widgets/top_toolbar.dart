@@ -941,6 +941,10 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
       context,
       _avatarFocus.hasFocus,
     );
+    // Kos TV: on a TV the focused avatar turns white like the buttons beside
+    // it, so its letter goes dark (white on white vanished) and a picture
+    // keeps a white ring round it (it covered the white up).
+    final tvFocused = avatarFocusVisible && PlatformDetection.isTV;
 
     return Focus(
       focusNode: _avatarFocus,
@@ -966,6 +970,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
           child: Container(
             width: avatarSize,
             height: avatarSize,
+            padding: EdgeInsets.all(tvFocused ? 3 : 0),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               border: (avatarFocusVisible && !PlatformDetection.isTV)
@@ -981,7 +986,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
               child: UserAvatarImage(
                 url: _userImageUrl,
                 size: avatarSize,
-                fallback: _avatarFallback(),
+                fallback: _avatarFallback(onWhite: tvFocused),
               ),
             ),
           ),
@@ -990,22 +995,22 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     );
   }
 
-  Widget _avatarFallback() {
+  Widget _avatarFallback({bool onWhite = false}) {
     final user = _userRepo.currentUser;
     final initial = (user?.name.isNotEmpty == true)
         ? user!.name[0].toUpperCase()
         : '?';
     final isMobile = PlatformDetection.useMobileUi;
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: _kNavbarBackdrop,
+        color: onWhite ? Colors.white : _kNavbarBackdrop,
       ),
       alignment: Alignment.center,
       child: Text(
         initial,
         style: TextStyle(
-          color: Colors.white,
+          color: onWhite ? Colors.black87 : Colors.white,
           fontSize: isMobile ? 18 : 22,
           fontWeight: FontWeight.w600,
         ),
