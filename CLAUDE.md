@@ -62,6 +62,10 @@ nueva.** Nunca por tu cuenta al terminar un cambio, aunque funcione: cada versi�
 llega a las teles de toda la familia. Terminar algo es subirlo a la rama; publicar
 es otra cosa y la decide el usuario.
 
+**«Haz una versión» y «haz el APK» quieren decir publicar una versión nueva**
+(con estos pasos), no un APK de prueba. Si lo pide para cuando acabes algo,
+publícala al terminarlo y probarlo.
+
 1. Mira la última release (`get_latest_release` de `kikope97/kos-TV`) y elige la
    siguiente versión `X.Y.Z`: sube PATCH para arreglos y MINOR para novedades.
    Tiene que ser mayor que la anterior.
@@ -78,8 +82,9 @@ es otra cosa y la decide el usuario.
 
 ## APK de prueba
 
-Si el usuario pide un APK para probar (sin decir que publiques una versión),
-lanza `build.yml` con `inputs: {"test_apk": "true"}`. Sale como *pre-release*
+Solo si el usuario pide expresamente un APK **de prueba** (dicho así: «APK de
+prueba», «una prueba»). «Haz el APK» a secas es publicar una versión (ver
+arriba). Entonces lanza `build.yml` con `inputs: {"test_apk": "true"}`. Sale como *pre-release*
 `kOS TV · prueba N` con los dos APK, y la imagen web como
 `ghcr.io/kikope97/kos-tv-web:prueba-N` (y `:prueba` y `:latest`: `latest` es
 siempre la última imagen compilada, también en las pruebas). Las apps no la ofrecen como actualización
