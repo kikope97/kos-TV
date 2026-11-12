@@ -14,6 +14,7 @@ import '../../preference/user_preferences.dart';
 import '../../util/tmdb_thumb.dart';
 import '../models/media_bar_slide_item.dart';
 import '../models/media_bar_state.dart';
+import '../services/kostv_home.dart';
 import '../services/custom_external_lists_service.dart';
 import '../services/library_scope_service.dart';
 import '../services/plugin_sync_service.dart';
@@ -22,7 +23,6 @@ import '../utils/bounded_concurrency.dart';
 import 'tmdb_repository.dart';
 
 class MediaBarRepository {
-
   final MediaServerClient _client;
   final UserPreferences _prefs;
   final _random = math.Random();
@@ -49,13 +49,19 @@ class MediaBarRepository {
 
     final maxItems =
         int.tryParse(_prefs.get(UserPreferences.mediaBarItemCount)) ?? 10;
+
+    // Kos TV: with the Home built around the person, the bar shows what they
+    // would like rather than what was added last.
+    if (_prefs.kostvHomeActive) {
+      final slides = await _kostvRecommended(maxItems);
+      if (slides.isNotEmpty) return MediaBarReady(slides);
+    }
     // The pickers in settings are open to everyone and the filtering below is
     // plain item queries, so a plugin is not needed to honour the choice.
     final libraryIds = _splitCsv(UserPreferences.mediaBarLibraryIds);
     final collectionIds = _splitCsv(UserPreferences.mediaBarCollectionIds);
-    final excludedGenres = _splitCsv(
-      UserPreferences.mediaBarExcludedGenres,
-    ).toSet();
+    final excludedGenres = _splitCsv(UserPreferences.mediaBarExcludedGenres)
+        .toSet();
 
     final fetchLimit = maxItems + 2;
 
@@ -463,7 +469,11 @@ class MediaBarRepository {
       if (statusCode == 401 || statusCode == 403) {
         return const <Map<String, dynamic>>[];
       }
-      return _fetchItemsFromFallbackSource(itemTypes, limit, parentId: parentId);
+      return _fetchItemsFromFallbackSource(
+        itemTypes,
+        limit,
+        parentId: parentId,
+      );
     }
   }
 
@@ -539,7 +549,9 @@ class MediaBarRepository {
     final now = DateTime.now();
     return (response['Items'] as List? ?? [])
         .cast<Map<String, dynamic>>()
-        .where((episode) => isRecentlyAiredEpisode(episode, now: now, days: days))
+        .where(
+          (episode) => isRecentlyAiredEpisode(episode, now: now, days: days),
+        )
         .toList();
   }
 
@@ -703,10 +715,10 @@ class MediaBarRepository {
     Set<String> excludedGenres,
   ) async {
     if (external.isEmpty) return library;
-    final chosen = (<Object>[...library, ...external.take(maxItems)]
-          ..shuffle(_random))
-        .take(maxItems)
-        .toList();
+    final chosen = (<Object>[
+      ...library,
+      ...external.take(maxItems),
+    ]..shuffle(_random)).take(maxItems).toList();
     final slides = <String, MediaBarSlideItem>{};
     await mapBounded(
       chosen.whereType<ImdbExternalListItem>().toList(),
@@ -770,8 +782,7 @@ class MediaBarRepository {
       runtime: runTimeTicks != null
           ? Duration(microseconds: runTimeTicks ~/ 10)
           : null,
-      communityRating:
-          (details?['rating'] as num?)?.toDouble() ?? item.rating,
+      communityRating: (details?['rating'] as num?)?.toDouble() ?? item.rating,
       tmdbId: tmdbId,
       imdbId: imdbId,
       itemType: item.type == 'Series' ? 'Series' : 'Movie',
@@ -826,6 +837,31 @@ class MediaBarRepository {
           .cast<Map<String, dynamic>>();
       return items.map(_toSlideItem).toList(growable: false);
     } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Kos TV: the first of each of the top rows made for the person, by
+  /// turns, of those with a backdrop to show. Empty when the plugin can't be
+  /// asked in time, so the bar falls back to its own picks.
+  Future<List<MediaBarSlideItem>> _kostvRecommended(int max) async {
+    try {
+      final page = await KostvHomeRepository(_client)
+          .rows(start: 0, limit: 3)
+          .timeout(const Duration(seconds: 8));
+      if (page == null) return const [];
+      final seen = <String>{};
+      return [
+        for (final item in KostvHomeRepository.byTurns([
+          for (final row in page.rows) withoutBlockedItems(row.items),
+        ]))
+          if ((item.rawData['BackdropImageTags'] as List?)?.isNotEmpty ==
+                  true &&
+              seen.add(item.id))
+            _toSlideItem(item.rawData),
+      ].take(max).toList();
+    } catch (e) {
+      debugPrint('[MediaBar] Recommended picks failed: $e');
       return const [];
     }
   }
@@ -911,7 +947,8 @@ bool isRecentlyAiredEpisode(
   if (episode['LocationType'] == 'Virtual') return false;
   final aired = DateTime.tryParse(episode['PremiereDate'] as String? ?? '');
   if (aired == null) return false;
-  return !aired.isAfter(now) && !aired.isBefore(now.subtract(Duration(days: days)));
+  return !aired.isAfter(now) &&
+      !aired.isBefore(now.subtract(Duration(days: days)));
 }
 
 int _seasonOf(Map<String, dynamic> episode) =>

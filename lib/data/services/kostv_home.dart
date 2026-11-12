@@ -146,6 +146,21 @@ class KostvHomeRepository {
     ]);
   }
 
+  /// The requests service once it has said whether it lets the person in
+  /// (Home can load before it has), or null when it doesn't.
+  Future<StremfinService?> allowedStremfin() async {
+    final stremfin = this.stremfin;
+    if (stremfin == null) return null;
+    if (!stremfin.isAllowed) {
+      try {
+        await stremfin.refreshAccess();
+      } catch (_) {
+        return null;
+      }
+    }
+    return stremfin.isAllowed ? stremfin : null;
+  }
+
   static bool _unplayed(AggregatedItem item) {
     final data = item.rawData['UserData'];
     return data is! Map || data['Played'] != true;
@@ -154,10 +169,13 @@ class KostvHomeRepository {
   /// What the person asked for that arrived in the last two days and they
   /// haven't watched yet; null when there's nothing.
   Future<HomeRow?> arrived(AppLocalizations l10n, {DateTime? now}) async {
-    final stremfin = this.stremfin;
-    if (stremfin == null || !stremfin.isAllowed) return null;
+    final stremfin = await allowedStremfin();
+    if (stremfin == null) return null;
     if (!stremfin.inbox.isLoaded) await stremfin.inbox.sync();
-    final recent = arrivedTitles(stremfin.inbox.finished, now ?? DateTime.now());
+    final recent = arrivedTitles(
+      stremfin.inbox.finished,
+      now ?? DateTime.now(),
+    );
     if (recent.isEmpty) return null;
     final items = (await atHome(recent)).where(_unplayed).toList();
     if (items.isEmpty) return null;
@@ -200,8 +218,8 @@ class KostvHomeRepository {
     required String id,
     required String title,
   }) async {
-    final stremfin = this.stremfin;
-    if (stremfin == null || !stremfin.isAllowed) return null;
+    final stremfin = await allowedStremfin();
+    if (stremfin == null) return null;
     final lists = await Future.wait([
       for (final type in StremfinTitleType.values)
         stremfin
@@ -209,7 +227,11 @@ class KostvHomeRepository {
             .catchError((Object _) => const <StremfinTitle>[]),
     ]);
     final ranked = byTurns([
-      for (final list in lists) [for (final t in list) if (t.library.inLibrary) t],
+      for (final list in lists)
+        [
+          for (final t in list)
+            if (t.library.inLibrary) t,
+        ],
     ]);
     if (ranked.length < minTopRow) return null;
     final items = (await atHome([
@@ -226,7 +248,6 @@ class KostvHomeRepository {
   }
 
   /// One from each list by turns, so a row of two lists carries both.
-  @visibleForTesting
   static List<T> byTurns<T>(List<List<T>> lists) {
     final out = <T>[];
     final longest = lists.fold(0, (n, l) => l.length > n ? l.length : n);

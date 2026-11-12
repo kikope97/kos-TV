@@ -1823,6 +1823,25 @@ class HomeViewModel extends ChangeNotifier {
     }
   }
 
+  bool _awaitingRequestsService = false;
+
+  /// Kos TV: on a first start the requests service's address comes after
+  /// Home has loaded, so the rows that need it (what arrived, the tops) are
+  /// loaded again once it lets the person in.
+  void _reloadWhenRequestsServiceIsIn() {
+    final stremfin = _kostvHome.stremfin;
+    if (stremfin == null || _awaitingRequestsService) return;
+    _awaitingRequestsService = true;
+    late final VoidCallback listener;
+    listener = () {
+      if (!stremfin.isAllowed) return;
+      stremfin.removeListener(listener);
+      _awaitingRequestsService = false;
+      if (_prefs.kostvHomeActive) unawaited(load(preserveExisting: true));
+    };
+    stremfin.addListener(listener);
+  }
+
   late final KostvHomeRepository _kostvHome = KostvHomeRepository(
     _client,
     stremfin: GetIt.instance.isRegistered<StremfinService>()
@@ -1861,10 +1880,9 @@ class HomeViewModel extends ChangeNotifier {
           ),
     ];
 
-    final stremfin = GetIt.instance.isRegistered<StremfinService>()
-        ? GetIt.instance<StremfinService>()
-        : null;
-    final platforms = stremfin == null || !stremfin.isAllowed
+    final stremfin = await _kostvHome.allowedStremfin();
+    if (stremfin == null) _reloadWhenRequestsServiceIsIn();
+    final platforms = stremfin == null
         ? const <StremfinPlatform>[]
         : more
         ? [
