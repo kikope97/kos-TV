@@ -153,6 +153,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
 
   // Kos TV: the episodes of this series the home server lacks.
   KostvSeriesGapsController? _gaps;
+  String? _gapsItemId;
   KostvSeriesGaps _gapsShown = KostvSeriesGaps.none;
   Object? _gapsEpisodes;
   Object? _gapsDetail;
@@ -205,10 +206,19 @@ class _FrostDetailContentState extends State<FrostDetailContent>
   /// Kos TV: reads, from the requests service, what this series lacks.
   void _watchGaps() {
     final item = _vm.item;
-    if (_gaps != null || item == null) return;
+    if (item == null) return;
+    if (_gaps != null) {
+      // The page went on to another title: ask about that one.
+      if (_gapsItemId != item.id) {
+        _gapsItemId = item.id;
+        _gaps!.loadFor(item);
+      }
+      return;
+    }
     if (!const {'Series', 'Season', 'Episode'}.contains(item.type)) return;
     final gaps = KostvSeriesGapsController()..addListener(_onGaps);
     _gaps = gaps;
+    _gapsItemId = item.id;
     gaps.loadFor(item);
   }
 

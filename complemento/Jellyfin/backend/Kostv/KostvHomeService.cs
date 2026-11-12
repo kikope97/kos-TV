@@ -68,7 +68,9 @@ public sealed record KostvHomePage(
     int Seeds,
     int Library,
     bool Tmdb,
-    DateTimeOffset BuiltAt);
+    DateTimeOffset BuiltAt,
+    IReadOnlyDictionary<string, Guid> Index,
+    string Stamp);
 
 /// <summary>
 /// kOS TV: works out each person's home page. Reads what they watched from the server's own
@@ -85,6 +87,9 @@ public sealed class KostvHomeService
     private static readonly string TmdbUrl =
         (Environment.GetEnvironmentVariable("KOSTV_TMDB_URL") ?? "https://api.themoviedb.org").TrimEnd('/');
     private static readonly TimeSpan PageLife = TimeSpan.FromMinutes(20);
+
+    // With nothing new watched, a page stands this long even when asked to refresh.
+    private static readonly TimeSpan StaleLife = TimeSpan.FromHours(6);
 
     private static readonly PropertyInfo? OrderByProperty = typeof(InternalItemsQuery).GetProperty(nameof(InternalItemsQuery.OrderBy));
 
@@ -111,7 +116,7 @@ public sealed class KostvHomeService
     private readonly ILogger<KostvHomeService> _logger;
 
     private readonly ConcurrentDictionary<Guid, KostvHomePage> _pages = new();
-    private readonly ConcurrentDictionary<Guid, Task<KostvHomePage>> _building = new();
+    private readonly ConcurrentDictionary<Guid, Lazy<Task<KostvHomePage>>> _building = new();
     private readonly SemaphoreSlim _tmdbGate = new(4, 4);
 
     public KostvHomeService(
@@ -133,15 +138,29 @@ public sealed class KostvHomeService
     /// <summary>The page of <paramref name="userId"/>, worked out again when it's old or asked to.</summary>
     public Task<KostvHomePage> GetAsync(Guid userId, object user, bool refresh)
     {
-        if (!refresh &&
-            _pages.TryGetValue(userId, out var page) &&
-            DateTimeOffset.UtcNow - page.BuiltAt < PageLife)
+        if (_pages.TryGetValue(userId, out var page))
         {
-            return Task.FromResult(page);
+            var age = DateTimeOffset.UtcNow - page.BuiltAt;
+            // Asked to work it out again: only when the person has watched something since,
+            // which one small query tells. The apps ask every time Home comes back up.
+            if (refresh ? age < StaleLife && HistoryStamp(user) == page.Stamp : age < PageLife)
+            {
+                return Task.FromResult(page);
+            }
         }
 
-        // Two apps asking at once share the one build.
-        return _building.GetOrAdd(userId, _ => BuildAndKeepAsync(userId, user));
+        // Two apps asking at once share the one build. Lazy, and run off this thread, so the
+        // entry is in the map before the build can finish and take it out.
+        return _building.GetOrAdd(
+            userId,
+            _ => new Lazy<Task<KostvHomePage>>(() => Task.Run(() => BuildAndKeepAsync(userId, user)))).Value;
+    }
+
+    /// <summary>The last thing the person played and when: changes when they watch something.</summary>
+    private string HistoryStamp(object user)
+    {
+        var last = Query(user, [BaseItemKind.Movie, BaseItemKind.Episode], q => q.IsPlayed = true, 1, ItemSortBy.DatePlayed).FirstOrDefault();
+        return last == null ? "none" : $"{last.Id:N}:{LastPlayed(user, last)?.Ticks}";
     }
 
     private async Task<KostvHomePage> BuildAndKeepAsync(Guid userId, object user)
@@ -161,6 +180,7 @@ public sealed class KostvHomeService
     private async Task<KostvHomePage> BuildAsync(Guid userId, object user)
     {
         var now = DateTimeOffset.UtcNow;
+        var stamp = HistoryStamp(user);
         var (library, items) = ReadLibrary(user);
         var seeds = ReadSeeds(user, items, now);
 
@@ -197,27 +217,38 @@ public sealed class KostvHomeService
         // The day, and the person, so two people at home don't get the same shuffle.
         var day = (int)(now.ToUnixTimeSeconds() / 86400) + (userId.GetHashCode() & 0xFFFF);
         var rows = KostvHomeEngine.Build(seeds, facts, credits, library, day);
-        return new KostvHomePage(rows, seeds.Count, library.Count, hasKey, now);
+        var index = new Dictionary<string, Guid>(StringComparer.Ordinal);
+        foreach (var (id, item) in items)
+        {
+            if (KeyOf(item) is { } key)
+            {
+                index.TryAdd(key, id);
+            }
+        }
+
+        return new KostvHomePage(rows, seeds.Count, library.Count, hasKey, now, index, stamp);
     }
 
     /// <summary>
     /// The films and series on the home server, of those the person may see, that are the TMDB
-    /// titles in <paramref name="keys"/> ("movie:123", "tv:45"), in that order.
+    /// titles in <paramref name="keys"/> ("movie:123", "tv:45"), in that order. Found through the
+    /// index kept with the person's page, so the library isn't read again for each list.
     /// </summary>
-    public IReadOnlyList<(string Key, BaseItem Item)> Find(object user, IReadOnlyList<string> keys)
+    public async Task<IReadOnlyList<(string Key, BaseItem Item)>> FindAsync(Guid userId, object user, IReadOnlyList<string> keys)
     {
-        var wanted = new HashSet<string>(keys, StringComparer.Ordinal);
-        var found = new Dictionary<string, BaseItem>(StringComparer.Ordinal);
-        foreach (var item in Query(user, [BaseItemKind.Movie, BaseItemKind.Series], null))
+        var page = await GetAsync(userId, user, refresh: false).ConfigureAwait(false);
+        var found = new List<(string, BaseItem)>();
+        foreach (var key in keys.Distinct())
         {
-            var key = KeyOf(item);
-            if (key != null && wanted.Contains(key) && UserReflection.IsVisibleTo(item, user))
+            if (page.Index.TryGetValue(key, out var id) &&
+                _libraryManager.GetItemById(id) is { } item &&
+                UserReflection.IsVisibleTo(item, user))
             {
-                found.TryAdd(key, item);
+                found.Add((key, item));
             }
         }
 
-        return keys.Distinct().Where(found.ContainsKey).Select(k => (k, found[k])).ToList();
+        return found;
     }
 
     // ---------------------------------------------------------------- the server
@@ -231,7 +262,7 @@ public sealed class KostvHomeService
         var seen = new HashSet<Guid>(Query(user, [BaseItemKind.Movie], q => q.IsPlayed = true).Select(i => i.Id));
         // A series counts as seen once any of it has been: it's offered under "carry on", not
         // as something new.
-        foreach (var episode in Query(user, [BaseItemKind.Episode], q => q.IsPlayed = true, 4000, ItemSortBy.DatePlayed))
+        foreach (var episode in Query(user, [BaseItemKind.Episode], q => q.IsPlayed = true, 20000, ItemSortBy.DatePlayed))
         {
             if (episode is Episode { SeriesId: var seriesId } && seriesId != Guid.Empty)
             {

@@ -34,6 +34,8 @@ class MediaBarRepository {
 
   MediaBarRepository(this._client, this._prefs);
 
+  late final KostvHomeRepository _kostvHome = KostvHomeRepository(_client);
+
   Future<MediaBarState> loadItems() async {
     if (!GetIt.instance.isRegistered<MediaBarRepository>() ||
         GetIt.instance<MediaBarRepository>() != this) {
@@ -846,7 +848,7 @@ class MediaBarRepository {
   /// asked in time, so the bar falls back to its own picks.
   Future<List<MediaBarSlideItem>> _kostvRecommended(int max) async {
     try {
-      final page = await KostvHomeRepository(_client)
+      final page = await _kostvHome
           .rows(start: 0, limit: 3)
           .timeout(const Duration(seconds: 8));
       if (page == null) return const [];

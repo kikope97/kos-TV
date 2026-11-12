@@ -702,7 +702,9 @@ class HomeViewModel extends ChangeNotifier {
             })
             .toList();
         final placeholder = _placeholderForConfig(cfg);
-        if (placeholder != null && !failed) {
+        // Kos TV: a section that waits for the scroll keeps its placeholder,
+        // which is what brings it back the next time.
+        if (placeholder != null && !failed && !_waitsForScroll(cfg)) {
           if (loadedRows.isEmpty) {
             _emptySectionIds.add(placeholder.id);
           } else {
@@ -805,6 +807,15 @@ class HomeViewModel extends ChangeNotifier {
     final due = [
       for (final row in nearRows) ?_deferredSections.remove(row.id),
     ];
+    // Kos TV: a section that waits for the scroll may be showing rows kept
+    // from the last load instead of its placeholder.
+    for (final row in nearRows) {
+      final id = _deferredSections.entries
+          .where((e) => _waitsForScroll(e.value) && _rowBelongsToConfig(row, e.value))
+          .map((e) => e.key)
+          .firstOrNull;
+      if (id != null) due.add(_deferredSections.remove(id)!);
+    }
     if (due.isEmpty) return;
     unawaited(
       mapBounded<HomeSectionConfig, void>(due, 3, loadSection)
@@ -1811,8 +1822,11 @@ class HomeViewModel extends ChangeNotifier {
         const HomeSectionConfig(type: HomeSectionType.kostvForYou),
       );
       const more = HomeSectionConfig(type: HomeSectionType.kostvForYouMore);
-      // The rest too, when the person had already scrolled down to them.
-      if (!_deferredSections.containsKey(more.stableId)) {
+      // The rest too, when the person had already scrolled down to them or
+      // rows of theirs are showing from before.
+      if (!_deferredSections.containsKey(more.stableId) ||
+          _rows.any((r) => r.id.startsWith(_kostvMorePrefix))) {
+        _deferredSections.remove(more.stableId);
         await loadSection(more);
       }
       _saveRowCache();
@@ -1824,6 +1838,7 @@ class HomeViewModel extends ChangeNotifier {
   }
 
   bool _awaitingRequestsService = false;
+  VoidCallback? _requestsServiceListener;
 
   /// Kos TV: on a first start the requests service's address comes after
   /// Home has loaded, so the rows that need it (what arrived, the tops) are
@@ -1836,9 +1851,11 @@ class HomeViewModel extends ChangeNotifier {
     listener = () {
       if (!stremfin.isAllowed) return;
       stremfin.removeListener(listener);
+      _requestsServiceListener = null;
       _awaitingRequestsService = false;
       if (_prefs.kostvHomeActive) unawaited(load(preserveExisting: true));
     };
+    _requestsServiceListener = listener;
     stremfin.addListener(listener);
   }
 
@@ -2905,6 +2922,9 @@ class HomeViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_requestsServiceListener case final listener?) {
+      _kostvHome.stremfin?.removeListener(listener);
+    }
     _watchingNowTimer?.cancel();
     super.dispose();
   }

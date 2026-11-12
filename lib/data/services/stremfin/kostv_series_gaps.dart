@@ -180,14 +180,22 @@ class KostvSeriesGaps {
   }) {
     final gaps = seasons[season];
     if (gaps == null) return const [];
-    return [
-      for (final ghost in gaps.missing)
-        if (ghost.number > episode &&
-            (nextSeason != season ||
-                nextEpisode == null ||
-                ghost.number < nextEpisode))
-          ghost,
-    ];
+    // Only the run that follows on directly: with the very next one at home
+    // there's no gap to speak of, whatever is missing further on.
+    final run = <KostvGhostEpisode>[];
+    var expected = episode + 1;
+    for (final ghost in gaps.missing) {
+      if (ghost.number < expected) continue;
+      if (ghost.number > expected) break;
+      if (nextSeason == season &&
+          nextEpisode != null &&
+          ghost.number >= nextEpisode) {
+        break;
+      }
+      run.add(ghost);
+      expected++;
+    }
+    return run;
   }
 
   static KostvSeriesGaps compute({
@@ -286,9 +294,23 @@ class KostvSeriesGapsController extends ChangeNotifier {
   /// How long a series' page is kept.
   static const lifetime = Duration(minutes: 10);
 
+  // Kept for the person it was read for: a series' page says which requests
+  // are theirs.
   static final Map<int, ({DateTime at, StremfinSeriesDetail detail})> _kept =
       {};
   static final Map<int, Future<StremfinSeriesDetail>> _reading = {};
+  static Object? _keptFor;
+
+  static void _keepFor(StremfinService service) {
+    final person = service.me?.name;
+    if (identical(_keptFor, service) && _keptPerson == person) return;
+    _keptFor = service;
+    _keptPerson = person;
+    _kept.clear();
+    _reading.clear();
+  }
+
+  static String? _keptPerson;
 
   @visibleForTesting
   static void clearKept() {
@@ -299,6 +321,10 @@ class KostvSeriesGapsController extends ChangeNotifier {
   int? _tmdbId;
   StremfinSeriesDetail? _detail;
   bool _disposed = false;
+
+  // Bumped by every load, so an answer for a series the screen has moved on
+  // from is dropped.
+  int _load = 0;
 
   /// Something is being asked for now.
   bool sending = false;
@@ -341,14 +367,22 @@ class KostvSeriesGapsController extends ChangeNotifier {
   Future<void> loadFor(AggregatedItem item, {bool refresh = false}) async {
     final service = _service;
     if (service == null) return;
+    final load = ++_load;
     if (!service.isAllowed) await service.refreshAccess();
-    if (_disposed || !service.isAllowed) return;
+    if (_disposed || load != _load || !service.isAllowed) return;
     final tmdb = int.tryParse((await _tmdbIdOf(item)) ?? '');
-    if (_disposed || tmdb == null) return;
-    _tmdbId = tmdb;
+    if (_disposed || load != _load) return;
+    if (tmdb != _tmdbId) {
+      // Another series (or one the service can't place): the last one's
+      // page says nothing of it.
+      _tmdbId = tmdb;
+      _detail = null;
+      notifyListeners();
+    }
+    if (tmdb == null) return;
     try {
       final detail = await _read(service, tmdb, refresh: refresh);
-      if (_disposed) return;
+      if (_disposed || load != _load) return;
       _detail = detail;
       notifyListeners();
     } catch (e) {
@@ -361,6 +395,7 @@ class KostvSeriesGapsController extends ChangeNotifier {
     int tmdb, {
     bool refresh = false,
   }) {
+    _keepFor(service);
     final kept = _kept[tmdb];
     if (!refresh &&
         kept != null &&
@@ -368,7 +403,8 @@ class KostvSeriesGapsController extends ChangeNotifier {
       return Future.value(kept.detail);
     }
     final pending = _reading[tmdb];
-    if (pending != null) return pending;
+    // A read asked for after a request must not settle for one from before.
+    if (pending != null && !refresh) return pending;
     final future = service
         .series(tmdb)
         .then((detail) {
@@ -399,12 +435,23 @@ class KostvSeriesGapsController extends ChangeNotifier {
         season: season,
         episode: episode,
       );
-      final detail = await _read(service, tmdb, refresh: true);
-      if (!_disposed) _detail = detail;
+      await _rereadAfterAsking(service, tmdb);
       return result;
     } finally {
       sending = false;
       if (!_disposed) notifyListeners();
+    }
+  }
+
+  /// The request went through; the page is read again to show it. If that
+  /// fails the request still stands, so it isn't told as a failure.
+  Future<void> _rereadAfterAsking(StremfinService service, int tmdb) async {
+    try {
+      final detail = await _read(service, tmdb, refresh: true);
+      if (!_disposed && tmdb == _tmdbId) _detail = detail;
+    } catch (e) {
+      _kept.remove(tmdb);
+      debugPrint('[KostvSeriesGaps] Could not read series $tmdb again: $e');
     }
   }
 
@@ -436,8 +483,7 @@ class KostvSeriesGapsController extends ChangeNotifier {
         );
         if (last.outcome == StremfinOutcome.limit) break;
       }
-      final detail = await _read(service, tmdb, refresh: true);
-      if (!_disposed) _detail = detail;
+      await _rereadAfterAsking(service, tmdb);
       return last;
     } finally {
       sending = false;

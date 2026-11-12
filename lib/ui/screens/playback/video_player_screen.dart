@@ -4545,8 +4545,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                           sentNote: _kostvGapNote,
                           onAsk: _handleKostvGapAsk,
                           onWatchNext: _handleNextUpPlay,
-                          // TV dismisses with Back, so its X exits the player.
-                          onClose: PlatformDetection.isTV
+                          // TV dismisses with Back, so its X exits the
+                          // player; so does any X once the episode is over,
+                          // when there is nothing left to go back to.
+                          onClose:
+                              PlatformDetection.isTV ||
+                                  _state.duration - _state.position <
+                                      const Duration(seconds: 3)
                               ? _handleNextUpCancel
                               : _handleNextUpDismiss,
                           focusNode: _tvNextUpPlayFocus,

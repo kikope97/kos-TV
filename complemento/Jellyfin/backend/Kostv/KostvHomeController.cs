@@ -54,7 +54,7 @@ public class KostvHomeController : ControllerBase
             SeedId = row.SeedItemId,
             Items = row.ItemIds
                 .Select(id => Guid.TryParse(id, out var guid) ? _libraryManager.GetItemById(guid) : null)
-                .Where(item => item != null)
+                .Where(item => item != null && UserReflection.IsVisibleTo(item, user))
                 .Select(item => _cards.Map(item!, user))
                 .ToList()
         }).ToList();
@@ -76,11 +76,11 @@ public class KostvHomeController : ControllerBase
     [HttpGet("Lookup")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public ActionResult Lookup([FromQuery] string keys)
+    public async Task<ActionResult> Lookup([FromQuery] string keys)
     {
         var userId = this.GetUserIdFromClaims();
         var user = userId.HasValue ? UserReflection.ResolveUser(HttpContext.RequestServices, userId.Value) : null;
-        if (user == null)
+        if (userId == null || user == null)
         {
             return Unauthorized(new { Error = "User not authenticated" });
         }
@@ -89,7 +89,7 @@ public class KostvHomeController : ControllerBase
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Take(200)
             .ToList();
-        var items = _home.Find(user, wanted).Select(found => new { found.Key, Item = _cards.Map(found.Item, user) }).ToList();
+        var items = (await _home.FindAsync(userId.Value, user, wanted).ConfigureAwait(false)).Select(found => new { found.Key, Item = _cards.Map(found.Item, user) }).ToList();
         return Ok(new { Items = items });
     }
 
@@ -111,7 +111,7 @@ public class KostvHomeController : ControllerBase
                 continue;
             }
 
-            var page = await _home.GetAsync(id, user, refresh: true).ConfigureAwait(false);
+            var page = await _home.GetAsync(id, user, refresh: false).ConfigureAwait(false);
             people.Add(new
             {
                 Name = type.GetProperty("Username")?.GetValue(user) as string ?? id.ToString("N"),
