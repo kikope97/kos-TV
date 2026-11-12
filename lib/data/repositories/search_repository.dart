@@ -3,6 +3,20 @@ import 'package:server_core/server_core.dart';
 import '../models/aggregated_item.dart';
 import '../utils/blocked_ratings.dart';
 
+/// Kos TV: music isn't searched (it will have its own place): these types
+/// never come up, nor a playlist of songs.
+const kostvMusicTypes = {
+  'Audio',
+  'MusicAlbum',
+  'MusicArtist',
+  'AlbumArtist',
+  'MusicVideo',
+};
+
+bool kostvIsMusic(Map<String, dynamic> data) =>
+    kostvMusicTypes.contains(data['Type']) ||
+    (data['Type'] == 'Playlist' && data['MediaType'] == 'Audio');
+
 class SearchRepository {
   final MediaServerClient _client;
 
@@ -127,6 +141,8 @@ class SearchRepository {
     'Genre',
     'MusicGenre',
     'TvChannel',
+    // Kos TV: no music in the search.
+    ...kostvMusicTypes,
   ];
 
   /// One search across every library for the types in [groups].

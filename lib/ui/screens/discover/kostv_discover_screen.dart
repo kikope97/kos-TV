@@ -413,20 +413,7 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
     NavigationLayout.focusNavbarNotifier.value?.call();
   }
 
-  /// What's on the home server opens its page there. The rest, and a series
-  /// missing the season its card announces, opens its page to request it.
-  void _openTitle(StremfinTitle title) {
-    final itemId = title.library.itemId;
-    final partial = title.library.status == StremfinLibraryStatus.partial;
-    if (title.isInLibrary && itemId != null && !partial) {
-      context.push(Destinations.item(itemId));
-      return;
-    }
-    context.push(
-      Destinations.kostvRequestOf(title.type.apiValue, title.tmdbId),
-      extra: title,
-    );
-  }
+  void _openTitle(StremfinTitle title) => kostvOpenTitle(context, title);
 
   /// A title changed on the lists kept (asked for, arrived…): the cards
   /// show it as it stands.
@@ -1210,10 +1197,6 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
         ),
     ];
 
-    // Bottom: how it stands at home.
-    final status = KostvTitleStatus.band(title, l10n);
-    final bandHeight = 20 * pillScale;
-
     return [
       if (top.isNotEmpty)
         Positioned(
@@ -1227,37 +1210,8 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
             children: top,
           ),
         ),
-      // The tick of a title at home: top right, above the band if any.
-      if (title.isInLibrary)
-        Positioned(
-          top: status == null ? 6 : null,
-          bottom: status == null ? null : bandHeight + 4,
-          right: 6,
-          child: KostvHomeTick(scale: pillScale),
-        ),
-      if (status != null)
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: Container(
-            height: bandHeight,
-            alignment: Alignment.center,
-            color: status.color!.withValues(alpha: 0.92),
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              status.text,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 11.5 * pillScale,
-                fontWeight: FontWeight.w700,
-                height: 1.1,
-              ),
-            ),
-          ),
-        ),
+      // Bottom: how it stands at home.
+      ...kostvPosterStatus(title, l10n, scale: pillScale),
     ];
   }
 }

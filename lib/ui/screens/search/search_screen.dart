@@ -17,6 +17,8 @@ import '../../../data/repositories/search_repository.dart';
 import '../../../data/services/plugin_sync_service.dart';
 import '../../../data/services/recent_searches_store.dart';
 import '../../../data/services/remote_search_session.dart';
+import '../../../data/services/stremfin/stremfin_models.dart';
+import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../data/services/voice_search_controller.dart';
 import '../../../data/viewmodels/search_view_model.dart';
 import '../../../preference/preference_constants.dart';
@@ -41,6 +43,8 @@ import '../../widgets/navigation_layout.dart';
 import '../../widgets/focus/context_menu_sheet.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../../widgets/sliding_pill_tabs.dart';
+import '../../../util/focus/input_mode_tracker.dart';
+import '../discover/kostv_discover_parts.dart';
 import '../../widgets/skeleton/skeleton_library_grid.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -124,6 +128,7 @@ class _SearchScreenState extends State<SearchScreen>
       pluginSync: getIt.isRegistered<PluginSyncService>()
           ? getIt<PluginSyncService>()
           : null,
+      requests: _requestsForSearch(),
     );
     _vm.addListener(_onViewModelChanged);
 
@@ -240,6 +245,10 @@ class _SearchScreenState extends State<SearchScreen>
     if (_tabIsGames(_selectedTab)) {
       return _vm.gameResults.isEmpty ? null : _vm.gameResults.first.game.id;
     }
+    if (_tabIsRequestable(_selectedTab)) {
+      final first = _vm.requestable.firstOrNull;
+      return first == null ? null : '${first.type.name}${first.tmdbId}';
+    }
     final gi = _groupIndex(_selectedTab);
     if (gi >= 0 && gi < _vm.results.length) {
       final items = _vm.results[gi].items;
@@ -328,15 +337,33 @@ class _SearchScreenState extends State<SearchScreen>
     );
   }
 
+  /// Kos TV: the requests service, for «Para solicitar»: outside kids mode,
+  /// when the build knows it. Whether it lets the person in is asked at each
+  /// search.
+  static StremfinService? _requestsForSearch() {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<StremfinService>()) return null;
+    if (getIt.isRegistered<UserPreferences>() &&
+        getIt<UserPreferences>().get(UserPreferences.kidsModeEnabled)) {
+      return null;
+    }
+    return getIt<StremfinService>();
+  }
+
   // Games is a leading special tab (when it has results), then the All tab,
-  // then the group tabs.
+  // then the group tabs, and Kos TV's «Para solicitar» last.
   bool get _hasGames => _vm.gameResults.isNotEmpty;
 
   bool get _hasSmart => _vm.smartResults.items.isNotEmpty;
 
+  bool get _hasRequestable => _vm.requestable.isNotEmpty;
+
   int get _tabCount {
-    final hasContent = _vm.results.isNotEmpty || _hasGames || _hasSmart;
-    return hasContent ? _leadingTabCount + 1 + _vm.results.length : 0;
+    final hasContent =
+        _vm.results.isNotEmpty || _hasGames || _hasSmart || _hasRequestable;
+    return hasContent
+        ? _leadingTabCount + 1 + _vm.results.length + (_hasRequestable ? 1 : 0)
+        : 0;
   }
 
   // Names the tabs in the order _buildResults labels them.
@@ -346,7 +373,15 @@ class _SearchScreenState extends State<SearchScreen>
           if (_hasGames) 'games',
           'all',
           for (final group in _vm.results) group.itemTypes.first,
+          if (_hasRequestable) 'requestable',
         ];
+
+  bool _tabIsRequestable(int index) =>
+      _hasRequestable && index == _tabCount - 1;
+
+  /// «Para solicitar»'s cards, and a last one to read more when there is.
+  int get _requestableCount =>
+      _vm.requestable.length + (_vm.requestableHasMore ? 1 : 0);
 
   // How many special tabs sit before the All tab. This is also the All index.
   int get _leadingTabCount => _hasGames ? 1 : 0;
@@ -1068,7 +1103,10 @@ class _SearchScreenState extends State<SearchScreen>
           );
         }
         return _buildResults();
-      case SearchState.ready when _vm.results.isEmpty && !_hasSmart:
+      case SearchState.ready
+          when _vm.results.isEmpty && !_hasSmart && !_hasRequestable:
+        // Nothing at home: what can be requested may still be on its way.
+        if (_vm.requestableSearching) return Center(child: _lookingOutside());
         return Center(
           child: Text(
             AppLocalizations.of(context).noResultsForQuery(_vm.query),
@@ -1094,6 +1132,7 @@ class _SearchScreenState extends State<SearchScreen>
   int _currentTabItemCount() {
     if (_tabIsAll(_selectedTab)) return 0;
     if (_tabIsGames(_selectedTab)) return _vm.gameResults.length;
+    if (_tabIsRequestable(_selectedTab)) return _requestableCount;
     final gi = _groupIndex(_selectedTab);
     if (gi >= 0 && gi < _vm.results.length) {
       return _vm.results[gi].items.length;
@@ -1110,12 +1149,16 @@ class _SearchScreenState extends State<SearchScreen>
     final totalCount =
         _vm.results.fold<int>(0, (s, g) => s + g.items.length) +
         _vm.gameResults.length +
-        _vm.smartResults.items.length;
+        _vm.smartResults.items.length +
+        _vm.requestable.length;
+    final more = _vm.requestableHasMore ? '+' : '';
     final labels = <String>[
       if (_hasGames) '${l10n.games}: ${_vm.gameResults.length}',
-      '${l10n.all}: $totalCount',
+      '${l10n.all}: $totalCount$more',
       for (final group in _vm.results)
         '${localizeSearchGroupTitle(group.title, l10n)}: ${group.items.length}',
+      if (_hasRequestable)
+        '${l10n.kostvSearchRequestable}: ${_vm.requestable.length}$more',
     ];
 
     final isMobile = PlatformDetection.useMobileUi;
@@ -1291,17 +1334,20 @@ class _SearchScreenState extends State<SearchScreen>
 
     final hasGames = _vm.gameResults.isNotEmpty;
     final smartItems = _vm.smartResults.items;
+    final requestable = _vm.requestable;
     _allRowIds = [
       if (smartItems.isNotEmpty) 'smart',
       for (final g in groups) g.itemTypes.first,
       if (hasGames) 'games',
+      if (requestable.isNotEmpty) 'requestable',
     ];
     // The smart search row comes first, then the library groups, then the
-    // Games row when present.
+    // Games row when present, and last what can be requested.
     final rowLens = <int>[
       if (smartItems.isNotEmpty) smartItems.length,
       for (final g in groups) g.items.length,
       if (hasGames) _vm.gameResults.length,
+      if (requestable.isNotEmpty) _requestableCount,
     ];
 
     final rows = <Widget>[];
@@ -1386,13 +1432,127 @@ class _SearchScreenState extends State<SearchScreen>
       );
     }
 
+    if (requestable.isNotEmpty) {
+      final row = rows.length;
+      const cardWidth = 108.0;
+      rows.add(
+        LibraryRow(
+          key: _allRowKey(row),
+          title: l10n.kostvSearchRequestable,
+          rowHeight: cardWidth / (2 / 3) + 56,
+          children: [
+            for (var c = 0; c < _requestableCount; c++)
+              _requestableCell(
+                c,
+                width: cardWidth,
+                focusColor: focusColor,
+                cardFocusExpansion: cardFocusExpansion,
+                focusNode: _allCardNode(row, c),
+                onNavKey: (node, event) =>
+                    _onAllCardKey(row, c, rowLens, event),
+              ),
+          ],
+        ),
+      );
+    }
+
+    // Nothing at home matched: said so over what can be requested.
+    final nothingHome = rows.length == (requestable.isNotEmpty ? 1 : 0);
     return BottomNavPadded(
       fallback: 32,
       builder: (context, bottom) => ListView(
         controller: _resultsScrollController,
         padding: EdgeInsets.fromLTRB(horizontalPadding, 8, 0, bottom),
-        children: rows,
+        children: [
+          if (nothingHome && requestable.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 8, 16, 4),
+              child: Text(
+                l10n.kostvSearchNotHome,
+                style: TextStyle(
+                  color: AppColorScheme.onSurface.withValues(alpha: 0.75),
+                  fontSize: PlatformDetection.isTV ? 18 : 15,
+                ),
+              ),
+            ),
+          ...rows,
+          // Still asking for what can be requested.
+          if (requestable.isEmpty && _vm.requestableSearching)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, 20, 16, 0),
+              child: _lookingOutside(),
+            ),
+        ],
       ),
+    );
+  }
+
+  // ----------------------------------- Kos TV: «Para solicitar» cards
+
+  /// While the requests service is asked what isn't at home.
+  Widget _lookingOutside() => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      const SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+      const SizedBox(width: 12),
+      Flexible(
+        child: Text(
+          AppLocalizations.of(context).kostvSearchLookingOutside,
+          style: TextStyle(
+            color: AppColorScheme.onSurface.withValues(alpha: 0.7),
+            fontSize: PlatformDetection.isTV ? 17 : 14,
+          ),
+        ),
+      ),
+    ],
+  );
+
+  /// A card of «Para solicitar», or the last one that reads more.
+  Widget _requestableCell(
+    int index, {
+    required double width,
+    required Color focusColor,
+    required bool cardFocusExpansion,
+    required FocusNode focusNode,
+    required KeyEventResult Function(FocusNode, KeyEvent) onNavKey,
+  }) {
+    final titles = _vm.requestable;
+    if (index >= titles.length) {
+      return _RequestableMoreTile(
+        width: width,
+        loading: _vm.requestableLoading,
+        focusColor: focusColor,
+        focusNode: focusNode,
+        onKeyEvent: onNavKey,
+        onMore: _vm.loadMoreRequestable,
+      );
+    }
+    final title = titles[index];
+    final l10n = AppLocalizations.of(context);
+    return MediaCard(
+      title: title.title,
+      subtitle: title.year?.toString(),
+      imageUrl: title.poster,
+      width: width,
+      aspectRatio: 2 / 3,
+      itemType: title.type == StremfinTitleType.movie ? 'Movie' : 'Series',
+      focusColor: focusColor,
+      cardFocusExpansion: cardFocusExpansion,
+      focusNode: focusNode,
+      onKeyEvent: onNavKey,
+      // Grey until it is at home, as in Discover.
+      imageColorFilter: title.isInLibrary ? null : kostvMissingFilter,
+      subtitleColor: title.isInLibrary
+          ? null
+          : AppColorScheme.onSurface.withValues(alpha: 0.5),
+      imageOverlays: kostvPosterStatus(title, l10n, scale: 0.85),
+      // Nearing the end, the next ones are read ahead.
+      onFocus: index >= titles.length - 3 ? _vm.loadMoreRequestable : null,
+      onTap: () => kostvOpenTitle(context, title),
     );
   }
 
@@ -1525,10 +1685,11 @@ class _SearchScreenState extends State<SearchScreen>
     final focusColor = Color(prefs.get(UserPreferences.focusColor).colorValue);
     final cardFocusExpansion = prefs.get(UserPreferences.cardFocusExpansion);
     final isGames = _tabIsGames(_selectedTab);
+    final isRequestable = _tabIsRequestable(_selectedTab);
     final count = _currentTabItemCount();
     if (count == 0) return const SizedBox.shrink();
 
-    final imageAspect = isGames
+    final imageAspect = isGames || isRequestable
         ? 2 / 3
         : MediaCard.aspectRatioForType(
             _vm.results[_groupIndex(_selectedTab)].items.first.type,
@@ -1561,7 +1722,21 @@ class _SearchScreenState extends State<SearchScreen>
             childAspectRatio: childAspectRatio,
           ),
           itemCount: count,
-          itemBuilder: (context, index) => isGames
+          itemBuilder: (context, index) => isRequestable
+              ? _requestableCell(
+                  index,
+                  width: cellWidth,
+                  focusColor: focusColor,
+                  cardFocusExpansion: cardFocusExpansion,
+                  focusNode: getGridItemFocusNode(index),
+                  onNavKey: (node, event) => _onGridKey(
+                    index: index,
+                    columns: columns,
+                    count: count,
+                    event: event,
+                  ),
+                )
+              : isGames
               ? _buildGameCell(
                   index,
                   columns,
@@ -1656,6 +1831,116 @@ class _SearchScreenState extends State<SearchScreen>
         columns: columns,
         count: count,
         event: event,
+      ),
+    );
+  }
+}
+
+/// Kos TV: the last card of «Para solicitar» while there are more: it reads
+/// them when the focus reaches it, or when it is pressed.
+class _RequestableMoreTile extends StatefulWidget {
+  const _RequestableMoreTile({
+    required this.width,
+    required this.loading,
+    required this.focusColor,
+    required this.focusNode,
+    required this.onKeyEvent,
+    required this.onMore,
+  });
+
+  final double width;
+  final bool loading;
+  final Color focusColor;
+  final FocusNode focusNode;
+  final KeyEventResult Function(FocusNode, KeyEvent) onKeyEvent;
+  final VoidCallback onMore;
+
+  @override
+  State<_RequestableMoreTile> createState() => _RequestableMoreTileState();
+}
+
+class _RequestableMoreTileState extends State<_RequestableMoreTile> {
+  bool _focused = false;
+
+  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent &&
+        (event.logicalKey == LogicalKeyboardKey.select ||
+            event.logicalKey == LogicalKeyboardKey.enter ||
+            event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+      widget.onMore();
+      return KeyEventResult.handled;
+    }
+    return widget.onKeyEvent(node, event);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final lit = InputModeTracker.showFocusVisuals(context, _focused);
+    final ink = AppColorScheme.onSurface.withValues(alpha: lit ? 1 : 0.75);
+    return Focus(
+      focusNode: widget.focusNode,
+      onKeyEvent: _onKey,
+      onFocusChange: (focused) {
+        setState(() => _focused = focused);
+        if (focused) widget.onMore();
+      },
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onMore,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: SizedBox(
+            width: widget.width,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: widget.width,
+                  height: widget.width * 3 / 2,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: lit ? 0.12 : 0.06),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: lit
+                          ? widget.focusColor
+                          : Colors.white.withValues(alpha: 0.14),
+                      width: lit ? 3 : 1,
+                    ),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (widget.loading)
+                        const SizedBox(
+                          width: 26,
+                          height: 26,
+                          child: CircularProgressIndicator(strokeWidth: 2.5),
+                        )
+                      else
+                        Icon(Icons.add_rounded, size: 34, color: ink),
+                      const SizedBox(height: 10),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Text(
+                          l10n.kostvSearchMore,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: ink,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -136,6 +136,32 @@ class StremfinRequestRef {
   }
 }
 
+/// One page of a search: films and series in TMDB's order of relevance.
+@immutable
+class StremfinSearchPage {
+  const StremfinSearchPage({this.items = const [], this.nextCursor});
+
+  final List<StremfinTitle> items;
+
+  /// What to give back to read on, or null when there is no more. A page
+  /// can come back short, or empty, and still have more after it.
+  final String? nextCursor;
+
+  bool get hasMore => nextCursor != null;
+
+  static StremfinSearchPage fromJson(Object? raw) {
+    if (raw is! Map) return const StremfinSearchPage();
+    final items = raw['items'];
+    return StremfinSearchPage(
+      items: [
+        if (items is List)
+          for (final item in items) ?StremfinTitle.fromJson(item),
+      ],
+      nextCursor: _text(raw['next_cursor']),
+    );
+  }
+}
+
 /// A film or series on one of the lists.
 @immutable
 class StremfinTitle {

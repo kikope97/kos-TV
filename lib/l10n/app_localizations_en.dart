@@ -18528,4 +18528,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String kostvDiscoverRank(int rank) {
     return 'No. $rank';
   }
+
+  @override
+  String get kostvSearchRequestable => 'Available to request';
+
+  @override
+  String get kostvSearchNotHome => 'It isn\'t at home, but you can request it';
+
+  @override
+  String get kostvSearchLookingOutside => 'Looking for what you can request…';
+
+  @override
+  String get kostvSearchMore => 'More results';
 }

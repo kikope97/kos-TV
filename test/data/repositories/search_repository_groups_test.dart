@@ -72,8 +72,16 @@ void main() {
           exclude: captureAny(named: 'excludeItemTypes'),
         ),
       ).captured;
+      // Kos TV: and music, which the search doesn't show.
       expect(excluded, [
-        ['Person', 'Studio', 'Genre', 'MusicGenre', 'TvChannel'],
+        [
+          'Person',
+          'Studio',
+          'Genre',
+          'MusicGenre',
+          'TvChannel',
+          ...kostvMusicTypes,
+        ],
       ]);
     },
   );

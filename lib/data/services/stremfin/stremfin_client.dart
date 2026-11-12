@@ -124,6 +124,25 @@ class StremfinClient {
     ];
   }
 
+  /// Films and series whose name matches [query], only the ones that
+  /// aren't on the home server unless [only] says otherwise (`all`,
+  /// `missing` or `available`). One of the costly calls: the service allows
+  /// thirty a minute of them.
+  Future<StremfinSearchPage> search(
+    String query, {
+    String only = 'missing',
+    int? limit,
+    String? cursor,
+  }) async => StremfinSearchPage.fromJson(
+    await _get('/search', {
+      'q': query,
+      'type': 'all',
+      'only': only,
+      'limit': ?limit,
+      'cursor': ?cursor,
+    }),
+  );
+
   /// A film's page.
   Future<StremfinMovieDetail> movie(int tmdbId) async {
     final detail = StremfinMovieDetail.fromJson(await _get('/movies/$tmdbId'));

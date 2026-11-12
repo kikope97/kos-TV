@@ -18850,4 +18850,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String kostvDiscoverRank(int rank) {
     return 'N.º $rank';
   }
+
+  @override
+  String get kostvSearchRequestable => 'Para solicitar';
+
+  @override
+  String get kostvSearchNotHome => 'No está en casa, pero puedes solicitarlo';
+
+  @override
+  String get kostvSearchLookingOutside => 'Buscando lo que puedes solicitar…';
+
+  @override
+  String get kostvSearchMore => 'Ver más';
 }

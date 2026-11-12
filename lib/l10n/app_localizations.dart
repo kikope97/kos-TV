@@ -31928,6 +31928,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No. {rank}'**
   String kostvDiscoverRank(int rank);
+
+  /// Kos TV search: heading (and tab) of the films and series that aren't on the home server and can be requested.
+  ///
+  /// In en, this message translates to:
+  /// **'Available to request'**
+  String get kostvSearchRequestable;
+
+  /// Kos TV search: shown above «Available to request» when nothing at home matched.
+  ///
+  /// In en, this message translates to:
+  /// **'It isn\'t at home, but you can request it'**
+  String get kostvSearchNotHome;
+
+  /// Kos TV search: while the requests service is asked what isn't at home.
+  ///
+  /// In en, this message translates to:
+  /// **'Looking for what you can request…'**
+  String get kostvSearchLookingOutside;
+
+  /// Kos TV search: tile at the end of «Available to request» that loads more.
+  ///
+  /// In en, this message translates to:
+  /// **'More results'**
+  String get kostvSearchMore;
 }
 
 class _AppLocalizationsDelegate

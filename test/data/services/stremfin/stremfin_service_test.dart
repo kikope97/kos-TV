@@ -236,9 +236,21 @@ void main() {
     expect(kept()[2].library.itemId, 'def');
     expect(revisions, 3);
 
-    // A title that isn't on any list changes nothing.
-    stremfin.noteTitle(StremfinTitle.fromJson(fakeTitle(99))!);
-    expect(revisions, 3);
+    // A title that isn't on any list leaves the lists as they were, but
+    // is still told of: the search shows titles outside them.
+    final before = [for (final t in kept()) t.request?.id];
+    stremfin.noteTitle(
+      StremfinTitle.fromJson(fakeTitle(99))!.copyWith(
+        request: () =>
+            const StremfinRequestRef(id: 8, status: 'pending', mine: true),
+      ),
+    );
+    expect([for (final t in kept()) t.request?.id], before);
+    expect(revisions, 4);
+    expect(
+      stremfin.latest(StremfinTitle.fromJson(fakeTitle(99))!).request?.id,
+      8,
+    );
     stremfin.dispose();
   });
 }

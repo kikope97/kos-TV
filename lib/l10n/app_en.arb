@@ -18242,5 +18242,21 @@
         "type": "int"
       }
     }
+  },
+  "kostvSearchRequestable": "Available to request",
+  "@kostvSearchRequestable": {
+    "description": "Kos TV search: heading (and tab) of the films and series that aren't on the home server and can be requested."
+  },
+  "kostvSearchNotHome": "It isn't at home, but you can request it",
+  "@kostvSearchNotHome": {
+    "description": "Kos TV search: shown above «Available to request» when nothing at home matched."
+  },
+  "kostvSearchLookingOutside": "Looking for what you can request…",
+  "@kostvSearchLookingOutside": {
+    "description": "Kos TV search: while the requests service is asked what isn't at home."
+  },
+  "kostvSearchMore": "More results",
+  "@kostvSearchMore": {
+    "description": "Kos TV search: tile at the end of «Available to request» that loads more."
   }
 }

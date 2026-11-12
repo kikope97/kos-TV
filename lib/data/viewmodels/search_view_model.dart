@@ -10,6 +10,9 @@ import '../models/aggregated_item.dart';
 import '../repositories/multi_server_repository.dart';
 import '../repositories/search_repository.dart';
 import '../services/plugin_sync_service.dart';
+import '../services/stremfin/stremfin_client.dart';
+import '../services/stremfin/stremfin_models.dart';
+import '../services/stremfin/stremfin_service.dart';
 import '../utils/blocked_ratings.dart';
 
 class SearchResultGroup {
@@ -60,11 +63,12 @@ class SmartSearchResults {
     return SmartSearchResults(
       items: withoutBlockedItems([
         for (final data in items)
-          AggregatedItem(
-            id: data['Id']?.toString() ?? '',
-            serverId: serverId,
-            rawData: data,
-          ),
+          if (!kostvIsMusic(data))
+            AggregatedItem(
+              id: data['Id']?.toString() ?? '',
+              serverId: serverId,
+              rawData: data,
+            ),
       ]),
     );
   }
@@ -80,18 +84,25 @@ class SearchViewModel extends ChangeNotifier {
   final MultiServerRepository? _multiServerRepository;
   final PluginSyncService? _pluginSync;
 
+  /// Kos TV: the requests service, for «Para solicitar», when the person may
+  /// use it.
+  final StremfinService? _requests;
+
   SearchViewModel(
     this._searchRepository,
     this._client, {
     String? scopedParentId,
     MultiServerRepository? multiServerRepository,
     PluginSyncService? pluginSync,
+    this._requests,
   }) : _multiServerRepository = multiServerRepository,
        _pluginSync = pluginSync,
        _scopedParentId =
            (scopedParentId != null && scopedParentId.isNotEmpty)
                ? scopedParentId
-               : null;
+               : null {
+    _requests?.listsRevision.addListener(_onRequestsChanged);
+  }
 
   ImageApi imageApiFor(AggregatedItem item) =>
       _multiServerRepository?.getImageApiForServer(item.serverId) ??
@@ -127,6 +138,42 @@ class SearchViewModel extends ChangeNotifier {
   Object? _error;
   Object? get error => _error;
 
+  // -------------------------------------------- Kos TV: «Para solicitar»
+
+  /// Films and series that aren't at home and match the search, from the
+  /// requests service, as they stand now.
+  List<StremfinTitle> get requestable {
+    final requests = _requests;
+    if (requests == null) return _requestable;
+    return [for (final title in _requestable) requests.latest(title)];
+  }
+
+  List<StremfinTitle> _requestable = const [];
+  String? _requestableCursor;
+  String _requestableQuery = '';
+  bool _requestableLoading = false;
+
+  /// Waiting for the person to stop typing before asking.
+  bool _requestableWaiting = false;
+  int _requestableRun = 0;
+  Timer? _requestableTimer;
+
+  /// There are more to read.
+  bool get requestableHasMore => _requestableCursor != null;
+
+  /// Asking, or about to.
+  bool get requestableSearching => _requestableLoading || _requestableWaiting;
+
+  bool get requestableLoading => _requestableLoading;
+
+  /// The service's search is one of its costly calls (thirty a minute): it
+  /// is asked once the person stops typing a while, or presses Search.
+  static const requestableDelay = Duration(seconds: 1);
+  static const requestableMinLength = 2;
+
+  /// Pages read on when they only had what is at home and more after them.
+  static const _requestableReadOn = 3;
+
   Timer? _debounceTimer;
 
   static const _debounceMs = 600;
@@ -160,7 +207,6 @@ class SearchViewModel extends ChangeNotifier {
       SearchResultGroup(title: l10n.seasons, itemTypes: const ['Season']),
       SearchResultGroup(title: l10n.episodes, itemTypes: const ['Episode']),
       SearchResultGroup(title: l10n.videos, itemTypes: const ['Video']),
-      SearchResultGroup(title: l10n.musicVideos, itemTypes: const ['MusicVideo']),
       SearchResultGroup(title: l10n.trailers, itemTypes: const ['Trailer']),
       SearchResultGroup(title: l10n.programs, itemTypes: const ['Program']),
       SearchResultGroup(
@@ -168,12 +214,6 @@ class SearchViewModel extends ChangeNotifier {
         itemTypes: const ['LiveTvChannel', 'TvChannel'],
       ),
       SearchResultGroup(title: l10n.playlists, itemTypes: const ['Playlist']),
-      SearchResultGroup(
-        title: l10n.artists,
-        itemTypes: const ['MusicArtist', 'AlbumArtist'],
-      ),
-      SearchResultGroup(title: l10n.albums, itemTypes: const ['MusicAlbum']),
-      SearchResultGroup(title: l10n.songs, itemTypes: const ['Audio']),
       SearchResultGroup(title: l10n.photoAlbums, itemTypes: const ['PhotoAlbum']),
       SearchResultGroup(title: l10n.photos, itemTypes: const ['Photo']),
       SearchResultGroup(title: l10n.collections, itemTypes: const ['BoxSet']),
@@ -198,11 +238,13 @@ class SearchViewModel extends ChangeNotifier {
       _smartResults = SmartSearchResults.empty;
       _smartQuery = '';
       _state = SearchState.idle;
+      _askRequestable('', now: true);
       notifyListeners();
       return;
     }
 
     _state = SearchState.loading;
+    _askRequestable(trimmed, now: false);
     notifyListeners();
 
     _debounceTimer = Timer(
@@ -217,8 +259,101 @@ class SearchViewModel extends ChangeNotifier {
     _query = trimmed;
     _debounceTimer?.cancel();
     _state = SearchState.loading;
+    _askRequestable(trimmed, now: true);
     notifyListeners();
     _executeSearch(trimmed);
+  }
+
+  bool _wantsRequestable(String query) =>
+      _requests != null &&
+      _scopedParentId == null &&
+      query.length >= requestableMinLength &&
+      !query.toLowerCase().startsWith('studio:');
+
+  /// Asks the requests service for [query], [now] or once typing rests.
+  void _askRequestable(String query, {required bool now}) {
+    _requestableTimer?.cancel();
+    // Already asked (Search pressed after the pause): what came stays.
+    if (query == _requestableQuery &&
+        (_requestable.isNotEmpty || _requestableLoading)) {
+      _requestableWaiting = false;
+      return;
+    }
+    _requestableRun++;
+    _requestable = const [];
+    _requestableCursor = null;
+    _requestableQuery = '';
+    _requestableLoading = false;
+    _requestableWaiting = _wantsRequestable(query);
+    if (!_requestableWaiting) return;
+    if (now) {
+      unawaited(_readRequestable(query));
+    } else {
+      _requestableTimer = Timer(
+        requestableDelay,
+        () => unawaited(_readRequestable(query)),
+      );
+    }
+  }
+
+  /// The next page of «Para solicitar», when there is one.
+  void loadMoreRequestable() {
+    final cursor = _requestableCursor;
+    if (_requestableLoading || cursor == null || _requestableQuery.isEmpty) {
+      return;
+    }
+    unawaited(_readRequestable(_requestableQuery, cursor: cursor));
+  }
+
+  Future<void> _readRequestable(String query, {String? cursor}) async {
+    final requests = _requests;
+    final run = _requestableRun;
+    // Searching right as the app opens: who the person is may still be on
+    // its way.
+    if (requests != null && requests.access == StremfinAccess.unknown) {
+      await requests.refreshAccess();
+      if (run != _requestableRun) return;
+    }
+    _requestableWaiting = false;
+    if (requests == null || !requests.isAllowed) {
+      notifyListeners();
+      return;
+    }
+    _requestableQuery = query;
+    _requestableLoading = true;
+    notifyListeners();
+    final found = <StremfinTitle>[];
+    var next = cursor;
+    try {
+      for (var read = 0; read < _requestableReadOn; read++) {
+        final page = await requests.search(query, cursor: next);
+        if (run != _requestableRun) return;
+        found.addAll(page.items);
+        next = page.nextCursor;
+        if (found.isNotEmpty || next == null) break;
+      }
+    } on StremfinException {
+      // Busy or unreachable: the section stays out of the way.
+      next = null;
+    }
+    if (run != _requestableRun) return;
+    final seen = {for (final title in _requestable) _titleKey(title)};
+    _requestable = [
+      ..._requestable,
+      for (final title in found)
+        if (seen.add(_titleKey(title))) title,
+    ];
+    _requestableCursor = next;
+    _requestableLoading = false;
+    notifyListeners();
+  }
+
+  static String _titleKey(StremfinTitle title) =>
+      '${title.type.apiValue}:${title.tmdbId}';
+
+  /// A title was asked for or arrived meanwhile: its card shows it.
+  void _onRequestsChanged() {
+    if (_requestable.isNotEmpty) notifyListeners();
   }
 
   Future<void> _executeSearch(String query) async {
@@ -347,7 +482,13 @@ class SearchViewModel extends ChangeNotifier {
       }
       final matched = _interleave([
         for (final items in perServerItems)
-          items.where((item) => group.itemTypes.contains(item.type)).toList(),
+          items
+              .where(
+                (item) =>
+                    group.itemTypes.contains(item.type) &&
+                    !kostvIsMusic(item.rawData),
+              )
+              .toList(),
       ]).take(_resultLimit).toList();
       grouped.add(group.copyWith(items: matched));
     }
@@ -476,6 +617,9 @@ class SearchViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _debounceTimer?.cancel();
+    _requestableTimer?.cancel();
+    _requestableRun++;
+    _requests?.listsRevision.removeListener(_onRequestsChanged);
     // Keeps people that answer after the screen closed from landing on it.
     _searchRun++;
     super.dispose();

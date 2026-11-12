@@ -55,6 +55,17 @@ class StremfinService extends ChangeNotifier {
   final Map<String, ({DateTime at, List<StremfinTitle> items})> _lists = {};
   final Map<String, Future<List<StremfinTitle>>> _loading = {};
 
+  /// Searches already made, a while: searching the same again (going back
+  /// to the search, typing a letter and taking it back) costs nothing.
+  final Map<String, ({DateTime at, StremfinSearchPage page})> _searches = {};
+  final Map<String, Future<StremfinSearchPage>> _searching = {};
+  static const searchLifetime = Duration(minutes: 10);
+  static const _searchesKept = 40;
+
+  /// The last word on each title (asked for, arrived…), for what shows a
+  /// title outside the lists, like the search.
+  final Map<String, StremfinTitle> _latest = {};
+
   bool get isConfigured => _client.isConfigured;
   StremfinAccess get access => _access;
   bool get isAllowed => _access == StremfinAccess.allowed;
@@ -131,6 +142,9 @@ class StremfinService extends ChangeNotifier {
     _retry?.cancel();
     _lists.clear();
     _loading.clear();
+    _searches.clear();
+    _searching.clear();
+    _latest.clear();
     _me = null;
     inbox.setUser(userId);
     _setAccess(StremfinAccess.unknown);
@@ -206,6 +220,47 @@ class StremfinService extends ChangeNotifier {
     required StremfinTitleType type,
     required StremfinTopList list,
   }) => _lists['$platform/${type.apiValue}/${list.apiValue}']?.items;
+
+  /// Films and series that aren't on the home server and match [query], for
+  /// the search's «Para solicitar». From memory while it is fresh.
+  Future<StremfinSearchPage> search(String query, {String? cursor}) {
+    final key = '${query.toLowerCase()}|${cursor ?? ''}';
+    final kept = _searches[key];
+    if (kept != null && _clock().difference(kept.at) < searchLifetime) {
+      return Future.value(kept.page);
+    }
+    final pending = _searching[key];
+    if (pending != null) return pending;
+    final generation = _generation;
+    final future = _client
+        .search(query, cursor: cursor)
+        .then((page) {
+          if (generation == _generation) {
+            if (_searches.length >= _searchesKept) {
+              _searches.remove(_searches.keys.first);
+            }
+            _searches[key] = (at: _clock(), page: page);
+          }
+          return page;
+        })
+        // A block, not an arrow: the arrow would hand back the future being
+        // removed, and the search would wait on itself.
+        .whenComplete(() {
+          _searching.remove(key);
+        });
+    return _searching[key] = future;
+  }
+
+  /// [title] as last heard of: the home server and its request as they
+  /// stand now, keeping what its list or search said of it.
+  StremfinTitle latest(StremfinTitle title) {
+    final known = _latest[_titleKey(title)];
+    if (known == null) return title;
+    return title.copyWith(library: known.library, request: () => known.request);
+  }
+
+  static String _titleKey(StremfinTitle title) =>
+      '${title.type.apiValue}:${title.tmdbId}';
 
   /// A film's page. What it says of the home server and the requests is
   /// the reliable answer, so the lists in memory take it too.
@@ -293,21 +348,20 @@ class StremfinService extends ChangeNotifier {
 
   void _note(StremfinTitle title, StremfinTitle Function(StremfinTitle) apply) {
     if (_disposed) return;
-    var changed = false;
+    _latest[_titleKey(title)] = title;
     for (final entry in _lists.entries.toList()) {
       final items = entry.value.items;
       final index = items.indexWhere(
         (t) => t.type == title.type && t.tmdbId == title.tmdbId,
       );
       if (index < 0) continue;
-      final updated = apply(items[index]);
       _lists[entry.key] = (
         at: entry.value.at,
-        items: [...items]..[index] = updated,
+        items: [...items]..[index] = apply(items[index]),
       );
-      changed = true;
     }
-    if (changed) listsRevision.value++;
+    // Always: the search shows titles outside the lists and hears of it too.
+    listsRevision.value++;
   }
 
   bool _disposed = false;

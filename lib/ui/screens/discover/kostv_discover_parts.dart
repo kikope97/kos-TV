@@ -1,10 +1,12 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../navigation/destinations.dart';
 import '../../widgets/kos_logo.dart';
 
 /// Kos TV: the small pieces Discover is made of: how a title stands at home,
@@ -94,6 +96,65 @@ class KostvTitleStatus {
     final status = of(title, l10n).first;
     return status.color == null ? null : status;
   }
+}
+
+/// What is on the home server opens its page there. The rest, and a series
+/// missing the season its card announces, opens its page to request it.
+void kostvOpenTitle(BuildContext context, StremfinTitle title) {
+  final itemId = title.library.itemId;
+  final partial = title.library.status == StremfinLibraryStatus.partial;
+  if (title.isInLibrary && itemId != null && !partial) {
+    context.push(Destinations.item(itemId));
+    return;
+  }
+  context.push(
+    Destinations.kostvRequestOf(title.type.apiValue, title.tmdbId),
+    extra: title,
+  );
+}
+
+/// Over a poster, how its title stands at home: the tick of one that is
+/// there (top right, or above the band), and a band across the foot for
+/// what isn't plain (asked for, coming, missing a season).
+List<Widget> kostvPosterStatus(
+  StremfinTitle title,
+  AppLocalizations l10n, {
+  required double scale,
+}) {
+  final status = KostvTitleStatus.band(title, l10n);
+  final bandHeight = 20 * scale;
+  return [
+    if (title.isInLibrary)
+      Positioned(
+        top: status == null ? 6 : null,
+        bottom: status == null ? null : bandHeight + 4,
+        right: 6,
+        child: KostvHomeTick(scale: scale),
+      ),
+    if (status != null)
+      Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        child: Container(
+          height: bandHeight,
+          alignment: Alignment.center,
+          color: status.color!.withValues(alpha: 0.92),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            status.text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11.5 * scale,
+              fontWeight: FontWeight.w700,
+              height: 1.1,
+            ),
+          ),
+        ),
+      ),
+  ];
 }
 
 /// A status as a chip: filled with its colour, or a quiet outline for one
