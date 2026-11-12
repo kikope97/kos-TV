@@ -575,6 +575,13 @@ enum HomeSectionType {
   sinceYouWatched5('sinceyouwatched5'),
   rewatch('rewatch'),
   seasonal('seasonal'),
+
+  /// Kos TV: what the person asked for and has arrived, the rows worked out
+  /// for them by the server plugin, and the rest of those, fetched when they
+  /// scroll down. Not in the saved layout: [UserPreferences] puts them in.
+  kostvArrived('kostv_arrived'),
+  kostvForYou('kostv_for_you'),
+  kostvForYouMore('kostv_for_you_more'),
   none('none');
 
   const HomeSectionType(this.serializedName);

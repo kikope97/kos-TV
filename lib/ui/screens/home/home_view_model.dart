@@ -20,6 +20,9 @@ import '../../../data/repositories/user_views_repository.dart';
 import '../../../data/utils/latest_media_row_normalizer.dart';
 import '../../../data/services/connectivity_service.dart';
 import '../../../data/services/home_row_cache_store.dart';
+import '../../../data/services/kostv_home.dart';
+import '../../../data/services/stremfin/stremfin_models.dart';
+import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../data/services/moonbase_endpoint.dart';
 import '../../../data/services/row_data_source.dart';
 import '../../../data/services/topshelf_service.dart';
@@ -611,7 +614,8 @@ class HomeViewModel extends ChangeNotifier {
         _deferredSections.clear();
         sectionsToLoad = [];
         for (final (index, cfg) in nonResumeEffectiveConfigs.indexed) {
-          if (index >= _eagerSectionCount && _isDeferrable(cfg)) {
+          if ((index >= _eagerSectionCount || _waitsForScroll(cfg)) &&
+              _isDeferrable(cfg)) {
             _deferredSections[cfg.stableId] = cfg;
           } else {
             sectionsToLoad.add(cfg);
@@ -811,7 +815,13 @@ class HomeViewModel extends ChangeNotifier {
   /// Single row sections, which a layout can hold hundreds of, and whose row
   /// takes the section's id.
   static bool _isDeferrable(HomeSectionConfig cfg) =>
-      cfg.isPluginDynamic && (cfg.pluginSection?.isNotEmpty ?? false);
+      (cfg.isPluginDynamic && (cfg.pluginSection?.isNotEmpty ?? false)) ||
+      _waitsForScroll(cfg);
+
+  /// Kos TV: the rest of the rows made for the person always wait until Home
+  /// scrolls near them, wherever they are in the order.
+  static bool _waitsForScroll(HomeSectionConfig cfg) =>
+      cfg.isBuiltin && cfg.type == HomeSectionType.kostvForYouMore;
 
   /// Repaints the watched ticks on the rows already built, without refetching
   /// them. The home screen drives this so the listener lives and dies with the
@@ -1029,11 +1039,21 @@ class HomeViewModel extends ChangeNotifier {
         return row.rowType == HomeRowType.latestMedia && row.id == 'sinceYouWatched$idx';
       case HomeSectionType.rewatch:
         return row.rowType == HomeRowType.latestMedia && row.id == 'rewatch';
+      case HomeSectionType.kostvArrived:
+        return row.id == KostvHomeRepository.arrivedRowId;
+      case HomeSectionType.kostvForYou:
+        return row.id.startsWith(_kostvRowPrefix);
+      case HomeSectionType.kostvForYouMore:
+        return row.id == cfg.stableId || row.id.startsWith(_kostvMorePrefix);
       case HomeSectionType.resumeBook:
       case HomeSectionType.none:
         return false;
     }
   }
+
+  // Kos TV: the ids of the rows made for the person, by the batch they came in.
+  static const _kostvRowPrefix = 'kostvRec_';
+  static const _kostvMorePrefix = 'kostvMore_';
 
   Future<void> refresh({
     bool preserveExisting = true,
@@ -1068,6 +1088,7 @@ class HomeViewModel extends ChangeNotifier {
     while (_isLoading) {
       await _loadDone;
     }
+    unawaited(_refreshKostvForYou());
 
     // A row that came back empty was dropped, so there's no row to refresh in
     // place. Loading it as a new section brings it back once it has items.
@@ -1413,6 +1434,12 @@ class HomeViewModel extends ChangeNotifier {
         return const {'sinceYouWatched5'};
       case HomeSectionType.rewatch:
         return const {'rewatch'};
+      case HomeSectionType.kostvArrived:
+        return const {'kostvArrived'};
+      case HomeSectionType.kostvForYou:
+        return const {'kostvForYou'};
+      case HomeSectionType.kostvForYouMore:
+        return const {'kostvForYouMore'};
       case HomeSectionType.mediaBar:
       case HomeSectionType.none:
         return const <String>{};
@@ -1757,10 +1784,116 @@ class HomeViewModel extends ChangeNotifier {
       case HomeSectionType.rewatch:
         final row = await _dataSource.loadRewatchRow(_serverId);
         return [row];
+      case HomeSectionType.kostvArrived:
+        return [?await _kostvHome.arrived(l10n)];
+      case HomeSectionType.kostvForYou:
+        return _loadKostvForYou(l10n, more: false, refresh: forceRefresh);
+      case HomeSectionType.kostvForYouMore:
+        return _loadKostvForYou(l10n, more: true);
       case HomeSectionType.resumeBook:
       case HomeSectionType.none:
         return [];
     }
+  }
+
+  /// Kos TV: asks the server plugin to work the person's rows out again on
+  /// the next fetch, after they have watched something.
+  bool _kostvRefreshNext = false;
+
+  Future<void> _refreshKostvForYou() async {
+    final loadSection = _loadDeferredSection;
+    if (!_prefs.kostvHomeActive || loadSection == null) return;
+    // The server needs a moment to take in what was just watched.
+    await Future<void>.delayed(const Duration(seconds: 3));
+    try {
+      _kostvRefreshNext = true;
+      await loadSection(
+        const HomeSectionConfig(type: HomeSectionType.kostvForYou),
+      );
+      const more = HomeSectionConfig(type: HomeSectionType.kostvForYouMore);
+      // The rest too, when the person had already scrolled down to them.
+      if (!_deferredSections.containsKey(more.stableId)) {
+        await loadSection(more);
+      }
+      _saveRowCache();
+    } catch (e) {
+      debugPrint('[Home] Refreshing the recommended rows failed: $e');
+    } finally {
+      _kostvRefreshNext = false;
+    }
+  }
+
+  late final KostvHomeRepository _kostvHome = KostvHomeRepository(
+    _client,
+    stremfin: GetIt.instance.isRegistered<StremfinService>()
+        ? GetIt.instance<StremfinService>()
+        : null,
+  );
+
+  /// Kos TV: the rows made for the person by the server plugin, with what is
+  /// most watched now in between: the first few with Home ([more] false, with
+  /// the top of every platform together), the rest when they scroll down to
+  /// them (with each platform's own top).
+  Future<List<HomeRow>> _loadKostvForYou(
+    AppLocalizations l10n, {
+    required bool more,
+    bool refresh = false,
+  }) async {
+    final prefix = more ? _kostvMorePrefix : _kostvRowPrefix;
+    final page = await _kostvHome.rows(
+      start: more ? KostvHomeRepository.firstBatch : 0,
+      limit: more
+          ? KostvHomeRepository.moreBatch
+          : KostvHomeRepository.firstBatch,
+      refresh: !more && (refresh || _kostvRefreshNext),
+    );
+    if (page == null) return const [];
+    final rows = [
+      for (final row in page.rows)
+        if (withoutBlockedItems(row.items) case final items
+            when items.isNotEmpty)
+          HomeRow(
+            id: row.idWith(prefix),
+            title: row.title(l10n),
+            rowType: HomeRowType.latestMedia,
+            items: items,
+            totalCount: items.length,
+          ),
+    ];
+
+    final stremfin = GetIt.instance.isRegistered<StremfinService>()
+        ? GetIt.instance<StremfinService>()
+        : null;
+    final platforms = stremfin == null || !stremfin.isAllowed
+        ? const <StremfinPlatform>[]
+        : more
+        ? [
+            for (final p in await stremfin.platforms().catchError(
+              (Object _) => const <StremfinPlatform>[],
+            ))
+              if (!p.isAll) p,
+          ]
+        : const [StremfinPlatform(id: StremfinPlatform.allId, name: '')];
+    final tops = await Future.wait([
+      for (final platform in platforms)
+        _kostvHome
+            .top(
+              platform: platform.id,
+              id: '${prefix}top_${platform.id}',
+              title: platform.isAll
+                  ? l10n.kostvHomeTopNow
+                  : l10n.kostvHomeTopOn(platform.name),
+            )
+            .catchError((Object e) {
+              debugPrint('[Home] Top ${platform.id} failed: $e');
+              return null;
+            }),
+    ]);
+    return KostvHomeRepository.weave(rows, [
+      for (final top in tops)
+        if (top != null)
+          top.copyWith(items: withoutBlockedItems(top.items)),
+    ]);
   }
 
   Future<List<HomeRow>> _loadLatestMediaRows() {
@@ -2207,6 +2340,31 @@ class HomeViewModel extends ChangeNotifier {
         return HomeRow(
           id: 'rewatch',
           title: l10n.kostvRewatchRow,
+          rowType: HomeRowType.latestMedia,
+          isLoading: true,
+        );
+      case HomeSectionType.kostvArrived:
+        return HomeRow(
+          id: KostvHomeRepository.arrivedRowId,
+          title: l10n.kostvHomeArrived,
+          rowType: HomeRowType.latestMedia,
+          isLoading: true,
+        );
+      case HomeSectionType.kostvForYou:
+        return HomeRow(
+          id: '${_kostvRowPrefix}loading',
+          title: l10n.kostvHomeForYou,
+          rowType: HomeRowType.latestMedia,
+          isLoading: true,
+        );
+      case HomeSectionType.kostvForYouMore:
+        // Its id is the section's, which is how Home knows to fetch it when
+        // the person gets near.
+        return HomeRow(
+          id: const HomeSectionConfig(
+            type: HomeSectionType.kostvForYouMore,
+          ).stableId,
+          title: l10n.kostvHomeForYou,
           rowType: HomeRowType.latestMedia,
           isLoading: true,
         );

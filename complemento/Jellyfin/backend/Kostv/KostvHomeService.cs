@@ -200,6 +200,26 @@ public sealed class KostvHomeService
         return new KostvHomePage(rows, seeds.Count, library.Count, hasKey, now);
     }
 
+    /// <summary>
+    /// The films and series on the home server, of those the person may see, that are the TMDB
+    /// titles in <paramref name="keys"/> ("movie:123", "tv:45"), in that order.
+    /// </summary>
+    public IReadOnlyList<(string Key, BaseItem Item)> Find(object user, IReadOnlyList<string> keys)
+    {
+        var wanted = new HashSet<string>(keys, StringComparer.Ordinal);
+        var found = new Dictionary<string, BaseItem>(StringComparer.Ordinal);
+        foreach (var item in Query(user, [BaseItemKind.Movie, BaseItemKind.Series], null))
+        {
+            var key = KeyOf(item);
+            if (key != null && wanted.Contains(key) && UserReflection.IsVisibleTo(item, user))
+            {
+                found.TryAdd(key, item);
+            }
+        }
+
+        return keys.Distinct().Where(found.ContainsKey).Select(k => (k, found[k])).ToList();
+    }
+
     // ---------------------------------------------------------------- the server
 
     /// <summary>Every film and series the person may see, and which of them they have seen.</summary>

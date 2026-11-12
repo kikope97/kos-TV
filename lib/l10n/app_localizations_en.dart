@@ -10965,7 +10965,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveTv => 'Live TV';
 
   @override
-  String get continueWatchingAndNextUp => 'Continue Watching & Next Up';
+  String get continueWatchingAndNextUp => 'Keep watching';
 
   @override
   String downloadingBatchProgress(int current, int total, String fileName) {
@@ -18706,4 +18706,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvGhostDownloadingShort => 'Here shortly';
+
+  @override
+  String get kostvHomeArrived => 'What you asked for is here';
+
+  @override
+  String kostvHomeBecauseWatched(String title) {
+    return 'Because you watched $title';
+  }
+
+  @override
+  String kostvHomeBecauseWatching(String title) {
+    return 'Because you\'re watching $title';
+  }
+
+  @override
+  String get kostvHomeForYou => 'Recommended for you';
+
+  @override
+  String kostvHomeMoreFrom(String name) {
+    return 'More from $name';
+  }
+
+  @override
+  String kostvHomeGenre(String genre) {
+    return 'Because you often watch $genre';
+  }
+
+  @override
+  String get kostvHomeGems => 'Gems you haven\'t seen';
+
+  @override
+  String get kostvHomeTopNow => 'Top in Spain now';
+
+  @override
+  String kostvHomeTopOn(String platform) {
+    return 'Top on $platform';
+  }
+
+  @override
+  String get kostvHomeSetting => 'Home with recommendations';
+
+  @override
+  String get kostvHomeSettingSubtitle =>
+      'Rows made for you from what you\'ve watched, always from what\'s at home. Turn it off for the Home of sections.';
+
+  @override
+  String get kostvHomeRecentSetting => 'Recently added, at the bottom';
+
+  @override
+  String get kostvHomeRecentSettingSubtitle =>
+      'What was last added to the server, under the recommendations';
 }

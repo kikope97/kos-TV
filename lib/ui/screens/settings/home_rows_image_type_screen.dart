@@ -123,6 +123,9 @@ class _HomeRowsImageTypeScreenState extends State<HomeRowsImageTypeScreen> {
     HomeSectionType.rewatch => l10n.kostvRewatchRow,
     HomeSectionType.seasonal => l10n.seasonalRow,
     HomeSectionType.mdblistWatchingNow => l10n.mdblistWatchingNow,
+    HomeSectionType.kostvArrived => l10n.kostvHomeArrived,
+    HomeSectionType.kostvForYou ||
+    HomeSectionType.kostvForYouMore => l10n.kostvHomeForYou,
     HomeSectionType.none => l10n.none,
   };
 

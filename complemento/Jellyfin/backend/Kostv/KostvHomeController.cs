@@ -69,6 +69,31 @@ public class KostvHomeController : ControllerBase
     }
 
     /// <summary>
+    /// Which of these TMDB titles ("movie:123,tv:45") are on the home server for the caller, as
+    /// cards with their played state. For the rows the app builds from outside lists: what the
+    /// person asked for and has arrived, and what is most watched now.
+    /// </summary>
+    [HttpGet("Lookup")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult Lookup([FromQuery] string keys)
+    {
+        var userId = this.GetUserIdFromClaims();
+        var user = userId.HasValue ? UserReflection.ResolveUser(HttpContext.RequestServices, userId.Value) : null;
+        if (user == null)
+        {
+            return Unauthorized(new { Error = "User not authenticated" });
+        }
+
+        var wanted = (keys ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Take(200)
+            .ToList();
+        var items = _home.Find(user, wanted).Select(found => new { found.Key, Item = _cards.Map(found.Item, user) }).ToList();
+        return Ok(new { Items = items });
+    }
+
+    /// <summary>
     /// For the settings page: how full each person's page comes out, to tell whether the library
     /// and the TMDB key give enough to go on.
     /// </summary>

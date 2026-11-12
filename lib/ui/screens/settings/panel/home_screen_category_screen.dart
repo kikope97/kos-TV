@@ -217,16 +217,39 @@ class _HomeScreenCategoryScreenState extends State<_HomeScreenCategoryScreen> {
           _SectionHeader(l10n.settingsContentsSection),
           adaptiveListSection(
             children: [
-              _TvSettingsListTile(
-                autofocus: true,
-                leading: const Icon(Icons.list),
-                title: Text(l10n.homeRows),
-                subtitle: Text(l10n.homeRowsSubtitle),
-                onTap: () =>
-                    context.pushSettingsScreen(const HomeSectionsScreen()),
-              ),
+              // Kos TV: Home built around the person, when the server plugin
+              // offers it. With it on, the layout of rows isn't what shows.
+              if (_prefs.get(UserPreferences.kostvHomeAvailable))
+                SwitchPreferenceTile(
+                  preference: UserPreferences.kostvHomeRecommended,
+                  title: l10n.kostvHomeSetting,
+                  subtitle: l10n.kostvHomeSettingSubtitle,
+                  icon: Icons.auto_awesome,
+                  onChanged: () {
+                    _reloadHomeRows();
+                    if (mounted) setState(() {});
+                  },
+                ),
+              if (_prefs.kostvHomeActive)
+                SwitchPreferenceTile(
+                  preference: UserPreferences.kostvHomeShowRecent,
+                  title: l10n.kostvHomeRecentSetting,
+                  subtitle: l10n.kostvHomeRecentSettingSubtitle,
+                  icon: Icons.new_releases_outlined,
+                  onChanged: _reloadHomeRows,
+                )
+              else
+                _TvSettingsListTile(
+                  autofocus: true,
+                  leading: const Icon(Icons.list),
+                  title: Text(l10n.homeRows),
+                  subtitle: Text(l10n.homeRowsSubtitle),
+                  onTap: () =>
+                      context.pushSettingsScreen(const HomeSectionsScreen()),
+                ),
               // Kos TV: the Apps row lives in Launcher mode.
               _TvSettingsListTile(
+                autofocus: _prefs.kostvHomeActive,
                 leading: const Icon(Icons.featured_play_list),
                 title: Text(l10n.mediaBar),
                 subtitle: Text(l10n.featuredContentAppearance),

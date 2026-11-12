@@ -10049,7 +10049,7 @@
   },
 
   "liveTv": "Live TV",
-  "continueWatchingAndNextUp": "Continue Watching & Next Up",
+  "continueWatchingAndNextUp": "Keep watching",
   "downloadingBatchProgress": "Downloading {current}/{total} — {fileName}",
   "@downloadingBatchProgress": {
     "placeholders": {
@@ -18474,5 +18474,82 @@
   "kostvGhostDownloadingShort": "Here shortly",
   "@kostvGhostDownloadingShort": {
     "description": "Kos TV: short line for a missing episode being downloaded."
+  },
+  "kostvHomeArrived": "What you asked for is here",
+  "@kostvHomeArrived": {
+    "description": "Kos TV Home: row of what the person requested that has arrived and they haven't watched."
+  },
+  "kostvHomeBecauseWatched": "Because you watched {title}",
+  "@kostvHomeBecauseWatched": {
+    "description": "Kos TV Home: row of titles liked by people who liked one the person finished.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvHomeBecauseWatching": "Because you're watching {title}",
+  "@kostvHomeBecauseWatching": {
+    "description": "Kos TV Home: row of titles liked by people who like a series the person is watching.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvHomeForYou": "Recommended for you",
+  "@kostvHomeForYou": {
+    "description": "Kos TV Home: row of what fits everything the person watched."
+  },
+  "kostvHomeMoreFrom": "More from {name}",
+  "@kostvHomeMoreFrom": {
+    "description": "Kos TV Home: row of other work by a director or actor of something the person watched.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvHomeGenre": "Because you often watch {genre}",
+  "@kostvHomeGenre": {
+    "description": "Kos TV Home: row of a genre the person watches a lot.",
+    "placeholders": {
+      "genre": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvHomeGems": "Gems you haven't seen",
+  "@kostvHomeGems": {
+    "description": "Kos TV Home: row of highly rated titles the person hasn't watched."
+  },
+  "kostvHomeTopNow": "Top in Spain now",
+  "@kostvHomeTopNow": {
+    "description": "Kos TV Home: row of what is most watched now across platforms, of what is on the home server."
+  },
+  "kostvHomeTopOn": "Top on {platform}",
+  "@kostvHomeTopOn": {
+    "description": "Kos TV Home: row of what is most watched now on one platform, of what is on the home server.",
+    "placeholders": {
+      "platform": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvHomeSetting": "Home with recommendations",
+  "@kostvHomeSetting": {
+    "description": "Kos TV settings: switch for the Home built around what the person watched."
+  },
+  "kostvHomeSettingSubtitle": "Rows made for you from what you've watched, always from what's at home. Turn it off for the Home of sections.",
+  "@kostvHomeSettingSubtitle": {
+    "description": "Kos TV settings: what the recommended Home switch does."
+  },
+  "kostvHomeRecentSetting": "Recently added, at the bottom",
+  "@kostvHomeRecentSetting": {
+    "description": "Kos TV settings: switch that keeps the recently added rows at the bottom of the recommended Home."
+  },
+  "kostvHomeRecentSettingSubtitle": "What was last added to the server, under the recommendations",
+  "@kostvHomeRecentSettingSubtitle": {
+    "description": "Kos TV settings: what the recently added switch does."
   }
 }

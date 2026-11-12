@@ -1934,7 +1934,9 @@ class UserPreferences extends ChangeNotifier {
   /// Apart they read as two separate places to carry on from, which is a
   /// distinction that means nothing to a child.
   bool get effectiveMergeContinueWatchingNextUp =>
-      get(kidsModeEnabled) || get(mergeContinueWatchingNextUp);
+      get(kidsModeEnabled) ||
+      kostvHomeActive ||
+      get(mergeContinueWatchingNextUp);
 
   /// The online source is an outside catalog no parental rating reaches, so
   /// Kids Mode keeps recommendations inside the server's own library.
@@ -2696,6 +2698,34 @@ class UserPreferences extends ChangeNotifier {
   /// Kos TV: whether Home shows the Apps row (on a TV), in Launcher mode.
   /// Off unless turned on on that TV: kOS TV is the TV's start screen only
   /// on some of them. Kept on each device.
+  /// Kos TV: Home built around the person (what they'd like, from what they
+  /// watched) instead of the layout of sections. Kept on each device.
+  static final kostvHomeRecommended = Preference<bool>(
+    key: 'kostv_home_recommended',
+    defaultValue: true,
+  );
+
+  /// Kos TV: with the recommended Home, whether what was added to the server
+  /// lately still shows, at the bottom.
+  static final kostvHomeShowRecent = Preference<bool>(
+    key: 'kostv_home_show_recent',
+    defaultValue: false,
+  );
+
+  /// Kos TV: whether the server plugin works out the home page, as its last
+  /// answer said. Not a setting: the plugin sync writes it.
+  static final kostvHomeAvailable = Preference<bool>(
+    key: 'kostv_home_available',
+    defaultValue: false,
+  );
+
+  /// Kos TV: whether Home is the recommended one. Not in Kids Mode, whose
+  /// Home is a short list a child can't stray from.
+  bool get kostvHomeActive =>
+      get(kostvHomeRecommended) &&
+      get(kostvHomeAvailable) &&
+      !get(kidsModeEnabled);
+
   static final showAppsRow = Preference<bool>(
     key: 'kostv_show_apps_row',
     defaultValue: false,
@@ -3773,11 +3803,33 @@ class UserPreferences extends ChangeNotifier {
   List<HomeSectionConfig> get activeHomeSectionConfigs {
     final enabled = homeSectionsConfig.where((c) => c.enabled).toList()
       ..sort((a, b) => a.order.compareTo(b.order));
+    if (kostvHomeActive) return _kostvHomeSections(enabled);
     return _forKidsMode(
       enabled
           .where((c) => c.isPluginDynamic || c.type != HomeSectionType.none)
           .toList(),
     );
+  }
+
+  /// Kos TV: the recommended Home, top to bottom: the media bar when the
+  /// layout has one, what the person asked for and has arrived, carrying on
+  /// (films and series in one row), the rows made for them, and, only when
+  /// asked for, what was added lately.
+  List<HomeSectionConfig> _kostvHomeSections(List<HomeSectionConfig> layout) {
+    final types = [
+      if (layout.any((c) => c.isBuiltin && c.type == HomeSectionType.mediaBar))
+        HomeSectionType.mediaBar,
+      HomeSectionType.kostvArrived,
+      HomeSectionType.resume,
+      HomeSectionType.nextUp,
+      HomeSectionType.kostvForYou,
+      HomeSectionType.kostvForYouMore,
+      if (get(kostvHomeShowRecent)) HomeSectionType.latestMedia,
+    ];
+    return [
+      for (final (index, type) in types.indexed)
+        HomeSectionConfig(type: type, order: index),
+    ];
   }
 
   /// The only rows Kids Mode leaves standing: the way into the libraries, what

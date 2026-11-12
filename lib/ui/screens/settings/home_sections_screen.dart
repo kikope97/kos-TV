@@ -3330,5 +3330,8 @@ String homeSectionTypeLabel(HomeSectionType type, AppLocalizations l10n) =>
       HomeSectionType.sinceYouWatched5 => l10n.sinceYouWatchedRowNumber(5),
       HomeSectionType.rewatch => l10n.kostvRewatchRow,
       HomeSectionType.seasonal => l10n.seasonalRow,
+      HomeSectionType.kostvArrived => l10n.kostvHomeArrived,
+      HomeSectionType.kostvForYou ||
+      HomeSectionType.kostvForYouMore => l10n.kostvHomeForYou,
       HomeSectionType.none => l10n.none,
     };

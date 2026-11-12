@@ -304,6 +304,12 @@ class PluginSyncService extends ChangeNotifier {
         _readString(pingResult, 'kostvRequestsUrl'),
       );
 
+      // Kos TV: whether this plugin works out the home page.
+      final kostvHome = _readBool(pingResult, 'kostvHome') ?? false;
+      if (_prefs.get(UserPreferences.kostvHomeAvailable) != kostvHome) {
+        await _prefs.set(UserPreferences.kostvHomeAvailable, kostvHome);
+      }
+
       final syncEnabled = _readBool(pingResult, 'settingsSyncEnabled');
       if (syncEnabled != null && !syncEnabled) {
         _incompleteRecordings?.setSupported(false);

@@ -19349,7 +19349,7 @@ abstract class AppLocalizations {
   /// No description provided for @continueWatchingAndNextUp.
   ///
   /// In en, this message translates to:
-  /// **'Continue Watching & Next Up'**
+  /// **'Keep watching'**
   String get continueWatchingAndNextUp;
 
   /// No description provided for @downloadingBatchProgress.
@@ -32192,6 +32192,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Here shortly'**
   String get kostvGhostDownloadingShort;
+
+  /// Kos TV Home: row of what the person requested that has arrived and they haven't watched.
+  ///
+  /// In en, this message translates to:
+  /// **'What you asked for is here'**
+  String get kostvHomeArrived;
+
+  /// Kos TV Home: row of titles liked by people who liked one the person finished.
+  ///
+  /// In en, this message translates to:
+  /// **'Because you watched {title}'**
+  String kostvHomeBecauseWatched(String title);
+
+  /// Kos TV Home: row of titles liked by people who like a series the person is watching.
+  ///
+  /// In en, this message translates to:
+  /// **'Because you\'re watching {title}'**
+  String kostvHomeBecauseWatching(String title);
+
+  /// Kos TV Home: row of what fits everything the person watched.
+  ///
+  /// In en, this message translates to:
+  /// **'Recommended for you'**
+  String get kostvHomeForYou;
+
+  /// Kos TV Home: row of other work by a director or actor of something the person watched.
+  ///
+  /// In en, this message translates to:
+  /// **'More from {name}'**
+  String kostvHomeMoreFrom(String name);
+
+  /// Kos TV Home: row of a genre the person watches a lot.
+  ///
+  /// In en, this message translates to:
+  /// **'Because you often watch {genre}'**
+  String kostvHomeGenre(String genre);
+
+  /// Kos TV Home: row of highly rated titles the person hasn't watched.
+  ///
+  /// In en, this message translates to:
+  /// **'Gems you haven\'t seen'**
+  String get kostvHomeGems;
+
+  /// Kos TV Home: row of what is most watched now across platforms, of what is on the home server.
+  ///
+  /// In en, this message translates to:
+  /// **'Top in Spain now'**
+  String get kostvHomeTopNow;
+
+  /// Kos TV Home: row of what is most watched now on one platform, of what is on the home server.
+  ///
+  /// In en, this message translates to:
+  /// **'Top on {platform}'**
+  String kostvHomeTopOn(String platform);
+
+  /// Kos TV settings: switch for the Home built around what the person watched.
+  ///
+  /// In en, this message translates to:
+  /// **'Home with recommendations'**
+  String get kostvHomeSetting;
+
+  /// Kos TV settings: what the recommended Home switch does.
+  ///
+  /// In en, this message translates to:
+  /// **'Rows made for you from what you\'ve watched, always from what\'s at home. Turn it off for the Home of sections.'**
+  String get kostvHomeSettingSubtitle;
+
+  /// Kos TV settings: switch that keeps the recently added rows at the bottom of the recommended Home.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently added, at the bottom'**
+  String get kostvHomeRecentSetting;
+
+  /// Kos TV settings: what the recently added switch does.
+  ///
+  /// In en, this message translates to:
+  /// **'What was last added to the server, under the recommendations'**
+  String get kostvHomeRecentSettingSubtitle;
 }
 
 class _AppLocalizationsDelegate
