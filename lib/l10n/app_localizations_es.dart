@@ -19104,4 +19104,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvHomeNewTag => 'Nuevo';
+
+  @override
+  String get kostvHomeWhyResume => 'Sigue por donde lo dejaste';
 }

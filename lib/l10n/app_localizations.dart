@@ -32318,6 +32318,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'New'**
   String get kostvHomeNewTag;
+
+  /// Kos TV Home: line under the Keep watching row.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick up where you left off'**
+  String get kostvHomeWhyResume;
 }
 
 class _AppLocalizationsDelegate

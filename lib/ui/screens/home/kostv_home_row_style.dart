@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/home_row.dart';
 import '../../../data/services/kostv_home.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../preference/user_preferences.dart';
 
 /// Kos TV: how a row of the recommended Home presents itself: an icon in its
 /// own colour, its title with what it is about picked out, and a line saying
@@ -52,6 +54,20 @@ class KostvHomeRowStyle {
         after: '',
         why: l10n.kostvHomeWhyArrived,
         fresh: true,
+      );
+    }
+    // Carrying on is a row of every Home; in the recommended one it is
+    // dressed like the rest.
+    if (row.id == 'resume' &&
+        GetIt.instance.isRegistered<UserPreferences>() &&
+        GetIt.instance<UserPreferences>().kostvHomeActive) {
+      return KostvHomeRowStyle(
+        icon: Icons.play_arrow_rounded,
+        color: AppColorScheme.accent,
+        before: l10n.continueWatchingAndNextUp,
+        name: '',
+        after: '',
+        why: l10n.kostvHomeWhyResume,
       );
     }
     final prefix = _rowPrefixes.where(row.id.startsWith).firstOrNull;

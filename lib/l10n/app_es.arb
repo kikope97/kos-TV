@@ -13041,5 +13041,9 @@
     "kostvHomeNewTag": "Nuevo",
     "@kostvHomeNewTag": {
         "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+    },
+    "kostvHomeWhyResume": "Sigue por donde lo dejaste",
+    "@kostvHomeWhyResume": {
+        "description": "Kos TV Home: line under the Keep watching row."
     }
 }
