@@ -19,13 +19,13 @@ public class SmartSearchIndexTask : IScheduledTask
         _logger = logger;
     }
 
-    public string Name => "Moonfin Smart Search Index";
+    public string Name => "kOS TV: índice de la búsqueda inteligente";
 
     public string Key => "Moonfin.SmartSearch.Index";
 
-    public string Description => "Indexes the library and the most popular TMDB titles so clients can search with plain sentences.";
+    public string Description => "Indexa la biblioteca y los títulos más populares de TMDB para poder buscar con frases.";
 
-    public string Category => "Moonfin";
+    public string Category => "kOS TV";
 
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {

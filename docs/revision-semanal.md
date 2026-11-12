@@ -6,12 +6,14 @@ Cada semana se mira qué ha cambiado en:
   `https://github.com/Moonfin-Client/Moonfin-Core`, rama `main`). Se busca lo
   que merece la pena traer a kOS TV: arreglos del reproductor, fallos,
   rendimiento, seguridad y mejoras que encajen con la familia.
-- **El complemento del servidor:** Moonbase, el oficial
+- **El complemento del servidor:** desde el 2026-11-12 es nuestro
+  (`complemento/`, el complemento «kOS TV»), una copia de Moonbase, el oficial
   (`https://github.com/Moonfin-Client/Plugin`, versiones en su
-  [`manifest.json`](https://raw.githubusercontent.com/Moonfin-Client/Plugin/refs/heads/master/manifest.json)).
-  Con especial cuidado: qué ha cambiado, qué hay nuevo que aprovechar y qué
-  podría romper la app (las rutas `/Moonfin/...` que usa). Se decide si
-  actualizarlo en el servidor o esperar.
+  [`manifest.json`](https://raw.githubusercontent.com/Moonfin-Client/Plugin/refs/heads/master/manifest.json)
+  y en sus etiquetas). Con especial cuidado: qué ha cambiado en el oficial (solo
+  Jellyfin), qué hay nuevo que aprovechar y qué podría romper la app (las rutas
+  `/Moonfin/...` que usa). Se decide si traerlo a nuestra copia (y publicar
+  `X.Y.Z.1`) o esperar; cómo se trae, en `complemento/README.md`.
 
 Cómo se hace y cuándo se pregunta: ver la norma en [`CLAUDE.md`](../CLAUDE.md).
 
@@ -28,8 +30,9 @@ Se actualiza al terminar cada revisión. La siguiente empieza justo aquí.
 |---|---|
 | Copia original de kOS TV | upstream `3d87996d2` (2026-11-10): Moonfin 3.0.0 más 658 commits posteriores sin publicar |
 | Último commit de upstream revisado | ninguno: se parte de `3d87996d2` |
-| Última versión del complemento revisada | ninguna: se parte de la 3.0.0.0 (2026-10-30) |
-| Complemento instalado en el servidor de casa | el oficial, 3.0.0.0, instalado el 2026-11-11 (Seerr apagado, sin push) |
+| Última versión del complemento oficial revisada | 3.1.0.0 (2026-11-12, etiqueta `3.1.0`, commit `9e05034`): base del nuestro |
+| Nuestro complemento | «kOS TV» 3.1.0.1 (la oficial 3.1.0 con nombre, identificador y textos propios), en `complemento/` |
+| Complemento instalado en el servidor de casa | el oficial, 3.0.0.0, instalado el 2026-11-11 (Seerr apagado, sin push); se pasa al nuestro, 3.1.0.1, el 2026-11-12 |
 | Última revisión | ninguna: punto de partida apuntado el 2026-11-11 |
 | Próxima revisión | a partir del 2026-11-18 |
 
@@ -45,14 +48,43 @@ Copiar este bloque arriba del registro y rellenarlo:
 - **Descartado:** qué no aplica y por qué (Plex, Emby, Silo, escritorio,
   Seerr, Firebase, ya lo teníamos…).
 - **Dudoso o pendiente:** lo que el usuario decide más adelante.
-- **Complemento, revisado:** versiones `<desde>` → `<hasta>`; qué cambia en
-  las rutas `/Moonfin/...` que usa la app; qué hay nuevo; si rompe algo.
-- **Decisión del complemento:** actualizar en el servidor, esperar o volver
-  atrás (y por qué). Versión instalada en el servidor después.
+- **Complemento, revisado:** versiones oficiales `<desde>` → `<hasta>`; qué
+  cambia en las rutas `/Moonfin/...` que usa la app; qué hay nuevo; si rompe
+  algo.
+- **Decisión del complemento:** traerlo a nuestra copia (con qué commit y qué
+  versión nuestra se publicó) o esperar, y por qué. Versión instalada en el
+  servidor después.
 - **Notas:** cualquier otra cosa que convenga recordar.
 ```
 
 ## Registro
+
+### 2026-11-12 · El complemento pasa a ser nuestro (sin revisión de la app)
+
+- **App, revisado:** nada; la primera revisión de la app sigue para el
+  2026-11-18, desde `3d87996d2`.
+- **Complemento, revisado:** el oficial 3.0.0.0 → 3.1.0.0 (publicada hoy).
+  Trae ver juntos alojado en el servidor, búsqueda inteligente con frases,
+  calendario de Radarr/Sonarr con avisos, etiquetas de pósteres, logotipos de
+  estudios, valores por defecto por tipo de aparato y seis ajustes más que se
+  sincronizan, entre otros arreglos. Rutas: todas las que usa la app siguen
+  (solo `ClientLog`, los informes de diagnóstico, no existe en Jellyfin, ni en
+  la 3.0). No rompe nada que se haya visto.
+- **Decisión del complemento:** el usuario decide tener su propio complemento,
+  partiendo de la 3.1.0 oficial, para poder añadirle lo que necesite kOS TV
+  (por ejemplo, sincronizar sus ajustes propios). Se trae a `complemento/` con
+  `git subtree` (commit de la copia `46cffcaa2`), se queda solo lo de Jellyfin y
+  se le da identidad propia: nombre «kOS TV», identificador
+  `561f86df-fa00-4fca-aa4d-2fed0e332670`, imagen, textos del panel, tareas en
+  español y la invitación de «Ver juntos». Mantiene las rutas `/Moonfin/...` y
+  la carpeta de datos del oficial, así que al cambiar se conserva todo
+  (probado en un Jellyfin 10.10.7 de prueba: ajustes del administrador, los de
+  cada persona y el historial de tareas). Se publica como 3.1.0.1 con su propio
+  catálogo; en el servidor se desinstala el oficial y se instala este.
+- **Notas:** la web de Moonfin que el paquete oficial lleva dentro
+  (`/Moonfin/Web/`) no va en el nuestro; quizá más adelante, la web de kOS TV.
+  La página de ajustes del complemento sigue en inglés, como la oficial, salvo
+  el nombre.
 
 ### 2026-11-11 · Punto de partida (sin revisión)
 

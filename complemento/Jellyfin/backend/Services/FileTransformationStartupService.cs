@@ -14,9 +14,9 @@ namespace Moonfin.Server.Services;
 /// </summary>
 public class FileTransformationStartupService : IScheduledTask
 {
-    public string Name => "Moonfin Startup";
+    public string Name => "kOS TV: arranque";
     public string Key => "Moonfin.Server.Startup";
-    public string Description => "Manually registers Moonfin's file transformations. Normally runs automatically - use this only if the header entrypoint injection didn't load.";
+    public string Description => "Registra a mano los cambios del complemento en la web de Jellyfin. Normalmente se hace solo: úsalo solo si no aparece su botón en la cabecera.";
     public string Category => "Startup Services";
 
     private readonly ILogger<FileTransformationStartupService> _logger;

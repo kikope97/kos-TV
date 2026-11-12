@@ -18,10 +18,10 @@ namespace Moonfin.Server.Services;
 /// </summary>
 public class ImdbListsTask : IScheduledTask
 {
-    public string Name => "Moonfin IMDb Lists Sync";
+    public string Name => "kOS TV: listas de IMDb";
     public string Key => "Moonfin.Imdb.ListsSync";
-    public string Description => "Fetches and caches IMDb lists (curated charts like Top 250) so clients can show them as home rows.";
-    public string Category => "Moonfin";
+    public string Description => "Descarga y guarda las listas de IMDb (como el Top 250) para que las apps las muestren como filas de Inicio.";
+    public string Category => "kOS TV";
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ImdbListsCacheService _cacheService;

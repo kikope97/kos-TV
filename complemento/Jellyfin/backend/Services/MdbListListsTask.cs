@@ -16,10 +16,10 @@ namespace Moonfin.Server.Services;
 /// </summary>
 public class MdbListListsTask : IScheduledTask
 {
-    public string Name => "Moonfin MDBList Official Lists Sync";
+    public string Name => "kOS TV: listas oficiales de MDBList";
     public string Key => "Moonfin.MdbList.ListsSync";
-    public string Description => "Fetches and caches MDBList official lists (curated charts like IMDb Top 250) so clients can show them as home rows.";
-    public string Category => "Moonfin";
+    public string Description => "Descarga y guarda las listas oficiales de MDBList (como el Top 250 de IMDb) para mostrarlas como filas de Inicio.";
+    public string Category => "kOS TV";
 
     private const int PageLimit = 100;
     private const int DelayBetweenApiBatchesMs = 2000;

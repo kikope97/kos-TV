@@ -13,10 +13,10 @@ namespace Moonfin.Server.Services;
 /// </summary>
 public class MoonfinDataHealTask : IScheduledTask
 {
-    public string Name => "Moonfin Settings File Repair";
+    public string Name => "kOS TV: reparar archivos de ajustes";
     public string Key => "Moonfin.Data.Heal";
-    public string Description => "Repairs Moonfin user settings files damaged by interrupted writes and quarantines anything unrecoverable.";
-    public string Category => "Moonfin";
+    public string Description => "Repara los archivos de ajustes de las personas dañados por escrituras interrumpidas y aparta lo que no se puede recuperar.";
+    public string Category => "kOS TV";
 
     private readonly MoonfinSettingsService _settingsService;
     private readonly NotificationStore _notificationStore;

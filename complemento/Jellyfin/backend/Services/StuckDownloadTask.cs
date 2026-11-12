@@ -38,13 +38,13 @@ public class StuckDownloadTask : IScheduledTask
         _logger = logger;
     }
 
-    public string Name => "Moonfin Stuck Download Check";
+    public string Name => "kOS TV: descargas atascadas";
 
     public string Key => "Moonfin.Seerr.StuckDownloads";
 
-    public string Description => "Tells the requester and the admins when a Radarr or Sonarr download for a Seerr request gets stuck.";
+    public string Description => "Avisa a quien lo pidió y a los administradores cuando se atasca una descarga de Radarr o Sonarr de una petición de Seerr.";
 
-    public string Category => "Moonfin";
+    public string Category => "kOS TV";
 
     public async Task ExecuteAsync(IProgress<double> progress, CancellationToken cancellationToken)
     {

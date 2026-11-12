@@ -16,10 +16,10 @@ namespace Moonfin.Server.Services;
 /// </summary>
 public class StudioLogoSyncTask : IScheduledTask
 {
-    public string Name => "Moonfin Studio Images Sync";
+    public string Name => "kOS TV: logotipos de estudios";
     public string Key => "Moonfin.Tmdb.StudioImages";
-    public string Description => "Fetches and caches TMDB studio logos for all movies and shows in the library so clients can show them on the details screen and the Studios home row.";
-    public string Category => "Moonfin";
+    public string Description => "Descarga y guarda los logotipos de estudios y cadenas de TMDB de la biblioteca, para la ficha y la fila de Estudios.";
+    public string Category => "kOS TV";
 
     private const int LibraryPageSize = 2000;
     private const int ItemsPerBatch = 20;

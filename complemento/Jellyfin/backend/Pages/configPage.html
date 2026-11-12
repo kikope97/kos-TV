@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>Moonfin</title>
+    <title>kOS TV</title>
 </head>
 <body>
     <div id="MoonfinConfigPage" data-role="page" class="page type-interior pluginConfigurationPage" data-require="emby-input,emby-button,emby-checkbox">
@@ -1934,7 +1934,7 @@
                     <div id="MoonfinConfigResetBanner" style="display:none; margin:0 0 1.2em 0; padding:1em 1.2em; border:1px solid rgba(245,158,11,0.6); border-left-width:4px; border-radius:4px; background:rgba(245,158,11,0.08);">
                         <div style="font-weight:600; margin-bottom:0.4em;">These settings look like they were reset</div>
                         <div class="fieldDescription" style="margin-bottom:0.8em;">
-                            Moonbase is running on default settings, but a backup holding real ones is still on disk at
+                            kOS TV is running on default settings, but a backup holding real ones is still on disk at
                             <code id="MoonfinConfigBackupPath"></code>. Restoring copies it back over the live file. The
                             server has to be restarted afterwards for it to take effect. Per-user settings are stored
                             separately and aren't affected by this.
@@ -1943,14 +1943,14 @@
                         <div id="MoonfinRestoreConfigResult" class="fieldDescription" style="display:none; margin-top:0.6em;"></div>
                     </div>
                     <div class="sectionTitleContainer flex align-items-center">
-                        <h2 class="sectionTitle">Moonfin Settings</h2>
+                        <h2 class="sectionTitle">kOS TV Settings</h2>
                     </div>
 
                     <div class="moonfinAdminShell">
-                    <nav class="moonfinAdminNav" aria-label="Moonfin settings categories">
+                    <nav class="moonfinAdminNav" aria-label="kOS TV settings categories">
                         <div class="moonfinNavBrand">
-                            <img id="MoonfinBrandLogo" class="moonfinNavLogo" alt="Moonfin" />
-                            <span class="moonfinNavBrandText">Moonfin</span>
+                            <img id="MoonfinBrandLogo" class="moonfinNavLogo" alt="kOS TV" />
+                            <span class="moonfinNavBrandText">kOS TV</span>
                         </div>
                         <button type="button" class="moonfinNavItem is-active" data-tab="defaults">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">tune</span>
@@ -1958,7 +1958,7 @@
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="webClient">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">language</span>
-                            <span class="moonfinNavText"><span class="moonfinNavLabel">Web Client</span><span class="moonfinNavSub">Moonfin in the browser</span></span>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Web Client</span><span class="moonfinNavSub">kOS TV in the browser</span></span>
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="integrations">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">extension</span>
@@ -2017,7 +2017,7 @@
                     <section class="moonfinTabPanel" data-tab="webClient">
                     <div class="moonfinPageHead">
                         <h3 class="moonfinPageTitle">Web Client</h3>
-                        <p class="moonfinPageLead">How Moonfin in the browser finds and connects to this server.</p>
+                        <p class="moonfinPageLead">How kOS TV in the browser finds and connects to this server.</p>
                     </div>
 
                     <div class="verticalSection">
@@ -2036,7 +2036,7 @@
                             <label class="inputLabel inputLabelUnfocused" for="WebDefaultServerUrl">Default Server URL (Optional)</label>
                             <input type="url" id="WebDefaultServerUrl" is="emby-input" placeholder="https://jellyfin.example.com" />
                             <div class="fieldDescription">
-                                Pre-fills the Add Server dialog in Moonfin web.
+                                Pre-fills the Add Server dialog in kOS TV web.
                                 Leave empty to auto-fill from the current Jellyfin origin.
                                 Use the Jellyfin base URL (for example, <code>http://192.168.1.10:8096</code>), not <code>/web</code>.
                             </div>
@@ -2045,7 +2045,7 @@
                             <label class="inputLabel inputLabelUnfocused" for="WebForcedServerUrl">Forced Server URL (Optional)</label>
                             <input type="url" id="WebForcedServerUrl" is="emby-input" placeholder="https://jellyfin.example.com" />
                             <div class="fieldDescription">
-                                Forces Moonfin web to auto-connect to this URL on load.
+                                Forces kOS TV web to auto-connect to this URL on load.
                                 Leave empty to use plugin-mode auto-connect behavior.
                                 Use the Jellyfin base URL and do not include a <code>/web</code> suffix.
                             </div>
@@ -2056,7 +2056,7 @@
                                 <span>Enable WebRTC Private Subnet Scan</span>
                             </label>
                             <div class="fieldDescription">
-                                Allows Moonfin web to scan private LAN ranges via WebRTC hints.
+                                Allows kOS TV web to scan private LAN ranges via WebRTC hints.
                                 Disable if your browser environment blocks or restricts WebRTC.
                             </div>
                         </div>
@@ -2071,7 +2071,7 @@
                                 <span>Enable Seerr</span>
                             </label>
                             <div class="fieldDescription">
-                                Enable Seerr integration for all users. Moonfin handles authentication through a server-side proxy so users can sign in once and stay authenticated across clients.
+                                Enable Seerr integration for all users. kOS TV handles authentication through a server-side proxy so users can sign in once and stay authenticated across clients.
                             </div>
                         </div>
                         <div class="inputContainer">
@@ -2151,9 +2151,9 @@
                             </div>
                         </div>
                         <div style="background-color: rgba(0, 164, 220, 0.1); border: 1px solid rgba(0, 164, 220, 0.3); border-radius: 10px; padding: 1em 1.5em; margin: 1em 0;">
-                            <strong>SSO Proxy:</strong> When Seerr is enabled, Moonfin provides single sign-on.
+                            <strong>SSO Proxy:</strong> When Seerr is enabled, kOS TV provides single sign-on.
                             Users authenticate once with their Jellyfin credentials, and the session is stored server-side.
-                            All Moonfin clients access Seerr API through <code>/Moonfin/Seerr/Api/</code>
+                            All kOS TV clients access Seerr API through <code>/Moonfin/Seerr/Api/</code>
                             without re-authenticating.
                         </div>
                     </div>
@@ -2196,7 +2196,7 @@
                                 <span>Notify when a request gets stuck</span>
                             </label>
                             <div class="fieldDescription">
-                                Every 15 minutes, Moonfin checks the Radarr and Sonarr set up in Seerr. When a download is import
+                                Every 15 minutes, kOS TV checks the Radarr and Sonarr set up in Seerr. When a download is import
                                 blocked, has failed, or has stalled, the person who requested it and every Jellyfin admin get one
                                 notification. Needs Seerr turned on above and an admin signed in to Seerr.
                             </div>
@@ -2216,7 +2216,7 @@
                             <div class="fieldDescription">
                                 Provide a server-wide <a href="https://mdblist.com/preferences/" target="_blank">MDBList API key</a>
                                 that all users can use for ratings (IMDb, Rotten Tomatoes, Metacritic, etc.).
-                                Users who set their own key in their Moonfin client settings will use that instead.
+                                Users who set their own key in their kOS TV client settings will use that instead.
                             </div>
                         </div>
                         <div class="inputContainer">
@@ -2269,13 +2269,13 @@
                         <div class="checkboxContainer">
                             <label>
                                 <input type="checkbox" id="RecommendationsProviderEnabled" is="emby-checkbox" />
-                                <span>Use Moonfin Recommends for similar items (Jellyfin 12+)</span>
+                                <span>Use kOS TV Recommends for similar items (Jellyfin 12+)</span>
                             </label>
                             <div class="fieldDescription">
-                                Registers Moonfin's scoring with Jellyfin's similar items pipeline, so every client
-                                on this server gets Moonfin recommendations, including the stock web client.
-                                Jellyfin's own providers only fill slots Moonfin leaves empty. Turn this off to hand
-                                similar items back to the server. Moonfin clients keep working either way.
+                                Registers kOS TV's scoring with Jellyfin's similar items pipeline, so every client
+                                on this server gets kOS TV recommendations, including the stock web client.
+                                Jellyfin's own providers only fill slots kOS TV leaves empty. Turn this off to hand
+                                similar items back to the server. kOS TV clients keep working either way.
                             </div>
                         </div>
                     </div>
@@ -2310,7 +2310,7 @@
                                 Provide a server-wide <a href="https://www.themoviedb.org/settings/api" target="_blank">TMDB API key</a>
                                 that all users can use for episode ratings, the seasonal Home row's suggestions, and the
                                 parental ratings of titles in the IMDb, TMDB and MDBList rows.
-                                Users who set their own key in their Moonfin client settings will use that instead.
+                                Users who set their own key in their kOS TV client settings will use that instead.
                                 Supports both v3 API keys and v4 Bearer tokens.
                             </div>
                         </div>
@@ -2326,7 +2326,7 @@
                                 <span>Enable retro games</span>
                             </label>
                             <div class="fieldDescription">
-                                Lets Moonfin clients browse and play ROMs from a "Mixed Content" library using
+                                Lets kOS TV clients browse and play ROMs from a "Mixed Content" library using
                                 <a href="https://github.com/EmulatorJS/EmulatorJS" target="_blank">EmulatorJS</a>.
                                 Organize ROMs as <code>System/&lt;game&gt;/rom.ext</code> with any BIOS files at the
                                 top of each system folder. No setup is needed for the emulator itself: cores stream
@@ -2415,9 +2415,9 @@
                                 <span>Isolate the web app for PSP games</span>
                             </label>
                             <div class="fieldDescription">
-                                PSP games need cross-origin isolation to start in Moonfin Web, and the player only gets
+                                PSP games need cross-origin isolation to start in kOS TV Web, and the player only gets
                                 it when the whole app is isolated. Turn this on if PSP games stop with an error, then
-                                reload Moonfin Web. Once it's on, anything cross-origin you've added to the web client
+                                reload kOS TV Web. Once it's on, anything cross-origin you've added to the web client
                                 has to allow isolation too.
                             </div>
                         </div>
@@ -2433,7 +2433,7 @@
                                 <span>Detect incomplete recordings</span>
                             </label>
                             <div class="fieldDescription">
-                                Watches recordings as they run and tags the ones that come out short, so Moonfin can show them as Incomplete.
+                                Watches recordings as they run and tags the ones that come out short, so kOS TV can show them as Incomplete.
                             </div>
                         </div>
                         <div class="checkboxContainer checkboxContainer-withDescription">
@@ -2472,9 +2472,9 @@
                                 <span>Enable smart search</span>
                             </label>
                             <div class="fieldDescription">
-                                Lets Moonfin apps search with plain sentences like "90s movie about a kid pulled into a board game" or "electronic music duo from the 90s".
+                                Lets kOS TV apps search with plain sentences like "90s movie about a kid pulled into a board game" or "electronic music duo from the 90s".
                                 Searches run on this server's CPU with a small model, so what people type never leaves the server. Turning it on downloads the model
-                                and indexes movies, shows, people, music and books with the Moonfin Smart Search Index task, which starts on its own with the first search.
+                                and indexes movies, shows, people, music and books with the kOS TV: índice de la búsqueda inteligente task, which starts on its own with the first search.
                                 With the TMDB key on the Integrations tab it also indexes the most popular TMDB titles, so titles you don't have show up as Seerr suggestions.
                                 The first run takes 15 to 30 minutes on a desktop CPU and an hour or more on a Raspberry Pi, using half the cores. After that only changes are indexed. See the Smart Search page in the wiki.
                             </div>
@@ -2500,8 +2500,8 @@
                             <label class="emby-checkbox-label">
                                 <input type="checkbox" id="EnableSettingsSync" is="emby-checkbox" />
                                 <span><span class="moonfinSyncLines">
-                                    <span class="moonfinSyncTitle">Moonbase Sync</span>
-                                    <span class="moonfinSyncState"><span class="moonfinSyncDot" aria-hidden="true"></span><span class="moonfinSyncOnText">On for every user on this server</span><span class="moonfinSyncOffText">Off, so Moonfin apps keep their settings on each device</span></span>
+                                    <span class="moonfinSyncTitle">kOS TV Sync</span>
+                                    <span class="moonfinSyncState"><span class="moonfinSyncDot" aria-hidden="true"></span><span class="moonfinSyncOnText">On for every user on this server</span><span class="moonfinSyncOffText">Off, so kOS TV apps keep their settings on each device</span></span>
                                 </span></span>
                             </label>
                         </div>
@@ -2512,15 +2512,15 @@
                                 <span class="moonfinChip">MDBList ratings</span>
                                 <span class="moonfinChip">TMDB ratings</span>
                             </div>
-                            <div class="fieldDescription">Moonfin apps treat the plugin as missing while sync is off, so these stop working too.</div>
+                            <div class="fieldDescription">kOS TV apps treat the plugin as missing while sync is off, so these stop working too.</div>
                         </div>
                     </div>
 
                     <div class="verticalSection">
                         <h3 class="sectionTitle">Default User Settings</h3>
                         <div class="fieldDescription" style="margin-bottom: 1em;">
-                            Configure default Moonfin settings for all users. New users and users who haven't customized
-                            a setting will see these values. Users can always override defaults in their own Moonfin settings panel.
+                            Configure default kOS TV settings for all users. New users and users who haven't customized
+                            a setting will see these values. Users can always override defaults in their own kOS TV settings panel.
                         </div>
 
                         <div style="background-color: rgba(0, 164, 220, 0.1); border: 1px solid rgba(0, 164, 220, 0.3); border-radius: 10px; padding: 0.8em 1.2em; margin-bottom: 1.2em; font-size: 0.9em;">
@@ -2620,7 +2620,7 @@
                                     <option value="glass">Glass</option>
                                     <option value="docked">Docked</option>
                                 </select>
-                                <div class="fieldDescription">Native uses the TV's own keyboard, the others are Moonfin's on-screen keyboard. Keep Not set to let users choose.</div>
+                                <div class="fieldDescription">Native uses the TV's own keyboard, the others are kOS TV's on-screen keyboard. Keep Not set to let users choose.</div>
                             </div>
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultUpdateNotificationsEnabled">Update Notifications</label>
@@ -2659,7 +2659,7 @@
                                     <option value="darkGreen">Dark Green</option>
                                     <option value="slate">Slate</option>
                                     <option value="indigo">Indigo</option>
-                                    <option value="moonfinCyan">Moonfin Cyan</option>
+                                    <option value="moonfinCyan">Cian kOS TV</option>
                                     <option value="neonPulseMagenta">Neon Pulse Magenta</option>
                                 </select>
                             </div>
@@ -2834,7 +2834,7 @@
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultVisualTheme">App Theme</label>
                                 <select id="DefaultVisualTheme" is="emby-select">
                                     <option value="">Not set (user decides)</option>
-                                    <option value="moonfin">Moonfin</option>
+                                    <option value="moonfin">kOS TV</option>
                                     <option value="neonPulse">Neon Pulse</option>
                                     <option value="glass">Glass</option>
                                     <option value="eightbitHero">8-bit Hero</option>
@@ -2858,7 +2858,7 @@
                                     <option value="darkGreen">Dark Green</option>
                                     <option value="slate">Slate</option>
                                     <option value="indigo">Indigo</option>
-                                    <option value="moonfinCyan">Moonfin Cyan</option>
+                                    <option value="moonfinCyan">Cian kOS TV</option>
                                     <option value="neonPulseMagenta">Neon Pulse Magenta</option>
                                     <option value="eightBitGold">8-bit Gold</option>
                                 </select>
@@ -2989,11 +2989,11 @@
                                 <select id="DefaultLoadingAnimationImage" is="emby-select">
                                     <option value="">Not set (user decides)</option>
                                     <option value="none">None</option>
-                                    <option value="moonfinLogo">Moonfin Logo</option>
+                                    <option value="moonfinLogo">kOS TV Logo</option>
                                     <option value="spinner">Spinner</option>
                                     <option value="runner">Runner</option>
                                     <option value="moonPhases">Moon Phases</option>
-                                    <option value="moonfinPhases">Moonfin Phases</option>
+                                    <option value="moonfinPhases">kOS TV Phases</option>
                                     <option value="neonfinPhases">Neonfin Phases</option>
                                 </select>
                             </div>
@@ -3056,7 +3056,7 @@
                                     <option value="">Not set (user decides)</option>
                                     <option value="library">Library Art</option>
                                     <option value="black">Black</option>
-                                    <option value="moonfin">Moonfin</option>
+                                    <option value="moonfin">kOS TV</option>
                                     <option value="calm">Calm</option>
                                     <option value="neonPulse">Neon Pulse</option>
                                     <option value="aurora">Aurora</option>
@@ -3067,7 +3067,7 @@
                                 <select id="DefaultScreensaverComponent" is="emby-select">
                                     <option value="">Not set (user decides)</option>
                                     <option value="none">None</option>
-                                    <option value="moonfinLogo">Moonfin Logo</option>
+                                    <option value="moonfinLogo">kOS TV Logo</option>
                                     <option value="clock">Clock</option>
                                     <option value="runner">Runner</option>
                                 </select>
@@ -3548,7 +3548,7 @@
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarMode">Media Bar Style</label>
                                 <select id="DefaultMediaBarMode" is="emby-select">
                                     <option value="">Not set (user decides)</option>
-                                    <option value="moonfin">Moonfin</option>
+                                    <option value="moonfin">kOS TV</option>
                                     <option value="makd">MakD</option>
                                     <option value="bookshelf">Bookshelf</option>
                                     <option value="gallery">Gallery</option>
@@ -3674,7 +3674,7 @@
                                     <option value="darkGreen">Dark Green</option>
                                     <option value="slate">Slate</option>
                                     <option value="indigo">Indigo</option>
-                                    <option value="moonfinCyan">Moonfin Cyan</option>
+                                    <option value="moonfinCyan">Cian kOS TV</option>
                                     <option value="neonPulseMagenta">Neon Pulse Magenta</option>
                                 </select>
                             </div>
@@ -3732,7 +3732,7 @@
                                     <option value="true">Yes</option>
                                     <option value="false">No</option>
                                 </select>
-                                <div class="fieldDescription">Enable MDBList ratings on the media bar by default (requires server-wide or user API key). Only the Moonfin, MakD, Gallery and Banner styles show ratings.</div>
+                                <div class="fieldDescription">Enable MDBList ratings on the media bar by default (requires server-wide or user API key). Only the kOS TV, MakD, Gallery and Banner styles show ratings.</div>
                             </div>
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused">Media Bar Rating Sources &amp; Order</label>
@@ -4120,7 +4120,7 @@
                                     <option value="false">No</option>
                                 </select>
                                 <div class="fieldDescription">
-                                    By default, Moonfin uses book items' metadata to determine series information. Enabling this will use the folders the books sit in as series instead. Check your book library's folder structure and metadata before setting this. 
+                                    By default, kOS TV uses book items' metadata to determine series information. Enabling this will use the folders the books sit in as series instead. Check your book library's folder structure and metadata before setting this. 
                                 </div>
                             </div>
                             <h4 style="margin: 1.5em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Library Visibility</h4>
@@ -4413,7 +4413,7 @@
                                     <option value="true">Yes</option>
                                     <option value="false">No</option>
                                 </select>
-                                <div class="fieldDescription">Play trailers in the system browser or YouTube app instead of inside Moonfin.</div>
+                                <div class="fieldDescription">Play trailers in the system browser or YouTube app instead of inside kOS TV.</div>
                             </div>
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultHideDetailsMediaDescription">Hide Description</label>
@@ -4436,7 +4436,7 @@
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultRecommendationSystemSource">Recommendation System</label>
                                 <select id="DefaultRecommendationSystemSource" is="emby-select">
                                     <option value="">Not set (user decides)</option>
-                                    <option value="local">Moonfin</option>
+                                    <option value="local">kOS TV</option>
                                     <option value="online">TMDB</option>
                                 </select>
                                 <div class="fieldDescription">Source used for recommended and similar media on detail pages.</div>
@@ -4801,13 +4801,13 @@
                                     <option value="true">Yes</option>
                                     <option value="false">No</option>
                                 </select>
-                                <div class="fieldDescription">Watching together, with Moonbase parties or SyncPlay. The SyncPlay button under Navigation only shows while this is on.</div>
+                                <div class="fieldDescription">Watching together, with kOS TV parties or SyncPlay. The SyncPlay button under Navigation only shows while this is on.</div>
                             </div>
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultWatchPartyService">Start Parties With</label>
                                 <select id="DefaultWatchPartyService" is="emby-select">
                                     <option value="">Not set (user decides)</option>
-                                    <option value="moonbase">Watch Party (Moonbase)</option>
+                                    <option value="moonbase">Watch Party (kOS TV)</option>
                                     <option value="syncplay">SyncPlay</option>
                                 </select>
                                 <div class="fieldDescription">What a user starts. Rooms of both kinds show up in the app either way.</div>
@@ -5029,7 +5029,7 @@
                     <div class="verticalSection">
                         <h3 class="sectionTitle">Uploaded Themes</h3>
                         <div class="fieldDescription" style="margin-bottom: 0.8em;">
-                            Upload theme editor JSON exports so Moonfin clients can download and apply them.
+                            Upload theme editor JSON exports so kOS TV clients can download and apply them.
                             Uploaded themes are synced to Mobile-Desktop, tvOS, and Smart-TV through plugin sync.
                         </div>
                         <div style="background-color: rgba(0, 164, 220, 0.1); border: 1px solid rgba(0, 164, 220, 0.3); border-radius: 10px; padding: 0.8em 1.2em; margin-bottom: 1em; font-size: 0.9em;">
@@ -5068,7 +5068,7 @@
                         <h3 class="sectionTitle">Default look</h3>
                         <p class="labelsLead">
                             Every label uses this look unless its own settings say otherwise. Labels are drawn by the
-                            Moonfin apps over movie and episode artwork; the files and the artwork are never changed.
+                            kOS TV apps over movie and episode artwork; the files and the artwork are never changed.
                         </p>
                         <div class="labelsField">
                             <span class="labelsFieldName" id="LabelsDefaultStyleName">Style</span>
@@ -5111,7 +5111,7 @@
                     <div class="verticalSection">
                         <h3 class="sectionTitle">Built-in labels</h3>
                         <p class="labelsLead">
-                            Switch on the ones you want. Moonbase reads them from the server's own track data, and each
+                            Switch on the ones you want. kOS TV reads them from the server's own track data, and each
                             row shows at most one answer: a 4K file never also says 1080p, and Atmos replaces TrueHD.
                             Release is the exception: REMUX and IMAX can both show.
                         </p>
@@ -5188,7 +5188,7 @@
                             </label>
                             <div class="fieldDescription">
                                 Nightly task that matches your anime against
-                                <a href="https://www.animefillerlist.com/" target="_blank">AnimeFillerList</a> so Moonfin
+                                <a href="https://www.animefillerlist.com/" target="_blank">AnimeFillerList</a> so kOS TV
                                 clients can badge filler episodes. No account or API key is needed. Series are matched by
                                 title, falling back to the English and romaji titles behind their ids for libraries in other languages,
                                 and only shows the site actually lists are fetched.
@@ -5288,7 +5288,7 @@
                                 <option value="thumbnail">On the episode thumbnail</option>
                             </select>
                             <div class="fieldDescription">
-                                Applies to episode rows in Moonfin clients. Season and movie cards always draw the pill
+                                Applies to episode rows in kOS TV clients. Season and movie cards always draw the pill
                                 over the artwork, since they have no runtime line to sit next to.
                             </div>
                         </div>
@@ -5325,7 +5325,7 @@
                                 </label>
                             </div>
                             <div class="fieldDescription">
-                                A pill that is switched off is never sent to a client, so every Moonfin client agrees.
+                                A pill that is switched off is never sent to a client, so every kOS TV client agrees.
                                 The two canon options are off by default: nearly every episode of most shows is canon,
                                 so turning them on puts a pill on almost everything.
                             </div>
@@ -5344,7 +5344,7 @@
                                 <button type="button" id="AnimeMarkerClearBtn" is="emby-button" class="raised">Clear marker cache</button>
                             </div>
                             <div class="fieldDescription">
-                                Markers appear after the <strong>Moonfin Anime Markers Sync</strong> task has run. You can
+                                Markers appear after the <strong>kOS TV: marcas de anime</strong> task has run. You can
                                 start it now from Dashboard &rarr; Scheduled Tasks.
                             </div>
                             <div id="AnimeMarkerDiagStatus" style="margin-top:8px;font-size:0.9em;color:rgba(255,255,255,0.7);"></div>
@@ -5523,7 +5523,7 @@
                                 <input type="checkbox" id="WatchPartiesEnabled" is="emby-checkbox" />
                                 <span>Turn on Watch Parties</span>
                             </label>
-                            <div class="fieldDescription">Moonfin users on this server can start and join parties that Moonbase hosts.</div>
+                            <div class="fieldDescription">kOS TV users on this server can start and join parties that kOS TV hosts.</div>
                         </div>
                         <div class="checkboxContainer">
                             <label class="emby-checkbox-label">
@@ -5560,7 +5560,7 @@
                                 <input type="checkbox" id="EnableSocketRelay" is="emby-checkbox" />
                                 <span>SyncPlay relay for Roku</span>
                             </label>
-                            <div class="fieldDescription">Roku can't open secure sockets, so on an https server it gets SyncPlay messages through Moonbase instead.</div>
+                            <div class="fieldDescription">Roku can't open secure sockets, so on an https server it gets SyncPlay messages through kOS TV instead.</div>
                         </div>
                         <div class="fieldDescription" id="WatchPartiesNote">
                             Whether Jellyfin users start Watch Parties or SyncPlay, chat over the video and party alerts are each user's own settings.
@@ -5647,7 +5647,7 @@
                     <div class="verticalSection" id="CopySettingsSection">
                         <h3 class="sectionTitle">Copy A User's Settings</h3>
                         <div class="fieldDescription" style="margin-bottom: 0.8em;">
-                            Start someone off with a setup you already like. Only Moonfin settings are copied. API keys and
+                            Start someone off with a setup you already like. Only kOS TV settings are copied. API keys and
                             hidden Continue Watching and Next Up items stay with each user.
                         </div>
 
@@ -5711,7 +5711,7 @@
                     <div class="verticalSection">
                         <h3 class="sectionTitle">Broadcast Message</h3>
                         <div class="fieldDescription" style="margin-bottom: 0.8em;">
-                            Send a message to all connected Moonfin clients right now. It is also saved to
+                            Send a message to all connected kOS TV clients right now. It is also saved to
                             the Messages tab, so users who were offline still see it later.
                             For anything you want to write properly, use the Messages tab instead.
                         </div>
@@ -5730,7 +5730,7 @@
                     <div class="verticalSection">
                         <h3 class="sectionTitle">Web Plugin Status</h3>
                         <div class="fieldDescription" style="margin-bottom: 1em;">
-                            <p>Moonfin uses the
+                            <p>kOS TV uses the
                                 <a href="https://github.com/IAmParadox27/jellyfin-plugin-file-transformation" target="_blank">File Transformation</a>
                                 plugin to inject a header button in Jellyfin Web.
                             </p>
@@ -5747,7 +5747,7 @@
                             </ol>
                             <p style="margin-top: 0.5em;">
                                 <strong>UI not loading?</strong> Go to <em>Dashboard &gt; Scheduled Tasks</em> and run the
-                                <strong>Moonfin Startup</strong> task once, then refresh your browser.
+                                <strong>kOS TV: arranque</strong> task once, then refresh your browser.
                             </p>
                         </div>
                     </div>
@@ -5757,7 +5757,7 @@
                         <div class="verticalSection">
                             <h3 class="sectionTitle">Active Downloads</h3>
                             <div class="fieldDescription" style="margin-bottom: 1em;">
-                                Transcoded downloads Moonfin clients have in progress. Original quality downloads copy
+                                Transcoded downloads kOS TV clients have in progress. Original quality downloads copy
                                 the file as it is, so they don't show here. Regular playback transcodes are hidden too,
                                 since they already show on the Jellyfin dashboard.
                             </div>
@@ -6369,7 +6369,7 @@
             }
 
             var MoonfinConfig = {
-                pluginUniqueId: '8c5d0e91-4f2a-4b6d-9e3f-1a7c8d9e0f2b'
+                pluginUniqueId: '561f86df-fa00-4fca-aa4d-2fed0e332670'
             };
 
             // Ids are the client's wire names for the pinnable tabs.
@@ -8813,7 +8813,7 @@
                     var rooms = (data && data.rooms) || [];
                     summary.textContent = rooms.length === 0
                         ? 'No rooms are open.'
-                        : (rooms.length === 1 ? '1 open' : rooms.length + ' open') + ' · Moonbase rooms only';
+                        : (rooms.length === 1 ? '1 open' : rooms.length + ' open') + ' · kOS TV rooms only';
                     list.innerHTML = rooms.map(function(room) {
                         var status = room.phase === 'playing' ? (WATCH_PARTY_STATES[room.playback_state] || 'Playing') : 'In the lobby';
                         var started = new Date(room.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -9971,7 +9971,7 @@
                     }
 
                     labelTestResult = null;
-                    labelTestError = 'This file could not be tested. Restart the server after updating Moonbase, then try again.';
+                    labelTestError = 'This file could not be tested. Restart the server after updating kOS TV, then try again.';
                     renderLabelTestReport();
                 });
             }
@@ -10098,7 +10098,7 @@
                 }).catch(function() {
                     var container = document.querySelector('#LabelsPresetGroups');
                     if (container) {
-                        container.innerHTML = '<div class="homeLayoutEmpty">The built-in labels could not be loaded. Restart the server after updating Moonbase, then reload this page.</div>';
+                        container.innerHTML = '<div class="homeLayoutEmpty">The built-in labels could not be loaded. Restart the server after updating kOS TV, then reload this page.</div>';
                     }
                 });
 
@@ -10696,7 +10696,7 @@
                     }
 
                     var pathEl = document.querySelector('#MoonfinConfigBackupPath');
-                    if (pathEl) pathEl.textContent = status.backupPath || 'the Moonfin data folder';
+                    if (pathEl) pathEl.textContent = status.backupPath || 'the kOS TV data folder';
                     banner.style.display = '';
                 }, function() {
                     // An older server, or the endpoint is unreachable. Nothing useful to show.
@@ -10710,7 +10710,7 @@
                 button.dataset.bound = 'true';
 
                 button.addEventListener('click', function() {
-                    if (!window.confirm('Copy the backup over the current Moonbase settings? The server has to be restarted afterwards.')) {
+                    if (!window.confirm('Copy the backup over the current kOS TV settings? The server has to be restarted afterwards.')) {
                         return;
                     }
 
@@ -11900,7 +11900,7 @@
                                     return;
                                 }
                                 statusEl.textContent = 'Connected to RomM' + (result.version ? ' ' + result.version : '') + '. ' +
-                                    result.supportedPlatformCount + ' of its ' + result.platformCount + ' platforms play in Moonfin, with ' +
+                                    result.supportedPlatformCount + ' of its ' + result.platformCount + ' platforms play in kOS TV, with ' +
                                     result.supportedRomCount + ' games between them.';
                             })
                             .catch(function() { statusEl.textContent = 'The test failed.'; })
@@ -12915,7 +12915,7 @@
                         if (!on.length) { text = 'Pick at least one profile.'; ok = false; }
                         else if (state.users === 'pick' && !state.pickedUsers.length) { text = 'Add at least one user.'; ok = false; }
                         else if (pick && !summary.count) { text = 'Choose at least one setting.'; ok = false; }
-                        else if (destructive) text = 'Erases the Moonfin settings of ' + who + ' and starts them over from the ' + names + ' defaults.';
+                        else if (destructive) text = 'Erases the kOS TV settings of ' + who + ' and starts them over from the ' + names + ' defaults.';
                         else text = 'Writes ' + plural(pick ? summary.count : rows.length, pick ? 'picked default' : 'default') + ' into the ' + names + profileWord + ' of ' + who + '.';
                     } else {
                         var from = state.from ? userName(state.from) : '';
@@ -13000,7 +13000,7 @@
                     var keys = pickedKeys('apply');
                     var who = state.users === 'all' ? 'every user' : joinWithAnd(state.pickedUsers.map(userName));
                     var message = reset
-                        ? 'Reset ' + who + ' to the defaults?\n\nThis permanently erases their current Moonfin settings, device profiles included, and replaces them with the ' + joinWithAnd(on.map(function(e) { return e.label; })) + ' defaults.'
+                        ? 'Reset ' + who + ' to the defaults?\n\nThis permanently erases their current kOS TV settings, device profiles included, and replaces them with the ' + joinWithAnd(on.map(function(e) { return e.label; })) + ' defaults.'
                         : 'Apply the defaults to ' + who + '?\n\nEach default you push replaces that user\'s own choice for that setting. Everything else they chose stays.';
                     if (!window.confirm(message)) return;
 
@@ -13355,7 +13355,7 @@
                     for (var i=0; i<cancelBtns.length; i++) {
                         cancelBtns[i].addEventListener('click', function() {
                             var jid = this.getAttribute('data-jobid');
-                            if (confirm('Are you sure you want to cancel this download?\n\nWARNING: Because this forcefully closes an active HTTP stream, the Moonfin client will incorrectly assume the download completed successfully and will keep the partial video file on the device.\n\nOnly use this to free up server resources!')) {
+                            if (confirm('Are you sure you want to cancel this download?\n\nWARNING: Because this forcefully closes an active HTTP stream, the kOS TV client will incorrectly assume the download completed successfully and will keep the partial video file on the device.\n\nOnly use this to free up server resources!')) {
                                 ApiClient.ajax({ type: 'DELETE', url: ApiClient.getUrl("Moonfin/Transcodes/Active/" + jid) })
                                     .then(function() { loadActiveSyncs(); }, function() { loadActiveSyncs(); });
                             }

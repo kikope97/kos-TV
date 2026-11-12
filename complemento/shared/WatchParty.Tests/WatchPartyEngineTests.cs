@@ -971,8 +971,9 @@ public class WatchPartyEngineTests
         var page = WatchPartyInvite.Page("Lake <side>", "abc123", baseUrl, "K7Q29M");
 
         Assert.Equal("https://media.example.com/jellyfin", baseUrl);
-        Assert.Contains("<meta property=\"og:title\" content=\"Join a watch party\">", page);
-        Assert.Contains("content=\"Open in Moonfin to join. Room code K7Q 29M.\"", page);
+        // kOS TV: the page speaks Spanish and names the app.
+        Assert.Contains("<meta property=\"og:title\" content=\"Ver juntos en kOS TV\">", page);
+        Assert.Contains("content=\"Ábrelo en kOS TV para unirte. Código de la sala: K7Q 29M.\"", page);
         Assert.Contains("content=\"https://media.example.com/jellyfin/Moonfin/Party/preview.png\"", page);
         Assert.Contains("<meta name=\"twitter:card\" content=\"summary_large_image\">", page);
         Assert.Contains("moonfin://party?server=abc123&amp;code=K7Q29M&amp;address=https%3A%2F%2Fmedia.example.com%2Fjellyfin", page);

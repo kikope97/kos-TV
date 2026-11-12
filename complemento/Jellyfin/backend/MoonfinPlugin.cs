@@ -57,13 +57,13 @@ public class MoonfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     }
 
     /// <inheritdoc />
-    public override string Name => "Moonbase";
+    public override string Name => "kOS TV";
 
     /// <inheritdoc />
-    public override string Description => "Moonbase is the Moonfin server plugin providing shared infrastructure for every Moonfin client (web, mobile, desktop, and TV): cross-device settings sync with per-device profiles and admin defaults, hosting for the Moonfin Web app at /Moonfin/Web/, a theme editor with custom theme APIs, ratings integrations (MDBList and TMDB), and Seerr proxy with single sign-on. It also powers retro game libraries via EmulatorJS, with keyless libretro box art plus server-hosted cores and save sync.";
+    public override string Description => "Complemento del servidor de kOS TV, basado en Moonbase (el complemento oficial de Moonfin, GPLv3): sincroniza los ajustes de cada persona entre sus aparatos, con los valores por defecto del administrador; valoraciones (MDBList y TMDB), filas de listas y de temporada, búsqueda inteligente, ver juntos, avisos y PIN de perfiles.";
 
     /// <inheritdoc />
-    public override Guid Id => Guid.Parse("8c5d0e91-4f2a-4b6d-9e3f-1a7c8d9e0f2b");
+    public override Guid Id => Guid.Parse("561f86df-fa00-4fca-aa4d-2fed0e332670");
 
     public new string DataFolderPath => Path.Combine(ApplicationPaths.PluginConfigurationsPath, "Moonfin");
 
@@ -170,12 +170,13 @@ public class MoonfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
         {
             new PluginPageInfo
             {
-                Name = Name,
+                // kOS TV: the page's own name, without spaces, for its address
+                // (configurationpage?name=kOSTV).
+                Name = "kOSTV",
                 EmbeddedResourcePath = GetType().Namespace + ".Pages.configPage.html",
                 EnableInMainMenu = true,
-                // This slot only takes a Material Icons ligature. The Moonfin mark comes from
-                // the stylesheet in Web/inject.html, so the crescent is what shows without it.
-                MenuIcon = "dark_mode"
+                // kOS TV: a television, from Material Icons (the only thing this slot takes).
+                MenuIcon = "live_tv"
             }
         };
     }

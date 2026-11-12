@@ -8,8 +8,11 @@
   nuevo va en `lib/l10n/app_en.arb` y `lib/l10n/app_es.arb` (español de España,
   de tú), nunca escrito a mano en el código.
 - Nada de "Moonfin" ni "Moonbase" a la vista de quien usa la app: se llama
-  **kOS TV** y el complemento es "el complemento del servidor". La marca (colores,
-  logotipo, iconos) está en `docs/marca/README.md`.
+  **kOS TV** y el complemento es "el complemento del servidor". Lo mismo en lo
+  que el complemento enseña en el panel de Jellyfin (se llama «kOS TV»); por
+  dentro sigue con nombres del oficial (rutas `/Moonfin/...`, `Moonfin.Server`),
+  que no se tocan. La marca (colores, logotipo, iconos) está en
+  `docs/marca/README.md`.
 - **Norma: todo lo que se añade a la versión de la tele tiene que quedar igual de
   logrado en la versión móvil y en la web** (la de Docker, `docs/web.md`), y
   verse bien en todos los diseños (barra de arriba, lateral y, en el móvil, la
@@ -21,10 +24,11 @@
 
 ## Revisión semanal del proyecto principal y del complemento
 
-kOS TV parte de Moonfin-Core (`upstream` en git) y usa el complemento oficial
-del servidor (Moonbase, `Moonfin-Client/Plugin`), que mantienen ellos. Una vez
-a la semana se revisa qué han cambiado. El registro está en
-`docs/revision-semanal.md`.
+kOS TV parte de Moonfin-Core (`upstream` en git) y tiene su propio complemento
+del servidor en `complemento/`: nuestra copia de Moonbase, el oficial
+(`Moonfin-Client/plugin`), traída con `git subtree` (ver
+`complemento/README.md`). Una vez a la semana se revisa qué han cambiado los
+dos originales. El registro está en `docs/revision-semanal.md`.
 
 - **Cuándo:** al empezar a hablar con el usuario, mira la fecha de la última
   revisión en ese registro. Si han pasado 7 días o más (o no hay ninguna),
@@ -37,12 +41,17 @@ a la semana se revisa qué han cambiado. El registro está en
   que ya quitamos) y dudoso. Propón qué integrar y no integres nada sin el
   visto bueno del usuario. Lo que se integre cumple todas las normas de este
   archivo (español, nada de Moonfin a la vista, tele, móvil y web).
-- **El complemento, con especial cuidado:** mira las versiones nuevas de su
-  `manifest.json` y sus commits. Compara con las rutas `/Moonfin/...` que usa
-  la app y señala lo que cambia o desaparece (puede romper la app), lo nuevo
-  que se pueda aprovechar y si conviene actualizarlo en el servidor o esperar.
-  Si una versión rompe algo sin arreglo fácil, se vuelve a la anterior o, como
-  último recurso, se copia el complemento y lo mantenemos nosotros.
+- **El complemento, con especial cuidado:** mira las versiones nuevas del
+  oficial (su `manifest.json`, sus etiquetas y commits; de Jellyfin solo, lo de
+  Emby, Plex y Silo no aplica). Compara con las rutas `/Moonfin/...` que usa la
+  app y señala lo que cambia o desaparece (puede romper la app) y lo nuevo que
+  se pueda aprovechar. Propón si traer esa versión a nuestra copia y no la
+  traigas sin el visto bueno del usuario. Traerla es `git subtree pull` (ver
+  `complemento/README.md`), conservando siempre lo nuestro: nombre «kOS TV»,
+  su identificador, textos en español, imágenes y lo quitado; con sus pruebas
+  pasando y una pasada a los textos nuevos que enseñen el nombre del oficial.
+  Lo traído se publica como versión nueva del complemento (`X.Y.Z.1`), solo
+  cuando el usuario lo diga (ver «Publicar el complemento»).
 - **Desde dónde:** empieza siempre justo donde terminó la anterior (la tabla
   «Dónde estamos ahora» del registro: último commit de upstream y versión del
   complemento revisados). Nunca des por revisado algo que no esté apuntado.
@@ -79,6 +88,32 @@ publícala al terminarlo y probarlo.
    Si falla, lee el registro del trabajo y arréglalo.
 4. Dile al usuario qué versión salió y qué trae. Las apps la ofrecen solas
    (al abrirse o al volver a primer plano, como mucho cada 6 horas).
+
+## Publicar el complemento
+
+El complemento del servidor (`complemento/`) se publica aparte de la app y con
+su propia numeración: `X.Y.Z.N`, donde `X.Y.Z` es la versión oficial en la que
+se basa y `N` la nuestra sobre ella (3.1.0.1, 3.1.0.2…; al traer la oficial
+3.2.0, la 3.2.0.1). Tiene que ser mayor que la anterior.
+
+**Publícalo solo cuando el usuario lo pida** («publica el complemento», «haz
+una versión del complemento»). «Haz una versión» a secas es la app. Si un
+cambio de la app necesita también el complemento, díselo y pregúntale.
+
+1. Lanza el workflow con `actions_run_trigger`: `method: run_workflow`,
+   `workflow_id: complemento.yml`, `ref:` la rama con el trabajo subido,
+   `inputs: {"version": "X.Y.Z.N", "changelog": "qué trae, en español"}`.
+2. Espera a que termine (unos minutos) y comprueba que existe la
+   pre-publicación `Complemento kOS TV X.Y.Z.N` con
+   `kOS-TV-complemento-X.Y.Z.N.zip`, y que el catálogo
+   (`releases/download/complemento/manifest.json`) la lleva arriba.
+3. Dile al usuario qué trae. Jellyfin la ofrece en **Panel > Complementos**
+   (con las actualizaciones automáticas, se instala sola) y hay que reiniciar
+   el servidor.
+
+Nunca se marcan como «la última»: las apps buscan su actualización en la última
+publicación normal. Sus etiquetas (`complemento-…`) no lanzan la compilación de
+la app.
 
 ## APK de prueba
 

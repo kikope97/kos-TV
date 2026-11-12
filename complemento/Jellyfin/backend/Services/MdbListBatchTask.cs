@@ -21,10 +21,10 @@ namespace Moonfin.Server.Services;
 /// </summary>
 public class MdbListBatchTask : IScheduledTask
 {
-    public string Name => "Moonfin MDBList Ratings Sync";
+    public string Name => "kOS TV: valoraciones de MDBList";
     public string Key => "Moonfin.MdbList.BatchSync";
-    public string Description => "Batch-fetches MDBList ratings for all movies and shows in the library. Only fetches items not already cached.";
-    public string Category => "Moonfin";
+    public string Description => "Descarga en bloque las valoraciones de MDBList de las películas y series de la biblioteca (solo las que aún no tiene).";
+    public string Category => "kOS TV";
 
     // The batch media-info endpoint accepts 100 ids even on non-supporter keys.
     private const int ApiBatchSize = 100;

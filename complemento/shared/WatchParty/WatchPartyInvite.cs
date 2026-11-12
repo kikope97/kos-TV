@@ -71,7 +71,7 @@ public static class WatchPartyInvite
     /// <summary>The page for an already normalized code.</summary>
     public static string Page(string serverName, string serverId, string publicBase, string code)
     {
-        var name = Html(string.IsNullOrWhiteSpace(serverName) ? "this server" : serverName);
+        var name = Html(string.IsNullOrWhiteSpace(serverName) ? "este servidor" : serverName);
         var host = Html(HostOf(publicBase));
         var shown = Html(Display(code));
         var link = Html(DeepLink(serverId, code, publicBase));

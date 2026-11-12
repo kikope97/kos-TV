@@ -173,12 +173,12 @@
     btn.type = "button";
     btn.className =
       "headerButton headerButtonRight headerMoonfinButton MuiButtonBase-root MuiIconButton-root MuiIconButton-colorInherit MuiIconButton-sizeLarge";
-    btn.title = "Open Moonfin";
-    btn.setAttribute("aria-label", "Open Moonfin");
+    btn.title = "Abrir kOS TV";
+    btn.setAttribute("aria-label", "Abrir kOS TV");
     btn.innerHTML =
       '<img src="' +
       moonfinBase +
-      '/Assets/icon.png" style="width:24px;height:24px;border-radius:4px;vertical-align:middle;display:block" alt="Moonfin">';
+      '/Assets/icon.png" style="width:24px;height:24px;border-radius:4px;vertical-align:middle;display:block" alt="kOS TV">';
     btn.addEventListener("click", function (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -300,7 +300,24 @@
     }
   }
 
+  // kOS TV: the button opens the web app at /Moonfin/Web/, which this
+  // plugin's package doesn't carry. It only shows when that web app answers.
+  var webAvailable = null;
+  try {
+    fetch(resolveMoonfinBase() + "/Web/", { method: "GET", credentials: "same-origin" })
+      .then(function (r) {
+        webAvailable = r.ok;
+        if (webAvailable) scheduleInject();
+      })
+      .catch(function () {
+        webAvailable = false;
+      });
+  } catch (e) {
+    webAvailable = false;
+  }
+
   function injectHeaderButton() {
+    if (webAvailable !== true) return;
     var injected = false;
 
     // A toolbar holding the avatar is the right home, so it gets first refusal.

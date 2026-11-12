@@ -16,10 +16,10 @@ namespace Moonfin.Server.Services;
 /// </summary>
 public class CustomRowsSyncTask : IScheduledTask
 {
-    public string Name => "Moonfin Custom Lists Sync";
+    public string Name => "kOS TV: listas personalizadas";
     public string Key => "Moonfin.CustomRows.Sync";
-    public string Description => "Fetches and caches custom home rows (such as Letterboxd, TMDB, and MDBList custom lists) configured across user profiles.";
-    public string Category => "Moonfin";
+    public string Description => "Descarga y guarda las filas personalizadas de Inicio (listas de Letterboxd, TMDB o MDBList) que haya en los perfiles.";
+    public string Category => "kOS TV";
 
     // The endpoint serves anything younger than a day out of the cache, so a row refreshed
     // this recently doesn't need fetching again when the server restarts.

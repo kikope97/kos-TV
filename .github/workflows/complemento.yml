@@ -1,0 +1,99 @@
+name: Complemento del servidor
+
+# Kos TV: compila el complemento del servidor (complemento/), lo publica como
+# «Complemento kOS TV X.Y.Z.N» y lo añade al catálogo que lee Jellyfin
+# (la publicación fija «complemento», con manifest.json y el logotipo).
+#
+# Todas sus publicaciones son pre-publicaciones: las apps buscan su
+# actualización en la última publicación normal, y nunca deben ver estas.
+# Sus etiquetas empiezan por «complemento», así que no lanzan la compilación
+# de la app (que salta con etiquetas que empiezan por un número).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Versión X.Y.Z.N: X.Y.Z la oficial en la que se basa, N la nuestra (por ejemplo 3.1.0.1)'
+        required: true
+      changelog:
+        description: 'Qué trae, en español (sale en el catálogo de Jellyfin)'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: complemento
+  cancel-in-progress: false
+
+jobs:
+  complemento:
+    name: Compilar y publicar el complemento
+    runs-on: ubuntu-26.04
+    env:
+      VERSION: ${{ inputs.version }}
+      CHANGELOG: ${{ inputs.changelog }}
+      GH_TOKEN: ${{ github.token }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Comprobar la versión
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::La versión tiene que ser X.Y.Z.N (por ejemplo 3.1.0.1): $VERSION"
+            exit 1
+          fi
+          if gh release view "complemento-$VERSION" >/dev/null 2>&1; then
+            echo "::error::Ya hay una publicación complemento-$VERSION."
+            exit 1
+          fi
+
+      - name: Pruebas del complemento
+        run: |
+          dotnet test complemento/Jellyfin/tests/Moonfin.Server.Tests/Moonfin.Server.Tests.csproj -c Release
+          dotnet run --project complemento/Jellyfin/tools/salvage-tests -c Release
+
+      - name: Compilar
+        run: bash complemento/compilar.sh "$VERSION" "$RUNNER_TEMP/salida"
+
+      - name: Catálogo nuevo
+        run: |
+          ZIP="kOS-TV-complemento-$VERSION.zip"
+          URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/complemento-$VERSION/$ZIP"
+          MD5="$(cat "$RUNNER_TEMP/salida/$ZIP.md5")"
+          mkdir -p "$RUNNER_TEMP/antes"
+          gh release download complemento -p manifest.json -D "$RUNNER_TEMP/antes" 2>/dev/null || true
+          python3 complemento/catalogo.py "$RUNNER_TEMP/antes/manifest.json" "$VERSION" "$URL" "$MD5" \
+            "$CHANGELOG" "$RUNNER_TEMP/salida/manifest.json"
+
+      - name: Publicar la versión
+        run: |
+          ZIP="$RUNNER_TEMP/salida/kOS-TV-complemento-$VERSION.zip"
+          gh release create "complemento-$VERSION" "$ZIP" \
+            --target "$GITHUB_SHA" \
+            --prerelease --latest=false \
+            --title "Complemento kOS TV $VERSION" \
+            --notes "$CHANGELOG
+
+          Para instalarlo o actualizarlo, en Jellyfin: Panel > Complementos > Repositorios, con el catálogo
+          https://github.com/${GITHUB_REPOSITORY}/releases/download/complemento/manifest.json"
+
+      - name: Publicar el catálogo
+        run: |
+          if ! gh release view complemento >/dev/null 2>&1; then
+            gh release create complemento \
+              --target "$GITHUB_SHA" \
+              --prerelease --latest=false \
+              --title "Complemento kOS TV · catálogo" \
+              --notes "El catálogo del complemento del servidor de kOS TV para Jellyfin. En Panel > Complementos > Repositorios, añade:
+          https://github.com/${GITHUB_REPOSITORY}/releases/download/complemento/manifest.json"
+          fi
+          cp complemento/Jellyfin/backend/assets/logo.png "$RUNNER_TEMP/salida/logo.png"
+          gh release upload complemento "$RUNNER_TEMP/salida/manifest.json" "$RUNNER_TEMP/salida/logo.png" --clobber
+          echo "Catálogo: https://github.com/${GITHUB_REPOSITORY}/releases/download/complemento/manifest.json"
