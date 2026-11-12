@@ -18757,4 +18757,28 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvHomeRecentSettingSubtitle =>
       'What was last added to the server, under the recommendations';
+
+  @override
+  String get kostvHomeWhyArrived => 'You asked for it and it\'s home';
+
+  @override
+  String get kostvHomeWhyTop => 'Most watched now, from what\'s at home';
+
+  @override
+  String get kostvHomeWhyBecause => 'People who liked it also liked these';
+
+  @override
+  String get kostvHomeWhyPerson => 'More of their work that\'s at home';
+
+  @override
+  String get kostvHomeWhyGenre => 'The ones that fit you best';
+
+  @override
+  String get kostvHomeWhyGems => 'Highly rated and not seen yet';
+
+  @override
+  String get kostvHomeWhyForYou => 'Picked from everything you\'ve watched';
+
+  @override
+  String get kostvHomeNewTag => 'New';
 }

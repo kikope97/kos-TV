@@ -18551,5 +18551,37 @@
   "kostvHomeRecentSettingSubtitle": "What was last added to the server, under the recommendations",
   "@kostvHomeRecentSettingSubtitle": {
     "description": "Kos TV settings: what the recently added switch does."
+  },
+  "kostvHomeWhyArrived": "You asked for it and it's home",
+  "@kostvHomeWhyArrived": {
+    "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+  },
+  "kostvHomeWhyTop": "Most watched now, from what's at home",
+  "@kostvHomeWhyTop": {
+    "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+  },
+  "kostvHomeWhyBecause": "People who liked it also liked these",
+  "@kostvHomeWhyBecause": {
+    "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+  },
+  "kostvHomeWhyPerson": "More of their work that's at home",
+  "@kostvHomeWhyPerson": {
+    "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+  },
+  "kostvHomeWhyGenre": "The ones that fit you best",
+  "@kostvHomeWhyGenre": {
+    "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+  },
+  "kostvHomeWhyGems": "Highly rated and not seen yet",
+  "@kostvHomeWhyGems": {
+    "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+  },
+  "kostvHomeWhyForYou": "Picked from everything you've watched",
+  "@kostvHomeWhyForYou": {
+    "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+  },
+  "kostvHomeNewTag": "New",
+  "@kostvHomeNewTag": {
+    "description": "Kos TV Home: a line or tag on a row of the recommended Home."
   }
 }

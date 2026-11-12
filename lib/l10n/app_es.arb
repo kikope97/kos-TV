@@ -13009,5 +13009,37 @@
     "kostvHomeRecentSettingSubtitle": "Lo último que ha entrado en el servidor, debajo de las recomendaciones",
     "@kostvHomeRecentSettingSubtitle": {
         "description": "Kos TV settings: what the recently added switch does."
+    },
+    "kostvHomeWhyArrived": "Lo pediste y ya está en casa",
+    "@kostvHomeWhyArrived": {
+        "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+    },
+    "kostvHomeWhyTop": "Lo más visto ahora, de lo que hay en casa",
+    "@kostvHomeWhyTop": {
+        "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+    },
+    "kostvHomeWhyBecause": "A quien le gustó, también le gustaron estas",
+    "@kostvHomeWhyBecause": {
+        "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+    },
+    "kostvHomeWhyPerson": "Otros trabajos suyos que hay en casa",
+    "@kostvHomeWhyPerson": {
+        "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+    },
+    "kostvHomeWhyGenre": "Las que mejor encajan contigo",
+    "@kostvHomeWhyGenre": {
+        "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+    },
+    "kostvHomeWhyGems": "Muy bien valoradas y todavía sin ver",
+    "@kostvHomeWhyGems": {
+        "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+    },
+    "kostvHomeWhyForYou": "Elegidas por todo lo que has visto",
+    "@kostvHomeWhyForYou": {
+        "description": "Kos TV Home: a line or tag on a row of the recommended Home."
+    },
+    "kostvHomeNewTag": "Nuevo",
+    "@kostvHomeNewTag": {
+        "description": "Kos TV Home: a line or tag on a row of the recommended Home."
     }
 }

@@ -32270,6 +32270,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What was last added to the server, under the recommendations'**
   String get kostvHomeRecentSettingSubtitle;
+
+  /// Kos TV Home: a line or tag on a row of the recommended Home.
+  ///
+  /// In en, this message translates to:
+  /// **'You asked for it and it\'s home'**
+  String get kostvHomeWhyArrived;
+
+  /// Kos TV Home: a line or tag on a row of the recommended Home.
+  ///
+  /// In en, this message translates to:
+  /// **'Most watched now, from what\'s at home'**
+  String get kostvHomeWhyTop;
+
+  /// Kos TV Home: a line or tag on a row of the recommended Home.
+  ///
+  /// In en, this message translates to:
+  /// **'People who liked it also liked these'**
+  String get kostvHomeWhyBecause;
+
+  /// Kos TV Home: a line or tag on a row of the recommended Home.
+  ///
+  /// In en, this message translates to:
+  /// **'More of their work that\'s at home'**
+  String get kostvHomeWhyPerson;
+
+  /// Kos TV Home: a line or tag on a row of the recommended Home.
+  ///
+  /// In en, this message translates to:
+  /// **'The ones that fit you best'**
+  String get kostvHomeWhyGenre;
+
+  /// Kos TV Home: a line or tag on a row of the recommended Home.
+  ///
+  /// In en, this message translates to:
+  /// **'Highly rated and not seen yet'**
+  String get kostvHomeWhyGems;
+
+  /// Kos TV Home: a line or tag on a row of the recommended Home.
+  ///
+  /// In en, this message translates to:
+  /// **'Picked from everything you\'ve watched'**
+  String get kostvHomeWhyForYou;
+
+  /// Kos TV Home: a line or tag on a row of the recommended Home.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get kostvHomeNewTag;
 }
 
 class _AppLocalizationsDelegate

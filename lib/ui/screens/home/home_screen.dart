@@ -95,6 +95,7 @@ import 'home_row_card_image.dart';
 import 'home_row_prefetch.dart';
 import 'home_row_shift.dart';
 import 'home_view_model.dart';
+import 'kostv_home_row_style.dart';
 import '../../../watch_party/silo_watch_party_manager.dart';
 import '../../../l10n/current_app_localizations.dart';
 import '../../../watch_party/moonbase_watch_party_api.dart';
@@ -4470,6 +4471,9 @@ class _ContentRowsState extends State<_ContentRows>
     if (row.subtitle != null && row.subtitle!.isNotEmpty) {
       return row.subtitle;
     }
+    // Kos TV: a row made for the person says why it is there.
+    final kostv = KostvHomeRowStyle.of(row, l10n);
+    if (kostv != null) return kostv.why;
     if (row.id == 'merged_calendar') return l10n.arrCalendarsRowSubtitle;
     if (row.id == 'radarr_calendar') return l10n.radarrCalendarRowSubtitle;
     if (row.id == 'sonarr_calendar') return l10n.sonarrCalendarRowSubtitle;
@@ -5110,6 +5114,7 @@ class _ContentRowsState extends State<_ContentRows>
       ),
     ];
     return _buildTitledRow(
+        row: row,
       key: _rowContainerKey(rowIndex),
       title: _localizedRowTitle(row, l10n),
       rowIndex: rowIndex,
@@ -5205,6 +5210,7 @@ class _ContentRowsState extends State<_ContentRows>
     }
 
     return _buildTitledRow(
+        row: row,
       key: _rowContainerKey(rowIndex),
       title: l10n.watchParties,
       rowIndex: rowIndex,
@@ -5366,6 +5372,7 @@ class _ContentRowsState extends State<_ContentRows>
     }
 
     return _buildTitledRow(
+        row: row,
       key: _rowContainerKey(rowIndex),
       title: row.title,
       rowIndex: rowIndex,
@@ -5423,6 +5430,7 @@ class _ContentRowsState extends State<_ContentRows>
     final headroom = _focusHeadroom(squarePosterSide, cardExpansion);
     final rowHeight = squarePosterSide + (56 * metadataScale) + headroom;
     return _buildTitledRow(
+        row: row,
       key: _rowContainerKey(rowIndex),
       title: _localizedRowTitle(row, l10n),
       rowIndex: rowIndex,
@@ -5614,6 +5622,7 @@ class _ContentRowsState extends State<_ContentRows>
 
     if (row.isLoading && row.items.isEmpty) {
       return _buildTitledRow(
+        row: row,
         key: _rowContainerKey(rowIndex),
         title: _localizedRowTitle(row, l10n),
         subtitle: subtitle,
@@ -5648,6 +5657,7 @@ class _ContentRowsState extends State<_ContentRows>
         : row.items;
 
     return _buildTitledRow(
+        row: row,
       key: _rowContainerKey(rowIndex),
       title: _localizedRowTitle(row, l10n),
       subtitle: subtitle,
@@ -6170,6 +6180,18 @@ class _ContentRowsState extends State<_ContentRows>
           );
           }
 
+          // Kos TV: a top's cards carry their place; what the person asked
+          // for, a «Nuevo» tag.
+          final kostvStyle = KostvHomeRowStyle.of(row, l10n);
+          Widget tagged(Widget card) => kostvStyle == null
+              ? card
+              : KostvHomeCardTag(
+                  rank: kostvStyle.ranked && idx < 10 ? idx + 1 : null,
+                  label: kostvStyle.fresh ? l10n.kostvHomeNewTag : null,
+                  color: kostvStyle.color,
+                  child: card,
+                );
+
           if (glide != null) {
             return ModernGlideBuilder(
               glide: glide,
@@ -6178,7 +6200,7 @@ class _ContentRowsState extends State<_ContentRows>
               index: idx,
               prefs: prefs,
               builder: (ctx, open, hovered) =>
-                  buildCard(ctx, open, isFocused || hovered),
+                  tagged(buildCard(ctx, open, isFocused || hovered)),
             );
           }
           return SelectorBuilder<bool>(
@@ -6192,8 +6214,9 @@ class _ContentRowsState extends State<_ContentRows>
                         delayExpansion && !PlatformDetection.useMobileUi,
                   )
                 : isFocused,
-            builder: (ctx, effectiveV2Focused) =>
-                buildCard(ctx, effectiveV2Focused ? 1 : 0, effectiveV2Focused),
+            builder: (ctx, effectiveV2Focused) => tagged(
+              buildCard(ctx, effectiveV2Focused ? 1 : 0, effectiveV2Focused),
+            ),
           );
         },
       ),
@@ -6393,6 +6416,7 @@ class _ContentRowsState extends State<_ContentRows>
 
   Widget _buildTitledRow({
     Key? key,
+    HomeRow? row,
     required String title,
     String? subtitle,
     bool isWatchingNow = false,
@@ -6404,6 +6428,10 @@ class _ContentRowsState extends State<_ContentRows>
     final isRowsV2 = _isHomeRowsStyleV2();
     final showHeaderControls =
         hasItems && PlatformDetection.useDesktopUi && !PlatformDetection.isTV;
+    // Kos TV: the rows made for the person present themselves.
+    final kostvStyle = row == null
+        ? null
+        : KostvHomeRowStyle.of(row, AppLocalizations.of(context));
     return RepaintBoundary(
       child: SingleChildScrollView(
         physics: const NeverScrollableScrollPhysics(),
@@ -6439,7 +6467,12 @@ class _ContentRowsState extends State<_ContentRows>
                             const SizedBox(width: 6),
                           ],
                           Flexible(
-                            child: Text(
+                            child: kostvStyle != null
+                                ? KostvHomeRowTitle(
+                                    style: kostvStyle,
+                                    compact: PlatformDetection.useMobileUi,
+                                  )
+                                : Text(
                               title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -6479,11 +6512,15 @@ class _ContentRowsState extends State<_ContentRows>
                                   ? _buildWatchingNowSubtitle(context, subtitle)
                                   : Text(
                                       subtitle,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                                         color: AppColorScheme.onSurface.withValues(
-                                          alpha: 0.95,
+                                          alpha: kostvStyle != null ? 0.6 : 0.95,
                                         ),
-                                        fontWeight: FontWeight.w600,
+                                        fontWeight: kostvStyle != null
+                                            ? FontWeight.w500
+                                            : FontWeight.w600,
                                         shadows: const [
                                           Shadow(blurRadius: 4, color: Colors.black54),
                                         ],

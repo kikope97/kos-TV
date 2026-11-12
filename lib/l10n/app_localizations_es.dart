@@ -19079,4 +19079,29 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvHomeRecentSettingSubtitle =>
       'Lo último que ha entrado en el servidor, debajo de las recomendaciones';
+
+  @override
+  String get kostvHomeWhyArrived => 'Lo pediste y ya está en casa';
+
+  @override
+  String get kostvHomeWhyTop => 'Lo más visto ahora, de lo que hay en casa';
+
+  @override
+  String get kostvHomeWhyBecause =>
+      'A quien le gustó, también le gustaron estas';
+
+  @override
+  String get kostvHomeWhyPerson => 'Otros trabajos suyos que hay en casa';
+
+  @override
+  String get kostvHomeWhyGenre => 'Las que mejor encajan contigo';
+
+  @override
+  String get kostvHomeWhyGems => 'Muy bien valoradas y todavía sin ver';
+
+  @override
+  String get kostvHomeWhyForYou => 'Elegidas por todo lo que has visto';
+
+  @override
+  String get kostvHomeNewTag => 'Nuevo';
 }
