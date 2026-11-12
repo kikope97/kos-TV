@@ -18271,6 +18271,18 @@
   "@kostvLauncherModeIntro": {
     "description": "Kos TV settings: text at the top of Launcher mode."
   },
+  "kostvTrailerSpanish": "In Spanish",
+  "@kostvTrailerSpanish": {
+    "description": "Kos TV trailer list: chip on a trailer dubbed into Spanish (Spain, or no country given)."
+  },
+  "kostvTrailerLatinSpanish": "In Latin American Spanish",
+  "@kostvTrailerLatinSpanish": {
+    "description": "Kos TV trailer list: chip on a trailer dubbed into Latin American Spanish."
+  },
+  "kostvTrailerEnglish": "In English",
+  "@kostvTrailerEnglish": {
+    "description": "Kos TV trailer list: chip on a trailer in English."
+  },
   "kostvIntroSetting": "Opening animation",
   "@kostvIntroSetting": {
     "description": "Kos TV settings: switch for the intro video when the app opens."

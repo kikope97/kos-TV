@@ -35,6 +35,7 @@ import '../../../data/repositories/offline_repository.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/services/book_reader_service.dart';
 import '../../../data/services/theme_music_service.dart';
+import '../../../data/services/stremfin/kostv_trailers.dart';
 import '../../../data/services/youtube_stream_resolver.dart';
 import '../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../data/services/incomplete_recordings_service.dart';
@@ -10075,9 +10076,15 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
   Future<void> _playTrailer(BuildContext context, AggregatedItem item) async {
     var locals = _localTrailersFromFeatures(viewModel.features);
     if (locals.isEmpty) locals = await _loadLocalTrailersOnDemand(item);
+    // Kos TV: the Spanish trailers first, from the requests service.
+    final remoteTrailers = await KostvTrailers.sorted(
+      itemType: item.type,
+      tmdbId: item.tmdbId,
+      server: item.remoteTrailers,
+    );
     final choices = trailerChoicesFor(
       locals: _preferredLocalTrailerFirst(locals),
-      remoteTrailers: item.remoteTrailers,
+      remoteTrailers: remoteTrailers,
       localImageUrl: (trailer) => _localTrailerImageUrl(trailer, item),
     );
     if (choices.isEmpty && viewModel.searchesYouTubeForTrailer) {

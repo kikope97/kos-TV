@@ -415,6 +415,57 @@ class StremfinService extends ChangeNotifier {
     return detail;
   }
 
+  final Map<String, List<StremfinTrailer>> _trailers = {};
+  final Map<String, Future<List<StremfinTrailer>>> _trailersLoading = {};
+
+  /// How long a title's trailers may take: the person is waiting to watch
+  /// one, and the home server has its own list to fall back on.
+  static const trailersTimeout = Duration(seconds: 4);
+  static const trailersRetryAfter = Duration(minutes: 2);
+  DateTime? _trailersFailedAt;
+
+  /// A title's trailers, the best first (dubbed into Spain's Spanish before
+  /// any other). Empty when it has none, the person isn't let in, or the
+  /// service doesn't answer in time: never an error, since whoever asks has
+  /// the home server's own to show. Kept for the session.
+  Future<List<StremfinTrailer>> trailers(
+    StremfinTitleType type,
+    int tmdbId,
+  ) {
+    final key = '${type.apiValue}:$tmdbId';
+    final known = _trailers[key];
+    if (known != null) return Future.value(known);
+    // A service that just failed isn't made to hold up the next trailer too.
+    final failed = _trailersFailedAt;
+    if (failed != null &&
+        DateTime.now().difference(failed) < trailersRetryAfter) {
+      return Future.value(const <StremfinTrailer>[]);
+    }
+    return _trailersLoading[key] ??= () async {
+      try {
+        if (!isConfigured) return const <StremfinTrailer>[];
+        if (!isAllowed) {
+          await refreshAccess();
+          if (!isAllowed) return const <StremfinTrailer>[];
+        }
+        final read = await _client
+            .trailers(type, tmdbId)
+            .timeout(trailersTimeout);
+        _trailersFailedAt = null;
+        return _trailers[key] = read;
+      } on StremfinException catch (e) {
+        // A title it doesn't know is an answer, not a failure.
+        if (e.status != 404) _trailersFailedAt = DateTime.now();
+        return const <StremfinTrailer>[];
+      } catch (_) {
+        _trailersFailedAt = DateTime.now();
+        return const <StremfinTrailer>[];
+      } finally {
+        unawaited(_trailersLoading.remove(key));
+      }
+    }();
+  }
+
   /// One request as it stands now.
   /// One request as its page shows it, so the tray doesn't count what the
   /// person has just seen there as news.

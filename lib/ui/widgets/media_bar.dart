@@ -24,6 +24,7 @@ import '../../data/models/media_bar_state.dart';
 import '../../data/services/background_service.dart';
 import '../../data/services/media_server_client_factory.dart';
 import '../../data/services/sponsorblock_service.dart';
+import '../../data/services/stremfin/kostv_trailers.dart';
 import '../../data/services/youtube_stream_resolver.dart';
 import '../../data/viewmodels/media_bar_view_model.dart';
 import '../../preference/preference_constants.dart';
@@ -1146,6 +1147,16 @@ class _MediaBarState extends State<MediaBar>
                 ?.cast<Map<String, dynamic>>() ??
             const [];
       } catch (_) {}
+    }
+
+    // Kos TV: the Spanish trailers first, from the requests service.
+    if (streamUrl == null && !item.isExternal) {
+      remoteTrailers = await KostvTrailers.sorted(
+        itemType: item.itemType,
+        tmdbId: item.tmdbId,
+        server: remoteTrailers,
+      );
+      if (!mounted || resolveId != _trailerResolveId) return;
     }
 
     if (streamUrl == null && remoteTrailers.isNotEmpty) {

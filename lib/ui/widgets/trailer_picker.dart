@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../data/models/aggregated_item.dart';
+import '../../data/services/stremfin/kostv_trailers.dart';
 import '../../data/services/youtube_stream_resolver.dart';
 import '../../l10n/app_localizations.dart';
 import '../../util/platform_detection.dart';
@@ -16,6 +17,8 @@ class TrailerChoice {
   const TrailerChoice._({
     required this.title,
     required this.subtitled,
+    this.language,
+    this.country,
     this.local,
     this.url,
     this.videoId,
@@ -32,6 +35,9 @@ class TrailerChoice {
 
   factory TrailerChoice._named(
     String? name, {
+    bool subtitled = false,
+    String? language,
+    String? country,
     AggregatedItem? local,
     String? url,
     String? imageUrl,
@@ -41,7 +47,9 @@ class TrailerChoice {
     final title = full.replaceFirst(_subtitledSuffix, '');
     return TrailerChoice._(
       title: title,
-      subtitled: title.length != full.length,
+      subtitled: subtitled || title.length != full.length,
+      language: language,
+      country: country,
       local: local,
       url: url,
       videoId: url == null ? null : YouTubeStreamResolver.extractVideoId(url),
@@ -50,12 +58,41 @@ class TrailerChoice {
     );
   }
 
-  factory TrailerChoice.remote(String url, String? name) =>
-      TrailerChoice._named(name, url: url);
+  factory TrailerChoice.remote(
+    String url,
+    String? name, {
+    bool subtitled = false,
+    String? language,
+    String? country,
+  }) => TrailerChoice._named(
+    name,
+    url: url,
+    subtitled: subtitled,
+    language: language,
+    country: country,
+  );
 
   /// The name to show, empty when the server gave none.
   final String title;
   final bool subtitled;
+
+  /// Kos TV: the language (`es`, `en`) and country (`ES`, `MX`) the trailer
+  /// is labelled with, when the requests service said.
+  final String? language;
+  final String? country;
+
+  /// Kos TV: what to say of the trailer's voices, or null to say nothing: a
+  /// subtitled one keeps its original voices, whatever language it is filed
+  /// under.
+  String? spokenLabel(AppLocalizations l10n) {
+    if (subtitled) return null;
+    return switch (language) {
+      'es' when country == null || country == 'ES' => l10n.kostvTrailerSpanish,
+      'es' => l10n.kostvTrailerLatinSpanish,
+      'en' => l10n.kostvTrailerEnglish,
+      _ => null,
+    };
+  }
 
   /// The trailer item when the file lives on the server.
   final AggregatedItem? local;
@@ -95,6 +132,9 @@ List<TrailerChoice> trailerChoicesFor({
         TrailerChoice.remote(
           url,
           remote['Name'] is String ? remote['Name'] as String : null,
+          subtitled: remote[KostvTrailers.subtitledKey] == true,
+          language: remote[KostvTrailers.languageKey] as String?,
+          country: remote[KostvTrailers.countryKey] as String?,
         ),
   ];
 }
@@ -400,6 +440,29 @@ class _TrailerRowState extends State<_TrailerRow> {
                       overflow: TextOverflow.ellipsis,
                       style: textTheme.bodySmall?.copyWith(
                         color: AppColorScheme.onSurface.withValues(alpha: 0.7),
+                      ),
+                    ),
+                  ],
+                  if (choice.spokenLabel(l10n) case final spoken?) ...[
+                    const SizedBox(height: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: choice.language == 'es'
+                            ? theme.colorScheme.primary.withValues(alpha: 0.22)
+                            : Colors.white.withValues(alpha: 0.1),
+                        borderRadius: AppRadius.circular(999),
+                      ),
+                      child: Text(
+                        spoken,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: AppColorScheme.onSurface.withValues(
+                            alpha: 0.9,
+                          ),
+                        ),
                       ),
                     ),
                   ],

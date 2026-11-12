@@ -168,6 +168,59 @@ class StremfinSearchPage {
   }
 }
 
+/// One of a title's trailers, as TMDB labels it. Always a YouTube video.
+@immutable
+class StremfinTrailer {
+  const StremfinTrailer({
+    required this.url,
+    this.name,
+    this.teaser = false,
+    this.language,
+    this.country,
+    this.subtitled = false,
+  });
+
+  /// Null when it carries neither a video id nor an address.
+  static StremfinTrailer? fromJson(Object? json) {
+    if (json is! Map) return null;
+    final key = json['key'];
+    final url = json['url'] is String && (json['url'] as String).isNotEmpty
+        ? json['url'] as String
+        : key is String && key.isNotEmpty
+        ? 'https://www.youtube.com/watch?v=$key'
+        : null;
+    if (url == null) return null;
+    String? text(String field) {
+      final value = json[field];
+      return value is String && value.isNotEmpty ? value : null;
+    }
+
+    return StremfinTrailer(
+      url: url,
+      name: text('name'),
+      teaser: json['type'] == 'teaser',
+      language: text('language')?.toLowerCase(),
+      country: text('country')?.toUpperCase(),
+      subtitled: json['subtitled'] == true,
+    );
+  }
+
+  final String url;
+  final String? name;
+
+  /// A short preview rather than a full trailer.
+  final bool teaser;
+
+  /// `es`, `en`... as labelled on TMDB, not checked against the sound.
+  final String? language;
+
+  /// `ES`, `MX`, `US`...
+  final String? country;
+
+  /// The original voices with subtitles, not dubbed.
+  final bool subtitled;
+}
+
 /// A film or series on one of the lists.
 @immutable
 class StremfinTitle {

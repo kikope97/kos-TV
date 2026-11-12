@@ -33,6 +33,7 @@ import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/services/plugin_sync_service.dart';
 import '../../../data/services/row_data_source.dart';
 import '../../../data/services/user_data_sync.dart';
+import '../../../data/services/stremfin/kostv_trailers.dart';
 import '../../../data/services/youtube_stream_resolver.dart';
 import '../../../data/services/connectivity_service.dart';
 import '../../../data/services/log_service.dart';
@@ -2206,12 +2207,26 @@ class _ContentRowsState extends State<_ContentRows>
     } catch (_) {}
     if (kIsWeb) return null;
 
-    var remote = ownerId == item.id ? item.rawData['RemoteTrailers'] : null;
+    Map<String, dynamic> owner = ownerId == item.id ? item.rawData : const {};
+    var remote = owner['RemoteTrailers'];
     if (remote is! List || remote.isEmpty) {
-      remote = (await client.itemsApi.getItem(ownerId))['RemoteTrailers'];
+      owner = await client.itemsApi.getItem(ownerId);
+      remote = owner['RemoteTrailers'];
     }
-    if (remote is! List) return null;
-    for (final trailer in remote.whereType<Map>()) {
+    // Kos TV: the Spanish trailers first, from the requests service.
+    final providers = owner['ProviderIds'];
+    final trailers = await KostvTrailers.sorted(
+      itemType: owner['Type'] as String?,
+      tmdbId: providers is Map
+          ? (providers['Tmdb'] ?? providers['tmdb'])?.toString()
+          : null,
+      server: [
+        if (remote is List)
+          for (final trailer in remote.whereType<Map>())
+            trailer.cast<String, dynamic>(),
+      ],
+    );
+    for (final trailer in trailers) {
       final url = trailer['Url']?.toString();
       if (url == null) continue;
       final source = await _youTubeTrailerSource(url, ownerId);

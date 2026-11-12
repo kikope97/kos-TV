@@ -225,6 +225,21 @@ class StremfinClient {
     throw _failure(response);
   }
 
+  /// A title's trailers, the best first: dubbed into Spain's Spanish, then
+  /// other Spanish, then subtitled, then English. Empty when it has none.
+  Future<List<StremfinTrailer>> trailers(
+    StremfinTitleType type,
+    int tmdbId,
+  ) async {
+    final kind = type == StremfinTitleType.series ? 'series' : 'movies';
+    final json = await _get('/$kind/$tmdbId/trailers');
+    final items = json is Map ? json['items'] : null;
+    return [
+      if (items is List)
+        for (final item in items) ?StremfinTrailer.fromJson(item),
+    ];
+  }
+
   /// Takes back one of theirs that still waits for an answer.
   Future<void> withdrawRequest(int id) async {
     final response = await _send('DELETE', '/requests/$id');

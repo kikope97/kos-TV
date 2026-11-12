@@ -31971,6 +31971,24 @@ abstract class AppLocalizations {
   /// **'For a TV where kOS TV is the start screen, not just another app. These options are kept on this TV only.'**
   String get kostvLauncherModeIntro;
 
+  /// Kos TV trailer list: chip on a trailer dubbed into Spanish (Spain, or no country given).
+  ///
+  /// In en, this message translates to:
+  /// **'In Spanish'**
+  String get kostvTrailerSpanish;
+
+  /// Kos TV trailer list: chip on a trailer dubbed into Latin American Spanish.
+  ///
+  /// In en, this message translates to:
+  /// **'In Latin American Spanish'**
+  String get kostvTrailerLatinSpanish;
+
+  /// Kos TV trailer list: chip on a trailer in English.
+  ///
+  /// In en, this message translates to:
+  /// **'In English'**
+  String get kostvTrailerEnglish;
+
   /// Kos TV settings: switch for the intro video when the app opens.
   ///
   /// In en, this message translates to:

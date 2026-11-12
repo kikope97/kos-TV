@@ -18554,6 +18554,15 @@ class AppLocalizationsEn extends AppLocalizations {
       'For a TV where kOS TV is the start screen, not just another app. These options are kept on this TV only.';
 
   @override
+  String get kostvTrailerSpanish => 'In Spanish';
+
+  @override
+  String get kostvTrailerLatinSpanish => 'In Latin American Spanish';
+
+  @override
+  String get kostvTrailerEnglish => 'In English';
+
+  @override
   String get kostvIntroSetting => 'Opening animation';
 
   @override
