@@ -62,6 +62,18 @@ dos originales. El registro está en `docs/revision-semanal.md`.
   no se integra nada o el usuario la pospone. Es el historial de dónde venimos:
   solo se añade, no se borra ni se reescribe lo anterior.
 
+## Documento de la API de Stremfin
+
+La documentación de la API del servicio de peticiones está en
+`docs/stremfin-api.md`. Cada vez que el usuario pase una versión nueva,
+sustituye ese archivo por ella **con la dirección real del servicio cambiada
+por `stremfin.ejemplo.com`** (el repositorio es público y la app ya recibe la
+dirección por otro lado; no hace falta en el repositorio). Antes de subirlo,
+comprueba que no queda ninguna dirección real en el archivo. Al sustituirlo,
+repasa el historial del final (sección 14) contra las llamadas que hace la app
+(`lib/data/services/stremfin/`) y dile al usuario si cambia algo de lo que
+usamos.
+
 ## Publicar una versión
 
 Publica tú las versiones: el usuario no entra en GitHub a hacerlo.
