@@ -18143,5 +18143,87 @@
   "kostvRequestLimitReached": "You've reached your request limit",
   "@kostvRequestLimitReached": {
     "description": "Kos TV request page: the button, switched off, when the person can't ask for more right now."
+  },
+  "kostvTrayTitle": "Requests",
+  "@kostvTrayTitle": {
+    "description": "Kos TV requests tray: its title."
+  },
+  "kostvTrayOpen": "Requests tray",
+  "@kostvTrayOpen": {
+    "description": "Kos TV: name of the button that opens the requests tray (tooltip, menus, screen readers)."
+  },
+  "kostvTrayNews": "New",
+  "@kostvTrayNews": {
+    "description": "Kos TV requests tray: heading (shown in capitals) of what is new to the person."
+  },
+  "kostvTrayActive": "Under way",
+  "@kostvTrayActive": {
+    "description": "Kos TV requests tray: heading of the requests waiting for an answer or downloading."
+  },
+  "kostvTrayFinished": "Finished",
+  "@kostvTrayFinished": {
+    "description": "Kos TV requests tray: heading of the requests that arrived or were turned down."
+  },
+  "kostvTrayEmpty": "You haven't requested anything yet",
+  "@kostvTrayEmpty": {
+    "description": "Kos TV requests tray: shown when the person has no requests."
+  },
+  "kostvTrayEmptyHint": "What you request from Discover will show up here.",
+  "@kostvTrayEmptyHint": {
+    "description": "Kos TV requests tray: hint under the empty message."
+  },
+  "kostvTrayGoDiscover": "Go to Discover",
+  "@kostvTrayGoDiscover": {
+    "description": "Kos TV requests tray: button on the empty tray."
+  },
+  "kostvTrayLoadFailed": "Your requests couldn't be loaded",
+  "@kostvTrayLoadFailed": {
+    "description": "Kos TV requests tray: the service didn't answer."
+  },
+  "kostvTrayQuotaDaily": "{count, plural, =1{1 left today} other{{count} left today}}",
+  "@kostvTrayQuotaDaily": {
+    "description": "Kos TV requests tray: requests the person can still make today.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kostvTrayQuotaPending": "{pending} of {limit} waiting for an answer",
+  "@kostvTrayQuotaPending": {
+    "description": "Kos TV requests tray: requests waiting for the administrator, of how many may wait at once.",
+    "placeholders": {
+      "pending": {
+        "type": "int"
+      },
+      "limit": {
+        "type": "int"
+      }
+    }
+  },
+  "kostvTrayWithdraw": "Withdraw",
+  "@kostvTrayWithdraw": {
+    "description": "Kos TV requests tray: short button on a request waiting for an answer, to take it back."
+  },
+  "kostvTrayEpisodes": "{done} of {total, plural, =1{1 episode} other{{total} episodes}}",
+  "@kostvTrayEpisodes": {
+    "description": "Kos TV requests tray: episodes of a series request already at home.",
+    "placeholders": {
+      "done": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "kostvTrayTimeLeft": "{time} left",
+  "@kostvTrayTimeLeft": {
+    "description": "Kos TV requests tray: time a download still takes.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
   }
 }

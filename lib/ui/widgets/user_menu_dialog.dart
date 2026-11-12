@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -26,7 +28,9 @@ import '../../util/silo_failure_message.dart';
 import '../navigation/destinations.dart';
 import 'adaptive/adaptive_dialog.dart';
 import '../screens/auth/silo_profile_unlock.dart';
+import '../screens/discover/kostv_requests_tray.dart';
 import '../screens/settings/settings_side_panel.dart';
+import 'kostv_requests_tray_button.dart';
 import 'navigation_layout.dart';
 import 'overlay_sheet.dart';
 import 'pin_entry_dialog.dart';
@@ -353,6 +357,14 @@ class _AccountDialogState extends State<_AccountDialog> {
       if (_accounts.length > 1 + _sessionRepo.activeSiloSiblingCount)
         action(l10n.signOutAllUsers, _signOutAll, danger: true),
       if (showAppActions) ...[
+        // Kos TV: the requests tray, always here (beside the avatar it only
+        // shows when there is news or something under way).
+        if (kostvRequestsTrayAvailable())
+          action(l10n.kostvTrayTitle, () {
+            Navigator.of(context).pop();
+            if (!context.mounted) return;
+            unawaited(showKostvRequestsTray(context));
+          }, icon: Icons.inbox_rounded),
         action(l10n.settings, () async {
           Navigator.of(context).pop();
           if (!context.mounted) return;

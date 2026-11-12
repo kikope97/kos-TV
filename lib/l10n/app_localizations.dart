@@ -31826,6 +31826,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You\'ve reached your request limit'**
   String get kostvRequestLimitReached;
+
+  /// Kos TV requests tray: its title.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests'**
+  String get kostvTrayTitle;
+
+  /// Kos TV: name of the button that opens the requests tray (tooltip, menus, screen readers).
+  ///
+  /// In en, this message translates to:
+  /// **'Requests tray'**
+  String get kostvTrayOpen;
+
+  /// Kos TV requests tray: heading (shown in capitals) of what is new to the person.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get kostvTrayNews;
+
+  /// Kos TV requests tray: heading of the requests waiting for an answer or downloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Under way'**
+  String get kostvTrayActive;
+
+  /// Kos TV requests tray: heading of the requests that arrived or were turned down.
+  ///
+  /// In en, this message translates to:
+  /// **'Finished'**
+  String get kostvTrayFinished;
+
+  /// Kos TV requests tray: shown when the person has no requests.
+  ///
+  /// In en, this message translates to:
+  /// **'You haven\'t requested anything yet'**
+  String get kostvTrayEmpty;
+
+  /// Kos TV requests tray: hint under the empty message.
+  ///
+  /// In en, this message translates to:
+  /// **'What you request from Discover will show up here.'**
+  String get kostvTrayEmptyHint;
+
+  /// Kos TV requests tray: button on the empty tray.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Discover'**
+  String get kostvTrayGoDiscover;
+
+  /// Kos TV requests tray: the service didn't answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Your requests couldn\'t be loaded'**
+  String get kostvTrayLoadFailed;
+
+  /// Kos TV requests tray: requests the person can still make today.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 left today} other{{count} left today}}'**
+  String kostvTrayQuotaDaily(int count);
+
+  /// Kos TV requests tray: requests waiting for the administrator, of how many may wait at once.
+  ///
+  /// In en, this message translates to:
+  /// **'{pending} of {limit} waiting for an answer'**
+  String kostvTrayQuotaPending(int pending, int limit);
+
+  /// Kos TV requests tray: short button on a request waiting for an answer, to take it back.
+  ///
+  /// In en, this message translates to:
+  /// **'Withdraw'**
+  String get kostvTrayWithdraw;
+
+  /// Kos TV requests tray: episodes of a series request already at home.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total, plural, =1{1 episode} other{{total} episodes}}'**
+  String kostvTrayEpisodes(int done, int total);
+
+  /// Kos TV requests tray: time a download still takes.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} left'**
+  String kostvTrayTimeLeft(String time);
 }
 
 class _AppLocalizationsDelegate

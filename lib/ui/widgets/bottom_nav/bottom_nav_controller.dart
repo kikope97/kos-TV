@@ -24,6 +24,7 @@ import '../../../util/live_tv_library.dart';
 import '../../../util/signed_in_server_features.dart';
 import '../downloads_nav_slot.dart';
 import '../friends_nav_slot.dart';
+import '../kostv_requests_tray_button.dart';
 import 'bottom_nav_model.dart';
 
 /// Everything the bottom navbar knows beyond its own layout: which tabs are
@@ -35,6 +36,7 @@ class BottomNavController extends ChangeNotifier {
     _viewsRepo.addListener(_scheduleLibrariesReload);
     _pluginSync?.addListener(_onPrefsChanged);
     _stremfin?.addListener(notifyListeners);
+    _stremfin?.inbox.addListener(notifyListeners);
     _messages?.addListener(notifyListeners);
     _achievements?.addListener(notifyListeners);
     _savedMedia?.addListener(notifyListeners);
@@ -179,8 +181,16 @@ class BottomNavController extends ChangeNotifier {
   int get friendsBadge =>
       friendsVisible ? (_achievements?.socialBadgeCount ?? 0) : 0;
 
+  /// Kos TV: whether the hub lists the requests tray: the requests service
+  /// lets the person in, outside kids mode.
+  bool get requestsVisible => kostvRequestsTrayAvailable();
+
+  /// Kos TV: news in the requests tray the person hasn't seen.
+  int get requestsNews =>
+      requestsVisible ? (_stremfin?.inbox.newsCount ?? 0) : 0;
+
   /// What the avatar counts: everything waiting behind the bottom navbar hub.
-  int get hubBadge => unreadMessages + friendsBadge;
+  int get hubBadge => unreadMessages + friendsBadge + requestsNews;
 
   // Rebuilding the bar on every preference write in the app would be wasted
   // work, so only the settings the bar reads are compared.
@@ -290,6 +300,7 @@ class BottomNavController extends ChangeNotifier {
       _achievements?.removeListener(notifyListeners);
       _savedMedia?.removeListener(notifyListeners);
       _stremfin?.removeListener(notifyListeners);
+      _stremfin?.inbox.removeListener(notifyListeners);
     } catch (_) {}
     _userSub?.cancel();
     _librariesReloadDebounce?.cancel();

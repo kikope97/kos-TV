@@ -53,6 +53,9 @@ class StremfinInbox extends ChangeNotifier {
   /// The list has been read at least once for this person.
   bool get isLoaded => _since != null;
 
+  /// The last time it was asked, the service didn't answer.
+  bool failed = false;
+
   List<StremfinRequest> get _latestFirst =>
       _items.values.toList()..sort((a, b) {
         final at = a.lastChange;
@@ -175,6 +178,7 @@ class StremfinInbox extends ChangeNotifier {
         _items[request.id] = request;
       }
       _since = page.now ?? _since ?? '';
+      failed = false;
       if (first && stored == null) {
         // The first time on this device: what already happened isn't news,
         // only what happens from now on.
@@ -184,6 +188,10 @@ class StremfinInbox extends ChangeNotifier {
       _notify();
     } on StremfinException {
       // Asked again next time round.
+      if (generation == _generation) {
+        failed = true;
+        _notify();
+      }
     }
     _schedule();
   }

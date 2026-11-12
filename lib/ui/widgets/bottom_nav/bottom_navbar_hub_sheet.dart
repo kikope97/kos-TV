@@ -6,6 +6,7 @@ import '../../../preference/bottom_nav_tabs.dart';
 import '../../../preference/preference_constants.dart';
 import '../../screens/settings/settings_side_panel.dart';
 import '../adaptive/sf_symbol.dart';
+import '../../screens/discover/kostv_requests_tray.dart';
 import '../friends_nav_slot.dart';
 import '../server_messages_dialog.dart';
 import '../settings/settings_panel.dart';
@@ -65,6 +66,7 @@ Future<void> showBottomNavbarHub({
               }
             }),
             onFriends: () => then(() => FriendsNavSlot.open(context)),
+            onRequests: () => then(() => showKostvRequestsTray(context)),
             onMessages: () => then(() => showServerMessagesDialog(context)),
             onSettings: () => then(
               () => SettingsPanel.open(context, const SettingsSidePanel()),
@@ -84,6 +86,7 @@ class _BottomNavbarHub extends StatelessWidget {
   final VoidCallback onAccount;
   final ValueChanged<BottomNavHubTile> onTile;
   final VoidCallback onFriends;
+  final VoidCallback onRequests;
   final VoidCallback onMessages;
   final VoidCallback onSettings;
 
@@ -93,6 +96,7 @@ class _BottomNavbarHub extends StatelessWidget {
     required this.onAccount,
     required this.onTile,
     required this.onFriends,
+    required this.onRequests,
     required this.onMessages,
     required this.onSettings,
   });
@@ -209,6 +213,15 @@ class _BottomNavbarHub extends StatelessWidget {
                     theme: theme,
                     trailing: _countBadge(controller.friendsBadge),
                     onTap: onFriends,
+                  ),
+                // Kos TV: the requests tray, with its news.
+                if (controller.requestsVisible)
+                  _HubRow(
+                    icon: Icons.inbox_rounded,
+                    label: l10n.kostvTrayTitle,
+                    theme: theme,
+                    trailing: _countBadge(controller.requestsNews),
+                    onTap: onRequests,
                   ),
                 if (controller.messagesVisible)
                   _HubRow(

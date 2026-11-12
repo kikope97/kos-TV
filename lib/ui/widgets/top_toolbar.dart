@@ -37,6 +37,7 @@ import 'marquee_text.dart';
 import 'overlay_sheet.dart';
 import 'navigation_layout.dart';
 import 'settings/settings_panel.dart';
+import '../screens/discover/kostv_requests_tray.dart';
 import '../screens/downloads/downloads_panel.dart';
 import '../screens/settings/settings_side_panel.dart';
 import '../screens/watch_party/watch_together_route.dart';
@@ -53,6 +54,7 @@ import '../../util/focus/dpad_keys.dart';
 import '../../util/focus/input_mode_tracker.dart';
 import '../navigation/app_router.dart';
 import 'adaptive/sf_symbol.dart';
+import 'kostv_requests_tray_button.dart';
 import 'user_avatar_image.dart';
 
 const _kToolbarHeightTV = 95.0;
@@ -121,6 +123,11 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   final _viewsRepo = GetIt.instance<UserViewsRepository>();
 
   final _avatarFocus = FocusNode();
+
+  /// Kos TV: the requests tray beside the avatar, and whether the pointer is
+  /// over them (which brings it out, as the focus does).
+  final _trayFocus = FocusNode(debugLabel: 'kostvRequestsTray');
+  bool _startHovered = false;
   final _homeFocus = FocusNode(debugLabel: 'TopToolbarHome');
   final _settingsFocus = FocusNode(debugLabel: 'TopToolbarSettings');
   final _serverMessagesFocus = FocusNode(
@@ -175,6 +182,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     NavigationLayout.focusNavbarAvatarNotifier.value = _focusAvatarCallback;
     NavigationLayout.chromeFocusRoots.add(_toolbarScopeNode);
     _avatarFocus.addListener(_onAvatarFocusChanged);
+    _trayFocus.addListener(_onAvatarFocusChanged);
     FocusManager.instance.addListener(_trackPreviousFocus);
     _updateClock();
     _clockTimer = Timer.periodic(
@@ -253,9 +261,11 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     }
     NavigationLayout.chromeFocusRoots.remove(_toolbarScopeNode);
     _avatarFocus.removeListener(_onAvatarFocusChanged);
+    _trayFocus.removeListener(_onAvatarFocusChanged);
     FocusManager.instance.removeListener(_trackPreviousFocus);
     _toolbarScopeNode.dispose();
     _avatarFocus.dispose();
+    _trayFocus.dispose();
     _homeFocus.dispose();
     _settingsFocus.dispose();
     _serverMessagesFocus.dispose();
@@ -865,7 +875,38 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (_showAvatar) _buildAvatar(),
+          if (_showAvatar)
+            MouseRegion(
+              onEnter: (_) => setState(() => _startHovered = true),
+              onExit: (_) => setState(() => _startHovered = false),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildAvatar(),
+                  // Kos TV: the requests tray, out while there is news or
+                  // something under way, or while on the avatar.
+                  KostvRequestsTraySlot(
+                    revealed:
+                        _avatarFocus.hasFocus ||
+                        _trayFocus.hasFocus ||
+                        _startHovered,
+                    builder: (context) => Padding(
+                      padding: const EdgeInsetsDirectional.only(start: 8),
+                      child: KostvRequestsTrayButton(
+                        size: _kAvatarSize,
+                        focusNode: _trayFocus,
+                        background: _toolbarSurfaceColor(),
+                        onPressed: () => showKostvRequestsTray(context),
+                        onDown:
+                            PlatformDetection.isTV || PlatformDetection.isDesktop
+                            ? _restoreFocusBelowToolbar
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           if (_showBackArrow) ...[
             if (_showAvatar) const SizedBox(width: 8),
             MouseRegion(

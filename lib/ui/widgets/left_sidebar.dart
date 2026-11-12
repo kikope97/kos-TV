@@ -34,6 +34,7 @@ import '../navigation/home_refresh_bus.dart';
 import '../navigation/route_lifecycle_observer.dart';
 import 'navigation_layout.dart';
 import 'settings/settings_panel.dart';
+import '../screens/discover/kostv_requests_tray.dart';
 import '../screens/downloads/downloads_panel.dart';
 import 'downloads_nav_slot.dart';
 import 'friends_nav_slot.dart';
@@ -51,6 +52,7 @@ import '../../data/services/media_server_client_factory.dart';
 import '../navigation/app_router.dart';
 import 'offline_aware_image.dart';
 import 'adaptive/sf_symbol.dart';
+import 'kostv_requests_tray_button.dart';
 import 'user_avatar_image.dart';
 
 const _kExpandedWidthDesktop = 240.0;
@@ -95,6 +97,9 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
   );
   final _friendsFocusNode = FocusNode(debugLabel: 'LeftSidebarFriends');
   final _profileFocusNode = FocusNode(debugLabel: 'LeftSidebarProfile');
+
+  /// Kos TV: the requests tray, right under the avatar.
+  final _trayFocusNode = FocusNode(debugLabel: 'LeftSidebarRequestsTray');
   final _musicCardFocusNode = FocusNode(debugLabel: 'SidebarMusicCard');
   late final VoidCallback _focusNavbarCallback;
   late final VoidCallback _focusAvatarCallback;
@@ -188,6 +193,9 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     _profileFocusNode.addListener(() {
       if (mounted) setState(() {});
     });
+    _trayFocusNode.addListener(() {
+      if (mounted) setState(() {});
+    });
   }
 
   ModalRoute<dynamic>? _observedRoute;
@@ -249,6 +257,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     _serverMessagesFocusNode.dispose();
     _friendsFocusNode.dispose();
     _profileFocusNode.dispose();
+    _trayFocusNode.dispose();
     _musicCardFocusNode.dispose();
     _sidebarFocus.dispose();
     _scrollController.dispose();
@@ -522,7 +531,10 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
       }
       if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
           _homeFocusNode.hasFocus) {
-        if (_profileFocusNode.context != null) {
+        // Kos TV: the requests tray first, when it is out.
+        if (_trayFocusNode.context != null) {
+          _trayFocusNode.requestFocus();
+        } else if (_profileFocusNode.context != null) {
           _profileFocusNode.requestFocus();
         }
         return KeyEventResult.handled;
@@ -980,6 +992,16 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
           maintainState: true,
           child: _buildUserSection(),
         ),
+        // Kos TV: the requests tray, under the avatar: out while there is
+        // news or something under way, or while on the avatar.
+        KostvRequestsTraySlot(
+          axis: Axis.vertical,
+          revealed:
+              _profileFocusNode.hasFocus ||
+              _trayFocusNode.hasFocus ||
+              (_isExpanded && !PlatformDetection.isTV),
+          builder: (context) => _buildRequestsTray(l10n),
+        ),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -1347,6 +1369,68 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     }
   }
 
+  /// Kos TV: the requests tray's row: a tray with the number of news, and a
+  /// ring turning round it while something is under way.
+  Widget _buildRequestsTray(AppLocalizations l10n) {
+    final inbox = GetIt.instance<StremfinService>().inbox;
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: (_, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
+            _profileFocusNode.context != null) {
+          _profileFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+          _homeFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: ListenableBuilder(
+        listenable: inbox,
+        builder: (context, _) => _SidebarItem(
+          key: const ValueKey('sidebar-requests-tray'),
+          iconBuilder: (size, color) => Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              if (inbox.hasActive)
+                SizedBox(
+                  width: size + 10,
+                  height: size + 10,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColorScheme.accent,
+                    backgroundColor: AppColorScheme.accent.withValues(
+                      alpha: 0.18,
+                    ),
+                  ),
+                ),
+              AdaptiveIcon(
+                inbox.newsCount > 0
+                    ? Icons.inbox_rounded
+                    : Icons.inbox_outlined,
+                size: size,
+                color: color,
+              ),
+            ],
+          ),
+          label: l10n.kostvTrayTitle,
+          badgeCount: inbox.newsCount,
+          focusNode: _trayFocusNode,
+          showLabel: _showLabels,
+          onPressed: () {
+            _onNavigate();
+            showKostvRequestsTray(context);
+          },
+        ),
+      ),
+    );
+  }
+
   Widget _buildUserSection() {
     final user = _userRepo.currentUser;
     final initial = (user?.name.isNotEmpty == true)
@@ -1441,7 +1525,12 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
               return KeyEventResult.handled;
             }
             if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-              _homeFocusNode.requestFocus();
+              // Kos TV: the requests tray first, when it is out.
+              if (_trayFocusNode.context != null) {
+                _trayFocusNode.requestFocus();
+              } else {
+                _homeFocusNode.requestFocus();
+              }
               return KeyEventResult.handled;
             }
           }

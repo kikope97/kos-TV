@@ -18454,4 +18454,67 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvRequestLimitReached => 'You\'ve reached your request limit';
+
+  @override
+  String get kostvTrayTitle => 'Requests';
+
+  @override
+  String get kostvTrayOpen => 'Requests tray';
+
+  @override
+  String get kostvTrayNews => 'New';
+
+  @override
+  String get kostvTrayActive => 'Under way';
+
+  @override
+  String get kostvTrayFinished => 'Finished';
+
+  @override
+  String get kostvTrayEmpty => 'You haven\'t requested anything yet';
+
+  @override
+  String get kostvTrayEmptyHint =>
+      'What you request from Discover will show up here.';
+
+  @override
+  String get kostvTrayGoDiscover => 'Go to Discover';
+
+  @override
+  String get kostvTrayLoadFailed => 'Your requests couldn\'t be loaded';
+
+  @override
+  String kostvTrayQuotaDaily(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count left today',
+      one: '1 left today',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kostvTrayQuotaPending(int pending, int limit) {
+    return '$pending of $limit waiting for an answer';
+  }
+
+  @override
+  String get kostvTrayWithdraw => 'Withdraw';
+
+  @override
+  String kostvTrayEpisodes(int done, int total) {
+    String _temp0 = intl.Intl.pluralLogic(
+      total,
+      locale: localeName,
+      other: '$total episodes',
+      one: '1 episode',
+    );
+    return '$done of $_temp0';
+  }
+
+  @override
+  String kostvTrayTimeLeft(String time) {
+    return '$time left';
+  }
 }

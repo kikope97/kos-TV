@@ -23,6 +23,7 @@ import '../../widgets/navigation_layout.dart';
 import '../detail/detail_layout_metrics.dart';
 import '../detail/frost/frost_detail_content.dart' show FrostStage;
 import 'kostv_request_controller.dart';
+import 'kostv_request_status.dart';
 
 /// Kos TV: the page of a film or series that isn't on the home server yet,
 /// opened from Discover. It has the shape of a title's page, all in grey
@@ -53,7 +54,7 @@ class KostvRequestScreen extends StatefulWidget {
 }
 
 /// How a main button looks.
-enum _Tone { action, pending, progress, done, muted }
+typedef _Tone = KostvTone;
 
 /// The page's main button: what pressing does, or how the request stands.
 @immutable
@@ -349,102 +350,18 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     return others.isEmpty ? null : others;
   }
 
-  /// The main button while a request is accepted: where its download is.
-  _Main _progressMain(StremfinProgress? progress, AppLocalizations l10n) {
-    final state = progress?.state ?? StremfinProgressState.accepted;
-    final transfer = progress?.transfer ?? const StremfinTransfer();
-    final percent = transfer.percent;
-    switch (state) {
-      case StremfinProgressState.accepted:
-      case StremfinProgressState.unknown:
-        return _Main(
-          label: l10n.kostvRequestAccepted,
-          icon: Icons.check_rounded,
-          tone: _Tone.progress,
-        );
-      case StremfinProgressState.preparing:
-        return _Main(
-          label: l10n.kostvRequestLookingForEpisodes,
-          icon: Icons.travel_explore_rounded,
-          tone: _Tone.progress,
-        );
-      case StremfinProgressState.waitingVersion:
-        return _Main(
-          label: l10n.kostvRequestWaitingVersion,
-          icon: Icons.hourglass_empty_rounded,
-          tone: _Tone.pending,
-        );
-      case StremfinProgressState.attention:
-        return _Main(
-          label: l10n.kostvRequestUnderReview,
-          icon: Icons.report_outlined,
-          tone: _Tone.pending,
-        );
-      case StremfinProgressState.downloading:
-        return _transferMain(transfer, l10n, percent: percent);
-    }
-  }
+  _Main _status(KostvStatus status) => _Main(
+    label: status.label,
+    icon: status.icon,
+    tone: status.tone,
+    progress: status.progress,
+  );
 
   _Main _transferMain(
     StremfinTransfer transfer,
     AppLocalizations l10n, {
     int? percent,
-  }) {
-    final fill = percent == null ? null : percent / 100;
-    if (transfer.paused) {
-      return _Main(
-        label: l10n.kostvRequestPaused,
-        icon: Icons.pause_rounded,
-        tone: _Tone.progress,
-        progress: fill,
-      );
-    }
-    return switch (transfer.phase) {
-      StremfinPhase.queued => _Main(
-        label: l10n.kostvRequestQueued,
-        icon: Icons.schedule_rounded,
-        tone: _Tone.progress,
-        progress: fill,
-      ),
-      StremfinPhase.preparing || null => _Main(
-        label: l10n.kostvRequestPreparing,
-        icon: Icons.downloading_rounded,
-        tone: _Tone.progress,
-        progress: fill,
-      ),
-      StremfinPhase.waitingFile => _Main(
-        label: l10n.kostvRequestWaitingFile,
-        icon: Icons.hourglass_top_rounded,
-        tone: _Tone.progress,
-        progress: fill,
-      ),
-      StremfinPhase.verifying => _Main(
-        label: l10n.kostvRequestVerifying,
-        icon: Icons.fact_check_outlined,
-        tone: _Tone.progress,
-        progress: 1,
-      ),
-      StremfinPhase.moving || StremfinPhase.completed => _Main(
-        label: l10n.kostvRequestMoving,
-        icon: Icons.drive_file_move_outline,
-        tone: _Tone.progress,
-        progress: 1,
-      ),
-      StremfinPhase.attention => _Main(
-        label: l10n.kostvRequestUnderReview,
-        icon: Icons.report_outlined,
-        tone: _Tone.pending,
-      ),
-      StremfinPhase.downloading || StremfinPhase.unknown => _Main(
-        label: percent == null
-            ? l10n.kostvRequestDownloading
-            : l10n.kostvRequestDownloadingPercent(percent),
-        icon: Icons.download_rounded,
-        tone: _Tone.progress,
-        progress: fill,
-      ),
-    };
-  }
+  }) => _status(kostvTransferStatus(l10n, transfer));
 
   // ------------------------------------------------------ what's on show
 
@@ -471,19 +388,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
   }
 
   _Main _requestMain(StremfinRequest request, AppLocalizations l10n) =>
-      switch (request.status) {
-        StremfinRequestStatus.pending => _Main(
-          label: l10n.kostvRequestPending,
-          icon: Icons.hourglass_top_rounded,
-          tone: _Tone.pending,
-        ),
-        StremfinRequestStatus.completed => _Main(
-          label: l10n.kostvRequestArrived,
-          icon: Icons.check_circle_rounded,
-          tone: _Tone.done,
-        ),
-        _ => _progressMain(request.progress, l10n),
-      };
+      _status(kostvRequestStatus(l10n, request));
 
   _Main _movieMain(KostvMovieRequestController c, AppLocalizations l10n) {
     final request = c.request;
@@ -1837,6 +1742,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     _Tone.progress => AppColorScheme.accent,
     _Tone.done => _doneColor,
     _Tone.muted => _ink(0.35),
+    _Tone.failed => _alertColor,
   };
 
   /// Up from the buttons: the seasons, or the navbar on top.
