@@ -31,7 +31,7 @@ Se actualiza al terminar cada revisión. La siguiente empieza justo aquí.
 | Copia original de kOS TV | upstream `3d87996d2` (2026-11-10): Moonfin 3.0.0 más 658 commits posteriores sin publicar |
 | Último commit de upstream revisado | ninguno: se parte de `3d87996d2` |
 | Última versión del complemento oficial revisada | 3.1.0.0 (2026-11-12, etiqueta `3.1.0`, commit `9e05034`): base del nuestro |
-| Nuestro complemento | «kOS TV» 3.1.0.1 (la oficial 3.1.0 con nombre, identificador y textos propios), en `complemento/` |
+| Nuestro complemento | «kOS TV» 3.1.0.1 (la oficial 3.1.0 con nombre, identificador y textos propios), en `complemento/`. En la rama, sin publicar: sin Seerr ni su calendario, y la página de ajustes en español (será la 3.1.0.2) |
 | Complemento instalado en el servidor de casa | el oficial, 3.0.0.0, instalado el 2026-11-11 (Seerr apagado, sin push); se pasa al nuestro, 3.1.0.1, el 2026-11-12 |
 | Última revisión | ninguna: punto de partida apuntado el 2026-11-11 |
 | Próxima revisión | a partir del 2026-11-18 |
@@ -58,6 +58,18 @@ Copiar este bloque arriba del registro y rellenarlo:
 ```
 
 ## Registro
+
+### 2026-11-12 · Complemento sin Seerr y en español (sin revisión)
+
+- **App, revisado:** nada; la primera revisión sigue para el 2026-11-18.
+- **Complemento:** a petición del usuario, fuera Seerr y lo que dependía de él
+  (el calendario de Sonarr/Radarr con sus recordatorios y el aviso de
+  descargas atascadas); a las apps se les dice que no hay. La página de
+  ajustes, traducida al español con los nombres de la app; lo de Seerr queda
+  oculto con la clase `kostvSinSeerr`. **Para las próximas revisiones:** los
+  cambios del oficial en Seerr, el calendario o las descargas atascadas no
+  aplican, y los textos nuevos de su página de ajustes llegarán en inglés y
+  hay que traducirlos. Se publica como 3.1.0.2 cuando el usuario lo diga.
 
 ### 2026-11-12 · El complemento pasa a ser nuestro (sin revisión de la app)
 
