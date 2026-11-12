@@ -853,6 +853,11 @@ class MediaBarRepository {
           .timeout(const Duration(seconds: 8));
       if (page == null) return const [];
       final seen = <String>{};
+      // Which row each pick came from, for the banner's «why» line.
+      final rowOf = <String, KostvHomeServerRow>{
+        for (final row in page.rows.reversed)
+          for (final item in row.items) item.id: row,
+      };
       return [
         for (final item in KostvHomeRepository.byTurns([
           for (final row in page.rows) withoutBlockedItems(row.items),
@@ -860,7 +865,7 @@ class MediaBarRepository {
           if ((item.rawData['BackdropImageTags'] as List?)?.isNotEmpty ==
                   true &&
               seen.add(item.id))
-            _toSlideItem(item.rawData),
+            _toSlideItem(item.rawData, kostvRow: rowOf[item.id]),
       ].take(max).toList();
     } catch (e) {
       debugPrint('[MediaBar] Recommended picks failed: $e');
@@ -868,7 +873,10 @@ class MediaBarRepository {
     }
   }
 
-  MediaBarSlideItem _toSlideItem(Map<String, dynamic> data) {
+  MediaBarSlideItem _toSlideItem(
+    Map<String, dynamic> data, {
+    KostvHomeServerRow? kostvRow,
+  }) {
     final itemId = data['Id']?.toString() ?? '';
     final serverId = data['ServerId']?.toString() ?? '';
     final providerIds = data['ProviderIds'] as Map<String, dynamic>?;
@@ -930,6 +938,8 @@ class MediaBarRepository {
       remoteTrailers:
           (data['RemoteTrailers'] as List?)?.cast<Map<String, dynamic>>() ??
           const [],
+      kostvKind: kostvRow?.kind,
+      kostvLabel: kostvRow?.label,
     );
   }
 }

@@ -1020,9 +1020,15 @@ class _ContentRowsState extends State<_ContentRows>
   static const _previewOpenTimeout = Duration(seconds: 10);
   static const _pinTransitionDistance = 96.0;
   static const _previewStartDelay = Duration(milliseconds: 1200);
-  static Duration get _focusHandoffDuration => navigationAnimationDuration;
-  // Ease out so the scroll starts moving as soon as the key is pressed.
-  static const _focusHandoffCurve = Curves.easeOutCubic;
+  /// Kos TV: stepping from one row to the next glides instead of snapping.
+  /// The step is most of a screen, far more than a card's width, so it gets
+  /// about twice the time a move along a row does, easing into place.
+  static Duration get _rowHandoffDuration => Duration(
+    milliseconds: (navigationAnimationDuration.inMilliseconds * 2.2)
+        .round()
+        .clamp(180, 520),
+  );
+  static const _rowHandoffCurve = Curves.easeOutQuart;
   static const _mediaBarFadeDuration = Duration(milliseconds: 220);
   static const double _activeRowRecalcDistance = 48.0;
 
@@ -2644,6 +2650,17 @@ class _ContentRowsState extends State<_ContentRows>
       ? MediaQuery.sizeOf(context).height - _rowPeek
       : _mediaBarHeight();
 
+  /// Kos TV: whether the banner is the recommended Home's: the picture whole
+  /// with the first row peeking up over it, whatever Peek Home Rows says. On
+  /// TV and desktop, with the banner in its default style.
+  bool _kostvHero() =>
+      !PlatformDetection.useMobileUi &&
+      widget.prefs.kostvHomeActive &&
+      UserPreferences.normalizeMediaBarMode(
+            widget.prefs.get(UserPreferences.mediaBarMode),
+          ) ==
+          UserPreferences.mediaBarModeMoonfin;
+
   /// Places the middle of the first row's artwork on the bottom edge of the
   /// screen when Peek Home Rows is on, on TV and desktop only.
   void _computeRowPeek(
@@ -2655,7 +2672,7 @@ class _ContentRowsState extends State<_ContentRows>
     _rowPeekCover = 0;
     final prefs = widget.prefs;
     if (PlatformDetection.useMobileUi ||
-        !prefs.get(UserPreferences.mediaBarRowPeek) ||
+        !(prefs.get(UserPreferences.mediaBarRowPeek) || _kostvHero()) ||
         !UserPreferences.mediaBarModeAllowsRowPeek(
           prefs.get(UserPreferences.mediaBarMode),
         ) ||
@@ -2703,7 +2720,9 @@ class _ContentRowsState extends State<_ContentRows>
     if (container == null ||
         cards == null ||
         !container.attached ||
-        !cards.attached) {
+        !cards.attached ||
+        !container.hasSize ||
+        !cards.hasSize) {
       return null;
     }
     return cards.localToGlobal(Offset.zero, ancestor: container).dy;
@@ -2827,8 +2846,8 @@ class _ContentRowsState extends State<_ContentRows>
       unawaited(
         _scrollController.animateTo(
           0,
-          duration: _focusHandoffDuration,
-          curve: _focusHandoffCurve,
+          duration: _rowHandoffDuration,
+          curve: _rowHandoffCurve,
         ),
       );
     }
@@ -2975,8 +2994,8 @@ class _ContentRowsState extends State<_ContentRows>
       if (_scrollController.hasClients && _scrollController.offset > 0) {
         await _scrollController.animateTo(
           0,
-          duration: _focusHandoffDuration,
-          curve: _focusHandoffCurve,
+          duration: _rowHandoffDuration,
+          curve: _rowHandoffCurve,
         );
       }
 
@@ -3002,7 +3021,7 @@ class _ContentRowsState extends State<_ContentRows>
       }
 
       await navComplete.future.timeout(
-        const Duration(milliseconds: 450),
+        _rowHandoffDuration + const Duration(milliseconds: 200),
         onTimeout: () {},
       );
       _mediaBarFocusNode.removeListener(focusListener);
@@ -3262,7 +3281,19 @@ class _ContentRowsState extends State<_ContentRows>
     final headerPaddingBottom = (row.id == 'mdblist_watching_now') ? 12.0 : (isRowsV2 ? 1.0 : 8.0);
     final titleHeight = 20.0 * metadataScale;
     final subtitleHeight = hasSubtitle ? ((row.id == 'mdblist_watching_now' ? 26.0 : 18.0) * metadataScale) : 0.0;
-    final headerHeight = headerPaddingTop + headerPaddingBottom + titleHeight + subtitleHeight;
+    // Kos TV: the title of a row made for the person stands taller, with its
+    // icon, than the plain one this was measured for.
+    final kostvHeader =
+        hasSubtitle &&
+            KostvHomeRowStyle.of(row, AppLocalizations.of(context)) != null
+        ? 20.0 * metadataScale
+        : 0.0;
+    final headerHeight =
+        headerPaddingTop +
+        headerPaddingBottom +
+        titleHeight +
+        subtitleHeight +
+        kostvHeader;
 
     var totalHeight = childHeight + headerHeight;
     if (!fullScreenRows) {
@@ -3335,8 +3366,8 @@ class _ContentRowsState extends State<_ContentRows>
 
     await _scrollController.animateTo(
       targetOffset,
-      duration: _focusHandoffDuration,
-      curve: _focusHandoffCurve,
+      duration: _rowHandoffDuration,
+      curve: _rowHandoffCurve,
     );
   }
 
@@ -3766,8 +3797,8 @@ class _ContentRowsState extends State<_ContentRows>
             _scrollController
                 .animateTo(
                   targetOffset,
-                  duration: _focusHandoffDuration,
-                  curve: _focusHandoffCurve,
+                  duration: _rowHandoffDuration,
+                  curve: _rowHandoffCurve,
                 )
                 .whenComplete(() {
                   if (!navComplete.isCompleted) navComplete.complete();
@@ -3779,14 +3810,14 @@ class _ContentRowsState extends State<_ContentRows>
         Scrollable.ensureVisible(
           rowCtx,
           alignment: 0.12,
-          duration: _focusHandoffDuration,
-          curve: _focusHandoffCurve,
+          duration: _rowHandoffDuration,
+          curve: _rowHandoffCurve,
         ).whenComplete(() {
           if (!navComplete.isCompleted) navComplete.complete();
         });
       });
       await navComplete.future.timeout(
-        const Duration(milliseconds: 450),
+        _rowHandoffDuration + const Duration(milliseconds: 200),
         onTimeout: () {},
       );
     } finally {
@@ -4851,6 +4882,10 @@ class _ContentRowsState extends State<_ContentRows>
                                                       !_mediaBarFocusNode.hasFocus,
                                                   height: mediaBarHeight,
                                                   rowPeek: mediaBarRowPeek,
+                                                  kostvHero: _kostvHero(),
+                                                  heroInset:
+                                                      rowLeftInset +
+                                                      _kHomeRowLabelInset,
                                                   onNavigateDown: _moveFocusFromMediaBarToRows,
                                                   onNavigateUp: _navigateFromMediaBarToNavbar,
                                                   onNavigateLeft: navbarIsLeft
@@ -6238,6 +6273,9 @@ class _ContentRowsState extends State<_ContentRows>
         cardWidth: cardWidth,
         detailsWidth: detailsWidth,
         overview: isAudioRow ? null : item.overview,
+        // Kos TV: an episode carries its name on a line of its own, which
+        // would push a third line of overview onto the row below.
+        overviewMaxLines: item.type == 'Episode' ? 2 : 3,
         communityRating: item.communityRating,
         criticRating: item.criticRating,
         personalRating: item.personalRating,

@@ -43,6 +43,12 @@ class MediaBarSlideItem {
   /// Set on a series whose episodes aired within the chosen window.
   final MediaBarNewReleaseInfo? newRelease;
 
+  /// Kos TV: the kind of row of the recommended Home this pick came from
+  /// (`because_watched`, `for_you`...) and what that row is about, so the
+  /// banner can say why it is there. Null on any other pick.
+  final String? kostvKind;
+  final String? kostvLabel;
+
   /// The id outside titles carry in place of a server, as on Home.
   static const externalServerId = 'seerr';
 
@@ -66,6 +72,8 @@ class MediaBarSlideItem {
     this.itemType = 'Movie',
     this.remoteTrailers = const [],
     this.newRelease,
+    this.kostvKind,
+    this.kostvLabel,
   });
 
   /// Whether this title came from an outside list rather than the server, so it
@@ -92,6 +100,8 @@ class MediaBarSlideItem {
         imdbId: imdbId,
         itemType: itemType,
         remoteTrailers: remoteTrailers,
+        kostvKind: kostvKind,
+        kostvLabel: kostvLabel,
         overview: overview,
         newRelease: release,
       );
@@ -116,6 +126,8 @@ class MediaBarSlideItem {
     imdbId: imdbId,
     itemType: itemType,
     remoteTrailers: remoteTrailers,
+    kostvKind: kostvKind,
+    kostvLabel: kostvLabel,
     newRelease: newRelease,
   );
 }

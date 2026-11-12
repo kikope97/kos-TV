@@ -52,6 +52,7 @@ import 'mediabar/bookshelf_layout.dart';
 import 'mediabar/aya_media_bar.dart';
 import 'mediabar/gallery_coverflow.dart';
 import 'mediabar/gallery_layout.dart';
+import 'mediabar/kostv_hero_info.dart';
 import 'mediabar/media_bar_nav_arrow.dart';
 import 'mediabar/media_bar_status_focus.dart';
 import 'mediabar/media_bar_new_release_label.dart';
@@ -98,6 +99,12 @@ class MediaBar extends StatefulWidget {
   // How much of the bar's bottom a peeking home row covers. The Moonfin and
   // MakD layouts keep their art full height and lift their content above it.
   final double rowPeek;
+
+  /// Kos TV: the banner of the recommended Home, on TV and desktop. The
+  /// picture fills the screen and what it says of the pick is a small block
+  /// low on the left, above the row peeking up, starting [heroInset] in.
+  final bool kostvHero;
+  final double heroInset;
   final Future<void> Function()? onNavigateDown;
   final VoidCallback? onNavigateUp;
   final VoidCallback? onNavigateLeft;
@@ -111,6 +118,8 @@ class MediaBar extends StatefulWidget {
     this.trailerPaused = false,
     this.height = 220,
     this.rowPeek = 0,
+    this.kostvHero = false,
+    this.heroInset = 48,
     this.onNavigateDown,
     this.onNavigateUp,
     this.onNavigateLeft,
@@ -2075,7 +2084,14 @@ class _MediaBarState extends State<MediaBar>
               width: double.infinity,
               child: Stack(
                 fit: StackFit.expand,
-                children: [
+                children: widget.kostvHero && !isMobile
+                    ? _kostvHeroLayers(
+                        context,
+                        items,
+                        currentItem,
+                        hasVisibleTrailerVideo: hasVisibleTrailerVideo,
+                      )
+                    : [
                   AnimatedOpacity(
                     opacity: hasVisibleTrailerVideo ? 0 : 1,
                     duration: const Duration(milliseconds: 250),
@@ -2229,6 +2245,128 @@ class _MediaBarState extends State<MediaBar>
         ),
       ),
     );
+  }
+
+  /// Kos TV: the layers of the recommended Home's banner. The picture whole
+  /// behind, darkened towards the left and the bottom so the words and the
+  /// row peeking up read against it, and the words in a small block low on
+  /// the left.
+  List<Widget> _kostvHeroLayers(
+    BuildContext context,
+    List<MediaBarSlideItem> items,
+    MediaBarSlideItem? currentItem, {
+    required bool hasVisibleTrailerVideo,
+  }) {
+    final size = MediaQuery.sizeOf(context);
+    final ground = AppColorScheme.background;
+    final left = widget.heroInset + _sidebarInset;
+    final fadeHeight = widget.rowPeek + size.height * 0.26;
+    return [
+      AnimatedOpacity(
+        opacity: hasVisibleTrailerVideo ? 0 : 1,
+        duration: const Duration(milliseconds: 250),
+        child: _BackdropLayer(items: items, currentIndex: _currentIndex),
+      ),
+      ..._buildVideoOverlays(allowPersistentMedia3: true),
+      // Plain gradients, not a mask: nothing to redraw as the picture moves.
+      Positioned.fill(
+        child: IgnorePointer(
+          child: AnimatedOpacity(
+            opacity: hasVisibleTrailerVideo ? 0.45 : 1,
+            duration: const Duration(milliseconds: 250),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    ground.withValues(alpha: 0.8),
+                    ground.withValues(alpha: 0.5),
+                    ground.withValues(alpha: 0),
+                  ],
+                  stops: const [0, 0.32, 0.64],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      Positioned(
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: fadeHeight,
+        child: IgnorePointer(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  ground.withValues(alpha: 0),
+                  ground.withValues(alpha: 0.7),
+                  ground.withValues(alpha: 0.96),
+                ],
+                stops: [
+                  0,
+                  (1 - widget.rowPeek / fadeHeight).clamp(0.3, 0.9),
+                  1,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+      if (currentItem != null)
+        // While a trailer has the peeking row out of the way, the words drop
+        // down with it.
+        ListenableBuilder(
+          listenable: NavigationLayout.trailerChromeListenable,
+          builder: (context, child) => AnimatedPositioned(
+            duration: const Duration(milliseconds: 200),
+            left: left,
+            bottom:
+                (NavigationLayout.trailerHidesChrome ? 0 : widget.rowPeek) +
+                18,
+            width: (size.width * 0.46).clamp(320.0, 640.0),
+            child: child!,
+          ),
+          child: IgnorePointer(
+            child: AnimatedSwitcher(
+              // One pick's words leave before the next one's come in, so
+              // the two never show on top of each other.
+              duration: const Duration(milliseconds: 500),
+              switchInCurve: const Interval(0.5, 1, curve: Curves.easeOut),
+              switchOutCurve: const Interval(0.5, 1, curve: Curves.easeIn),
+              layoutBuilder: (current, previous) => Stack(
+                alignment: Alignment.bottomLeft,
+                children: [...previous, ?current],
+              ),
+              child: KostvHeroInfo(
+                key: ValueKey(
+                  '${currentItem.itemId}_${_isTrailerPlaying ? 'compact' : 'full'}',
+                ),
+                item: currentItem,
+                compact: _isTrailerPlaying,
+                logo: _buildLogoWithShadow(
+                  currentItem.logoUrl,
+                  currentItem.title,
+                  alignment: Alignment.bottomLeft,
+                ),
+              ),
+            ),
+          ),
+        ),
+      if (items.length > 1 && !_isTrailerPlaying)
+        Positioned(
+          right: 48,
+          bottom: widget.rowPeek + 26,
+          child: KostvHeroDots(count: items.length, current: _currentIndex),
+        ),
+      // A remote moves through the picks with left and right.
+      if (items.length > 1 && !PlatformDetection.isTV)
+        ..._buildNavArrows(context, items.length, leftInset: _sidebarInset),
+    ];
   }
 
   Widget _buildMakdSlideshow(
@@ -3184,20 +3322,28 @@ class _MediaBarState extends State<MediaBar>
     }
   }
 
-  Widget _buildLogoFallback(String title) => Align(
-    alignment: Alignment.centerLeft,
+  Widget _buildLogoFallback(
+    String title, {
+    Alignment alignment = Alignment.centerLeft,
+  }) => Align(
+    alignment: alignment,
     child: MediaBarTitle(title: title, shadows: _textShadows),
   );
 
-  Widget _buildLogoWithShadow(String? url, String title) {
-    if (url == null) return _buildLogoFallback(title);
+  Widget _buildLogoWithShadow(
+    String? url,
+    String title, {
+    Alignment alignment = Alignment.centerLeft,
+  }) {
+    if (url == null) return _buildLogoFallback(title, alignment: alignment);
     Widget image() => OfflineAwareImage(
       imageUrl: url,
       fit: BoxFit.contain,
-      alignment: Alignment.centerLeft,
+      alignment: alignment,
       fadeInDuration: Duration.zero,
       priority: ImageFetchPriority.high,
-      errorWidget: (_, _, _) => _buildLogoFallback(title),
+      errorWidget: (_, _, _) =>
+          _buildLogoFallback(title, alignment: alignment),
     );
     return Stack(
       fit: StackFit.expand,

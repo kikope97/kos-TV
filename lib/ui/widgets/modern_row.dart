@@ -289,6 +289,7 @@ class ModernCardDetails extends StatelessWidget {
     required this.cardWidth,
     required this.detailsWidth,
     this.overview,
+    this.overviewMaxLines = 3,
     this.communityRating,
     this.criticRating,
     this.personalRating,
@@ -302,6 +303,10 @@ class ModernCardDetails extends StatelessWidget {
   final double cardWidth;
   final double detailsWidth;
   final String? overview;
+
+  /// Kos TV: a card with a line more above (an episode's name) gets a line
+  /// less of overview, so the two fit the same room.
+  final int overviewMaxLines;
   final double? communityRating;
   final int? criticRating;
   final double? personalRating;
@@ -350,7 +355,7 @@ class ModernCardDetails extends StatelessWidget {
             padding: const EdgeInsets.only(top: 4),
             child: Text(
               cleanOverview(overview),
-              maxLines: 3,
+              maxLines: overviewMaxLines,
               overflow: TextOverflow.ellipsis,
               style: overviewStyle,
             ),
