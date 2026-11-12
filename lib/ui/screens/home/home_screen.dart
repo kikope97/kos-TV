@@ -52,6 +52,7 @@ import '../../widgets/overlay_sheet.dart';
 import '../../widgets/quick_return_wrapper.dart';
 import '../../../util/app_exit.dart';
 import '../../../util/global_shortcut_focus.dart';
+import '../../widgets/focus/context_action.dart';
 import '../../widgets/focus/context_menu_sheet.dart';
 import '../../widgets/focus/locked_focus_row.dart';
 import '../../widgets/focus/row_glide.dart';
@@ -97,6 +98,7 @@ import 'home_row_prefetch.dart';
 import 'home_row_shift.dart';
 import 'home_view_model.dart';
 import 'kostv_home_row_style.dart';
+import 'kostv_undo_toast.dart';
 import '../../../watch_party/silo_watch_party_manager.dart';
 import '../../../l10n/current_app_localizations.dart';
 import '../../../watch_party/moonbase_watch_party_api.dart';
@@ -4513,6 +4515,55 @@ class _ContentRowsState extends State<_ContentRows>
     );
   }
 
+  /// Kos TV: what the card menu adds for a title of the rows made for the
+  /// person: «not interested».
+  List<ItemContextAction> _kostvCardActions(
+    HomeRow row,
+    int rowIndex,
+    AggregatedItem item,
+  ) {
+    if (!widget.viewModel.kostvCanDismiss(row, item)) return const [];
+    final l10n = AppLocalizations.of(context);
+    return [
+      ItemContextAction(
+        icon: Icons.thumb_down_alt_outlined,
+        label: l10n.kostvNotInterested,
+        onSelect: () async => _kostvNotInterested(row, rowIndex, item),
+      ),
+    ];
+  }
+
+  /// Takes [item] off Home at once and offers a few seconds to take it back.
+  void _kostvNotInterested(HomeRow row, int rowIndex, AggregatedItem item) {
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context);
+    final at = row.items.indexWhere((i) => i.id == item.id);
+    final remote = InputModeTracker.of(context) == InputMode.keyboard;
+    widget.viewModel.kostvNotInterested(item);
+
+    // Back to the row, on the card that took its place.
+    void backToRow() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final state = _rowStateOf(rowIndex);
+        if (state != null) state.requestFocusAt(at < 0 ? 0 : at);
+      });
+    }
+
+    showKostvUndoToast(
+      context,
+      message: l10n.kostvNotInterestedDone(item.name),
+      undoLabel: l10n.kostvUndo,
+      duration: HomeViewModel.kostvUndoTime,
+      takeFocus: remote,
+      onUndo: () {
+        widget.viewModel.kostvUndoNotInterested(item);
+        if (remote) backToRow();
+      },
+      onLeave: backToRow,
+    );
+  }
+
   String? _rowSubtitle(HomeRow row, AppLocalizations l10n) {
     if (row.subtitle != null && row.subtitle!.isNotEmpty) {
       return row.subtitle;
@@ -5790,6 +5841,7 @@ class _ContentRowsState extends State<_ContentRows>
             item,
             onChanged: () => setState(() {}),
             isContinueWatchingOrNextUp: _isContinueWatchingOrNextUp(row),
+            extraActions: _kostvCardActions(row, rowIndex, item),
           );
         },
         onTap: (_, item) {
@@ -6147,6 +6199,7 @@ class _ContentRowsState extends State<_ContentRows>
                       onChanged: () => setState(() {}),
                       isContinueWatchingOrNextUp:
                           _isContinueWatchingOrNextUp(row),
+                      extraActions: _kostvCardActions(row, rowIndex, item),
                     ),
                     onTap: () {
                       if (isV2MobileTouch) {
@@ -6239,6 +6292,9 @@ class _ContentRowsState extends State<_ContentRows>
                   rank: kostvStyle.ranked && idx < 10 ? idx + 1 : null,
                   label: kostvStyle.fresh ? l10n.kostvHomeNewTag : null,
                   color: kostvStyle.color,
+                  imageHeight: isRowsV2
+                      ? v2ImageHeight
+                      : posterSize.portraitHeight * platformScale,
                   child: card,
                 );
 

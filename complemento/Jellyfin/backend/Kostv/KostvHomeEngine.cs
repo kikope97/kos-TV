@@ -105,22 +105,32 @@ public static class KostvHomeEngine
             .ToList();
     }
 
+    /// <summary>How much a title the person said they aren't interested in pulls down what TMDB finds like it.</summary>
+    public const double AvoidWeight = 0.6;
+
     /// <summary>
     /// The rows, in the order they are shown. <paramref name="day"/> shuffles the ones further
     /// down, so the page isn't the same every day but is the same all day.
+    /// <paramref name="dismissed"/> are the titles the person said they aren't interested in:
+    /// never offered. <paramref name="avoid"/> is what TMDB says of them, so what is like them
+    /// ranks lower.
     /// </summary>
     public static IReadOnlyList<KostvHomeRow> Build(
         IReadOnlyList<KostvSeed> seeds,
         IReadOnlyDictionary<string, KostvSeedFacts> facts,
         IReadOnlyDictionary<string, IReadOnlyList<string>> personCredits,
         IReadOnlyList<KostvCandidate> library,
-        int day)
+        int day,
+        IReadOnlyCollection<string>? dismissed = null,
+        IReadOnlyList<KostvSeedFacts>? avoid = null)
     {
-        // What can be offered: on the home server and not seen. One per TMDB title.
+        var notWanted = new HashSet<string>(dismissed ?? [], StringComparer.Ordinal);
+
+        // What can be offered: on the home server, not seen and not turned down. One per TMDB title.
         var byKey = new Dictionary<string, KostvCandidate>(StringComparer.Ordinal);
         foreach (var candidate in library)
         {
-            if (!candidate.Seen && !string.IsNullOrEmpty(candidate.Key))
+            if (!candidate.Seen && !string.IsNullOrEmpty(candidate.Key) && !notWanted.Contains(candidate.Key))
             {
                 byKey.TryAdd(candidate.Key, candidate);
             }
@@ -147,6 +157,29 @@ public static class KostvHomeEngine
 
                 var share = seed.Weight * (1.0 - (rank / (double)(count + 10)));
                 score[key] = score.GetValueOrDefault(key) + share;
+            }
+        }
+
+        // What is like a title they turned down counts against: ranked lower, and out of the
+        // mixed row altogether when nothing they liked speaks for it more.
+        foreach (var avoided in avoid ?? [])
+        {
+            var count = avoided.Recommendations.Count;
+            for (var rank = 0; rank < count; rank++)
+            {
+                var key = avoided.Recommendations[rank];
+                if (score.TryGetValue(key, out var had))
+                {
+                    var left = had - (AvoidWeight * (1.0 - (rank / (double)(count + 10))));
+                    if (left > 0)
+                    {
+                        score[key] = left;
+                    }
+                    else
+                    {
+                        score.Remove(key);
+                    }
+                }
             }
         }
 
@@ -258,7 +291,19 @@ public static class KostvHomeEngine
             }
         }
 
-        foreach (var genre in genreWeight.OrderByDescending(g => g.Value).ThenBy(g => g.Key, StringComparer.Ordinal).Take(4).Select(g => g.Key))
+        // A title turned down weighs a little against its genres.
+        foreach (var candidate in library.Where(c => notWanted.Contains(c.Key)))
+        {
+            foreach (var genre in candidate.Genres.Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                if (genreWeight.ContainsKey(genre))
+                {
+                    genreWeight[genre] -= 0.3;
+                }
+            }
+        }
+
+        foreach (var genre in genreWeight.Where(g => g.Value > 0).OrderByDescending(g => g.Value).ThenBy(g => g.Key, StringComparer.Ordinal).Take(4).Select(g => g.Key))
         {
             more.Add(() => Row(
                 Genre,

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
+import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/models/home_row.dart';
 import 'package:moonfin/data/services/kostv_home.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
@@ -14,15 +15,83 @@ void main() {
   HomeRow row(String id) =>
       HomeRow(id: id, title: id, rowType: HomeRowType.latestMedia);
 
+  AggregatedItem card(String id) =>
+      AggregatedItem(id: id, serverId: 'home', rawData: {'Id': id});
+  HomeRow full(String id, List<String> items) => HomeRow(
+    id: id,
+    title: id,
+    rowType: HomeRowType.latestMedia,
+    items: [for (final i in items) card(i)],
+    totalCount: items.length,
+  );
+
+  group('what the person sees', () {
+    test('a title they turned down leaves the rows made for them, and a row '
+        'left empty goes', () {
+      final rows = [
+        full('resume', ['a']),
+        full('kostvRec_because_watched_1', ['a', 'b', 'c']),
+        full('kostvRec_top_all', ['b']),
+        full('kostvMore_genre_x', ['d']),
+      ];
+      final seen = KostvHomeRepository.visible(rows, {'a', 'b'});
+      expect(seen.map((r) => r.id), [
+        'resume',
+        'kostvRec_because_watched_1',
+        'kostvMore_genre_x',
+      ]);
+      // Carrying on is theirs to manage: it keeps what they turned down.
+      expect(seen.first.items.map((i) => i.id), ['a']);
+      expect(seen[1].items.map((i) => i.id), ['c']);
+      expect(seen[1].totalCount, 1);
+    });
+
+    test('a new episode already in their row to carry on with is not shown '
+        'twice', () {
+      final rows = [
+        full('resume', ['e1']),
+        full('kostvRec_new_episodes', ['e1', 'e2']),
+      ];
+      expect(
+        KostvHomeRepository.visible(rows, const {})[1].items.map((i) => i.id),
+        ['e2'],
+      );
+      expect(
+        KostvHomeRepository.visible([
+          full('resume', ['e1']),
+          full('kostvRec_new_episodes', ['e1']),
+        ], const {}).map((r) => r.id),
+        ['resume'],
+      );
+    });
+
+    test('nothing to take out, the same rows', () {
+      final rows = [
+        full('kostvRec_for_you', ['a']),
+      ];
+      expect(
+        identical(KostvHomeRepository.visible(rows, const {}), rows),
+        isTrue,
+      );
+    });
+  });
+
   group('the rows in order', () {
     test('the first top goes after the first row, then one every two', () {
       final rows = [for (var i = 0; i < 6; i++) row('r$i')];
       final tops = [row('t0'), row('t1'), row('t2')];
 
-      expect(
-        KostvHomeRepository.weave(rows, tops).map((r) => r.id),
-        ['r0', 't0', 'r1', 'r2', 't1', 'r3', 'r4', 't2', 'r5'],
-      );
+      expect(KostvHomeRepository.weave(rows, tops).map((r) => r.id), [
+        'r0',
+        't0',
+        'r1',
+        'r2',
+        't1',
+        'r3',
+        'r4',
+        't2',
+        'r5',
+      ]);
     });
 
     test('tops with no rows still show', () {
@@ -114,16 +183,13 @@ void main() {
 
       expect(p.kostvHomeActive, isTrue);
       final types = p.activeHomeSectionConfigs.map((c) => c.type).toList();
-      expect(
-        types.where((t) => t != HomeSectionType.mediaBar),
-        [
-          HomeSectionType.kostvArrived,
-          HomeSectionType.resume,
-          HomeSectionType.nextUp,
-          HomeSectionType.kostvForYou,
-          HomeSectionType.kostvForYouMore,
-        ],
-      );
+      expect(types.where((t) => t != HomeSectionType.mediaBar), [
+        HomeSectionType.kostvArrived,
+        HomeSectionType.resume,
+        HomeSectionType.nextUp,
+        HomeSectionType.kostvForYou,
+        HomeSectionType.kostvForYouMore,
+      ]);
       expect(p.effectiveMergeContinueWatchingNextUp, isTrue);
     });
 
@@ -132,10 +198,7 @@ void main() {
         'kostv_home_available': true,
         'kostv_home_show_recent': true,
       });
-      expect(
-        p.activeHomeSectionConfigs.last.type,
-        HomeSectionType.latestMedia,
-      );
+      expect(p.activeHomeSectionConfigs.last.type, HomeSectionType.latestMedia);
     });
 
     test('the Home of sections with an older plugin, when turned off, and in '

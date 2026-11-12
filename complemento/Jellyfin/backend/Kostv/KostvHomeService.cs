@@ -70,7 +70,8 @@ public sealed record KostvHomePage(
     bool Tmdb,
     DateTimeOffset BuiltAt,
     IReadOnlyDictionary<string, Guid> Index,
-    string Stamp);
+    string Stamp,
+    IReadOnlySet<Guid>? Followed = null);
 
 /// <summary>
 /// kOS TV: works out each person's home page. Reads what they watched from the server's own
@@ -113,7 +114,14 @@ public sealed class KostvHomeService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly MoonfinSettingsService _settings;
     private readonly KostvTasteCache _cache;
+    private readonly KostvDismissals _dismissals;
     private readonly ILogger<KostvHomeService> _logger;
+
+    /// <summary>How many of the titles turned down lately TMDB is asked about, to rank what is like them lower.</summary>
+    private const int MaxAvoided = 30;
+
+    /// <summary>An episode added this long ago still counts as new.</summary>
+    public static readonly TimeSpan NewEpisodeWindow = TimeSpan.FromDays(14);
 
     private readonly ConcurrentDictionary<Guid, KostvHomePage> _pages = new();
     private readonly ConcurrentDictionary<Guid, Lazy<Task<KostvHomePage>>> _building = new();
@@ -125,8 +133,10 @@ public sealed class KostvHomeService
         IHttpClientFactory httpClientFactory,
         MoonfinSettingsService settings,
         KostvTasteCache cache,
+        KostvDismissals dismissals,
         ILogger<KostvHomeService> logger)
     {
+        _dismissals = dismissals;
         _libraryManager = libraryManager;
         _userDataManager = userDataManager;
         _httpClientFactory = httpClientFactory;
@@ -182,7 +192,9 @@ public sealed class KostvHomeService
         var now = DateTimeOffset.UtcNow;
         var stamp = HistoryStamp(user);
         var (library, items) = ReadLibrary(user);
-        var seeds = ReadSeeds(user, items, now);
+        var (seeds, followed) = ReadSeeds(user, items, now);
+        var dismissed = _dismissals.For(userId);
+        var avoid = new List<KostvSeedFacts>();
 
         var apiKey = await TmdbApiKeys.ResolveAsync(_settings, userId).ConfigureAwait(false);
         var facts = new Dictionary<string, KostvSeedFacts>(StringComparer.Ordinal);
@@ -211,12 +223,21 @@ public sealed class KostvHomeService
                 }
             }
 
+            var avoided = await Task.WhenAll(dismissed.TakeLast(MaxAvoided).Select(key => SeedFactsAsync(key, apiKey!))).ConfigureAwait(false);
+            foreach (var entry in avoided)
+            {
+                if (entry != null)
+                {
+                    avoid.Add(new KostvSeedFacts(entry.Recs, []));
+                }
+            }
+
             await _cache.FlushAsync().ConfigureAwait(false);
         }
 
         // The day, and the person, so two people at home don't get the same shuffle.
         var day = (int)(now.ToUnixTimeSeconds() / 86400) + (userId.GetHashCode() & 0xFFFF);
-        var rows = KostvHomeEngine.Build(seeds, facts, credits, library, day);
+        var rows = KostvHomeEngine.Build(seeds, facts, credits, library, day, dismissed, avoid);
         var index = new Dictionary<string, Guid>(StringComparer.Ordinal);
         foreach (var (id, item) in items)
         {
@@ -226,7 +247,82 @@ public sealed class KostvHomeService
             }
         }
 
-        return new KostvHomePage(rows, seeds.Count, library.Count, hasKey, now, index, stamp);
+        return new KostvHomePage(rows, seeds.Count, library.Count, hasKey, now, index, stamp, followed);
+    }
+
+    /// <summary>
+    /// Notes that the person isn't interested in <paramref name="itemId"/>, a film or series of
+    /// the home server, and has their page worked out again without it. Null when it isn't one
+    /// of those, or has no TMDB id to keep it by.
+    /// </summary>
+    public async Task<string?> DismissAsync(Guid userId, Guid itemId, bool undo)
+    {
+        if (_libraryManager.GetItemById(itemId) is not { } item || KeyOf(item) is not { } key)
+        {
+            return null;
+        }
+
+        if (undo ? _dismissals.Remove(userId, key) : _dismissals.Add(userId, key))
+        {
+            await _dismissals.FlushAsync().ConfigureAwait(false);
+            _pages.TryRemove(userId, out _);
+        }
+
+        return key;
+    }
+
+    /// <summary>
+    /// The home server's items of the titles the person turned down, for the rows the app makes
+    /// itself (what is most watched now) to leave out too.
+    /// </summary>
+    public IReadOnlyList<Guid> Hidden(Guid userId, KostvHomePage page) =>
+        _dismissals.For(userId)
+            .Select(key => page.Index.TryGetValue(key, out var id) ? id : Guid.Empty)
+            .Where(id => id != Guid.Empty)
+            .ToList();
+
+    /// <summary>
+    /// New episodes of the series the person follows: added in the last two weeks, not seen,
+    /// of a series they have watched some of. One per series, the first of its new ones, the
+    /// series with the latest arrival first. Read each time, so an episode shows as it lands.
+    /// </summary>
+    public IReadOnlyList<BaseItem> NewEpisodes(object user, KostvHomePage page, int max = 20)
+    {
+        var followed = page.Followed;
+        if (followed == null || followed.Count == 0)
+        {
+            return [];
+        }
+
+        var since = DateTime.UtcNow - NewEpisodeWindow;
+        var bySeries = new Dictionary<Guid, (Episode First, DateTime Latest)>();
+        foreach (var item in Query(user, [BaseItemKind.Episode], q =>
+        {
+            q.IsPlayed = false;
+            q.MinDateCreated = since;
+        }, 300, ItemSortBy.DateCreated))
+        {
+            if (item is not Episode { SeriesId: var seriesId } episode || !followed.Contains(seriesId))
+            {
+                continue;
+            }
+
+            if (!bySeries.TryGetValue(seriesId, out var had))
+            {
+                bySeries[seriesId] = (episode, episode.DateCreated);
+                continue;
+            }
+
+            var earlier = (episode.ParentIndexNumber ?? 0, episode.IndexNumber ?? 0).CompareTo(
+                (had.First.ParentIndexNumber ?? 0, had.First.IndexNumber ?? 0)) < 0;
+            bySeries[seriesId] = (earlier ? episode : had.First, had.Latest > episode.DateCreated ? had.Latest : episode.DateCreated);
+        }
+
+        return bySeries.Values
+            .OrderByDescending(v => v.Latest)
+            .Take(max)
+            .Select(v => (BaseItem)v.First)
+            .ToList();
     }
 
     /// <summary>
@@ -297,7 +393,7 @@ public sealed class KostvHomeService
     }
 
     /// <summary>What the person watched lately and what they marked as favourite, weighed.</summary>
-    private List<KostvSeed> ReadSeeds(object user, Dictionary<Guid, BaseItem> items, DateTimeOffset now)
+    private (List<KostvSeed> Seeds, HashSet<Guid> Followed) ReadSeeds(object user, Dictionary<Guid, BaseItem> items, DateTimeOffset now)
     {
         var seeds = new Dictionary<string, KostvSeed>(StringComparer.Ordinal);
 
@@ -353,7 +449,7 @@ public sealed class KostvHomeService
             Add(liked, KostvSeedKind.Liked, 0.35);
         }
 
-        return seeds.Values.OrderByDescending(s => s.Weight).Take(MaxSeeds).ToList();
+        return (seeds.Values.OrderByDescending(s => s.Weight).Take(MaxSeeds).ToList(), series.Keys.ToHashSet());
     }
 
     private IEnumerable<BaseItem> Query(

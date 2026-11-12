@@ -90,11 +90,17 @@ class KostvHomeRepository {
   ];
 
   /// The person's rows from [start], or null when the plugin can't be asked.
-  Future<({List<KostvHomeServerRow> rows, int total})?> rows({
-    required int start,
-    required int limit,
-    bool refresh = false,
-  }) async {
+  /// With the first rows, the new episodes of the series they follow and the
+  /// home server's items of the titles they turned down.
+  Future<
+    ({
+      List<KostvHomeServerRow> rows,
+      int total,
+      List<AggregatedItem> newEpisodes,
+      Set<String> hidden,
+    })?
+  >
+  rows({required int start, required int limit, bool refresh = false}) async {
     final ep = await moonbaseEndpoint(_client, _dio);
     if (ep == null) return null;
     final response = await _dio.get<dynamic>(
@@ -119,7 +125,92 @@ class KostvHomeRepository {
               items: _cards(row['Items']),
             ),
     ];
-    return (rows: rows, total: (data['Total'] as num?)?.toInt() ?? rows.length);
+    return (
+      rows: rows,
+      total: (data['Total'] as num?)?.toInt() ?? rows.length,
+      newEpisodes: _cards(data['NewEpisodes']),
+      hidden: {
+        if (data['Hidden'] case final List<dynamic> ids)
+          for (final id in ids)
+            if (id is String) id.replaceAll('-', ''),
+      },
+    );
+  }
+
+  /// Tells the plugin the person isn't interested in [itemId] (a film or
+  /// series), or with [undo] that they are again. False when it couldn't be
+  /// told (an older plugin, no network).
+  Future<bool> notInterested(String itemId, {bool undo = false}) async {
+    try {
+      final ep = await moonbaseEndpoint(_client, _dio);
+      if (ep == null) return false;
+      final response = await _dio.post<dynamic>(
+        '${ep.base}/Moonfin/Kostv/Home/NotInterested',
+        queryParameters: {'itemId': itemId, if (undo) 'undo': true},
+        options: Options(
+          headers: ep.headers,
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+      return (response.statusCode ?? 0) < 300;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// The id of the row of new episodes of the series the person follows.
+  static const newEpisodesKind = 'new_episodes';
+
+  /// The row of [newEpisodes], or null when there are none.
+  static HomeRow? newEpisodesRow(
+    List<AggregatedItem> newEpisodes,
+    String prefix,
+    AppLocalizations l10n,
+  ) => newEpisodes.isEmpty
+      ? null
+      : HomeRow(
+          id: '$prefix$newEpisodesKind',
+          title: l10n.kostvHomeNewEpisodes,
+          rowType: HomeRowType.latestMedia,
+          items: newEpisodes,
+          totalCount: newEpisodes.length,
+        );
+
+  /// What the person sees of [rows]: without the titles they turned down
+  /// ([hidden], by item id) in the rows made for them, and without the new
+  /// episodes already in their row of what to carry on with. A row left
+  /// empty goes.
+  static List<HomeRow> visible(List<HomeRow> rows, Set<String> hidden) {
+    final carryingOn = {
+      for (final row in rows)
+        if (row.id == 'resume') ...row.items.map((i) => i.id),
+    };
+    bool isMine(HomeRow row) =>
+        row.id.startsWith('kostvRec_') || row.id.startsWith('kostvMore_');
+    if (hidden.isEmpty &&
+        !rows.any((r) => isMine(r) && r.id.endsWith(newEpisodesKind))) {
+      return rows;
+    }
+    final out = <HomeRow>[];
+    for (final row in rows) {
+      if (!isMine(row) || row.isLoading) {
+        out.add(row);
+        continue;
+      }
+      final newEpisodes = row.id.endsWith(newEpisodesKind);
+      final kept = [
+        for (final item in row.items)
+          if (!hidden.contains(item.id) &&
+              !(newEpisodes && carryingOn.contains(item.id)))
+            item,
+      ];
+      if (kept.length == row.items.length) {
+        out.add(row);
+      } else if (kept.isNotEmpty) {
+        out.add(row.copyWith(items: kept, totalCount: kept.length));
+      }
+    }
+    return out;
   }
 
   /// Which of these TMDB titles are on the home server, in the order given.

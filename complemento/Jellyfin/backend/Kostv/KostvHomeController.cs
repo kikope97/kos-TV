@@ -59,13 +59,46 @@ public class KostvHomeController : ControllerBase
                 .ToList()
         }).ToList();
 
+        // With the first rows: the new episodes of what they follow, read now so one shows as it
+        // lands, and what they turned down, for the rows the app makes itself.
+        var first = start == 0;
         return Ok(new
         {
             Rows = rows,
             Start = start,
             Total = page.Rows.Count,
-            page.Tmdb
+            page.Tmdb,
+            NewEpisodes = first
+                ? _home.NewEpisodes(user, page).Where(item => UserReflection.IsVisibleTo(item, user)).Select(item => _cards.Map(item, user)).ToList()
+                : null,
+            Hidden = first ? _home.Hidden(userId.Value, page).Select(id => id.ToString("N")).ToList() : null
         });
+    }
+
+    /// <summary>
+    /// The caller isn't interested in <paramref name="itemId"/> (a film or series): it leaves their
+    /// home page, and what is like it ranks lower. <paramref name="undo"/> takes that back.
+    /// </summary>
+    [HttpPost("NotInterested")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> NotInterested([FromQuery] Guid itemId, [FromQuery] bool undo = false)
+    {
+        var userId = this.GetUserIdFromClaims();
+        var user = userId.HasValue ? UserReflection.ResolveUser(HttpContext.RequestServices, userId.Value) : null;
+        if (userId == null || user == null)
+        {
+            return Unauthorized(new { Error = "User not authenticated" });
+        }
+
+        if (_libraryManager.GetItemById(itemId) is not { } item || !UserReflection.IsVisibleTo(item, user))
+        {
+            return NotFound();
+        }
+
+        var key = await _home.DismissAsync(userId.Value, itemId, undo).ConfigureAwait(false);
+        return key == null ? NotFound() : NoContent();
     }
 
     /// <summary>

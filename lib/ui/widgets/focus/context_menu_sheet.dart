@@ -19,6 +19,7 @@ Future<void> showContextMenu(
   VoidCallback? onChanged,
   CollectionRemovalContext? collectionRemoval,
   bool isContinueWatchingOrNextUp = false,
+  List<ItemContextAction> extraActions = const [],
 }) {
   final service = ItemMembershipService.instance;
   final playlists = service.getCachedPlaylistsContaining(item);
@@ -29,6 +30,7 @@ Future<void> showContextMenu(
     onChanged: onChanged,
     collectionRemoval: collectionRemoval,
     isContinueWatchingOrNextUp: isContinueWatchingOrNextUp,
+    extraActions: extraActions,
     playlistMemberships: playlists,
     collectionMemberships: collections,
   ).isNotEmpty;
@@ -46,6 +48,7 @@ Future<void> showContextMenu(
       onChanged: onChanged,
       collectionRemoval: collectionRemoval,
       isContinueWatchingOrNextUp: isContinueWatchingOrNextUp,
+      extraActions: extraActions,
       initialPlaylists: playlists,
       initialCollections: collections,
     ),
@@ -58,6 +61,7 @@ class _ContextMenu extends StatefulWidget {
   final VoidCallback? onChanged;
   final CollectionRemovalContext? collectionRemoval;
   final bool isContinueWatchingOrNextUp;
+  final List<ItemContextAction> extraActions;
   final List<ItemPlaylistMembership> initialPlaylists;
   final List<ItemCollectionMembership> initialCollections;
 
@@ -67,6 +71,7 @@ class _ContextMenu extends StatefulWidget {
     this.onChanged,
     this.collectionRemoval,
     this.isContinueWatchingOrNextUp = false,
+    this.extraActions = const [],
     required this.initialPlaylists,
     required this.initialCollections,
   });
@@ -146,6 +151,7 @@ class _ContextMenuState extends State<_ContextMenu> {
         onChanged: widget.onChanged,
         collectionRemoval: widget.collectionRemoval,
         isContinueWatchingOrNextUp: widget.isContinueWatchingOrNextUp,
+        extraActions: widget.extraActions,
         playlistMemberships: _playlists,
         collectionMemberships: _collections,
       );

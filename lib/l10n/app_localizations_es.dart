@@ -18884,6 +18884,24 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvTrailerEnglish => 'En inglés';
 
   @override
+  String get kostvHomeNewEpisodes => 'Episodios nuevos';
+
+  @override
+  String get kostvHomeWhyNewEpisodes =>
+      'Acaban de llegar, de las series que sigues';
+
+  @override
+  String get kostvNotInterested => 'No me interesa';
+
+  @override
+  String kostvNotInterestedDone(String title) {
+    return '«$title» ya no saldrá en tu Inicio';
+  }
+
+  @override
+  String get kostvUndo => 'Deshacer';
+
+  @override
   String get kostvIntroSetting => 'Animación al abrir';
 
   @override

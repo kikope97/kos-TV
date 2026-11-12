@@ -48,6 +48,14 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   necesita 6 títulos. Usa la clave de TMDB del complemento; sin ella solo salen las de género
   y las mejor valoradas. En la pestaña «Direcciones» hay un botón que dice cuántas filas le
   salen a cada persona. A las apps se les avisa en `/Moonfin/Ping` (`kostvHome`).
+- **«No me interesa» y episodios nuevos** (también en `Jellyfin/backend/Kostv/`): `POST
+  /Moonfin/Kostv/Home/NotInterested?itemId=…` (con `undo=true` para deshacerlo) guarda por persona
+  el título de TMDB que no le interesa (`kostv-home-dismissed.json`, hasta 500), lo saca de sus
+  filas, resta peso a lo que TMDB encuentra parecido y un poco a sus géneros, y rehace su página.
+  Con las primeras filas, `/Moonfin/Kostv/Home` devuelve además `NewEpisodes` (episodios sin ver
+  añadidos en las dos últimas semanas de las series que la persona ha visto, uno por serie,
+  leídos en cada petición) y `Hidden` (los elementos de lo descartado, para las filas que monta
+  la app).
 - **El botón Descubrir se sincroniza** como los demás (`showDiscoverButton`), con
   su valor por defecto en la página.
 - **Sin la web de Moonfin dentro:** el paquete no la lleva, así que el botón que

@@ -75,9 +75,10 @@ class HomeViewModel extends ChangeNotifier {
 
   List<HomeRow> _rows = [];
   List<HomeRow> get rows {
-    final base = _emptySectionIds.isEmpty
+    final all = _emptySectionIds.isEmpty
         ? _rows
         : _rows.where((row) => !_isEmptySectionPlaceholder(row)).toList();
+    final base = _kostvVisible(all);
     final apps = _appsRow;
     final withApps = apps == null ? base : withAppsRow(base, apps);
     final party = _watchPartyRow;
@@ -1884,6 +1885,17 @@ class HomeViewModel extends ChangeNotifier {
       refresh: !more && (refresh || _kostvRefreshNext),
     );
     if (page == null) return const [];
+    if (!more) {
+      _kostvServerHidden = page.hidden;
+      _kostvVisibleMemo = null;
+    }
+    final newEpisodes = more
+        ? null
+        : KostvHomeRepository.newEpisodesRow(
+            withoutBlockedItems(page.newEpisodes),
+            prefix,
+            l10n,
+          );
     final rows = [
       for (final row in page.rows)
         if (withoutBlockedItems(row.items) case final items
@@ -1924,11 +1936,77 @@ class HomeViewModel extends ChangeNotifier {
               return null;
             }),
     ]);
-    return KostvHomeRepository.weave(rows, [
-      for (final top in tops)
-        if (top != null)
-          top.copyWith(items: withoutBlockedItems(top.items)),
-    ]);
+    return [
+      ?newEpisodes,
+      ...KostvHomeRepository.weave(rows, [
+        for (final top in tops)
+          if (top != null)
+            top.copyWith(items: withoutBlockedItems(top.items)),
+      ]),
+    ];
+  }
+
+  // ------------------------------------------------ Kos TV: not interested
+
+  /// The items of titles the person turned down: the server's list, and those
+  /// turned down here this session (still within their undo time or not).
+  Set<String> _kostvServerHidden = const {};
+  final Set<String> _kostvDismissed = {};
+  final Map<String, ({String itemId, Timer timer})> _kostvPending = {};
+
+  /// How long the person has to take a «not interested» back.
+  static const kostvUndoTime = Duration(seconds: 5);
+
+  ({List<HomeRow> rows, List<HomeRow> out, int version})? _kostvVisibleMemo;
+  int _kostvHiddenVersion = 0;
+
+  List<HomeRow> _kostvVisible(List<HomeRow> rows) {
+    final memo = _kostvVisibleMemo;
+    if (memo != null &&
+        identical(memo.rows, rows) &&
+        memo.version == _kostvHiddenVersion) {
+      return memo.out;
+    }
+    final out = KostvHomeRepository.visible(rows, {
+      ..._kostvServerHidden,
+      ..._kostvDismissed,
+    });
+    _kostvVisibleMemo = (rows: rows, out: out, version: _kostvHiddenVersion);
+    return out;
+  }
+
+  /// Whether [item] of [row] can be turned down: a film or series in a row
+  /// made for the person (not the new episodes).
+  bool kostvCanDismiss(HomeRow row, AggregatedItem item) =>
+      _prefs.kostvHomeActive &&
+      (row.id.startsWith(_kostvRowPrefix) ||
+          row.id.startsWith(_kostvMorePrefix)) &&
+      !row.id.endsWith(KostvHomeRepository.newEpisodesKind) &&
+      (item.type == 'Movie' || item.type == 'Series');
+
+  /// Takes [item] off Home at once and tells the server after
+  /// [kostvUndoTime], unless [kostvUndoNotInterested] comes first.
+  void kostvNotInterested(AggregatedItem item) {
+    _kostvPending.remove(item.id)?.timer.cancel();
+    _kostvDismissed.add(item.id);
+    _kostvHiddenVersion++;
+    _kostvPending[item.id] = (
+      itemId: item.id,
+      timer: Timer(kostvUndoTime, () {
+        _kostvPending.remove(item.id);
+        unawaited(_kostvHome.notInterested(item.id));
+      }),
+    );
+    notifyListeners();
+  }
+
+  /// Puts [item] back, within its undo time.
+  void kostvUndoNotInterested(AggregatedItem item) {
+    _kostvPending.remove(item.id)?.timer.cancel();
+    if (_kostvDismissed.remove(item.id)) {
+      _kostvHiddenVersion++;
+      notifyListeners();
+    }
   }
 
   Future<List<HomeRow>> _loadLatestMediaRows() {
@@ -2922,6 +3000,12 @@ class HomeViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    // A «not interested» still within its undo time goes through now.
+    for (final pending in _kostvPending.values) {
+      pending.timer.cancel();
+      unawaited(_kostvHome.notInterested(pending.itemId));
+    }
+    _kostvPending.clear();
     if (_requestsServiceListener case final listener?) {
       _kostvHome.stremfin?.removeListener(listener);
     }

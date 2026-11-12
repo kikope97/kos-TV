@@ -186,6 +186,63 @@ public sealed class KostvHomeEngineTests
     }
 
     [Fact]
+    public void ATitleTurnedDownIsNeverOffered()
+    {
+        var library = Enumerable.Range(1, 12).Select(n => Film(n, rating: 8.5, genres: "Drama")).ToList();
+        var facts = new Dictionary<string, KostvSeedFacts>
+        {
+            ["movie:100"] = Recs(Enumerable.Range(1, 12).ToArray()),
+        };
+
+        var rows = KostvHomeEngine.Build([Seed(100, 1)], facts, NoCredits, library, day: 2, dismissed: ["movie:3"]);
+
+        Assert.NotEmpty(rows);
+        Assert.DoesNotContain(rows.SelectMany(r => r.ItemIds), id => id == "item3");
+    }
+
+    [Fact]
+    public void WhatIsLikeATitleTurnedDownRanksLower()
+    {
+        var library = Enumerable.Range(1, 30).Select(n => Film(n)).ToList();
+        var facts = new Dictionary<string, KostvSeedFacts>
+        {
+            ["movie:100"] = Recs(Enumerable.Range(1, 8).ToArray()),
+            ["movie:101"] = Recs(Enumerable.Range(9, 8).ToArray()),
+        };
+        // Favourites: no row of their own ahead of the mixed one.
+        var seeds = new[] { Seed(100, 1, KostvSeedKind.Liked), Seed(101, 0.9, KostvSeedKind.Liked) };
+
+        List<string> ForYou(IReadOnlyList<KostvSeedFacts>? avoid) =>
+            KostvHomeEngine.Build(seeds, facts, NoCredits, library, day: 1, avoid: avoid)
+                .Single(r => r.Kind == KostvHomeEngine.ForYou).ItemIds.ToList();
+
+        var before = ForYou(null);
+        // A title turned down that TMDB finds like 1 and 2.
+        var after = ForYou([Recs(1, 2)]);
+
+        Assert.True(before.IndexOf("item1") < before.IndexOf("item9"));
+        Assert.True(after.IndexOf("item1") > after.IndexOf("item9"));
+        Assert.True(after.IndexOf("item2") > after.IndexOf("item10"));
+    }
+
+    [Fact]
+    public void AGenreOfTitlesTurnedDownLosesItsRow()
+    {
+        var library = Enumerable.Range(1, 20).Select(n => Film(n, rating: 7, genres: "Terror"))
+            .Concat(Enumerable.Range(21, 3).Select(n => Film(n, seen: true, genres: "Terror")))
+            .ToList();
+        var seeds = new[] { Seed(21, 0.2) };
+        var facts = new Dictionary<string, KostvSeedFacts>();
+
+        bool HasGenreRow(IReadOnlyCollection<string>? dismissed) =>
+            KostvHomeEngine.Build(seeds, facts, NoCredits, library, day: 1, dismissed: dismissed)
+                .Any(r => r.Kind == KostvHomeEngine.Genre);
+
+        Assert.True(HasGenreRow(null));
+        Assert.False(HasGenreRow(["movie:1"]));
+    }
+
+    [Fact]
     public void PingTellsTheAppsThisPluginWorksOutTheHomePage()
     {
         Assert.Contains("\"kostvHome\":true", JsonSerializer.Serialize(new MoonfinPingResponse { KostvHome = true }));

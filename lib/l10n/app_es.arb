@@ -12741,6 +12741,31 @@
     "@kostvTrailerEnglish": {
         "description": "Kos TV trailer list: chip on a trailer in English."
     },
+    "kostvHomeNewEpisodes": "Episodios nuevos",
+    "@kostvHomeNewEpisodes": {
+        "description": "Kos TV recommended Home: row of new episodes of the series the person follows."
+    },
+    "kostvHomeWhyNewEpisodes": "Acaban de llegar, de las series que sigues",
+    "@kostvHomeWhyNewEpisodes": {
+        "description": "Kos TV recommended Home: line under the new episodes row."
+    },
+    "kostvNotInterested": "No me interesa",
+    "@kostvNotInterested": {
+        "description": "Kos TV recommended Home: card menu action that takes a title off Home and ranks what is like it lower."
+    },
+    "kostvNotInterestedDone": "«{title}» ya no saldrá en tu Inicio",
+    "@kostvNotInterestedDone": {
+        "description": "Kos TV recommended Home: message after «not interested», with an undo button and a countdown.",
+        "placeholders": {
+            "title": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvUndo": "Deshacer",
+    "@kostvUndo": {
+        "description": "Kos TV: button that takes back the last «not interested»."
+    },
     "kostvIntroSetting": "Animación al abrir",
     "@kostvIntroSetting": {
         "description": "Kos TV settings: switch for the opening animation when the app opens."

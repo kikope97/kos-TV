@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/home_row.dart';
+import '../../widgets/kos_logo.dart';
 import '../../../data/services/kostv_home.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/user_preferences.dart';
@@ -95,13 +96,27 @@ class KostvHomeRowStyle {
         color: color,
         before: fits ? before : row.title,
         name: fits
-            ? row.title.substring(before.length, row.title.length - after.length)
+            ? row.title.substring(
+                before.length,
+                row.title.length - after.length,
+              )
             : '',
         after: fits ? after : '',
         why: why,
       );
     }
 
+    if (rest == KostvHomeRepository.newEpisodesKind) {
+      return KostvHomeRowStyle(
+        icon: Icons.new_releases_outlined,
+        color: const Color(0xFF60A5FA),
+        before: row.title,
+        name: '',
+        after: '',
+        why: l10n.kostvHomeWhyNewEpisodes,
+        fresh: true,
+      );
+    }
     if (rest.startsWith('top_')) {
       return KostvHomeRowStyle(
         icon: Icons.local_fire_department,
@@ -171,7 +186,11 @@ class KostvHomeRowStyle {
 
 /// Kos TV: the title of a row of the recommended Home.
 class KostvHomeRowTitle extends StatelessWidget {
-  const KostvHomeRowTitle({super.key, required this.style, this.compact = false});
+  const KostvHomeRowTitle({
+    super.key,
+    required this.style,
+    this.compact = false,
+  });
 
   final KostvHomeRowStyle style;
 
@@ -227,6 +246,10 @@ class KostvHomeRowTitle extends StatelessWidget {
 
 /// Kos TV: a card of the recommended Home with its place on a top, or its
 /// «Nuevo» tag, in its corner.
+///
+/// The place is a big number standing on the bottom left of the poster, as
+/// streaming apps show their top ten: dark, outlined in white, hanging a
+/// little off the edge.
 class KostvHomeCardTag extends StatelessWidget {
   const KostvHomeCardTag({
     super.key,
@@ -234,6 +257,7 @@ class KostvHomeCardTag extends StatelessWidget {
     this.rank,
     this.label,
     this.color,
+    this.imageHeight,
   });
 
   final Widget child;
@@ -243,12 +267,66 @@ class KostvHomeCardTag extends StatelessWidget {
   final String? label;
   final Color? color;
 
+  /// How tall the card's picture is, which the number stands on. Without it
+  /// the number goes small in the top corner.
+  final double? imageHeight;
+
   @override
   Widget build(BuildContext context) {
     final rank = this.rank;
     final label = this.label;
     if (rank == null && label == null) return child;
     final color = this.color ?? AppColorScheme.accent;
+    final height = imageHeight;
+    if (rank != null && height != null) {
+      final size = height * (rank >= 10 ? 0.4 : 0.48);
+      TextStyle style(Paint? paint, {Color? fill}) => TextStyle(
+        fontFamily: KosBrand.fontFamily,
+        fontWeight: FontWeight.w700,
+        fontSize: size,
+        height: 1,
+        letterSpacing: -size * 0.06,
+        foreground: paint,
+        color: paint == null ? fill : null,
+      );
+      return Stack(
+        clipBehavior: Clip.none,
+        children: [
+          child,
+          Positioned(
+            left: -size * 0.07,
+            top: height - size * 0.86,
+            child: IgnorePointer(
+              child: Stack(
+                children: [
+                  Text(
+                    '$rank',
+                    style: style(
+                      Paint()
+                        ..style = PaintingStyle.stroke
+                        ..strokeWidth = (size * 0.06).clamp(2.0, 6.0)
+                        ..strokeJoin = StrokeJoin.round
+                        ..color = Colors.white.withValues(alpha: 0.95),
+                    ),
+                  ),
+                  Text(
+                    '$rank',
+                    style: style(null, fill: const Color(0xF20B0D12)).copyWith(
+                      shadows: [
+                        Shadow(
+                          color: color.withValues(alpha: 0.55),
+                          blurRadius: size * 0.18,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     return Stack(
       clipBehavior: Clip.none,
       children: [

@@ -18563,6 +18563,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kostvTrailerEnglish => 'In English';
 
   @override
+  String get kostvHomeNewEpisodes => 'New episodes';
+
+  @override
+  String get kostvHomeWhyNewEpisodes =>
+      'Just arrived, from the series you follow';
+
+  @override
+  String get kostvNotInterested => 'Not interested';
+
+  @override
+  String kostvNotInterestedDone(String title) {
+    return '“$title” won\'t show on your Home';
+  }
+
+  @override
+  String get kostvUndo => 'Undo';
+
+  @override
   String get kostvIntroSetting => 'Opening animation';
 
   @override

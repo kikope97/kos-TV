@@ -116,6 +116,9 @@ List<ItemContextAction> contextActionsFor(
   VoidCallback? onChanged,
   CollectionRemovalContext? collectionRemoval,
   bool isContinueWatchingOrNextUp = false,
+  /// Offered right after the first action (playing), for the screen that
+  /// opened the menu to add its own.
+  List<ItemContextAction> extraActions = const [],
   List<ItemPlaylistMembership>? playlistMemberships,
   List<ItemCollectionMembership>? collectionMemberships,
 }) {
@@ -495,6 +498,9 @@ List<ItemContextAction> contextActionsFor(
     ));
   }
 
+  if (extraActions.isNotEmpty) {
+    actions.insertAll(actions.isEmpty ? 0 : 1, extraActions);
+  }
   return actions;
 }
 

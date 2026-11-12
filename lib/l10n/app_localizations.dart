@@ -31989,6 +31989,36 @@ abstract class AppLocalizations {
   /// **'In English'**
   String get kostvTrailerEnglish;
 
+  /// Kos TV recommended Home: row of new episodes of the series the person follows.
+  ///
+  /// In en, this message translates to:
+  /// **'New episodes'**
+  String get kostvHomeNewEpisodes;
+
+  /// Kos TV recommended Home: line under the new episodes row.
+  ///
+  /// In en, this message translates to:
+  /// **'Just arrived, from the series you follow'**
+  String get kostvHomeWhyNewEpisodes;
+
+  /// Kos TV recommended Home: card menu action that takes a title off Home and ranks what is like it lower.
+  ///
+  /// In en, this message translates to:
+  /// **'Not interested'**
+  String get kostvNotInterested;
+
+  /// Kos TV recommended Home: message after «not interested», with an undo button and a countdown.
+  ///
+  /// In en, this message translates to:
+  /// **'“{title}” won\'t show on your Home'**
+  String kostvNotInterestedDone(String title);
+
+  /// Kos TV: button that takes back the last «not interested».
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get kostvUndo;
+
   /// Kos TV settings: switch for the intro video when the app opens.
   ///
   /// In en, this message translates to:

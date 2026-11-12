@@ -45,11 +45,17 @@ bool isHomeRowModern(HomeRow row, UserPreferences prefs) {
   if (prefs.get(UserPreferences.homeRowsStyle) != HomeRowsStyle.v2) {
     return false;
   }
-  if (_isWideArtworkRow(row)) {
+  if (_isWideArtworkRow(row) || isKostvLandscapeRow(row, prefs)) {
     return false;
   }
   return true;
 }
+
+/// Kos TV: in the recommended Home, carrying on is a row of wide cards with
+/// the picture of the episode (or the film's backdrop) and how far through it
+/// is, as streaming apps show it, the rest staying posters.
+bool isKostvLandscapeRow(HomeRow row, UserPreferences prefs) =>
+    row.id == 'resume' && prefs.kostvHomeActive;
 
 /// A My Media row in the Modern style whose cards stay static because Modern
 /// cards are turned off for it.
@@ -170,6 +176,8 @@ ImageType homeRowImageTypeForRow(HomeRow row, UserPreferences prefs) {
   if (row.rowType == HomeRowType.latestMedia && _isLatestMusicRow(row)) {
     return ImageType.poster;
   }
+
+  if (isKostvLandscapeRow(row, prefs)) return ImageType.thumb;
 
   if (prefs.get(UserPreferences.homeRowsUniversalOverride)) {
     return prefs.get(UserPreferences.homeRowsUniversalImageType);
