@@ -26,16 +26,35 @@ void main() {
     expect(off.resolveMediaPreviewMode(), UserPreferences.mediaPreviewOff);
   });
 
-  test('the switch decides whether anything plays, the mode which kind', () async {
-    final prefs = await prefsWith({
-      'episodePreviewEnabled': true,
-      'mediaPreviewMode': 'trailer',
-    });
-    expect(prefs.resolveMediaPreviewMode(), UserPreferences.mediaPreviewTrailer);
+  test('a new person gets the trailer', () async {
+    final fresh = await prefsWith({});
+    expect(
+      fresh.resolveMediaPreviewMode(),
+      UserPreferences.mediaPreviewTrailer,
+    );
+    await fresh.reconcileMediaPreviewMode();
+    expect(fresh.containsPreference(UserPreferences.mediaPreviewMode), isFalse);
 
-    await prefs.set(UserPreferences.episodePreviewEnabled, false);
-    expect(prefs.resolveMediaPreviewMode(), UserPreferences.mediaPreviewOff);
+    final media = await prefsWith({'mediaPreviewMode': 'media'});
+    expect(media.resolveMediaPreviewMode(), UserPreferences.mediaPreviewMedia);
   });
+
+  test(
+    'the switch decides whether anything plays, the mode which kind',
+    () async {
+      final prefs = await prefsWith({
+        'episodePreviewEnabled': true,
+        'mediaPreviewMode': 'trailer',
+      });
+      expect(
+        prefs.resolveMediaPreviewMode(),
+        UserPreferences.mediaPreviewTrailer,
+      );
+
+      await prefs.set(UserPreferences.episodePreviewEnabled, false);
+      expect(prefs.resolveMediaPreviewMode(), UserPreferences.mediaPreviewOff);
+    },
+  );
 
   test('the stored mode is brought in line with the switch', () async {
     final turnedOff = await prefsWith({

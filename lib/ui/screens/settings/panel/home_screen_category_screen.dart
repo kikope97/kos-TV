@@ -291,7 +291,12 @@ class _HomeScreenCategoryScreenState extends State<_HomeScreenCategoryScreen> {
               StringPickerPreferenceTile(
                 preference: UserPreferences.mediaPreviewMode,
                 title: l10n.mediaPreview,
-                description: l10n.mediaPreviewDescription,
+                // Nothing plays on the reduced tier, so say why.
+                description:
+                    _prefs.resolveDevicePerformanceTier() ==
+                        DevicePerformanceTier.reduced
+                    ? l10n.trailerPreviewHeldBack
+                    : l10n.mediaPreviewDescription,
                 icon: Icons.ondemand_video,
                 options: {
                   UserPreferences.mediaPreviewOff: l10n.off,

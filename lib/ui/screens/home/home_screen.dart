@@ -1738,7 +1738,7 @@ class _ContentRowsState extends State<_ContentRows>
     // Chrome focus is checked when the delay runs out, not here. A row reports
     // its new focus before the chrome state catches up, so the first card
     // entered from the toolbar would still see the toolbar's state.
-    final previewMode = widget.prefs.resolveMediaPreviewMode();
+    final previewMode = widget.prefs.resolveMediaPreviewModeHere();
     if (previewMode == UserPreferences.mediaPreviewOff ||
         !_supportsPreview(item, previewMode) ||
         _mainPlaybackActive) {
@@ -1909,7 +1909,7 @@ class _ContentRowsState extends State<_ContentRows>
       final playSessionId = '${DateTime.now().microsecondsSinceEpoch}';
       final source = outsideTitle != null
           ? await _resolveOutsideTrailer(outsideTitle)
-          : widget.prefs.resolveMediaPreviewMode() ==
+          : widget.prefs.resolveMediaPreviewModeHere() ==
                 UserPreferences.mediaPreviewTrailer
           ? await _resolvePreviewTrailer(client!, item, playSessionId)
           : await _resolvePreviewClip(client!, item, playSessionId);
@@ -5824,7 +5824,7 @@ class _ContentRowsState extends State<_ContentRows>
           );
           final canPreview = _supportsPreview(
             item,
-            widget.prefs.resolveMediaPreviewMode(),
+            widget.prefs.resolveMediaPreviewModeHere(),
           );
           if (!PlatformDetection.useMobileUi && canPreview) {
             _schedulePreview(item, delay: _previewStartDelay, rowIndex: rowIndex);
@@ -5971,7 +5971,7 @@ class _ContentRowsState extends State<_ContentRows>
 
           final canPreview = _supportsPreview(
             item,
-            widget.prefs.resolveMediaPreviewMode(),
+            widget.prefs.resolveMediaPreviewModeHere(),
           );
 
           return ValueListenableBuilder<String?>(

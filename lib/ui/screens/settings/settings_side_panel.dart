@@ -27,6 +27,7 @@ import '../../../data/models/media_segment.dart';
 import '../../../data/utils/media_segment_actions.dart';
 import '../../../data/repositories/user_views_repository.dart';
 import '../../../di/providers.dart';
+import '../../../util/device_performance.dart';
 import '../../../util/idiom/app_ui_idiom.dart';
 import '../../../platform/web_runtime_config.dart';
 import '../../../playback/apple_player_ui.dart';

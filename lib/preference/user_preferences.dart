@@ -1200,8 +1200,11 @@ class UserPreferences extends ChangeNotifier {
   /// [value] upper-cased when it is a two letter country code, else null.
   static String? parseCountryCode(String? value) {
     final trimmed = (value ?? '').trim();
-    final isCode = trimmed.length == 2 &&
-        trimmed.codeUnits.every((c) => (c >= 65 && c <= 90) || (c >= 97 && c <= 122));
+    final isCode =
+        trimmed.length == 2 &&
+        trimmed.codeUnits.every(
+          (c) => (c >= 65 && c <= 90) || (c >= 97 && c <= 122),
+        );
     return isCode ? trimmed.toUpperCase() : null;
   }
 
@@ -1945,9 +1948,8 @@ class UserPreferences extends ChangeNotifier {
       ? RecommendationSystemSource.local
       : get(recommendationSystemSource);
 
-  bool get effectiveRecommendationsApplyParentalRatingCap => get(kidsModeEnabled)
-      ? true
-      : get(recommendationsApplyParentalRatingCap);
+  bool get effectiveRecommendationsApplyParentalRatingCap =>
+      get(kidsModeEnabled) ? true : get(recommendationsApplyParentalRatingCap);
 
   /// Default mobile view for the Live TV guide (Now/Next list vs compact grid).
   static final epgMobileView = EnumPreference(
@@ -2787,6 +2789,7 @@ class UserPreferences extends ChangeNotifier {
     key: 'pref_subtitle_language',
     defaultValue: '',
   );
+
   /// Off keeps the single subtitle list, without the step that picks a
   /// primary or secondary track.
   static final secondarySubtitlesEnabled = Preference<bool>(
@@ -3069,6 +3072,7 @@ class UserPreferences extends ChangeNotifier {
     key: 'detailButtonOrderTv',
     defaultValue: '',
   );
+
   /// Kos TV: on a phone «Mi lista» and Favourite stay in sight and Watched
   /// goes to More, the row having room for four.
   static final detailButtonOrderMobile = Preference(
@@ -3078,6 +3082,7 @@ class UserPreferences extends ChangeNotifier {
         'watchWithGroup,favorite,watched,personalRating,playlist,download,'
         'deleteFiles,goToSeries,keepAsComplete,admin',
   );
+
   /// Kos TV: on a computer too «Mi lista» and Favourite stay in sight.
   static final detailButtonOrderDesktop = Preference(
     key: 'detailButtonOrderDesktop',
@@ -3283,23 +3288,41 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: '',
   );
 
+  /// Kos TV: on out of the box, playing the trailer (see [mediaPreviewMode]).
   static final episodePreviewEnabled = Preference(
     key: 'episodePreviewEnabled',
-    defaultValue: false,
+    defaultValue: true,
   );
 
+  /// Kos TV: the trailer out of the box, not a bit of the film itself.
   static final mediaPreviewMode = Preference(
     key: 'mediaPreviewMode',
-    defaultValue: mediaPreviewMedia,
+    defaultValue: mediaPreviewTrailer,
   );
 
   /// The preview a focused home card plays, off when the switch is off.
   String resolveMediaPreviewMode() {
     if (!get(episodePreviewEnabled)) return mediaPreviewOff;
+    // Nothing chosen yet: the trailer, Kos TV's default. Someone who turned
+    // the switch on before the mode existed was playing the media itself, and
+    // keeps doing so, as does an older app that only knows the switch.
+    if (!containsPreference(mediaPreviewMode)) {
+      return containsPreference(episodePreviewEnabled)
+          ? mediaPreviewMedia
+          : mediaPreviewTrailer;
+    }
     return get(mediaPreviewMode) == mediaPreviewTrailer
         ? mediaPreviewTrailer
         : mediaPreviewMedia;
   }
+
+  /// The preview a focused home card plays on this device: off on the reduced
+  /// tier whatever the setting, as the media bar trailer is, because the
+  /// decoder is what takes those devices down.
+  String resolveMediaPreviewModeHere() =>
+      resolveDevicePerformanceTier() == DevicePerformanceTier.reduced
+      ? mediaPreviewOff
+      : resolveMediaPreviewMode();
 
   /// Brings the stored mode in line with the switch, so the picker shows what
   /// plays. An app that only knows the switch can flip it on its own, and
@@ -3465,13 +3488,12 @@ class UserPreferences extends ChangeNotifier {
     badges: mediaBarShowRatingBadges,
   );
 
-  static bool mediaBarModeDrawsRatings(String? mode) =>
-      const {
-        mediaBarModeMoonfin,
-        mediaBarModeMakd,
-        mediaBarModeGallery,
-        mediaBarModeBanner,
-      }.contains(normalizeMediaBarMode(mode));
+  static bool mediaBarModeDrawsRatings(String? mode) => const {
+    mediaBarModeMoonfin,
+    mediaBarModeMakd,
+    mediaBarModeGallery,
+    mediaBarModeBanner,
+  }.contains(normalizeMediaBarMode(mode));
 
   /// Content ratings the viewer has blocked, as an upper cased CSV. Blocked
   /// means hidden from every list and refused on open and on play, not just
@@ -3937,6 +3959,7 @@ class UserPreferences extends ChangeNotifier {
     key: 'pref_live_direct',
     defaultValue: false,
   );
+
   /// The Watch Parties master switch. The key keeps its SyncPlay name.
   static final syncPlayEnabled = Preference(
     key: 'pref_syncplay_enabled',
@@ -4034,10 +4057,7 @@ class UserPreferences extends ChangeNotifier {
   /// kept out of the synced fields so a new device asks rather than inheriting
   /// somebody else's answer.
   static Preference<int> setupWizardVersionForServer(String serverKey) =>
-      Preference(
-        key: 'pref_setup_wizard_version_$serverKey',
-        defaultValue: 0,
-      );
+      Preference(key: 'pref_setup_wizard_version_$serverKey', defaultValue: 0);
 
   /// Bumped only when a release adds a step that earns its place. Everything
   /// already answered stays answered.
@@ -4274,13 +4294,12 @@ class UserPreferences extends ChangeNotifier {
     values: LibraryScrollDirection.values,
   );
 
-  static EnumPreference<LibraryGroupBy> libraryGroupBy(
-    String libraryId,
-  ) => EnumPreference(
-    key: 'library_group_by_$libraryId',
-    defaultValue: LibraryGroupBy.none,
-    values: LibraryGroupBy.values,
-  );
+  static EnumPreference<LibraryGroupBy> libraryGroupBy(String libraryId) =>
+      EnumPreference(
+        key: 'library_group_by_$libraryId',
+        defaultValue: LibraryGroupBy.none,
+        values: LibraryGroupBy.values,
+      );
 
   /// Only written once someone picks it, since the default depends on the
   /// library's type.
@@ -4628,7 +4647,10 @@ class UserPreferences extends ChangeNotifier {
     return SeriesTrackPreference.fromRawString(raw);
   }
 
-  Future<void> setSeriesAudioPreference(String seriesId, SeriesTrackPreference pref) async {
+  Future<void> setSeriesAudioPreference(
+    String seriesId,
+    SeriesTrackPreference pref,
+  ) async {
     final key = Preference(
       key: 'pref_series_audio_lang_$seriesId',
       defaultValue: '',
