@@ -533,6 +533,11 @@ class StremfinRequest {
     this.canWithdraw = false,
     this.progress,
     this.updatedAt,
+    this.poster,
+    this.year,
+    this.requestedAt,
+    this.decidedAt,
+    this.completedAt,
   });
 
   final int id;
@@ -564,6 +569,13 @@ class StremfinRequest {
   final StremfinProgress? progress;
   final DateTime? updatedAt;
 
+  /// Its cover, and the title's year.
+  final String? poster;
+  final int? year;
+  final DateTime? requestedAt;
+  final DateTime? decidedAt;
+  final DateTime? completedAt;
+
   static StremfinRequest? fromJson(Object? raw) {
     if (raw is! Map) return null;
     final id = _int(raw['id']);
@@ -589,8 +601,17 @@ class StremfinRequest {
           ? StremfinProgress.fromJson(raw['progress'])
           : null,
       updatedAt: _date(raw['updated_at']),
+      poster: _https(raw['poster']),
+      year: _int(raw['year']),
+      requestedAt: _date(raw['requested_at']),
+      decidedAt: _date(raw['decided_at']),
+      completedAt: _date(raw['completed_at']),
     );
   }
+
+  /// When it last changed, as far as is known: for putting the latest first.
+  DateTime? get lastChange =>
+      updatedAt ?? completedAt ?? decidedAt ?? requestedAt;
 
   /// The short form a title carries, for the lists to show it.
   StremfinRequestRef? get asRef => status.isOpen
@@ -687,6 +708,41 @@ class StremfinRequestResult {
       request: StremfinRequest.fromJson(body['request']),
       limit: _text(body['limit']),
       retryAfter: retryAfter,
+    );
+  }
+}
+
+/// One page of the person's requests, and what changed.
+@immutable
+class StremfinRequestPage {
+  const StremfinRequestPage({
+    this.now,
+    this.items = const [],
+    this.removedIds = const [],
+  });
+
+  /// The service's own clock: given back as `since` next time, to hear only
+  /// what changed meanwhile.
+  final String? now;
+  final List<StremfinRequest> items;
+
+  /// Requests gone since then (taken back, joined with another).
+  final List<int> removedIds;
+
+  static StremfinRequestPage fromJson(Object? raw) {
+    if (raw is! Map) return const StremfinRequestPage();
+    final items = raw['items'];
+    final removed = raw['removed_ids'];
+    return StremfinRequestPage(
+      now: _text(raw['now']),
+      items: [
+        if (items is List)
+          for (final item in items) ?StremfinRequest.fromJson(item),
+      ],
+      removedIds: [
+        if (removed is List)
+          for (final id in removed) ?_int(id),
+      ],
     );
   }
 }

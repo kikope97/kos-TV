@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 
 import '../../../preference/user_preferences.dart';
 import 'stremfin_client.dart';
+import 'stremfin_inbox.dart';
 import 'stremfin_models.dart';
 
 /// Kos TV: whether the person may use Discover, as the requests service last
@@ -24,6 +25,8 @@ class StremfinService extends ChangeNotifier {
     if (watchLifecycle) {
       _lifecycle = AppLifecycleListener(
         onResume: () => unawaited(refreshAccess()),
+        onShow: () => inbox.setForeground(true),
+        onHide: () => inbox.setForeground(false),
       );
     }
   }
@@ -63,6 +66,9 @@ class StremfinService extends ChangeNotifier {
   /// Bumped whenever a title on a list kept in memory changes (it was asked
   /// for, it arrived…), so Discover can show it as it stands.
   final ValueNotifier<int> listsRevision = ValueNotifier(0);
+
+  /// The person's own requests, for the requests tray.
+  late final StremfinInbox inbox = StremfinInbox(_client);
 
   /// Asks the service who the signed-in person is. Not reaching it keeps
   /// what it said last and tries again a little later; a refusal hides
@@ -109,7 +115,10 @@ class StremfinService extends ChangeNotifier {
   }
 
   void _setAccess(StremfinAccess access) {
-    if (_disposed || _access == access) return;
+    if (_disposed) return;
+    // Their requests, while the service lets them in.
+    inbox.setEnabled(access == StremfinAccess.allowed);
+    if (_access == access) return;
     _access = access;
     notifyListeners();
   }
@@ -123,6 +132,7 @@ class StremfinService extends ChangeNotifier {
     _lists.clear();
     _loading.clear();
     _me = null;
+    inbox.setUser(userId);
     _setAccess(StremfinAccess.unknown);
     if (userId != null) unawaited(refreshAccess());
   }
@@ -217,7 +227,13 @@ class StremfinService extends ChangeNotifier {
   }
 
   /// One request as it stands now.
-  Future<StremfinRequest> request(int id) => _client.request(id);
+  /// One request as its page shows it, so the tray doesn't count what the
+  /// person has just seen there as news.
+  Future<StremfinRequest> request(int id) async {
+    final read = await _client.request(id);
+    inbox.note(read, seen: true);
+    return read;
+  }
 
   /// Asks for a film, a season or (with no [season]) all that is missing of
   /// a series. Afterwards it asks again who the person is, since what they
@@ -228,11 +244,14 @@ class StremfinService extends ChangeNotifier {
     int? season,
   }) async {
     try {
-      return await _client.createRequest(
+      final result = await _client.createRequest(
         type: type,
         tmdbId: tmdbId,
         season: season,
       );
+      final made = result.request;
+      if (made != null) inbox.note(made, seen: true);
+      return result;
     } finally {
       unawaited(refreshAccess());
     }
@@ -242,6 +261,7 @@ class StremfinService extends ChangeNotifier {
   Future<void> withdrawRequest(int id) async {
     try {
       await _client.withdrawRequest(id);
+      inbox.remove(id);
     } finally {
       unawaited(refreshAccess());
     }
@@ -298,6 +318,7 @@ class StremfinService extends ChangeNotifier {
     _retry?.cancel();
     _lifecycle?.dispose();
     listsRevision.dispose();
+    inbox.dispose();
     super.dispose();
   }
 }

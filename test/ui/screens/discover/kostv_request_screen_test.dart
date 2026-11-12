@@ -21,6 +21,14 @@ import 'fake_stremfin_life.dart';
 /// a phone and a computer.
 void main() {
   late FakeStremfinLife fake;
+  late StremfinService service;
+
+  /// Takes the page down, then the service with its tray's timers.
+  Future<void> finish(WidgetTester tester) async {
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    service.dispose();
+  }
 
   Future<void> open(
     WidgetTester tester, {
@@ -40,7 +48,7 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
     }
-    final service = fake.service()..onUserChanged('kiko');
+    service = fake.service()..onUserChanged('kiko');
     GetIt.instance.registerSingleton<StremfinService>(service);
 
     final router = GoRouter(
@@ -124,6 +132,7 @@ void main() {
       expect(find.text('item cars-item'), findsNothing);
       await settle(tester, const Duration(seconds: 1));
       expect(find.text('item cars-item'), findsOneWidget);
+      await finish(tester);
     },
   );
 
@@ -158,6 +167,7 @@ void main() {
     await settle(tester);
     expect(find.text('Solicitar'), findsOneWidget);
     expect(fake.requests, isEmpty);
+    await finish(tester);
   });
 
   testWidgets('computer: a series, season by season', (tester) async {
@@ -186,6 +196,7 @@ void main() {
     expect(find.text('Aceptada: empieza en seguida'), findsOneWidget);
     // Season 3 can still be asked for, and so can all that's missing.
     expect(find.text('Solicitar todo lo que falta'), findsOneWidget);
+    await finish(tester);
   });
 
   testWidgets('at the limit: says so and the button waits', (tester) async {
@@ -208,6 +219,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await settle(tester);
     expect(fake.requests, isEmpty);
+    await finish(tester);
   });
 }
 

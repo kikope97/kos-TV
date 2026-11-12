@@ -40,15 +40,27 @@ class FakeStremfinLife {
   /// Season numbers of the series on the home server, all of them.
   final Set<int> seriesHave = {1};
   final Map<int, Map<String, Object?>> requests = {};
+
+  /// The service's clock for `since`: bumped by every change of a request
+  /// (not by progress, as on the real one).
+  int _clock = 1;
+  final Map<int, int> _changedAt = {};
+  final Map<int, int> _removedAt = {};
+
+  void _touch(int id) => _changedAt[id] = ++_clock;
   int _nextId = 50;
   final List<String> calls = [];
 
   /// The next call answers with this error status instead.
   int? failNext;
 
+  late final FakeStremfinAdapter adapter = FakeStremfinAdapter.withMethod(
+    answer,
+  );
+
   StremfinService service() => StremfinService(
     StremfinClient(
-      dio: Dio()..httpClientAdapter = FakeStremfinAdapter.withMethod(answer),
+      dio: Dio()..httpClientAdapter = adapter,
       baseUrl: 'https://requests.example.org/api/v1',
       token: () => 'token',
     ),
@@ -73,6 +85,7 @@ class FakeStremfinLife {
   // -------------------------------------------------- moving things along
 
   void approve(int id) {
+    _touch(id);
     requests[id]!
       ..['status'] = 'approved'
       ..['can_withdraw'] = false
@@ -93,6 +106,7 @@ class FakeStremfinLife {
   }
 
   void complete(int id, {bool indexed = true}) {
+    _touch(id);
     final r = requests[id]!
       ..['status'] = 'completed'
       ..['progress'] = null;
@@ -105,6 +119,7 @@ class FakeStremfinLife {
   }
 
   void reject(int id, String reason) {
+    _touch(id);
     requests[id]!
       ..['status'] = 'rejected'
       ..['reason'] = reason
@@ -131,6 +146,7 @@ class FakeStremfinLife {
     if (path == '/movies/920/availability') return _ok(availability);
     if (path == '/series/1396') return _ok(_series());
     if (path == '/requests' && method == 'POST') return _post(sent);
+    if (path == '/requests' && method == 'GET') return _list(adapter.lastQuery);
     final id = int.tryParse(path.replaceFirst('/requests/', ''));
     if (id != null) {
       final r = requests[id];
@@ -138,11 +154,44 @@ class FakeStremfinLife {
       if (method == 'DELETE') {
         if (r['status'] != 'pending') return _error(409, 'already_answered');
         requests.remove(id);
+        _removedAt[id] = ++_clock;
         return _ok({'outcome': 'withdrawn', 'message': 'Petición retirada.'});
       }
       return _ok(r);
     }
     return _error(404, 'not_found');
+  }
+
+  /// The query of the last GET /requests.
+  Map<String, String> lastListQuery = const {};
+
+  /// Every GET /requests asked, with its query.
+  final List<Map<String, String>> listQueries = [];
+
+  Reply _list(Map<String, String> query) {
+    lastListQuery = query;
+    listQueries.add(query);
+    final status = query['status'] ?? 'open';
+    final since = int.tryParse((query['since'] ?? '').replaceFirst('t', ''));
+    bool wanted(Map<String, Object?> r) => switch (status) {
+      'open' => _open(r),
+      'closed' => !_open(r),
+      _ => true,
+    };
+    return _ok({
+      'now': 't$_clock',
+      'items': [
+        for (final entry in requests.entries)
+          if (wanted(entry.value) &&
+              (since == null || (_changedAt[entry.key] ?? 0) > since))
+            entry.value,
+      ],
+      'removed_ids': [
+        if (since != null)
+          for (final entry in _removedAt.entries)
+            if (entry.value > since) entry.key,
+      ],
+    });
   }
 
   Reply _ok(Object? body, [int status = 200]) =>
@@ -292,6 +341,7 @@ class FakeStremfinLife {
       'progress': direct ? {'state': 'accepted', 'label': 'Aceptada'} : null,
     };
     requests[id] = request;
+    _touch(id);
     return _ok({
       'outcome': direct ? 'started' : 'created',
       'message': 'Hecho.',

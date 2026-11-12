@@ -28,6 +28,9 @@ class FakeStremfinAdapter implements HttpClientAdapter {
 
   final List<RequestOptions> calls = [];
 
+  /// The query of the call being answered.
+  Map<String, String> lastQuery = const {};
+
   @override
   Future<ResponseBody> fetch(
     RequestOptions options,
@@ -36,6 +39,7 @@ class FakeStremfinAdapter implements HttpClientAdapter {
   ) async {
     calls.add(options);
     final path = options.uri.path.replaceFirst('/api/v1', '');
+    lastQuery = options.uri.queryParameters;
     final byMethod = answerWithMethod;
     final reply = byMethod != null
         ? byMethod(options.method, path, options.data)

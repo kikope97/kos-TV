@@ -143,6 +143,21 @@ class StremfinClient {
     return detail;
   }
 
+  /// The person's own requests: [status] `open`, `closed` or `all`; with
+  /// [since] (a `now` the service gave), only those changed since then.
+  Future<StremfinRequestPage> requests({
+    String status = 'all',
+    String? since,
+    int? limit,
+  }) async => StremfinRequestPage.fromJson(
+    await _get('/requests', {
+      'scope': 'mine',
+      'status': status,
+      'since': ?since,
+      'limit': ?limit,
+    }),
+  );
+
   /// One request as it stands now.
   Future<StremfinRequest> request(int id) async {
     final request = StremfinRequest.fromJson(await _get('/requests/$id'));
