@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Kos TV: when the opening video plays.
+/// Kos TV: when the opening animation plays.
 ///
 /// It plays when the app is opened after being closed: the first time, after
 /// leaving it on purpose (Back out of Home and Exit, or the screensaver
@@ -16,7 +16,7 @@ abstract final class KostvIntroPolicy {
   static const _lastSeenKey = 'kostv_intro_last_seen_ms';
   static const _closedKey = 'kostv_intro_closed';
 
-  /// Away from the app for longer than this, it opens with the video again.
+  /// Away from the app for longer than this, it opens with the animation again.
   static const longAway = Duration(hours: 6);
 
   static bool _playsThisLaunch = true;
@@ -60,7 +60,7 @@ abstract final class KostvIntroPolicy {
       now.isBefore(lastSeen) ||
       now.difference(lastSeen) > longAway;
 
-  /// Whether the start screen plays the video. True at most once a launch,
+  /// Whether the start screen plays the animation. True at most once a launch,
   /// so a later visit to the start screen (switching user) goes without it.
   static bool takeIntro() {
     if (_taken) return false;
@@ -68,7 +68,7 @@ abstract final class KostvIntroPolicy {
     return _playsThisLaunch;
   }
 
-  /// The app is being closed on purpose: it opens with the video next time.
+  /// The app is being closed on purpose: it opens with the animation next time.
   static Future<void> markClosed() async {
     try {
       final prefs = await SharedPreferences.getInstance();

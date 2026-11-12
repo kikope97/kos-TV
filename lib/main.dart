@@ -1040,7 +1040,7 @@ void main() async {
     GetIt.instance<AirPlayCommandBridge>().start();
   } catch (_) {}
 
-  // Kos TV: whether this launch opens with the intro video.
+  // Kos TV: whether this launch opens with the opening animation.
   await KostvIntroPolicy.init();
   // Kos TV: where the requests service was last time (the plugin says).
   await KostvRequestsAddress.load();

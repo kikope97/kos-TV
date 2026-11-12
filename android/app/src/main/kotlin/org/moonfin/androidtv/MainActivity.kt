@@ -479,7 +479,7 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
                     InstalledApps.launch(this, call.argument<String>("package") ?: ""),
                 )
                 "openSystemSettings" -> result.success(InstalledApps.openSystemSettings(this))
-                // Kos TV: whether the opening video plays with sound. A TV always;
+                // Kos TV: whether the opening animation plays with sound. A TV always;
                 // a phone only while its ringer is on (silent or vibrate keeps
                 // the intro quiet, whatever the media volume).
                 "introSoundAllowed" -> {
@@ -489,6 +489,16 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
                             audio == null ||
                             audio.ringerMode == AudioManager.RINGER_MODE_NORMAL,
                     )
+                }
+                // Kos TV: the sound of the opening, played with the system's
+                // own player so it starts at once. Answers once it is playing.
+                "introSoundPlay" -> IntroSound.play(
+                    applicationContext,
+                    call.argument<String>("asset") ?: "",
+                ) { started -> result.success(started) }
+                "introSoundStop" -> {
+                    IntroSound.stop()
+                    result.success(null)
                 }
                 "exitApp" -> {
                     result.success(true)

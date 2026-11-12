@@ -12731,9 +12731,9 @@
     },
     "kostvIntroSetting": "Animación al abrir",
     "@kostvIntroSetting": {
-        "description": "Kos TV settings: switch for the intro video when the app opens."
+        "description": "Kos TV settings: switch for the opening animation when the app opens."
     },
-    "kostvIntroSettingSubtitle": "El vídeo de kOS TV al abrir la aplicación",
+    "kostvIntroSettingSubtitle": "La animación de kOS TV, con su sonido, al abrir la aplicación",
     "@kostvIntroSettingSubtitle": {
         "description": "Kos TV settings: subtitle of the opening animation switch."
     },

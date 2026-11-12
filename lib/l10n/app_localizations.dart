@@ -31980,7 +31980,7 @@ abstract class AppLocalizations {
   /// Kos TV settings: subtitle of the opening animation switch.
   ///
   /// In en, this message translates to:
-  /// **'The kOS TV video when the app opens'**
+  /// **'The kOS TV animation, with its sound, when the app opens'**
   String get kostvIntroSettingSubtitle;
 
   /// Kos TV settings: subtitle of the Apps screen switch.

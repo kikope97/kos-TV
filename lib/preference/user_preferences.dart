@@ -2738,7 +2738,7 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: false,
   );
 
-  /// Kos TV: whether the app opens with the intro video (see
+  /// Kos TV: whether the app opens with the opening animation (see
   /// KostvIntroPolicy for when it does). Kept on each device.
   static final kostvIntroEnabled = Preference<bool>(
     key: 'kostv_intro_enabled',

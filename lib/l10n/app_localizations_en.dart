@@ -18557,7 +18557,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kostvIntroSetting => 'Opening animation';
 
   @override
-  String get kostvIntroSettingSubtitle => 'The kOS TV video when the app opens';
+  String get kostvIntroSettingSubtitle =>
+      'The kOS TV animation, with its sound, when the app opens';
 
   @override
   String get kostvShowAppsButtonSubtitle =>

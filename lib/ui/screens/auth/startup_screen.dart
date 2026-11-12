@@ -23,7 +23,7 @@ import '../../widgets/adaptive/adaptive_dialog.dart';
 import '../../widgets/overlay_sheet.dart';
 import '../../widgets/pin_entry_dialog.dart';
 import '../../widgets/focus/request_initial_focus.dart';
-import '../../widgets/kos_intro_video.dart';
+import '../../widgets/kos_intro.dart';
 import '../../widgets/kos_logo.dart';
 import '../home/home_view_model.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
@@ -54,7 +54,7 @@ class _StartupScreenState extends State<StartupScreen> {
   /// over it before then.
   final _introDone = Completer<void>();
 
-  /// Kos TV: the intro video plays only when the app is opened after being
+  /// Kos TV: the opening animation plays only when the app is opened after being
   /// closed, not when it comes back from the background or on switching
   /// user (see [KostvIntroPolicy]). Without it the logo shows for the moment
   /// the session takes to come back. It can be turned off on each device
@@ -299,7 +299,7 @@ class _StartupScreenState extends State<StartupScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: _playIntro
-          ? KosIntroVideo(
+          ? KosIntro(
               onFinished: () {
                 if (!_introDone.isCompleted) _introDone.complete();
               },

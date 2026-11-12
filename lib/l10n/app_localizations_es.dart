@@ -18879,7 +18879,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvIntroSettingSubtitle =>
-      'El vídeo de kOS TV al abrir la aplicación';
+      'La animación de kOS TV, con su sonido, al abrir la aplicación';
 
   @override
   String get kostvShowAppsButtonSubtitle =>
