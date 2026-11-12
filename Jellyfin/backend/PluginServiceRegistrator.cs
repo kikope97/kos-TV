@@ -1,0 +1,165 @@
+using Jellyfin.Data.Events.Users;
+using MediaBrowser.Controller;
+using MediaBrowser.Controller.Events;
+using MediaBrowser.Controller.Plugins;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Moonfin.Bookmarks;
+using Moonfin.Calendar;
+using Moonfin.Games;
+using Moonfin.LiveTv;
+using Moonfin.MiniGames;
+using Moonfin.Pin;
+using Moonfin.Romm;
+using Moonfin.Server.Services;
+using Moonfin.WatchParty;
+
+namespace Moonfin.Server;
+
+/// <summary>
+/// Registers Moonfin services with the Jellyfin dependency injection container.
+/// </summary>
+public class PluginServiceRegistrator : IPluginServiceRegistrator
+{
+    /// <inheritdoc />
+    public void RegisterServices(IServiceCollection serviceCollection, IServerApplicationHost applicationHost)
+    {
+        serviceCollection.AddSingleton<MoonfinSettingsService>();
+        serviceCollection.AddSingleton<IUserDirectory, UserDirectory>();
+        serviceCollection.AddSingleton<DefaultHiddenLibraries>();
+        serviceCollection.AddScoped<IEventConsumer<UserCreatedEventArgs>, DefaultHiddenLibrariesOnUserCreated>();
+        serviceCollection.AddSingleton<IPinStore, FilePinStore>();
+        serviceCollection.AddSingleton<PinService>(sp => new PinService(sp.GetRequiredService<IPinStore>()));
+        serviceCollection.AddSingleton(_ => new MiniGameScoreService(new FileMiniGameScoreStore(
+            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), "minigames"),
+            new JellyfinStateFile())));
+        serviceCollection.AddSingleton<MoonfinThemeValidator>();
+        serviceCollection.AddSingleton<MoonfinThemeStore>();
+        serviceCollection.AddSingleton<SeerrSessionService>();
+        serviceCollection.AddSingleton<NotificationStore>();
+        serviceCollection.AddSingleton<FcmSender>();
+        serviceCollection.AddSingleton<RelaySender>();
+        serviceCollection.AddSingleton<PushDeliveryService>();
+        serviceCollection.AddSingleton<SeerrWebhookService>();
+        serviceCollection.AddSingleton<SeerrProvisioningService>();
+        serviceCollection.AddSingleton<MdbListCacheService>();
+        serviceCollection.AddSingleton<MdbListListsCacheService>();
+        serviceCollection.AddSingleton<ImdbListsCacheService>();
+        serviceCollection.AddSingleton<StudioLogoCacheService>();
+        serviceCollection.AddSingleton<StudioLogoFetchService>();
+        serviceCollection.AddSingleton<AnimeMarkerDiagnosticLog>();
+        serviceCollection.AddSingleton<AnimeIdMappingService>();
+        serviceCollection.AddSingleton<AnimeFillerListClient>();
+        serviceCollection.AddSingleton<AnimeMarkerCacheService>();
+        serviceCollection.AddSingleton<AnimeTitleAliasService>();
+        serviceCollection.AddSingleton<AnimeRecapFetchService>();
+        serviceCollection.AddSingleton<AnimeMarkerResolver>();
+        serviceCollection.AddSingleton<TmdbRatingCacheService>();
+        serviceCollection.AddSingleton<TmdbRatingService>();
+        serviceCollection.AddSingleton<TmdbThumbService>();
+        serviceCollection.AddSingleton<ServerRatingLimitService>();
+        serviceCollection.AddSingleton<ItemCardDtoMapper>();
+        serviceCollection.AddSingleton<SeasonalKeywordStoreService>();
+        serviceCollection.AddSingleton<SeasonalSuggestionsCacheService>();
+        serviceCollection.AddSingleton<SeerrAvailabilityService>();
+        serviceCollection.AddSingleton<SeasonalRowService>();
+        serviceCollection.AddSingleton<CustomRowCacheService>();
+        serviceCollection.AddSingleton<CustomRowFetchService>();
+        serviceCollection.AddSingleton<CollectionOrderService>();
+        serviceCollection.AddSingleton(provider => new RommSource(
+            () =>
+            {
+                var config = MoonfinPlugin.Instance?.Configuration;
+                return config == null
+                    ? null
+                    : RommSettings.From(config.GamesRommUrl, config.GamesRommToken, config.GamesRommLibraryId);
+            },
+            () => provider.GetRequiredService<IHttpClientFactory>().CreateClient(),
+            GameSystemCoreResolver.RommRules,
+            accountsFolder: Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), "romm-accounts")));
+        serviceCollection.AddSingleton(provider => new RommSaveSync(provider.GetRequiredService<RommSource>()));
+        serviceCollection.AddSingleton<GamesService>();
+        serviceCollection.AddSingleton<GameSavesService>();
+        // MoonfinPlugin.ResolveDataFolderPath() must be called INSIDE each factory lambda, not
+        // hoisted to a shared local: RegisterServices runs while the IServiceCollection is still
+        // being built, before the service provider (and before MoonfinPlugin.Instance) exists.
+        // Evaluating it here eagerly would permanently bake in the Instance-less fallback path.
+        // Deferring the call to first resolution (same as the original inline
+        // `MoonfinPlugin.Instance?.DataFolderPath ?? ...` chains this replaces) keeps it lazy.
+        serviceCollection.AddSingleton(_ => new ArcadeCompatibilityService(MoonfinPlugin.ResolveDataFolderPath()));
+        serviceCollection.AddSingleton(_ => new ArcadeCoreOverrideService(
+            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), "arcade-core-overrides")));
+        serviceCollection.AddSingleton(_ => new GameBackendOverrideService(
+            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), "game-backend-overrides")));
+        serviceCollection.AddSingleton(_ => new GameArtworkCatalog(
+            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), "game-artwork-catalog")));
+        serviceCollection.AddSingleton<PerUserConcurrencyLimiter>();
+        serviceCollection.AddSingleton<GameArtworkDeliveryLimiter>();
+        serviceCollection.AddSingleton<GameArtworkReconciliationService>();
+        serviceCollection.AddSingleton<CoresService>();
+        serviceCollection.AddSingleton<RdbService>();
+        serviceCollection.AddSingleton<GameThumbService>();
+        serviceCollection.AddSingleton<LaunchBoxService>();
+        serviceCollection.AddSingleton(_ => new UserBookmarkStore(
+            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), "Bookmarks"),
+            new JellyfinStateFile()));
+        serviceCollection.AddSingleton<SmartSearchService>();
+        serviceCollection.AddSingleton<WatchPartyHost>();
+        serviceCollection.AddSingleton(provider =>
+        {
+            var engine = new WatchPartyEngine(provider.GetRequiredService<WatchPartyHost>(), WatchPartyHost.Settings);
+            engine.StartTimer();
+            return engine;
+        });
+        serviceCollection.AddSingleton<SocketRelayManager>();
+        serviceCollection.AddHttpClient();
+
+        // The custom row scrapes need a browser user agent to get a normal page back, and a
+        // short timeout so one unresponsive host can't stall the whole sync.
+        serviceCollection.AddHttpClient("MoonfinHttpClient", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(15);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        });
+
+        serviceCollection.AddSingleton<ConfigBackupService>();
+        serviceCollection.AddHostedService(provider => provider.GetRequiredService<ConfigBackupService>());
+
+        // Auto-register file transformations on plugin load (no manual task needed)
+        serviceCollection.AddHostedService<FileTransformationHostedService>();
+
+        // Auto-register the Seerr webhook shortly after startup when an admin session exists.
+        serviceCollection.AddHostedService<SeerrProvisioningStartupService>();
+        serviceCollection.AddHostedService<NewMediaNotifier>();
+        serviceCollection.AddSingleton(_ => new CalendarReminderStore(
+            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), "calendar-reminders"),
+            new JellyfinStateFile()));
+        serviceCollection.AddHostedService<CalendarReminderNotifier>();
+        serviceCollection.AddSingleton(_ => new StuckDownloadStore(
+            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), "seerr-stuck-downloads.json"),
+            new JellyfinStateFile()));
+        serviceCollection.AddHostedService(provider => provider.GetRequiredService<GameArtworkReconciliationService>());
+
+        // Incomplete Live TV recordings
+        serviceCollection.AddSingleton<ILiveTvRecordingHost, JellyfinLiveTvRecordingHost>();
+        serviceCollection.AddSingleton(provider => new IncompleteRecordingService(
+            provider.GetRequiredService<ILiveTvRecordingHost>(),
+            new JellyfinRecordingLog(provider.GetRequiredService<ILogger<IncompleteRecordingService>>()),
+            new JellyfinStateFile(),
+            () => DateTime.UtcNow,
+            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), IncompleteRecordingService.StoreFileName),
+            IncompleteRecordingConfig.Read));
+        serviceCollection.AddSingleton(provider => new IncompleteRecordingWatcher(
+            provider.GetRequiredService<IncompleteRecordingService>(),
+            provider.GetRequiredService<ILiveTvRecordingHost>(),
+            new JellyfinRecordingLog(provider.GetRequiredService<ILogger<IncompleteRecordingWatcher>>())));
+        serviceCollection.AddHostedService<IncompleteRecordingHostedService>();
+
+        // Recommendations / Similar Items
+        serviceCollection.AddSingleton<MoonfinSimilarItemsService>();
+        serviceCollection.AddHostedService<MoonfinSimilarItemsProviderManager>();
+
+        // Sweeps idle websocket relays and closes them all on shutdown.
+        serviceCollection.AddHostedService<SocketRelaySweepService>();
+    }
+}

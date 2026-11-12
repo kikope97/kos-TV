@@ -1,0 +1,338 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+using Emby.Plugins.Moonfin.Services;
+using MediaBrowser.Common.Configuration;
+using MediaBrowser.Common.Plugins;
+using MediaBrowser.Controller;
+using MediaBrowser.Controller.Configuration;
+using MediaBrowser.Controller.Library;
+using MediaBrowser.Model.Drawing;
+using MediaBrowser.Model.Globalization;
+using MediaBrowser.Model.Logging;
+using MediaBrowser.Model.Plugins;
+using MediaBrowser.Model.Serialization;
+using Moonfin.Bookmarks;
+using Moonfin.Calendar;
+using Moonfin.Games;
+using Moonfin.MiniGames;
+using Moonfin.Pin;
+using Moonfin.Romm;
+using Moonfin.WatchParty;
+
+namespace Emby.Plugins.Moonfin
+{
+    public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages, IHasThumbImage
+    {
+        private readonly ILogger _logger;
+
+        public static Plugin? Instance { get; private set; }
+
+        public MoonfinSettingsService? SettingsService { get; private set; }
+        public MoonfinThemeValidator? ThemeValidator { get; private set; }
+        public MoonfinThemeStore? ThemeStore { get; private set; }
+        public SeerrSessionService? SeerrService { get; private set; }
+        public MdbListCacheService? MdbListCache { get; private set; }
+        public MdbListListsCacheService? MdbListListsCache { get; private set; }
+        public ImdbListsCacheService? ImdbListsCache { get; private set; }
+        public ImdbChartFetcher? ImdbChartFetcher { get; private set; }
+        public CustomRowCacheService? CustomRowCache { get; private set; }
+        public TmdbRatingCacheService? TmdbRatingCache { get; private set; }
+        public TmdbRatingService? TmdbRatings { get; private set; }
+        public TmdbThumbService? TmdbThumbs { get; private set; }
+        public ServerRatingLimitService? RatingLimits { get; private set; }
+        public SeasonalKeywordStoreService? SeasonalKeywords { get; private set; }
+        public SeasonalSuggestionsCacheService? SeasonalSuggestions { get; private set; }
+        public SeerrAvailabilityService? SeerrAvailability { get; private set; }
+        public SeasonalRowService? SeasonalRows { get; private set; }
+        public StudioLogoCacheService? StudioLogoCache { get; private set; }
+        public StudioLogoFetchService? StudioLogoFetch { get; private set; }
+        public GameThumbService? GameThumbs { get; private set; }
+
+        public GamesService? Games { get; private set; }
+        public GameArtworkReconciliationService? GameArtwork { get; private set; }
+        public GameArtworkDeliveryLimiter? GameArtworkDelivery { get; private set; }
+        public ArcadeCompatibilityService? ArcadeCompatibility { get; private set; }
+
+        /// <summary>The RomM-backed game library. It holds RomM's inventory, so it lives as long as the server.</summary>
+        public RommSource? Romm { get; private set; }
+
+        public RommSaveSync? RommSaves { get; private set; }
+
+        public NotificationStore? NotificationStore { get; private set; }
+        public RelaySender? RelaySender { get; private set; }
+        public FcmSender? FcmSender { get; private set; }
+        public PushDeliveryService? PushDelivery { get; private set; }
+        public SeerrWebhookService? SeerrWebhook { get; private set; }
+        public SeerrProvisioningService? SeerrProvisioning { get; private set; }
+        public AnimeMarkerDiagnosticLog? AnimeMarkerDiagnostics { get; private set; }
+        public AnimeFillerListClient? AnimeFillerList { get; private set; }
+        public AnimeMarkerCacheService? AnimeMarkerCache { get; private set; }
+        public AnimeRecapFetchService? AnimeRecapFetch { get; private set; }
+        public AnimeMarkerResolver? AnimeMarkerResolver { get; private set; }
+        public PinService? Pins { get; private set; }
+        public MiniGameScoreService? MiniGames { get; private set; }
+        public SmartSearchIndexService? SmartSearch { get; private set; }
+        public CalendarReminderStore? CalendarReminders { get; private set; }
+        public StuckDownloadStore? StuckDownloadState { get; private set; }
+        public UserBookmarkStore? Bookmarks { get; private set; }
+        public ConfigBackupService? ConfigBackup { get; private set; }
+        public WatchPartyEngine? WatchParty { get; private set; }
+
+        public Plugin(IApplicationPaths applicationPaths, IXmlSerializer xmlSerializer, ILogManager logManager)
+            : base(applicationPaths, xmlSerializer)
+        {
+            Instance = this;
+            GamesHost.Config = () => Instance?.Configuration;
+            GamesHost.DataFolderPath = () => Instance?.DataFolderPath;
+            _logger = logManager.GetLogger("Moonfin");
+            _logger.Info("Moonfin plugin loaded", 0);
+        }
+
+        /// <summary>
+        /// Emby's config-save hook: the config page persists changes through this. Re-run webhook
+        /// provisioning when PublicServerUrl changes so a newly set public URL is pushed to Seerr
+        /// without a restart. Best-effort and never throws into the save path.
+        /// </summary>
+        public override void UpdateConfiguration(MediaBrowser.Model.Plugins.BasePluginConfiguration configuration)
+        {
+            var oldUrl = Configuration?.PublicServerUrl;
+            var oldGames = GamesSignature(Configuration);
+            var oldHideWatched = HideWatchedDefaults(Configuration);
+            base.UpdateConfiguration(configuration);
+            var newUrl = Configuration?.PublicServerUrl;
+
+            // Users who inherit a changed Hide Watched default get their HidePlayedInLatest moved to match.
+            if (HideWatchedDefaults(Configuration) != oldHideWatched)
+            {
+                _ = SettingsService?.SyncHideWatchedForAffectedUsersAsync(CancellationToken.None);
+            }
+
+            // Re-watch and re-scan the ROM roots when the game settings change, so a newly picked
+            // library's games get artwork without waiting for a library scan or a restart.
+            if (!string.Equals(oldGames, GamesSignature(Configuration), StringComparison.Ordinal))
+            {
+                try { GameArtwork?.OnGameLibrariesChanged(); }
+                catch (Exception ex) { _logger.Debug("Moonfin game artwork re-sync after config save failed: " + ex.Message); }
+            }
+
+            if (!string.Equals(oldUrl, newUrl, StringComparison.Ordinal))
+            {
+                var provisioning = SeerrProvisioning;
+                if (provisioning != null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await provisioning.EnsureWebhookAsync(CancellationToken.None).ConfigureAwait(false);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.Debug("Moonfin webhook re-provisioning after config save failed: " + ex.Message);
+                        }
+                    });
+                }
+            }
+        }
+
+        private static (bool?, bool?, bool?, bool?) HideWatchedDefaults(PluginConfiguration? config) => (
+            config?.DefaultUserSettings?.HideWatchedInRecentRows,
+            config?.GetDefaultsFor("tv")?.HideWatchedInRecentRows,
+            config?.GetDefaultsFor("desktop")?.HideWatchedInRecentRows,
+            config?.GetDefaultsFor("mobile")?.HideWatchedInRecentRows);
+
+        private static string GamesSignature(PluginConfiguration? config) =>
+            config == null
+                ? string.Empty
+                : config.GamesEnabled + "\n" + config.GamesRommUrl + "\n" + config.GamesRommToken + "\n" + config.GamesRommLibraryId + "\n" +
+                  string.Join(",", (config.GameLibraryIds ?? new List<string>()).Select(id => id.ToUpperInvariant()).OrderBy(id => id, StringComparer.Ordinal));
+
+        public override string Name => "Moonbase";
+
+        public override string Description => "Moonfin brings a modern TV-style UI to Emby. Features include: custom navbar, media bar with featured content, Seerr integration, and cross-device settings synchronization.";
+
+        public override Guid Id => new Guid("9a1b2c3d-4e5f-6789-abcd-ef0123456789");
+
+        // Provide a stable config filename so Configuration is readable regardless of when Emby
+        // sets the plugin attributes. Without this the base getter does Path.Combine(dir, null).
+        public override string ConfigurationFileName => "Emby.Plugins.Moonfin.xml";
+
+        public new string DataFolderPath => System.IO.Path.Combine(ApplicationPaths.PluginConfigurationsPath, "Moonfin");
+
+        public string PluginsPath => ApplicationPaths.PluginsPath;
+
+        internal string LogDirectoryPath => ApplicationPaths.LogDirectoryPath;
+
+        public ImageFormat ThumbImageFormat => ImageFormat.Png;
+
+        public Stream GetThumbImage()
+        {
+            var type = GetType();
+            return type.Assembly.GetManifestResourceStream(type.Namespace + ".assets.logo.png");
+        }
+
+        public IEnumerable<PluginPageInfo> GetPages()
+        {
+            var ns = GetType().Namespace;
+            return new[]
+            {
+                new PluginPageInfo
+                {
+                    Name = Name,
+                    EmbeddedResourcePath = ns + ".Pages.configPage.html",
+                    EnableInMainMenu = true,
+                    // This slot only takes a Material Icons ligature, and Emby has no stylesheet
+                    // injection, so a crescent is the closest the sidebar gets to the mark.
+                    MenuIcon = "dark_mode"
+                },
+                // Controller module for the config page, referenced via data-controller="__plugin/moonfinjs".
+                new PluginPageInfo
+                {
+                    Name = "moonfinjs",
+                    EmbeddedResourcePath = ns + ".Pages.moonfin.js"
+                }
+            };
+        }
+
+        private void InitializeGames(ILogManager logManager, IServerApplicationHost appHost)
+        {
+            var gamesLogger = logManager.GetLogger("MoonfinGames");
+            var http = EmbyHttpClientFactory.Instance;
+            var rdb = new RdbService(http, new EmbyLogger<RdbService>(gamesLogger));
+            ArcadeCompatibility = new ArcadeCompatibilityService(DataFolderPath);
+            Games = new GamesService(
+                new EmbyGameLibraryHost(appHost.Resolve<ILibraryManager>()),
+                rdb,
+                new LaunchBoxService(http, new EmbyLogger<LaunchBoxService>(gamesLogger)),
+                ArcadeCompatibility,
+                new ArcadeCoreOverrideService(Path.Combine(DataFolderPath, "arcade-core-overrides")),
+                new GameBackendOverrideService(Path.Combine(DataFolderPath, "game-backend-overrides")),
+                new EmbyLogger<GamesService>(gamesLogger),
+                Romm);
+            GameThumbs = new GameThumbService(http, new EmbyLogger<GameThumbService>(gamesLogger), rdb, null);
+            GameArtwork = new GameArtworkReconciliationService(
+                Games,
+                GameThumbs,
+                new GameArtworkCatalog(Path.Combine(DataFolderPath, "game-artwork-catalog"), new EmbyLogger<GameArtworkCatalog>(gamesLogger)),
+                new EmbyLogger<GameArtworkReconciliationService>(gamesLogger),
+                watchLibraryFileSystem: true);
+            GameArtworkDelivery = new GameArtworkDeliveryLimiter(new PerUserConcurrencyLimiter());
+        }
+
+        internal void InitializeServices(ILogManager logManager, IServerApplicationHost appHost)
+        {
+            var settingsLogger = logManager.GetLogger("MoonfinSettings");
+            var themeLogger = logManager.GetLogger("MoonfinThemes");
+            var seerrLogger = logManager.GetLogger("MoonfinSeerr");
+            var mdbLogger = logManager.GetLogger("MoonfinMdbList");
+            var notifyLogger = logManager.GetLogger("MoonfinNotifications");
+
+            ThemeValidator = new MoonfinThemeValidator();
+            SettingsService = new MoonfinSettingsService(settingsLogger);
+            ThemeStore = new MoonfinThemeStore(ThemeValidator, themeLogger);
+            SeerrService = new SeerrSessionService(seerrLogger);
+            MdbListCache = new MdbListCacheService(mdbLogger);
+            MdbListListsCache = new MdbListListsCacheService(mdbLogger);
+            ImdbListsCache = new ImdbListsCacheService(mdbLogger);
+            ImdbChartFetcher = new ImdbChartFetcher(mdbLogger);
+            CustomRowCache = new CustomRowCacheService(mdbLogger);
+            var configManager = appHost.Resolve<IServerConfigurationManager>();
+            TmdbRatingCache = new TmdbRatingCacheService(mdbLogger);
+            TmdbRatings = new TmdbRatingService(TmdbRatingCache, configManager, mdbLogger);
+            TmdbThumbs = new TmdbThumbService(configManager, TmdbRatings, mdbLogger);
+            RatingLimits = new ServerRatingLimitService(appHost.Resolve<ILocalizationManager>(), configManager);
+            var seasonalLogger = logManager.GetLogger("MoonfinSeasonal");
+            SeasonalKeywords = new SeasonalKeywordStoreService(seasonalLogger);
+            SeasonalSuggestions = new SeasonalSuggestionsCacheService(seasonalLogger);
+            SeerrAvailability = new SeerrAvailabilityService(SeerrService, SettingsService);
+            SeasonalRows = new SeasonalRowService(configManager, SettingsService, RatingLimits, TmdbRatings, SeasonalKeywords, SeasonalSuggestions, SeerrAvailability, seasonalLogger);
+            StudioLogoCache = new StudioLogoCacheService(mdbLogger);
+            StudioLogoFetch = new StudioLogoFetchService(StudioLogoCache, mdbLogger);
+            // One client for every RomM call. A ROM stream outlives the timeout, which only covers the headers.
+            var rommHttp = MoonfinHttp.CreateClient(TimeSpan.FromSeconds(100), "Moonfin/1.0");
+            Romm = new RommSource(
+                () =>
+                {
+                    var config = Instance?.Configuration;
+                    return config == null ? null : RommSettings.From(config.GamesRommUrl, config.GamesRommToken, config.GamesRommLibraryId);
+                },
+                () => rommHttp,
+                GameSystemCoreResolver.RommRules,
+                accountsFolder: Path.Combine(DataFolderPath, "romm-accounts"));
+            RommSaves = new RommSaveSync(Romm);
+            InitializeGames(logManager, appHost);
+
+            var animeLogger = logManager.GetLogger("MoonfinAnimeMarkers");
+            AnimeMarkerDiagnostics = new AnimeMarkerDiagnosticLog(animeLogger);
+            AnimeFillerList = new AnimeFillerListClient(animeLogger);
+            AnimeMarkerCache = new AnimeMarkerCacheService(animeLogger);
+            var animeIdMapping = new AnimeIdMappingService(animeLogger);
+            AnimeRecapFetch = new AnimeRecapFetchService(animeIdMapping, AnimeMarkerDiagnostics, animeLogger);
+            AnimeMarkerResolver = new AnimeMarkerResolver(
+                appHost.Resolve<ILibraryManager>(),
+                appHost.Resolve<IMediaSourceManager>(),
+                AnimeFillerList,
+                AnimeMarkerCache,
+                new AnimeTitleAliasService(animeIdMapping, AnimeMarkerDiagnostics, animeLogger),
+                animeLogger);
+
+            NotificationStore = new NotificationStore(notifyLogger);
+            RelaySender = new RelaySender(notifyLogger);
+            FcmSender = new FcmSender(notifyLogger);
+            PushDelivery = new PushDeliveryService(NotificationStore, RelaySender, FcmSender, notifyLogger);
+            SeerrWebhook = new SeerrWebhookService(SeerrService, SettingsService, NotificationStore, PushDelivery, notifyLogger);
+            SeerrProvisioning = new SeerrProvisioningService(SeerrService, appHost, notifyLogger);
+            Pins = new PinService(new FilePinStore(Path.Combine(DataFolderPath, "pins"), logManager.GetLogger("MoonfinPins")));
+            MiniGames = new MiniGameScoreService(new FileMiniGameScoreStore(Path.Combine(DataFolderPath, "minigames"), new EmbyStateFile()));
+            SmartSearch = new SmartSearchIndexService(appHost.Resolve<ILibraryManager>(), DataFolderPath, logManager.GetLogger("MoonfinSmartSearch"));
+            CalendarReminders = new CalendarReminderStore(Path.Combine(DataFolderPath, "calendar-reminders"), new EmbyStateFile());
+            StuckDownloadState = new StuckDownloadStore(Path.Combine(DataFolderPath, "seerr-stuck-downloads.json"), new EmbyStateFile());
+            Bookmarks = new UserBookmarkStore(Path.Combine(DataFolderPath, "Bookmarks"), new EmbyStateFile());
+            ConfigBackup = new ConfigBackupService(
+                ConfigurationFilePath,
+                Path.Combine(DataFolderPath, "config-backup", Path.GetFileName(ConfigurationFilePath)),
+                logManager.GetLogger("MoonfinConfigBackup"));
+            ConfigBackup.Evaluate(Configuration);
+            WatchParty = new WatchPartyEngine(
+                new WatchPartyHost(appHost.Resolve<ILibraryManager>(), appHost.Resolve<IUserManager>(), SettingsService, PushDelivery, logManager.GetLogger("MoonfinWatchParty")),
+                WatchPartyHost.Settings);
+            WatchParty.StartTimer();
+
+            // Ensure a webhook secret exists before provisioning tries to publish it.
+            if (Configuration.EnsureWebhookSecret())
+                SaveConfiguration();
+
+            _logger.Info("Moonfin services initialized", 0);
+
+            // Best-effort webhook auto-provisioning. Never blocks or throws into startup.
+            var provisioning = SeerrProvisioning;
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var result = await provisioning.EnsureWebhookAsync(CancellationToken.None).ConfigureAwait(false);
+
+                    // An outcome the admin has to act on is worth an ordinary log line, the
+                    // routine ones stay at debug so a working setup keeps quiet.
+                    var needsAttention = result.Status == ProvisioningStatus.AdminSessionExpired ||
+                        result.Status == ProvisioningStatus.NeedsPublicUrl ||
+                        result.Status == ProvisioningStatus.ForeignWebhookPresent ||
+                        result.Status == ProvisioningStatus.Failed;
+
+                    var message = "Moonfin webhook provisioning at startup: " + result.Status + ". " + result.Message;
+                    if (needsAttention)
+                        _logger.Info(message);
+                    else
+                        _logger.Debug(message);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Debug("Moonfin webhook provisioning at startup failed: " + ex.Message);
+                }
+            });
+        }
+    }
+}

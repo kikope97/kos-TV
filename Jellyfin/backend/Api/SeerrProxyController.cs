@@ -1,0 +1,589 @@
+using System.Net.Mime;
+using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.QuickConnect;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Moonfin.Calendar;
+using Moonfin.Seerr;
+using Moonfin.Server.Helpers;
+using Moonfin.Server.Services;
+
+namespace Moonfin.Server.Api;
+
+/// <summary>
+/// API controller for Seerr SSO proxy.
+/// Handles authentication, session management, and API proxying so that
+/// any Moonfin client can access Seerr through the Jellyfin server.
+/// </summary>
+[ApiController]
+[Route("Moonfin/Seerr")]
+[Produces(MediaTypeNames.Application.Json)]
+public class SeerrProxyController : ControllerBase
+{
+    private const int AdminBit = 2;
+    private const int OwnerSeerrUserId = 1;
+
+    // How long a status check trusts Seerr's last answer about a session before asking again.
+    private static readonly TimeSpan SessionFreshness = TimeSpan.FromMinutes(5);
+
+    private const string AboveLimit = "This title is above the parental rating of this account";
+
+    private readonly SeerrSessionService _sessionService;
+    private readonly SeerrProvisioningService _provisioning;
+    private readonly ServerRatingLimitService _ratingLimits;
+    private readonly TmdbRatingService _ratings;
+    private readonly MoonfinSettingsService _settings;
+    private readonly ILibraryManager _libraryManager;
+
+    public SeerrProxyController(
+        SeerrSessionService sessionService,
+        SeerrProvisioningService provisioning,
+        ServerRatingLimitService ratingLimits,
+        TmdbRatingService ratings,
+        MoonfinSettingsService settings,
+        ILibraryManager libraryManager)
+    {
+        _sessionService = sessionService;
+        _provisioning = provisioning;
+        _ratingLimits = ratingLimits;
+        _ratings = ratings;
+        _settings = settings;
+        _libraryManager = libraryManager;
+    }
+
+    /// <summary>
+    /// Authenticate with Seerr using Jellyfin credentials.
+    /// The session cookie is stored server-side and associated with the Jellyfin user.
+    /// Any Moonfin client can then proxy requests through this plugin.
+    /// </summary>
+    /// <param name="request">Jellyfin credentials for Seerr auth.</param>
+    /// <returns>Authentication result with Seerr user info.</returns>
+    [HttpPost("Login")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<IActionResult> Login([FromBody] SeerrLoginRequest request)
+    {
+        var config = MoonfinPlugin.Instance?.Configuration;
+        var seerrUrl = config?.GetEffectiveSeerrUrl();
+        if (config?.SeerrEnabled != true || string.IsNullOrEmpty(seerrUrl))
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                new { error = "Seerr integration is not enabled" });
+        }
+
+        var userId = this.GetUserIdFromClaims();
+        if (userId == null)
+        {
+            return Unauthorized(new { error = "User not authenticated" });
+        }
+
+        // Password-less sign in for clients that never held a password, like Quick
+        // Connect and restored-token logins. Branches before the username check since
+        // the caller's identity comes from the claims, not the body.
+        if (string.Equals(request.AuthType, "quickconnect", StringComparison.OrdinalIgnoreCase))
+        {
+            return await LoginWithQuickConnect(userId.Value, request.Username);
+        }
+
+        if (string.IsNullOrEmpty(request.Username))
+        {
+            return BadRequest(new { error = "Username is required" });
+        }
+
+        var result = await _sessionService.AuthenticateAsync(
+            userId.Value, request.Username, request.Password,
+            request.AuthType);
+
+        if (result == null || !result.Success)
+        {
+            return Unauthorized(new
+            {
+                error = result?.Error ?? "Authentication failed",
+                success = false
+            });
+        }
+
+        // Once an admin session exists, auto-register our webhook best-effort (throttled internally).
+        if (result.SeerrUserId == OwnerSeerrUserId || (result.Permissions & AdminBit) != 0)
+        {
+            _ = _provisioning.EnsureWebhookAsync(default);
+        }
+
+        return Ok(new
+        {
+            success = true,
+            seerrUserId = result.SeerrUserId,
+            displayName = result.DisplayName,
+            avatar = result.Avatar,
+            permissions = result.Permissions
+        });
+    }
+
+    // Resolved lazily so a Jellyfin build without the service degrades to a clean error
+    // instead of failing controller construction, which would take down every Seerr
+    // endpoint including the password login.
+    private async Task<IActionResult> LoginWithQuickConnect(Guid userId, string? username)
+    {
+        var quickConnect = HttpContext.RequestServices.GetService(typeof(IQuickConnect)) as IQuickConnect;
+        if (quickConnect == null)
+        {
+            return Unauthorized(new
+            {
+                error = "Quick Connect sign in is not available on this server.",
+                errorCode = "sso_unsupported",
+                success = false
+            });
+        }
+
+        if (!quickConnect.IsEnabled)
+        {
+            return Unauthorized(new
+            {
+                error = "Quick Connect is disabled on this Jellyfin server. Enable it under Dashboard -> General, or sign in with your password.",
+                errorCode = "quickconnect_disabled",
+                success = false
+            });
+        }
+
+        var result = await _sessionService.AuthenticateViaQuickConnectAsync(
+            userId,
+            username,
+            async code =>
+            {
+                try
+                {
+                    return await quickConnect.AuthorizeRequest(userId, code);
+                }
+                catch
+                {
+                    return false;
+                }
+            });
+
+        if (result == null || !result.Success)
+        {
+            return Unauthorized(new
+            {
+                error = result?.Error ?? "Authentication failed",
+                errorCode = result?.ErrorCode,
+                success = false
+            });
+        }
+
+        if (result.SeerrUserId == OwnerSeerrUserId || (result.Permissions & AdminBit) != 0)
+        {
+            _ = _provisioning.EnsureWebhookAsync(default);
+        }
+
+        return Ok(new
+        {
+            success = true,
+            seerrUserId = result.SeerrUserId,
+            displayName = result.DisplayName,
+            avatar = result.Avatar,
+            permissions = result.Permissions
+        });
+    }
+
+    /// <summary>
+    /// Check the current user's Seerr SSO session status.
+    /// </summary>
+    /// <returns>Session status including whether authenticated and user info.</returns>
+    [HttpGet("Status")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetStatus()
+    {
+        var config = MoonfinPlugin.Instance?.Configuration;
+        var seerrUrl = config?.GetEffectiveSeerrUrl();
+        if (config?.SeerrEnabled != true || string.IsNullOrEmpty(seerrUrl))
+        {
+            return Ok(new
+            {
+                enabled = false,
+                authenticated = false,
+                url = (string?)null
+            });
+        }
+
+        var userId = this.GetUserIdFromClaims();
+        if (userId == null)
+        {
+            return Ok(new
+            {
+                enabled = true,
+                authenticated = false,
+                url = seerrUrl
+            });
+        }
+
+        // Confirm the session against Seerr rather than trusting that a file exists. A
+        // reinstalled or reconfigured Seerr keeps none of its old sessions, and reporting
+        // authenticated on one of those left the client connected to a Seerr that refused
+        // every call, with no prompt to sign in again.
+        var session = await _sessionService.GetSessionAsync(
+            userId.Value, validate: true, maxAge: SessionFreshness);
+
+        return Ok(new
+        {
+            enabled = true,
+            authenticated = session != null,
+            url = seerrUrl,
+            seerrUserId = session?.SeerrUserId,
+            displayName = session?.DisplayName,
+            avatar = session?.Avatar,
+            permissions = session?.Permissions ?? 0,
+            sessionCreated = session?.CreatedAt,
+            lastValidated = session?.LastValidated
+        });
+    }
+
+    /// <summary>
+    /// Validate the current session is still active with Seerr.
+    /// </summary>
+    /// <returns>Whether the session is valid.</returns>
+    [HttpGet("Validate")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Validate()
+    {
+        var userId = this.GetUserIdFromClaims();
+        if (userId == null)
+        {
+            return Ok(new { valid = false, error = "Not authenticated with Jellyfin" });
+        }
+
+        var session = await _sessionService.GetSessionAsync(userId.Value, validate: true);
+
+        return Ok(new
+        {
+            valid = session != null,
+            lastValidated = session?.LastValidated
+        });
+    }
+
+    /// <summary>
+    /// Clear the current user's Seerr SSO session.
+    /// </summary>
+    [HttpDelete("Logout")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> Logout()
+    {
+        var userId = this.GetUserIdFromClaims();
+        if (userId == null)
+        {
+            return Unauthorized(new { error = "User not authenticated" });
+        }
+
+        await _sessionService.ProxyRequestAsync(
+            userId.Value,
+            HttpMethod.Post,
+            "auth/logout");
+
+        await _sessionService.ClearSessionAsync(userId.Value);
+
+        return Ok(new { success = true, message = "Logged out from Seerr" });
+    }
+
+    /// <summary>
+    /// Proxy GET requests to Seerr API.
+    /// Path is relative to /api/v1/ (e.g., "auth/me", "request", "search?query=foo").
+    /// </summary>
+    [HttpGet("Api/{**path}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ProxyGet(string path)
+    {
+        return await ProxyApiRequest(HttpMethod.Get, path);
+    }
+
+    /// <summary>
+    /// Proxy POST requests to Seerr API.
+    /// </summary>
+    [HttpPost("Api/{**path}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ProxyPost(string path)
+    {
+        return await ProxyApiRequest(HttpMethod.Post, path);
+    }
+
+    /// <summary>
+    /// Proxy PUT requests to Seerr API.
+    /// </summary>
+    [HttpPut("Api/{**path}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ProxyPut(string path)
+    {
+        return await ProxyApiRequest(HttpMethod.Put, path);
+    }
+
+    /// <summary>
+    /// Proxy DELETE requests to Seerr API.
+    /// </summary>
+    [HttpDelete("Api/{**path}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<IActionResult> ProxyDelete(string path)
+    {
+        return await ProxyApiRequest(HttpMethod.Delete, path);
+    }
+
+    /// <summary>
+    /// The upcoming Radarr calendar, fetched server-side so the API key stays on the server and a
+    /// remote client can still see the calendar when Radarr is only reachable on the local network.
+    /// </summary>
+    [HttpGet("Radarr/Calendar")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public Task<IActionResult> GetRadarrCalendar() => GetArrCalendar("radarr");
+
+    /// <summary>
+    /// The upcoming Sonarr calendar, fetched server-side so the API key stays on the server and a
+    /// remote client can still see the calendar when Sonarr is only reachable on the local network.
+    /// </summary>
+    [HttpGet("Sonarr/Calendar")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public Task<IActionResult> GetSonarrCalendar() => GetArrCalendar("sonarr");
+
+    /// <summary>
+    /// A movie's Radarr download queue with why each download is stuck, looked up by its TMDB id.
+    /// An empty list with inArr true means Radarr has the movie and nothing is downloading.
+    /// </summary>
+    [HttpGet("Radarr/Queue")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public Task<IActionResult> GetRadarrQueue([FromQuery] string? tmdbId) => GetArrQueue("radarr", tmdbId);
+
+    /// <summary>
+    /// A series' Sonarr download queue with why each download is stuck, looked up by its TVDB id.
+    /// An empty list with inArr true means Sonarr has the series and nothing is downloading.
+    /// </summary>
+    [HttpGet("Sonarr/Queue")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public Task<IActionResult> GetSonarrQueue([FromQuery] string? tvdbId) => GetArrQueue("sonarr", tvdbId);
+
+    /// <summary>
+    /// Drops a stuck Radarr download, blocklists the release and lets Radarr grab another one.
+    /// </summary>
+    [HttpDelete("Radarr/Queue/{id:int}")]
+    [Authorize(Policy = "RequiresElevation")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public Task<IActionResult> RemoveRadarrQueueItem(int id) => RemoveArrQueueItem("radarr", id);
+
+    /// <summary>
+    /// Drops a stuck Sonarr download, blocklists the release and lets Sonarr grab another one. Every
+    /// episode of a season pack goes with it, since they share one download.
+    /// </summary>
+    [HttpDelete("Sonarr/Queue/{id:int}")]
+    [Authorize(Policy = "RequiresElevation")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public Task<IActionResult> RemoveSonarrQueueItem(int id) => RemoveArrQueueItem("sonarr", id);
+
+    private async Task<IActionResult> GetArrQueue(string service, string? titleId)
+    {
+        if (!SeerrConfigured())
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                new { error = "Seerr integration is not enabled" });
+        }
+
+        var result = await _sessionService.GetArrQueueAsync(service, titleId, this.IsAdminFromClaims(), HttpContext.RequestAborted);
+        return ArrResult(result);
+    }
+
+    private async Task<IActionResult> RemoveArrQueueItem(string service, int id)
+    {
+        if (!SeerrConfigured())
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                new { error = "Seerr integration is not enabled" });
+        }
+
+        var result = await _sessionService.RemoveArrQueueItemAsync(service, id, HttpContext.RequestAborted);
+        return ArrResult(result);
+    }
+
+    private static bool SeerrConfigured()
+    {
+        var config = MoonfinPlugin.Instance?.Configuration;
+        return config?.SeerrEnabled == true && !string.IsNullOrEmpty(config.GetEffectiveSeerrUrl());
+    }
+
+    private IActionResult ArrResult(SeerrProxyResponse result)
+    {
+        if (result.Body == null)
+        {
+            return StatusCode(result.StatusCode);
+        }
+
+        Response.StatusCode = result.StatusCode;
+        return File(result.Body, string.IsNullOrWhiteSpace(result.ContentType) ? MediaTypeNames.Application.Json : result.ContentType);
+    }
+
+    private async Task<IActionResult> GetArrCalendar(string service)
+    {
+        var config = MoonfinPlugin.Instance?.Configuration;
+        var seerrUrl = config?.GetEffectiveSeerrUrl();
+        if (config?.SeerrEnabled != true || string.IsNullOrEmpty(seerrUrl))
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                new { error = "Seerr integration is not enabled" });
+        }
+
+        var userId = this.GetUserIdFromClaims();
+        if (userId == null)
+        {
+            return Unauthorized(new { error = "User not authenticated" });
+        }
+
+        if (ArrCalendarWindow.Refusal(config.CalendarAdminsOnly, this.IsAdminFromClaims()) is { } refusal)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new { error = refusal });
+        }
+
+        var window = ArrCalendarWindow.Clamp(
+            Request.Query["start"].ToString(),
+            Request.Query["end"].ToString(),
+            DateTime.UtcNow,
+            config.CalendarDaysBack,
+            config.CalendarDaysAhead);
+        if (window == null)
+        {
+            return Content("[]", MediaTypeNames.Application.Json);
+        }
+
+        var unmonitored = bool.TryParse(Request.Query["unmonitored"].ToString(), out var all) && all;
+        var result = await _sessionService.GetArrCalendarAsync(service, window.Value.Start, window.Value.End, unmonitored, config.CalendarCacheMinutes);
+        if (result.Body == null)
+        {
+            return StatusCode(result.StatusCode);
+        }
+
+        var responseContentType = string.IsNullOrWhiteSpace(result.ContentType)
+            ? MediaTypeNames.Application.Octet
+            : result.ContentType;
+
+        var body = result.Body;
+        if (result.StatusCode == StatusCodes.Status200OK)
+        {
+            var user = UserReflection.ResolveUser(HttpContext.RequestServices, userId.Value);
+            body = ArrCalendarAnnotator.Annotate(body, service == "sonarr", new JellyfinCalendarLibrary(_libraryManager, user));
+        }
+
+        Response.StatusCode = result.StatusCode;
+        return File(body, responseContentType);
+    }
+
+    private async Task<IActionResult> ProxyApiRequest(HttpMethod method, string path)
+    {
+        var config = MoonfinPlugin.Instance?.Configuration;
+        var seerrUrl = config?.GetEffectiveSeerrUrl();
+        if (config?.SeerrEnabled != true || string.IsNullOrEmpty(seerrUrl))
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable,
+                new { error = "Seerr integration is not enabled" });
+        }
+
+        var userId = this.GetUserIdFromClaims();
+        if (userId == null)
+        {
+            return Unauthorized(new { error = "User not authenticated" });
+        }
+
+        byte[]? body = null;
+        string? contentType = null;
+
+        if (method == HttpMethod.Post || method == HttpMethod.Put)
+        {
+            using var ms = new MemoryStream();
+            await Request.Body.CopyToAsync(ms);
+            body = ms.ToArray();
+            contentType = Request.ContentType;
+        }
+
+        // A user with a parental limit gets Seerr held to it: lists lose the titles above it,
+        // a details page above it is refused, and so is a request for one. Everyone else, and
+        // every other call, is passed through as it was.
+        var verdict = SeerrParentalFilter.IsJudged(method.Method, path)
+            ? await _ratings.SeerrVerdictForAsync(_ratingLimits, _settings, userId.Value, HttpContext.RequestAborted).ConfigureAwait(false)
+            : null;
+        if (verdict != null && method == HttpMethod.Post && SeerrParentalFilter.IsRequestPath(path))
+        {
+            var target = SeerrParentalFilter.RequestTarget(body);
+            if (target == null || !await verdict(target.Value.MediaType, target.Value.TmdbId).ConfigureAwait(false))
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new { message = AboveLimit });
+            }
+        }
+
+        var result = await _sessionService.ProxyRequestAsync(
+            userId.Value,
+            method,
+            path,
+            Request.QueryString.Value,
+            body,
+            contentType);
+
+        if (result.Body == null)
+        {
+            return StatusCode(result.StatusCode);
+        }
+
+        if (verdict != null && method == HttpMethod.Get && result.StatusCode == StatusCodes.Status200OK && IsJson(result.ContentType))
+        {
+            var mediaType = SeerrParentalFilter.DetailsMediaType(path);
+            if (mediaType != null)
+            {
+                var tmdbId = SeerrParentalFilter.DetailsTmdbId(result.Body);
+                if (tmdbId == null || !await verdict(mediaType, tmdbId.Value).ConfigureAwait(false))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { message = AboveLimit });
+                }
+            }
+
+            var filtered = await SeerrParentalFilter.FilterListAsync(path, result.Body, verdict, HttpContext.RequestAborted).ConfigureAwait(false);
+            if (filtered != null)
+            {
+                result.Body = filtered;
+                await _ratings.FlushAsync().ConfigureAwait(false);
+            }
+        }
+
+        var responseContentType = string.IsNullOrWhiteSpace(result.ContentType)
+            ? MediaTypeNames.Application.Octet
+            : result.ContentType;
+
+        Response.StatusCode = result.StatusCode;
+        return File(result.Body, responseContentType);
+    }
+
+    private static bool IsJson(string? contentType) =>
+        contentType != null && contentType.Contains("json", StringComparison.OrdinalIgnoreCase);
+}
+
+/// <summary>
+/// Request body for Seerr login.
+/// </summary>
+public class SeerrLoginRequest
+{
+    /// <summary>Username (Jellyfin or local Seerr account).</summary>
+    public string? Username { get; set; }
+
+    /// <summary>Password.</summary>
+    public string? Password { get; set; }
+
+    /// <summary>
+    /// Authentication type: "jellyfin" (default), "local", or "quickconnect" for the
+    /// password-less bridge. Determines which Seerr auth endpoint is used.
+    /// </summary>
+    public string? AuthType { get; set; }
+}

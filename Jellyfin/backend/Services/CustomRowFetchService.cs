@@ -1,0 +1,913 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Xml.Linq;
+using Microsoft.Extensions.Logging;
+
+namespace Moonfin.Server.Services;
+
+/// <summary>
+/// Service responsible for resolving and fetching custom home rows from external providers
+/// (MDBList, TMDB, Letterboxd, IMDb). Used by CustomRowController and CustomRowsSyncTask.
+/// </summary>
+public class CustomRowFetchService
+{
+    private readonly MoonfinSettingsService _settingsService;
+    private readonly ImdbListsCacheService _imdbCacheService;
+    private readonly TmdbRatingService _ratingService;
+    private readonly TmdbThumbService _thumbService;
+    private readonly IHttpClientFactory _httpClientFactory;
+    private readonly ILogger<CustomRowFetchService> _logger;
+    private readonly ILogger<ImdbListsTask> _taskLogger;
+
+    private const int MdbListPageSize = 100;
+    private const int MdbListMaxItems = 500;
+
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> ImdbFetchGates =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public CustomRowFetchService(
+        MoonfinSettingsService settingsService,
+        ImdbListsCacheService imdbCacheService,
+        TmdbRatingService ratingService,
+        TmdbThumbService thumbService,
+        IHttpClientFactory httpClientFactory,
+        ILogger<CustomRowFetchService> logger,
+        ILogger<ImdbListsTask> taskLogger)
+    {
+        _settingsService = settingsService;
+        _imdbCacheService = imdbCacheService;
+        _ratingService = ratingService;
+        _thumbService = thumbService;
+        _httpClientFactory = httpClientFactory;
+        _logger = logger;
+        _taskLogger = taskLogger;
+    }
+
+    private HttpClient CreateClient() => _httpClientFactory.CreateClient("MoonfinHttpClient");
+
+    // A plain BCP 47 tag the clients send, such as fr, pt_BR, zh-Hant-TW or es-419.
+    private static readonly Regex LanguageTagRegex =
+        new(@"^([A-Za-z]{2,3})(?:-([A-Za-z]{4}))?(?:-([A-Za-z]{2}|[0-9]{3}))?$", RegexOptions.Compiled);
+
+    /// <summary>
+    /// Turns a client language tag into the language or language-REGION form MDBList and TMDB take,
+    /// or null when it isn't a plain tag, so a made-up value can't open new cache entries.
+    /// </summary>
+    public static string? NormalizeLanguage(string? language)
+    {
+        if (string.IsNullOrWhiteSpace(language)) return null;
+        var match = LanguageTagRegex.Match(language.Trim().Replace('_', '-'));
+        if (!match.Success) return null;
+
+        var lang = match.Groups[1].Value.ToLowerInvariant();
+        var script = match.Groups[2].Value;
+        var region = match.Groups[3].Value.ToUpperInvariant();
+
+        // TMDB has no numeric regions. Its Latin American Spanish is es-MX.
+        if (region.Length == 3) region = lang == "es" && region == "419" ? "MX" : string.Empty;
+
+        // TMDB tells the Chinese scripts apart by region alone.
+        if (region.Length == 0 && lang == "zh" && script.Length > 0)
+        {
+            region = script.Equals("Hant", StringComparison.OrdinalIgnoreCase) ? "TW" : "CN";
+        }
+
+        return region.Length == 0 ? lang : $"{lang}-{region}";
+    }
+
+    public static string ComputeCacheKey(string source, string type, Dictionary<string, string> parsedParams, string? language = null)
+    {
+        var canonicalParams = JsonSerializer.Serialize(
+            new SortedDictionary<string, string>(parsedParams, StringComparer.Ordinal));
+        var paramHash = GetStringSha256Hash(canonicalParams);
+        var baseKey = $"{source.Trim().ToLowerInvariant()}:{type.Trim().ToLowerInvariant()}:{paramHash}";
+        var lang = NormalizeLanguage(language)?.ToLowerInvariant();
+        return string.IsNullOrEmpty(lang) ? baseKey : $"{baseKey}:{Uri.EscapeDataString(lang)}";
+    }
+
+    public static string GetStringSha256Hash(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return string.Empty;
+        using var sha = SHA256.Create();
+        var textData = Encoding.UTF8.GetBytes(text);
+        var hashData = sha.ComputeHash(textData);
+        return Convert.ToHexString(hashData);
+    }
+
+    public Task<List<CustomRowItem>> FetchCustomRowAsync(
+        string source,
+        string type,
+        Dictionary<string, string> parsedParams,
+        Guid? userId,
+        CancellationToken cancellationToken) =>
+        FetchCustomRowAsync(source, type, parsedParams, userId, null, cancellationToken);
+
+    public async Task<List<CustomRowItem>> FetchCustomRowAsync(
+        string source,
+        string type,
+        Dictionary<string, string> parsedParams,
+        Guid? userId,
+        string? language,
+        CancellationToken cancellationToken = default)
+    {
+        source = source.Trim().ToLowerInvariant();
+        type = type.Trim().ToLowerInvariant();
+
+        if (source == "imdb")
+        {
+            return await FetchImdbList(type, userId, cancellationToken);
+        }
+
+        var items = source switch
+        {
+            "mdblist" => await FetchMdbList(type, parsedParams, userId, language, cancellationToken),
+            "tmdb" => await FetchTmdb(type, parsedParams, userId, language, cancellationToken),
+            "tmdb_chart" => await FetchTmdbChart(type, userId, language, cancellationToken),
+            "letterboxd" => await FetchLetterboxd(type, parsedParams, userId, language, cancellationToken),
+            _ => throw new NotSupportedException($"Unsupported custom row source: {source}")
+        };
+
+        var apiKey = await ResolveTmdbApiKey(userId);
+        await _ratingService.FillRatingsAsync(items, apiKey, cancellationToken).ConfigureAwait(false);
+        await _thumbService.FillDetailsAsync(items, apiKey, cancellationToken).ConfigureAwait(false);
+        return items;
+    }
+
+    /// <summary>
+    /// Whether this user's row is fetched with a key of their own. Such a row can't share the
+    /// cache entry everyone else reads, since a private list is only visible to that key.
+    /// </summary>
+    public async Task<bool> UsesPersonalKeyAsync(string source, Guid userId)
+    {
+        var resolved = await _settingsService.GetResolvedProfileAsync(userId, "global");
+        if (resolved == null)
+        {
+            return false;
+        }
+
+        var config = MoonfinPlugin.Instance?.Configuration;
+        var ownTmdbKey = !string.IsNullOrWhiteSpace(resolved.TmdbApiKey) && resolved.TmdbApiKey != config?.TmdbApiKey;
+        var ownMdblistKey = !string.IsNullOrWhiteSpace(resolved.MdblistApiKey) && resolved.MdblistApiKey != config?.MdblistApiKey;
+        return source.Trim().ToLowerInvariant() == "mdblist" ? ownMdblistKey || ownTmdbKey : ownTmdbKey;
+    }
+
+    private Task<string?> ResolveTmdbApiKey(Guid? userId) => TmdbApiKeys.ResolveAsync(_settingsService, userId);
+
+    private async Task<string?> ResolveMdblistApiKey(Guid? userId)
+    {
+        if (userId.HasValue)
+        {
+            var resolved = await _settingsService.GetResolvedProfileAsync(userId.Value, "global");
+            if (!string.IsNullOrWhiteSpace(resolved?.MdblistApiKey))
+            {
+                return resolved.MdblistApiKey;
+            }
+        }
+
+        return MoonfinPlugin.Instance?.Configuration?.MdblistApiKey;
+    }
+
+    internal static string BuildMdbListUrl(string username, string listname, string apiKey, string? language, string? cursor = null)
+    {
+        var url = $"https://api.mdblist.com/lists/{Uri.EscapeDataString(username)}/{Uri.EscapeDataString(listname)}/items?apikey={Uri.EscapeDataString(apiKey)}&limit={MdbListPageSize}&append_to_response=poster";
+        if (!string.IsNullOrWhiteSpace(language))
+        {
+            url += $"&lang={Uri.EscapeDataString(language)}";
+        }
+        if (!string.IsNullOrWhiteSpace(cursor))
+        {
+            url += $"&cursor={Uri.EscapeDataString(cursor)}";
+        }
+        return url;
+    }
+
+    private async Task<List<CustomRowItem>> FetchMdbList(
+        string type,
+        Dictionary<string, string> paramsMap,
+        Guid? userId,
+        string? language,
+        CancellationToken cancellationToken)
+    {
+        var apiKey = await ResolveMdblistApiKey(userId);
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            throw new InvalidOperationException("MDBList API key is not configured.");
+        }
+
+        paramsMap.TryGetValue("username", out var username);
+        paramsMap.TryGetValue("listname", out var listname);
+        paramsMap.TryGetValue("mediatype", out var mediatype);
+
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(listname))
+        {
+            throw new ArgumentException("MDBList requires both username and listname parameters.");
+        }
+
+        var client = CreateClient();
+        var items = new List<CustomRowItem>();
+        string? cursor = null;
+
+        while (items.Count < MdbListMaxItems)
+        {
+            var url = BuildMdbListUrl(username, listname, apiKey, language, cursor);
+
+            using var response = await client.GetAsync(url, cancellationToken).ConfigureAwait(false);
+            if ((int)response.StatusCode == 429)
+            {
+                throw new Exception("MDBList rate limit reached. Try again later.");
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"MDBList API returned status {(int)response.StatusCode}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using var document = JsonDocument.Parse(json);
+            var root = document.RootElement;
+
+            if (root.ValueKind == JsonValueKind.Array)
+            {
+                AppendMdbListItems(root, items);
+                break;
+            }
+
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                break;
+            }
+
+            var pageCount = AppendMdbListPage(root, items, mediatype);
+
+            cursor = null;
+            if (root.TryGetProperty("pagination", out var paginationProp)
+                && paginationProp.ValueKind == JsonValueKind.Object
+                && paginationProp.TryGetProperty("next_cursor", out var cursorProp)
+                && cursorProp.ValueKind == JsonValueKind.String)
+            {
+                cursor = cursorProp.GetString();
+            }
+
+            if (string.IsNullOrEmpty(cursor) || pageCount == 0)
+            {
+                break;
+            }
+        }
+
+        items = items
+            .OrderBy(i => i.Rank ?? int.MaxValue)
+            .Take(MdbListMaxItems)
+            .ToList();
+        for (var i = 0; i < items.Count; i++)
+        {
+            items[i].Rank = i + 1;
+        }
+
+        var tmdbKey = await ResolveTmdbApiKey(userId);
+        if (!string.IsNullOrWhiteSpace(tmdbKey))
+        {
+            using var tmdbSemaphore = new SemaphoreSlim(15, 15);
+            var movieTasks = items.Where(i => i.Id.HasValue).Select(async rowItem =>
+            {
+                await tmdbSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    var isShow = rowItem.Type == "Series";
+                    var tmdbUrl = isShow
+                        ? BuildTmdbTvDetailUrl(rowItem.Id!.Value.ToString(), language)
+                        : BuildTmdbMovieDetailUrl(rowItem.Id!.Value.ToString(), language);
+
+                    using var req = new HttpRequestMessage(HttpMethod.Get, tmdbUrl);
+                    TmdbRequestHelper.ApplyAuth(req, tmdbKey);
+                    using var resp = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        var detailsJson = await resp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                        using var doc = JsonDocument.Parse(detailsJson);
+                        var detailsRoot = doc.RootElement;
+                        
+                        if (string.IsNullOrEmpty(rowItem.PosterUrl) &&
+                            detailsRoot.TryGetProperty("poster_path", out var pProp) &&
+                            pProp.ValueKind == JsonValueKind.String)
+                        {
+                            rowItem.PosterUrl = pProp.GetString();
+                        }
+                        if (string.IsNullOrEmpty(rowItem.BackdropUrl) &&
+                            detailsRoot.TryGetProperty("backdrop_path", out var bProp) &&
+                            bProp.ValueKind == JsonValueKind.String)
+                        {
+                            rowItem.BackdropUrl = bProp.GetString();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch TMDb details for {Type} ID: {Id}", rowItem.Type, rowItem.Id);
+                }
+                finally
+                {
+                    tmdbSemaphore.Release();
+                }
+            });
+            await Task.WhenAll(movieTasks).ConfigureAwait(false);
+        }
+
+        return items;
+    }
+
+    /// <summary>
+    /// Adds a page's movies and shows, or only one of them for an official list opened as movies
+    /// or shows. Returns how many titles the page held, so paging stops at an empty page and not
+    /// at one that only had the other type.
+    /// </summary>
+    internal static int AppendMdbListPage(JsonElement page, List<CustomRowItem> items, string? mediatype)
+    {
+        var count = 0;
+        foreach (var (property, type) in new[] { ("movies", "movie"), ("shows", "show") })
+        {
+            if (page.TryGetProperty(property, out var list) && list.ValueKind == JsonValueKind.Array)
+            {
+                count += list.GetArrayLength();
+                if (mediatype is not ("movie" or "show") || mediatype == type)
+                {
+                    AppendMdbListItems(list, items);
+                }
+            }
+        }
+
+        return count;
+    }
+
+    private static void AppendMdbListItems(JsonElement itemsArray, List<CustomRowItem> items)
+    {
+        foreach (var item in itemsArray.EnumerateArray())
+        {
+            string? imdbId = null;
+            string? tmdbId = null;
+
+            if (item.TryGetProperty("ids", out var idsObj) && idsObj.ValueKind == JsonValueKind.Object)
+            {
+                if (idsObj.TryGetProperty("imdb", out var imdbProp) && imdbProp.ValueKind == JsonValueKind.String)
+                {
+                    imdbId = imdbProp.GetString();
+                }
+
+                if (idsObj.TryGetProperty("tmdb", out var tmdbProp))
+                {
+                    tmdbId = tmdbProp.ValueKind == JsonValueKind.Number
+                        ? tmdbProp.GetInt64().ToString()
+                        : tmdbProp.ValueKind == JsonValueKind.String ? tmdbProp.GetString() : null;
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(imdbId) && item.TryGetProperty("imdb_id", out var imdbIdProp) && imdbIdProp.ValueKind == JsonValueKind.String)
+            {
+                imdbId = imdbIdProp.GetString();
+            }
+
+            if (string.IsNullOrWhiteSpace(tmdbId) && item.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.Number)
+            {
+                tmdbId = idProp.GetInt64().ToString();
+            }
+
+            var title = item.TryGetProperty("title", out var titleProp) && titleProp.ValueKind == JsonValueKind.String
+                ? titleProp.GetString() ?? "Unknown"
+                : "Unknown";
+
+            int? year = null;
+            if (item.TryGetProperty("release_year", out var yearProp) && yearProp.ValueKind == JsonValueKind.Number)
+            {
+                year = yearProp.GetInt32();
+            }
+
+            var mediaType = item.TryGetProperty("mediatype", out var mediaProp) && mediaProp.ValueKind == JsonValueKind.String
+                ? mediaProp.GetString()?.ToLowerInvariant()
+                : null;
+            var finalType = (mediaType == "show" || mediaType == "shows" || mediaType == "series" || mediaType == "tv") ? "Series" : "Movie";
+
+            int? rank = null;
+            if (item.TryGetProperty("rank", out var rankProp) && rankProp.ValueKind == JsonValueKind.Number)
+            {
+                rank = rankProp.GetInt32();
+            }
+
+            string? posterUrl = null;
+            if (item.TryGetProperty("poster", out var posterProp) && posterProp.ValueKind == JsonValueKind.String)
+            {
+                posterUrl = MdbListApiHelper.NormalizeTmdbImagePath(posterProp.GetString());
+            }
+
+            items.Add(new CustomRowItem
+            {
+                // The backdrop lookup and the clients key off the TMDB id, not MDBList's own.
+                Id = long.TryParse(tmdbId, out var parsedTmdbId) ? parsedTmdbId : null,
+                Name = title,
+                Type = finalType,
+                ProductionYear = year,
+                Rank = rank,
+                ProviderIds = new CustomRowItemProviderIds
+                {
+                    Imdb = imdbId,
+                    Tmdb = tmdbId
+                },
+                PosterUrl = posterUrl
+            });
+        }
+    }
+
+    internal static string BuildTmdbCollectionUrl(string listId, string? language)
+    {
+        var url = $"https://api.themoviedb.org/3/collection/{Uri.EscapeDataString(listId)}";
+        if (!string.IsNullOrWhiteSpace(language))
+        {
+            url += $"?language={Uri.EscapeDataString(language)}";
+        }
+        return url;
+    }
+
+    internal static string BuildTmdbListUrl(string listId, string? language)
+    {
+        var url = $"https://api.themoviedb.org/3/list/{Uri.EscapeDataString(listId)}";
+        if (!string.IsNullOrWhiteSpace(language))
+        {
+            url += $"?language={Uri.EscapeDataString(language)}";
+        }
+        return url;
+    }
+
+    private async Task<List<CustomRowItem>> FetchTmdb(
+        string type,
+        Dictionary<string, string> paramsMap,
+        Guid? userId,
+        string? language,
+        CancellationToken cancellationToken)
+    {
+        var tmdbKey = await ResolveTmdbApiKey(userId);
+        if (string.IsNullOrWhiteSpace(tmdbKey))
+        {
+            throw new InvalidOperationException("TMDB API key is not configured.");
+        }
+
+        paramsMap.TryGetValue("id", out var listId);
+        if (string.IsNullOrWhiteSpace(listId))
+        {
+            throw new ArgumentException("TMDB requires id parameter.");
+        }
+
+        var client = CreateClient();
+        var items = new List<CustomRowItem>();
+
+        if (type == "movie_collection")
+        {
+            var url = BuildTmdbCollectionUrl(listId, language);
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            TmdbRequestHelper.ApplyAuth(req, tmdbKey);
+            using var response = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"TMDB Collection API returned status {(int)response.StatusCode}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("parts", out var partsProp) && partsProp.ValueKind == JsonValueKind.Array)
+            {
+                int rank = 1;
+                foreach (var part in partsProp.EnumerateArray())
+                {
+                    var partId = part.TryGetProperty("id", out var pId) ? pId.GetInt64().ToString() : string.Empty;
+                    var title = part.TryGetProperty("title", out var tProp) ? tProp.GetString() ?? string.Empty : string.Empty;
+                    var releaseDate = part.TryGetProperty("release_date", out var rdProp) ? rdProp.GetString() : null;
+                    int? year = null;
+                    if (!string.IsNullOrEmpty(releaseDate) && releaseDate.Length >= 4 && int.TryParse(releaseDate.Substring(0, 4), out var y))
+                    {
+                        year = y;
+                    }
+                    var posterPath = part.TryGetProperty("poster_path", out var pProp) ? pProp.GetString() : null;
+                    var backdropPath = part.TryGetProperty("backdrop_path", out var bProp) ? bProp.GetString() : null;
+
+                    items.Add(new CustomRowItem
+                    {
+                        Id = long.TryParse(partId, out var parsedId) ? parsedId : null,
+                        Name = title,
+                        Type = "Movie",
+                        ProductionYear = year,
+                        Rank = rank++,
+                        ProviderIds = new CustomRowItemProviderIds
+                        {
+                            Tmdb = partId
+                        },
+                        PosterUrl = posterPath,
+                        BackdropUrl = backdropPath
+                    });
+                }
+            }
+        }
+        else
+        {
+            var url = BuildTmdbListUrl(listId, language);
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            TmdbRequestHelper.ApplyAuth(req, tmdbKey);
+            using var response = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception($"TMDB List API returned status {(int)response.StatusCode}");
+            }
+
+            var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("items", out var itemsProp) && itemsProp.ValueKind == JsonValueKind.Array)
+            {
+                int rank = 1;
+                foreach (var item in itemsProp.EnumerateArray())
+                {
+                    var itemId = item.TryGetProperty("id", out var iId) ? iId.GetInt64().ToString() : string.Empty;
+                    var title = item.TryGetProperty("title", out var tProp)
+                        ? tProp.GetString()
+                        : (item.TryGetProperty("name", out var nProp) ? nProp.GetString() : string.Empty);
+                    var mediaType = item.TryGetProperty("media_type", out var mProp) ? mProp.GetString() ?? "movie" : "movie";
+                    var releaseDate = item.TryGetProperty("release_date", out var rdProp)
+                        ? rdProp.GetString()
+                        : (item.TryGetProperty("first_air_date", out var fadProp) ? fadProp.GetString() : null);
+                    int? year = null;
+                    if (!string.IsNullOrEmpty(releaseDate) && releaseDate.Length >= 4 && int.TryParse(releaseDate.Substring(0, 4), out var y))
+                    {
+                        year = y;
+                    }
+                    var finalType = mediaType.Equals("tv", StringComparison.OrdinalIgnoreCase) ? "Series" : "Movie";
+                    var posterPath = item.TryGetProperty("poster_path", out var pProp) ? pProp.GetString() : null;
+                    var backdropPath = item.TryGetProperty("backdrop_path", out var bProp) ? bProp.GetString() : null;
+
+                    items.Add(new CustomRowItem
+                    {
+                        Id = long.TryParse(itemId, out var parsedId) ? parsedId : null,
+                        Name = title ?? string.Empty,
+                        Type = finalType,
+                        ProductionYear = year,
+                        Rank = rank++,
+                        ProviderIds = new CustomRowItemProviderIds
+                        {
+                            Tmdb = itemId
+                        },
+                        PosterUrl = posterPath,
+                        BackdropUrl = backdropPath
+                    });
+                }
+            }
+        }
+
+        return items;
+    }
+
+    /// <summary>
+    /// What a TMDB chart holds when its results don't say. Only trending marks each
+    /// result, so tv/popular, trending/tv/day and discover/tv are read from the path.
+    /// </summary>
+    internal static string ChartMediaType(string path) =>
+        path.Split('?')[0].Split('/').Contains("tv") ? "tv" : "movie";
+
+    internal static string BuildTmdbChartUrl(string type, string? language)
+    {
+        var url = $"https://api.themoviedb.org/3/{type}";
+        if (!string.IsNullOrWhiteSpace(language))
+        {
+            url += (url.Contains('?') ? "&" : "?") + $"language={Uri.EscapeDataString(language)}";
+        }
+        return url;
+    }
+
+    private async Task<List<CustomRowItem>> FetchTmdbChart(
+        string type,
+        Guid? userId,
+        string? language,
+        CancellationToken cancellationToken)
+    {
+        var tmdbKey = await ResolveTmdbApiKey(userId);
+        if (string.IsNullOrWhiteSpace(tmdbKey))
+        {
+            throw new InvalidOperationException("TMDB API key is not configured.");
+        }
+
+        // type is the API path the client sends, so movie/popular, trending/movie/day and the rest.
+        var url = BuildTmdbChartUrl(type, language);
+        var client = CreateClient();
+        using var req = new HttpRequestMessage(HttpMethod.Get, url);
+        TmdbRequestHelper.ApplyAuth(req, tmdbKey);
+        using var response = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"TMDB API returned status {(int)response.StatusCode} for chart {type}");
+        }
+
+        var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(json);
+        var items = new List<CustomRowItem>();
+
+        if (doc.RootElement.TryGetProperty("results", out var resultsProp) && resultsProp.ValueKind == JsonValueKind.Array)
+        {
+            int rank = 1;
+            foreach (var item in resultsProp.EnumerateArray())
+            {
+                var itemId = item.TryGetProperty("id", out var iId) ? iId.GetInt64().ToString() : string.Empty;
+                var title = item.TryGetProperty("title", out var tProp)
+                    ? tProp.GetString()
+                    : (item.TryGetProperty("name", out var nProp) ? nProp.GetString() : string.Empty);
+                var mediaType = item.TryGetProperty("media_type", out var mProp)
+                    ? mProp.GetString()
+                    : ChartMediaType(type);
+                var releaseDate = item.TryGetProperty("release_date", out var rdProp)
+                    ? rdProp.GetString()
+                    : (item.TryGetProperty("first_air_date", out var fadProp) ? fadProp.GetString() : null);
+                int? year = null;
+                if (!string.IsNullOrEmpty(releaseDate) && releaseDate.Length >= 4 && int.TryParse(releaseDate.Substring(0, 4), out var y))
+                {
+                    year = y;
+                }
+                var finalType = (mediaType ?? "movie").Equals("tv", StringComparison.OrdinalIgnoreCase) ? "Series" : "Movie";
+                var posterPath = item.TryGetProperty("poster_path", out var pProp) ? pProp.GetString() : null;
+                var backdropPath = item.TryGetProperty("backdrop_path", out var bProp) ? bProp.GetString() : null;
+
+                items.Add(new CustomRowItem
+                {
+                    Id = long.TryParse(itemId, out var parsedId) ? parsedId : null,
+                    Name = title ?? string.Empty,
+                    Type = finalType,
+                    ProductionYear = year,
+                    Rank = rank++,
+                    ProviderIds = new CustomRowItemProviderIds
+                    {
+                        Tmdb = itemId
+                    },
+                    PosterUrl = posterPath,
+                    BackdropUrl = backdropPath
+                });
+            }
+        }
+
+        return items;
+    }
+
+    internal static string BuildTmdbMovieDetailUrl(string tmdbId, string? language)
+    {
+        var url = $"https://api.themoviedb.org/3/movie/{Uri.EscapeDataString(tmdbId)}";
+        if (!string.IsNullOrWhiteSpace(language))
+        {
+            url += $"?language={Uri.EscapeDataString(language)}";
+        }
+        return url;
+    }
+
+    internal static string BuildTmdbTvDetailUrl(string tmdbId, string? language)
+    {
+        var url = $"https://api.themoviedb.org/3/tv/{Uri.EscapeDataString(tmdbId)}";
+        if (!string.IsNullOrWhiteSpace(language))
+        {
+            url += $"?language={Uri.EscapeDataString(language)}";
+        }
+        return url;
+    }
+
+    private async Task<List<CustomRowItem>> FetchLetterboxd(
+        string type,
+        Dictionary<string, string> paramsMap,
+        Guid? userId,
+        string? language,
+        CancellationToken cancellationToken)
+    {
+        paramsMap.TryGetValue("user", out var username);
+
+        if (type == "user_list" || type == "watchlist" || type == "films")
+        {
+            throw new ArgumentException("Direct HTML scraping of Letterboxd watchlists and lists is disabled due to their Terms of Service. Please import your list into MDBList and use the MDBList custom row source instead.");
+        }
+
+        if (username != null)
+        {
+            username = username.ToLowerInvariant().Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(username))
+        {
+            throw new ArgumentException("Letterboxd requires user parameter.");
+        }
+
+        var baseUrl = $"https://letterboxd.com/{Uri.EscapeDataString(username)}/rss/";
+        var client = CreateClient();
+
+        using var response = await client.GetAsync(baseUrl, cancellationToken).ConfigureAwait(false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new Exception($"Letterboxd returned status {(int)response.StatusCode} for {baseUrl}");
+        }
+
+        var xmlContent = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var document = XDocument.Parse(xmlContent);
+        var rssItems = document.Descendants("item");
+
+        var parsedFeedItems = new List<LetterboxdFeedItem>();
+
+        foreach (var rssItem in rssItems)
+        {
+            var title = rssItem.Element("title")?.Value ?? "Unknown";
+            var link = rssItem.Element("link")?.Value ?? "";
+            
+            var filmTitle = rssItem.Elements().FirstOrDefault(e => e.Name.LocalName == "filmTitle")?.Value ?? title;
+            var filmYearStr = rssItem.Elements().FirstOrDefault(e => e.Name.LocalName == "filmYear")?.Value;
+            var memberRatingStr = rssItem.Elements().FirstOrDefault(e => e.Name.LocalName == "memberRating")?.Value;
+            var resolvedTmdbId = rssItem.Elements().FirstOrDefault(e => e.Name.LocalName == "movieId")?.Value;
+
+            int? year = null;
+            if (int.TryParse(filmYearStr, out var y)) year = y;
+
+            double? rating = null;
+            if (double.TryParse(memberRatingStr, out var r)) rating = r;
+
+            var slugMatch = Regex.Match(link, @"film/([^/]+)/?");
+            if (slugMatch.Success)
+            {
+                var slug = slugMatch.Groups[1].Value;
+                parsedFeedItems.Add(new LetterboxdFeedItem
+                {
+                    Title = filmTitle,
+                    Year = year,
+                    Rating = rating,
+                    Slug = slug,
+                    TmdbId = resolvedTmdbId
+                });
+            }
+        }
+
+        var tmdbKey = await ResolveTmdbApiKey(userId);
+        if (!string.IsNullOrWhiteSpace(tmdbKey))
+        {
+            using var tmdbSemaphore = new SemaphoreSlim(15, 15);
+            var movieTasks = parsedFeedItems.Where(i => !string.IsNullOrEmpty(i.TmdbId)).Select(async pItem =>
+            {
+                await tmdbSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    var tmdbUrl = BuildTmdbMovieDetailUrl(pItem.TmdbId!, language);
+                    using var req = new HttpRequestMessage(HttpMethod.Get, tmdbUrl);
+                    TmdbRequestHelper.ApplyAuth(req, tmdbKey);
+                    using var resp = await client.SendAsync(req, cancellationToken).ConfigureAwait(false);
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        var detailsJson = await resp.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+                        using var doc = JsonDocument.Parse(detailsJson);
+                        var detailsRoot = doc.RootElement;
+                        if (detailsRoot.TryGetProperty("title", out var titleProp) && titleProp.ValueKind == JsonValueKind.String)
+                        {
+                            pItem.Title = titleProp.GetString() ?? pItem.Title;
+                        }
+                        if (detailsRoot.TryGetProperty("release_date", out var rdProp) && rdProp.ValueKind == JsonValueKind.String)
+                        {
+                            var dateStr = rdProp.GetString();
+                            if (!string.IsNullOrEmpty(dateStr) && dateStr.Length >= 4 && int.TryParse(dateStr.Substring(0, 4), out var yr))
+                            {
+                                pItem.Year = yr;
+                            }
+                        }
+                        if (detailsRoot.TryGetProperty("poster_path", out var pProp) && pProp.ValueKind == JsonValueKind.String)
+                        {
+                            pItem.PosterUrl = pProp.GetString();
+                        }
+                        if (detailsRoot.TryGetProperty("backdrop_path", out var bProp) && bProp.ValueKind == JsonValueKind.String)
+                        {
+                            pItem.BackdropUrl = bProp.GetString();
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to fetch TMDb details for movie ID: {Id}", pItem.TmdbId);
+                }
+                finally
+                {
+                    tmdbSemaphore.Release();
+                }
+            });
+            await Task.WhenAll(movieTasks).ConfigureAwait(false);
+        }
+
+        int rank = 1;
+        var items = new List<CustomRowItem>();
+        foreach (var pItem in parsedFeedItems)
+        {
+            if (string.IsNullOrEmpty(pItem.TmdbId)) continue;
+
+            items.Add(new CustomRowItem
+            {
+                Id = long.TryParse(pItem.TmdbId, out var id) ? id : null,
+                Name = pItem.Title,
+                Type = "Movie",
+                ProductionYear = pItem.Year,
+                Rank = rank++,
+                ProviderIds = new CustomRowItemProviderIds
+                {
+                    Tmdb = pItem.TmdbId
+                },
+                UserRating = pItem.Rating.HasValue ? FormatRatingToStars(pItem.Rating.Value) : null,
+                Rating = pItem.Rating,
+                PosterUrl = pItem.PosterUrl,
+                BackdropUrl = pItem.BackdropUrl
+            });
+        }
+
+        return items;
+    }
+
+    private static string FormatRatingToStars(double rating)
+    {
+        int fullStars = (int)Math.Floor(rating);
+        bool halfStar = (rating - fullStars) >= 0.25;
+        var stars = new string('★', fullStars);
+        if (halfStar) stars += "½";
+        return stars;
+    }
+
+    private async Task<List<CustomRowItem>> FetchImdbList(string type, Guid? userId, CancellationToken cancellationToken)
+    {
+        var items = await LoadImdbList(type, cancellationToken).ConfigureAwait(false);
+        ImdbListsCacheService.DropPosterBackdrops(items);
+
+        // The sync task fills ratings with the admin key. This covers a chart it fetched before
+        // a key was set, or one fetched on demand here.
+        if (items.Count > 0 && !_imdbCacheService.RatingsFilled(type))
+        {
+            var apiKey = await ResolveTmdbApiKey(userId);
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                await _ratingService.FillRatingsAsync(items, apiKey, cancellationToken).ConfigureAwait(false);
+                await _thumbService.FillDetailsAsync(items, apiKey, cancellationToken).ConfigureAwait(false);
+                _imdbCacheService.MarkRatingsFilled(type);
+                await _imdbCacheService.FlushAsync().ConfigureAwait(false);
+            }
+        }
+
+        return items;
+    }
+
+    private async Task<List<CustomRowItem>> LoadImdbList(string type, CancellationToken cancellationToken)
+    {
+        var cached = _imdbCacheService.TryGetItems(type, TimeSpan.FromDays(1));
+        if (cached != null && cached.Count > 0)
+        {
+            return cached;
+        }
+
+        var gate = ImdbFetchGates.GetOrAdd(type, _ => new SemaphoreSlim(1, 1));
+        await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var refreshed = _imdbCacheService.TryGetItems(type, TimeSpan.FromDays(1));
+            if (refreshed != null && refreshed.Count > 0)
+            {
+                return refreshed;
+            }
+
+            _logger.LogInformation("IMDb chart {Type} cache miss or expired, fetching on-demand", type);
+            try
+            {
+                var task = new ImdbListsTask(_httpClientFactory, _imdbCacheService, _ratingService, _thumbService, _taskLogger);
+                var items = await task.FetchChartAsync(type, cancellationToken);
+                if (items != null && items.Count > 0)
+                {
+                    _imdbCacheService.SetItems(type, items);
+                    await _imdbCacheService.FlushAsync();
+                    return items;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch IMDb chart {Type} on-demand", type);
+            }
+
+            return _imdbCacheService.TryGetItems(type, TimeSpan.FromDays(30)) ?? new List<CustomRowItem>();
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+}
+
+internal class LetterboxdFeedItem
+{
+    public string Title { get; set; } = string.Empty;
+    public int? Year { get; set; }
+    public double? Rating { get; set; }
+    public string Slug { get; set; } = string.Empty;
+    public string? TmdbId { get; set; }
+    public string? PosterUrl { get; set; }
+    public string? BackdropUrl { get; set; }
+}

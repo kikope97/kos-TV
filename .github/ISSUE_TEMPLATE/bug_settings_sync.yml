@@ -1,0 +1,112 @@
+name: "Bug: Settings Sync"
+description: A setting isn't syncing, isn't persisting, or an admin default isn't applying
+title: "[Settings] "
+labels: ["Bug", "Settings Sync"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Settings sync spans the plugin and one or more clients, so please note which client you saw the problem on.
+
+  - type: input
+    id: plugin_version
+    attributes:
+      label: Plugin version
+      description: The Moonbase plugin version, listed as Moonfin on your server's plugins page
+      placeholder: 1.0.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: server_type
+    attributes:
+      label: Server
+      description: The server the plugin is installed on
+      options:
+        - Jellyfin
+        - Emby
+    validations:
+      required: true
+
+  - type: input
+    id: server_version
+    attributes:
+      label: Server version
+      description: "e.g. 10.10.0 for Jellyfin or 4.9.1.90 for Emby"
+      placeholder: 10.x.x / 4.x.x
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affected_clients
+    attributes:
+      label: Client(s) where you saw the problem
+      multiple: true
+      options:
+        - Android
+        - Android TV
+        - iOS
+        - Linux
+        - macOS
+        - Roku
+        - Tizen (Samsung)
+        - tvOS
+        - Web
+        - webOS (LG)
+        - Windows
+    validations:
+      required: true
+
+  - type: input
+    id: setting_name
+    attributes:
+      label: Which setting
+      description: The setting name or the sync key if you know it
+      placeholder: e.g. Expanded Home Rows or displayPlaylistsRows
+    validations:
+      required: true
+
+  - type: dropdown
+    id: direction
+    attributes:
+      label: What is not working
+      options:
+        - Change on a client does not reach other clients
+        - Change does not persist on the server
+        - Admin default is not applied
+        - Value syncs but is wrong or the wrong type
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. On client A, change ...
+        2. Open client B ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshot of the problem
+      description: |
+        Drag in a screenshot of the setting as it looks on each client you mentioned. Seeing the same setting side by side is usually what makes a sync problem obvious.
+        The plugin keeps no diagnostic log of its own, so a picture plus the server log below is all we have to go on.
+        If a screenshot genuinely doesn't apply, say why here instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server logs / errors (optional)
+      description: |
+        Paste any relevant log lines from your server's Logs page, especially around the settings profile save or resolve. The plugin logs under the Moonfin name, so search for that. The wiki has the steps for Jellyfin and Emby under [Where the logs are](https://github.com/Moonfin-Client/Plugin/wiki/Common-Problems#where-the-logs-are).
+      render: shell
+    validations:
+      required: false
