@@ -18839,4 +18839,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String kostvTrayTimeLeft(String time) {
     return 'quedan $time';
   }
+
+  @override
+  String get kostvDiscoverKindMovie => 'Película';
+
+  @override
+  String get kostvDiscoverKindSeries => 'Serie';
+
+  @override
+  String kostvDiscoverRank(int rank) {
+    return 'N.º $rank';
+  }
 }

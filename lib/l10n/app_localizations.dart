@@ -31910,6 +31910,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{time} left'**
   String kostvTrayTimeLeft(String time);
+
+  /// Kos TV Discover spotlight: the kind of title, on its line of facts.
+  ///
+  /// In en, this message translates to:
+  /// **'Movie'**
+  String get kostvDiscoverKindMovie;
+
+  /// Kos TV Discover spotlight: the kind of title (one series), on its line of facts.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get kostvDiscoverKindSeries;
+
+  /// Kos TV Discover: a title's place on a most-watched list.
+  ///
+  /// In en, this message translates to:
+  /// **'No. {rank}'**
+  String kostvDiscoverRank(int rank);
 }
 
 class _AppLocalizationsDelegate

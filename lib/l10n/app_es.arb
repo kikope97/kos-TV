@@ -12683,5 +12683,22 @@
                 "type": "String"
             }
         }
+    },
+    "kostvDiscoverKindMovie": "Película",
+    "@kostvDiscoverKindMovie": {
+        "description": "Kos TV Discover spotlight: the kind of title, on its line of facts."
+    },
+    "kostvDiscoverKindSeries": "Serie",
+    "@kostvDiscoverKindSeries": {
+        "description": "Kos TV Discover spotlight: the kind of title (one series), on its line of facts."
+    },
+    "kostvDiscoverRank": "N.º {rank}",
+    "@kostvDiscoverRank": {
+        "description": "Kos TV Discover: a title's place on a most-watched list.",
+        "placeholders": {
+            "rank": {
+                "type": "int"
+            }
+        }
     }
 }
