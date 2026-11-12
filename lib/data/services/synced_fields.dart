@@ -155,6 +155,8 @@ final List<SyncedField> syncedFields = <SyncedField>[
   SyncedField('showGenresButton', UserPreferences.showGenresButton, SyncCodec.boolean),
   SyncedField('showFavoritesButton', UserPreferences.showFavoritesButton, SyncCodec.boolean),
   SyncedField('showLiveTvButton', UserPreferences.showLiveTvButton, SyncCodec.boolean),
+  // Kos TV: the Discover button (the requests service).
+  SyncedField('showDiscoverButton', UserPreferences.showDiscoverButton, SyncCodec.boolean),
   SyncedField('showSyncPlayButton', UserPreferences.showSyncPlayButton, SyncCodec.boolean),
   SyncedField('showDownloadsButton', UserPreferences.showDownloadsButton, SyncCodec.boolean),
   SyncedField('showFriendsButton', UserPreferences.showFriendsButton, SyncCodec.boolean),

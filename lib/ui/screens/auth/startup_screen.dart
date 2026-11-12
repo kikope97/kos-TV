@@ -17,6 +17,7 @@ import '../../../util/kostv_intro_policy.dart';
 import '../../../util/kostv_server.dart';
 import '../../../util/pin_code_util.dart';
 import '../../../preference/preference_constants.dart';
+import '../../../preference/user_preferences.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/adaptive/adaptive_dialog.dart';
 import '../../widgets/overlay_sheet.dart';
@@ -56,11 +57,19 @@ class _StartupScreenState extends State<StartupScreen> {
   /// Kos TV: the intro video plays only when the app is opened after being
   /// closed, not when it comes back from the background or on switching
   /// user (see [KostvIntroPolicy]). Without it the logo shows for the moment
-  /// the session takes to come back.
+  /// the session takes to come back. It can be turned off on each device
+  /// (Launcher mode on a TV, Appearance elsewhere).
   late final bool _playIntro =
       !widget.bootstrapActiveSession &&
       !widget.householdServerOnly &&
+      _introEnabled() &&
       KostvIntroPolicy.takeIntro();
+
+  static bool _introEnabled() {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<UserPreferences>()) return true;
+    return getIt<UserPreferences>().get(UserPreferences.kostvIntroEnabled);
+  }
 
   @override
   void initState() {

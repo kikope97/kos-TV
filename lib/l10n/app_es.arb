@@ -10756,7 +10756,7 @@
     "serverMessagesMarkAllRead": "Marcar todo como leído",
     "serverMessagesShowButton": "Mostrar el botón de mensajes",
     "serverMessagesShowButtonSubtitle": "Añade al menú un botón para los mensajes que envía el administrador de tu servidor",
-    "showBookDiscoverTab": "Mostrar Descubrir en las bibliotecas de libros",
+    "showBookDiscoverTab": "Mostrar Descubrir de Open Library en las bibliotecas de libros",
     "showBookDiscoverTabDescription": "Explora títulos de Open Library y LibriVox en tus bibliotecas de libros y audiolibros",
     "bookFoldersAsSeries": "Tratar las carpetas de libros como series",
     "bookFoldersAsSeriesDescription": "Trata las carpetas con libros como series en lugar de basarse en los metadatos de cada libro",
@@ -11352,9 +11352,9 @@
     "kostvAppMoveLeft": "Mover a la izquierda",
     "kostvAppMoveRight": "Mover a la derecha",
     "kostvAppCouldNotOpen": "No se ha podido abrir {app}.",
-    "kostvShowAppsRow": "Fila de aplicaciones",
+    "kostvShowAppsRow": "Fila de aplicaciones en Inicio",
     "kostvShowAppsRowSubtitle": "Muestra en Inicio las aplicaciones de la tele",
-    "kostvShowAppsButton": "Botón de aplicaciones",
+    "kostvShowAppsButton": "Pantalla de aplicaciones en el menú",
     "kostvPersonalization": "Personalización",
     "kostvCustomizeLook": "Personalizar el aspecto",
     "kostvCustomizeLookSubtitle": "Elige cómo se ven la navegación, Inicio y las fichas",
@@ -12716,5 +12716,37 @@
     "kostvSearchMore": "Ver más",
     "@kostvSearchMore": {
         "description": "Kos TV search: tile at the end of «Available to request» that loads more."
+    },
+    "kostvLauncherMode": "Modo launcher",
+    "@kostvLauncherMode": {
+        "description": "Kos TV settings: the TV-only section for a TV where kOS TV is the start screen."
+    },
+    "kostvLauncherModeSubtitle": "Para una tele en la que kOS TV es lo primero que se ve",
+    "@kostvLauncherModeSubtitle": {
+        "description": "Kos TV settings: subtitle of Launcher mode in the settings list."
+    },
+    "kostvLauncherModeIntro": "Para una tele en la que kOS TV es la pantalla de inicio y no una aplicación más. Estas opciones se guardan solo en esta tele.",
+    "@kostvLauncherModeIntro": {
+        "description": "Kos TV settings: text at the top of Launcher mode."
+    },
+    "kostvIntroSetting": "Animación al abrir",
+    "@kostvIntroSetting": {
+        "description": "Kos TV settings: switch for the intro video when the app opens."
+    },
+    "kostvIntroSettingSubtitle": "El vídeo de kOS TV al abrir la aplicación",
+    "@kostvIntroSettingSubtitle": {
+        "description": "Kos TV settings: subtitle of the opening animation switch."
+    },
+    "kostvShowAppsButtonSubtitle": "Un botón «Aplicaciones» en el menú con todas las de la tele",
+    "@kostvShowAppsButtonSubtitle": {
+        "description": "Kos TV settings: subtitle of the Apps screen switch."
+    },
+    "kostvChooseRowApps": "Elegir las aplicaciones de la fila",
+    "@kostvChooseRowApps": {
+        "description": "Kos TV settings: opens All apps to pick the Apps row."
+    },
+    "kostvChooseRowAppsSubtitle": "En «Todas las aplicaciones», mantén pulsado OK sobre una para añadirla a Inicio o quitarla",
+    "@kostvChooseRowAppsSubtitle": {
+        "description": "Kos TV settings: how the Apps row is chosen."
     }
 }

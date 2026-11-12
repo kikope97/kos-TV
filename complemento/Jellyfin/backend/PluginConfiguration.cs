@@ -54,6 +54,12 @@ public class PluginConfiguration : BasePluginConfiguration, IGamesConfig
     public string? PublicServerUrl { get; set; }
 
     /// <summary>
+    /// kOS TV: the address of the household requests service (Stremfin), https. The apps get it
+    /// from Ping once signed in, so it lives here instead of in each app or container.
+    /// </summary>
+    public string? KostvRequestsUrl { get; set; }
+
+    /// <summary>
     /// Keeps the Sonarr and Radarr calendar to server admins.
     /// </summary>
     public bool CalendarAdminsOnly { get; set; }

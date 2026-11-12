@@ -15159,7 +15159,8 @@ class AppLocalizationsEn extends AppLocalizations {
       'Adds a button to the menu for messages sent by your server admin';
 
   @override
-  String get showBookDiscoverTab => 'Show Book Library Discovery';
+  String get showBookDiscoverTab =>
+      'Show Open Library Discover in Book Libraries';
 
   @override
   String get showBookDiscoverTabDescription =>
@@ -17421,13 +17422,13 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String get kostvShowAppsRow => 'Apps row';
+  String get kostvShowAppsRow => 'Apps row on Home';
 
   @override
   String get kostvShowAppsRowSubtitle => 'Show the TV\'s apps on Home';
 
   @override
-  String get kostvShowAppsButton => 'Apps button';
+  String get kostvShowAppsButton => 'Apps screen in the menu';
 
   @override
   String get kostvPersonalization => 'Personalization';
@@ -18540,4 +18541,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvSearchMore => 'More results';
+
+  @override
+  String get kostvLauncherMode => 'Launcher mode';
+
+  @override
+  String get kostvLauncherModeSubtitle =>
+      'For a TV where kOS TV is the start screen';
+
+  @override
+  String get kostvLauncherModeIntro =>
+      'For a TV where kOS TV is the start screen, not just another app. These options are kept on this TV only.';
+
+  @override
+  String get kostvIntroSetting => 'Opening animation';
+
+  @override
+  String get kostvIntroSettingSubtitle => 'The kOS TV video when the app opens';
+
+  @override
+  String get kostvShowAppsButtonSubtitle =>
+      'An Apps button in the menu, with every app on the TV';
+
+  @override
+  String get kostvChooseRowApps => 'Choose the row\'s apps';
+
+  @override
+  String get kostvChooseRowAppsSubtitle =>
+      'In All apps, hold OK on an app to add it to Home or take it off';
 }

@@ -26,6 +26,7 @@ import '../../data/repositories/user_views_repository.dart';
 import '../../data/repositories/search_repository.dart';
 import '../../data/repositories/item_mutation_repository.dart';
 import '../../util/game_library.dart';
+import '../../util/kostv_server.dart';
 import '../../data/services/background_service.dart';
 import '../../data/services/access_schedule_service.dart';
 import '../../data/services/app_update_service.dart';
@@ -185,9 +186,12 @@ void registerAppModule() {
       _stremfinUserSubscription = users.currentUserStream.listen(
         (user) => service.onUserChanged(user?.id),
       );
+      // The home server's plugin gave another address (or none).
+      KostvRequestsAddress.notifier.addListener(service.onAddressChanged);
       return service;
     },
     dispose: (service) {
+      KostvRequestsAddress.notifier.removeListener(service.onAddressChanged);
       unawaited(_stremfinUserSubscription?.cancel());
       service.dispose();
     },

@@ -1939,6 +1939,12 @@
                 margin-left: auto;
             }
 
+            /* kOS TV: ajustes del original que las apps de kOS TV no usan. Se ocultan en vez de
+               borrarse porque la página sigue buscándolos por id. */
+            #MoonfinConfigPage .kostvNoSeUsa {
+                display: none !important;
+            }
+
             /* kOS TV: sin Seerr (ni su calendario ni sus descargas atascadas). La página
                sigue buscando sus campos por id, así que se ocultan en vez de borrarse. */
             #MoonfinConfigPage .kostvSinSeerr {
@@ -1976,7 +1982,7 @@
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="webClient">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">language</span>
-                            <span class="moonfinNavText"><span class="moonfinNavLabel">Cliente web</span><span class="moonfinNavSub">kOS TV en el navegador</span></span>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Direcciones</span><span class="moonfinNavSub">Servidor y peticiones</span></span>
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="integrations">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">extension</span>
@@ -2034,12 +2040,12 @@
                     </div>
                     <section class="moonfinTabPanel" data-tab="webClient">
                     <div class="moonfinPageHead">
-                        <h3 class="moonfinPageTitle">Cliente web</h3>
-                        <p class="moonfinPageLead">Cómo encuentra kOS TV en el navegador este servidor y cómo se conecta a él.</p>
+                        <h3 class="moonfinPageTitle">Direcciones</h3>
+                        <p class="moonfinPageLead">Dónde encuentran las apps de kOS TV este servidor y el servicio de peticiones.</p>
                     </div>
 
                     <div class="verticalSection">
-                        <h3 class="sectionTitle">Conexión con este servidor</h3>
+                        <h3 class="sectionTitle">Direcciones de casa</h3>
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="PublicServerUrl">URL pública del servidor (opcional)</label>
                             <input type="url" id="PublicServerUrl" is="emby-input" placeholder="https://jellyfin.example.com" />
@@ -2051,6 +2057,16 @@
                             </div>
                         </div>
                         <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="KostvRequestsUrl">Dirección del servicio de peticiones</label>
+                            <input type="url" id="KostvRequestsUrl" is="emby-input" placeholder="https://peticiones.example.com" />
+                            <div class="fieldDescription">
+                                La dirección del servicio donde la familia pide películas y series (Stremfin), con <code>https://</code>.
+                                Las apps de kOS TV la reciben de aquí al iniciar sesión, así que si cambia solo hay que cambiarla
+                                en este campo: las apps la recogen la próxima vez que se abran o, como mucho, en 6 horas.
+                                Déjala vacía y la pestaña Descubrir no saldrá en las apps.
+                            </div>
+                        </div>
+                        <div class="inputContainer kostvNoSeUsa">
                             <label class="inputLabel inputLabelUnfocused" for="WebDefaultServerUrl">URL del servidor por defecto (opcional)</label>
                             <input type="url" id="WebDefaultServerUrl" is="emby-input" placeholder="https://jellyfin.example.com" />
                             <div class="fieldDescription">
@@ -2059,7 +2075,7 @@
                                 Usa la URL base de Jellyfin (por ejemplo, <code>http://192.168.1.10:8096</code>), no la de <code>/web</code>.
                             </div>
                         </div>
-                        <div class="inputContainer">
+                        <div class="inputContainer kostvNoSeUsa">
                             <label class="inputLabel inputLabelUnfocused" for="WebForcedServerUrl">URL del servidor fija (opcional)</label>
                             <input type="url" id="WebForcedServerUrl" is="emby-input" placeholder="https://jellyfin.example.com" />
                             <div class="fieldDescription">
@@ -2068,7 +2084,7 @@
                                 Usa la URL base de Jellyfin, sin <code>/web</code> al final.
                             </div>
                         </div>
-                        <div class="checkboxContainer checkboxContainer-withDescription">
+                        <div class="checkboxContainer checkboxContainer-withDescription kostvNoSeUsa">
                             <label class="emby-checkbox-label">
                                 <input type="checkbox" id="WebEnableWebRtcScan" is="emby-checkbox" />
                                 <span>Activar la búsqueda en la red local con WebRTC</span>
@@ -2768,6 +2784,14 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowDiscoverButton">Mostrar botón Descubrir</label>
+                                <select id="DefaultShowDiscoverButton" is="emby-select">
+                                    <option value="">Sin fijar (lo decide cada persona)</option>
+                                    <option value="true">Sí</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </div>
                             <div class="inputContainer kostvSinSeerr">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultShowCalendarButton">Mostrar botón de calendario</label>
                                 <select id="DefaultShowCalendarButton" is="emby-select">
@@ -2802,7 +2826,7 @@
                                 </select>
                                 <div class="fieldDescription">Solo aparece si «Ver juntos» está activado en «Reproducción».</div>
                             </div>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvNoSeUsa">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultEnableFolderView">Activar la vista de carpetas</label>
                                 <select id="DefaultEnableFolderView" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
@@ -3263,7 +3287,7 @@
                                 </select>
                                 <div class="fieldDescription">Cuánto tiempo sigue una serie en «A continuación» desde la última vez que se vio.</div>
                             </div>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvNoSeUsa">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultHideWatchedInRecentRows">Ocultar lo visto en las filas recientes</label>
                                 <select id="DefaultHideWatchedInRecentRows" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
@@ -4117,7 +4141,7 @@
 
                         <div class="defaultsSubtabPanel" data-subtab="libraries">
                             <h4 style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Bibliotecas</h4>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvNoSeUsa">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultEnableMultiServerLibraries">Activar bibliotecas de varios servidores</label>
                                 <select id="DefaultEnableMultiServerLibraries" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
@@ -4126,7 +4150,7 @@
                                 </select>
                             </div>
                             <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowBookDiscoverTab">Mostrar Descubrir en las bibliotecas de libros</label>
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowBookDiscoverTab">Mostrar Descubrir de Open Library en las bibliotecas de libros</label>
                                 <select id="DefaultShowBookDiscoverTab" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
                                     <option value="true">Sí</option>
@@ -4542,7 +4566,7 @@
                                 </select>
                             </div>
                             <h4 style="margin: 1.5em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Páginas de personas</h4>
-                            <div class="inputContainer">
+                            <div class="inputContainer kostvNoSeUsa">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultPersonPageGroupItems">Agrupar la página de la persona por tipo</label>
                                 <select id="DefaultPersonPageGroupItems" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
@@ -11302,6 +11326,7 @@
                     document.querySelector('#SeerrUrl').value = config.SeerrUrl || '';
                     document.querySelector('#SeerrDisplayName').value = config.SeerrDisplayName || '';
                     document.querySelector('#PublicServerUrl').value = config.PublicServerUrl || '';
+                    document.querySelector('#KostvRequestsUrl').value = config.KostvRequestsUrl || '';
                     document.querySelector('#CalendarAdminsOnly').value = config.CalendarAdminsOnly === true ? 'true' : 'false';
                     document.querySelector('#CalendarDaysBack').value = config.CalendarDaysBack != null ? config.CalendarDaysBack : 14;
                     document.querySelector('#CalendarDaysAhead').value = config.CalendarDaysAhead != null ? config.CalendarDaysAhead : 90;
@@ -11447,6 +11472,7 @@
                     setNullableBoolSelect('#DefaultEnableFolderView', defaults.enableFolderView);
                     setNullableBoolSelect('#DefaultShowSeerrButton', defaults.showSeerrButton);
                     setNullableBoolSelect('#DefaultShowLiveTvButton', defaults.showLiveTvButton);
+                    setNullableBoolSelect('#DefaultShowDiscoverButton', defaults.showDiscoverButton);
                     setNullableBoolSelect('#DefaultShowCalendarButton', defaults.showCalendarButton);
                     setNullableBoolSelect('#DefaultShowDownloadsButton', defaults.showDownloadsButton);
                     setNullableBoolSelect('#DefaultShowServerMessagesButton', defaults.showServerMessagesButton);
@@ -12236,6 +12262,7 @@
                         config.SeerrUrl = document.querySelector('#SeerrUrl').value || null;
                         config.SeerrDisplayName = document.querySelector('#SeerrDisplayName').value || null;
                         config.PublicServerUrl = document.querySelector('#PublicServerUrl').value || null;
+                        config.KostvRequestsUrl = (document.querySelector('#KostvRequestsUrl').value || '').trim() || null;
                         config.CalendarAdminsOnly = document.querySelector('#CalendarAdminsOnly').value === 'true';
                         config.CalendarDaysBack = wholeNumberIn(document.querySelector('#CalendarDaysBack').value, 0, 365, 14);
                         config.CalendarDaysAhead = wholeNumberIn(document.querySelector('#CalendarDaysAhead').value, 0, 730, 90);
@@ -12441,6 +12468,7 @@
                     ds.enableFolderView = getNullableBoolSelect('#DefaultEnableFolderView');
                     ds.showSeerrButton = getNullableBoolSelect('#DefaultShowSeerrButton');
                     ds.showLiveTvButton = getNullableBoolSelect('#DefaultShowLiveTvButton');
+                    ds.showDiscoverButton = getNullableBoolSelect('#DefaultShowDiscoverButton');
                     ds.showCalendarButton = getNullableBoolSelect('#DefaultShowCalendarButton');
                     ds.showDownloadsButton = getNullableBoolSelect('#DefaultShowDownloadsButton');
                     ds.showServerMessagesButton = getNullableBoolSelect('#DefaultShowServerMessagesButton');

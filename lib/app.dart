@@ -21,6 +21,7 @@ import 'data/models/aggregated_item.dart';
 import 'data/services/achievements_service.dart';
 import 'data/services/cast/cast_service.dart';
 import 'data/services/connectivity_service.dart';
+import 'data/services/plugin_sync_service.dart';
 import 'data/services/remove_watched_service.dart';
 import 'data/services/download_service.dart';
 import 'data/services/server_messages_service.dart';
@@ -68,6 +69,7 @@ import 'util/global_shortcut_focus.dart';
 import 'util/focus/input_mode_tracker.dart';
 import 'util/idiom/app_ui_idiom.dart';
 import 'util/idiom/glass_capability.dart';
+import 'util/kostv_server.dart';
 import 'util/platform_detection.dart';
 import 'util/tv_ui_scale.dart';
 import 'ui/widgets/overlay_sheet.dart';
@@ -1182,6 +1184,17 @@ class _ConnectivityListenerState extends ConsumerState<_ConnectivityListener>
       if (GetIt.instance.isRegistered<RemoveWatchedService>()) {
         unawaited(
           GetIt.instance<RemoveWatchedService>().runForSignedInServer(),
+        );
+      }
+      // Kos TV: back after a long time (a TV keeps the app for days), ask the
+      // home server's plugin again where the requests service is.
+      if (KostvRequestsAddress.isStale() &&
+          GetIt.instance.isRegistered<PluginSyncService>() &&
+          GetIt.instance.isRegistered<MediaServerClient>()) {
+        unawaited(
+          GetIt.instance<PluginSyncService>().refreshAvailability(
+            GetIt.instance<MediaServerClient>(),
+          ),
         );
       }
     }

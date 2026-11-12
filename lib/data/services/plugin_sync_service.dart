@@ -22,6 +22,7 @@ import '../../ui/widgets/navigation_layout.dart';
 import '../../preference/home_section_config.dart';
 import '../../preference/preference_constants.dart' as prefs;
 import '../../preference/user_preferences.dart';
+import '../../util/kostv_server.dart';
 import '../../util/platform_detection.dart';
 import '../../util/signed_in_server_features.dart';
 
@@ -296,6 +297,12 @@ class PluginSyncService extends ChangeNotifier {
         notifyListeners();
         return _PluginAvailabilityStatus.unavailable;
       }
+
+      // Kos TV: where the requests service is. Given whether or not settings
+      // sync is on; a plugin that leaves it out has none to give.
+      await KostvRequestsAddress.update(
+        _readString(pingResult, 'kostvRequestsUrl'),
+      );
 
       final syncEnabled = _readBool(pingResult, 'settingsSyncEnabled');
       if (syncEnabled != null && !syncEnabled) {

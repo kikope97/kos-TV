@@ -15451,7 +15451,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get showBookDiscoverTab =>
-      'Mostrar Descubrir en las bibliotecas de libros';
+      'Mostrar Descubrir de Open Library en las bibliotecas de libros';
 
   @override
   String get showBookDiscoverTabDescription =>
@@ -17732,14 +17732,14 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get kostvShowAppsRow => 'Fila de aplicaciones';
+  String get kostvShowAppsRow => 'Fila de aplicaciones en Inicio';
 
   @override
   String get kostvShowAppsRowSubtitle =>
       'Muestra en Inicio las aplicaciones de la tele';
 
   @override
-  String get kostvShowAppsButton => 'Botón de aplicaciones';
+  String get kostvShowAppsButton => 'Pantalla de aplicaciones en el menú';
 
   @override
   String get kostvPersonalization => 'Personalización';
@@ -18862,4 +18862,33 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvSearchMore => 'Ver más';
+
+  @override
+  String get kostvLauncherMode => 'Modo launcher';
+
+  @override
+  String get kostvLauncherModeSubtitle =>
+      'Para una tele en la que kOS TV es lo primero que se ve';
+
+  @override
+  String get kostvLauncherModeIntro =>
+      'Para una tele en la que kOS TV es la pantalla de inicio y no una aplicación más. Estas opciones se guardan solo en esta tele.';
+
+  @override
+  String get kostvIntroSetting => 'Animación al abrir';
+
+  @override
+  String get kostvIntroSettingSubtitle =>
+      'El vídeo de kOS TV al abrir la aplicación';
+
+  @override
+  String get kostvShowAppsButtonSubtitle =>
+      'Un botón «Aplicaciones» en el menú con todas las de la tele';
+
+  @override
+  String get kostvChooseRowApps => 'Elegir las aplicaciones de la fila';
+
+  @override
+  String get kostvChooseRowAppsSubtitle =>
+      'En «Todas las aplicaciones», mantén pulsado OK sobre una para añadirla a Inicio o quitarla';
 }

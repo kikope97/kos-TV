@@ -133,6 +133,7 @@ part 'panel/details_screen_settings_screen.dart';
 part 'panel/navigation_category_screen.dart';
 part 'panel/bottom_nav_tabs_screen.dart';
 part 'panel/home_screen_category_screen.dart';
+part 'panel/kostv_launcher_screen.dart';
 part 'panel/libraries_category_screen.dart';
 part 'panel/seasonal_effects_screen.dart';
 part 'panel/loading_animation_screen.dart';
@@ -595,6 +596,14 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
         l10n.settingsAppearanceSubtitle,
         () => const _AppearanceScreen(),
       ),
+      // Kos TV: Launcher mode, for a TV where kOS TV is the start screen.
+      if (PlatformDetection.isTV)
+        _SettingsCategory(
+          l10n.kostvLauncherMode,
+          l10n.kostvLauncherModeSubtitle,
+          () => const _KostvLauncherScreen(),
+          preview: false,
+        ),
       _SettingsCategory(
         l10n.playback,
         l10n.settingsPlaybackSubtitle,

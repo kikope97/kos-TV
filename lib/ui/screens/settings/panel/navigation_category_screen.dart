@@ -260,14 +260,7 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
                           icon: Icons.groups,
                           onChanged: _pushPersonalizationSync,
                         ),
-                      // Kos TV: the Apps button (a TV whose apps can be
-                      // listed).
-                      if (kostvAppsAvailable())
-                        SwitchPreferenceTile(
-                          preference: UserPreferences.showAppsButton,
-                          title: l10n.kostvShowAppsButton,
-                          icon: Icons.apps_rounded,
-                        ),
+                      // Kos TV: the Apps button lives in Launcher mode.
                       // Kos TV: the Discover button, for a person the requests
                       // service lets in.
                       if (kostvDiscoverAllowed() &&
@@ -277,6 +270,7 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
                           preference: UserPreferences.showDiscoverButton,
                           title: l10n.kostvShowDiscoverButton,
                           icon: Icons.explore_rounded,
+                          onChanged: _pushPersonalizationSync,
                         ),
                       if (_syncService.calendarAvailable &&
                           !onBar.contains(BottomNavTab.calendar))

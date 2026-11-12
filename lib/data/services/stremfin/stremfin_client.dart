@@ -41,7 +41,11 @@ class StremfinClient {
     Dio? dio,
     String? baseUrl,
     @visibleForTesting String? Function()? token,
-  }) : _baseUrl = baseUrl ?? apiBaseFor(kostvRequestsUrl),
+  }) : _baseUrl = baseUrl == null
+           // The address can change while the app runs (the home server's
+           // plugin gives it), so it's read on every call.
+           ? (() => apiBaseFor(kostvRequestsUrl))
+           : (() => baseUrl),
        _token = token ?? _sessionToken,
        _dio =
            dio ??
@@ -53,11 +57,11 @@ class StremfinClient {
            );
 
   final Dio _dio;
-  final String? _baseUrl;
+  final String? Function() _baseUrl;
   final String? Function() _token;
 
-  /// Whether this build knows where the service is.
-  bool get isConfigured => _baseUrl != null;
+  /// Whether the app knows where the service is.
+  bool get isConfigured => _baseUrl() != null;
 
   /// The API's base from the build's address: with or without a trailing
   /// slash or `/api/v1`, and always over https, since every call carries the
@@ -232,7 +236,7 @@ class StremfinClient {
     Map<String, Object?>? query,
     Object? data,
   }) async {
-    final base = _baseUrl;
+    final base = _baseUrl();
     if (base == null) {
       throw const StremfinException(code: 'not_configured');
     }

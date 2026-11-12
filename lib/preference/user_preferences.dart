@@ -653,6 +653,8 @@ class UserPreferences extends ChangeNotifier {
     'pref_show_genres_button',
     'pref_show_favorites_button',
     'pref_show_live_tv_button',
+    // Kos TV: the Discover button belongs to each person, and syncs.
+    'kostv_show_discover_button',
     'pref_show_syncplay_button',
     'pref_show_downloads_button',
     'pref_show_libraries_in_toolbar',
@@ -2691,20 +2693,31 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: '',
   );
 
-  /// Kos TV: whether Home shows the Apps row (on a TV). Kept on each device.
+  /// Kos TV: whether Home shows the Apps row (on a TV), in Launcher mode.
+  /// Off unless turned on on that TV: kOS TV is the TV's start screen only
+  /// on some of them. Kept on each device.
   static final showAppsRow = Preference<bool>(
     key: 'kostv_show_apps_row',
-    defaultValue: true,
+    defaultValue: false,
   );
 
-  /// Kos TV: whether the navigation bar has an Apps button (on a TV).
+  /// Kos TV: whether the navigation bar has an Apps button (on a TV), in
+  /// Launcher mode. Off unless turned on on that TV. Kept on each device.
   static final showAppsButton = Preference<bool>(
     key: 'kostv_show_apps_button',
+    defaultValue: false,
+  );
+
+  /// Kos TV: whether the app opens with the intro video (see
+  /// KostvIntroPolicy for when it does). Kept on each device.
+  static final kostvIntroEnabled = Preference<bool>(
+    key: 'kostv_intro_enabled',
     defaultValue: true,
   );
 
   /// Kos TV: the Discover button (what's on the streaming platforms), where
-  /// the requests service lets the person in.
+  /// the requests service lets the person in. Each person's own, synced with
+  /// the home server's plugin.
   static final showDiscoverButton = Preference<bool>(
     key: 'kostv_show_discover_button',
     defaultValue: true,

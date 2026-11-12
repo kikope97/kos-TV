@@ -32,6 +32,7 @@ import 'data/services/crash_report_service.dart';
 import 'data/services/log_service.dart';
 import 'data/services/storage_path_service.dart';
 import 'util/kostv_intro_policy.dart';
+import 'util/kostv_server.dart';
 import 'util/macos_touch_input.dart';
 import 'util/scroll_sensitivity_binding.dart';
 import 'util/silo_image_hooks.dart';
@@ -1041,6 +1042,8 @@ void main() async {
 
   // Kos TV: whether this launch opens with the intro video.
   await KostvIntroPolicy.init();
+  // Kos TV: where the requests service was last time (the plugin says).
+  await KostvRequestsAddress.load();
 
   runApp(const MoonfinApp());
 }

@@ -1185,6 +1185,10 @@ public class MoonfinSettingsProfile
     [JsonPropertyName("showLiveTvButton")]
     public bool? ShowLiveTvButton { get; set; }
 
+    /// <summary>kOS TV: the Discover button (the household requests service).</summary>
+    [JsonPropertyName("showDiscoverButton")]
+    public bool? ShowDiscoverButton { get; set; }
+
     [JsonPropertyName("showServerMessagesButton")]
     public bool? ShowServerMessagesButton { get; set; }
 

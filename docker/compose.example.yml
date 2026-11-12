@@ -26,7 +26,9 @@ services:
     environment:
       # Jellyfin tal como lo abre el navegador: la dirección pública, con https.
       KOSTV_SERVER_URL: ${KOSTV_SERVER_URL:-}
-      # El servicio de peticiones (Stremfin) tal como lo alcanza el contenedor.
+      # Opcional, solo mientras Stremfin no acepte llamadas de la web (CORS): el
+      # servicio de peticiones tal como lo alcanza el contenedor, que lo pasa en
+      # /stremfin. Sin él, la web usa la dirección que da el complemento.
       KOSTV_REQUESTS_URL: ${KOSTV_REQUESTS_URL:-}
       # Usuario y contraseña del panel de administración (/admin).
       KOSTV_ADMIN_USER: ${KOSTV_ADMIN_USER:-admin}

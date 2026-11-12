@@ -5,13 +5,15 @@
 #   KOSTV_SERVER_URL    the household Jellyfin, as the browser reaches it
 #                       (https://..., public). The app opens straight on its
 #                       sign-in.
-#   KOSTV_REQUESTS_URL  the requests service (Stremfin), as this container
-#                       reaches it. The browser talks to it through this
-#                       site, at /stremfin, so the service needs no CORS and
-#                       can stay out of reach from outside.
+#   KOSTV_REQUESTS_URL  optional, for the move only: the requests service
+#                       (Stremfin), as this container reaches it. The browser
+#                       then talks to it through this site, at /stremfin, so
+#                       the service needs no CORS. Without it the web app
+#                       talks to the address the home server's plugin gives,
+#                       as the other apps do (the service has to accept the
+#                       web's address, CORS).
 #
-# Either may be left out: without the first the app asks for a server, and
-# without the second Discover doesn't show.
+# Either may be left out: without the first the app asks for a server.
 #
 #   KOSTV_ADMIN_USER      the admin panel's user (admin if left out).
 #   KOSTV_ADMIN_PASSWORD  its password (or KOSTV_ADMIN_PASSWORD_FILE, a file
@@ -100,7 +102,7 @@ NGINX
   requests_json='"/stremfin"'
   log "servicio de peticiones configurado (en /stremfin)"
 else
-  log "sin KOSTV_REQUESTS_URL: Descubrir no aparecerá"
+  log "sin KOSTV_REQUESTS_URL: la web usará la dirección de Stremfin que da el complemento"
 fi
 
 # The admin panel at /admin, behind a user and password. The password is

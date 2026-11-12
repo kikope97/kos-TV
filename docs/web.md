@@ -54,7 +54,6 @@ en la tele. El panel de administración está en `/admin` (por ejemplo
 
    ```
    KOSTV_SERVER_URL=https://jellyfin.example.com
-   KOSTV_REQUESTS_URL=https://peticiones.example.com
    KOSTV_ADMIN_USER=admin
    KOSTV_ADMIN_PASSWORD=una-contraseña-larga
    ```
@@ -69,9 +68,9 @@ en la tele. El panel de administración está en `/admin` (por ejemplo
 Si Portainer dice que no puede descargar la imagen (`denied` o `unauthorized`),
 el paquete está privado en GitHub: ver más abajo, en «Actualizar».
 
-Si Stremfin también está en el Unraid, `KOSTV_REQUESTS_URL` puede ser
-`http://IP-del-Unraid:PUERTO-de-Stremfin`: es el contenedor quien habla con él,
-no el navegador.
+La dirección de Stremfin no va aquí: se pone en el panel de Jellyfin, en el
+complemento de kOS TV (pestaña «Direcciones»), y la web la recibe al iniciar
+sesión, igual que las apps.
 
 ### 2. Publicarla con Nginx Proxy Manager
 
@@ -95,7 +94,7 @@ Ya está: `https://kostv.example.com` abre kOS TV para la familia y
 | Variable | Qué es | Si no se pone |
 |---|---|---|
 | `KOSTV_SERVER_URL` | El Jellyfin de casa **tal como lo abre el navegador** de quien entra: la dirección pública, con https. No sirve una interna como `http://jellyfin:8096`, porque es el navegador quien habla con Jellyfin | La app pide la dirección del servidor |
-| `KOSTV_REQUESTS_URL` | El servicio de peticiones (Stremfin) **tal como lo alcanza el contenedor**. Puede ser la pública o una interna (`http://stremfin:8080` si están en la misma red de Docker) | Descubrir no aparece |
+| `KOSTV_REQUESTS_URL` | **Ya no hace falta.** Solo para pasar por el contenedor (en `/stremfin`) mientras Stremfin no acepte llamadas de la web (CORS): el servicio de peticiones tal como lo alcanza el contenedor | La web habla directamente con la dirección que da el complemento |
 | `KOSTV_ADMIN_USER` | El usuario del panel de administración | `admin` |
 | `KOSTV_ADMIN_PASSWORD` | Su contraseña (al menos 10 caracteres). En lugar de ella se puede usar `KOSTV_ADMIN_PASSWORD_FILE`, la ruta de un archivo que la contenga (para los *secrets* de Docker) | `/admin` queda cerrado |
 
@@ -106,10 +105,13 @@ detiene el contenedor con un mensaje en `docker compose logs`.
 
 - **Jellyfin**: el navegador habla directamente con él. Jellyfin acepta por
   defecto peticiones de otros sitios (CORS), así que no hay que tocar nada.
-- **Stremfin**: el navegador no habla con él, sino con la propia web en
-  `/stremfin`, y el contenedor se lo pasa al servicio. Por eso Stremfin no
-  necesita CORS ni tiene por qué estar abierto a internet. El token de la
-  sesión pasa por ahí, pero no queda en ningún registro.
+- **Stremfin**: la web le pide la dirección al complemento de Jellyfin al
+  iniciar sesión (como las apps) y habla directamente con él. Para eso
+  Stremfin tiene que aceptar llamadas de la dirección de la web (CORS), igual
+  que hace Jellyfin. Si el contenedor tiene `KOSTV_REQUESTS_URL`, la web pasa en
+  cambio por `/stremfin` y el contenedor se lo pasa al servicio (así era antes;
+  queda para la transición). El token de la sesión no queda en ningún
+  registro.
 
 ## Panel de administración (`/admin`)
 
@@ -179,7 +181,6 @@ flutter build web --release
 docker build -f docker/web/Dockerfile -t kostv-web .
 docker run --rm -p 25670:80 \
   -e KOSTV_SERVER_URL=https://jellyfin.example.com \
-  -e KOSTV_REQUESTS_URL=https://peticiones.example.com \
   kostv-web
 ```
 

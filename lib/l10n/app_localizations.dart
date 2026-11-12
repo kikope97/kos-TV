@@ -26510,7 +26510,7 @@ abstract class AppLocalizations {
   /// Setting that shows or hides the discovery tab in book and audiobook libraries
   ///
   /// In en, this message translates to:
-  /// **'Show Book Library Discovery'**
+  /// **'Show Open Library Discover in Book Libraries'**
   String get showBookDiscoverTab;
 
   /// Explains the setting that shows or hides the discovery tab in book libraries
@@ -30102,7 +30102,7 @@ abstract class AppLocalizations {
   /// Kos TV: setting that shows the Apps row on Home
   ///
   /// In en, this message translates to:
-  /// **'Apps row'**
+  /// **'Apps row on Home'**
   String get kostvShowAppsRow;
 
   /// Kos TV: subtitle of the Apps row setting
@@ -30114,7 +30114,7 @@ abstract class AppLocalizations {
   /// Kos TV: setting that shows the Apps button in the navigation bar
   ///
   /// In en, this message translates to:
-  /// **'Apps button'**
+  /// **'Apps screen in the menu'**
   String get kostvShowAppsButton;
 
   /// Kos TV: Appearance section with the look wizard
@@ -31952,6 +31952,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'More results'**
   String get kostvSearchMore;
+
+  /// Kos TV settings: the TV-only section for a TV where kOS TV is the start screen.
+  ///
+  /// In en, this message translates to:
+  /// **'Launcher mode'**
+  String get kostvLauncherMode;
+
+  /// Kos TV settings: subtitle of Launcher mode in the settings list.
+  ///
+  /// In en, this message translates to:
+  /// **'For a TV where kOS TV is the start screen'**
+  String get kostvLauncherModeSubtitle;
+
+  /// Kos TV settings: text at the top of Launcher mode.
+  ///
+  /// In en, this message translates to:
+  /// **'For a TV where kOS TV is the start screen, not just another app. These options are kept on this TV only.'**
+  String get kostvLauncherModeIntro;
+
+  /// Kos TV settings: switch for the intro video when the app opens.
+  ///
+  /// In en, this message translates to:
+  /// **'Opening animation'**
+  String get kostvIntroSetting;
+
+  /// Kos TV settings: subtitle of the opening animation switch.
+  ///
+  /// In en, this message translates to:
+  /// **'The kOS TV video when the app opens'**
+  String get kostvIntroSettingSubtitle;
+
+  /// Kos TV settings: subtitle of the Apps screen switch.
+  ///
+  /// In en, this message translates to:
+  /// **'An Apps button in the menu, with every app on the TV'**
+  String get kostvShowAppsButtonSubtitle;
+
+  /// Kos TV settings: opens All apps to pick the Apps row.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose the row\'s apps'**
+  String get kostvChooseRowApps;
+
+  /// Kos TV settings: how the Apps row is chosen.
+  ///
+  /// In en, this message translates to:
+  /// **'In All apps, hold OK on an app to add it to Home or take it off'**
+  String get kostvChooseRowAppsSubtitle;
 }
 
 class _AppLocalizationsDelegate

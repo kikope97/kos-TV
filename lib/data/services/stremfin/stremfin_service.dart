@@ -138,6 +138,19 @@ class StremfinService extends ChangeNotifier {
   void onUserChanged(String? userId) {
     if (userId == _checkedFor) return;
     _checkedFor = userId;
+    _forget();
+  }
+
+  /// The service moved (the home server's plugin gave another address, or
+  /// none): what the old one said doesn't count, so ask the new one.
+  void onAddressChanged() {
+    if (_disposed) return;
+    _platforms = null;
+    _forget();
+  }
+
+  void _forget() {
+    final userId = _checkedFor;
     _generation++;
     _retry?.cancel();
     _lists.clear();

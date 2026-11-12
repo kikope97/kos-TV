@@ -225,14 +225,7 @@ class _HomeScreenCategoryScreenState extends State<_HomeScreenCategoryScreen> {
                 onTap: () =>
                     context.pushSettingsScreen(const HomeSectionsScreen()),
               ),
-              // Kos TV: the Apps row (a TV whose apps can be listed).
-              if (kostvAppsAvailable())
-                SwitchPreferenceTile(
-                  preference: UserPreferences.showAppsRow,
-                  title: l10n.kostvShowAppsRow,
-                  subtitle: l10n.kostvShowAppsRowSubtitle,
-                  icon: Icons.apps_rounded,
-                ),
+              // Kos TV: the Apps row lives in Launcher mode.
               _TvSettingsListTile(
                 leading: const Icon(Icons.featured_play_list),
                 title: Text(l10n.mediaBar),

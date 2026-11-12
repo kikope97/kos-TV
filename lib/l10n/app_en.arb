@@ -13844,7 +13844,7 @@
   "@serverMessagesShowButtonSubtitle": {
     "description": "Explains the setting that shows or hides the messages button"
   },
-  "showBookDiscoverTab": "Show Book Library Discovery",
+  "showBookDiscoverTab": "Show Open Library Discover in Book Libraries",
   "@showBookDiscoverTab": {
     "description": "Setting that shows or hides the discovery tab in book and audiobook libraries"
   },
@@ -16781,7 +16781,7 @@
       }
     }
   },
-  "kostvShowAppsRow": "Apps row",
+  "kostvShowAppsRow": "Apps row on Home",
   "@kostvShowAppsRow": {
     "description": "Kos TV: setting that shows the Apps row on Home"
   },
@@ -16789,7 +16789,7 @@
   "@kostvShowAppsRowSubtitle": {
     "description": "Kos TV: subtitle of the Apps row setting"
   },
-  "kostvShowAppsButton": "Apps button",
+  "kostvShowAppsButton": "Apps screen in the menu",
   "@kostvShowAppsButton": {
     "description": "Kos TV: setting that shows the Apps button in the navigation bar"
   },
@@ -18258,5 +18258,37 @@
   "kostvSearchMore": "More results",
   "@kostvSearchMore": {
     "description": "Kos TV search: tile at the end of «Available to request» that loads more."
+  },
+  "kostvLauncherMode": "Launcher mode",
+  "@kostvLauncherMode": {
+    "description": "Kos TV settings: the TV-only section for a TV where kOS TV is the start screen."
+  },
+  "kostvLauncherModeSubtitle": "For a TV where kOS TV is the start screen",
+  "@kostvLauncherModeSubtitle": {
+    "description": "Kos TV settings: subtitle of Launcher mode in the settings list."
+  },
+  "kostvLauncherModeIntro": "For a TV where kOS TV is the start screen, not just another app. These options are kept on this TV only.",
+  "@kostvLauncherModeIntro": {
+    "description": "Kos TV settings: text at the top of Launcher mode."
+  },
+  "kostvIntroSetting": "Opening animation",
+  "@kostvIntroSetting": {
+    "description": "Kos TV settings: switch for the intro video when the app opens."
+  },
+  "kostvIntroSettingSubtitle": "The kOS TV video when the app opens",
+  "@kostvIntroSettingSubtitle": {
+    "description": "Kos TV settings: subtitle of the opening animation switch."
+  },
+  "kostvShowAppsButtonSubtitle": "An Apps button in the menu, with every app on the TV",
+  "@kostvShowAppsButtonSubtitle": {
+    "description": "Kos TV settings: subtitle of the Apps screen switch."
+  },
+  "kostvChooseRowApps": "Choose the row's apps",
+  "@kostvChooseRowApps": {
+    "description": "Kos TV settings: opens All apps to pick the Apps row."
+  },
+  "kostvChooseRowAppsSubtitle": "In All apps, hold OK on an app to add it to Home or take it off",
+  "@kostvChooseRowAppsSubtitle": {
+    "description": "Kos TV settings: how the Apps row is chosen."
   }
 }

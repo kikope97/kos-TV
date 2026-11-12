@@ -293,6 +293,7 @@ void main() {
     'showLibrariesIndividually',
     'showLibrariesInToolbar',
     'showLiveTvButton',
+    'showDiscoverButton',
     'showLoadingAnimationText',
     'showMediaDetailsOnLibraryPage',
     'showPosterLabels',

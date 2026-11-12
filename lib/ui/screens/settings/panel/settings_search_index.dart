@@ -208,6 +208,13 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     icon: Icons.push_pin_outlined,
     open: () => push(const _BottomNavTabsScreen()),
   );
+  // Kos TV: Launcher mode, on a TV.
+  final launcher = _SearchSection(
+    slug: 'launcher',
+    path: [l10n.kostvLauncherMode],
+    icon: Icons.apps_rounded,
+    open: () => push(const _KostvLauncherScreen()),
+  );
   final screensaver = _SearchSection(
     slug: 'screensaver',
     path: [l10n.appearance, l10n.screensaver],
@@ -901,6 +908,35 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         keywords: ['chat', 'messages', 'achievements'],
       ),
 
+    if (PlatformDetection.isTV) ...[
+      launcher.screen(keywords: ['launcher', 'inicio', 'start screen']),
+      launcher.leaf(
+        'kostv_intro_enabled',
+        l10n.kostvIntroSetting,
+        subtitle: l10n.kostvIntroSettingSubtitle,
+        keywords: ['intro', 'video', 'vídeo'],
+      ),
+      if (kostvAppsAvailable()) ...[
+        launcher.leaf(
+          'kostv_show_apps_row',
+          l10n.kostvShowAppsRow,
+          subtitle: l10n.kostvShowAppsRowSubtitle,
+          keywords: ['apps', 'aplicaciones', 'netflix'],
+        ),
+        launcher.leaf(
+          'kostv_show_apps_button',
+          l10n.kostvShowAppsButton,
+          subtitle: l10n.kostvShowAppsButtonSubtitle,
+          keywords: ['apps', 'aplicaciones'],
+        ),
+      ],
+    ] else
+      style.leaf(
+        'kostv_intro_enabled',
+        l10n.kostvIntroSetting,
+        subtitle: l10n.kostvIntroSettingSubtitle,
+        keywords: ['intro', 'video', 'vídeo'],
+      ),
     if (PlatformDetection.isTV) ...[
       screensaver.screen(keywords: ['idle', 'dim', 'burn in']),
       screensaver.leaf(

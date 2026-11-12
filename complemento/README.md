@@ -32,7 +32,14 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   que no hay Seerr ni calendario (`/Moonfin/Ping`), y en la página de ajustes
   esos apartados están ocultos (su código sigue buscándolos por su nombre).
 - **La página de ajustes en español**, con los mismos nombres que la app para los
-  mismos ajustes.
+  mismos ajustes, y sin lo que las apps de kOS TV no usan (cuatro valores por
+  defecto y los campos de la web oficial, ocultos con la clase `kostvNoSeUsa`).
+- **La dirección del servicio de peticiones (Stremfin)** se pone aquí, en la
+  pestaña «Direcciones», y el complemento se la da a las apps en `/Moonfin/Ping`
+  (`kostvRequestsUrl`) cuando inician sesión. Así no va dentro del APK y, si
+  cambia, solo se cambia aquí.
+- **El botón Descubrir se sincroniza** como los demás (`showDiscoverButton`), con
+  su valor por defecto en la página.
 - **Sin la web de Moonfin dentro:** el paquete no la lleva, así que el botón que
   el oficial añade a la cabecera de la web de Jellyfin solo sale si esa web
   existe.

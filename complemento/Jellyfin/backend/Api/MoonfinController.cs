@@ -150,6 +150,7 @@ public class MoonfinController : ControllerBase
             CalendarReminders = false,
             ArrQueueAvailable = false,
             SocketRelay = config?.EnableSocketRelay ?? false,
+            KostvRequestsUrl = KostvRequests.Normalize(config?.KostvRequestsUrl),
             DefaultSettings = _settingsService.AdminDefaultsFor(profile)
         });
     }
@@ -1772,6 +1773,10 @@ public class MoonfinPingResponse
 
     [JsonPropertyName("seerrUrl")]
     public string? SeerrUrl { get; set; }
+
+    /// <summary>kOS TV: the household requests service (Stremfin), or null when not set.</summary>
+    [JsonPropertyName("kostvRequestsUrl")]
+    public string? KostvRequestsUrl { get; set; }
 
     [JsonPropertyName("mdblistAvailable")]
     public bool? MdblistAvailable { get; set; }

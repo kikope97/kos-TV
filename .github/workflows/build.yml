@@ -280,7 +280,6 @@ jobs:
       - name: Build
         env:
           KOSTV_SERVER_URL: ${{ secrets.KOSTV_SERVER_URL }}
-          KOSTV_REQUESTS_URL: ${{ secrets.KOSTV_REQUESTS_URL }}
         run: |
           chmod +x build-android.sh
           ./build-android.sh ${{ matrix.target }}
