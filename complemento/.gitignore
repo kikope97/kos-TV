@@ -1,0 +1,60 @@
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Release artifacts
+*.zip
+
+# .NET
+*.nupkg
+*.snupkg
+packages/
+.nuget/
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Node
+node_modules/
+
+# Flutter web drop folder (copied from Moonfin-Core)
+Jellyfin/frontend/*
+!Jellyfin/frontend/.gitkeep
+!Jellyfin/frontend/theme/
+!Jellyfin/frontend/theme/**
+!Jellyfin/frontend/editor/
+!Jellyfin/frontend/editor/**
+
+# IDE / Editor
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.pidb
+*.pdb
+*.mdb
+*.sln.iml
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Local build secrets. Copy .env.example to .env and keep it out of commits.
+.env

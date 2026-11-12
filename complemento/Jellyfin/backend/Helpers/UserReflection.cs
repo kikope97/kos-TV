@@ -1,0 +1,146 @@
+using System.Collections;
+using System.Reflection;
+using MediaBrowser.Controller.Entities;
+
+namespace Moonfin.Server.Helpers;
+
+/// <summary>
+/// The user manager, InternalItemsQuery.SetUser and BaseItem.IsVisible all take Jellyfin's
+/// User type, which changed between 10.10 and 10.11, so services hold users as object and
+/// go through these bindings.
+/// </summary>
+internal static class UserReflection
+{
+    private static readonly Type? UserManagerType = Type.GetType("MediaBrowser.Controller.Library.IUserManager, MediaBrowser.Controller");
+    private static readonly MethodInfo? GetUserById = UserManagerType?.GetMethod("GetUserById", [typeof(Guid)]);
+    private static readonly MethodInfo? SetUser = typeof(InternalItemsQuery).GetMethod("SetUser", BindingFlags.Public | BindingFlags.Instance);
+    private static readonly PropertyInfo? UserProperty = typeof(InternalItemsQuery).GetProperty(nameof(InternalItemsQuery.User), BindingFlags.Public | BindingFlags.Instance);
+    // Matched on its one parameter, so a future overload can't make the lookup throw for every caller here.
+    private static readonly MethodInfo? IsVisibleStandalone = typeof(BaseItem)
+        .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+        .FirstOrDefault(m => m.Name == nameof(BaseItem.IsVisibleStandalone) && m.GetParameters().Length == 1);
+
+    // IsVisible grew a skipAllowedTagsCheck parameter in 10.11, so any overload whose extra
+    // parameters are booleans is taken and those are passed as false.
+    private static readonly MethodInfo? IsVisible = typeof(BaseItem)
+        .GetMethods(BindingFlags.Public | BindingFlags.Instance)
+        .Where(m => m.Name == "IsVisible" && m.GetParameters().Length >= 1 && m.GetParameters().Skip(1).All(p => p.ParameterType == typeof(bool)))
+        .OrderBy(m => m.GetParameters().Length)
+        .FirstOrDefault();
+
+    public static object? ResolveUser(IServiceProvider services, Guid userId)
+    {
+        if (userId == Guid.Empty || GetUserById == null)
+        {
+            return null;
+        }
+
+        var userManager = UserManager(services);
+        return userManager == null ? null : GetUserById.Invoke(userManager, [userId]);
+    }
+
+    public static object? UserManager(IServiceProvider services) =>
+        UserManagerType == null ? null : services.GetService(UserManagerType);
+
+    // The user manager's list of users was the Users property up to 10.11 and is the GetUsers()
+    // method from 12.2, which dropped the property.
+    private static readonly Func<object, IEnumerable?>? ListUsers = UserListBinding(UserManagerType);
+
+    /// <summary>
+    /// Every user on the server, as Jellyfin's User objects, or null when this server's user
+    /// manager has neither way of listing them.
+    /// </summary>
+    public static IEnumerable? AllUsers(IServiceProvider services)
+    {
+        var userManager = UserManager(services);
+        return userManager == null || ListUsers == null ? null : ListUsers(userManager);
+    }
+
+    /// <summary>
+    /// How to list the users on a user manager of <paramref name="managerType"/>: its GetUsers()
+    /// method when it has one, else its Users property, else null.
+    /// </summary>
+    internal static Func<object, IEnumerable?>? UserListBinding(Type? managerType)
+    {
+        var method = managerType?.GetMethod("GetUsers", Type.EmptyTypes);
+        if (method != null && typeof(IEnumerable).IsAssignableFrom(method.ReturnType))
+        {
+            return manager => method.Invoke(manager, null) as IEnumerable;
+        }
+
+        var property = managerType?.GetProperty("Users");
+        if (property != null && typeof(IEnumerable).IsAssignableFrom(property.PropertyType))
+        {
+            return manager => property.GetValue(manager) as IEnumerable;
+        }
+
+        return null;
+    }
+
+    /// <summary>Applies the user's parental limits and blocked tags to the query.</summary>
+    public static bool ApplyUser(InternalItemsQuery query, object user)
+    {
+        if (SetUser != null)
+        {
+            try
+            {
+                SetUser.Invoke(query, [user]);
+                return true;
+            }
+            catch
+            {
+            }
+        }
+
+        if (UserProperty?.CanWrite == true && UserProperty.PropertyType.IsInstanceOfType(user))
+        {
+            UserProperty.SetValue(query, user);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>Library access on top of the query's filters. Fails closed when it can't be checked.</summary>
+    public static bool IsVisibleTo(BaseItem item, object user)
+    {
+        if (IsVisible == null || !IsVisible.GetParameters()[0].ParameterType.IsInstanceOfType(user))
+        {
+            return false;
+        }
+
+        var args = new object?[IsVisible.GetParameters().Length];
+        args[0] = user;
+        for (var i = 1; i < args.Length; i++)
+        {
+            args[i] = false;
+        }
+
+        try
+        {
+            return IsVisible.Invoke(item, args) is true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>Includes parent and library access checks. Fails closed across server versions.</summary>
+    public static bool IsVisibleStandaloneTo(BaseItem item, object user)
+    {
+        if (IsVisibleStandalone == null || !IsVisibleStandalone.GetParameters()[0].ParameterType.IsInstanceOfType(user))
+        {
+            return false;
+        }
+
+        try
+        {
+            return IsVisibleStandalone.Invoke(item, [user]) is true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+}
