@@ -190,9 +190,48 @@ void main() {
       expect(find.text('Solicitar este episodio'), findsNothing);
     });
 
-    testWidgets('one not on yet says when, and offers nothing', (
-      tester,
-    ) async {
+    testWidgets("a season that isn't at home", (tester) async {
+      final controller = KostvSeriesGapsController();
+      addTearDown(controller.dispose);
+      final season = KostvSeasonGaps(
+        season: const StremfinSeason(number: 3, aired: 2, canRequest: true),
+        missing: [
+          KostvGhostEpisode(
+            season: 3,
+            source: StremfinEpisode(number: 1, aired: true, canRequest: true),
+          ),
+          KostvGhostEpisode(
+            season: 3,
+            source: StremfinEpisode(number: 2, aired: true, canRequest: true),
+          ),
+        ],
+        upcoming: const [],
+        atHome: false,
+      );
+      await tester.pumpWidget(
+        app(
+          Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showKostvSeasonSheet(
+                context,
+                controller: controller,
+                season: season,
+              ),
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('abrir'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('TEMPORADA 3'), findsOneWidget);
+      expect(find.text('Esta temporada no está en casa'), findsOneWidget);
+      expect(find.text('2 episodios'), findsOneWidget);
+      expect(find.text('Solicitar la temporada'), findsOneWidget);
+    });
+
+    testWidgets('one not on yet says when, and offers nothing', (tester) async {
       final controller = KostvSeriesGapsController();
       addTearDown(controller.dispose);
       await tester.pumpWidget(

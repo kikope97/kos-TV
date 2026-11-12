@@ -12916,5 +12916,21 @@
                 "type": "int"
             }
         }
+    },
+    "kostvGhostAskedByOtherShort": "Otra persona ya lo pidió",
+    "@kostvGhostAskedByOtherShort": {
+        "description": "Kos TV: short line for a missing episode someone else requested."
+    },
+    "kostvGhostPendingShort": "Falta que lo acepten",
+    "@kostvGhostPendingShort": {
+        "description": "Kos TV: short line for a missing episode the person requested, not yet accepted."
+    },
+    "kostvGhostAcceptedShort": "Aceptado: llega pronto",
+    "@kostvGhostAcceptedShort": {
+        "description": "Kos TV: short line for a missing episode whose request was accepted."
+    },
+    "kostvGhostDownloadingShort": "Llegará en seguida",
+    "@kostvGhostDownloadingShort": {
+        "description": "Kos TV: short line for a missing episode being downloaded."
     }
 }

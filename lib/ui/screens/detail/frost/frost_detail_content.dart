@@ -1695,6 +1695,8 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     final badge = KostvGhostTexts.badge(context, ghost);
     final note = upcoming && phone
         ? KostvGhostTexts.premiere(context, ghost.airDate)
+        : phone
+        ? KostvGhostTexts.shortNote(context, ghost)
         : KostvGhostTexts.note(context, ghost);
 
     return _FrostFocus(
@@ -1747,16 +1749,20 @@ class _FrostDetailContentState extends State<FrostDetailContent>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            l10n.episodeNumber(ghost.number).toUpperCase(),
-                            style: TextStyle(
-                              color: _muted,
-                              fontSize: phone ? 11 : 13,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.4,
+                          // With no title of its own, its number is its
+                          // title.
+                          if (KostvGhostTexts.ownTitle(ghost) != null) ...[
+                            Text(
+                              l10n.episodeNumber(ghost.number).toUpperCase(),
+                              style: TextStyle(
+                                color: _muted,
+                                fontSize: phone ? 11 : 13,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.4,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 3),
+                            const SizedBox(height: 3),
+                          ],
                           Text(
                             KostvGhostTexts.title(context, ghost),
                             maxLines: 1,

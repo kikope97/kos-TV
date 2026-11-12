@@ -28,6 +28,7 @@ class KostvGapOverlay extends StatelessWidget {
     required this.onWatchNext,
     required this.onClose,
     this.atLimit = false,
+    this.sentNote,
     this.focusNode,
     this.secondFocusNode,
   });
@@ -39,6 +40,9 @@ class KostvGapOverlay extends StatelessWidget {
   final AggregatedItem? next;
   final KostvGapAsk ask;
   final bool atLimit;
+
+  /// The service's word on the request, once sent.
+  final String? sentNote;
   final VoidCallback onAsk;
   final VoidCallback onWatchNext;
   final VoidCallback onClose;
@@ -60,7 +64,7 @@ class KostvGapOverlay extends StatelessWidget {
     final headline = count == 1
         ? l10n.kostvGapOne(first.number)
         : l10n.kostvGapMany(first.number, last.number);
-    final subtitle = count == 1 ? KostvGhostTexts.title(context, first) : null;
+    final subtitle = count == 1 ? KostvGhostTexts.ownTitle(first) : null;
     final pill = count == 1
         ? 'S${first.season}:E${first.number}'
         : 'S${first.season}:E${first.number}–${last.number}';
@@ -69,7 +73,7 @@ class KostvGapOverlay extends StatelessWidget {
     final (IconData, String)? status = switch (ask) {
       KostvGapAsk.sent => (
         Icons.check_circle_outline,
-        l10n.kostvGapRequested(count),
+        sentNote ?? l10n.kostvGapRequested(count),
       ),
       KostvGapAsk.failed => (Icons.error_outline, l10n.kostvRequestFailed),
       _ when askable && atLimit => (
@@ -164,6 +168,7 @@ class KostvGapOverlay extends StatelessWidget {
                 children: [
                   KostvGhostThumb(
                     ghost: first,
+                    label: count == 1 ? null : '${first.number}–${last.number}',
                     width: 104,
                     radius: 10,
                     ink: Colors.white,
@@ -208,8 +213,7 @@ class KostvGapOverlay extends StatelessWidget {
                             height: 1.2,
                           ),
                         ),
-                        if (subtitle != null &&
-                            subtitle != l10n.episodeNumber(first.number)) ...[
+                        if (subtitle != null) ...[
                           const SizedBox(height: 3),
                           Text(
                             subtitle,

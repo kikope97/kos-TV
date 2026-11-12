@@ -97,6 +97,7 @@ import '../../widgets/playback/player_loading_overlay.dart';
 import '../../widgets/playback/loading_animation_widget.dart';
 import '../../widgets/playback/chapter_marker_track.dart';
 import '../../widgets/playback/skip_segment_overlay.dart';
+import '../../widgets/kostv_missing_episodes.dart';
 import '../../widgets/playback/kostv_gap_overlay.dart';
 import '../../widgets/playback/next_up_overlay.dart';
 import '../../widgets/playback/still_watching_dialog.dart';
@@ -411,6 +412,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   AggregatedItem? _kostvGapNext;
   bool _kostvGapShown = false;
   KostvGapAsk _kostvGapAsk = KostvGapAsk.idle;
+  String? _kostvGapNote;
   int _kostvGapLookup = 0;
   bool _nextUpDismissed = false;
   bool _isNextUpAdvancing = false;
@@ -2547,6 +2549,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _kostvGap = const [];
     _kostvGapEpisodes = const [];
     _kostvGapAsk = KostvGapAsk.idle;
+    _kostvGapNote = null;
     final item = _queue.currentItem;
     if (item is! AggregatedItem || item.type != 'Episode') return;
     final season = item.parentIndexNumber;
@@ -2671,9 +2674,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           result != null &&
           result.outcome != StremfinOutcome.limit &&
           result.outcome != StremfinOutcome.unavailable;
-      setState(
-        () => _kostvGapAsk = sent ? KostvGapAsk.sent : KostvGapAsk.failed,
-      );
+      setState(() {
+        _kostvGapAsk = sent ? KostvGapAsk.sent : KostvGapAsk.failed;
+        _kostvGapNote = result == null
+            ? null
+            : KostvGhostTexts.outcome(
+                context,
+                result,
+                me: gaps.me,
+                episode: !wholeSeason && ghosts.length == 1,
+              );
+      });
       // Asked: on to the next one at home.
       if (sent && _kostvGapNext != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -4531,6 +4542,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                           next: _kostvGapNext,
                           ask: _kostvGapAsk,
                           atLimit: _kostvGaps?.atLimit ?? false,
+                          sentNote: _kostvGapNote,
                           onAsk: _handleKostvGapAsk,
                           onWatchNext: _handleNextUpPlay,
                           // TV dismisses with Back, so its X exits the player.

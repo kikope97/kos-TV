@@ -321,8 +321,10 @@ class _GhostRowState extends State<_GhostRow> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            '${l10n.seasonNumber(ghost.season)} · '
-                            '${l10n.episodeNumber(ghost.number)}',
+                            KostvGhostTexts.ownTitle(ghost) == null
+                                ? l10n.seasonNumber(ghost.season)
+                                : '${l10n.seasonNumber(ghost.season)} · '
+                                      '${l10n.episodeNumber(ghost.number)}',
                             style: const TextStyle(
                               color: Colors.white54,
                               fontSize: 12,
@@ -360,7 +362,10 @@ class _GhostRowState extends State<_GhostRow> {
                                           context,
                                           ghost.airDate,
                                         )
-                                      : KostvGhostTexts.note(context, ghost),
+                                      : KostvGhostTexts.shortNote(
+                                          context,
+                                          ghost,
+                                        ),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(

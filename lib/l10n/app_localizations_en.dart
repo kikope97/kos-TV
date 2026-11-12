@@ -18694,4 +18694,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String kostvGapWatchOther(int season, int episode) {
     return 'Watch S$season:E$episode';
   }
+
+  @override
+  String get kostvGhostAskedByOtherShort => 'Someone else asked for it';
+
+  @override
+  String get kostvGhostPendingShort => 'Waiting for approval';
+
+  @override
+  String get kostvGhostAcceptedShort => 'Accepted: on its way';
+
+  @override
+  String get kostvGhostDownloadingShort => 'Here shortly';
 }

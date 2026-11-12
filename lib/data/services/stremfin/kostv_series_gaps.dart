@@ -325,7 +325,9 @@ class KostvSeriesGapsController extends ChangeNotifier {
   /// What the series lacks next to [episodes], the ones the home server has.
   KostvSeriesGaps gapsFor(Iterable<AggregatedItem> episodes) {
     final detail = _detail;
-    if (detail == null || !enabled) return KostvSeriesGaps.none;
+    if (detail == null || !enabled || episodes.isEmpty) {
+      return KostvSeriesGaps.none;
+    }
     return KostvSeriesGaps.compute(detail: detail, episodes: episodes);
   }
 

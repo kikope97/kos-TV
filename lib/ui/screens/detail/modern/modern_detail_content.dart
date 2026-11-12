@@ -1221,11 +1221,77 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     // unplayed episode's seasonId so the cyan border always renders correctly.
     final nextUpSeasonId = _vm.nextUp?.seasonId ??
         _vm.seriesEpisodes.firstWhereOrNull((e) => !e.isPlayed)?.seasonId;
+    // Kos TV: the seasons the home server has nothing of, greyed among the
+    // rest.
+    final gaps = _watchGaps(item);
+    final atHome = {for (final s in _vm.seasons) s.indexNumber};
+    final notAtHome = [
+      for (final s
+          in (gaps?.gapsFor(_vm.seriesEpisodes) ?? KostvSeriesGaps.none)
+              .seasonsNotAtHome)
+        if (!atHome.contains(s.number)) s,
+    ];
+    // The cards in order: the home server's seasons (by index) with the
+    // ones it lacks in their place.
+    final slots = <({int? index, KostvSeasonGaps? ghost})>[];
+    var nextGhost = 0;
+    for (var i = 0; i < _vm.seasons.length; i++) {
+      final number = _vm.seasons[i].indexNumber;
+      while (nextGhost < notAtHome.length &&
+          number != null &&
+          number > 0 &&
+          notAtHome[nextGhost].number < number) {
+        slots.add((index: null, ghost: notAtHome[nextGhost++]));
+      }
+      slots.add((index: i, ghost: null));
+    }
+    while (nextGhost < notAtHome.length) {
+      slots.add((index: null, ghost: notAtHome[nextGhost++]));
+    }
+
+    Widget buildGhostSeasonCard(
+      KostvSeasonGaps ghost, {
+      required bool first,
+      double? width,
+      double? height,
+      bool topRow = true,
+    }) => Opacity(
+      opacity: 0.55,
+      child: ColorFiltered(
+        colorFilter: const ColorFilter.matrix([
+          0.2126, 0.7152, 0.0722, 0, 0, //
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0.2126, 0.7152, 0.0722, 0, 0,
+          0, 0, 0, 1, 0,
+        ]),
+        child: SeasonCard(
+          title: l10n.seasonNumber(ghost.number),
+          subtitle: ghost.notOnYet
+              ? KostvGhostTexts.premiere(context, ghost.premiere)
+              : l10n.kostvGhostNotAtHome,
+          imageUrl: showPosterUrl,
+          isFallbackImage: true,
+          landscape: _landscape,
+          onNavigateUp: topRow ? _focusSelectedTab : null,
+          focusNode: first ? _seasonsFirstFocusNode : null,
+          width: width,
+          height: height,
+          autoScroll: true,
+          onTap: () => showKostvSeasonSheet(
+            context,
+            controller: gaps!,
+            season: ghost,
+          ),
+        ),
+      ),
+    );
+
     SeasonCard buildSeasonCard(
       int i, {
       double? width,
       double? height,
       bool topRow = true,
+      bool first = false,
     }) {
       final season = _vm.seasons[i];
       final seasonEpisodes = _vm.seriesEpisodes
@@ -1268,7 +1334,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
         isPlayed: showsIndicator && isFullyPlayed,
         unplayedCount: showsIndicator && !isFullyPlayed ? remaining : null,
         onNavigateUp: topRow ? _focusSelectedTab : null,
-        focusNode: i == 0 ? _seasonsFirstFocusNode : null,
+        focusNode: first ? _seasonsFirstFocusNode : null,
         width: width,
         height: height,
         autoScroll: true,
@@ -1285,12 +1351,13 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     );
     // Centered when it fits, horizontally scrollable when the name is longer
     // than the card, so a long season name never wraps to a second line.
-    Widget seasonLabel(int i, double viewportWidth) => SingleChildScrollView(
+    Widget seasonLabel(String name, double viewportWidth) =>
+        SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: ConstrainedBox(
             constraints: BoxConstraints(minWidth: viewportWidth),
             child: Text(
-              _vm.seasons[i].name.toUpperCase(),
+              name.toUpperCase(),
               maxLines: 1,
               softWrap: false,
               style: seasonLabelStyle,
@@ -1312,20 +1379,38 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
           spacing: spacing,
           runSpacing: 16,
           children: [
-            for (var i = 0; i < _vm.seasons.length; i++)
+            for (final (j, slot) in slots.indexed)
               SizedBox(
                 width: cardWidth,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    seasonLabel(i, cardWidth),
-                    const SizedBox(height: 6),
-                    buildSeasonCard(
-                      i,
-                      width: cardWidth,
-                      height: cardHeight,
-                      topRow: i < columns,
+                    Opacity(
+                      opacity: slot.ghost != null ? 0.55 : 1,
+                      child: seasonLabel(
+                        slot.ghost != null
+                            ? l10n.seasonNumber(slot.ghost!.number)
+                            : _vm.seasons[slot.index!].name,
+                        cardWidth,
+                      ),
                     ),
+                    const SizedBox(height: 6),
+                    if (slot.ghost case final ghost?)
+                      buildGhostSeasonCard(
+                        ghost,
+                        first: j == 0,
+                        width: cardWidth,
+                        height: cardHeight,
+                        topRow: j < columns,
+                      )
+                    else
+                      buildSeasonCard(
+                        slot.index!,
+                        width: cardWidth,
+                        height: cardHeight,
+                        topRow: j < columns,
+                        first: j == 0,
+                      ),
                   ],
                 ),
               ),
@@ -4589,7 +4674,12 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
         borderRadius: JellyfinTokens.shapes.smallRadius,
       ),
       child: Text(
-        status,
+        // Kos TV: the server says it in English.
+        switch (status.toLowerCase()) {
+          'continuing' => AppLocalizations.of(context).continuing,
+          'ended' => AppLocalizations.of(context).ended,
+          _ => status,
+        },
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w600,

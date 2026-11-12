@@ -63,6 +63,20 @@ abstract final class KostvGhostTexts {
     };
   }
 
+  /// A shorter line, for a phone's card and the player's list.
+  static String shortNote(BuildContext context, KostvGhostEpisode ghost) {
+    final l10n = AppLocalizations.of(context);
+    return switch (ghost.state) {
+      KostvGhostState.joinable => l10n.kostvGhostAskedByOtherShort,
+      KostvGhostState.requested =>
+        ghost.request?.isPending ?? true
+            ? l10n.kostvGhostPendingShort
+            : l10n.kostvGhostAcceptedShort,
+      KostvGhostState.downloading => l10n.kostvGhostDownloadingShort,
+      _ => note(context, ghost),
+    };
+  }
+
   /// What its button or badge says.
   static String? badge(BuildContext context, KostvGhostEpisode ghost) {
     final l10n = AppLocalizations.of(context);
@@ -88,13 +102,24 @@ abstract final class KostvGhostTexts {
     KostvGhostState.unavailable => Icons.block,
   };
 
-  /// «Episodio 7», or its title.
-  static String title(BuildContext context, KostvGhostEpisode ghost) {
+  /// Its own title, or null when it has none: TMDB names an episode it
+  /// knows nothing of «Episodio 7».
+  static String? ownTitle(KostvGhostEpisode ghost) {
     final title = ghost.title?.trim();
-    return title == null || title.isEmpty
-        ? AppLocalizations.of(context).episodeNumber(ghost.number)
-        : title;
+    if (title == null || title.isEmpty) return null;
+    if (_numberOnly.hasMatch(title)) return null;
+    return title;
   }
+
+  static final _numberOnly = RegExp(
+    r'^(episodio|episode|cap[ií]tulo|ep\.?)\s*\d+$',
+    caseSensitive: false,
+  );
+
+  /// Its title, or «Episodio 7».
+  static String title(BuildContext context, KostvGhostEpisode ghost) =>
+      ownTitle(ghost) ??
+      AppLocalizations.of(context).episodeNumber(ghost.number);
 
   /// The service's word on a request, said for an episode or a season.
   static String outcome(
@@ -172,12 +197,16 @@ class KostvGhostThumb extends StatelessWidget {
     required this.radius,
     required this.ink,
     this.height,
+    this.label,
   });
 
   final KostvGhostEpisode ghost;
   final double width;
   final double? height;
   final double radius;
+
+  /// What it says instead of the episode's number («7–8» for several).
+  final String? label;
 
   /// The colour drawn on the page's background.
   final Color ink;
@@ -197,7 +226,7 @@ class KostvGhostThumb extends StatelessWidget {
         alignment: Alignment.center,
         children: [
           Text(
-            '${ghost.number}',
+            label ?? '${ghost.number}',
             style: TextStyle(
               color: ink.withValues(alpha: 0.3),
               fontSize: height * 0.42,
@@ -277,7 +306,12 @@ class KostvGhostEpisodeCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'E${ghost.number}: ${KostvGhostTexts.title(context, ghost)}',
+                    switch (KostvGhostTexts.ownTitle(ghost)) {
+                      final title? => 'E${ghost.number}: $title',
+                      null => AppLocalizations.of(
+                        context,
+                      ).episodeLabel(ghost.number),
+                    },
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.titleSmall?.copyWith(
@@ -289,7 +323,7 @@ class KostvGhostEpisodeCard extends StatelessWidget {
                   Text(
                     upcoming
                         ? KostvGhostTexts.premiere(context, ghost.airDate)
-                        : KostvGhostTexts.note(context, ghost),
+                        : KostvGhostTexts.shortNote(context, ghost),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: theme.bodySmall?.copyWith(
@@ -530,46 +564,48 @@ Future<void> showKostvGhostSheet(
   required KostvSeriesGapsController controller,
   required KostvGhostEpisode ghost,
 }) async {
-  final compact = detailIsCompact(context) && !PlatformDetection.isTV;
-  final ask = compact
-      ? await showModalBottomSheet<bool>(
-          context: context,
-          backgroundColor: AppColorScheme.surface,
-          showDragHandle: true,
-          isScrollControlled: true,
-          shape: RoundedRectangleBorder(
-            borderRadius: AppRadius.circular(24)
-                .copyWith(bottomLeft: Radius.zero, bottomRight: Radius.zero),
-          ),
-          builder: (context) => SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-              child: _GhostSheet(
-                ghost: ghost,
-                controller: controller,
-                compact: true,
-              ),
-            ),
-          ),
+  final l10n = AppLocalizations.of(context);
+  final upcoming = ghost.state == KostvGhostState.upcoming;
+  final atLimit = controller.atLimit;
+  final asks = ghost.canAsk && !atLimit;
+  final date = ghost.airDate;
+  final ask = await _showSheet(
+    context,
+    eyebrow:
+        '${l10n.seasonNumber(ghost.season)} · '
+        '${l10n.episodeNumber(ghost.number)}',
+    title: KostvGhostTexts.title(context, ghost),
+    lines: [
+      if (upcoming)
+        (
+          Icons.event_outlined,
+          KostvGhostTexts.premiere(context, date, long: true),
+          false,
         )
-      : await showDialog<bool>(
-          context: context,
-          builder: (context) => Dialog(
-            backgroundColor: AppColorScheme.surface,
-            shape: RoundedRectangleBorder(borderRadius: AppRadius.circular(28)),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(36, 32, 36, 28),
-                child: _GhostSheet(
-                  ghost: ghost,
-                  controller: controller,
-                  compact: false,
-                ),
-              ),
-            ),
-          ),
-        );
+      else if (date != null)
+        (
+          Icons.event_outlined,
+          l10n.kostvGhostAired(KostvGhostTexts.longDate(context, date)),
+          false,
+        ),
+      if (!upcoming)
+        (
+          KostvGhostTexts.icon(ghost),
+          KostvGhostTexts.note(context, ghost),
+          false,
+        ),
+      if (ghost.canAsk && atLimit)
+        (Icons.hourglass_empty, l10n.kostvRequestLimitReached, true),
+    ],
+    action: asks
+        ? (
+            KostvGhostTexts.icon(ghost),
+            ghost.state == KostvGhostState.joinable
+                ? l10n.kostvRequestMeToo
+                : l10n.kostvGhostAskEpisode,
+          )
+        : null,
+  );
   if (ask == true && context.mounted) {
     await kostvAskMissing(
       context,
@@ -580,15 +616,111 @@ Future<void> showKostvGhostSheet(
   }
 }
 
-class _GhostSheet extends StatelessWidget {
-  const _GhostSheet({
-    required this.ghost,
-    required this.controller,
+/// Kos TV: the sheet of a season that isn't at home, with asking for it
+/// when it can be.
+Future<void> showKostvSeasonSheet(
+  BuildContext context, {
+  required KostvSeriesGapsController controller,
+  required KostvSeasonGaps season,
+}) async {
+  final l10n = AppLocalizations.of(context);
+  final ask = KostvSeasonAsk.of(context, season, controller);
+  final aired = season.missing.length;
+  final confirmed = await _showSheet(
+    context,
+    eyebrow: l10n.seasonNumber(season.number),
+    title: ask?.text ?? l10n.kostvGhostSeasonNotAtHome,
+    lines: [
+      if (season.notOnYet)
+        (
+          Icons.event_outlined,
+          KostvGhostTexts.premiere(context, season.premiere, long: true),
+          false,
+        )
+      else
+        (
+          Icons.video_library_outlined,
+          l10n.kostvSeasonEpisodeCount(aired),
+          false,
+        ),
+      if (ask?.status case final status?) (Icons.schedule, status, false),
+      if (ask?.button != null && !ask!.enabled)
+        (Icons.hourglass_empty, l10n.kostvRequestLimitReached, true),
+    ],
+    action: ask?.button != null && ask!.enabled
+        ? (Icons.playlist_add, ask.button!)
+        : null,
+  );
+  if (confirmed == true && context.mounted) {
+    await kostvAskMissing(context, controller, season: season.number);
+  }
+}
+
+/// A line of a sheet: its icon, its text and whether it's a warning.
+typedef _SheetLine = (IconData, String, bool);
+
+Future<bool?> _showSheet(
+  BuildContext context, {
+  required String eyebrow,
+  required String title,
+  required List<_SheetLine> lines,
+  required (IconData, String)? action,
+}) {
+  final compact = detailIsCompact(context) && !PlatformDetection.isTV;
+  Widget body(bool compact) => _SheetBody(
+    eyebrow: eyebrow,
+    title: title,
+    lines: lines,
+    action: action,
+    compact: compact,
+  );
+  if (compact) {
+    return showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: AppColorScheme.surface,
+      showDragHandle: true,
+      isScrollControlled: true,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppRadius.circular(24)
+            .copyWith(bottomLeft: Radius.zero, bottomRight: Radius.zero),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+          child: body(true),
+        ),
+      ),
+    );
+  }
+  return showDialog<bool>(
+    context: context,
+    builder: (context) => Dialog(
+      backgroundColor: AppColorScheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: AppRadius.circular(28)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(36, 32, 36, 28),
+          child: body(false),
+        ),
+      ),
+    ),
+  );
+}
+
+class _SheetBody extends StatelessWidget {
+  const _SheetBody({
+    required this.eyebrow,
+    required this.title,
+    required this.lines,
+    required this.action,
     required this.compact,
   });
 
-  final KostvGhostEpisode ghost;
-  final KostvSeriesGapsController controller;
+  final String eyebrow;
+  final String title;
+  final List<_SheetLine> lines;
+  final (IconData, String)? action;
   final bool compact;
 
   @override
@@ -596,65 +728,59 @@ class _GhostSheet extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     final ink = AppColorScheme.onSurface;
     final accent = AppColorScheme.accent;
-    final upcoming = ghost.state == KostvGhostState.upcoming;
-    final atLimit = controller.atLimit;
-    final asks = ghost.canAsk && !atLimit;
-    final date = ghost.airDate;
-    final eyebrow =
-        '${l10n.seasonNumber(ghost.season)} · '
-                '${l10n.episodeNumber(ghost.number)}'
-            .toUpperCase();
 
-    Widget line(IconData icon, String text, {Color? color}) => Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(top: 1),
-          child: Icon(
-            icon,
-            size: 19,
-            color: color ?? ink.withValues(alpha: 0.6),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              color: color ?? ink.withValues(alpha: 0.8),
-              fontSize: compact ? 15 : 17,
-              height: 1.3,
+    Widget line(_SheetLine line) {
+      final (icon, text, warning) = line;
+      final color = warning
+          ? AppColorScheme.statusPending
+          : ink.withValues(alpha: 0.8);
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 1),
+            child: Icon(
+              icon,
+              size: 19,
+              color: warning ? color : ink.withValues(alpha: 0.6),
             ),
           ),
-        ),
-      ],
-    );
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: color,
+                fontSize: compact ? 15 : 17,
+                height: 1.3,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
-    final buttonStyle = FilledButton.styleFrom(
-      backgroundColor: accent,
-      foregroundColor: AppColorScheme.onAccent,
-      padding: EdgeInsets.symmetric(
-        horizontal: 22,
-        vertical: compact ? 14 : 16,
-      ),
-      textStyle: TextStyle(
-        fontSize: compact ? 15 : 17,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-    final primary = asks
-        ? FilledButton.icon(
+    final action = this.action;
+    final primary = action == null
+        ? null
+        : FilledButton.icon(
             autofocus: true,
-            style: buttonStyle,
-            onPressed: () => Navigator.of(context).pop(true),
-            icon: Icon(KostvGhostTexts.icon(ghost), size: 20),
-            label: Text(
-              ghost.state == KostvGhostState.joinable
-                  ? l10n.kostvRequestMeToo
-                  : l10n.kostvGhostAskEpisode,
+            style: FilledButton.styleFrom(
+              backgroundColor: accent,
+              foregroundColor: AppColorScheme.onAccent,
+              padding: EdgeInsets.symmetric(
+                horizontal: 22,
+                vertical: compact ? 14 : 16,
+              ),
+              textStyle: TextStyle(
+                fontSize: compact ? 15 : 17,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          )
-        : null;
+            onPressed: () => Navigator.of(context).pop(true),
+            icon: Icon(action.$1, size: 20),
+            label: Text(action.$2),
+          );
     final secondary = TextButton(
       autofocus: primary == null,
       style: TextButton.styleFrom(
@@ -674,7 +800,7 @@ class _GhostSheet extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          eyebrow,
+          eyebrow.toUpperCase(),
           style: TextStyle(
             color: ink.withValues(alpha: 0.55),
             fontSize: compact ? 12 : 13,
@@ -684,7 +810,7 @@ class _GhostSheet extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          KostvGhostTexts.title(context, ghost),
+          title,
           style: TextStyle(
             color: ink,
             fontSize: compact ? 22 : 28,
@@ -693,31 +819,9 @@ class _GhostSheet extends StatelessWidget {
           ),
         ),
         SizedBox(height: compact ? 16 : 20),
-        if (upcoming)
-          line(
-            Icons.event_outlined,
-            KostvGhostTexts.premiere(context, date, long: true),
-          )
-        else if (date != null)
-          line(
-            Icons.event_outlined,
-            l10n.kostvGhostAired(KostvGhostTexts.longDate(context, date)),
-          ),
-        if (!upcoming) ...[
-          const SizedBox(height: 10),
-          line(
-            KostvGhostTexts.icon(ghost),
-            KostvGhostTexts.note(context, ghost),
-            color: asks ? null : ink.withValues(alpha: 0.8),
-          ),
-        ],
-        if (ghost.canAsk && atLimit) ...[
-          const SizedBox(height: 10),
-          line(
-            Icons.hourglass_empty,
-            l10n.kostvRequestLimitReached,
-            color: AppColorScheme.statusPending,
-          ),
+        for (final (index, entry) in lines.indexed) ...[
+          if (index > 0) const SizedBox(height: 10),
+          line(entry),
         ],
         SizedBox(height: compact ? 22 : 28),
         if (compact)

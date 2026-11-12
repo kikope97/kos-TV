@@ -32168,6 +32168,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Watch S{season}:E{episode}'**
   String kostvGapWatchOther(int season, int episode);
+
+  /// Kos TV: short line for a missing episode someone else requested.
+  ///
+  /// In en, this message translates to:
+  /// **'Someone else asked for it'**
+  String get kostvGhostAskedByOtherShort;
+
+  /// Kos TV: short line for a missing episode the person requested, not yet accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for approval'**
+  String get kostvGhostPendingShort;
+
+  /// Kos TV: short line for a missing episode whose request was accepted.
+  ///
+  /// In en, this message translates to:
+  /// **'Accepted: on its way'**
+  String get kostvGhostAcceptedShort;
+
+  /// Kos TV: short line for a missing episode being downloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Here shortly'**
+  String get kostvGhostDownloadingShort;
 }
 
 class _AppLocalizationsDelegate
