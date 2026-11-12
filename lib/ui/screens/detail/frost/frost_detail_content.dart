@@ -1027,6 +1027,8 @@ class _FrostDetailContentState extends State<FrostDetailContent>
       _Tab.episodes => area(
         top: 108,
         _scroll(
+          // Each season starts from its top.
+          key: ValueKey('season-$_shownSeason'),
           Column(
             spacing: 8,
             children: _episodeTiles(phone: false, upFromTop: upFromTop),
@@ -1067,7 +1069,8 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     ];
   }
 
-  Widget _scroll(Widget child) => SingleChildScrollView(
+  Widget _scroll(Widget child, {Key? key}) => SingleChildScrollView(
+    key: key,
     padding: const EdgeInsets.symmetric(vertical: 4),
     child: child,
   );

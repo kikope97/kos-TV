@@ -422,6 +422,38 @@ class KostvSeasonAskBar extends StatelessWidget {
     final ink = AppColorScheme.onSurface;
     final accent = AppColorScheme.accent;
     final theme = Theme.of(context).textTheme;
+    final label = Text(
+      ask.text,
+      style: theme.bodyMedium?.copyWith(color: ink.withValues(alpha: 0.75)),
+    );
+    final Widget? trailing = switch ((ask.button, ask.status)) {
+      (final String button, _) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: ask.enabled ? accent : ink.withValues(alpha: 0.1),
+          borderRadius: AppRadius.circular(16),
+        ),
+        child: Text(
+          button,
+          style: TextStyle(
+            color: ask.enabled
+                ? AppColorScheme.onAccent
+                : ink.withValues(alpha: 0.5),
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+      (null, final String status) => Text(
+        status,
+        style: theme.bodySmall?.copyWith(
+          color: ink.withValues(alpha: 0.6),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      _ => null,
+    };
+    final icon = Icon(ask.icon, size: 20, color: ink.withValues(alpha: 0.6));
     final row = Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
       decoration: BoxDecoration(
@@ -429,48 +461,39 @@ class KostvSeasonAskBar extends StatelessWidget {
         borderRadius: AppRadius.circular(10),
         border: Border.all(color: ink.withValues(alpha: 0.08)),
       ),
-      child: Row(
-        children: [
-          Icon(ask.icon, size: 20, color: ink.withValues(alpha: 0.6)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              ask.text,
-              style: theme.bodyMedium?.copyWith(
-                color: ink.withValues(alpha: 0.75),
+      // On a narrow phone the button goes under the words.
+      child: LayoutBuilder(
+        builder: (context, constraints) => constraints.maxWidth < 440
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      icon,
+                      const SizedBox(width: 10),
+                      Expanded(child: label),
+                    ],
+                  ),
+                  if (trailing != null) ...[
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 30),
+                      child: trailing,
+                    ),
+                  ],
+                ],
+              )
+            : Row(
+                children: [
+                  icon,
+                  const SizedBox(width: 10),
+                  Expanded(child: label),
+                  if (trailing != null) ...[
+                    const SizedBox(width: 10),
+                    trailing,
+                  ],
+                ],
               ),
-            ),
-          ),
-          if (ask.button case final label?) ...[
-            const SizedBox(width: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: ask.enabled ? accent : ink.withValues(alpha: 0.1),
-                borderRadius: AppRadius.circular(16),
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: ask.enabled
-                      ? AppColorScheme.onAccent
-                      : ink.withValues(alpha: 0.5),
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ] else if (ask.status case final status?) ...[
-            const SizedBox(width: 10),
-            Text(
-              status,
-              style: theme.bodySmall?.copyWith(
-                color: ink.withValues(alpha: 0.6),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ],
       ),
     );
     if (ask.button == null) return row;
