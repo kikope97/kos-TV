@@ -160,6 +160,9 @@ class MediaBarViewModel extends ChangeNotifier {
     ].map(_prefs.get),
     _prefs.get(UserPreferences.mediaBarNewReleaseBanner),
     _prefs.get(UserPreferences.mediaBarNewReleaseDays),
+    // Kos TV: the recommended Home has its own picks for the bar, and
+    // whether it is on is only known once the server plugin has answered.
+    _prefs.kostvHomeActive,
   ].join('|');
 
   void _onPrefsChanged() {
