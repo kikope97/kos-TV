@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:moonfin/data/services/stremfin/kostv_age_gate.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_client.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
 
@@ -54,6 +55,11 @@ class FakeStremfinLife {
   /// The next call answers with this error status instead.
   int? failNext;
 
+  /// Kos TV: the age the film is rated for (sent only when set) and the
+  /// person's limit (none unless set).
+  int? movieAge;
+  KostvAgeLimit? ageLimit;
+
   late final FakeStremfinAdapter adapter = FakeStremfinAdapter.withMethod(
     answer,
   );
@@ -64,6 +70,7 @@ class FakeStremfinLife {
       baseUrl: 'https://requests.example.org/api/v1',
       token: () => 'token',
     ),
+    ageLimit: ageLimit == null ? null : () async => ageLimit!,
     watchLifecycle: false,
   );
 
@@ -224,6 +231,7 @@ class FakeStremfinLife {
       'type': 'movie',
       'tmdb_id': 920,
       'title': 'Cars',
+      if (movieAge != null) 'age': movieAge,
       'year': 2006,
       'overview': 'Un coche de carreras…',
       'poster': 'https://image.tmdb.org/t/p/w342/c.jpg',

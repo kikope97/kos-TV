@@ -18569,4 +18569,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvChooseRowAppsSubtitle =>
       'In All apps, hold OK on an app to add it to Home or take it off';
+
+  @override
+  String get kostvAgeBlocked => 'Not available for your profile';
+
+  @override
+  String get kostvAgeBlockedNote =>
+      'By its recommended age, this title isn\'t available with your profile.';
 }

@@ -382,6 +382,14 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         onPressed: () => unawaited(_c.load()),
       );
     }
+    // Kos TV: not for this person by age: nothing to ask for.
+    if (_c.ageBlocked) {
+      return _Main(
+        label: l10n.kostvAgeBlocked,
+        icon: Icons.lock_outline_rounded,
+        tone: _Tone.muted,
+      );
+    }
     final movie = _movie;
     if (movie != null) return _movieMain(movie, l10n);
     return _seriesMain(_series!, l10n);
@@ -574,6 +582,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
 
   /// Whether the page offers asking for something now.
   bool get _canAsk {
+    if (_c.ageBlocked) return false;
     final movie = _movie;
     if (movie != null) {
       return _request == null && (movie.detail?.canRequest.allowed ?? false);
@@ -805,6 +814,9 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     }
     if (_c.arrivingSoon) {
       return _Note(l10n.kostvRequestArrivingSoon, icon: Icons.schedule_rounded);
+    }
+    if (_c.ageBlocked) {
+      return _Note(l10n.kostvAgeBlockedNote, icon: Icons.lock_outline_rounded);
     }
     final movie = _movie;
     final request = _request;
@@ -1984,7 +1996,8 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         ? request
         : null;
     final sendingThis = c.sending && c.sendingSeason == season.number;
-    final canAsk = season.canRequest && !c.atLimit && !c.sending;
+    final canAsk =
+        season.canRequest && !c.atLimit && !c.ageBlocked && !c.sending;
     final complete = season.status == StremfinSeasonStatus.complete;
 
     final String subtitle = switch (season.status) {
@@ -2004,7 +2017,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     if (own != null && own.status.isOpen) {
       chip = _requestMain(own, l10n);
       if (own.canWithdraw) onSelect = () => _confirmWithdraw(c, own, season);
-    } else if (season.canRequest && !c.atLimit) {
+    } else if (season.canRequest && !c.atLimit && !c.ageBlocked) {
       final joins = season.request != null && !(season.request?.mine ?? false);
       chip = _Main(
         label: joins

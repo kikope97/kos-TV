@@ -64,6 +64,9 @@ Map<String, Object?> fakeTitle(
   bool inLibrary = false,
   String? itemId,
   int? rank,
+  // Kos TV: the age it is rated for, from 1.81 (sent only with [rated]).
+  bool rated = false,
+  int? age,
 }) => {
   'type': type,
   'tmdb_id': id,
@@ -71,6 +74,9 @@ Map<String, Object?> fakeTitle(
   'year': 2026,
   'poster': 'https://image.tmdb.org/t/p/w342/$id.jpg',
   'rank': rank,
+  if (rated) 'age': age,
+  if (rated)
+    'age_rating': age == null ? null : {'label': '$age', 'country': 'ES'},
   'library': {
     'status': inLibrary ? 'available' : 'missing',
     'in_jellyfin': inLibrary,

@@ -18290,5 +18290,13 @@
   "kostvChooseRowAppsSubtitle": "In All apps, hold OK on an app to add it to Home or take it off",
   "@kostvChooseRowAppsSubtitle": {
     "description": "Kos TV settings: how the Apps row is chosen."
+  },
+  "kostvAgeBlocked": "Not available for your profile",
+  "@kostvAgeBlocked": {
+    "description": "Kos TV requests: the button of a title the person may not see by age."
+  },
+  "kostvAgeBlockedNote": "By its recommended age, this title isn't available with your profile.",
+  "@kostvAgeBlockedNote": {
+    "description": "Kos TV requests: note on the page of a title the person may not see by age."
   }
 }

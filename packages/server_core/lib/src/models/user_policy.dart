@@ -195,6 +195,14 @@ class UserPolicy {
         'PasswordResetProviderId': passwordResetProviderId,
       };
 
+  /// Kos TV: the kinds of item the user isn't shown while they carry no
+  /// rating (`Movie`, `Series`…), as the server names them.
+  Set<String> get blockUnratedItems {
+    final entries = _raw['BlockUnratedItems'];
+    if (entries is! List) return const {};
+    return {for (final entry in entries) if (entry is String) entry};
+  }
+
   /// The hours the user may use the server, empty for no limit. Read from the
   /// server's own policy, so entries this client can't read are left out.
   List<AccessSchedule> get accessSchedules {

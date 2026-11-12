@@ -4,6 +4,9 @@ import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../preference/user_preferences.dart';
+import '../../../util/parental_filter.dart';
+import '../../utils/blocked_ratings.dart';
+import 'kostv_age_gate.dart';
 import 'stremfin_client.dart';
 import 'stremfin_inbox.dart';
 import 'stremfin_models.dart';
@@ -19,9 +22,13 @@ enum StremfinAccess { unknown, allowed, denied }
 class StremfinService extends ChangeNotifier {
   StremfinService(
     this._client, {
+    Future<KostvAgeLimit> Function()? ageLimit,
+    @visibleForTesting ParentalFilter Function()? parental,
     @visibleForTesting DateTime Function()? clock,
     @visibleForTesting bool watchLifecycle = true,
-  }) : _clock = clock ?? DateTime.now {
+  }) : _readAgeLimit = ageLimit,
+       _parental = parental ?? (() => activeParentalFilter),
+       _clock = clock ?? DateTime.now {
     if (watchLifecycle) {
       _lifecycle = AppLifecycleListener(
         onResume: () => unawaited(refreshAccess()),
@@ -33,6 +40,16 @@ class StremfinService extends ChangeNotifier {
 
   final StremfinClient _client;
   final DateTime Function() _clock;
+
+  /// Kos TV: reads the person's age limit from their home server account
+  /// (null: nothing limited, as in tests).
+  final Future<KostvAgeLimit> Function()? _readAgeLimit;
+
+  /// The device's own parental control.
+  final ParentalFilter Function() _parental;
+
+  /// The person's age limit, once read; null until then.
+  KostvAgeLimit? _ageLimit;
   AppLifecycleListener? _lifecycle;
 
   /// How long a list stays fresh. The service itself keeps them for minutes
@@ -67,6 +84,26 @@ class StremfinService extends ChangeNotifier {
   final Map<String, StremfinTitle> _latest = {};
 
   bool get isConfigured => _client.isConfigured;
+
+  /// Kos TV: whether [title] may be shown to the signed-in person, by their
+  /// age limit and the device's parental control (see [kostvAgeAllows]).
+  /// Everything the service hands out goes through here: Discover, the
+  /// search and a title's page.
+  bool allows(StremfinTitle title) {
+    final limit = _readAgeLimit == null ? KostvAgeLimit.none : _ageLimit;
+    // Not read yet: nothing can be shown safely.
+    if (limit == null) return false;
+    return kostvAgeAllows(title, limit: limit, parental: _parental());
+  }
+
+  /// Whether some titles may be hidden from this person, so lists are read
+  /// longer to stay full.
+  bool get _limited =>
+      (_ageLimit != null && _ageLimit != KostvAgeLimit.none) ||
+      _parental().isActive;
+
+  /// How many titles a Discover list shows.
+  static const listShown = 20;
   StremfinAccess get access => _access;
   bool get isAllowed => _access == StremfinAccess.allowed;
 
@@ -92,6 +129,30 @@ class StremfinService extends ChangeNotifier {
   Future<void> _checkAccess() async {
     _retry?.cancel();
     if (_disposed) return;
+    // Kos TV: the person's age limit first, from their home server account.
+    // Without it nothing can be shown safely, so it counts as the service
+    // not answering; once known, a failed read keeps what was known.
+    final readAgeLimit = _readAgeLimit;
+    if (readAgeLimit != null) {
+      try {
+        final limit = await readAgeLimit();
+        if (_disposed) return;
+        if (limit != _ageLimit) {
+          _ageLimit = limit;
+          listsRevision.value++;
+          notifyListeners();
+        }
+      } catch (_) {
+        if (_disposed) return;
+        if (_ageLimit == null) {
+          if (_access == StremfinAccess.unknown) {
+            _setAccess(StremfinAccess.denied);
+          }
+          _retry = Timer(_retryDelay, () => unawaited(refreshAccess()));
+          return;
+        }
+      }
+    }
     try {
       final me = await _client.me();
       if (_disposed) return;
@@ -151,6 +212,7 @@ class StremfinService extends ChangeNotifier {
 
   void _forget() {
     final userId = _checkedFor;
+    _ageLimit = null;
     _generation++;
     _retry?.cancel();
     _lists.clear();
@@ -179,13 +241,46 @@ class StremfinService extends ChangeNotifier {
   }
 
   /// A list, from memory while it is fresh. With [refresh] it is asked again.
+  /// Only what the person may see (see [allows]), at most [listShown].
   Future<List<StremfinTitle>> top({
     required String platform,
     required StremfinTitleType type,
     required StremfinTopList list,
     bool refresh = false,
+  }) => _topRead(
+    platform: platform,
+    type: type,
+    list: list,
+    refresh: refresh,
+  ).then(_shownList);
+
+  List<StremfinTitle> _shownList(List<StremfinTitle> items) =>
+      items.where(allows).take(listShown).toList();
+
+  /// Someone who may not see everything gets longer lists, so theirs stay
+  /// full: as long as the service gives (a platform's most watched, 20).
+  int? _topLimit(String platform, StremfinTopList list) {
+    if (!_limited) return null;
+    return platform != StremfinPlatform.allId && list == StremfinTopList.popular
+        ? 20
+        : 40;
+  }
+
+  String _topKey(
+    String platform,
+    StremfinTitleType type,
+    StremfinTopList list,
+  ) =>
+      '$platform/${type.apiValue}/${list.apiValue}'
+      '/${_topLimit(platform, list) ?? ''}';
+
+  Future<List<StremfinTitle>> _topRead({
+    required String platform,
+    required StremfinTitleType type,
+    required StremfinTopList list,
+    bool refresh = false,
   }) {
-    final key = '$platform/${type.apiValue}/${list.apiValue}';
+    final key = _topKey(platform, type, list);
     final kept = _lists[key];
     if (!refresh &&
         kept != null &&
@@ -196,7 +291,12 @@ class StremfinService extends ChangeNotifier {
     if (pending != null) return pending;
     final generation = _generation;
     final future = _client
-        .top(platform: platform, type: type, list: list)
+        .top(
+          platform: platform,
+          type: type,
+          list: list,
+          limit: _topLimit(platform, list),
+        )
         .then((items) {
           if (generation == _generation) {
             _lists[key] = (at: _clock(), items: items);
@@ -232,11 +332,32 @@ class StremfinService extends ChangeNotifier {
     required String platform,
     required StremfinTitleType type,
     required StremfinTopList list,
-  }) => _lists['$platform/${type.apiValue}/${list.apiValue}']?.items;
+  }) {
+    final items = _lists[_topKey(platform, type, list)]?.items;
+    return items == null ? null : _shownList(items);
+  }
 
   /// Films and series that aren't on the home server and match [query], for
   /// the search's «Para solicitar». From memory while it is fresh.
-  Future<StremfinSearchPage> search(String query, {String? cursor}) {
+  ///
+  /// Kos TV: only what the person may see (see [allows]). A page left empty
+  /// by that reads on, a couple of pages at most, so the search doesn't
+  /// stall on a page of titles they can't see.
+  Future<StremfinSearchPage> search(String query, {String? cursor}) async {
+    var page = await _searchRead(query, cursor: cursor);
+    var items = page.items.where(allows).toList();
+    for (
+      var hops = 0;
+      items.isEmpty && page.nextCursor != null && hops < 2;
+      hops++
+    ) {
+      page = await _searchRead(query, cursor: page.nextCursor);
+      items = page.items.where(allows).toList();
+    }
+    return StremfinSearchPage(items: items, nextCursor: page.nextCursor);
+  }
+
+  Future<StremfinSearchPage> _searchRead(String query, {String? cursor}) {
     final key = '${query.toLowerCase()}|${cursor ?? ''}';
     final kept = _searches[key];
     if (kept != null && _clock().difference(kept.at) < searchLifetime) {

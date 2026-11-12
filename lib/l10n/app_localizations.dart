@@ -32000,6 +32000,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'In All apps, hold OK on an app to add it to Home or take it off'**
   String get kostvChooseRowAppsSubtitle;
+
+  /// Kos TV requests: the button of a title the person may not see by age.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available for your profile'**
+  String get kostvAgeBlocked;
+
+  /// Kos TV requests: note on the page of a title the person may not see by age.
+  ///
+  /// In en, this message translates to:
+  /// **'By its recommended age, this title isn\'t available with your profile.'**
+  String get kostvAgeBlockedNote;
 }
 
 class _AppLocalizationsDelegate

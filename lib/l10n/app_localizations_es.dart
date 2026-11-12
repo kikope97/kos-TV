@@ -18891,4 +18891,11 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvChooseRowAppsSubtitle =>
       'En «Todas las aplicaciones», mantén pulsado OK sobre una para añadirla a Inicio o quitarla';
+
+  @override
+  String get kostvAgeBlocked => 'No disponible para tu perfil';
+
+  @override
+  String get kostvAgeBlockedNote =>
+      'Por su edad recomendada, este título no está disponible con tu perfil.';
 }

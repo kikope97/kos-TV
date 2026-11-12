@@ -196,16 +196,21 @@ class StremfinClient {
     required StremfinTitleType type,
     required int tmdbId,
     int? season,
+    @visibleForTesting Duration busyPause = const Duration(milliseconds: 500),
   }) async {
-    final response = await _send(
-      'POST',
-      '/requests',
-      data: {
-        'type': type.apiValue,
-        'tmdb_id': tmdbId,
-        if (type == StremfinTitleType.series) 'season': season,
-      },
-    );
+    final data = {
+      'type': type.apiValue,
+      'tmdb_id': tmdbId,
+      if (type == StremfinTitleType.series) 'season': season,
+    };
+    var response = await _send('POST', '/requests', data: data);
+    // Kos TV: the service saves requests one at a time, and says it is busy
+    // (503 busy) when another lands in the same instant: asked again, twice
+    // at most, as it says.
+    for (var tries = 0; tries < 2 && _isBusy(response); tries++) {
+      await Future<void>.delayed(busyPause);
+      response = await _send('POST', '/requests', data: data);
+    }
     final body = response.data;
     if (body is Map && body['outcome'] is String) {
       return StremfinRequestResult.fromJson(
@@ -287,6 +292,13 @@ class StremfinClient {
       message: message,
       retryAfter: _retryAfter(response),
     );
+  }
+
+  static bool _isBusy(Response<Object?> response) {
+    if (response.statusCode != 503) return false;
+    final body = response.data;
+    final error = body is Map ? body['error'] : null;
+    return error is Map && error['code'] == 'busy';
   }
 
   static Duration? _retryAfter(Response<Object?> response) {

@@ -12748,5 +12748,13 @@
     "kostvChooseRowAppsSubtitle": "En «Todas las aplicaciones», mantén pulsado OK sobre una para añadirla a Inicio o quitarla",
     "@kostvChooseRowAppsSubtitle": {
         "description": "Kos TV settings: how the Apps row is chosen."
+    },
+    "kostvAgeBlocked": "No disponible para tu perfil",
+    "@kostvAgeBlocked": {
+        "description": "Kos TV requests: the button of a title the person may not see by age."
+    },
+    "kostvAgeBlockedNote": "Por su edad recomendada, este título no está disponible con tu perfil.",
+    "@kostvAgeBlockedNote": {
+        "description": "Kos TV requests: note on the page of a title the person may not see by age."
     }
 }

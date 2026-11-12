@@ -180,6 +180,8 @@ class StremfinTitle {
     this.request,
     this.overview,
     this.originalTitle,
+    this.age,
+    this.ageLabel,
   });
 
   final StremfinTitleType type;
@@ -206,6 +208,15 @@ class StremfinTitle {
   final String? overview;
   final String? originalTitle;
 
+  /// Kos TV: the minimum age it is for, in years (0 is for everyone), or
+  /// null when its rating isn't known (or the service is older than 1.81,
+  /// which only gave it in places).
+  final int? age;
+
+  /// Its rating as given (`12`, `PG-13`…), for the app's own parental
+  /// control.
+  final String? ageLabel;
+
   /// Shown in colour: it is on the home server.
   bool get isInLibrary => library.inLibrary;
 
@@ -229,6 +240,8 @@ class StremfinTitle {
     request: request == null ? this.request : request(),
     overview: overview,
     originalTitle: originalTitle,
+    age: age,
+    ageLabel: ageLabel,
   );
 
   static StremfinTitle? fromJson(Object? raw) {
@@ -254,6 +267,10 @@ class StremfinTitle {
       request: StremfinRequestRef.fromJson(raw['request']),
       overview: _text(raw['overview']),
       originalTitle: _text(raw['original_title']),
+      age: _int(raw['age']),
+      ageLabel: raw['age_rating'] is Map
+          ? _text((raw['age_rating'] as Map)['label'])
+          : null,
     );
   }
 }

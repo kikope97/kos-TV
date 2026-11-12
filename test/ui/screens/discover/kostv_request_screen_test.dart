@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:moonfin/data/services/stremfin/kostv_age_gate.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
@@ -217,6 +218,35 @@ void main() {
     expect(find.text('Solicitar'), findsNothing);
     expect(fake.calls, isNot(contains('GET /movies/920/availability')));
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await settle(tester);
+    expect(fake.requests, isEmpty);
+    await finish(tester);
+  });
+
+  // Kos TV: a page reached some other way (the tray, say) of a title the
+  // person may not see by age: what it is, and nothing to ask for.
+  testWidgets('phone: a film for older people, not for this profile', (
+    tester,
+  ) async {
+    fake
+      ..movieAge = 16
+      ..ageLimit = const KostvAgeLimit(maxAge: 12);
+    await open(
+      tester,
+      layout: InterfaceLayout.phone,
+      location: Destinations.kostvRequestOf('movie', 920),
+    );
+
+    expect(find.text('Cars'), findsOneWidget);
+    expect(find.text('No disponible para tu perfil'), findsOneWidget);
+    expect(
+      find.text(
+        'Por su edad recomendada, este título no está disponible con tu perfil.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Solicitar'), findsNothing);
+    await tester.tap(find.text('No disponible para tu perfil'));
     await settle(tester);
     expect(fake.requests, isEmpty);
     await finish(tester);

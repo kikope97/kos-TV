@@ -117,6 +117,15 @@ abstract class KostvRequestController extends ChangeNotifier {
   /// reached).
   bool get atLimit => service.me?.atLimit ?? false;
 
+  /// Kos TV: the person may not see this title (their age limit or the
+  /// device's parental control), so the page offers nothing to ask for. The
+  /// lists and the search leave it out; this is for a page reached some
+  /// other way.
+  bool get ageBlocked {
+    final title = this.title;
+    return title != null && !service.allows(title);
+  }
+
   /// What they ask for waits for the administrator.
   bool get needsApproval => service.me?.needsApproval ?? false;
 
@@ -224,7 +233,7 @@ abstract class KostvRequestController extends ChangeNotifier {
   /// Runs [action] as the one request being sent, and reads afresh after.
   @protected
   Future<void> sendWith(Future<void> Function() action) async {
-    if (sending) return;
+    if (sending || ageBlocked) return;
     sending = true;
     _notify();
     try {
