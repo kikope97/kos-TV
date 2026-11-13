@@ -55,8 +55,13 @@ KostvStatus kostvProgressStatus(
       );
     case StremfinProgressState.attention:
       return KostvStatus(
-        label: l10n.kostvRequestUnderReview,
-        icon: Icons.report_outlined,
+        // Kos TV: tried again on its own, nobody has to do a thing.
+        label: progress?.recheck != null
+            ? l10n.kostvRequestRetrying
+            : l10n.kostvRequestUnderReview,
+        icon: progress?.recheck != null
+            ? Icons.autorenew_rounded
+            : Icons.report_outlined,
         tone: KostvTone.pending,
       );
     case StremfinProgressState.downloading:
@@ -110,8 +115,12 @@ KostvStatus kostvTransferStatus(
       progress: 1,
     ),
     StremfinPhase.attention => KostvStatus(
-      label: l10n.kostvRequestUnderReview,
-      icon: Icons.report_outlined,
+      label: transfer.recheck != null
+          ? l10n.kostvRequestRetrying
+          : l10n.kostvRequestUnderReview,
+      icon: transfer.recheck != null
+          ? Icons.autorenew_rounded
+          : Icons.report_outlined,
       tone: KostvTone.pending,
     ),
     StremfinPhase.downloading || StremfinPhase.unknown => KostvStatus(
@@ -139,6 +148,12 @@ KostvStatus kostvRequestStatus(
     label: l10n.kostvRequestArrived,
     icon: Icons.check_circle_rounded,
     tone: KostvTone.done,
+  ),
+  // Kos TV: accepted and then cancelled (Stremfin 1.88).
+  StremfinRequestStatus.rejected when request.cancelled => KostvStatus(
+    label: l10n.kostvRequestCancelled,
+    icon: Icons.do_not_disturb_on_outlined,
+    tone: KostvTone.failed,
   ),
   StremfinRequestStatus.rejected => KostvStatus(
     label: switch (request.reason) {

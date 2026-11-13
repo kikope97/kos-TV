@@ -94,6 +94,29 @@ enum StremfinPhase {
   };
 }
 
+/// Kos TV: a download under review because the file wasn't ready, which
+/// Stremfin keeps trying on its own (since 1.90.1).
+@immutable
+class StremfinRecheck {
+  const StremfinRecheck({required this.text, this.until, this.nextAt});
+
+  /// Ready to show: «Se sigue intentando solo cada 2 h · quedan 2 días».
+  final String text;
+  final DateTime? until;
+  final DateTime? nextAt;
+
+  static StremfinRecheck? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final text = _text(raw['text']);
+    if (text == null) return null;
+    return StremfinRecheck(
+      text: text,
+      until: _date(raw['until']),
+      nextAt: _date(raw['next_at']),
+    );
+  }
+}
+
 /// How far a download (of a film, a series or one episode) has got.
 @immutable
 class StremfinTransfer {
@@ -107,6 +130,7 @@ class StremfinTransfer {
     this.etaSeconds,
     this.waitingSince,
     this.paused = false,
+    this.recheck,
   });
 
   /// Null while nothing is downloading yet.
@@ -130,6 +154,9 @@ class StremfinTransfer {
   /// The administrator paused every download.
   final bool paused;
 
+  /// Under review, but Stremfin keeps trying on its own.
+  final StremfinRecheck? recheck;
+
   static StremfinTransfer fromJson(Map<Object?, Object?> raw) =>
       StremfinTransfer(
         phase: StremfinPhase.fromApi(raw['phase']),
@@ -141,6 +168,7 @@ class StremfinTransfer {
         etaSeconds: _int(raw['eta_seconds']),
         waitingSince: _date(raw['waiting_since']),
         paused: raw['paused'] == true,
+        recheck: StremfinRecheck.fromJson(raw['recheck']),
       );
 }
 
@@ -544,6 +572,7 @@ class StremfinProgress {
     this.episodesDone,
     this.episodesTotal,
     this.episodesAttention,
+    this.episodeRecheck,
   });
 
   final StremfinProgressState state;
@@ -560,6 +589,14 @@ class StremfinProgress {
   final int? episodesTotal;
   final int? episodesAttention;
 
+  /// Of a series: an episode under review that Stremfin keeps trying on its
+  /// own (the series' own [StremfinTransfer.recheck] is always null).
+  final StremfinRecheck? episodeRecheck;
+
+  /// Under review, but being tried again on its own: no one has to do a
+  /// thing.
+  StremfinRecheck? get recheck => transfer.recheck ?? episodeRecheck;
+
   static StremfinProgress? fromJson(Object? raw) {
     if (raw is! Map) return null;
     return StremfinProgress(
@@ -569,6 +606,11 @@ class StremfinProgress {
       episodesDone: _int(raw['episodes_done']),
       episodesTotal: _int(raw['episodes_total']),
       episodesAttention: _int(raw['episodes_attention']),
+      episodeRecheck: [
+        if (raw['episodes'] case final List<dynamic> episodes)
+          for (final episode in episodes)
+            if (episode is Map) ?StremfinRecheck.fromJson(episode['recheck']),
+      ].firstOrNull,
     );
   }
 }
@@ -588,6 +630,7 @@ class StremfinRequest {
     this.statusLabel,
     this.reason,
     this.reasonLabel,
+    this.cancelled = false,
     this.direct = false,
     this.mine = false,
     this.requesters = const [],
@@ -619,6 +662,9 @@ class StremfinRequest {
   /// Why it was turned down: `quality` (no good version yet) or `later`.
   final String? reason;
   final String? reasonLabel;
+
+  /// Turned down after it had been accepted: cancelled (since 1.88.0).
+  final bool cancelled;
   final bool direct;
   final bool mine;
   final List<String> requesters;
@@ -654,6 +700,7 @@ class StremfinRequest {
       statusLabel: _text(raw['status_label']),
       reason: _text(raw['reason']),
       reasonLabel: _text(raw['reason_label']),
+      cancelled: raw['cancelled'] == true,
       direct: raw['direct'] == true,
       mine: raw['mine'] == true,
       requesters: _texts(raw['requesters']),

@@ -19387,4 +19387,17 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvOsdPrevious => 'Anterior';
+
+  @override
+  String get kostvRequestCancelled => 'Cancelada';
+
+  @override
+  String get kostvRequestCancelledNote =>
+      'Se ha cancelado: el administrador la había aceptado, pero al final no se descargará';
+
+  @override
+  String get kostvRequestRetrying => 'En revisión · se sigue intentando solo';
+
+  @override
+  String get kostvStepCancelled => 'Cancelada';
 }

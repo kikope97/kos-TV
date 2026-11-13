@@ -784,7 +784,9 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
       if (review)
         rejected != null
             ? _Step(
-                l10n.kostvStepRejected,
+                rejected.cancelled
+                    ? l10n.kostvStepCancelled
+                    : l10n.kostvStepRejected,
                 Icons.close_rounded,
                 _StepState.failed,
               )
@@ -830,11 +832,13 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     final rejected = request == null ? movie?.rejected : null;
     if (rejected != null) {
       return _Note(
-        switch (rejected.reason) {
+        rejected.cancelled
+            ? l10n.kostvRequestCancelledNote
+            : switch (rejected.reason) {
           'quality' => l10n.kostvRequestRejectedQuality,
-          'later' => l10n.kostvRequestRejectedLater,
-          _ => l10n.kostvRequestRejected,
-        },
+                'later' => l10n.kostvRequestRejectedLater,
+                _ => l10n.kostvRequestRejected,
+              },
         icon: Icons.do_not_disturb_on_outlined,
         color: _alertColor,
       );
@@ -850,6 +854,15 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
       final transfer = progress?.transfer;
       if (progress?.state == StremfinProgressState.attention ||
           transfer?.phase == StremfinPhase.attention) {
+        // Kos TV: being tried again on its own (Stremfin 1.90): its words.
+        final recheck = progress?.recheck;
+        if (recheck != null) {
+          return _Note(
+            recheck.text,
+            icon: Icons.autorenew_rounded,
+            color: _pendingColor,
+          );
+        }
         return _Note(
           l10n.kostvRequestAttention,
           icon: Icons.report_outlined,
@@ -872,6 +885,15 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         );
       }
       return null;
+    }
+    final othersRecheck = movie?.detail?.download?.transfer.recheck;
+    if ((movie?.detail?.download?.attention ?? false) &&
+        othersRecheck != null) {
+      return _Note(
+        othersRecheck.text,
+        icon: Icons.autorenew_rounded,
+        color: _pendingColor,
+      );
     }
     if (movie?.detail?.download?.attention ?? false) {
       return _Note(

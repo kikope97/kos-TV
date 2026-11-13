@@ -32762,6 +32762,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Previous'**
   String get kostvOsdPrevious;
+
+  /// Kos TV: a request the administrator cancelled after accepting it.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get kostvRequestCancelled;
+
+  /// Kos TV: note on a title's page for a cancelled request.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled: the administrator had accepted it, but it won\'t be downloaded after all'**
+  String get kostvRequestCancelledNote;
+
+  /// Kos TV: a download under review that the requests service keeps trying on its own.
+  ///
+  /// In en, this message translates to:
+  /// **'Under review · being retried on its own'**
+  String get kostvRequestRetrying;
+
+  /// Kos TV: the step of a cancelled request on a title's page.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get kostvStepCancelled;
 }
 
 class _AppLocalizationsDelegate

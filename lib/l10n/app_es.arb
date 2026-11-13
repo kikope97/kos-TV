@@ -13382,5 +13382,21 @@
     "kostvOsdPrevious": "Anterior",
     "@kostvOsdPrevious": {
         "description": "Kos TV player: go to the previous episode or chapter, in the more options panel."
+    },
+    "kostvRequestCancelled": "Cancelada",
+    "@kostvRequestCancelled": {
+        "description": "Kos TV: a request the administrator cancelled after accepting it."
+    },
+    "kostvRequestCancelledNote": "Se ha cancelado: el administrador la había aceptado, pero al final no se descargará",
+    "@kostvRequestCancelledNote": {
+        "description": "Kos TV: note on a title's page for a cancelled request."
+    },
+    "kostvRequestRetrying": "En revisión · se sigue intentando solo",
+    "@kostvRequestRetrying": {
+        "description": "Kos TV: a download under review that the requests service keeps trying on its own."
+    },
+    "kostvStepCancelled": "Cancelada",
+    "@kostvStepCancelled": {
+        "description": "Kos TV: the step of a cancelled request on a title's page."
     }
 }
