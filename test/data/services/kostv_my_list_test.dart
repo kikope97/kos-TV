@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/services/kostv_my_list.dart';
 import 'package:moonfin/preference/bottom_nav_tabs.dart';
-import 'package:moonfin/ui/widgets/bottom_nav/bottom_nav_model.dart';
 
 /// Kos TV: the person's list of what they want to watch.
 void main() {
@@ -37,19 +36,11 @@ void main() {
       expect(const BottomNavTabGates().offers(BottomNavTab.myList), isFalse);
     });
 
-    test('not pinned by default, so it is in the You menu', () {
-      expect(gates.resolvePins(''), isNot(contains(BottomNavTab.myList)));
-      final tiles = resolveHubTiles(
-        gates: gates,
-        barItems: const [],
-        isAvailable: (_) => true,
-        savedAvailable: false,
-        shuffle: false,
-        syncPlay: false,
-        quickConnect: false,
-        remoteControl: false,
-      );
-      expect(tiles, contains(const BottomNavHubTile.tab(BottomNavTab.myList)));
+    // Kos TV: with Favorites in the You menu, the list takes its place on
+    // the bar.
+    test('pinned by default, where Favorites was', () {
+      expect(gates.resolvePins(''), contains(BottomNavTab.myList));
+      expect(gates.resolvePins(''), isNot(contains(BottomNavTab.favorites)));
     });
 
     test('it can be pinned to the bar', () {
