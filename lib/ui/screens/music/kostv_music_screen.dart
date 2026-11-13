@@ -889,7 +889,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
             title: list.name,
             subtitle: list.childCount == null
                 ? null
-                : l10n.kostvMusicPlaylistSongs(list.childCount!),
+                : l10n.kostvMusicTracks(list.childCount!),
             cover: kostvMusicImageOf(list),
             onTap: () => openMusicItem(context, list),
           ),

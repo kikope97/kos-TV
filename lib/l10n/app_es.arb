@@ -13597,8 +13597,6 @@
     "@kostvMusicPlaylists": {"description": "Kos TV music."},
     "kostvMusicPlaylistsWhy": "Las de Jellyfin: créalas desde «Añadir a una lista» en cualquier canción",
     "@kostvMusicPlaylistsWhy": {"description": "Kos TV music."},
-    "kostvMusicPlaylistSongs": "{count} canciones",
-    "@kostvMusicPlaylistSongs": {"description": "Kos TV music.", "placeholders": {"count": {"type": "int"}}},
     "kostvTrayListen": "Escuchar",
     "@kostvTrayListen": {"description": "Kos TV music."},
     "kostvTrayMusicNotYet": "Aún no está en casa: Jellyfin tardará un poco en tenerlo",

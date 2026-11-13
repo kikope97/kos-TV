@@ -19740,11 +19740,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Las de Jellyfin: créalas desde «Añadir a una lista» en cualquier canción';
 
   @override
-  String kostvMusicPlaylistSongs(int count) {
-    return '$count canciones';
-  }
-
-  @override
   String get kostvTrayListen => 'Escuchar';
 
   @override

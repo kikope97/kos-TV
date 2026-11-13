@@ -19413,11 +19413,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Jellyfin\'s: make them from «Add to a playlist» on any song';
 
   @override
-  String kostvMusicPlaylistSongs(int count) {
-    return '$count songs';
-  }
-
-  @override
   String get kostvTrayListen => 'Listen';
 
   @override

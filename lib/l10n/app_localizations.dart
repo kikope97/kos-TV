@@ -33381,12 +33381,6 @@ abstract class AppLocalizations {
   /// **'Jellyfin\'s: make them from «Add to a playlist» on any song'**
   String get kostvMusicPlaylistsWhy;
 
-  /// Kos TV music.
-  ///
-  /// In en, this message translates to:
-  /// **'{count} songs'**
-  String kostvMusicPlaylistSongs(int count);
-
   /// No description provided for @kostvTrayListen.
   ///
   /// In en, this message translates to:
