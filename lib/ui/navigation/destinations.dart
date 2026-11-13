@@ -89,12 +89,27 @@ class Destinations {
   // Kos TV: what's on the streaming platforms (requests service).
   static const kostvDiscover = '/discover';
 
+  /// Kos TV: Music, the page of its own: search, charts and what goes with
+  /// what the person listens to.
+  static const kostvMusic = '/musica';
+
+  /// Kos TV: an album of Music that isn't at home, to ask for it.
+  static const kostvMusicAlbum = '/musica/album/:deezerId';
+  static String kostvMusicAlbumOf(String deezerId) =>
+      '/musica/album/${Uri.encodeComponent(deezerId)}';
+
+  /// Kos TV: an artist of Music.
+  static const kostvMusicArtist = '/musica/artista/:deezerId';
+  static String kostvMusicArtistOf(String deezerId) =>
+      '/musica/artista/${Uri.encodeComponent(deezerId)}';
+
   /// Kos TV: the pages the menu (top bar or side bar) opens: the ones it
   /// shows on its own after resting on their button.
   static const menuPages = <String>{
     home,
     search,
     kostvDiscover,
+    kostvMusic,
     allGenres,
     allFavorites,
     myList,

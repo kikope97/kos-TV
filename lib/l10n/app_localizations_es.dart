@@ -19400,4 +19400,185 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvStepCancelled => 'Cancelada';
+
+  @override
+  String get kostvMusic => 'Música';
+
+  @override
+  String get kostvMusicSearchHint => 'Artistas, canciones o álbumes';
+
+  @override
+  String get kostvMusicTopSongs => 'Top España';
+
+  @override
+  String get kostvMusicTopSongsWhy => 'Lo más escuchado ahora en España';
+
+  @override
+  String get kostvMusicTopLatino => 'Top Latino';
+
+  @override
+  String get kostvMusicChartSoldWhy => 'Lo que más se compra en España';
+
+  @override
+  String get kostvMusicTopAlbums => 'Los álbumes del momento';
+
+  @override
+  String kostvMusicTopGenre(String genre) {
+    return 'Top $genre';
+  }
+
+  @override
+  String get kostvMusicRecent => 'Escuchado hace poco';
+
+  @override
+  String get kostvMusicMixes => 'Tus mezclas';
+
+  @override
+  String get kostvMusicMixesWhy =>
+      'Canciones de casa que van con lo que más escuchas';
+
+  @override
+  String get kostvMusicMixLabel => 'Mezcla';
+
+  @override
+  String kostvMusicMoreOf(String name) {
+    return 'Más de $name';
+  }
+
+  @override
+  String kostvMusicMoreOfWhy(String name) {
+    return 'Porque escuchas a $name: lo que tienes y lo que puedes pedir';
+  }
+
+  @override
+  String get kostvMusicRequested => 'Lo más pedido en casa';
+
+  @override
+  String get kostvMusicReleases => 'Novedades de los artistas de casa';
+
+  @override
+  String get kostvMusicNewAtHome => 'Recién llegado a casa';
+
+  @override
+  String get kostvMusicArtists => 'Artistas';
+
+  @override
+  String get kostvMusicSongs => 'Canciones';
+
+  @override
+  String get kostvMusicAlbumsAtHome => 'Álbumes en casa';
+
+  @override
+  String get kostvMusicToAsk => 'Para pedir';
+
+  @override
+  String get kostvMusicToAskWhy =>
+      'No están en casa: pide el álbum y llegará solo';
+
+  @override
+  String kostvMusicNoResults(String query) {
+    return 'No hay nada de «$query»';
+  }
+
+  @override
+  String get kostvMusicAtHome => 'En casa';
+
+  @override
+  String get kostvMusicAsk => 'Pedir';
+
+  @override
+  String get kostvMusicAsked => 'Pedido';
+
+  @override
+  String get kostvMusicOnItsWay => 'De camino';
+
+  @override
+  String get kostvMusicListen => 'Escuchar 30 s';
+
+  @override
+  String get kostvMusicStop => 'Parar';
+
+  @override
+  String get kostvMusicAskAlbum => 'Pedir el álbum';
+
+  @override
+  String kostvMusicAskWholeAlbum(String song, String album) {
+    return '«$song» está en el álbum «$album»: se pide el álbum entero. Ocupa muy poco y así la música de casa crece.';
+  }
+
+  @override
+  String get kostvMusicAskAlbumWhy =>
+      'Se pide el álbum entero: ocupa muy poco y así la música de casa crece.';
+
+  @override
+  String kostvMusicSongsHave(int have, int total) {
+    return 'Tienes $have de $total canciones';
+  }
+
+  @override
+  String kostvMusicTracks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count canciones',
+      one: '1 canción',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kostvMusicMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get kostvMusicKindAlbum => 'Álbum';
+
+  @override
+  String get kostvMusicKindEp => 'EP';
+
+  @override
+  String get kostvMusicKindSingle => 'Sencillo';
+
+  @override
+  String get kostvMusicAlbumAtHome => 'Este álbum ya está en casa';
+
+  @override
+  String get kostvMusicPlayAtHome => 'Escuchar en casa';
+
+  @override
+  String get kostvMusicNotAtHomeYet => 'Aún no está en casa';
+
+  @override
+  String get kostvMusicUnavailable => 'No se ha podido cargar la música';
+
+  @override
+  String get kostvMusicCantAsk => 'Este disco no se puede pedir';
+
+  @override
+  String get kostvMusicEmptyListening =>
+      'Cuando escuches música aquí, verás tus mezclas y lo que va con tus gustos.';
+
+  @override
+  String get kostvMusicDiscography => 'Discografía';
+
+  @override
+  String get kostvMusicArtistTopSongs => 'Sus canciones más escuchadas';
+
+  @override
+  String get kostvMusicSimilar => 'Artistas parecidos';
+
+  @override
+  String kostvMusicArtistHave(int have, int total) {
+    return 'Tienes $have de $total álbumes';
+  }
+
+  @override
+  String get kostvMusicNotFoundAtHome => 'No se encuentra esa canción en casa';
+
+  @override
+  String get kostvMusicShowButton => 'Botón de Música';
+
+  @override
+  String get kostvMusicShowButtonSubtitle => 'Muestra Música en el menú';
 }

@@ -19075,4 +19075,185 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvStepCancelled => 'Cancelled';
+
+  @override
+  String get kostvMusic => 'Music';
+
+  @override
+  String get kostvMusicSearchHint => 'Artists, songs or albums';
+
+  @override
+  String get kostvMusicTopSongs => 'Top Spain';
+
+  @override
+  String get kostvMusicTopSongsWhy => 'The most played in Spain right now';
+
+  @override
+  String get kostvMusicTopLatino => 'Top Latin';
+
+  @override
+  String get kostvMusicChartSoldWhy => 'The best sellers in Spain';
+
+  @override
+  String get kostvMusicTopAlbums => 'Albums right now';
+
+  @override
+  String kostvMusicTopGenre(String genre) {
+    return 'Top $genre';
+  }
+
+  @override
+  String get kostvMusicRecent => 'Recently played';
+
+  @override
+  String get kostvMusicMixes => 'Your mixes';
+
+  @override
+  String get kostvMusicMixesWhy =>
+      'Songs at home that go with what you play most';
+
+  @override
+  String get kostvMusicMixLabel => 'Mix';
+
+  @override
+  String kostvMusicMoreOf(String name) {
+    return 'More by $name';
+  }
+
+  @override
+  String kostvMusicMoreOfWhy(String name) {
+    return 'Because you listen to $name: what you have and what you can ask for';
+  }
+
+  @override
+  String get kostvMusicRequested => 'Most requested at home';
+
+  @override
+  String get kostvMusicReleases => 'New from the house\'s artists';
+
+  @override
+  String get kostvMusicNewAtHome => 'Just arrived at home';
+
+  @override
+  String get kostvMusicArtists => 'Artists';
+
+  @override
+  String get kostvMusicSongs => 'Songs';
+
+  @override
+  String get kostvMusicAlbumsAtHome => 'Albums at home';
+
+  @override
+  String get kostvMusicToAsk => 'To ask for';
+
+  @override
+  String get kostvMusicToAskWhy =>
+      'Not at home: ask for the album and it will arrive on its own';
+
+  @override
+  String kostvMusicNoResults(String query) {
+    return 'Nothing for «$query»';
+  }
+
+  @override
+  String get kostvMusicAtHome => 'At home';
+
+  @override
+  String get kostvMusicAsk => 'Ask';
+
+  @override
+  String get kostvMusicAsked => 'Asked';
+
+  @override
+  String get kostvMusicOnItsWay => 'On its way';
+
+  @override
+  String get kostvMusicListen => 'Listen 30 s';
+
+  @override
+  String get kostvMusicStop => 'Stop';
+
+  @override
+  String get kostvMusicAskAlbum => 'Ask for the album';
+
+  @override
+  String kostvMusicAskWholeAlbum(String song, String album) {
+    return '«$song» is on the album «$album»: the whole album is asked for. It takes very little space and the home music grows.';
+  }
+
+  @override
+  String get kostvMusicAskAlbumWhy =>
+      'The whole album is asked for: it takes very little space and the home music grows.';
+
+  @override
+  String kostvMusicSongsHave(int have, int total) {
+    return 'You have $have of $total songs';
+  }
+
+  @override
+  String kostvMusicTracks(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count songs',
+      one: '1 song',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kostvMusicMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String get kostvMusicKindAlbum => 'Album';
+
+  @override
+  String get kostvMusicKindEp => 'EP';
+
+  @override
+  String get kostvMusicKindSingle => 'Single';
+
+  @override
+  String get kostvMusicAlbumAtHome => 'This album is already at home';
+
+  @override
+  String get kostvMusicPlayAtHome => 'Play at home';
+
+  @override
+  String get kostvMusicNotAtHomeYet => 'Not at home yet';
+
+  @override
+  String get kostvMusicUnavailable => 'The music couldn\'t be loaded';
+
+  @override
+  String get kostvMusicCantAsk => 'This record can\'t be asked for';
+
+  @override
+  String get kostvMusicEmptyListening =>
+      'Once you listen to music here, you\'ll see your mixes and what goes with your taste.';
+
+  @override
+  String get kostvMusicDiscography => 'Discography';
+
+  @override
+  String get kostvMusicArtistTopSongs => 'Their most played songs';
+
+  @override
+  String get kostvMusicSimilar => 'Similar artists';
+
+  @override
+  String kostvMusicArtistHave(int have, int total) {
+    return 'You have $have of $total albums';
+  }
+
+  @override
+  String get kostvMusicNotFoundAtHome => 'That song can\'t be found at home';
+
+  @override
+  String get kostvMusicShowButton => 'Music button';
+
+  @override
+  String get kostvMusicShowButtonSubtitle => 'Shows Music in the menu';
 }

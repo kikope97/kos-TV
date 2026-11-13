@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 
+part 'stremfin_music_models.dart';
 part 'stremfin_request_models.dart';
 
 /// Kos TV: what the requests service (Stremfin) answers, as far as Discover

@@ -251,6 +251,16 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
                           icon: Icons.explore_rounded,
                           onChanged: _pushPersonalizationSync,
                         ),
+                      // Kos TV: Music, the page of its own.
+                      if (!onBar.contains(BottomNavTab.kostvMusic))
+                        SwitchPreferenceTile(
+                          key: const ValueKey(BottomNavTab.kostvMusic),
+                          preference: UserPreferences.kostvShowMusicButton,
+                          title: l10n.kostvMusicShowButton,
+                          subtitle: l10n.kostvMusicShowButtonSubtitle,
+                          icon: Icons.music_note_rounded,
+                          onChanged: _pushPersonalizationSync,
+                        ),
                       if (_syncService.calendarAvailable &&
                           !onBar.contains(BottomNavTab.calendar))
                         SwitchPreferenceTile(

@@ -20,6 +20,10 @@ import '../../preference/preference_constants.dart';
 import '../../util/game_cores.dart';
 import '../../util/platform_detection.dart';
 import '../screens/apps/all_apps_screen.dart';
+import '../screens/music/kostv_music_actions.dart';
+import '../screens/music/kostv_music_album_screen.dart';
+import '../screens/music/kostv_music_artist_screen.dart';
+import '../screens/music/kostv_music_screen.dart';
 import '../screens/discover/kostv_discover_screen.dart';
 import '../screens/discover/kostv_request_screen.dart';
 import '../screens/admin/admin_nav.dart';
@@ -393,6 +397,34 @@ final appRouter = GoRouter(
     GoRoute(
       path: Destinations.kostvDiscover,
       builder: (context, state) => const KostvDiscoverScreen(),
+    ),
+    GoRoute(
+      path: Destinations.kostvMusic,
+      builder: (context, state) => const KostvMusicScreen(),
+    ),
+    GoRoute(
+      path: Destinations.kostvMusicAlbum,
+      builder: (context, state) {
+        final id = state.pathParameters['deezerId'] ?? '';
+        final seed = state.extra;
+        return KostvMusicAlbumScreen(
+          key: ValueKey('kostv-music-album-$id'),
+          deezerId: id,
+          seed: seed is KostvMusicAlbumSeed ? seed : null,
+        );
+      },
+    ),
+    GoRoute(
+      path: Destinations.kostvMusicArtist,
+      builder: (context, state) {
+        final id = state.pathParameters['deezerId'] ?? '';
+        final seed = state.extra;
+        return KostvMusicArtistScreen(
+          key: ValueKey('kostv-music-artist-$id'),
+          deezerId: id,
+          seed: seed is StremfinArtist ? seed : null,
+        );
+      },
     ),
     GoRoute(
       path: Destinations.kostvRequest,

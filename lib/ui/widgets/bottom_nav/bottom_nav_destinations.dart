@@ -19,6 +19,7 @@ String bottomNavTabLabel(AppLocalizations l10n, BottomNavTab tab) =>
     switch (tab) {
       BottomNavTab.search => l10n.search,
       BottomNavTab.kostvDiscover => l10n.kostvDiscover,
+      BottomNavTab.kostvMusic => l10n.kostvMusic,
       BottomNavTab.libraries => l10n.libraries,
       BottomNavTab.favorites => l10n.kostvMyFavorites,
       BottomNavTab.myList => l10n.kostvMyList,
@@ -85,6 +86,8 @@ Widget bottomNavTabIconWidget(
       adaptive(Icons.search_rounded, Icons.search_rounded),
     BottomNavTab.kostvDiscover =>
       adaptive(Icons.explore_rounded, Icons.explore_outlined),
+    BottomNavTab.kostvMusic =>
+      adaptive(Icons.music_note_rounded, Icons.music_note_outlined),
     BottomNavTab.libraries =>
       adaptive(Icons.video_library_rounded, Icons.video_library_outlined),
     BottomNavTab.favorites =>
@@ -151,6 +154,7 @@ void openBottomNavTab(BuildContext context, BottomNavTab tab) {
   final route = switch (tab) {
     BottomNavTab.search => Destinations.search,
     BottomNavTab.kostvDiscover => Destinations.kostvDiscover,
+    BottomNavTab.kostvMusic => Destinations.kostvMusic,
     BottomNavTab.favorites => Destinations.allFavorites,
     BottomNavTab.myList => Destinations.myList,
     BottomNavTab.genres => Destinations.allGenres,

@@ -32786,6 +32786,312 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cancelled'**
   String get kostvStepCancelled;
+
+  /// Kos TV: the Music page and its menu button.
+  ///
+  /// In en, this message translates to:
+  /// **'Music'**
+  String get kostvMusic;
+
+  /// Kos TV Music: the search field.
+  ///
+  /// In en, this message translates to:
+  /// **'Artists, songs or albums'**
+  String get kostvMusicSearchHint;
+
+  /// Kos TV Music: the chart of the most played songs in Spain.
+  ///
+  /// In en, this message translates to:
+  /// **'Top Spain'**
+  String get kostvMusicTopSongs;
+
+  /// Kos TV Music: line under the top songs.
+  ///
+  /// In en, this message translates to:
+  /// **'The most played in Spain right now'**
+  String get kostvMusicTopSongsWhy;
+
+  /// Kos TV Music: the Latin chart.
+  ///
+  /// In en, this message translates to:
+  /// **'Top Latin'**
+  String get kostvMusicTopLatino;
+
+  /// Kos TV Music: line under a genre chart (Apple publishes the best sellers by genre).
+  ///
+  /// In en, this message translates to:
+  /// **'The best sellers in Spain'**
+  String get kostvMusicChartSoldWhy;
+
+  /// Kos TV Music: the top albums chart.
+  ///
+  /// In en, this message translates to:
+  /// **'Albums right now'**
+  String get kostvMusicTopAlbums;
+
+  /// Kos TV Music: the chart of the person's favourite genre.
+  ///
+  /// In en, this message translates to:
+  /// **'Top {genre}'**
+  String kostvMusicTopGenre(String genre);
+
+  /// Kos TV Music: albums played lately.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently played'**
+  String get kostvMusicRecent;
+
+  /// Kos TV Music: mixes of the person's artists.
+  ///
+  /// In en, this message translates to:
+  /// **'Your mixes'**
+  String get kostvMusicMixes;
+
+  /// Kos TV Music: line under the mixes.
+  ///
+  /// In en, this message translates to:
+  /// **'Songs at home that go with what you play most'**
+  String get kostvMusicMixesWhy;
+
+  /// Kos TV Music: small label on a mix tile.
+  ///
+  /// In en, this message translates to:
+  /// **'Mix'**
+  String get kostvMusicMixLabel;
+
+  /// Kos TV Music: an artist the person listens to: their records, at home or to ask for.
+  ///
+  /// In en, this message translates to:
+  /// **'More by {name}'**
+  String kostvMusicMoreOf(String name);
+
+  /// Kos TV Music: line under «Más de».
+  ///
+  /// In en, this message translates to:
+  /// **'Because you listen to {name}: what you have and what you can ask for'**
+  String kostvMusicMoreOfWhy(String name);
+
+  /// Kos TV Music: what the house asked for most.
+  ///
+  /// In en, this message translates to:
+  /// **'Most requested at home'**
+  String get kostvMusicRequested;
+
+  /// Kos TV Music: releases of the artists the house follows.
+  ///
+  /// In en, this message translates to:
+  /// **'New from the house\'s artists'**
+  String get kostvMusicReleases;
+
+  /// Kos TV Music: albums added to the home server lately.
+  ///
+  /// In en, this message translates to:
+  /// **'Just arrived at home'**
+  String get kostvMusicNewAtHome;
+
+  /// Kos TV Music: search results.
+  ///
+  /// In en, this message translates to:
+  /// **'Artists'**
+  String get kostvMusicArtists;
+
+  /// Kos TV Music: search results.
+  ///
+  /// In en, this message translates to:
+  /// **'Songs'**
+  String get kostvMusicSongs;
+
+  /// Kos TV Music: search results.
+  ///
+  /// In en, this message translates to:
+  /// **'Albums at home'**
+  String get kostvMusicAlbumsAtHome;
+
+  /// Kos TV Music: search results that aren't at home.
+  ///
+  /// In en, this message translates to:
+  /// **'To ask for'**
+  String get kostvMusicToAsk;
+
+  /// Kos TV Music: line under the results to ask for.
+  ///
+  /// In en, this message translates to:
+  /// **'Not at home: ask for the album and it will arrive on its own'**
+  String get kostvMusicToAskWhy;
+
+  /// Kos TV Music: a search with no results.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing for «{query}»'**
+  String kostvMusicNoResults(String query);
+
+  /// Kos TV Music: badge of what the home server has.
+  ///
+  /// In en, this message translates to:
+  /// **'At home'**
+  String get kostvMusicAtHome;
+
+  /// Kos TV Music: badge of what can be asked for.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask'**
+  String get kostvMusicAsk;
+
+  /// Kos TV Music: badge of what the person asked for.
+  ///
+  /// In en, this message translates to:
+  /// **'Asked'**
+  String get kostvMusicAsked;
+
+  /// Kos TV Music: badge of an album being downloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'On its way'**
+  String get kostvMusicOnItsWay;
+
+  /// Kos TV Music: play a song's preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen 30 s'**
+  String get kostvMusicListen;
+
+  /// Kos TV Music: stop a song's preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get kostvMusicStop;
+
+  /// Kos TV Music: the button of an album's page.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask for the album'**
+  String get kostvMusicAskAlbum;
+
+  /// Kos TV Music: why the whole album is asked for a song.
+  ///
+  /// In en, this message translates to:
+  /// **'«{song}» is on the album «{album}»: the whole album is asked for. It takes very little space and the home music grows.'**
+  String kostvMusicAskWholeAlbum(String song, String album);
+
+  /// Kos TV Music: note on an album's page.
+  ///
+  /// In en, this message translates to:
+  /// **'The whole album is asked for: it takes very little space and the home music grows.'**
+  String get kostvMusicAskAlbumWhy;
+
+  /// Kos TV Music: how much of an album is at home.
+  ///
+  /// In en, this message translates to:
+  /// **'You have {have} of {total} songs'**
+  String kostvMusicSongsHave(int have, int total);
+
+  /// Kos TV Music: how many songs an album has.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 song} other{{count} songs}}'**
+  String kostvMusicTracks(int count);
+
+  /// Kos TV Music: an album's length.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String kostvMusicMinutes(int minutes);
+
+  /// Kos TV Music: a record's kind.
+  ///
+  /// In en, this message translates to:
+  /// **'Album'**
+  String get kostvMusicKindAlbum;
+
+  /// Kos TV Music: a record's kind.
+  ///
+  /// In en, this message translates to:
+  /// **'EP'**
+  String get kostvMusicKindEp;
+
+  /// Kos TV Music: a record's kind.
+  ///
+  /// In en, this message translates to:
+  /// **'Single'**
+  String get kostvMusicKindSingle;
+
+  /// Kos TV Music: an album's page when it is at home.
+  ///
+  /// In en, this message translates to:
+  /// **'This album is already at home'**
+  String get kostvMusicAlbumAtHome;
+
+  /// Kos TV Music: open an album that is at home.
+  ///
+  /// In en, this message translates to:
+  /// **'Play at home'**
+  String get kostvMusicPlayAtHome;
+
+  /// Kos TV Music: badge on an album's page.
+  ///
+  /// In en, this message translates to:
+  /// **'Not at home yet'**
+  String get kostvMusicNotAtHomeYet;
+
+  /// Kos TV Music: loading failed.
+  ///
+  /// In en, this message translates to:
+  /// **'The music couldn\'t be loaded'**
+  String get kostvMusicUnavailable;
+
+  /// Kos TV Music: no Deezer id.
+  ///
+  /// In en, this message translates to:
+  /// **'This record can\'t be asked for'**
+  String get kostvMusicCantAsk;
+
+  /// Kos TV Music: no listening history yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Once you listen to music here, you\'ll see your mixes and what goes with your taste.'**
+  String get kostvMusicEmptyListening;
+
+  /// Kos TV Music: an artist's records.
+  ///
+  /// In en, this message translates to:
+  /// **'Discography'**
+  String get kostvMusicDiscography;
+
+  /// Kos TV Music: an artist's top songs.
+  ///
+  /// In en, this message translates to:
+  /// **'Their most played songs'**
+  String get kostvMusicArtistTopSongs;
+
+  /// Kos TV Music: similar artists.
+  ///
+  /// In en, this message translates to:
+  /// **'Similar artists'**
+  String get kostvMusicSimilar;
+
+  /// Kos TV Music: how many of an artist's albums are at home.
+  ///
+  /// In en, this message translates to:
+  /// **'You have {have} of {total} albums'**
+  String kostvMusicArtistHave(int have, int total);
+
+  /// Kos TV Music: a chart's song said to be at home but not found.
+  ///
+  /// In en, this message translates to:
+  /// **'That song can\'t be found at home'**
+  String get kostvMusicNotFoundAtHome;
+
+  /// Kos TV: settings switch for the Music menu button.
+  ///
+  /// In en, this message translates to:
+  /// **'Music button'**
+  String get kostvMusicShowButton;
+
+  /// Kos TV: settings switch subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows Music in the menu'**
+  String get kostvMusicShowButtonSubtitle;
 }
 
 class _AppLocalizationsDelegate

@@ -225,6 +225,113 @@ class StremfinClient {
     throw _failure(response);
   }
 
+  // ------------------------------------------------------------ Kos TV: music
+
+  /// The charts there are (Apple's, for Spain).
+  Future<List<StremfinChart>> musicCharts() async {
+    final body = await _get('/music/charts');
+    final raw = body is Map ? body['charts'] : null;
+    return [
+      if (raw is List)
+        for (final entry in raw) ?StremfinChart.fromJson(entry),
+    ];
+  }
+
+  /// One chart's places, up to [limit].
+  Future<StremfinChartPage> musicChart(String id, {int? limit}) async {
+    final page = StremfinChartPage.fromJson(
+      await _get('/music/charts/$id', {'limit': ?limit}),
+    );
+    if (page == null) throw const StremfinException(code: 'bad_response');
+    return page;
+  }
+
+  /// Music matching [query]: artists, songs and albums, both what the home
+  /// server has and what it hasn't (unless [only] says `missing` or
+  /// `available`).
+  Future<StremfinMusicSearch> musicSearch(
+    String query, {
+    String only = 'all',
+    int? limit,
+    String? cursor,
+  }) async => StremfinMusicSearch.fromJson(
+    await _get('/music/search', {
+      'q': query,
+      'only': only,
+      'limit': ?limit,
+      'cursor': ?cursor,
+    }),
+  );
+
+  /// An album's page, with its songs.
+  Future<StremfinAlbumDetail> musicAlbum(String deezerId) async {
+    final detail = StremfinAlbumDetail.fromJson(
+      await _get('/music/albums/$deezerId'),
+    );
+    if (detail == null) throw const StremfinException(code: 'bad_response');
+    return detail;
+  }
+
+  /// A song's page: the album to ask for to have it.
+  Future<StremfinSongDetail> musicSong(String deezerId) async {
+    final detail = StremfinSongDetail.fromJson(
+      await _get('/music/songs/$deezerId'),
+    );
+    if (detail == null) throw const StremfinException(code: 'bad_response');
+    return detail;
+  }
+
+  /// An artist's page: their albums, best songs and similar artists.
+  Future<StremfinArtistDetail> musicArtist(String deezerId) async {
+    final detail = StremfinArtistDetail.fromJson(
+      await _get('/music/artists/$deezerId', {'kind': 'album'}),
+    );
+    if (detail == null) throw const StremfinException(code: 'bad_response');
+    return detail;
+  }
+
+  /// What the house asked for most lately.
+  Future<List<StremfinAlbum>> musicRequested({int? limit}) =>
+      _albums('/music/requested', {'limit': ?limit});
+
+  /// The latest records of the artists the house follows.
+  Future<List<StremfinAlbum>> musicReleases() => _albums('/music/releases');
+
+  Future<List<StremfinAlbum>> _albums(
+    String path, [
+    Map<String, Object?>? query,
+  ]) async {
+    final body = await _get(path, query);
+    final raw = body is Map ? body['items'] : null;
+    return [
+      if (raw is List)
+        for (final entry in raw) ?StremfinAlbum.fromJson(entry),
+    ];
+  }
+
+  /// Asks for an album, EP or single by its Deezer id. A single whose song
+  /// is in an album gets the whole album asked for instead (the house's
+  /// rule), and the result says so in its message.
+  Future<StremfinRequestResult> createMusicRequest(
+    String deezerId, {
+    @visibleForTesting Duration busyPause = const Duration(milliseconds: 500),
+  }) async {
+    final data = {'type': 'music', 'deezer_id': deezerId};
+    var response = await _send('POST', '/requests', data: data);
+    for (var tries = 0; tries < 2 && _isBusy(response); tries++) {
+      await Future<void>.delayed(busyPause);
+      response = await _send('POST', '/requests', data: data);
+    }
+    final body = response.data;
+    if (body is Map && body['outcome'] is String) {
+      return StremfinRequestResult.fromJson(
+        body,
+        retryAfter: _retryAfter(response),
+      );
+    }
+    throw _failure(response);
+  }
+
   /// A title's trailers, the best first: dubbed into Spain's Spanish, then
   /// other Spanish, then subtitled, then English. Empty when it has none.
   Future<List<StremfinTrailer>> trailers(

@@ -2013,6 +2013,12 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: true,
   );
 
+  /// Kos TV: Music, the page of its own, in the menu (on by default).
+  static final kostvShowMusicButton = Preference(
+    key: 'kostv_show_music_button',
+    defaultValue: true,
+  );
+
   /// Kos TV: off on a TV, where hardly anyone downloads.
   static final showDownloadsButton = Preference(
     key: 'pref_show_downloads_button',

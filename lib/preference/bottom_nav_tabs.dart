@@ -8,6 +8,9 @@ enum BottomNavTab {
 
   /// Kos TV: what's on the streaming platforms (the requests service).
   kostvDiscover,
+
+  /// Kos TV: Music, the page of its own.
+  kostvMusic,
   libraries,
   favorites,
 
@@ -26,6 +29,7 @@ const int kMaxPinnedBottomNavTabs = 3;
 const List<BottomNavTab> _autoOrder = [
   BottomNavTab.search,
   BottomNavTab.kostvDiscover,
+  BottomNavTab.kostvMusic,
   BottomNavTab.libraries,
   BottomNavTab.myList,
   BottomNavTab.liveTv,
@@ -79,6 +83,9 @@ class BottomNavTabGates {
   /// Kos TV: whether the server plugin keeps lists.
   final bool kostvMyListAvailable;
 
+  /// Kos TV: the Music switch.
+  final bool showKostvMusic;
+
   const BottomNavTabGates({
     this.kidsMode = false,
     this.showLibraries = true,
@@ -90,6 +97,7 @@ class BottomNavTabGates {
     this.showKostvDiscover = true,
     this.kostvDiscoverAvailable = false,
     this.kostvMyListAvailable = false,
+    this.showKostvMusic = true,
   });
 
   factory BottomNavTabGates.fromPreferences(
@@ -108,6 +116,7 @@ class BottomNavTabGates {
       showKostvDiscover: prefs.get(UserPreferences.showDiscoverButton),
       kostvDiscoverAvailable: kostvDiscoverAvailable,
       kostvMyListAvailable: prefs.get(UserPreferences.kostvMyListAvailable),
+      showKostvMusic: prefs.get(UserPreferences.kostvShowMusicButton),
     );
   }
 
@@ -121,6 +130,7 @@ class BottomNavTabGates {
         BottomNavTab.search => true,
         BottomNavTab.kostvDiscover =>
           !kidsMode && showKostvDiscover && kostvDiscoverAvailable,
+        BottomNavTab.kostvMusic => showKostvMusic,
         BottomNavTab.libraries => !kidsMode && showLibraries,
         // Kos TV: always there, in the You hub (with «Mi lista» on the bar
         // a Favorites tab too would only confuse).

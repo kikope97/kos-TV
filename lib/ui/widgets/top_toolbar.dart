@@ -1290,6 +1290,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
         showApps,
         kidsMode,
         _prefs.get(UserPreferences.kostvMyListAvailable),
+        _prefs.get(UserPreferences.kostvShowMusicButton),
         showKostvDiscoverButton(_prefs, kidsMode: kidsMode),
         navLibraries.length,
         l10n.localeName,
@@ -1402,6 +1403,27 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                       if (_enterShownPage(Destinations.myList)) return;
                       if (_isActive(Destinations.myList)) return;
                       context.navigateTopLevel(Destinations.myList);
+                    },
+                  ),
+                ),
+              ],
+              // Kos TV: Music, the page of its own.
+              if (_prefs.get(UserPreferences.kostvShowMusicButton)) ...[
+                _gap(),
+                _orderButton(
+                  order: (order++).toDouble(),
+                  child: ExpandableIconButton(
+                    key: const ValueKey('toolbar_music'),
+                    focusNode: _menuNode(Destinations.kostvMusic),
+                    onFocusChanged: (f) => _restOn(Destinations.kostvMusic, f),
+                    forceExpanded: alwaysExpanded,
+                    icon: Icons.music_note_rounded,
+                    label: l10n.kostvMusic,
+                    baseColor: nextNavColor(),
+                    onPressed: () {
+                      if (_enterShownPage(Destinations.kostvMusic)) return;
+                      if (_isActive(Destinations.kostvMusic)) return;
+                      context.navigateTopLevel(Destinations.kostvMusic);
                     },
                   ),
                 ),

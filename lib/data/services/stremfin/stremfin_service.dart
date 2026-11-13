@@ -404,6 +404,66 @@ class StremfinService extends ChangeNotifier {
     return detail;
   }
 
+  // ------------------------------------------------------------ Kos TV: music
+
+  List<StremfinChart>? _charts;
+  final Map<String, ({DateTime at, StremfinChartPage page})> _chartPages = {};
+
+  /// How long a chart is kept here: the service refreshes them every few
+  /// hours.
+  static const _chartFor = Duration(minutes: 30);
+
+  /// The charts there are; their list doesn't change, so it is kept.
+  Future<List<StremfinChart>> musicCharts() async =>
+      _charts ??= await _client.musicCharts();
+
+  /// One chart's places, kept for half an hour.
+  Future<StremfinChartPage> musicChart(String id, {bool fresh = false}) async {
+    final kept = _chartPages[id];
+    if (!fresh &&
+        kept != null &&
+        DateTime.now().difference(kept.at) < _chartFor) {
+      return kept.page;
+    }
+    final page = await _client.musicChart(id);
+    _chartPages[id] = (at: DateTime.now(), page: page);
+    return page;
+  }
+
+  /// Music matching [query]: what the home server has and what it hasn't.
+  Future<StremfinMusicSearch> musicSearch(String query) =>
+      _client.musicSearch(query, limit: 30);
+
+  Future<StremfinAlbumDetail> musicAlbum(String deezerId) =>
+      _client.musicAlbum(deezerId);
+
+  Future<StremfinSongDetail> musicSong(String deezerId) =>
+      _client.musicSong(deezerId);
+
+  Future<StremfinArtistDetail> musicArtist(String deezerId) =>
+      _client.musicArtist(deezerId);
+
+  /// What the house asked for most lately.
+  Future<List<StremfinAlbum>> musicRequested() =>
+      _client.musicRequested(limit: 20);
+
+  /// The latest records of the artists the house follows.
+  Future<List<StremfinAlbum>> musicReleases() => _client.musicReleases();
+
+  /// Asks for an album (a single's whole album, when it has one). The
+  /// charts kept here are forgotten, since what they say of it changes.
+  Future<StremfinRequestResult> createMusicRequest(String deezerId) async {
+    try {
+      final result = await _client.createMusicRequest(deezerId);
+      final made = result.request;
+      if (made != null) inbox.note(made, seen: true);
+      _chartPages.clear();
+      return result;
+    } finally {
+      unawaited(refreshAccess());
+    }
+  }
+
   /// Whether a film can be downloaded now and how fast.
   Future<StremfinAvailability> movieAvailability(int tmdbId) =>
       _client.movieAvailability(tmdbId);

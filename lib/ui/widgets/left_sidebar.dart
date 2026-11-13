@@ -1270,6 +1270,26 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                       context.navigateTopLevel(Destinations.myList);
                     },
                   ),
+                // Kos TV: Music, the page of its own.
+                if (_prefs.get(UserPreferences.kostvShowMusicButton))
+                  _SidebarItem(
+                    key: const ValueKey('sidebar-music'),
+                    focusNode: _menuNode(Destinations.kostvMusic),
+                    icon: Icons.music_note_rounded,
+                    label: l10n.kostvMusic,
+                    baseColor: nextMainSidebarColor(),
+                    showLabel: _showLabels,
+                    onPressed: () {
+                      _onNavigate();
+                      if (_enterShownPage(Destinations.kostvMusic)) return;
+                      if (_isActive(Destinations.kostvMusic)) {
+                        _exitSidebarToContent();
+                        return;
+                      }
+                      _markNavigationAwayFromSidebar();
+                      context.navigateTopLevel(Destinations.kostvMusic);
+                    },
+                  ),
                 if (showLiveTv)
                   _SidebarItem(
                     key: const ValueKey('sidebar-livetv'),
