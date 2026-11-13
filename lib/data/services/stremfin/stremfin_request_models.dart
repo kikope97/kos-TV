@@ -623,6 +623,9 @@ class StremfinRequest {
     required this.status,
     this.type,
     this.tmdbId,
+    this.isMusic = false,
+    this.deezerId,
+    this.artist,
     this.title,
     this.displayTitle,
     this.season,
@@ -648,6 +651,12 @@ class StremfinRequest {
   final StremfinRequestStatus status;
   final StremfinTitleType? type;
   final int? tmdbId;
+
+  /// Kos TV: an album, EP or single (`type: music`), with its Deezer id and
+  /// its artist.
+  final bool isMusic;
+  final String? deezerId;
+  final String? artist;
   final String? title;
 
   /// Ready to show: «Dune (2021)», «Severance · Temporada 2».
@@ -693,6 +702,9 @@ class StremfinRequest {
       status: status,
       type: StremfinTitleType.fromApi(raw['type']),
       tmdbId: _int(raw['tmdb_id']),
+      isMusic: raw['type'] == 'music',
+      deezerId: raw['deezer_id']?.toString(),
+      artist: _text(raw['artist']),
       title: _text(raw['title']),
       displayTitle: _text(raw['display_title']),
       season: _int(raw['season']),

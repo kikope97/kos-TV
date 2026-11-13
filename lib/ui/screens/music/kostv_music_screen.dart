@@ -64,6 +64,10 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   StremfinRecommendations? _forYou;
   List<StremfinAlbum> _yourNews = const [];
   List<AggregatedItem> _recent = const [];
+
+  /// The person's ♥ songs and playlists, Jellyfin's own.
+  List<AggregatedItem> _favorites = const [];
+  List<AggregatedItem> _playlists = const [];
   List<AggregatedItem> _newAtHome = const [];
   KostvMusicTaste _taste = const KostvMusicTaste();
   ({String name, List<StremfinAlbum> albums})? _moreOf;
@@ -109,8 +113,34 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     return stremfin.isAllowed ? stremfin : null;
   }
 
-  /// Loads every part on its own, each shown as soon as it is there.
+  /// The requests service as it is, without asking whether the person may
+  /// use it: for what it answered last time, which needs no call.
+  StremfinService? _rememberedStremfin() {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<StremfinService>()) return null;
+    final stremfin = getIt<StremfinService>();
+    return stremfin.isConfigured ? stremfin : null;
+  }
+
+  /// The parts that came from the service just now: what it answered last
+  /// time no longer replaces them.
+  final _fresh = <String>{};
+
+  late final Future<KostvMusicTaste> _tasteLoad = _music.taste();
+
+  /// Loads every part on its own, each shown as soon as it is there: first
+  /// what the service answered last time, kept on the device (the page opens
+  /// at once with it), then its answer now, which replaces it.
   Future<void> _load() async {
+    final remembered = _rememberedStremfin();
+    if (remembered != null) {
+      unawaited(_loadStremfin(remembered, remembered: true));
+    }
+    final stremfin = _stremfin = await _allowedStremfin();
+    if (stremfin == null && mounted) {
+      // Not allowed any more: nothing of what it said last time stays.
+      setState(_forgetStremfin);
+    }
     Future<void> part(Future<void> Function() load) async {
       try {
         await load();
@@ -120,89 +150,157 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       if (mounted) setState(() {});
     }
 
-    final stremfin = _stremfin = await _allowedStremfin();
     await Future.wait([
-      if (stremfin != null) ...[
-        part(() async => _topSongs = await stremfin.musicChart('top-songs')),
-        part(() async => _latino = await stremfin.musicChart('latino-songs')),
-        part(() async => _topAlbums = await stremfin.musicChart('top-albums')),
-        part(() async => _requested = await stremfin.musicRequested()),
-        part(
-          () async =>
-              _mexico = await stremfin.musicChart('top-songs', country: 'MX'),
-        ),
-        part(
-          () async => _unitedStates = await stremfin.musicChart(
-            'top-songs',
-            country: 'US',
-          ),
-        ),
-        part(() async => _releases = await stremfin.musicReleases()),
-      ],
+      if (stremfin != null) _loadStremfin(stremfin, remembered: false),
       part(() async => _recent = await _music.recentAlbums()),
+      part(() async => _favorites = await _music.favoriteSongs()),
+      part(() async => _playlists = await _music.playlists()),
       part(() async => _newAtHome = await _music.newAlbums()),
-      part(() async {
-        _taste = await _music.taste();
-        await _loadForTaste(stremfin);
-      }),
+      part(() async => _taste = await _tasteLoad),
     ]);
     if (mounted) setState(() => _loading = false);
   }
 
-  /// What depends on the person's taste: the chart of their genre and more
-  /// of the artist they listen to most.
-  Future<void> _loadForTaste(StremfinService? stremfin) async {
-    if (stremfin == null) return;
-    final genre = _taste.chartGenre;
-    final loads = <Future<void>>[
-      if (genre != null && genre != 'latino')
-        () async {
-          try {
-            _genreChart = await stremfin.musicChart('$genre-songs');
-          } catch (_) {
-            _genreChart = null;
-          }
-        }(),
-    ];
-    final artist = _taste.artists.firstOrNull;
-    if (artist != null) {
-      loads.add(
-        () async {
-          final found = await stremfin.musicSearch(artist.name);
-          final match = found.artists.firstOrNull;
-          if (match == null) return;
-          final detail = await stremfin.musicArtist(match.deezerId);
-          if (detail.albums.isNotEmpty) {
-            _moreOf = (name: detail.artist.name, albums: detail.albums);
-          }
-        }().catchError((Object _) {}),
-      );
+  void _forgetStremfin() {
+    _topSongs = _latino = _topAlbums = _genreChart = null;
+    _mexico = _unitedStates = null;
+    _forYou = null;
+    _moreOf = null;
+    _yourNews = _requested = _releases = const [];
+  }
+
+  /// The service's parts, now or as it answered last time ([remembered]).
+  Future<void> _loadStremfin(
+    StremfinService stremfin, {
+    required bool remembered,
+  }) async {
+    Future<void> part(
+      String name,
+      Future<void Function()> Function() load,
+    ) async {
+      try {
+        final apply = await load();
+        if (remembered) {
+          if (_fresh.contains(name)) return;
+        } else {
+          _fresh.add(name);
+        }
+        if (mounted) setState(apply);
+      } catch (e) {
+        if (!remembered) debugPrint('[Music] $name failed: $e');
+      }
     }
-    // «Para ti»: what goes with the artists and genres the person listens
-    // to most, and then what is new of those artists.
-    final artists = [for (final a in _taste.artists.take(6)) a.name];
-    if (artists.isNotEmpty) {
-      loads.add(
+
+    Future<StremfinChartPage> chart(String id, {String? country}) =>
+        stremfin.musicChart(id, country: country, remembered: remembered);
+
+    await Future.wait([
+      part('top', () async {
+        final page = await chart('top-songs');
+        return () => _topSongs = page;
+      }),
+      part('latino', () async {
+        final page = await chart('latino-songs');
+        return () => _latino = page;
+      }),
+      part('albums', () async {
+        final page = await chart('top-albums');
+        return () => _topAlbums = page;
+      }),
+      part('requested', () async {
+        final found = await stremfin.musicRequested(remembered: remembered);
+        return () => _requested = found;
+      }),
+      part('mexico', () async {
+        final page = await chart('top-songs', country: 'MX');
+        return () => _mexico = page;
+      }),
+      part('usa', () async {
+        final page = await chart('top-songs', country: 'US');
+        return () => _unitedStates = page;
+      }),
+      part('releases', () async {
+        final found = await stremfin.musicReleases(remembered: remembered);
+        return () => _releases = found;
+      }),
+      () async {
+        final taste = await _tasteLoad.catchError(
+          (Object _) => const KostvMusicTaste(),
+        );
+        await _loadForTaste(stremfin, taste, part, remembered);
+      }(),
+    ]);
+  }
+
+  /// What depends on the person's taste: the chart of their genre, more of
+  /// the artist they listen to most, «Para ti» and their artists' news.
+  Future<void> _loadForTaste(
+    StremfinService stremfin,
+    KostvMusicTaste taste,
+    Future<void> Function(String, Future<void Function()> Function()) part,
+    bool remembered,
+  ) async {
+    final genre = taste.chartGenre;
+    final artist = taste.artists.firstOrNull;
+    final artists = [for (final a in taste.artists.take(6)) a.name];
+    await Future.wait([
+      if (genre != null && genre != 'latino')
+        part('genre', () async {
+          final page = await stremfin.musicChart(
+            '$genre-songs',
+            remembered: remembered,
+          );
+          return () => _genreChart = page;
+        }),
+      if (artist != null)
+        part('more-of', () async {
+          final found = await stremfin.musicSearch(
+            artist.name,
+            keep: true,
+            remembered: remembered,
+          );
+          final match = found.artists.firstOrNull;
+          if (match == null) return () {};
+          final detail = await stremfin.musicArtist(
+            match.deezerId,
+            remembered: remembered,
+          );
+          return () => _moreOf = detail.albums.isEmpty
+              ? null
+              : (name: detail.artist.name, albums: detail.albums);
+        }),
+      // «Para ti»: what goes with the artists and genres the person listens
+      // to most, and then what is new of those artists.
+      if (artists.isNotEmpty)
         () async {
           final genres = <String>{
-            for (final g in _taste.genres) ?kostvChartGenreOf(g),
+            for (final g in taste.genres) ?kostvChartGenreOf(g),
           }.take(3).toList();
-          final found = await stremfin.musicRecommendations(
-            artists,
-            genres: genres,
-          );
-          _forYou = found;
-          if (mounted) setState(() {});
-          final ids = [for (final seed in found.seeds) ?seed.deezerId];
-          if (ids.isNotEmpty) {
-            _yourNews = await stremfin.musicArtistReleases(ids);
-          }
-        }().catchError((Object e) {
-          debugPrint('[Music] For you failed: $e');
-        }),
-      );
-    }
-    await Future.wait(loads);
+          StremfinRecommendations? found;
+          await part('for-you', () async {
+            final answer = await stremfin.musicRecommendations(
+              artists,
+              genres: genres,
+              remembered: remembered,
+            );
+            found = answer;
+            return () => _forYou = answer;
+          });
+          final ids = <String>[
+            for (final seed
+                in found?.seeds ?? const <({String name, String? deezerId})>[])
+              ?seed.deezerId,
+          ];
+          if (ids.isEmpty) return;
+          await part('your-news', () async {
+            final news = await stremfin.musicArtistReleases(
+              ids,
+              remembered: remembered,
+            );
+            return () => _yourNews = news;
+          });
+        }(),
+    ]);
   }
 
   // ---------------------------------------------------------------- search
@@ -383,6 +481,25 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           constraints: const BoxConstraints(maxWidth: 900),
           child: _searchField(context),
         ),
+        // With the remote the songs' menu is hidden behind a long press: it
+        // is said once, quietly.
+        if (PlatformDetection.isTV) ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const Icon(
+                Icons.touch_app_rounded,
+                size: 18,
+                color: kostvMusicGrey,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                AppLocalizations.of(context).kostvMusicMenuHint,
+                style: const TextStyle(color: kostvMusicGrey, fontSize: 14),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -535,6 +652,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         firstNode('recent', _recent.isEmpty ? null : _recent),
       ),
     );
+    add('favorites', _favoritesShelf(context, insets));
+    add('playlists', _playlistsShelf(context, insets));
     add(
       'mixes',
       _mixShelf(
@@ -697,6 +816,87 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     ];
   }
 
+  /// «Tus favoritas»: the ♥ songs, in columns of four like the charts; a
+  /// song plays them all from it.
+  Widget? _favoritesShelf(BuildContext context, EdgeInsets insets) {
+    final songs = _favorites;
+    if (songs.isEmpty) return null;
+    final l10n = AppLocalizations.of(context);
+    const perColumn = 4;
+    final columns = (songs.length / perColumn).ceil();
+    final rowHeight = KostvMusicSizes.phone ? 62.0 : 70.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        KostvMusicHeading(
+          title: l10n.kostvMusicFavorites,
+          subtitle: l10n.kostvMusicFavoritesWhy,
+          padding: EdgeInsets.fromLTRB(insets.left, 0, insets.right, 10),
+        ),
+        SizedBox(
+          height: rowHeight * perColumn + 8,
+          child: FocusTraversalGroup(
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.only(left: insets.left, right: insets.right),
+              itemCount: columns,
+              separatorBuilder: (_, _) => const SizedBox(width: 18),
+              itemBuilder: (context, column) => SizedBox(
+                width: KostvMusicSizes.songColumn(context),
+                child: Column(
+                  children: [
+                    for (
+                      var i = column * perColumn;
+                      i < songs.length && i < (column + 1) * perColumn;
+                      i++
+                    )
+                      KostvMusicSongRow(
+                        title: songs[i].name,
+                        artist: [
+                          ...songs[i].artists.take(2),
+                          ?songs[i].album,
+                        ].join(' · '),
+                        cover: kostvMusicImageOf(songs[i]),
+                        atHome: true,
+                        onTap: () => unawaited(
+                          playMusicTracks(context, songs, startIndex: i),
+                        ),
+                        onLongPress: () => unawaited(
+                          showKostvMusicSongMenu(context, item: songs[i]),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// «Tus listas»: the person's playlists in Jellyfin.
+  Widget? _playlistsShelf(BuildContext context, EdgeInsets insets) {
+    if (_playlists.isEmpty) return null;
+    final l10n = AppLocalizations.of(context);
+    return KostvMusicShelf(
+      title: l10n.kostvMusicPlaylists,
+      subtitle: l10n.kostvMusicPlaylistsWhy,
+      insets: insets,
+      children: [
+        for (final list in _playlists)
+          KostvMusicAlbumTile(
+            title: list.name,
+            subtitle: list.childCount == null
+                ? null
+                : l10n.kostvMusicPlaylistSongs(list.childCount!),
+            cover: kostvMusicImageOf(list),
+            onTap: () => openMusicItem(context, list),
+          ),
+      ],
+    );
+  }
+
   /// A chart of songs as Apple Music shows its top songs: columns of four
   /// numbered rows, sideways.
   Widget? _chartSongs(
@@ -767,6 +967,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                             : kostvMusicBadgeOf(songs[i].album!),
                         onTap: () =>
                             unawaited(openKostvMusicSong(context, songs[i])),
+                        onLongPress: () => unawaited(
+                          showKostvMusicSongMenu(context, song: songs[i]),
+                        ),
                       ),
                   ],
                 ),
@@ -978,6 +1181,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         required bool atHome,
         bool explicit = false,
         required VoidCallback onTap,
+        required VoidCallback onMenu,
       }) {
         final first = index++ == 0;
         return KostvMusicSongRow(
@@ -989,6 +1193,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           atHome: atHome,
           explicit: explicit,
           onTap: onTap,
+          onLongPress: onMenu,
         );
       }
 
@@ -1019,6 +1224,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                           cover: kostvMusicImageOf(song),
                           atHome: true,
                           onTap: () => unawaited(playMusicTrack(context, song)),
+                          onMenu: () => unawaited(
+                            showKostvMusicSongMenu(context, item: song),
+                          ),
                         ),
                       for (final song in songsAway)
                         row(
@@ -1029,6 +1237,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                           explicit: song.explicit,
                           onTap: () =>
                               unawaited(openKostvMusicSong(context, song)),
+                          onMenu: () => unawaited(
+                            showKostvMusicSongMenu(context, song: song),
+                          ),
                         ),
                     ],
                   ),

@@ -19697,4 +19697,57 @@ class AppLocalizationsEs extends AppLocalizations {
   String kostvPlayerSleepLeft(int minutes) {
     return 'Se pausa en $minutes min';
   }
+
+  @override
+  String get kostvMusicPlayNext => 'Reproducir a continuación';
+
+  @override
+  String get kostvMusicPlayLast => 'Añadir al final de la cola';
+
+  @override
+  String get kostvMusicRadio => 'Crear emisora';
+
+  @override
+  String get kostvMusicAddedNext => 'Sonará a continuación';
+
+  @override
+  String get kostvMusicAddedLast => 'Añadida al final de la cola';
+
+  @override
+  String get kostvMusicLoved => 'Añadida a tus favoritas';
+
+  @override
+  String get kostvMusicUnloved => 'Quitada de tus favoritas';
+
+  @override
+  String get kostvMusicSeeAlbumToAsk => 'Ver el álbum para pedirlo';
+
+  @override
+  String get kostvMusicMenuHint =>
+      'Mantén pulsado OK en una canción para ver más opciones';
+
+  @override
+  String get kostvMusicFavorites => 'Tus favoritas';
+
+  @override
+  String get kostvMusicFavoritesWhy => 'Las canciones que has marcado con ♥';
+
+  @override
+  String get kostvMusicPlaylists => 'Tus listas';
+
+  @override
+  String get kostvMusicPlaylistsWhy =>
+      'Las de Jellyfin: créalas desde «Añadir a una lista» en cualquier canción';
+
+  @override
+  String kostvMusicPlaylistSongs(int count) {
+    return '$count canciones';
+  }
+
+  @override
+  String get kostvTrayListen => 'Escuchar';
+
+  @override
+  String get kostvTrayMusicNotYet =>
+      'Aún no está en casa: Jellyfin tardará un poco en tenerlo';
 }

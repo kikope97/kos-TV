@@ -16,7 +16,9 @@ import '../../../l10n/app_localizations.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
+import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
+import '../music/kostv_music_actions.dart' show playKostvArrivedAlbum;
 import '../detail/detail_layout_metrics.dart';
 import 'kostv_request_status.dart';
 
@@ -131,11 +133,40 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
   void _close() => Navigator.of(context).maybePop();
 
   void _open(StremfinRequest request) {
+    if (request.isMusic) {
+      // Music: once at home it plays; until then, the album's page.
+      if (request.status == StremfinRequestStatus.completed) {
+        unawaited(_listen(request));
+        return;
+      }
+      final deezerId = request.deezerId;
+      if (deezerId != null) {
+        unawaited(context.push(Destinations.kostvMusicAlbumOf(deezerId)));
+      }
+      return;
+    }
     final type = request.type;
     final tmdbId = request.tmdbId;
     if (type == null || tmdbId == null) return;
     // Its page: grey while on its way, the home server's page once there.
     unawaited(context.push(Destinations.kostvRequestOf(type.apiValue, tmdbId)));
+  }
+
+  /// An album that arrived: the tray closes and it plays.
+  Future<void> _listen(StremfinRequest request) async {
+    final deezerId = request.deezerId;
+    if (deezerId == null) return;
+    final l10n = AppLocalizations.of(context);
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    _close();
+    final app = appRouter.routerDelegate.navigatorKey.currentContext;
+    if (app == null || !app.mounted) return;
+    final played = await playKostvArrivedAlbum(app, deezerId);
+    if (!played) {
+      messenger?.showSnackBar(
+        SnackBar(content: Text(l10n.kostvTrayMusicNotYet)),
+      );
+    }
   }
 
   Future<void> _withdraw(StremfinRequest request) async {
@@ -532,6 +563,8 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
     final node = _node(key);
     final withdrawKey = '$key-w';
     final canWithdraw = request.canWithdraw;
+    final listenKey = '$key-l';
+    final canListen = arrived && request.isMusic && request.deezerId != null;
     final title = request.displayTitle ?? request.title ?? '';
     final progress = status.progress;
 
@@ -541,7 +574,11 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
       onSelect: () => _open(request),
       onUp: up == null ? () {} : _node(up).requestFocus,
       onDown: down == null ? () {} : _node(down).requestFocus,
-      onRight: canWithdraw ? _node(withdrawKey).requestFocus : () {},
+      onRight: canWithdraw
+          ? _node(withdrawKey).requestFocus
+          : canListen
+          ? _node(listenKey).requestFocus
+          : () {},
       onLeft: _close,
       onFocused: () => unawaited(
         Scrollable.ensureVisible(
@@ -644,6 +681,15 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
               if (canWithdraw) ...[
                 const SizedBox(width: 10),
                 _withdrawButton(l10n, request, withdrawKey, key),
+              ] else if (canListen) ...[
+                const SizedBox(width: 10),
+                _pill(
+                  key: listenKey,
+                  rowKey: key,
+                  icon: Icons.play_arrow_rounded,
+                  label: l10n.kostvTrayListen,
+                  onSelect: () => unawaited(_listen(request)),
+                ),
               ] else if (!panel || lit)
                 Padding(
                   padding: const EdgeInsets.only(left: 6),
@@ -665,9 +711,24 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
     StremfinRequest request,
     String key,
     String rowKey,
-  ) => _TrayFocus(
-    focusNode: _node(key),
+  ) => _pill(
+    key: key,
+    rowKey: rowKey,
+    icon: Icons.undo_rounded,
+    label: l10n.kostvTrayWithdraw,
     onSelect: () => unawaited(_withdraw(request)),
+  );
+
+  /// A small button at the end of a row: withdraw, listen.
+  Widget _pill({
+    required String key,
+    required String rowKey,
+    required IconData icon,
+    required String label,
+    required VoidCallback onSelect,
+  }) => _TrayFocus(
+    focusNode: _node(key),
+    onSelect: onSelect,
     onLeft: _node(rowKey).requestFocus,
     onRight: () {},
     onUp: () {},
@@ -685,14 +746,10 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.undo_rounded,
-              size: 17,
-              color: lit ? Colors.black87 : _ink(0.85),
-            ),
+            Icon(icon, size: 17, color: lit ? Colors.black87 : _ink(0.85)),
             const SizedBox(width: 6),
             Text(
-              l10n.kostvTrayWithdraw,
+              label,
               style: TextStyle(
                 color: lit ? Colors.black87 : _ink(0.85),
                 fontSize: 13.5,
@@ -716,7 +773,9 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
       color: _ink(0.08),
       alignment: Alignment.center,
       child: Icon(
-        request.type == StremfinTitleType.series
+        request.isMusic
+            ? Icons.album_rounded
+            : request.type == StremfinTitleType.series
             ? Icons.tv_rounded
             : Icons.movie_outlined,
         color: _ink(0.35),
@@ -735,7 +794,8 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
       borderRadius: BorderRadius.circular(8),
       child: SizedBox(
         width: width,
-        height: width * 1.5,
+        // A record's cover is square.
+        height: request.isMusic ? width : width * 1.5,
         child: grey ? ColorFiltered(colorFilter: _grey, child: image) : image,
       ),
     );

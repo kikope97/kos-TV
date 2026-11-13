@@ -33302,6 +33302,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pauses in {minutes} min'**
   String kostvPlayerSleepLeft(int minutes);
+
+  /// No description provided for @kostvMusicPlayNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Play next'**
+  String get kostvMusicPlayNext;
+
+  /// No description provided for @kostvMusicPlayLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to the end of the queue'**
+  String get kostvMusicPlayLast;
+
+  /// No description provided for @kostvMusicRadio.
+  ///
+  /// In en, this message translates to:
+  /// **'Start a station'**
+  String get kostvMusicRadio;
+
+  /// No description provided for @kostvMusicAddedNext.
+  ///
+  /// In en, this message translates to:
+  /// **'It will play next'**
+  String get kostvMusicAddedNext;
+
+  /// No description provided for @kostvMusicAddedLast.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to the end of the queue'**
+  String get kostvMusicAddedLast;
+
+  /// No description provided for @kostvMusicLoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to your favourites'**
+  String get kostvMusicLoved;
+
+  /// No description provided for @kostvMusicUnloved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from your favourites'**
+  String get kostvMusicUnloved;
+
+  /// No description provided for @kostvMusicSeeAlbumToAsk.
+  ///
+  /// In en, this message translates to:
+  /// **'See the album to ask for it'**
+  String get kostvMusicSeeAlbumToAsk;
+
+  /// No description provided for @kostvMusicMenuHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hold OK on a song for more options'**
+  String get kostvMusicMenuHint;
+
+  /// No description provided for @kostvMusicFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Your favourites'**
+  String get kostvMusicFavorites;
+
+  /// No description provided for @kostvMusicFavoritesWhy.
+  ///
+  /// In en, this message translates to:
+  /// **'The songs you marked with ♥'**
+  String get kostvMusicFavoritesWhy;
+
+  /// No description provided for @kostvMusicPlaylists.
+  ///
+  /// In en, this message translates to:
+  /// **'Your playlists'**
+  String get kostvMusicPlaylists;
+
+  /// No description provided for @kostvMusicPlaylistsWhy.
+  ///
+  /// In en, this message translates to:
+  /// **'Jellyfin\'s: make them from «Add to a playlist» on any song'**
+  String get kostvMusicPlaylistsWhy;
+
+  /// Kos TV music.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} songs'**
+  String kostvMusicPlaylistSongs(int count);
+
+  /// No description provided for @kostvTrayListen.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen'**
+  String get kostvTrayListen;
+
+  /// No description provided for @kostvTrayMusicNotYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Not at home yet: Jellyfin will have it shortly'**
+  String get kostvTrayMusicNotYet;
 }
 
 class _AppLocalizationsDelegate

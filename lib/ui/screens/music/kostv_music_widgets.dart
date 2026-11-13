@@ -111,6 +111,13 @@ class KostvMusicPressable extends StatefulWidget {
 class _KostvMusicPressableState extends State<KostvMusicPressable> {
   bool _focused = false;
   bool _hovered = false;
+  Timer? _hold;
+
+  @override
+  void dispose() {
+    _hold?.cancel();
+    super.dispose();
+  }
 
   void _onFocus(bool focused) {
     setState(() => _focused = focused);
@@ -160,6 +167,31 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
       autofocus: widget.autofocus,
       onFocusChange: _onFocus,
       onKeyEvent: (node, event) {
+        final longPress = widget.onLongPress;
+        // With a menu, OK held down opens it, and a short press is the tap
+        // (on letting go). The menu key opens it at once.
+        if (longPress != null && event.logicalKey.isSelectKey) {
+          if (event is KeyDownEvent) {
+            _hold?.cancel();
+            _hold = Timer(const Duration(milliseconds: 550), () {
+              _hold = null;
+              longPress();
+            });
+          } else if (event is KeyUpEvent) {
+            if (_hold != null) {
+              _hold?.cancel();
+              _hold = null;
+              widget.onTap();
+            }
+          }
+          return KeyEventResult.handled;
+        }
+        if (longPress != null &&
+            event is KeyDownEvent &&
+            event.logicalKey.isContextMenuKey) {
+          longPress();
+          return KeyEventResult.handled;
+        }
         if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
           return KeyEventResult.ignored;
         }
@@ -199,6 +231,8 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
           behavior: HitTestBehavior.opaque,
           onTap: widget.onTap,
           onLongPress: widget.onLongPress,
+          // A right click, with a mouse.
+          onSecondaryTap: widget.onLongPress,
           child: widget.builder(context, lit),
         ),
       ),
@@ -517,7 +551,11 @@ class KostvMusicSongRow extends StatelessWidget {
     this.autofocus = false,
     this.onKey,
     this.trailing,
+    this.onLongPress,
   });
+
+  /// The song's menu (OK held down, a long press or a right click).
+  final VoidCallback? onLongPress;
 
   final String title;
   final String? artist;
@@ -540,6 +578,7 @@ class KostvMusicSongRow extends StatelessWidget {
       focusNode: focusNode,
       autofocus: autofocus,
       onTap: onTap,
+      onLongPress: onLongPress,
       onKey: onKey,
       builder: (context, lit) => AnimatedContainer(
         duration: const Duration(milliseconds: 160),

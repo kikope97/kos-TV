@@ -57,8 +57,7 @@ class KostvMusicService {
 
   /// One of the home server's items by its id, or null.
   Future<AggregatedItem?> item(String id) async =>
-      (await _get(types: const ['Audio', 'MusicAlbum'], ids: [id]))
-          .firstOrNull;
+      (await _get(types: const ['Audio', 'MusicAlbum'], ids: [id])).firstOrNull;
 
   /// Whether the home server has any music the person can play.
   Future<bool> hasMusic() async =>
@@ -96,6 +95,41 @@ class KostvMusicService {
       limit: 300,
     );
     return KostvMusicTaste.of(songs);
+  }
+
+  /// The songs of the album [albumId], in their order.
+  Future<List<AggregatedItem>> albumSongs(String albumId) async => _items(
+    await _client.itemsApi.getItems(
+      parentId: albumId,
+      includeItemTypes: const ['Audio'],
+      sortBy: 'ParentIndexNumber,IndexNumber,SortName',
+      fields: _fields,
+    ),
+  );
+
+  /// The songs the person marked with ♥, the ones played lately first.
+  Future<List<AggregatedItem>> favoriteSongs({int limit = 60}) => _get(
+    types: const ['Audio'],
+    filters: const ['IsFavorite'],
+    sortBy: 'DatePlayed,SortName',
+    descending: true,
+    limit: limit,
+  );
+
+  /// The person's music playlists (Jellyfin's), the latest first.
+  Future<List<AggregatedItem>> playlists({int limit = 30}) async {
+    final found = await _get(
+      types: const ['Playlist'],
+      sortBy: 'DateCreated,SortName',
+      descending: true,
+      limit: limit,
+    );
+    return [
+      for (final list in found)
+        if (list.rawData['MediaType'] == null ||
+            list.rawData['MediaType'] == 'Audio')
+          list,
+    ];
   }
 
   /// The albums added to the home server lately.

@@ -423,6 +423,19 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
           onTap: song.jellyfinId == null
               ? null
               : () => unawaited(playKostvMusicTrack(context, song.jellyfinId!)),
+          onMenu: song.jellyfinId == null
+              ? null
+              : () => unawaited(
+                  showKostvMusicSongMenu(
+                    context,
+                    song: StremfinSong(
+                      title: song.title,
+                      artist: song.artist ?? detail.album.artist,
+                      jellyfinId: song.jellyfinId,
+                      inJellyfin: true,
+                    ),
+                  ),
+                ),
         ),
     ];
   }
@@ -516,9 +529,13 @@ class _TrackRow extends StatelessWidget {
     this.atHome = false,
     this.picked = false,
     this.onTap,
+    this.onMenu,
   });
 
   final VoidCallback? onTap;
+
+  /// The song's menu, for one at home.
+  final VoidCallback? onMenu;
   final int number;
   final int? disc;
   final String title;
@@ -537,6 +554,7 @@ class _TrackRow extends StatelessWidget {
     if (onTap == null) return _row(context, l10n, length, lit: false);
     return KostvMusicPressable(
       onTap: onTap,
+      onLongPress: onMenu,
       builder: (context, lit) => _row(context, l10n, length, lit: lit),
     );
   }

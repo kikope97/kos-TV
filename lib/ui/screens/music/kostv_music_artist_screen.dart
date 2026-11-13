@@ -155,6 +155,9 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                               explicit: song.explicit,
                               onTap: () =>
                                   unawaited(openKostvMusicSong(context, song)),
+                              onLongPress: () => unawaited(
+                                showKostvMusicSongMenu(context, song: song),
+                              ),
                             ),
                         ],
                       ),

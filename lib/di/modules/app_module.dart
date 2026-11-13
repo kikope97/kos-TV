@@ -34,6 +34,7 @@ import '../../data/services/installed_apps_service.dart';
 import '../../data/services/kostv_favorites_news.dart';
 import '../../data/services/kostv_my_list.dart';
 import '../../data/services/stremfin/stremfin_client.dart';
+import '../../data/services/stremfin/stremfin_music_memory.dart';
 import '../../data/services/stremfin/kostv_age_gate.dart';
 import '../../data/services/stremfin/stremfin_service.dart';
 import '../../data/services/upcoming_episode_service.dart';
@@ -190,7 +191,7 @@ void registerAppModule() {
   _getIt.registerLazySingleton<StremfinService>(
     () {
       final service = StremfinService(
-        StremfinClient(),
+        StremfinClient(musicMemory: StremfinMusicMemory()),
         // Kos TV: the person's age limit, from their home server account.
         ageLimit: () async {
           final client = _getIt<MediaServerClient>();

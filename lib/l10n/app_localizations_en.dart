@@ -19371,4 +19371,56 @@ class AppLocalizationsEn extends AppLocalizations {
   String kostvPlayerSleepLeft(int minutes) {
     return 'Pauses in $minutes min';
   }
+
+  @override
+  String get kostvMusicPlayNext => 'Play next';
+
+  @override
+  String get kostvMusicPlayLast => 'Add to the end of the queue';
+
+  @override
+  String get kostvMusicRadio => 'Start a station';
+
+  @override
+  String get kostvMusicAddedNext => 'It will play next';
+
+  @override
+  String get kostvMusicAddedLast => 'Added to the end of the queue';
+
+  @override
+  String get kostvMusicLoved => 'Added to your favourites';
+
+  @override
+  String get kostvMusicUnloved => 'Removed from your favourites';
+
+  @override
+  String get kostvMusicSeeAlbumToAsk => 'See the album to ask for it';
+
+  @override
+  String get kostvMusicMenuHint => 'Hold OK on a song for more options';
+
+  @override
+  String get kostvMusicFavorites => 'Your favourites';
+
+  @override
+  String get kostvMusicFavoritesWhy => 'The songs you marked with ♥';
+
+  @override
+  String get kostvMusicPlaylists => 'Your playlists';
+
+  @override
+  String get kostvMusicPlaylistsWhy =>
+      'Jellyfin\'s: make them from «Add to a playlist» on any song';
+
+  @override
+  String kostvMusicPlaylistSongs(int count) {
+    return '$count songs';
+  }
+
+  @override
+  String get kostvTrayListen => 'Listen';
+
+  @override
+  String get kostvTrayMusicNotYet =>
+      'Not at home yet: Jellyfin will have it shortly';
 }

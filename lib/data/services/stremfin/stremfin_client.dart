@@ -8,6 +8,7 @@ import 'package:server_core/server_core.dart';
 import '../../../util/kostv_server.dart';
 import '../log_service.dart';
 import 'stremfin_models.dart';
+import 'stremfin_music_memory.dart';
 
 /// Kos TV: a failed call to the requests service.
 class StremfinException implements Exception {
@@ -41,6 +42,7 @@ class StremfinClient {
     Dio? dio,
     String? baseUrl,
     @visibleForTesting String? Function()? token,
+    this.musicMemory,
   }) : _baseUrl = baseUrl == null
            // The address can change while the app runs (the home server's
            // plugin gives it), so it's read on every call.
@@ -57,6 +59,9 @@ class StremfinClient {
            );
 
   final Dio _dio;
+
+  /// Kos TV: where the Music page's last answers are kept (none in tests).
+  final StremfinMusicMemory? musicMemory;
   final String? Function() _baseUrl;
   final String? Function() _token;
 
@@ -242,9 +247,13 @@ class StremfinClient {
     String id, {
     int? limit,
     String? country,
+    bool remembered = false,
   }) async {
     final page = StremfinChartPage.fromJson(
-      await _get('/music/charts/$id', {'limit': ?limit, 'country': ?country}),
+      await _music('/music/charts/$id', {
+        'limit': ?limit,
+        'country': ?country,
+      }, remembered),
     );
     if (page == null) throw const StremfinException(code: 'bad_response');
     return page;
@@ -253,19 +262,29 @@ class StremfinClient {
   /// Music matching [query]: artists, songs and albums, both what the home
   /// server has and what it hasn't (unless [only] says `missing` or
   /// `available`).
+  ///
+  /// With [keep], the answer is kept for the Music page (what the person
+  /// types in the search is not).
   Future<StremfinMusicSearch> musicSearch(
     String query, {
     String only = 'all',
     int? limit,
     String? cursor,
-  }) async => StremfinMusicSearch.fromJson(
-    await _get('/music/search', {
+    bool keep = false,
+    bool remembered = false,
+  }) async {
+    final params = <String, Object?>{
       'q': query,
       'only': only,
       'limit': ?limit,
       'cursor': ?cursor,
-    }),
-  );
+    };
+    return StremfinMusicSearch.fromJson(
+      keep || remembered
+          ? await _music('/music/search', params, remembered)
+          : await _get('/music/search', params),
+    );
+  }
 
   /// An album's page, with its songs.
   Future<StremfinAlbumDetail> musicAlbum(String deezerId) async {
@@ -286,9 +305,12 @@ class StremfinClient {
   }
 
   /// An artist's page: their albums, best songs and similar artists.
-  Future<StremfinArtistDetail> musicArtist(String deezerId) async {
+  Future<StremfinArtistDetail> musicArtist(
+    String deezerId, {
+    bool remembered = false,
+  }) async {
     final detail = StremfinArtistDetail.fromJson(
-      await _get('/music/artists/$deezerId', {'kind': 'album'}),
+      await _music('/music/artists/$deezerId', {'kind': 'album'}, remembered),
     );
     if (detail == null) throw const StremfinException(code: 'bad_response');
     return detail;
@@ -299,32 +321,39 @@ class StremfinClient {
   Future<StremfinRecommendations> musicRecommendations(
     List<String> artists, {
     List<String> genres = const [],
+    bool remembered = false,
   }) async => StremfinRecommendations.fromJson(
-    await _get('/music/recommendations', {
+    await _music('/music/recommendations', {
       'artists': artists.take(10).join(','),
       if (genres.isNotEmpty) 'genres': genres.join(','),
-    }),
+    }, remembered),
   );
 
   /// The latest and announced records of the artists [deezerIds] (up to
   /// twenty).
-  Future<List<StremfinAlbum>> musicArtistReleases(List<String> deezerIds) =>
-      _albums('/music/artists/releases', {
-        'ids': deezerIds.take(20).join(','),
-      });
+  Future<List<StremfinAlbum>> musicArtistReleases(
+    List<String> deezerIds, {
+    bool remembered = false,
+  }) => _albums('/music/artists/releases', {
+    'ids': deezerIds.take(20).join(','),
+  }, remembered);
 
   /// What the house asked for most lately.
-  Future<List<StremfinAlbum>> musicRequested({int? limit}) =>
-      _albums('/music/requested', {'limit': ?limit});
+  Future<List<StremfinAlbum>> musicRequested({
+    int? limit,
+    bool remembered = false,
+  }) => _albums('/music/requested', {'limit': ?limit}, remembered);
 
   /// The latest records of the artists the house follows.
-  Future<List<StremfinAlbum>> musicReleases() => _albums('/music/releases');
+  Future<List<StremfinAlbum>> musicReleases({bool remembered = false}) =>
+      _albums('/music/releases', null, remembered);
 
   Future<List<StremfinAlbum>> _albums(
     String path, [
     Map<String, Object?>? query,
+    bool remembered = false,
   ]) async {
-    final body = await _get(path, query);
+    final body = await _music(path, query, remembered);
     final raw = body is Map ? body['items'] : null;
     return [
       if (raw is List)
@@ -375,6 +404,31 @@ class StremfinClient {
     final response = await _send('DELETE', '/requests/$id');
     final status = response.statusCode ?? 0;
     if (status < 200 || status >= 300) throw _failure(response);
+  }
+
+  /// A music answer: from the service, kept for next time; or, with
+  /// [remembered], the one kept last time (no call at all).
+  Future<Object?> _music(
+    String path, [
+    Map<String, Object?>? query,
+    bool remembered = false,
+  ]) async {
+    final token = _token();
+    final memory = musicMemory;
+    final key = token == null
+        ? null
+        : '${StremfinMusicMemory.scopeOf(token)} $path?'
+              '${(query ?? const {}).entries.where((e) => e.value != null).map((e) => '${e.key}=${e.value}').join('&')}';
+    if (remembered) {
+      final kept = key == null ? null : await memory?.read(key);
+      if (kept == null) {
+        throw const StremfinException(code: 'not_remembered');
+      }
+      return kept;
+    }
+    final body = await _get(path, query);
+    if (key != null) memory?.write(key, body);
+    return body;
   }
 
   Future<Object?> _get(String path, [Map<String, Object?>? query]) async {

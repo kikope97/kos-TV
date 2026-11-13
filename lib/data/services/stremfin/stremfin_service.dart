@@ -422,7 +422,11 @@ class StremfinService extends ChangeNotifier {
     String id, {
     bool fresh = false,
     String? country,
+    bool remembered = false,
   }) async {
+    if (remembered) {
+      return _client.musicChart(id, country: country, remembered: true);
+    }
     final key = country == null ? id : '$country:$id';
     final kept = _chartPages[key];
     if (!fresh &&
@@ -443,7 +447,15 @@ class StremfinService extends ChangeNotifier {
   Future<StremfinRecommendations> musicRecommendations(
     List<String> artists, {
     List<String> genres = const [],
+    bool remembered = false,
   }) async {
+    if (remembered) {
+      return _client.musicRecommendations(
+        artists,
+        genres: genres,
+        remembered: true,
+      );
+    }
     final key = '${artists.join(',')}|${genres.join(',')}';
     final kept = _recommended[key];
     if (kept != null &&
@@ -456,12 +468,18 @@ class StremfinService extends ChangeNotifier {
   }
 
   /// The latest records of the artists [deezerIds].
-  Future<List<StremfinAlbum>> musicArtistReleases(List<String> deezerIds) =>
-      _client.musicArtistReleases(deezerIds);
+  Future<List<StremfinAlbum>> musicArtistReleases(
+    List<String> deezerIds, {
+    bool remembered = false,
+  }) => _client.musicArtistReleases(deezerIds, remembered: remembered);
 
   /// Music matching [query]: what the home server has and what it hasn't.
-  Future<StremfinMusicSearch> musicSearch(String query) =>
-      _client.musicSearch(query, limit: 30);
+  Future<StremfinMusicSearch> musicSearch(
+    String query, {
+    bool keep = false,
+    bool remembered = false,
+  }) =>
+      _client.musicSearch(query, limit: 30, keep: keep, remembered: remembered);
 
   Future<StremfinAlbumDetail> musicAlbum(String deezerId) =>
       _client.musicAlbum(deezerId);
@@ -469,15 +487,18 @@ class StremfinService extends ChangeNotifier {
   Future<StremfinSongDetail> musicSong(String deezerId) =>
       _client.musicSong(deezerId);
 
-  Future<StremfinArtistDetail> musicArtist(String deezerId) =>
-      _client.musicArtist(deezerId);
+  Future<StremfinArtistDetail> musicArtist(
+    String deezerId, {
+    bool remembered = false,
+  }) => _client.musicArtist(deezerId, remembered: remembered);
 
   /// What the house asked for most lately.
-  Future<List<StremfinAlbum>> musicRequested() =>
-      _client.musicRequested(limit: 20);
+  Future<List<StremfinAlbum>> musicRequested({bool remembered = false}) =>
+      _client.musicRequested(limit: 20, remembered: remembered);
 
   /// The latest records of the artists the house follows.
-  Future<List<StremfinAlbum>> musicReleases() => _client.musicReleases();
+  Future<List<StremfinAlbum>> musicReleases({bool remembered = false}) =>
+      _client.musicReleases(remembered: remembered);
 
   /// Asks for an album (a single's whole album, when it has one). The
   /// charts kept here are forgotten, since what they say of it changes.
@@ -517,10 +538,7 @@ class StremfinService extends ChangeNotifier {
   /// any other). Empty when it has none, the person isn't let in, or the
   /// service doesn't answer in time: never an error, since whoever asks has
   /// the home server's own to show. Kept for the session.
-  Future<List<StremfinTrailer>> trailers(
-    StremfinTitleType type,
-    int tmdbId,
-  ) {
+  Future<List<StremfinTrailer>> trailers(StremfinTitleType type, int tmdbId) {
     final key = '${type.apiValue}:$tmdbId';
     final known = _trailers[key];
     if (known != null) return Future.value(known);

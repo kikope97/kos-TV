@@ -14,6 +14,7 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/models/lyrics.dart';
 import '../../../data/repositories/item_mutation_repository.dart';
+import '../../../data/services/kostv_music.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/focus/dpad_keys.dart';
@@ -22,6 +23,7 @@ import '../../../util/platform_detection.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/add_to_playlist_dialog.dart';
+import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/kostv_now_playing.dart';
 import '../../widgets/music/kostv_now_playing_capsule.dart'
     show KostvEqualizerBars;
@@ -259,20 +261,24 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       title: item.name,
       entries: [
         if (albumId != null && !offline)
-          _MenuEntry('album', Icons.album_rounded, l10n.kostvPlayerGoToAlbum),
+          KostvMenuEntry(
+            'album',
+            Icons.album_rounded,
+            l10n.kostvPlayerGoToAlbum,
+          ),
         if (artistId != null && !offline)
-          _MenuEntry(
+          KostvMenuEntry(
             'artist',
             Icons.person_rounded,
             l10n.kostvPlayerGoToArtist,
           ),
         if (!offline)
-          _MenuEntry(
+          KostvMenuEntry(
             'playlist',
             Icons.playlist_add_rounded,
             l10n.kostvPlayerAddToPlaylist,
           ),
-        _MenuEntry(
+        KostvMenuEntry(
           'sleep',
           Icons.bedtime_rounded,
           sleepAt == null
@@ -281,7 +287,9 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
                   (sleepAt.difference(DateTime.now()).inSeconds / 60).ceil(),
                 ),
         ),
-        _MenuEntry('stop', Icons.stop_circle_rounded, l10n.kostvPlayerStop),
+        if (!offline)
+          KostvMenuEntry('radio', Icons.radio_rounded, l10n.kostvMusicRadio),
+        KostvMenuEntry('stop', Icons.stop_circle_rounded, l10n.kostvPlayerStop),
       ],
     );
     if (!mounted || choice == null) return;
@@ -298,6 +306,16 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
         );
       case 'sleep':
         await _showSleep();
+      case 'radio':
+        final mix = await KostvMusicService(GetIt.instance<MediaServerClient>())
+            .mix(item.id)
+            .catchError((Object _) => const <AggregatedItem>[]);
+        if (!mounted || mix.isEmpty) return;
+        await _manager.playItems([
+          item,
+          for (final other in mix)
+            if (other.id != item.id) other,
+        ]);
       case 'stop':
         _music.close();
         _leave();
@@ -309,23 +327,23 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     final choice = await _showMenu<Duration>(
       title: l10n.kostvPlayerSleep,
       entries: [
-        _MenuEntry(
+        KostvMenuEntry(
           Duration.zero,
           Icons.timer_off_rounded,
           l10n.kostvPlayerSleepOff,
         ),
         for (final minutes in const [15, 30, 45])
-          _MenuEntry(
+          KostvMenuEntry(
             Duration(minutes: minutes),
             Icons.timer_rounded,
             l10n.kostvPlayerSleepMinutes(minutes),
           ),
-        _MenuEntry(
+        KostvMenuEntry(
           const Duration(hours: 1),
           Icons.timer_rounded,
           l10n.kostvPlayerSleepHour,
         ),
-        _MenuEntry(
+        KostvMenuEntry(
           const Duration(microseconds: 1),
           Icons.music_off_rounded,
           l10n.kostvPlayerSleepEndOfSong,
@@ -342,12 +360,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
 
   Future<T?> _showMenu<T>({
     required String title,
-    required List<_MenuEntry<T>> entries,
-  }) => showDialog<T>(
-    context: context,
-    barrierColor: Colors.black.withValues(alpha: 0.55),
-    builder: (context) => _PlayerMenu<T>(title: title, entries: entries),
-  );
+    required List<KostvMenuEntry<T>> entries,
+  }) => showKostvMusicMenu<T>(context, title: title, entries: entries);
 
   // --- Building ---
 
@@ -1911,99 +1925,6 @@ class _AmbientScreen extends StatelessWidget {
                   titles,
                 ],
               ),
-      ),
-    );
-  }
-}
-
-// --- The menu of «···» ---
-
-class _MenuEntry<T> {
-  const _MenuEntry(this.value, this.icon, this.label);
-
-  final T value;
-  final IconData icon;
-  final String label;
-}
-
-class _PlayerMenu<T> extends StatelessWidget {
-  const _PlayerMenu({required this.title, required this.entries});
-
-  final String title;
-  final List<_MenuEntry<T>> entries;
-
-  @override
-  Widget build(BuildContext context) {
-    final big = PlatformDetection.isTV;
-    return Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: big ? 520 : 400),
-        child: Material(
-          color: const Color(0xFF1C1C1F),
-          borderRadius: BorderRadius.circular(24),
-          clipBehavior: Clip.antiAlias,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 10),
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.6),
-                      fontSize: big ? 17 : 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                for (var i = 0; i < entries.length; i++)
-                  _Stop(
-                    autofocus: i == 0,
-                    onTap: () => Navigator.of(context).pop(entries[i].value),
-                    builder: (context, lit) => AnimatedContainer(
-                      duration: const Duration(milliseconds: 140),
-                      margin: const EdgeInsets.symmetric(horizontal: 10),
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: big ? 14 : 12,
-                      ),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        color: lit
-                            ? Colors.white.withValues(alpha: 0.12)
-                            : Colors.transparent,
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            entries[i].icon,
-                            color: Colors.white,
-                            size: big ? 26 : 22,
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Text(
-                              entries[i].label,
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: big ? 19 : 15.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

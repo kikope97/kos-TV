@@ -19089,5 +19089,22 @@
     "kostvPlayerSleepMinutes": "{minutes} min",
     "@kostvPlayerSleepMinutes": {"placeholders": {"minutes": {"type": "int"}}},
     "kostvPlayerSleepLeft": "Pauses in {minutes} min",
-    "@kostvPlayerSleepLeft": {"placeholders": {"minutes": {"type": "int"}}}
+    "@kostvPlayerSleepLeft": {"placeholders": {"minutes": {"type": "int"}}},
+    "kostvMusicPlayNext": "Play next",
+    "kostvMusicPlayLast": "Add to the end of the queue",
+    "kostvMusicRadio": "Start a station",
+    "kostvMusicAddedNext": "It will play next",
+    "kostvMusicAddedLast": "Added to the end of the queue",
+    "kostvMusicLoved": "Added to your favourites",
+    "kostvMusicUnloved": "Removed from your favourites",
+    "kostvMusicSeeAlbumToAsk": "See the album to ask for it",
+    "kostvMusicMenuHint": "Hold OK on a song for more options",
+    "kostvMusicFavorites": "Your favourites",
+    "kostvMusicFavoritesWhy": "The songs you marked with ♥",
+    "kostvMusicPlaylists": "Your playlists",
+    "kostvMusicPlaylistsWhy": "Jellyfin's: make them from «Add to a playlist» on any song",
+    "kostvMusicPlaylistSongs": "{count} songs",
+    "@kostvMusicPlaylistSongs": {"description": "Kos TV music.", "placeholders": {"count": {"type": "int"}}},
+    "kostvTrayListen": "Listen",
+    "kostvTrayMusicNotYet": "Not at home yet: Jellyfin will have it shortly"
 }
