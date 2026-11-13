@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:ui';
 
 import '../../theme/focus_foreground.dart';
 import '../../widgets/bounded_network_image.dart';
 import '../../widgets/offline_aware_image.dart';
+import '../../widgets/baked_blur_image.dart';
+import '../../theme/vibrance.dart';
+import '../../../util/image_fetch_priority.dart';
 import '../../widgets/anime_marker_badge.dart';
 import '../../widgets/poster_badges.dart';
 import '../../../data/repositories/anime_marker_repository.dart';
@@ -3627,27 +3629,31 @@ class _Backdrop extends StatelessWidget {
   }
 
   Widget _blurredImage(String imageUrl, double blur) {
-    final blurred = blur > 0;
-    final image = OfflineAwareImage(
-      imageUrl: imageUrl,
-      fit: BoxFit.cover,
-      fadeInDuration: Duration.zero,
-      memCacheWidth: blurred
-          ? BackgroundService.backdropBlurredDecodeWidth
-          : BackgroundService.backdropMaxWidth,
-      priority: ImageFetchPriority.high,
-      errorWidget: (_, _, _) => const SizedBox.shrink(),
-    );
-    if (!blurred) return image;
-    final sigma = GlassSettings.decorativeSigma(blur);
-    return RepaintBoundary(
-      child: ImageFiltered(
-        imageFilter: ImageFilter.blur(
-          sigmaX: sigma,
-          sigmaY: sigma,
-          tileMode: TileMode.decal,
+    if (blur <= 0) {
+      return OfflineAwareImage(
+        imageUrl: imageUrl,
+        fit: BoxFit.cover,
+        fadeInDuration: Duration.zero,
+        memCacheWidth: BackgroundService.backdropMaxWidth,
+        priority: ImageFetchPriority.high,
+        errorWidget: (_, _, _) => const SizedBox.shrink(),
+      );
+    }
+    // Blurred once when it loads rather than by the GPU on every frame of
+    // the crossfade. Cropped to the screen first, so its edges fade as the
+    // live blur's did. A downloaded item's local file works the same.
+    final local = isLocalImagePath(imageUrl);
+    return Vibrance.wrap(
+      BakedBlurImage(
+        image: ArtworkDecode.provider(
+          imageUrl,
+          width: BackgroundService.backdropBlurredDecodeWidth,
+          headers: local
+              ? null
+              : artworkFetchHeaders(imageUrl, ImageFetchPriority.high),
         ),
-        child: image,
+        sigma: GlassSettings.decorativeSigma(blur),
+        cropToBox: true,
       ),
     );
   }

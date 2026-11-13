@@ -284,6 +284,10 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
   double _boxSetLastTriggerMaxExtent = -1;
   String? _seriesLogoTag;
   String? _seriesLogoId;
+
+  /// The series whose logo is being asked for, so each notify of the view
+  /// model while it's on its way doesn't ask again.
+  String? _seriesLogoLoading;
   bool _showNavbarState = true;
   bool _audioExpanded = false;
   bool _subtitlesExpanded = false;
@@ -657,7 +661,12 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     final item = _vm.item;
     if (item == null) return;
     final seriesId = item.seriesId;
-    if (seriesId == null || _seriesLogoId == seriesId) return;
+    if (seriesId == null ||
+        _seriesLogoId == seriesId ||
+        _seriesLogoLoading == seriesId) {
+      return;
+    }
+    _seriesLogoLoading = seriesId;
 
     try {
       final client = GetIt.instance<MediaServerClient>();
@@ -669,7 +678,10 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
           _seriesLogoId = seriesId;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      if (_seriesLogoLoading == seriesId) _seriesLogoLoading = null;
+    }
   }
 
   // Fetch the item's production companies from TMDB so the Studios tab can show
@@ -1256,33 +1268,32 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
       double? width,
       double? height,
       bool topRow = true,
-    }) => Opacity(
-      opacity: 0.55,
-      child: ColorFiltered(
-        colorFilter: const ColorFilter.matrix([
-          0.2126, 0.7152, 0.0722, 0, 0, //
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0, 0, 0, 1, 0,
-        ]),
-        child: SeasonCard(
-          title: l10n.seasonNumber(ghost.number),
-          subtitle: ghost.notOnYet
-              ? KostvGhostTexts.premiere(context, ghost.premiere)
-              : l10n.kostvGhostNotAtHome,
-          imageUrl: showPosterUrl,
-          isFallbackImage: true,
-          landscape: _landscape,
-          onNavigateUp: topRow ? _focusSelectedTab : null,
-          focusNode: first ? _seasonsFirstFocusNode : null,
-          width: width,
-          height: height,
-          autoScroll: true,
-          onTap: () => showKostvSeasonSheet(
-            context,
-            controller: gaps!,
-            season: ghost,
-          ),
+    }) => ColorFiltered(
+      // Greyed and dimmed to 55 % in one layer: the alpha row carries what
+      // an Opacity around it would.
+      colorFilter: const ColorFilter.matrix([
+        0.2126, 0.7152, 0.0722, 0, 0, //
+        0.2126, 0.7152, 0.0722, 0, 0,
+        0.2126, 0.7152, 0.0722, 0, 0,
+        0, 0, 0, 0.55, 0,
+      ]),
+      child: SeasonCard(
+        title: l10n.seasonNumber(ghost.number),
+        subtitle: ghost.notOnYet
+            ? KostvGhostTexts.premiere(context, ghost.premiere)
+            : l10n.kostvGhostNotAtHome,
+        imageUrl: showPosterUrl,
+        isFallbackImage: true,
+        landscape: _landscape,
+        onNavigateUp: topRow ? _focusSelectedTab : null,
+        focusNode: first ? _seasonsFirstFocusNode : null,
+        width: width,
+        height: height,
+        autoScroll: true,
+        onTap: () => showKostvSeasonSheet(
+          context,
+          controller: gaps!,
+          season: ghost,
         ),
       ),
     );

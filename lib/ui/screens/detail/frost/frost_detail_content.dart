@@ -159,6 +159,23 @@ class _FrostDetailContentState extends State<FrostDetailContent>
   Object? _gapsDetail;
   bool? _gapsEnabled;
 
+  // The season lists, worked out again only when what they come from
+  // changes: a build reads them many times over.
+  Object? _atHomeFrom;
+  List<int> _atHome = const [];
+  Object? _notAtHomeFrom;
+  bool? _notAtHomeSeason;
+  Set<int> _notAtHome = const {};
+  Object? _numbersAtHome;
+  Object? _numbersNotAtHome;
+  List<int> _numbers = const [];
+  Object? _episodesFrom;
+  int? _episodesSeason;
+  List<AggregatedItem> _episodesShown = const [];
+  Object? _entriesEpisodes;
+  Object? _entriesGaps;
+  List<KostvEpisodeEntry> _entriesShown = const [];
+
   @override
   ItemDetailViewModel get pageViewModel => widget.viewModel;
 
@@ -365,24 +382,47 @@ class _FrostDetailContentState extends State<FrostDetailContent>
       _vm.item?.type == 'Season' ? _vm.episodes : _vm.seriesEpisodes;
 
   /// The seasons the home server has episodes of.
-  List<int> get _seasonsAtHome =>
-      _allEpisodes
-          .map((episode) => episode.parentIndexNumber)
-          .whereType<int>()
-          .toSet()
-          .toList()
-        ..sort();
+  List<int> get _seasonsAtHome {
+    final episodes = _allEpisodes;
+    if (!identical(episodes, _atHomeFrom)) {
+      _atHomeFrom = episodes;
+      _atHome =
+          episodes
+              .map((episode) => episode.parentIndexNumber)
+              .whereType<int>()
+              .toSet()
+              .toList()
+            ..sort();
+    }
+    return _atHome;
+  }
 
   /// Kos TV: the seasons the home server has nothing of, on a series' page
   /// (a season's own page only lists that season).
-  Set<int> get _seasonsNotAtHome => _vm.item?.type == 'Season'
-      ? const {}
-      : {for (final season in _seriesGaps.seasonsNotAtHome) season.number};
+  Set<int> get _seasonsNotAtHome {
+    final isSeason = _vm.item?.type == 'Season';
+    final gaps = _seriesGaps;
+    if (!identical(gaps, _notAtHomeFrom) || isSeason != _notAtHomeSeason) {
+      _notAtHomeFrom = gaps;
+      _notAtHomeSeason = isSeason;
+      _notAtHome = isSeason
+          ? const {}
+          : {for (final season in gaps.seasonsNotAtHome) season.number};
+    }
+    return _notAtHome;
+  }
 
   List<int> get _seasonNumbers {
+    final atHome = _seasonsAtHome;
     final notAtHome = _seasonsNotAtHome;
-    if (notAtHome.isEmpty) return _seasonsAtHome;
-    return {..._seasonsAtHome, ...notAtHome}.toList()..sort();
+    if (notAtHome.isEmpty) return atHome;
+    if (!identical(atHome, _numbersAtHome) ||
+        !identical(notAtHome, _numbersNotAtHome)) {
+      _numbersAtHome = atHome;
+      _numbersNotAtHome = notAtHome;
+      _numbers = {...atHome, ...notAtHome}.toList()..sort();
+    }
+    return _numbers;
   }
 
   /// The season picked, else the one the viewer is in, else the first at
@@ -406,10 +446,16 @@ class _FrostDetailContentState extends State<FrostDetailContent>
 
   List<AggregatedItem> get _episodes {
     final season = _shownSeason;
-    return [
-      for (final episode in _allEpisodes)
-        if (episode.parentIndexNumber == season) episode,
-    ];
+    final all = _allEpisodes;
+    if (!identical(all, _episodesFrom) || season != _episodesSeason) {
+      _episodesFrom = all;
+      _episodesSeason = season;
+      _episodesShown = [
+        for (final episode in all)
+          if (episode.parentIndexNumber == season) episode,
+      ];
+    }
+    return _episodesShown;
   }
 
   /// Kos TV: what the home server lacks of the season shown.
@@ -423,10 +469,15 @@ class _FrostDetailContentState extends State<FrostDetailContent>
   List<KostvEpisodeEntry> get _entries {
     final episodes = _episodes;
     final gaps = _shownGaps;
-    if (gaps == null) {
-      return [for (final e in episodes) (episode: e, ghost: null)];
+    if (!identical(episodes, _entriesEpisodes) ||
+        !identical(gaps, _entriesGaps)) {
+      _entriesEpisodes = episodes;
+      _entriesGaps = gaps;
+      _entriesShown = gaps == null
+          ? [for (final e in episodes) (episode: e, ghost: null)]
+          : gaps.merge(episodes);
     }
-    return gaps.merge(episodes);
+    return _entriesShown;
   }
 
   /// Kos TV: what the bar over the season's episodes says, if anything.
@@ -1515,6 +1566,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     final numbers = _seasonNumbers;
     if (numbers.length < 2) return const SizedBox.shrink();
     final notAtHome = _seasonsNotAtHome;
+    final atHome = _seasonsAtHome;
     final l10n = AppLocalizations.of(context);
     return _segmentPicker(
       tab: _Tab.episodes,
@@ -1531,8 +1583,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
       phone: phone,
       dimmed: {
         for (final (index, number) in numbers.indexed)
-          if (notAtHome.contains(number) && !_seasonsAtHome.contains(number))
-            index,
+          if (notAtHome.contains(number) && !atHome.contains(number)) index,
       },
     );
   }

@@ -216,6 +216,10 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
   /// The card the spotlight shows: its row and which it is. Null for the
   /// first of the first row (the focus is on the platforms, or nowhere).
   ({_RowSpec spec, String key})? _spot;
+
+  /// Bumped when the spotlight moves or its extra lands: only the art and
+  /// the text listen, so a step along a row doesn't rebuild every row.
+  final _spotRevision = ValueNotifier<int>(0);
   late final _follower = KostvSpotlightFollower(
     KostvSpotlightDetails(_service),
     _onExtra,
@@ -253,6 +257,7 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
     _hoverDebounce?.cancel();
     _settleRows?.cancel();
     _follower.dispose();
+    _spotRevision.dispose();
     _service.removeListener(_onAccessChanged);
     _service.listsRevision.removeListener(_onListsChanged);
     _scrollController.dispose();
@@ -478,7 +483,7 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
   void _followSpotlight() => _follower.show(_spotlit?.title);
 
   void _onExtra() {
-    if (mounted) setState(() {});
+    if (mounted) _spotRevision.value++;
   }
 
   /// A card took the focus, or the pointer rested on it.
@@ -487,7 +492,8 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
     if (_spot?.spec == spec && _spot?.key == key) return;
     void apply() {
       if (!mounted) return;
-      setState(() => _spot = (spec: spec, key: key));
+      _spot = (spec: spec, key: key);
+      _spotRevision.value++;
       _followSpotlight();
     }
 
@@ -650,7 +656,6 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
           uiScale,
           expansion: _prefs.get(UserPreferences.cardFocusExpansion),
         );
-        final spot = _spotlit;
         final background = AppColorScheme.background;
         // Folded away only for a remote or a keyboard: a pointer can reach
         // them wherever it is.
@@ -674,10 +679,16 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
                   FractionallySizedBox(
                     alignment: Alignment.centerRight,
                     widthFactor: 0.74,
-                    child: KostvSpotlightArt(
-                      title: spot?.title,
-                      backdrop:
-                          _follower.extra?.backdrop ?? spot?.title.backdrop,
+                    child: ValueListenableBuilder<int>(
+                      valueListenable: _spotRevision,
+                      builder: (context, _, _) {
+                        final spot = _spotlit;
+                        return KostvSpotlightArt(
+                          title: spot?.title,
+                          backdrop:
+                              _follower.extra?.backdrop ?? spot?.title.backdrop,
+                        );
+                      },
                     ),
                   ),
                   // Fades into the page to the left and below.
@@ -776,11 +787,14 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
                         alignment: Alignment.bottomLeft,
                         child: SizedBox(
                           width: m.textWidth,
-                          child: _spotlightText(
-                            spot,
-                            m,
-                            l10n,
-                            room: room.maxHeight,
+                          child: ValueListenableBuilder<int>(
+                            valueListenable: _spotRevision,
+                            builder: (context, _, _) => _spotlightText(
+                              _spotlit,
+                              m,
+                              l10n,
+                              room: room.maxHeight,
+                            ),
                           ),
                         ),
                       ),

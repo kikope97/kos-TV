@@ -246,8 +246,13 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
   /// so changing the order doesn't blank the page.
   Map<FavoriteTypeFilter, List<AggregatedItem>> _lastRows = const {};
 
-  /// The card in focus, whose artwork is behind the top of the page.
-  AggregatedItem? _focused;
+  /// The card in focus, whose artwork is behind the top of the page. Only
+  /// the backdrop listens, so a step along a row doesn't rebuild the page.
+  final _focused = ValueNotifier<AggregatedItem?>(null);
+
+  /// The last list [_items] gave for each kind, given again while what it
+  /// holds is the same, so the rows see the same list from build to build.
+  final Map<FavoriteTypeFilter, List<AggregatedItem>> _shownItems = {};
 
   /// The column the grid's focus is in, kept moving up and down.
   int _gridColumn = 0;
@@ -347,6 +352,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
   void dispose() {
     _news?.removeListener(_onNews);
     _heroWatch.dispose();
+    _focused.dispose();
     _vm.removeListener(_onChanged);
     _vm.dispose();
     _scroll.dispose();
@@ -368,10 +374,24 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
       _vm.state == FavoritesState.loading ? _lastRows : _vm.rowItems;
 
   /// What is still a favourite: one taken off here or elsewhere goes at once.
-  List<AggregatedItem> _items(FavoriteTypeFilter type) => [
-    for (final item in _rowsNow[type] ?? const <AggregatedItem>[])
-      if (item.isFavorite) item,
-  ];
+  List<AggregatedItem> _items(FavoriteTypeFilter type) {
+    final items = [
+      for (final item in _rowsNow[type] ?? const <AggregatedItem>[])
+        if (item.isFavorite) item,
+    ];
+    final shown = _shownItems[type];
+    if (shown != null && shown.length == items.length) {
+      var same = true;
+      for (var i = 0; i < items.length; i++) {
+        if (!identical(shown[i], items[i])) {
+          same = false;
+          break;
+        }
+      }
+      if (same) return shown;
+    }
+    return _shownItems[type] = items;
+  }
 
   /// The kinds with something in them, in the page's order.
   List<FavoriteTypeFilter> _kinds() => [
@@ -397,8 +417,10 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
   }
 
   void _focusOn(AggregatedItem item) {
-    if (identical(item, _focused) || PlatformDetection.useMobileUi) return;
-    setState(() => _focused = item);
+    if (identical(item, _focused.value) || PlatformDetection.useMobileUi) {
+      return;
+    }
+    _focused.value = item;
   }
 
   void _show(FavoriteTypeFilter? only) {
@@ -601,7 +623,6 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     } else {
       body = _page(context, kinds);
     }
-    final backdrop = _backdropUrl();
     return Scaffold(
       backgroundColor: AppColorScheme.background,
       body: NavigationLayout(
@@ -612,22 +633,28 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
             // The artwork of the card in focus, behind the top of the page.
             if (!phone)
               Positioned.fill(
-                child: AnimatedOpacity(
-                  opacity: backdrop == null ? 0 : 1,
-                  duration: const Duration(milliseconds: 400),
-                  child: ShaderMask(
-                    blendMode: BlendMode.dstIn,
-                    shaderCallback: (rect) => const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0x66FFFFFF), Color(0x00FFFFFF)],
-                      stops: [0, 0.7],
-                    ).createShader(rect),
-                    child: FullscreenBackdropSwitcher(
-                      imageUrl: backdrop,
-                      duration: BackgroundService.transitionDuration,
-                    ),
-                  ),
+                child: ValueListenableBuilder<AggregatedItem?>(
+                  valueListenable: _focused,
+                  builder: (context, focused, _) {
+                    final backdrop = _backdropUrl(focused);
+                    return AnimatedOpacity(
+                      opacity: backdrop == null ? 0 : 1,
+                      duration: const Duration(milliseconds: 400),
+                      child: ShaderMask(
+                        blendMode: BlendMode.dstIn,
+                        shaderCallback: (rect) => const LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Color(0x66FFFFFF), Color(0x00FFFFFF)],
+                          stops: [0, 0.7],
+                        ).createShader(rect),
+                        child: FullscreenBackdropSwitcher(
+                          imageUrl: backdrop,
+                          duration: BackgroundService.transitionDuration,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             // A faint glow of the heart's colour from the top corner.
@@ -657,8 +684,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     );
   }
 
-  String? _backdropUrl() {
-    final item = _focused;
+  String? _backdropUrl(AggregatedItem? item) {
     if (item == null || !GetIt.instance.isRegistered<BackgroundService>()) {
       return null;
     }

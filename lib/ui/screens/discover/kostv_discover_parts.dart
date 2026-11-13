@@ -6,7 +6,9 @@ import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../util/image_fetch_priority.dart';
 import '../../navigation/destinations.dart';
+import '../../widgets/image_source.dart';
 import '../../widgets/kos_logo.dart';
 
 /// Kos TV: the small pieces Discover is made of: how a title stands at home,
@@ -376,13 +378,23 @@ class KostvPlatformPill extends StatelessWidget {
           fontWeight: FontWeight.w800,
         ),
       );
+      final logoHeight = height * (platform.id == 'netflix' ? 0.42 : 0.56);
+      // Decoded at the height it paints, not the source's, and kept on disk.
       content = logo == null
           ? name
-          : Image.network(
-              logo,
-              height: height * (platform.id == 'netflix' ? 0.42 : 0.56),
-              fit: BoxFit.contain,
-              errorBuilder: (_, _, _) => name,
+          : ArtworkBound(
+              height: logoHeight,
+              builder: (context, width, decodeHeight) => Image(
+                image: ArtworkDecode.provider(
+                  logo,
+                  width: width,
+                  height: decodeHeight,
+                  headers: artworkFetchHeaders(logo, ImageFetchPriority.high),
+                ),
+                height: logoHeight,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => name,
+              ),
             );
     }
 

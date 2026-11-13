@@ -424,8 +424,13 @@ class KostvSpotlightArt extends StatelessWidget {
       duration: const Duration(milliseconds: 450),
       switchInCurve: Curves.easeOut,
       switchOutCurve: Curves.easeIn,
-      layoutBuilder: (current, previous) =>
-          Stack(fit: StackFit.expand, children: [...previous, ?current]),
+      // Only the newest outgoing art stays painted under the incoming:
+      // moving fast would otherwise stack every full-screen image still
+      // fading, each its own layer, on a weak TV GPU.
+      layoutBuilder: (current, previous) => Stack(
+        fit: StackFit.expand,
+        children: [if (previous.isNotEmpty) previous.last, ?current],
+      ),
       child: KeyedSubtree(key: ValueKey('${url ?? poster}|$grey'), child: art),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
@@ -15,6 +16,8 @@ class BakedBlurImage extends StatefulWidget {
     required this.sigma,
     this.fit = BoxFit.cover,
     this.alignment = Alignment.center,
+    this.tileMode = TileMode.decal,
+    this.cropToBox = false,
   });
 
   final ImageProvider image;
@@ -25,6 +28,16 @@ class BakedBlurImage extends StatefulWidget {
 
   final BoxFit fit;
   final Alignment alignment;
+
+  /// What the blur reads past the source's edges: transparent by default,
+  /// or the edge pixels again ([TileMode.clamp]) to match an ImageFiltered
+  /// blur, whose default that is.
+  final TileMode tileMode;
+
+  /// Blurs only the part of the source the box shows, so the blur meets the
+  /// box's edges rather than the source's: what an ImageFiltered around a
+  /// cover-fit image gives. Off, the whole source is blurred and then fit.
+  final bool cropToBox;
 
   @override
   State<BakedBlurImage> createState() => _BakedBlurImageState();
@@ -48,7 +61,11 @@ class _BakedBlurImageState extends State<BakedBlurImage> {
   void didUpdateWidget(BakedBlurImage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.image != oldWidget.image) _resolve();
-    if (widget.sigma != oldWidget.sigma || widget.fit != oldWidget.fit) {
+    if (widget.sigma != oldWidget.sigma ||
+        widget.fit != oldWidget.fit ||
+        widget.tileMode != oldWidget.tileMode ||
+        widget.cropToBox != oldWidget.cropToBox ||
+        (widget.cropToBox && widget.alignment != oldWidget.alignment)) {
       _bakedSize = null;
     }
   }
@@ -100,27 +117,41 @@ class _BakedBlurImageState extends State<BakedBlurImage> {
   }
 
   ui.Image _bake(ui.Image source, Size box) {
-    final fitted = applyBoxFit(
-      widget.fit,
-      Size(source.width.toDouble(), source.height.toDouble()),
-      box,
-    );
+    final sourceSize = Size(source.width.toDouble(), source.height.toDouble());
+    final fitted = applyBoxFit(widget.fit, sourceSize, box);
     // The blur runs on the decoded pixels, which are scaled up or down to
     // the box, so the sigma follows that scale.
     final sigma = widget.sigma * fitted.source.width / fitted.destination.width;
-    final recorder = ui.PictureRecorder();
-    Canvas(recorder).drawImage(
-      source,
-      Offset.zero,
-      Paint()
-        ..imageFilter = ui.ImageFilter.blur(
-          sigmaX: sigma,
-          sigmaY: sigma,
-          tileMode: TileMode.decal,
-        ),
+    final filter = ui.ImageFilter.blur(
+      sigmaX: sigma,
+      sigmaY: sigma,
+      tileMode: widget.tileMode,
     );
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final int width;
+    final int height;
+    if (widget.cropToBox) {
+      // The shown part, in source pixels, blurred as a layer of its own so
+      // nothing past its edges reaches the blur.
+      final shown = widget.alignment.inscribe(
+        fitted.source,
+        Offset.zero & sourceSize,
+      );
+      width = math.max(1, shown.width.round());
+      height = math.max(1, shown.height.round());
+      final bounds = Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble());
+      canvas
+        ..saveLayer(bounds, Paint()..imageFilter = filter)
+        ..drawImageRect(source, shown, bounds, Paint())
+        ..restore();
+    } else {
+      width = source.width;
+      height = source.height;
+      canvas.drawImage(source, Offset.zero, Paint()..imageFilter = filter);
+    }
     final picture = recorder.endRecording();
-    final baked = picture.toImageSync(source.width, source.height);
+    final baked = picture.toImageSync(width, height);
     picture.dispose();
     return baked;
   }

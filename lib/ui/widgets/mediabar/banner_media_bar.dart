@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../offline_aware_image.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:moonfin_design/moonfin_design.dart';
@@ -66,6 +67,32 @@ class _BannerMediaBarState extends State<BannerMediaBar> {
     _ensureRatingsForCurrent();
   }
 
+  /// Off while another route covers the bar: a timer isn't muted like a
+  /// ticker, and each turn would change slides nobody sees.
+  ValueListenable<TickerModeData>? _tickerMode;
+
+  bool get _visible => _tickerMode?.value.enabled ?? true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final tickerMode = TickerMode.getValuesNotifier(context);
+    if (tickerMode != _tickerMode) {
+      _tickerMode?.removeListener(_syncAutoAdvance);
+      _tickerMode = tickerMode..addListener(_syncAutoAdvance);
+      _syncAutoAdvance();
+    }
+  }
+
+  void _syncAutoAdvance() {
+    if (!_visible) {
+      _autoAdvance?.cancel();
+      _autoAdvance = null;
+    } else if (_autoAdvance == null) {
+      _startAutoAdvance();
+    }
+  }
+
   @override
   void didUpdateWidget(BannerMediaBar oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -77,6 +104,7 @@ class _BannerMediaBarState extends State<BannerMediaBar> {
   @override
   void dispose() {
     _autoAdvance?.cancel();
+    _tickerMode?.removeListener(_syncAutoAdvance);
     widget.viewModel.removeListener(_onChanged);
     widget.prefs.removeListener(_onChanged);
     super.dispose();
@@ -95,7 +123,8 @@ class _BannerMediaBarState extends State<BannerMediaBar> {
 
   void _startAutoAdvance() {
     _autoAdvance?.cancel();
-    if (widget.externallyPaused) return;
+    _autoAdvance = null;
+    if (widget.externallyPaused || !_visible) return;
     if (!widget.prefs.get(UserPreferences.mediaBarAutoAdvance)) return;
     final intervalMs = widget.prefs.get(UserPreferences.mediaBarIntervalMs);
     _autoAdvance = Timer.periodic(Duration(milliseconds: intervalMs), (_) {

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -67,10 +68,36 @@ class _KostvFavoritesNewsHeroState extends State<KostvFavoritesNewsHero> {
   /// Held still while the person is on it.
   bool _held = false;
 
+  /// Off while another route covers the page: a timer isn't muted like a
+  /// ticker, and each turn decodes a big image nobody sees.
+  ValueListenable<TickerModeData>? _tickerMode;
+
+  bool get _visible => _tickerMode?.value.enabled ?? true;
+
   @override
   void initState() {
     super.initState();
     _restartTimer();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final tickerMode = TickerMode.getValuesNotifier(context);
+    if (tickerMode != _tickerMode) {
+      _tickerMode?.removeListener(_syncTimer);
+      _tickerMode = tickerMode..addListener(_syncTimer);
+      _syncTimer();
+    }
+  }
+
+  void _syncTimer() {
+    if (!_visible) {
+      _timer?.cancel();
+      _timer = null;
+    } else if (_timer == null) {
+      _restartTimer();
+    }
   }
 
   @override
@@ -82,13 +109,15 @@ class _KostvFavoritesNewsHeroState extends State<KostvFavoritesNewsHero> {
   @override
   void dispose() {
     _timer?.cancel();
+    _tickerMode?.removeListener(_syncTimer);
     _openNode.dispose();
     super.dispose();
   }
 
   void _restartTimer() {
     _timer?.cancel();
-    if (widget.news.length < 2) return;
+    _timer = null;
+    if (widget.news.length < 2 || !_visible) return;
     _timer = Timer.periodic(_every, (_) {
       if (!mounted || _held) return;
       _go(1);

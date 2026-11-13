@@ -17,8 +17,11 @@ import '../../../preference/user_preferences.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
+import '../../../util/image_fetch_priority.dart';
 import '../../navigation/destinations.dart';
+import '../../widgets/baked_blur_image.dart';
 import '../../widgets/bottom_nav/bottom_navbar.dart';
+import '../../widgets/image_source.dart';
 import '../../widgets/navigation_layout.dart';
 import '../detail/detail_layout_metrics.dart';
 import '../detail/frost/frost_detail_content.dart' show FrostStage;
@@ -977,7 +980,8 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
       colorFilter: _saturation(Curves.easeInOut.transform(_colour.value)),
       child: child,
     ),
-    child: child,
+    // The art keeps its own picture while the colour comes in over it.
+    child: RepaintBoundary(child: child),
   );
 
   /// The art, blurred and dimmed, behind everything.
@@ -989,15 +993,16 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         ColoredBox(color: AppColorScheme.background),
         if (url != null)
           _tinted(
-            ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-              child: Image.network(
+            // Blurred once when it loads, not by the GPU on every frame.
+            // Clamped at the edges, as the live blur it replaces was.
+            BakedBlurImage(
+              image: ArtworkDecode.provider(
                 url,
-                fit: BoxFit.cover,
-                cacheWidth: 96,
-                filterQuality: FilterQuality.medium,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                width: 96,
+                headers: artworkFetchHeaders(url, ImageFetchPriority.normal),
               ),
+              sigma: 14,
+              tileMode: TileMode.clamp,
             ),
           ),
         ColoredBox(color: AppColorScheme.background.withValues(alpha: 0.6)),
@@ -1009,11 +1014,21 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     final url = _art;
     if (url == null) return const SizedBox.shrink();
     return _tinted(
-      Image.network(
-        url,
-        fit: BoxFit.cover,
-        alignment: alignment,
-        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+      // Decoded at the size it paints, from the disk cache when it can.
+      ArtworkBound(
+        // A cover fit paints wider than a box of another shape.
+        sourceAspectRatio: _c.title?.backdrop != null ? 16 / 9 : 2 / 3,
+        builder: (context, width, height) => Image(
+          image: ArtworkDecode.provider(
+            url,
+            width: width,
+            height: height,
+            headers: artworkFetchHeaders(url, ImageFetchPriority.high),
+          ),
+          fit: BoxFit.cover,
+          alignment: alignment,
+          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        ),
       ),
     );
   }
