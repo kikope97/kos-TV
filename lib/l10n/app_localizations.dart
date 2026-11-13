@@ -33092,6 +33092,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shows Music in the menu'**
   String get kostvMusicShowButtonSubtitle;
+
+  /// Kos TV Music: recommended songs.
+  ///
+  /// In en, this message translates to:
+  /// **'Songs for you'**
+  String get kostvMusicForYouSongs;
+
+  /// Kos TV Music: line under the recommendations.
+  ///
+  /// In en, this message translates to:
+  /// **'From artists like the ones you listen to'**
+  String get kostvMusicForYouWhy;
+
+  /// Kos TV Music: releases of the artists the person listens to.
+  ///
+  /// In en, this message translates to:
+  /// **'New from your artists'**
+  String get kostvMusicNewFromYours;
+
+  /// Kos TV Music: line under the releases.
+  ///
+  /// In en, this message translates to:
+  /// **'The latest, and what is about to come out, from the artists you listen to'**
+  String get kostvMusicNewFromYoursWhy;
+
+  /// Kos TV Music: a country's chart.
+  ///
+  /// In en, this message translates to:
+  /// **'Top {country}'**
+  String kostvMusicTopCountry(String country);
+
+  /// Kos TV Music: line under a country's chart.
+  ///
+  /// In en, this message translates to:
+  /// **'The most played in {country} right now'**
+  String kostvMusicTopCountryWhy(String country);
+
+  /// Kos TV Music: country.
+  ///
+  /// In en, this message translates to:
+  /// **'Mexico'**
+  String get kostvMusicMexico;
+
+  /// Kos TV Music: country.
+  ///
+  /// In en, this message translates to:
+  /// **'the United States'**
+  String get kostvMusicUnitedStates;
 }
 
 class _AppLocalizationsDelegate

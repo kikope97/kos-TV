@@ -418,17 +418,46 @@ class StremfinService extends ChangeNotifier {
       _charts ??= await _client.musicCharts();
 
   /// One chart's places, kept for half an hour.
-  Future<StremfinChartPage> musicChart(String id, {bool fresh = false}) async {
-    final kept = _chartPages[id];
+  Future<StremfinChartPage> musicChart(
+    String id, {
+    bool fresh = false,
+    String? country,
+  }) async {
+    final key = country == null ? id : '$country:$id';
+    final kept = _chartPages[key];
     if (!fresh &&
         kept != null &&
         DateTime.now().difference(kept.at) < _chartFor) {
       return kept.page;
     }
-    final page = await _client.musicChart(id);
-    _chartPages[id] = (at: DateTime.now(), page: page);
+    final page = await _client.musicChart(id, country: country);
+    _chartPages[key] = (at: DateTime.now(), page: page);
     return page;
   }
+
+  final Map<String, ({DateTime at, StremfinRecommendations found})>
+  _recommended = {};
+
+  /// «Para ti» for [artists]: the service keeps it an hour and allows few
+  /// calls, so it is kept here as long.
+  Future<StremfinRecommendations> musicRecommendations(
+    List<String> artists, {
+    List<String> genres = const [],
+  }) async {
+    final key = '${artists.join(',')}|${genres.join(',')}';
+    final kept = _recommended[key];
+    if (kept != null &&
+        DateTime.now().difference(kept.at) < const Duration(hours: 1)) {
+      return kept.found;
+    }
+    final found = await _client.musicRecommendations(artists, genres: genres);
+    _recommended[key] = (at: DateTime.now(), found: found);
+    return found;
+  }
+
+  /// The latest records of the artists [deezerIds].
+  Future<List<StremfinAlbum>> musicArtistReleases(List<String> deezerIds) =>
+      _client.musicArtistReleases(deezerIds);
 
   /// Music matching [query]: what the home server has and what it hasn't.
   Future<StremfinMusicSearch> musicSearch(String query) =>

@@ -55,6 +55,11 @@ class KostvMusicService {
     ),
   );
 
+  /// One of the home server's items by its id, or null.
+  Future<AggregatedItem?> item(String id) async =>
+      (await _get(types: const ['Audio', 'MusicAlbum'], ids: [id]))
+          .firstOrNull;
+
   /// Whether the home server has any music the person can play.
   Future<bool> hasMusic() async =>
       (await _get(types: const ['Audio'], limit: 1)).isNotEmpty;

@@ -88,6 +88,11 @@ Future<void> openKostvStremfinAlbum(
   BuildContext context,
   StremfinAlbum album,
 ) async {
+  final atHome = album.jellyfinId;
+  if (atHome != null) {
+    context.push(Destinations.item(atHome));
+    return;
+  }
   if (album.inJellyfin) {
     final found = await kostvMusicService()
         .search(album.title)
@@ -105,10 +110,16 @@ Future<void> openKostvStremfinAlbum(
 /// A song of a chart, a search or an artist: played if it is at home,
 /// otherwise its album's page to ask for it.
 Future<void> openKostvMusicSong(BuildContext context, StremfinSong song) async {
-  if (song.inJellyfin) {
-    final found = await kostvMusicService()
-        .findSong(song.title, song.artist)
-        .catchError((Object _) => null);
+  if (song.inJellyfin || song.jellyfinId != null) {
+    // The service says which it is (since 1.91.0); otherwise looked for by
+    // its title and artist.
+    final id = song.jellyfinId;
+    final music = kostvMusicService();
+    final found =
+        await (id != null
+                ? music.item(id)
+                : music.findSong(song.title, song.artist))
+            .catchError((Object _) => null);
     if (!context.mounted) return;
     if (found != null) {
       await playMusicTrack(context, found);
@@ -141,7 +152,7 @@ Future<void> openKostvMusicSong(BuildContext context, StremfinSong song) async {
     );
     return;
   }
-  if (song.inJellyfin) {
+  if (song.inJellyfin || song.jellyfinId != null) {
     kostvMusicSay(
       context,
       AppLocalizations.of(context).kostvMusicNotFoundAtHome,
@@ -155,3 +166,15 @@ void openKostvMusicArtist(BuildContext context, StremfinArtist artist) =>
       Destinations.kostvMusicArtistOf(artist.deezerId),
       extra: artist,
     );
+
+/// A song of an album's page that is at home: it plays, with the rest of
+/// its album after it.
+Future<void> playKostvMusicTrack(
+  BuildContext context,
+  String jellyfinId,
+) async {
+  final song = await kostvMusicService()
+      .item(jellyfinId)
+      .catchError((Object _) => null);
+  if (song != null && context.mounted) await playMusicTrack(context, song);
+}

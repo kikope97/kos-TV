@@ -419,6 +419,10 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
           duration: song.duration,
           atHome: song.inJellyfin,
           picked: picked != null && song.title.toLowerCase().contains(picked),
+          // At home (Stremfin 1.91 says which it is): it plays.
+          onTap: song.jellyfinId == null
+              ? null
+              : () => unawaited(playKostvMusicTrack(context, song.jellyfinId!)),
         ),
     ];
   }
@@ -511,8 +515,10 @@ class _TrackRow extends StatelessWidget {
     this.duration,
     this.atHome = false,
     this.picked = false,
+    this.onTap,
   });
 
+  final VoidCallback? onTap;
   final int number;
   final int? disc;
   final String title;
@@ -527,11 +533,30 @@ class _TrackRow extends StatelessWidget {
     final length = duration == null
         ? null
         : '${duration! ~/ 60}:${(duration! % 60).toString().padLeft(2, '0')}';
-    final color = picked ? kostvMusicColor : Colors.white;
-    return Container(
+    final onTap = this.onTap;
+    if (onTap == null) return _row(context, l10n, length, lit: false);
+    return KostvMusicPressable(
+      onTap: onTap,
+      builder: (context, lit) => _row(context, l10n, length, lit: lit),
+    );
+  }
+
+  Widget _row(
+    BuildContext context,
+    AppLocalizations l10n,
+    String? length, {
+    required bool lit,
+  }) {
+    final color = lit
+        ? Colors.black
+        : (picked ? kostvMusicColor : Colors.white);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
+      decoration: BoxDecoration(
+        color: lit ? Colors.white : Colors.transparent,
+        borderRadius: lit ? AppRadius.circular(8) : null,
+        border: const Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
       ),
       child: Row(
         children: [

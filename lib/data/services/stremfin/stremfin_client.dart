@@ -237,10 +237,14 @@ class StremfinClient {
     ];
   }
 
-  /// One chart's places, up to [limit].
-  Future<StremfinChartPage> musicChart(String id, {int? limit}) async {
+  /// One chart's places, up to [limit], of [country] (Spain unless said).
+  Future<StremfinChartPage> musicChart(
+    String id, {
+    int? limit,
+    String? country,
+  }) async {
     final page = StremfinChartPage.fromJson(
-      await _get('/music/charts/$id', {'limit': ?limit}),
+      await _get('/music/charts/$id', {'limit': ?limit, 'country': ?country}),
     );
     if (page == null) throw const StremfinException(code: 'bad_response');
     return page;
@@ -289,6 +293,25 @@ class StremfinClient {
     if (detail == null) throw const StremfinException(code: 'bad_response');
     return detail;
   }
+
+  /// «Para ti»: records and songs of artists like [artists] (names, as the
+  /// home server has them; up to ten), those of [genres] first.
+  Future<StremfinRecommendations> musicRecommendations(
+    List<String> artists, {
+    List<String> genres = const [],
+  }) async => StremfinRecommendations.fromJson(
+    await _get('/music/recommendations', {
+      'artists': artists.take(10).join(','),
+      if (genres.isNotEmpty) 'genres': genres.join(','),
+    }),
+  );
+
+  /// The latest and announced records of the artists [deezerIds] (up to
+  /// twenty).
+  Future<List<StremfinAlbum>> musicArtistReleases(List<String> deezerIds) =>
+      _albums('/music/artists/releases', {
+        'ids': deezerIds.take(20).join(','),
+      });
 
   /// What the house asked for most lately.
   Future<List<StremfinAlbum>> musicRequested({int? limit}) =>

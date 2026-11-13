@@ -19581,4 +19581,33 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMusicShowButtonSubtitle => 'Muestra Música en el menú';
+
+  @override
+  String get kostvMusicForYouSongs => 'Canciones para ti';
+
+  @override
+  String get kostvMusicForYouWhy => 'De artistas parecidos a los que escuchas';
+
+  @override
+  String get kostvMusicNewFromYours => 'Nuevo de tus artistas';
+
+  @override
+  String get kostvMusicNewFromYoursWhy =>
+      'Lo último y lo que está a punto de salir de los artistas que escuchas';
+
+  @override
+  String kostvMusicTopCountry(String country) {
+    return 'Top $country';
+  }
+
+  @override
+  String kostvMusicTopCountryWhy(String country) {
+    return 'Lo más escuchado ahora en $country';
+  }
+
+  @override
+  String get kostvMusicMexico => 'México';
+
+  @override
+  String get kostvMusicUnitedStates => 'Estados Unidos';
 }

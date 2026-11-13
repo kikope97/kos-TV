@@ -13500,5 +13500,21 @@
     "kostvMusicShowButton": "Botón de Música",
     "@kostvMusicShowButton": {"description": "Kos TV: settings switch for the Music menu button."},
     "kostvMusicShowButtonSubtitle": "Muestra Música en el menú",
-    "@kostvMusicShowButtonSubtitle": {"description": "Kos TV: settings switch subtitle."}
+    "@kostvMusicShowButtonSubtitle": {"description": "Kos TV: settings switch subtitle."},
+    "kostvMusicForYouSongs": "Canciones para ti",
+    "@kostvMusicForYouSongs": {"description": "Kos TV Music: recommended songs."},
+    "kostvMusicForYouWhy": "De artistas parecidos a los que escuchas",
+    "@kostvMusicForYouWhy": {"description": "Kos TV Music: line under the recommendations."},
+    "kostvMusicNewFromYours": "Nuevo de tus artistas",
+    "@kostvMusicNewFromYours": {"description": "Kos TV Music: releases of the artists the person listens to."},
+    "kostvMusicNewFromYoursWhy": "Lo último y lo que está a punto de salir de los artistas que escuchas",
+    "@kostvMusicNewFromYoursWhy": {"description": "Kos TV Music: line under the releases."},
+    "kostvMusicTopCountry": "Top {country}",
+    "@kostvMusicTopCountry": {"description": "Kos TV Music: a country's chart.", "placeholders": {"country": {"type": "String"}}},
+    "kostvMusicTopCountryWhy": "Lo más escuchado ahora en {country}",
+    "@kostvMusicTopCountryWhy": {"description": "Kos TV Music: line under a country's chart.", "placeholders": {"country": {"type": "String"}}},
+    "kostvMusicMexico": "México",
+    "@kostvMusicMexico": {"description": "Kos TV Music: country."},
+    "kostvMusicUnitedStates": "Estados Unidos",
+    "@kostvMusicUnitedStates": {"description": "Kos TV Music: country."}
 }

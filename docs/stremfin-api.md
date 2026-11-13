@@ -1,6 +1,6 @@
 # API de Stremfin para la app de Jellyfin de casa
 
-> Versión de la API: **v1** · Stremfin 1.90.2 · documento generado el 13/11/2026
+> Versión de la API: **v1** · Stremfin 1.91.0 · documento generado el 13/11/2026
 >
 > Dirección base: **`https://stremfin.ejemplo.com/api/v1`**
 
@@ -178,14 +178,14 @@ Los de validación añaden `fields` con el detalle de cada campo:
 | 409 | `already_answered` | Retirar una petición que ya tiene respuesta | Refrescar la petición |
 | 422 | `invalid` | Parámetros que faltan o no valen (`fields` dice cuáles) | Error de programación (o texto vacío del usuario) |
 | 429 | `too_many_requests` | Más de 300 llamadas por minuto de ese usuario | Esperar los segundos de `Retry-After` |
-| 429 | `too_many_requests` | Más de 120 búsquedas (también explorar, fichas de persona y búsqueda de canciones), o de 60 fichas de serie, disponibilidades, Próximamente, artistas, álbumes, canciones o listas de éxitos, por minuto (ver [6](#6-límites)) | Esperar `Retry-After` |
+| 429 | `too_many_requests` | Más de 120 búsquedas (también explorar, fichas de persona y búsqueda de canciones), o de 60 fichas de serie, disponibilidades, Próximamente, artistas, novedades de artistas, álbumes, canciones o listas de éxitos, o de 10 recomendaciones de música, por minuto (ver [6](#6-límites)) | Esperar `Retry-After` |
 | 429 | `too_many_requests` | Más de 30 veces por minuto pidiendo, retirando o avisando de problemas | Esperar `Retry-After` |
 | 429 | `too_many_attempts` | Más de 20 tokens nuevos por minuto desde esa dirección, o demasiadas sesiones nuevas a la vez en todo el servidor | Esperar `Retry-After`; no reintentar en bucle |
 | 500 | `server_error` | Fallo inesperado del servidor (queda en sus registros) | Reintentar más tarde |
 | 503 | `api_disabled` | La API está apagada en *Ajustes → Acceso desde fuera* | Enseñar el mensaje; reintentar más tarde |
 | 503 | `jellyfin_not_configured` | Stremfin aún no está conectado a Jellyfin | Enseñar el mensaje |
 | 503 | `jellyfin_unavailable` | Stremfin no puede preguntar a Jellyfin por el token | Reintentar tras `Retry-After`; **no** cerrar sesión |
-| 503 | `source_unavailable` | Una fuente externa (TMDB, JustWatch, Deezer) no responde | Reintentar más tarde |
+| 503 | `source_unavailable` | Una fuente externa (TMDB, JustWatch, Deezer, las listas de Apple) no responde | Reintentar más tarde |
 | 503 | `busy` | Solo en `POST /requests` y `POST /problems`: otra petición o aviso se está guardando en ese mismo instante (van de uno en uno) | Reintentar al momento (una o dos veces) |
 | otro | `http_<código>` | Cualquier otro error HTTP | Enseñar el mensaje |
 
@@ -197,7 +197,8 @@ Los de validación añaden `fields` con el detalle de cada campo:
 
 - **300 llamadas por minuto** por usuario de Jellyfin. Pasado eso, `429 too_many_requests` con `Retry-After` (segundos).
 - **120 búsquedas por minuto** (`/search`, `/discover`, `/people/{id}`, `/music/search`, `/music/songs`, `/music/artists`), dentro de las 300, con su propia cuenta: buscar mientras se escribe no gasta las demás.
-- **60 por minuto** de las que más cuestan (`/series/{id}`, `/movies/{id}/availability`, `/upcoming`, `/music/artists/{id}`, `/music/albums/{id}`, `/music/songs/{id}`, `/music/charts/{id}`), también dentro de las 300 y con su propia cuenta.
+- **60 por minuto** de las que más cuestan (`/series/{id}`, `/movies/{id}/availability`, `/upcoming`, `/music/artists/{id}`, `/music/artists/releases`, `/music/albums/{id}`, `/music/songs/{id}`, `/music/charts/{id}`), también dentro de las 300 y con su propia cuenta.
+- **10 recomendaciones por minuto** (`/music/recommendations`, desde 1.91.0), con su propia cuenta: cada lista nueva de artistas cuesta muchas consultas a Deezer. La respuesta se guarda una hora: pídela al abrir la pantalla, no en bucle.
 - **30 por minuto** para pedir, retirar y avisar de problemas (`POST /requests`, `DELETE /requests/{id}`, `POST /problems`), con su propia cuenta.
 - Los límites son **por minuto**: no se acumulan. Si llegas a uno, en menos de un minuto (lo dice `Retry-After`) vuelves a tener todo.
 - Para buscar mientras se escribe, espera ~400 ms sin teclear antes de llamar y descarta la respuesta de una búsqueda vieja si llega después de la nueva: menos llamadas y resultados que no saltan.
@@ -207,7 +208,7 @@ Los de validación añaden `fields` con el detalle de cada campo:
   - Como mucho `access.daily_limit` (20) peticiones nuevas **en 24 horas** por persona (contadas desde la primera), aunque se retiren.
   - Al pasarse, `POST /requests` responde `429` con `outcome: "limit"`, el motivo en `message` y `limit`: `pending` (esperando respuesta: se libera cuando el administrador conteste o retires una) o `daily` (con `Retry-After`: cuándo se libera).
 
-Las listas de tops y las búsquedas (también las de música) se guardan en caché en el servidor (de minutos a una hora), y la disponibilidad de una película 10 minutos: llamar más a menudo no da datos más frescos.
+Las listas de tops y las búsquedas (también las de música) se guardan en caché en el servidor (de minutos a una hora), y la disponibilidad de una película 10 minutos: llamar más a menudo no da datos más frescos. Lo mismo las recomendaciones de música (una hora) y los discos de cada artista (6 horas).
 
 ---
 
@@ -395,7 +396,7 @@ Lo devuelven `/requests`, `/requests/{id}` y `POST /requests`.
 
 ### 7.6 Álbum
 
-Lo devuelven `/music/search`, `/music/new`, `/music/artists/{id}`, `/music/albums/{id}`, las listas de álbumes de `/music/charts/{id}`, `/music/releases`, `/music/requested` y, dentro de una canción, `/music/songs/{id}` y las listas de canciones.
+Lo devuelven `/music/search`, `/music/new`, `/music/artists/{id}`, `/music/albums/{id}`, las listas de álbumes de `/music/charts/{id}`, `/music/releases`, `/music/requested`, `/music/artists/releases`, `/music/recommendations` y, dentro de una canción, `/music/songs/{id}` y las listas de canciones.
 
 ```json
 {
@@ -408,7 +409,7 @@ Lo devuelven `/music/search`, `/music/new`, `/music/artists/{id}`, `/music/album
   "kind": "album",
   "release_date": "2001-03-07",
   "rank": null,
-  "library": { "in_jellyfin": false, "song_in_album": null, "requested_recently": true },
+  "library": { "in_jellyfin": false, "song_in_album": null, "requested_recently": true, "jellyfin_id": null },
   "download": {
     "phase": "downloading",
     "label": "Descargando",
@@ -433,6 +434,7 @@ Lo devuelven `/music/search`, `/music/new`, `/music/artists/{id}`, `/music/album
 | `library.in_jellyfin` | Ya está en Jellyfin (un sencillo cuya canción tienes en un álbum también cuenta) |
 | `library.song_in_album` | Un sencillo cuya canción ya tienes en un álbum: el nombre de ese álbum |
 | `library.requested_recently` | Se mandó a la descarga hace poco (lo pida quien lo pida) |
+| `library.jellyfin_id` | Desde 1.91.0. El `Id` de ese álbum en Jellyfin, para **reproducirlo** ([10.7](#107-abrir-algo-en-jellyfin)). Siempre presente: `null` si no está en Jellyfin. Puede ser `null` aunque `in_jellyfin` sea `true`: un sencillo que tienes solo dentro de un álbum (ese álbum, en `song_in_album`; para su canción, mira el `jellyfin_id` de la canción). Si en Jellyfin hay dos copias del mismo disco, la primera que entró en el índice |
 | `download` | Si va de camino a Jellyfin (se mandó a la descarga y aún no está), dónde va: ver [9.5](#95-download-de-un-álbum-de-camino-a-jellyfin). `null` si no |
 | `contains` | La canción por la que sale este álbum: la que nombra la búsqueda, la del sencillo en `album_instead`, o la canción de la lista en su `album`. `null` en lo demás |
 | `request` | Petición abierta (7.4) o `null` |
@@ -442,7 +444,7 @@ Lo devuelven `/music/search`, `/music/new`, `/music/artists/{id}`, `/music/album
 
 ### 7.7 Canción
 
-Desde 1.84.0. Lo devuelven `/music/search` (`songs`), `/music/songs`, `/music/songs/{id}` y `top_songs` de un artista.
+Desde 1.84.0. Lo devuelven `/music/search` (`songs`), `/music/songs`, `/music/songs/{id}`, `top_songs` de un artista y `songs` de `/music/recommendations`.
 
 ```json
 {
@@ -455,7 +457,9 @@ Desde 1.84.0. Lo devuelven `/music/search` (`songs`), `/music/songs`, `/music/so
   "explicit": false,
   "album": { "deezer_id": "302127", "title": "Discovery", "cover": "https://…/500x500.jpg" },
   "in_jellyfin": false,
-  "in_album": null
+  "in_album": null,
+  "jellyfin_id": null,
+  "album_jellyfin_id": null
 }
 ```
 
@@ -468,6 +472,7 @@ Desde 1.84.0. Lo devuelven `/music/search` (`songs`), `/music/songs`, `/music/so
 | `explicit` | Letra explícita, según Deezer |
 | `album` | El disco en el que Deezer la sitúa (`deezer_id`, `title`, `cover`), o `null`. Puede ser un sencillo: la ficha de la canción dice qué álbum pedir |
 | `in_jellyfin`, `in_album` | Si ya tienes esa canción en Jellyfin y en qué álbum |
+| `jellyfin_id`, `album_jellyfin_id` | Desde 1.91.0. Si la tienes: el `Id` en Jellyfin de esa pista y el del álbum de Jellyfin que la tiene (el de `in_album`), para **reproducirla** o abrir su álbum ([10.7](#107-abrir-algo-en-jellyfin)). Siempre presentes: `null` si no la tienes (`album_jellyfin_id` también si Jellyfin no dijo su álbum) |
 
 ## 8. Direcciones
 
@@ -490,6 +495,8 @@ Todas empiezan por `https://stremfin.ejemplo.com/api/v1` y llevan el token. Las 
 | GET 🔒 | `/music/charts/{id}` | Una lista: canciones (con su álbum) o álbumes |
 | GET 🔒 | `/music/releases` | Los discos de los artistas que sigue la casa, también los anunciados |
 | GET 🔒 | `/music/requested` | Lo más pedido en casa |
+| GET 🔒 | `/music/artists/releases` | Lo nuevo y lo anunciado de los artistas que tú digas |
+| GET 🔒 | `/music/recommendations` | «Para ti»: discos de artistas parecidos a los que escuchas |
 | GET 🔒 | `/music/artists` | Buscar artistas |
 | GET 🔒 | `/music/artists/{deezer_id}` | Un artista: sus discos, sus canciones más escuchadas y artistas parecidos |
 | GET 🔒 | `/music/albums/{deezer_id}` | Un álbum con sus canciones |
@@ -538,7 +545,7 @@ Authorization: Bearer <token>
     "music": true,
     "platforms": ["netflix", "disney", "prime"]
   },
-  "server": { "name": "Stremfin", "version": "1.90.2", "api_version": 1 }
+  "server": { "name": "Stremfin", "version": "1.91.0", "api_version": 1 }
 }
 ```
 
@@ -921,8 +928,8 @@ La ficha de un álbum: el álbum (7.6) con sus canciones.
   "duration": 3660,
   "songs_have": 1,
   "songs": [
-    { "position": 1, "disc": 1, "title": "One More Time", "artist": "Daft Punk", "duration": 320, "in_jellyfin": true, "in_album": "Grandes éxitos" },
-    { "position": 2, "disc": 1, "title": "Aerodynamic", "artist": "Daft Punk", "duration": 207, "in_jellyfin": false, "in_album": null }
+    { "position": 1, "disc": 1, "title": "One More Time", "artist": "Daft Punk", "duration": 320, "in_jellyfin": true, "in_album": "Grandes éxitos", "jellyfin_id": "5f1c…", "album_jellyfin_id": "a93e…" },
+    { "position": 2, "disc": 1, "title": "Aerodynamic", "artist": "Daft Punk", "duration": 207, "in_jellyfin": false, "in_album": null, "jellyfin_id": null, "album_jellyfin_id": null }
   ],
   "album_instead": null
 }
@@ -936,6 +943,7 @@ La ficha de un álbum: el álbum (7.6) con sus canciones.
 | `songs[].duration` | Segundos |
 | `songs[].in_jellyfin` | Esa canción ya está en Jellyfin, **en este álbum o en otro** |
 | `songs[].in_album` | En qué álbum de Jellyfin la tienes |
+| `songs[].jellyfin_id`, `songs[].album_jellyfin_id` | Desde 1.91.0. El `Id` en Jellyfin de la pista que tienes y el de su álbum (el de `in_album`), para reproducirla; `null` si no la tienes |
 | `songs_have` | Cuántas canciones del álbum tienes ya (en el álbum que sea) |
 | `album_instead` | Desde 1.84.0. Solo si esto es un sencillo (`kind: "single"`) y su canción está en un álbum: ese álbum (7.6, con `contains` = la canción), **el que hay que ofrecer para pedir**. `null` en un álbum, un EP, o un sencillo que no está en ningún álbum |
 
@@ -1349,6 +1357,10 @@ El botón de una canción es siempre «Pedir el álbum» con `ask` (mira `can_re
 
 Desde 1.85.0. Las listas de éxitos que hay, de las listas públicas de Apple para España (sin clave). Cuenta solo en el límite general.
 
+| Parámetro | Obligatorio | Valores |
+|---|---|---|
+| `country` | no | Desde 1.91.0. El país de las listas, código ISO de dos letras (mayúsculas o minúsculas): `ES` (por defecto), `MX`, `US`, `AR`, `CO`, `CL`, `PE`, `GB`, `FR`, `DE`, `IT`, `PT`, `BR`. Otro → `422 invalid`. No hay lista «mundial»: Apple no la publica |
+
 ```json
 {
   "country": "ES",
@@ -1367,8 +1379,11 @@ Desde 1.85.0. Las listas de éxitos que hay, de las listas públicas de Apple pa
 | `kind` | `songs` (canciones, cada una con su álbum) o `albums` |
 | `measure` | `played`: lo más **escuchado** en Apple Music España (las dos listas generales). `sold`: lo más **comprado** en la tienda de Apple en España (las listas por género: Apple no publica lo más escuchado por género) |
 | `genre` | `null` en las generales; en las demás: `latino`, `pop`, `hiphop`, `rock`, `dance`, `electronica`, `alternativa`, `rnb`, `reggae`, `bandas-sonoras` |
+| `country` | El país de las listas (el que pediste, o `ES`) |
 
 Cada género tiene su lista de canciones (`{genre}-songs`) y de álbumes (`{genre}-albums`). La lista de listas no cambia: guárdala.
+
+**Otros países** (desde 1.91.0): con `country` salen las mismas listas, con los mismos `id`, de ese país; solo cambia `name`: «Top México · Canciones», «Top México · Álbumes» y, por género, «Top Latino (México) · Canciones». En España los nombres son los de siempre. Lo que dice `measure` vale igual («lo más escuchado en Apple Music México», «lo más comprado en la tienda de México»).
 
 ### 8.29 `GET /music/charts/{id}`
 
@@ -1378,6 +1393,7 @@ Desde 1.85.0. Una lista, hasta 50 puestos.
 |---|---|---|
 | `limit` | no | 1–50 (por defecto 50) |
 | `only` | no | `all` (por defecto), `missing`, `available` |
+| `country` | no | Desde 1.91.0. El país, como en [8.28](#828-get-musiccharts) (por defecto `ES`; otro de la lista → `422 invalid`). La respuesta lo repite en `country` |
 
 Una lista de **álbumes** (`kind: "albums"`) devuelve Álbumes (7.6) con `rank`:
 
@@ -1400,6 +1416,8 @@ Una lista de **canciones** (`kind: "songs"`) devuelve cada canción con **el dis
       "release_date": "2026-08-05",
       "in_jellyfin": false,
       "in_album": null,
+      "jellyfin_id": null,
+      "album_jellyfin_id": null,
       "album": { Álbum… }
     }
   ]
@@ -1411,13 +1429,15 @@ Una lista de **canciones** (`kind: "songs"`) devuelve cada canción con **el dis
 | `rank` | Su puesto en la lista. Con `only`, los puestos se saltan (son los de la lista entera) |
 | `cover`, `preview`, `release_date` | Portada (600 px), fragmento de 30 segundos (AAC; puede ser `null`) y fecha, de Apple; cualquiera puede ser `null` |
 | `in_jellyfin`, `in_album` | Si ya tienes la canción (o su disco) y en qué álbum de Jellyfin está la canción |
+| `jellyfin_id`, `album_jellyfin_id` | Desde 1.91.0. El `Id` en Jellyfin de la pista y de su álbum, si tienes la canción; `null` si no (si solo tienes su disco, el id del disco está en `album.library.jellyfin_id`) |
 | `album` | El disco de la canción como Álbum (7.6), con `library`, `request`, `download` y `can_request`. `null` si no se sabe de qué disco es o no se encontró en Deezer (no se puede pedir). Trae `contains` (la canción) y `rank: null`. Varias canciones del mismo disco traen el mismo `album` |
 
 - **Al pulsar una canción, lleva al álbum**, no a la canción: abre `GET /music/albums/{album.deezer_id}` ([8.12](#812-get-musicalbumsdeezer_id)). Si `album.kind` es `single`, esa ficha dice en `album_instead` el álbum entero, y pedir el sencillo pide ese álbum ([8.15](#815-post-requests)).
 - Estas canciones no llevan `deezer_id`: vienen de Apple, no de Deezer. No valen para [8.27](#827-get-musicsongsdeezer_id).
 - En una lista de álbumes, lo que no está en Deezer viene con `deezer_id: null` y `can_request: false`. Como en `/music/new`, no salen los discos de ruido de fondo: los puestos pueden saltarse.
 - `GET /music/charts/top-albums` trae lo mismo que `/music/new` ([8.9](#89-get-musicnew)), que sigue igual.
-- `404 not_found` si la lista no existe; `503 source_unavailable` si Apple (o Deezer, al emparejar) no responde; tras un fallo de Apple no se reintenta hasta pasados 10 minutos. La primera vez que se pide una lista tarda (hay que emparejar cada disco con Deezer); después se guarda 6 horas. Cuenta en el límite de 60 por minuto.
+- `404 not_found` si la lista no existe; `503 source_unavailable` si Apple (o Deezer, al emparejar) no responde; tras un fallo de Apple no se reintenta hasta pasados 10 minutos (cada país por su lado: un fallo de México no toca a España). La primera vez que se pide una lista tarda (hay que emparejar cada disco con Deezer); después se guarda 6 horas, por país. Cuenta en el límite de 60 por minuto.
+- Con `country`, los discos se buscan igual en Deezer: un disco que Deezer no tiene sale con `deezer_id: null` y no se puede pedir.
 
 ### 8.30 `GET /music/releases`
 
@@ -1447,6 +1467,77 @@ Desde 1.85.0. Lo más pedido en casa: los álbumes con más gente en su petició
 | `limit` | no | 1–50 (por defecto 20) |
 
 Devuelve `{ "days": 90, "items": [ { Álbum…, "people": 3 } ] }`: `people` es cuánta gente lo pidió (el administrador cuenta como uno). Entre iguales, el más reciente primero. En esta lista `tracks` y `release_date` vienen `null` y `kind` es siempre `album` (sale de la petición, no de Deezer): para el tipo y las canciones, abre la ficha ([8.12](#812-get-musicalbumsdeezer_id)). Lo que ya llegó a Jellyfin sigue saliendo, con `library.in_jellyfin: true`. Cuenta solo en el límite general.
+
+### 8.32 `GET /music/artists/releases`
+
+Desde 1.91.0. Lo nuevo y lo anunciado de **los artistas que diga la app** (por ejemplo, los que más escucha esa persona en Jellyfin), no los que sigue la casa ([8.30](#830-get-musicreleases)): para una fila «Novedades de tus artistas».
+
+| Parámetro | Obligatorio | Valores |
+|---|---|---|
+| `ids` | sí | Ids de Deezer de los artistas, separados por comas, **hasta 20** (`27,1234,…`). Más → `422 invalid` |
+| `days` | no | Cuántos días atrás mirar, 1–365 (por defecto 90). Lo anunciado (fecha futura) sale siempre |
+| `kind` | no | `all` (por defecto), `album`, `ep` o `single` |
+| `only` | no | `all` (por defecto), `missing`, `available` |
+| `limit` | no | 1–100 (por defecto 40) |
+
+```json
+{
+  "ids": ["27", "1234", "99"],
+  "days": 90, "kind": "all", "only": "all",
+  "items": [ { Álbum…, "upcoming": true, "artist_deezer_id": "27" } ],
+  "skipped": ["99"],
+  "failed": []
+}
+```
+
+- **Orden**: primero lo anunciado (`upcoming: true`), lo más cercano primero; después lo ya publicado, lo más nuevo primero. Un disco de dos de esos artistas sale una vez.
+- Cada disco es un Álbum (7.6), con `library` (y `jellyfin_id`), `request`, `download` y `can_request`, más `upcoming` y `artist_deezer_id` (de cuál de tus artistas sale). `tracks` viene `null` (está en la ficha).
+- `skipped`: los ids que Deezer no conoce (no es un error). `failed`: los artistas que Deezer no respondió ahora mismo: la respuesta trae los demás; vuelve a intentarlo más tarde. Si fallan **todos**, `503 source_unavailable`.
+- Los discos de cada artista se guardan 6 horas en el servidor (los mismos que la ficha del artista, [8.11](#811-get-musicartistsdeezer_id)). Cuenta en el límite de 60 por minuto.
+- Para pasar de nombres de Jellyfin a ids de Deezer, `GET /music/artists?q=…` ([8.10](#810-get-musicartists)) y guárdalos; o usa directamente [8.33](#833-get-musicrecommendations), que acepta nombres.
+
+### 8.33 `GET /music/recommendations`
+
+Desde 1.91.0. **«Para ti»**: discos (y algunas canciones) de artistas **parecidos** a los que escucha esa persona, nunca de esos mismos artistas (ya los conoce).
+
+| Parámetro | Obligatorio | Valores |
+|---|---|---|
+| `artists` | sí, si no hay `artist_ids` | Nombres de artistas separados por comas (`Bad Bunny,Rosalía`), hasta 10. Se buscan en Deezer y vale el que se llama **exactamente** así (sin mirar tildes ni mayúsculas) |
+| `artist_ids` | sí, si no hay `artists` | Ids de Deezer separados por comas, hasta 10. Se pueden mezclar con `artists`: hasta 10 en total, si no `422 invalid` |
+| `genres` | no | Géneros separados por comas: los de las listas ([8.28](#828-get-musiccharts)): `latino`, `pop`, `hiphop`, `rock`, `dance`, `electronica`, `alternativa`, `rnb`, `reggae`, `bandas-sonoras`. Los discos de esos géneros van primero (no se quita ninguno). Cualquier otro nombre se ignora |
+| `only` | no | `missing` (**por defecto**: lo que no está en Jellyfin), `all`, `available` |
+| `limit` | no | 1–60 (por defecto 40) |
+
+```json
+{
+  "seeds": [ { "name": "Bad Bunny", "deezer_id": "10583405" }, { "name": "Rosalía", "deezer_id": "4795231" }, { "name": "Nadie", "deezer_id": null } ],
+  "genres": ["latino"],
+  "only": "missing",
+  "items": [
+    { Álbum…, "artist_deezer_id": "12345", "reason": "Porque escuchas a Bad Bunny y Rosalía", "because": ["Bad Bunny", "Rosalía"] }
+  ],
+  "songs": [
+    { Canción…, "reason": "Porque escuchas a Rosalía", "because": ["Rosalía"] }
+  ],
+  "skipped": ["Nadie"],
+  "failed": []
+}
+```
+
+| Campo | Notas |
+|---|---|
+| `seeds` | Los artistas de la llamada, en su orden, con su `deezer_id` (o `null` si Deezer no tiene ninguno que se llame así). `name` es como lo escribe Deezer |
+| `items` | Álbumes y EP (7.6, con `library.jellyfin_id`, `request`, `download` y `can_request`) de los artistas parecidos a los de `seeds`, más `artist_deezer_id`, `reason` (para enseñar debajo) y `because` (los artistas de `seeds` que llevan a él) |
+| `songs` | Unas pocas canciones populares (7.7) de esos artistas parecidos, con `reason` y `because`. Con `only`, también se filtran. Para pedir, su ficha ([8.27](#827-get-musicsongsdeezer_id)) |
+| `genres` | Los géneros de la llamada que se entendieron |
+| `skipped` | Los nombres o ids de la llamada que Deezer no conoce |
+| `failed` | Los nombres o ids por los que Deezer no respondió ahora mismo (la respuesta trae lo demás) |
+
+- **Cómo se eligen**: de cada artista de `seeds`, sus 5 artistas parecidos de Deezer; de todos ellos, hasta 15 (los que salen de más artistas tuyos primero); de cada uno, hasta 3 discos (álbumes y EP ya publicados; de los de los últimos años, los que más seguidores tienen). Un disco al que llevan varios de tus artistas sale una vez, con todos en `because`.
+- **Orden**: primero los que salen de más artistas tuyos; después, el del artista más parecido; después, el más nuevo. Con `genres`, los de esos géneros delante (si Deezer dice el género del disco; si no, se quedan donde estaban).
+- La lista se guarda **una hora** en el servidor por cada conjunto de artistas (y lo que se sabe de cada artista, un día): llamar más a menudo no da nada nuevo. `library`, `request` y `download` sí están siempre al día.
+- Si Deezer no responde para nada, `503 source_unavailable`. Cuenta en su propio límite: **10 por minuto** ([6](#6-límites)).
+- Los nombres que mandas solo se usan para buscar en Deezer; Stremfin no los guarda con tu usuario ni los escribe en sus registros.
 
 ---
 
@@ -1607,6 +1698,10 @@ Las fases salen de lo que el servicio dice de su cola (se mira como mucho cada p
 - Novedades → `GET /music/new`.
 - Portada de música: pestañas con `GET /music/charts` («Top España», «Latino», «Pop»…) y, al elegir una, `GET /music/charts/{id}`. En una lista de canciones, cada fila: puesto, portada, título, artista, un botón de escucha (`preview`) y, al pulsar, **la ficha de su álbum** (`album.deezer_id`), no la canción. Las insignias («Ya lo tienes», «Pedido», «Descargando 40 %») salen de `album`.
 - «De tus artistas» → `GET /music/releases` (con una etiqueta «Próximamente» si `upcoming`). «Lo más pedido en casa» → `GET /music/requested`.
+- **Reproducir lo que ya está en casa** (1.91.0): un álbum con `library.jellyfin_id` lleva un botón «Reproducir» que abre ese `Id` en el reproductor de Jellyfin; una canción (en el buscador, en `top_songs`, en las listas o en la ficha de un álbum) con `jellyfin_id` se reproduce directamente, y `album_jellyfin_id` abre su álbum. Sin id, el botón es «Pedir el álbum» como siempre.
+- **«Para ti»** (1.91.0): saca de Jellyfin los artistas que más escucha esa persona (por ejemplo, `/Users/{userId}/Items?IncludeItemTypes=Audio&SortBy=PlayCount&SortOrder=Descending`, o sus artistas favoritos) y llama a `GET /music/recommendations?artists=A,B,C` con hasta 10 nombres. Cada tarjeta enseña `reason` debajo («Porque escuchas a Bad Bunny»). Con `only=missing` (por defecto) solo sale lo que no tiene. Guarda la respuesta un rato: el servidor la guarda una hora.
+- **«Novedades de tus artistas»** (1.91.0): con los mismos artistas pasados a ids de Deezer (`seeds[].deezer_id` de la llamada anterior, o `GET /music/artists?q=…`), `GET /music/artists/releases?ids=…` da lo que acaban de sacar y lo anunciado (`upcoming`), sin depender de los artistas que sigue la casa.
+- **Listas de otro país** (1.91.0): `GET /music/charts?country=MX` y `GET /music/charts/{id}?country=MX`; por defecto, España. Un selector de país en la pantalla de listas, con `ES` elegido.
 - Cada álbum: `library.in_jellyfin` → «En Jellyfin»; `library.song_in_album` → «Ya la tienes en {álbum}»; `download` → su `label` con barra si hay `percent`; `request` → «Pedido» (o «Pedido por ti»).
 - «Pedir» si `can_request` → `POST /requests` con `deezer_id`.
 - En «Mis peticiones», un álbum aceptado enseña `progress.label` y, en `downloading`, la barra con `progress.percent`. Vuelve a pedirlas cada 5–10 s mientras se vean.
@@ -1626,7 +1721,7 @@ La API no empuja nada: la app pregunta. Quien tiene Telegram ya recibe los aviso
 
 ### 10.7 Abrir algo en Jellyfin
 
-`library.jellyfin_id` es el `Id` del elemento en **el mismo** Jellyfin en el que ha entrado la app: úsalo con el SDK (`/Users/{userId}/Items/{id}`, o la pantalla de detalle del cliente). Para una serie es el id de la serie; para ir a un episodio, navega desde ahí.
+`library.jellyfin_id` es el `Id` del elemento en **el mismo** Jellyfin en el que ha entrado la app: úsalo con el SDK (`/Users/{userId}/Items/{id}`, o la pantalla de detalle del cliente). Para una serie es el id de la serie; para ir a un episodio, navega desde ahí. En música (desde 1.91.0) es el id del álbum (`library.jellyfin_id` de un Álbum) o de la pista y su álbum (`jellyfin_id` y `album_jellyfin_id` de una canción): se reproducen como cualquier otro elemento de música de Jellyfin.
 
 ---
 
@@ -1687,13 +1782,28 @@ interface StremfinApi {
     @GET("music/songs") suspend fun musicSongs(@Query("q") q: String, @Query("cursor") cursor: String? = null, @Query("limit") limit: Int? = null): SongList
     @GET("music/songs/{id}") suspend fun musicSong(@Path("id") deezerId: String): SongPage
     @GET("music/new") suspend fun musicNew(): AlbumList
-    @GET("music/charts") suspend fun musicCharts(): ChartList
+    @GET("music/charts") suspend fun musicCharts(@Query("country") country: String? = null): ChartList   // 1.91.0: "MX", "US"…; null = España
     // kind "albums": items son Album; kind "songs": items son ChartSong. Decodifica según `kind`.
-    @GET("music/charts/{id}") suspend fun musicChartSongs(@Path("id") id: String, @Query("only") only: String? = null, @Query("limit") limit: Int? = null): ChartSongs
-    @GET("music/charts/{id}") suspend fun musicChartAlbums(@Path("id") id: String, @Query("only") only: String? = null, @Query("limit") limit: Int? = null): AlbumList
+    @GET("music/charts/{id}") suspend fun musicChartSongs(@Path("id") id: String, @Query("only") only: String? = null, @Query("limit") limit: Int? = null, @Query("country") country: String? = null): ChartSongs
+    @GET("music/charts/{id}") suspend fun musicChartAlbums(@Path("id") id: String, @Query("only") only: String? = null, @Query("limit") limit: Int? = null, @Query("country") country: String? = null): AlbumList
     @GET("music/releases") suspend fun musicReleases(@Query("days") days: Int? = null, @Query("only") only: String? = null): AlbumList   // Album.upcoming
     @GET("music/requested") suspend fun musicRequested(@Query("days") days: Int? = null, @Query("limit") limit: Int? = null): AlbumList  // Album.people
     @GET("music/artists") suspend fun musicArtists(@Query("q") q: String): ArtistList
+    // 1.91.0: novedades de los artistas que diga la app (ids de Deezer "27,1234", hasta 20) y «Para ti».
+    @GET("music/artists/releases") suspend fun musicArtistReleases(
+        @Query("ids") ids: String,
+        @Query("days") days: Int? = null,
+        @Query("kind") kind: String? = null,
+        @Query("only") only: String? = null,
+        @Query("limit") limit: Int? = null,
+    ): ArtistReleases
+    @GET("music/recommendations") suspend fun musicRecommendations(
+        @Query("artists") artists: String? = null,        // "Bad Bunny,Rosalía", hasta 10
+        @Query("artist_ids") artistIds: String? = null,   // o ids de Deezer
+        @Query("genres") genres: String? = null,          // "latino,pop"
+        @Query("only") only: String? = null,              // por defecto "missing"
+        @Query("limit") limit: Int? = null,
+    ): Recommendations
     @GET("music/artists/{id}") suspend fun musicArtist(@Path("id") deezerId: String, @Query("kind") kind: String? = null, @Query("only") only: String? = null): ArtistPage
     @GET("music/albums/{id}") suspend fun musicAlbum(@Path("id") deezerId: String): AlbumPage
     @GET("requests") suspend fun requests(
@@ -1766,6 +1876,10 @@ interface StremfinApi {
     val album: AlbumRef? = null,
     @SerialName("in_jellyfin") val inJellyfin: Boolean = false,
     @SerialName("in_album") val inAlbum: String? = null,
+    @SerialName("jellyfin_id") val jellyfinId: String? = null,             // 1.91.0: la pista en Jellyfin, para reproducirla
+    @SerialName("album_jellyfin_id") val albumJellyfinId: String? = null,  // 1.91.0: su álbum en Jellyfin
+    val reason: String? = null,                                            // solo en /music/recommendations
+    val because: List<String> = emptyList(),                               // solo en /music/recommendations
 )
 @Serializable data class SongList(val items: List<MusicSong>, @SerialName("next_cursor") val nextCursor: String? = null)
 @Serializable data class SongPage(
@@ -1776,6 +1890,8 @@ interface StremfinApi {
     val preview: String? = null,
     @SerialName("in_jellyfin") val inJellyfin: Boolean = false,
     @SerialName("in_album") val inAlbum: String? = null,
+    @SerialName("jellyfin_id") val jellyfinId: String? = null,
+    @SerialName("album_jellyfin_id") val albumJellyfinId: String? = null,
     val position: Int? = null, val disc: Int? = null,
     @SerialName("release_date") val releaseDate: String? = null,
     val album: Album? = null,                                          // el disco entero (7.6)
@@ -1785,14 +1901,31 @@ interface StremfinApi {
 // Listas (1.85.0)
 @Serializable data class ChartList(val country: String, val charts: List<Chart>)
 @Serializable data class Chart(val id: String, val name: String, val kind: String, val measure: String, val genre: String? = null)   // kind: songs | albums; measure: played | sold
-@Serializable data class ChartSongs(val id: String, val name: String, val kind: String, val measure: String, val genre: String? = null, val items: List<ChartSong>)
+@Serializable data class ChartSongs(val id: String, val name: String, val kind: String, val measure: String, val genre: String? = null, val country: String = "ES", val items: List<ChartSong>)
 @Serializable data class ChartSong(
     val rank: Int, val title: String, val artist: String,
     val cover: String? = null, val preview: String? = null,
     @SerialName("release_date") val releaseDate: String? = null,
     @SerialName("in_jellyfin") val inJellyfin: Boolean = false,
     @SerialName("in_album") val inAlbum: String? = null,
+    @SerialName("jellyfin_id") val jellyfinId: String? = null,             // 1.91.0
+    @SerialName("album_jellyfin_id") val albumJellyfinId: String? = null,  // 1.91.0
     val album: Album? = null,                  // el disco que pedir; null = no está en Deezer
+)
+// Novedades de tus artistas y «Para ti» (1.91.0)
+@Serializable data class ArtistReleases(
+    val items: List<Album>,                    // Album.upcoming y Album.artistDeezerId
+    val skipped: List<String> = emptyList(),   // ids que Deezer no conoce
+    val failed: List<String> = emptyList(),    // ids por los que Deezer no respondió ahora
+)
+@Serializable data class Seed(val name: String, @SerialName("deezer_id") val deezerId: String? = null)
+@Serializable data class Recommendations(
+    val seeds: List<Seed>,
+    val genres: List<String> = emptyList(),
+    val items: List<Album>,                    // Album.reason y Album.because
+    val songs: List<MusicSong> = emptyList(),
+    val skipped: List<String> = emptyList(),
+    val failed: List<String> = emptyList(),
 )
 @Serializable data class InsteadOf(@SerialName("deezer_id") val deezerId: String, val title: String, val kind: String)
 
@@ -2052,12 +2185,16 @@ interface StremfinApi {
     @SerialName("can_request") val canRequest: Boolean = false,
     val rank: Int? = null,                     // su puesto en una lista
     val contains: String? = null,              // la canción buscada (o de la lista) que lleva
-    val upcoming: Boolean? = null,             // solo en /music/releases
+    val upcoming: Boolean? = null,             // en /music/releases y /music/artists/releases
     val people: Int? = null,                   // solo en /music/requested
+    @SerialName("artist_deezer_id") val artistDeezerId: String? = null,   // en /music/artists/releases y /music/recommendations
+    val reason: String? = null,                // solo en /music/recommendations: «Porque escuchas a …»
+    val because: List<String> = emptyList(),   // solo en /music/recommendations
 )
 @Serializable data class AlbumLibrary(
     @SerialName("in_jellyfin") val inJellyfin: Boolean,
     @SerialName("song_in_album") val songInAlbum: String? = null,
+    @SerialName("jellyfin_id") val jellyfinId: String? = null,   // 1.91.0: el álbum en Jellyfin, para reproducirlo
 )
 @Serializable data class MusicDownload(
     val phase: String,                         // sent | queued | downloading | importing | failed
@@ -2085,6 +2222,8 @@ interface StremfinApi {
     val duration: Int? = null,
     @SerialName("in_jellyfin") val inJellyfin: Boolean = false,
     @SerialName("in_album") val inAlbum: String? = null,
+    @SerialName("jellyfin_id") val jellyfinId: String? = null,             // 1.91.0
+    @SerialName("album_jellyfin_id") val albumJellyfinId: String? = null,  // 1.91.0
 )
 
 // MovieDetail, SeriesDetail, Platforms: los campos de las secciones 7 y 8.
@@ -2150,6 +2289,9 @@ curl -s -G -H "$AUTH" --data-urlencode "q=montaña" http://localhost:8000/api/v1
 curl -s -H "$AUTH" http://localhost:8000/api/v1/music/charts
 curl -s -H "$AUTH" http://localhost:8000/api/v1/music/releases
 curl -s -H "$AUTH" http://localhost:8000/api/v1/music/requested
+curl -s -H "$AUTH" "http://localhost:8000/api/v1/music/artists/releases?ids=27&days=365"
+curl -s -G -H "$AUTH" --data-urlencode "artists=Los Picos" "http://localhost:8000/api/v1/music/recommendations?only=all"
+curl -s -H "$AUTH" "http://localhost:8000/api/v1/music/charts?country=MX"
 curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
      -d '{"type":"movie","tmdb_id":920}' http://localhost:8000/api/v1/requests
 
@@ -2168,7 +2310,7 @@ curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
 curl -i -X OPTIONS http://localhost:8000/api/v1/requests -H "Origin: https://tv.ejemplo.com" -H "Access-Control-Request-Method: POST"
 ```
 
-El servidor falso no tiene las listas de Apple: `/music/charts/{id}` las lee de Apple de verdad (hace falta Internet; sin ella, `503 source_unavailable`). Tampoco tiene canciones de Deezer: `/music/songs` y `songs` vienen vacíos, y `top_songs` y `related` de un artista también. Tampoco tiene todo lo de TMDB (parecidos, géneros, explorar, tráiler o calificaciones pueden venir vacíos o dar `503 source_unavailable`): para eso, prueba contra un Stremfin real.
+El servidor falso no tiene las listas de Apple: `/music/charts/{id}` las lee de Apple de verdad (hace falta Internet; sin ella, `503 source_unavailable`). Tampoco tiene canciones de Deezer: `/music/songs` y `songs` vienen vacíos, y `top_songs` y `related` de un artista también (por eso `/music/recommendations` viene vacío: no hay artistas parecidos). Tampoco tiene todo lo de TMDB (parecidos, géneros, explorar, tráiler o calificaciones pueden venir vacíos o dar `503 source_unavailable`): para eso, prueba contra un Stremfin real.
 
 ---
 
@@ -2212,3 +2354,4 @@ El servidor falso no tiene las listas de Apple: `/music/charts/{id}` las lee de 
 | 1.88.0 | v1 | **Nuevo**: `cancelled` en cada petición (siempre presente): `true` si el administrador la canceló después de aceptarla. **Cambia**: en ese caso `status_label` dice «Cancelada» en vez de «No aceptada»; `status` sigue siendo `rejected`, así que una app anterior no nota nada más que el texto. |
 | 1.90.1 | v1 | **Nuevo**: `recheck` en el avance de una descarga (en `progress`, en cada episodio de `episodes` y en `download` de la ficha de película): cuando está «En revisión» porque el archivo no estaba listo en el servicio de descargas, Stremfin lo sigue intentando solo; dice hasta cuándo, la siguiente mirada y un texto para enseñar. `null` en lo demás. Nada de lo anterior cambia. |
 | 1.90.2 | v1 | Solo textos, sin campos nuevos. **Cambia**: `recheck.text` ya no nombra el servicio de descargas («Se sigue intentando solo cada 2 h · quedan 2 días») y cuenta días enteros (con 47 h, «queda 1 día»; antes redondeaba hacia arriba); con las descargas en pausa dice «En pausa: se sigue intentando solo al reanudar…». `label` de una descarga en revisión que Stremfin sigue intentando sola es «En revisión · se sigue intentando solo» (`state` y `phase` siguen siendo `attention`), también en el `progress` de una serie cuando todos sus episodios en revisión están así. |
+| 1.91.0 | v1 | Todo es **añadido**: ningún campo cambia de nombre, de tipo ni de valores. **Nuevo**: `library.jellyfin_id` en cada álbum (7.6) y `jellyfin_id` y `album_jellyfin_id` en cada canción (7.7), en las canciones de las listas y en las de la ficha de un álbum, para reproducir lo que ya está en Jellyfin (`null` si no está); `GET /music/artists/releases` (lo nuevo y lo anunciado de hasta 20 artistas que diga la app); `GET /music/recommendations` («Para ti»: discos y canciones de artistas parecidos a los que escuchas, con `reason` y `because`; su propio límite de 10 por minuto); `country` en `GET /music/charts` y `GET /music/charts/{id}` (listas de México, Estados Unidos, Argentina… además de España, que sigue siendo lo de por defecto). |

@@ -62,6 +62,8 @@ class StremfinAlbum {
     this.canRequest = false,
     this.upcoming = false,
     this.people,
+    this.jellyfinId,
+    this.reason,
   });
 
   /// Null for one Deezer doesn't have: it can't be asked for.
@@ -96,6 +98,13 @@ class StremfinAlbum {
   /// How many in the house asked for it (most requested).
   final int? people;
 
+  /// Its id on the home server, to open it there (since 1.91.0). Null for a
+  /// single that is only at home inside an album: play its song instead.
+  final String? jellyfinId;
+
+  /// Why it is recommended: «Porque escuchas a …».
+  final String? reason;
+
   int? get year => int.tryParse((releaseDate ?? '').split('-').first);
 
   static StremfinAlbum? fromJson(Object? raw) {
@@ -120,6 +129,10 @@ class StremfinAlbum {
       canRequest: raw['can_request'] == true,
       upcoming: raw['upcoming'] == true,
       people: _int(raw['people']),
+      jellyfinId: library is Map
+          ? _text(library['jellyfin_id']?.toString())
+          : null,
+      reason: _text(raw['reason']),
     );
   }
 }
@@ -143,6 +156,9 @@ class StremfinSong {
     this.inJellyfin = false,
     this.inAlbum,
     this.rank,
+    this.jellyfinId,
+    this.albumJellyfinId,
+    this.reason,
   });
 
   /// Deezer's id, for its page. Null for a chart's song.
@@ -171,6 +187,14 @@ class StremfinSong {
 
   /// Its place in a chart.
   final int? rank;
+
+  /// The song and its album on the home server (since 1.91.0), to play it
+  /// there at once.
+  final String? jellyfinId;
+  final String? albumJellyfinId;
+
+  /// Why it is recommended.
+  final String? reason;
 
   static StremfinSong? fromJson(Object? raw) {
     if (raw is! Map) return null;
@@ -201,6 +225,9 @@ class StremfinSong {
       inJellyfin: raw['in_jellyfin'] == true,
       inAlbum: _text(raw['in_album']),
       rank: _int(raw['rank']),
+      jellyfinId: _text(raw['jellyfin_id']?.toString()),
+      albumJellyfinId: _text(raw['album_jellyfin_id']?.toString()),
+      reason: _text(raw['reason']),
     );
   }
 }
@@ -349,6 +376,7 @@ class StremfinAlbumTrack {
     this.duration,
     this.inJellyfin = false,
     this.inAlbum,
+    this.jellyfinId,
   });
 
   final String title;
@@ -358,6 +386,9 @@ class StremfinAlbumTrack {
   final int? duration;
   final bool inJellyfin;
   final String? inAlbum;
+
+  /// The song on the home server (since 1.91.0).
+  final String? jellyfinId;
 
   static StremfinAlbumTrack? fromJson(Object? raw) {
     if (raw is! Map) return null;
@@ -371,6 +402,7 @@ class StremfinAlbumTrack {
       duration: _int(raw['duration']),
       inJellyfin: raw['in_jellyfin'] == true,
       inAlbum: _text(raw['in_album']),
+      jellyfinId: _text(raw['jellyfin_id']?.toString()),
     );
   }
 }
@@ -489,6 +521,45 @@ class StremfinSongDetail {
       album: StremfinAlbum.fromJson(raw['album']),
       albumInstead: StremfinAlbum.fromJson(raw['album_instead']),
       ask: _text(raw['ask']?.toString()),
+    );
+  }
+}
+
+/// Kos TV: «Para ti»: records and songs of artists like the ones the person
+/// listens to, with why (since 1.91.0).
+@immutable
+class StremfinRecommendations {
+  const StremfinRecommendations({
+    this.seeds = const [],
+    this.albums = const [],
+    this.songs = const [],
+  });
+
+  /// The artists asked with, as Deezer knows them (id null when it doesn't).
+  final List<({String name, String? deezerId})> seeds;
+  final List<StremfinAlbum> albums;
+  final List<StremfinSong> songs;
+
+  static StremfinRecommendations fromJson(Object? raw) {
+    if (raw is! Map) return const StremfinRecommendations();
+    final seeds = raw['seeds'];
+    final items = raw['items'];
+    final songs = raw['songs'];
+    return StremfinRecommendations(
+      seeds: [
+        if (seeds is List)
+          for (final seed in seeds.whereType<Map>())
+            if (_text(seed['name']) case final name?)
+              (name: name, deezerId: _text(seed['deezer_id']?.toString())),
+      ],
+      albums: [
+        if (items is List)
+          for (final item in items) ?StremfinAlbum.fromJson(item),
+      ],
+      songs: [
+        if (songs is List)
+          for (final song in songs) ?StremfinSong.fromJson(song),
+      ],
     );
   }
 }

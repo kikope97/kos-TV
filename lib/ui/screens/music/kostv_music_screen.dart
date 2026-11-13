@@ -53,6 +53,13 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   StremfinChartPage? _latino;
   StremfinChartPage? _topAlbums;
   StremfinChartPage? _genreChart;
+  StremfinChartPage? _mexico;
+  StremfinChartPage? _unitedStates;
+
+  /// «Para ti», from the requests service, and what is new of the person's
+  /// artists.
+  StremfinRecommendations? _forYou;
+  List<StremfinAlbum> _yourNews = const [];
   List<AggregatedItem> _recent = const [];
   List<AggregatedItem> _newAtHome = const [];
   KostvMusicTaste _taste = const KostvMusicTaste();
@@ -117,6 +124,16 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         part(() async => _latino = await stremfin.musicChart('latino-songs')),
         part(() async => _topAlbums = await stremfin.musicChart('top-albums')),
         part(() async => _requested = await stremfin.musicRequested()),
+        part(
+          () async =>
+              _mexico = await stremfin.musicChart('top-songs', country: 'MX'),
+        ),
+        part(
+          () async => _unitedStates = await stremfin.musicChart(
+            'top-songs',
+            country: 'US',
+          ),
+        ),
         part(() async => _releases = await stremfin.musicReleases()),
       ],
       part(() async => _recent = await _music.recentAlbums()),
@@ -156,6 +173,30 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
             _moreOf = (name: detail.artist.name, albums: detail.albums);
           }
         }().catchError((Object _) {}),
+      );
+    }
+    // «Para ti»: what goes with the artists and genres the person listens
+    // to most, and then what is new of those artists.
+    final artists = [for (final a in _taste.artists.take(6)) a.name];
+    if (artists.isNotEmpty) {
+      loads.add(
+        () async {
+          final genres = <String>{
+            for (final g in _taste.genres) ?kostvChartGenreOf(g),
+          }.take(3).toList();
+          final found = await stremfin.musicRecommendations(
+            artists,
+            genres: genres,
+          );
+          _forYou = found;
+          if (mounted) setState(() {});
+          final ids = [for (final seed in found.seeds) ?seed.deezerId];
+          if (ids.isNotEmpty) {
+            _yourNews = await stremfin.musicArtistReleases(ids);
+          }
+        }().catchError((Object e) {
+          debugPrint('[Music] For you failed: $e');
+        }),
       );
     }
     await Future.wait(loads);
@@ -459,7 +500,57 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     );
     add(_recentShelf(context, insets, parts.isEmpty ? firstNode() : null));
     add(_mixShelf(context, insets, parts.isEmpty ? firstNode() : null));
+    // «Para ti»: a row for each «Porque escuchas a …», then its songs.
+    final forYou = _forYou;
+    if (forYou != null) {
+      final byReason = <String, List<StremfinAlbum>>{};
+      for (final album in forYou.albums) {
+        byReason.putIfAbsent(album.reason ?? '', () => []).add(album);
+      }
+      for (final entry in byReason.entries.take(3)) {
+        add(
+          _albumShelf(
+            context,
+            entry.key.isEmpty ? l10n.kostvMusicForYouSongs : entry.key,
+            l10n.kostvMusicForYouWhy,
+            entry.value,
+            insets,
+          ),
+        );
+      }
+      add(
+        _chartSongs(
+          context,
+          null,
+          l10n.kostvMusicForYouSongs,
+          l10n.kostvMusicForYouWhy,
+          insets,
+          null,
+          songs: forYou.songs,
+          ranked: false,
+        ),
+      );
+    }
+    add(
+      _albumShelf(
+        context,
+        l10n.kostvMusicNewFromYours,
+        l10n.kostvMusicNewFromYoursWhy,
+        _yourNews,
+        insets,
+      ),
+    );
     add(_chartAlbums(context, _topAlbums, l10n.kostvMusicTopAlbums, insets));
+    add(
+      _chartSongs(
+        context,
+        _mexico,
+        l10n.kostvMusicTopCountry(l10n.kostvMusicMexico),
+        l10n.kostvMusicTopCountryWhy(l10n.kostvMusicMexico),
+        insets,
+        null,
+      ),
+    );
     final moreOf = _moreOf;
     if (moreOf != null) {
       add(
@@ -487,6 +578,16 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         ),
       );
     }
+    add(
+      _chartSongs(
+        context,
+        _unitedStates,
+        l10n.kostvMusicTopCountry(l10n.kostvMusicUnitedStates),
+        l10n.kostvMusicTopCountryWhy(l10n.kostvMusicUnitedStates),
+        insets,
+        null,
+      ),
+    );
     add(_albumShelf(context, l10n.kostvMusicReleases, null, _releases, insets));
     add(
       _albumShelf(context, l10n.kostvMusicRequested, null, _requested, insets),
@@ -536,9 +637,23 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     String title,
     String why,
     EdgeInsets insets,
+    FocusNode? firstNode, {
+    List<StremfinSong>? songs,
+    bool ranked = true,
+  }) {
+    final list = songs ?? page?.songs ?? const <StremfinSong>[];
+    return _songColumns(context, list, title, why, insets, firstNode, ranked);
+  }
+
+  Widget? _songColumns(
+    BuildContext context,
+    List<StremfinSong> songs,
+    String title,
+    String why,
+    EdgeInsets insets,
     FocusNode? firstNode,
+    bool ranked,
   ) {
-    final songs = page?.songs ?? const <StremfinSong>[];
     if (songs.isEmpty) return null;
     const perColumn = 4;
     final columns = (songs.length / perColumn).ceil();
@@ -577,7 +692,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                         title: songs[i].title,
                         artist: songs[i].artist,
                         cover: songs[i].cover,
-                        rank: songs[i].rank ?? i + 1,
+                        rank: ranked ? songs[i].rank ?? i + 1 : null,
                         atHome: songs[i].inJellyfin,
                         badge: songs[i].album == null
                             ? KostvMusicBadge.none

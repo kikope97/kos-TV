@@ -175,4 +175,44 @@ void main() {
       expect(detail.songs.single.duration, 320);
     });
   });
+
+  group('Stremfin 1.91', () {
+    test('what is at home comes with its id there, to play it at once', () {
+      final song = StremfinSong.fromJson({
+        'title': 'Verano',
+        'in_jellyfin': true,
+        'jellyfin_id': 'abc',
+        'album_jellyfin_id': 'alb',
+      })!;
+      expect(song.jellyfinId, 'abc');
+      expect(song.albumJellyfinId, 'alb');
+      final album = StremfinAlbum.fromJson({
+        'title': 'Brisa',
+        'library': {'in_jellyfin': true, 'jellyfin_id': 'alb'},
+      })!;
+      expect(album.jellyfinId, 'alb');
+    });
+
+    test('«Para ti» says why, and which artists it went from', () {
+      final found = StremfinRecommendations.fromJson({
+        'seeds': [
+          {'name': 'Bad Bunny', 'deezer_id': '10583405'},
+          {'name': 'Nadie', 'deezer_id': null},
+        ],
+        'items': [
+          {
+            'title': 'Un disco',
+            'deezer_id': '1',
+            'reason': 'Porque escuchas a Bad Bunny',
+          },
+        ],
+        'songs': [
+          {'title': 'Una canción', 'reason': 'Porque escuchas a Bad Bunny'},
+        ],
+      });
+      expect(found.seeds.map((s) => s.deezerId), ['10583405', null]);
+      expect(found.albums.single.reason, 'Porque escuchas a Bad Bunny');
+      expect(found.songs.single.reason, 'Porque escuchas a Bad Bunny');
+    });
+  });
 }
