@@ -324,11 +324,15 @@ Future<void> _downloadAndInstallAndroidUpdate(
     }
   }
 
-  final started = await _platformChannel.invokeMethod<bool>(
-        'installApk',
-        {'path': path},
-      ) ??
+  Future<bool> install() async =>
+      await _platformChannel.invokeMethod<bool>('installApk', {'path': path}) ??
       false;
+  var started = await install();
+  // The installer covers the app as it opens. Still in front a moment later,
+  // it didn't come up: asked once more (it used to take a second try).
+  if (started && !await _appLeftWithin(const Duration(seconds: 4))) {
+    started = await install();
+  }
   if (started) return;
   // Said where it can't be missed: a passing message was easy not to see.
   final here = context.mounted ? context : _appContext();
@@ -385,6 +389,22 @@ Future<void> _downloadTo(
 BuildContext? _appContext() {
   final context = appRouter.routerDelegate.navigatorKey.currentContext;
   return context != null && context.mounted ? context : null;
+}
+
+/// Whether the app stops being in front within [wait] (another app, such as
+/// the system installer, came over it).
+Future<bool> _appLeftWithin(Duration wait) {
+  final left = Completer<bool>();
+  final listener = AppLifecycleListener(
+    onStateChange: (state) {
+      if (state != AppLifecycleState.resumed && !left.isCompleted) {
+        left.complete(true);
+      }
+    },
+  );
+  return left.future
+      .timeout(wait, onTimeout: () => false)
+      .whenComplete(listener.dispose);
 }
 
 /// Completes once the app comes back to the foreground after leaving it (the

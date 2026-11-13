@@ -81,11 +81,16 @@ object UpdateInstaller {
                 "${context.packageName}.updates",
                 file,
             )
+            // CLEAR_TASK: the installer's task from the last update is often
+            // still there, left on its "App installed" page. With NEW_TASK
+            // alone Android just brought that task back, which closed at once,
+            // and only a second try reached a fresh installer.
             val intent = Intent(Intent.ACTION_VIEW)
                 .setDataAndType(uri, APK_MIME)
                 .addFlags(
                     Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                        Intent.FLAG_ACTIVITY_NEW_TASK,
+                        Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_CLEAR_TASK,
                 )
             context.startActivity(intent)
             true
