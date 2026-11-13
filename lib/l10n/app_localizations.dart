@@ -33392,6 +33392,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not at home yet: Jellyfin will have it shortly'**
   String get kostvTrayMusicNotYet;
+
+  /// No description provided for @kostvMusicForYouAlbums.
+  ///
+  /// In en, this message translates to:
+  /// **'Records for you'**
+  String get kostvMusicForYouAlbums;
+
+  /// No description provided for @kostvMusicGenreHiphop.
+  ///
+  /// In en, this message translates to:
+  /// **'Hip-hop'**
+  String get kostvMusicGenreHiphop;
+
+  /// No description provided for @kostvMusicGenreRnb.
+  ///
+  /// In en, this message translates to:
+  /// **'R&B'**
+  String get kostvMusicGenreRnb;
+
+  /// No description provided for @kostvMusicGenreReggae.
+  ///
+  /// In en, this message translates to:
+  /// **'Reggae'**
+  String get kostvMusicGenreReggae;
+
+  /// No description provided for @kostvMusicGenreSoundtracks.
+  ///
+  /// In en, this message translates to:
+  /// **'Soundtracks'**
+  String get kostvMusicGenreSoundtracks;
+
+  /// No description provided for @kostvMusicGenreElectronic.
+  ///
+  /// In en, this message translates to:
+  /// **'Electronic'**
+  String get kostvMusicGenreElectronic;
+
+  /// No description provided for @kostvMusicGenreDance.
+  ///
+  /// In en, this message translates to:
+  /// **'Dance'**
+  String get kostvMusicGenreDance;
+
+  /// No description provided for @kostvMusicGenreAlternative.
+  ///
+  /// In en, this message translates to:
+  /// **'Alternative'**
+  String get kostvMusicGenreAlternative;
+
+  /// No description provided for @kostvMusicGenreRock.
+  ///
+  /// In en, this message translates to:
+  /// **'Rock'**
+  String get kostvMusicGenreRock;
+
+  /// No description provided for @kostvMusicGenrePop.
+  ///
+  /// In en, this message translates to:
+  /// **'Pop'**
+  String get kostvMusicGenrePop;
+
+  /// No description provided for @kostvMusicCantChange.
+  ///
+  /// In en, this message translates to:
+  /// **'It couldn\'t be changed. Try again.'**
+  String get kostvMusicCantChange;
+
+  /// No description provided for @kostvMusicCantAskNow.
+  ///
+  /// In en, this message translates to:
+  /// **'It couldn\'t be asked for. Try again in a moment.'**
+  String get kostvMusicCantAskNow;
+
+  /// No description provided for @kostvMusicAskedDone.
+  ///
+  /// In en, this message translates to:
+  /// **'Asked for. You\'ll be told when it arrives.'**
+  String get kostvMusicAskedDone;
+
+  /// No description provided for @kostvMusicNotifyMe.
+  ///
+  /// In en, this message translates to:
+  /// **'Tell me when it arrives'**
+  String get kostvMusicNotifyMe;
+
+  /// No description provided for @kostvRequestMusicImporting.
+  ///
+  /// In en, this message translates to:
+  /// **'Going into the library'**
+  String get kostvRequestMusicImporting;
+
+  /// No description provided for @kostvRequestMusicSent.
+  ///
+  /// In en, this message translates to:
+  /// **'Sent to download'**
+  String get kostvRequestMusicSent;
+
+  /// No description provided for @kostvRequestMusicFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'It couldn\'t be downloaded'**
+  String get kostvRequestMusicFailed;
 }
 
 class _AppLocalizationsDelegate

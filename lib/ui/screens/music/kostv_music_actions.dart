@@ -26,6 +26,23 @@ import 'kostv_music_widgets.dart';
 KostvMusicService kostvMusicService() =>
     KostvMusicService(GetIt.instance<MediaServerClient>());
 
+/// Bumped when a song's ♥ changes from a menu, for «Tus favoritas».
+final kostvMusicFavoritesChanged = ValueNotifier<int>(0);
+
+bool _busy = false;
+
+/// Runs [action] unless another one is still under way: a second OK on a
+/// slow TV doesn't open the player twice.
+Future<void> kostvMusicOnce(Future<void> Function() action) async {
+  if (_busy) return;
+  _busy = true;
+  try {
+    await action();
+  } finally {
+    _busy = false;
+  }
+}
+
 /// What the Music page already knows of an album it opens.
 @immutable
 class KostvMusicAlbumSeed {
@@ -88,6 +105,27 @@ void openKostvMusicAlbum(
   );
 }
 
+/// The home server's album [title] by [artist], looked for by name: the
+/// artist has to match too ("Greatest Hits" is everyone's).
+Future<AggregatedItem?> _albumAtHome(String title, String? artist) async {
+  final found = await kostvMusicService()
+      .search(title)
+      .catchError((Object _) => const KostvMusicAtHome());
+  String norm(String? s) => (s ?? '').toLowerCase().trim();
+  final wanted = norm(artist);
+  for (final album in found.albums) {
+    if (norm(album.name) != norm(title)) continue;
+    final by = norm(album.albumArtist);
+    if (wanted.isEmpty ||
+        by.isEmpty ||
+        by.contains(wanted) ||
+        wanted.contains(by)) {
+      return album;
+    }
+  }
+  return null;
+}
+
 /// An album the requests service knows: at home, its page there; otherwise
 /// its page to ask for it.
 Future<void> openKostvStremfinAlbum(
@@ -100,11 +138,8 @@ Future<void> openKostvStremfinAlbum(
     return;
   }
   if (album.inJellyfin) {
-    final found = await kostvMusicService()
-        .search(album.title)
-        .catchError((Object _) => const KostvMusicAtHome());
+    final match = await _albumAtHome(album.title, album.artist);
     if (!context.mounted) return;
-    final match = found.albums.firstOrNull;
     if (match != null) {
       openMusicItem(context, match);
       return;
@@ -116,6 +151,12 @@ Future<void> openKostvStremfinAlbum(
 /// A song of a chart, a search or an artist: played if it is at home,
 /// otherwise its album's page to ask for it.
 Future<void> openKostvMusicSong(
+  BuildContext context,
+  StremfinSong song, {
+  bool toAsk = false,
+}) => kostvMusicOnce(() => _openSong(context, song, toAsk: toAsk));
+
+Future<void> _openSong(
   BuildContext context,
   StremfinSong song, {
   bool toAsk = false,
@@ -179,15 +220,13 @@ void openKostvMusicArtist(BuildContext context, StremfinArtist artist) =>
 
 /// A song of an album's page that is at home: it plays, with the rest of
 /// its album after it.
-Future<void> playKostvMusicTrack(
-  BuildContext context,
-  String jellyfinId,
-) async {
-  final song = await kostvMusicService()
-      .item(jellyfinId)
-      .catchError((Object _) => null);
-  if (song != null && context.mounted) await playMusicTrack(context, song);
-}
+Future<void> playKostvMusicTrack(BuildContext context, String jellyfinId) =>
+    kostvMusicOnce(() async {
+      final song = await kostvMusicService()
+          .item(jellyfinId)
+          .catchError((Object _) => null);
+      if (song != null && context.mounted) await playMusicTrack(context, song);
+    });
 
 // ------------------------------------------------------------- a song's menu
 
@@ -210,6 +249,12 @@ enum _SongChoice { next, last, radio, love, playlist, album, artist, ask }
 /// it, ♥, add it to a playlist, its album and its artist. For one that
 /// isn't: its album, to ask for it, and its artist.
 Future<void> showKostvMusicSongMenu(
+  BuildContext context, {
+  StremfinSong? song,
+  AggregatedItem? item,
+}) => kostvMusicOnce(() => _songMenu(context, song: song, item: item));
+
+Future<void> _songMenu(
   BuildContext context, {
   StremfinSong? song,
   AggregatedItem? item,
@@ -295,7 +340,8 @@ Future<void> showKostvMusicSongMenu(
   if (choice == null || !context.mounted) return;
   final manager = GetIt.instance<PlaybackManager>();
   final queue = manager.queueService;
-  final musicPlaying = KostvNowPlaying.instance.item != null;
+  // Music sounding (an audiobook's queue isn't one to add songs to).
+  final musicPlaying = KostvNowPlaying.instance.item?.type == 'Audio';
   switch (choice) {
     case _SongChoice.next:
     case _SongChoice.last:
@@ -333,13 +379,16 @@ Future<void> showKostvMusicSongMenu(
         );
         data['IsFavorite'] = !favorite;
         home.rawData['UserData'] = data;
+        kostvMusicFavoritesChanged.value++;
         if (context.mounted) {
           kostvMusicSay(
             context,
             favorite ? l10n.kostvMusicUnloved : l10n.kostvMusicLoved,
           );
         }
-      } catch (_) {}
+      } catch (_) {
+        if (context.mounted) kostvMusicSay(context, l10n.kostvMusicCantChange);
+      }
     case _SongChoice.playlist:
       await AddToPlaylistDialog.show(
         context,
@@ -367,7 +416,7 @@ Future<void> showKostvMusicSongMenu(
         );
       }
     case _SongChoice.ask:
-      await openKostvMusicSong(context, song!, toAsk: true);
+      await _openSong(context, song!, toAsk: true);
   }
 }
 
@@ -384,13 +433,16 @@ Future<bool> playKostvArrivedAlbum(
     var albumId = detail.album.jellyfinId;
     final music = kostvMusicService();
     if (albumId == null) {
-      // Before 1.91.0 the service didn't say: looked for by its title.
-      final found = await music.search(detail.album.title);
-      albumId = found.albums.firstOrNull?.id;
+      // The service doesn't know it at home yet (or is older than 1.91.0):
+      // looked for by its title and artist.
+      albumId = (await _albumAtHome(
+        detail.album.title,
+        detail.album.artist,
+      ))?.id;
     }
     if (albumId == null) return false;
     final songs = await music.albumSongs(albumId);
-    if (songs.isEmpty || !context.mounted) return songs.isNotEmpty;
+    if (songs.isEmpty || !context.mounted) return false;
     await playMusicTracks(context, songs);
     return true;
   } catch (_) {

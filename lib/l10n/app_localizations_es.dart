@@ -19745,4 +19745,57 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvTrayMusicNotYet =>
       'Aún no está en casa: Jellyfin tardará un poco en tenerlo';
+
+  @override
+  String get kostvMusicForYouAlbums => 'Discos para ti';
+
+  @override
+  String get kostvMusicGenreHiphop => 'Hip-hop';
+
+  @override
+  String get kostvMusicGenreRnb => 'R&B';
+
+  @override
+  String get kostvMusicGenreReggae => 'Reggae';
+
+  @override
+  String get kostvMusicGenreSoundtracks => 'Bandas sonoras';
+
+  @override
+  String get kostvMusicGenreElectronic => 'Electrónica';
+
+  @override
+  String get kostvMusicGenreDance => 'Dance';
+
+  @override
+  String get kostvMusicGenreAlternative => 'Alternativa';
+
+  @override
+  String get kostvMusicGenreRock => 'Rock';
+
+  @override
+  String get kostvMusicGenrePop => 'Pop';
+
+  @override
+  String get kostvMusicCantChange =>
+      'No se ha podido cambiar. Inténtalo otra vez.';
+
+  @override
+  String get kostvMusicCantAskNow =>
+      'No se ha podido pedir. Inténtalo otra vez en un momento.';
+
+  @override
+  String get kostvMusicAskedDone => 'Pedido. Te avisamos cuando llegue.';
+
+  @override
+  String get kostvMusicNotifyMe => 'Avísame cuando llegue';
+
+  @override
+  String get kostvRequestMusicImporting => 'Entrando en la biblioteca';
+
+  @override
+  String get kostvRequestMusicSent => 'Enviado a descargar';
+
+  @override
+  String get kostvRequestMusicFailed => 'No se ha podido descargar';
 }

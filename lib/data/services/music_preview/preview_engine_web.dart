@@ -9,12 +9,17 @@ import 'preview_engine.dart';
 class PlatformPreviewEngine implements PreviewEngine {
   web.HTMLAudioElement? _audio;
   StreamSubscription<web.Event>? _ended;
+  StreamSubscription<web.Event>? _failed;
 
   @override
   Future<void> play(String url, {required void Function() onEnd}) async {
     final audio = _audio ??= web.HTMLAudioElement();
     await _ended?.cancel();
+    await _failed?.cancel();
     _ended = web.EventStreamProvider<web.Event>('ended')
+        .forTarget(audio)
+        .listen((_) => onEnd());
+    _failed = web.EventStreamProvider<web.Event>('error')
         .forTarget(audio)
         .listen((_) => onEnd());
     audio.src = url;
@@ -27,6 +32,7 @@ class PlatformPreviewEngine implements PreviewEngine {
   @override
   Future<void> dispose() async {
     await _ended?.cancel();
+    await _failed?.cancel();
     _audio?.pause();
     _audio = null;
   }

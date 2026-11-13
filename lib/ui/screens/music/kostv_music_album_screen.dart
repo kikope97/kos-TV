@@ -1,11 +1,15 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show BrowserContextMenu;
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/services/kostv_music_preview.dart';
+import '../../../data/services/stremfin/stremfin_client.dart'
+    show StremfinException;
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
@@ -37,8 +41,10 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
   final _askFocus = FocusNode(debugLabel: 'kostvMusicAsk');
   StremfinAlbumDetail? _detail;
 
-  /// The single it was opened as, when the album asked for is another.
+  /// The single it was opened as, when the album asked for is another,
+  /// and the song of it that is on that album.
   StremfinAlbum? _single;
+  String? _singleSong;
   bool _loading = true;
   bool _asking = false;
   Object? _error;
@@ -52,11 +58,14 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
   void initState() {
     super.initState();
     _preview.addListener(_onPreview);
+    // With a mouse, the right click is the songs' menu, not the browser's.
+    if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
     unawaited(_load());
   }
 
   @override
   void dispose() {
+    if (kIsWeb) unawaited(BrowserContextMenu.enableContextMenu());
     _preview
       ..removeListener(_onPreview)
       ..dispose();
@@ -79,7 +88,14 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
       final instead = detail.albumInstead?.deezerId;
       if (instead != null) {
         _single = detail.album;
-        detail = await stremfin.musicAlbum(instead);
+        _singleSong = detail.albumInstead?.contains ?? detail.album.title;
+        // The album the single is on; if it can't be had, the single.
+        try {
+          detail = await stremfin.musicAlbum(instead);
+        } catch (_) {
+          _single = null;
+          _singleSong = null;
+        }
       }
       if (!mounted) return;
       setState(() {
@@ -102,19 +118,21 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     final stremfin = _stremfin;
     final id = detail?.album.deezerId;
     if (detail == null || stremfin == null || id == null || _asking) return;
+    final l10n = AppLocalizations.of(context);
+    // Asking stops the 30 seconds (and gives the music back).
+    unawaited(_preview.stop());
     setState(() => _asking = true);
     try {
       final result = await stremfin.createMusicRequest(id);
       if (!mounted) return;
-      final message = result.message;
-      if (message != null) kostvMusicSay(context, message);
+      kostvMusicSay(context, result.message ?? l10n.kostvMusicAskedDone);
       await _load();
     } catch (e) {
       if (mounted) {
-        kostvMusicSay(
-          context,
-          AppLocalizations.of(context).kostvMusicUnavailable,
-        );
+        // The service's own words when it has them («hay mucha gente
+        // pidiendo…»), otherwise ours.
+        final said = e is StremfinException ? e.message : null;
+        kostvMusicSay(context, said ?? l10n.kostvMusicCantAskNow);
       }
     } finally {
       if (mounted) setState(() => _asking = false);
@@ -252,7 +270,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
         l10n.kostvMusicTracks(detail.songs.length),
       if (minutes != null && minutes > 0) l10n.kostvMusicMinutes(minutes),
     ].join(' · ');
-    final song = widget.seed?.song;
+    final song = widget.seed?.song ?? _singleSong;
     final whole =
         _single != null ||
         (song != null && album.kind != StremfinAlbumKind.single);
@@ -350,28 +368,56 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
         label: l10n.kostvMusicPlayAtHome,
         primary: true,
         autofocus: PlatformDetection.isTV,
-        onTap: () => unawaited(openKostvStremfinAlbum(context, album)),
+        onTap: () {
+          unawaited(_preview.stop());
+          unawaited(openKostvStremfinAlbum(context, album));
+        },
       );
     }
+    // Someone else asked for it, or it is coming down already: the person
+    // can still ask to be told when it arrives (the service joins them).
+    final join = album.canRequest && album.request?.mine != true;
+    Widget withJoin(Widget status) => !join
+        ? status
+        : Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              status,
+              _MusicButton(
+                focusNode: _askFocus,
+                icon: Icons.notifications_active_rounded,
+                label: l10n.kostvMusicNotifyMe,
+                primary: true,
+                busy: _asking,
+                autofocus: PlatformDetection.isTV,
+                onTap: () => unawaited(_ask()),
+              ),
+            ],
+          );
     final download = album.download;
     if (download != null) {
-      return _MusicButton(
-        icon: Icons.downloading_rounded,
-        label: [
-          download.label ?? l10n.kostvMusicOnItsWay,
-          if (download.percent != null) '${download.percent} %',
-        ].join(' · '),
-        autofocus: PlatformDetection.isTV,
-        onTap: () {},
+      return withJoin(
+        _MusicButton(
+          icon: Icons.downloading_rounded,
+          label: [
+            download.label ?? l10n.kostvMusicOnItsWay,
+            if (download.percent != null) '${download.percent} %',
+          ].join(' · '),
+          autofocus: PlatformDetection.isTV && !join,
+          onTap: () {},
+        ),
       );
     }
     final request = album.request;
     if (request != null) {
-      return _MusicButton(
-        icon: Icons.check_rounded,
-        label: request.statusLabel ?? l10n.kostvMusicAsked,
-        autofocus: PlatformDetection.isTV,
-        onTap: () {},
+      return withJoin(
+        _MusicButton(
+          icon: Icons.check_rounded,
+          label: request.statusLabel ?? l10n.kostvMusicAsked,
+          autofocus: PlatformDetection.isTV && !join,
+          onTap: () {},
+        ),
       );
     }
     return _MusicButton(
@@ -422,7 +468,10 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
           // At home (Stremfin 1.91 says which it is): it plays.
           onTap: song.jellyfinId == null
               ? null
-              : () => unawaited(playKostvMusicTrack(context, song.jellyfinId!)),
+              : () {
+                  unawaited(_preview.stop());
+                  unawaited(playKostvMusicTrack(context, song.jellyfinId!));
+                },
           onMenu: song.jellyfinId == null
               ? null
               : () => unawaited(

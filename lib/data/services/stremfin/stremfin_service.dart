@@ -220,6 +220,14 @@ class StremfinService extends ChangeNotifier {
     _searches.clear();
     _searching.clear();
     _latest.clear();
+    // Kos TV: what Music kept is the last person's (their requests, their
+    // «Para ti»): none of it is shown to the next one.
+    _charts = null;
+    _chartPages.clear();
+    _recommended.clear();
+    // On the device it is kept for one person only (see
+    // StremfinMusicMemory); signed out, it goes.
+    if (userId == null) unawaited(_client.musicMemory?.clear());
     _me = null;
     inbox.setUser(userId);
     _setAccess(StremfinAccess.unknown);
@@ -489,8 +497,16 @@ class StremfinService extends ChangeNotifier {
 
   Future<StremfinArtistDetail> musicArtist(
     String deezerId, {
+    bool keep = false,
     bool remembered = false,
-  }) => _client.musicArtist(deezerId, remembered: remembered);
+  }) => _client.musicArtist(deezerId, keep: keep, remembered: remembered);
+
+  /// The Music page's own notes, kept with its answers on the device.
+  void keepMusicNote(String name, Object value) =>
+      _client.keepMusicNote(name, value);
+
+  Future<Object?> rememberedMusicNote(String name) =>
+      _client.rememberedMusicNote(name);
 
   /// What the house asked for most lately.
   Future<List<StremfinAlbum>> musicRequested({bool remembered = false}) =>
@@ -507,7 +523,9 @@ class StremfinService extends ChangeNotifier {
       final result = await _client.createMusicRequest(deezerId);
       final made = result.request;
       if (made != null) inbox.note(made, seen: true);
+      // What the lists said of it changed («Pedir» → «Pedido»).
       _chartPages.clear();
+      _recommended.clear();
       return result;
     } finally {
       unawaited(refreshAccess());

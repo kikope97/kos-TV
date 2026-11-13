@@ -111,25 +111,26 @@ class KostvMusicService {
   Future<List<AggregatedItem>> favoriteSongs({int limit = 60}) => _get(
     types: const ['Audio'],
     filters: const ['IsFavorite'],
-    sortBy: 'DatePlayed,SortName',
+    sortBy: 'DatePlayed',
     descending: true,
     limit: limit,
   );
 
   /// The person's music playlists (Jellyfin's), the latest first.
   Future<List<AggregatedItem>> playlists({int limit = 30}) async {
+    // Asked for more than shown: the video ones are left out afterwards.
     final found = await _get(
       types: const ['Playlist'],
-      sortBy: 'DateCreated,SortName',
+      sortBy: 'DateCreated',
       descending: true,
-      limit: limit,
+      limit: limit * 4,
     );
     return [
       for (final list in found)
         if (list.rawData['MediaType'] == null ||
             list.rawData['MediaType'] == 'Audio')
           list,
-    ];
+    ].take(limit).toList();
   }
 
   /// The albums added to the home server lately.
@@ -202,6 +203,32 @@ class KostvMusicTaste {
   final List<String> genres;
 
   bool get isEmpty => artists.isEmpty && genres.isEmpty;
+
+  /// To keep it, and to read it back ([fromJson]).
+  Map<String, Object?> toJson() => {
+    'artists': [
+      for (final a in artists) {'id': a.id, 'name': a.name},
+    ],
+    'genres': genres,
+  };
+
+  static KostvMusicTaste? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final artists = raw['artists'];
+    final genres = raw['genres'];
+    return KostvMusicTaste(
+      artists: [
+        if (artists is List)
+          for (final a in artists)
+            if (a is Map && a['id'] != null && a['name'] != null)
+              (id: '${a['id']}', name: '${a['name']}'),
+      ],
+      genres: [
+        if (genres is List)
+          for (final g in genres) '$g',
+      ],
+    );
+  }
 
   /// Counted from [songs], each by how many times it was played.
   factory KostvMusicTaste.of(List<AggregatedItem> songs) {

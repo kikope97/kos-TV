@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:custom_tv_text_field/custom_tv_text_field.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -13,6 +14,7 @@ import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/focus/dpad_keys.dart';
+import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/music/music_navigation.dart';
@@ -75,6 +77,20 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   List<StremfinAlbum> _releases = const [];
   bool _loading = true;
 
+  /// Something failed to load (not just came back empty).
+  bool _failed = false;
+
+  /// The service said the person may not use it: what it answered last time
+  /// no longer comes in.
+  bool _stremfinGone = false;
+
+  /// Whether [_firstStop] was handed to something in the last build (a node
+  /// keeps its old context after it is taken away).
+  bool _firstStopShown = false;
+
+  final _scroll = ScrollController();
+  Timer? _refreshing;
+
   // The search.
   String _query = '';
   KostvMusicAtHome? _atHome;
@@ -86,32 +102,66 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     super.initState();
     _search.addListener(_onQuery);
     _searchFocus.addListener(() => setState(() {}));
-    unawaited(_load());
+    kostvMusicFavoritesChanged.addListener(_reloadFavorites);
+    // With a mouse, the right click is the songs' menu, not the browser's.
+    if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
+    unawaited(_stremfinReady);
+  }
+
+  /// One rebuild for the parts that land close together, rather than one
+  /// each (a slow TV rebuilds the whole page every time).
+  void _refresh() {
+    _refreshing ??= Timer(const Duration(milliseconds: 60), () {
+      _refreshing = null;
+      if (mounted) setState(() {});
+    });
+  }
+
+  Future<void> _reloadFavorites() async {
+    try {
+      _favorites = await _music.favoriteSongs();
+      _refresh();
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
+    _refreshing?.cancel();
+    kostvMusicFavoritesChanged.removeListener(_reloadFavorites);
+    if (kIsWeb) unawaited(BrowserContextMenu.enableContextMenu());
+    _scroll.dispose();
     _search.dispose();
     _searchFocus.dispose();
     _firstStop.dispose();
     super.dispose();
   }
 
-  Future<StremfinService?> _allowedStremfin() async {
+  /// The requests service when the person may use it; [denied] when it
+  /// said they may not (not when it couldn't be asked: then what it said
+  /// last time stays on the page).
+  Future<({StremfinService? service, bool denied})> _allowedStremfin() async {
     final getIt = GetIt.instance;
-    if (!getIt.isRegistered<StremfinService>()) return null;
+    if (!getIt.isRegistered<StremfinService>()) {
+      return (service: null, denied: true);
+    }
     final stremfin = getIt<StremfinService>();
-    if (!stremfin.isConfigured) return null;
+    if (!stremfin.isConfigured) return (service: null, denied: true);
     if (!stremfin.isAllowed) {
       try {
         await stremfin.refreshAccess();
       } catch (_) {
-        return null;
+        return (service: null, denied: false);
       }
     }
-    return stremfin.isAllowed ? stremfin : null;
+    return stremfin.isAllowed
+        ? (service: stremfin, denied: false)
+        : (service: null, denied: true);
   }
+
+  /// Whether the service lets the person in, for a search typed before the
+  /// page knew.
+  late final Future<StremfinService?> _stremfinReady = _load();
 
   /// The requests service as it is, without asking whether the person may
   /// use it: for what it answered last time, which needs no call.
@@ -131,37 +181,46 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   /// Loads every part on its own, each shown as soon as it is there: first
   /// what the service answered last time, kept on the device (the page opens
   /// at once with it), then its answer now, which replaces it.
-  Future<void> _load() async {
+  Future<StremfinService?> _load() async {
     final remembered = _rememberedStremfin();
     if (remembered != null) {
       unawaited(_loadStremfin(remembered, remembered: true));
-    }
-    final stremfin = _stremfin = await _allowedStremfin();
-    if (stremfin == null && mounted) {
-      // Not allowed any more: nothing of what it said last time stays.
-      setState(_forgetStremfin);
     }
     Future<void> part(Future<void> Function() load) async {
       try {
         await load();
       } catch (e) {
+        _failed = true;
         debugPrint('[Music] A part failed: $e');
       }
-      if (mounted) setState(() {});
+      _refresh();
     }
 
-    await Future.wait([
-      if (stremfin != null) _loadStremfin(stremfin, remembered: false),
+    final home = Future.wait([
       part(() async => _recent = await _music.recentAlbums()),
       part(() async => _favorites = await _music.favoriteSongs()),
       part(() async => _playlists = await _music.playlists()),
       part(() async => _newAtHome = await _music.newAlbums()),
       part(() async => _taste = await _tasteLoad),
     ]);
-    if (mounted) setState(() => _loading = false);
+    final access = await _allowedStremfin();
+    final stremfin = _stremfin = access.service;
+    if (access.denied && mounted) {
+      // Not allowed any more: nothing of what it said last time stays.
+      setState(_forgetStremfin);
+    }
+    unawaited(() async {
+      await Future.wait([
+        home,
+        if (stremfin != null) _loadStremfin(stremfin, remembered: false),
+      ]);
+      if (mounted) setState(() => _loading = false);
+    }());
+    return stremfin;
   }
 
   void _forgetStremfin() {
+    _stremfinGone = true;
     _topSongs = _latino = _topAlbums = _genreChart = null;
     _mexico = _unitedStates = null;
     _forYou = null;
@@ -181,13 +240,18 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       try {
         final apply = await load();
         if (remembered) {
-          if (_fresh.contains(name)) return;
+          if (_fresh.contains(name) || _stremfinGone) return;
         } else {
           _fresh.add(name);
         }
-        if (mounted) setState(apply);
+        if (!mounted) return;
+        apply();
+        _refresh();
       } catch (e) {
-        if (!remembered) debugPrint('[Music] $name failed: $e');
+        if (!remembered) {
+          _failed = true;
+          debugPrint('[Music] $name failed: $e');
+        }
       }
     }
 
@@ -224,9 +288,17 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         return () => _releases = found;
       }),
       () async {
-        final taste = await _tasteLoad.catchError(
-          (Object _) => const KostvMusicTaste(),
-        );
+        // What was asked last time, so the rows that go with the person's
+        // taste don't wait for it to be worked out again; now, the real one.
+        final taste = remembered
+            ? KostvMusicTaste.fromJson(
+                await stremfin.rememberedMusicNote('taste'),
+              )
+            : await _tasteLoad.catchError(
+                (Object _) => const KostvMusicTaste(),
+              );
+        if (taste == null) return;
+        if (!remembered) stremfin.keepMusicNote('taste', taste.toJson());
         await _loadForTaste(stremfin, taste, part, remembered);
       }(),
     ]);
@@ -260,9 +332,10 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
             remembered: remembered,
           );
           final match = found.artists.firstOrNull;
-          if (match == null) return () {};
+          if (match == null) return () => _moreOf = null;
           final detail = await stremfin.musicArtist(
             match.deezerId,
+            keep: true,
             remembered: remembered,
           );
           return () => _moreOf = detail.albums.isEmpty
@@ -307,8 +380,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
 
   void _onQuery() {
     final query = _search.text.trim();
-    if (query == _query) return;
+    // Typed and taken back before it ran: nothing is searched.
     _debounce?.cancel();
+    if (query == _query) return;
     _debounce = Timer(const Duration(milliseconds: 400), () {
       unawaited(_runSearch(query));
     });
@@ -322,14 +396,20 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       _searching = query.isNotEmpty;
     });
     if (query.isEmpty) return;
-    final stremfin = _stremfin;
+    // Typed before the page knew whether the service lets the person in.
+    final stremfin = _stremfin ?? await _stremfinReady;
+    if (!mounted || _query != query) return;
     await Future.wait([
       _music
           .search(query)
           .then((found) {
             if (mounted && _query == query) setState(() => _atHome = found);
           })
-          .catchError((Object _) {}),
+          .catchError((Object _) {
+            if (mounted && _query == query) {
+              setState(() => _atHome = const KostvMusicAtHome());
+            }
+          }),
       if (stremfin != null)
         stremfin
             .musicSearch(query)
@@ -354,11 +434,12 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       return KeyEventResult.handled;
     }
     if (event.logicalKey.isDownKey) {
-      final next = FocusScope.of(context);
-      if (_firstStop.context != null) {
+      // The first stop, if something has it now; otherwise the nearest
+      // thing down there.
+      if (_firstStopShown && _firstStop.context != null) {
         _firstStop.requestFocus();
       } else {
-        next.focusInDirection(TraversalDirection.down);
+        node.focusInDirection(TraversalDirection.down);
       }
       return KeyEventResult.handled;
     }
@@ -375,6 +456,16 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   KeyEventResult _upToSearch(KeyEvent event) {
     if (event.logicalKey.isUpKey) {
       _searchFocus.requestFocus();
+      // The search is at the very top: the page goes up to it.
+      if (_scroll.hasClients) {
+        unawaited(
+          _scroll.animateTo(
+            0,
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+          ),
+        );
+      }
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -384,13 +475,13 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
 
   MediaServerClient get _client => GetIt.instance<MediaServerClient>();
 
-  Future<void> _playMix(String artistId) async {
+  Future<void> _playMix(String artistId) => kostvMusicOnce(() async {
     final songs = await _music
         .mix(artistId)
         .catchError((Object _) => <AggregatedItem>[]);
     if (!mounted || songs.isEmpty) return;
     await playMusicTracks(context, songs);
-  }
+  });
 
   // ------------------------------------------------------------------ build
 
@@ -400,6 +491,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   void _keepFocusInView() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _searchFocus.hasFocus) return;
+      // With a mouse or touch the page stays where the person left it.
+      if (!InputModeTracker.showFocusVisuals(context, true)) return;
       final focused = FocusManager.instance.primaryFocus?.context;
       if (focused == null || !focused.mounted) return;
       if (focused.findAncestorStateOfType<_KostvMusicScreenState>() != this) {
@@ -412,6 +505,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   @override
   Widget build(BuildContext context) {
     _keepFocusInView();
+    _firstStopShown = false;
     final insets = calendarChromeInsets(context);
     final phone = KostvMusicSizes.phone;
     final bottom =
@@ -436,6 +530,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
               ),
             ),
             CustomScrollView(
+              controller: _scroll,
               slivers: [
                 SliverPadding(
                   padding: EdgeInsets.fromLTRB(
@@ -603,12 +698,15 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     // it: sections that arrive later above don't pull them away.
     final keep = _firstStop.hasFocus ? _firstOwner : null;
     var first = true;
-    FocusNode? firstNode(String id, Object? content) {
-      if (content == null) return null;
-      if (keep != null) return id == keep ? _firstStop : null;
-      if (!first) return null;
-      first = false;
-      _firstOwner = id;
+    FocusNode? firstNode(String id, bool shows) {
+      if (!shows) return null;
+      if (keep != null && id != keep) return null;
+      if (keep == null) {
+        if (!first) return null;
+        first = false;
+        _firstOwner = id;
+      }
+      _firstStopShown = true;
       return _firstStop;
     }
 
@@ -630,7 +728,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         l10n.kostvMusicTopSongs,
         l10n.kostvMusicTopSongsWhy,
         insets,
-        firstNode('top', _topSongs),
+        firstNode('top', _topSongs?.songs.isNotEmpty ?? false),
       ),
     );
     add(
@@ -641,26 +739,18 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         l10n.kostvMusicTopLatino,
         l10n.kostvMusicChartSoldWhy,
         insets,
-        firstNode('latino', _latino),
+        firstNode('latino', _latino?.songs.isNotEmpty ?? false),
       ),
     );
     add(
       'recent',
-      _recentShelf(
-        context,
-        insets,
-        firstNode('recent', _recent.isEmpty ? null : _recent),
-      ),
+      _recentShelf(context, insets, firstNode('recent', _recent.isNotEmpty)),
     );
     add('favorites', _favoritesShelf(context, insets));
     add('playlists', _playlistsShelf(context, insets));
     add(
       'mixes',
-      _mixShelf(
-        context,
-        insets,
-        firstNode('mixes', _taste.artists.isEmpty ? null : _taste),
-      ),
+      _mixShelf(context, insets, firstNode('mixes', _taste.artists.isNotEmpty)),
     );
     // «Para ti»: a row for each «Porque escuchas a …», then its songs.
     final forYou = _forYou;
@@ -671,10 +761,10 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       }
       for (final entry in byReason.entries.take(3)) {
         add(
-          'foryou-${entry.key}',
+          'foryou-reason-${entry.key}',
           _albumShelf(
             context,
-            entry.key.isEmpty ? l10n.kostvMusicForYouSongs : entry.key,
+            entry.key.isEmpty ? l10n.kostvMusicForYouAlbums : entry.key,
             l10n.kostvMusicForYouWhy,
             entry.value,
             insets,
@@ -741,7 +831,12 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           context,
           genre,
           l10n.kostvMusicTopGenre(
-            genre.chart.name.split('·').first.replaceFirst('Top ', '').trim(),
+            _genreName(l10n, genre.chart.id.replaceFirst('-songs', '')) ??
+                genre.chart.name
+                    .split('·')
+                    .first
+                    .replaceFirst('Top ', '')
+                    .trim(),
           ),
           l10n.kostvMusicChartSoldWhy,
           insets,
@@ -795,7 +890,10 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
               child: _loading
                   ? const CircularProgressIndicator(color: kostvMusicColor)
                   : Text(
-                      l10n.kostvMusicUnavailable,
+                      _failed
+                          ? l10n.kostvMusicUnavailable
+                          : l10n.kostvMusicEmptyListening,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(color: kostvMusicGrey),
                     ),
             ),
@@ -896,6 +994,19 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       ],
     );
   }
+
+  static String? _genreName(AppLocalizations l10n, String? id) => switch (id) {
+    'hiphop' => l10n.kostvMusicGenreHiphop,
+    'rnb' => l10n.kostvMusicGenreRnb,
+    'reggae' => l10n.kostvMusicGenreReggae,
+    'bandas-sonoras' => l10n.kostvMusicGenreSoundtracks,
+    'electronica' => l10n.kostvMusicGenreElectronic,
+    'dance' => l10n.kostvMusicGenreDance,
+    'alternativa' => l10n.kostvMusicGenreAlternative,
+    'rock' => l10n.kostvMusicGenreRock,
+    'pop' => l10n.kostvMusicGenrePop,
+    _ => null,
+  };
 
   /// A chart of songs as Apple Music shows its top songs: columns of four
   /// numbered rows, sideways.
@@ -1109,13 +1220,21 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     ];
     final artistsAway = toAsk?.artists ?? const <StremfinArtist>[];
     final parts = <Widget>[];
-    void add(Widget part) => parts
-      ..add(part)
-      ..add(const SizedBox(height: 30));
+    // Keyed, as the page's sections: the service's answer arriving after
+    // the home server's doesn't rebuild what the person is on.
+    void add(String id, Widget part) => parts
+      ..add(KeyedSubtree(key: ValueKey('search-$id'), child: part))
+      ..add(SizedBox(key: ValueKey('search-$id-gap'), height: 30));
+    final keep = _firstStop.hasFocus ? _firstOwner : null;
     var first = true;
-    FocusNode? firstNode() {
-      if (!first) return null;
-      first = false;
+    FocusNode? firstNode(String id) {
+      if (keep != null && id != keep) return null;
+      if (keep == null) {
+        if (!first) return null;
+        first = false;
+        _firstOwner = id;
+      }
+      _firstStopShown = true;
       return _firstStop;
     }
 
@@ -1143,7 +1262,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           ),
     ];
     if (artistTiles.isNotEmpty) {
-      final node = firstNode();
+      final node = firstNode('search-artists');
       if (node != null && artistTiles.first is KostvMusicAlbumTile) {
         final tile = artistTiles.first as KostvMusicAlbumTile;
         artistTiles[0] = KostvMusicAlbumTile(
@@ -1157,6 +1276,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         );
       }
       add(
+        'artists',
         KostvMusicShelf(
           title: l10n.kostvMusicArtists,
           insets: insets,
@@ -1172,9 +1292,10 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         .toList();
     final songsAway = askSongs.take(6).toList();
     if (homeSongs.isNotEmpty || songsAway.isNotEmpty) {
-      final node = firstNode();
+      final node = firstNode('search-songs');
       var index = 0;
       Widget row({
+        required String id,
         required String title,
         required String artist,
         required String? cover,
@@ -1185,6 +1306,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       }) {
         final first = index++ == 0;
         return KostvMusicSongRow(
+          key: ValueKey('search-song-$id'),
           focusNode: first ? node : null,
           onKey: first && node != null ? _upToSearch : null,
           title: title,
@@ -1197,63 +1319,72 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         );
       }
 
-      parts
-        ..add(
-          KostvMusicHeading(
-            title: l10n.kostvMusicSongs,
-            padding: EdgeInsets.fromLTRB(insets.left, 0, insets.right, 8),
-          ),
-        )
-        ..add(
-          Padding(
-            padding: EdgeInsets.only(left: insets.left, right: insets.right),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 900),
-                child: FocusTraversalGroup(
-                  child: Column(
-                    children: [
-                      for (final song in homeSongs)
-                        row(
-                          title: song.name,
-                          artist: [
-                            ...song.artists.take(2),
-                            ?song.album,
-                          ].join(' · '),
-                          cover: kostvMusicImageOf(song),
-                          atHome: true,
-                          onTap: () => unawaited(playMusicTrack(context, song)),
-                          onMenu: () => unawaited(
-                            showKostvMusicSongMenu(context, item: song),
+      add(
+        'songs',
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            KostvMusicHeading(
+              title: l10n.kostvMusicSongs,
+              padding: EdgeInsets.fromLTRB(insets.left, 0, insets.right, 8),
+            ),
+            Padding(
+              padding: EdgeInsets.only(left: insets.left, right: insets.right),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 900),
+                  child: FocusTraversalGroup(
+                    child: Column(
+                      children: [
+                        for (final song in homeSongs)
+                          row(
+                            id: song.id,
+                            title: song.name,
+                            artist: [
+                              ...song.artists.take(2),
+                              ?song.album,
+                            ].join(' · '),
+                            cover: kostvMusicImageOf(song),
+                            atHome: true,
+                            onTap: () =>
+                                unawaited(playMusicTrack(context, song)),
+                            onMenu: () => unawaited(
+                              showKostvMusicSongMenu(context, item: song),
+                            ),
                           ),
-                        ),
-                      for (final song in songsAway)
-                        row(
-                          title: song.title,
-                          artist: [?song.artist, ?song.albumTitle].join(' · '),
-                          cover: song.cover,
-                          atHome: false,
-                          explicit: song.explicit,
-                          onTap: () =>
-                              unawaited(openKostvMusicSong(context, song)),
-                          onMenu: () => unawaited(
-                            showKostvMusicSongMenu(context, song: song),
+                        for (final song in songsAway)
+                          row(
+                            id: song.deezerId ?? song.title,
+                            title: song.title,
+                            artist: [
+                              ?song.artist,
+                              ?song.albumTitle,
+                            ].join(' · '),
+                            cover: song.cover,
+                            atHome: false,
+                            explicit: song.explicit,
+                            onTap: () =>
+                                unawaited(openKostvMusicSong(context, song)),
+                            onMenu: () => unawaited(
+                              showKostvMusicSongMenu(context, song: song),
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        )
-        ..add(const SizedBox(height: 30));
+          ],
+        ),
+      );
     }
 
     final homeAlbums = atHome?.albums ?? const <AggregatedItem>[];
     if (homeAlbums.isNotEmpty) {
       add(
+        'albums-at-home',
         KostvMusicShelf(
           title: l10n.kostvMusicAlbumsAtHome,
           insets: insets,
@@ -1271,6 +1402,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     }
     if (askable.isNotEmpty) {
       add(
+        'to-ask',
         KostvMusicShelf(
           title: l10n.kostvMusicToAsk,
           subtitle: l10n.kostvMusicToAskWhy,

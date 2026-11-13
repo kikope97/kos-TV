@@ -119,9 +119,21 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
     super.dispose();
   }
 
+  @override
+  void deactivate() {
+    _hold?.cancel();
+    _hold = null;
+    super.deactivate();
+  }
+
   void _onFocus(bool focused) {
     setState(() => _focused = focused);
-    if (!focused) return;
+    if (!focused) {
+      // OK went down here and up somewhere else: no menu out of nowhere.
+      _hold?.cancel();
+      _hold = null;
+      return;
+    }
     final box = context.findRenderObject();
     if (box == null) return;
     const duration = Duration(milliseconds: 220);

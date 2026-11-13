@@ -64,6 +64,13 @@ KostvStatus kostvProgressStatus(
             : Icons.report_outlined,
         tone: KostvTone.pending,
       );
+    case StremfinProgressState.importing:
+      return KostvStatus(
+        label: l10n.kostvRequestMusicImporting,
+        icon: Icons.library_add_rounded,
+        tone: KostvTone.progress,
+        progress: 1,
+      );
     case StremfinProgressState.downloading:
       return kostvTransferStatus(l10n, transfer);
   }
@@ -121,6 +128,23 @@ KostvStatus kostvTransferStatus(
       icon: transfer.recheck != null
           ? Icons.autorenew_rounded
           : Icons.report_outlined,
+      tone: KostvTone.pending,
+    ),
+    StremfinPhase.sent => KostvStatus(
+      label: l10n.kostvRequestMusicSent,
+      icon: Icons.send_rounded,
+      tone: KostvTone.progress,
+      progress: fill,
+    ),
+    StremfinPhase.importing => KostvStatus(
+      label: l10n.kostvRequestMusicImporting,
+      icon: Icons.library_add_rounded,
+      tone: KostvTone.progress,
+      progress: 1,
+    ),
+    StremfinPhase.failed => KostvStatus(
+      label: l10n.kostvRequestMusicFailed,
+      icon: Icons.report_outlined,
       tone: KostvTone.pending,
     ),
     StremfinPhase.downloading || StremfinPhase.unknown => KostvStatus(

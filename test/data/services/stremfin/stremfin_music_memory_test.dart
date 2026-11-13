@@ -11,24 +11,56 @@ void main() {
   test('an answer kept is there next time, also after the app restarts', () {
     fakeAsync((async) {
       final memory = StremfinMusicMemory();
-      memory.write('a /music/charts/top-songs?', {'items': []});
+      memory.write('a', '/music/charts/top-songs?', {'items': []});
       async.elapse(const Duration(seconds: 3));
       Object? read;
-      memory.read('a /music/charts/top-songs?').then((v) => read = v);
+      memory.read('a', '/music/charts/top-songs?').then((v) => read = v);
       async.flushMicrotasks();
       expect(read, {'items': []});
       // Another one, as after a restart: it reads what was written down.
       Object? again;
       StremfinMusicMemory()
-          .read('a /music/charts/top-songs?')
+          .read('a', '/music/charts/top-songs?')
           .then((v) => again = v);
       async.flushMicrotasks();
       expect(again, {'items': []});
       Object? missing = 'x';
-      memory.read('b /music/charts/top-songs?').then((v) => missing = v);
+      memory.read('b', '/music/charts/top-songs?').then((v) => missing = v);
       async.flushMicrotasks();
       expect(missing, isNull);
     });
+  });
+
+  test('another person replaces what was kept, and previews are not kept', () {
+    fakeAsync((async) {
+      final memory = StremfinMusicMemory();
+      memory.write('ana', '/x', {
+        'items': [
+          {'title': 'Verano', 'preview': 'https://cdn/expires'},
+        ],
+      });
+      memory.write('luis', '/y', {'items': []});
+      async.elapse(const Duration(seconds: 3));
+      Object? ana = 'x';
+      Object? luis;
+      memory.read('ana', '/x').then((v) => ana = v);
+      memory.read('luis', '/y').then((v) => luis = v);
+      async.flushMicrotasks();
+      expect(ana, isNull);
+      expect(luis, {'items': []});
+    });
+    expect(
+      StremfinMusicMemory.withoutPreviews({
+        'items': [
+          {'title': 'Verano', 'preview': 'https://cdn/expires'},
+        ],
+      }),
+      {
+        'items': [
+          {'title': 'Verano'},
+        ],
+      },
+    );
   });
 
   test('each person keeps their own, and the token is never written', () {

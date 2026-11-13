@@ -22,34 +22,44 @@ class KostvMusicPreview extends ChangeNotifier {
   bool isPlaying(String? url) => url != null && url == _playing;
 
   /// Plays [url], or stops it if it is the one sounding.
+  /// Each play is counted, so one stopped while it was still opening
+  /// doesn't start sounding afterwards.
+  int _turn = 0;
+  bool _disposed = false;
+
+  void _tell() {
+    if (!_disposed) notifyListeners();
+  }
+
   Future<void> toggle(String url) async {
     if (_playing == url) return stop();
     _pauseApp();
+    final turn = ++_turn;
     _playing = url;
-    notifyListeners();
+    _tell();
+    void over() {
+      if (turn != _turn || _playing != url) return;
+      _playing = null;
+      _tell();
+      _resumeApp();
+    }
+
     try {
       final engine = _engine ??= _engineOf ?? PreviewEngine();
-      await engine.play(url, onEnd: () {
-        if (_playing == url) {
-          _playing = null;
-          notifyListeners();
-          _resumeApp();
-        }
-      });
+      await engine.play(url, onEnd: over);
+      // Stopped while it was opening: silenced as soon as it is open.
+      if (turn != _turn) await engine.stop();
     } catch (e) {
       debugPrint('[MusicPreview] Could not play it: $e');
-      if (_playing == url) {
-        _playing = null;
-        notifyListeners();
-        _resumeApp();
-      }
+      over();
     }
   }
 
   Future<void> stop() async {
+    _turn++;
     if (_playing == null) return;
     _playing = null;
-    notifyListeners();
+    _tell();
     await _engine?.stop();
     _resumeApp();
   }
@@ -81,9 +91,21 @@ class KostvMusicPreview extends ChangeNotifier {
     }
   }
 
+  /// Leaving the page while one sounds: it stops, and what the app was
+  /// playing goes on.
   @override
   void dispose() {
-    unawaited(_engine?.dispose());
+    _disposed = true;
+    _turn++;
+    final engine = _engine;
+    if (_playing != null) {
+      _playing = null;
+      _resumeApp();
+    }
+    unawaited(() async {
+      await engine?.stop();
+      await engine?.dispose();
+    }());
     super.dispose();
   }
 }

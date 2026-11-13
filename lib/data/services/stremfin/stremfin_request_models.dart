@@ -78,6 +78,12 @@ enum StremfinPhase {
 
   /// Only of an episode: it is there.
   completed,
+
+  /// Kos TV: music. Sent to the music downloader, going into the library,
+  /// or it couldn't be had.
+  sent,
+  importing,
+  failed,
   unknown;
 
   static StremfinPhase? fromApi(Object? value) => switch (value) {
@@ -90,6 +96,9 @@ enum StremfinPhase {
     'moving' => moving,
     'attention' => attention,
     'completed' => completed,
+    'sent' => sent,
+    'importing' => importing,
+    'failed' => failed,
     _ => unknown,
   };
 }
@@ -550,6 +559,9 @@ enum StremfinProgressState {
 
   /// The download needs the administrator to choose another version.
   attention,
+
+  /// Kos TV: music, downloaded and going into the library.
+  importing,
   unknown;
 
   static StremfinProgressState fromApi(Object? value) => switch (value) {
@@ -558,6 +570,7 @@ enum StremfinProgressState {
     'waiting_version' => waitingVersion,
     'downloading' => downloading,
     'attention' => attention,
+    'importing' => importing,
     _ => unknown,
   };
 }
@@ -703,7 +716,7 @@ class StremfinRequest {
       type: StremfinTitleType.fromApi(raw['type']),
       tmdbId: _int(raw['tmdb_id']),
       isMusic: raw['type'] == 'music',
-      deezerId: raw['deezer_id']?.toString(),
+      deezerId: _text(raw['deezer_id']?.toString()),
       artist: _text(raw['artist']),
       title: _text(raw['title']),
       displayTitle: _text(raw['display_title']),

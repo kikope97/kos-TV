@@ -126,6 +126,14 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
             if (detail == null && _loading)
               const Center(
                 child: CircularProgressIndicator(color: kostvMusicColor),
+              )
+            else if (detail == null)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: insets.left),
+                child: Text(
+                  l10n.kostvMusicUnavailable,
+                  style: const TextStyle(color: kostvMusicGrey),
+                ),
               ),
             if (detail != null && detail.topSongs.isNotEmpty) ...[
               KostvMusicHeading(
@@ -172,8 +180,13 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                 title: l10n.kostvMusicDiscography,
                 insets: insets,
                 children: [
-                  for (final album in detail.albums)
+                  for (final (i, album) in detail.albums.indexed)
                     KostvMusicAlbumTile(
+                      // Without songs of theirs, the remote starts here.
+                      autofocus:
+                          i == 0 &&
+                          detail.topSongs.isEmpty &&
+                          PlatformDetection.isTV,
                       title: album.title,
                       subtitle: album.year?.toString(),
                       cover: album.cover,

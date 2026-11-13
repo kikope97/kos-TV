@@ -281,7 +281,7 @@ class StremfinClient {
     };
     return StremfinMusicSearch.fromJson(
       keep || remembered
-          ? await _music('/music/search', params, remembered)
+          ? await _music('/music/search', params, remembered, keep)
           : await _get('/music/search', params),
     );
   }
@@ -307,10 +307,16 @@ class StremfinClient {
   /// An artist's page: their albums, best songs and similar artists.
   Future<StremfinArtistDetail> musicArtist(
     String deezerId, {
+    bool keep = false,
     bool remembered = false,
   }) async {
     final detail = StremfinArtistDetail.fromJson(
-      await _music('/music/artists/$deezerId', {'kind': 'album'}, remembered),
+      await _music(
+        '/music/artists/$deezerId',
+        {'kind': 'album'},
+        remembered,
+        keep,
+      ),
     );
     if (detail == null) throw const StremfinException(code: 'bad_response');
     return detail;
@@ -406,29 +412,44 @@ class StremfinClient {
     if (status < 200 || status >= 300) throw _failure(response);
   }
 
-  /// A music answer: from the service, kept for next time; or, with
-  /// [remembered], the one kept last time (no call at all).
+  /// A music answer for the Music page: from the service, kept on the
+  /// device when [keep] (what the page shows; not every artist page or
+  /// search); or, with [remembered], the one kept last time (no call).
   Future<Object?> _music(
     String path, [
     Map<String, Object?>? query,
     bool remembered = false,
+    bool keep = true,
   ]) async {
     final token = _token();
     final memory = musicMemory;
-    final key = token == null
-        ? null
-        : '${StremfinMusicMemory.scopeOf(token)} $path?'
-              '${(query ?? const {}).entries.where((e) => e.value != null).map((e) => '${e.key}=${e.value}').join('&')}';
+    final scope = token == null ? null : StremfinMusicMemory.scopeOf(token);
+    final key =
+        '$path?${(query ?? const {}).entries.where((e) => e.value != null).map((e) => '${e.key}=${e.value}').join('&')}';
     if (remembered) {
-      final kept = key == null ? null : await memory?.read(key);
+      final kept = scope == null ? null : await memory?.read(scope, key);
       if (kept == null) {
         throw const StremfinException(code: 'not_remembered');
       }
       return kept;
     }
     final body = await _get(path, query);
-    if (key != null) memory?.write(key, body);
+    if (keep && scope != null) memory?.write(scope, key, body);
     return body;
+  }
+
+  /// Something of the Music page's own kept with its answers (what the
+  /// person's taste was, to ask the same at once next time).
+  void keepMusicNote(String name, Object value) {
+    final token = _token();
+    if (token == null) return;
+    musicMemory?.write(StremfinMusicMemory.scopeOf(token), 'note:$name', value);
+  }
+
+  Future<Object?> rememberedMusicNote(String name) async {
+    final token = _token();
+    if (token == null) return null;
+    return musicMemory?.read(StremfinMusicMemory.scopeOf(token), 'note:$name');
   }
 
   Future<Object?> _get(String path, [Map<String, Object?>? query]) async {

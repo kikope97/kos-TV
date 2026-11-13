@@ -19104,5 +19104,22 @@
     "kostvMusicPlaylists": "Your playlists",
     "kostvMusicPlaylistsWhy": "Jellyfin's: make them from «Add to a playlist» on any song",
     "kostvTrayListen": "Listen",
-    "kostvTrayMusicNotYet": "Not at home yet: Jellyfin will have it shortly"
+    "kostvTrayMusicNotYet": "Not at home yet: Jellyfin will have it shortly",
+    "kostvMusicForYouAlbums": "Records for you",
+    "kostvMusicGenreHiphop": "Hip-hop",
+    "kostvMusicGenreRnb": "R&B",
+    "kostvMusicGenreReggae": "Reggae",
+    "kostvMusicGenreSoundtracks": "Soundtracks",
+    "kostvMusicGenreElectronic": "Electronic",
+    "kostvMusicGenreDance": "Dance",
+    "kostvMusicGenreAlternative": "Alternative",
+    "kostvMusicGenreRock": "Rock",
+    "kostvMusicGenrePop": "Pop",
+    "kostvMusicCantChange": "It couldn't be changed. Try again.",
+    "kostvMusicCantAskNow": "It couldn't be asked for. Try again in a moment.",
+    "kostvMusicAskedDone": "Asked for. You'll be told when it arrives.",
+    "kostvMusicNotifyMe": "Tell me when it arrives",
+    "kostvRequestMusicImporting": "Going into the library",
+    "kostvRequestMusicSent": "Sent to download",
+    "kostvRequestMusicFailed": "It couldn't be downloaded"
 }
