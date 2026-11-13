@@ -104,6 +104,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       sub.cancel();
     }
     _idle?.cancel();
+    _gone?.cancel();
     if (_tv) HardwareKeyboard.instance.removeHandler(_onAnyKey);
     _playFocus.dispose();
     _ambientFocus.dispose();
@@ -114,11 +115,23 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     if (mounted) setState(() {});
   }
 
+  Timer? _gone;
+
   void _changed() {
     final id = _music.item?.id;
     if (id != _lastId) {
       _lastId = id;
+      // The last song's lyrics don't go on over the new one.
+      _lyrics = null;
       unawaited(_loadLyrics());
+    }
+    // Nothing sounds any more (stopped from the notification, the queue
+    // ended…): the page goes, after a moment in case it is still starting.
+    _gone?.cancel();
+    if (id == null) {
+      _gone = Timer(const Duration(milliseconds: 1500), () {
+        if (_music.item == null) _leave();
+      });
     }
     _rebuild();
   }
@@ -158,7 +171,11 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     _idle = Timer(const Duration(seconds: 45), () {
       // Only with the player in front: not under its menu or a dialog.
       if (!mounted || !_music.playing) return;
-      if (!(ModalRoute.of(context)?.isCurrent ?? false)) return;
+      if (!(ModalRoute.of(context)?.isCurrent ?? false)) {
+        // A menu is open on top: it is tried again later.
+        _restartIdle();
+        return;
+      }
       setState(() => _ambient = true);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _ambient) _ambientFocus.requestFocus();
@@ -281,7 +298,9 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
         KostvMenuEntry(
           'sleep',
           Icons.bedtime_rounded,
-          sleepAt == null
+          _music.sleepsAfterSong
+              ? l10n.kostvPlayerSleepEndOfSong
+              : sleepAt == null
               ? l10n.kostvPlayerSleep
               : l10n.kostvPlayerSleepLeft(
                   (sleepAt.difference(DateTime.now()).inSeconds / 60).ceil(),
@@ -307,9 +326,12 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       case 'sleep':
         await _showSleep();
       case 'radio':
-        final mix = await KostvMusicService(GetIt.instance<MediaServerClient>())
-            .mix(item.id)
-            .catchError((Object _) => const <AggregatedItem>[]);
+        final mix = await KostvMusicService(
+          GetIt.instance<MediaServerClientFactory>().getClientIfExists(
+                item.serverId,
+              ) ??
+              GetIt.instance<MediaServerClient>(),
+        ).mix(item.id).catchError((Object _) => const <AggregatedItem>[]);
         if (!mounted || mix.isEmpty) return;
         await _manager.playItems([
           item,
@@ -352,7 +374,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     );
     if (choice == null) return;
     if (choice == const Duration(microseconds: 1)) {
-      _music.setSleep(_music.leftOfSong);
+      _music.sleepAfterSong();
     } else {
       _music.setSleep(choice == Duration.zero ? null : choice);
     }
@@ -406,9 +428,16 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       ),
     );
     return PopScope(
-      canPop: !_ambient,
+      // Back leaves the quiet screen, then the lyrics or the queue, then
+      // the player.
+      canPop: !_ambient && _view == _View.cover,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _wakeUp();
+        if (didPop) return;
+        if (_ambient) {
+          _wakeUp();
+        } else {
+          setState(() => _view = _View.cover);
+        }
       },
       child: page,
     );
@@ -703,19 +732,39 @@ class _Backdrop extends StatelessWidget {
                 child: Opacity(
                   key: ValueKey(item!.id),
                   opacity: 0.38,
-                  child: Transform.scale(
-                    scale: 1.5,
-                    child: ImageFiltered(
-                      imageFilter: ImageFilter.blur(sigmaX: 70, sigmaY: 70),
-                      child: Image(
-                        image: image,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                        errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                      ),
-                    ),
-                  ),
+                  // On the TV, a tiny copy of the cover, stretched: as soft
+                  // as a blur and nothing to work out on every frame (a
+                  // slow TV repainted a full-screen blur at every tick).
+                  // Elsewhere, the blur (the web's covers don't shrink).
+                  child: PlatformDetection.isTV
+                      ? Transform.scale(
+                          scale: 1.3,
+                          child: Image(
+                            image: ResizeImage(image, width: 12, height: 12),
+                            fit: BoxFit.cover,
+                            filterQuality: FilterQuality.medium,
+                            width: double.infinity,
+                            height: double.infinity,
+                            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                          ),
+                        )
+                      : Transform.scale(
+                          scale: 1.5,
+                          child: ImageFiltered(
+                            imageFilter: ImageFilter.blur(
+                              sigmaX: 70,
+                              sigmaY: 70,
+                            ),
+                            child: Image(
+                              image: image,
+                              fit: BoxFit.cover,
+                              width: double.infinity,
+                              height: double.infinity,
+                              errorBuilder: (_, _, _) =>
+                                  const SizedBox.shrink(),
+                            ),
+                          ),
+                        ),
                 ),
               ),
             // Darker at the bottom, where the controls are.
@@ -738,9 +787,15 @@ class _Backdrop extends StatelessWidget {
   }
 }
 
+/// Whether a downloaded cover is there, asked once per file (not on every
+/// rebuild of every row).
+final _localCovers = <String, bool>{};
+
 ImageProvider? _coverImage(AggregatedItem item, int maxHeight) {
   final local = item.rawData['_localPosterPath'];
-  if (local is String && !kIsWeb && File(local).existsSync()) {
+  if (local is String &&
+      !kIsWeb &&
+      _localCovers.putIfAbsent(local, () => File(local).existsSync())) {
     return FileImage(File(local));
   }
   final url = KostvNowPlaying.instance.artUrl(item, maxHeight: maxHeight);
@@ -1585,9 +1640,11 @@ class _LyricsPanelState extends State<_LyricsPanel> {
               key: _keys[i],
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: _Stop(
+                // Unsynced lyrics are still lines to move along with the
+                // remote, to read them all; a synced one jumps there.
                 onTap: synced
                     ? () => unawaited(_manager.seekTo(line.start))
-                    : null,
+                    : () {},
                 builder: (context, lit) {
                   _heldUntilIfLit(lit);
                   return AnimatedContainer(
@@ -1829,7 +1886,8 @@ class _QueuePanel extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         header,
-        autoplay,
+        // Downloaded music has no home server to ask for more.
+        if (!manager.isOfflinePlayback) autoplay,
         Expanded(
           child: upcoming.isEmpty
               ? Align(alignment: Alignment.topLeft, child: empty)
@@ -1883,7 +1941,7 @@ class _AmbientScreen extends StatelessWidget {
     final titles = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        KostvEqualizerBars(playing: music.playing, size: 26),
+        KostvEqualizerBars(playing: music.playing, size: 26, animated: false),
         const SizedBox(width: 16),
         Flexible(child: _TitleBlock(item: item, big: true)),
       ],

@@ -959,8 +959,10 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
       final manager = GetIt.instance<PlaybackManager>();
       final item = manager.queueService.currentItem;
       bool isAudio = false;
+      bool isMusic = false;
       if (item is AggregatedItem) {
         isAudio = item.isAudioLike;
+        isMusic = item.type == 'Audio';
       } else if (item is String) {
         try {
           final meta = manager.currentOfflineMetadata;
@@ -973,11 +975,13 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
         } catch (_) {}
       }
       // Kos TV: music sounds while the app is open. Out of it, on the TV,
-      // it stops: nobody is there to see what plays or to stop it.
-      if (isAudio) {
-        unawaited(manager.stop(userInitiated: false));
+      // it pauses: nobody is there to see what plays or to stop it, and on
+      // coming back it is where it was. Audiobooks go on, as before.
+      if (isMusic) {
+        unawaited(manager.pause());
         return;
       }
+      if (isAudio) return;
     }
 
     if (!GetIt.instance.isRegistered<PlaybackArbiter>()) return;

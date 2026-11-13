@@ -432,14 +432,12 @@ Future<bool> playKostvArrivedAlbum(
     final detail = await GetIt.instance<StremfinService>().musicAlbum(deezerId);
     var albumId = detail.album.jellyfinId;
     final music = kostvMusicService();
-    if (albumId == null) {
-      // The service doesn't know it at home yet (or is older than 1.91.0):
-      // looked for by its title and artist.
-      albumId = (await _albumAtHome(
-        detail.album.title,
-        detail.album.artist,
-      ))?.id;
-    }
+    // The service doesn't know it at home yet (or is older than 1.91.0):
+    // looked for by its title and artist.
+    albumId ??= (await _albumAtHome(
+      detail.album.title,
+      detail.album.artist,
+    ))?.id;
     if (albumId == null) return false;
     final songs = await music.albumSongs(albumId);
     if (songs.isEmpty || !context.mounted) return false;

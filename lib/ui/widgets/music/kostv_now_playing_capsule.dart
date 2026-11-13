@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../../../data/models/aggregated_item.dart';
@@ -40,12 +41,34 @@ class KostvCapsuleVisibility extends ChangeNotifier {
 
   bool _pending = false;
 
+  /// Whether the pages keep its room at their bottom: also under a dialog
+  /// or a sheet (the page under them doesn't jump).
+  bool get keepsRoom => _keepsRoom;
+  bool _keepsRoom = false;
+
+  /// Told after the frame when the change comes in the middle of one (a
+  /// route pushed while the navigator builds): a widget told to rebuild
+  /// mid-build in a release build could stay stuck.
+  void _notify() {
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      SchedulerBinding.instance.addPostFrameCallback((_) => notifyListeners());
+    } else {
+      notifyListeners();
+    }
+  }
+
   void _check() {
+    final keepsRoom = _compute(underPopups: true);
+    if (keepsRoom != _keepsRoom) {
+      _keepsRoom = keepsRoom;
+      _notify();
+    }
     final shows = _compute();
     if (shows == _shows) return;
     if (!shows) {
       _shows = false;
-      notifyListeners();
+      _notify();
       return;
     }
     // A page just opened says whether it has the bottom bar as it is built:
@@ -56,18 +79,20 @@ class KostvCapsuleVisibility extends ChangeNotifier {
       _pending = false;
       if (_compute() && !_shows) {
         _shows = true;
-        notifyListeners();
+        _notify();
       }
     });
     WidgetsBinding.instance.scheduleFrame();
   }
 
-  bool _compute() {
+  bool _compute({bool underPopups = false}) {
     KostvNowPlaying.instance.ensureStarted();
     if (KostvNowPlaying.instance.item == null) return false;
     if (PlayerRouteObserver.instance.isPlayerActive.value) return false;
     final routes = KostvNowPlayingRouteObserver.instance;
-    if (routes.popupOnTop || routes.bottomBarOnTop) return false;
+    if ((routes.popupOnTop && !underPopups) || routes.bottomBarOnTop) {
+      return false;
+    }
     String path;
     try {
       path = appRouter.routerDelegate.currentConfiguration.uri.path;
@@ -82,10 +107,19 @@ class KostvCapsuleVisibility extends ChangeNotifier {
     return true;
   }
 
-  /// Starts watching, the first time the app's shell is built.
+  bool _started = false;
+
+  /// Starts watching, the first time the app's shell is built. Called
+  /// while building: what it finds is told after that frame, never in the
+  /// middle of it (a widget told to rebuild mid-build in a release build
+  /// could stay stuck without rebuilding again).
   void ensureStarted() {
-    KostvNowPlaying.instance.ensureStarted();
-    _check();
+    if (_started) return;
+    _started = true;
+    scheduleMicrotask(() {
+      KostvNowPlaying.instance.ensureStarted();
+      _check();
+    });
   }
 
   /// The room the pages leave at their bottom while it shows (none on the
@@ -121,8 +155,9 @@ class KostvNowPlayingInset extends StatelessWidget {
     return ListenableBuilder(
       listenable: visibility,
       builder: (context, child) {
-        if (!visibility.shows) return child!;
         final data = MediaQuery.of(context);
+        // With the keyboard up the capsule hides, and its room goes too.
+        if (!visibility.keepsRoom || data.viewInsets.bottom > 0) return child!;
         final extra = KostvCapsuleVisibility.insetFor(context);
         return MediaQuery(
           data: data.copyWith(
@@ -153,8 +188,11 @@ class KostvMediaKeys extends StatelessWidget {
     onKeyEvent: (_, event) {
       if (event is! KeyDownEvent) return KeyEventResult.ignored;
       final music = KostvNowPlaying.instance;
+      // Also on the music player itself (not over a film, a game or TV).
+      final player = PlayerRouteObserver.instance;
       if (music.item == null ||
-          PlayerRouteObserver.instance.isPlayerActive.value) {
+          (player.isPlayerActive.value &&
+              player.activePlayerRoute != Destinations.audioPlayer)) {
         return KeyEventResult.ignored;
       }
       final key = event.logicalKey;
@@ -191,8 +229,8 @@ class KostvNowPlayingHost extends StatefulWidget {
 class _KostvNowPlayingHostState extends State<KostvNowPlayingHost> {
   final _visibility = KostvCapsuleVisibility.instance;
 
-  // On the TV it shrinks to its cover a few seconds after the remote was
-  // last used, so it never sits over what is being looked at.
+  // On the TV it shrinks to its cover while the remote is in use, so it
+  // never sits over what is being chosen, and opens again when it rests.
   bool _compact = false;
   Timer? _shrink;
   String? _shownId;
@@ -229,8 +267,13 @@ class _KostvNowPlayingHostState extends State<KostvNowPlayingHost> {
     if (mounted) setState(() {});
   }
 
+  /// With the remote in use it keeps to its corner, small, so it never
+  /// covers what is being chosen; a new song shows itself for a moment.
   bool _onKey(KeyEvent event) {
-    if (event is KeyDownEvent && _visibility.shows) _wake();
+    if (event is! KeyDownEvent || !_visibility.shows) return false;
+    if (!_compact && mounted) setState(() => _compact = true);
+    _shrink?.cancel();
+    _shrink = Timer(const Duration(seconds: 5), _wake);
     return false;
   }
 
@@ -238,9 +281,6 @@ class _KostvNowPlayingHostState extends State<KostvNowPlayingHost> {
     if (!PlatformDetection.isTV) return;
     _shrink?.cancel();
     if (_compact && mounted) setState(() => _compact = false);
-    _shrink = Timer(const Duration(seconds: 8), () {
-      if (mounted) setState(() => _compact = true);
-    });
   }
 
   @override
@@ -321,8 +361,7 @@ class _CapsuleGlass extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(radius),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: _MaybeBlur(
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 600),
                 decoration: BoxDecoration(
@@ -347,15 +386,42 @@ class _CapsuleGlass extends StatelessWidget {
       );
 }
 
+/// The glass's blur, but not on the TV: too dear for its graphics, and
+/// the tinted colours already read well there.
+class _MaybeBlur extends StatelessWidget {
+  const _MaybeBlur({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => PlatformDetection.isTV
+      ? child
+      : BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: child,
+        );
+}
+
 /// The phone's and the web's: touch and mouse.
-class _TouchCapsule extends StatelessWidget {
+class _TouchCapsule extends StatefulWidget {
   const _TouchCapsule({required this.item, required this.mobile});
 
   final AggregatedItem item;
   final bool mobile;
 
   @override
+  State<_TouchCapsule> createState() => _TouchCapsuleState();
+}
+
+class _TouchCapsuleState extends State<_TouchCapsule> {
+  // Swiped away: gone at once, while the music is still being closed.
+  String? _dismissed;
+
+  @override
   Widget build(BuildContext context) {
+    final item = widget.item;
+    final mobile = widget.mobile;
+    if (_dismissed == item.id) return const SizedBox.shrink();
     final l10n = AppLocalizations.of(context);
     final music = KostvNowPlaying.instance;
     final height = mobile ? _Sizes.mobileHeight : _Sizes.webHeight;
@@ -443,7 +509,10 @@ class _TouchCapsule extends StatelessWidget {
     return Dismissible(
       key: ValueKey('kostv-capsule-${item.id}'),
       direction: DismissDirection.horizontal,
-      onDismissed: (_) => music.close(),
+      onDismissed: (_) {
+        setState(() => _dismissed = item.id);
+        music.close();
+      },
       child: tappable,
     );
   }
@@ -498,6 +567,7 @@ class _TvCapsule extends StatelessWidget {
                             child: KostvEqualizerBars(
                               playing: music.playing,
                               size: 24,
+                              animated: false,
                             ),
                           ),
                       ],
@@ -715,17 +785,22 @@ class _KostvCapsuleProgressState extends State<KostvCapsuleProgress> {
 }
 
 /// Bars that dance while the music sounds, and rest when it is paused.
+/// Not [animated], they only stand up while it sounds: for the small ones
+/// that are always on screen (the menu, the TV's corner), which would
+/// otherwise draw every frame for the whole song.
 class KostvEqualizerBars extends StatefulWidget {
   const KostvEqualizerBars({
     super.key,
     required this.playing,
     this.size = 20,
     this.color = Colors.white,
+    this.animated = true,
   });
 
   final bool playing;
   final double size;
   final Color color;
+  final bool animated;
 
   @override
   State<KostvEqualizerBars> createState() => _KostvEqualizerBarsState();
@@ -738,18 +813,20 @@ class _KostvEqualizerBarsState extends State<KostvEqualizerBars>
     duration: const Duration(milliseconds: 1800),
   );
 
+  bool get _moves => widget.playing && widget.animated;
+
   @override
   void initState() {
     super.initState();
-    if (widget.playing) _controller.repeat();
+    if (_moves) _controller.repeat();
   }
 
   @override
   void didUpdateWidget(KostvEqualizerBars old) {
     super.didUpdateWidget(old);
-    if (widget.playing && !_controller.isAnimating) {
+    if (_moves && !_controller.isAnimating) {
       _controller.repeat();
-    } else if (!widget.playing && _controller.isAnimating) {
+    } else if (!_moves && _controller.isAnimating) {
       _controller.stop();
     }
   }
@@ -769,7 +846,8 @@ class _KostvEqualizerBarsState extends State<KostvEqualizerBars>
         animation: _controller,
         builder: (context, _) => CustomPaint(
           painter: _BarsPainter(
-            t: _controller.value,
+            // Standing still, a pose with the bars at different heights.
+            t: widget.animated ? _controller.value : 0.1,
             playing: widget.playing,
             color: widget.color,
           ),
@@ -787,7 +865,8 @@ class _BarsPainter extends CustomPainter {
   final Color color;
 
   static const _phases = [0.0, 0.55, 0.25, 0.8];
-  static const _speeds = [2.0, 3.0, 2.5, 3.5];
+  // Whole turns per loop, so the bars don't jump when it starts again.
+  static const _speeds = [2.0, 3.0, 2.0, 4.0];
 
   @override
   void paint(Canvas canvas, Size size) {

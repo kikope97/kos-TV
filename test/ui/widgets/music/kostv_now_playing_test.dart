@@ -22,6 +22,11 @@ class _Manager extends Fake implements PlaybackManager {
   @override
   Map<String, dynamic>? get currentOfflineMetadata => null;
 
+  final _ended = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get sessionEndedStream => _ended.stream;
+
   int pauses = 0;
 
   @override
@@ -49,7 +54,10 @@ void main() {
     GetIt.instance.registerSingleton<PlaybackManager>(manager);
   });
 
-  tearDown(() => GetIt.instance.reset());
+  tearDown(() {
+    KostvNowPlaying.instance.debugReset();
+    return GetIt.instance.reset();
+  });
 
   group('what sounds', () {
     test('a song is the music sounding; a film is not', () {
@@ -66,6 +74,7 @@ void main() {
     test('the sleep timer pauses the music when it is up', () {
       fakeAsync((async) {
         final music = KostvNowPlaying.instance;
+        manager.queueService.setQueue([_item('s1', 'Audio')]);
         music.setSleep(const Duration(minutes: 15));
         expect(music.sleepAt, isNotNull);
         async.elapse(const Duration(minutes: 14));
@@ -73,6 +82,35 @@ void main() {
         async.elapse(const Duration(minutes: 2));
         expect(manager.pauses, 1);
         expect(music.sleepAt, isNull);
+      });
+    });
+
+    test('with the music closed, the timer goes with it', () {
+      fakeAsync((async) {
+        final music = KostvNowPlaying.instance..ensureStarted();
+        manager.queueService.setQueue([_item('s1', 'Audio')]);
+        async.flushMicrotasks();
+        music.setSleep(const Duration(minutes: 15));
+        manager.queueService.clear();
+        async.flushMicrotasks();
+        expect(music.sleepAt, isNull);
+        async.elapse(const Duration(hours: 1));
+        expect(manager.pauses, 0);
+      });
+    });
+
+    test('«at the end of this song» pauses when the next one starts', () {
+      fakeAsync((async) {
+        final music = KostvNowPlaying.instance..ensureStarted();
+        manager.queueService.setQueue([_item('s1', 'Audio')]);
+        async.flushMicrotasks();
+        music.sleepAfterSong();
+        expect(music.sleepsAfterSong, isTrue);
+        expect(manager.pauses, 0);
+        manager.queueService.setQueue([_item('s2', 'Audio')]);
+        async.flushMicrotasks();
+        expect(manager.pauses, 1);
+        expect(music.sleepsAfterSong, isFalse);
       });
     });
 

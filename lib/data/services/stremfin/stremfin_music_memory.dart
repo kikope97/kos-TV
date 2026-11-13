@@ -107,8 +107,9 @@ class StremfinMusicMemory {
             '${entry.key}': withoutPreviews(entry.value),
       };
     }
-    if (answer is List)
+    if (answer is List) {
       return [for (final item in answer) withoutPreviews(item)];
+    }
     return answer;
   }
 

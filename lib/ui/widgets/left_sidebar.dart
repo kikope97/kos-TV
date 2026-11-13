@@ -353,6 +353,8 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
           playing: music.playing,
           size: size * 0.8,
           color: kostvMusicColor,
+          // Still on the TV: the menu is always on screen there.
+          animated: !PlatformDetection.isTV,
         ),
         label: AppLocalizations.of(context).kostvNowPlaying,
         baseColor: color,

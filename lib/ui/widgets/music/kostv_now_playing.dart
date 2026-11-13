@@ -38,7 +38,37 @@ class KostvNowPlaying extends ChangeNotifier {
       manager.state.playingStream.listen((_) => _changed()),
       manager.queueService.queueChangedStream.listen((_) => _changed()),
     ]);
-    _changed();
+    try {
+      // The queue played to its end: the music is over (otherwise the
+      // floating player would stay with the last song and dead buttons).
+      _subs.add(
+        manager.sessionEndedStream.listen((_) {
+          final ended = item;
+          if (ended != null && ended.type == 'Audio') {
+            unawaited(manager.stop(userInitiated: false));
+          }
+        }),
+      );
+    } catch (_) {
+      // A stand-in player (the tests') without it.
+    }
+    // Often started while a menu is being built: what it finds is told
+    // after that, not in the middle of the build.
+    scheduleMicrotask(_changed);
+  }
+
+  /// Forgets the player it listened to, for the tests' new one.
+  @visibleForTesting
+  void debugReset() {
+    for (final sub in _subs) {
+      unawaited(sub.cancel());
+    }
+    _subs.clear();
+    _started = false;
+    _itemId = null;
+    _playing = false;
+    setSleep(null);
+    _sleepAfterSong = false;
   }
 
   void _changed() {
@@ -47,8 +77,20 @@ class KostvNowPlaying extends ChangeNotifier {
     final playing = _manager?.state.isPlaying ?? false;
     if (item?.id == _itemId && playing == _playing) return;
     if (item?.id != _itemId) {
+      final before = _itemId;
       _itemId = item?.id;
       _loadColors(item);
+      if (item == null) {
+        // Nothing sounds any more: what went with it goes too.
+        setSleep(null);
+        _sleepAfterSong = false;
+        _autoplaySeed = null;
+        autoplayIds.clear();
+      } else if (_sleepAfterSong && before != null) {
+        // «Al acabar la canción»: the next one doesn't go on.
+        _sleepAfterSong = false;
+        unawaited(_manager?.pause());
+      }
     }
     _playing = playing;
     notifyListeners();
@@ -99,7 +141,11 @@ class KostvNowPlaying extends ChangeNotifier {
   void previous() => unawaited(_manager?.previous());
 
   /// The ✕: the music stops and the floating player goes away.
-  void close() => unawaited(_manager?.stop());
+  void close() {
+    setSleep(null);
+    _sleepAfterSong = false;
+    unawaited(_manager?.stop());
+  }
 
   // --- The sleep timer ---
 
@@ -120,10 +166,22 @@ class KostvNowPlaying extends ChangeNotifier {
       _sleep = Timer(after, () {
         _sleep = null;
         _sleepAt = null;
-        unawaited(_manager?.pause());
+        // Only music: a film started meanwhile isn't the timer's.
+        if (item != null) unawaited(_manager?.pause());
         notifyListeners();
       });
     }
+    notifyListeners();
+  }
+
+  /// «Al acabar la canción»: it pauses when this song ends, wherever the
+  /// person moves in it.
+  bool _sleepAfterSong = false;
+  bool get sleepsAfterSong => _sleepAfterSong;
+
+  void sleepAfterSong() {
+    setSleep(null);
+    _sleepAfterSong = true;
     notifyListeners();
   }
 
@@ -208,6 +266,8 @@ class KostvNowPlaying extends ChangeNotifier {
       _autoplaySeed = null;
     } finally {
       _autoplayBusy = false;
+      // The song changed while it was asked: asked again for the new one.
+      if (item?.id != seed.id) unawaited(_maybeAutoplay());
     }
   }
 
