@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:moonfin/data/viewmodels/favorites_view_model.dart';
 import 'package:moonfin/preference/bottom_nav_tabs.dart';
 import 'package:moonfin/preference/preference_constants.dart';
 import 'package:moonfin/ui/screens/browse/kostv_favorites_screen.dart';
@@ -27,6 +28,69 @@ void main() {
 
     test('always offered, so the You hub has it', () {
       expect(gates.offers(BottomNavTab.favorites), isTrue);
+    });
+  });
+
+  group('KostvFavoritesOrder', () {
+    test('newest in the library first by default', () {
+      final first = KostvFavoritesOrder.all.first;
+      expect(first.sortBy, LibrarySortBy.dateAdded);
+      expect(first.direction, SortDirection.descending);
+    });
+
+    test('names go A to Z, plays and dates high to low', () {
+      expect(
+        KostvFavoritesOrder.of(LibrarySortBy.name).direction,
+        SortDirection.ascending,
+      );
+      expect(
+        KostvFavoritesOrder.of(LibrarySortBy.playCount).direction,
+        SortDirection.descending,
+      );
+      expect(
+        KostvFavoritesOrder.of(LibrarySortBy.premiereDate).direction,
+        SortDirection.descending,
+      );
+    });
+
+    test('an order this page doesn\'t offer falls back to the first', () {
+      expect(
+        KostvFavoritesOrder.of(LibrarySortBy.genre),
+        KostvFavoritesOrder.all.first,
+      );
+    });
+  });
+
+  group('FavoritesViewModel.sortValueFor', () {
+    test('people keep to their names for orders they have nothing for', () {
+      for (final by in [
+        LibrarySortBy.premiereDate,
+        LibrarySortBy.playCount,
+        LibrarySortBy.communityRating,
+        LibrarySortBy.runtime,
+      ]) {
+        expect(
+          FavoritesViewModel.sortValueFor(FavoriteTypeFilter.person, by),
+          LibrarySortBy.name.apiValue,
+        );
+      }
+      expect(
+        FavoritesViewModel.sortValueFor(
+          FavoriteTypeFilter.person,
+          LibrarySortBy.random,
+        ),
+        LibrarySortBy.random.apiValue,
+      );
+    });
+
+    test('everything else sorts as asked', () {
+      expect(
+        FavoritesViewModel.sortValueFor(
+          FavoriteTypeFilter.movie,
+          LibrarySortBy.premiereDate,
+        ),
+        LibrarySortBy.premiereDate.apiValue,
+      );
     });
   });
 }

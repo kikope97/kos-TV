@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
@@ -8,26 +10,36 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/repositories/mdblist_repository.dart';
+import '../../../data/services/background_service.dart';
 import '../../../data/viewmodels/favorites_view_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
+import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/focus/context_menu_sheet.dart';
 import '../../widgets/focus/locked_focus_row.dart';
 import '../../widgets/focus/request_initial_focus.dart';
+import '../../widgets/focusable_dialog_row.dart';
+import '../../widgets/fullscreen_backdrop_switcher.dart';
 import '../../widgets/kostv_favorites_shortcut.dart';
 import '../../widgets/media_card.dart';
 import '../../widgets/navigation_layout.dart';
+import '../../widgets/overlay_sheet.dart';
 import '../calendar/calendar_common.dart';
 import '../home/home_row_card_image.dart';
 
-/// Kos TV: the person's favourites («Mis favoritos»), with the menu above, a
-/// row for each kind (films, series, episodes, people…) as on Home and on
-/// «Mi lista», each with its icon and a line on what it holds. Reached from
-/// the profile: the heart beside the avatar, its menu, or «Tú» on phones.
+/// Kos TV: the person's favourites («Mis favoritos»), with the menu above.
+///
+/// At the top, the heart, how many there are, and a bar to pick which kind
+/// to see (all of them, or only films, series…) and the order. With «All»
+/// there is a row for each kind, as on Home and on «Mi lista», each with its
+/// icon and a line on what it holds; with one kind, all of it in a grid. The
+/// artwork of the card in focus fades in behind the top of the page. Reached
+/// from the profile: the heart beside the avatar, its menu, or «Tú» on
+/// phones.
 class KostvFavoritesScreen extends StatefulWidget {
   const KostvFavoritesScreen({super.key});
 
@@ -111,14 +123,110 @@ class KostvFavoritesKind {
       };
 }
 
+/// Kos TV: an order the favourites can be put in, and the way it goes first.
+@immutable
+class KostvFavoritesOrder {
+  const KostvFavoritesOrder(this.sortBy, this.direction, this.icon);
+
+  final LibrarySortBy sortBy;
+
+  /// The way that makes sense first: newest, most watched, A to Z…
+  final SortDirection direction;
+  final IconData icon;
+
+  static const all = [
+    KostvFavoritesOrder(
+      LibrarySortBy.dateAdded,
+      SortDirection.descending,
+      Icons.new_releases_outlined,
+    ),
+    KostvFavoritesOrder(
+      LibrarySortBy.premiereDate,
+      SortDirection.descending,
+      Icons.event_outlined,
+    ),
+    KostvFavoritesOrder(
+      LibrarySortBy.playCount,
+      SortDirection.descending,
+      Icons.local_fire_department_outlined,
+    ),
+    KostvFavoritesOrder(
+      LibrarySortBy.datePlayed,
+      SortDirection.descending,
+      Icons.history_rounded,
+    ),
+    KostvFavoritesOrder(
+      LibrarySortBy.communityRating,
+      SortDirection.descending,
+      Icons.star_outline_rounded,
+    ),
+    KostvFavoritesOrder(
+      LibrarySortBy.name,
+      SortDirection.ascending,
+      Icons.sort_by_alpha_rounded,
+    ),
+    KostvFavoritesOrder(
+      LibrarySortBy.runtime,
+      SortDirection.descending,
+      Icons.timer_outlined,
+    ),
+    KostvFavoritesOrder(
+      LibrarySortBy.random,
+      SortDirection.ascending,
+      Icons.shuffle_rounded,
+    ),
+  ];
+
+  /// The order for [sortBy], or the first one for one this page doesn't
+  /// offer (left over from the old page).
+  static KostvFavoritesOrder of(LibrarySortBy sortBy) =>
+      all.where((o) => o.sortBy == sortBy).firstOrNull ?? all.first;
+
+  String label(AppLocalizations l10n) => switch (sortBy) {
+    LibrarySortBy.dateAdded => l10n.kostvSortDateAdded,
+    LibrarySortBy.premiereDate => l10n.kostvSortPremiere,
+    LibrarySortBy.playCount => l10n.kostvSortPlayCount,
+    LibrarySortBy.datePlayed => l10n.kostvSortDatePlayed,
+    LibrarySortBy.communityRating => l10n.kostvSortRating,
+    LibrarySortBy.name => l10n.kostvSortName,
+    LibrarySortBy.runtime => l10n.kostvSortRuntime,
+    _ => l10n.kostvSortRandom,
+  };
+}
+
 class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
   final _prefs = GetIt.instance<UserPreferences>();
   late final FavoritesViewModel _vm;
   final _scroll = ScrollController();
-  final Map<FavoriteTypeFilter, GlobalKey<LockedFocusRowState<AggregatedItem>>>
-  _rowKeys = {};
-  final Map<FavoriteTypeFilter, GlobalKey> _sectionKeys = {};
-  final _firstFocus = FocusNode(debugLabel: 'kostvFavoritesFirst');
+  final Map<Object, GlobalKey<LockedFocusRowState<AggregatedItem>>> _rowKeys =
+      {};
+  final Map<Object, GlobalKey> _sectionKeys = {};
+  final _firstChip = FocusNode(debugLabel: 'kostvFavoritesFirstChip');
+
+  /// The bar's other pills, in order after [_firstChip].
+  final List<FocusNode> _chipNodes = [];
+
+  FocusNode _chipNode(int i) {
+    while (_chipNodes.length <= i) {
+      _chipNodes.add(FocusNode(debugLabel: 'kostvFavoritesChip$i'));
+    }
+    return _chipNodes[i];
+  }
+
+  final _firstRow = FocusNode(debugLabel: 'kostvFavoritesFirstRow');
+
+  /// The kind shown on its own, or null for all of them in rows.
+  FavoriteTypeFilter? _only;
+
+  /// What was shown before a reload, kept on screen until the new rows come
+  /// so changing the order doesn't blank the page.
+  Map<FavoriteTypeFilter, List<AggregatedItem>> _lastRows = const {};
+
+  /// The card in focus, whose artwork is behind the top of the page.
+  AggregatedItem? _focused;
+
+  /// The column the grid's focus is in, kept moving up and down.
+  int _gridColumn = 0;
 
   @override
   void initState() {
@@ -129,11 +237,25 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
       mdbListRepository: GetIt.instance<MdbListRepository>(),
     );
     _vm.addListener(_onChanged);
-    // The page is always rows, whatever the old one was left on.
-    if (_vm.viewStyle == FavoritesViewStyle.home) {
-      unawaited(_vm.load());
+    // The page is always rows, whatever the old one was left on, and in an
+    // order it offers.
+    unawaited(_start());
+  }
+
+  Future<void> _start() async {
+    // Someone who never picked one sees the newest in the library first.
+    final chosen = _prefs.containsPreference(
+      UserPreferences.librarySortBy('favorites'),
+    );
+    final order = chosen
+        ? KostvFavoritesOrder.of(_vm.sortBy)
+        : KostvFavoritesOrder.all.first;
+    final reorder = !chosen || order.sortBy != _vm.sortBy;
+    await _vm.setViewStyle(FavoritesViewStyle.home, reload: false);
+    if (reorder) {
+      await _vm.setSort(order.sortBy, order.direction);
     } else {
-      unawaited(_vm.setViewStyle(FavoritesViewStyle.home));
+      await _vm.load();
     }
   }
 
@@ -142,32 +264,40 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     _vm.removeListener(_onChanged);
     _vm.dispose();
     _scroll.dispose();
-    _firstFocus.dispose();
+    _firstChip.dispose();
+    for (final node in _chipNodes) {
+      node.dispose();
+    }
+    _firstRow.dispose();
     super.dispose();
   }
 
   void _onChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    if (_vm.state == FavoritesState.ready) _lastRows = _vm.rowItems;
+    setState(() {});
   }
+
+  Map<FavoriteTypeFilter, List<AggregatedItem>> get _rowsNow =>
+      _vm.state == FavoritesState.loading ? _lastRows : _vm.rowItems;
 
   /// What is still a favourite: one taken off here or elsewhere goes at once.
   List<AggregatedItem> _items(FavoriteTypeFilter type) => [
-    for (final item in _vm.rowItems[type] ?? const <AggregatedItem>[])
+    for (final item in _rowsNow[type] ?? const <AggregatedItem>[])
       if (item.isFavorite) item,
   ];
 
-  List<FavoriteTypeFilter> _shown() => [
+  /// The kinds with something in them, in the page's order.
+  List<FavoriteTypeFilter> _kinds() => [
     for (final type in FavoritesViewModel.rowTypes)
-      if (_items(type).isNotEmpty) type,
+      if (type != FavoriteTypeFilter.watchlist && _items(type).isNotEmpty) type,
   ];
 
-  int _count(List<FavoriteTypeFilter> shown) => shown.fold(
-    0,
-    (sum, type) =>
-        sum +
-        (_vm.rowTotalCount(type) - (_vm.rowItems[type]?.length ?? 0)) +
-        _items(type).length,
-  );
+  /// How many of [type] there are, counting what isn't loaded yet.
+  int _countOf(FavoriteTypeFilter type) =>
+      _vm.rowTotalCount(type) -
+      (_rowsNow[type]?.length ?? 0) +
+      _items(type).length;
 
   void _open(AggregatedItem item) {
     context.push(
@@ -180,54 +310,149 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     );
   }
 
+  void _focusOn(AggregatedItem item) {
+    if (identical(item, _focused) || PlatformDetection.useMobileUi) return;
+    setState(() => _focused = item);
+  }
+
+  void _show(FavoriteTypeFilter? only) {
+    if (only == _only) return;
+    setState(() {
+      _only = only;
+      _gridColumn = 0;
+    });
+    if (_scroll.hasClients) {
+      unawaited(
+        _scroll.animateTo(
+          0,
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    }
+  }
+
+  Future<void> _pickOrder() async {
+    final l10n = AppLocalizations.of(context);
+    final current = KostvFavoritesOrder.of(_vm.sortBy);
+    final picked = await showFocusRestoringDialog<KostvFavoritesOrder>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: const Color(0xFF1B1F27),
+        shape: RoundedRectangleBorder(borderRadius: AppRadius.circular(20)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 12),
+                  child: Text(
+                    l10n.kostvFavoritesSortTitle,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: AppColorScheme.onSurface,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final order in KostvFavoritesOrder.all)
+                          FocusableDialogRow(
+                            icon: order == current
+                                ? Icons.check_rounded
+                                : order.icon,
+                            label: order.label(l10n),
+                            autofocus: order == current,
+                            onTap: () => Navigator.of(context).pop(order),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    unawaited(_vm.setSort(picked.sortBy, picked.direction));
+  }
+
+  void _flipDirection() => unawaited(_vm.toggleSortDirection());
+
+  /// Down from the bar: the first row, or the grid's first line.
+  void _intoContent() {
+    final only = _only;
+    final first = _rowKeys[only == null ? _kinds().firstOrNull : (only, 0)];
+    first?.currentState?.requestFocusAt(0);
+  }
+
   /// A remote moving between rows: the next one shown, or the bar above.
   bool _onVertical(FavoriteTypeFilter type, bool isUp) {
-    final shown = _shown();
+    final shown = _kinds();
     final at = shown.indexOf(type) + (isUp ? -1 : 1);
     if (at < 0) {
-      NavigationLayout.focusNavbarNotifier.value?.call();
+      _firstChip.requestFocus();
       return true;
     }
     if (at >= shown.length) return true;
-    final next = shown[at];
-    _rowKeys[next]?.currentState?.requestFocusAt(0);
-    final section = _sectionKeys[next]?.currentContext;
+    _focusRow(shown[at], 0);
+    return true;
+  }
+
+  void _focusRow(Object key, int index) {
+    _rowKeys[key]?.currentState?.requestFocusAt(index);
+    final section = _sectionKeys[key]?.currentContext;
     if (section != null) {
       unawaited(
         Scrollable.ensureVisible(
           section,
-          alignment: 0.1,
+          alignment: 0.15,
           duration: const Duration(milliseconds: 320),
           curve: Curves.easeOutCubic,
         ),
       );
     }
-    return true;
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final phone = PlatformDetection.useMobileUi;
-    final shown = _shown();
+    final kinds = _kinds();
+    // A kind that emptied (everything taken off) goes back to all of them.
+    if (_only != null &&
+        !kinds.contains(_only) &&
+        _vm.state != FavoritesState.loading) {
+      _only = null;
+    }
     Widget body;
-    if (_vm.state == FavoritesState.loading && shown.isEmpty) {
+    if (_vm.state == FavoritesState.loading && kinds.isEmpty) {
       body = const Center(child: CircularProgressIndicator());
-    } else if (_vm.state == FavoritesState.error && shown.isEmpty) {
+    } else if (_vm.state == FavoritesState.error && kinds.isEmpty) {
       body = _message(
         icon: Icons.cloud_off_rounded,
         title: l10n.kostvFavoritesUnavailable,
         retry: true,
       );
-    } else if (shown.isEmpty) {
+    } else if (kinds.isEmpty) {
       body = _message(
         icon: Icons.favorite_border_rounded,
         title: l10n.kostvFavoritesEmpty,
         text: l10n.kostvFavoritesEmptyHint,
       );
     } else {
-      body = _rows(context, shown);
+      body = _page(context, kinds);
     }
+    final backdrop = _backdropUrl();
     return Scaffold(
       backgroundColor: AppColorScheme.background,
       body: NavigationLayout(
@@ -235,6 +460,27 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
         child: Stack(
           fit: StackFit.expand,
           children: [
+            // The artwork of the card in focus, behind the top of the page.
+            if (!phone)
+              Positioned.fill(
+                child: AnimatedOpacity(
+                  opacity: backdrop == null ? 0 : 1,
+                  duration: const Duration(milliseconds: 400),
+                  child: ShaderMask(
+                    blendMode: BlendMode.dstIn,
+                    shaderCallback: (rect) => const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Color(0x66FFFFFF), Color(0x00FFFFFF)],
+                      stops: [0, 0.7],
+                    ).createShader(rect),
+                    child: FullscreenBackdropSwitcher(
+                      imageUrl: backdrop,
+                      duration: BackgroundService.transitionDuration,
+                    ),
+                  ),
+                ),
+              ),
             // A faint glow of the heart's colour from the top corner.
             const DecoratedBox(
               decoration: BoxDecoration(
@@ -250,13 +496,24 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
                 ),
               ),
             ),
-            phone || shown.isEmpty
+            phone || kinds.isEmpty
                 ? body
-                : RequestInitialFocus(targetNode: _firstFocus, child: body),
+                : RequestInitialFocus(targetNode: _firstRow, child: body),
           ],
         ),
       ),
     );
+  }
+
+  String? _backdropUrl() {
+    final item = _focused;
+    if (item == null || !GetIt.instance.isRegistered<BackgroundService>()) {
+      return null;
+    }
+    if (item.type == 'Person') return null;
+    return GetIt.instance<BackgroundService>()
+        .backdropUrlsFor(item)
+        .firstOrNull;
   }
 
   Widget _header(BuildContext context, int count) {
@@ -266,19 +523,26 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
-            color: kostvFavoritesColor.withValues(alpha: 0.16),
-            borderRadius: AppRadius.circular(12),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                kostvFavoritesColor.withValues(alpha: 0.32),
+                kostvFavoritesColor.withValues(alpha: 0.12),
+              ],
+            ),
+            borderRadius: AppRadius.circular(14),
             border: Border.all(
-              color: kostvFavoritesColor.withValues(alpha: 0.4),
+              color: kostvFavoritesColor.withValues(alpha: 0.45),
             ),
           ),
           child: const Icon(
             Icons.favorite_rounded,
             color: kostvFavoritesColor,
-            size: 24,
+            size: 26,
           ),
         ),
         const SizedBox(width: 14),
@@ -305,6 +569,125 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  /// The bar under the header: which kind to see, and the order.
+  Widget _controls(BuildContext context, List<FavoriteTypeFilter> kinds) {
+    final l10n = AppLocalizations.of(context);
+    final order = KostvFavoritesOrder.of(_vm.sortBy);
+    final descending = _vm.sortDirection == SortDirection.descending;
+    final reloading = _vm.state == FavoritesState.loading;
+    final sortable = order.sortBy != LibrarySortBy.random;
+    // The pills after «All»: one per kind, the order and, but for random,
+    // its direction.
+    final chips = kinds.length + 1 + (sortable ? 1 : 0);
+    var next = 0;
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: (_, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+          _intoContent();
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+          NavigationLayout.focusNavbarNotifier.value?.call();
+          return KeyEventResult.handled;
+        }
+        // Along the bar, pill by pill, stopping at its ends.
+        final left = event.logicalKey == LogicalKeyboardKey.arrowLeft;
+        if (left || event.logicalKey == LogicalKeyboardKey.arrowRight) {
+          final pills = [
+            _firstChip,
+            for (var i = 0; i < chips; i++) _chipNode(i),
+          ];
+          final at = pills.indexWhere((node) => node.hasFocus);
+          if (at < 0) return KeyEventResult.ignored;
+          final to = at + (left ? -1 : 1);
+          if (to < 0) {
+            NavigationLayout.focusNavbarNotifier.value?.call();
+          } else if (to < pills.length) {
+            pills[to].requestFocus();
+            final pill = pills[to].context;
+            if (pill != null) {
+              unawaited(
+                Scrollable.ensureVisible(
+                  pill,
+                  alignment: 0.5,
+                  duration: const Duration(milliseconds: 220),
+                ),
+              );
+            }
+          }
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: FocusTraversalGroup(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          child: Row(
+            children: [
+              _FavChip(
+                focusNode: _firstChip,
+                label: l10n.kostvFavoritesAll,
+                selected: _only == null,
+                onTap: () => _show(null),
+              ),
+              for (final type in kinds) ...[
+                const SizedBox(width: 8),
+                _FavChip(
+                  focusNode: _chipNode(next++),
+                  icon: KostvFavoritesKind.of(type).icon,
+                  label: '${type.label(l10n)} · ${_countOf(type)}',
+                  selected: _only == type,
+                  onTap: () => _show(type),
+                ),
+              ],
+              Container(
+                width: 1,
+                height: 24,
+                margin: const EdgeInsets.symmetric(horizontal: 14),
+                color: Colors.white.withValues(alpha: 0.16),
+              ),
+              _FavChip(
+                focusNode: _chipNode(next++),
+                icon: order.icon,
+                label: order.label(l10n),
+                trailing: Icons.expand_more_rounded,
+                onTap: _pickOrder,
+              ),
+              if (sortable) ...[
+                const SizedBox(width: 8),
+                _FavChip(
+                  focusNode: _chipNode(next++),
+                  icon: descending
+                      ? Icons.arrow_downward_rounded
+                      : Icons.arrow_upward_rounded,
+                  label: descending
+                      ? l10n.kostvSortDescending
+                      : l10n.kostvSortAscending,
+                  onTap: _flipDirection,
+                ),
+              ],
+              AnimatedOpacity(
+                opacity: reloading ? 1 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: const Padding(
+                  padding: EdgeInsets.only(left: 14),
+                  child: SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -373,12 +756,14 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     );
   }
 
-  Widget _rows(BuildContext context, List<FavoriteTypeFilter> shown) {
+  Widget _page(BuildContext context, List<FavoriteTypeFilter> kinds) {
     final insets = calendarChromeInsets(context);
     final phone = PlatformDetection.useMobileUi;
     final bottom =
         MediaQuery.paddingOf(context).bottom +
         (phone && NavigationLayout.usesBottomNavbar ? 96 : 32);
+    final only = _only;
+    final count = kinds.fold(0, (sum, type) => sum + _countOf(type));
     return SingleChildScrollView(
       controller: _scroll,
       padding: EdgeInsets.only(top: insets.top, bottom: bottom),
@@ -387,11 +772,44 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
         children: [
           Padding(
             padding: EdgeInsets.only(left: insets.left, right: insets.right),
-            child: _header(context, _count(shown)),
+            child: _header(context, count),
           ),
-          SizedBox(height: phone ? 12 : 20),
-          for (final type in shown)
-            _section(context, type, insets: insets, first: type == shown.first),
+          SizedBox(height: phone ? 12 : 16),
+          Padding(
+            padding: EdgeInsets.only(left: insets.left, right: insets.right),
+            child: _controls(context, kinds),
+          ),
+          SizedBox(height: phone ? 8 : 12),
+          // The new view rises in; the old one goes at once, as its rows and
+          // the new one's must never be on screen together.
+          TweenAnimationBuilder<double>(
+            key: ValueKey(only),
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            builder: (context, t, child) => Opacity(
+              opacity: t,
+              child: Transform.translate(
+                offset: Offset(0, 16 * (1 - t)),
+                child: child,
+              ),
+            ),
+            child: only == null
+                ? Column(
+                    key: const ValueKey('rows'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final type in kinds)
+                        _section(
+                          context,
+                          type,
+                          insets: insets,
+                          first: type == kinds.first,
+                        ),
+                    ],
+                  )
+                : _grid(context, only, insets: insets),
+          ),
         ],
       ),
     );
@@ -413,125 +831,376 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     return item.productionYear?.toString();
   }
 
+  ({double imageHeight, double width, double spacing, double headroom})
+  _metrics(KostvFavoritesKind kind) {
+    final phone = PlatformDetection.useMobileUi;
+    final wide = kind.aspect > 1.2;
+    final square = !wide && kind.aspect > 0.9;
+    final imageHeight = phone
+        ? (wide ? 118.0 : (square ? 150.0 : 165.0))
+        : (wide ? 162.0 : (square ? 200.0 : 228.0));
+    final expansion = !phone && _prefs.get(UserPreferences.cardFocusExpansion);
+    return (
+      imageHeight: imageHeight,
+      width: imageHeight * kind.aspect,
+      spacing: phone ? 12.0 : 20.0,
+      // The focused card grows from its middle: room above it for that, so
+      // it never covers what is above.
+      headroom: expansion ? imageHeight * (MediaCard.focusScale - 1) + 22 : 8.0,
+    );
+  }
+
+  Widget _card(
+    BuildContext context,
+    AggregatedItem item,
+    KostvFavoritesKind kind,
+    bool focused,
+  ) {
+    final m = _metrics(kind);
+    final wide = kind.aspect > 1.2;
+    final phone = PlatformDetection.useMobileUi;
+    final client = GetIt.instance<MediaServerClient>();
+    return MediaCard(
+      title: item.name,
+      subtitle: _subtitle(item),
+      showLabel: true,
+      imageUrl: resolveRowImageUrl(
+        item,
+        client.imageApi,
+        m.imageHeight,
+        kind.imageType,
+        false,
+        MediaQuery.devicePixelRatioOf(context),
+      ),
+      width: m.width,
+      aspectRatio: kind.aspect,
+      itemType: item.type,
+      isPlayed: item.isPlayed,
+      unplayedCount: item.unplayedItemCount,
+      playedPercentage: wide ? item.playedPercentage : null,
+      watchedBehavior: _prefs.get(UserPreferences.watchedIndicatorBehavior),
+      focusColor: Color(_prefs.get(UserPreferences.focusColor).colorValue),
+      cardFocusExpansion:
+          !phone && _prefs.get(UserPreferences.cardFocusExpansion),
+      externalIsFocused: InputModeTracker.showFocusVisuals(context, focused),
+      onTap: () => _open(item),
+      onLongPress: () => showContextMenu(context, item),
+    );
+  }
+
+  Widget _sectionTitle(
+    BuildContext context,
+    FavoriteTypeFilter type,
+    EdgeInsets insets,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    final kind = KostvFavoritesKind.of(type);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(insets.left, 8, insets.right, 0),
+      child: Row(
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: kostvFavoritesColor.withValues(alpha: 0.14),
+              borderRadius: AppRadius.circular(9),
+            ),
+            child: Icon(kind.icon, size: 18, color: kostvFavoritesColor),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${type.label(l10n)} · ${_countOf(type)}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    color: AppColorScheme.onSurface,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                Text(
+                  KostvFavoritesKind.why(type, l10n),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppColorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _section(
     BuildContext context,
     FavoriteTypeFilter type, {
     required EdgeInsets insets,
     required bool first,
   }) {
-    final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final phone = PlatformDetection.useMobileUi;
     final kind = KostvFavoritesKind.of(type);
-    final wide = kind.aspect > 1.2;
-    final square = !wide && kind.aspect > 0.9;
-    final imageHeight = phone
-        ? (wide ? 118.0 : (square ? 150.0 : 165.0))
-        : (wide ? 162.0 : (square ? 200.0 : 228.0));
-    final cardWidth = imageHeight * kind.aspect;
-    final spacing = phone ? 12.0 : 20.0;
-    final expansion = !phone && _prefs.get(UserPreferences.cardFocusExpansion);
-    // The focused card grows from its middle: room above it for that, so it
-    // never covers the section's title.
-    final headroom = expansion
-        ? imageHeight * (MediaCard.focusScale - 1) + 22
-        : 8.0;
+    final m = _metrics(kind);
     const labels = 54.0;
-    final focusColor = Color(_prefs.get(UserPreferences.focusColor).colorValue);
     final items = _items(type);
-    final client = GetIt.instance<MediaServerClient>();
-    final rowKey = _rowKeys.putIfAbsent(type, GlobalKey.new);
-    final sectionKey = _sectionKeys.putIfAbsent(type, GlobalKey.new);
-    final total = _vm.rowTotalCount(type);
-    final shownCount = total - (_vm.rowItems[type]?.length ?? 0) + items.length;
-
     return Column(
-      key: sectionKey,
+      key: _sectionKeys.putIfAbsent(type, GlobalKey.new),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: EdgeInsets.fromLTRB(insets.left, 8, insets.right, 0),
-          child: Row(
-            children: [
-              Icon(kind.icon, size: 20, color: kostvFavoritesColor),
-              const SizedBox(width: 10),
-              Flexible(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${type.label(l10n)} · $shownCount',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: AppColorScheme.onSurface,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    Text(
-                      KostvFavoritesKind.why(type, l10n),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppColorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
+        _sectionTitle(context, type, insets),
         LockedFocusRow<AggregatedItem>(
-          key: rowKey,
+          key: _rowKeys.putIfAbsent(type, GlobalKey.new),
           hubKey: 'kostv_favorites_${type.name}',
           items: items,
           itemKey: (item, _) => item.id,
-          focusNode: first ? _firstFocus : null,
-          itemExtent: cardWidth,
-          itemSpacing: spacing,
-          height: headroom + imageHeight + labels + 12,
+          focusNode: first ? _firstRow : null,
+          itemExtent: m.width,
+          itemSpacing: m.spacing,
+          height: m.headroom + m.imageHeight + labels + 12,
           clipBehavior: Clip.none,
-          padding: EdgeInsets.fromLTRB(insets.left, headroom, insets.right, 12),
+          padding: EdgeInsets.fromLTRB(
+            insets.left,
+            m.headroom,
+            insets.right,
+            12,
+          ),
           onVerticalNavigation: (isUp) => _onVertical(type, isUp),
           onLeftEdge: () => NavigationLayout.focusNavbarNotifier.value?.call(),
+          onIndexChanged: (index, item) {
+            _focusOn(item);
+            if (index >= items.length - 5) {
+              unawaited(_vm.loadMoreForType(type));
+            }
+          },
           onTap: (_, item) => _open(item),
           onLongPress: (_, item) => showContextMenu(context, item),
           itemBuilder: (context, item, index, focused) {
-            // Near the end of what is loaded: the next ones.
-            if (index >= items.length - 4) {
+            // Scrolled near the end by touch or a mouse: the next ones.
+            if (index >= items.length - 3) {
               scheduleMicrotask(() => _vm.loadMoreForType(type));
             }
-            final showFocus = InputModeTracker.showFocusVisuals(
-              context,
-              focused,
-            );
-            return MediaCard(
-              title: item.name,
-              subtitle: _subtitle(item),
-              showLabel: true,
-              imageUrl: resolveRowImageUrl(
-                item,
-                client.imageApi,
-                imageHeight,
-                kind.imageType,
-                false,
-                MediaQuery.devicePixelRatioOf(context),
-              ),
-              width: cardWidth,
-              aspectRatio: kind.aspect,
-              itemType: item.type,
-              isPlayed: item.isPlayed,
-              unplayedCount: item.unplayedItemCount,
-              playedPercentage: wide ? item.playedPercentage : null,
-              watchedBehavior: _prefs.get(
-                UserPreferences.watchedIndicatorBehavior,
-              ),
-              focusColor: focusColor,
-              cardFocusExpansion: expansion,
-              externalIsFocused: showFocus,
-              onTap: () => _open(item),
-              onLongPress: () => showContextMenu(context, item),
-            );
+            return _card(context, item, kind, focused);
           },
         ),
       ],
+    );
+  }
+
+  /// One kind on its own: all of it, in lines as wide as the page.
+  Widget _grid(
+    BuildContext context,
+    FavoriteTypeFilter type, {
+    required EdgeInsets insets,
+  }) {
+    final kind = KostvFavoritesKind.of(type);
+    final m = _metrics(kind);
+    const labels = 54.0;
+    final items = _items(type);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final room = constraints.maxWidth - insets.left - insets.right;
+        final columns = math.max(
+          1,
+          ((room + m.spacing) / (m.width + m.spacing)).floor(),
+        );
+        final lines = <List<AggregatedItem>>[
+          for (var i = 0; i < items.length; i += columns)
+            items.sublist(i, math.min(i + columns, items.length)),
+        ];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _sectionTitle(context, type, insets),
+            for (final (line, cards) in lines.indexed)
+              KeyedSubtree(
+                key: _sectionKeys.putIfAbsent((type, line), GlobalKey.new),
+                child: LockedFocusRow<AggregatedItem>(
+                  key: _rowKeys.putIfAbsent((type, line), GlobalKey.new),
+                  hubKey: 'kostv_favorites_grid_${type.name}_$line',
+                  items: cards,
+                  itemKey: (item, _) => item.id,
+                  focusNode: line == 0 ? _firstRow : null,
+                  itemExtent: m.width,
+                  itemSpacing: m.spacing,
+                  height: m.headroom + m.imageHeight + labels + 12,
+                  clipBehavior: Clip.none,
+                  padding: EdgeInsets.fromLTRB(
+                    insets.left,
+                    m.headroom,
+                    insets.right,
+                    4,
+                  ),
+                  onVerticalNavigation: (isUp) {
+                    final to = line + (isUp ? -1 : 1);
+                    if (to < 0) {
+                      _firstChip.requestFocus();
+                      return true;
+                    }
+                    if (to >= lines.length) {
+                      unawaited(_vm.loadMoreForType(type));
+                      return true;
+                    }
+                    _focusRow((
+                      type,
+                      to,
+                    ), math.min(_gridColumn, lines[to].length - 1));
+                    return true;
+                  },
+                  onLeftEdge: () =>
+                      NavigationLayout.focusNavbarNotifier.value?.call(),
+                  onIndexChanged: (index, item) {
+                    _gridColumn = index;
+                    _focusOn(item);
+                    if (line >= lines.length - 2) {
+                      unawaited(_vm.loadMoreForType(type));
+                    }
+                  },
+                  onTap: (_, item) => _open(item),
+                  onLongPress: (_, item) => showContextMenu(context, item),
+                  itemBuilder: (context, item, index, focused) {
+                    if (line >= lines.length - 1) {
+                      scheduleMicrotask(() => _vm.loadMoreForType(type));
+                    }
+                    return _card(context, item, kind, focused);
+                  },
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+/// Kos TV: a pill of the favourites' bar, for a kind to see or the order.
+class _FavChip extends StatefulWidget {
+  const _FavChip({
+    required this.label,
+    required this.onTap,
+    this.icon,
+    this.trailing,
+    this.selected = false,
+    this.focusNode,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+  final IconData? icon;
+  final IconData? trailing;
+  final bool selected;
+  final FocusNode? focusNode;
+
+  @override
+  State<_FavChip> createState() => _FavChipState();
+}
+
+class _FavChipState extends State<_FavChip> {
+  bool _focused = false;
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final lit =
+        InputModeTracker.showFocusVisuals(context, _focused) || _hovered;
+    final selected = widget.selected;
+    final Color background;
+    final Color border;
+    final Color ink;
+    if (lit) {
+      background = Colors.white;
+      border = Colors.white;
+      ink = Colors.black;
+    } else if (selected) {
+      background = kostvFavoritesColor.withValues(alpha: 0.22);
+      border = kostvFavoritesColor.withValues(alpha: 0.7);
+      ink = Colors.white;
+    } else {
+      background = Colors.white.withValues(alpha: 0.07);
+      border = Colors.white.withValues(alpha: 0.14);
+      ink = Colors.white.withValues(alpha: 0.82);
+    }
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: widget.label,
+      child: Focus(
+        focusNode: widget.focusNode,
+        onFocusChange: (focused) => setState(() => _focused = focused),
+        onKeyEvent: (_, event) {
+          if (event is KeyDownEvent && event.logicalKey.isSelectKey) {
+            widget.onTap();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        },
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onTap,
+            child: AnimatedScale(
+              scale: lit ? 1.05 : 1,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: background,
+                  borderRadius: AppRadius.circular(999),
+                  border: Border.all(color: border),
+                  boxShadow: lit
+                      ? const [
+                          BoxShadow(
+                            color: Colors.black38,
+                            blurRadius: 10,
+                            offset: Offset(0, 3),
+                          ),
+                        ]
+                      : null,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.icon != null) ...[
+                      Icon(
+                        widget.icon,
+                        size: 18,
+                        color: lit
+                            ? Colors.black
+                            : (selected ? kostvFavoritesColor : ink),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      widget.label,
+                      style: TextStyle(
+                        color: ink,
+                        fontSize: 14,
+                        fontWeight: selected
+                            ? FontWeight.w700
+                            : FontWeight.w600,
+                      ),
+                    ),
+                    if (widget.trailing != null) ...[
+                      const SizedBox(width: 4),
+                      Icon(widget.trailing, size: 18, color: ink),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -154,11 +154,14 @@ class FavoritesViewModel extends ChangeNotifier {
     if (item != null) _loadFocusedRatings(item);
   }
 
-  Future<void> setViewStyle(FavoritesViewStyle value) async {
+  Future<void> setViewStyle(
+    FavoritesViewStyle value, {
+    bool reload = true,
+  }) async {
     if (_viewStyle == value) return;
     _viewStyle = value;
     await _prefs.set(UserPreferences.favoritesViewStyle, value);
-    await load();
+    if (reload) await load();
   }
 
   Future<void> _loadFocusedRatings(AggregatedItem item) async {
@@ -173,8 +176,12 @@ class FavoritesViewModel extends ChangeNotifier {
     }
   }
 
+  /// Rows whose request failed in the last load.
+  int _failedRows = 0;
+
   Future<void> load() async {
     _state = FavoritesState.loading;
+    _failedRows = 0;
     _rowItems = {};
     _rowTotalCounts.clear();
     _rowFetchedCounts.clear();
@@ -196,6 +203,11 @@ class FavoritesViewModel extends ChangeNotifier {
           }
         }
         _rowItems = map;
+        // Kos TV: nothing came and something failed: the server couldn't be
+        // asked, which isn't the same as having no favourites.
+        if (map.isEmpty && _failedRows > 0) {
+          throw StateError('Favourites could not be read');
+        }
       } else {
         await _fetchGridPage(0);
       }
@@ -214,7 +226,7 @@ class FavoritesViewModel extends ChangeNotifier {
   }) async {
     if (type == FavoriteTypeFilter.watchlist) return _fetchWatchlist();
     try {
-      final sortValue = _sortBy.apiValue;
+      final sortValue = sortValueFor(type, _sortBy);
       final sortOrder = _sortDirection == SortDirection.ascending
           ? 'Ascending'
           : 'Descending';
@@ -263,8 +275,23 @@ class FavoritesViewModel extends ChangeNotifier {
       final totalCount = response['TotalRecordCount'] as int? ?? items.length;
       return (withoutBlockedItems(items), totalCount);
     } catch (_) {
+      _failedRows++;
       return (const <AggregatedItem>[], 0);
     }
+  }
+
+  /// Kos TV: what [type] is sorted by when [sortBy] is chosen. People have
+  /// no premiere, runtime, plays or rating of their own, so they keep to
+  /// their names, unless shuffled.
+  @visibleForTesting
+  static String sortValueFor(FavoriteTypeFilter type, LibrarySortBy sortBy) {
+    if (type == FavoriteTypeFilter.person &&
+        sortBy != LibrarySortBy.random &&
+        sortBy != LibrarySortBy.name &&
+        sortBy != LibrarySortBy.dateAdded) {
+      return LibrarySortBy.name.apiValue;
+    }
+    return sortBy.apiValue;
   }
 
   /// Silo's watchlist, every title at once. Other servers have none.
@@ -421,6 +448,16 @@ class FavoritesViewModel extends ChangeNotifier {
     if (_sortBy == value) return;
     _sortBy = value;
     await _prefs.set(UserPreferences.librarySortBy(_prefKey), value);
+    await load();
+  }
+
+  /// Kos TV: both at once, so the rows are read only once.
+  Future<void> setSort(LibrarySortBy by, SortDirection direction) async {
+    if (_sortBy == by && _sortDirection == direction) return;
+    _sortBy = by;
+    _sortDirection = direction;
+    await _prefs.set(UserPreferences.librarySortBy(_prefKey), by);
+    await _prefs.set(UserPreferences.librarySortDirection(_prefKey), direction);
     await load();
   }
 

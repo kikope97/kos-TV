@@ -32109,6 +32109,84 @@ abstract class AppLocalizations {
   /// **'The music you kept'**
   String get kostvFavoritesWhyMusic;
 
+  /// Kos TV: favourites filter chip showing every kind.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get kostvFavoritesAll;
+
+  /// Kos TV: title of the favourites sort picker.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort favourites'**
+  String get kostvFavoritesSortTitle;
+
+  /// Kos TV: sort by date added to the library.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to the library'**
+  String get kostvSortDateAdded;
+
+  /// Kos TV: sort by release date.
+  ///
+  /// In en, this message translates to:
+  /// **'Release date'**
+  String get kostvSortPremiere;
+
+  /// Kos TV: sort by play count.
+  ///
+  /// In en, this message translates to:
+  /// **'Most watched'**
+  String get kostvSortPlayCount;
+
+  /// Kos TV: sort by last played.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently watched'**
+  String get kostvSortDatePlayed;
+
+  /// Kos TV: sort by community rating.
+  ///
+  /// In en, this message translates to:
+  /// **'Top rated'**
+  String get kostvSortRating;
+
+  /// Kos TV: sort by name.
+  ///
+  /// In en, this message translates to:
+  /// **'By name'**
+  String get kostvSortName;
+
+  /// Kos TV: sort by runtime.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime'**
+  String get kostvSortRuntime;
+
+  /// Kos TV: random order.
+  ///
+  /// In en, this message translates to:
+  /// **'Random'**
+  String get kostvSortRandom;
+
+  /// Kos TV: sort direction chip, descending.
+  ///
+  /// In en, this message translates to:
+  /// **'High to low'**
+  String get kostvSortDescending;
+
+  /// Kos TV: sort direction chip, ascending.
+  ///
+  /// In en, this message translates to:
+  /// **'Low to high'**
+  String get kostvSortAscending;
+
+  /// Kos TV: favourites filtered to a kind with nothing left.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing of this kind in your favourites'**
+  String get kostvFavoritesNoneOfKind;
+
   /// Kos TV: last card of the Shuffle row at the end of Home, opens the shuffle window.
   ///
   /// In en, this message translates to:

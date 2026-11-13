@@ -18373,6 +18373,58 @@
   "@kostvFavoritesWhyMusic": {
     "description": "Kos TV: favourites page row subtitle (music)."
   },
+  "kostvFavoritesAll": "All",
+  "@kostvFavoritesAll": {
+    "description": "Kos TV: favourites filter chip showing every kind."
+  },
+  "kostvFavoritesSortTitle": "Sort favourites",
+  "@kostvFavoritesSortTitle": {
+    "description": "Kos TV: title of the favourites sort picker."
+  },
+  "kostvSortDateAdded": "Added to the library",
+  "@kostvSortDateAdded": {
+    "description": "Kos TV: sort by date added to the library."
+  },
+  "kostvSortPremiere": "Release date",
+  "@kostvSortPremiere": {
+    "description": "Kos TV: sort by release date."
+  },
+  "kostvSortPlayCount": "Most watched",
+  "@kostvSortPlayCount": {
+    "description": "Kos TV: sort by play count."
+  },
+  "kostvSortDatePlayed": "Recently watched",
+  "@kostvSortDatePlayed": {
+    "description": "Kos TV: sort by last played."
+  },
+  "kostvSortRating": "Top rated",
+  "@kostvSortRating": {
+    "description": "Kos TV: sort by community rating."
+  },
+  "kostvSortName": "By name",
+  "@kostvSortName": {
+    "description": "Kos TV: sort by name."
+  },
+  "kostvSortRuntime": "Runtime",
+  "@kostvSortRuntime": {
+    "description": "Kos TV: sort by runtime."
+  },
+  "kostvSortRandom": "Random",
+  "@kostvSortRandom": {
+    "description": "Kos TV: random order."
+  },
+  "kostvSortDescending": "High to low",
+  "@kostvSortDescending": {
+    "description": "Kos TV: sort direction chip, descending."
+  },
+  "kostvSortAscending": "Low to high",
+  "@kostvSortAscending": {
+    "description": "Kos TV: sort direction chip, ascending."
+  },
+  "kostvFavoritesNoneOfKind": "Nothing of this kind in your favourites",
+  "@kostvFavoritesNoneOfKind": {
+    "description": "Kos TV: favourites filtered to a kind with nothing left."
+  },
   "kostvShuffleMore": "More shuffle",
   "@kostvShuffleMore": {
     "description": "Kos TV: last card of the Shuffle row at the end of Home, opens the shuffle window."

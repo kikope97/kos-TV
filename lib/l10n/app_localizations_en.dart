@@ -18635,6 +18635,46 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kostvFavoritesWhyMusic => 'The music you kept';
 
   @override
+  String get kostvFavoritesAll => 'All';
+
+  @override
+  String get kostvFavoritesSortTitle => 'Sort favourites';
+
+  @override
+  String get kostvSortDateAdded => 'Added to the library';
+
+  @override
+  String get kostvSortPremiere => 'Release date';
+
+  @override
+  String get kostvSortPlayCount => 'Most watched';
+
+  @override
+  String get kostvSortDatePlayed => 'Recently watched';
+
+  @override
+  String get kostvSortRating => 'Top rated';
+
+  @override
+  String get kostvSortName => 'By name';
+
+  @override
+  String get kostvSortRuntime => 'Runtime';
+
+  @override
+  String get kostvSortRandom => 'Random';
+
+  @override
+  String get kostvSortDescending => 'High to low';
+
+  @override
+  String get kostvSortAscending => 'Low to high';
+
+  @override
+  String get kostvFavoritesNoneOfKind =>
+      'Nothing of this kind in your favourites';
+
+  @override
   String get kostvShuffleMore => 'More shuffle';
 
   @override

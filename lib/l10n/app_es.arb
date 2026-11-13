@@ -12831,6 +12831,58 @@
     "@kostvFavoritesWhyMusic": {
         "description": "Kos TV: favourites page row subtitle (music)."
     },
+    "kostvFavoritesAll": "Todo",
+    "@kostvFavoritesAll": {
+        "description": "Kos TV: favourites filter chip showing every kind."
+    },
+    "kostvFavoritesSortTitle": "Ordenar favoritos",
+    "@kostvFavoritesSortTitle": {
+        "description": "Kos TV: title of the favourites sort picker."
+    },
+    "kostvSortDateAdded": "Añadidos a casa",
+    "@kostvSortDateAdded": {
+        "description": "Kos TV: sort by date added to the library."
+    },
+    "kostvSortPremiere": "Fecha de estreno",
+    "@kostvSortPremiere": {
+        "description": "Kos TV: sort by release date."
+    },
+    "kostvSortPlayCount": "Más vistos",
+    "@kostvSortPlayCount": {
+        "description": "Kos TV: sort by play count."
+    },
+    "kostvSortDatePlayed": "Vistos hace poco",
+    "@kostvSortDatePlayed": {
+        "description": "Kos TV: sort by last played."
+    },
+    "kostvSortRating": "Mejor valorados",
+    "@kostvSortRating": {
+        "description": "Kos TV: sort by community rating."
+    },
+    "kostvSortName": "Por nombre",
+    "@kostvSortName": {
+        "description": "Kos TV: sort by name."
+    },
+    "kostvSortRuntime": "Duración",
+    "@kostvSortRuntime": {
+        "description": "Kos TV: sort by runtime."
+    },
+    "kostvSortRandom": "Al azar",
+    "@kostvSortRandom": {
+        "description": "Kos TV: random order."
+    },
+    "kostvSortDescending": "De más a menos",
+    "@kostvSortDescending": {
+        "description": "Kos TV: sort direction chip, descending."
+    },
+    "kostvSortAscending": "De menos a más",
+    "@kostvSortAscending": {
+        "description": "Kos TV: sort direction chip, ascending."
+    },
+    "kostvFavoritesNoneOfKind": "No tienes de esto en favoritos",
+    "@kostvFavoritesNoneOfKind": {
+        "description": "Kos TV: favourites filtered to a kind with nothing left."
+    },
     "kostvShuffleMore": "Más aleatorio",
     "@kostvShuffleMore": {
         "description": "Kos TV: last card of the Shuffle row at the end of Home, opens the shuffle window."
