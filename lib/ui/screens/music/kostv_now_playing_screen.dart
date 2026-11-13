@@ -1941,7 +1941,7 @@ class _AmbientScreen extends StatelessWidget {
     final titles = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        KostvEqualizerBars(playing: music.playing, size: 26, animated: false),
+        KostvEqualizerBars(playing: music.playing, size: 26),
         const SizedBox(width: 16),
         Flexible(child: _TitleBlock(item: item, big: true)),
       ],

@@ -581,7 +581,6 @@ class _TvCapsule extends StatelessWidget {
                             child: KostvEqualizerBars(
                               playing: music.playing,
                               size: 24,
-                              animated: false,
                             ),
                           ),
                       ],
@@ -804,9 +803,9 @@ class _KostvCapsuleProgressState extends State<KostvCapsuleProgress> {
 }
 
 /// Bars that dance while the music sounds, and rest when it is paused.
-/// Not [animated], they only stand up while it sounds: for the small ones
-/// that are always on screen (the menu, the TV's corner), which would
-/// otherwise draw every frame for the whole song.
+/// Everywhere they show (the menu, the floating player, the player), on a
+/// light timer rather than every frame, and still where nothing is seen.
+/// Not [animated], they only stand up while it sounds.
 class KostvEqualizerBars extends StatefulWidget {
   const KostvEqualizerBars({
     super.key,
