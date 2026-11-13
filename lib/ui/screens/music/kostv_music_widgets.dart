@@ -40,6 +40,47 @@ class KostvMusicSizes {
   static double get gap => phone ? 14 : 22;
 }
 
+/// Brings [item] up or down the music page, worked out from where it is on
+/// screen: asking the page to reveal something inside a sideways row sent
+/// it back to the top. With [onlyIfHidden], it moves only when [item] is not
+/// fully in sight. [page] is the page's scrollable, when already known.
+void kostvMusicRevealVertically(
+  BuildContext item, [
+  ScrollableState? page,
+  bool onlyIfHidden = false,
+]) {
+  if (!item.mounted) return;
+  var scrollable = page ?? Scrollable.maybeOf(item);
+  if (scrollable != null &&
+      axisDirectionToAxis(scrollable.axisDirection) == Axis.horizontal) {
+    scrollable = Scrollable.maybeOf(scrollable.context);
+  }
+  if (scrollable == null || !scrollable.mounted) return;
+  final box = item.findRenderObject();
+  final view = scrollable.context.findRenderObject();
+  if (box is! RenderBox || view is! RenderBox) return;
+  if (!box.hasSize || !view.hasSize || !box.attached) return;
+  final top =
+      box.localToGlobal(Offset.zero).dy - view.localToGlobal(Offset.zero).dy;
+  if (onlyIfHidden && top >= 0 && top + box.size.height <= view.size.height) {
+    return;
+  }
+  final position = scrollable.position;
+  final wanted = (view.size.height - box.size.height) * 0.4;
+  final target = (position.pixels + top - wanted).clamp(
+    position.minScrollExtent,
+    position.maxScrollExtent,
+  );
+  if ((target - position.pixels).abs() < 1) return;
+  unawaited(
+    position.animateTo(
+      target,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+    ),
+  );
+}
+
 /// Kos TV: one stop of the Music page for touch, mouse and remote: Select
 /// or a tap runs [onTap]; with the focus it comes into view and [builder]
 /// is told so it can light up.
@@ -103,14 +144,10 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
       scrollable = Scrollable.maybeOf(scrollable.context);
     }
     if (scrollable != null) {
-      unawaited(
-        scrollable.position.ensureVisible(
-          box,
-          alignment: 0.4,
-          duration: duration,
-          curve: curve,
-        ),
-      );
+      final page = scrollable;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) kostvMusicRevealVertically(context, page);
+      });
     }
   }
 

@@ -39,6 +39,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   final _searchFocus = FocusNode(debugLabel: 'kostvMusicSearch');
   final _searchTvField = GlobalKey<CustomTVTextFieldState>();
   final _firstStop = FocusNode(debugLabel: 'kostvMusicFirst');
+
+  /// The section [_firstStop] is in.
+  String? _firstOwner;
   Timer? _debounce;
 
   late final KostvMusicService _music = KostvMusicService(
@@ -293,8 +296,24 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
 
   // ------------------------------------------------------------------ build
 
+  /// Sections arrive while the person is already moving down the page: one
+  /// that lands above moves what they are on further down, so it is brought
+  /// back into view, only as far as needed.
+  void _keepFocusInView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _searchFocus.hasFocus) return;
+      final focused = FocusManager.instance.primaryFocus?.context;
+      if (focused == null || !focused.mounted) return;
+      if (focused.findAncestorStateOfType<_KostvMusicScreenState>() != this) {
+        return;
+      }
+      kostvMusicRevealVertically(focused, null, true);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    _keepFocusInView();
     final insets = calendarChromeInsets(context);
     final phone = KostvMusicSizes.phone;
     final bottom =
@@ -462,44 +481,68 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
 
   List<Widget> _sections(BuildContext context, EdgeInsets insets) {
     final l10n = AppLocalizations.of(context);
+    // The first stop (where the search field's down arrow lands) goes to the
+    // first section there is, but stays where it is while the person is on
+    // it: sections that arrive later above don't pull them away.
+    final keep = _firstStop.hasFocus ? _firstOwner : null;
     var first = true;
-    FocusNode? firstNode() {
+    FocusNode? firstNode(String id, Object? content) {
+      if (content == null) return null;
+      if (keep != null) return id == keep ? _firstStop : null;
       if (!first) return null;
       first = false;
+      _firstOwner = id;
       return _firstStop;
     }
 
-    Widget gap() => const SizedBox(height: 34);
     final parts = <Widget>[];
-    void add(Widget? part) {
+    // Each section keeps who it is as others arrive around it, so the one
+    // being looked at is never rebuilt as another (and the focus with it).
+    void add(String id, Widget? part) {
       if (part == null) return;
       parts
-        ..add(part)
-        ..add(gap());
+        ..add(KeyedSubtree(key: ValueKey('music-$id'), child: part))
+        ..add(SizedBox(key: ValueKey('music-$id-gap'), height: 34));
     }
 
     add(
+      'top',
       _chartSongs(
         context,
         _topSongs,
         l10n.kostvMusicTopSongs,
         l10n.kostvMusicTopSongsWhy,
         insets,
-        firstNode(),
+        firstNode('top', _topSongs),
       ),
     );
     add(
+      'latino',
       _chartSongs(
         context,
         _latino,
         l10n.kostvMusicTopLatino,
         l10n.kostvMusicChartSoldWhy,
         insets,
-        parts.isEmpty ? firstNode() : null,
+        firstNode('latino', _latino),
       ),
     );
-    add(_recentShelf(context, insets, parts.isEmpty ? firstNode() : null));
-    add(_mixShelf(context, insets, parts.isEmpty ? firstNode() : null));
+    add(
+      'recent',
+      _recentShelf(
+        context,
+        insets,
+        firstNode('recent', _recent.isEmpty ? null : _recent),
+      ),
+    );
+    add(
+      'mixes',
+      _mixShelf(
+        context,
+        insets,
+        firstNode('mixes', _taste.artists.isEmpty ? null : _taste),
+      ),
+    );
     // «Para ti»: a row for each «Porque escuchas a …», then its songs.
     final forYou = _forYou;
     if (forYou != null) {
@@ -509,6 +552,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       }
       for (final entry in byReason.entries.take(3)) {
         add(
+          'foryou-${entry.key}',
           _albumShelf(
             context,
             entry.key.isEmpty ? l10n.kostvMusicForYouSongs : entry.key,
@@ -519,6 +563,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         );
       }
       add(
+        'foryou-songs',
         _chartSongs(
           context,
           null,
@@ -532,6 +577,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       );
     }
     add(
+      'your-news',
       _albumShelf(
         context,
         l10n.kostvMusicNewFromYours,
@@ -540,8 +586,12 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         insets,
       ),
     );
-    add(_chartAlbums(context, _topAlbums, l10n.kostvMusicTopAlbums, insets));
     add(
+      'albums',
+      _chartAlbums(context, _topAlbums, l10n.kostvMusicTopAlbums, insets),
+    );
+    add(
+      'mexico',
       _chartSongs(
         context,
         _mexico,
@@ -554,6 +604,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     final moreOf = _moreOf;
     if (moreOf != null) {
       add(
+        'more-of',
         _albumShelf(
           context,
           l10n.kostvMusicMoreOf(moreOf.name),
@@ -566,6 +617,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     final genre = _genreChart;
     if (genre != null) {
       add(
+        'genre',
         _chartSongs(
           context,
           genre,
@@ -579,6 +631,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       );
     }
     add(
+      'usa',
       _chartSongs(
         context,
         _unitedStates,
@@ -588,12 +641,17 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         null,
       ),
     );
-    add(_albumShelf(context, l10n.kostvMusicReleases, null, _releases, insets));
     add(
+      'releases',
+      _albumShelf(context, l10n.kostvMusicReleases, null, _releases, insets),
+    );
+    add(
+      'requested',
       _albumShelf(context, l10n.kostvMusicRequested, null, _requested, insets),
     );
     if (_newAtHome.isNotEmpty) {
       add(
+        'new-at-home',
         KostvMusicShelf(
           title: l10n.kostvMusicNewAtHome,
           insets: insets,
@@ -626,7 +684,17 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         ),
       ];
     }
-    return [SliverList.list(children: parts)];
+    // All built, not as they scroll into sight: a section pushed down by
+    // one arriving above is kept, and with it the focus the person had in
+    // it (a lazy list dropped it, and the page went back to the top).
+    return [
+      SliverToBoxAdapter(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: parts,
+        ),
+      ),
+    ];
   }
 
   /// A chart of songs as Apple Music shows its top songs: columns of four
@@ -1033,6 +1101,16 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         ),
       ];
     }
-    return [SliverList.list(children: parts)];
+    // All built, not as they scroll into sight: a section pushed down by
+    // one arriving above is kept, and with it the focus the person had in
+    // it (a lazy list dropped it, and the page went back to the top).
+    return [
+      SliverToBoxAdapter(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: parts,
+        ),
+      ),
+    ];
   }
 }
