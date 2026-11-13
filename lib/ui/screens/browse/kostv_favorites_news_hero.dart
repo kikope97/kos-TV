@@ -312,6 +312,11 @@ class _KostvFavoritesNewsHeroState extends State<KostvFavoritesNewsHero> {
                 const ColoredBox(color: Color(0xFF1B1F27)),
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 600),
+                  // Each picture fills the whole piece, also while they cross.
+                  layoutBuilder: (current, previous) => Stack(
+                    fit: StackFit.expand,
+                    children: [...previous, ?current],
+                  ),
                   child: backdrop == null
                       ? const SizedBox.expand()
                       : BoundedNetworkImage(

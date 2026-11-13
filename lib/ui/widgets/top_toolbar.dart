@@ -1001,7 +1001,36 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildAvatar(),
+                  // Kos TV: on phones the heart has no room beside the
+                  // avatar, so the news of favourite series is counted on
+                  // the avatar itself (its menu opens «Mis favoritos»).
+                  if (PlatformDetection.useMobileUi)
+                    ListenableBuilder(
+                      listenable: _favoritesNews ?? _neverChanges,
+                      builder: (context, _) {
+                        final news = _favoritesNews?.unseen ?? 0;
+                        final avatar = _buildAvatar();
+                        if (news == 0) return avatar;
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            avatar,
+                            Positioned(
+                              top: -3,
+                              right: -3,
+                              child: IgnorePointer(
+                                child: KostvCountBadge(
+                                  count: news,
+                                  size: _kAvatarSize * 0.42,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    )
+                  else
+                    _buildAvatar(),
                   // Kos TV: the requests tray, out while there is news or
                   // something under way, or while on the avatar.
                   KostvRequestsTraySlot(

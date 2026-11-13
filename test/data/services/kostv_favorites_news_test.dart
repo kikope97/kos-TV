@@ -105,7 +105,7 @@ void main() {
     await news.refresh();
     expect(news.news.map((n) => n.series.id), ['faro', 'puerto']);
     expect(news.news.first.newSeason, isTrue);
-    expect(news.news.first.episode.id, 'faro-e1');
+    expect(news.news.first.episode.id, 'faroe1');
     expect(news.news.first.count, 3);
     expect(news.unseen, 1);
 
