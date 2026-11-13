@@ -157,10 +157,16 @@ void main() {
       service.createRequest(type: StremfinTitleType.movie, tmdbId: 920);
       settle(async);
       final id = fake.requests.keys.single;
+      settle(async);
+      // Waiting for an answer: under way, but nothing comes down yet (the
+      // tray's ring stays still).
+      expect(inbox.hasActive, isTrue);
+      expect(inbox.isWorking, isFalse);
       fake.download(id, 30);
 
       inbox.watch();
       settle(async);
+      expect(inbox.isWorking, isTrue);
       expect(fake.listQueries.last['status'], 'open');
       expect(inbox.active.single.progress?.transfer.percent, 30);
       expect(inbox.hasDownloading, isTrue);

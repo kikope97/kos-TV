@@ -118,6 +118,7 @@ class _KostvRequestsTrayButtonState extends State<KostvRequestsTrayButton> {
         final inbox = service.inbox;
         final news = inbox.newsCount;
         final busy = inbox.hasActive;
+        final working = inbox.isWorking;
         final lit =
             InputModeTracker.showFocusVisuals(context, _focused) || _hovered;
         final size = widget.size;
@@ -184,7 +185,7 @@ class _KostvRequestsTrayButtonState extends State<KostvRequestsTrayButton> {
                         clipBehavior: Clip.none,
                         alignment: Alignment.center,
                         children: [
-                          // Something under way: a ring turning round it.
+                          // Something under way: a ring round it.
                           // Its own layer: turning, it doesn't repaint
                           // the menu around it.
                           if (busy)
@@ -192,7 +193,10 @@ class _KostvRequestsTrayButtonState extends State<KostvRequestsTrayButton> {
                               child: SizedBox(
                                 width: size + 7,
                                 height: size + 7,
+                                // Turning while something comes down;
+                                // waiting, the ring stays still.
                                 child: CircularProgressIndicator(
+                                  value: working ? null : 0,
                                   strokeWidth: 2.2,
                                   color: accent,
                                   backgroundColor: accent.withValues(

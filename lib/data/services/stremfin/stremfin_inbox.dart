@@ -87,6 +87,16 @@ class StremfinInbox extends ChangeNotifier {
         r.progress?.state == StremfinProgressState.downloading,
   );
 
+  /// Something is coming down or being put in place right now: the tray's
+  /// ring turns only then (a request waiting for an answer can wait for
+  /// days, and a ring turning all that time kept the screen redrawing).
+  bool get isWorking => _items.values.any(
+    (r) =>
+        r.status == StremfinRequestStatus.approved &&
+        (r.progress?.state == StremfinProgressState.downloading ||
+            r.progress?.state == StremfinProgressState.importing),
+  );
+
   /// Arrived or turned down, latest first.
   List<StremfinRequest> get finished => [
     for (final request in _latestFirst)

@@ -1649,7 +1649,9 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   child: SizedBox(
                     width: size + 10,
                     height: size + 10,
+                    // Turning while something comes down; waiting, still.
                     child: CircularProgressIndicator(
+                      value: inbox.isWorking ? null : 0,
                       strokeWidth: 2,
                       color: AppColorScheme.accent,
                       backgroundColor: AppColorScheme.accent.withValues(
