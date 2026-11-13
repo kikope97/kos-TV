@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' hide RepeatMode;
@@ -22,6 +21,7 @@ import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
+import '../../widgets/baked_blur_image.dart';
 import '../../widgets/add_to_playlist_dialog.dart';
 import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/kostv_now_playing.dart';
@@ -750,20 +750,9 @@ class _Backdrop extends StatelessWidget {
                         )
                       : Transform.scale(
                           scale: 1.5,
-                          child: ImageFiltered(
-                            imageFilter: ImageFilter.blur(
-                              sigmaX: 70,
-                              sigmaY: 70,
-                            ),
-                            child: Image(
-                              image: image,
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                              height: double.infinity,
-                              errorBuilder: (_, _, _) =>
-                                  const SizedBox.shrink(),
-                            ),
-                          ),
+                          // Blurred once when the cover loads, not again on
+                          // every frame of the progress bar or the lyrics.
+                          child: BakedBlurImage(image: image, sigma: 70),
                         ),
                 ),
               ),
@@ -996,7 +985,18 @@ class _ScrubberState extends State<_Scrubber> {
     _duration = state.duration;
     _subs.addAll([
       state.positionStream.listen((p) {
-        if (mounted && _dragging == null) setState(() => _position = p);
+        if (!mounted || _dragging != null) return;
+        // Only when something shown changes: the second on the clock, or
+        // the bar by about half a pixel (some players tell the position
+        // many times a second).
+        final total = _duration.inMilliseconds;
+        final moved = (p - _position).inMilliseconds.abs();
+        if (p.inSeconds == _position.inSeconds &&
+            total > 0 &&
+            moved * 1600 < total) {
+          return;
+        }
+        setState(() => _position = p);
       }),
       state.durationStream.listen((d) {
         if (mounted) setState(() => _duration = d);

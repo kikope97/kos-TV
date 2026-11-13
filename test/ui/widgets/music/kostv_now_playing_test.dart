@@ -167,15 +167,39 @@ void main() {
   testWidgets('the bars dance while it plays and rest while paused', (
     tester,
   ) async {
+    // The bars' painter repaints with the turn it is at.
+    double turn() {
+      final paint = tester.widget<CustomPaint>(
+        find.descendant(
+          of: find.byType(KostvEqualizerBars),
+          matching: find.byType(CustomPaint),
+        ),
+      );
+      return (paint.painter as dynamic).t.value as double;
+    }
+
     await tester.pumpWidget(
       const Center(child: KostvEqualizerBars(playing: true)),
     );
+    final first = turn();
     await tester.pump(const Duration(milliseconds: 300));
-    expect(tester.hasRunningAnimations, isTrue);
+    expect(turn(), isNot(first));
     await tester.pumpWidget(
       const Center(child: KostvEqualizerBars(playing: false)),
     );
-    await tester.pump();
-    expect(tester.hasRunningAnimations, isFalse);
+    final paused = turn();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(turn(), paused);
+
+    // Where animations are off (a page underneath), they stay still too.
+    await tester.pumpWidget(
+      const TickerMode(
+        enabled: false,
+        child: Center(child: KostvEqualizerBars(playing: true)),
+      ),
+    );
+    final hidden = turn();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(turn(), hidden);
   });
 }

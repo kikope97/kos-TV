@@ -185,14 +185,20 @@ class _KostvRequestsTrayButtonState extends State<KostvRequestsTrayButton> {
                         alignment: Alignment.center,
                         children: [
                           // Something under way: a ring turning round it.
+                          // Its own layer: turning, it doesn't repaint
+                          // the menu around it.
                           if (busy)
-                            SizedBox(
-                              width: size + 7,
-                              height: size + 7,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.2,
-                                color: accent,
-                                backgroundColor: accent.withValues(alpha: 0.18),
+                            RepaintBoundary(
+                              child: SizedBox(
+                                width: size + 7,
+                                height: size + 7,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.2,
+                                  color: accent,
+                                  backgroundColor: accent.withValues(
+                                    alpha: 0.18,
+                                  ),
+                                ),
                               ),
                             ),
                           circle,

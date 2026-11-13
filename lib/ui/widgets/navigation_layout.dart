@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'music/kostv_now_playing.dart';
+
 import 'package:flutter/rendering.dart';
 import 'package:get_it/get_it.dart';
 
@@ -14,8 +15,9 @@ import 'left_sidebar.dart';
 import 'top_toolbar.dart';
 
 import 'dart:async';
+
 import 'package:moonfin_design/moonfin_design.dart';
-import 'package:playback_core/playback_core.dart';
+
 import '../navigation/destinations.dart';
 import '../navigation/route_lifecycle_observer.dart';
 
@@ -157,9 +159,6 @@ class _NavigationLayoutState extends State<NavigationLayout>
   bool _userScrolling = false;
   double _scrollTravel = 0;
   ModalRoute<dynamic>? _observedRoute;
-  final _playbackManager = GetIt.instance<PlaybackManager>();
-  StreamSubscription? _playSub;
-  StreamSubscription? _queueSub;
 
   @override
   void initState() {
@@ -173,14 +172,6 @@ class _NavigationLayoutState extends State<NavigationLayout>
     _prefs.addListener(_onPrefsChanged);
     WidgetsBinding.instance.addObserver(this);
     NavigationLayout.positionNotifier.addListener(_onPositionNotified);
-    // The top toolbar grows to host the embedded music bar; rebuild so the
-    // content inset tracks that height when playback starts or stops.
-    _playSub = _playbackManager.state.playingStream.listen((_) {
-      if (mounted) setState(() {});
-    });
-    _queueSub = _playbackManager.queueService.queueChangedStream.listen((_) {
-      if (mounted) setState(() {});
-    });
   }
 
   @override
@@ -252,8 +243,6 @@ class _NavigationLayoutState extends State<NavigationLayout>
     _prefs.removeListener(_onPrefsChanged);
     NavigationLayout.positionNotifier.removeListener(_onPositionNotified);
     WidgetsBinding.instance.removeObserver(this);
-    _playSub?.cancel();
-    _queueSub?.cancel();
     _contentFocusNode.dispose();
     _toolbarScrollOffset.dispose();
     super.dispose();
@@ -321,7 +310,9 @@ class _NavigationLayoutState extends State<NavigationLayout>
       NavbarPosition.left => _buildSidebar(),
       NavbarPosition.top => _buildToolbar(),
       NavbarPosition.bottom =>
-        NavigationLayout.allowBottomNavbar ? _buildBottomBar() : _buildToolbar(),
+        NavigationLayout.allowBottomNavbar
+            ? _buildBottomBar()
+            : _buildToolbar(),
     };
     // Grouping only pays off when the tier draws real backdrop blurs, the
     // sheen tier never does.
@@ -390,9 +381,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
           Positioned(
             top: 16,
             left: 16,
-            child: SafeArea(
-              child: _buildFloatingBackButton(),
-            ),
+            child: SafeArea(child: _buildFloatingBackButton()),
           ),
       ],
     );
@@ -404,21 +393,26 @@ class _NavigationLayoutState extends State<NavigationLayout>
     final toolbar = ListenableBuilder(
       listenable: NavigationLayout.trailerChromeListenable,
       builder: (context, child) {
-        final show = widget.showNavigationChrome &&
-            !NavigationLayout.trailerHidesChrome;
+        final show =
+            widget.showNavigationChrome && !NavigationLayout.trailerHidesChrome;
         return AnimatedOpacity(
           opacity: show ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 200),
           child: IgnorePointer(
             ignoring: !show,
-            child: child,
+            // Hidden (under a trailer), its animations (the requests'
+            // ring, the music bars) don't keep the screen redrawing.
+            child: TickerMode(enabled: show, child: child!),
           ),
         );
       },
-      child: TopToolbar(
-        activeRoute: widget.activeRoute,
-        showBackButton: widget.showBackButton,
-        contentFocusNode: _contentFocusNode,
+      // Its own layer: moved with the scroll on the TV without repainting.
+      child: RepaintBoundary(
+        child: TopToolbar(
+          activeRoute: widget.activeRoute,
+          showBackButton: widget.showBackButton,
+          contentFocusNode: _contentFocusNode,
+        ),
       ),
     );
     final maxTranslate = TopToolbar.heightFor(context);
@@ -437,7 +431,10 @@ class _NavigationLayoutState extends State<NavigationLayout>
         : content;
     final musicExtra = TopToolbar.musicBarExtraHeight();
     final insetBody = (widget.pinTopToolbar && musicExtra > 0)
-        ? Padding(padding: EdgeInsets.only(top: musicExtra), child: body)
+        ? Padding(
+            padding: EdgeInsets.only(top: musicExtra),
+            child: body,
+          )
         : body;
     return Column(
       children: [
@@ -450,38 +447,38 @@ class _NavigationLayoutState extends State<NavigationLayout>
                   valueListenable: TopToolbar.isFocusedNotifier,
                   builder: (_, toolbarFocused, child) =>
                       ValueListenableBuilder<double>(
-                    valueListenable: _toolbarScrollOffset,
-                    builder: (_, offset, child) {
-                      // A focused toolbar must be visible. Screens can hand
-                      // focus to it while the content is scrolled down, which
-                      // would leave focus in a toolbar translated off screen.
-                      final translate = !widget.showNavigationChrome
-                          ? maxTranslate
-                          : toolbarFocused
-                          ? 0.0
-                          : offset.clamp(0.0, maxTranslate);
-                      return Positioned(
-                        left: 0,
-                        right: 0,
-                        top: -translate,
-                        child: IgnorePointer(
-                          ignoring: !widget.showNavigationChrome ||
-                              translate >= maxTranslate,
-                          child: child!,
-                        ),
-                      );
-                    },
-                    child: child,
-                  ),
+                        valueListenable: _toolbarScrollOffset,
+                        builder: (_, offset, child) {
+                          // A focused toolbar must be visible. Screens can hand
+                          // focus to it while the content is scrolled down, which
+                          // would leave focus in a toolbar translated off screen.
+                          final translate = !widget.showNavigationChrome
+                              ? maxTranslate
+                              : toolbarFocused
+                              ? 0.0
+                              : offset.clamp(0.0, maxTranslate);
+                          return Positioned(
+                            left: 0,
+                            right: 0,
+                            top: -translate,
+                            child: IgnorePointer(
+                              ignoring:
+                                  !widget.showNavigationChrome ||
+                                  translate >= maxTranslate,
+                              // Scrolled away, nothing in it keeps animating.
+                              child: TickerMode(
+                                enabled: translate < maxTranslate,
+                                child: child!,
+                              ),
+                            ),
+                          );
+                        },
+                        child: child,
+                      ),
                   child: toolbar,
                 )
               else
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  child: toolbar,
-                ),
+                Positioned(left: 0, right: 0, top: 0, child: toolbar),
               if (widget.showBackButton &&
                   !PlatformDetection.isTV &&
                   !widget.showNavigationChrome)
@@ -504,37 +501,38 @@ class _NavigationLayoutState extends State<NavigationLayout>
     final sidebar = ListenableBuilder(
       listenable: NavigationLayout.trailerChromeListenable,
       builder: (context, child) {
-        final show = widget.showNavigationChrome &&
-            !NavigationLayout.trailerHidesChrome;
+        final show =
+            widget.showNavigationChrome && !NavigationLayout.trailerHidesChrome;
         return AnimatedOpacity(
           opacity: show ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 200),
           child: IgnorePointer(
             ignoring: !show,
-            child: child,
+            // Hidden (under a trailer), its animations (the requests'
+            // ring, the music bars) don't keep the screen redrawing.
+            child: TickerMode(enabled: show, child: child!),
           ),
         );
       },
-      child: LeftSidebar(
-        activeRoute: widget.activeRoute,
-        contentFocusNode: _contentFocusNode,
-        showBackButton: widget.showBackButton,
+      child: RepaintBoundary(
+        child: LeftSidebar(
+          activeRoute: widget.activeRoute,
+          contentFocusNode: _contentFocusNode,
+          showBackButton: widget.showBackButton,
+        ),
       ),
     );
 
-    if (PlatformDetection.isTV || (PlatformDetection.isDesktop || (PlatformDetection.isWeb && !PlatformDetection.useMobileUi))) {
+    if (PlatformDetection.isTV ||
+        (PlatformDetection.isDesktop ||
+            (PlatformDetection.isWeb && !PlatformDetection.useMobileUi))) {
       return Column(
         children: [
           Expanded(
             child: Stack(
               children: [
                 Positioned.fill(child: content),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  bottom: 0,
-                  child: sidebar,
-                ),
+                Positioned(top: 0, left: 0, bottom: 0, child: sidebar),
                 if (widget.showBackButton && !PlatformDetection.isTV)
                   Positioned(
                     top: 16,
@@ -555,9 +553,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
           child: Stack(
             children: [
               Positioned.fill(child: content),
-              Positioned.fill(
-                child: sidebar,
-              ),
+              Positioned.fill(child: sidebar),
             ],
           ),
         ),
@@ -594,11 +590,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
               ),
             ],
           ),
-          child: const Icon(
-            Icons.arrow_back,
-            size: 20,
-            color: Colors.white,
-          ),
+          child: const Icon(Icons.arrow_back, size: 20, color: Colors.white),
         ),
       ),
     );

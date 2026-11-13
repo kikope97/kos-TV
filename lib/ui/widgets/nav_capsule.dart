@@ -469,9 +469,24 @@ class _NavCapsuleTargetState extends State<NavCapsuleTarget> {
     if (capsule != _capsule) {
       if (_claimed) _capsule?.release(context);
       _claimed = false;
+      _capsule?.frame.removeListener(_onFrame);
       _capsule = capsule;
+      capsule?.frame.addListener(_onFrame);
     }
     _sync();
+  }
+
+  // Where the capsule covers it, as last drawn.
+  RRect? _over;
+
+  /// Each frame of the capsule's slide: rebuilt only the buttons it is
+  /// over, or has just left (not every button of the menu every frame).
+  void _onFrame() {
+    final capsule = _capsule;
+    if (capsule == null || !mounted) return;
+    final over = capsule.shapeOver(context);
+    if (over == null && _over == null) return;
+    setState(() => _over = over);
   }
 
   @override
@@ -496,6 +511,7 @@ class _NavCapsuleTargetState extends State<NavCapsuleTarget> {
 
   @override
   void dispose() {
+    _capsule?.frame.removeListener(_onFrame);
     if (_claimed) _capsule?.release(context);
     super.dispose();
   }
@@ -506,25 +522,20 @@ class _NavCapsuleTargetState extends State<NavCapsuleTarget> {
     if (capsule == null) {
       return widget.builder(context, widget.active ? 1 : 0);
     }
-    return ValueListenableBuilder<int>(
-      valueListenable: capsule.frame,
-      builder: (context, _, _) {
-        final over = capsule.shapeOver(this.context);
-        // The dark look only while the capsule is over it, cut to its shape;
-        // the plain one stays the same widget either way.
-        return Stack(
-          children: [
-            widget.builder(context, 0),
-            if (over != null)
-              Positioned.fill(
-                child: ClipPath(
-                  clipper: _ShapeClipper(over),
-                  child: widget.builder(context, 1),
-                ),
-              ),
-          ],
-        );
-      },
+    final over = _over = capsule.shapeOver(context);
+    // The dark look only while the capsule is over it, cut to its shape;
+    // the plain one stays the same widget either way.
+    return Stack(
+      children: [
+        widget.builder(context, 0),
+        if (over != null)
+          Positioned.fill(
+            child: ClipPath(
+              clipper: _ShapeClipper(over),
+              child: widget.builder(context, 1),
+            ),
+          ),
+      ],
     );
   }
 }

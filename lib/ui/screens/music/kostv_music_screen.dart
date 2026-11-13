@@ -101,7 +101,6 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   void initState() {
     super.initState();
     _search.addListener(_onQuery);
-    _searchFocus.addListener(() => setState(() {}));
     kostvMusicFavoritesChanged.addListener(_reloadFavorites);
     // With a mouse, the right click is the songs' menu, not the browser's.
     if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
@@ -574,7 +573,11 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         const SizedBox(height: 14),
         ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 900),
-          child: _searchField(context),
+          // Only the field follows its focus (not the whole page).
+          child: ListenableBuilder(
+            listenable: _searchFocus,
+            builder: (context, _) => _searchField(context),
+          ),
         ),
         // With the remote the songs' menu is hidden behind a long press: it
         // is said once, quietly.

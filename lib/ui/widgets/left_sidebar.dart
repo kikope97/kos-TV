@@ -1643,15 +1643,18 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
             alignment: Alignment.center,
             clipBehavior: Clip.none,
             children: [
+              // Its own layer: turning, it doesn't repaint the menu.
               if (inbox.hasActive)
-                SizedBox(
-                  width: size + 10,
-                  height: size + 10,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppColorScheme.accent,
-                    backgroundColor: AppColorScheme.accent.withValues(
-                      alpha: 0.18,
+                RepaintBoundary(
+                  child: SizedBox(
+                    width: size + 10,
+                    height: size + 10,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColorScheme.accent,
+                      backgroundColor: AppColorScheme.accent.withValues(
+                        alpha: 0.18,
+                      ),
                     ),
                   ),
                 ),

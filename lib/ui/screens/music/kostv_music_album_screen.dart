@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -160,20 +159,22 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
                 left: 0,
                 right: 0,
                 height: phone ? 420 : 520,
-                child: ClipRect(
-                  child: ShaderMask(
-                    blendMode: BlendMode.dstIn,
-                    shaderCallback: (rect) => const LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [Color(0x66FFFFFF), Color(0x00FFFFFF)],
-                    ).createShader(rect),
-                    child: ImageFiltered(
-                      imageFilter: ui.ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+                // Blurred once when it loads, and its own layer: the list
+                // scrolling over it doesn't blur it again on every frame.
+                child: RepaintBoundary(
+                  child: ClipRect(
+                    child: ShaderMask(
+                      blendMode: BlendMode.dstIn,
+                      shaderCallback: (rect) => const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0x66FFFFFF), Color(0x00FFFFFF)],
+                      ).createShader(rect),
                       child: BoundedNetworkImage(
                         imageUrl: album!.cover!,
                         fit: BoxFit.cover,
                         maxWidth: 300,
+                        blurSigma: 50,
                         errorBuilder: (context, _, _) =>
                             const SizedBox.shrink(),
                       ),

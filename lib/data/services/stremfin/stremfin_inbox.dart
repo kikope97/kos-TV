@@ -170,6 +170,14 @@ class StremfinInbox extends ChangeNotifier {
         limit: _since == null ? 100 : null,
       );
       if (generation != _generation || _disposed) return;
+      // Told only when something came (each round every few minutes would
+      // otherwise rebuild the tray buttons of every menu for nothing).
+      final changed =
+          _since == null ||
+          failed ||
+          first ||
+          page.items.isNotEmpty ||
+          page.removedIds.isNotEmpty;
       if (_since == null) _items.clear();
       for (final id in page.removedIds) {
         _items.remove(id);
@@ -185,7 +193,7 @@ class StremfinInbox extends ChangeNotifier {
         _seen = {for (final r in _items.values) ?_newsKey(r)};
         await _saveSeen();
       }
-      _notify();
+      if (changed) _notify();
     } on StremfinException {
       // Asked again next time round.
       if (generation == _generation) {

@@ -174,8 +174,6 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   late final ValueNotifier<String> _currentTime;
   StreamSubscription? _userSub;
   String? _userImageUrl;
-  StreamSubscription? _playSub;
-  StreamSubscription? _queueSub;
 
   @override
   void initState() {
@@ -232,13 +230,6 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
       GetIt.instance<AchievementsService>().addListener(_onAchievementsChanged);
     }
     _loadLibraries();
-    final manager = GetIt.instance<PlaybackManager>();
-    _playSub = manager.state.playingStream.listen((_) {
-      if (mounted) setState(() {});
-    });
-    _queueSub = manager.queueService.queueChangedStream.listen((_) {
-      if (mounted) setState(() {});
-    });
   }
 
   ModalRoute<dynamic>? _observedRoute;
@@ -327,8 +318,6 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     } catch (_) {}
     _prefs.removeListener(_onPrefsChanged);
     _currentTime.dispose();
-    _playSub?.cancel();
-    _queueSub?.cancel();
     super.dispose();
   }
 

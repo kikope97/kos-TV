@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
+import 'package:moonfin_design/moonfin_design.dart' show GlassSettings;
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../l10n/app_localizations.dart';
@@ -157,15 +159,21 @@ class KostvNowPlayingInset extends StatelessWidget {
       builder: (context, child) {
         final data = MediaQuery.of(context);
         // With the keyboard up the capsule hides, and its room goes too.
-        if (!visibility.keepsRoom || data.viewInsets.bottom > 0) return child!;
-        final extra = KostvCapsuleVisibility.insetFor(context);
+        // Always the same MediaQuery around the app (with or without the
+        // room), so the navigator below is never moved in the tree.
+        final room = visibility.keepsRoom && data.viewInsets.bottom <= 0;
+        final extra = room ? KostvCapsuleVisibility.insetFor(context) : 0.0;
         return MediaQuery(
-          data: data.copyWith(
-            padding: data.padding.copyWith(bottom: data.padding.bottom + extra),
-            viewPadding: data.viewPadding.copyWith(
-              bottom: data.viewPadding.bottom + extra,
-            ),
-          ),
+          data: room
+              ? data.copyWith(
+                  padding: data.padding.copyWith(
+                    bottom: data.padding.bottom + extra,
+                  ),
+                  viewPadding: data.viewPadding.copyWith(
+                    bottom: data.viewPadding.bottom + extra,
+                  ),
+                )
+              : data,
           child: child!,
         );
       },
@@ -386,18 +394,24 @@ class _CapsuleGlass extends StatelessWidget {
       );
 }
 
-/// The glass's blur, but not on the TV: too dear for its graphics, and
-/// the tinted colours already read well there.
+/// The glass's blur only where the app's glass blurs (the phone's frosted
+/// glass), like the rest of its panes: not on the TV or the web, where a
+/// live blur over a scrolling page stutters; the tinted colours, nearly
+/// opaque, already read well there.
 class _MaybeBlur extends StatelessWidget {
   const _MaybeBlur({required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => PlatformDetection.isTV
+  Widget build(BuildContext context) =>
+      PlatformDetection.isTV || !GlassSettings.blursBackdrop
       ? child
       : BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          filter: ImageFilter.blur(
+            sigmaX: GlassSettings.capSigma(24),
+            sigmaY: GlassSettings.capSigma(24),
+          ),
           child: child,
         );
 }
@@ -738,6 +752,11 @@ class _KostvCapsuleProgressState extends State<KostvCapsuleProgress> {
     _duration = state.duration;
     _subs.addAll([
       state.positionStream.listen((p) {
+        // Only when the line would grow (half a pixel of its widest, 800
+        // steps a song): some players tell the position many times a second.
+        final total = _duration.inMilliseconds;
+        final moved = (p - _position).inMilliseconds.abs();
+        if (total > 0 && moved * 800 < total) return;
         if (mounted) setState(() => _position = p);
       }),
       state.durationStream.listen((d) {
@@ -806,34 +825,48 @@ class KostvEqualizerBars extends StatefulWidget {
   State<KostvEqualizerBars> createState() => _KostvEqualizerBarsState();
 }
 
-class _KostvEqualizerBarsState extends State<KostvEqualizerBars>
-    with SingleTickerProviderStateMixin {
-  late final _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  );
+class _KostvEqualizerBarsState extends State<KostvEqualizerBars> {
+  // Moved by a timer at about 30 frames a second, not by a ticker: a ticker
+  // asks the screen for every frame it can draw (60 a second on a TV, for
+  // a few bars), and the bars look the same at half that.
+  static const _loop = Duration(milliseconds: 1800);
+  static const _step = Duration(milliseconds: 33);
+
+  final _t = ValueNotifier<double>(0);
+  Timer? _timer;
 
   bool get _moves => widget.playing && widget.animated;
 
   @override
-  void initState() {
-    super.initState();
-    if (_moves) _controller.repeat();
+  void didUpdateWidget(KostvEqualizerBars old) {
+    super.didUpdateWidget(old);
+    _sync();
   }
 
   @override
-  void didUpdateWidget(KostvEqualizerBars old) {
-    super.didUpdateWidget(old);
-    if (_moves && !_controller.isAnimating) {
-      _controller.repeat();
-    } else if (!_moves && _controller.isAnimating) {
-      _controller.stop();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  void _sync() {
+    // Also still where animations are off (a page underneath, the menu
+    // scrolled away or hidden under a trailer).
+    final moves = _moves && TickerMode.valuesOf(context).enabled;
+    if (moves && _timer == null) {
+      _timer = Timer.periodic(_step, (_) {
+        _t.value = (_t.value + _step.inMicroseconds / _loop.inMicroseconds) % 1;
+      });
+    } else if (!moves && _timer != null) {
+      _timer!.cancel();
+      _timer = null;
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _timer?.cancel();
+    _t.dispose();
     super.dispose();
   }
 
@@ -842,15 +875,13 @@ class _KostvEqualizerBarsState extends State<KostvEqualizerBars>
     width: widget.size,
     height: widget.size,
     child: RepaintBoundary(
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) => CustomPaint(
-          painter: _BarsPainter(
-            // Standing still, a pose with the bars at different heights.
-            t: widget.animated ? _controller.value : 0.1,
-            playing: widget.playing,
-            color: widget.color,
-          ),
+      child: CustomPaint(
+        painter: _BarsPainter(
+          t: _t,
+          // Standing still, a pose with the bars at different heights.
+          still: widget.animated ? null : 0.1,
+          playing: widget.playing,
+          color: widget.color,
         ),
       ),
     ),
@@ -858,9 +889,15 @@ class _KostvEqualizerBarsState extends State<KostvEqualizerBars>
 }
 
 class _BarsPainter extends CustomPainter {
-  _BarsPainter({required this.t, required this.playing, required this.color});
+  _BarsPainter({
+    required this.t,
+    required this.still,
+    required this.playing,
+    required this.color,
+  }) : super(repaint: t);
 
-  final double t;
+  final ValueListenable<double> t;
+  final double? still;
   final bool playing;
   final Color color;
 
@@ -874,6 +911,7 @@ class _BarsPainter extends CustomPainter {
     final gap = size.width * 0.12;
     final width = (size.width - gap * (count - 1)) / count;
     final paint = Paint()..color = color;
+    final t = still ?? this.t.value;
     for (var i = 0; i < count; i++) {
       final wave = playing
           ? 0.5 + 0.5 * math.sin((t * _speeds[i] + _phases[i]) * 2 * math.pi)
@@ -892,5 +930,8 @@ class _BarsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_BarsPainter old) =>
-      old.t != t || old.playing != playing || old.color != color;
+      old.t != t ||
+      old.still != still ||
+      old.playing != playing ||
+      old.color != color;
 }
