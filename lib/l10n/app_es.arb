@@ -12782,6 +12782,55 @@
     "@kostvShuffleWhy": {
         "description": "Kos TV: line under the Shuffle row at the end of the recommended Home."
     },
+    "kostvMyFavorites": "Mis favoritos",
+    "@kostvMyFavorites": {
+        "description": "Kos TV: the favourites page and its shortcut on the profile."
+    },
+    "kostvFavoritesCount": "{count, plural, =1{1 favorito} other{{count} favoritos}}",
+    "@kostvFavoritesCount": {
+        "description": "Kos TV: under the favourites page title.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvFavoritesEmpty": "Aún no tienes favoritos",
+    "@kostvFavoritesEmpty": {
+        "description": "Kos TV: empty favourites page."
+    },
+    "kostvFavoritesEmptyHint": "Pulsa el corazón en la ficha de una película, una serie, un episodio o una persona y aparecerá aquí.",
+    "@kostvFavoritesEmptyHint": {
+        "description": "Kos TV: empty favourites page, how to add."
+    },
+    "kostvFavoritesUnavailable": "No se han podido cargar tus favoritos",
+    "@kostvFavoritesUnavailable": {
+        "description": "Kos TV: favourites page when the server can't be asked."
+    },
+    "kostvFavoritesWhyMovie": "Las películas que más te gustan",
+    "@kostvFavoritesWhyMovie": {
+        "description": "Kos TV: favourites page row subtitle."
+    },
+    "kostvFavoritesWhySeries": "Tus series de siempre",
+    "@kostvFavoritesWhySeries": {
+        "description": "Kos TV: favourites page row subtitle."
+    },
+    "kostvFavoritesWhyEpisode": "Los episodios que quieres tener a mano",
+    "@kostvFavoritesWhyEpisode": {
+        "description": "Kos TV: favourites page row subtitle."
+    },
+    "kostvFavoritesWhyCollection": "Sagas y colecciones que guardaste",
+    "@kostvFavoritesWhyCollection": {
+        "description": "Kos TV: favourites page row subtitle."
+    },
+    "kostvFavoritesWhyPerson": "Actores, actrices y directores que sigues",
+    "@kostvFavoritesWhyPerson": {
+        "description": "Kos TV: favourites page row subtitle."
+    },
+    "kostvFavoritesWhyMusic": "La música que guardaste",
+    "@kostvFavoritesWhyMusic": {
+        "description": "Kos TV: favourites page row subtitle (music)."
+    },
     "kostvShuffleMore": "Más aleatorio",
     "@kostvShuffleMore": {
         "description": "Kos TV: last card of the Shuffle row at the end of Home, opens the shuffle window."

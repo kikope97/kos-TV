@@ -2083,8 +2083,6 @@ List<_NavButton> _navButtons(
     icon(Icons.search_rounded, l10n.search),
     if (on(UserPreferences.showGenresButton))
       asset('assets/icons/genres.png', l10n.genres),
-    if (on(UserPreferences.showFavoritesButton))
-      icon(Icons.favorite_rounded, l10n.favorites),
     if (liveTv) icon(Icons.live_tv_rounded, l10n.liveTv),
     if (!kids &&
         on(UserPreferences.syncPlayEnabled) &&

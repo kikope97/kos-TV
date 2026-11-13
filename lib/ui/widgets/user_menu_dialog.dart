@@ -346,7 +346,16 @@ class _AccountDialogState extends State<_AccountDialog> {
       focusColor: danger ? _danger : focusColor,
     );
 
+    // Kos TV: «Mis favoritos», on the profile rather than on the menu bar.
+    Widget favorites() => action(l10n.kostvMyFavorites, () {
+      Navigator.of(context).pop();
+      if (!context.mounted) return;
+      context.navigateTopLevel(Destinations.allFavorites);
+    }, icon: Icons.favorite_rounded);
+
     return [
+      // Kos TV: on a TV the other app actions are on the bar, this one isn't.
+      if (PlatformDetection.isTV) favorites(),
       // Phones add a user from the + at the end of the avatar row.
       if (!compact) action(l10n.addUser, _addUser, icon: Icons.person),
       // Kos TV: with the household server built in there is none to pick.
@@ -365,6 +374,7 @@ class _AccountDialogState extends State<_AccountDialog> {
             if (!context.mounted) return;
             unawaited(showKostvRequestsTray(context));
           }, icon: Icons.inbox_rounded),
+        favorites(),
         action(l10n.settings, () async {
           Navigator.of(context).pop();
           if (!context.mounted) return;

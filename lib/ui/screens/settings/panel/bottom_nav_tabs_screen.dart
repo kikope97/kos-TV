@@ -147,6 +147,7 @@ class _BottomNavTabsScreenState extends State<_BottomNavTabsScreen> {
               children: [
                 for (final tab in BottomNavTab.values)
                   if (!pinned.contains(tab) &&
+                      BottomNavTabGates.pinnable(tab) &&
                       (tab != BottomNavTab.liveTv || liveTvOnAnyServer) &&
                       // Kos TV: only for someone the requests service lets in.
                       (tab != BottomNavTab.kostvDiscover ||

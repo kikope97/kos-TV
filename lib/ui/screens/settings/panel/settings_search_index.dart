@@ -849,11 +849,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       l10n.showGenresButton,
       subtitle: l10n.settingsShowGenresButtonInNavigation,
     ),
-    navigation.leaf(
-      'pref_show_favorites_button',
-      l10n.showFavoritesButton,
-      subtitle: l10n.settingsShowFavoritesButtonInNavigation,
-    ),
     if (liveTvOnAnyServer)
       navigation.leaf(
         'pref_show_live_tv_button',

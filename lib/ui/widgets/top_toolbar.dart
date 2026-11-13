@@ -32,6 +32,7 @@ import '../navigation/menu_preview.dart';
 import '../navigation/home_refresh_bus.dart';
 import '../navigation/route_lifecycle_observer.dart';
 import 'downloads_nav_slot.dart';
+import 'kostv_favorites_shortcut.dart';
 import 'nav_capsule.dart';
 import 'friends_nav_slot.dart';
 import 'expandable_icon_button.dart';
@@ -128,6 +129,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   /// Kos TV: the requests tray beside the avatar, and whether the pointer is
   /// over them (which brings it out, as the focus does).
   final _trayFocus = FocusNode(debugLabel: 'kostvRequestsTray');
+  final _favoritesFocus = FocusNode(debugLabel: 'kostvMyFavorites');
   bool _startHovered = false;
   final _homeFocus = FocusNode(debugLabel: 'TopToolbarHome');
   final _settingsFocus = FocusNode(debugLabel: 'TopToolbarSettings');
@@ -200,6 +202,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     NavigationLayout.chromeFocusRoots.add(_toolbarScopeNode);
     _avatarFocus.addListener(_onAvatarFocusChanged);
     _trayFocus.addListener(_onAvatarFocusChanged);
+    _favoritesFocus.addListener(_onAvatarFocusChanged);
     FocusManager.instance.addListener(_trackPreviousFocus);
     MenuPreview.arriving.addListener(_onMenuArriving);
     _onMenuArriving();
@@ -281,6 +284,8 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     NavigationLayout.chromeFocusRoots.remove(_toolbarScopeNode);
     _avatarFocus.removeListener(_onAvatarFocusChanged);
     _trayFocus.removeListener(_onAvatarFocusChanged);
+    _favoritesFocus.removeListener(_onAvatarFocusChanged);
+    _favoritesFocus.dispose();
     FocusManager.instance.removeListener(_trackPreviousFocus);
     MenuPreview.arriving.removeListener(_onMenuArriving);
     _restTimer?.cancel();
@@ -362,6 +367,26 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     _librariesReloadDebounce = Timer(const Duration(milliseconds: 300), () {
       if (mounted) _loadLibraries();
     });
+  }
+
+  /// Kos TV: left and right among the avatar, the requests tray and «Mis
+  /// favoritos»; right from the last goes on to the menu as before.
+  KeyEventResult _besideAvatarKey(
+    KeyEvent event, {
+    FocusNode? left,
+    FocusNode? right,
+  }) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final target = event.logicalKey == LogicalKeyboardKey.arrowLeft
+        ? left
+        : event.logicalKey == LogicalKeyboardKey.arrowRight
+        ? right
+        : null;
+    if (target == null || target.context == null) {
+      return KeyEventResult.ignored;
+    }
+    target.requestFocus();
+    return KeyEventResult.handled;
   }
 
   void _onAvatarFocusChanged() {
@@ -975,10 +1000,19 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                     revealed:
                         _avatarFocus.hasFocus ||
                         _trayFocus.hasFocus ||
+                        _favoritesFocus.hasFocus ||
                         _startHovered,
                     builder: (context) => Padding(
                       padding: const EdgeInsetsDirectional.only(start: 8),
-                      child: KostvRequestsTrayButton(
+                      child: Focus(
+                        canRequestFocus: false,
+                        skipTraversal: true,
+                        onKeyEvent: (_, event) => _besideAvatarKey(
+                          event,
+                          left: _avatarFocus,
+                          right: _favoritesFocus,
+                        ),
+                        child: KostvRequestsTrayButton(
                         size: _kAvatarSize,
                         focusNode: _trayFocus,
                         background: _toolbarSurfaceColor(),
@@ -988,8 +1022,46 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                             ? _restoreFocusBelowToolbar
                             : null,
                       ),
+                      ),
                     ),
                   ),
+                  // Kos TV: «Mis favoritos», out with the tray while on the
+                  // profile (on phones it is in the You menu).
+                  if (!PlatformDetection.useMobileUi)
+                    KostvFavoritesSlot(
+                      revealed:
+                          _avatarFocus.hasFocus ||
+                          _trayFocus.hasFocus ||
+                          _favoritesFocus.hasFocus ||
+                          _startHovered,
+                      builder: (context) => Padding(
+                        padding: const EdgeInsetsDirectional.only(start: 8),
+                        child: Focus(
+                          canRequestFocus: false,
+                          skipTraversal: true,
+                          onKeyEvent: (_, event) => _besideAvatarKey(
+                            event,
+                            left: _trayFocus.context != null
+                                ? _trayFocus
+                                : _avatarFocus,
+                          ),
+                          child: KostvFavoritesButton(
+                          size: _kAvatarSize,
+                          focusNode: _favoritesFocus,
+                          background: _toolbarSurfaceColor(),
+                          onPressed: () {
+                            if (_isActive(Destinations.allFavorites)) return;
+                            context.navigateTopLevel(Destinations.allFavorites);
+                          },
+                          onDown:
+                              PlatformDetection.isTV ||
+                                  PlatformDetection.isDesktop
+                              ? _restoreFocusBelowToolbar
+                              : null,
+                        ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -1045,6 +1117,18 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
             event.logicalKey == LogicalKeyboardKey.arrowDown) {
           _restoreFocusBelowToolbar();
           return KeyEventResult.handled;
+        }
+        // Kos TV: on to the requests tray and «Mis favoritos» beside it.
+        if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+          final next = _trayFocus.context != null
+              ? _trayFocus
+              : _favoritesFocus.context != null
+              ? _favoritesFocus
+              : null;
+          if (next != null) {
+            next.requestFocus();
+            return KeyEventResult.handled;
+          }
         }
         return KeyEventResult.ignored;
       },
@@ -1111,7 +1195,6 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   Widget _buildCenter() {
     final isNeon = ThemeRegistry.active.id == ThemeRegistry.neonPulseId;
     final showGenres = _prefs.get(UserPreferences.showGenresButton);
-    final showFavorites = _prefs.get(UserPreferences.showFavoritesButton);
     // Checked alongside the show* preferences, never written into them, since
     // those sync and would follow the account to the parent's other devices.
     final kidsMode = _kidsMode;
@@ -1156,7 +1239,6 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
       // is measured again.
       [
         showGenres,
-        showFavorites,
         showLiveTv,
         showLibraries,
         showLibrariesIndividually,
@@ -1261,24 +1343,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   ),
                 ),
               ],
-              if (showFavorites) ...[
-                _gap(),
-                _orderButton(
-                  order: (order++).toDouble(),
-                  child: ExpandableIconButton(
-                    key: const ValueKey('toolbar_favorites'),
-                    forceExpanded: alwaysExpanded,
-                    icon: Icons.favorite_rounded,
-                    label: l10n.favorites,
-                    baseColor: nextNavColor(),
-                    onPressed: () {
-                      if (_isActive(Destinations.allFavorites)) return;
-                      context.navigateTopLevel(Destinations.allFavorites);
-                    },
-                  ),
-                ),
-              ],
-              // Kos TV: the person's list, by Favourites.
+              // Kos TV: the person's list. Favourites is on the profile.
               if (_prefs.get(UserPreferences.kostvMyListAvailable)) ...[
                 _gap(),
                 _orderButton(

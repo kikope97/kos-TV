@@ -10,7 +10,7 @@ void main() {
         BottomNavBarItem.home(),
         BottomNavBarItem.tab(BottomNavTab.search, 1),
         BottomNavBarItem.tab(BottomNavTab.libraries, 2),
-        BottomNavBarItem.tab(BottomNavTab.favorites, 3),
+        BottomNavBarItem.tab(BottomNavTab.genres, 3),
         BottomNavBarItem.you(4),
       ]);
     });
@@ -24,7 +24,7 @@ void main() {
       expect(items, const [
         BottomNavBarItem.home(),
         BottomNavBarItem.tab(BottomNavTab.search, 1),
-        BottomNavBarItem.tab(BottomNavTab.favorites, 3),
+        BottomNavBarItem.tab(BottomNavTab.genres, 3),
         BottomNavBarItem.you(4),
       ]);
     });
@@ -35,14 +35,14 @@ void main() {
         '',
         withoutSearch: true,
       );
-      expect(items.map((i) => i.id), ['home', 'libraries', 'favorites', 'you']);
+      expect(items.map((i) => i.id), ['home', 'libraries', 'genres', 'you']);
     });
   });
 
   group('activeBarIndex', () {
     final items = resolveBarItems(
       const BottomNavTabGates(),
-      'search,libraries,favorites',
+      'search,libraries,genres',
     );
 
     int? active(String? route, {bool hubOpen = false}) =>
@@ -55,7 +55,9 @@ void main() {
       expect(active('/music/abc'), 2);
       expect(active('/books/abc'), 2);
       expect(active('/folder/xyz'), 2);
-      expect(active('/favorites'), 3);
+      expect(active('/genres'), 3);
+      // Kos TV: Favorites is in the You hub, so its page lights no tab.
+      expect(active('/favorites'), isNull);
     });
 
     test('lights nothing on a screen that belongs to no tab', () {
@@ -107,7 +109,7 @@ void main() {
     test('holds everything offered that isn\'t on the bar', () {
       expect(tiles(saved: true, syncPlay: true, quickConnect: true), const [
         BottomNavHubTile.action(BottomNavHubAction.saved),
-        BottomNavHubTile.tab(BottomNavTab.genres),
+        BottomNavHubTile.tab(BottomNavTab.favorites),
         BottomNavHubTile.action(BottomNavHubAction.shuffle),
         BottomNavHubTile.action(BottomNavHubAction.syncPlay),
         BottomNavHubTile.action(BottomNavHubAction.quickConnect),

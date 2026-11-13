@@ -200,16 +200,6 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
                           icon: Icons.theater_comedy,
                           onChanged: _pushPersonalizationSync,
                         ),
-                      if (!onBar.contains(BottomNavTab.favorites))
-                        SwitchPreferenceTile(
-                          key: const ValueKey(BottomNavTab.favorites),
-                          preference: UserPreferences.showFavoritesButton,
-                          title: l10n.showFavoritesButton,
-                          subtitle:
-                              l10n.settingsShowFavoritesButtonInNavigation,
-                          icon: Icons.favorite,
-                          onChanged: _pushPersonalizationSync,
-                        ),
                       if (SetupPreviewData.hasLiveTv &&
                           !onBar.contains(BottomNavTab.liveTv))
                         SwitchPreferenceTile(

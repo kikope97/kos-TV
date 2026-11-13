@@ -18593,6 +18593,48 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kostvShuffleWhy => 'Something at random from what is at home';
 
   @override
+  String get kostvMyFavorites => 'My favourites';
+
+  @override
+  String kostvFavoritesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count favourites',
+      one: '1 favourite',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvFavoritesEmpty => 'No favourites yet';
+
+  @override
+  String get kostvFavoritesEmptyHint =>
+      'Press the heart on a film, series, episode or person and it will show up here.';
+
+  @override
+  String get kostvFavoritesUnavailable => 'Your favourites could not be loaded';
+
+  @override
+  String get kostvFavoritesWhyMovie => 'The films you like most';
+
+  @override
+  String get kostvFavoritesWhySeries => 'Your all-time series';
+
+  @override
+  String get kostvFavoritesWhyEpisode => 'The episodes you want close at hand';
+
+  @override
+  String get kostvFavoritesWhyCollection => 'Sagas and collections you kept';
+
+  @override
+  String get kostvFavoritesWhyPerson => 'Actors and directors you follow';
+
+  @override
+  String get kostvFavoritesWhyMusic => 'The music you kept';
+
+  @override
   String get kostvShuffleMore => 'More shuffle';
 
   @override

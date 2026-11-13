@@ -331,6 +331,10 @@ void main() {
     ) async {
       await _openDesktopSidebar(tester);
 
+      // Kos TV: «Mis favoritos» sits between them, under the profile.
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pumpAndSettle();
+      expect(_focusedLabel(), 'LeftSidebarFavorites');
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
       await tester.pumpAndSettle();
       expect(_focusedLabel(), 'LeftSidebarProfile');
@@ -341,11 +345,16 @@ void main() {
 
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
       await tester.pumpAndSettle();
+      expect(_focusedLabel(), 'LeftSidebarFavorites');
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+      await tester.pumpAndSettle();
       expect(_focusedLabel(), 'LeftSidebarHome');
     }, variant: linux);
 
     testWidgets('a mouse user gets no focus highlight', (tester) async {
       await _openDesktopSidebar(tester);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pumpAndSettle();
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
       await tester.pumpAndSettle();
       expect(_focusedLabel(), 'LeftSidebarProfile');

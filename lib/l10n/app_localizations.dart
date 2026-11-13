@@ -32043,6 +32043,72 @@ abstract class AppLocalizations {
   /// **'Something at random from what is at home'**
   String get kostvShuffleWhy;
 
+  /// Kos TV: the favourites page and its shortcut on the profile.
+  ///
+  /// In en, this message translates to:
+  /// **'My favourites'**
+  String get kostvMyFavorites;
+
+  /// Kos TV: under the favourites page title.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 favourite} other{{count} favourites}}'**
+  String kostvFavoritesCount(int count);
+
+  /// Kos TV: empty favourites page.
+  ///
+  /// In en, this message translates to:
+  /// **'No favourites yet'**
+  String get kostvFavoritesEmpty;
+
+  /// Kos TV: empty favourites page, how to add.
+  ///
+  /// In en, this message translates to:
+  /// **'Press the heart on a film, series, episode or person and it will show up here.'**
+  String get kostvFavoritesEmptyHint;
+
+  /// Kos TV: favourites page when the server can't be asked.
+  ///
+  /// In en, this message translates to:
+  /// **'Your favourites could not be loaded'**
+  String get kostvFavoritesUnavailable;
+
+  /// Kos TV: favourites page row subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The films you like most'**
+  String get kostvFavoritesWhyMovie;
+
+  /// Kos TV: favourites page row subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your all-time series'**
+  String get kostvFavoritesWhySeries;
+
+  /// Kos TV: favourites page row subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The episodes you want close at hand'**
+  String get kostvFavoritesWhyEpisode;
+
+  /// Kos TV: favourites page row subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sagas and collections you kept'**
+  String get kostvFavoritesWhyCollection;
+
+  /// Kos TV: favourites page row subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Actors and directors you follow'**
+  String get kostvFavoritesWhyPerson;
+
+  /// Kos TV: favourites page row subtitle (music).
+  ///
+  /// In en, this message translates to:
+  /// **'The music you kept'**
+  String get kostvFavoritesWhyMusic;
+
   /// Kos TV: last card of the Shuffle row at the end of Home, opens the shuffle window.
   ///
   /// In en, this message translates to:

@@ -1202,7 +1202,6 @@ void main() {
       final order = [
         Icons.home_rounded,
         Icons.search_rounded,
-        Icons.favorite_rounded,
         Icons.live_tv_rounded,
         Icons.groups_rounded,
         Icons.movie_rounded,
@@ -1856,8 +1855,8 @@ void main() {
     final controller = SettingsPreviewController()
       ..focus(
         const SettingsPreviewEntry(
-          title: 'Favorites',
-          prefKey: 'pref_show_favorites_button',
+          title: 'Genres',
+          prefKey: 'pref_show_genres_button',
         ),
       )
       ..tryValue('pref_navbar_position', NavbarPosition.bottom)
@@ -1882,15 +1881,16 @@ void main() {
           (widget.image as AssetImage).assetName == 'assets/icons/genres.png',
     );
 
-    await pump();
-    expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
-    expect(genres(), findsNothing);
-
-    // Favorites off frees its slot for the next tab in line.
-    controller.tryValue('pref_show_favorites_button', false);
+    // Kos TV: Favorites is never on the bar (it is in the You hub), so
+    // Genres takes the slot after Search and Libraries.
     await pump();
     expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
     expect(genres(), findsOneWidget);
+
+    // Genres off frees its slot.
+    controller.tryValue('pref_show_genres_button', false);
+    await pump();
+    expect(genres(), findsNothing);
     debugDefaultTargetPlatformOverride = null;
   });
 

@@ -18324,6 +18324,55 @@
   "@kostvShuffleWhy": {
     "description": "Kos TV: line under the Shuffle row at the end of the recommended Home."
   },
+  "kostvMyFavorites": "My favourites",
+  "@kostvMyFavorites": {
+    "description": "Kos TV: the favourites page and its shortcut on the profile."
+  },
+  "kostvFavoritesCount": "{count, plural, =1{1 favourite} other{{count} favourites}}",
+  "@kostvFavoritesCount": {
+    "description": "Kos TV: under the favourites page title.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kostvFavoritesEmpty": "No favourites yet",
+  "@kostvFavoritesEmpty": {
+    "description": "Kos TV: empty favourites page."
+  },
+  "kostvFavoritesEmptyHint": "Press the heart on a film, series, episode or person and it will show up here.",
+  "@kostvFavoritesEmptyHint": {
+    "description": "Kos TV: empty favourites page, how to add."
+  },
+  "kostvFavoritesUnavailable": "Your favourites could not be loaded",
+  "@kostvFavoritesUnavailable": {
+    "description": "Kos TV: favourites page when the server can't be asked."
+  },
+  "kostvFavoritesWhyMovie": "The films you like most",
+  "@kostvFavoritesWhyMovie": {
+    "description": "Kos TV: favourites page row subtitle."
+  },
+  "kostvFavoritesWhySeries": "Your all-time series",
+  "@kostvFavoritesWhySeries": {
+    "description": "Kos TV: favourites page row subtitle."
+  },
+  "kostvFavoritesWhyEpisode": "The episodes you want close at hand",
+  "@kostvFavoritesWhyEpisode": {
+    "description": "Kos TV: favourites page row subtitle."
+  },
+  "kostvFavoritesWhyCollection": "Sagas and collections you kept",
+  "@kostvFavoritesWhyCollection": {
+    "description": "Kos TV: favourites page row subtitle."
+  },
+  "kostvFavoritesWhyPerson": "Actors and directors you follow",
+  "@kostvFavoritesWhyPerson": {
+    "description": "Kos TV: favourites page row subtitle."
+  },
+  "kostvFavoritesWhyMusic": "The music you kept",
+  "@kostvFavoritesWhyMusic": {
+    "description": "Kos TV: favourites page row subtitle (music)."
+  },
   "kostvShuffleMore": "More shuffle",
   "@kostvShuffleMore": {
     "description": "Kos TV: last card of the Shuffle row at the end of Home, opens the shuffle window."

@@ -22,12 +22,11 @@ const int kMaxPinnedBottomNavTabs = 3;
 
 // Libraries sits second so a user on default settings keeps it on the bar.
 // Kos TV: Discover goes before it, where the requests service lets the person
-// in; Favorites then moves to the You hub.
+// in. Favorites is never on the bar, only in the You hub (see [pinnable]).
 const List<BottomNavTab> _autoOrder = [
   BottomNavTab.search,
   BottomNavTab.kostvDiscover,
   BottomNavTab.libraries,
-  BottomNavTab.favorites,
   BottomNavTab.myList,
   BottomNavTab.liveTv,
   BottomNavTab.genres,
@@ -112,6 +111,10 @@ class BottomNavTabGates {
     );
   }
 
+  /// Kos TV: whether [tab] can sit on the bar. Favorites lives in the You
+  /// hub only.
+  static bool pinnable(BottomNavTab tab) => tab != BottomNavTab.favorites;
+
   // Kids Mode drops Libraries (the My Media row stands in), Live TV (its route
   // bounces home) and the calendar.
   bool offers(BottomNavTab tab) => switch (tab) {
@@ -119,7 +122,9 @@ class BottomNavTabGates {
         BottomNavTab.kostvDiscover =>
           !kidsMode && showKostvDiscover && kostvDiscoverAvailable,
         BottomNavTab.libraries => !kidsMode && showLibraries,
-        BottomNavTab.favorites => showFavorites,
+        // Kos TV: always there, in the You hub (with «Mi lista» on the bar
+        // a Favorites tab too would only confuse).
+        BottomNavTab.favorites => true,
         BottomNavTab.myList => kostvMyListAvailable,
         BottomNavTab.genres => showGenres,
         BottomNavTab.liveTv => !kidsMode && showLiveTv,
@@ -132,7 +137,9 @@ class BottomNavTabGates {
   /// unchosen tab onto the bar.
   List<BottomNavTab> resolvePins(String raw) {
     final explicit = parsePinnedBottomNavTabs(raw);
-    if (explicit.isNotEmpty) return explicit.where(offers).toList();
+    if (explicit.isNotEmpty) {
+      return explicit.where((t) => offers(t) && pinnable(t)).toList();
+    }
     return _autoOrder.where(offers).take(kMaxPinnedBottomNavTabs).toList();
   }
 }

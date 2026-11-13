@@ -60,11 +60,12 @@ void main() {
   });
 
   group('automatic pins', () {
-    test('default settings pin Search, Libraries and Favorites', () {
+    // Kos TV: Favorites is in the You hub, never on the bar.
+    test('default settings pin Search, Libraries and Genres', () {
       expect(const BottomNavTabGates().resolvePins(''), [
         BottomNavTab.search,
         BottomNavTab.libraries,
-        BottomNavTab.favorites,
+        BottomNavTab.genres,
       ]);
     });
 
@@ -81,7 +82,6 @@ void main() {
       const gates = BottomNavTabGates(kidsMode: true, showLiveTv: true);
       expect(gates.resolvePins(''), [
         BottomNavTab.search,
-        BottomNavTab.favorites,
         BottomNavTab.genres,
       ]);
     });
@@ -126,8 +126,15 @@ void main() {
 
   group('explicit pins', () {
     test('keep their order', () {
+      expect(const BottomNavTabGates().resolvePins('genres,search'), [
+        BottomNavTab.genres,
+        BottomNavTab.search,
+      ]);
+    });
+
+    // Kos TV: Favorites is in the You hub, never on the bar.
+    test('leave Favorites off the bar', () {
       expect(const BottomNavTabGates().resolvePins('favorites,search'), [
-        BottomNavTab.favorites,
         BottomNavTab.search,
       ]);
     });

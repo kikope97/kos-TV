@@ -53,6 +53,7 @@ import '../navigation/app_router.dart';
 import 'offline_aware_image.dart';
 import 'adaptive/sf_symbol.dart';
 import 'kostv_requests_tray_button.dart';
+import 'kostv_favorites_shortcut.dart';
 import 'nav_capsule.dart';
 import 'user_avatar_image.dart';
 
@@ -101,6 +102,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
 
   /// Kos TV: the requests tray, right under the avatar.
   final _trayFocusNode = FocusNode(debugLabel: 'LeftSidebarRequestsTray');
+  final _favoritesFocusNode = FocusNode(debugLabel: 'LeftSidebarFavorites');
   final _musicCardFocusNode = FocusNode(debugLabel: 'SidebarMusicCard');
   late final VoidCallback _focusNavbarCallback;
   late final VoidCallback _focusAvatarCallback;
@@ -203,6 +205,9 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
       _sidebarFocus.addListener(_onSidebarFocusNodeChanged);
     }
     _profileFocusNode.addListener(() {
+      if (mounted) setState(() {});
+    });
+    _favoritesFocusNode.addListener(() {
       if (mounted) setState(() {});
     });
     _trayFocusNode.addListener(() {
@@ -365,6 +370,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     _friendsFocusNode.dispose();
     _profileFocusNode.dispose();
     _trayFocusNode.dispose();
+    _favoritesFocusNode.dispose();
     _musicCardFocusNode.dispose();
     _sidebarFocus.dispose();
     _scrollController.dispose();
@@ -643,8 +649,10 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
       }
       if (event.logicalKey == LogicalKeyboardKey.arrowUp &&
           _homeFocusNode.hasFocus) {
-        // Kos TV: the requests tray first, when it is out.
-        if (_trayFocusNode.context != null) {
+        // Kos TV: «Mis favoritos» and the requests tray first, when out.
+        if (_favoritesFocusNode.context != null) {
+          _favoritesFocusNode.requestFocus();
+        } else if (_trayFocusNode.context != null) {
           _trayFocusNode.requestFocus();
         } else if (_profileFocusNode.context != null) {
           _profileFocusNode.requestFocus();
@@ -1084,7 +1092,6 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
   Widget _buildContent() {
     final l10n = AppLocalizations.of(context);
     final showGenres = _prefs.get(UserPreferences.showGenresButton);
-    final showFavorites = _prefs.get(UserPreferences.showFavoritesButton);
     // Checked alongside the show* preferences, never written into them, since
     // those sync and would follow the account to the parent's other devices.
     final kidsMode = _kidsMode;
@@ -1118,8 +1125,19 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
           revealed:
               _profileFocusNode.hasFocus ||
               _trayFocusNode.hasFocus ||
+              _favoritesFocusNode.hasFocus ||
               (_isExpanded && !PlatformDetection.isTV),
           builder: (context) => _buildRequestsTray(l10n),
+        ),
+        // Kos TV: «Mis favoritos», under the tray, out while on the profile.
+        KostvFavoritesSlot(
+          axis: Axis.vertical,
+          revealed:
+              _profileFocusNode.hasFocus ||
+              _trayFocusNode.hasFocus ||
+              _favoritesFocusNode.hasFocus ||
+              (_isExpanded && !PlatformDetection.isTV),
+          builder: (context) => _buildFavorites(l10n),
         ),
         Expanded(
           child: LayoutBuilder(
@@ -1219,24 +1237,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                       context.navigateTopLevel(Destinations.allGenres);
                     },
                   ),
-                if (showFavorites)
-                  _SidebarItem(
-                    key: const ValueKey('sidebar-favorites'),
-                    icon: Icons.favorite_rounded,
-                    label: l10n.favorites,
-                    baseColor: nextMainSidebarColor(),
-                    showLabel: _showLabels,
-                    onPressed: () {
-                      _onNavigate();
-                      if (_isActive(Destinations.allFavorites)) {
-                        _exitSidebarToContent();
-                        return;
-                      }
-                      _markNavigationAwayFromSidebar();
-                      context.navigateTopLevel(Destinations.allFavorites);
-                    },
-                  ),
-                // Kos TV: the person's list, by Favourites.
+                // Kos TV: the person's list. Favourites is on the profile.
                 if (_prefs.get(UserPreferences.kostvMyListAvailable))
                   _SidebarItem(
                     key: const ValueKey('sidebar-my-list'),
@@ -1510,6 +1511,45 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
 
   /// Kos TV: the requests tray's row: a tray with the number of news, and a
   /// ring turning round it while something is under way.
+  Widget _buildFavorites(AppLocalizations l10n) {
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: (_, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+          final up = _trayFocusNode.context != null
+              ? _trayFocusNode
+              : _profileFocusNode;
+          if (up.context != null) up.requestFocus();
+          return KeyEventResult.handled;
+        }
+        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+          _homeFocusNode.requestFocus();
+          return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: _SidebarItem(
+        key: const ValueKey('sidebar-favorites'),
+        icon: Icons.favorite_rounded,
+        baseColor: kostvFavoritesColor,
+        label: l10n.kostvMyFavorites,
+        focusNode: _favoritesFocusNode,
+        showLabel: _showLabels,
+        onPressed: () {
+          _onNavigate();
+          if (_isActive(Destinations.allFavorites)) {
+            _exitSidebarToContent();
+            return;
+          }
+          _markNavigationAwayFromSidebar();
+          context.navigateTopLevel(Destinations.allFavorites);
+        },
+      ),
+    );
+  }
+
   Widget _buildRequestsTray(AppLocalizations l10n) {
     final inbox = GetIt.instance<StremfinService>().inbox;
     return Focus(
@@ -1523,7 +1563,10 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-          _homeFocusNode.requestFocus();
+          (_favoritesFocusNode.context != null
+                  ? _favoritesFocusNode
+                  : _homeFocusNode)
+              .requestFocus();
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -1664,9 +1707,12 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
               return KeyEventResult.handled;
             }
             if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-              // Kos TV: the requests tray first, when it is out.
+              // Kos TV: the requests tray and «Mis favoritos» first, when
+              // they are out.
               if (_trayFocusNode.context != null) {
                 _trayFocusNode.requestFocus();
+              } else if (_favoritesFocusNode.context != null) {
+                _favoritesFocusNode.requestFocus();
               } else {
                 _homeFocusNode.requestFocus();
               }

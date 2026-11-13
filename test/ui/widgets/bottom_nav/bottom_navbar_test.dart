@@ -93,10 +93,12 @@ void main() {
 
       expect(find.byType(DockBarView), findsOneWidget);
       // Libraries waits for a library to exist, the fake server has none.
-      for (final label in ['Home', 'Search', 'Favorites', 'You']) {
+      for (final label in ['Home', 'Search', 'You']) {
         expect(find.text(label), findsOneWidget, reason: label);
       }
       expect(find.text('Libraries'), findsNothing);
+      // Kos TV: Favorites is in the You hub, never on the bar.
+      expect(find.text('My favourites'), findsNothing);
     });
 
     testWidgets('the mini player floats above the tabs', (tester) async {
