@@ -34,6 +34,7 @@ import '../../widgets/overlay_sheet.dart';
 import '../calendar/calendar_common.dart';
 import '../home/home_row_card_image.dart';
 import 'kostv_favorites_news_hero.dart';
+import '../../../util/episode_code.dart';
 
 /// Kos TV: the person's favourites («Mis favoritos»), with the menu above.
 ///
@@ -991,7 +992,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
       final season = item.parentIndexNumber;
       final episode = item.indexNumber;
       final number = season != null && episode != null
-          ? 'T$season:E$episode'
+          ? '$seasonMark$season:E$episode'
           : null;
       return [
         item.seriesName,

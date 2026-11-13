@@ -8,6 +8,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../util/platform_detection.dart';
 import '../adaptive/adaptive_glass.dart';
 import '../kostv_missing_episodes.dart';
+import '../../../util/episode_code.dart';
 
 /// How asking for the missing episodes went, on the player's card.
 enum KostvGapAsk { idle, sending, sent, failed }
@@ -66,8 +67,8 @@ class KostvGapOverlay extends StatelessWidget {
         : l10n.kostvGapMany(first.number, last.number);
     final subtitle = count == 1 ? KostvGhostTexts.ownTitle(first) : null;
     final pill = count == 1
-        ? 'S${first.season}:E${first.number}'
-        : 'S${first.season}:E${first.number}–${last.number}';
+        ? '$seasonMark${first.season}:E${first.number}'
+        : '$seasonMark${first.season}:E${first.number}–${last.number}';
 
     // What the card says about them, under the title.
     final (IconData, String)? status = switch (ask) {

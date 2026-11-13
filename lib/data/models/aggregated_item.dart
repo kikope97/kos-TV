@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:server_core/server_core.dart';
 
 import '../database/offline_database.dart';
+import '../../util/episode_code.dart';
 
 class AggregatedItem {
   final String id;
@@ -150,7 +151,7 @@ class AggregatedItem {
       final e = indexNumber;
       final series = seriesName?.trim();
       final episodeInfo = switch ((s, e)) {
-        (final season?, final episode?) => 'S$season:E$episode',
+        (final season?, final episode?) => '$seasonMark$season:E$episode',
         _ => null,
       };
 
@@ -512,7 +513,7 @@ class AggregatedItem {
       final s = parentIndexNumber;
       final e = indexNumber;
       if (series.isNotEmpty && s != null && e != null) {
-        return '$series - S$s:E$e - $name';
+        return '$series - $seasonMark$s:E$e - $name';
       }
     }
     return name;

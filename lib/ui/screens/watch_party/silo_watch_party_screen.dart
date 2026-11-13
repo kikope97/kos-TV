@@ -27,6 +27,7 @@ import '../../navigation/app_router.dart';
 import '../../widgets/settings/clean_settings_typography.dart';
 import '../syncplay/syncplay_screen.dart';
 import 'watch_together_route.dart';
+import '../../../util/episode_code.dart';
 
 part 'watch_party_parts.dart';
 
@@ -995,7 +996,7 @@ class _ItemHeroState extends State<_ItemHero> {
               if (item?['ParentIndexNumber'] case final int season
                   when hasSeries)
                 if (item?['IndexNumber'] case final int episode)
-                  'S$season:E$episode',
+                  '$seasonMark$season:E$episode',
               if (item?['ProductionYear'] case final int year) '$year',
             ].join(' · ');
             final actions = <Widget>[

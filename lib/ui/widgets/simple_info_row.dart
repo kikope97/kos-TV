@@ -3,6 +3,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../data/models/aggregated_item.dart';
 import '../../util/tv_ui_scale.dart';
+import '../../util/episode_code.dart';
 
 final _textShadows = [
   Shadow(blurRadius: 4, color: AppColors.black.withValues(alpha: 0.54)),
@@ -86,7 +87,7 @@ class SimpleInfoRow extends StatelessWidget {
   static String episodeLead(AggregatedItem item) {
     final s = item.parentIndexNumber;
     final e = item.indexNumber;
-    final number = (s != null && e != null) ? 'S$s:E$e' : null;
+    final number = (s != null && e != null) ? '$seasonMark$s:E$e' : null;
     final name = item.name.trim();
     return [?number, if (name.isNotEmpty) name].join(' - ');
   }

@@ -12,6 +12,7 @@ import '../repositories/item_mutation_repository.dart';
 import '../services/user_data_sync.dart';
 import '../models/live_tv_recording_state.dart';
 import '../models/series_recording_episodes.dart';
+import '../../util/episode_code.dart';
 
 class GuideChannel {
   final String id;
@@ -169,7 +170,7 @@ class GuideProgram {
   String? get seasonEpisodeLabel {
     final season = rawData['ParentIndexNumber'];
     final episode = rawData['IndexNumber'];
-    return season != null && episode != null ? 'S$season:E$episode' : null;
+    return season != null && episode != null ? '$seasonMark$season:E$episode' : null;
   }
 
   /// The episode title and its `(S1:E5)` numbering, with whichever of the two

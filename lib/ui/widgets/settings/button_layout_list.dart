@@ -72,7 +72,16 @@ class _ButtonLayoutListState extends State<ButtonLayoutList> {
   // Read straight from the store on every build and every write. The rows
   // share one preference, so a copy taken when a row was built goes stale as
   // soon as a neighbour writes, and the next write would undo the neighbour.
-  Set<String> get _hidden => widget.layout.hidden(_prefs);
+  /// Kos TV: on a TV, downloading is off until «Descargas sin conexión»
+  /// is on, so its buttons read as off here too while it is.
+  Set<String> get _hidden => {
+    ...widget.layout.hidden(_prefs),
+    if (PlatformDetection.isTV &&
+        !_prefs.get(UserPreferences.tvOfflineDownloads))
+      ..._downloadIds,
+  };
+
+  static const _downloadIds = {'download', 'deleteFiles'};
 
   bool get _reorderable => widget.layout.isReorderable;
 
@@ -87,13 +96,18 @@ class _ButtonLayoutListState extends State<ButtonLayoutList> {
       : widget.entries;
 
   void _setShown(ButtonLayoutEntry entry, bool shown) {
-    final ids = _hidden.toList();
+    // What the person hid themselves: downloading being off on a TV isn't
+    // written in.
+    final ids = widget.layout.hidden(_prefs).toList();
     if (shown) {
       ids.remove(entry.id);
     } else if (!ids.contains(entry.id)) {
       ids.add(entry.id);
     }
-    if (entry.id == 'download' && PlatformDetection.isTV) {
+    // On a TV the download button is the switch of downloading itself;
+    // showing the delete one turns downloading on too.
+    if (PlatformDetection.isTV &&
+        (entry.id == 'download' || (entry.id == 'deleteFiles' && shown))) {
       unawaited(_prefs.set(UserPreferences.tvOfflineDownloads, shown));
     }
     unawaited(

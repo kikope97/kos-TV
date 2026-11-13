@@ -74,7 +74,7 @@ String? watchPartyTitleOf({
 }) {
   if (type == 'Episode' && seriesName != null) {
     return season != null && episode != null
-        ? '$seriesName · S$season:E$episode'
+        ? '$seriesName · $seasonMark$season:E$episode'
         : seriesName;
   }
   return title;

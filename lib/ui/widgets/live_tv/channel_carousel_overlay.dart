@@ -17,6 +17,7 @@ import '../../screens/livetv/guide/guide_window.dart';
 import 'channel_carousel.dart';
 import 'channel_carousel_card.dart';
 import '../marquee_text.dart';
+import '../../../util/episode_code.dart';
 
 /// How long the strip takes to slide up into place.
 const Duration kCarouselEnterDuration = Duration(milliseconds: 180);
@@ -847,7 +848,7 @@ class _ChannelCarouselOverlayState extends State<ChannelCarouselOverlay>
     final season = program?.rawData['ParentIndexNumber'];
     final episode = program?.rawData['IndexNumber'];
     final suffix = season != null && episode != null
-        ? ' (S$season:E$episode)'
+        ? ' ($seasonMark$season:E$episode)'
         : '';
     // Some sources repeat the program name as the episode title. Showing it
     // twice reads as a glitch.

@@ -1232,6 +1232,8 @@ class _PlayerControls extends StatelessWidget {
               OsdButton.zoom => button(zoomIcon, iconSize, extent),
               _ => button(osd.icon, iconSize, extent),
             },
+        // Kos TV: «Más», where the rest waits.
+        button(Icons.more_horiz_rounded, iconSize, extent),
       ],
     );
 

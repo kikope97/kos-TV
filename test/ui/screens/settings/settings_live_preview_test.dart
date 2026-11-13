@@ -2170,18 +2170,22 @@ void main() {
       expect(controller.scene, SettingsPreviewScene.player);
 
       double x(Finder finder) => tester.getCenter(finder).dx;
+      // Kos TV: subtitles, language and episodes, then «Más» with the rest.
       final row = [
-        find.byIcon(Icons.favorite_border),
-        find.text('1.0x'),
-        find.byIcon(Icons.bookmark_outline_rounded),
-        find.byIcon(Icons.video_library_outlined),
         find.byIcon(Icons.subtitles_outlined),
         find.byIcon(Icons.audiotrack_outlined),
-        find.byIcon(Icons.people_outline_rounded),
-        find.byIcon(Icons.video_settings_outlined),
-        find.byIcon(Icons.fit_screen_rounded),
-        find.byIcon(Icons.info_outline_rounded),
+        find.byIcon(Icons.video_library_outlined),
+        find.byIcon(Icons.more_horiz_rounded),
       ];
+      for (final icon in [
+        Icons.favorite_border,
+        Icons.bookmark_outline_rounded,
+        Icons.people_outline_rounded,
+        Icons.video_settings_outlined,
+        Icons.info_outline_rounded,
+      ]) {
+        expect(find.byIcon(icon), findsNothing, reason: '$icon');
+      }
       for (var i = 1; i < row.length; i++) {
         expect(x(row[i]), greaterThan(x(row[i - 1])));
       }
@@ -2199,7 +2203,11 @@ void main() {
         expect(find.byIcon(icon), findsNothing, reason: '$icon');
       }
       // The transport docks at the start of the same row.
-      final previous = find.byIcon(Icons.skip_previous_rounded);
+      // Kos TV: back, play and forward, without previous and next.
+      expect(find.byIcon(Icons.skip_previous_rounded), findsNothing);
+      final previous = find.byIcon(Icons.play_arrow_rounded).evaluate().isEmpty
+          ? find.byIcon(Icons.pause_rounded)
+          : find.byIcon(Icons.play_arrow_rounded);
       expect(previous, findsOneWidget);
       expect(x(previous), lessThan(x(row.first)));
       expect(
@@ -2234,9 +2242,14 @@ void main() {
         );
       await pumpPlayer(tester, controller);
       expect(controller.scene, SettingsPreviewScene.player);
-      final previous = find.byIcon(Icons.skip_previous_rounded);
+      // Kos TV: the transport is back, play and forward.
+      Finder playPause() =>
+          find.byIcon(Icons.play_arrow_rounded).evaluate().isNotEmpty
+          ? find.byIcon(Icons.play_arrow_rounded)
+          : find.byIcon(Icons.pause_rounded);
+      expect(find.byIcon(Icons.skip_previous_rounded), findsNothing);
       expect(
-        tester.getCenter(previous).dy,
+        tester.getCenter(playPause()).dy,
         lessThan(tester.getRect(find.byType(Slider)).top),
       );
       for (final icon in [
@@ -2245,7 +2258,7 @@ void main() {
         Icons.cast,
         Icons.volume_up_rounded,
         Icons.fullscreen_rounded,
-        Icons.push_pin_outlined,
+        Icons.more_horiz_rounded,
       ]) {
         expect(find.byIcon(icon), findsOneWidget, reason: '$icon');
       }
@@ -2256,12 +2269,12 @@ void main() {
       );
       await pumpPlayer(tester, controller);
       expect(
-        tester.getCenter(previous).dy,
+        tester.getCenter(playPause()).dy,
         greaterThan(tester.getRect(find.byType(Slider)).bottom),
       );
       expect(
-        tester.getCenter(previous).dx,
-        lessThan(tester.getCenter(find.byIcon(Icons.favorite_border)).dx),
+        tester.getCenter(playPause()).dx,
+        lessThan(tester.getCenter(find.byIcon(Icons.more_horiz_rounded)).dx),
       );
       debugDefaultTargetPlatformOverride = null;
     });

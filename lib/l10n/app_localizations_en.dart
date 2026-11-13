@@ -3604,7 +3604,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get osdButtonsSectionDescription =>
-      'Playback controls are always shown. Everything below is up to you, and each kind of device keeps its own list.';
+      'Back, play and forward are always shown. The buttons you switch off here aren\'t lost: they move to the «More» button at the end of the row. Each kind of device keeps its own list.';
 
   @override
   String get detailButtons => 'Action Buttons';
@@ -18581,10 +18581,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kostvUndo => 'Undo';
 
   @override
-  String get kostvMyList => 'My list';
+  String get kostvMyList => 'Want to watch';
 
   @override
-  String get kostvMyListOn => 'On my list';
+  String get kostvMyListOn => 'Want to watch';
 
   @override
   String get kostvMyListWhy => 'What you saved to watch and haven\'t started';
@@ -18745,7 +18745,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kostvShuffleMore => 'More shuffle';
 
   @override
-  String get kostvMyListSeeAll => 'See my whole list';
+  String get kostvMyListSeeAll => 'See all';
 
   @override
   String kostvMyListCount(int count) {
@@ -18763,7 +18763,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvMyListWatchingWhy =>
-      'From your list, what you\'re part way through';
+      'Of what you want to watch, what you\'re part way through';
 
   @override
   String get kostvMyListToStart => 'To start';
@@ -18783,36 +18783,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvMyListCleared =>
-      'You removed what you\'ve watched from your list';
+      'You removed what you\'ve watched from Want to watch';
 
   @override
   String get kostvMyListChangeFailed =>
-      'Your list couldn\'t be changed. Try again.';
+      'Want to watch couldn\'t be changed. Try again.';
 
   @override
-  String get kostvMyListEmpty => 'Your list is empty';
+  String get kostvMyListEmpty => 'You haven\'t saved anything yet';
 
   @override
   String get kostvMyListEmptyHint =>
-      'Save films and series to watch later with the «My list» button on their page or from a card\'s menu (long press).';
+      'Save films and series to watch later with the «Want to watch» button on their page or from a card\'s menu (long press).';
 
   @override
-  String get kostvMyListUnavailable => 'Your list couldn\'t be read';
+  String get kostvMyListUnavailable => 'Want to watch couldn\'t be read';
 
   @override
-  String get kostvMyListAdd => 'Add to my list';
+  String get kostvMyListAdd => 'Want to watch';
 
   @override
-  String get kostvMyListRemove => 'Remove from my list';
+  String get kostvMyListRemove => 'Don\'t want to watch';
 
   @override
   String kostvMyListAdded(String title) {
-    return '“$title” is on your list';
+    return '“$title” saved in Want to watch';
   }
 
   @override
   String kostvMyListRemoved(String title) {
-    return '“$title” is no longer on your list';
+    return '“$title” removed from Want to watch';
   }
 
   @override
@@ -19047,4 +19047,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvHomeWhyResume => 'Pick up where you left off';
+
+  @override
+  String get kostvSeasonMark => 'S';
+
+  @override
+  String get kostvOsdMore => 'More';
+
+  @override
+  String get kostvOsdMoreTitle => 'More options';
+
+  @override
+  String get kostvOsdLanguage => 'Language';
+
+  @override
+  String get kostvOsdPrevious => 'Previous';
 }

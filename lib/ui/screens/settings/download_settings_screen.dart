@@ -62,6 +62,9 @@ class DownloadSettingsScreen extends ConsumerWidget {
     final storage = ref.watch(storageUsedProvider);
     final l10n = AppLocalizations.of(context);
     final downloads = PlatformDetection.supportsOfflineDownloads;
+    // Kos TV: on a TV, the options of downloading only once it is on there.
+    final downloadOptions =
+        downloads && (!PlatformDetection.isTV || tvOfflineDownloads);
 
     return withCleanSettingsTypography(
       context,
@@ -75,6 +78,8 @@ class DownloadSettingsScreen extends ConsumerWidget {
               adaptiveListSection(
                 children: [
                   DpadSwitchListTile(
+                    // The first thing on the page while it is off.
+                    autofocus: !downloadOptions,
                     useSettingsIconShell: true,
                     secondary: const Icon(Icons.download_for_offline),
                     title: Text(l10n.tvOfflineDownloads),
@@ -85,7 +90,7 @@ class DownloadSettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-            if (downloads) ...[
+            if (downloadOptions) ...[
               SettingsSectionHeader(l10n.quality),
               adaptiveListSection(
                 children: [
@@ -123,11 +128,11 @@ class DownloadSettingsScreen extends ConsumerWidget {
                 ),
               ],
             ],
-            if (downloads) SettingsSectionHeader(l10n.storage),
-            if (downloads)
+            if (downloadOptions) SettingsSectionHeader(l10n.storage),
+            if (downloadOptions)
               adaptiveListSection(
                 children: [
-                  if (downloads) ...[
+                  if (downloadOptions) ...[
                     storage.when(
                       // Reporting only, since storage is managed from the
                       // downloads list.
@@ -173,7 +178,7 @@ class DownloadSettingsScreen extends ConsumerWidget {
                 ],
               ),
 
-            if (downloads) ...[
+            if (downloadOptions) ...[
               SettingsSectionHeader(l10n.dangerZone),
               adaptiveListSection(
                 children: [
@@ -198,7 +203,7 @@ class DownloadSettingsScreen extends ConsumerWidget {
               id: 'storage',
               summary: l10n.kostvMoreStorageSummary,
               children: [
-                if (downloads) ...[
+                if (downloadOptions) ...[
                   SettingsSectionHeader(l10n.network),
                   adaptiveListSection(
                     children: [
@@ -238,11 +243,11 @@ class DownloadSettingsScreen extends ConsumerWidget {
                     ),
                   ],
                 ],
-                if (downloads || !PlatformDetection.isWeb) ...[
+                if (downloadOptions || !PlatformDetection.isWeb) ...[
                   SettingsSectionHeader(l10n.storage),
                   adaptiveListSection(
                     children: [
-                      if (downloads) ...[
+                      if (downloadOptions) ...[
                         DpadListTile(
                           useSettingsIconShell: true,
                           leading: const Icon(Icons.data_usage),

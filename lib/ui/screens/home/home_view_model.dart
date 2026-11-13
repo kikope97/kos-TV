@@ -50,6 +50,7 @@ import '../../../data/utils/blocked_ratings.dart';
 import '../../../util/seasonal_country.dart';
 import '../../util/home_row_title_localizer.dart';
 import '../../navigation/app_router.dart' show PlayerRouteObserver;
+import '../../../util/episode_code.dart';
 
 class HomeViewModel extends ChangeNotifier {
   /// Cards in a merged row, matching what a single library row shows.
@@ -3351,7 +3352,7 @@ class HomeViewModel extends ChangeNotifier {
       final airDateUtc = DateTime.parse(picked['AirDateUtc'] as String);
       final sNum = picked['SeasonNumber'] as String? ?? '0';
       final eNum = picked['EpisodeNumber'] as String? ?? '0';
-      final episode = 'S$sNum:E$eNum';
+      final episode = '$seasonMark$sNum:E$eNum';
       // Same wording as the Radarr row, so both read "In 3 days (Nov 3)".
       final release = l10n.calendarReleaseIn(
         calendarDaysBetween(now, airDateUtc.toLocal()),

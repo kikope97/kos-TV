@@ -4580,7 +4580,7 @@
     "gestureIndicatorInverted": "Lado contrario",
     "osdButtons": "Botones del reproductor",
     "osdButtonsDescription": "Elige qué botones muestra el reproductor",
-    "osdButtonsSectionDescription": "Los controles de reproducción se muestran siempre. Todo lo demás lo decides tú, y cada tipo de dispositivo guarda su propia lista.",
+    "osdButtonsSectionDescription": "Atrasar, reproducir y adelantar se muestran siempre. Los botones que apagues aquí no se pierden: pasan al botón «Más» del final de la fila. Cada tipo de dispositivo guarda su propia lista.",
     "detailButtons": "Botones de acción",
     "detailButtonsDescription": "Elige qué botones muestra la pantalla de detalles",
     "detailButtonsSectionDescription": "Reproducir va siempre primero y los botones bloqueados se muestran siempre. Todo lo demás lo decides tú, y cada tipo de dispositivo guarda su propia lista.",
@@ -12766,11 +12766,11 @@
     "@kostvUndo": {
         "description": "Kos TV: button that takes back the last «not interested»."
     },
-    "kostvMyList": "Mi lista",
+    "kostvMyList": "Quiero verlo",
     "@kostvMyList": {
         "description": "Kos TV: the person's list of what they want to watch."
     },
-    "kostvMyListOn": "En mi lista",
+    "kostvMyListOn": "Quiero verlo",
     "@kostvMyListOn": {
         "description": "Kos TV: the title page button when the title is on the list."
     },
@@ -12959,7 +12959,7 @@
     "@kostvShuffleMore": {
         "description": "Kos TV: last card of the Shuffle row at the end of Home, opens the shuffle window."
     },
-    "kostvMyListSeeAll": "Ver toda mi lista",
+    "kostvMyListSeeAll": "Ver todo",
     "@kostvMyListSeeAll": {
         "description": "Kos TV: last card of the \u00abMi lista\u00bb row, opens the page."
     },
@@ -12976,7 +12976,7 @@
     "@kostvMyListWatching": {
         "description": "Kos TV list page: what the person is part way through."
     },
-    "kostvMyListWatchingWhy": "De tu lista, lo que tienes a medias",
+    "kostvMyListWatchingWhy": "De lo que quieres ver, lo que tienes a medias",
     "@kostvMyListWatchingWhy": {
         "description": "Kos TV list page: line under \u00abContinuar viendo\u00bb."
     },
@@ -13000,35 +13000,35 @@
     "@kostvMyListClearWatched": {
         "description": "Kos TV list page: card that takes everything watched off the list."
     },
-    "kostvMyListCleared": "Has quitado de tu lista lo que ya viste",
+    "kostvMyListCleared": "Has quitado de Quiero verlo lo que ya viste",
     "@kostvMyListCleared": {
         "description": "Kos TV list page: message after clearing the watched ones."
     },
-    "kostvMyListChangeFailed": "No se pudo cambiar tu lista. Inténtalo de nuevo.",
+    "kostvMyListChangeFailed": "No se pudo cambiar Quiero verlo. Inténtalo de nuevo.",
     "@kostvMyListChangeFailed": {
         "description": "Kos TV: the list couldn't be changed."
     },
-    "kostvMyListEmpty": "Tu lista está vacía",
+    "kostvMyListEmpty": "Aún no has apuntado nada",
     "@kostvMyListEmpty": {
         "description": "Kos TV list page: nothing on the list."
     },
-    "kostvMyListEmptyHint": "Guarda películas y series para ver más tarde con el botón «Mi lista» de su ficha o desde el menú de una tarjeta (pulsación larga).",
+    "kostvMyListEmptyHint": "Apunta películas y series para ver más tarde con el botón «Quiero verlo» de su ficha o desde el menú de una tarjeta (pulsación larga).",
     "@kostvMyListEmptyHint": {
         "description": "Kos TV list page: how to add something."
     },
-    "kostvMyListUnavailable": "No se pudo leer tu lista",
+    "kostvMyListUnavailable": "No se pudo leer Quiero verlo",
     "@kostvMyListUnavailable": {
         "description": "Kos TV list page: the server couldn't be asked."
     },
-    "kostvMyListAdd": "Añadir a mi lista",
+    "kostvMyListAdd": "Quiero verlo",
     "@kostvMyListAdd": {
         "description": "Kos TV: card menu action and button tooltip."
     },
-    "kostvMyListRemove": "Quitar de mi lista",
+    "kostvMyListRemove": "Ya no quiero verlo",
     "@kostvMyListRemove": {
         "description": "Kos TV: card menu action and button tooltip."
     },
-    "kostvMyListAdded": "«{title}» está en tu lista",
+    "kostvMyListAdded": "«{title}» apuntada en Quiero verlo",
     "@kostvMyListAdded": {
         "description": "Kos TV: message after adding to the list.",
         "placeholders": {
@@ -13037,7 +13037,7 @@
             }
         }
     },
-    "kostvMyListRemoved": "«{title}» ya no está en tu lista",
+    "kostvMyListRemoved": "«{title}» quitada de Quiero verlo",
     "@kostvMyListRemoved": {
         "description": "Kos TV: message after taking off the list.",
         "placeholders": {
@@ -13222,7 +13222,7 @@
             }
         }
     },
-    "kostvGapWatchOther": "Ver S{season}:E{episode}",
+    "kostvGapWatchOther": "Ver T{season}:E{episode}",
     "@kostvGapWatchOther": {
         "description": "Kos TV player: button that plays the next episode at home when it's in another season.",
         "placeholders": {
@@ -13362,5 +13362,25 @@
     "kostvHomeWhyResume": "Sigue por donde lo dejaste",
     "@kostvHomeWhyResume": {
         "description": "Kos TV Home: line under the Keep watching row."
+    },
+    "kostvSeasonMark": "T",
+    "@kostvSeasonMark": {
+        "description": "Kos TV: the letter for season in an episode short code (T1:E6 in Spanish)."
+    },
+    "kostvOsdMore": "Más",
+    "@kostvOsdMore": {
+        "description": "Kos TV player: the button that opens the rest of the options."
+    },
+    "kostvOsdMoreTitle": "Más opciones",
+    "@kostvOsdMoreTitle": {
+        "description": "Kos TV player: title of the panel with the rest of the options."
+    },
+    "kostvOsdLanguage": "Idioma",
+    "@kostvOsdLanguage": {
+        "description": "Kos TV player: the audio language button."
+    },
+    "kostvOsdPrevious": "Anterior",
+    "@kostvOsdPrevious": {
+        "description": "Kos TV player: go to the previous episode or chapter, in the more options panel."
     }
 }

@@ -39,6 +39,7 @@ import 'playback/track_picker.dart';
 import 'playback/trickplay.dart';
 import 'playback/trickplay_tile_image.dart';
 import 'syncplay/syncplay_player_button.dart';
+import '../../util/episode_code.dart';
 
 /// Whether the video player has been shrunk into the bar along the bottom of
 /// the app. Playback keeps running in [PlaybackManager] the whole time; this
@@ -589,7 +590,7 @@ class _VideoMiniPlayerBarState extends State<_VideoMiniPlayerBar> {
         subtitlePage: null,
       );
     }
-    final number = episode == null ? null : 'S${season ?? '?'}:E$episode';
+    final number = episode == null ? null : '$seasonMark${season ?? '?'}:E$episode';
     final subtitle = [?number, if (name.isNotEmpty) name].join(' - ');
     return (
       title: series,

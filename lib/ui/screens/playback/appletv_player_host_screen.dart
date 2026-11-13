@@ -50,6 +50,7 @@ import '../../../util/platform_detection.dart';
 import 'appletv_playback_prompt_controller.dart';
 import 'episode_browser.dart';
 import 'osd_buttons.dart';
+import '../../../util/episode_code.dart';
 
 class AppleTvPlayerHostScreen extends StatefulWidget {
   const AppleTvPlayerHostScreen({super.key});
@@ -1178,7 +1179,7 @@ class _AppleTvPlayerHostScreenState extends State<AppleTvPlayerHostScreen> {
     if (next is AggregatedItem) {
       nextTitle = next.name;
       nextEpisodeInfo = next.indexNumber != null
-          ? 'S${next.parentIndexNumber ?? '?'}:E${next.indexNumber}'
+          ? '$seasonMark${next.parentIndexNumber ?? '?'}:E${next.indexNumber}'
           : '';
       if (next.primaryImageTag != null) {
         nextImageUrl =
@@ -1304,7 +1305,7 @@ class _AppleTvPlayerHostScreenState extends State<AppleTvPlayerHostScreen> {
     String topSubtitle = '';
     if (item is AggregatedItem) {
       final episodeInfo = item.indexNumber != null
-          ? 'S${item.parentIndexNumber ?? '?'}:E${item.indexNumber}'
+          ? '$seasonMark${item.parentIndexNumber ?? '?'}:E${item.indexNumber}'
           : null;
       final episodeLine = [
         ?episodeInfo,
@@ -1323,7 +1324,7 @@ class _AppleTvPlayerHostScreenState extends State<AppleTvPlayerHostScreen> {
       final series = (item['SeriesName'] as String?) ?? '';
       final idx = item['IndexNumber'];
       final episodeInfo = idx != null
-          ? 'S${item['ParentIndexNumber'] ?? '?'}:E$idx'
+          ? '$seasonMark${item['ParentIndexNumber'] ?? '?'}:E$idx'
           : null;
       final episodeLine = [
         ?episodeInfo,
@@ -1342,7 +1343,7 @@ class _AppleTvPlayerHostScreenState extends State<AppleTvPlayerHostScreen> {
       final series = (meta?['SeriesName'] as String?) ?? '';
       final idx = meta?['IndexNumber'] as int?;
       final parentIdx = meta?['ParentIndexNumber'] as int?;
-      final episodeInfo = idx != null ? 'S${parentIdx ?? '?'}:E$idx' : null;
+      final episodeInfo = idx != null ? '$seasonMark${parentIdx ?? '?'}:E$idx' : null;
       final episodeLine = [
         ?episodeInfo,
         title,

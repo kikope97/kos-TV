@@ -48,6 +48,7 @@ import 'spotlight_landscape_layout.dart';
 import 'spotlight_portrait_layout.dart';
 import 'widgets/spotlight_section_modal.dart';
 import 'widgets/spotlight_summary_card.dart';
+import '../../../../util/episode_code.dart';
 
 /// "Spotlight" detail-screen style: a hero-first layout with Play plus at most
 /// three action buttons (the rest behind an ellipsis menu, ordered by the
@@ -765,7 +766,7 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
           if (item.type == 'Episode') {
             final s = item.parentIndexNumber;
             final e = item.indexNumber;
-            if (s != null && e != null) addText('S$s:E$e');
+            if (s != null && e != null) addText('$seasonMark$s:E$e');
           }
           final runtime = item.runtime;
           if (runtime != null && runtime > Duration.zero && item.type != 'Series') {

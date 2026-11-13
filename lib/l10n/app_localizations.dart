@@ -6227,7 +6227,7 @@ abstract class AppLocalizations {
   /// Explains that transport controls can't be hidden and that the list is per device kind
   ///
   /// In en, this message translates to:
-  /// **'Playback controls are always shown. Everything below is up to you, and each kind of device keeps its own list.'**
+  /// **'Back, play and forward are always shown. The buttons you switch off here aren\'t lost: they move to the «More» button at the end of the row. Each kind of device keeps its own list.'**
   String get osdButtonsSectionDescription;
 
   /// Settings screen for choosing which buttons the details screen shows
@@ -32022,13 +32022,13 @@ abstract class AppLocalizations {
   /// Kos TV: the person's list of what they want to watch.
   ///
   /// In en, this message translates to:
-  /// **'My list'**
+  /// **'Want to watch'**
   String get kostvMyList;
 
   /// Kos TV: the title page button when the title is on the list.
   ///
   /// In en, this message translates to:
-  /// **'On my list'**
+  /// **'Want to watch'**
   String get kostvMyListOn;
 
   /// Kos TV recommended Home: line under the «Mi lista» row.
@@ -32274,7 +32274,7 @@ abstract class AppLocalizations {
   /// Kos TV: last card of the «Mi lista» row, opens the page.
   ///
   /// In en, this message translates to:
-  /// **'See my whole list'**
+  /// **'See all'**
   String get kostvMyListSeeAll;
 
   /// Kos TV: how many titles are on the list.
@@ -32292,7 +32292,7 @@ abstract class AppLocalizations {
   /// Kos TV list page: line under «Continuar viendo».
   ///
   /// In en, this message translates to:
-  /// **'From your list, what you\'re part way through'**
+  /// **'Of what you want to watch, what you\'re part way through'**
   String get kostvMyListWatchingWhy;
 
   /// Kos TV list page: what the person hasn't started.
@@ -32328,55 +32328,55 @@ abstract class AppLocalizations {
   /// Kos TV list page: message after clearing the watched ones.
   ///
   /// In en, this message translates to:
-  /// **'You removed what you\'ve watched from your list'**
+  /// **'You removed what you\'ve watched from Want to watch'**
   String get kostvMyListCleared;
 
   /// Kos TV: the list couldn't be changed.
   ///
   /// In en, this message translates to:
-  /// **'Your list couldn\'t be changed. Try again.'**
+  /// **'Want to watch couldn\'t be changed. Try again.'**
   String get kostvMyListChangeFailed;
 
   /// Kos TV list page: nothing on the list.
   ///
   /// In en, this message translates to:
-  /// **'Your list is empty'**
+  /// **'You haven\'t saved anything yet'**
   String get kostvMyListEmpty;
 
   /// Kos TV list page: how to add something.
   ///
   /// In en, this message translates to:
-  /// **'Save films and series to watch later with the «My list» button on their page or from a card\'s menu (long press).'**
+  /// **'Save films and series to watch later with the «Want to watch» button on their page or from a card\'s menu (long press).'**
   String get kostvMyListEmptyHint;
 
   /// Kos TV list page: the server couldn't be asked.
   ///
   /// In en, this message translates to:
-  /// **'Your list couldn\'t be read'**
+  /// **'Want to watch couldn\'t be read'**
   String get kostvMyListUnavailable;
 
   /// Kos TV: card menu action and button tooltip.
   ///
   /// In en, this message translates to:
-  /// **'Add to my list'**
+  /// **'Want to watch'**
   String get kostvMyListAdd;
 
   /// Kos TV: card menu action and button tooltip.
   ///
   /// In en, this message translates to:
-  /// **'Remove from my list'**
+  /// **'Don\'t want to watch'**
   String get kostvMyListRemove;
 
   /// Kos TV: message after adding to the list.
   ///
   /// In en, this message translates to:
-  /// **'“{title}” is on your list'**
+  /// **'“{title}” saved in Want to watch'**
   String kostvMyListAdded(String title);
 
   /// Kos TV: message after taking off the list.
   ///
   /// In en, this message translates to:
-  /// **'“{title}” is no longer on your list'**
+  /// **'“{title}” removed from Want to watch'**
   String kostvMyListRemoved(String title);
 
   /// Kos TV settings: switch for the intro video when the app opens.
@@ -32732,6 +32732,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pick up where you left off'**
   String get kostvHomeWhyResume;
+
+  /// Kos TV: the letter for season in an episode short code (T1:E6 in Spanish).
+  ///
+  /// In en, this message translates to:
+  /// **'S'**
+  String get kostvSeasonMark;
+
+  /// Kos TV player: the button that opens the rest of the options.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get kostvOsdMore;
+
+  /// Kos TV player: title of the panel with the rest of the options.
+  ///
+  /// In en, this message translates to:
+  /// **'More options'**
+  String get kostvOsdMoreTitle;
+
+  /// Kos TV player: the audio language button.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get kostvOsdLanguage;
+
+  /// Kos TV player: go to the previous episode or chapter, in the more options panel.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get kostvOsdPrevious;
 }
 
 class _AppLocalizationsDelegate

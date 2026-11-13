@@ -2013,9 +2013,10 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: true,
   );
 
+  /// Kos TV: off on a TV, where hardly anyone downloads.
   static final showDownloadsButton = Preference(
     key: 'pref_show_downloads_button',
-    defaultValue: true,
+    defaultValue: !PlatformDetection.isTV,
   );
 
   static final showAlphabeticalFilters = Preference(
@@ -3170,17 +3171,21 @@ class UserPreferences extends ChangeNotifier {
     key: 'hiddenDetailSectionsDesktop',
     defaultValue: '',
   );
+  /// Kos TV: the player's row keeps only what is used all the time
+  /// (subtitles, language, episodes); the rest waits in «Más».
+  static const kostvOsdInMoreByDefault =
+      'favorite,speed,chapters,castAndCrew,quality,zoom,info,floatOnTop';
   static final hiddenOsdButtonsTv = Preference(
     key: 'hiddenOsdButtonsTv',
-    defaultValue: '',
+    defaultValue: kostvOsdInMoreByDefault,
   );
   static final hiddenOsdButtonsMobile = Preference(
     key: 'hiddenOsdButtonsMobile',
-    defaultValue: '',
+    defaultValue: kostvOsdInMoreByDefault,
   );
   static final hiddenOsdButtonsDesktop = Preference(
     key: 'hiddenOsdButtonsDesktop',
-    defaultValue: '',
+    defaultValue: kostvOsdInMoreByDefault,
   );
   static final mediaBarEnabled = Preference(
     key: 'mediaBarEnabled',

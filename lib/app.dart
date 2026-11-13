@@ -79,6 +79,7 @@ import 'util/focus/gamepad/gamepad_navigation_scope.dart';
 import 'util/focus/gamepad/gamepad_key_synthesizer.dart';
 import 'util/focus/open_popup.dart';
 import 'package:custom_tv_text_field/custom_tv_text_field.dart';
+import 'util/episode_code.dart';
 
 class MoonfinApp extends StatefulWidget {
   const MoonfinApp({super.key});
@@ -257,6 +258,8 @@ class _MoonfinAppState extends State<MoonfinApp> {
                   resolveAppUiLocale(locale),
               builder: (context, child) {
                 final l10n = AppLocalizations.of(context);
+                // Kos TV: «T1:E6» in Spanish, «S1:E6» in English.
+                seasonMark = l10n.kostvSeasonMark;
                 CustomKeyboard.strings = KeyboardStrings(
                   space: l10n.keyboardSpace,
                   delete: l10n.delete,

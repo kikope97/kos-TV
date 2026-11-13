@@ -119,6 +119,7 @@ import 'episode_browser.dart';
 import 'episode_browser_panel.dart';
 import 'osd_buttons.dart';
 import 'trickplay_housing_inset.dart';
+import '../../../util/episode_code.dart';
 
 class _SubtitleLoadingSpinner extends StatefulWidget {
   const _SubtitleLoadingSpinner();
@@ -1957,7 +1958,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     String topSubtitle = '';
     if (item is AggregatedItem) {
       final episodeInfo = item.indexNumber != null
-          ? 'S${item.parentIndexNumber ?? '?'}:E${item.indexNumber}'
+          ? '$seasonMark${item.parentIndexNumber ?? '?'}:E${item.indexNumber}'
           : null;
       topSubtitle = item.seriesName ?? '';
       topTitle = [
@@ -1969,7 +1970,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       final series = (item['SeriesName'] as String?) ?? '';
       final idx = item['IndexNumber'];
       final episodeInfo = idx != null
-          ? 'S${item['ParentIndexNumber'] ?? '?'}:E$idx'
+          ? '$seasonMark${item['ParentIndexNumber'] ?? '?'}:E$idx'
           : null;
       topSubtitle = series;
       topTitle = [?episodeInfo, title].where((s) => s.isNotEmpty).join(' - ');
@@ -1979,7 +1980,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       final series = (meta?['SeriesName'] as String?) ?? '';
       final idx = meta?['IndexNumber'] as int?;
       final parentIdx = meta?['ParentIndexNumber'] as int?;
-      final episodeInfo = idx != null ? 'S${parentIdx ?? '?'}:E$idx' : null;
+      final episodeInfo = idx != null ? '$seasonMark${parentIdx ?? '?'}:E$idx' : null;
       topSubtitle = series;
       topTitle = [?episodeInfo, title].where((s) => s.isNotEmpty).join(' - ');
     }
@@ -5231,13 +5232,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       title = item.name;
       seriesName = item.seriesName;
       episodeInfo = item.indexNumber != null
-          ? 'S${item.parentIndexNumber ?? '?'}:E${item.indexNumber}'
+          ? '$seasonMark${item.parentIndexNumber ?? '?'}:E${item.indexNumber}'
           : null;
     } else if (item is Map) {
       title = (item['Name'] ?? '') as String;
       seriesName = item['SeriesName'] as String?;
       episodeInfo = item['IndexNumber'] != null
-          ? 'S${item['ParentIndexNumber'] ?? '?'}:E${item['IndexNumber']}'
+          ? '$seasonMark${item['ParentIndexNumber'] ?? '?'}:E${item['IndexNumber']}'
           : null;
     } else if (item is String) {
       final meta = _manager.currentOfflineMetadata;
@@ -5245,7 +5246,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       seriesName = meta?['SeriesName'] as String?;
       final idx = meta?['IndexNumber'] as int?;
       final parentIdx = meta?['ParentIndexNumber'] as int?;
-      episodeInfo = idx != null ? 'S${parentIdx ?? '?'}:E$idx' : null;
+      episodeInfo = idx != null ? '$seasonMark${parentIdx ?? '?'}:E$idx' : null;
     } else {
       title = item.toString();
       seriesName = null;
@@ -6090,12 +6091,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         landscape: isLandscape,
         scale: _osdButtonScale,
         build: (button, size, extent) => switch (button) {
+          // Kos TV: not drawn any more (see osdDockedTransport).
           OsdTransportButton.previous => _controlButton(
             Icons.skip_previous_rounded,
             onPressed: _manager.previous,
             size: size,
             extent: extent,
-            focusNode: _tvTransportFirstFocus,
             tooltip: l10n.playerTooltipPrevious,
           ),
           OsdTransportButton.seekBack => _controlButton(
@@ -6104,6 +6105,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 _seekRelative(-_prefs.get(UserPreferences.skipBackLength)),
             size: size,
             extent: extent,
+            focusNode: _tvTransportFirstFocus,
             tooltip: _tooltipMessage(
               l10n.playerTooltipSeekBack,
               shortcut: 'Left',
@@ -6135,19 +6137,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 _seekRelative(_prefs.get(UserPreferences.skipForwardLength)),
             size: size,
             extent: extent,
+            focusNode: _tvTransportLastFocus,
             tooltip: _tooltipMessage(
               l10n.playerTooltipSeekForward,
               shortcut: 'Right',
             ),
           ),
-          // Always here, because it steps chapters before it steps the
-          // queue, so it has something to do on a lone movie too.
+          // Kos TV: not drawn any more; «Siguiente episodio» is in the row.
           OsdTransportButton.next => _controlButton(
             Icons.skip_next_rounded,
             onPressed: _manager.next,
             size: size,
             extent: extent,
-            focusNode: _tvTransportLastFocus,
             tooltip: l10n.next,
           ),
         },
@@ -6448,6 +6449,131 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             ),
         };
 
+        // Kos TV: what isn't on the row waits in «Más», never lost. The
+        // buttons the person took off the row are listed there in their
+        // order, with the previous episode (or chapter) first.
+        _OsdMoreEntry? moreOf(OsdButton button) => switch (button) {
+          OsdButton.favorite when canFavorite => _OsdMoreEntry(
+            isFavorite ? Icons.favorite : Icons.favorite_border,
+            isFavorite
+                ? l10n.contextMenuRemoveFromFavorites
+                : l10n.contextMenuAddToFavorites,
+            _toggleCurrentItemFavorite,
+          ),
+          OsdButton.speed => _OsdMoreEntry(
+            Icons.speed_rounded,
+            l10n.playerTooltipPlaybackSpeed,
+            _showSpeedSelector,
+            detail: '${_speedLabel}x',
+          ),
+          OsdButton.chapters when hasChapters => _OsdMoreEntry(
+            Icons.bookmark_outline_rounded,
+            l10n.chapters,
+            _showChapters,
+          ),
+          OsdButton.episodes when canBrowse => _OsdMoreEntry(
+            Icons.video_library_outlined,
+            l10n.episodes,
+            _showEpisodes,
+          ),
+          OsdButton.subtitles when showSubtitleButton => _OsdMoreEntry(
+            subtitleButtonIcon,
+            l10n.subtitles,
+            () => _showTrackSelector(audio: false),
+          ),
+          OsdButton.audio when showAudioButton => _OsdMoreEntry(
+            Icons.audiotrack_outlined,
+            l10n.kostvOsdLanguage,
+            () => _showTrackSelector(audio: true),
+          ),
+          OsdButton.castAndCrew when hasCast => _OsdMoreEntry(
+            Icons.people_outline_rounded,
+            l10n.castAndCrew,
+            () => unawaited(_showCast()),
+          ),
+          OsdButton.cast when !PlatformDetection.isTV => _OsdMoreEntry(
+            Icons.cast,
+            l10n.cast,
+            _castToDevice,
+          ),
+          OsdButton.quality => _OsdMoreEntry(
+            Icons.video_settings_outlined,
+            l10n.playerTooltipPlaybackQuality,
+            _showBitrateSelector,
+            detail: switch (_manager.maxBitrateOverrideMbps) {
+              null => l10n.auto,
+              final mbps => l10n.bitrateValueMbps(mbps),
+            },
+          ),
+          OsdButton.zoom => _letterboxCropOsd
+              ? _OsdMoreEntry(
+                  Icons.crop_16_9_outlined,
+                  l10n.shortcutRecropBlackBars,
+                  _recropBlackBarsFromUi,
+                )
+              : _OsdMoreEntry(
+                  osdZoomIcon(_zoomMode),
+                  l10n.playerZoomMode,
+                  _cyclePlayerZoom,
+                  detail: _zoomModeLabel(l10n, _zoomMode),
+                ),
+          OsdButton.orientation when PlatformDetection.isMobile =>
+            _OsdMoreEntry(
+              _forcedLandscape
+                  ? Icons.screen_lock_landscape_outlined
+                  : Icons.screen_rotation_outlined,
+              _forcedLandscape
+                  ? l10n.playerTooltipUnlockOrientation
+                  : l10n.playerTooltipLockLandscape,
+              _toggleOrientationLock,
+            ),
+          OsdButton.info => _OsdMoreEntry(
+            Icons.info_outline_rounded,
+            l10n.playbackInformation,
+            _showStreamInfo,
+          ),
+          OsdButton.fullscreen when PlatformDetection.useDesktopUi =>
+            _OsdMoreEntry(
+              _isDesktopFullscreen
+                  ? Icons.fullscreen_exit_rounded
+                  : Icons.fullscreen_rounded,
+              _isDesktopFullscreen
+                  ? l10n.playerTooltipExitFullscreen
+                  : l10n.playerTooltipEnterFullscreen,
+              () => unawaited(_toggleDesktopFullscreen()),
+            ),
+          OsdButton.floatOnTop
+              when PlatformDetection.useDesktopUi &&
+                  !PlatformDetection.isWeb &&
+                  !_isDesktopFullscreen =>
+            _OsdMoreEntry(
+              _isAlwaysOnTop ? Icons.push_pin : Icons.push_pin_outlined,
+              _isAlwaysOnTop
+                  ? l10n.playerTooltipExitFloatOnTop
+                  : l10n.playerTooltipFloatOnTop,
+              () => unawaited(_toggleAlwaysOnTop()),
+            ),
+          _ => null,
+        };
+        final isEpisode =
+            item is AggregatedItem
+                ? item.type == 'Episode'
+                : (item is Map && item['Type'] == 'Episode');
+        final moreEntries = <_OsdMoreEntry>[
+          if (_queue.hasPrevious || hasChapters)
+            _OsdMoreEntry(
+              Icons.skip_previous_rounded,
+              l10n.kostvOsdPrevious,
+              _manager.previous,
+            ),
+          for (final button in osdButtonLayout.ordered(
+            OsdButton.values,
+            (button) => button.id,
+            _prefs,
+          ))
+            if (!shows(button) && button.isOffered) ?moreOf(button),
+        ];
+
         final secondaryButtons = _wireTvSecondaryEnds([
           for (final button in osdButtonLayout.ordered(
             OsdButton.values,
@@ -6455,6 +6581,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             _prefs,
           ))
             ?byButton[button],
+          // Kos TV: the next episode, in sight, when there is one.
+          if (_queue.hasNext)
+            _controlButton(
+              Icons.skip_next_rounded,
+              onPressed: _manager.next,
+              size: secondaryIconSize,
+              extent: secondaryExtent,
+              tooltip: isEpisode ? l10n.nextEpisode : l10n.next,
+            ),
+          if (moreEntries.isNotEmpty)
+            _controlButton(
+              Icons.more_horiz_rounded,
+              onPressed: () => _showMoreOptions(moreEntries),
+              size: secondaryIconSize,
+              extent: secondaryExtent,
+              tooltip: l10n.kostvOsdMore,
+            ),
         ]);
 
         final orderedSecondaryButtons = PlatformDetection.isTV
@@ -7703,6 +7846,29 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _showControls();
   }
 
+  /// Kos TV: «Más», the options that aren't on the row.
+  void _showMoreOptions(List<_OsdMoreEntry> entries) {
+    final l10n = AppLocalizations.of(context);
+    unawaited(() async {
+      final picked = await TrackSelectorDialog.show(
+        context,
+        title: l10n.kostvOsdMoreTitle,
+        options: [
+          for (final entry in entries)
+            TrackOption(
+              label: entry.label,
+              subtitle: entry.detail,
+              icon: entry.icon,
+            ),
+        ],
+      );
+      if (picked == null || !mounted) return;
+      entries[picked].action();
+      _showControls();
+    }());
+    _showControls();
+  }
+
   void _showBitrateSelector() {
     final l10n = AppLocalizations.of(context);
     final options = <int?>[null, 40, 20, 12, 8, 4, 2];
@@ -8600,6 +8766,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     );
     _showControls();
   }
+}
+
+/// Kos TV: one option of the player's «Más».
+class _OsdMoreEntry {
+  const _OsdMoreEntry(this.icon, this.label, this.action, {this.detail});
+
+  final IconData icon;
+  final String label;
+
+  /// What it is set to now, when it has a value (the speed, the quality…).
+  final String? detail;
+  final VoidCallback action;
 }
 
 class _TvFocusButton extends StatefulWidget {

@@ -130,6 +130,7 @@ import '../../../util/platform_detection.dart';
 import '../../../util/signed_in_server_features.dart';
 import 'detail_layout_metrics.dart';
 import 'play_item_on_screen.dart';
+import '../../../util/episode_code.dart';
 
 const _textShadows = [Shadow(blurRadius: 4, color: Colors.black54)];
 
@@ -3747,7 +3748,7 @@ class _HeaderSection extends StatelessWidget {
                       borderRadius: AppRadius.circular(12),
                     ),
                     child: Text(
-                      'S${item.parentIndexNumber}E${item.indexNumber}',
+                      '$seasonMark${item.parentIndexNumber}E${item.indexNumber}',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: Colors.white.withValues(alpha: 0.9),
                         fontWeight: FontWeight.w600,
@@ -15310,7 +15311,7 @@ class DetailNextUpCardState extends State<DetailNextUpCard>
     final desktopScale = _desktopUiScale();
     final s = episode.parentIndexNumber;
     final e = episode.indexNumber;
-    final label = s != null && e != null ? 'S$s:E$e' : null;
+    final label = s != null && e != null ? '$seasonMark$s:E$e' : null;
     final subtitle = [?label, episode.name].join(' - ');
 
     final isMobile = _isCompact(context);
@@ -16460,7 +16461,7 @@ class FilmographyRow extends StatelessWidget {
             final s = item.parentIndexNumber;
             final e = item.indexNumber;
             final episodeInfo = switch ((s, e)) {
-              (final season?, final episode?) => 'S$season:E$episode',
+              (final season?, final episode?) => '$seasonMark$season:E$episode',
               _ => null,
             };
             title = item.seriesName ?? item.name;
@@ -17293,7 +17294,7 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
             final e = widget.track.indexNumber;
             final epName = widget.track.name;
             final episodeInfo = switch ((s, e)) {
-              (final season?, final episode?) => 'S$season:E$episode',
+              (final season?, final episode?) => '$seasonMark$season:E$episode',
               _ => null,
             };
             if (episodeInfo != null) {

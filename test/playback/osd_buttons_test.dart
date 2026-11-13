@@ -23,15 +23,26 @@ void main() {
 
   tearDown(() => PlatformDetection.setTvMode(false));
 
+  test('keeps only subtitles, language and episodes on the row by default '
+      '(Kos TV: the rest waits in «Más»)', () async {
+    expect(visibleOsdButtonIds(prefs), [
+      OsdButton.syncPlay.id,
+      OsdButton.subtitles.id,
+      OsdButton.audio.id,
+      OsdButton.episodes.id,
+    ]);
+  });
+
   test('offers every button a TV can draw and no others', () async {
+    await prefs.set(UserPreferences.hiddenOsdButtonsTv, '');
     expect(visibleOsdButtonIds(prefs), [
       OsdButton.syncPlay.id,
       OsdButton.favorite.id,
       OsdButton.speed.id,
       OsdButton.chapters.id,
-      OsdButton.episodes.id,
       OsdButton.subtitles.id,
       OsdButton.audio.id,
+      OsdButton.episodes.id,
       OsdButton.castAndCrew.id,
       OsdButton.quality.id,
       OsdButton.zoom.id,
@@ -64,11 +75,11 @@ void main() {
         // Never placed and declared before anything that was, so they stay put.
         OsdButton.syncPlay.id,
         OsdButton.chapters.id,
-        OsdButton.episodes.id,
         OsdButton.info.id,
         OsdButton.subtitles.id,
         // These follow the button they were declared after.
         OsdButton.audio.id,
+        OsdButton.episodes.id,
         OsdButton.castAndCrew.id,
         OsdButton.quality.id,
         OsdButton.zoom.id,

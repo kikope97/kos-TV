@@ -15,6 +15,7 @@ import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../widgets/bounded_network_image.dart';
 import '../../widgets/kostv_favorites_shortcut.dart';
+import '../../../util/episode_code.dart';
 
 /// Kos TV: what a piece of news says under the series' name: the new season,
 /// or how many episodes arrived.
@@ -184,7 +185,7 @@ class _KostvFavoritesNewsHeroState extends State<KostvFavoritesNewsHero> {
     final episode = news.episode;
     final number =
         episode.parentIndexNumber != null && episode.indexNumber != null
-        ? 'T${episode.parentIndexNumber}:E${episode.indexNumber}'
+        ? '$seasonMark${episode.parentIndexNumber}:E${episode.indexNumber}'
         : null;
     final episodeLine = [
       number,

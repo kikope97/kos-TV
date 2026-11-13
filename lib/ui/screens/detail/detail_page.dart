@@ -16,6 +16,7 @@ import 'detail_layout_metrics.dart';
 import 'item_detail_screen.dart';
 import 'minimalist/widgets/minimalist_episodes_section.dart';
 import 'stage/stage_track_chips.dart';
+import '../../../util/episode_code.dart';
 
 /// One part of a detail page and the node D-pad focus enters it by, or none
 /// when nothing in it takes focus.
@@ -315,7 +316,7 @@ mixin DetailPage<T extends StatefulWidget> on State<T> {
     final season = item.parentIndexNumber;
     final episode = item.indexNumber;
     if (season == null || episode == null) return null;
-    return 'S$season:E$episode';
+    return '$seasonMark$season:E$episode';
   }
 
   /// The season tabs over the episode rail.

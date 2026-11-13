@@ -19,9 +19,10 @@ enum OsdButton {
   favorite('favorite'),
   speed('speed'),
   chapters('chapters'),
-  episodes('episodes'),
+  // Kos TV: subtitles and language first, then the episodes.
   subtitles('subtitles'),
   audio('audio'),
+  episodes('episodes'),
   castAndCrew('castAndCrew'),
   cast('cast'),
   // Follows the cast switch and sits beside it in the row, so it gets no
@@ -79,7 +80,7 @@ enum OsdButton {
     OsdButton.chapters => l10n.chapters,
     OsdButton.episodes => l10n.episodes,
     OsdButton.subtitles => l10n.subtitles,
-    OsdButton.audio => l10n.audio,
+    OsdButton.audio => l10n.kostvOsdLanguage,
     OsdButton.castAndCrew => l10n.castAndCrew,
     OsdButton.cast => l10n.cast,
     OsdButton.castControls => l10n.playerTooltipCastControls,
@@ -146,14 +147,14 @@ Widget osdCenterTransport(double scale, OsdTransportBuilder build) {
   return Row(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
+      // Kos TV: back, play and forward, nothing else; the next episode is
+      // in the row below and the previous one in «Más».
       side(Alignment.centerRight, [
-        build(OsdTransportButton.previous, 40 * scale, 72 * scale),
         build(OsdTransportButton.seekBack, 46 * scale, 78 * scale),
       ]),
       build(OsdTransportButton.playPause, 64 * scale, 92 * scale),
       side(Alignment.centerLeft, [
         build(OsdTransportButton.seekForward, 46 * scale, 78 * scale),
-        build(OsdTransportButton.next, 40 * scale, 72 * scale),
       ]),
     ],
   );
@@ -175,22 +176,18 @@ Widget osdDockedTransport({
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
-        button(OsdTransportButton.previous),
-        const SizedBox(width: 4),
         button(OsdTransportButton.seekBack),
         const SizedBox(width: 8),
         button(OsdTransportButton.playPause),
         const SizedBox(width: 8),
         button(OsdTransportButton.seekForward),
-        const SizedBox(width: 4),
-        button(OsdTransportButton.next),
       ],
     ),
   );
 }
 
 /// The extra buttons spread along the row when they all fit in landscape,
-/// packed to the start on a TV, and scrolling sideways when they don't.
+/// packed to the end on a TV, and scrolling sideways when they don't.
 Widget osdButtonRow({
   required List<Widget> buttons,
   required double extent,
@@ -203,8 +200,10 @@ Widget osdButtonRow({
         return SizedBox(
           height: extent,
           child: Row(
+            // Kos TV: on a TV, at the right end, apart from back, play and
+            // forward on the left, as the streaming apps do.
             mainAxisAlignment: PlatformDetection.isTV
-                ? MainAxisAlignment.start
+                ? MainAxisAlignment.end
                 : MainAxisAlignment.spaceEvenly,
             children: buttons,
           ),

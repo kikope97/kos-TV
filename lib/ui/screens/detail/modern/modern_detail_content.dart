@@ -82,6 +82,7 @@ import 'widgets/season_card.dart';
 import 'widgets/up_next_card.dart';
 import '../../../widgets/overlay_sheet.dart';
 import '../../../widgets/detail_reviews.dart';
+import '../../../../util/episode_code.dart';
 
 double _desktopUiScale({UserPreferences? prefs}) {
   final effectivePrefs = prefs ?? GetIt.instance<UserPreferences>();
@@ -4590,7 +4591,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
             final s = item.parentIndexNumber;
             final e = item.indexNumber;
             if (s != null && e != null) {
-              addText('S$s:E$e');
+              addText('$seasonMark$s:E$e');
             }
           }
           var runtime = _runtimeForItem(item, selectedMediaSource);
@@ -4826,7 +4827,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
 
     final s = episode.parentIndexNumber;
     final e = episode.indexNumber;
-    final code = (s != null && e != null) ? 'S$s:E$e' : null;
+    final code = (s != null && e != null) ? '$seasonMark$s:E$e' : null;
     final title = code != null ? '$code - ${episode.name}' : episode.name;
     final combinedLabel = customLabel != null
         ? '$customLabel - ${episode.name}'

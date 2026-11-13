@@ -3643,7 +3643,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get osdButtonsSectionDescription =>
-      'Los controles de reproducción se muestran siempre. Todo lo demás lo decides tú, y cada tipo de dispositivo guarda su propia lista.';
+      'Atrasar, reproducir y adelantar se muestran siempre. Los botones que apagues aquí no se pierden: pasan al botón «Más» del final de la fila. Cada tipo de dispositivo guarda su propia lista.';
 
   @override
   String get detailButtons => 'Botones de acción';
@@ -18902,10 +18902,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvUndo => 'Deshacer';
 
   @override
-  String get kostvMyList => 'Mi lista';
+  String get kostvMyList => 'Quiero verlo';
 
   @override
-  String get kostvMyListOn => 'En mi lista';
+  String get kostvMyListOn => 'Quiero verlo';
 
   @override
   String get kostvMyListWhy =>
@@ -19069,7 +19069,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvShuffleMore => 'Más aleatorio';
 
   @override
-  String get kostvMyListSeeAll => 'Ver toda mi lista';
+  String get kostvMyListSeeAll => 'Ver todo';
 
   @override
   String kostvMyListCount(int count) {
@@ -19086,7 +19086,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvMyListWatching => 'Continuar viendo';
 
   @override
-  String get kostvMyListWatchingWhy => 'De tu lista, lo que tienes a medias';
+  String get kostvMyListWatchingWhy =>
+      'De lo que quieres ver, lo que tienes a medias';
 
   @override
   String get kostvMyListToStart => 'Por empezar';
@@ -19105,36 +19106,37 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvMyListClearWatched => 'Quitar las vistas';
 
   @override
-  String get kostvMyListCleared => 'Has quitado de tu lista lo que ya viste';
+  String get kostvMyListCleared =>
+      'Has quitado de Quiero verlo lo que ya viste';
 
   @override
   String get kostvMyListChangeFailed =>
-      'No se pudo cambiar tu lista. Inténtalo de nuevo.';
+      'No se pudo cambiar Quiero verlo. Inténtalo de nuevo.';
 
   @override
-  String get kostvMyListEmpty => 'Tu lista está vacía';
+  String get kostvMyListEmpty => 'Aún no has apuntado nada';
 
   @override
   String get kostvMyListEmptyHint =>
-      'Guarda películas y series para ver más tarde con el botón «Mi lista» de su ficha o desde el menú de una tarjeta (pulsación larga).';
+      'Apunta películas y series para ver más tarde con el botón «Quiero verlo» de su ficha o desde el menú de una tarjeta (pulsación larga).';
 
   @override
-  String get kostvMyListUnavailable => 'No se pudo leer tu lista';
+  String get kostvMyListUnavailable => 'No se pudo leer Quiero verlo';
 
   @override
-  String get kostvMyListAdd => 'Añadir a mi lista';
+  String get kostvMyListAdd => 'Quiero verlo';
 
   @override
-  String get kostvMyListRemove => 'Quitar de mi lista';
+  String get kostvMyListRemove => 'Ya no quiero verlo';
 
   @override
   String kostvMyListAdded(String title) {
-    return '«$title» está en tu lista';
+    return '«$title» apuntada en Quiero verlo';
   }
 
   @override
   String kostvMyListRemoved(String title) {
-    return '«$title» ya no está en tu lista';
+    return '«$title» quitada de Quiero verlo';
   }
 
   @override
@@ -19277,7 +19279,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String kostvGapWatchOther(int season, int episode) {
-    return 'Ver S$season:E$episode';
+    return 'Ver T$season:E$episode';
   }
 
   @override
@@ -19370,4 +19372,19 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvHomeWhyResume => 'Sigue por donde lo dejaste';
+
+  @override
+  String get kostvSeasonMark => 'T';
+
+  @override
+  String get kostvOsdMore => 'Más';
+
+  @override
+  String get kostvOsdMoreTitle => 'Más opciones';
+
+  @override
+  String get kostvOsdLanguage => 'Idioma';
+
+  @override
+  String get kostvOsdPrevious => 'Anterior';
 }

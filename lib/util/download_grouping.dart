@@ -1,4 +1,5 @@
 import '../data/database/offline_database.dart';
+import 'episode_code.dart';
 
 /// One row in the saved media list. A movie or a track stands on its own, and
 /// every episode saved from the same series is collected under one entry so the
@@ -95,8 +96,8 @@ String? episodeNumberLabel(DownloadedItem item) {
   final episode = item.indexNumber;
   if (season == null && episode == null) return null;
   if (season == null) return 'E$episode';
-  if (episode == null) return 'S$season';
-  return 'S$season E$episode';
+  if (episode == null) return '$seasonMark$season';
+  return '$seasonMark$season E$episode';
 }
 
 /// What a system notification calls a download: "Series S1E1" for a
@@ -112,5 +113,5 @@ String downloadNotificationLabel({
   if (series == null || series.isEmpty || season == null || episode == null) {
     return name;
   }
-  return '$series S${season}E$episode';
+  return '$series $seasonMark${season}E$episode';
 }

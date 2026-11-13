@@ -113,6 +113,7 @@ import '../watch_party/watch_together_route.dart';
 import '../syncplay/syncplay_screen.dart';
 import '../../widgets/skeleton/skeleton_home_row.dart';
 import '../../widgets/skeleton/skeleton_shimmer.dart';
+import '../../../util/episode_code.dart';
 
 Color get _homeBackground => AppColorScheme.background;
 
@@ -6068,7 +6069,7 @@ class _ContentRowsState extends State<_ContentRows>
             final s = item.parentIndexNumber;
             final e = item.indexNumber;
             final episodeInfo = switch ((s, e)) {
-              (final season?, final episode?) => 'S$season:E$episode',
+              (final season?, final episode?) => '$seasonMark$season:E$episode',
               _ => null,
             };
             cardTitle = item.seriesName ?? item.name;

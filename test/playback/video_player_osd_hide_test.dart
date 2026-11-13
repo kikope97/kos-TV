@@ -684,7 +684,10 @@ void main() {
     ]);
     await mountPlayer(tester);
     manager.state.setPosition(const Duration(minutes: 3));
-    await tester.tap(find.byIcon(Icons.bookmark_outline_rounded));
+    // Kos TV: chapters wait in «Más», the last button of the row.
+    await tester.tap(find.byIcon(Icons.more_horiz_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Chapters'));
     await tester.pumpAndSettle();
 
     final row = tester.widget<ListView>(

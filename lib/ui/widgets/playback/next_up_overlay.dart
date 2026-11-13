@@ -19,6 +19,7 @@ import '../../../util/date_format_util.dart';
 import '../../../util/platform_detection.dart';
 import '../adaptive/adaptive_glass.dart';
 import '../anime_marker_badge.dart';
+import '../../../util/episode_code.dart';
 
 class NextUpOverlay extends StatefulWidget {
   final AggregatedItem? nextItem;
@@ -155,9 +156,9 @@ class _NextUpOverlayState extends State<NextUpOverlay>
     final tvFocusMode =
         widget.focusNode != null || widget.dismissFocusNode != null;
     final epInfo = airDate != null
-        ? 'S${airDate.seasonNumber}:E${airDate.episodeNumber}'
+        ? '$seasonMark${airDate.seasonNumber}:E${airDate.episodeNumber}'
         : item!.indexNumber != null
-        ? 'S${item.parentIndexNumber ?? '?'}:E${item.indexNumber}'
+        ? '$seasonMark${item.parentIndexNumber ?? '?'}:E${item.indexNumber}'
         : null;
 
     final prefs = GetIt.instance<UserPreferences>();
