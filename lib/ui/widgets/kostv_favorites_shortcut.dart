@@ -64,7 +64,11 @@ class KostvFavoritesButton extends StatefulWidget {
     this.focusNode,
     this.onDown,
     this.background,
+    this.badgeCount = 0,
   });
+
+  /// Favourite series with news not seen yet.
+  final int badgeCount;
 
   final double size;
   final VoidCallback onPressed;
@@ -145,7 +149,22 @@ class _KostvFavoritesButtonState extends State<KostvFavoritesButton> {
                 child: SizedBox(
                   width: size + 8,
                   height: size + 8,
-                  child: Center(child: circle),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    alignment: Alignment.center,
+                    children: [
+                      circle,
+                      if (widget.badgeCount > 0)
+                        Positioned(
+                          top: -1,
+                          right: -1,
+                          child: KostvCountBadge(
+                            count: widget.badgeCount,
+                            size: size * 0.46,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -154,4 +173,37 @@ class _KostvFavoritesButtonState extends State<KostvFavoritesButton> {
       ),
     );
   }
+}
+
+/// Kos TV: a small red count, for news waiting behind a round button.
+class KostvCountBadge extends StatelessWidget {
+  const KostvCountBadge({super.key, required this.count, required this.size});
+
+  final int count;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    constraints: BoxConstraints(minWidth: size, minHeight: size),
+    padding: EdgeInsets.symmetric(horizontal: size * 0.22),
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: const Color(0xFFE5484D),
+      borderRadius: BorderRadius.circular(size),
+      border: Border.all(
+        color: Colors.black.withValues(alpha: 0.6),
+        width: 1.5,
+      ),
+      boxShadow: const [BoxShadow(color: Colors.black45, blurRadius: 4)],
+    ),
+    child: Text(
+      count > 9 ? '9+' : '$count',
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: size * 0.62,
+        fontWeight: FontWeight.w800,
+        height: 1.1,
+      ),
+    ),
+  );
 }

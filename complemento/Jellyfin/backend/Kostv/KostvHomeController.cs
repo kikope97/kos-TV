@@ -63,6 +63,9 @@ public class KostvHomeController : ControllerBase
         // With the first rows: the new episodes of what they follow, read now so one shows as it
         // lands, and what they turned down, for the rows the app makes itself.
         var first = start == 0;
+        var (newEpisodes, favoriteSeries) = first
+            ? _home.NewEpisodes(user, page)
+            : ([], new HashSet<Guid>());
         return Ok(new
         {
             Rows = rows,
@@ -70,8 +73,12 @@ public class KostvHomeController : ControllerBase
             Total = page.Rows.Count,
             page.Tmdb,
             NewEpisodes = first
-                ? _home.NewEpisodes(user, page).Where(item => UserReflection.IsVisibleTo(item, user)).Select(item => _cards.Map(item, user)).ToList()
+                ? newEpisodes.Where(item => UserReflection.IsVisibleTo(item, user)).Select(item => _cards.Map(item, user)).ToList()
                 : null,
+            // Of those, the series the person marked as favourite, to show it on their cards.
+            FavoriteSeriesIds = first ? favoriteSeries.Select(id => id.ToString("N")).ToList() : null,
+            // Favourites to watch again, for the row near the end.
+            Rewatch = first ? Cards(_home.Rewatch(userId.Value, user), user) : null,
             Hidden = first ? _home.Hidden(userId.Value, page).Select(id => id.ToString("N")).ToList() : null,
             // Their list: what they haven't started, for its row, and every id, for the buttons.
             MyList = first ? Cards(_home.MyList(userId.Value, user).ToStart.Take(20), user) : null,

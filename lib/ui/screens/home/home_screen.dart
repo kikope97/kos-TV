@@ -6342,6 +6342,7 @@ class _ContentRowsState extends State<_ContentRows>
               : KostvHomeCardTag(
                   rank: kostvStyle.ranked && idx < 10 ? idx + 1 : null,
                   label: kostvStyle.fresh ? l10n.kostvHomeNewTag : null,
+                  heart: KostvHomeRepository.isOfFavoriteSeries(item),
                   color: kostvStyle.color,
                   imageHeight: isRowsV2
                       ? v2ImageHeight

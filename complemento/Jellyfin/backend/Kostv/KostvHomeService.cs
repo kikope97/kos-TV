@@ -131,6 +131,7 @@ public sealed class KostvHomeService
     private readonly KostvTasteCache _cache;
     private readonly KostvDismissals _dismissals;
     private readonly KostvMyList _myList;
+    private readonly KostvFavoriteDates _favorites;
     private readonly ILogger<KostvHomeService> _logger;
 
     /// <summary>How many of the titles turned down lately TMDB is asked about, to rank what is like them lower.</summary>
@@ -151,8 +152,10 @@ public sealed class KostvHomeService
         KostvTasteCache cache,
         KostvDismissals dismissals,
         KostvMyList myList,
+        KostvFavoriteDates favorites,
         ILogger<KostvHomeService> logger)
     {
+        _favorites = favorites;
         _dismissals = dismissals;
         _myList = myList;
         _libraryManager = libraryManager;
@@ -303,27 +306,38 @@ public sealed class KostvHomeService
             .ToList();
 
     /// <summary>
-    /// New episodes of the series the person follows: added in the last two weeks, not seen,
-    /// of a series they have watched some of. One per series, the first of its new ones, the
-    /// series with the latest arrival first. Read each time, so an episode shows as it lands.
+    /// New episodes of the series the person follows: not seen, of a favourite series (added in
+    /// the last <see cref="KostvFavoritesEngine.NewsWindow"/>) or of one they have watched some of
+    /// (the last <see cref="NewEpisodeWindow"/>). One per series, the first of its new ones; the
+    /// favourites first, then the rest, each the latest arrival first. Read each time, so an
+    /// episode shows as it lands. Also says which of those series are favourites.
     /// </summary>
-    public IReadOnlyList<BaseItem> NewEpisodes(object user, KostvHomePage page, int max = 20)
+    public (IReadOnlyList<BaseItem> Episodes, IReadOnlySet<Guid> Favorites) NewEpisodes(object user, KostvHomePage page, int max = 20)
     {
-        var followed = page.Followed;
-        if (followed == null || followed.Count == 0)
+        var followed = page.Followed ?? new HashSet<Guid>();
+        var favorites = FavoriteSeries(user);
+        if (followed.Count == 0 && favorites.Count == 0)
         {
-            return [];
+            return ([], favorites);
         }
 
-        var since = DateTime.UtcNow - NewEpisodeWindow;
+        var now = DateTime.UtcNow;
+        var since = now - (KostvFavoritesEngine.NewsWindow > NewEpisodeWindow ? KostvFavoritesEngine.NewsWindow : NewEpisodeWindow);
         var bySeries = new Dictionary<Guid, (Episode First, DateTime Latest)>();
         foreach (var item in Query(user, [BaseItemKind.Episode], q =>
         {
             q.IsPlayed = false;
             q.MinDateCreated = since;
-        }, 300, ItemSortBy.DateCreated))
+        }, 500, ItemSortBy.DateCreated))
         {
-            if (item is not Episode { SeriesId: var seriesId } episode || !followed.Contains(seriesId))
+            if (item is not Episode { SeriesId: var seriesId } episode)
+            {
+                continue;
+            }
+
+            var favorite = favorites.Contains(seriesId);
+            var window = favorite ? KostvFavoritesEngine.NewsWindow : NewEpisodeWindow;
+            if ((!favorite && !followed.Contains(seriesId)) || now - episode.DateCreated > window)
             {
                 continue;
             }
@@ -339,11 +353,13 @@ public sealed class KostvHomeService
             bySeries[seriesId] = (earlier ? episode : had.First, had.Latest > episode.DateCreated ? had.Latest : episode.DateCreated);
         }
 
-        return bySeries.Values
-            .OrderByDescending(v => v.Latest)
+        var episodes = bySeries
+            .OrderByDescending(kv => favorites.Contains(kv.Key))
+            .ThenByDescending(kv => kv.Value.Latest)
             .Take(max)
-            .Select(v => (BaseItem)v.First)
+            .Select(kv => (BaseItem)kv.Value.First)
             .ToList();
+        return (episodes, favorites);
     }
 
     /// <summary>
@@ -554,6 +570,156 @@ public sealed class KostvHomeService
         {
             return null;
         }
+    }
+
+    // ---------------------------------------------------------------- favourites
+
+    /// <summary>The series the person marked as favourite.</summary>
+    private HashSet<Guid> FavoriteSeries(object user) =>
+        Query(user, [BaseItemKind.Series], q => q.IsFavorite = true)
+            .Select(i => i.Id)
+            .ToHashSet();
+
+    /// <summary>
+    /// The person's favourites of <paramref name="kinds"/>, newest marked first (or the other way
+    /// with <paramref name="ascending"/>): <paramref name="limit"/> of them from
+    /// <paramref name="start"/>, and how many there are.
+    /// </summary>
+    public (IReadOnlyList<BaseItem> Items, int Total) FavoritesByAdded(
+        Guid userId,
+        object user,
+        BaseItemKind[] kinds,
+        int start,
+        int limit,
+        bool ascending)
+    {
+        var all = Query(user, kinds, q => q.IsFavorite = true, 5000)
+            .Where(i => UserReflection.IsVisibleTo(i, user))
+            .ToList();
+        var since = _favorites.Since(userId);
+        var byId = all.ToDictionary(i => i.Id.ToString("N"), StringComparer.Ordinal);
+        var order = KostvFavoritesEngine.ByFavorited(
+            all.Select(i =>
+            {
+                var id = i.Id.ToString("N");
+                return new KostvFavoriteEntry(id, since.TryGetValue(id, out var at) ? at : null, i.DateCreated);
+            }),
+            ascending);
+        var page = order.Skip(Math.Max(0, start)).Take(Math.Clamp(limit, 1, 200)).Select(id => byId[id]).ToList();
+        return (page, order.Count);
+    }
+
+    /// <summary>
+    /// What arrived lately of the person's favourite series: for each, the first new episode,
+    /// how many, whether it opens a new season, and whether it came after they last looked.
+    /// </summary>
+    public IReadOnlyList<(KostvSeriesNews News, BaseItem Series, BaseItem Episode)> FavoriteNews(Guid userId, object user)
+    {
+        var favorites = FavoriteSeries(user);
+        if (favorites.Count == 0)
+        {
+            return [];
+        }
+
+        var since = DateTime.UtcNow - KostvFavoritesEngine.NewsWindow;
+        var episodes = Query(user, [BaseItemKind.Episode], q =>
+            {
+                q.IsPlayed = false;
+                q.MinDateCreated = since;
+            }, 500, ItemSortBy.DateCreated)
+            .OfType<Episode>()
+            .Where(e => favorites.Contains(e.SeriesId))
+            .ToList();
+        if (episodes.Count == 0)
+        {
+            return [];
+        }
+
+        // A season counts as new when none of it is older than the window.
+        var oldSeasons = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var seasonId in episodes.Select(e => e.SeasonId).Where(id => id != Guid.Empty).Distinct())
+        {
+            var older = Query(user, [BaseItemKind.Episode], q => q.AncestorIds = [seasonId], 400)
+                .Any(e => e.DateCreated < since);
+            if (older)
+            {
+                oldSeasons.Add(seasonId.ToString("N"));
+            }
+        }
+
+        var byId = episodes.ToDictionary(e => e.Id.ToString("N"), StringComparer.Ordinal);
+        var news = KostvFavoritesEngine.News(
+            episodes.Select(e => new KostvNewEpisode(
+                e.Id.ToString("N"),
+                e.SeriesId.ToString("N"),
+                e.SeasonId.ToString("N"),
+                e.ParentIndexNumber ?? 0,
+                e.IndexNumber ?? 0,
+                e.DateCreated)),
+            oldSeasons,
+            _favorites.NewsSeenAt(userId));
+        var found = new List<(KostvSeriesNews, BaseItem, BaseItem)>();
+        foreach (var item in news)
+        {
+            if (Guid.TryParse(item.SeriesId, out var seriesId) &&
+                _libraryManager.GetItemById(seriesId) is { } series &&
+                UserReflection.IsVisibleTo(series, user) &&
+                byId.TryGetValue(item.FirstEpisodeId, out var episode))
+            {
+                found.Add((item, series, episode));
+            }
+        }
+
+        return found;
+    }
+
+    /// <summary>The person has seen the news of their favourite series.</summary>
+    public async Task FavoriteNewsSeenAsync(Guid userId)
+    {
+        _favorites.NewsSeen(userId, DateTimeOffset.UtcNow);
+        await _favorites.FlushAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Favourite films and series to offer again: watched long ago, or marked and never started.
+    /// A different few each day.
+    /// </summary>
+    public IReadOnlyList<BaseItem> Rewatch(Guid userId, object user, int max = 20)
+    {
+        var since = _favorites.Since(userId);
+        var items = Query(user, [BaseItemKind.Movie, BaseItemKind.Series], q => q.IsFavorite = true, 2000)
+            .Where(i => UserReflection.IsVisibleTo(i, user))
+            .ToList();
+        var candidates = new List<KostvRewatchCandidate>();
+        foreach (var item in items)
+        {
+            var id = item.Id.ToString("N");
+            DateTime? lastPlayed;
+            bool started;
+            if (item is Series)
+            {
+                var last = Query(user, [BaseItemKind.Episode], q =>
+                {
+                    q.IsPlayed = true;
+                    q.AncestorIds = [item.Id];
+                }, 1, ItemSortBy.DatePlayed).FirstOrDefault();
+                lastPlayed = last == null ? null : LastPlayed(user, last);
+                started = last != null;
+            }
+            else
+            {
+                var data = UserDataOf(user, item);
+                lastPlayed = data is { Played: true } ? data.LastPlayedDate : null;
+                started = data is { Played: true } or { PlaybackPositionTicks: > 0 };
+            }
+
+            candidates.Add(new KostvRewatchCandidate(id, lastPlayed, started, since.TryGetValue(id, out var at) ? at : null));
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var day = (int)(now.ToUnixTimeSeconds() / 86400) + (userId.GetHashCode() & 0xFFFF);
+        var byId = items.ToDictionary(i => i.Id.ToString("N"), StringComparer.Ordinal);
+        return KostvFavoritesEngine.Rewatch(candidates, now, day, max).Select(id => byId[id]).ToList();
     }
 
     // ---------------------------------------------------------------- my list

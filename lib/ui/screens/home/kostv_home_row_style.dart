@@ -130,6 +130,16 @@ class KostvHomeRowStyle {
         why: l10n.kostvMyListWhy,
       );
     }
+    if (rest == KostvHomeRepository.rewatchKind) {
+      return KostvHomeRowStyle(
+        icon: Icons.favorite_rounded,
+        color: const Color(0xFFF87171),
+        before: row.title,
+        name: '',
+        after: '',
+        why: l10n.kostvHomeWhyRewatch,
+      );
+    }
     if (rest == KostvHomeRepository.newEpisodesKind) {
       return KostvHomeRowStyle(
         icon: Icons.new_releases_outlined,
@@ -282,9 +292,13 @@ class KostvHomeCardTag extends StatelessWidget {
     this.label,
     this.color,
     this.imageHeight,
+    this.heart = false,
   });
 
   final Widget child;
+
+  /// A small heart before [label]: of one of the person's favourites.
+  final bool heart;
 
   /// From 1; null for no number.
   final int? rank;
@@ -398,15 +412,28 @@ class KostvHomeCardTag extends StatelessWidget {
                         BoxShadow(color: Colors.black54, blurRadius: 6),
                       ],
                     ),
-                    child: Text(
-                      label!.toUpperCase(),
-                      style: const TextStyle(
-                        color: Color(0xFF04261A),
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.5,
-                        height: 1.1,
-                      ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (heart) ...[
+                          const Icon(
+                            Icons.favorite_rounded,
+                            size: 11,
+                            color: Color(0xFFE5484D),
+                          ),
+                          const SizedBox(width: 3),
+                        ],
+                        Text(
+                          label!.toUpperCase(),
+                          style: const TextStyle(
+                            color: Color(0xFF04261A),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.5,
+                            height: 1.1,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
           ),

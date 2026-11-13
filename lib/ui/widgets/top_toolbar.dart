@@ -52,6 +52,7 @@ import 'offline_aware_image.dart';
 import 'package:playback_core/playback_core.dart';
 import '../../data/models/aggregated_item.dart';
 import '../../data/services/media_server_client_factory.dart';
+import '../../data/services/kostv_favorites_news.dart';
 import '../../util/focus/dpad_keys.dart';
 import '../../util/focus/input_mode_tracker.dart';
 import '../navigation/app_router.dart';
@@ -130,6 +131,13 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   /// over them (which brings it out, as the focus does).
   final _trayFocus = FocusNode(debugLabel: 'kostvRequestsTray');
   final _favoritesFocus = FocusNode(debugLabel: 'kostvMyFavorites');
+
+  /// Kos TV: the news of the favourite series, for the heart's count.
+  final KostvFavoritesNewsService? _favoritesNews =
+      GetIt.instance.isRegistered<KostvFavoritesNewsService>()
+      ? GetIt.instance<KostvFavoritesNewsService>()
+      : null;
+  static final _neverChanges = ValueNotifier<int>(0);
   bool _startHovered = false;
   final _homeFocus = FocusNode(debugLabel: 'TopToolbarHome');
   final _settingsFocus = FocusNode(debugLabel: 'TopToolbarSettings');
@@ -1028,8 +1036,11 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   // Kos TV: «Mis favoritos», out with the tray while on the
                   // profile (on phones it is in the You menu).
                   if (!PlatformDetection.useMobileUi)
-                    KostvFavoritesSlot(
+                    ListenableBuilder(
+                      listenable: _favoritesNews ?? _neverChanges,
+                      builder: (context, _) => KostvFavoritesSlot(
                       revealed:
+                          (_favoritesNews?.unseen ?? 0) > 0 ||
                           _avatarFocus.hasFocus ||
                           _trayFocus.hasFocus ||
                           _favoritesFocus.hasFocus ||
@@ -1053,6 +1064,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                             if (_isActive(Destinations.allFavorites)) return;
                             context.navigateTopLevel(Destinations.allFavorites);
                           },
+                          badgeCount: _favoritesNews?.unseen ?? 0,
                           onDown:
                               PlatformDetection.isTV ||
                                   PlatformDetection.isDesktop
@@ -1061,6 +1073,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                         ),
                         ),
                       ),
+                    ),
                     ),
                 ],
               ),

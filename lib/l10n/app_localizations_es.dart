@@ -18999,6 +18999,73 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvFavoritesNoneOfKind => 'No tienes de esto en favoritos';
 
   @override
+  String kostvMyFavoritesWithNews(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Mis favoritos · $count novedades',
+      one: 'Mis favoritos · 1 novedad',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvSortFavorited => 'Añadidos a favoritos';
+
+  @override
+  String get kostvFavoritesNewsTitle => 'Novedades en tus series';
+
+  @override
+  String get kostvFavoritesNewsWhy =>
+      'Lo que ha llegado de tus series favoritas';
+
+  @override
+  String get kostvFavoritesNewSeasonHeadline =>
+      'Hay una temporada nueva de tu serie favorita';
+
+  @override
+  String kostvFavoritesNewEpisodesHeadline(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Han llegado $count episodios nuevos de tu serie favorita',
+      one: 'Ha llegado un episodio nuevo de tu serie favorita',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kostvFavoritesSeasonNew(int season) {
+    return 'Temporada $season nueva';
+  }
+
+  @override
+  String kostvFavoritesEpisodesNew(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count episodios nuevos',
+      one: '1 episodio nuevo',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvFavoritesNewBadge => 'Novedad';
+
+  @override
+  String get kostvFavoritesWatchEpisode => 'Ver el episodio';
+
+  @override
+  String get kostvFavoritesOpenSeries => 'Ir a la serie';
+
+  @override
+  String get kostvHomeRewatch => 'Tus favoritos para volver a ver';
+
+  @override
+  String get kostvHomeWhyRewatch => 'Lo que marcaste y hace tiempo que no ves';
+
+  @override
   String get kostvShuffleMore => 'Más aleatorio';
 
   @override

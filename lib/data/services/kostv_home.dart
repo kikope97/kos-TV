@@ -109,6 +109,7 @@ class KostvHomeRepository {
       Set<String> hidden,
       List<AggregatedItem> myList,
       List<String>? myListIds,
+      List<AggregatedItem> rewatch,
     })?
   >
   rows({required int start, required int limit, bool refresh = false}) async {
@@ -136,10 +137,21 @@ class KostvHomeRepository {
               items: _cards(row['Items']),
             ),
     ];
+    final favoriteSeries = {
+      if (data['FavoriteSeriesIds'] case final List<dynamic> ids)
+        for (final id in ids)
+          if (id is String) id.replaceAll('-', ''),
+    };
+    final newEpisodes = _cards(data['NewEpisodes']);
+    for (final episode in newEpisodes) {
+      if (favoriteSeries.contains(episode.seriesId?.replaceAll('-', ''))) {
+        episode.rawData[_favoriteSeriesKey] = true;
+      }
+    }
     return (
       rows: rows,
       total: (data['Total'] as num?)?.toInt() ?? rows.length,
-      newEpisodes: _cards(data['NewEpisodes']),
+      newEpisodes: newEpisodes,
       hidden: {
         if (data['Hidden'] case final List<dynamic> ids)
           for (final id in ids)
@@ -152,8 +164,35 @@ class KostvHomeRepository {
                 if (id is String) id,
             ]
           : null,
+      rewatch: _cards(data['Rewatch']),
     );
   }
+
+  /// Marks, on a new episode, that its series is one of the person's
+  /// favourites (they go first, with a heart).
+  static const _favoriteSeriesKey = 'KostvFavoriteSeries';
+
+  /// Whether [item], a new episode, is of a favourite series.
+  static bool isOfFavoriteSeries(AggregatedItem item) =>
+      item.rawData[_favoriteSeriesKey] == true;
+
+  /// The id of the row of favourites to watch again, just above Shuffle.
+  static const rewatchKind = 'rewatch';
+
+  /// The row of [rewatch], or null when there is nothing.
+  static HomeRow? rewatchRow(
+    List<AggregatedItem> rewatch,
+    String prefix,
+    AppLocalizations l10n,
+  ) => rewatch.isEmpty
+      ? null
+      : HomeRow(
+          id: '$prefix$rewatchKind',
+          title: l10n.kostvHomeRewatch,
+          rowType: HomeRowType.latestMedia,
+          items: rewatch,
+          totalCount: rewatch.length,
+        );
 
   /// The id of the row of what the person put on their list and hasn't
   /// started.

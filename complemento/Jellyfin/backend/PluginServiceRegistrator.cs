@@ -59,6 +59,8 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvTasteCache>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvDismissals>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvMyList>();
+        serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvFavoriteDates>();
+        serviceCollection.AddHostedService<Moonfin.Server.Kostv.KostvFavoritesWatcher>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvHomeService>();
         serviceCollection.AddSingleton<SeasonalKeywordStoreService>();
         serviceCollection.AddSingleton<SeasonalSuggestionsCacheService>();

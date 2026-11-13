@@ -32187,6 +32187,84 @@ abstract class AppLocalizations {
   /// **'Nothing of this kind in your favourites'**
   String get kostvFavoritesNoneOfKind;
 
+  /// Kos TV: profile menu entry when favourite series have news.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{My favourites · 1 new} other{My favourites · {count} new}}'**
+  String kostvMyFavoritesWithNews(int count);
+
+  /// Kos TV: favourites sorted by when they were marked.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to favourites'**
+  String get kostvSortFavorited;
+
+  /// Kos TV: favourites page row of news of favourite series.
+  ///
+  /// In en, this message translates to:
+  /// **'New in your series'**
+  String get kostvFavoritesNewsTitle;
+
+  /// Kos TV: line under the news row.
+  ///
+  /// In en, this message translates to:
+  /// **'What arrived of your favourite series'**
+  String get kostvFavoritesNewsWhy;
+
+  /// Kos TV: favourites page highlight, new season.
+  ///
+  /// In en, this message translates to:
+  /// **'There is a new season of your favourite series'**
+  String get kostvFavoritesNewSeasonHeadline;
+
+  /// Kos TV: favourites page highlight, new episodes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{A new episode of your favourite series arrived} other{{count} new episodes of your favourite series arrived}}'**
+  String kostvFavoritesNewEpisodesHeadline(int count);
+
+  /// Kos TV: news card subtitle, new season.
+  ///
+  /// In en, this message translates to:
+  /// **'Season {season} is new'**
+  String kostvFavoritesSeasonNew(int season);
+
+  /// Kos TV: news card subtitle, new episodes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 new episode} other{{count} new episodes}}'**
+  String kostvFavoritesEpisodesNew(int count);
+
+  /// Kos TV: tag on the favourites page highlight.
+  ///
+  /// In en, this message translates to:
+  /// **'New'**
+  String get kostvFavoritesNewBadge;
+
+  /// Kos TV: favourites page highlight button.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch the episode'**
+  String get kostvFavoritesWatchEpisode;
+
+  /// Kos TV: favourites page highlight button.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to the series'**
+  String get kostvFavoritesOpenSeries;
+
+  /// Kos TV: Home row of favourites to watch again.
+  ///
+  /// In en, this message translates to:
+  /// **'Your favourites to watch again'**
+  String get kostvHomeRewatch;
+
+  /// Kos TV: line under the watch again row.
+  ///
+  /// In en, this message translates to:
+  /// **'What you marked and haven\'t watched in a while'**
+  String get kostvHomeWhyRewatch;
+
   /// Kos TV: last card of the Shuffle row at the end of Home, opens the shuffle window.
   ///
   /// In en, this message translates to:

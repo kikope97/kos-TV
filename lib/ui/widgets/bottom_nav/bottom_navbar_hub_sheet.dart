@@ -11,6 +11,7 @@ import '../friends_nav_slot.dart';
 import '../server_messages_dialog.dart';
 import '../settings/settings_panel.dart';
 import '../user_menu_dialog.dart';
+import '../unread_badge.dart';
 import 'bottom_nav_controller.dart';
 import 'bottom_nav_destinations.dart';
 import 'bottom_nav_model.dart';
@@ -190,6 +191,9 @@ class _BottomNavbarHub extends StatelessWidget {
                               tile: tiles[i],
                               slot: i,
                               theme: theme,
+                              badge: tiles[i].tab == BottomNavTab.favorites
+                                  ? controller.favoritesNews
+                                  : 0,
                               onTap: () => onTile(tiles[i]),
                             )
                           : const SizedBox.shrink(),
@@ -281,11 +285,15 @@ class _HubTile extends StatelessWidget {
   final BottomNavTheme theme;
   final VoidCallback onTap;
 
+  /// Kos TV: news waiting behind it (the favourite series'), as a count.
+  final int badge;
+
   const _HubTile({
     required this.tile,
     required this.slot,
     required this.theme,
     required this.onTap,
+    this.badge = 0,
   });
 
   @override
@@ -301,7 +309,7 @@ class _HubTile extends StatelessWidget {
             tile.action!,
             silo: BottomNavController.activeServerIsSilo,
           );
-    final icon = tab != null
+    final plainIcon = tab != null
         ? bottomNavTabIconWidget(
             tab,
             active: false,
@@ -313,6 +321,9 @@ class _HubTile extends StatelessWidget {
             size: _iconSize,
             color: iconColor,
           );
+    final icon = badge > 0
+        ? UnreadBadge(count: badge, child: plainIcon)
+        : plainIcon;
     // Capped so a large text setting can't stretch a two-line label's row
     // far past the others.
     final textScaler = MediaQuery.textScalerOf(context).clamp(

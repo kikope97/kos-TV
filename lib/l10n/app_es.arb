@@ -12883,6 +12883,78 @@
     "@kostvFavoritesNoneOfKind": {
         "description": "Kos TV: favourites filtered to a kind with nothing left."
     },
+    "kostvMyFavoritesWithNews": "{count, plural, =1{Mis favoritos · 1 novedad} other{Mis favoritos · {count} novedades}}",
+    "@kostvMyFavoritesWithNews": {
+        "description": "Kos TV: profile menu entry when favourite series have news.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvSortFavorited": "Añadidos a favoritos",
+    "@kostvSortFavorited": {
+        "description": "Kos TV: favourites sorted by when they were marked."
+    },
+    "kostvFavoritesNewsTitle": "Novedades en tus series",
+    "@kostvFavoritesNewsTitle": {
+        "description": "Kos TV: favourites page row of news of favourite series."
+    },
+    "kostvFavoritesNewsWhy": "Lo que ha llegado de tus series favoritas",
+    "@kostvFavoritesNewsWhy": {
+        "description": "Kos TV: line under the news row."
+    },
+    "kostvFavoritesNewSeasonHeadline": "Hay una temporada nueva de tu serie favorita",
+    "@kostvFavoritesNewSeasonHeadline": {
+        "description": "Kos TV: favourites page highlight, new season."
+    },
+    "kostvFavoritesNewEpisodesHeadline": "{count, plural, =1{Ha llegado un episodio nuevo de tu serie favorita} other{Han llegado {count} episodios nuevos de tu serie favorita}}",
+    "@kostvFavoritesNewEpisodesHeadline": {
+        "description": "Kos TV: favourites page highlight, new episodes.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvFavoritesSeasonNew": "Temporada {season} nueva",
+    "@kostvFavoritesSeasonNew": {
+        "description": "Kos TV: news card subtitle, new season.",
+        "placeholders": {
+            "season": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvFavoritesEpisodesNew": "{count, plural, =1{1 episodio nuevo} other{{count} episodios nuevos}}",
+    "@kostvFavoritesEpisodesNew": {
+        "description": "Kos TV: news card subtitle, new episodes.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvFavoritesNewBadge": "Novedad",
+    "@kostvFavoritesNewBadge": {
+        "description": "Kos TV: tag on the favourites page highlight."
+    },
+    "kostvFavoritesWatchEpisode": "Ver el episodio",
+    "@kostvFavoritesWatchEpisode": {
+        "description": "Kos TV: favourites page highlight button."
+    },
+    "kostvFavoritesOpenSeries": "Ir a la serie",
+    "@kostvFavoritesOpenSeries": {
+        "description": "Kos TV: favourites page highlight button."
+    },
+    "kostvHomeRewatch": "Tus favoritos para volver a ver",
+    "@kostvHomeRewatch": {
+        "description": "Kos TV: Home row of favourites to watch again."
+    },
+    "kostvHomeWhyRewatch": "Lo que marcaste y hace tiempo que no ves",
+    "@kostvHomeWhyRewatch": {
+        "description": "Kos TV: line under the watch again row."
+    },
     "kostvShuffleMore": "Más aleatorio",
     "@kostvShuffleMore": {
         "description": "Kos TV: last card of the Shuffle row at the end of Home, opens the shuffle window."

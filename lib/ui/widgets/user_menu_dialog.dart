@@ -21,6 +21,7 @@ import '../../data/services/media_server_client_factory.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/services/pin_guard.dart';
 import '../../data/services/server_pin_service.dart';
+import '../../data/services/kostv_favorites_news.dart';
 import '../../util/kostv_server.dart';
 import '../../util/platform_detection.dart';
 import '../../util/signed_in_server_features.dart';
@@ -347,11 +348,21 @@ class _AccountDialogState extends State<_AccountDialog> {
     );
 
     // Kos TV: «Mis favoritos», on the profile rather than on the menu bar.
-    Widget favorites() => action(l10n.kostvMyFavorites, () {
+    final favoritesNews =
+        GetIt.instance.isRegistered<KostvFavoritesNewsService>()
+        ? GetIt.instance<KostvFavoritesNewsService>().unseen
+        : 0;
+    Widget favorites() => action(
+      favoritesNews > 0
+          ? l10n.kostvMyFavoritesWithNews(favoritesNews)
+          : l10n.kostvMyFavorites,
+      () {
       Navigator.of(context).pop();
       if (!context.mounted) return;
       context.navigateTopLevel(Destinations.allFavorites);
-    }, icon: Icons.favorite_rounded);
+    },
+      icon: Icons.favorite_rounded,
+    );
 
     return [
       // Kos TV: on a TV the other app actions are on the bar, this one isn't.

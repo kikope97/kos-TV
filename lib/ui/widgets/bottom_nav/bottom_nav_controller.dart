@@ -10,6 +10,7 @@ import '../../../auth/repositories/user_repository.dart';
 import '../../../data/models/aggregated_library.dart';
 import '../../../data/repositories/multi_server_repository.dart';
 import '../../../data/repositories/user_views_repository.dart';
+import '../../../data/services/kostv_favorites_news.dart';
 import '../../../data/services/achievements_service.dart';
 import '../../../data/services/library_scope_service.dart';
 import '../../../data/services/plugin_sync_service.dart';
@@ -37,6 +38,7 @@ class BottomNavController extends ChangeNotifier {
     _pluginSync?.addListener(_onPrefsChanged);
     _stremfin?.addListener(notifyListeners);
     _stremfin?.inbox.addListener(notifyListeners);
+    _favoritesNews?.addListener(notifyListeners);
     _messages?.addListener(notifyListeners);
     _achievements?.addListener(notifyListeners);
     _savedMedia?.addListener(notifyListeners);
@@ -58,6 +60,11 @@ class BottomNavController extends ChangeNotifier {
   final AchievementsService? _achievements = _maybe<AchievementsService>();
   final SavedMediaPresence? _savedMedia = _maybe<SavedMediaPresence>();
   final StremfinService? _stremfin = _maybe<StremfinService>();
+  final KostvFavoritesNewsService? _favoritesNews =
+      _maybe<KostvFavoritesNewsService>();
+
+  /// Kos TV: favourite series with news not seen yet, on «Mis favoritos».
+  int get favoritesNews => _favoritesNews?.unseen ?? 0;
 
   static T? _maybe<T extends Object>() =>
       GetIt.instance.isRegistered<T>() ? GetIt.instance<T>() : null;
@@ -191,7 +198,8 @@ class BottomNavController extends ChangeNotifier {
       requestsVisible ? (_stremfin?.inbox.newsCount ?? 0) : 0;
 
   /// What the avatar counts: everything waiting behind the bottom navbar hub.
-  int get hubBadge => unreadMessages + friendsBadge + requestsNews;
+  int get hubBadge =>
+      unreadMessages + friendsBadge + requestsNews + favoritesNews;
 
   // Rebuilding the bar on every preference write in the app would be wasted
   // work, so only the settings the bar reads are compared.
@@ -301,6 +309,7 @@ class BottomNavController extends ChangeNotifier {
       _savedMedia?.removeListener(notifyListeners);
       _stremfin?.removeListener(notifyListeners);
       _stremfin?.inbox.removeListener(notifyListeners);
+      _favoritesNews?.removeListener(notifyListeners);
     } catch (_) {}
     _userSub?.cancel();
     _librariesReloadDebounce?.cancel();

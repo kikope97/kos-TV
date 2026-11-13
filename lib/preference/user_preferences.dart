@@ -2728,6 +2728,21 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: false,
   );
 
+  /// Kos TV: whether the server plugin keeps when each favourite was marked
+  /// and the news of the favourite series, as its last answer said. Not a
+  /// setting: the plugin sync writes it.
+  static final kostvFavoritesAvailable = Preference<bool>(
+    key: 'kostv_favorites_available',
+    defaultValue: false,
+  );
+
+  /// Kos TV: whether «Mis favoritos» go by when they were marked (the
+  /// default) rather than by the order picked on the page.
+  static final kostvFavoritesByMarked = Preference<bool>(
+    key: 'kostv_favorites_by_marked',
+    defaultValue: true,
+  );
+
   /// Kos TV: whether Home is the recommended one. Not in Kids Mode, whose
   /// Home is a short list a child can't stray from.
   bool get kostvHomeActive =>

@@ -6,11 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
+import 'package:playback_core/playback_core.dart' show PlaybackManager;
 import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/repositories/mdblist_repository.dart';
 import '../../../data/services/background_service.dart';
+import '../../../data/services/kostv_favorites_news.dart';
 import '../../../data/viewmodels/favorites_view_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/preference_constants.dart';
@@ -19,6 +21,7 @@ import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
+import '../../navigation/playback_launcher.dart';
 import '../../widgets/focus/context_menu_sheet.dart';
 import '../../widgets/focus/locked_focus_row.dart';
 import '../../widgets/focus/request_initial_focus.dart';
@@ -30,6 +33,7 @@ import '../../widgets/navigation_layout.dart';
 import '../../widgets/overlay_sheet.dart';
 import '../calendar/calendar_common.dart';
 import '../home/home_row_card_image.dart';
+import 'kostv_favorites_news_hero.dart';
 
 /// Kos TV: the person's favourites («Mis favoritos»), with the menu above.
 ///
@@ -128,11 +132,19 @@ class KostvFavoritesKind {
 class KostvFavoritesOrder {
   const KostvFavoritesOrder(this.sortBy, this.direction, this.icon);
 
-  final LibrarySortBy sortBy;
+  /// Null for «Añadidos a favoritos», which the server plugin keeps.
+  final LibrarySortBy? sortBy;
 
   /// The way that makes sense first: newest, most watched, A to Z…
   final SortDirection direction;
   final IconData icon;
+
+  /// When each one was marked, newest first (needs the server plugin).
+  static const favorited = KostvFavoritesOrder(
+    null,
+    SortDirection.descending,
+    Icons.favorite_rounded,
+  );
 
   static const all = [
     KostvFavoritesOrder(
@@ -182,7 +194,18 @@ class KostvFavoritesOrder {
   static KostvFavoritesOrder of(LibrarySortBy sortBy) =>
       all.where((o) => o.sortBy == sortBy).firstOrNull ?? all.first;
 
+  /// The order [vm] is in.
+  static KostvFavoritesOrder current(FavoritesViewModel vm) =>
+      vm.byMarked ? favorited : of(vm.sortBy);
+
+  /// The orders offered: «Añadidos a favoritos» only with the server plugin.
+  static List<KostvFavoritesOrder> offered(FavoritesViewModel vm) => [
+    if (vm.markedAvailable) favorited,
+    ...all,
+  ];
+
   String label(AppLocalizations l10n) => switch (sortBy) {
+    null => l10n.kostvSortFavorited,
     LibrarySortBy.dateAdded => l10n.kostvSortDateAdded,
     LibrarySortBy.premiereDate => l10n.kostvSortPremiere,
     LibrarySortBy.playCount => l10n.kostvSortPlayCount,
@@ -228,6 +251,19 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
   /// The column the grid's focus is in, kept moving up and down.
   int _gridColumn = 0;
 
+  /// The news of the favourite series, when the server plugin keeps it.
+  final KostvFavoritesNewsService? _news =
+      GetIt.instance.isRegistered<KostvFavoritesNewsService>()
+      ? GetIt.instance<KostvFavoritesNewsService>()
+      : null;
+
+  /// The series whose news came since the person last looked, kept marked
+  /// while they're here though the alert goes once they open the page.
+  Set<String> _fresh = const {};
+  final _heroWatch = FocusNode(debugLabel: 'kostvFavoritesNewsWatch');
+  final _newsRowKey = GlobalKey<LockedFocusRowState<KostvSeriesNews>>();
+  final _newsSectionKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
@@ -237,12 +273,28 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
       mdbListRepository: GetIt.instance<MdbListRepository>(),
     );
     _vm.addListener(_onChanged);
+    _news?.addListener(_onNews);
+    unawaited(_readNews());
     // The page is always rows, whatever the old one was left on, and in an
     // order it offers.
     unawaited(_start());
   }
 
   Future<void> _start() async {
+    await _vm.setViewStyle(FavoritesViewStyle.home, reload: false);
+    // With the server plugin, the last one marked comes first, unless the
+    // person picked another order since.
+    if (_vm.byMarked) {
+      final picked = _prefs.containsPreference(
+        UserPreferences.kostvFavoritesByMarked,
+      );
+      if (!picked && _vm.sortDirection != SortDirection.descending) {
+        await _vm.setByMarked(SortDirection.descending);
+      } else {
+        await _vm.load();
+      }
+      return;
+    }
     // Someone who never picked one sees the newest in the library first.
     final chosen = _prefs.containsPreference(
       UserPreferences.librarySortBy('favorites'),
@@ -250,17 +302,50 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     final order = chosen
         ? KostvFavoritesOrder.of(_vm.sortBy)
         : KostvFavoritesOrder.all.first;
-    final reorder = !chosen || order.sortBy != _vm.sortBy;
-    await _vm.setViewStyle(FavoritesViewStyle.home, reload: false);
+    final sortBy = order.sortBy ?? LibrarySortBy.dateAdded;
+    final reorder = !chosen || sortBy != _vm.sortBy;
     if (reorder) {
-      await _vm.setSort(order.sortBy, order.direction);
+      await _vm.setSort(sortBy, order.direction);
     } else {
       await _vm.load();
     }
   }
 
+  /// Reads the news afresh and, once on screen, takes the heart's alert off
+  /// (here and on the person's other devices).
+  Future<void> _readNews() async {
+    final news = _news;
+    if (news == null) return;
+    _fresh = {
+      for (final n in news.news)
+        if (n.unseen) n.series.id,
+    };
+    await news.refresh(force: true);
+    if (!mounted) return;
+    _fresh = {
+      ..._fresh,
+      for (final n in news.news)
+        if (n.unseen) n.series.id,
+    };
+    setState(() {});
+    await news.markSeen();
+  }
+
+  void _onNews() {
+    if (mounted) setState(() {});
+  }
+
+  /// The news shown: none on an old server plugin.
+  List<KostvSeriesNews> get _newsNow {
+    final news = _news;
+    if (news == null || !news.available) return const [];
+    return news.news;
+  }
+
   @override
   void dispose() {
+    _news?.removeListener(_onNews);
+    _heroWatch.dispose();
     _vm.removeListener(_onChanged);
     _vm.dispose();
     _scroll.dispose();
@@ -334,7 +419,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
 
   Future<void> _pickOrder() async {
     final l10n = AppLocalizations.of(context);
-    final current = KostvFavoritesOrder.of(_vm.sortBy);
+    final current = KostvFavoritesOrder.current(_vm);
     final picked = await showFocusRestoringDialog<KostvFavoritesOrder>(
       context: context,
       builder: (context) => Dialog(
@@ -363,7 +448,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        for (final order in KostvFavoritesOrder.all)
+                        for (final order in KostvFavoritesOrder.offered(_vm))
                           FocusableDialogRow(
                             icon: order == current
                                 ? Icons.check_rounded
@@ -383,14 +468,77 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
       ),
     );
     if (picked == null || !mounted) return;
-    unawaited(_vm.setSort(picked.sortBy, picked.direction));
+    final sortBy = picked.sortBy;
+    unawaited(
+      sortBy == null
+          ? _vm.setByMarked(picked.direction)
+          : _vm.setSort(sortBy, picked.direction),
+    );
   }
 
   void _flipDirection() => unawaited(_vm.toggleSortDirection());
 
-  /// Down from the bar: the first row, or the grid's first line.
+  /// Plays the first of a favourite series' new episodes.
+  Future<void> _watch(AggregatedItem episode) async {
+    final manager = GetIt.instance<PlaybackManager>();
+    await launchPlayerWhilePreparing(
+      context,
+      manager: manager,
+      destination: Destinations.videoPlayer,
+      startPlayback: (launchSession) async {
+        await runPlaybackStart(
+          launchSession,
+          () => manager.playItems([episode]),
+        );
+        return true;
+      },
+    );
+  }
+
+  /// Whether the row of news is on the page: in «Todo», with more news than
+  /// the highlight's one.
+  bool get _newsRowShown => _only == null && _newsNow.length > 1;
+
+  /// Up from the bar: the news highlight, or the menu.
+  void _aboveChips() {
+    if (_newsNow.isEmpty) {
+      NavigationLayout.focusNavbarNotifier.value?.call();
+      return;
+    }
+    _heroWatch.requestFocus();
+    if (_scroll.hasClients) {
+      unawaited(
+        _scroll.animateTo(
+          0,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    }
+  }
+
+  void _focusNewsRow() {
+    _newsRowKey.currentState?.requestFocusAt(0);
+    final section = _newsSectionKey.currentContext;
+    if (section != null) {
+      unawaited(
+        Scrollable.ensureVisible(
+          section,
+          alignment: 0.15,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    }
+  }
+
+  /// Down from the bar: the news, the first row, or the grid's first line.
   void _intoContent() {
     final only = _only;
+    if (_newsRowShown) {
+      _focusNewsRow();
+      return;
+    }
     final first = _rowKeys[only == null ? _kinds().firstOrNull : (only, 0)];
     first?.currentState?.requestFocusAt(0);
   }
@@ -400,7 +548,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     final shown = _kinds();
     final at = shown.indexOf(type) + (isUp ? -1 : 1);
     if (at < 0) {
-      _firstChip.requestFocus();
+      _newsRowShown ? _focusNewsRow() : _firstChip.requestFocus();
       return true;
     }
     if (at >= shown.length) return true;
@@ -498,7 +646,10 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
             ),
             phone || kinds.isEmpty
                 ? body
-                : RequestInitialFocus(targetNode: _firstRow, child: body),
+                : RequestInitialFocus(
+                    targetNode: _newsNow.isEmpty ? _firstRow : _heroWatch,
+                    child: body,
+                  ),
           ],
         ),
       ),
@@ -575,7 +726,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
   /// The bar under the header: which kind to see, and the order.
   Widget _controls(BuildContext context, List<FavoriteTypeFilter> kinds) {
     final l10n = AppLocalizations.of(context);
-    final order = KostvFavoritesOrder.of(_vm.sortBy);
+    final order = KostvFavoritesOrder.current(_vm);
     final descending = _vm.sortDirection == SortDirection.descending;
     final reloading = _vm.state == FavoritesState.loading;
     final sortable = order.sortBy != LibrarySortBy.random;
@@ -593,7 +744,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-          NavigationLayout.focusNavbarNotifier.value?.call();
+          _aboveChips();
           return KeyEventResult.handled;
         }
         // Along the bar, pill by pill, stopping at its ends.
@@ -764,6 +915,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
         (phone && NavigationLayout.usesBottomNavbar ? 96 : 32);
     final only = _only;
     final count = kinds.fold(0, (sum, type) => sum + _countOf(type));
+    final news = _newsNow;
     return SingleChildScrollView(
       controller: _scroll,
       padding: EdgeInsets.only(top: insets.top, bottom: bottom),
@@ -775,6 +927,23 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
             child: _header(context, count),
           ),
           SizedBox(height: phone ? 12 : 16),
+          if (news.isNotEmpty) ...[
+            Padding(
+              padding: EdgeInsets.only(left: insets.left, right: insets.right),
+              child: KostvFavoritesNewsHero(
+                news: news.take(5).toList(),
+                fresh: _fresh,
+                watchNode: _heroWatch,
+                onWatch: (episode) => unawaited(_watch(episode)),
+                onOpen: _open,
+                onUp: () => NavigationLayout.focusNavbarNotifier.value?.call(),
+                onDown: _firstChip.requestFocus,
+                onLeftEdge: () =>
+                    NavigationLayout.focusNavbarNotifier.value?.call(),
+              ),
+            ),
+            SizedBox(height: phone ? 14 : 20),
+          ],
           Padding(
             padding: EdgeInsets.only(left: insets.left, right: insets.right),
             child: _controls(context, kinds),
@@ -799,6 +968,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
                     key: const ValueKey('rows'),
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (_newsRowShown) _newsSection(context, news, insets),
                       for (final type in kinds)
                         _section(
                           context,
@@ -983,6 +1153,129 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
             }
             return _card(context, item, kind, focused);
           },
+        ),
+      ],
+    );
+  }
+
+  /// «Novedades en tus series»: what arrived of each favourite series.
+  Widget _newsSection(
+    BuildContext context,
+    List<KostvSeriesNews> news,
+    EdgeInsets insets,
+  ) {
+    final l10n = AppLocalizations.of(context);
+    final theme = Theme.of(context);
+    const kind = KostvFavoritesKind(
+      icon: Icons.fiber_new_rounded,
+      aspect: 16 / 9,
+      imageType: ImageType.thumb,
+    );
+    final m = _metrics(kind);
+    const labels = 54.0;
+    final phone = PlatformDetection.useMobileUi;
+    final client = GetIt.instance<MediaServerClient>();
+    final kinds = _kinds();
+    return Column(
+      key: _newsSectionKey,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(insets.left, 8, insets.right, 0),
+          child: Row(
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE5484D).withValues(alpha: 0.18),
+                  borderRadius: AppRadius.circular(9),
+                ),
+                child: const Icon(
+                  Icons.fiber_new_rounded,
+                  size: 20,
+                  color: Color(0xFFFF6B6F),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.kostvFavoritesNewsTitle,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: AppColorScheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      l10n.kostvFavoritesNewsWhy,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppColorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        LockedFocusRow<KostvSeriesNews>(
+          key: _newsRowKey,
+          hubKey: 'kostv_favorites_news',
+          items: news,
+          itemKey: (n, _) => n.series.id,
+          itemExtent: m.width,
+          itemSpacing: m.spacing,
+          height: m.headroom + m.imageHeight + labels + 12,
+          clipBehavior: Clip.none,
+          padding: EdgeInsets.fromLTRB(
+            insets.left,
+            m.headroom,
+            insets.right,
+            12,
+          ),
+          onVerticalNavigation: (isUp) {
+            if (isUp) {
+              _firstChip.requestFocus();
+            } else if (kinds.isNotEmpty) {
+              _focusRow(kinds.first, 0);
+            }
+            return true;
+          },
+          onLeftEdge: () => NavigationLayout.focusNavbarNotifier.value?.call(),
+          onIndexChanged: (_, n) => _focusOn(n.series),
+          onTap: (_, n) => _open(n.series),
+          onLongPress: (_, n) => showContextMenu(context, n.series),
+          itemBuilder: (context, n, index, focused) => MediaCard(
+            title: n.series.name,
+            subtitle: kostvNewsLine(n, l10n),
+            showLabel: true,
+            imageUrl: resolveRowImageUrl(
+              n.episode,
+              client.imageApi,
+              m.imageHeight,
+              ImageType.thumb,
+              false,
+              MediaQuery.devicePixelRatioOf(context),
+            ),
+            width: m.width,
+            aspectRatio: kind.aspect,
+            itemType: n.episode.type,
+            watchedBehavior: _prefs.get(
+              UserPreferences.watchedIndicatorBehavior,
+            ),
+            focusColor: Color(_prefs.get(UserPreferences.focusColor).colorValue),
+            cardFocusExpansion:
+                !phone && _prefs.get(UserPreferences.cardFocusExpansion),
+            externalIsFocused: InputModeTracker.showFocusVisuals(
+              context,
+              focused,
+            ),
+            onTap: () => _open(n.series),
+            onLongPress: () => showContextMenu(context, n.series),
+          ),
         ),
       ],
     );

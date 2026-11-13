@@ -53,6 +53,15 @@ void main() {
       );
     });
 
+    test('«Añadidos a favoritos» goes by the plugin, newest first', () {
+      expect(KostvFavoritesOrder.favorited.sortBy, isNull);
+      expect(
+        KostvFavoritesOrder.favorited.direction,
+        SortDirection.descending,
+      );
+      expect(KostvFavoritesOrder.all, isNot(contains(KostvFavoritesOrder.favorited)));
+    });
+
     test('an order this page doesn\'t offer falls back to the first', () {
       expect(
         KostvFavoritesOrder.of(LibrarySortBy.genre),

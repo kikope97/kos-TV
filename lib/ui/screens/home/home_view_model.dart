@@ -84,8 +84,22 @@ class HomeViewModel extends ChangeNotifier {
     final withApps = apps == null ? base : withAppsRow(base, apps);
     final party = _watchPartyRow;
     final withParty = party == null ? withApps : [party, ...withApps];
-    return withShuffleRow(withParty, _shuffleRow, hasRows: base.isNotEmpty);
+    final rewatch = _prefs.kostvHomeActive ? _kostvRewatchRow : null;
+    return withShuffleRow(
+      withRewatchRow(withParty, rewatch),
+      _shuffleRow,
+      hasRows: base.isNotEmpty,
+    );
   }
+
+  /// Kos TV: the favourites to watch again go last, just above Shuffle.
+  @visibleForTesting
+  static List<HomeRow> withRewatchRow(List<HomeRow> rows, HomeRow? rewatch) =>
+      rewatch == null || rows.isEmpty ? rows : [...rows, rewatch];
+
+  /// Kos TV: the row of favourites to watch again, from the server plugin
+  /// with the first rows. Like Shuffle, kept out of the layout's sections.
+  HomeRow? _kostvRewatchRow;
 
   /// Kos TV: Shuffle closes Home, once there is something above it.
   @visibleForTesting
@@ -1959,9 +1973,17 @@ class HomeViewModel extends ChangeNotifier {
           : KostvHomeRepository.firstBatch,
       refresh: !more && (refresh || _kostvRefreshNext),
     );
-    if (page == null) return const [];
+    if (page == null) {
+      if (!more) _kostvRewatchRow = null;
+      return const [];
+    }
     _l10nForRows = l10n;
     if (!more) {
+      _kostvRewatchRow = KostvHomeRepository.rewatchRow(
+        withoutBlockedItems(page.rewatch),
+        prefix,
+        l10n,
+      );
       _kostvServerHidden = page.hidden;
       _kostvVisibleMemo = null;
       if (page.myListIds case final ids?) _myList?.noteIds(ids);
@@ -2068,6 +2090,7 @@ class HomeViewModel extends ChangeNotifier {
           row.id.startsWith(_kostvMorePrefix)) &&
       !row.id.endsWith(KostvHomeRepository.newEpisodesKind) &&
       !row.id.endsWith(KostvHomeRepository.myListKind) &&
+      !row.id.endsWith(KostvHomeRepository.rewatchKind) &&
       (item.type == 'Movie' || item.type == 'Series');
 
   /// Takes [item] off Home at once and tells the server after

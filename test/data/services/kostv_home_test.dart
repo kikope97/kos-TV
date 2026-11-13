@@ -76,6 +76,33 @@ void main() {
     });
   });
 
+  group('favourites on Home', () {
+    test('the row to watch again has its own id and title, and none when '
+        'empty', () {
+      final l10n = lookupAppLocalizations(const Locale('es'));
+      expect(KostvHomeRepository.rewatchRow(const [], 'kostvRec_', l10n), isNull);
+      final row = KostvHomeRepository.rewatchRow(
+        [card('a'), card('b')],
+        'kostvRec_',
+        l10n,
+      )!;
+      expect(row.id, 'kostvRec_rewatch');
+      expect(row.title, l10n.kostvHomeRewatch);
+      expect(row.totalCount, 2);
+    });
+
+    test('a new episode of a favourite series is told apart', () {
+      final plain = card('e1');
+      final favourite = AggregatedItem(
+        id: 'e2',
+        serverId: 'home',
+        rawData: {'Id': 'e2', 'KostvFavoriteSeries': true},
+      );
+      expect(KostvHomeRepository.isOfFavoriteSeries(plain), isFalse);
+      expect(KostvHomeRepository.isOfFavoriteSeries(favourite), isTrue);
+    });
+  });
+
   group('the rows in order', () {
     test('the first top goes after the first row, then one every two', () {
       final rows = [for (var i = 0; i < 6; i++) row('r$i')];

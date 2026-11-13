@@ -7,6 +7,7 @@ import '../../preference/user_preferences.dart';
 import '../../util/network_errors.dart';
 import '../models/aggregated_item.dart';
 import '../repositories/mdblist_repository.dart';
+import '../services/moonbase_endpoint.dart';
 import '../services/user_data_sync.dart';
 import '../utils/blocked_ratings.dart';
 
@@ -47,6 +48,22 @@ class FavoritesViewModel extends ChangeNotifier {
 
   late LibrarySortBy _sortBy;
   LibrarySortBy get sortBy => _sortBy;
+
+  /// Kos TV: whether the favourites go by when they were marked (kept by
+  /// the server plugin) rather than by [sortBy].
+  late bool _byMarked;
+  bool get byMarked => _byMarked && markedAvailable;
+
+  /// Whether the server plugin keeps when favourites were marked.
+  bool get markedAvailable =>
+      _prefs.get(UserPreferences.kostvFavoritesAvailable);
+
+  final Dio _dio = Dio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 30),
+    ),
+  );
 
   late SortDirection _sortDirection;
   SortDirection get sortDirection => _sortDirection;
@@ -112,6 +129,7 @@ class FavoritesViewModel extends ChangeNotifier {
       UserPreferences.favoritesPosterSize,
     );
     _viewStyle = _prefs.get(UserPreferences.favoritesViewStyle);
+    _byMarked = _prefs.get(UserPreferences.kostvFavoritesByMarked);
     userDataSync.addListener(_onUserDataChanged);
   }
 
@@ -143,6 +161,7 @@ class FavoritesViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _dio.close();
     userDataSync.removeListener(_onUserDataChanged);
     super.dispose();
   }
@@ -225,6 +244,7 @@ class FavoritesViewModel extends ChangeNotifier {
     int startIndex = 0,
   }) async {
     if (type == FavoriteTypeFilter.watchlist) return _fetchWatchlist();
+    if (byMarked) return _fetchByMarked(type, startIndex: startIndex);
     try {
       final sortValue = sortValueFor(type, _sortBy);
       final sortOrder = _sortDirection == SortDirection.ascending
@@ -278,6 +298,58 @@ class FavoritesViewModel extends ChangeNotifier {
       _failedRows++;
       return (const <AggregatedItem>[], 0);
     }
+  }
+
+  /// Kos TV: favourites of [type] newest marked first (or the other way),
+  /// from the server plugin, which keeps when each one was marked.
+  Future<(List<AggregatedItem>, int)> _fetchByMarked(
+    FavoriteTypeFilter type, {
+    required int startIndex,
+  }) async {
+    final types = type.itemTypes;
+    if (types == null) return (const <AggregatedItem>[], 0);
+    try {
+      final ep = await moonbaseEndpoint(_client, _dio);
+      if (ep == null) throw StateError('No server plugin');
+      final response = await _dio.get<dynamic>(
+        '${ep.base}/Moonfin/Kostv/Favorites',
+        queryParameters: {
+          'types': types.join(','),
+          'start': startIndex,
+          'limit': _rowLimit,
+          'ascending': _sortDirection == SortDirection.ascending,
+        },
+        options: Options(headers: ep.headers),
+      );
+      final data = response.data;
+      if (data is! Map) throw StateError('Unexpected answer');
+      final rawItems = (data['Items'] as List?) ?? const [];
+      final items = [
+        for (final raw in rawItems.whereType<Map>())
+          AggregatedItem(
+            id: raw['Id']?.toString() ?? '',
+            serverId: _client.baseUrl,
+            rawData: raw.cast<String, dynamic>(),
+          ),
+      ];
+      _rowFetchedCounts[type] = startIndex + rawItems.length;
+      final total = data['TotalRecordCount'] as int? ?? items.length;
+      return (withoutBlockedItems(items), total);
+    } catch (_) {
+      _failedRows++;
+      return (const <AggregatedItem>[], 0);
+    }
+  }
+
+  /// Kos TV: favourites by when they were marked, newest first unless
+  /// [direction] says otherwise.
+  Future<void> setByMarked(SortDirection direction) async {
+    if (_byMarked && _sortDirection == direction) return;
+    _byMarked = true;
+    _sortDirection = direction;
+    await _prefs.set(UserPreferences.kostvFavoritesByMarked, true);
+    await _prefs.set(UserPreferences.librarySortDirection(_prefKey), direction);
+    await load();
   }
 
   /// Kos TV: what [type] is sorted by when [sortBy] is chosen. People have
@@ -453,7 +525,11 @@ class FavoritesViewModel extends ChangeNotifier {
 
   /// Kos TV: both at once, so the rows are read only once.
   Future<void> setSort(LibrarySortBy by, SortDirection direction) async {
-    if (_sortBy == by && _sortDirection == direction) return;
+    if (!_byMarked && _sortBy == by && _sortDirection == direction) return;
+    if (_byMarked) {
+      _byMarked = false;
+      await _prefs.set(UserPreferences.kostvFavoritesByMarked, false);
+    }
     _sortBy = by;
     _sortDirection = direction;
     await _prefs.set(UserPreferences.librarySortBy(_prefKey), by);

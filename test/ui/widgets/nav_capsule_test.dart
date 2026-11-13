@@ -149,6 +149,34 @@ void main() {
     });
   });
 
+  group('HomeViewModel.withRewatchRow', () {
+    const a = HomeRow(id: 'a', title: 'A', rowType: HomeRowType.latestMedia);
+    const rewatch = HomeRow(
+      id: 'kostvRec_rewatch',
+      title: 'Tus favoritos para volver a ver',
+      rowType: HomeRowType.latestMedia,
+    );
+    const shuffle = HomeRow(
+      id: 'kostv_shuffle',
+      title: 'Aleatorio',
+      rowType: HomeRowType.latestMedia,
+    );
+
+    test('goes last, just above Shuffle', () {
+      final rows = HomeViewModel.withShuffleRow(
+        HomeViewModel.withRewatchRow([a], rewatch),
+        shuffle,
+        hasRows: true,
+      );
+      expect(rows.map((r) => r.id), ['a', 'kostvRec_rewatch', 'kostv_shuffle']);
+    });
+
+    test('never alone on an empty Home', () {
+      expect(HomeViewModel.withRewatchRow([], rewatch), isEmpty);
+      expect(HomeViewModel.withRewatchRow([a], null), [a]);
+    });
+  });
+
   group('HomeViewModel.withShuffleRow', () {
     const a = HomeRow(id: 'a', title: 'A', rowType: HomeRowType.latestMedia);
     const shuffle = HomeRow(

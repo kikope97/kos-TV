@@ -153,6 +153,8 @@ public class MoonfinController : ControllerBase
             KostvRequestsUrl = KostvRequests.Normalize(config?.KostvRequestsUrl),
             KostvHome = true,
             KostvMyList = true,
+            // kOS TV: favourites newest marked first, news of favourite series, watch again.
+            KostvFavorites = true,
             DefaultSettings = _settingsService.AdminDefaultsFor(profile)
         });
     }
@@ -1787,6 +1789,13 @@ public class MoonfinPingResponse
     /// <summary>kOS TV: this plugin keeps each person's list of what to watch (Moonfin/Kostv/MyList).</summary>
     [JsonPropertyName("kostvMyList")]
     public bool? KostvMyList { get; set; }
+
+    /// <summary>
+    /// kOS TV: whether this server's plugin keeps when each favourite was marked and the news of
+    /// the favourite series (newer plugins).
+    /// </summary>
+    [JsonPropertyName("kostvFavorites")]
+    public bool? KostvFavorites { get; set; }
 
     [JsonPropertyName("mdblistAvailable")]
     public bool? MdblistAvailable { get; set; }

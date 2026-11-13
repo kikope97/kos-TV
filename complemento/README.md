@@ -67,6 +67,22 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   añadidos en las dos últimas semanas de las series que la persona ha visto, uno por serie,
   leídos en cada petición) y `Hidden` (los elementos de lo descartado, para las filas que monta
   la app).
+- **Favoritos** (`Jellyfin/backend/Kostv/KostvFavorites*.cs`): apunta el momento en que cada
+  persona marca o quita un favorito, desde cualquier app o desde la web de Jellyfin
+  (`kostv-favorites.json`; Jellyfin no lo guarda). `GET
+  /Moonfin/Kostv/Favorites?types=Movie,Series&start&limit&ascending` da sus favoritos por
+  «Añadidos a favoritos», lo último marcado primero; los que ya eran favoritos antes de instalar
+  esta versión van detrás, por fecha de llegada al servidor. `GET /Moonfin/Kostv/Favorites/News`
+  da las novedades de sus series favoritas: por serie, los episodios sin ver añadidos en los
+  últimos 30 días, el primero de ellos, cuántos son, si abren una temporada nueva (ningún
+  episodio de esa temporada es anterior a esos 30 días) y si llegaron después de la última vez
+  que la persona miró (`Unseen`, para el aviso del corazón). `POST
+  /Moonfin/Kostv/Favorites/News/Seen` apunta que las ha visto (el aviso se quita en todos sus
+  aparatos). Con las primeras filas, `/Moonfin/Kostv/Home` pone primero en `NewEpisodes` los de
+  sus series favoritas (de los últimos 30 días, aunque no las haya empezado), con
+  `FavoriteSeriesIds`, y añade `Rewatch`: favoritos vistos hace más de 180 días o marcados hace
+  más de 14 y sin empezar (hasta 20, en un orden que cambia cada día). A las apps se les avisa
+  en `/Moonfin/Ping` (`kostvFavorites`).
 - **El botón Descubrir se sincroniza** como los demás (`showDiscoverButton`), con
   su valor por defecto en la página.
 - **Sin la web de Moonfin dentro:** el paquete no la lleva, así que el botón que

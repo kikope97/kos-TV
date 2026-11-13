@@ -25,6 +25,7 @@ import '../../preference/user_preferences.dart';
 import '../../util/kostv_server.dart';
 import '../../util/platform_detection.dart';
 import '../../util/signed_in_server_features.dart';
+import 'kostv_favorites_news.dart';
 
 enum _PluginAvailabilityStatus { available, unavailable, unknown }
 
@@ -314,6 +315,22 @@ class PluginSyncService extends ChangeNotifier {
       final kostvMyList = _readBool(pingResult, 'kostvMyList') ?? false;
       if (_prefs.get(UserPreferences.kostvMyListAvailable) != kostvMyList) {
         await _prefs.set(UserPreferences.kostvMyListAvailable, kostvMyList);
+      }
+
+      // Kos TV: whether it keeps when favourites were marked and the news of
+      // the favourite series.
+      final kostvFavorites = _readBool(pingResult, 'kostvFavorites') ?? false;
+      if (_prefs.get(UserPreferences.kostvFavoritesAvailable) !=
+          kostvFavorites) {
+        await _prefs.set(
+          UserPreferences.kostvFavoritesAvailable,
+          kostvFavorites,
+        );
+      }
+      if (kostvFavorites &&
+          GetIt.instance.isRegistered<KostvFavoritesNewsService>()) {
+        // Its news, for the heart's alert: now and from then on.
+        GetIt.instance<KostvFavoritesNewsService>().start();
       }
 
       final syncEnabled = _readBool(pingResult, 'settingsSyncEnabled');

@@ -49,6 +49,7 @@ import 'user_menu_dialog.dart';
 import 'package:playback_core/playback_core.dart';
 import '../../data/models/aggregated_item.dart';
 import '../../data/services/media_server_client_factory.dart';
+import '../../data/services/kostv_favorites_news.dart';
 import '../navigation/app_router.dart';
 import 'offline_aware_image.dart';
 import 'adaptive/sf_symbol.dart';
@@ -103,6 +104,13 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
   /// Kos TV: the requests tray, right under the avatar.
   final _trayFocusNode = FocusNode(debugLabel: 'LeftSidebarRequestsTray');
   final _favoritesFocusNode = FocusNode(debugLabel: 'LeftSidebarFavorites');
+
+  /// Kos TV: the news of the favourite series, for the heart's count.
+  final KostvFavoritesNewsService? _favoritesNews =
+      GetIt.instance.isRegistered<KostvFavoritesNewsService>()
+      ? GetIt.instance<KostvFavoritesNewsService>()
+      : null;
+  static final _neverChanges = ValueNotifier<int>(0);
   final _musicCardFocusNode = FocusNode(debugLabel: 'SidebarMusicCard');
   late final VoidCallback _focusNavbarCallback;
   late final VoidCallback _focusAvatarCallback;
@@ -1129,15 +1137,20 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
               (_isExpanded && !PlatformDetection.isTV),
           builder: (context) => _buildRequestsTray(l10n),
         ),
-        // Kos TV: «Mis favoritos», under the tray, out while on the profile.
-        KostvFavoritesSlot(
-          axis: Axis.vertical,
-          revealed:
-              _profileFocusNode.hasFocus ||
-              _trayFocusNode.hasFocus ||
-              _favoritesFocusNode.hasFocus ||
-              (_isExpanded && !PlatformDetection.isTV),
-          builder: (context) => _buildFavorites(l10n),
+        // Kos TV: «Mis favoritos», under the tray, out while on the profile
+        // or while its favourite series have news.
+        ListenableBuilder(
+          listenable: _favoritesNews ?? _neverChanges,
+          builder: (context, _) => KostvFavoritesSlot(
+            axis: Axis.vertical,
+            revealed:
+                (_favoritesNews?.unseen ?? 0) > 0 ||
+                _profileFocusNode.hasFocus ||
+                _trayFocusNode.hasFocus ||
+                _favoritesFocusNode.hasFocus ||
+                (_isExpanded && !PlatformDetection.isTV),
+            builder: (context) => _buildFavorites(l10n),
+          ),
         ),
         Expanded(
           child: LayoutBuilder(
@@ -1535,6 +1548,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
         icon: Icons.favorite_rounded,
         baseColor: kostvFavoritesColor,
         label: l10n.kostvMyFavorites,
+        badgeCount: _favoritesNews?.unseen ?? 0,
         focusNode: _favoritesFocusNode,
         showLabel: _showLabels,
         onPressed: () {
