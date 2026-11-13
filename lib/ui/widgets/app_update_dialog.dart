@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../data/services/app_update_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../util/platform_detection.dart';
+import '../navigation/app_router.dart';
 import 'track_selector_dialog.dart';
 
 /// Checks for an update and shows the dialog or an appropriate snackbar.
@@ -237,14 +238,27 @@ Future<void> _downloadAndInstallAndroidUpdate(
 
   final progress = ValueNotifier<double?>(null);
   final failed = ValueNotifier<String?>(null);
-  final navigator = Navigator.of(context, rootNavigator: true);
+  // Its own route, to close that one and no other, wherever it ended up.
+  Route<dynamic>? progressRoute;
   var progressOpen = true;
   unawaited(
     showStyledPlayerDialog<void>(
       context,
       title: l10n.updating,
       barrierDismissible: false,
-      builder: (_) => _UpdateProgressBody(progress: progress, failed: failed),
+      builder: (dialogContext) {
+        progressRoute ??= ModalRoute.of(dialogContext);
+        return PopScope(
+          // Back doesn't hide it while it downloads; once it failed, it does.
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop && failed.value != null) {
+              Navigator.of(dialogContext).pop();
+            }
+          },
+          child: _UpdateProgressBody(progress: progress, failed: failed),
+        );
+      },
     ).whenComplete(() => progressOpen = false),
   );
 
@@ -258,15 +272,21 @@ Future<void> _downloadAndInstallAndroidUpdate(
     failed.value = l10n.updateDownloadFailed;
     return;
   }
-  if (progressOpen) navigator.pop();
-  if (!context.mounted) return;
+  final route = progressRoute;
+  if (progressOpen && route != null && route.isActive) {
+    route.navigator?.removeRoute(route);
+  }
 
+  // The page the update was offered on may be gone by now (it takes a
+  // while): what follows doesn't depend on it.
   var allowed =
       await _platformChannel.invokeMethod<bool>('canInstallPackages') ?? false;
   if (!allowed) {
-    if (!context.mounted) return;
+    final here = context.mounted ? context : _appContext();
+    if (here == null) return;
     final open = await showStyledPlayerDialog<String>(
-      context,
+      // ignore: use_build_context_synchronously, mounted checked just above
+      here,
       title: l10n.updateInstallPermissionTitle,
       showCancel: true,
       builder: (_) => Column(
@@ -309,7 +329,23 @@ Future<void> _downloadAndInstallAndroidUpdate(
         {'path': path},
       ) ??
       false;
-  if (!started) tell(l10n.updateInstallFailed);
+  if (started) return;
+  // Said where it can't be missed: a passing message was easy not to see.
+  final here = context.mounted ? context : _appContext();
+  if (here == null) return tell(l10n.updateInstallFailed);
+  await showStyledPlayerDialog<void>(
+    // ignore: use_build_context_synchronously, mounted checked just above
+    here,
+    title: l10n.updateInstallFailed,
+    builder: (dialogContext) => Align(
+      alignment: Alignment.bottomRight,
+      child: TextButton(
+        autofocus: true,
+        onPressed: () => Navigator.of(dialogContext).pop(),
+        child: Text(l10n.close, style: const TextStyle(color: Colors.white)),
+      ),
+    ),
+  );
 }
 
 Future<void> _downloadTo(
@@ -343,6 +379,12 @@ Future<void> _downloadTo(
   } finally {
     client.close(force: true);
   }
+}
+
+/// The app's own navigator, always there.
+BuildContext? _appContext() {
+  final context = appRouter.routerDelegate.navigatorKey.currentContext;
+  return context != null && context.mounted ? context : null;
 }
 
 /// Completes once the app comes back to the foreground after leaving it (the

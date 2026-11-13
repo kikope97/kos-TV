@@ -9,6 +9,7 @@ import '../../data/services/app_update_service.dart';
 import '../../l10n/app_localizations.dart';
 import '../../util/platform_detection.dart';
 import '../navigation/app_router.dart';
+import '../navigation/destinations.dart';
 import 'app_update_dialog.dart';
 import 'status_banner_pill.dart';
 
@@ -68,6 +69,9 @@ class _AppUpdateBannerState extends State<AppUpdateBanner>
 
   @override
   void dispose() {
+    if (_waitingForHome) {
+      appRouter.routerDelegate.removeListener(_onRouteWhileOpening);
+    }
     _lifecycle?.dispose();
     _autoDismissTimer?.cancel();
     _entranceCurve.dispose();
@@ -89,9 +93,41 @@ class _AppUpdateBannerState extends State<AppUpdateBanner>
     }
   }
 
+  /// Kos TV: whether the app is still opening (the intro, signing in). The
+  /// opening ends by replacing its page with Home, which takes away any
+  /// dialog over it: an update offered then lost its progress window halfway
+  /// and never reached the installer.
+  static bool _isOpening() {
+    try {
+      final path = appRouter.routerDelegate.currentConfiguration.uri.path;
+      return Destinations.isSignedOutRoute(path);
+    } catch (_) {
+      return true;
+    }
+  }
+
+  bool _waitingForHome = false;
+
+  void _onRouteWhileOpening() {
+    if (_isOpening()) return;
+    appRouter.routerDelegate.removeListener(_onRouteWhileOpening);
+    _waitingForHome = false;
+    // A moment for Home to settle before the dialog comes up.
+    Future<void>.delayed(const Duration(seconds: 2), () {
+      if (mounted) unawaited(_check());
+    });
+  }
+
   Future<void> _check() async {
     if (_checking || _update != null) return;
     if (widget.checkForUpdate == null && _isWatching()) return;
+    if (widget.checkForUpdate == null && _isOpening()) {
+      if (!_waitingForHome) {
+        _waitingForHome = true;
+        appRouter.routerDelegate.addListener(_onRouteWhileOpening);
+      }
+      return;
+    }
     _checking = true;
     try {
       final check =
