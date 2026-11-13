@@ -1,6 +1,6 @@
 # API de Stremfin para la app de Jellyfin de casa
 
-> Versión de la API: **v1** · Stremfin 1.86.0 · documento generado el 12/11/2026
+> Versión de la API: **v1** · Stremfin 1.90.2 · documento generado el 13/11/2026
 >
 > Dirección base: **`https://stremfin.ejemplo.com/api/v1`**
 
@@ -352,6 +352,7 @@ Lo devuelven `/requests`, `/requests/{id}` y `POST /requests`.
   "poster": "https://image.tmdb.org/t/p/w342/bb.jpg",
   "status": "approved",
   "status_label": "Aceptada",
+  "cancelled": false,
   "reason": null,
   "reason_label": null,
   "direct": false,
@@ -363,7 +364,8 @@ Lo devuelven `/requests`, `/requests/{id}` y `POST /requests`.
     "label": "Descargando",
     "episodes_done": 5,
     "episodes_total": 13,
-    "episodes_attention": 0
+    "episodes_attention": 0,
+    "recheck": null
   },
   "requested_at": "2026-11-10T21:14:03+01:00",
   "decided_at": "2026-11-10T21:20:41+01:00",
@@ -382,6 +384,7 @@ Lo devuelven `/requests`, `/requests/{id}` y `POST /requests`.
 | `episodes_missing` | Series: episodios que faltaban al pedirla (`null` en un episodio suelto) |
 | `poster` | Portada (TMDB o Deezer) |
 | `status`, `status_label` | Ver [9.1](#91-status-de-una-petición) |
+| `cancelled` | Desde 1.88.0, siempre presente. `true` si el administrador la canceló **después de aceptarla**: `status` sigue siendo `rejected` y `status_label` dice «Cancelada». `false` en todas las demás |
 | `reason`, `reason_label` | Si se rechazó con motivo: `quality` («aún no hay una versión buena») o `later` («mejor más adelante») |
 | `direct` | Se aceptó sola (persona con peticiones directas, o el administrador) |
 | `mine` | La has pedido tú |
@@ -535,7 +538,7 @@ Authorization: Bearer <token>
     "music": true,
     "platforms": ["netflix", "disney", "prime"]
   },
-  "server": { "name": "Stremfin", "version": "1.86.0", "api_version": 1 }
+  "server": { "name": "Stremfin", "version": "1.90.2", "api_version": 1 }
 }
 ```
 
@@ -693,7 +696,7 @@ La ficha de una película: el título (7.1) con estos campos más.
 | `providers` | Dónde se puede ver **sin pagar aparte** en el país de Novedades (suscripción, gratis o con anuncios), según TMDB/JustWatch: `name`, `logo` (92 px) y `key` (`netflix`, `disney`, `prime` si es una de [8.2](#82-get-platforms), si no `null`). Vacía si no está en ninguna. Útil para no pedir lo que ya se puede ver |
 | `collection` | La saga a la que pertenece (`id`, `name`), para abrirla con [8.20](#820-get-collectionsid); `null` si no es de ninguna |
 | `library` | Aquí se busca también por el id de IMDb: es la respuesta fiable de si está en Jellyfin |
-| `download` | Si se está descargando: `status` (`downloading`, o `attention` = el administrador tiene que revisarla) y los campos de una descarga de [9.2](#92-progressstate-de-una-petición-aceptada) (`phase`, `label`, `percent`, `downloaded_bytes`, `total_bytes`, `speed`, `eta_seconds`, `waiting_since`, `paused`). `null` si no |
+| `download` | Si se está descargando: `status` (`downloading`, o `attention` = el administrador tiene que revisarla) y los campos de una descarga de [9.2](#92-progressstate-de-una-petición-aceptada) (`phase`, `label`, `percent`, `downloaded_bytes`, `total_bytes`, `speed`, `eta_seconds`, `waiting_since`, `paused`, `recheck`). `null` si no |
 | `release` | Si aún no ha salido en digital: `{ "date": "2026-12-04" \| null, "text": "Se estrena el 04/12/2026" }`. Se puede pedir igualmente: espera a que salga |
 | `can_request.allowed` | Si enseñar el botón |
 | `can_request.action` | Qué botón: `request` («Pedir») o `notify` («Avísame cuando esté»: ya se está descargando; pedirla te apunta al aviso, `outcome: "watching"` o `"joined"`, sin descargar nada nuevo). `null` si no se puede |
@@ -1007,7 +1010,7 @@ Respuesta:
 | 201 | `created` | Petición nueva, esperando la respuesta del administrador (modo `review`) | La nueva |
 | 201 | `started` | Aceptada sola y en marcha (modo `direct` o administrador) | La nueva (o la que esperaba y ya está aceptada) |
 | 200 | `joined` | Alguien ya lo había pedido: te apuntas a esa petición (te llegan sus avisos) | La existente |
-| 200 | `watching` | Película que ya se está descargando y nadie había pedido: te apuntas al aviso de «ya está en Jellyfin» | La nueva (ya aceptada) |
+| 200 | `watching` | Película (o, desde 1.87.0, álbum) que ya se está descargando y nadie había pedido: te apuntas al aviso de «ya está en Jellyfin» | La nueva (ya aceptada) |
 | 200 | `included` | Pediste una temporada (o un episodio) y ya estaba pedido «todo lo que falta» (o esa temporada): te apuntas a esa | La que lo cubre |
 | 200 | `already` | Ya lo habías pedido tú | La existente |
 | 409 | `have` | Ya está en Jellyfin | `null` |
@@ -1015,7 +1018,7 @@ Respuesta:
 | 422 | `unavailable` | No se puede pedir (no se puede conseguir, temporada o episodio que no existe, episodio aún no emitido o especiales, álbum que Deezer no conoce) | `null` |
 | 429 | `limit` | Has llegado a tu límite; `message` dice cuál y `limit` es `pending` o `daily` (este, con `Retry-After`) | `null` |
 
-**Música: el álbum completo siempre que exista** (desde 1.84.0). Si el `deezer_id` es de un sencillo y su canción está en un álbum, Stremfin pide **ese álbum** en su lugar: `request` es la petición del álbum, `message` lo dice («Esa canción está en el álbum «…»: se ha pedido el álbum entero.», o «…: ya lo tienes en Jellyfin.», o el mensaje de siempre detrás del nombre del álbum) e `instead_of` trae el sencillo que mandaste (`{ "deezer_id", "title", "kind": "single" }`). El `outcome` es el del álbum (por ejemplo `have` si ya lo tienes, o `joined` si alguien ya lo pidió). `instead_of` es `null` en todo lo demás (con `outcome: "limit"` no viene: trátalo como `null`). Para que la persona no se sorprenda, enseña antes el álbum (`album_instead` de [8.12](#812-get-musicalbumsdeezer_id) o `ask` de [8.27](#827-get-musicsongsdeezer_id)). Un sencillo que no está en ningún álbum se pide como sencillo. Con `"as_single": true` se pide el sencillo aunque haya álbum: solo si la persona insiste. Desde 1.86.0 la regla es la misma en el bot de Telegram y en el panel (se puede pedir una canción; lo que se descarga es su álbum), y el álbum es siempre un álbum o EP **del mismo artista**, nunca un recopilatorio de varios.
+**Música: el álbum completo siempre que exista** (desde 1.84.0). Si el `deezer_id` es de un sencillo y su canción está en un álbum, Stremfin pide **ese álbum** en su lugar: `request` es la petición del álbum, `message` lo dice («Esa canción está en el álbum «…»: se descargará todo el álbum.» desde 1.87.0, o «…: ya lo tienes en Jellyfin.», o el mensaje de siempre detrás del nombre del álbum) e `instead_of` trae el sencillo que mandaste (`{ "deezer_id", "title", "kind": "single" }`). El `outcome` es el del álbum (por ejemplo `have` si ya lo tienes, o `joined` si alguien ya lo pidió). `instead_of` es `null` en todo lo demás (con `outcome: "limit"` no viene: trátalo como `null`). Para que la persona no se sorprenda, enseña antes el álbum (`album_instead` de [8.12](#812-get-musicalbumsdeezer_id) o `ask` de [8.27](#827-get-musicsongsdeezer_id)). Un sencillo que no está en ningún álbum se pide como sencillo. Con `"as_single": true` se pide el sencillo aunque haya álbum: solo si la persona insiste. Desde 1.86.0 la regla es la misma en el bot de Telegram y en el panel (se puede pedir una canción; lo que se descarga es su álbum), y el álbum es siempre un álbum o EP **del mismo artista**, nunca un recopilatorio de varios.
 
 Si pides **todo lo que falta** de una serie de la que había temporadas o episodios sueltos pedidos esperando respuesta, se juntan en una sola petición con todos los que las pidieron.
 
@@ -1160,7 +1163,7 @@ Lo que ha pasado con tus peticiones y tus avisos de problemas, lo más nuevo pri
 |---|---|
 | `approved` | El administrador ha aceptado tu petición |
 | `started` | Tu petición está en marcha (alguien con peticiones directas la pidió o se unió a la tuya) |
-| `rejected` | No la ha aceptado (el motivo va en `message`) |
+| `rejected` | No la ha aceptado, o (desde 1.87.0) ha cancelado una que ya estaba aceptada: `message` dice cuál («…no ha aceptado tu petición de…» / «…ha cancelado tu petición de…») y el motivo |
 | `waiting` | Aceptada, pero aún no ha salido o no hay una buena versión: te avisa cuando esté |
 | `progress` | Una serie a medias: unos episodios ya están y otros en revisión |
 | `available` | Ya está en Jellyfin |
@@ -1455,7 +1458,7 @@ Devuelve `{ "days": 90, "items": [ { Álbum…, "people": 3 } ] }`: `people` es 
 |---|---|---|---|
 | `pending` | Esperando respuesta | Le ha llegado al administrador y aún no ha contestado | sí |
 | `approved` | Aceptada · Aceptada sola | Aceptada; `progress` dice por dónde va. «Aceptada sola» si `direct` | sí |
-| `rejected` | No aceptada (· motivo) | Rechazada. `reason`: `quality` (aún no hay una versión buena), `later` (mejor más adelante) o `null` | no |
+| `rejected` | No aceptada (· motivo) · Cancelada (· motivo) | Rechazada. `reason`: `quality` (aún no hay una versión buena), `later` (mejor más adelante) o `null`. Con `cancelled: true` (desde 1.88.0) ya estaba aceptada y el administrador la canceló: la etiqueta es «Cancelada» | no |
 | `completed` | Ya en Jellyfin | Ya se puede ver | no |
 
 Una serie aceptada puede llegar por partes: la petición sigue `approved` mientras falte algún episodio y pasa a `completed` cuando está todo.
@@ -1468,7 +1471,7 @@ Una serie aceptada puede llegar por partes: la petición sigue `approved` mientr
 | `preparing` | Buscando los enlaces | Serie: se están buscando los enlaces de los episodios |
 | `waiting_version` | Esperando una versión buena | Película: aún no hay una versión con la calidad e idioma de casa (o no ha salido). Se descarga en cuanto la haya |
 | `downloading` | En cola · Descargando · Comprobando… | En descargas: `phase` dice en qué punto |
-| `attention` | En revisión | La descarga necesita que el administrador elija otro enlace |
+| `attention` | En revisión, o «En revisión · se sigue intentando solo» | La descarga necesita que el administrador elija otro enlace. Si fue porque el archivo no estaba listo en el servicio de descargas, Stremfin lo sigue intentando solo: lo dice `label` (desde 1.90.2, «En revisión · se sigue intentando solo») y lo detalla `recheck`. En una serie, `label` lo dice cuando todos sus episodios en revisión están así |
 
 En música, `state` es `accepted` (aceptada, aún sin mandar a la descarga), `downloading` (mandada a la descarga: en su cola o bajando), `importing` (descargada: entrando en la biblioteca) o `attention` (falló la descarga: el administrador lo verá). Los campos de `progress` de un álbum son `state`, `label`, `phase`, `percent`, `track_errors` y `sent_at`, como en [9.5](#95-download-de-un-álbum-de-camino-a-jellyfin).
 
@@ -1484,8 +1487,9 @@ En música, `state` es `accepted` (aceptada, aún sin mandar a la descarga), `do
 | `eta_seconds` | Segundos que faltan, a la velocidad de ahora; `null` si no se sabe. En una serie es orientativo (los episodios en cola aún no bajan) |
 | `waiting_since` | Solo película, con `phase: "waiting_file"`: desde cuándo espera |
 | `paused` | `true` si el administrador ha pausado todas las descargas |
+| `recheck` | Desde 1.90.1. Solo con `state: "attention"` (o un episodio en revisión): el archivo no estaba listo en el servicio de descargas y **Stremfin lo vuelve a mirar solo** cada pocas horas durante unos días; en cuanto esté, la descarga arranca sola y `state` pasa a `downloading`. Objeto `{ "until", "next_at", "every_hours", "text" }`: hasta cuándo lo intenta, cuándo es la siguiente mirada (fechas ISO 8601), cada cuántas horas y el texto listo para enseñar («Se sigue intentando solo cada 2 h · quedan 2 días»; «queda 1 día», «quedan 5 h»; con las descargas en pausa, «En pausa: se sigue intentando solo al reanudar · quedan 2 días»). `null` en lo demás. En una serie va en cada episodio de `episodes`; el `recheck` de la serie entera es siempre `null`. Si el campo no viene, ese Stremfin es anterior a 1.90.1 |
 | `episodes_done`, `episodes_total`, `episodes_attention` | Solo serie: terminados, en total (sin cancelados) y en revisión |
-| `episodes` | Solo serie: cada episodio, en orden: `season`, `episode`, `episode_end` (episodio doble: el último; si no, `null`) y los campos de una descarga: `phase`, `label`, `percent`, `downloaded_bytes`, `total_bytes`, `speed`, `eta_seconds`, `waiting_since`, `paused` |
+| `episodes` | Solo serie: cada episodio, en orden: `season`, `episode`, `episode_end` (episodio doble: el último; si no, `null`) y los campos de una descarga: `phase`, `label`, `percent`, `downloaded_bytes`, `total_bytes`, `speed`, `eta_seconds`, `waiting_since`, `paused`, `recheck` |
 
 **`phase` de una descarga:**
 
@@ -1497,7 +1501,7 @@ En música, `state` es `accepted` (aceptada, aún sin mandar a la descarga), `do
 | `downloading` | Descargando | Bajando: `percent`, `speed`, `eta_seconds` |
 | `verifying` | Comprobando | Comprobando que el vídeo está bien |
 | `moving` | Colocando | Poniéndolo en su carpeta de Jellyfin |
-| `attention` | En revisión | Ha fallado y el administrador tiene que decidir |
+| `attention` | En revisión (o «En revisión · se sigue intentando solo») | Ha fallado y el administrador tiene que decidir; con el segundo texto, Stremfin lo sigue intentando solo (ver `recheck`) |
 | `completed` | En descargas | Solo en `episodes`: ese episodio ya está |
 
 El avance se actualiza en el servidor cada pocos segundos (hasta 10) y no cambia `updated_at`: para una pantalla de cola, vuelve a pedir las abiertas (`GET /requests` o `GET /requests/{id}`) cada 5–10 segundos **mientras esté a la vista**, y para en segundo plano.
@@ -1615,7 +1619,7 @@ La API no empuja nada: la app pregunta. Quien tiene Telegram ya recibe los aviso
 - Quita de tu lista las de `removed_ids`.
 - Para cada petición devuelta, compara con lo que tenías guardado:
   - pasa a `approved` → «Te han aceptado {display_title}» (o, si `direct`, nada: ya lo sabía).
-  - pasa a `rejected` → «No se ha aceptado {display_title}: {reason_label}».
+  - pasa a `rejected` → «No se ha aceptado {display_title}: {reason_label}» (o, si `cancelled`, «Se ha cancelado {display_title}»).
   - pasa a `completed` → «{display_title} ya está en Jellyfin» (al pulsar, busca el título y ábrelo).
 - Guarda el `now` de la respuesta para la siguiente vez.
 - Ese sondeo cuesta una llamada; no bajes de 5 minutos.
@@ -1967,6 +1971,7 @@ interface StremfinApi {
     val poster: String? = null,
     val status: String,
     @SerialName("status_label") val statusLabel: String,
+    val cancelled: Boolean = false,            // rejected tras haber sido aceptada: «Cancelada» (1.88.0)
     @SerialName("reason_label") val reasonLabel: String? = null,
     val direct: Boolean = false,
     val mine: Boolean = false,
@@ -1985,9 +1990,16 @@ interface StremfinApi {
     @SerialName("eta_seconds") val etaSeconds: Long? = null,
     @SerialName("waiting_since") val waitingSince: String? = null,
     val paused: Boolean = false,
+    val recheck: Recheck? = null,              // 1.90.1: en revisión, pero Stremfin lo sigue intentando solo
     @SerialName("episodes_done") val episodesDone: Int? = null,
     @SerialName("episodes_total") val episodesTotal: Int? = null,
     val episodes: List<EpisodeProgress> = emptyList(),
+)
+@Serializable data class Recheck(
+    val until: String,
+    @SerialName("next_at") val nextAt: String,
+    @SerialName("every_hours") val everyHours: Int,
+    val text: String,
 )
 @Serializable data class EpisodeProgress(
     val season: Int,
@@ -1998,6 +2010,7 @@ interface StremfinApi {
     val percent: Double? = null,
     val speed: Long? = null,
     @SerialName("eta_seconds") val etaSeconds: Long? = null,
+    val recheck: Recheck? = null,              // 1.90.1: ese episodio se sigue intentando solo
 )
 
 @Serializable data class MusicSearch(
@@ -2195,3 +2208,7 @@ El servidor falso no tiene las listas de Apple: `/music/charts/{id}` las lee de 
 | 1.84.0 | v1 | **Nuevo**: canciones: `songs` en `/music/search`, `GET /music/songs` (buscar canciones) y `GET /music/songs/{id}` (una canción, su disco y el álbum que pedir), cada una con `preview` (30 s para escuchar); en la ficha de artista, `top_songs`, `related`, `kind=ep` y `kind=single` y el desglose por tipo en `summary`; `album_instead` en la ficha de un sencillo; `as_single` e `instead_of` en `POST /requests`. **Cambia**: pedir un sencillo cuya canción está en un álbum pide el álbum entero (antes pedía el sencillo). |
 | 1.85.0 | v1 | **Nuevo**: listas de éxitos de Apple para España: `GET /music/charts` (las que hay) y `GET /music/charts/{id}` (lo más escuchado en canciones y álbumes, y lo más comprado por género; cada canción con el disco que pedir); `GET /music/releases` (los discos de los artistas que sigue la casa, con `upcoming` para lo anunciado); `GET /music/requested` (lo más pedido en casa, con `people`). |
 | 1.86.0 | v1 | **Cambia**: el álbum que sustituye a un sencillo (`album_instead`, `ask`, `instead_of`) es siempre un álbum o EP del mismo artista, nunca un recopilatorio de varios artistas ni el disco de otro; si no hay ninguno así, el sencillo se pide tal cual. Una petición de un sencillo se da por cumplida también cuando su canción llega dentro de un álbum. Sin campos nuevos. |
+| 1.87.0 | v1 | **Cambia** (solo textos y casos, sin campos nuevos): `message` al pedir un sencillo que va como álbum dice «…: se descargará todo el álbum.»; el `429` del tope diario dice «Hoy ya has hecho 20 peticiones. Mañana podrás pedir más.» (igual que el bot); el aviso `rejected` de una petición ya aceptada dice «ha cancelado tu petición»; `outcome: "watching"` también en música (álbum que el administrador ya está descargando: petición ya aceptada, fuera del límite); pedir un álbum que ya está pedido con otro `deezer_id` (otra edición del mismo disco) te apunta a esa petición (`joined`, y `request.deezer_id` es el de la existente); pedir una temporada con episodios sueltos de ella esperando respuesta los convierte en esa temporada (los demás llegan en `removed_ids`). El bot y la app comparten el turno al pedir (`503 busy` si otro pide en ese momento). |
+| 1.88.0 | v1 | **Nuevo**: `cancelled` en cada petición (siempre presente): `true` si el administrador la canceló después de aceptarla. **Cambia**: en ese caso `status_label` dice «Cancelada» en vez de «No aceptada»; `status` sigue siendo `rejected`, así que una app anterior no nota nada más que el texto. |
+| 1.90.1 | v1 | **Nuevo**: `recheck` en el avance de una descarga (en `progress`, en cada episodio de `episodes` y en `download` de la ficha de película): cuando está «En revisión» porque el archivo no estaba listo en el servicio de descargas, Stremfin lo sigue intentando solo; dice hasta cuándo, la siguiente mirada y un texto para enseñar. `null` en lo demás. Nada de lo anterior cambia. |
+| 1.90.2 | v1 | Solo textos, sin campos nuevos. **Cambia**: `recheck.text` ya no nombra el servicio de descargas («Se sigue intentando solo cada 2 h · quedan 2 días») y cuenta días enteros (con 47 h, «queda 1 día»; antes redondeaba hacia arriba); con las descargas en pausa dice «En pausa: se sigue intentando solo al reanudar…». `label` de una descarga en revisión que Stremfin sigue intentando sola es «En revisión · se sigue intentando solo» (`state` y `phase` siguen siendo `attention`), también en el `progress` de una serie cuando todos sus episodios en revisión están así. |
