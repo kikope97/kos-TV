@@ -15,6 +15,7 @@ import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/navigation/route_lifecycle_observer.dart';
 import 'package:moonfin/ui/widgets/left_sidebar.dart';
+import 'package:moonfin/ui/widgets/nav_capsule.dart';
 import 'package:moonfin/ui/widgets/navigation_layout.dart';
 import 'package:moonfin/ui/widgets/top_toolbar.dart';
 import 'package:moonfin/util/focus/input_mode_tracker.dart';
@@ -313,9 +314,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_focusedLabel(), 'LeftSidebarHome');
+      // Kos TV: the menu's capsule sits on it.
+      final capsule = tester.state<NavCapsuleState>(find.byType(NavCapsule));
+      final origin = tester.getTopLeft(find.byType(NavCapsule));
+      expect(capsule.engaged, isTrue);
       expect(
-        _backgroundOf(tester, _focusLabelled('LeftSidebarHome')),
-        isNot(Colors.transparent),
+        capsule.rect!
+            .shift(origin)
+            .overlaps(tester.getRect(_focusLabelled('LeftSidebarHome'))),
+        isTrue,
       );
     }, variant: linux);
 
@@ -433,8 +440,12 @@ void main() {
       final rail = await _RailHost.pump(tester, searchHasRail: true);
       await rail.openSearchFromRail(tester);
 
+      // Kos TV: into the rail on the page's own button, then up to Home.
       NavigationLayout.focusNavbarNotifier.value!();
       await tester.pumpAndSettle();
+      expect(_focusedLabel(), 'SidebarMenu /search');
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pump();
       expect(_focusedLabel(), 'LeftSidebarHome');
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();

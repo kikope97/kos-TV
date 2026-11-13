@@ -30,6 +30,7 @@ import '../../util/live_tv_library.dart';
 import '../../util/overlay_color_palette.dart';
 import '../../util/platform_detection.dart';
 import '../navigation/destinations.dart';
+import '../navigation/menu_preview.dart';
 import '../navigation/home_refresh_bus.dart';
 import '../navigation/route_lifecycle_observer.dart';
 import 'navigation_layout.dart';
@@ -43,7 +44,6 @@ import '../screens/settings/settings_side_panel.dart';
 import 'server_messages_dialog.dart';
 import 'server_messages_nav_slot.dart';
 import 'unread_badge.dart';
-import 'shuffle_overlay.dart';
 import 'user_menu_dialog.dart';
 
 import 'package:playback_core/playback_core.dart';
@@ -53,6 +53,7 @@ import '../navigation/app_router.dart';
 import 'offline_aware_image.dart';
 import 'adaptive/sf_symbol.dart';
 import 'kostv_requests_tray_button.dart';
+import 'nav_capsule.dart';
 import 'user_avatar_image.dart';
 
 const _kExpandedWidthDesktop = 240.0;
@@ -144,8 +145,19 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
       if (!_isMobile && !_isExpanded) {
         _expand();
       }
+      // Kos TV: into the menu on the page's own button, so resting there
+      // shows nothing new.
+      final own = _ownMenuNode();
+      if (own != null) {
+        own.requestFocus();
+        return;
+      }
       _homeFocusNode.requestFocus();
     };
+    MenuPreview.track();
+    _homeFocusNode.addListener(_onHomeNodeFocus);
+    MenuPreview.arriving.addListener(_onMenuArriving);
+    _onMenuArriving();
     _focusAvatarCallback = () {
       if (!mounted) return;
       if (_profileFocusNode.context != null) {
@@ -221,10 +233,105 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     NavigationLayout.focusNavbarAvatarNotifier.value = _focusAvatarCallback;
     _awaitingPopFocusRestore = _openedRouteFromRail;
     _openedRouteFromRail = false;
+    // Kos TV: left open when a page came in over it from the menu; unless the
+    // menu is bringing this page back, it closes now.
+    if (MenuPreview.arriving.value == null &&
+        !_sidebarFocus.hasFocus &&
+        _isExpanded) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && !_sidebarFocus.hasFocus) _collapse();
+      });
+    }
+  }
+
+  /// Kos TV: the buttons of the pages the menu shows by resting on them.
+  final _menuFocus = <String, FocusNode>{};
+  Timer? _restTimer;
+
+  FocusNode _menuNode(String route) {
+    if (route == Destinations.home) return _homeFocusNode;
+    return _menuFocus.putIfAbsent(route, () {
+      final node = FocusNode(debugLabel: 'SidebarMenu $route');
+      node.addListener(() => _restOn(route, node.hasFocus));
+      return node;
+    });
+  }
+
+  void _onHomeNodeFocus() =>
+      _restOn(Destinations.home, _homeFocusNode.hasFocus);
+
+  /// The button of the page this rail is on, when it has one and can take
+  /// the focus.
+  FocusNode? _ownMenuNode() {
+    final route = widget.activeRoute;
+    if (route == null || !Destinations.isMenuPage(route)) return null;
+    final node = _menuNode(route);
+    return node.context != null && node.canRequestFocus ? node : null;
+  }
+
+  /// Shows [route]'s page once the focus has rested on its button for a
+  /// moment, moving up and down the rail with a remote or keys.
+  void _restOn(String route, bool focused) {
+    _restTimer?.cancel();
+    if (!focused || !MenuPreview.supported || _isActive(route)) return;
+    if (!InputModeTracker.showFocusVisuals(context, true)) return;
+    if (!MenuPreview.movedAlong(Axis.vertical)) return;
+    _restTimer = Timer(MenuPreview.restDelay, () {
+      if (!mounted || !_menuNode(route).hasFocus) return;
+      if (!(ModalRoute.isCurrentOf(context) ?? true)) return;
+      MenuPreview.show(context, route);
+    });
+  }
+
+  /// OK on the button of the page already showing goes into the page.
+  bool _enterShownPage(String route) {
+    if (!_isActive(route) || !MenuPreview.holding) return false;
+    MenuPreview.stopHolding();
+    _exitSidebarToContent();
+    return true;
+  }
+
+  /// The page the menu is showing is this rail's: it opens at once, as the
+  /// one it covers was, and the page's button takes the focus.
+  void _onMenuArriving() {
+    final route = MenuPreview.arriving.value;
+    if (route == null || !_isActive(route)) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _takeArrival(route, 0));
+  }
+
+  void _takeArrival(String route, int attempt) {
+    if (!mounted || MenuPreview.arriving.value != route) return;
+    final node = _menuNode(route);
+    if ((ModalRoute.isCurrentOf(context) ?? true) &&
+        node.context != null &&
+        node.canRequestFocus) {
+      _labelTimer?.cancel();
+      _focusExpandGateTimer?.cancel();
+      setState(() {
+        _canExpandViaFocus = true;
+        _isExpanded = true;
+        _showLabels = true;
+      });
+      NavCapsule.snapNextFrame();
+      node.requestFocus();
+      MenuPreview.landed(node);
+      return;
+    }
+    if (attempt >= 20) return;
+    Timer(
+      const Duration(milliseconds: 50),
+      () => _takeArrival(route, attempt + 1),
+    );
   }
 
   @override
   void dispose() {
+    _homeFocusNode.removeListener(_onHomeNodeFocus);
+    MenuPreview.arriving.removeListener(_onMenuArriving);
+    _restTimer?.cancel();
+    for (final node in _menuFocus.values) {
+      node.dispose();
+    }
     if (_observedRoute != null) {
       routeLifecycleObserver.unsubscribe(this);
       _observedRoute = null;
@@ -450,7 +557,12 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
           }
         });
       }
-    } else if (!hasFocus && _sidebarHadFocus && _canExpandViaFocus) {
+    } else if (!hasFocus &&
+        _sidebarHadFocus &&
+        _canExpandViaFocus &&
+        (ModalRoute.isCurrentOf(context) ?? true)) {
+      // A rail on a page no longer shown stays as it was, so a page the menu
+      // brings in over it matches it.
       _collapse();
     }
     _sidebarHadFocus = hasFocus;
@@ -961,9 +1073,16 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     );
   }
 
+  Widget _withCapsule(Widget items) => PlatformDetection.useMobileUi
+      ? items
+      : NavCapsule(
+          axis: Axis.vertical,
+          radius: PlatformDetection.isTV ? 24 : 12,
+          child: items,
+        );
+
   Widget _buildContent() {
     final l10n = AppLocalizations.of(context);
-    final showShuffle = _prefs.get(UserPreferences.showShuffleButton);
     final showGenres = _prefs.get(UserPreferences.showGenresButton);
     final showFavorites = _prefs.get(UserPreferences.showFavoritesButton);
     // Checked alongside the show* preferences, never written into them, since
@@ -1029,6 +1148,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   showLabel: _showLabels,
                   onPressed: () {
                     _onNavigate();
+                    if (_enterShownPage(Destinations.home)) return;
                     if (_isActive(Destinations.home)) {
                       homeRefreshBus.request(newMediaBar: true);
                       _exitSidebarToContent();
@@ -1041,12 +1161,14 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                 ),
                 _SidebarItem(
                   key: const ValueKey('sidebar-search'),
+                  focusNode: _menuNode(Destinations.search),
                   icon: Icons.search_rounded,
                   label: l10n.search,
                   baseColor: nextMainSidebarColor(),
                   showLabel: _showLabels,
                   onPressed: () {
                     _onNavigate();
+                    if (_enterShownPage(Destinations.search)) return;
                     if (_isActive(Destinations.search)) {
                       _exitSidebarToContent();
                       return;
@@ -1059,30 +1181,20 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                 if (showKostvDiscoverButton(_prefs, kidsMode: _kidsMode))
                   _SidebarItem(
                     key: const ValueKey('sidebar-kostv-discover'),
+                    focusNode: _menuNode(Destinations.kostvDiscover),
                     icon: Icons.explore_rounded,
                     label: l10n.kostvDiscover,
                     baseColor: nextMainSidebarColor(),
                     showLabel: _showLabels,
                     onPressed: () {
                       _onNavigate();
+                      if (_enterShownPage(Destinations.kostvDiscover)) return;
                       if (_isActive(Destinations.kostvDiscover)) {
                         _exitSidebarToContent();
                         return;
                       }
                       _markNavigationAwayFromSidebar();
                       context.navigateTopLevel(Destinations.kostvDiscover);
-                    },
-                  ),
-                if (showShuffle)
-                  _SidebarItem(
-                    key: const ValueKey('sidebar-shuffle'),
-                    icon: Icons.shuffle_rounded,
-                    label: l10n.shuffle,
-                    baseColor: nextMainSidebarColor(),
-                    showLabel: _showLabels,
-                    onPressed: () {
-                      _onNavigate();
-                      showShuffleOverlay(context);
                     },
                   ),
                 if (showGenres)
@@ -1128,12 +1240,14 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                 if (_prefs.get(UserPreferences.kostvMyListAvailable))
                   _SidebarItem(
                     key: const ValueKey('sidebar-my-list'),
+                    focusNode: _menuNode(Destinations.myList),
                     icon: Icons.bookmark_rounded,
                     label: l10n.kostvMyList,
                     baseColor: nextMainSidebarColor(),
                     showLabel: _showLabels,
                     onPressed: () {
                       _onNavigate();
+                      if (_enterShownPage(Destinations.myList)) return;
                       if (_isActive(Destinations.myList)) {
                         _exitSidebarToContent();
                         return;
@@ -1181,12 +1295,14 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     GetIt.instance<PluginSyncService>().calendarAvailable)
                   _SidebarItem(
                     key: const ValueKey('sidebar-calendar'),
+                    focusNode: _menuNode(Destinations.calendar),
                     baseColor: nextMainSidebarColor(),
                     icon: Icons.calendar_month_rounded,
                     label: l10n.calendar,
                     showLabel: _showLabels,
                     onPressed: () {
                       _onNavigate();
+                      if (_enterShownPage(Destinations.calendar)) return;
                       if (_isActive(Destinations.calendar)) {
                         _exitSidebarToContent();
                         return;
@@ -1199,12 +1315,14 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                 if (showKostvAppsButton(_prefs))
                   _SidebarItem(
                     key: const ValueKey('sidebar-apps'),
+                    focusNode: _menuNode(Destinations.apps),
                     baseColor: nextMainSidebarColor(),
                     icon: Icons.apps_rounded,
                     label: l10n.kostvAppsRow,
                     showLabel: _showLabels,
                     onPressed: () {
                       _onNavigate();
+                      if (_enterShownPage(Destinations.apps)) return;
                       if (_isActive(Destinations.apps)) {
                         _exitSidebarToContent();
                         return;
@@ -1327,9 +1445,12 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   constraints: BoxConstraints(
                     minHeight: math.max(0, constraints.maxHeight - 8),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: items,
+                  // Kos TV: the menu's glass capsule glides between them.
+                  child: _withCapsule(
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: items,
+                    ),
                   ),
                 ),
               );
@@ -1672,7 +1793,63 @@ class _SidebarItemState extends State<_SidebarItem> {
           },
           child: GestureDetector(
             onTap: widget.onPressed,
-            child: AnimatedContainer(
+            child: NavCapsule.maybeOf(context) != null
+                ? NavCapsuleTarget(
+                    active: highlighted,
+                    builder: (context, cover) {
+                      final color = Color.lerp(
+                        baseColor,
+                        Colors.black,
+                        cover,
+                      )!;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutCubic,
+                        height: desktopSidebar ? 44 : 40,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: _tvCompact ? 12 : 18,
+                        ),
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: iconSlotWidth,
+                              child: UnreadBadge(
+                                count: widget.badgeCount,
+                                child:
+                                    widget.iconBuilder?.call(
+                                      iconSize,
+                                      color,
+                                    ) ??
+                                    (widget.icon != null
+                                        ? AdaptiveIcon(
+                                            widget.icon!,
+                                            size: iconSize,
+                                            color: color,
+                                          )
+                                        : const SizedBox.shrink()),
+                              ),
+                            ),
+                            if (widget.showLabel) ...[
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  widget.label,
+                                  style: TextStyle(
+                                    color: color,
+                                    fontSize: labelFontSize,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (widget.trailing != null) widget.trailing!,
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                  )
+                : AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               height: desktopSidebar ? 44 : 40,
               padding: EdgeInsets.only(
@@ -1798,7 +1975,34 @@ class _SidebarLibraryItemState extends State<_SidebarLibraryItem> {
           },
           child: GestureDetector(
             onTap: widget.onPressed,
-            child: AnimatedContainer(
+            child: NavCapsule.maybeOf(context) != null
+                ? NavCapsuleTarget(
+                    active: highlighted,
+                    builder: (context, cover) => Container(
+                      height: desktopSidebar ? 40 : 36,
+                      padding: EdgeInsets.only(
+                        left: desktopSidebar ? 64 : 58,
+                        right: 18,
+                      ),
+                      alignment: Alignment.centerLeft,
+                      child: widget.showLabel
+                          ? Text(
+                              widget.label,
+                              style: TextStyle(
+                                color: Color.lerp(
+                                  baseColor,
+                                  Colors.black,
+                                  cover,
+                                ),
+                                fontSize: desktopSidebar ? 15 : 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  )
+                : AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               height: desktopSidebar ? 40 : 36,
               padding: EdgeInsets.only(

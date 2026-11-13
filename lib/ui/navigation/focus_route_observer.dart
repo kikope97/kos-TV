@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 
 import '../../util/platform_detection.dart';
 import '../widgets/navigation_layout.dart';
+import 'menu_preview.dart';
 
 /// Grants initial focus to the first focusable content descendant of a
 /// freshly pushed (or popped-back-to) route, so the d-pad always has
@@ -39,6 +40,9 @@ class FocusRouteObserver extends NavigatorObserver {
 
   void _scheduleFocus(Route<dynamic> route) {
     if (!PlatformDetection.isTV) return;
+    // Kos TV: the menu is showing pages as the person moves along it, and
+    // keeps the focus.
+    if (MenuPreview.holding) return;
     _retryTimer?.cancel();
     WidgetsBinding.instance.addPostFrameCallback((_) => _tryFocus(route, 0));
   }

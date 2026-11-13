@@ -12778,6 +12778,14 @@
     "@kostvMyListWhy": {
         "description": "Kos TV recommended Home: line under the \u00abMi lista\u00bb row."
     },
+    "kostvShuffleWhy": "Algo al azar de lo que hay en casa",
+    "@kostvShuffleWhy": {
+        "description": "Kos TV: line under the Shuffle row at the end of the recommended Home."
+    },
+    "kostvShuffleMore": "Más aleatorio",
+    "@kostvShuffleMore": {
+        "description": "Kos TV: last card of the Shuffle row at the end of Home, opens the shuffle window."
+    },
     "kostvMyListSeeAll": "Ver toda mi lista",
     "@kostvMyListSeeAll": {
         "description": "Kos TV: last card of the \u00abMi lista\u00bb row, opens the page."

@@ -57,6 +57,20 @@ class KostvHomeRowStyle {
         fresh: true,
       );
     }
+    // Shuffle closes every Home; in the recommended one it is dressed like
+    // the rest.
+    if (row.id == KostvHomeRepository.shuffleRowId &&
+        GetIt.instance.isRegistered<UserPreferences>() &&
+        GetIt.instance<UserPreferences>().kostvHomeActive) {
+      return KostvHomeRowStyle(
+        icon: Icons.shuffle_rounded,
+        color: const Color(0xFFFBBF24),
+        before: row.title,
+        name: '',
+        after: '',
+        why: l10n.kostvShuffleWhy,
+      );
+    }
     // Carrying on is a row of every Home; in the recommended one it is
     // dressed like the rest.
     if (row.id == 'resume' &&

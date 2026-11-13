@@ -120,14 +120,16 @@ void main() {
     expect(find.text(l10n.navigationStyle), findsOneWidget);
     expect(find.text(l10n.kostvMoreSettings), findsOneWidget);
     expect(find.text(l10n.navbarOpacity), findsNothing);
-    expect(find.text(l10n.showShuffleButton), findsNothing);
+    expect(find.text(l10n.showGenresButton), findsNothing);
 
     await tester.tap(find.text(l10n.kostvMoreSettings));
     await tester.pumpAndSettle();
     expect(controller.isOpen('appearance.navigation'), isTrue);
     expect(find.text(l10n.navbarOpacity), findsOneWidget);
-    expect(find.text(l10n.showShuffleButton), findsOneWidget);
+    expect(find.text(l10n.showGenresButton), findsOneWidget);
     expect(find.text(l10n.showDownloadsButton), findsOneWidget);
+    // Kos TV: Shuffle is at the end of Home, never in the navigation.
+    expect(find.text(l10n.showShuffleButton), findsNothing);
   });
 
   testWidgets('Live TV is offered once a Live TV library turns up', (

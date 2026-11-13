@@ -32037,6 +32037,18 @@ abstract class AppLocalizations {
   /// **'What you saved to watch and haven\'t started'**
   String get kostvMyListWhy;
 
+  /// Kos TV: line under the Shuffle row at the end of the recommended Home.
+  ///
+  /// In en, this message translates to:
+  /// **'Something at random from what is at home'**
+  String get kostvShuffleWhy;
+
+  /// Kos TV: last card of the Shuffle row at the end of Home, opens the shuffle window.
+  ///
+  /// In en, this message translates to:
+  /// **'More shuffle'**
+  String get kostvShuffleMore;
+
   /// Kos TV: last card of the «Mi lista» row, opens the page.
   ///
   /// In en, this message translates to:

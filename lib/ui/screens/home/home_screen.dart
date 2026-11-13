@@ -50,6 +50,8 @@ import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../widgets/exit_confirmation_dialog.dart';
 import '../../widgets/overlay_sheet.dart';
+import '../../widgets/shuffle_options_dialog.dart' show fetchRandomItems;
+import '../../widgets/shuffle_overlay.dart' show showShuffleOverlay;
 import '../../widgets/quick_return_wrapper.dart';
 import '../../../util/app_exit.dart';
 import '../../../util/global_shortcut_focus.dart';
@@ -66,6 +68,7 @@ import '../../../util/platform_detection.dart';
 import '../../../util/server_url.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
+import '../../navigation/menu_preview.dart';
 import '../../../data/services/installed_apps_service.dart';
 import '../../widgets/apps/app_tile.dart';
 import '../downloads/widgets/saved_media_menu.dart';
@@ -114,6 +117,9 @@ import '../../widgets/skeleton/skeleton_shimmer.dart';
 Color get _homeBackground => AppColorScheme.background;
 
 /// How far the rows have to scroll before the return is worth offering.
+/// Kos TV: the id of the Shuffle row at the end of Home.
+const kostvShuffleRowId = KostvHomeRepository.shuffleRowId;
+
 const _kHomeStartThreshold = 20.0;
 
 /// Room for the title, subtitle and gaps that sit under classic card artwork.
@@ -289,6 +295,37 @@ class _HomeShellState extends State<_HomeShell>
     _userPrefs.addListener(_onInstalledAppsChanged);
     _onInstalledAppsChanged();
     unawaited(_installedApps?.ensureLoaded());
+    unawaited(_dealShuffleRow());
+  }
+
+  /// How many titles the Shuffle row at the end of Home shows.
+  static const _shuffleRowSize = 12;
+  int _shuffleDeal = 0;
+
+  /// Kos TV: deals the Shuffle row at the end of Home again: titles picked at
+  /// random from the libraries, as the Shuffle window does, with a last card
+  /// that opens that window.
+  Future<void> _dealShuffleRow() async {
+    final deal = ++_shuffleDeal;
+    try {
+      final items = await fetchRandomItems(
+        contentType: _userPrefs.get(UserPreferences.shuffleContentType),
+        limit: _shuffleRowSize,
+      );
+      if (!mounted || deal != _shuffleDeal) return;
+      _viewModel.setShuffleRow(
+        items.isEmpty
+            ? null
+            : HomeRow(
+                id: kostvShuffleRowId,
+                title: currentAppLocalizations().shuffle,
+                rowType: HomeRowType.latestMedia,
+                items: items,
+              ),
+      );
+    } catch (e) {
+      debugPrint('[Home] Dealing the Shuffle row failed: $e');
+    }
   }
 
   final InstalledAppsService? _installedApps =
@@ -444,6 +481,7 @@ class _HomeShellState extends State<_HomeShell>
 
   void _onHomeRefreshRequested() {
     if (!mounted) return;
+    unawaited(_dealShuffleRow());
     _viewModel.refresh(
       newMediaBar: homeRefreshBus.consumeNewMediaBar(),
       newSectionsOnly: homeRefreshBus.consumeNewSectionsOnly(),
@@ -592,6 +630,8 @@ class _HomeShellState extends State<_HomeShell>
     _themeMusicService.playForItem(item);
   }
 
+  bool _cameFromMenuPage = false;
+
   bool _isHomeRouteActive() {
     final path = appRouter.routerDelegate.currentConfiguration.uri.path;
     return path == Destinations.home ||
@@ -602,6 +642,7 @@ class _HomeShellState extends State<_HomeShell>
     if (!mounted) return;
     final path = appRouter.routerDelegate.currentConfiguration.uri.path;
     if (path == _lastObservedPath) return;
+    _cameFromMenuPage = Destinations.isMenuPage(_lastObservedPath);
     _lastObservedPath = path;
 
     final onHome = _isHomeRouteActive();
@@ -615,6 +656,9 @@ class _HomeShellState extends State<_HomeShell>
       return;
     }
 
+    // Coming back from another page of the menu deals Shuffle again; coming
+    // back from a title keeps the row as it was.
+    if (_cameFromMenuPage) unawaited(_dealShuffleRow());
     _maybeRegisterThemeMusic();
     if (_selectedItemNotifier.value != null) {
       _maybePlayThemeMusic(_selectedItemNotifier.value);
@@ -2481,7 +2525,10 @@ class _ContentRowsState extends State<_ContentRows>
   }
 
   bool _mayRestoreHomeFocus() {
-    return _isHomeRouteActive() &&
+    // Kos TV: the menu is showing pages as the person moves along it and
+    // keeps the focus.
+    return !MenuPreview.holding &&
+        _isHomeRouteActive() &&
         !SettingsPanel.isOpenNotifier.value &&
         !OverlaySheetController.hasOpenSheet;
   }
@@ -3058,6 +3105,7 @@ class _ContentRowsState extends State<_ContentRows>
   }
 
   void _requestMediaBarFocus({int attempt = 0, bool force = false}) {
+    if (MenuPreview.holding) return;
     if (!mounted ||
         (!force && _initialFocusResolved) ||
         !_isMediaBarIncluded()) {
@@ -3459,7 +3507,9 @@ class _ContentRowsState extends State<_ContentRows>
   /// TV and leanback restore focus and scroll, desktop realigns scroll only.
   /// Retries while the row settles.
   void restoreReturnFocus({int attempt = 0}) {
-    if (!mounted || PlatformDetection.useMobileUi) return;
+    if (!mounted || PlatformDetection.useMobileUi || MenuPreview.holding) {
+      return;
+    }
     final isDesktop = !PlatformDetection.isTV && !PlatformDetection.useMobileUi;
     if (isDesktop) {
       // Desktop keeps its own focus across the pop, and forcing a request
@@ -3620,7 +3670,7 @@ class _ContentRowsState extends State<_ContentRows>
   }
 
   void _ensureInitialHomeFocus(List<HomeRow> rows, {int attempt = 0}) {
-    if (!mounted) {
+    if (!mounted || MenuPreview.holding) {
       return;
     }
     if (PlatformDetection.useMobileUi) {
@@ -6713,13 +6763,23 @@ class _ContentRowsState extends State<_ContentRows>
 
   static bool _showsSeeAll(HomeRow row, UserPreferences prefs) =>
       _isKostvMyListRow(row) ||
+      _isKostvShuffleRow(row) ||
       _showsCalendarSeeAll(row, prefs) ||
       (row.items.isNotEmpty && homeRowSeeAllTarget(row) != null);
 
   Future<void> _openSeeAll(HomeRow row) async {
+    if (_isKostvShuffleRow(row)) {
+      await showShuffleOverlay(context);
+      return;
+    }
     final route = await _seeAllRoute(row);
     if (route != null && mounted) context.push(route);
   }
+
+  /// Kos TV: the Shuffle row at the end of Home, whose last card opens the
+  /// Shuffle window.
+  static bool _isKostvShuffleRow(HomeRow row) =>
+      row.items.isNotEmpty && row.id == kostvShuffleRowId;
 
   /// Kos TV: the row of the person's list, whose last card opens the whole list.
   static bool _isKostvMyListRow(HomeRow row) =>
@@ -6764,8 +6824,13 @@ class _ContentRowsState extends State<_ContentRows>
     required bool suppressFocusGlow,
   }) {
     final myList = _isKostvMyListRow(row);
+    final shuffle = _isKostvShuffleRow(row);
     return MediaCard(
-      title: myList ? l10n.kostvMyListSeeAll : l10n.seeAll,
+      title: shuffle
+          ? l10n.kostvShuffleMore
+          : myList
+          ? l10n.kostvMyListSeeAll
+          : l10n.seeAll,
       showLabel: false,
       width: width,
       aspectRatio: aspectRatio,
@@ -6784,6 +6849,8 @@ class _ContentRowsState extends State<_ContentRows>
               child: Icon(
                 _calendarRowIds.contains(row.id)
                     ? Icons.calendar_month
+                    : shuffle
+                    ? Icons.shuffle_rounded
                     : myList
                     ? Icons.bookmarks_outlined
                     : Icons.grid_view_rounded,

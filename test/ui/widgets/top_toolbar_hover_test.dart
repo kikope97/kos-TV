@@ -64,7 +64,8 @@ Widget _host(Widget chrome) {
 final _homeButton = find.byKey(const ValueKey('toolbar_home'));
 
 /// An unexpanded button holds only an icon, so finding a Text means the label
-/// animated in.
+/// animated in. Under the menu's capsule a button is drawn twice (as on the
+/// bar and as on the capsule), so its label shows up once per look.
 final _homeLabel = find.descendant(
   of: _homeButton,
   matching: find.byType(Text),
@@ -125,7 +126,7 @@ void main() {
     // No elapsed duration. A dwell timer would still be pending here.
     await tester.pump();
 
-    expect(_homeLabel, findsOneWidget);
+    expect(_homeLabel, findsWidgets);
   });
 
   testWidgets('a nav item stays expanded while the pointer rests on it', (
@@ -139,14 +140,14 @@ void main() {
 
     await _mouseOver(tester, _homeButton);
     await tester.pump();
-    expect(_homeLabel, findsOneWidget);
+    expect(_homeLabel, findsWidgets);
 
     // Losing focus must not take the hover with it, or the button goes dark
     // under a pointer that never moved.
     focusNode.unfocus();
     await tester.pump();
 
-    expect(_homeLabel, findsOneWidget);
+    expect(_homeLabel, findsWidgets);
   });
 
   testWidgets('a nav item collapses once the pointer leaves', (tester) async {
@@ -154,10 +155,12 @@ void main() {
 
     final mouse = await _mouseOver(tester, _homeButton);
     await tester.pump();
-    expect(_homeLabel, findsOneWidget);
+    expect(_homeLabel, findsWidgets);
 
     await mouse.moveTo(const Offset(2000, 2000));
     await tester.pump();
+    // It folds away rather than vanishing.
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(_homeLabel, findsNothing);
   });
@@ -194,6 +197,6 @@ void main() {
     await mouse.moveTo(const Offset(2000, 2000));
     await tester.pump();
 
-    expect(librariesLabel, findsOneWidget);
+    expect(librariesLabel, findsWidgets);
   });
 }

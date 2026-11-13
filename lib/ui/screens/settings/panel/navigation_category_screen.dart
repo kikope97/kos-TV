@@ -191,17 +191,6 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
                       : const <BottomNavTab>{};
                   return adaptiveListSection(
                     children: [
-                      SwitchPreferenceTile(
-                        preference: UserPreferences.showShuffleButton,
-                        title: l10n.showShuffleButton,
-                        subtitle: l10n.settingsShowShuffleButtonInNavigation,
-                        icon: Icons.shuffle,
-                        onChanged: _pushPersonalizationSync,
-                      ),
-                      if (prefs.get(UserPreferences.showShuffleButton))
-                        _ShuffleContentTypePickerTile(
-                          onChanged: _pushPersonalizationSync,
-                        ),
                       if (!onBar.contains(BottomNavTab.genres))
                         SwitchPreferenceTile(
                           key: const ValueKey(BottomNavTab.genres),

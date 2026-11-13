@@ -18912,6 +18912,12 @@ class AppLocalizationsEs extends AppLocalizations {
       'Lo que guardaste para ver y aún no has empezado';
 
   @override
+  String get kostvShuffleWhy => 'Algo al azar de lo que hay en casa';
+
+  @override
+  String get kostvShuffleMore => 'Más aleatorio';
+
+  @override
   String get kostvMyListSeeAll => 'Ver toda mi lista';
 
   @override

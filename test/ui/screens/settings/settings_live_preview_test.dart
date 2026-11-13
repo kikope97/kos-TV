@@ -1202,7 +1202,6 @@ void main() {
       final order = [
         Icons.home_rounded,
         Icons.search_rounded,
-        Icons.shuffle_rounded,
         Icons.favorite_rounded,
         Icons.live_tv_rounded,
         Icons.groups_rounded,
@@ -1609,8 +1608,8 @@ void main() {
         ..tryValue('pref_navbar_position', NavbarPosition.left)
         ..tryValue('pref_navbar_always_expanded', true);
       await pumpPreview(tester, controller);
-      expect(find.byIcon(Icons.shuffle_rounded), findsOneWidget);
-      expect(find.text(l10n.shuffle), findsNothing);
+      expect(find.byIcon(Icons.search_rounded), findsOneWidget);
+      expect(find.text(l10n.search), findsNothing);
       debugDefaultTargetPlatformOverride = null;
     });
 

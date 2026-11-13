@@ -151,7 +151,8 @@ class BottomNavController extends ChangeNotifier {
       isAvailable: isAvailable,
       savedAvailable:
           DownloadsNavSlot.isOffered() && DownloadsNavSlot.hasSavedMedia(),
-      shuffle: _prefs.get(UserPreferences.showShuffleButton),
+      // Kos TV: shuffle lives at the end of Home, not in the navigation.
+      shuffle: false,
       syncPlay: syncPlay,
       quickConnect: _activeServerHasQuickConnect,
       remoteControl: activeServerSupports((f) => f.supportsRemoteControl),
@@ -203,7 +204,6 @@ class BottomNavController extends ChangeNotifier {
         _prefs.get(UserPreferences.showGenresButton),
         _prefs.get(UserPreferences.showLiveTvButton),
         _prefs.get(UserPreferences.showCalendarButton),
-        _prefs.get(UserPreferences.showShuffleButton),
         _prefs.get(UserPreferences.syncPlayEnabled),
         _prefs.get(UserPreferences.showSyncPlayButton),
         _prefs.get(UserPreferences.showServerMessagesButton),

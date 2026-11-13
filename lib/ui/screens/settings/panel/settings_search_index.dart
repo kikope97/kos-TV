@@ -845,17 +845,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       'transparency',
     ]),
     navigation.leaf(
-      'pref_show_shuffle_button',
-      l10n.showShuffleButton,
-      subtitle: l10n.settingsShowShuffleButtonInNavigation,
-      keywords: ['random'],
-    ),
-    navigation.leaf(
-      'pref_shuffle_content_type',
-      l10n.settingsShuffleContentTypeFilter,
-      keywords: ['movies', 'shows'],
-    ),
-    navigation.leaf(
       'pref_show_genres_button',
       l10n.showGenresButton,
       subtitle: l10n.settingsShowGenresButtonInNavigation,

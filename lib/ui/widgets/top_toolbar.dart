@@ -28,9 +28,11 @@ import '../../util/live_tv_library.dart';
 import '../../util/overlay_color_palette.dart';
 import '../../util/platform_detection.dart';
 import '../navigation/destinations.dart';
+import '../navigation/menu_preview.dart';
 import '../navigation/home_refresh_bus.dart';
 import '../navigation/route_lifecycle_observer.dart';
 import 'downloads_nav_slot.dart';
+import 'nav_capsule.dart';
 import 'friends_nav_slot.dart';
 import 'expandable_icon_button.dart';
 import 'marquee_text.dart';
@@ -43,7 +45,6 @@ import '../screens/settings/settings_side_panel.dart';
 import '../screens/watch_party/watch_together_route.dart';
 import 'server_messages_dialog.dart';
 import 'server_messages_nav_slot.dart';
-import 'shuffle_overlay.dart';
 import 'user_menu_dialog.dart';
 
 import 'offline_aware_image.dart';
@@ -152,7 +153,11 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   // clears the shared isFocusedNotifier on dispose.
   bool _toolbarHadFocus = false;
   bool _friendsAvailable = FriendsNavSlot.isAvailable();
-  List<AggregatedLibrary> _libraries = [];
+  // Kos TV: starts from the libraries the last toolbar had, so a page the
+  // menu brings in has the same buttons as the one it covers from its first
+  // frame. The load below corrects it if they changed.
+  static List<AggregatedLibrary> _lastLibraries = const [];
+  List<AggregatedLibrary> _libraries = List.of(_lastLibraries);
   Timer? _clockTimer;
   Timer? _librariesReloadDebounce;
   late final ValueNotifier<String> _currentTime;
@@ -168,9 +173,21 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     // Guarded so a stale registration from a torn-down toolbar is a safe
     // no-op instead of focusing a disposed node.
     _focusNavbarCallback = () {
-      if (!mounted || _homeFocus.context == null) return;
+      if (!mounted) return;
+      // Kos TV: up into the menu lands on the page's own button, so resting
+      // there shows nothing new.
+      final route = widget.activeRoute;
+      final own = route != null && Destinations.isMenuPage(route)
+          ? _menuNode(route)
+          : null;
+      if (own != null && own.context != null && own.canRequestFocus) {
+        own.requestFocus();
+        return;
+      }
+      if (_homeFocus.context == null) return;
       _homeFocus.requestFocus();
     };
+    MenuPreview.track();
     _focusAvatarCallback = () {
       if (!mounted || _avatarFocus.context == null) return;
       _avatarFocus.requestFocus();
@@ -184,6 +201,8 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     _avatarFocus.addListener(_onAvatarFocusChanged);
     _trayFocus.addListener(_onAvatarFocusChanged);
     FocusManager.instance.addListener(_trackPreviousFocus);
+    MenuPreview.arriving.addListener(_onMenuArriving);
+    _onMenuArriving();
     _updateClock();
     _clockTimer = Timer.periodic(
       const Duration(seconds: 30),
@@ -263,6 +282,11 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     _avatarFocus.removeListener(_onAvatarFocusChanged);
     _trayFocus.removeListener(_onAvatarFocusChanged);
     FocusManager.instance.removeListener(_trackPreviousFocus);
+    MenuPreview.arriving.removeListener(_onMenuArriving);
+    _restTimer?.cancel();
+    for (final node in _menuFocus.values) {
+      node.dispose();
+    }
     _toolbarScopeNode.dispose();
     _avatarFocus.dispose();
     _trayFocus.dispose();
@@ -387,6 +411,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
             )
           : libs;
 
+      _lastLibraries = filtered;
       if (mounted && !_librariesEqual(_libraries, filtered)) {
         setState(() => _libraries = filtered);
       }
@@ -641,6 +666,67 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   }
 
   bool _isActive(String route) => widget.activeRoute == route;
+
+  /// Kos TV: the buttons of the pages the menu shows by resting on them.
+  final _menuFocus = <String, FocusNode>{};
+  Timer? _restTimer;
+
+  FocusNode _menuNode(String route) => route == Destinations.home
+      ? _homeFocus
+      : _menuFocus.putIfAbsent(
+          route,
+          () => FocusNode(debugLabel: 'TopToolbarMenu $route'),
+        );
+
+  /// Shows [route]'s page once the focus has rested on its button for a
+  /// moment, with a remote or keys.
+  void _restOn(String route, bool focused) {
+    _restTimer?.cancel();
+    if (!focused || !MenuPreview.supported || _isActive(route)) return;
+    if (!InputModeTracker.showFocusVisuals(context, true)) return;
+    // Only moving along the menu, not coming up into it from the page.
+    if (!MenuPreview.movedAlong(Axis.horizontal)) return;
+    _restTimer = Timer(MenuPreview.restDelay, () {
+      if (!mounted || !_menuNode(route).hasFocus) return;
+      if (!(ModalRoute.isCurrentOf(context) ?? true)) return;
+      MenuPreview.show(context, route);
+    });
+  }
+
+  /// OK on the button of the page already showing goes into the page, as
+  /// Down does.
+  bool _enterShownPage(String route) {
+    if (!_isActive(route) || !MenuPreview.holding) return false;
+    MenuPreview.stopHolding();
+    _restoreFocusBelowToolbar();
+    return true;
+  }
+
+  /// The page the menu is showing is this toolbar's: its button takes the
+  /// focus, so the person goes on along the menu.
+  void _onMenuArriving() {
+    final route = MenuPreview.arriving.value;
+    if (route == null || route != widget.activeRoute) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _takeArrival(route, 0));
+  }
+
+  void _takeArrival(String route, int attempt) {
+    if (!mounted || MenuPreview.arriving.value != route) return;
+    final node = _menuNode(route);
+    if ((ModalRoute.isCurrentOf(context) ?? true) &&
+        node.context != null &&
+        node.canRequestFocus) {
+      NavCapsule.snapNextFrame();
+      node.requestFocus();
+      MenuPreview.landed(node);
+      return;
+    }
+    if (attempt >= 20) return;
+    Timer(
+      const Duration(milliseconds: 50),
+      () => _takeArrival(route, attempt + 1),
+    );
+  }
 
   /// Phones keep the avatar on home only, so other routes leave the back
   /// arrow on its own.
@@ -1024,7 +1110,6 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
 
   Widget _buildCenter() {
     final isNeon = ThemeRegistry.active.id == ThemeRegistry.neonPulseId;
-    final showShuffle = _prefs.get(UserPreferences.showShuffleButton);
     final showGenres = _prefs.get(UserPreferences.showGenresButton);
     final showFavorites = _prefs.get(UserPreferences.showFavoritesButton);
     // Checked alongside the show* preferences, never written into them, since
@@ -1066,12 +1151,30 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
       return c;
     }
 
-    return Center(
-      child: _wrapPill(
+    return _anchorPill(
+      // What changes how many buttons there are, so the bar's width at rest
+      // is measured again.
+      [
+        showGenres,
+        showFavorites,
+        showLiveTv,
+        showLibraries,
+        showLibrariesIndividually,
+        alwaysExpanded,
+        showSyncPlay,
+        showCalendar,
+        showApps,
+        kidsMode,
+        _prefs.get(UserPreferences.kostvMyListAvailable),
+        showKostvDiscoverButton(_prefs, kidsMode: kidsMode),
+        navLibraries.length,
+        l10n.localeName,
+      ].join(','),
+      _wrapPill(
         isNeon: isNeon,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: Row(
+          child: _withCapsule(Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -1084,7 +1187,9 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   label: l10n.home,
                   baseColor: nextNavColor(),
                   focusNode: _homeFocus,
+                  onFocusChanged: (f) => _restOn(Destinations.home, f),
                   onPressed: () {
+                    if (_enterShownPage(Destinations.home)) return;
                     if (_isActive(Destinations.home)) {
                       homeRefreshBus.request(newMediaBar: true);
                       return;
@@ -1099,11 +1204,14 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                 order: (order++).toDouble(),
                 child: ExpandableIconButton(
                   key: const ValueKey('toolbar_search'),
+                  focusNode: _menuNode(Destinations.search),
+                  onFocusChanged: (f) => _restOn(Destinations.search, f),
                   forceExpanded: alwaysExpanded,
                   icon: Icons.search_rounded,
                   label: l10n.search,
                   baseColor: nextNavColor(),
                   onPressed: () {
+                    if (_enterShownPage(Destinations.search)) return;
                     if (_isActive(Destinations.search)) return;
                     context.navigateTopLevel(Destinations.search);
                   },
@@ -1116,28 +1224,17 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   order: (order++).toDouble(),
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_kostv_discover'),
+                    focusNode: _menuNode(Destinations.kostvDiscover),
+                    onFocusChanged: (f) => _restOn(Destinations.kostvDiscover, f),
                     forceExpanded: alwaysExpanded,
                     icon: Icons.explore_rounded,
                     label: l10n.kostvDiscover,
                     baseColor: nextNavColor(),
                     onPressed: () {
+                      if (_enterShownPage(Destinations.kostvDiscover)) return;
                       if (_isActive(Destinations.kostvDiscover)) return;
                       context.navigateTopLevel(Destinations.kostvDiscover);
                     },
-                  ),
-                ),
-              ],
-              if (showShuffle) ...[
-                _gap(),
-                _orderButton(
-                  order: (order++).toDouble(),
-                  child: ExpandableIconButton(
-                    key: const ValueKey('toolbar_shuffle'),
-                    forceExpanded: alwaysExpanded,
-                    icon: Icons.shuffle_rounded,
-                    label: l10n.shuffle,
-                    baseColor: nextNavColor(),
-                    onPressed: () => showShuffleOverlay(context),
                   ),
                 ),
               ],
@@ -1188,11 +1285,14 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   order: (order++).toDouble(),
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_my_list'),
+                    focusNode: _menuNode(Destinations.myList),
+                    onFocusChanged: (f) => _restOn(Destinations.myList, f),
                     forceExpanded: alwaysExpanded,
                     icon: Icons.bookmark_rounded,
                     label: l10n.kostvMyList,
                     baseColor: nextNavColor(),
                     onPressed: () {
+                      if (_enterShownPage(Destinations.myList)) return;
                       if (_isActive(Destinations.myList)) return;
                       context.navigateTopLevel(Destinations.myList);
                     },
@@ -1240,11 +1340,14 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   order: (order++).toDouble(),
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_calendar'),
+                    focusNode: _menuNode(Destinations.calendar),
+                    onFocusChanged: (f) => _restOn(Destinations.calendar, f),
                     forceExpanded: alwaysExpanded,
                     baseColor: nextNavColor(),
                     icon: Icons.calendar_month_rounded,
                     label: l10n.calendar,
                     onPressed: () {
+                      if (_enterShownPage(Destinations.calendar)) return;
                       if (_isActive(Destinations.calendar)) return;
                       context.navigateTopLevel(Destinations.calendar);
                     },
@@ -1257,11 +1360,14 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   order: (order++).toDouble(),
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_apps'),
+                    focusNode: _menuNode(Destinations.apps),
+                    onFocusChanged: (f) => _restOn(Destinations.apps, f),
                     forceExpanded: alwaysExpanded,
                     baseColor: nextNavColor(),
                     icon: Icons.apps_rounded,
                     label: l10n.kostvAppsRow,
                     onPressed: () {
+                      if (_enterShownPage(Destinations.apps)) return;
                       if (_isActive(Destinations.apps)) return;
                       context.navigateTopLevel(Destinations.apps);
                     },
@@ -1387,9 +1493,48 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                 ),
               ),
             ],
-          ),
+          )),
         ),
       ),
+    );
+  }
+
+  /// Kos TV: the menu's glass capsule behind the buttons, with a remote, a
+  /// keyboard or a mouse. Touch screens keep each button's own look.
+  Widget _withCapsule(Widget buttons) => PlatformDetection.useMobileUi
+      ? buttons
+      : NavCapsule(
+          key: _capsuleKey,
+          color: AppColorScheme.onSurface,
+          child: buttons,
+        );
+
+  final _capsuleKey = GlobalKey<NavCapsuleState>();
+
+  /// The bar's width with no label open, for [_PillAnchor], by what sets
+  /// its buttons: shared by every toolbar, so a page the menu brings in
+  /// places its bar exactly where the one it covers was.
+  static final _restWidths = <String, double>{};
+  String _pillRestSignature = '';
+
+  double? get _pillRestWidth => _restWidths[_pillRestSignature];
+  set _pillRestWidth(double? width) {
+    if (width == null) {
+      _restWidths.remove(_pillRestSignature);
+    } else {
+      _restWidths[_pillRestSignature] = width;
+    }
+  }
+
+  /// Kos TV: the bar sits centred, but while the menu is in use it keeps its
+  /// left edge where it was, so opening labels push the buttons after them
+  /// instead of swaying the whole bar.
+  Widget _anchorPill(String signature, Widget pill) {
+    if (PlatformDetection.useMobileUi) return Center(child: pill);
+    _pillRestSignature = signature;
+    return CustomSingleChildLayout(
+      delegate: _PillAnchor(this),
+      child: pill,
     );
   }
 
@@ -1916,7 +2061,28 @@ class _ToolbarLibrariesTriggerButtonState
         },
         child: GestureDetector(
           onTap: widget.onPressed,
-          child: AnimatedContainer(
+          child: NavCapsule.maybeOf(context) != null && !PlatformDetection.useMobileUi
+              ? NavCapsuleTarget(
+                  active: _focused || (_hovered && hoverEnabled),
+                  builder: (context, cover) => _capsuleLook(
+                    showLabel: showLabel,
+                    // Fanned out, it keeps a faint mark of being open.
+                    tint: widget.expanded && !_focused
+                        ? Colors.white.withValues(alpha: 0.14)
+                        : Colors.transparent,
+                    color: Color.lerp(
+                      widget.iconColor ??
+                          (isLeanback
+                              ? Colors.white.withValues(alpha: 0.6)
+                              : AppColorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                )),
+                      Colors.black,
+                      cover,
+                    )!,
+                  ),
+                )
+              : AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             curve: Curves.easeOut,
             constraints: const BoxConstraints(minHeight: 44),
@@ -1954,6 +2120,62 @@ class _ToolbarLibrariesTriggerButtonState
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Kos TV: the look under the menu's capsule: the label opens and closes
+  /// with it rather than popping in.
+  Widget _capsuleLook({
+    required bool showLabel,
+    required Color tint,
+    required Color color,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+      constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
+      padding: EdgeInsets.symmetric(horizontal: showLabel ? 18 : 10),
+      decoration: BoxDecoration(
+        color: tint,
+        borderRadius: AppRadius.circular(36),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Image.asset(
+            'assets/icons/clapperboard.png',
+            width: 24,
+            height: 24,
+            color: color,
+            fit: BoxFit.contain,
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 260),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.centerLeft,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: showLabel ? 1 : 0,
+              child: showLabel
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 10),
+                      child: Text(
+                        widget.label,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2052,7 +2274,32 @@ class _ToolbarLibraryLabelButtonState
         },
         child: GestureDetector(
           onTap: widget.onPressed,
-          child: AnimatedContainer(
+          child: NavCapsule.maybeOf(context) != null && !PlatformDetection.useMobileUi
+              ? NavCapsuleTarget(
+                  active: active,
+                  builder: (context, cover) => Container(
+                    constraints: const BoxConstraints(minHeight: 44),
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: Text(
+                      widget.label,
+                      style: TextStyle(
+                        color: Color.lerp(
+                          isLeanback
+                              ? Colors.white
+                              : AppColorScheme.onSurface.withValues(
+                                  alpha: 0.85,
+                                ),
+                          Colors.black,
+                          cover,
+                        ),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                )
+              : AnimatedContainer(
             duration: const Duration(milliseconds: 120),
             curve: Curves.easeOut,
             constraints: const BoxConstraints(minHeight: 44),
@@ -2790,4 +3037,36 @@ class _TopMusicBarState extends State<TopMusicBar> {
       ),
     );
   }
+}
+
+/// Kos TV: places the menu's bar: centred at rest, and while the menu is in
+/// use (or its labels are still folding away) with its left edge where it
+/// was at rest, as far as it fits.
+class _PillAnchor extends SingleChildLayoutDelegate {
+  _PillAnchor(this.toolbar);
+
+  final _TopToolbarState toolbar;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      constraints.loosen();
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    final top = (size.height - childSize.height) / 2;
+    final engaged = toolbar._capsuleKey.currentState?.engaged ?? false;
+    final rest = toolbar._pillRestWidth;
+    if (!engaged && (rest == null || childSize.width <= rest + 0.5)) {
+      toolbar._pillRestWidth = childSize.width;
+      return Offset((size.width - childSize.width) / 2, top);
+    }
+    final restWidth = rest ?? childSize.width;
+    toolbar._pillRestWidth = restWidth;
+    final room = math.max(0.0, size.width - childSize.width);
+    final left = ((size.width - restWidth) / 2).clamp(0.0, room).toDouble();
+    return Offset(left, top);
+  }
+
+  @override
+  bool shouldRelayout(_PillAnchor old) => true;
 }

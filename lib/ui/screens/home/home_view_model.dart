@@ -83,7 +83,27 @@ class HomeViewModel extends ChangeNotifier {
     final apps = _appsRow;
     final withApps = apps == null ? base : withAppsRow(base, apps);
     final party = _watchPartyRow;
-    return party == null ? withApps : [party, ...withApps];
+    final withParty = party == null ? withApps : [party, ...withApps];
+    return withShuffleRow(withParty, _shuffleRow, hasRows: base.isNotEmpty);
+  }
+
+  /// Kos TV: Shuffle closes Home, once there is something above it.
+  @visibleForTesting
+  static List<HomeRow> withShuffleRow(
+    List<HomeRow> rows,
+    HomeRow? shuffle, {
+    required bool hasRows,
+  }) => shuffle == null || !hasRows ? rows : [...rows, shuffle];
+
+  /// Kos TV: the Shuffle row at the very end of Home. Like the Apps row it
+  /// isn't one of the layout's sections, so it never reaches the row cache.
+  HomeRow? _shuffleRow;
+  HomeRow? get shuffleRow => _shuffleRow;
+
+  void setShuffleRow(HomeRow? row) {
+    if (identical(row, _shuffleRow)) return;
+    _shuffleRow = row;
+    notifyListeners();
   }
 
   /// Kos TV: the Apps row goes right under the media bar, or first without one.

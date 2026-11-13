@@ -159,6 +159,9 @@ class KostvHomeRepository {
   /// started.
   static const myListKind = 'my_list';
 
+  /// The Shuffle row at the very end of Home, made by the app.
+  static const shuffleRowId = 'kostv_shuffle';
+
   /// The row of [toStart], or null when there is nothing.
   static HomeRow? myListRow(
     List<AggregatedItem> toStart,

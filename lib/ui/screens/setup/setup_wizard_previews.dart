@@ -2081,8 +2081,6 @@ List<_NavButton> _navButtons(
   return [
     icon(Icons.home_rounded, l10n.home),
     icon(Icons.search_rounded, l10n.search),
-    if (on(UserPreferences.showShuffleButton))
-      icon(Icons.shuffle_rounded, l10n.shuffle),
     if (on(UserPreferences.showGenresButton))
       asset('assets/icons/genres.png', l10n.genres),
     if (on(UserPreferences.showFavoritesButton))

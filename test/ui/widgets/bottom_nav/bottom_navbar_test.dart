@@ -142,7 +142,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Settings'), findsOneWidget);
-      expect(find.text('Shuffle'), findsOneWidget);
+      // Kos TV: Shuffle is at the end of Home, not in the hub.
+      expect(find.text('Shuffle'), findsNothing);
       expect(find.text('Genres'), findsOneWidget);
       expect(find.text('Remote Control'), findsOneWidget);
       // No Jellyfin client is signed in here, so Quick Connect has nothing
@@ -161,7 +162,7 @@ void main() {
       await tester.tap(find.text('You'));
       await tester.pumpAndSettle();
 
-      final tile = hubTile('Shuffle');
+      final tile = hubTile('Remote Control');
       final icon = find.descendant(
         of: tile,
         matching: find.byType(AdaptiveIcon),
@@ -169,7 +170,7 @@ void main() {
       expect(tester.getCenter(icon).dx, tester.getCenter(tile).dx);
       expect(
         tester.getRect(icon).bottom,
-        lessThan(tester.getRect(find.text('Shuffle')).top),
+        lessThan(tester.getRect(find.text('Remote Control')).top),
       );
     });
 
@@ -189,11 +190,10 @@ void main() {
       );
       expect(
         tester.getSize(wrapped).height,
-        tester.getSize(find.text('Shuffle')).height * 2,
+        tester.getSize(find.text('Genres')).height * 2,
       );
       final height = tester.getSize(hubTile('Remote Control')).height;
       expect(height, greaterThan(72));
-      expect(tester.getSize(hubTile('Shuffle')).height, height);
       expect(tester.getSize(hubTile('Genres')).height, height);
     });
 

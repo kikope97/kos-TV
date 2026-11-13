@@ -18320,6 +18320,14 @@
   "@kostvMyListWhy": {
     "description": "Kos TV recommended Home: line under the \u00abMi lista\u00bb row."
   },
+  "kostvShuffleWhy": "Something at random from what is at home",
+  "@kostvShuffleWhy": {
+    "description": "Kos TV: line under the Shuffle row at the end of the recommended Home."
+  },
+  "kostvShuffleMore": "More shuffle",
+  "@kostvShuffleMore": {
+    "description": "Kos TV: last card of the Shuffle row at the end of Home, opens the shuffle window."
+  },
   "kostvMyListSeeAll": "See my whole list",
   "@kostvMyListSeeAll": {
     "description": "Kos TV: last card of the \u00abMi lista\u00bb row, opens the page."

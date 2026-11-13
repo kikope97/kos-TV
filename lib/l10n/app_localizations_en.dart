@@ -18590,6 +18590,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kostvMyListWhy => 'What you saved to watch and haven\'t started';
 
   @override
+  String get kostvShuffleWhy => 'Something at random from what is at home';
+
+  @override
+  String get kostvShuffleMore => 'More shuffle';
+
+  @override
   String get kostvMyListSeeAll => 'See my whole list';
 
   @override

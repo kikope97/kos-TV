@@ -6,6 +6,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 import '../../preference/preference_constants.dart';
 import '../../preference/user_preferences.dart';
 import '../../util/idiom/app_ui_idiom.dart';
+import '../navigation/menu_preview.dart';
 
 class AppTheme {
   const AppTheme._();
@@ -222,6 +223,10 @@ class AppTheme {
   );
 }
 
+/// Kos TV: the routes the menu brought in (or took away) as the person moved
+/// along it.
+final _menuPreviewRoutes = Expando<bool>('menu preview route');
+
 class _FadeScalePageTransitionsBuilder extends PageTransitionsBuilder {
   const _FadeScalePageTransitionsBuilder();
 
@@ -266,6 +271,27 @@ class _FadeScalePageTransitionsBuilder extends PageTransitionsBuilder {
           }
         });
       }
+    }
+
+    // Kos TV: a page the menu shows as the person moves along it only fades
+    // in (or out), with no zoom, so the menu over it stays still.
+    if (MenuPreview.holding &&
+        (animation.status == AnimationStatus.forward ||
+            animation.status == AnimationStatus.reverse)) {
+      _menuPreviewRoutes[route] ??= true;
+    }
+    if (_menuPreviewRoutes[route] ?? false) {
+      if (speed == PageTransitionSpeed.off) return child;
+      // It starts showing a moment in, once its menu has the focus and
+      // matches the one it covers.
+      return FadeTransition(
+        opacity: CurvedAnimation(
+          parent: animation,
+          curve: const Interval(0.25, 1, curve: Curves.easeOutCubic),
+          reverseCurve: const Interval(0, 0.75, curve: Curves.easeInCubic),
+        ),
+        child: child,
+      );
     }
 
     final Animation<double> curved;

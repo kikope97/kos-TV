@@ -13,8 +13,15 @@ import '../../util/focus/input_mode_tracker.dart';
 import '../../util/platform_detection.dart';
 import 'focus/focus_theme.dart';
 import 'focus/glass_press_scale.dart';
+import 'nav_capsule.dart';
 
 const _kExpandDuration = Duration(milliseconds: 150);
+
+// Kos TV: under the menu's capsule the label left folds away as the next one
+// unfolds, at the same pace and mirrored, so the bar keeps its width and
+// doesn't sway while the capsule travels.
+const _kOpenDuration = Duration(milliseconds: 300);
+const _kCloseDuration = Duration(milliseconds: 300);
 const _kSpacing = 10.0;
 
 class ExpandableIconButton extends StatefulWidget {
@@ -55,7 +62,8 @@ class ExpandableIconButton extends StatefulWidget {
   State<ExpandableIconButton> createState() => _ExpandableIconButtonState();
 }
 
-class _ExpandableIconButtonState extends State<ExpandableIconButton> {
+class _ExpandableIconButtonState extends State<ExpandableIconButton>
+    with SingleTickerProviderStateMixin {
   final _prefs = GetIt.instance<UserPreferences>();
   late final FocusNode _focusNode;
   bool _isFocused = false;
@@ -63,15 +71,63 @@ class _ExpandableIconButtonState extends State<ExpandableIconButton> {
   Timer? _longPressTimer;
   bool _longPressTriggered = false;
 
+  /// Kos TV: how open the label is, 0 to 1, under the menu's capsule.
+  late final AnimationController _open = AnimationController(
+    vsync: this,
+    duration: _kOpenDuration,
+    reverseDuration: _kCloseDuration,
+  );
+  late final Animation<double> _width = CurvedAnimation(
+    parent: _open,
+    curve: Curves.easeOutCubic,
+    reverseCurve: Curves.easeInCubic,
+  );
+  late final Animation<double> _labelOpacity = CurvedAnimation(
+    parent: _open,
+    curve: const Interval(0.3, 1, curve: Curves.easeOut),
+    reverseCurve: const Interval(0.45, 1, curve: Curves.easeIn),
+  );
+  bool? _openTarget;
+
   @override
   void initState() {
     super.initState();
     _focusNode = widget.focusNode ?? FocusNode();
     _focusNode.addListener(_onFocusChange);
+    _open.addListener(() => NavCapsule.maybeOf(context)?.nudge());
+    _open.addStatusListener((status) {
+      if (status == AnimationStatus.completed && _focusNode.hasFocus) {
+        _ensureVisible();
+      }
+    });
   }
+
+  void _setOpen(bool open) {
+    if (_openTarget == open) return;
+    final first = _openTarget == null;
+    _openTarget = open;
+    if (first) {
+      _open.value = open ? 1 : 0;
+      return;
+    }
+    // A page that came in under the same menu: its label is open already,
+    // from this very frame.
+    if (open && NavCapsule.snapping) {
+      _open.value = 1;
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _openTarget != open) return;
+      open ? _open.forward() : _open.reverse();
+    });
+  }
+
+  bool _lastExpanded = false;
+  bool _lastActive = false;
 
   @override
   void dispose() {
+    _open.dispose();
     _longPressTimer?.cancel();
     _focusNode.removeListener(_onFocusChange);
     if (widget.focusNode == null) _focusNode.dispose();
@@ -186,6 +242,45 @@ class _ExpandableIconButtonState extends State<ExpandableIconButton> {
       : baseColor;
 
     final hoverEnabled = !isTV;
+    // Kos TV: with a remote, a keyboard or a mouse the menu's capsule shows
+    // the button; on touch screens it keeps its own look.
+    if (!isMobile && NavCapsule.maybeOf(context) != null) {
+      // On a page that is no longer the one shown the button stays as it
+      // was, so a page coming in over it under the same menu matches it.
+      final current = ModalRoute.isCurrentOf(context) ?? true;
+      final expanded = current ? isExpanded : _lastExpanded;
+      final active = current ? (focusVisible || hoverActive) : _lastActive;
+      _lastExpanded = expanded;
+      _lastActive = active;
+      _setOpen(expanded);
+      return MouseRegion(
+        cursor: hoverEnabled ? SystemMouseCursors.click : MouseCursor.defer,
+        onEnter: hoverEnabled ? (_) => setState(() => _isHovered = true) : null,
+        onExit: hoverEnabled ? (_) => setState(() => _isHovered = false) : null,
+        child: Focus(
+          focusNode: _focusNode,
+          onKeyEvent: _onKeyEvent,
+          child: GestureDetector(
+            onTap: widget.onPressed,
+            onLongPress: widget.onLongPress,
+            child: GlassPressScale(
+              child: NavCapsuleTarget(
+                active: active,
+                builder: (context, cover) => AnimatedBuilder(
+                  animation: _open,
+                  builder: (context, _) => _capsuleContent(
+                    btnSize: btnSize,
+                    iconSize: iconSize,
+                    color: Color.lerp(baseColor, AppColors.black, cover)!,
+                    fontSize: isTV ? 14 : 16,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     return MouseRegion(
       cursor: hoverEnabled ? SystemMouseCursors.click : MouseCursor.defer,
       onEnter: hoverEnabled ? (_) => setState(() => _isHovered = true) : null,
@@ -249,6 +344,64 @@ class _ExpandableIconButtonState extends State<ExpandableIconButton> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// The icon and, opening beside it, the label, for the capsule look.
+  Widget _capsuleContent({
+    required double btnSize,
+    required double iconSize,
+    required Color color,
+    required double fontSize,
+  }) {
+    final t = _width.value;
+    final shown = _labelOpacity.value;
+    return Container(
+      constraints: BoxConstraints(minWidth: btnSize, minHeight: btnSize),
+      padding: EdgeInsets.symmetric(horizontal: 22 * t),
+      alignment: Alignment.center,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          UnreadBadge(
+            count: widget.badgeCount,
+            child:
+                widget.iconBuilder?.call(iconSize, color) ??
+                Icon(widget.icon, size: iconSize, color: color),
+          ),
+          // In from the frame it starts opening, so the label is there at once.
+          if (t > 0 || _openTarget == true)
+            ClipRect(
+              child: Align(
+                alignment: Alignment.centerLeft,
+                widthFactor: t,
+                child: Opacity(
+                  opacity: shown,
+                  child: Transform.translate(
+                    offset: Offset(-8 * (1 - shown), 0),
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: _kSpacing),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 150),
+                        child: Text(
+                          widget.label,
+                          style: TextStyle(
+                            color: color,
+                            fontSize: fontSize,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          softWrap: false,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

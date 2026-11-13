@@ -89,6 +89,23 @@ class Destinations {
   // Kos TV: what's on the streaming platforms (requests service).
   static const kostvDiscover = '/discover';
 
+  /// Kos TV: the pages the menu (top bar or side bar) opens: the ones it
+  /// shows on its own after resting on their button.
+  static const menuPages = <String>{
+    home,
+    search,
+    kostvDiscover,
+    allGenres,
+    allFavorites,
+    myList,
+    liveTvGuide,
+    calendar,
+    apps,
+  };
+
+  /// Whether [path] is one of the [menuPages].
+  static bool isMenuPage(String? path) => menuPages.contains(path);
+
   /// Kos TV: the page of a film or series from Discover that isn't on the
   /// home server yet, to request it. [type] is `movie` or `series`.
   static const kostvRequest = '/discover/:type/:tmdbId';
