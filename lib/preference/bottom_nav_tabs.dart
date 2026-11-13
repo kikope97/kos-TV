@@ -8,9 +8,6 @@ enum BottomNavTab {
 
   /// Kos TV: what's on the streaming platforms (the requests service).
   kostvDiscover,
-
-  /// Kos TV: Music, the page of its own.
-  kostvMusic,
   libraries,
   favorites,
 
@@ -19,6 +16,9 @@ enum BottomNavTab {
   genres,
   liveTv,
   calendar,
+
+  /// Kos TV: Music, the page of its own.
+  kostvMusic,
 }
 
 const int kMaxPinnedBottomNavTabs = 3;
@@ -29,12 +29,14 @@ const int kMaxPinnedBottomNavTabs = 3;
 const List<BottomNavTab> _autoOrder = [
   BottomNavTab.search,
   BottomNavTab.kostvDiscover,
-  BottomNavTab.kostvMusic,
   BottomNavTab.libraries,
   BottomNavTab.myList,
   BottomNavTab.liveTv,
   BottomNavTab.genres,
   BottomNavTab.calendar,
+  // Kos TV: Music last, so the bar keeps its usual tabs: it is in the You
+  // hub (and in the top bar on phones), and can be pinned.
+  BottomNavTab.kostvMusic,
 ];
 
 final Map<String, BottomNavTab> _byName = {

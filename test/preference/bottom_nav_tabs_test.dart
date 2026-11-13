@@ -83,6 +83,8 @@ void main() {
       expect(gates.resolvePins(''), [
         BottomNavTab.search,
         BottomNavTab.genres,
+        // Kos TV: Music is fine for children.
+        BottomNavTab.kostvMusic,
       ]);
     });
   });

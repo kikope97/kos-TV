@@ -110,6 +110,8 @@ void main() {
       expect(tiles(saved: true, syncPlay: true, quickConnect: true), const [
         BottomNavHubTile.action(BottomNavHubAction.saved),
         BottomNavHubTile.tab(BottomNavTab.favorites),
+        // Kos TV: Music, when it isn't on the bar.
+        BottomNavHubTile.tab(BottomNavTab.kostvMusic),
         BottomNavHubTile.action(BottomNavHubAction.shuffle),
         BottomNavHubTile.action(BottomNavHubAction.syncPlay),
         BottomNavHubTile.action(BottomNavHubAction.quickConnect),
