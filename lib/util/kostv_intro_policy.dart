@@ -37,14 +37,25 @@ abstract final class KostvIntroPolicy {
             : DateTime.fromMillisecondsSinceEpoch(lastSeen),
         now: at,
       );
-      await prefs.setBool(_closedKey, false);
-      await prefs.setInt(_lastSeenKey, at.millisecondsSinceEpoch);
+      // Not waited for: the decision is made, the values are read back from
+      // memory, and this sits on the way to the first frame.
+      unawaited(prefs.setBool(_closedKey, false).catchError(_writeFailed));
+      unawaited(
+        prefs
+            .setInt(_lastSeenKey, at.millisecondsSinceEpoch)
+            .catchError(_writeFailed),
+      );
     } catch (e) {
       debugPrint('[KostvIntroPolicy] $e');
       _playsThisLaunch = true;
     }
     _taken = false;
     _listener ??= AppLifecycleListener(onHide: _noteSeen, onPause: _noteSeen);
+  }
+
+  static bool _writeFailed(Object e) {
+    debugPrint('[KostvIntroPolicy] $e');
+    return false;
   }
 
   /// Whether a launch is an opening: the app was closed on purpose, has never

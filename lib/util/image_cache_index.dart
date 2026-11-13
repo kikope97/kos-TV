@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
@@ -439,11 +440,23 @@ class ImageCacheIndex extends CacheInfoRepository {
     _dirty = true;
     _flushTimer ??= Timer(flushInterval, () {
       _flushTimer = null;
-      unawaited(flush());
+      unawaited(_flushInBackground());
     });
   }
 
-  Future<void> _write() async {
+  /// The timed write. Encoding thousands of rows is tens of milliseconds on a
+  /// TV box, so it runs on another isolate; [flush] (pause, close, clear)
+  /// stays on this one so nothing new has to start up on the way out.
+  Future<void> _flushInBackground() {
+    if (!_dirty) return _writeChain;
+    _writeChain = _writeChain.then((_) => _write(inBackground: true));
+    return _writeChain;
+  }
+
+  /// How long the background write may take before the chain moves on.
+  static const _backgroundWriteTimeout = Duration(seconds: 10);
+
+  Future<void> _write({bool inBackground = false}) async {
     if (!_dirty) return;
     final stopwatch = Stopwatch()..start();
     _dirty = false;
@@ -463,20 +476,64 @@ class ImageCacheIndex extends CacheInfoRepository {
           o.length,
         ],
     ];
+    final next = _nextId;
+    if (inBackground) {
+      try {
+        final written = await _encodeAndWriteInBackground(
+          rows,
+          next,
+          temp.path,
+          file.path,
+        ).timeout(_backgroundWriteTimeout);
+        if (!written) _dirty = true;
+        ArtworkTimings.indexFlushed(
+          entries: rows.length,
+          took: stopwatch.elapsed,
+        );
+        return;
+      } on TimeoutException {
+        // Still running somewhere: writing the same temp file now could
+        // interleave with it, so the next flush writes instead.
+        _dirty = true;
+        return;
+      } catch (_) {
+        // No isolate to be had: write here, as before.
+      }
+    }
+    final written = await _encodeAndWrite(rows, next, temp.path, file.path);
+    if (!written) _dirty = true;
+    ArtworkTimings.indexFlushed(entries: rows.length, took: stopwatch.elapsed);
+  }
+
+  // Its own function so the isolate closure captures only these values.
+  static Future<bool> _encodeAndWriteInBackground(
+    List<List<Object?>> rows,
+    int next,
+    String tempPath,
+    String filePath,
+  ) => Isolate.run(() => _encodeAndWrite(rows, next, tempPath, filePath));
+
+  static Future<bool> _encodeAndWrite(
+    List<List<Object?>> rows,
+    int next,
+    String tempPath,
+    String filePath,
+  ) async {
     final text = jsonEncode(<String, Object?>{
       'v': formatVersion,
-      'next': _nextId,
+      'next': next,
       'e': rows,
     });
     try {
       // Temp then rename, so a kill mid-write leaves the previous index
       // whole rather than a truncated file that parses as empty.
+      final temp = File(tempPath);
       await temp.writeAsString(text, flush: true);
-      await temp.rename(file.path);
+      await temp.rename(filePath);
+      return true;
     } catch (_) {
-      _dirty = true;
+      return false;
     }
-    ArtworkTimings.indexFlushed(entries: rows.length, took: stopwatch.elapsed);
   }
 
   Future<void> _unlink(CacheObject object) async {

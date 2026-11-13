@@ -54,6 +54,7 @@ import 'platform/background_refresh.dart';
 import 'platform/web_runtime_config.dart';
 import 'preference/preference_constants.dart';
 import 'preference/user_preferences.dart';
+import 'util/idiom/glass_capability.dart';
 import 'util/fullscreen_helper.dart';
 import 'util/window_geometry.dart';
 import 'util/http_overrides_stub.dart'
@@ -856,10 +857,11 @@ void main() async {
   MacosTouchInput.install();
 
   // Pre-warms the liquid_glass_widgets shader programs so the first glass
-  // pane doesn't white-flash. Cheap no-op on tiers where the package
-  // renderer is disabled, and the Impeller pipeline warm-up is deferred
-  // past the first frame internally.
-  await LiquidGlassWidgets.initialize();
+  // pane doesn't white-flash. Started now and awaited before runApp only
+  // when the glass tier uses the package renderer, so TV and web (sheen)
+  // don't wait on shaders they never draw with. The Impeller pipeline
+  // warm-up is deferred past the first frame internally.
+  final glassWarmUp = LiquidGlassWidgets.initialize();
 
   registerGameCoreLicenses();
   registerEpubJsLicenses();
@@ -987,7 +989,11 @@ void main() async {
   WidgetsBinding.instance.addObserver(_ImageCacheSweepObserver(prefs));
   WidgetsBinding.instance.addObserver(_CapabilityRefreshObserver());
   WidgetsBinding.instance.addObserver(_AutoDownloadResumeObserver());
-  WidgetsBinding.instance.addPostFrameCallback((_) => _sweepImageCache(prefs));
+  // Not on the first frame: the first screens are busy decoding artwork, and
+  // a cache over budget a little longer costs nothing.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    Timer(const Duration(seconds: 20), () => _sweepImageCache(prefs));
+  });
 
   GetIt.instance<PlaybackManager>().queueService.queueChangedStream.listen((_) {
     final activeItem = GetIt.instance<PlaybackManager>().queueService.currentItem;
@@ -1044,6 +1050,19 @@ void main() async {
   await KostvIntroPolicy.init();
   // Kos TV: where the requests service was last time (the plugin says).
   await KostvRequestsAddress.load();
+
+  // Same tier the app shell applies on its first build. If it later moves
+  // to a blur tier the warm-up has long finished, and the package loads any
+  // missing shader on first use anyway.
+  final glassTier = GlassCapability.resolve(
+    prefs.get(UserPreferences.glassQuality),
+  );
+  if (!GlassCapability.useLegacyGlass &&
+      (glassTier == GlassTier.liquid || glassTier == GlassTier.frost)) {
+    await glassWarmUp;
+  } else {
+    unawaited(glassWarmUp.catchError((Object _) {}));
+  }
 
   runApp(const MoonfinApp());
 }

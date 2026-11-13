@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin/data/services/kostv_favorites_news.dart';
@@ -160,4 +161,27 @@ void main() {
       news.dispose();
     },
   );
+  testWidgets('stops asking while the app is out of sight', (tester) async {
+    final jf = client('ana');
+    final news = KostvFavoritesNewsService(
+      client: () => jf,
+      prefs: await tester.runAsync(() => prefs(available: false)),
+      dio: Dio()..httpClientAdapter = _Plugin(),
+    );
+    final binding = tester.binding;
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    news.start();
+    expect(news.polling, isTrue);
+
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    expect(news.polling, isFalse);
+
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    expect(news.polling, isTrue);
+    news.dispose();
+  });
 }

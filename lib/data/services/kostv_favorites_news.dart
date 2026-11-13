@@ -112,13 +112,31 @@ class KostvFavoritesNewsService extends ChangeNotifier {
     _readAt = null;
   }
 
-  /// Starts reading now and every half hour.
+  /// Starts reading now and every half hour while the app is in front.
   void start() {
-    _timer ??= Timer.periodic(_every, (_) => unawaited(refresh(force: true)));
-    // Back to the app: read again, as something may have arrived meanwhile.
-    _lifecycle ??= AppLifecycleListener(onResume: () => unawaited(refresh()));
+    _startTimer();
+    _lifecycle ??= AppLifecycleListener(
+      // Out of sight nobody sees the heart, so the half-hourly read would
+      // only spend the network in the background (a TV can sit for days).
+      onHide: _stopTimer,
+      onShow: _startTimer,
+      // Back to the app: read again, as something may have arrived meanwhile.
+      onResume: () => unawaited(refresh()),
+    );
     unawaited(refresh());
   }
+
+  void _startTimer() {
+    _timer ??= Timer.periodic(_every, (_) => unawaited(refresh(force: true)));
+  }
+
+  void _stopTimer() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  @visibleForTesting
+  bool get polling => _timer != null;
 
   @override
   void dispose() {

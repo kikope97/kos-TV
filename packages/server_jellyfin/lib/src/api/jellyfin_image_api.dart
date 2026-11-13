@@ -102,8 +102,17 @@ class JellyfinImageApi implements ImageApi {
 
   @override
   String getUserImageUrl(String userId) {
-    return '$_baseUrl/Users/$userId/Images/Primary';
+    // Avatars are painted small; left out, the server sends the original,
+    // which can be a multi-megabyte photo.
+    final query = _buildQuery({
+      'maxHeight': _userImageMaxHeight,
+      'quality': _artworkQuality,
+    });
+    return '$_baseUrl/Users/$userId/Images/Primary$query';
   }
+
+  /// The largest avatar is 64 logical pixels; this covers it on a 3x screen.
+  static const _userImageMaxHeight = '256';
 
   @override
   String getTrickplayTileImageUrl(

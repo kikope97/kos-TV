@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
@@ -329,36 +330,56 @@ Future<void> _enforceCacheDirectoryBudget(
   _lastSweepByCacheKey[cacheKey] = now;
   try {
     final temp = await getTemporaryDirectory();
-    final entries = <({File file, int size, DateTime modified})>[];
-    var total = 0;
-    final dir = Directory('${temp.path}/$cacheKey');
-    if (!await dir.exists()) return;
-    await for (final entity in dir.list(followLinks: false)) {
-      if (entity is! File) continue;
-      if (ImageCacheIndex.isIndexFileName(_fileName(entity))) continue;
-      try {
-        final stat = await entity.stat();
-        total += stat.size;
-        entries.add((file: entity, size: stat.size, modified: stat.modified));
-      } catch (_) {}
-    }
-    if (total <= budgetBytes) return;
-
-    entries.sort((a, b) => a.modified.compareTo(b.modified));
-    final target = (budgetBytes * 0.9).round();
-    for (final entry in entries) {
-      if (total <= target) break;
-      if (now.difference(entry.modified) < const Duration(seconds: 30)) {
-        continue;
-      }
-      try {
-        await entry.file.delete();
-        total -= entry.size;
-      } catch (_) {}
+    final path = '${temp.path}/$cacheKey';
+    try {
+      // Thousands of stat calls each hop back to this isolate when awaited
+      // here, which on a TV box stutters the first screen and every resume.
+      await _sweepInBackground(path, budgetBytes, now);
+    } catch (_) {
+      // No second isolate to be had: do it here, as before.
+      await _sweepCacheDirectory(path, budgetBytes, now);
     }
   } catch (_) {
   } finally {
     _sweepingCacheKeys.remove(cacheKey);
+  }
+}
+
+// Its own function so the isolate closure captures only these values.
+Future<void> _sweepInBackground(String path, int budgetBytes, DateTime now) =>
+    Isolate.run(() => _sweepCacheDirectory(path, budgetBytes, now));
+
+Future<void> _sweepCacheDirectory(
+  String path,
+  int budgetBytes,
+  DateTime now,
+) async {
+  final entries = <({File file, int size, DateTime modified})>[];
+  var total = 0;
+  final dir = Directory(path);
+  if (!await dir.exists()) return;
+  await for (final entity in dir.list(followLinks: false)) {
+    if (entity is! File) continue;
+    if (ImageCacheIndex.isIndexFileName(_fileName(entity))) continue;
+    try {
+      final stat = await entity.stat();
+      total += stat.size;
+      entries.add((file: entity, size: stat.size, modified: stat.modified));
+    } catch (_) {}
+  }
+  if (total <= budgetBytes) return;
+
+  entries.sort((a, b) => a.modified.compareTo(b.modified));
+  final target = (budgetBytes * 0.9).round();
+  for (final entry in entries) {
+    if (total <= target) break;
+    if (now.difference(entry.modified) < const Duration(seconds: 30)) {
+      continue;
+    }
+    try {
+      await entry.file.delete();
+      total -= entry.size;
+    } catch (_) {}
   }
 }
 

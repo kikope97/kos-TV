@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -59,24 +60,77 @@ class AppsAmbientBackground extends StatefulWidget {
 }
 
 class _AppsAmbientBackgroundState extends State<AppsAmbientBackground>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _drift = AnimationController(
-    vsync: this,
-    duration: AppsAmbientBackground.drift,
-  );
+    with WidgetsBindingObserver {
+  /// How often the drift moves on. The lights move a few pixels a second
+  /// across soft full-screen gradients, so 15 steps a second looks the same
+  /// as every vsync while sparing a TV box most of the full-screen repaints.
+  static const _step = Duration(milliseconds: 66);
+
+  /// Where the drift is in its round, 0 to 1, as the controller it replaces.
+  final ValueNotifier<double> _drift = ValueNotifier(0);
+
+  /// Time spent drifting, kept while paused so the round picks up where it
+  /// was, as a muted ticker would.
+  final Stopwatch _elapsed = Stopwatch();
+  Timer? _timer;
+  ValueListenable<TickerModeData>? _tickerMode;
+  bool _still = false;
+  bool _foreground = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    final state = WidgetsBinding.instance.lifecycleState;
+    _foreground = state == null ||
+        state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.inactive;
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (MediaQuery.disableAnimationsOf(context)) {
-      _drift.stop();
-    } else if (!_drift.isAnimating) {
-      _drift.repeat();
+    _still = MediaQuery.disableAnimationsOf(context);
+    final tickerMode = TickerMode.getValuesNotifier(context);
+    if (!identical(tickerMode, _tickerMode)) {
+      _tickerMode?.removeListener(_sync);
+      _tickerMode = tickerMode..addListener(_sync);
     }
+    _sync();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed ||
+        state == AppLifecycleState.inactive;
+    _sync();
+  }
+
+  /// Runs the drift only while it can be seen: animations on, this route's
+  /// tickers enabled and the app in front.
+  void _sync() {
+    final run =
+        !_still && (_tickerMode?.value.enabled ?? true) && _foreground;
+    if (run && _timer == null) {
+      _elapsed.start();
+      _timer = Timer.periodic(_step, (_) => _advance());
+    } else if (!run && _timer != null) {
+      _timer!.cancel();
+      _timer = null;
+      _elapsed.stop();
+    }
+  }
+
+  void _advance() {
+    final period = AppsAmbientBackground.drift.inMicroseconds;
+    _drift.value = (_elapsed.elapsedMicroseconds % period) / period;
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _tickerMode?.removeListener(_sync);
+    _timer?.cancel();
     _drift.dispose();
     super.dispose();
   }
@@ -106,7 +160,7 @@ class _GlowPainter extends CustomPainter {
     : super(repaint: drift);
 
   final AppsAmbience ambience;
-  final Animation<double> drift;
+  final ValueListenable<double> drift;
 
   Color get color => ambience.color;
 

@@ -285,7 +285,7 @@ class _FadeScalePageTransitionsBuilder extends PageTransitionsBuilder {
       // It starts showing a moment in, once its menu has the focus and
       // matches the one it covers.
       return FadeTransition(
-        opacity: CurvedAnimation(
+        opacity: _BuildCurvedAnimation(
           parent: animation,
           curve: const Interval(0.25, 1, curve: Curves.easeOutCubic),
           reverseCurve: const Interval(0, 0.75, curve: Curves.easeInCubic),
@@ -302,7 +302,7 @@ class _FadeScalePageTransitionsBuilder extends PageTransitionsBuilder {
         return child;
       case PageTransitionSpeed.fast:
         // Snappy fade (150ms feel) with subtle scale
-        curved = CurvedAnimation(
+        curved = _BuildCurvedAnimation(
           parent: animation,
           curve: const Interval(0.0, 0.7, curve: Curves.easeOutQuad),
           reverseCurve: const Interval(0.3, 1.0, curve: Curves.easeInQuad),
@@ -310,7 +310,7 @@ class _FadeScalePageTransitionsBuilder extends PageTransitionsBuilder {
         scaleTween = Tween<double>(begin: 0.97, end: 1.0);
       case PageTransitionSpeed.medium:
         // Balanced fade (300ms) with moderate scale
-        curved = CurvedAnimation(
+        curved = _BuildCurvedAnimation(
           parent: animation,
           curve: Curves.easeOutCubic,
           reverseCurve: Curves.easeInCubic,
@@ -318,7 +318,7 @@ class _FadeScalePageTransitionsBuilder extends PageTransitionsBuilder {
         scaleTween = Tween<double>(begin: 0.94, end: 1.0);
       case PageTransitionSpeed.slow:
         // Deliberate cinematic long fade (450ms) with more depth
-        curved = CurvedAnimation(
+        curved = _BuildCurvedAnimation(
           parent: animation,
           curve: Curves.easeInOutSine,
           reverseCurve: Curves.easeInOutSine,
@@ -333,5 +333,33 @@ class _FadeScalePageTransitionsBuilder extends PageTransitionsBuilder {
         child: child,
       ),
     );
+  }
+}
+
+/// What a CurvedAnimation made on every build gives, without one. The route
+/// calls buildTransitions on every frame of its animation, and each
+/// CurvedAnimation subscribed to the route's status for as long as the route
+/// lived. A fresh one takes the curve for the direction the route runs in at
+/// that build, which is what reading the status here gives.
+class _BuildCurvedAnimation extends Animation<double>
+    with AnimationWithParentMixin<double> {
+  _BuildCurvedAnimation({
+    required this.parent,
+    required this.curve,
+    required this.reverseCurve,
+  });
+
+  @override
+  final Animation<double> parent;
+  final Curve curve;
+  final Curve reverseCurve;
+
+  @override
+  double get value {
+    final t = parent.value;
+    if (t == 0.0 || t == 1.0) return t;
+    final active =
+        parent.status == AnimationStatus.reverse ? reverseCurve : curve;
+    return active.transform(t);
   }
 }

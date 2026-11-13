@@ -844,17 +844,42 @@ class UserPreferences extends ChangeNotifier {
 
     if (_isScopedPreference(pref)) {
       final scoped = _scopedPreference(pref);
-      if (scoped != null) {
-        await _store.set(scoped, value);
-      } else {
-        await _store.set(pref, value);
-      }
+      final target = scoped ?? pref;
+      // The store already skips the disk write; skipping the notification too
+      // saves every listener (most of the UI) a rebuild for nothing.
+      if (_alreadyStored(target, value)) return;
+      await _store.set(target, value);
       notifyListeners();
       return;
     }
 
+    if (_alreadyStored(pref, value)) return;
     await _store.set(pref, value);
     notifyListeners();
+  }
+
+  /// Whether [value] is exactly what is stored under [pref]'s own key, raw
+  /// type included. A missing key is never "already stored": writing it pins
+  /// the value (a scoped copy, or one [containsPreference] looks for).
+  bool _alreadyStored<T>(Preference<T> pref, T value) {
+    final key = pref.key;
+    if (!_store.containsKey(key)) return false;
+    try {
+      if (pref is EnumPreference) {
+        return _store.getString(key) == (value as Enum).name;
+      }
+      return switch (value) {
+        final bool v => _store.getBool(key) == v,
+        final int v => _store.getInt(key) == v,
+        final double v => _store.getDouble(key) == v,
+        final String v => _store.getString(key) == v,
+        final List<String> v => listEquals(_store.getStringList(key), v),
+        _ => false,
+      };
+    } catch (_) {
+      // Stored under another type (an old format): let the store rewrite it.
+      return false;
+    }
   }
 
   /// set pref if it doesn't exist, scoped to the active profile

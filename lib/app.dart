@@ -82,6 +82,30 @@ import 'util/focus/open_popup.dart';
 import 'package:custom_tv_text_field/custom_tv_text_field.dart';
 import 'util/episode_code.dart';
 
+/// Stops building, painting and animating what the screensaver covers. The
+/// screensaver is opaque black from its first frame and leaves in one frame,
+/// so nothing on screen changes; on a TV it can stay up for hours and would
+/// otherwise redraw the whole home underneath every frame. Offstage keeps the
+/// state and focus, so the remote lands where it was when it goes away. Always
+/// the same widgets in the tree, so toggling never rebuilds the shell.
+class _HiddenUnderScreensaver extends StatelessWidget {
+  const _HiddenUnderScreensaver({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: GetIt.instance<ScreensaverController>().visible,
+      builder: (context, covered, child) => Offstage(
+        offstage: covered,
+        child: TickerMode(enabled: !covered, child: child!),
+      ),
+      child: child,
+    );
+  }
+}
+
 class MoonfinApp extends StatefulWidget {
   const MoonfinApp({super.key});
 
@@ -329,16 +353,20 @@ class _MoonfinAppState extends State<MoonfinApp> {
                           fit: StackFit.expand,
                           children: [
                             Positioned.fill(
-                              child: VideoMiniPlayerHoleClip(
-                                child: glass
-                                    ? GlassBackdrop(
-                                        animated:
-                                            GlassSettings.animatedBackdrop,
-                                      )
-                                    : const SizedBox.shrink(),
+                              child: _HiddenUnderScreensaver(
+                                child: VideoMiniPlayerHoleClip(
+                                  child: glass
+                                      ? GlassBackdrop(
+                                          animated:
+                                              GlassSettings.animatedBackdrop,
+                                        )
+                                      : const SizedBox.shrink(),
+                                ),
                               ),
                             ),
-                            TimesUpFocusGuard(child: shell),
+                            _HiddenUnderScreensaver(
+                              child: TimesUpFocusGuard(child: shell),
+                            ),
                             if (PlatformDetection.isTV) const ScreensaverHost(),
                             // Last, so nothing sits above it and nothing can be
                             // reached through it while the schedule is closed.
