@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'music/kostv_now_playing.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get_it/get_it.dart';
 
@@ -309,6 +311,12 @@ class _NavigationLayoutState extends State<NavigationLayout>
 
   @override
   Widget build(BuildContext context) {
+    // Kos TV: the phone's bottom bar carries its own music player, so the
+    // floating one steps aside on its pages.
+    KostvNowPlayingRouteObserver.instance.setBottomBar(
+      ModalRoute.of(context),
+      _position == NavbarPosition.bottom && NavigationLayout.allowBottomNavbar,
+    );
     final layout = switch (_position) {
       NavbarPosition.left => _buildSidebar(),
       NavbarPosition.top => _buildToolbar(),

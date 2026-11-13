@@ -37,6 +37,7 @@ import 'preference/preference_constants.dart' show GlassSettledQuality;
 import 'preference/user_preferences.dart';
 import 'syncplay/syncplay_manager.dart';
 import 'ui/navigation/app_router.dart';
+import 'ui/widgets/music/kostv_now_playing_capsule.dart';
 import 'ui/navigation/deferred_route_pop.dart';
 import 'ui/navigation/deep_link_navigator.dart';
 import 'ui/navigation/destinations.dart';
@@ -294,7 +295,9 @@ class _MoonfinAppState extends State<MoonfinApp> {
                               child: Stack(
                                 children: [
                                   _ConnectivityListener(
-                                    child: child ?? const SizedBox.shrink(),
+                                    child: KostvNowPlayingInset(
+                                      child: child ?? const SizedBox.shrink(),
+                                    ),
                                   ),
                                   const Align(
                                     alignment: Alignment.topCenter,
@@ -306,6 +309,8 @@ class _MoonfinAppState extends State<MoonfinApp> {
                                       ],
                                     ),
                                   ),
+                                  // Kos TV: the floating music player.
+                                  const KostvNowPlayingHost(),
                                 ],
                               ),
                             ),
@@ -361,6 +366,7 @@ class _MoonfinAppState extends State<MoonfinApp> {
                         return GamepadNavigationScope(
                           child: InputModeTracker(
                             child: _GlobalShortcutScope(
+                              child: KostvMediaKeys(
                               child: Material(
                                 type: MaterialType.transparency,
                                 child: CupertinoTheme(
@@ -372,6 +378,7 @@ class _MoonfinAppState extends State<MoonfinApp> {
                                   ),
                                   child: content,
                                 ),
+                              ),
                               ),
                             ),
                           ),
@@ -965,7 +972,12 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
           }
         } catch (_) {}
       }
-      if (isAudio) return;
+      // Kos TV: music sounds while the app is open. Out of it, on the TV,
+      // it stops: nobody is there to see what plays or to stop it.
+      if (isAudio) {
+        unawaited(manager.stop(userInitiated: false));
+        return;
+      }
     }
 
     if (!GetIt.instance.isRegistered<PlaybackArbiter>()) return;

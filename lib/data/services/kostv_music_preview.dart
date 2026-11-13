@@ -33,6 +33,7 @@ class KostvMusicPreview extends ChangeNotifier {
         if (_playing == url) {
           _playing = null;
           notifyListeners();
+          _resumeApp();
         }
       });
     } catch (e) {
@@ -40,6 +41,7 @@ class KostvMusicPreview extends ChangeNotifier {
       if (_playing == url) {
         _playing = null;
         notifyListeners();
+        _resumeApp();
       }
     }
   }
@@ -49,12 +51,34 @@ class KostvMusicPreview extends ChangeNotifier {
     _playing = null;
     notifyListeners();
     await _engine?.stop();
+    _resumeApp();
   }
+
+  // What the app was playing when a preview paused it, to go on with it
+  // once the preview is over.
+  dynamic _paused;
 
   void _pauseApp() {
     if (!GetIt.instance.isRegistered<PlaybackManager>()) return;
     final manager = GetIt.instance<PlaybackManager>();
-    if (manager.state.isPlaying) unawaited(manager.pause());
+    if (manager.state.isPlaying) {
+      _paused = manager.queueService.currentItem;
+      unawaited(manager.pause());
+    }
+  }
+
+  void _resumeApp() {
+    final paused = _paused;
+    _paused = null;
+    if (paused == null || !GetIt.instance.isRegistered<PlaybackManager>()) {
+      return;
+    }
+    final manager = GetIt.instance<PlaybackManager>();
+    // Only if it is still there, paused, and nothing else began meanwhile.
+    if (identical(manager.queueService.currentItem, paused) &&
+        !manager.state.isPlaying) {
+      unawaited(manager.resume());
+    }
   }
 
   @override

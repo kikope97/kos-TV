@@ -3,6 +3,10 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+
+import '../screens/music/kostv_music_widgets.dart' show kostvMusicColor;
+import 'music/kostv_now_playing.dart';
+import 'music/kostv_now_playing_capsule.dart' show KostvEqualizerBars;
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
@@ -94,13 +98,10 @@ class TopToolbar extends StatefulWidget {
   /// Extra height the embedded music bar adds to the toolbar when audio is
   /// playing, or 0 when it is not. Single source of truth so the toolbar's own
   /// layout and the content inset stay in sync.
-  static double musicBarExtraHeight() {
-    final manager = GetIt.instance<PlaybackManager>();
-    final item = manager.queueService.currentItem;
-    final isMusic = item is AggregatedItem && item.isAudioLike;
-    if (!isMusic) return 0.0;
-    return PlatformDetection.useLeanbackUi ? 64.0 : 54.0;
-  }
+  ///
+  /// Kos TV: none. The music lives in the floating player
+  /// (kostv_now_playing_capsule.dart), not under the menu.
+  static double musicBarExtraHeight() => 0.0;
 
   /// Base height of the toolbar for the current platform (excluding music bar).
   static double baseHeightFor(BuildContext context) {
@@ -811,10 +812,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
         ? _kToolbarHeightMobile
         : _kToolbarHeightDesktop;
 
-    final manager = GetIt.instance<PlaybackManager>();
-    final currentItem = manager.queueService.currentItem;
-    final isMusicActive =
-        currentItem is AggregatedItem && currentItem.isAudioLike;
+    // Kos TV: the music bar under the menu gave way to the floating player.
     final totalHeight = toolbarHeight + TopToolbar.musicBarExtraHeight();
 
     return SafeArea(
@@ -834,33 +832,6 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   event.logicalKey == LogicalKeyboardKey.arrowDown) {
                 final primary = FocusManager.instance.primaryFocus;
                 if (primary != null) {
-                  final insideMusicBar = _isDescendantOf(
-                    primary,
-                    _musicBarFocusNode,
-                  );
-                  if (!insideMusicBar && isMusicActive) {
-                    final musicNodes =
-                        _musicBarFocusNode.descendants
-                            .where(
-                              (n) =>
-                                  !n.skipTraversal && _isLaidOutFocusNode(n),
-                            )
-                            .map((n) {
-                              final box =
-                                  n.context!.findRenderObject() as RenderBox?;
-                              final pos = box?.localToGlobal(Offset.zero);
-                              return (node: n, x: pos?.dx ?? -1.0);
-                            })
-                            .where((item) => item.x > 0)
-                            .toList()
-                          ..sort((a, b) => a.x.compareTo(b.x));
-
-                    if (musicNodes.isNotEmpty) {
-                      musicNodes.first.node.requestFocus();
-                      return KeyEventResult.handled;
-                    }
-                  }
-
                   if (widget.activeRoute != Destinations.home &&
                       NavigationLayout.focusDetailsPlayButtonNotifier.value ==
                           null) {
@@ -973,13 +944,6 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                           ),
                         ),
                 ),
-                if (isMusicActive) ...[
-                  const SizedBox(height: 8),
-                  Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: TopMusicBar(focusNode: _musicBarFocusNode),
-                  ),
-                ],
               ],
             ),
           ),
@@ -1428,6 +1392,12 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   ),
                 ),
               ],
+              // Kos TV: while music sounds, «Reproduciendo» opens its player.
+              _nowPlayingButton(
+                order: (order++).toDouble(),
+                alwaysExpanded: alwaysExpanded,
+                color: nextNavColor(),
+              ),
               if (showLiveTv) ...[
                 _gap(),
                 _orderButton(
@@ -1840,6 +1810,40 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
       },
     );
   }
+
+  Widget _nowPlayingButton({
+    required double order,
+    required bool alwaysExpanded,
+    required Color? color,
+  }) => ListenableBuilder(
+    listenable: KostvNowPlaying.instance..ensureStarted(),
+    builder: (context, _) {
+      final music = KostvNowPlaying.instance;
+      if (music.item == null) return const SizedBox.shrink();
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _gap(),
+          _orderButton(
+            order: order,
+            child: ExpandableIconButton(
+              key: const ValueKey('toolbar_now_playing'),
+              focusNode: _menuNode(Destinations.audioPlayer),
+              forceExpanded: alwaysExpanded,
+              iconBuilder: (size, color) => KostvEqualizerBars(
+                playing: music.playing,
+                size: size * 0.8,
+                color: kostvMusicColor,
+              ),
+              label: AppLocalizations.of(context).kostvNowPlaying,
+              baseColor: color,
+              onPressed: () => context.push(Destinations.audioPlayer),
+            ),
+          ),
+        ],
+      );
+    },
+  );
 
   Widget _gap() => SizedBox(
     width: PlatformDetection.useLeanbackUi

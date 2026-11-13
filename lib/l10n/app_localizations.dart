@@ -33140,6 +33140,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'the United States'**
   String get kostvMusicUnitedStates;
+
+  /// Kos TV music.
+  ///
+  /// In en, this message translates to:
+  /// **'Now playing'**
+  String get kostvNowPlaying;
+
+  /// Kos TV music.
+  ///
+  /// In en, this message translates to:
+  /// **'Close the player'**
+  String get kostvNowPlayingClose;
+
+  /// No description provided for @kostvPlayerCover.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover'**
+  String get kostvPlayerCover;
+
+  /// No description provided for @kostvPlayerLyrics.
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics'**
+  String get kostvPlayerLyrics;
+
+  /// No description provided for @kostvPlayerQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Up next'**
+  String get kostvPlayerQueue;
+
+  /// No description provided for @kostvPlayerPrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get kostvPlayerPrevious;
+
+  /// No description provided for @kostvPlayerRepeat.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat'**
+  String get kostvPlayerRepeat;
+
+  /// No description provided for @kostvPlayerRepeatOne.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat this song'**
+  String get kostvPlayerRepeatOne;
+
+  /// No description provided for @kostvPlayerMore.
+  ///
+  /// In en, this message translates to:
+  /// **'More options'**
+  String get kostvPlayerMore;
+
+  /// No description provided for @kostvPlayerHide.
+  ///
+  /// In en, this message translates to:
+  /// **'Hide the player'**
+  String get kostvPlayerHide;
+
+  /// No description provided for @kostvPlayerAutoplay.
+  ///
+  /// In en, this message translates to:
+  /// **'Autoplay'**
+  String get kostvPlayerAutoplay;
+
+  /// No description provided for @kostvPlayerAutoplayHint.
+  ///
+  /// In en, this message translates to:
+  /// **'When the queue ends, similar songs from home keep playing'**
+  String get kostvPlayerAutoplayHint;
+
+  /// No description provided for @kostvPlayerAutoplayAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added by autoplay'**
+  String get kostvPlayerAutoplayAdded;
+
+  /// No description provided for @kostvPlayerQueueEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No more songs in the queue'**
+  String get kostvPlayerQueueEmpty;
+
+  /// No description provided for @kostvPlayerRemove.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from the queue'**
+  String get kostvPlayerRemove;
+
+  /// No description provided for @kostvPlayerGoToAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to the album'**
+  String get kostvPlayerGoToAlbum;
+
+  /// No description provided for @kostvPlayerGoToArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'Go to the artist'**
+  String get kostvPlayerGoToArtist;
+
+  /// No description provided for @kostvPlayerFavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Love'**
+  String get kostvPlayerFavorite;
+
+  /// No description provided for @kostvPlayerUnfavorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlove'**
+  String get kostvPlayerUnfavorite;
+
+  /// No description provided for @kostvPlayerAddToPlaylist.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to a playlist'**
+  String get kostvPlayerAddToPlaylist;
+
+  /// No description provided for @kostvPlayerSleep.
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep timer'**
+  String get kostvPlayerSleep;
+
+  /// No description provided for @kostvPlayerSleepOff.
+  ///
+  /// In en, this message translates to:
+  /// **'No timer'**
+  String get kostvPlayerSleepOff;
+
+  /// No description provided for @kostvPlayerSleepEndOfSong.
+  ///
+  /// In en, this message translates to:
+  /// **'At the end of the song'**
+  String get kostvPlayerSleepEndOfSong;
+
+  /// No description provided for @kostvPlayerSleepHour.
+  ///
+  /// In en, this message translates to:
+  /// **'1 hour'**
+  String get kostvPlayerSleepHour;
+
+  /// No description provided for @kostvPlayerStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop the music'**
+  String get kostvPlayerStop;
+
+  /// No description provided for @kostvPlayerSleepMinutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes} min'**
+  String kostvPlayerSleepMinutes(int minutes);
+
+  /// No description provided for @kostvPlayerSleepLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Pauses in {minutes} min'**
+  String kostvPlayerSleepLeft(int minutes);
 }
 
 class _AppLocalizationsDelegate

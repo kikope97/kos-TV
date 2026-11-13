@@ -3,6 +3,10 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
+import '../screens/music/kostv_music_widgets.dart' show kostvMusicColor;
+import 'music/kostv_now_playing.dart';
+import 'music/kostv_now_playing_capsule.dart' show KostvEqualizerBars;
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
@@ -336,6 +340,31 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
       () => _takeArrival(route, attempt + 1),
     );
   }
+
+  Widget _nowPlayingItem(Color? color) => ListenableBuilder(
+    key: const ValueKey('sidebar-now-playing'),
+    listenable: KostvNowPlaying.instance..ensureStarted(),
+    builder: (context, _) {
+      final music = KostvNowPlaying.instance;
+      if (music.item == null) return const SizedBox.shrink();
+      return _SidebarItem(
+        focusNode: _menuNode(Destinations.audioPlayer),
+        iconBuilder: (size, _) => KostvEqualizerBars(
+          playing: music.playing,
+          size: size * 0.8,
+          color: kostvMusicColor,
+        ),
+        label: AppLocalizations.of(context).kostvNowPlaying,
+        baseColor: color,
+        showLabel: _showLabels,
+        onPressed: () {
+          _onNavigate();
+          _markNavigationAwayFromSidebar();
+          context.push(Destinations.audioPlayer);
+        },
+      );
+    },
+  );
 
   @override
   void dispose() {
@@ -1290,6 +1319,8 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                       context.navigateTopLevel(Destinations.kostvMusic);
                     },
                   ),
+                // Kos TV: while music sounds, «Reproduciendo» opens its player.
+                _nowPlayingItem(nextMainSidebarColor()),
                 if (showLiveTv)
                   _SidebarItem(
                     key: const ValueKey('sidebar-livetv'),
@@ -1491,10 +1522,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
             },
           ),
         ),
-        SidebarMusicCard(
-          isExpanded: _showLabels,
-          focusNode: _musicCardFocusNode,
-        ),
+        // Kos TV: the music card gave way to the floating player.
         if (showClock)
           Visibility(
             visible: _showLabels,

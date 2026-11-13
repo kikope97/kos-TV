@@ -19285,4 +19285,90 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvMusicUnitedStates => 'the United States';
+
+  @override
+  String get kostvNowPlaying => 'Now playing';
+
+  @override
+  String get kostvNowPlayingClose => 'Close the player';
+
+  @override
+  String get kostvPlayerCover => 'Cover';
+
+  @override
+  String get kostvPlayerLyrics => 'Lyrics';
+
+  @override
+  String get kostvPlayerQueue => 'Up next';
+
+  @override
+  String get kostvPlayerPrevious => 'Previous';
+
+  @override
+  String get kostvPlayerRepeat => 'Repeat';
+
+  @override
+  String get kostvPlayerRepeatOne => 'Repeat this song';
+
+  @override
+  String get kostvPlayerMore => 'More options';
+
+  @override
+  String get kostvPlayerHide => 'Hide the player';
+
+  @override
+  String get kostvPlayerAutoplay => 'Autoplay';
+
+  @override
+  String get kostvPlayerAutoplayHint =>
+      'When the queue ends, similar songs from home keep playing';
+
+  @override
+  String get kostvPlayerAutoplayAdded => 'Added by autoplay';
+
+  @override
+  String get kostvPlayerQueueEmpty => 'No more songs in the queue';
+
+  @override
+  String get kostvPlayerRemove => 'Remove from the queue';
+
+  @override
+  String get kostvPlayerGoToAlbum => 'Go to the album';
+
+  @override
+  String get kostvPlayerGoToArtist => 'Go to the artist';
+
+  @override
+  String get kostvPlayerFavorite => 'Love';
+
+  @override
+  String get kostvPlayerUnfavorite => 'Unlove';
+
+  @override
+  String get kostvPlayerAddToPlaylist => 'Add to a playlist';
+
+  @override
+  String get kostvPlayerSleep => 'Sleep timer';
+
+  @override
+  String get kostvPlayerSleepOff => 'No timer';
+
+  @override
+  String get kostvPlayerSleepEndOfSong => 'At the end of the song';
+
+  @override
+  String get kostvPlayerSleepHour => '1 hour';
+
+  @override
+  String get kostvPlayerStop => 'Stop the music';
+
+  @override
+  String kostvPlayerSleepMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String kostvPlayerSleepLeft(int minutes) {
+    return 'Pauses in $minutes min';
+  }
 }

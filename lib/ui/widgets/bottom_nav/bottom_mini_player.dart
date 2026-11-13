@@ -161,6 +161,17 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
             color: theme.onBar.withValues(alpha: 0.85),
             onPressed: _manager.next,
           ),
+        // Kos TV: the ✕ stops the music and takes the player away.
+        if (!compact)
+          _TransportButton(
+            icon: Icons.close_rounded,
+            tooltip: l10n.kostvNowPlayingClose,
+            color: theme.onBar.withValues(alpha: 0.6),
+            onPressed: () {
+              setState(() => _dismissedItemId = item.id);
+              unawaited(_manager.stop());
+            },
+          ),
       ],
     );
 
@@ -232,6 +243,12 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => appRouter.push(Destinations.audioPlayer),
+          // Kos TV: up, and the player rises from it.
+          onVerticalDragEnd: (d) {
+            if ((d.primaryVelocity ?? 0) < -200) {
+              appRouter.push(Destinations.audioPlayer);
+            }
+          },
           child: body,
         ),
       ),

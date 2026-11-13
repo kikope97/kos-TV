@@ -2019,6 +2019,13 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: true,
   );
 
+  /// Kos TV: when the songs in the queue run out, music goes on with
+  /// similar ones from home («Reproducción automática», ∞).
+  static final kostvMusicAutoplay = Preference(
+    key: 'kostv_music_autoplay',
+    defaultValue: true,
+  );
+
   /// Kos TV: off on a TV, where hardly anyone downloads.
   static final showDownloadsButton = Preference(
     key: 'pref_show_downloads_button',

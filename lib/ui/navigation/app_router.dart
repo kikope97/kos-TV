@@ -24,6 +24,7 @@ import '../screens/music/kostv_music_actions.dart';
 import '../screens/music/kostv_music_album_screen.dart';
 import '../screens/music/kostv_music_artist_screen.dart';
 import '../screens/music/kostv_music_screen.dart';
+import '../screens/music/kostv_now_playing_screen.dart';
 import '../screens/discover/kostv_discover_screen.dart';
 import '../screens/discover/kostv_request_screen.dart';
 import '../screens/admin/admin_nav.dart';
@@ -49,6 +50,7 @@ import '../screens/browse/book_library_screen.dart';
 import '../screens/browse/music_category_screen.dart';
 import '../screens/browse/music_library_screen.dart';
 import '../widgets/book/book_navigation.dart';
+import '../widgets/music/kostv_now_playing.dart';
 import '../widgets/music/music_navigation.dart';
 import '../screens/detail/item_detail_screen.dart';
 import '../screens/games/game_library_screen.dart';
@@ -68,7 +70,6 @@ import '../screens/livetv/live_tv_recordings_screen.dart';
 import '../screens/livetv/live_tv_schedule_screen.dart';
 import '../screens/livetv/live_tv_screen.dart';
 import '../screens/livetv/live_tv_series_recordings_screen.dart';
-import '../screens/playback/audio_player_screen.dart';
 import '../screens/playback/book_reader_screen.dart';
 import '../screens/playback/external_player_host_screen.dart';
 import '../screens/playback/next_up_screen.dart';
@@ -201,6 +202,7 @@ final appRouter = GoRouter(
     routeLifecycleObserver,
     pageRouteLifecycleObserver,
     PlayerRouteObserver.instance,
+    KostvNowPlayingRouteObserver.instance,
   ],
   redirect: (context, state) {
     final path = state.uri.path;
@@ -743,7 +745,31 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: Destinations.audioPlayer,
-      builder: (context, state) => const AudioPlayerScreen(),
+      // Kos TV: it rises from the floating player, and goes back down to it.
+      pageBuilder: (context, state) => CustomTransitionPage<void>(
+        key: state.pageKey,
+        name: state.name ?? state.path,
+        transitionDuration: const Duration(milliseconds: 420),
+        reverseTransitionDuration: const Duration(milliseconds: 320),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+          return FadeTransition(
+            opacity: Tween<double>(begin: 0.3, end: 1).animate(curved),
+            child: SlideTransition(
+              position: Tween(
+                begin: const Offset(0, 0.25),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
+        child: const KostvNowPlayingScreen(),
+      ),
     ),
     GoRoute(
       path: Destinations.bookReader,

@@ -19610,4 +19610,91 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMusicUnitedStates => 'Estados Unidos';
+
+  @override
+  String get kostvNowPlaying => 'Reproduciendo';
+
+  @override
+  String get kostvNowPlayingClose => 'Cerrar el reproductor';
+
+  @override
+  String get kostvPlayerCover => 'Portada';
+
+  @override
+  String get kostvPlayerLyrics => 'Letra';
+
+  @override
+  String get kostvPlayerQueue => 'A continuación';
+
+  @override
+  String get kostvPlayerPrevious => 'Anterior';
+
+  @override
+  String get kostvPlayerRepeat => 'Repetir';
+
+  @override
+  String get kostvPlayerRepeatOne => 'Repetir esta canción';
+
+  @override
+  String get kostvPlayerMore => 'Más opciones';
+
+  @override
+  String get kostvPlayerHide => 'Bajar el reproductor';
+
+  @override
+  String get kostvPlayerAutoplay => 'Reproducción automática';
+
+  @override
+  String get kostvPlayerAutoplayHint =>
+      'Al acabarse la cola, sigue con canciones parecidas de casa';
+
+  @override
+  String get kostvPlayerAutoplayAdded =>
+      'Añadida por la reproducción automática';
+
+  @override
+  String get kostvPlayerQueueEmpty => 'No hay más canciones en la cola';
+
+  @override
+  String get kostvPlayerRemove => 'Quitar de la cola';
+
+  @override
+  String get kostvPlayerGoToAlbum => 'Ir al álbum';
+
+  @override
+  String get kostvPlayerGoToArtist => 'Ir al artista';
+
+  @override
+  String get kostvPlayerFavorite => 'Me gusta';
+
+  @override
+  String get kostvPlayerUnfavorite => 'Ya no me gusta';
+
+  @override
+  String get kostvPlayerAddToPlaylist => 'Añadir a una lista';
+
+  @override
+  String get kostvPlayerSleep => 'Temporizador';
+
+  @override
+  String get kostvPlayerSleepOff => 'Sin temporizador';
+
+  @override
+  String get kostvPlayerSleepEndOfSong => 'Al acabar la canción';
+
+  @override
+  String get kostvPlayerSleepHour => '1 hora';
+
+  @override
+  String get kostvPlayerStop => 'Parar la música';
+
+  @override
+  String kostvPlayerSleepMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String kostvPlayerSleepLeft(int minutes) {
+    return 'Se pausa en $minutes min';
+  }
 }
