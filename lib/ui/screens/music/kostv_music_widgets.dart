@@ -2,13 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../../../preference/preference_constants.dart';
+import '../../../preference/user_preferences.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../widgets/bounded_network_image.dart';
+import '../../widgets/navigation_layout.dart';
 
 /// Kos TV: the colour of Music, Apple Music's red-pink.
 const kostvMusicColor = Color(0xFFFA2D55);
@@ -69,13 +73,42 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
 
   void _onFocus(bool focused) {
     setState(() => _focused = focused);
-    if (focused) {
+    if (!focused) return;
+    final box = context.findRenderObject();
+    if (box == null) return;
+    const duration = Duration(milliseconds: 220);
+    const curve = Curves.easeOutCubic;
+    // Sideways only as far as needed, so a row never jumps; up and down the
+    // line comes to the middle of the page.
+    var scrollable = Scrollable.maybeOf(context);
+    if (scrollable != null &&
+        axisDirectionToAxis(scrollable.axisDirection) == Axis.horizontal) {
+      final position = scrollable.position;
       unawaited(
-        Scrollable.ensureVisible(
-          context,
-          alignment: 0.5,
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
+        position.ensureVisible(
+          box,
+          duration: duration,
+          curve: curve,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+        ),
+      );
+      unawaited(
+        position.ensureVisible(
+          box,
+          duration: duration,
+          curve: curve,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+        ),
+      );
+      scrollable = Scrollable.maybeOf(scrollable.context);
+    }
+    if (scrollable != null) {
+      unawaited(
+        scrollable.position.ensureVisible(
+          box,
+          alignment: 0.4,
+          duration: duration,
+          curve: curve,
         ),
       );
     }
@@ -89,7 +122,7 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
       focusNode: widget.focusNode,
       autofocus: widget.autofocus,
       onFocusChange: _onFocus,
-      onKeyEvent: (_, event) {
+      onKeyEvent: (node, event) {
         if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
           return KeyEventResult.ignored;
         }
@@ -97,7 +130,29 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
           widget.onTap();
           return KeyEventResult.handled;
         }
-        return widget.onKey?.call(event) ?? KeyEventResult.ignored;
+        final own = widget.onKey?.call(event);
+        if (own == KeyEventResult.handled) return own!;
+        // The remote moves to the nearest stop that way, across the rows.
+        final direction = switch (event.logicalKey) {
+          LogicalKeyboardKey.arrowUp => TraversalDirection.up,
+          LogicalKeyboardKey.arrowDown => TraversalDirection.down,
+          LogicalKeyboardKey.arrowLeft => TraversalDirection.left,
+          LogicalKeyboardKey.arrowRight => TraversalDirection.right,
+          _ => null,
+        };
+        if (direction == null) return KeyEventResult.ignored;
+        if (node.focusInDirection(direction)) return KeyEventResult.handled;
+        // Nothing further up, or left with the menu at the side: the menu.
+        final side =
+            GetIt.instance<UserPreferences>().get(
+              UserPreferences.navbarPosition,
+            ) ==
+            NavbarPosition.left;
+        if (direction == TraversalDirection.up ||
+            (direction == TraversalDirection.left && side)) {
+          NavigationLayout.focusNavbarNotifier.value?.call();
+        }
+        return KeyEventResult.handled;
       },
       child: MouseRegion(
         cursor: SystemMouseCursors.click,

@@ -36,6 +36,8 @@ import '../../widgets/playback/lyrics_view.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../util/error_message.dart';
 import 'audiobook_player_view.dart';
+// Kos TV: Music's colour, Apple Music's red-pink, over the app's accent.
+import '../music/kostv_music_widgets.dart' show kostvMusicColor;
 
 class AudioPlayerScreen extends StatefulWidget {
   const AudioPlayerScreen({super.key});
@@ -360,7 +362,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
         borderRadius: borderRadius,
         border: Border.all(
           color: showFocus
-              ? AppColorScheme.accent
+              ? kostvMusicColor
               : AppColorScheme.onSurface.withValues(alpha: 0.0),
           width: 2.4,
         ),
@@ -370,7 +372,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
         boxShadow: showFocus
             ? [
                 BoxShadow(
-                  color: AppColorScheme.accent.withValues(alpha: 0.45),
+                  color: kostvMusicColor.withValues(alpha: 0.45),
                   blurRadius: 14,
                   spreadRadius: 1.4,
                 ),
@@ -1085,7 +1087,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w500,
-            color: AppColorScheme.accent,
+            color: kostvMusicColor,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -1125,7 +1127,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: on
-                      ? AppColorScheme.accent.withValues(alpha: 0.22)
+                      ? kostvMusicColor.withValues(alpha: 0.22)
                       : AppColorScheme.onSurface.withValues(alpha: 0.09),
                 ),
                 child: Center(
@@ -1133,7 +1135,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                     icon,
                     size: 22,
                     color: on
-                        ? AppColorScheme.accent
+                        ? kostvMusicColor
                         : AppColorScheme.onSurface,
                   ),
                 ),
@@ -1596,7 +1598,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
                         )
                       : SliderTheme(
                           data: SliderTheme.of(context).copyWith(
-                            activeTrackColor: AppColorScheme.accent,
+                            activeTrackColor: kostvMusicColor,
                             inactiveTrackColor: AppColorScheme.onSurface
                                 .withValues(alpha: 0.24),
                             thumbColor: AppColorScheme.onSurface,
@@ -1745,11 +1747,11 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
           decoration: BoxDecoration(
             color: isCursor
-                ? AppColorScheme.accent.withValues(alpha: 0.22)
+                ? kostvMusicColor.withValues(alpha: 0.22)
                 : Colors.transparent,
             borderRadius: AppRadius.circular(10),
             border: isCursor
-                ? Border.all(color: AppColorScheme.accent, width: 2)
+                ? Border.all(color: kostvMusicColor, width: 2)
                 : null,
           ),
           child: Text(
@@ -1871,7 +1873,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
     bool mobile = false,
   }) {
     final l10n = AppLocalizations.of(context);
-    final accent = AppColorScheme.accent;
+    final accent = kostvMusicColor;
     final dim = AppColorScheme.onSurface.withValues(alpha: 0.7);
 
     Widget button(
@@ -1990,7 +1992,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           item?.name ?? AppLocalizations.of(context).trackNumber(index + 1);
       final titleStyle = TextStyle(
         fontSize: 18,
-        color: isCurrent ? AppColorScheme.accent : AppColorScheme.onSurface,
+        color: isCurrent ? kostvMusicColor : AppColorScheme.onSurface,
         fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
       );
       final artUrl = item != null ? _getArtUrl(item) : null;
@@ -2009,17 +2011,17 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
           margin: const EdgeInsets.symmetric(vertical: 3),
           decoration: BoxDecoration(
             color: highlighted
-                ? AppColorScheme.accent.withValues(alpha: 0.22)
+                ? kostvMusicColor.withValues(alpha: 0.22)
                 : Colors.transparent,
             borderRadius: AppRadius.circular(16),
             border: Border.all(
-              color: highlighted ? AppColorScheme.accent : Colors.transparent,
+              color: highlighted ? kostvMusicColor : Colors.transparent,
               width: 2,
             ),
             boxShadow: isDpadFocused
                 ? [
                     BoxShadow(
-                      color: AppColorScheme.accent.withValues(alpha: 0.40),
+                      color: kostvMusicColor.withValues(alpha: 0.40),
                       blurRadius: 14,
                       spreadRadius: 1,
                     ),
@@ -2064,7 +2066,7 @@ class _AudioPlayerScreenState extends State<AudioPlayerScreen> {
             trailing: isCurrent
                 ? AdaptiveIcon(
                     Icons.equalizer,
-                    color: AppColorScheme.accent,
+                    color: kostvMusicColor,
                     size: 20,
                   )
                 : null,
