@@ -9,6 +9,8 @@ import 'package:server_core/server_core.dart';
 
 import '../../auth/repositories/session_repository.dart';
 import '../../util/platform_detection.dart';
+import 'plugin_sync_service.dart';
+import 'socket_handler.dart';
 import 'sync_service.dart';
 import 'remove_watched_service.dart';
 
@@ -164,6 +166,14 @@ class ConnectivityService extends ChangeNotifier {
   void _nudgeSocket() {
     final getIt = GetIt.instance;
     if (!getIt.isRegistered<SessionRepository>()) return;
+    // Still starting: the network check runs before the app's modules are
+    // all registered, and building the session then would fail on a piece
+    // that isn't there yet (the websocket's, the plugin's). There is no
+    // socket to nudge yet anyway.
+    if (!getIt.isRegistered<SocketHandler>() ||
+        !getIt.isRegistered<PluginSyncService>()) {
+      return;
+    }
     getIt<SessionRepository>().onNetworkRegained();
   }
 

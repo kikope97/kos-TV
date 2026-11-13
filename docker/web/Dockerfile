@@ -6,7 +6,7 @@
 # la app y la entrada a /admin. Ver docs/web.md.
 #
 # Se construye desde la raíz del repositorio, después de compilar la web:
-#   flutter build web --release
+#   flutter build web --wasm --release
 #   docker build -f docker/web/Dockerfile -t kostv-web .
 FROM nginx:1.29-alpine
 

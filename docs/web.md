@@ -177,12 +177,17 @@ pasará las peticiones igual que hace ahora `/stremfin` con Stremfin.
 Desde la raíz del repositorio:
 
 ```bash
-flutter build web --release
+flutter build web --wasm --release
 docker build -f docker/web/Dockerfile -t kostv-web .
 docker run --rm -p 25670:80 \
   -e KOSTV_SERVER_URL=https://jellyfin.example.com \
   kostv-web
 ```
+
+La web va compilada en WebAssembly, que es bastante más fluida que la versión
+en JavaScript. Los navegadores que aún no lo admiten (Safari antiguo, el
+navegador de algunas teles) cargan solos la versión en JavaScript, que viene
+en la misma imagen. No hace falta configurar nada en el proxy.
 
 Los archivos están en [`docker/web/`](../docker/web/): el `Dockerfile`, la
 configuración de nginx y `40-kostv-config.sh`, que escribe el `config.json` y la

@@ -617,8 +617,13 @@ jobs:
           fi
           ./scripts/kostv_set_version.sh "$base" $(( (RUN_NUMBER - 1) % 99 + 1 ))
 
+      # WebAssembly (skwasm): smoother than the JavaScript build. A browser
+      # without WebAssembly GC (older Safari, some TVs' browsers) gets the
+      # JavaScript build that comes in the same folder, on its own. No
+      # COOP/COEP headers: they'd break the trailers' YouTube frames, and
+      # skwasm runs single-threaded without them.
       - name: Build web
-        run: flutter build web --release
+        run: flutter build web --wasm --release
 
       - name: Image name and tags
         id: image
