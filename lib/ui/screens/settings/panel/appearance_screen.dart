@@ -164,13 +164,20 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
                     ),
                   // Kos TV: the opening animation. On a TV it lives in
                   // Launcher mode.
-                  if (!PlatformDetection.isTV)
+                  if (!PlatformDetection.isTV) ...[
                     SwitchPreferenceTile(
                       preference: UserPreferences.kostvIntroEnabled,
                       title: l10n.kostvIntroSetting,
                       subtitle: l10n.kostvIntroSettingSubtitle,
                       icon: Icons.movie_filter_outlined,
                     ),
+                    _TvSettingsListTile(
+                      leading: const Icon(Icons.play_circle_outline_rounded),
+                      title: Text(l10n.kostvIntroWatch),
+                      subtitle: Text(l10n.kostvIntroWatchSubtitle),
+                      onTap: () => KosIntro.show(context),
+                    ),
+                  ],
                 ],
               ),
               // Kos TV: the technical rest, behind «Más ajustes».

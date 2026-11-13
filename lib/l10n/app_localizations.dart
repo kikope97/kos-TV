@@ -33494,6 +33494,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'It couldn\'t be downloaded'**
   String get kostvRequestMusicFailed;
+
+  /// Kos TV settings: plays the opening animation right now.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch the animation'**
+  String get kostvIntroWatch;
+
+  /// Kos TV settings: subtitle of the button that plays the opening animation now.
+  ///
+  /// In en, this message translates to:
+  /// **'Now, whenever it would show on opening'**
+  String get kostvIntroWatchSubtitle;
 }
 
 class _AppLocalizationsDelegate

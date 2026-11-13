@@ -47,6 +47,7 @@ import '../../../util/app_beta.dart';
 import '../../../util/app_distribution.dart';
 import '../../../util/pin_code_util.dart';
 import '../../../util/signed_in_server_features.dart';
+import '../../widgets/kos_intro.dart';
 import '../../widgets/pin_entry_dialog.dart';
 import '../../widgets/app_update_dialog.dart';
 

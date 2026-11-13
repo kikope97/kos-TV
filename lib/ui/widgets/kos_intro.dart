@@ -29,9 +29,21 @@ import 'kos_logo.dart';
 ///
 /// Sound: on a TV always; on a phone only while its ringer is on; on the web
 /// never, since browsers refuse sound before the page is touched. Any key or
-/// a tap skips it. With the system's animations turned off it is skipped.
+/// a tap skips it. With the system's animations turned off it is skipped
+/// (unless [evenWithoutAnimations]).
+///
+/// [show] plays it on its own over everything, from Settings.
 class KosIntro extends StatefulWidget {
-  const KosIntro({super.key, this.onFinished, this.footer});
+  const KosIntro({
+    super.key,
+    this.onFinished,
+    this.footer,
+    this.evenWithoutAnimations = false,
+  });
+
+  /// Plays even with the system's animations turned off: asked for on
+  /// purpose («Ver la animación» in Settings).
+  final bool evenWithoutAnimations;
 
   /// Called once, when the animation has finished (or was skipped).
   final VoidCallback? onFinished;
@@ -39,6 +51,30 @@ class KosIntro extends StatefulWidget {
   /// Shown over the bottom, such as a message with a Retry button. While
   /// there is one the logo stays up instead of fading to black.
   final Widget? footer;
+
+  /// Plays it now, over everything, and comes back when it ends (or on any
+  /// key or a tap): to see it whenever, whatever the rules for opening.
+  static Future<void> show(BuildContext context) {
+    return Navigator.of(context, rootNavigator: true).push(
+      PageRouteBuilder<void>(
+        opaque: true,
+        transitionDuration: const Duration(milliseconds: 250),
+        reverseTransitionDuration: const Duration(milliseconds: 250),
+        pageBuilder: (context, _, _) => Scaffold(
+          backgroundColor: Colors.black,
+          body: KosIntro(
+            evenWithoutAnimations: true,
+            onFinished: () {
+              final navigator = Navigator.of(context);
+              if (navigator.canPop()) navigator.pop();
+            },
+          ),
+        ),
+        transitionsBuilder: (_, animation, _, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
+  }
 
   /// How long the animation runs, the fade to black included.
   static const duration = Duration(milliseconds: 7300);
@@ -64,7 +100,8 @@ class _KosIntroState extends State<KosIntro>
     _fades.value = widget.footer == null;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (MediaQuery.maybeDisableAnimationsOf(context) ?? false) {
+      if (!widget.evenWithoutAnimations &&
+          (MediaQuery.maybeDisableAnimationsOf(context) ?? false)) {
         _seconds.value = KosIntro.duration.inMilliseconds / 1000;
         _finish();
         return;

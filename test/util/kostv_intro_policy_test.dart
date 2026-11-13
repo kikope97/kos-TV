@@ -1,4 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
+import 'package:jellyfin_preference/jellyfin_preference.dart';
+import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/util/kostv_intro_policy.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -64,5 +67,42 @@ void main() {
       ),
       isTrue,
     );
+  });
+
+  group('the animation switch', () {
+    Future<UserPreferences> register() async {
+      final store = PreferenceStore();
+      await store.init();
+      final prefs = UserPreferences(store);
+      GetIt.instance.registerSingleton<UserPreferences>(prefs);
+      return prefs;
+    }
+
+    tearDown(() => GetIt.instance.reset());
+
+    test('a new install starts with it off', () async {
+      final prefs = await register();
+      await launchAt(morning);
+      expect(prefs.get(UserPreferences.kostvIntroEnabled), isFalse);
+    });
+
+    test('an install from before keeps it on', () async {
+      SharedPreferences.setMockInitialValues({
+        'kostv_intro_last_seen_ms': morning.millisecondsSinceEpoch,
+      });
+      final prefs = await register();
+      await launchAt(morning.add(const Duration(hours: 1)));
+      expect(prefs.get(UserPreferences.kostvIntroEnabled), isTrue);
+    });
+
+    test('one that turned it off keeps it off', () async {
+      SharedPreferences.setMockInitialValues({
+        'kostv_intro_last_seen_ms': morning.millisecondsSinceEpoch,
+        'kostv_intro_enabled': false,
+      });
+      final prefs = await register();
+      await launchAt(morning.add(const Duration(hours: 1)));
+      expect(prefs.get(UserPreferences.kostvIntroEnabled), isFalse);
+    });
   });
 }

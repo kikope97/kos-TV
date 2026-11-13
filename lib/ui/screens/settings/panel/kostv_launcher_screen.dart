@@ -49,6 +49,12 @@ class _KostvLauncherScreen extends StatelessWidget {
                   subtitle: l10n.kostvIntroSettingSubtitle,
                   icon: Icons.movie_filter_outlined,
                 ),
+                _TvSettingsListTile(
+                  leading: const Icon(Icons.play_circle_outline_rounded),
+                  title: Text(l10n.kostvIntroWatch),
+                  subtitle: Text(l10n.kostvIntroWatchSubtitle),
+                  onTap: () => KosIntro.show(context),
+                ),
                 if (apps) ...[
                   SwitchPreferenceTile(
                     preference: UserPreferences.showAppsRow,

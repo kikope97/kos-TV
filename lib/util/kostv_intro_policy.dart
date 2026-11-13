@@ -1,8 +1,10 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../preference/user_preferences.dart';
 
 /// Kos TV: when the opening animation plays.
 ///
@@ -30,6 +32,9 @@ abstract final class KostvIntroPolicy {
     try {
       final prefs = await SharedPreferences.getInstance();
       final lastSeen = prefs.getInt(_lastSeenKey);
+      // Opened before (it noted when): an install from when the animation
+      // was on by default keeps it on; only a new one starts without it.
+      if (lastSeen != null) _keepIntroOn();
       _playsThisLaunch = decide(
         closed: prefs.getBool(_closedKey) ?? false,
         lastSeen: lastSeen == null
@@ -51,6 +56,14 @@ abstract final class KostvIntroPolicy {
     }
     _taken = false;
     _listener ??= AppLifecycleListener(onHide: _noteSeen, onPause: _noteSeen);
+  }
+
+  static void _keepIntroOn() {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<UserPreferences>()) return;
+    final prefs = getIt<UserPreferences>();
+    if (prefs.containsPreference(UserPreferences.kostvIntroEnabled)) return;
+    prefs.set(UserPreferences.kostvIntroEnabled, true);
   }
 
   static bool _writeFailed(Object e) {

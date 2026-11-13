@@ -19471,4 +19471,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvRequestMusicFailed => 'It couldn\'t be downloaded';
+
+  @override
+  String get kostvIntroWatch => 'Watch the animation';
+
+  @override
+  String get kostvIntroWatchSubtitle =>
+      'Now, whenever it would show on opening';
 }

@@ -13634,5 +13634,13 @@
     "kostvRequestMusicSent": "Enviado a descargar",
     "@kostvRequestMusicSent": {"description": "Kos TV music."},
     "kostvRequestMusicFailed": "No se ha podido descargar",
-    "@kostvRequestMusicFailed": {"description": "Kos TV music."}
+    "@kostvRequestMusicFailed": {"description": "Kos TV music."},
+  "kostvIntroWatch": "Ver la animación",
+  "@kostvIntroWatch": {
+    "description": "Kos TV settings: plays the opening animation right now."
+  },
+  "kostvIntroWatchSubtitle": "Ahora mismo, toque o no al abrir",
+  "@kostvIntroWatchSubtitle": {
+    "description": "Kos TV settings: subtitle of the button that plays the opening animation now."
+  }
 }

@@ -19798,4 +19798,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvRequestMusicFailed => 'No se ha podido descargar';
+
+  @override
+  String get kostvIntroWatch => 'Ver la animación';
+
+  @override
+  String get kostvIntroWatchSubtitle => 'Ahora mismo, toque o no al abrir';
 }

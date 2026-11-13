@@ -19121,5 +19121,13 @@
     "kostvMusicNotifyMe": "Tell me when it arrives",
     "kostvRequestMusicImporting": "Going into the library",
     "kostvRequestMusicSent": "Sent to download",
-    "kostvRequestMusicFailed": "It couldn't be downloaded"
+    "kostvRequestMusicFailed": "It couldn't be downloaded",
+  "kostvIntroWatch": "Watch the animation",
+  "@kostvIntroWatch": {
+    "description": "Kos TV settings: plays the opening animation right now."
+  },
+  "kostvIntroWatchSubtitle": "Now, whenever it would show on opening",
+  "@kostvIntroWatchSubtitle": {
+    "description": "Kos TV settings: subtitle of the button that plays the opening animation now."
+  }
 }

@@ -2802,10 +2802,11 @@ class UserPreferences extends ChangeNotifier {
   );
 
   /// Kos TV: whether the app opens with the opening animation (see
-  /// KostvIntroPolicy for when it does). Kept on each device.
+  /// KostvIntroPolicy for when it does). Kept on each device. Off for a new
+  /// install; one from before keeps it on (KostvIntroPolicy.init).
   static final kostvIntroEnabled = Preference<bool>(
     key: 'kostv_intro_enabled',
-    defaultValue: true,
+    defaultValue: false,
   );
 
   /// Kos TV: the Discover button (what's on the streaming platforms), where
