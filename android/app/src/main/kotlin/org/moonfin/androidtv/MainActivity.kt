@@ -97,6 +97,7 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
     private var displayListener: DisplayManager.DisplayListener? = null
     private var castStatusListener: SessionManagerListener<CastSession>? = null
     private var castDiscoveryCallback: MediaRouter.Callback? = null
+    private val castRouteKeepAlive = object : MediaRouter.Callback() {}
 
     // A receiver is published by both the MediaRouter and the MediaRouter2
     // provider service, so it arrives once per provider under ids that differ
@@ -1205,6 +1206,7 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         }
         unregisterCastMediaCallback()
         stopGoogleCastDiscovery()
+        MediaRouter.getInstance(this).removeCallback(castRouteKeepAlive)
         try { unregisterReceiver(pipReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(screenReceiver) } catch (_: Exception) {}
         castChannel?.setMethodCallHandler(null)
@@ -1268,6 +1270,13 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         runOnUiThread {
             val mediaRouter = MediaRouter.getInstance(this)
             val selector = castRouteSelector()
+            // The picker's scan ends when it closes, and without a callback left
+            // behind the picked route is gone before the cast starts.
+            mediaRouter.addCallback(
+                selector,
+                castRouteKeepAlive,
+                MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY,
+            )
             emittedCastReceivers.clear()
             if (castDiscoveryCallback == null) {
                 val callback = object : MediaRouter.Callback() {
