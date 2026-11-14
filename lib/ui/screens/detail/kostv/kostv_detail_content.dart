@@ -21,6 +21,7 @@ import '../detail_layout_metrics.dart';
 import '../detail_page.dart';
 import '../item_detail_screen.dart';
 import 'kostv_backdrop_trailer.dart';
+import 'kostv_episodes_section.dart';
 
 /// Kos TV: the kOS TV details page. The title's art fills the screen, with
 /// what it is on the left over a darkening: kind, title (its logo when it has
@@ -743,11 +744,17 @@ class _KostvDetailContentState extends State<KostvDetailContent>
       out.add(
         framed(
           node,
-          episodesRail(
-            item,
-            node,
+          KostvEpisodesSection(
+            key: ValueKey('kostv-episodes-${item.id}'),
+            viewModel: _vm,
+            prefs: widget.prefs,
             landscape: landscape,
-            maxHeight: landscape ? size.height * 0.42 : null,
+            maxHeight: landscape ? size.height * 0.5 : null,
+            episodesFocusNode: node,
+            onVerticalNavigation: (isUp) {
+              isUp ? moveUp(node) : moveDown(node);
+              return true;
+            },
           ),
           title: l10n.episodes,
         ),
