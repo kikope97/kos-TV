@@ -79,7 +79,7 @@ class MenuPreview {
   static void show(BuildContext context, String route) {
     if (!supported || !Destinations.isMenuPage(route)) return;
     final router = GoRouter.of(context);
-    final here = router.routerDelegate.currentConfiguration.uri.path;
+    final here = shownPath(router);
     if (here == route) return;
     arriving.value = route;
     _hold();
@@ -91,6 +91,17 @@ class MenuPreview {
     } else {
       router.push(route);
     }
+  }
+
+  /// The page on screen. A page pushed over another (Search over Home, on a
+  /// TV) doesn't change the router's address, which stays on the one
+  /// below: only the last match names it. Taken from the address, resting
+  /// on Home over Search found it "already there" and did nothing.
+  @visibleForTesting
+  static String shownPath(GoRouter router) {
+    final config = router.routerDelegate.currentConfiguration;
+    final matches = config.matches;
+    return matches.isEmpty ? config.uri.path : matches.last.matchedLocation;
   }
 
   /// The menu of the page that came took the focus on [button].

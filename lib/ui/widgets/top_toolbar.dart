@@ -234,10 +234,18 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
 
   ModalRoute<dynamic>? _observedRoute;
 
+  /// Kos TV: whether this page was the one in front last time it looked.
+  bool? _wasCurrent;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final route = ModalRoute.of(context);
+    // In front again, however the page above went (Back, or a page taken
+    // away by going Home, which never tells didPopNext).
+    final current = route?.isCurrent ?? true;
+    if (current && _wasCurrent == false) _backInFront();
+    _wasCurrent = current;
     if (route == null || route == _observedRoute) return;
     if (_observedRoute != null) {
       routeLifecycleObserver.unsubscribe(this);
@@ -253,12 +261,16 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     // that it targets this live one.
     NavigationLayout.focusNavbarNotifier.value = _focusNavbarCallback;
     NavigationLayout.focusNavbarAvatarNotifier.value = _focusAvatarCallback;
-    // Kos TV: back on this page, the focus comes back where it was in it,
-    // which can be another page's button in this menu (the one taken to
-    // leave). Resting there would open that page again: the menu's focus
-    // goes to this page's own button.
-    // Once now, and again when the page above has finished leaving (the
-    // focus can come back at the end of its animation).
+    _backInFront();
+  }
+
+  /// Kos TV: back on this page, the focus comes back where it was in it,
+  /// which can be another page's button in this menu (the one taken to
+  /// leave). Resting there would open that page again: the menu's focus
+  /// goes to this page's own button. Once now, and again when the page
+  /// above has finished leaving (the focus can come back at the end of its
+  /// animation).
+  void _backInFront() {
     WidgetsBinding.instance.addPostFrameCallback((_) => _focusOwnButton());
     _stopWatchingReturn();
     final back = ModalRoute.of(context)?.secondaryAnimation;
