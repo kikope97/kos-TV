@@ -33584,6 +33584,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'UP NEXT'**
   String get kostvEpisodeNext;
+
+  /// Kos TV details page: under a missing episode that can be asked for. With a remote or a mouse.
+  ///
+  /// In en, this message translates to:
+  /// **'Select to request it.'**
+  String get kostvGhostSelectToAsk;
+
+  /// Kos TV details page: under a missing episode that can be asked for. On a phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to request it.'**
+  String get kostvGhostTapToAsk;
 }
 
 class _AppLocalizationsDelegate

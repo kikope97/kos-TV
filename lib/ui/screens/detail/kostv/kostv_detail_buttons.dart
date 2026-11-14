@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../util/platform_detection.dart';
 import '../../../widgets/adaptive/sf_symbol.dart';
 
 import '../../../../data/models/aggregated_item.dart';
@@ -21,32 +22,24 @@ const kostvLight = Color(0xFFF3F5FA);
 /// Kos TV: the dark ink on a lit button.
 const kostvOnLight = Color(0xFF14161C);
 
-/// Kos TV: a glass button's face, as the navbar's capsule: a see-through
-/// fill brighter at the top, with a pale rim. [lit] (focused, or the one
-/// that matters most) turns it light, as Play is.
+/// Kos TV: a button's face, as Apple TV's: a soft grey see-through fill,
+/// with no rim or sheen; [lit] (focused) turns it white.
 BoxDecoration kostvGlass({
   bool lit = false,
   bool enabled = true,
-  double radius = 22,
+  double radius = 10,
 }) => BoxDecoration(
-  color: lit ? kostvLight : null,
-  gradient: lit
-      ? null
-      : LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.white.withValues(alpha: enabled ? 0.24 : 0.1),
-            Colors.white.withValues(alpha: enabled ? 0.1 : 0.04),
-          ],
-        ),
+  color: lit
+      ? kostvLight
+      : Colors.white.withValues(alpha: enabled ? 0.13 : 0.06),
   borderRadius: BorderRadius.circular(radius),
-  border: Border.all(
-    color: Colors.white.withValues(alpha: lit ? 0 : (enabled ? 0.32 : 0.14)),
-  ),
   boxShadow: [
     if (lit)
-      BoxShadow(color: kostvViolet.withValues(alpha: 0.4), blurRadius: 20),
+      BoxShadow(
+        color: Colors.black.withValues(alpha: 0.45),
+        blurRadius: 20,
+        offset: const Offset(0, 8),
+      ),
   ],
 );
 
@@ -157,7 +150,13 @@ class KostvButtonFace extends StatelessWidget {
 
   Widget _primary(BuildContext context) {
     final text = play ?? KostvPlayText(label);
-    const ink = Color(0xFF0B0B12);
+    // On a TV, as Apple TV's: grey until it has focus, then white. Where
+    // there's no focus to follow, it's the white one, the page's main act.
+    final light = focused || !PlatformDetection.isTV;
+    final ink = light ? const Color(0xFF0B0B12) : const Color(0xFFF3F5FA);
+    final soft = light
+        ? const Color(0xFF55566A)
+        : const Color(0xFFF3F5FA).withValues(alpha: 0.7);
     final height = compact ? 56.0 : 72.0;
     final title = Text(
       text.title,
@@ -177,7 +176,7 @@ class KostvButtonFace extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: const Color(0xFF55566A),
+              color: soft,
               fontSize: compact ? 13 : 15,
               fontWeight: FontWeight.w600,
               height: 1.1,
@@ -197,7 +196,7 @@ class KostvButtonFace extends StatelessWidget {
               widthFactor: text.progress,
               child: Container(
                 decoration: BoxDecoration(
-                  color: kostvViolet,
+                  color: ink,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -221,8 +220,8 @@ class KostvButtonFace extends StatelessWidget {
                           if (text.subtitle != null)
                             TextSpan(
                               text: ' · ${text.subtitle}',
-                              style: const TextStyle(
-                                color: Color(0xFF55566A),
+                              style: TextStyle(
+                                color: soft,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -230,7 +229,7 @@ class KostvButtonFace extends StatelessWidget {
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: ink,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -267,7 +266,7 @@ class KostvButtonFace extends StatelessWidget {
           );
 
     return AnimatedScale(
-      scale: focused && !compact ? 1.04 : 1,
+      scale: focused && !compact ? 1.07 : 1,
       duration: _duration,
       child: AnimatedContainer(
         duration: _duration,
@@ -278,19 +277,16 @@ class KostvButtonFace extends StatelessWidget {
         // says.
         alignment: compact ? Alignment.center : null,
         decoration: BoxDecoration(
-          color: const Color(0xFFF3F5FA),
+          color: light
+              ? const Color(0xFFF3F5FA)
+              : Colors.white.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(height / 2),
-          border: Border.all(
-            color: focused ? kostvViolet : Colors.transparent,
-            width: 3.5,
-          ),
+          // As Apple TV's: no ring, the focused one just lifts.
           boxShadow: [
             BoxShadow(
-              color: focused
-                  ? kostvViolet.withValues(alpha: 0.5)
-                  : Colors.black.withValues(alpha: 0.35),
-              blurRadius: focused ? 28 : 18,
-              offset: focused ? Offset.zero : const Offset(0, 8),
+              color: Colors.black.withValues(alpha: focused ? 0.55 : 0.3),
+              blurRadius: focused ? 30 : 16,
+              offset: Offset(0, focused ? 12 : 6),
             ),
           ],
         ),
@@ -318,15 +314,12 @@ class KostvButtonFace extends StatelessWidget {
         color: focused
             ? const Color(0xFFF3F5FA)
             : Colors.white.withValues(alpha: 0.12),
-        border: Border.all(
-          color: focused ? kostvViolet : Colors.white.withValues(alpha: 0.18),
-          width: focused ? 3 : 1,
-        ),
         boxShadow: [
           if (focused)
             BoxShadow(
-              color: kostvViolet.withValues(alpha: 0.45),
-              blurRadius: 22,
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
             ),
         ],
       ),
@@ -342,7 +335,7 @@ class KostvButtonFace extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           AnimatedScale(
-            scale: focused && !compact ? 1.08 : 1,
+            scale: focused && !compact ? 1.12 : 1,
             duration: _duration,
             child: circle,
           ),

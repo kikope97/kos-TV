@@ -13702,5 +13702,13 @@
   "kostvEpisodeNext": "SIGUIENTE",
   "@kostvEpisodeNext": {
     "description": "Kos TV details page: the label on the episode to watch next."
+  },
+  "kostvGhostSelectToAsk": "Pulsa para solicitarlo.",
+  "@kostvGhostSelectToAsk": {
+    "description": "Kos TV details page: under a missing episode that can be asked for. With a remote or a mouse."
+  },
+  "kostvGhostTapToAsk": "Toca para solicitarlo.",
+  "@kostvGhostTapToAsk": {
+    "description": "Kos TV details page: under a missing episode that can be asked for. On a phone."
   }
 }

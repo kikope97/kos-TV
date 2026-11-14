@@ -26,7 +26,7 @@ import '../../widgets/navigation_layout.dart';
 import '../detail/detail_layout_metrics.dart';
 import '../detail/frost/frost_detail_content.dart' show FrostStage;
 import '../detail/kostv/kostv_detail_buttons.dart'
-    show kostvLight, kostvOnLight, kostvViolet;
+    show kostvLight, kostvOnLight;
 import 'kostv_request_controller.dart';
 import 'kostv_request_status.dart';
 
@@ -1884,7 +1884,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
               borderRadius: radius,
               border: Border.all(
                 color: lit
-                    ? (brand ? kostvViolet : Colors.white)
+                    ? (brand ? Colors.transparent : Colors.white)
                     : (filled
                           ? Colors.transparent
                           : color.withValues(alpha: 0.7)),
@@ -1893,9 +1893,9 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
               boxShadow: [
                 if (lit || main.tone == _Tone.action)
                   BoxShadow(
-                    color: (brand ? kostvViolet : color).withValues(
-                      alpha: lit ? 0.6 : 0.35,
-                    ),
+                    color: brand
+                        ? Colors.black.withValues(alpha: lit ? 0.55 : 0.3)
+                        : color.withValues(alpha: lit ? 0.6 : 0.35),
                     blurRadius: lit ? 22 : 14,
                   ),
               ],
@@ -1955,9 +1955,8 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
           width: expand ? double.infinity : null,
           padding: EdgeInsets.symmetric(horizontal: height * 0.4),
           decoration: BoxDecoration(
-            color: lit ? Colors.white : _ink(0.1),
+            color: lit ? Colors.white : _ink(0.13),
             borderRadius: BorderRadius.circular(height / 2),
-            border: Border.all(color: _ink(lit ? 0 : 0.25)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

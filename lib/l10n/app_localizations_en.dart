@@ -19523,4 +19523,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvEpisodeNext => 'UP NEXT';
+
+  @override
+  String get kostvGhostSelectToAsk => 'Select to request it.';
+
+  @override
+  String get kostvGhostTapToAsk => 'Tap to request it.';
 }

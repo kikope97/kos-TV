@@ -19849,4 +19849,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvEpisodeNext => 'SIGUIENTE';
+
+  @override
+  String get kostvGhostSelectToAsk => 'Pulsa para solicitarlo.';
+
+  @override
+  String get kostvGhostTapToAsk => 'Toca para solicitarlo.';
 }
