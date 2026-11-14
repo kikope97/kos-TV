@@ -20,6 +20,7 @@ import '../../../widgets/rating_display.dart';
 import '../detail_layout_metrics.dart';
 import '../detail_page.dart';
 import '../item_detail_screen.dart';
+import 'kostv_backdrop_trailer.dart';
 
 /// Kos TV: the kOS TV details page. The title's art fills the screen, with
 /// what it is on the left over a darkening: kind, title (its logo when it has
@@ -324,6 +325,12 @@ class _KostvDetailContentState extends State<KostvDetailContent>
                   alignment: landscape
                       ? Alignment.topRight
                       : Alignment.topCenter,
+                ),
+              if (showImage)
+                KostvBackdropTrailer(
+                  key: ValueKey('kostv-trailer-${item.id}'),
+                  item: item,
+                  prefs: widget.prefs,
                 ),
               if (landscape)
                 DecoratedBox(
