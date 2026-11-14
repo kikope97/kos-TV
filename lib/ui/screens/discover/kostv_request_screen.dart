@@ -25,6 +25,8 @@ import '../../widgets/image_source.dart';
 import '../../widgets/navigation_layout.dart';
 import '../detail/detail_layout_metrics.dart';
 import '../detail/frost/frost_detail_content.dart' show FrostStage;
+import '../detail/kostv/kostv_detail_buttons.dart'
+    show kostvGradient, kostvViolet;
 import 'kostv_request_controller.dart';
 import 'kostv_request_status.dart';
 
@@ -838,7 +840,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         rejected.cancelled
             ? l10n.kostvRequestCancelledNote
             : switch (rejected.reason) {
-          'quality' => l10n.kostvRequestRejectedQuality,
+                'quality' => l10n.kostvRequestRejectedQuality,
                 'later' => l10n.kostvRequestRejectedLater,
                 _ => l10n.kostvRequestRejected,
               },
@@ -1072,7 +1074,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     final long = name.length > (hasSeasons ? 18 : 26);
 
     final text = Padding(
-      padding: EdgeInsets.fromLTRB(56, 0, hasSeasons ? 516 : 56, 46),
+      padding: EdgeInsets.fromLTRB(88, 0, hasSeasons ? 516 : 520, 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.end,
@@ -1087,10 +1089,11 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: _ink(),
-              fontSize: long ? 50 : 64,
-              height: 1.08,
-              fontWeight: FontWeight.w800,
-              letterSpacing: long ? -1.1 : -1.6,
+              fontFamily: 'Outfit',
+              fontSize: long ? 52 : 68,
+              height: 1.05,
+              fontWeight: FontWeight.w700,
+              letterSpacing: long ? -0.8 : -1.2,
             ),
           ),
           const SizedBox(height: 12),
@@ -1119,155 +1122,137 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
       ),
     );
 
-    final window = Positioned(
-      left: 24,
-      right: 24,
-      top: 12,
-      bottom: 146,
-      child: _glass(
-        radius: 44,
-        tint: 0.36,
-        child: ClipRRect(
-          borderRadius: AppRadius.circular(44),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _image(),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [_shade(0.96), _shade(0.8), _shade(0.1)],
-                    stops: const [0, 0.55, 0.92],
-                  ),
-                ),
-              ),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [_shade(0.55), _shade(0)],
-                    stops: const [0, 0.65],
-                  ),
-                ),
-              ),
-              text,
-              if (hasSeasons)
-                Positioned(
-                  top: 30,
-                  right: 30,
-                  bottom: 30,
-                  width: 436,
-                  child: Align(
-                    alignment: Alignment.topCenter,
-                    child: _glass(
-                      radius: 30,
-                      tint: 0.6,
-                      padding: const EdgeInsets.fromLTRB(10, 16, 10, 10),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
-                            child: _heading(
-                              l10n.seasons,
-                              count: seasons.length,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Flexible(
-                            child: _seasonList(
-                              series!,
-                              seasons,
-                              l10n,
-                              wide: true,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              if (_c.loading && _c.title == null)
-                const Center(child: CircularProgressIndicator()),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    final toolbar = Positioned(
-      left: 24,
-      right: 24,
-      bottom: 106,
-      child: Center(
-        child: _glass(
-          radius: 38,
-          padding: const EdgeInsets.all(8),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 10,
-            children: [
-              _mainButton(
-                main,
-                height: 56,
-                fontSize: 19,
-                minWidth: 240,
-                onRight: extras.isEmpty
-                    ? null
-                    : () => _extraNodes.first.requestFocus(),
-                onUp: () => _fromBottomUp(seasons),
-              ),
-              for (final (index, extra) in extras.indexed)
-                _extraButton(
-                  extra,
-                  _extraNodes[index],
-                  height: 56,
-                  onLeft: index == 0
-                      ? _mainNode.requestFocus
-                      : _extraNodes[index - 1].requestFocus,
-                  onRight: index + 1 < extras.length
-                      ? _extraNodes[index + 1].requestFocus
-                      : null,
-                  onUp: () => _fromBottomUp(seasons),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    // Where Frost has its tabs: the request's way, step by step.
-    final journeyBar = journey == null
+    // The seasons on the right, in a glass panel over the art.
+    final seasonsPanel = !hasSeasons
         ? null
         : Positioned(
-            left: 24,
-            right: 24,
-            bottom: 36,
-            child: Center(
+            top: 24,
+            right: 40,
+            bottom: 40,
+            width: 436,
+            child: Align(
+              alignment: Alignment.topCenter,
               child: _glass(
                 radius: 30,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 22,
-                  vertical: 11,
+                tint: 0.6,
+                padding: const EdgeInsets.fromLTRB(10, 16, 10, 10),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+                      child: _heading(
+                        l10n.seasons,
+                        count: seasons.length,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Flexible(
+                      child: _seasonList(series!, seasons, l10n, wide: true),
+                    ),
+                  ],
                 ),
-                child: _journey(journey, wide: true),
               ),
             ),
           );
 
+    // The buttons in a row under the text, as on the home server's page.
+    final actions = Row(
+      mainAxisSize: MainAxisSize.min,
+      spacing: 12,
+      children: [
+        _mainButton(
+          main,
+          height: 60,
+          fontSize: 20,
+          minWidth: 240,
+          onRight: extras.isEmpty
+              ? null
+              : () => _extraNodes.first.requestFocus(),
+          onUp: () => _fromBottomUp(seasons),
+        ),
+        for (final (index, extra) in extras.indexed)
+          _extraButton(
+            extra,
+            _extraNodes[index],
+            height: 60,
+            onLeft: index == 0
+                ? _mainNode.requestFocus
+                : _extraNodes[index - 1].requestFocus,
+            onRight: index + 1 < extras.length
+                ? _extraNodes[index + 1].requestFocus
+                : null,
+            onUp: () => _fromBottomUp(seasons),
+          ),
+      ],
+    );
+
+    final content = Positioned(
+      left: 0,
+      right: 0,
+      top: 0,
+      bottom: 0,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Flexible(child: text),
+          Padding(padding: const EdgeInsets.only(left: 88), child: actions),
+          if (journey != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(92, 26, 56, 0),
+              child: _journey(journey, wide: true),
+            ),
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+
+    final base = AppColorScheme.background;
     return Stack(
       fit: StackFit.expand,
       children: [
-        _environment(),
+        ColoredBox(color: base),
+        // The art across the whole screen, darker to the left and to the
+        // foot for the text, as on the home server's page.
+        _image(alignment: Alignment.topRight),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                base.withValues(alpha: 0.96),
+                base.withValues(alpha: 0.82),
+                base.withValues(alpha: 0.25),
+                base.withValues(alpha: 0),
+              ],
+              stops: const [0, 0.3, 0.58, 0.75],
+            ),
+          ),
+        ),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.bottomCenter,
+              end: Alignment.topCenter,
+              colors: [
+                base,
+                base.withValues(alpha: 0.6),
+                base.withValues(alpha: 0),
+              ],
+              stops: const [0, 0.22, 0.45],
+            ),
+          ),
+        ),
+        if (_c.loading && _c.title == null)
+          const Center(child: CircularProgressIndicator()),
         FrostStage(
           navbarTop: _navbarTop,
           child: MediaQuery.withClampedTextScaling(
             maxScaleFactor: 1.15,
             child: Stack(
               clipBehavior: Clip.none,
-              children: [window, toolbar, ?journeyBar],
+              children: [content, ?seasonsPanel],
             ),
           ),
         ),
@@ -1348,10 +1333,11 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: _ink(),
-                              fontSize: 32,
-                              height: 1.1,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.7,
+                              fontFamily: 'Outfit',
+                              fontSize: 36,
+                              height: 1.08,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: -0.5,
                             ),
                           ),
                         ],
@@ -1821,9 +1807,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     VoidCallback? onUp,
   }) {
     final color = _toneColor(main.tone);
-    final onColor = main.tone == _Tone.action
-        ? AppColorScheme.onAccent
-        : Colors.white;
+    const onColor = Colors.white;
     final pressable = main.onPressed != null;
     // A status shows on a darker plate, filled as far as it has got.
     final filled = main.tone == _Tone.action || main.tone == _Tone.done;
@@ -1840,6 +1824,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         final lit = InputModeTracker.showFocusVisuals(context, focused);
         final radius = BorderRadius.circular(height / 2);
         final enabled = pressable || main.tone != _Tone.action;
+        final brand = main.tone == _Tone.action && enabled;
         final background = filled
             ? (enabled ? color : color.withValues(alpha: 0.4))
             : Color.alphaBlend(color.withValues(alpha: 0.22), _shade(0.7));
@@ -1892,7 +1877,9 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
             constraints: BoxConstraints(minWidth: minWidth),
             width: expand ? double.infinity : null,
             decoration: BoxDecoration(
-              color: background,
+              // Asking is the brand's colours, as everywhere in Kos TV.
+              color: brand ? null : background,
+              gradient: brand ? kostvGradient : null,
               borderRadius: radius,
               border: Border.all(
                 color: lit
@@ -1905,7 +1892,9 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
               boxShadow: [
                 if (lit || main.tone == _Tone.action)
                   BoxShadow(
-                    color: color.withValues(alpha: lit ? 0.6 : 0.35),
+                    color: (brand ? kostvViolet : color).withValues(
+                      alpha: lit ? 0.6 : 0.35,
+                    ),
                     blurRadius: lit ? 22 : 14,
                   ),
               ],
