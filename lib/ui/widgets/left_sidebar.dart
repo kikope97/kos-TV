@@ -731,6 +731,9 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
   }
 
   void _restoreFocusOutsideSidebar() {
+    // Kos TV: going into the page, the menu lets go first (see the top
+    // toolbar's).
+    MenuPreview.stopHolding();
     if (NavigationLayout.focusDetailsPlayButton()) return;
     final previous = _previousFocus;
     if (previous != null && _isLaidOutFocusNode(previous)) {

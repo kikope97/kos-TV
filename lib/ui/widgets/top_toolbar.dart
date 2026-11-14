@@ -547,6 +547,11 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   }
 
   void _restoreFocusBelowToolbar() {
+    // Kos TV: going down into the page, the menu lets go first. Still
+    // holding, Home refused the focus it was being handed and the focus
+    // went nowhere: neither Down nor OK did anything after resting on
+    // Inicio.
+    MenuPreview.stopHolding();
     if (NavigationLayout.focusDetailsPlayButton()) return;
     final focusContent = NavigationLayout.focusContentFromNavbarNotifier.value;
     if (focusContent != null && widget.activeRoute == Destinations.home) {
