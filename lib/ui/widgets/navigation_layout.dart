@@ -79,6 +79,9 @@ class NavigationLayout extends StatefulWidget {
     if (node == null || node.context == null || !node.canRequestFocus) {
       return false;
     }
+    // Kos TV: only a details page on screen: one under a menu page still
+    // has its button, and Down from the menu went into the hidden page.
+    if (!(ModalRoute.isCurrentOf(node.context!) ?? true)) return false;
     node.requestFocus();
     return true;
   }

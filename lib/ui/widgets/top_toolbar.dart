@@ -518,6 +518,13 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     if (primary == null) return;
     if (primary.skipTraversal) return;
     if (_isInsideToolbar(primary)) return;
+    // Kos TV: only this page's own content: not another page's menu nor a
+    // page under or over this one, which go away and leave the focus
+    // nowhere.
+    if (MenuPreview.isMenu(primary)) return;
+    final there = primary.context;
+    if (there == null || !mounted) return;
+    if (!(ModalRoute.isCurrentOf(there) ?? true)) return;
     _previousFocus = primary;
   }
 
@@ -543,7 +550,9 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     if (node == null) return false;
     if (node.skipTraversal) return false;
     if (_isInsideToolbar(node)) return false;
-    return _isLaidOutFocusNode(node);
+    if (!_isLaidOutFocusNode(node)) return false;
+    // Kos TV: not a page under or going away under the one on screen.
+    return ModalRoute.isCurrentOf(node.context!) ?? true;
   }
 
   void _restoreFocusBelowToolbar() {
@@ -773,6 +782,14 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     });
   }
 
+  /// OK on a menu button: its page opens as resting on it would, or, when
+  /// it's the page already on screen, the focus goes into it.
+  void _openFromMenu(String route) {
+    if (MenuPreview.open(context, route) && _isActive(route)) {
+      _restoreFocusBelowToolbar();
+    }
+  }
+
   /// OK on the button of the page already showing goes into the page, as
   /// Down does.
   bool _enterShownPage(String route) {
@@ -801,7 +818,10 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
       MenuPreview.landed(node);
       return;
     }
-    if (attempt >= 20) return;
+    if (attempt >= 20) {
+      MenuPreview.gaveUp(route);
+      return;
+    }
     Timer(
       const Duration(milliseconds: 50),
       () => _takeArrival(route, attempt + 1),
@@ -1100,8 +1120,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                           focusNode: _favoritesFocus,
                           background: _toolbarSurfaceColor(),
                           onPressed: () {
-                            if (_isActive(Destinations.allFavorites)) return;
-                            context.navigateTopLevel(Destinations.allFavorites);
+                            _openFromMenu(Destinations.allFavorites);
                           },
                           badgeCount: _favoritesNews?.unseen ?? 0,
                           onDown:
@@ -1330,7 +1349,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                       return;
                     }
                     homeRefreshBus.requestAfterNavigation();
-                    context.go(Destinations.home);
+                    MenuPreview.open(context, Destinations.home);
                   },
                 ),
               ),
@@ -1347,8 +1366,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   baseColor: nextNavColor(),
                   onPressed: () {
                     if (_enterShownPage(Destinations.search)) return;
-                    if (_isActive(Destinations.search)) return;
-                    context.navigateTopLevel(Destinations.search);
+                    _openFromMenu(Destinations.search);
                   },
                 ),
               ),
@@ -1367,8 +1385,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                     baseColor: nextNavColor(),
                     onPressed: () {
                       if (_enterShownPage(Destinations.kostvDiscover)) return;
-                      if (_isActive(Destinations.kostvDiscover)) return;
-                      context.navigateTopLevel(Destinations.kostvDiscover);
+                      _openFromMenu(Destinations.kostvDiscover);
                     },
                   ),
                 ),
@@ -1390,8 +1407,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                     ),
                     label: l10n.genres,
                     onPressed: () {
-                      if (_isActive(Destinations.allGenres)) return;
-                      context.navigateTopLevel(Destinations.allGenres);
+                      _openFromMenu(Destinations.allGenres);
                     },
                   ),
                 ),
@@ -1411,8 +1427,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                     baseColor: nextNavColor(),
                     onPressed: () {
                       if (_enterShownPage(Destinations.myList)) return;
-                      if (_isActive(Destinations.myList)) return;
-                      context.navigateTopLevel(Destinations.myList);
+                      _openFromMenu(Destinations.myList);
                     },
                   ),
                 ),
@@ -1432,8 +1447,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                     baseColor: nextNavColor(),
                     onPressed: () {
                       if (_enterShownPage(Destinations.kostvMusic)) return;
-                      if (_isActive(Destinations.kostvMusic)) return;
-                      context.navigateTopLevel(Destinations.kostvMusic);
+                      _openFromMenu(Destinations.kostvMusic);
                     },
                   ),
                 ),
@@ -1455,8 +1469,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                     label: l10n.liveTv,
                     baseColor: nextNavColor(),
                     onPressed: () {
-                      if (_isActive(Destinations.liveTvGuide)) return;
-                      context.navigateTopLevel(Destinations.liveTvGuide);
+                      _openFromMenu(Destinations.liveTvGuide);
                     },
                   ),
                 ),
@@ -1493,8 +1506,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                     label: l10n.calendar,
                     onPressed: () {
                       if (_enterShownPage(Destinations.calendar)) return;
-                      if (_isActive(Destinations.calendar)) return;
-                      context.navigateTopLevel(Destinations.calendar);
+                      _openFromMenu(Destinations.calendar);
                     },
                   ),
                 ),
@@ -1513,8 +1525,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                     label: l10n.kostvAppsRow,
                     onPressed: () {
                       if (_enterShownPage(Destinations.apps)) return;
-                      if (_isActive(Destinations.apps)) return;
-                      context.navigateTopLevel(Destinations.apps);
+                      _openFromMenu(Destinations.apps);
                     },
                   ),
                 ),

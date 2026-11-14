@@ -250,6 +250,17 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     NavigationLayout.focusNavbarAvatarNotifier.value = _focusAvatarCallback;
     _awaitingPopFocusRestore = _openedRouteFromRail;
     _openedRouteFromRail = false;
+    // Kos TV: Back from a page resting showed, with the focus still on the
+    // menu: the menu lets go and its focus goes to this page's button,
+    // not the one of the page that went.
+    if (MenuPreview.arriving.value == null && !_awaitingPopFocusRestore) {
+      MenuPreview.stopHolding();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_sidebarFocus.hasFocus) return;
+        final own = _ownMenuNode();
+        if (own != null && !own.hasFocus) own.requestFocus();
+      });
+    }
     // Kos TV: left open when a page came in over it from the menu; unless the
     // menu is bringing this page back, it closes now.
     if (MenuPreview.arriving.value == null &&
@@ -300,6 +311,18 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     });
   }
 
+  /// OK on a menu button: its page opens as resting on it would, or, when
+  /// it's the page already on screen, the focus goes into it.
+  void _openFromMenu(String route) {
+    if (MenuPreview.shownPath(GoRouter.of(context)) == route) {
+      MenuPreview.stopHolding();
+      _exitSidebarToContent();
+      return;
+    }
+    _markNavigationAwayFromSidebar();
+    MenuPreview.open(context, route);
+  }
+
   /// OK on the button of the page already showing goes into the page.
   bool _enterShownPage(String route) {
     if (!_isActive(route) || !MenuPreview.holding) return false;
@@ -334,7 +357,10 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
       MenuPreview.landed(node);
       return;
     }
-    if (attempt >= 20) return;
+    if (attempt >= 20) {
+      MenuPreview.gaveUp(route);
+      return;
+    }
     Timer(
       const Duration(milliseconds: 50),
       () => _takeArrival(route, attempt + 1),
@@ -727,6 +753,11 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     _awaitingPopFocusRestore = false;
     final primary = FocusManager.instance.primaryFocus;
     if (primary == null || _sidebarFocus.hasFocus) return;
+    // Kos TV: only this page's own content (see the top toolbar's).
+    if (primary.skipTraversal || MenuPreview.isMenu(primary)) return;
+    final there = primary.context;
+    if (there == null || !mounted) return;
+    if (!(ModalRoute.isCurrentOf(there) ?? true)) return;
     _previousFocus = primary;
   }
 
@@ -736,21 +767,50 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     MenuPreview.stopHolding();
     if (NavigationLayout.focusDetailsPlayButton()) return;
     final previous = _previousFocus;
-    if (previous != null && _isLaidOutFocusNode(previous)) {
+    if (previous != null &&
+        _isLaidOutFocusNode(previous) &&
+        (ModalRoute.isCurrentOf(previous.context!) ?? true)) {
       previous.requestFocus();
       return;
     }
+    // Home knows where its focus goes back to (the banner, the row left).
+    final focusHome = NavigationLayout.focusContentFromNavbarNotifier.value;
+    if (focusHome != null && widget.activeRoute == Destinations.home) {
+      focusHome();
+      if (!_sidebarFocus.hasFocus) return;
+    }
+    _focusFirstContent(0);
+  }
+
+  /// The first thing of the page that can take the focus; a page still
+  /// loading is waited for a moment. Never the page's own wrapper: it shows
+  /// nothing, and the focus would sit there invisible.
+  void _focusFirstContent(int attempt) {
+    if (!mounted) return;
     final fallback = widget.contentFocusNode;
-    if (fallback != null && _isLaidOutFocusNode(fallback)) {
-      final firstContent = _firstFocusableDescendant(fallback);
-      if (firstContent != null) {
-        firstContent.requestFocus();
-      } else {
-        fallback.requestFocus();
-      }
+    final firstContent = fallback != null && _isLaidOutFocusNode(fallback)
+        ? _firstFocusableDescendant(fallback)
+        : null;
+    if (firstContent != null) {
+      firstContent.requestFocus();
       return;
     }
-    if (mounted) FocusScope.of(context).nextFocus();
+    // A page that is one thing to focus, rather than a wrapper around them.
+    if (fallback != null &&
+        !fallback.skipTraversal &&
+        _isLaidOutFocusNode(fallback)) {
+      fallback.requestFocus();
+      return;
+    }
+    if (attempt < 10) {
+      Timer(
+        const Duration(milliseconds: 80),
+        () => _focusFirstContent(attempt + 1),
+      );
+      return;
+    }
+    // Nothing there to go to: the focus stays on the page's button.
+    _ownMenuNode()?.requestFocus();
   }
 
   static bool _isLaidOutFocusNode(FocusNode node) {
@@ -1219,7 +1279,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     }
                     homeRefreshBus.requestAfterNavigation();
                     _markNavigationAwayFromSidebar();
-                    context.go(Destinations.home);
+                    MenuPreview.open(context, Destinations.home);
                   },
                 ),
                 _SidebarItem(
@@ -1232,12 +1292,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   onPressed: () {
                     _onNavigate();
                     if (_enterShownPage(Destinations.search)) return;
-                    if (_isActive(Destinations.search)) {
-                      _exitSidebarToContent();
-                      return;
-                    }
-                    _markNavigationAwayFromSidebar();
-                    context.navigateTopLevel(Destinations.search);
+                    _openFromMenu(Destinations.search);
                   },
                 ),
                 // Kos TV: what's on the streaming platforms.
@@ -1252,12 +1307,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     onPressed: () {
                       _onNavigate();
                       if (_enterShownPage(Destinations.kostvDiscover)) return;
-                      if (_isActive(Destinations.kostvDiscover)) {
-                        _exitSidebarToContent();
-                        return;
-                      }
-                      _markNavigationAwayFromSidebar();
-                      context.navigateTopLevel(Destinations.kostvDiscover);
+                      _openFromMenu(Destinations.kostvDiscover);
                     },
                   ),
                 if (showGenres)
@@ -1274,12 +1324,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     showLabel: _showLabels,
                     onPressed: () {
                       _onNavigate();
-                      if (_isActive(Destinations.allGenres)) {
-                        _exitSidebarToContent();
-                        return;
-                      }
-                      _markNavigationAwayFromSidebar();
-                      context.navigateTopLevel(Destinations.allGenres);
+                      _openFromMenu(Destinations.allGenres);
                     },
                   ),
                 // Kos TV: the person's list. Favourites is on the profile.
@@ -1294,12 +1339,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     onPressed: () {
                       _onNavigate();
                       if (_enterShownPage(Destinations.myList)) return;
-                      if (_isActive(Destinations.myList)) {
-                        _exitSidebarToContent();
-                        return;
-                      }
-                      _markNavigationAwayFromSidebar();
-                      context.navigateTopLevel(Destinations.myList);
+                      _openFromMenu(Destinations.myList);
                     },
                   ),
                 // Kos TV: Music, the page of its own.
@@ -1314,12 +1354,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     onPressed: () {
                       _onNavigate();
                       if (_enterShownPage(Destinations.kostvMusic)) return;
-                      if (_isActive(Destinations.kostvMusic)) {
-                        _exitSidebarToContent();
-                        return;
-                      }
-                      _markNavigationAwayFromSidebar();
-                      context.navigateTopLevel(Destinations.kostvMusic);
+                      _openFromMenu(Destinations.kostvMusic);
                     },
                   ),
                 // Kos TV: while music sounds, «Reproduciendo» opens its player.
@@ -1333,12 +1368,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     showLabel: _showLabels,
                     onPressed: () {
                       _onNavigate();
-                      if (_isActive(Destinations.liveTvGuide)) {
-                        _exitSidebarToContent();
-                        return;
-                      }
-                      _markNavigationAwayFromSidebar();
-                      context.navigateTopLevel(Destinations.liveTvGuide);
+                      _openFromMenu(Destinations.liveTvGuide);
                     },
                   ),
                 if (showSyncPlay)
@@ -1371,12 +1401,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     onPressed: () {
                       _onNavigate();
                       if (_enterShownPage(Destinations.calendar)) return;
-                      if (_isActive(Destinations.calendar)) {
-                        _exitSidebarToContent();
-                        return;
-                      }
-                      _markNavigationAwayFromSidebar();
-                      context.navigateTopLevel(Destinations.calendar);
+                      _openFromMenu(Destinations.calendar);
                     },
                   ),
                 // Kos TV: the TV's apps (All apps screen).
@@ -1391,12 +1416,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     onPressed: () {
                       _onNavigate();
                       if (_enterShownPage(Destinations.apps)) return;
-                      if (_isActive(Destinations.apps)) {
-                        _exitSidebarToContent();
-                        return;
-                      }
-                      _markNavigationAwayFromSidebar();
-                      context.navigateTopLevel(Destinations.apps);
+                      _openFromMenu(Destinations.apps);
                     },
                   ),
                 if (showLibraries && showLibrariesIndividually)
@@ -1604,12 +1624,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
         showLabel: _showLabels,
         onPressed: () {
           _onNavigate();
-          if (_isActive(Destinations.allFavorites)) {
-            _exitSidebarToContent();
-            return;
-          }
-          _markNavigationAwayFromSidebar();
-          context.navigateTopLevel(Destinations.allFavorites);
+          _openFromMenu(Destinations.allFavorites);
         },
       ),
     );

@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../util/platform_detection.dart';
 import '../widgets/nav_capsule.dart';
 import '../widgets/navigation_layout.dart';
+import '../widgets/overlay_sheet.dart';
+import '../widgets/settings/settings_panel.dart';
 import 'destinations.dart';
 
 /// Kos TV: the menu shows the page of the button the person rests on, with a
@@ -93,11 +95,30 @@ class MenuPreview {
     }
   }
 
+  /// OK on the menu button of [route], one of [Destinations.menuPages]:
+  /// opens it the same way resting on it does (one menu page replaces
+  /// another, so Back still goes to Home), with the menu letting go, so the
+  /// page takes the focus as any page does. Says whether [route] was
+  /// already the page on screen, for the button to go into it instead.
+  static bool open(BuildContext context, String route) {
+    _release();
+    final router = GoRouter.of(context);
+    final here = shownPath(router);
+    if (here == route) return true;
+    if (route == Destinations.home || PlatformDetection.isWeb) {
+      router.go(route);
+    } else if (Destinations.isMenuPage(here) && here != Destinations.home) {
+      router.pushReplacement(route);
+    } else {
+      router.push(route);
+    }
+    return false;
+  }
+
   /// The page on screen. A page pushed over another (Search over Home, on a
   /// TV) doesn't change the router's address, which stays on the one
   /// below: only the last match names it. Taken from the address, resting
   /// on Home over Search found it "already there" and did nothing.
-  @visibleForTesting
   static String shownPath(GoRouter router) {
     final config = router.routerDelegate.currentConfiguration;
     final matches = config.matches;
@@ -105,6 +126,12 @@ class MenuPreview {
   }
 
   /// The menu of the page that came took the focus on [button].
+  /// The menu of the page that was coming gave up waiting for it (it never
+  /// came, or went straight away): nothing is on its way any more.
+  static void gaveUp(String route) {
+    if (arriving.value == route) arriving.value = null;
+  }
+
   static void landed(FocusNode button) {
     if (arriving.value != null) arriving.value = null;
     _lastMenuFocus = button;
@@ -152,13 +179,30 @@ class MenuPreview {
     if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
         _leavingKeys.contains(event.logicalKey)) {
       _lastKey = DateTime.now();
+      // Back takes the page the menu showed away: the menu has nothing
+      // left to hold the focus for (it stays where it is), and the page
+      // under may take it as it would.
+      if (_backKeys.contains(event.logicalKey) && arriving.value == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _release());
+      }
     }
     return false;
   }
 
+  static final _backKeys = <LogicalKeyboardKey>{
+    LogicalKeyboardKey.escape,
+    LogicalKeyboardKey.goBack,
+    LogicalKeyboardKey.browserBack,
+  };
+
   static void _onFocusChanged() {
-    // While a page is on its way its menu takes the focus itself.
+    // While a page is on its way its menu takes the focus itself. A sheet
+    // or the settings panel over the page takes it on purpose.
     if (_restoring || arriving.value != null) return;
+    if (OverlaySheetController.hasOpenSheet ||
+        SettingsPanel.isOpenNotifier.value) {
+      return;
+    }
     final focus = FocusManager.instance.primaryFocus;
     if (focus == null) return;
     if (isMenu(focus)) {
