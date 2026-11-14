@@ -722,13 +722,15 @@ class _KostvDetailContentState extends State<KostvDetailContent>
       Widget child, {
       String? title,
       bool whole = false,
+      bool plain = false,
     }) => DetailPageSection(
       node: node,
       child: _KostvSection(
         title: title == null ? null : sectionTitle(title),
         titleStyle: sectionTitleStyle,
         wholeNode: whole ? node : null,
-        filled: !landscape,
+        filled: !landscape && !plain,
+        plain: plain,
         onUp: () => moveUp(node),
         onDown: () => moveDown(node),
         onFocused: _bringToTop,
@@ -756,7 +758,10 @@ class _KostvDetailContentState extends State<KostvDetailContent>
               return true;
             },
           ),
-          title: l10n.episodes,
+          // On the page itself, without a frame: the season names are
+          // its heading on a big screen.
+          title: landscape ? null : l10n.episodes,
+          plain: true,
         ),
       );
     }
@@ -800,6 +805,9 @@ class _KostvSection extends StatefulWidget {
 
   /// A phone shows every section on a card, since there's no focus to frame.
   final bool filled;
+
+  /// Never framed, not even while focus is inside it.
+  final bool plain;
   final VoidCallback onUp;
   final VoidCallback onDown;
   final ValueChanged<BuildContext> onFocused;
@@ -810,6 +818,7 @@ class _KostvSection extends StatefulWidget {
     required this.titleStyle,
     required this.wholeNode,
     required this.filled,
+    this.plain = false,
     required this.onUp,
     required this.onDown,
     required this.onFocused,
@@ -848,7 +857,7 @@ class _KostvSectionState extends State<_KostvSection> {
     final whole = widget.wholeNode != null;
     final on = AppColorScheme.onBackground;
     final Color border;
-    if (!_focused) {
+    if (!_focused || widget.plain) {
       border = Colors.transparent;
     } else {
       border = whole ? on : on.withValues(alpha: 0.18);

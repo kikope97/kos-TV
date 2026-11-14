@@ -19179,5 +19179,25 @@
   "kostvDetailStyle": "kOS TV",
   "@kostvDetailStyle": {
     "description": "Kos TV details page."
+  },
+  "kostvSeasonToAsk": "To request",
+  "@kostvSeasonToAsk": {
+    "description": "Kos TV details page: a season of the series not at home, next to its name."
+  },
+  "kostvSeasonWatched": "Watched {seen} of {total}",
+  "@kostvSeasonWatched": {
+    "description": "Kos TV details page: under the season names, how many of the season's episodes are watched.",
+    "placeholders": {
+      "seen": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "kostvEpisodeNext": "UP NEXT",
+  "@kostvEpisodeNext": {
+    "description": "Kos TV details page: the label on the episode to watch next."
   }
 }
