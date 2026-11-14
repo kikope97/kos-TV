@@ -15,6 +15,46 @@ const kostvGradient = LinearGradient(
   colors: [kostvCyan, kostvViolet, kostvPink],
 );
 
+/// Kos TV: the light fill of a lit button, as Play's.
+const kostvLight = Color(0xFFF3F5FA);
+
+/// Kos TV: the dark ink on a lit button.
+const kostvOnLight = Color(0xFF14161C);
+
+/// Kos TV: a glass button's face, as the navbar's capsule: a see-through
+/// fill brighter at the top, with a pale rim. [lit] (focused, or the one
+/// that matters most) turns it light, as Play is.
+BoxDecoration kostvGlass({
+  bool lit = false,
+  bool enabled = true,
+  double radius = 22,
+}) => BoxDecoration(
+  color: lit ? kostvLight : null,
+  gradient: lit
+      ? null
+      : LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.white.withValues(alpha: enabled ? 0.24 : 0.1),
+            Colors.white.withValues(alpha: enabled ? 0.1 : 0.04),
+          ],
+        ),
+  borderRadius: BorderRadius.circular(radius),
+  border: Border.all(
+    color: Colors.white.withValues(alpha: lit ? 0 : (enabled ? 0.32 : 0.14)),
+  ),
+  boxShadow: [
+    if (lit)
+      BoxShadow(color: kostvViolet.withValues(alpha: 0.4), blurRadius: 20),
+  ],
+);
+
+/// The ink on [kostvGlass].
+Color kostvGlassInk({bool lit = false, bool enabled = true}) => lit
+    ? kostvOnLight
+    : const Color(0xFFF3F5FA).withValues(alpha: enabled ? 1 : 0.5);
+
 /// Kos TV: what Play says on the kOS TV details page, worked out from the
 /// title: «Seguir viendo · Quedan 48 min» with how far it got, «Seguir con
 /// T2:E5» for a series half watched, or the plain label with the runtime.
@@ -157,7 +197,7 @@ class KostvButtonFace extends StatelessWidget {
               widthFactor: text.progress,
               child: Container(
                 decoration: BoxDecoration(
-                  gradient: kostvGradient,
+                  color: kostvViolet,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

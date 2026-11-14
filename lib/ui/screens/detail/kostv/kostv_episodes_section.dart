@@ -747,7 +747,7 @@ class _SeasonTitlesState extends State<_SeasonTitles> {
                   height: 4,
                   width: 60,
                   decoration: BoxDecoration(
-                    gradient: kostvGradient,
+                    color: _ink,
                     borderRadius: AppRadius.circular(2),
                   ),
                 ),
@@ -860,26 +860,11 @@ class _InlineAsk extends StatelessWidget {
     Widget pill(bool focused) => AnimatedContainer(
       duration: _fast,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        gradient: ask.enabled ? kostvGradient : null,
-        color: ask.enabled ? null : Colors.white.withValues(alpha: 0.1),
-        borderRadius: AppRadius.circular(22),
-        border: Border.all(
-          color: focused ? Colors.white : Colors.transparent,
-          width: 2.5,
-        ),
-        boxShadow: [
-          if (focused)
-            BoxShadow(
-              color: kostvViolet.withValues(alpha: 0.55),
-              blurRadius: 20,
-            ),
-        ],
-      ),
+      decoration: kostvGlass(lit: focused, enabled: ask.enabled),
       child: Text(
         button!,
         style: TextStyle(
-          color: ask.enabled ? Colors.white : _ink.withValues(alpha: 0.5),
+          color: kostvGlassInk(lit: focused, enabled: ask.enabled),
           fontSize: 16,
           fontWeight: FontWeight.w700,
         ),
@@ -945,14 +930,13 @@ class _Chip extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
     decoration: BoxDecoration(
-      color: gradient ? null : Colors.black.withValues(alpha: 0.62),
-      gradient: gradient ? kostvGradient : null,
+      color: gradient ? kostvLight : Colors.black.withValues(alpha: 0.62),
       borderRadius: AppRadius.circular(9),
     ),
     child: Text(
       text,
       style: TextStyle(
-        color: Colors.white,
+        color: gradient ? kostvOnLight : Colors.white,
         fontSize: size,
         fontWeight: gradient ? FontWeight.w800 : FontWeight.w700,
         letterSpacing: gradient ? 0.8 : 0,
@@ -1082,10 +1066,7 @@ class _Still extends StatelessWidget {
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
                 widthFactor: progress.clamp(0.0, 1.0),
-                child: Container(
-                  height: 5,
-                  decoration: const BoxDecoration(gradient: kostvGradient),
-                ),
+                child: Container(height: 5, color: _ink),
               ),
             ),
           ],
@@ -1251,17 +1232,11 @@ class _GhostThumb extends StatelessWidget {
                     horizontal: 16,
                     vertical: 7,
                   ),
-                  decoration: BoxDecoration(
-                    gradient: canAsk ? kostvGradient : null,
-                    color: canAsk ? null : Colors.white.withValues(alpha: 0.1),
-                    borderRadius: AppRadius.circular(16),
-                  ),
+                  decoration: kostvGlass(enabled: canAsk, radius: 16),
                   child: Text(
                     badge,
                     style: TextStyle(
-                      color: canAsk
-                          ? Colors.white
-                          : _ink.withValues(alpha: 0.7),
+                      color: kostvGlassInk(enabled: canAsk),
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1539,19 +1514,11 @@ class _GhostRow extends StatelessWidget {
                         horizontal: 14,
                         vertical: 7,
                       ),
-                      decoration: BoxDecoration(
-                        gradient: canAsk ? kostvGradient : null,
-                        color: canAsk
-                            ? null
-                            : Colors.white.withValues(alpha: 0.1),
-                        borderRadius: AppRadius.circular(16),
-                      ),
+                      decoration: kostvGlass(enabled: canAsk, radius: 16),
                       child: Text(
                         badge,
                         style: TextStyle(
-                          color: canAsk
-                              ? Colors.white
-                              : _ink.withValues(alpha: 0.7),
+                          color: kostvGlassInk(enabled: canAsk),
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
@@ -1611,17 +1578,15 @@ class _AskBar extends StatelessWidget {
                 horizontal: compact ? 14 : 20,
                 vertical: compact ? 11 : 11,
               ),
-              decoration: BoxDecoration(
-                gradient: ask.enabled ? kostvGradient : null,
-                color: ask.enabled ? null : Colors.white.withValues(alpha: 0.1),
-                borderRadius: AppRadius.circular(height),
+              decoration: kostvGlass(
+                lit: ask.enabled,
+                enabled: ask.enabled,
+                radius: height,
               ),
               child: Text(
                 button,
                 style: TextStyle(
-                  color: ask.enabled
-                      ? Colors.white
-                      : ink.withValues(alpha: 0.5),
+                  color: kostvGlassInk(lit: ask.enabled, enabled: ask.enabled),
                   fontSize: compact ? 15 : 16,
                   fontWeight: FontWeight.w700,
                 ),

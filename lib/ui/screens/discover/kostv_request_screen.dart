@@ -26,7 +26,7 @@ import '../../widgets/navigation_layout.dart';
 import '../detail/detail_layout_metrics.dart';
 import '../detail/frost/frost_detail_content.dart' show FrostStage;
 import '../detail/kostv/kostv_detail_buttons.dart'
-    show kostvGradient, kostvViolet;
+    show kostvLight, kostvOnLight, kostvViolet;
 import 'kostv_request_controller.dart';
 import 'kostv_request_status.dart';
 
@@ -1807,7 +1807,6 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     VoidCallback? onUp,
   }) {
     final color = _toneColor(main.tone);
-    const onColor = Colors.white;
     final pressable = main.onPressed != null;
     // A status shows on a darker plate, filled as far as it has got.
     final filled = main.tone == _Tone.action || main.tone == _Tone.done;
@@ -1824,7 +1823,9 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         final lit = InputModeTracker.showFocusVisuals(context, focused);
         final radius = BorderRadius.circular(height / 2);
         final enabled = pressable || main.tone != _Tone.action;
+        // Asking is the light button, as Play on the home server's page.
         final brand = main.tone == _Tone.action && enabled;
+        final onColor = brand ? kostvOnLight : Colors.white;
         final background = filled
             ? (enabled ? color : color.withValues(alpha: 0.4))
             : Color.alphaBlend(color.withValues(alpha: 0.22), _shade(0.7));
@@ -1845,7 +1846,9 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
               Icon(
                 main.icon,
                 size: fontSize * 1.3,
-                color: main.fast ? _fastColor : onColor,
+                color: main.fast
+                    ? (brand ? const Color(0xFFD08A00) : _fastColor)
+                    : onColor,
                 shadows: main.fast
                     ? const [Shadow(color: Colors.black26, blurRadius: 6)]
                     : null,
@@ -1877,13 +1880,11 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
             constraints: BoxConstraints(minWidth: minWidth),
             width: expand ? double.infinity : null,
             decoration: BoxDecoration(
-              // Asking is the brand's colours, as everywhere in Kos TV.
-              color: brand ? null : background,
-              gradient: brand ? kostvGradient : null,
+              color: brand ? kostvLight : background,
               borderRadius: radius,
               border: Border.all(
                 color: lit
-                    ? Colors.white
+                    ? (brand ? kostvViolet : Colors.white)
                     : (filled
                           ? Colors.transparent
                           : color.withValues(alpha: 0.7)),
