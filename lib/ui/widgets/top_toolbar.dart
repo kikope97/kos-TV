@@ -257,8 +257,27 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     // which can be another page's button in this menu (the one taken to
     // leave). Resting there would open that page again: the menu's focus
     // goes to this page's own button.
+    // Once now, and again when the page above has finished leaving (the
+    // focus can come back at the end of its animation).
     WidgetsBinding.instance.addPostFrameCallback((_) => _focusOwnButton());
-    Timer(const Duration(milliseconds: 450), _focusOwnButton);
+    _stopWatchingReturn();
+    final back = ModalRoute.of(context)?.secondaryAnimation;
+    if (back != null && !back.isDismissed) {
+      _returning = back..addStatusListener(_onReturnStatus);
+    }
+  }
+
+  Animation<double>? _returning;
+
+  void _onReturnStatus(AnimationStatus status) {
+    if (status != AnimationStatus.dismissed) return;
+    _stopWatchingReturn();
+    _focusOwnButton();
+  }
+
+  void _stopWatchingReturn() {
+    _returning?.removeStatusListener(_onReturnStatus);
+    _returning = null;
   }
 
   void _focusOwnButton() {
@@ -272,7 +291,6 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
         focused == _homeFocus || _menuFocus.values.contains(focused);
     if (!inMenu || own.context == null || !own.canRequestFocus) return;
     _restTimer?.cancel();
-    NavCapsule.snapNextFrame();
     own.requestFocus();
   }
 
@@ -309,6 +327,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     _favoritesFocus.dispose();
     FocusManager.instance.removeListener(_trackPreviousFocus);
     MenuPreview.arriving.removeListener(_onMenuArriving);
+    _stopWatchingReturn();
     _restTimer?.cancel();
     for (final node in _menuFocus.values) {
       node.dispose();

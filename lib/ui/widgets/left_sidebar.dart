@@ -259,25 +259,6 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
         if (mounted && !_sidebarFocus.hasFocus) _collapse();
       });
     }
-    // Kos TV: back on this page, the focus comes back where it was in it,
-    // which can be another page's button in this menu (the one taken to
-    // leave). Resting there would open that page again: the menu's focus
-    // goes to this page's own button.
-    WidgetsBinding.instance.addPostFrameCallback((_) => _focusOwnButton());
-    Timer(const Duration(milliseconds: 450), _focusOwnButton);
-  }
-
-  void _focusOwnButton() {
-    if (!mounted || !(ModalRoute.isCurrentOf(context) ?? true)) return;
-    final focused = FocusManager.instance.primaryFocus;
-    final own = _ownMenuNode();
-    if (focused == null || own == null || focused == own) return;
-    final inMenu =
-        focused == _homeFocusNode || _menuFocus.values.contains(focused);
-    if (!inMenu) return;
-    _restTimer?.cancel();
-    NavCapsule.snapNextFrame();
-    own.requestFocus();
   }
 
   /// Kos TV: the buttons of the pages the menu shows by resting on them.
