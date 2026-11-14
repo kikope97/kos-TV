@@ -1396,6 +1396,8 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   order: (order++).toDouble(),
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_genres'),
+                    focusNode: _menuNode(Destinations.allGenres),
+                    onFocusChanged: (f) => _restOn(Destinations.allGenres, f),
                     forceExpanded: alwaysExpanded,
                     baseColor: nextNavColor(),
                     iconBuilder: (size, color) => Image.asset(
@@ -1464,6 +1466,8 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   order: (order++).toDouble(),
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_livetv'),
+                    focusNode: _menuNode(Destinations.liveTvGuide),
+                    onFocusChanged: (f) => _restOn(Destinations.liveTvGuide, f),
                     forceExpanded: alwaysExpanded,
                     icon: Icons.live_tv_rounded,
                     label: l10n.liveTv,

@@ -194,7 +194,8 @@ class _EpgFilterRailState extends State<EpgFilterRail> {
       bg = Colors.transparent;
       fg = FocusTheme.solidFocusForeground;
     } else if (selected) {
-      bg = apple ? const Color(0xFFF4F8FC) : AppColorScheme.accent;
+      // Kos TV: the one picked is white, not the accent.
+      bg = const Color(0xFFF4F8FC);
       fg = const Color(0xFF10242E);
     } else {
       bg = apple

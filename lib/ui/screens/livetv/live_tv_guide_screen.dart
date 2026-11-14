@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +26,7 @@ import '../../widgets/live_tv/incomplete_recording.dart';
 import '../../widgets/live_tv/live_tv_mini_player.dart';
 import '../../widgets/live_tv/live_tv_recording_icon.dart';
 import '../../widgets/live_tv/series_recording_dialog.dart';
+import '../../widgets/navigation_layout.dart';
 import '../../widgets/overlay_sheet.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../../../util/focus/dpad_keys.dart';
@@ -32,6 +35,7 @@ import '../../../playback/external_player_policy.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../util/clock_format.dart';
+import '../calendar/calendar_common.dart';
 import 'epg/epg_genre.dart';
 import 'epg/widgets/epg_channel_cell.dart';
 import 'epg/widgets/epg_filter_rail.dart';
@@ -114,6 +118,10 @@ class LiveTvGuideScreen extends StatefulWidget {
   /// which handles this itself.
   final LiveTvGuideBackController? backController;
 
+  /// Kos TV: the guide opened from the menu, one of its pages: the menu
+  /// over it. Off when a player opens it.
+  final bool withMenu;
+
   const LiveTvGuideScreen({
     super.key,
     this.miniPlayerMode = false,
@@ -124,6 +132,7 @@ class LiveTvGuideScreen extends StatefulWidget {
     this.onClose,
     this.onOpenRecordings,
     this.backController,
+    this.withMenu = false,
   });
 
   /// Geometry of the mini-player video box in [embedded] mode, in the host
@@ -873,22 +882,19 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
   }
 
   String _formatDate(DateTime dt) {
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${days[dt.weekday - 1]}, ${months[dt.month - 1]} ${dt.day}';
+    // Kos TV: in the person's language («sáb, 14 nov»).
+    final locale = AppLocalizations.of(context).localeName;
+    return DateFormat('EEE, d MMM', locale).format(dt);
+  }
+
+  /// Kos TV: what kind of program it is, in the person's language.
+  String _kindLabel(AppLocalizations l10n, GuideProgram p) {
+    if (p.isMovie) return l10n.kostvEpgMovie;
+    if (p.isSports) return l10n.kostvEpgSports;
+    if (p.isNews) return l10n.kostvEpgNews;
+    if (p.isKids) return l10n.kostvEpgKids;
+    if (p.isSeries) return l10n.kostvEpgSeries;
+    return '';
   }
 
   GuideProgram? _currentProgramForChannel(String channelId) {
@@ -941,10 +947,30 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         if (_consumeBackIfExploring()) return;
-        Navigator.of(context).pop();
+        _leave();
       },
       child: content,
     );
+  }
+
+  /// Leaves the guide. Opened from the menu it may sit on the old Live TV
+  /// page (the address nests it there): Back goes Home instead, as from
+  /// any page of the menu.
+  void _leave() {
+    if (widget.withMenu) {
+      final matches = GoRouter.of(context)
+          .routerDelegate
+          .currentConfiguration
+          .matches;
+      final below = matches.length >= 2
+          ? matches[matches.length - 2].matchedLocation
+          : null;
+      if (below == null || below == Destinations.liveTv) {
+        context.go(Destinations.home);
+        return;
+      }
+    }
+    Navigator.of(context).pop();
   }
 
   Widget _buildContent(BuildContext context) {
@@ -998,6 +1024,37 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
 
     if (widget.embedded) {
       return body;
+    }
+
+    // Kos TV: the guide on its own is one of the menu's pages: the menu
+    // over it, and the guide under the menu.
+    if (widget.withMenu && !widget.miniPlayerMode) {
+      final chrome = calendarChromeInsets(context);
+      final leftMenu =
+          !PlatformDetection.useMobileUi &&
+          NavigationLayout.sanitizeNavbarPosition(
+                _prefs.get(UserPreferences.navbarPosition),
+              ) ==
+              NavbarPosition.left;
+      final phone = PlatformDetection.useMobileUi;
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: NavigationLayout(
+          activeRoute: Destinations.liveTvGuide,
+          // The guide scrolls its channels, not the page: the menu stays.
+          pinTopToolbar: true,
+          child: Padding(
+            padding: EdgeInsets.only(
+              top: phone ? chrome.top - 8 : chrome.top - 16,
+              left: leftMenu ? chrome.left - guideContentLeftInset : 0,
+              bottom: phone && NavigationLayout.usesBottomNavbar
+                  ? MediaQuery.paddingOf(context).bottom + 84
+                  : 0,
+            ),
+            child: body,
+          ),
+        ),
+      );
     }
 
     return Scaffold(
@@ -1221,7 +1278,7 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
           timeLabel: preview == null
               ? null
               : '${_formatTime(preview.startDate)} - ${_formatTime(preview.endDate)}',
-          genreLabel: preview == null ? null : epgGenreFor(preview).label,
+          genreLabel: preview == null ? null : _kindLabel(l10n, preview),
           officialRating: preview?.officialRating,
           communityRating: preview?.communityRating,
           badgeLabel: badgeLabel,
@@ -1295,14 +1352,11 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
       child: Row(
         children: [
-          _GuidePillButton(
-            icon: Icons.arrow_back,
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+          _GuidePillButton(icon: Icons.arrow_back, onPressed: _leave),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              l10n.guideTimeline,
+              l10n.liveTv,
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: AppTypography.fontSizeLg,
@@ -1399,9 +1453,10 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
                 : _remainingLabel(now.endDate, t),
             nextLabel: next == null
                 ? null
-                : AppLocalizations.of(context)
-                      .guideNextProgram(
-                        _formatTime(next.startDate), next.titleWithEpisode),
+                : AppLocalizations.of(context).guideNextProgram(
+                    _formatTime(next.startDate),
+                    next.titleWithEpisode,
+                  ),
             isLive: isLive,
             apple: _apple,
             onTap: () => _watchChannel(channel.id),
@@ -1608,11 +1663,9 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
       padding: const EdgeInsets.fromLTRB(8, 0, 8, 0),
       child: Row(
         children: [
-          if (!PlatformDetection.isTV) ...[
-            _GuidePillButton(
-              icon: Icons.arrow_back,
-              onPressed: () => Navigator.of(context).pop(),
-            ),
+          // A page of the menu has the menu to leave by.
+          if (!PlatformDetection.isTV && !widget.withMenu) ...[
+            _GuidePillButton(icon: Icons.arrow_back, onPressed: _leave),
             const SizedBox(width: 8),
           ],
           Expanded(
@@ -2704,9 +2757,8 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
                     }
                     if (!pageContext.mounted || !dialogContext.mounted) return;
                     Navigator.of(dialogContext).pop();
-                    ScaffoldMessenger.of(
-                      pageContext,
-                    ).showSnackBar(SnackBar(content: Text(message)));
+                    ScaffoldMessenger.of(pageContext)
+                        .showSnackBar(SnackBar(content: Text(message)));
                   } catch (_) {
                     dialogActionInProgress = false;
                     if (!pageContext.mounted) return;
@@ -2964,10 +3016,11 @@ class _GuidePillButtonState extends State<_GuidePillButton> {
         padding: widget.compact
             ? const EdgeInsets.symmetric(horizontal: 12, vertical: 5)
             : const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        // Kos TV: grey, white with the focus, as the rest of the app.
         decoration: BoxDecoration(
-          color: active
-              ? AppColorScheme.accent.withValues(alpha: _focused ? 1.0 : 0.7)
-              : Colors.white.withValues(alpha: 0.10),
+          color: _focused
+              ? const Color(0xFFF3F5FA)
+              : Colors.white.withValues(alpha: active ? 0.2 : 0.10),
           borderRadius: AppRadius.circular(20),
         ),
         child: _buildChild(active),
@@ -2976,7 +3029,9 @@ class _GuidePillButtonState extends State<_GuidePillButton> {
   }
 
   Widget _buildChild(bool active) {
-    final color = Colors.white.withValues(alpha: active ? 1.0 : 0.8);
+    final color = _focused
+        ? const Color(0xFF14161C)
+        : Colors.white.withValues(alpha: active ? 1.0 : 0.8);
     if (widget.icon != null && widget.label != null) {
       return Row(
         mainAxisSize: MainAxisSize.min,

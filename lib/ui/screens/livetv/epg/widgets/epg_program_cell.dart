@@ -69,7 +69,6 @@ class EpgProgramCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final accent = AppColorScheme.accent;
     final muted = AppColorScheme.onSurface.withValues(alpha: 0.55);
     final radius = apple ? 12.0 : 6.0;
 
@@ -87,7 +86,8 @@ class EpgProgramCell extends StatelessWidget {
     }
 
     final focusBorder = focused
-        ? Border.all(color: accent, width: apple ? 1.5 : 2)
+        // Kos TV: white, not the theme's blue, as on the rest of the app.
+        ? Border.all(color: const Color(0xFFF3F5FA), width: apple ? 1.5 : 2)
         : null;
 
     // Loading and failed placeholders span the whole row while programs are
@@ -312,8 +312,9 @@ class EpgProgramCell extends StatelessWidget {
                 value: progress.clamp(0.0, 1.0),
                 minHeight: 4,
                 backgroundColor: AppColorScheme.rangeTrack,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  AppColorScheme.rangeProgress,
+                // Kos TV: a thin white line, as on the rest of the app.
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  Color(0xFFF3F5FA),
                 ),
               ),
             ),
@@ -398,10 +399,7 @@ class EpgProgramCell extends StatelessWidget {
                     ),
             ),
             if (_showsRecording)
-              SizedBox(
-                width: timer,
-                child: _timerDot(timer),
-              ),
+              SizedBox(width: timer, child: _timerDot(timer)),
           ],
         );
       },

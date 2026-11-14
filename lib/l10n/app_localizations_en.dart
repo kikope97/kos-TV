@@ -19527,4 +19527,65 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvDetailStyleHint =>
       'The art across the screen, the title and details on the left, and the seasons and episodes below.';
+
+  @override
+  String kostvGenresCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count genres',
+      one: '1 genre',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kostvGenreTitles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count titles',
+      one: '1 title',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvGenresUnavailable => 'Couldn\'t load the genres';
+
+  @override
+  String get kostvEpgLive => 'Live';
+
+  @override
+  String get kostvEpgMovie => 'Movie';
+
+  @override
+  String get kostvEpgSeries => 'Series';
+
+  @override
+  String get kostvEpgSports => 'Sports';
+
+  @override
+  String get kostvEpgNews => 'News';
+
+  @override
+  String get kostvEpgKids => 'Kids';
+
+  @override
+  String get kostvGenreKicker => 'Genre';
+
+  @override
+  String get kostvGenreSortNew => 'Newest';
+
+  @override
+  String get kostvGenreSortName => 'A–Z';
+
+  @override
+  String get kostvGenreSortRating => 'Top rated';
+
+  @override
+  String get kostvGenreEmpty => 'Nothing of this genre here';
+
+  @override
+  String get kostvGenreUnavailable => 'Couldn\'t load this genre';
 }

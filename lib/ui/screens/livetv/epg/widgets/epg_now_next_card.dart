@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
+import '../../../../../l10n/app_localizations.dart';
 import '../../../../widgets/adaptive/adaptive_glass.dart';
 import '../../../../widgets/focus/focusable_wrapper.dart';
 import '../../../../widgets/offline_aware_image.dart';
@@ -74,7 +75,7 @@ class EpgNowNextCard extends StatelessWidget {
                 Row(
                   children: [
                     if (isLive) ...[
-                      _liveBadge(),
+                      _liveBadge(context),
                       const SizedBox(width: 6),
                     ],
                     Flexible(
@@ -98,8 +99,9 @@ class EpgNowNextCard extends StatelessWidget {
                         minHeight: 4,
                         backgroundColor:
                             AppColorScheme.onSurface.withValues(alpha: 0.18),
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColorScheme.accent),
+                        // Kos TV: a white line, as on the rest of the app.
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            Color(0xFFF3F5FA)),
                       ),
                     ),
                   ),
@@ -133,6 +135,7 @@ class EpgNowNextCard extends StatelessWidget {
       focusNode: focusNode,
       onSelect: onTap,
       borderRadius: radius,
+      focusColor: Colors.white,
       child: apple
           ? adaptiveGlass(
               context: context,
@@ -190,7 +193,7 @@ class EpgNowNextCard extends StatelessWidget {
   Widget _numberChip(String number) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
         decoration: BoxDecoration(
-          color: AppColorScheme.accent,
+          color: Colors.white.withValues(alpha: 0.16),
           borderRadius: AppRadius.circular(8),
         ),
         child: Text(
@@ -198,20 +201,23 @@ class EpgNowNextCard extends StatelessWidget {
           style: const TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF062430),
+            color: Colors.white,
           ),
         ),
       );
 
-  Widget _liveBadge() => Container(
+  Widget _liveBadge(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
         decoration: BoxDecoration(
           color: const Color(0xFFE0685C),
           borderRadius: AppRadius.circular(4),
         ),
-        child: const Text(
-          'LIVE',
-          style: TextStyle(
+        child: Text(
+          (Localizations.of<AppLocalizations>(context, AppLocalizations)
+                      ?.kostvEpgLive ??
+                  'Live')
+              .toUpperCase(),
+          style: const TextStyle(
             fontSize: 9,
             fontWeight: FontWeight.w600,
             color: Color(0xFF3A0E0A),

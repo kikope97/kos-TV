@@ -35,7 +35,8 @@ import '../screens/auth/server_screen.dart';
 import '../screens/auth/server_select_screen.dart';
 import '../screens/auth/startup_screen.dart';
 import '../screens/web_diagnostics_screen.dart';
-import '../screens/browse/all_genres_screen.dart';
+import '../screens/browse/kostv_genre_screen.dart';
+import '../screens/browse/kostv_genres_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
 import '../screens/browse/collection_screen.dart';
 import '../screens/browse/kostv_favorites_screen.dart';
@@ -390,7 +391,7 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: Destinations.allGenres,
-      builder: (context, state) => const AllGenresScreen(),
+      builder: (context, state) => const KostvGenresScreen(),
     ),
     GoRoute(
       path: Destinations.apps,
@@ -528,12 +529,23 @@ final appRouter = GoRouter(
         final parentId = state.uri.queryParameters['parentId'];
         final includeType = state.uri.queryParameters['includeType'];
         final serverId = state.uri.queryParameters['serverId'];
+        // Kos TV: a genre of films and series opens the page of its own.
+        if (includeType == null ||
+            includeType == 'Movie' ||
+            includeType == 'Series') {
+          return KostvGenreScreen(
+            genreId: genreId,
+            genreName: genreName,
+            parentId: parentId,
+            onlyType: includeType,
+          );
+        }
         return LibraryBrowseScreen(
           libraryId: parentId ?? '',
           serverId: serverId,
           genreId: genreId,
           genreName: genreName,
-          includeItemTypes: includeType != null ? [includeType] : null,
+          includeItemTypes: [includeType],
         );
       },
     ),
@@ -676,6 +688,7 @@ final appRouter = GoRouter(
             return LiveTvGuideScreen(
               miniPlayerMode: extraMap['miniPlayerMode'] == true,
               currentChannel: extraMap['currentChannel'] as GuideChannel?,
+              withMenu: extraMap['miniPlayerMode'] != true,
             );
           },
         ),

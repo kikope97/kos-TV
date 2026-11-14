@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
+import '../../../../../l10n/app_localizations.dart';
+
 import '../../../../widgets/adaptive/adaptive_glass.dart';
 import '../../../../widgets/bounded_network_image.dart';
 import '../../../../widgets/live_tv/live_tv_recording_icon.dart';
@@ -94,8 +96,7 @@ class EpgHeroPreview extends StatelessWidget {
     // show name for attention.
     final programSubtitleStyle = programTitleStyle.copyWith(
       fontWeight: FontWeight.w400,
-      fontSize:
-          (programTitleStyle.fontSize ?? AppTypography.fontSize2xl) - 4,
+      fontSize: (programTitleStyle.fontSize ?? AppTypography.fontSize2xl) - 4,
       color: muted,
     );
     final metaStyle =
@@ -114,7 +115,12 @@ class EpgHeroPreview extends StatelessWidget {
     // drops from the end, so whatever doesn't fit is the least important
     // thing here rather than whatever happens to be longest.
     final meta = [
-      if (isLive) 'Live',
+      if (isLive)
+        Localizations.of<AppLocalizations>(
+              context,
+              AppLocalizations,
+            )?.kostvEpgLive ??
+            'Live',
       if (timeLabel != null) timeLabel,
       if (genreLabel != null && genreLabel!.isNotEmpty) genreLabel,
       if (officialRating != null && officialRating!.isNotEmpty) officialRating,
@@ -269,7 +275,9 @@ class EpgHeroPreview extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               imagePlate,
-              Expanded(child: Padding(padding: textPadding, child: text)),
+              Expanded(
+                child: Padding(padding: textPadding, child: text),
+              ),
             ],
           );
 
@@ -308,9 +316,10 @@ class _HeroBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColorScheme.accent.withValues(alpha: 0.18),
+        // Kos TV: a quiet grey tag, not the theme's blue.
+        color: Colors.white.withValues(alpha: 0.12),
         borderRadius: AppRadius.circular(4),
-        border: Border.all(color: AppColorScheme.accent.withValues(alpha: 0.5)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
       ),
       child: Text(
         label.toUpperCase(),
@@ -318,7 +327,7 @@ class _HeroBadge extends StatelessWidget {
           fontSize: 10,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.4,
-          color: AppColorScheme.accent,
+          color: Colors.white,
         ),
       ),
     );

@@ -19853,4 +19853,65 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvDetailStyleHint =>
       'La imagen a toda pantalla, el título y los datos a la izquierda, y las temporadas y episodios debajo.';
+
+  @override
+  String kostvGenresCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count géneros',
+      one: '1 género',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kostvGenreTitles(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count títulos',
+      one: '1 título',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvGenresUnavailable => 'No se han podido cargar los géneros';
+
+  @override
+  String get kostvEpgLive => 'En directo';
+
+  @override
+  String get kostvEpgMovie => 'Película';
+
+  @override
+  String get kostvEpgSeries => 'Serie';
+
+  @override
+  String get kostvEpgSports => 'Deportes';
+
+  @override
+  String get kostvEpgNews => 'Noticias';
+
+  @override
+  String get kostvEpgKids => 'Infantil';
+
+  @override
+  String get kostvGenreKicker => 'Género';
+
+  @override
+  String get kostvGenreSortNew => 'Novedades';
+
+  @override
+  String get kostvGenreSortName => 'A–Z';
+
+  @override
+  String get kostvGenreSortRating => 'Mejor valoradas';
+
+  @override
+  String get kostvGenreEmpty => 'No hay nada de este género por aquí';
+
+  @override
+  String get kostvGenreUnavailable => 'No se ha podido cargar este género';
 }

@@ -13706,5 +13706,75 @@
   "kostvDetailStyleHint": "La imagen a toda pantalla, el título y los datos a la izquierda, y las temporadas y episodios debajo.",
   "@kostvDetailStyleHint": {
     "description": "Kos TV setup: what the kOS TV details page looks like."
+  },
+  "kostvGenresCount": "{count, plural, =1{1 género} other{{count} géneros}}",
+  "@kostvGenresCount": {
+    "description": "Kos TV genres page: how many genres, under its title.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kostvGenreTitles": "{count, plural, =1{1 título} other{{count} títulos}}",
+  "@kostvGenreTitles": {
+    "description": "Kos TV genres page: films and series in a genre, on its tile.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kostvGenresUnavailable": "No se han podido cargar los géneros",
+  "@kostvGenresUnavailable": {
+    "description": "Kos TV genres page: loading failed."
+  },
+  "kostvEpgLive": "En directo",
+  "@kostvEpgLive": {
+    "description": "Kos TV live TV guide: the program under focus is on now."
+  },
+  "kostvEpgMovie": "Película",
+  "@kostvEpgMovie": {
+    "description": "Kos TV live TV guide: the kind of the program under focus, in its details line."
+  },
+  "kostvEpgSeries": "Serie",
+  "@kostvEpgSeries": {
+    "description": "Kos TV live TV guide: the kind of the program under focus, in its details line."
+  },
+  "kostvEpgSports": "Deportes",
+  "@kostvEpgSports": {
+    "description": "Kos TV live TV guide: the kind of the program under focus, in its details line."
+  },
+  "kostvEpgNews": "Noticias",
+  "@kostvEpgNews": {
+    "description": "Kos TV live TV guide: the kind of the program under focus, in its details line."
+  },
+  "kostvEpgKids": "Infantil",
+  "@kostvEpgKids": {
+    "description": "Kos TV live TV guide: the kind of the program under focus, in its details line."
+  },
+  "kostvGenreKicker": "Género",
+  "@kostvGenreKicker": {
+    "description": "Kos TV genre page: the small caps line over the genre's name."
+  },
+  "kostvGenreSortNew": "Novedades",
+  "@kostvGenreSortNew": {
+    "description": "Kos TV genre page: order by date added, newest first."
+  },
+  "kostvGenreSortName": "A–Z",
+  "@kostvGenreSortName": {
+    "description": "Kos TV genre page: order by name."
+  },
+  "kostvGenreSortRating": "Mejor valoradas",
+  "@kostvGenreSortRating": {
+    "description": "Kos TV genre page: order by rating, best first."
+  },
+  "kostvGenreEmpty": "No hay nada de este género por aquí",
+  "@kostvGenreEmpty": {
+    "description": "Kos TV genre page: nothing for the chosen filter."
+  },
+  "kostvGenreUnavailable": "No se ha podido cargar este género",
+  "@kostvGenreUnavailable": {
+    "description": "Kos TV genre page: loading failed."
   }
 }

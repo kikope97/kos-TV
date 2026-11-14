@@ -1313,6 +1313,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                 if (showGenres)
                   _SidebarItem(
                     key: const ValueKey('sidebar-genres'),
+                    focusNode: _menuNode(Destinations.allGenres),
                     baseColor: nextMainSidebarColor(),
                     iconBuilder: (size, color) => Image.asset(
                       'assets/icons/genres.png',
@@ -1362,6 +1363,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                 if (showLiveTv)
                   _SidebarItem(
                     key: const ValueKey('sidebar-livetv'),
+                    focusNode: _menuNode(Destinations.liveTvGuide),
                     icon: Icons.live_tv_rounded,
                     label: l10n.liveTv,
                     baseColor: nextMainSidebarColor(),

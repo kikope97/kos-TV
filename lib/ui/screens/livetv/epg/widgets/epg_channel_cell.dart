@@ -45,6 +45,8 @@ class EpgChannelCell extends StatelessWidget {
   static const double _logoMaxWidth = 66;
   static const double _logoGap = 6;
   static const Color _restingCellColor = Color(0xEF353940);
+  static const Color _focusedCellColor = Color(0xFFF3F5FA);
+  static const Color _onFocusedCell = Color(0xFF14161C);
 
   const EpgChannelCell({
     super.key,
@@ -64,9 +66,8 @@ class EpgChannelCell extends StatelessWidget {
     final radius = apple ? 14.0 : 10.0;
     final Color bg;
     if (focused) {
-      bg = apple
-          ? Colors.white.withValues(alpha: 0.16)
-          : accent.withValues(alpha: 0.16);
+      // Kos TV: the focused channel turns white, as buttons do.
+      bg = apple ? Colors.white.withValues(alpha: 0.16) : _focusedCellColor;
     } else {
       // This is the cell surface, not a logo tile. The muted slate is bright
       // enough for black station marks while keeping white rail text legible.
@@ -79,7 +80,7 @@ class EpgChannelCell extends StatelessWidget {
     TextStyle? nameStyleFor(double width) => textTheme.bodySmall?.copyWith(
       fontSize: _nameSize(width),
       fontWeight: focused ? FontWeight.w600 : FontWeight.w500,
-      color: AppColorScheme.onSurface,
+      color: focused && !apple ? _onFocusedCell : AppColorScheme.onSurface,
     );
 
     Widget bodyFor(double width) {
@@ -147,10 +148,7 @@ class EpgChannelCell extends StatelessWidget {
         color: bg,
         borderRadius: AppRadius.circular(radius),
         // Always reserve the border so focus doesn't change the cell height.
-        border: Border.all(
-          color: focused ? accent.withValues(alpha: 0.7) : Colors.transparent,
-          width: 1,
-        ),
+        border: Border.all(color: Colors.transparent, width: 1),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) => bodyFor(constraints.maxWidth),
@@ -184,7 +182,7 @@ class EpgChannelCell extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 6),
     decoration: BoxDecoration(
       color: focused
-          ? accent
+          ? (apple ? accent : _onFocusedCell)
           : AppColorScheme.onSurface.withValues(alpha: 0.12),
       borderRadius: AppRadius.circular(7),
     ),
@@ -194,7 +192,7 @@ class EpgChannelCell extends StatelessWidget {
         fontSize: size,
         fontWeight: FontWeight.w700,
         color: focused
-            ? const Color(0xFF062430)
+            ? (apple ? const Color(0xFF062430) : _focusedCellColor)
             : AppColorScheme.onSurface.withValues(alpha: 0.85),
       ),
     ),

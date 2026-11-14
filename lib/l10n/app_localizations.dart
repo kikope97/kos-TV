@@ -33590,6 +33590,96 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The art across the screen, the title and details on the left, and the seasons and episodes below.'**
   String get kostvDetailStyleHint;
+
+  /// Kos TV genres page: how many genres, under its title.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 genre} other{{count} genres}}'**
+  String kostvGenresCount(int count);
+
+  /// Kos TV genres page: films and series in a genre, on its tile.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 title} other{{count} titles}}'**
+  String kostvGenreTitles(int count);
+
+  /// Kos TV genres page: loading failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the genres'**
+  String get kostvGenresUnavailable;
+
+  /// Kos TV live TV guide: the program under focus is on now.
+  ///
+  /// In en, this message translates to:
+  /// **'Live'**
+  String get kostvEpgLive;
+
+  /// Kos TV live TV guide: the kind of the program under focus, in its details line.
+  ///
+  /// In en, this message translates to:
+  /// **'Movie'**
+  String get kostvEpgMovie;
+
+  /// Kos TV live TV guide: the kind of the program under focus, in its details line.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get kostvEpgSeries;
+
+  /// Kos TV live TV guide: the kind of the program under focus, in its details line.
+  ///
+  /// In en, this message translates to:
+  /// **'Sports'**
+  String get kostvEpgSports;
+
+  /// Kos TV live TV guide: the kind of the program under focus, in its details line.
+  ///
+  /// In en, this message translates to:
+  /// **'News'**
+  String get kostvEpgNews;
+
+  /// Kos TV live TV guide: the kind of the program under focus, in its details line.
+  ///
+  /// In en, this message translates to:
+  /// **'Kids'**
+  String get kostvEpgKids;
+
+  /// Kos TV genre page: the small caps line over the genre's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Genre'**
+  String get kostvGenreKicker;
+
+  /// Kos TV genre page: order by date added, newest first.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest'**
+  String get kostvGenreSortNew;
+
+  /// Kos TV genre page: order by name.
+  ///
+  /// In en, this message translates to:
+  /// **'A–Z'**
+  String get kostvGenreSortName;
+
+  /// Kos TV genre page: order by rating, best first.
+  ///
+  /// In en, this message translates to:
+  /// **'Top rated'**
+  String get kostvGenreSortRating;
+
+  /// Kos TV genre page: nothing for the chosen filter.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing of this genre here'**
+  String get kostvGenreEmpty;
+
+  /// Kos TV genre page: loading failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load this genre'**
+  String get kostvGenreUnavailable;
 }
 
 class _AppLocalizationsDelegate
