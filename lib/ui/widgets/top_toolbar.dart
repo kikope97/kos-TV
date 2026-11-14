@@ -253,6 +253,27 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     // that it targets this live one.
     NavigationLayout.focusNavbarNotifier.value = _focusNavbarCallback;
     NavigationLayout.focusNavbarAvatarNotifier.value = _focusAvatarCallback;
+    // Kos TV: back on this page, the focus comes back where it was in it,
+    // which can be another page's button in this menu (the one taken to
+    // leave). Resting there would open that page again: the menu's focus
+    // goes to this page's own button.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _focusOwnButton());
+    Timer(const Duration(milliseconds: 450), _focusOwnButton);
+  }
+
+  void _focusOwnButton() {
+    if (!mounted || !(ModalRoute.isCurrentOf(context) ?? true)) return;
+    final route = widget.activeRoute;
+    if (route == null || !Destinations.isMenuPage(route)) return;
+    final focused = FocusManager.instance.primaryFocus;
+    final own = _menuNode(route);
+    if (focused == null || focused == own) return;
+    final inMenu =
+        focused == _homeFocus || _menuFocus.values.contains(focused);
+    if (!inMenu || own.context == null || !own.canRequestFocus) return;
+    _restTimer?.cancel();
+    NavCapsule.snapNextFrame();
+    own.requestFocus();
   }
 
   @override

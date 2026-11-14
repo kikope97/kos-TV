@@ -825,11 +825,11 @@ class KostvEqualizerBars extends StatefulWidget {
 }
 
 class _KostvEqualizerBarsState extends State<KostvEqualizerBars> {
-  // Moved by a timer at about 30 frames a second, not by a ticker: a ticker
+  // Moved by a timer at about 15 frames a second, not by a ticker: a ticker
   // asks the screen for every frame it can draw (60 a second on a TV, for
-  // a few bars), and the bars look the same at half that.
+  // a few bars), and a few small bars only need to move a little.
   static const _loop = Duration(milliseconds: 1800);
-  static const _step = Duration(milliseconds: 33);
+  static const _step = Duration(milliseconds: 66);
 
   final _t = ValueNotifier<double>(0);
   Timer? _timer;
