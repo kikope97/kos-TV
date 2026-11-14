@@ -154,7 +154,13 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
 
   void _entryMenu(BuildContext context, KostvEpisodeEntry entry) {
     if (entry.episode case final episode?) {
-      showContextMenu(context, episode, onChanged: () => setState(() {}));
+      showContextMenu(
+        context,
+        episode,
+        onChanged: () {
+          if (mounted) setState(() {});
+        },
+      );
     } else {
       _openEntry(context, entry);
     }
@@ -179,13 +185,15 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
   }
 
   /// The row opens on the episode to watch, once per season shown.
-  void _placeRail(String hub, int index, double step) {
-    if (_placedHub == hub) return;
-    _placedHub = hub;
+  void _placeRail(String hub, int index, String? key, double step) {
+    // Once per season shown and per episode to watch: the list can grow
+    // under it (missing episodes, the next one arriving late).
+    final placing = '$hub|$key';
+    if (_placedHub == placing) return;
+    _placedHub = placing;
     final at = index <= 0 ? 0 : index;
-    if (at > 0 && HubFocusMemory.peek(hub) == null) {
-      HubFocusMemory.set(hub, at);
-    }
+    // This visit opens on the episode to watch, whatever the last one left.
+    HubFocusMemory.set(hub, at);
     // Another season's row starts at its own place, not where the last one
     // was left.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -324,7 +332,8 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
     final controller = _gaps;
     final showTabs = v.seasons.length > 1;
     final ask = v.ask;
-    final askFocus = ask?.button != null && ask!.enabled;
+    // The ask keeps its place (and the focus) while it's being sent.
+    final askFocus = ask?.button != null;
     final hasRail = v.entries.isNotEmpty;
     final topNode = widget.episodesFocusNode;
     final askNode = showTabs ? _askNode : (topNode ?? _askNode);
@@ -353,6 +362,18 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
       }
     }
 
+    // The ask went away (asked, or now a status) while it had the focus:
+    // the focus goes on to the episodes, or the season names.
+    if (!askFocus && askNode.hasFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (hasRail) {
+          toRail();
+        } else if (showTabs) {
+          topNode?.requestFocus();
+        }
+      });
+    }
     final scale = MediaQuery.textScalerOf(context);
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -368,7 +389,15 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
             scale.scale(14) * 1.4 * 2 +
             24;
         final hub = _hub(selected);
-        if (hasRail) _placeRail(hub, v.next, cardWidth + gap);
+        if (hasRail) {
+          final next = v.next < 0 ? null : v.entries[v.next];
+          _placeRail(
+            hub,
+            v.next,
+            next?.episode?.id ?? next?.ghost?.number.toString(),
+            cardWidth + gap,
+          );
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -410,7 +439,7 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
                     icon: Icons.add_rounded,
                     enabled: ask!.enabled,
                     focusNode: askFocus ? askNode : null,
-                    onSelect: askFocus && selected != null
+                    onSelect: ask.enabled && selected != null
                         ? () => kostvAskMissing(
                             context,
                             controller!,
@@ -729,8 +758,10 @@ class _SeasonTitlesState extends State<_SeasonTitles> {
     }
     final key = event.logicalKey;
     final at = widget.selectedIndex;
+    // Past the first one, Left goes on (to a sidebar), as anywhere else.
     if (key == LogicalKeyboardKey.arrowLeft) {
-      if (at > 0) widget.onChanged(at - 1);
+      if (at == 0) return KeyEventResult.ignored;
+      widget.onChanged(at - 1);
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowRight) {

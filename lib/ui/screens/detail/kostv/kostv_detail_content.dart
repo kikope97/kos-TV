@@ -89,14 +89,26 @@ class _KostvDetailContentState extends State<KostvDetailContent>
   @override
   void moveUp(FocusNode node) {
     final i = _stops.indexOf(node);
-    if (i > 0) return _enter(_stops[i - 1]);
+    if (i > 0 && _enterStop(i - 1, -1)) return;
     _toActions();
   }
 
   @override
   void moveDown(FocusNode node) {
     final i = _stops.indexOf(node);
-    if (i >= 0 && i + 1 < _stops.length) _enter(_stops[i + 1]);
+    if (i >= 0) _enterStop(i + 1, 1);
+  }
+
+  /// Focuses the stop at [from], or the next one on screen going [step]: a
+  /// section with nothing in it yet (episodes still loading) is passed by.
+  bool _enterStop(int from, int step) {
+    for (var i = from; i >= 0 && i < _stops.length; i += step) {
+      if (_stops[i].context?.mounted == true) {
+        _stops[i].requestFocus();
+        return true;
+      }
+    }
+    return false;
   }
 
   void _enter(FocusNode? node) {
@@ -458,8 +470,14 @@ class _KostvDetailContentState extends State<KostvDetailContent>
       fontSize: PlatformDetection.isTV ? 21 : 17,
       height: 1.5,
     );
-    final tagline = sections.shows(DetailSection.tagline) ? item.tagline : null;
-    final credits = _credits();
+    // A short screen (a phone on its side, a small window) keeps the title,
+    // facts and overview, and lets the tagline and the credits go, so the
+    // text never runs into the buttons.
+    final roomy = MediaQuery.sizeOf(context).height >= 600;
+    final tagline = roomy && sections.shows(DetailSection.tagline)
+        ? item.tagline
+        : null;
+    final credits = roomy ? _credits() : null;
 
     return Column(
       key: const ValueKey('kostv-hero'),
@@ -678,7 +696,8 @@ class _KostvDetailContentState extends State<KostvDetailContent>
       upTarget: actionsUpProxy,
       downTarget: _stops.firstOrNull,
       onRequestFocus: (target) {
-        _enter(target);
+        final at = target == null ? -1 : _stops.indexOf(target);
+        at >= 0 ? _enterStop(at, 1) : _enter(target);
         return KeyEventResult.handled;
       },
       autoPlay: widget.autoPlay,

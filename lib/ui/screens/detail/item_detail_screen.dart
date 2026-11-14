@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'kostv/kostv_detail_buttons.dart';
 import 'kostv/kostv_detail_content.dart';
+import '../music/kostv_home_album_view.dart';
 import '../../theme/focus_foreground.dart';
 import '../../widgets/bounded_network_image.dart';
 import '../../widgets/offline_aware_image.dart';
@@ -965,6 +966,12 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
               )
             : _buildModernContent(),
 
+        // Kos TV: an album is a record, with its own page.
+        DetailScreenStyle.kostv when _viewModel.item?.type == 'MusicAlbum' =>
+          KostvHomeAlbumView(
+            viewModel: _viewModel,
+            initialFocusNode: _ensureInitialFocusNode(),
+          ),
         DetailScreenStyle.kostv =>
           detailPageDraws(_viewModel.item?.type)
             ? KostvDetailContent(

@@ -1825,7 +1825,9 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         final enabled = pressable || main.tone != _Tone.action;
         // Asking is the light button, as Play on the home server's page.
         final brand = main.tone == _Tone.action && enabled;
-        final onColor = brand ? kostvOnLight : Colors.white;
+        // On a TV, grey until it has the focus, as Play is there.
+        final light = brand && (lit || !PlatformDetection.isTV);
+        final onColor = light ? kostvOnLight : Colors.white;
         final background = filled
             ? (enabled ? color : color.withValues(alpha: 0.4))
             : Color.alphaBlend(color.withValues(alpha: 0.22), _shade(0.7));
@@ -1847,7 +1849,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
                 main.icon,
                 size: fontSize * 1.3,
                 color: main.fast
-                    ? (brand ? const Color(0xFFD08A00) : _fastColor)
+                    ? (light ? const Color(0xFFD08A00) : _fastColor)
                     : onColor,
                 shadows: main.fast
                     ? const [Shadow(color: Colors.black26, blurRadius: 6)]
@@ -1880,7 +1882,9 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
             constraints: BoxConstraints(minWidth: minWidth),
             width: expand ? double.infinity : null,
             decoration: BoxDecoration(
-              color: brand ? kostvLight : background,
+              color: light
+                  ? kostvLight
+                  : (brand ? Colors.white.withValues(alpha: 0.14) : background),
               borderRadius: radius,
               border: Border.all(
                 color: lit

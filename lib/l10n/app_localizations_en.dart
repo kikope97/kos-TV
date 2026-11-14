@@ -19514,19 +19514,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kostvDetailStyle => 'kOS TV';
 
   @override
-  String get kostvSeasonToAsk => 'To request';
-
-  @override
   String kostvSeasonWatched(int seen, int total) {
     return 'Watched $seen of $total';
   }
-
-  @override
-  String get kostvEpisodeNext => 'UP NEXT';
 
   @override
   String get kostvGhostSelectToAsk => 'Select to request it.';
 
   @override
   String get kostvGhostTapToAsk => 'Tap to request it.';
+
+  @override
+  String get kostvDetailStyleHint =>
+      'The art across the screen, the title and details on the left, and the seasons and episodes below.';
 }

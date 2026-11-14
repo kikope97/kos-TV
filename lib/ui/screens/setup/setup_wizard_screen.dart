@@ -583,9 +583,10 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
       DetailScreenStyle.frost: (
         l10n.setupStyleFrost,
         l10n.setupDetailFrostHint,
-      ),      DetailScreenStyle.kostv: (
+      ),
+      DetailScreenStyle.kostv: (
         l10n.kostvDetailStyle,
-        l10n.setupDetailPremiereHint,
+        l10n.kostvDetailStyleHint,
       ),
     };
     final selected =

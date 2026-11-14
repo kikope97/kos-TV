@@ -42,7 +42,8 @@ class KostvBackdropTrailer extends StatefulWidget {
   State<KostvBackdropTrailer> createState() => _KostvBackdropTrailerState();
 }
 
-class _KostvBackdropTrailerState extends State<KostvBackdropTrailer> {
+class _KostvBackdropTrailerState extends State<KostvBackdropTrailer>
+    with WidgetsBindingObserver {
   static const _fade = Duration(milliseconds: 900);
 
   Timer? _timer;
@@ -51,9 +52,14 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer> {
   bool _finished = false;
   bool _current = true;
 
+  /// Out of sight for now: covered by another page or a menu, or the app
+  /// sent to the background. The player goes; it comes back from the start.
+  bool _away = false;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (KostvBackdropTrailer.supported &&
         widget.prefs.resolveMediaBarTrailerPreview()) {
       _timer = Timer(widget.delay, _find);
@@ -68,9 +74,23 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer> {
     final current = ModalRoute.of(context)?.isCurrent ?? true;
     if (current == _current) return;
     _current = current;
-    // Covered by the player or another page: the trailer is over for this
-    // visit, and its sound-free video mustn't run underneath.
-    if (!current) _stop();
+    // Covered by the player, another page or a menu: its sound-free video
+    // mustn't run underneath; back on top, it starts again.
+    _setAway(!current);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // On a TV's Home button the app stays alive in the background: the
+    // video mustn't go on playing there.
+    _setAway(state != AppLifecycleState.resumed || !_current);
+    if (mounted) setState(() {});
+  }
+
+  void _setAway(bool away) {
+    if (away == _away) return;
+    _away = away;
+    _visible = false;
   }
 
   Future<void> _find() async {
@@ -115,6 +135,7 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
   }
@@ -122,7 +143,7 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer> {
   @override
   Widget build(BuildContext context) {
     final id = _videoId;
-    if (id == null) return const SizedBox.shrink();
+    if (id == null || _away) return const SizedBox.shrink();
     return IgnorePointer(
       child: AnimatedOpacity(
         // The browser only builds the player once it's painted, and nothing

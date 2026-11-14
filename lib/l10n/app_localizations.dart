@@ -33567,23 +33567,11 @@ abstract class AppLocalizations {
   /// **'kOS TV'**
   String get kostvDetailStyle;
 
-  /// Kos TV details page: a season of the series not at home, next to its name.
-  ///
-  /// In en, this message translates to:
-  /// **'To request'**
-  String get kostvSeasonToAsk;
-
   /// Kos TV details page: under the season names, how many of the season's episodes are watched.
   ///
   /// In en, this message translates to:
   /// **'Watched {seen} of {total}'**
   String kostvSeasonWatched(int seen, int total);
-
-  /// Kos TV details page: the label on the episode to watch next.
-  ///
-  /// In en, this message translates to:
-  /// **'UP NEXT'**
-  String get kostvEpisodeNext;
 
   /// Kos TV details page: under a missing episode that can be asked for. With a remote or a mouse.
   ///
@@ -33596,6 +33584,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap to request it.'**
   String get kostvGhostTapToAsk;
+
+  /// Kos TV setup: what the kOS TV details page looks like.
+  ///
+  /// In en, this message translates to:
+  /// **'The art across the screen, the title and details on the left, and the seasons and episodes below.'**
+  String get kostvDetailStyleHint;
 }
 
 class _AppLocalizationsDelegate

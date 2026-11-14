@@ -13683,10 +13683,6 @@
   "@kostvDetailStyle": {
     "description": "Kos TV details page."
   },
-  "kostvSeasonToAsk": "Para pedir",
-  "@kostvSeasonToAsk": {
-    "description": "Kos TV details page: a season of the series not at home, next to its name."
-  },
   "kostvSeasonWatched": "Has visto {seen} de {total}",
   "@kostvSeasonWatched": {
     "description": "Kos TV details page: under the season names, how many of the season's episodes are watched.",
@@ -13699,10 +13695,6 @@
       }
     }
   },
-  "kostvEpisodeNext": "SIGUIENTE",
-  "@kostvEpisodeNext": {
-    "description": "Kos TV details page: the label on the episode to watch next."
-  },
   "kostvGhostSelectToAsk": "Pulsa para solicitarlo.",
   "@kostvGhostSelectToAsk": {
     "description": "Kos TV details page: under a missing episode that can be asked for. With a remote or a mouse."
@@ -13710,5 +13702,9 @@
   "kostvGhostTapToAsk": "Toca para solicitarlo.",
   "@kostvGhostTapToAsk": {
     "description": "Kos TV details page: under a missing episode that can be asked for. On a phone."
+  },
+  "kostvDetailStyleHint": "La imagen a toda pantalla, el título y los datos a la izquierda, y las temporadas y episodios debajo.",
+  "@kostvDetailStyleHint": {
+    "description": "Kos TV setup: what the kOS TV details page looks like."
   }
 }

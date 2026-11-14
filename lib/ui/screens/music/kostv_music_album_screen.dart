@@ -17,6 +17,8 @@ import '../../navigation/destinations.dart';
 import '../../widgets/bounded_network_image.dart';
 import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
+import '../../widgets/music/kostv_now_playing_capsule.dart'
+    show KostvEqualizerBars;
 import 'kostv_music_actions.dart';
 import 'kostv_music_widgets.dart';
 
@@ -331,7 +333,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
           children: [
             _askButton(context, album),
             if (preview != null)
-              _MusicButton(
+              KostvMusicButton(
                 icon: _preview.isPlaying(preview)
                     ? Icons.stop_rounded
                     : Icons.play_arrow_rounded,
@@ -364,7 +366,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
   Widget _askButton(BuildContext context, StremfinAlbum album) {
     final l10n = AppLocalizations.of(context);
     if (album.inJellyfin) {
-      return _MusicButton(
+      return KostvMusicButton(
         icon: Icons.play_arrow_rounded,
         label: l10n.kostvMusicPlayAtHome,
         primary: true,
@@ -385,7 +387,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
             runSpacing: 10,
             children: [
               status,
-              _MusicButton(
+              KostvMusicButton(
                 focusNode: _askFocus,
                 icon: Icons.notifications_active_rounded,
                 label: l10n.kostvMusicNotifyMe,
@@ -399,7 +401,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     final download = album.download;
     if (download != null) {
       return withJoin(
-        _MusicButton(
+        KostvMusicButton(
           icon: Icons.downloading_rounded,
           label: [
             download.label ?? l10n.kostvMusicOnItsWay,
@@ -413,7 +415,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     final request = album.request;
     if (request != null) {
       return withJoin(
-        _MusicButton(
+        KostvMusicButton(
           icon: Icons.check_rounded,
           label: request.statusLabel ?? l10n.kostvMusicAsked,
           autofocus: PlatformDetection.isTV && !join,
@@ -421,7 +423,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
         ),
       );
     }
-    return _MusicButton(
+    return KostvMusicButton(
       focusNode: _askFocus,
       icon: Icons.add_rounded,
       label: l10n.kostvMusicAskAlbum,
@@ -456,7 +458,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     final multiDisc = detail.songs.map((s) => s.disc ?? 1).toSet().length > 1;
     return [
       for (final (i, song) in detail.songs.indexed)
-        _TrackRow(
+        KostvMusicTrackRow(
           number: song.position ?? i + 1,
           disc: multiDisc ? song.disc : null,
           title: song.title,
@@ -493,8 +495,9 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
 
 /// A button of the album's page: filled in Music's colour when it is the
 /// main one.
-class _MusicButton extends StatelessWidget {
-  const _MusicButton({
+class KostvMusicButton extends StatelessWidget {
+  const KostvMusicButton({
+    super.key,
     required this.icon,
     required this.label,
     required this.onTap,
@@ -502,8 +505,16 @@ class _MusicButton extends StatelessWidget {
     this.busy = false,
     this.autofocus = false,
     this.focusNode,
+    this.iconColor,
+    this.expand = false,
   });
 
+  /// Fills the width it's given (a phone's row of buttons), the words made
+  /// smaller rather than cut when it's tight.
+  final bool expand;
+
+  /// The icon's own colour when not lit (a heart that is on).
+  final Color? iconColor;
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -530,7 +541,9 @@ class _MusicButton extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
             padding: EdgeInsets.symmetric(
-              horizontal: phone ? 20 : 26,
+              horizontal: label.isEmpty
+                  ? (phone ? 12 : 14)
+                  : (expand ? 10 : (phone ? 20 : 26)),
               vertical: phone ? 12 : 14,
             ),
             decoration: BoxDecoration(
@@ -538,7 +551,8 @@ class _MusicButton extends StatelessWidget {
               borderRadius: AppRadius.circular(12),
             ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (busy)
                   SizedBox.square(
@@ -549,16 +563,24 @@ class _MusicButton extends StatelessWidget {
                     ),
                   )
                 else
-                  Icon(icon, color: ink, size: 22),
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: ink,
-                    fontSize: phone ? 15.5 : 17,
-                    fontWeight: FontWeight.w700,
+                  Icon(icon, color: lit ? ink : (iconColor ?? ink), size: 22),
+                if (label.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        style: TextStyle(
+                          color: ink,
+                          fontSize: phone ? 15.5 : 17,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -569,8 +591,9 @@ class _MusicButton extends StatelessWidget {
 }
 
 /// A song of the album's list.
-class _TrackRow extends StatelessWidget {
-  const _TrackRow({
+class KostvMusicTrackRow extends StatelessWidget {
+  const KostvMusicTrackRow({
+    super.key,
     required this.number,
     required this.title,
     this.disc,
@@ -580,7 +603,17 @@ class _TrackRow extends StatelessWidget {
     this.picked = false,
     this.onTap,
     this.onMenu,
+    this.sounding = false,
+    this.soundingPlays = false,
+    this.focusNode,
+    this.autofocus = false,
   });
+
+  /// Whether it's the song the player has, and whether it's playing.
+  final bool sounding;
+  final bool soundingPlays;
+  final FocusNode? focusNode;
+  final bool autofocus;
 
   final VoidCallback? onTap;
 
@@ -603,6 +636,8 @@ class _TrackRow extends StatelessWidget {
     final onTap = this.onTap;
     if (onTap == null) return _row(context, l10n, length, lit: false);
     return KostvMusicPressable(
+      focusNode: focusNode,
+      autofocus: autofocus,
       onTap: onTap,
       onLongPress: onMenu,
       builder: (context, lit) => _row(context, l10n, length, lit: lit),
@@ -617,7 +652,7 @@ class _TrackRow extends StatelessWidget {
   }) {
     final color = lit
         ? Colors.black
-        : (picked ? kostvMusicColor : Colors.white);
+        : (picked || sounding ? kostvMusicColor : Colors.white);
     return AnimatedContainer(
       duration: const Duration(milliseconds: 150),
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
@@ -630,13 +665,22 @@ class _TrackRow extends StatelessWidget {
         children: [
           SizedBox(
             width: 34,
-            child: Text(
-              disc == null ? '$number' : '$disc·$number',
-              style: TextStyle(
-                color: picked ? kostvMusicColor : kostvMusicGrey,
-                fontSize: 15,
-              ),
-            ),
+            child: sounding
+                ? Align(
+                    alignment: Alignment.centerLeft,
+                    child: KostvEqualizerBars(
+                      playing: soundingPlays,
+                      size: 16,
+                      color: lit ? Colors.black : kostvMusicColor,
+                    ),
+                  )
+                : Text(
+                    disc == null ? '$number' : '$disc·$number',
+                    style: TextStyle(
+                      color: picked ? kostvMusicColor : kostvMusicGrey,
+                      fontSize: 15,
+                    ),
+                  ),
           ),
           Expanded(
             child: Column(
