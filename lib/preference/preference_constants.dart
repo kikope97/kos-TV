@@ -388,7 +388,10 @@ enum DetailScreenStyle {
   stage,
   premiere,
   quickLook,
-  frost;
+  frost,
+
+  /// Kos TV: the kOS TV page, the default on every screen.
+  kostv;
 }
 
 /// Selectable header layout for the library browse screen.

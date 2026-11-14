@@ -33506,6 +33506,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Now, whenever it would show on opening'**
   String get kostvIntroWatchSubtitle;
+
+  /// Kos TV details page: Play when the film was started.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep watching'**
+  String get kostvDetailContinue;
+
+  /// Kos TV details page: time left under Keep watching.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} left'**
+  String kostvDetailLeft(String time);
+
+  /// Kos TV details page: Play of a half-watched series, with the next episode code.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue with {code}'**
+  String kostvDetailContinueWith(String code);
+
+  /// Kos TV details page.
+  ///
+  /// In en, this message translates to:
+  /// **'Film'**
+  String get kostvDetailKindMovie;
+
+  /// Kos TV details page.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get kostvDetailKindSeries;
+
+  /// Kos TV details page.
+  ///
+  /// In en, this message translates to:
+  /// **'Season'**
+  String get kostvDetailKindSeason;
+
+  /// Kos TV details page.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode'**
+  String get kostvDetailKindEpisode;
+
+  /// Kos TV details page.
+  ///
+  /// In en, this message translates to:
+  /// **'Directed by'**
+  String get kostvDetailDirectedBy;
+
+  /// Kos TV details page.
+  ///
+  /// In en, this message translates to:
+  /// **'Starring'**
+  String get kostvDetailStarring;
+
+  /// Kos TV details page.
+  ///
+  /// In en, this message translates to:
+  /// **'kOS TV'**
+  String get kostvDetailStyle;
 }
 
 class _AppLocalizationsDelegate

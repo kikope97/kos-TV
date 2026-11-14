@@ -83,6 +83,7 @@ class RatingsRow extends StatelessWidget {
     bool columns = false,
     double columnTextScale = 1,
     bool centered = false,
+    bool inlineChips = false,
   }) {
     if (!prefs.effectiveShowDetailRatings) return null;
 
@@ -110,6 +111,7 @@ class RatingsRow extends StatelessWidget {
       columns: columns,
       columnTextScale: columnTextScale,
       centered: centered,
+      inlineChips: inlineChips,
     );
   }
 

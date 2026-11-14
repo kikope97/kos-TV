@@ -19804,4 +19804,38 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvIntroWatchSubtitle => 'Ahora mismo, toque o no al abrir';
+
+  @override
+  String get kostvDetailContinue => 'Seguir viendo';
+
+  @override
+  String kostvDetailLeft(String time) {
+    return 'Quedan $time';
+  }
+
+  @override
+  String kostvDetailContinueWith(String code) {
+    return 'Seguir con $code';
+  }
+
+  @override
+  String get kostvDetailKindMovie => 'Película';
+
+  @override
+  String get kostvDetailKindSeries => 'Serie';
+
+  @override
+  String get kostvDetailKindSeason => 'Temporada';
+
+  @override
+  String get kostvDetailKindEpisode => 'Episodio';
+
+  @override
+  String get kostvDetailDirectedBy => 'Dirección';
+
+  @override
+  String get kostvDetailStarring => 'Con';
+
+  @override
+  String get kostvDetailStyle => 'kOS TV';
 }

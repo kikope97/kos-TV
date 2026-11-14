@@ -3102,6 +3102,8 @@ Widget detailStylePreview(DetailScreenStyle style) => _liveOrFallback(
       DetailScreenStyle.premiere => _premiereDetail(context, items.first),
       DetailScreenStyle.quickLook => _quickLookDetail(context, items),
       DetailScreenStyle.frost => _frostDetail(context, items.first),
+      // Kos TV: the kOS TV page is laid out like Premiere's first screen.
+      DetailScreenStyle.kostv => _premiereDetail(context, items.first),
     };
   },
   fallback: _fallbackDetail(style),

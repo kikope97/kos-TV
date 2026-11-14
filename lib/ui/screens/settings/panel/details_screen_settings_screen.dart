@@ -64,6 +64,7 @@ class _DetailsScreenSettingsScreenState
                       DetailScreenStyle.quickLook =>
                         l10n.detailScreenStyleQuickLook,
                       DetailScreenStyle.frost => l10n.detailScreenStyleFrost,
+                      DetailScreenStyle.kostv => l10n.kostvDetailStyle,
                     },
                   ),
                 ],

@@ -523,6 +523,7 @@ class UserPreferences extends ChangeNotifier {
     'hidden_next_up_series',
     'pref_recommendation_system_source',
     'pref_detail_screen_style',
+    'kostv_detail_adopted',
     'pref_library_style',
     'pref_book_library_style',
     'pref_music_library_style',
@@ -1849,9 +1850,8 @@ class UserPreferences extends ChangeNotifier {
   /// because it syncs to that server's profile.
   static final detailScreenStyle = EnumPreference(
     key: 'pref_detail_screen_style',
-    defaultValue: PlatformDetection.useMobileUi
-        ? DetailScreenStyle.modern
-        : DetailScreenStyle.frost,
+    // Kos TV: the kOS TV page everywhere.
+    defaultValue: DetailScreenStyle.kostv,
     values: DetailScreenStyle.values,
   );
 
@@ -1931,9 +1931,29 @@ class UserPreferences extends ChangeNotifier {
   /// keeps the mode out of the sync payload, since the profile push reads the
   /// raw preference and would otherwise carry a forced value to the parent's
   /// other devices.
-  DetailScreenStyle get effectiveDetailScreenStyle => get(kidsModeEnabled)
-      ? DetailScreenStyle.minimalist
-      : get(detailScreenStyle);
+  /// Kos TV: whether this profile has been moved to the kOS TV details
+  /// page once. Its old default (Frost on a TV, Modern on a phone) gives way
+  /// to it a single time; a style picked after that is kept.
+  static final kostvDetailAdopted = Preference<bool>(
+    key: 'kostv_detail_adopted',
+    defaultValue: false,
+  );
+
+  DetailScreenStyle get effectiveDetailScreenStyle {
+    if (get(kidsModeEnabled)) return DetailScreenStyle.minimalist;
+    final style = get(detailScreenStyle);
+    if (get(kostvDetailAdopted)) return style;
+    final moves =
+        style == DetailScreenStyle.frost || style == DetailScreenStyle.modern;
+    // Written after the frame that asked, never in the middle of a build
+    // (the settings tell everyone listening when they change).
+    scheduleMicrotask(() {
+      if (get(kostvDetailAdopted)) return;
+      unawaited(set(kostvDetailAdopted, true));
+      if (moves) unawaited(set(detailScreenStyle, DetailScreenStyle.kostv));
+    });
+    return moves ? DetailScreenStyle.kostv : style;
+  }
 
   bool get effectiveDetailExpandedTabs =>
       get(kidsModeEnabled) ? false : get(detailExpandedTabs);

@@ -19129,5 +19129,55 @@
   "kostvIntroWatchSubtitle": "Now, whenever it would show on opening",
   "@kostvIntroWatchSubtitle": {
     "description": "Kos TV settings: subtitle of the button that plays the opening animation now."
+  },
+  "kostvDetailContinue": "Keep watching",
+  "@kostvDetailContinue": {
+    "description": "Kos TV details page: Play when the film was started."
+  },
+  "kostvDetailLeft": "{time} left",
+  "@kostvDetailLeft": {
+    "description": "Kos TV details page: time left under Keep watching.",
+    "placeholders": {
+      "time": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDetailContinueWith": "Continue with {code}",
+  "@kostvDetailContinueWith": {
+    "description": "Kos TV details page: Play of a half-watched series, with the next episode code.",
+    "placeholders": {
+      "code": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDetailKindMovie": "Film",
+  "@kostvDetailKindMovie": {
+    "description": "Kos TV details page."
+  },
+  "kostvDetailKindSeries": "Series",
+  "@kostvDetailKindSeries": {
+    "description": "Kos TV details page."
+  },
+  "kostvDetailKindSeason": "Season",
+  "@kostvDetailKindSeason": {
+    "description": "Kos TV details page."
+  },
+  "kostvDetailKindEpisode": "Episode",
+  "@kostvDetailKindEpisode": {
+    "description": "Kos TV details page."
+  },
+  "kostvDetailDirectedBy": "Directed by",
+  "@kostvDetailDirectedBy": {
+    "description": "Kos TV details page."
+  },
+  "kostvDetailStarring": "Starring",
+  "@kostvDetailStarring": {
+    "description": "Kos TV details page."
+  },
+  "kostvDetailStyle": "kOS TV",
+  "@kostvDetailStyle": {
+    "description": "Kos TV details page."
   }
 }

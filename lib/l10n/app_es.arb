@@ -13642,5 +13642,45 @@
   "kostvIntroWatchSubtitle": "Ahora mismo, toque o no al abrir",
   "@kostvIntroWatchSubtitle": {
     "description": "Kos TV settings: subtitle of the button that plays the opening animation now."
+  },
+  "kostvDetailContinue": "Seguir viendo",
+  "@kostvDetailContinue": {
+    "description": "Kos TV details page: Play when the film was started."
+  },
+  "kostvDetailLeft": "Quedan {time}",
+  "@kostvDetailLeft": {
+    "description": "Kos TV details page: time left under Keep watching."
+  },
+  "kostvDetailContinueWith": "Seguir con {code}",
+  "@kostvDetailContinueWith": {
+    "description": "Kos TV details page: Play of a half-watched series, with the next episode code."
+  },
+  "kostvDetailKindMovie": "Película",
+  "@kostvDetailKindMovie": {
+    "description": "Kos TV details page."
+  },
+  "kostvDetailKindSeries": "Serie",
+  "@kostvDetailKindSeries": {
+    "description": "Kos TV details page."
+  },
+  "kostvDetailKindSeason": "Temporada",
+  "@kostvDetailKindSeason": {
+    "description": "Kos TV details page."
+  },
+  "kostvDetailKindEpisode": "Episodio",
+  "@kostvDetailKindEpisode": {
+    "description": "Kos TV details page."
+  },
+  "kostvDetailDirectedBy": "Dirección",
+  "@kostvDetailDirectedBy": {
+    "description": "Kos TV details page."
+  },
+  "kostvDetailStarring": "Con",
+  "@kostvDetailStarring": {
+    "description": "Kos TV details page."
+  },
+  "kostvDetailStyle": "kOS TV",
+  "@kostvDetailStyle": {
+    "description": "Kos TV details page."
   }
 }

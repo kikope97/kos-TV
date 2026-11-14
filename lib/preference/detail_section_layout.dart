@@ -186,6 +186,9 @@ enum DetailSection {
   /// shows whatever Spotlight does. Stage, Premiere and Frost hand people and
   /// collections to Modern the same way, and Quick Look's full page is Modern.
   bool isAvailableIn(DetailScreenStyle style) =>
+      // Kos TV: the kOS TV page draws what Premiere does.
+      (style == DetailScreenStyle.kostv &&
+          isAvailableIn(DetailScreenStyle.premiere)) ||
       styles.contains(style) ||
       (style == DetailScreenStyle.minimalist &&
           styles.contains(DetailScreenStyle.spotlight)) ||

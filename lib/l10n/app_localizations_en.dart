@@ -19478,4 +19478,38 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvIntroWatchSubtitle =>
       'Now, whenever it would show on opening';
+
+  @override
+  String get kostvDetailContinue => 'Keep watching';
+
+  @override
+  String kostvDetailLeft(String time) {
+    return '$time left';
+  }
+
+  @override
+  String kostvDetailContinueWith(String code) {
+    return 'Continue with $code';
+  }
+
+  @override
+  String get kostvDetailKindMovie => 'Film';
+
+  @override
+  String get kostvDetailKindSeries => 'Series';
+
+  @override
+  String get kostvDetailKindSeason => 'Season';
+
+  @override
+  String get kostvDetailKindEpisode => 'Episode';
+
+  @override
+  String get kostvDetailDirectedBy => 'Directed by';
+
+  @override
+  String get kostvDetailStarring => 'Starring';
+
+  @override
+  String get kostvDetailStyle => 'kOS TV';
 }

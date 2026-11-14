@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'kostv/kostv_detail_buttons.dart';
+import 'kostv/kostv_detail_content.dart';
 import '../../theme/focus_foreground.dart';
 import '../../widgets/bounded_network_image.dart';
 import '../../widgets/offline_aware_image.dart';
@@ -946,6 +948,26 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
         DetailScreenStyle.premiere =>
           detailPageDraws(_viewModel.item?.type)
             ? PremiereDetailContent(
+                viewModel: _viewModel,
+                prefs: _prefs,
+                backdropUrl: _backdropUrl,
+                selectedMediaSourceId: _selectedMediaSourceId,
+                initialFocusNode: _ensureInitialFocusNode(),
+                onSelectedMediaSourceChanged: (id) {
+                  setState(() => _selectedMediaSourceId = id);
+                  _viewModel.load(mediaSourceId: id);
+                },
+                autoPlay: widget.autoPlay,
+                actionsExpanded: _actionsExpanded,
+                onActionsExpandedChanged: (val) =>
+                    setState(() => _actionsExpanded = val),
+                onToggleNavbar: (show) => setState(() => _showNavbar = show),
+              )
+            : _buildModernContent(),
+
+        DetailScreenStyle.kostv =>
+          detailPageDraws(_viewModel.item?.type)
+            ? KostvDetailContent(
                 viewModel: _viewModel,
                 prefs: _prefs,
                 backdropUrl: _backdropUrl,
@@ -4258,6 +4280,9 @@ class DetailMetadataRow extends StatelessWidget {
   /// Centers both lines on any screen, for a title block that's centered.
   final bool centered;
 
+  /// Keeps both lines to the left on any screen, for a title block that is.
+  final bool alignStart;
+
   const DetailMetadataRow({
     required this.item,
     this.selectedMediaSource,
@@ -4265,6 +4290,7 @@ class DetailMetadataRow extends StatelessWidget {
     this.technicalOnly = false,
     this.extraBadges = const [],
     this.centered = false,
+    this.alignStart = false,
   });
 
   @override
@@ -4361,7 +4387,8 @@ class DetailMetadataRow extends StatelessWidget {
 
     final badges = tech?.badges ?? const <String>[];
 
-    final center = centered || !_useDesktopDetailLayout(context);
+    final center =
+        !alignStart && (centered || !_useDesktopDetailLayout(context));
 
     return Column(
       crossAxisAlignment: center
@@ -4554,6 +4581,11 @@ class DetailActionButtons extends StatefulWidget {
   /// take a lighter platter when focused, with the label floating above.
   final bool frosted;
 
+  /// Kos TV: the kOS TV page's buttons. Play is a light pill that says what
+  /// it plays and how far it got; the rest are glass circles with their name
+  /// always under them.
+  final bool kostv;
+
   const DetailActionButtons({
     super.key,
     required this.viewModel,
@@ -4584,6 +4616,7 @@ class DetailActionButtons extends StatefulWidget {
     this.labelsUnderCircles = false,
     this.centerRow = false,
     this.frosted = false,
+    this.kostv = false,
   });
 
   @override
@@ -12695,6 +12728,26 @@ class _DetailActionButtonState extends State<_DetailActionButton>
     required Color labelColor,
   }) {
     final host = context.findAncestorWidgetOfExactType<DetailActionButtons>();
+    if (host?.kostv ?? false) {
+      return KostvButtonFace(
+        label: widget.label,
+        icon: widget.icon,
+        iconBuilder: widget.iconBuilder,
+        isPrimary: widget.isPrimary,
+        isActive: widget.isActive,
+        activeColor: widget.activeColor,
+        focused: showHighlight,
+        compact: isMobile,
+        play: widget.isPrimary
+            ? KostvPlayText.of(
+                AppLocalizations.of(context),
+                widget.label,
+                host!.viewModel.item,
+                nextUp: host.viewModel.nextUp,
+              )
+            : null,
+      );
+    }
     if (host?.frosted ?? false) {
       return _FrostedButtonFace(
         label: widget.label,

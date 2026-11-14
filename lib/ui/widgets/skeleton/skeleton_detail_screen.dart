@@ -50,6 +50,7 @@ class DetailScreenSkeleton extends StatelessWidget {
         DetailScreenStyle.premiere => _buildPremiere(context),
         DetailScreenStyle.quickLook => _buildQuickLook(context),
         DetailScreenStyle.frost => _buildFrost(context),
+        DetailScreenStyle.kostv => _buildPremiere(context),
       },
     );
   }
