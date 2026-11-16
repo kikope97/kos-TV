@@ -223,16 +223,21 @@ class _KostvDetailContentState extends State<KostvDetailContent>
                   Flexible(
                     child: ConstrainedBox(
                       constraints: BoxConstraints(maxWidth: textWidth),
-                      child: _buildHeroText(
-                        item,
-                        sections,
-                        landscape,
-                        size,
-                        ratings,
+                      // Never painted over the buttons below.
+                      child: ClipRect(
+                        child: _buildHeroText(
+                          item,
+                          sections,
+                          landscape,
+                          size,
+                          ratings,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 30),
+                  // Room for Play growing as it takes the focus (and for
+                  // its progress bar) without reaching the text above.
+                  SizedBox(height: PlatformDetection.isTV ? 46 : 34),
                   // Wider than the text: the buttons go on one line.
                   _buildActions(landscape),
                 ],
@@ -526,13 +531,36 @@ class _KostvDetailContentState extends State<KostvDetailContent>
             ),
           ),
         ],
-        if (credits != null) ...[const SizedBox(height: 14), credits],
+        // Who made it only when there's room for it: a tall logo and no
+        // overview mustn't push it down over the buttons.
+        if (credits != null)
+          Flexible(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final line =
+                    MediaQuery.textScalerOf(context)
+                        .scale(PlatformDetection.isTV ? 18 : 15) *
+                    1.3;
+                if (constraints.maxHeight.isFinite &&
+                    constraints.maxHeight < 14 + line) {
+                  return const SizedBox.shrink();
+                }
+                final lines = constraints.maxHeight.isFinite
+                    ? ((constraints.maxHeight - 14) / line).floor().clamp(1, 2)
+                    : 2;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: _credits(maxLines: lines) ?? credits,
+                );
+              },
+            ),
+          ),
       ],
     );
   }
 
   /// «Dirección Lucía Ferrer · Con Ana Ortiz, Mario Sanz, Pablo Rey».
-  Widget? _credits() {
+  Widget? _credits({int maxLines = 2}) {
     final l10n = AppLocalizations.of(context);
     String names(List<Map<String, dynamic>> people, int count) => people
         .map((p) => p['Name']?.toString() ?? '')
@@ -565,7 +593,7 @@ class _KostvDetailContentState extends State<KostvDetailContent>
           ],
         ],
       ),
-      maxLines: 2,
+      maxLines: maxLines,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(color: dim, fontSize: PlatformDetection.isTV ? 18 : 15),
     );

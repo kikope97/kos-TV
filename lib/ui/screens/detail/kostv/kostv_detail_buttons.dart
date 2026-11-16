@@ -298,10 +298,10 @@ class KostvButtonFace extends StatelessWidget {
   Widget _circle(BuildContext context) {
     final size = compact ? 46.0 : 64.0;
     final Color color;
+    // Kos TV: on or off, the icons are white (dark on the focused white
+    // circle); the filled icon says it's on. Only the heart turns red.
     if (isActive && icon == Icons.favorite) {
       color = const Color(0xFFFF375F);
-    } else if (isActive) {
-      color = activeColor ?? kostvCyan;
     } else {
       color = focused ? const Color(0xFF0B0B12) : const Color(0xFFF3F5FA);
     }
