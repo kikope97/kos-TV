@@ -18,7 +18,6 @@ import 'bottom_nav_model.dart';
 import 'bottom_nav_sheet.dart';
 import 'bottom_nav_tab.dart';
 import 'bottom_nav_theme.dart';
-import 'libraries_sheet.dart';
 
 /// The bottom navbar hub: who is signed in, everything that isn't on the bar,
 /// and the way into settings.
@@ -52,15 +51,7 @@ Future<void> showBottomNavbarHub({
             onAccount: () => then(() => showUserMenu(context)),
             onTile: (tile) => then(() {
               final tab = tile.tab;
-              if (tab == BottomNavTab.libraries) {
-                showBottomNavLibrariesSheet(
-                  context: context,
-                  controller: controller,
-                  theme: theme,
-                  style: style,
-                  barHeight: barHeight,
-                );
-              } else if (tab != null) {
+              if (tab != null) {
                 openBottomNavTab(context, tab);
               } else {
                 runBottomNavHubAction(context, tile.action!);

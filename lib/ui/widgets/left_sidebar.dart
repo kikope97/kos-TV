@@ -125,7 +125,6 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
   List<AggregatedLibrary> _libraries = [];
   bool _isExpanded = false;
   bool _showLabels = false;
-  bool _librariesExpanded = false;
   bool _canExpandViaFocus = false;
   // Set when a rail item opens a screen.
   bool _openedRouteFromRail = false;
@@ -587,7 +586,6 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     setState(() {
       _isExpanded = false;
       _showLabels = false;
-      _librariesExpanded = false;
     });
   }
 
@@ -754,7 +752,14 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     final primary = FocusManager.instance.primaryFocus;
     if (primary == null || _sidebarFocus.hasFocus) return;
     // Kos TV: only this page's own content (see the top toolbar's).
-    if (primary.skipTraversal || MenuPreview.isMenu(primary)) return;
+    // A whole page or route holding the focus for a moment (while a page
+    // arrives) is no place to go back to: focusing it again hands the focus
+    // to whatever it last had, the menu button included.
+    if (primary.skipTraversal ||
+        primary is FocusScopeNode ||
+        MenuPreview.isMenu(primary)) {
+      return;
+    }
     final there = primary.context;
     if (there == null || !mounted) return;
     if (!(ModalRoute.isCurrentOf(there) ?? true)) return;
@@ -802,7 +807,9 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
       fallback.requestFocus();
       return;
     }
-    if (attempt < 10) {
+    // A page still loading from the server (Libraries, say) gets a couple
+    // of seconds before the focus gives up and stays on its button.
+    if (attempt < 30) {
       Timer(
         const Duration(milliseconds: 80),
         () => _focusFirstContent(attempt + 1),
@@ -1254,13 +1261,6 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                 return c;
               }
 
-              var librarySlot = 0;
-              Color? nextLibrarySidebarColor() {
-                final c = AppColorScheme.navColorForSlot(librarySlot);
-                if (c != null) librarySlot += 1;
-                return c;
-              }
-
               final items = <Widget>[
                 _SidebarItem(
                   key: const ValueKey('sidebar-home'),
@@ -1433,9 +1433,12 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                       showLabel: _showLabels,
                       onPressed: () => _openLibrary(lib),
                     )
-                else if (showLibraries && navLibraries.isNotEmpty) ...[
+                else if (showLibraries && navLibraries.isNotEmpty)
+                  // Kos TV: one of the menu's pages, the libraries on it,
+                  // instead of a list unfolding under the button.
                   _SidebarItem(
                     key: const ValueKey('sidebar-libraries'),
+                    focusNode: _menuNode(Destinations.kostvLibraries),
                     baseColor: nextMainSidebarColor(),
                     iconBuilder: (size, color) => Image.asset(
                       'assets/icons/clapperboard.png',
@@ -1446,46 +1449,12 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                     ),
                     label: l10n.libraries,
                     showLabel: _showLabels,
-                    trailing: _showLabels
-                        ? AnimatedRotation(
-                            turns: _librariesExpanded ? 0.5 : 0,
-                            duration: _kExpandDuration,
-                            child: Icon(
-                              Icons.expand_more,
-                              size:
-                                  ((PlatformDetection.isDesktop || (PlatformDetection.isWeb && !PlatformDetection.useMobileUi)) &&
-                                      !PlatformDetection.isTV)
-                                  ? 18
-                                  : 16,
-                              color: Colors.white.withValues(alpha: 0.5),
-                            ),
-                          )
-                        : null,
-                    onPressed: () => setState(
-                      () => _librariesExpanded = !_librariesExpanded,
-                    ),
+                    onPressed: () {
+                      _onNavigate();
+                      if (_enterShownPage(Destinations.kostvLibraries)) return;
+                      _openFromMenu(Destinations.kostvLibraries);
+                    },
                   ),
-                  AnimatedSize(
-                    key: const ValueKey('sidebar-libraries-children'),
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeInOut,
-                    child: _librariesExpanded
-                        ? Column(
-                            children: navLibraries
-                                .map(
-                                  (lib) => _SidebarLibraryItem(
-                                    key: ObjectKey(lib.id),
-                                    label: lib.name,
-                                    baseColor: nextLibrarySidebarColor(),
-                                    showLabel: _showLabels,
-                                    onPressed: () => _openLibrary(lib),
-                                  ),
-                                )
-                                .toList(),
-                          )
-                        : const SizedBox.shrink(),
-                  ),
-                ],
                 // The slot is taken here rather than inside the builder, so
                 // the rows below keep their colour whether or not anything is
                 // saved right now.
@@ -1826,7 +1795,6 @@ class _SidebarItem extends StatefulWidget {
   final String label;
   final bool showLabel;
   final VoidCallback onPressed;
-  final Widget? trailing;
   final FocusNode? focusNode;
   final Color? baseColor;
 
@@ -1840,7 +1808,6 @@ class _SidebarItem extends StatefulWidget {
     required this.label,
     required this.showLabel,
     required this.onPressed,
-    this.trailing,
     this.focusNode,
     this.baseColor,
     this.badgeCount = 0,
@@ -1975,7 +1942,6 @@ class _SidebarItemState extends State<_SidebarItem> {
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              if (widget.trailing != null) widget.trailing!,
                             ],
                           ],
                         ),
@@ -2031,145 +1997,9 @@ class _SidebarItemState extends State<_SidebarItem> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    if (widget.trailing != null) widget.trailing!,
                   ],
                 ],
               ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SidebarLibraryItem extends StatefulWidget {
-  final String label;
-  final bool showLabel;
-  final VoidCallback onPressed;
-  final Color? baseColor;
-
-  const _SidebarLibraryItem({
-    super.key,
-    required this.label,
-    required this.showLabel,
-    required this.onPressed,
-    this.baseColor,
-  });
-
-  @override
-  State<_SidebarLibraryItem> createState() => _SidebarLibraryItemState();
-}
-
-class _SidebarLibraryItemState extends State<_SidebarLibraryItem> {
-  final _prefs = GetIt.instance<UserPreferences>();
-  final _focusNode = FocusNode();
-  bool _isHovered = false;
-  bool _isFocused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode.addListener(() {
-      if (mounted) setState(() => _isFocused = _focusNode.hasFocus);
-    });
-  }
-
-  @override
-  void dispose() {
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final desktopSidebar =
-        (PlatformDetection.isDesktop || (PlatformDetection.isWeb && !PlatformDetection.useMobileUi)) && !PlatformDetection.isTV;
-    final focusColor = Color(_prefs.get(UserPreferences.focusColor).colorValue);
-    final baseColor = widget.baseColor ?? Colors.white.withValues(alpha: 0.5);
-    final useBaseForFocus = widget.baseColor != null;
-    final highlighted =
-        (desktopSidebar && _isHovered) ||
-        InputModeTracker.showFocusVisuals(context, _isFocused);
-    final tvFocused = PlatformDetection.isTV && _isFocused;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 1),
-      child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: Focus(
-          focusNode: _focusNode,
-          onKeyEvent: (_, event) {
-            if (isActivateKey(event)) {
-              widget.onPressed();
-              return KeyEventResult.handled;
-            }
-            return KeyEventResult.ignored;
-          },
-          child: GestureDetector(
-            onTap: widget.onPressed,
-            child: NavCapsule.maybeOf(context) != null
-                ? NavCapsuleTarget(
-                    active: highlighted,
-                    builder: (context, cover) => Container(
-                      height: desktopSidebar ? 40 : 36,
-                      padding: EdgeInsets.only(
-                        left: desktopSidebar ? 64 : 58,
-                        right: 18,
-                      ),
-                      alignment: Alignment.centerLeft,
-                      child: widget.showLabel
-                          ? Text(
-                              widget.label,
-                              style: TextStyle(
-                                color: Color.lerp(
-                                  baseColor,
-                                  Colors.black,
-                                  cover,
-                                ),
-                                fontSize: desktopSidebar ? 15 : 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                  )
-                : AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
-              height: desktopSidebar ? 40 : 36,
-              padding: EdgeInsets.only(
-                left: desktopSidebar ? 64 : 58,
-                right: 18,
-              ),
-              decoration: BoxDecoration(
-                color: tvFocused
-                    ? Colors.white
-                    : highlighted
-                    ? (useBaseForFocus
-                          ? baseColor.withValues(alpha: 0.12)
-                          : focusColor.withValues(alpha: 0.1))
-                    : Colors.transparent,
-                borderRadius: PlatformDetection.isTV
-                    ? AppRadius.circular(24)
-                    : BorderRadius.zero,
-              ),
-              alignment: Alignment.centerLeft,
-              child: widget.showLabel
-                  ? Text(
-                      widget.label,
-                      style: TextStyle(
-                        color: tvFocused
-                            ? Colors.black
-                            : highlighted
-                            ? (useBaseForFocus ? baseColor : focusColor)
-                            : baseColor,
-                        fontSize: desktopSidebar ? 15 : 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    )
-                  : const SizedBox.shrink(),
             ),
           ),
         ),

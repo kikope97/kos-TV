@@ -77,7 +77,7 @@ class _LiveTvScheduleScreenState extends State<LiveTvScheduleScreen> {
   Widget _buildBody() {
     if (_vm.state == ScheduleState.loading) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF0066CC)),
+        child: CircularProgressIndicator(color: Colors.white70),
       );
     }
 

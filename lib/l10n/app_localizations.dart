@@ -33680,6 +33680,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t load this genre'**
   String get kostvGenreUnavailable;
+
+  /// Kos TV catalogue page: pill that shows only what hasn't been watched.
+  ///
+  /// In en, this message translates to:
+  /// **'Unwatched'**
+  String get kostvCatalogUnwatched;
+
+  /// Kos TV catalogue page: pill that shows only the favourites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favourites'**
+  String get kostvCatalogFavorites;
+
+  /// Kos TV library page: the small caps line over the library's name.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get kostvLibraryKicker;
+
+  /// Kos TV libraries page: how many libraries there are.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 library} other{{count} libraries}}'**
+  String kostvLibrariesCount(int count);
+
+  /// Kos TV libraries page: the server has none.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no libraries on the server'**
+  String get kostvLibrariesEmpty;
+
+  /// Kos TV libraries page: loading failed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the libraries'**
+  String get kostvLibrariesUnavailable;
 }
 
 class _AppLocalizationsDelegate

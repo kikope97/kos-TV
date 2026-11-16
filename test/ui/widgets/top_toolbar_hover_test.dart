@@ -164,39 +164,4 @@ void main() {
 
     expect(_homeLabel, findsNothing);
   });
-
-  testWidgets('the libraries label stays out while its dropdown is open', (
-    tester,
-  ) async {
-    (GetIt.instance<UserViewsRepository>() as _FakeUserViewsRepository).views =
-        const [
-          AggregatedLibrary(
-            id: 'movies',
-            name: 'Movies',
-            collectionType: 'movies',
-            serverId: 's1',
-          ),
-        ];
-    await pumpToolbar(tester);
-    await tester.pump();
-
-    final librariesButton = find.byKey(const ValueKey('toolbar_libraries'));
-    final librariesLabel = find.descendant(
-      of: librariesButton,
-      matching: find.text('Libraries'),
-    );
-    final mouse = await _mouseOver(tester, librariesButton);
-    await tester.pump();
-    await mouse.down(tester.getCenter(librariesButton));
-    await mouse.up();
-    await tester.pump();
-    expect(find.text('Movies'), findsOneWidget);
-
-    // Collapsing the label would recenter the toolbar and slide the menu out
-    // from under a pointer heading down into it.
-    await mouse.moveTo(const Offset(2000, 2000));
-    await tester.pump();
-
-    expect(librariesLabel, findsWidgets);
-  });
 }

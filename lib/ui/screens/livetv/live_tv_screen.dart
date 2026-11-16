@@ -11,6 +11,8 @@ import '../../widgets/bottom_nav/bottom_navbar.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../../widgets/navigation_layout.dart';
 import '../../widgets/top_toolbar.dart';
+import '../detail/kostv/kostv_detail_buttons.dart'
+    show kostvLight, kostvOnLight;
 
 class LiveTvScreen extends StatelessWidget {
   const LiveTvScreen({super.key});
@@ -77,9 +79,10 @@ class LiveTvScreen extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              const Color(0xFF07111F),
-              const Color(0xFF0F2238),
-              AppColorScheme.accent.withValues(alpha: 0.18),
+              // Kos TV: the app's dark greys, not the theme's blue.
+              const Color(0xFF0B0C10),
+              const Color(0xFF14161C),
+              const Color(0xFF1C1F27),
             ],
           ),
         ),
@@ -104,7 +107,7 @@ class LiveTvScreen extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Live TV',
+                          l10n.liveTv,
                           style: Theme.of(context).textTheme.headlineMedium
                               ?.copyWith(
                                 color: Colors.white,
@@ -185,12 +188,14 @@ class _LiveTvMenuCardState extends State<_LiveTvMenuCard> {
 
   @override
   Widget build(BuildContext context) {
+    // Kos TV: focus lifts the card and turns it white, as buttons do.
     final borderColor = _focused
-        ? AppColorScheme.accent
+        ? Colors.transparent
         : Colors.white.withValues(alpha: 0.12);
-    final shadowColor = _focused
-        ? AppColorScheme.accent.withValues(alpha: 0.28)
-        : Colors.black.withValues(alpha: 0.16);
+    final shadowColor = Colors.black.withValues(
+      alpha: _focused ? 0.5 : 0.16,
+    );
+    final ink = _focused ? kostvOnLight : Colors.white;
 
     return Focus(
       autofocus: widget.autofocus,
@@ -210,7 +215,7 @@ class _LiveTvMenuCardState extends State<_LiveTvMenuCard> {
           transform: Matrix4.identity()
             ..scaleByDouble(_focused ? 1.02 : 1.0, _focused ? 1.02 : 1.0, 1.0, 1.0),
           decoration: BoxDecoration(
-            color: const Color(0xCC101822),
+            color: _focused ? kostvLight : const Color(0xCC1A1C22),
             borderRadius: AppRadius.circular(24),
             border: Border.all(color: borderColor, width: _focused ? 2.4 : 1),
             boxShadow: [
@@ -230,24 +235,26 @@ class _LiveTvMenuCardState extends State<_LiveTvMenuCard> {
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: AppColorScheme.accent.withValues(alpha: 0.16),
+                    color: (_focused ? kostvOnLight : Colors.white).withValues(
+                      alpha: 0.1,
+                    ),
                     borderRadius: AppRadius.circular(20),
                   ),
-                  child: Icon(widget.icon, color: Colors.white, size: 34),
+                  child: Icon(widget.icon, color: ink, size: 34),
                 ),
                 const SizedBox(width: 20),
                 Expanded(
                   child: Text(
                     widget.title,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
+                      color: ink,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
                 Icon(
                   Icons.arrow_forward,
-                  color: Colors.white.withValues(alpha: _focused ? 0.92 : 0.55),
+                  color: _focused ? ink : Colors.white.withValues(alpha: 0.55),
                   size: 28,
                 ),
               ],

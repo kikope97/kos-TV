@@ -77,7 +77,7 @@ class _LiveTvSeriesRecordingsScreenState
   Widget _buildBody() {
     if (_vm.state == SeriesRecordingsState.loading) {
       return const Center(
-        child: CircularProgressIndicator(color: Color(0xFF0066CC)),
+        child: CircularProgressIndicator(color: Colors.white70),
       );
     }
 

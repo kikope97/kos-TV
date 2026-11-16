@@ -148,8 +148,7 @@ BottomNavItemView bottomNavItemView(
   };
 }
 
-/// Opens [tab]'s screen. Libraries has no screen of its own and is handled by
-/// the caller, which owns the library list.
+/// Opens [tab]'s screen.
 void openBottomNavTab(BuildContext context, BottomNavTab tab) {
   final route = switch (tab) {
     BottomNavTab.search => Destinations.search,
@@ -160,9 +159,9 @@ void openBottomNavTab(BuildContext context, BottomNavTab tab) {
     BottomNavTab.genres => Destinations.allGenres,
     BottomNavTab.liveTv => Destinations.liveTvGuide,
     BottomNavTab.calendar => Destinations.calendar,
-    BottomNavTab.libraries => null,
+    // Kos TV: Libraries has a page of its own.
+    BottomNavTab.libraries => Destinations.kostvLibraries,
   };
-  if (route == null) return;
   context.navigateTopLevel(route);
 }
 

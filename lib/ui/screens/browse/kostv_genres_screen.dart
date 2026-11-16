@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
@@ -289,6 +290,7 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
   }
 
   Widget _grid(BuildContext context, EdgeInsets insets, bool phone) {
+    final l10n = AppLocalizations.of(context);
     final bottom =
         MediaQuery.paddingOf(context).bottom +
         (phone && NavigationLayout.usesBottomNavbar ? 110 : 40);
@@ -327,9 +329,19 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
                   childAspectRatio: 16 / 9,
                 ),
                 delegate: SliverChildBuilderDelegate((context, i) {
-                  final tileWidget = _GenreTile(
-                    genre: _genres[i],
+                  final tileWidget = KostvPictureTile(
+                    title: _genres[i].name,
+                    subtitle: _genres[i].count > 0
+                        ? l10n.kostvGenreTitles(_genres[i].count)
+                        : null,
+                    image: _genres[i].image,
                     width: tile,
+                    onKey: (event) => kostvGridEdgeKey(
+                      event,
+                      index: i,
+                      columns: columns,
+                      count: _genres.length,
+                    ),
                     focusNode: i == 0 ? _firstFocus : null,
                     onTap: () => _open(_genres[i]),
                   );
@@ -363,31 +375,62 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
   }
 }
 
-/// A genre: a film of it filling the tile, darkened at the foot for its
-/// name and count. Focus lifts it, with no frame.
-class _GenreTile extends StatelessWidget {
-  const _GenreTile({
-    required this.genre,
+/// The remote at the edges of a grid of [count] tiles in [columns]: Down
+/// from the last row and Up from the first stay in the grid, rather than
+/// slipping into the side menu beside it; on the top bar, Up from the first
+/// row goes up to it.
+KeyEventResult kostvGridEdgeKey(
+  KeyEvent event, {
+  required int index,
+  required int columns,
+  required int count,
+}) {
+  if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+    return KeyEventResult.ignored;
+  }
+  final key = event.logicalKey;
+  if (key == LogicalKeyboardKey.arrowDown) {
+    final lastRow = (count - 1) ~/ columns;
+    if (index ~/ columns >= lastRow) return KeyEventResult.handled;
+  } else if (key == LogicalKeyboardKey.arrowUp && index < columns) {
+    NavigationLayout.focusNavbarNotifier.value?.call();
+    return KeyEventResult.handled;
+  }
+  return KeyEventResult.ignored;
+}
+
+/// A wide picture filling the tile, darkened at the foot for a name and a
+/// line under it (a genre and its count, a library). Focus lifts it, with
+/// no frame.
+class KostvPictureTile extends StatelessWidget {
+  const KostvPictureTile({
+    super.key,
+    required this.title,
     required this.width,
     required this.onTap,
+    this.subtitle,
+    this.image,
     this.focusNode,
+    this.onKey,
   });
 
-  final _Genre genre;
+  final String title;
+  final KeyEventResult Function(KeyEvent event)? onKey;
+  final String? subtitle;
+  final String? image;
   final double width;
   final VoidCallback onTap;
   final FocusNode? focusNode;
 
-  /// A colour of its own for each genre, under the picture and while it
+  /// A colour of its own for each tile, under the picture and while it
   /// loads.
   Color get _tint {
-    final hue = (genre.name.hashCode % 360).abs().toDouble();
+    final hue = (title.hashCode % 360).abs().toDouble();
     return HSLColor.fromAHSL(1, hue, 0.35, 0.28).toColor();
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     final small = width < 220;
     final base = Container(
       decoration: BoxDecoration(
@@ -401,6 +444,7 @@ class _GenreTile extends StatelessWidget {
     return KostvMusicPressable(
       focusNode: focusNode,
       onTap: onTap,
+      onKey: onKey,
       builder: (context, lit) => AnimatedScale(
         scale: lit ? 1.06 : 1,
         duration: const Duration(milliseconds: 160),
@@ -422,7 +466,7 @@ class _GenreTile extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 base,
-                if (genre.image case final url?)
+                if (image case final url?)
                   OfflineAwareImage(
                     imageUrl: url,
                     fit: BoxFit.cover,
@@ -448,7 +492,7 @@ class _GenreTile extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        genre.name,
+                        title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -460,9 +504,9 @@ class _GenreTile extends StatelessWidget {
                           ],
                         ),
                       ),
-                      if (genre.count > 0)
+                      if (subtitle case final line?)
                         Text(
-                          l10n.kostvGenreTitles(genre.count),
+                          line,
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.75),
                             fontSize: small ? 12 : 14,

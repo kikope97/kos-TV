@@ -35,7 +35,9 @@ import '../screens/auth/server_screen.dart';
 import '../screens/auth/server_select_screen.dart';
 import '../screens/auth/startup_screen.dart';
 import '../screens/web_diagnostics_screen.dart';
-import '../screens/browse/kostv_genre_screen.dart';
+import '../../l10n/app_localizations.dart';
+import '../screens/browse/kostv_catalog_screen.dart';
+import '../screens/browse/kostv_libraries_screen.dart';
 import '../screens/browse/kostv_genres_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
 import '../screens/browse/collection_screen.dart';
@@ -358,6 +360,31 @@ final appRouter = GoRouter(
             ?.split(',')
             .map(Uri.decodeComponent)
             .toList();
+        // Kos TV: a library of films, series, collections or both opens
+        // the page of its own; home videos, photos and the rest keep theirs.
+        final kind = state.uri.queryParameters['kind']?.toLowerCase();
+        final title = state.uri.queryParameters['title'];
+        final favorites = state.uri.queryParameters['favorites'] == '1';
+        if (includeItemTypes == null && !favorites && title != null) {
+          final (onlyType, types) = switch (kind) {
+            'movies' => ('Movie', null),
+            'tvshows' => ('Series', null),
+            'boxsets' => (null, const ['BoxSet']),
+            'mixed' => (null, null),
+            _ => ('', null),
+          };
+          if (onlyType != '') {
+            return KostvCatalogScreen(
+              title: title,
+              kicker: AppLocalizations.of(context).kostvLibraryKicker,
+              activeRoute: Destinations.kostvLibraries,
+              parentId: libraryId,
+              onlyType: onlyType,
+              types: types,
+              serverId: state.uri.queryParameters['serverId'],
+            );
+          }
+        }
         return LibraryBrowseScreen(
           libraryId: libraryId,
           serverId: state.uri.queryParameters['serverId'],
@@ -392,6 +419,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: Destinations.allGenres,
       builder: (context, state) => const KostvGenresScreen(),
+    ),
+    GoRoute(
+      path: Destinations.kostvLibraries,
+      builder: (context, state) => const KostvLibrariesScreen(),
     ),
     GoRoute(
       path: Destinations.apps,
@@ -535,7 +566,7 @@ final appRouter = GoRouter(
         if (includeType == 'Movie' ||
             includeType == 'Series' ||
             (includeType == null && parentId == null)) {
-          return KostvGenreScreen(
+          return KostvCatalogScreen.genre(
             genreId: genreId,
             genreName: genreName,
             parentId: parentId,

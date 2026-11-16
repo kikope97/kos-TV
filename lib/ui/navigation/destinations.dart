@@ -76,6 +76,7 @@ class Destinations {
   // Browsing
   static const libraryBrowse = '/library/:libraryId';
   static const allGenres = '/genres';
+  static const kostvLibraries = '/libraries';
   static const allFavorites = '/favorites';
 
   /// Kos TV: the person's list («Mi lista»).
@@ -111,6 +112,7 @@ class Destinations {
     kostvDiscover,
     kostvMusic,
     allGenres,
+    kostvLibraries,
     allFavorites,
     myList,
     liveTvGuide,
@@ -209,9 +211,18 @@ class Destinations {
     List<String>? includeItemTypes,
     bool favorites = false,
     String? serverId,
+    String? collectionType,
+    String? title,
   }) {
     final base = '/library/$libraryId';
     final params = <String>[];
+    // Kos TV: what the library holds and its name, for the page of its own.
+    if (collectionType != null && collectionType.isNotEmpty) {
+      params.add('kind=${Uri.encodeQueryComponent(collectionType)}');
+    }
+    if (title != null && title.isNotEmpty) {
+      params.add('title=${Uri.encodeQueryComponent(title)}');
+    }
     if (includeItemTypes != null && includeItemTypes.isNotEmpty) {
       final types = includeItemTypes.map(Uri.encodeComponent).join(',');
       params.add('types=$types');

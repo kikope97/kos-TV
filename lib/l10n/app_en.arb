@@ -19273,5 +19273,34 @@
   "kostvGenreUnavailable": "Couldn't load this genre",
   "@kostvGenreUnavailable": {
     "description": "Kos TV genre page: loading failed."
+  },
+  "kostvCatalogUnwatched": "Unwatched",
+  "@kostvCatalogUnwatched": {
+    "description": "Kos TV catalogue page: pill that shows only what hasn't been watched."
+  },
+  "kostvCatalogFavorites": "Favourites",
+  "@kostvCatalogFavorites": {
+    "description": "Kos TV catalogue page: pill that shows only the favourites."
+  },
+  "kostvLibraryKicker": "Library",
+  "@kostvLibraryKicker": {
+    "description": "Kos TV library page: the small caps line over the library's name."
+  },
+  "kostvLibrariesCount": "{count, plural, =1{1 library} other{{count} libraries}}",
+  "@kostvLibrariesCount": {
+    "description": "Kos TV libraries page: how many libraries there are.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "kostvLibrariesEmpty": "There are no libraries on the server",
+  "@kostvLibrariesEmpty": {
+    "description": "Kos TV libraries page: the server has none."
+  },
+  "kostvLibrariesUnavailable": "Couldn't load the libraries",
+  "@kostvLibrariesUnavailable": {
+    "description": "Kos TV libraries page: loading failed."
   }
 }

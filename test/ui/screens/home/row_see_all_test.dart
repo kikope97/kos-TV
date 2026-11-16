@@ -98,7 +98,12 @@ void main() {
     test('the library a Latest row comes from, by its type', () async {
       expect(
         await HomeScreen.seeAllRoute(_row('latest_movies')),
-        Destinations.library('movies', serverId: 'server'),
+        Destinations.library(
+          'movies',
+          serverId: 'server',
+          collectionType: 'movies',
+          title: 'Movies',
+        ),
       );
       expect(
         await HomeScreen.seeAllRoute(_row('latest_music')),

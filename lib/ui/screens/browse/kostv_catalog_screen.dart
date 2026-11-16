@@ -25,44 +25,74 @@ import '../detail/kostv/kostv_detail_buttons.dart'
     show kostvLight, kostvOnLight;
 import '../home/home_row_card_image.dart';
 
-/// What the genre's page shows: everything, or only films or series.
+/// What the page shows: everything, or only films or series.
 enum _Kind { all, movies, series }
+
+/// Everything, only what hasn't been watched, or only the favourites.
+enum _Show { all, unwatched, favorites }
 
 /// How the titles are ordered.
 enum _Order { newest, name, rating }
 
-/// Kos TV: one genre, as Apple TV shows a category: the art of one of its
-/// titles fading into the page behind its name, a row of pills to choose
-/// films or series and the order, and a grid of posters. A page under
-/// Genres: its button in the menu stays lit.
-class KostvGenreScreen extends StatefulWidget {
-  const KostvGenreScreen({
+/// Kos TV: a catalogue of titles, as Apple TV shows a category: the art of
+/// one of them fading into the page behind its name, rows of pills to
+/// choose films or series, what to show and the order, and a grid of
+/// posters. A genre (under Genres) and a library (under Libraries) are
+/// both one; the menu button of the page above stays lit.
+class KostvCatalogScreen extends StatefulWidget {
+  const KostvCatalogScreen({
     super.key,
-    required this.genreId,
-    required this.genreName,
+    required this.title,
+    required this.kicker,
+    required this.activeRoute,
+    this.genreId,
     this.parentId,
     this.onlyType,
+    this.types,
     this.serverId,
   });
 
-  /// The server the genre belongs to; the active one when not given.
+  /// A genre: its titles, within [parentId] when given.
+  const KostvCatalogScreen.genre({
+    super.key,
+    required String this.genreId,
+    required String genreName,
+    this.parentId,
+    this.onlyType,
+    this.serverId,
+  }) : title = genreName,
+       kicker = null,
+       activeRoute = Destinations.allGenres,
+       types = null;
+
+  /// The server the titles belong to; the active one when not given.
   final String? serverId;
 
-  final String genreId;
-  final String genreName;
+  /// The name in big letters, and the small capitals over it (the word
+  /// "Genre" when not given).
+  final String title;
+  final String? kicker;
 
-  /// A library to stay in, when the genre was opened from one.
+  /// The menu page this one is under, whose button stays lit.
+  final String activeRoute;
+
+  final String? genreId;
+
+  /// The library to look in, if any.
   final String? parentId;
 
-  /// Only films ("Movie") or only series ("Series"), when the genre was
-  /// opened from a library of them: no choice between the two then.
+  /// Only films ("Movie") or only series ("Series"): no choice between the
+  /// two then.
   final String? onlyType;
 
+  /// Other kinds of titles (collections, for one), shown as they are.
+  final List<String>? types;
+
   @override
-  State<KostvGenreScreen> createState() => _KostvGenreScreenState();
+  State<KostvCatalogScreen> createState() => _KostvCatalogScreenState();
 }
 
-class _KostvGenreScreenState extends State<KostvGenreScreen> {
+class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
   static const _page = 60;
 
   // The server the genre came from (a Home row may show another one's).
@@ -72,8 +102,8 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
       );
   final _prefs = GetIt.instance<UserPreferences>();
   final _scroll = ScrollController();
-  final _firstFocus = FocusNode(debugLabel: 'kostvGenreFirst');
-  final _pillFocus = FocusNode(debugLabel: 'kostvGenrePills');
+  final _firstFocus = FocusNode(debugLabel: 'kostvCatalogFirst');
+  final _pillFocus = FocusNode(debugLabel: 'kostvCatalogPills');
 
   /// The posters' focus, by place, for the remote to move along the grid.
   final Map<int, FocusNode> _nodes = {};
@@ -81,7 +111,7 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
 
   FocusNode _nodeAt(int i) => i == 0
       ? _firstFocus
-      : _nodes.putIfAbsent(i, () => FocusNode(debugLabel: 'kostvGenre$i'));
+      : _nodes.putIfAbsent(i, () => FocusNode(debugLabel: 'kostvCatalog$i'));
 
   late _Kind _kind = switch (widget.onlyType) {
     'Movie' => _Kind.movies,
@@ -89,6 +119,7 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
     _ => _Kind.all,
   };
   _Order _order = _Order.newest;
+  _Show _show = _Show.all;
   final List<AggregatedItem> _items = [];
   int? _total;
   bool _loading = true;
@@ -138,11 +169,17 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
     unawaited(_load(reset: true));
   }
 
-  List<String> get _types => switch (_kind) {
-    _Kind.all => const ['Movie', 'Series'],
-    _Kind.movies => const ['Movie'],
-    _Kind.series => const ['Series'],
-  };
+  /// Whether the films/series choice applies: not to collections and the
+  /// like, nor when only one of the two is wanted.
+  bool get _choosesKind => widget.types == null && widget.onlyType == null;
+
+  List<String> get _types =>
+      widget.types ??
+      switch (_kind) {
+        _Kind.all => const ['Movie', 'Series'],
+        _Kind.movies => const ['Movie'],
+        _Kind.series => const ['Series'],
+      };
 
   (String, String) get _sort => switch (_order) {
     _Order.newest => ('DateCreated,SortName', 'Descending'),
@@ -152,11 +189,11 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
 
   Future<void> _counts() async {
     // Only films or only series: there is no choice to offer.
-    if (widget.onlyType != null) return;
+    if (!_choosesKind) return;
     Future<int> count(String type) async {
       final response = await _client.itemsApi.getItems(
         parentId: widget.parentId,
-        genreIds: [widget.genreId],
+        genreIds: widget.genreId == null ? null : [widget.genreId!],
         includeItemTypes: [type],
         recursive: true,
         limit: 0,
@@ -189,12 +226,17 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
       if (_more || _loading) return;
       setState(() => _more = true);
     }
-    final grouped = _grouped && _kind == _Kind.all;
+    final grouped = _grouped && _choosesKind && _kind == _Kind.all;
     final (sortBy, sortOrder) = _sort;
     try {
       final response = await _client.itemsApi.getItems(
         parentId: widget.parentId,
-        genreIds: [widget.genreId],
+        genreIds: widget.genreId == null ? null : [widget.genreId!],
+        filters: switch (_show) {
+          _Show.all => null,
+          _Show.unwatched => const ['IsUnplayed'],
+          _Show.favorites => const ['IsFavorite'],
+        },
         includeItemTypes: grouped
             ? const ['Movie', 'Series', 'BoxSet']
             : _types,
@@ -253,6 +295,14 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
     return null;
   }
 
+  /// Whether the menu is the side bar (not the top bar).
+  bool get _sideMenu =>
+      !PlatformDetection.useMobileUi &&
+      NavigationLayout.sanitizeNavbarPosition(
+            _prefs.get(UserPreferences.navbarPosition),
+          ) ==
+          NavbarPosition.left;
+
   bool get _hasMore => _total != null && _items.length < _total!;
 
   void _onScroll() {
@@ -263,11 +313,16 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
     }
   }
 
-  void _choose({_Kind? kind, _Order? order}) {
-    if ((kind ?? _kind) == _kind && (order ?? _order) == _order) return;
+  void _choose({_Kind? kind, _Order? order, _Show? show}) {
+    if ((kind ?? _kind) == _kind &&
+        (order ?? _order) == _order &&
+        (show ?? _show) == _show) {
+      return;
+    }
     setState(() {
       _kind = kind ?? _kind;
       _order = order ?? _order;
+      _show = show ?? _show;
     });
     unawaited(_load(reset: true));
   }
@@ -281,7 +336,7 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
     return Scaffold(
       backgroundColor: AppColorScheme.background,
       body: NavigationLayout(
-        activeRoute: Destinations.allGenres,
+        activeRoute: widget.activeRoute,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -380,7 +435,8 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
                 insets.left,
                 insets.top + (phone ? 8 : 40),
                 insets.right,
-                phone ? 16 : 28,
+                // Room for the focused poster growing up from the grid.
+                phone ? 16 : 40,
               ),
               sliver: SliverToBoxAdapter(child: _header(context)),
             ),
@@ -408,7 +464,7 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
     final l10n = AppLocalizations.of(context);
     final phone = PlatformDetection.useMobileUi;
     final count = _total ?? 0;
-    final kinds = widget.onlyType == null && _movies > 0 && _series > 0;
+    final kinds = _choosesKind && _movies > 0 && _series > 0;
     final pills = <Widget>[
       if (kinds) ...[
         for (final kind in _Kind.values)
@@ -424,9 +480,19 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
           ),
         const _Dot(),
       ],
+      // These two switch on and off: neither means everything.
+      for (final show in const [_Show.unwatched, _Show.favorites])
+        _Pill(
+          focusNode: !kinds && show == _Show.unwatched ? _pillFocus : null,
+          label: show == _Show.unwatched
+              ? l10n.kostvCatalogUnwatched
+              : l10n.kostvCatalogFavorites,
+          selected: _show == show,
+          onTap: () => _choose(show: _show == show ? _Show.all : show),
+        ),
+      const _Dot(),
       for (final order in _Order.values)
         _Pill(
-          focusNode: !kinds && order == _Order.newest ? _pillFocus : null,
           label: switch (order) {
             _Order.newest => l10n.kostvGenreSortNew,
             _Order.name => l10n.kostvGenreSortName,
@@ -441,7 +507,7 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(
-          l10n.kostvGenreKicker.toUpperCase(),
+          (widget.kicker ?? l10n.kostvGenreKicker).toUpperCase(),
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.7),
             fontSize: phone ? 12 : 14,
@@ -451,7 +517,7 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          widget.genreName,
+          widget.title,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
@@ -484,6 +550,16 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
             if (event is KeyDownEvent &&
                 event.logicalKey == LogicalKeyboardKey.arrowUp) {
               NavigationLayout.focusNavbarNotifier.value?.call();
+              return KeyEventResult.handled;
+            }
+            // Left from the first pill: to the side menu, if there is one,
+            // never down into the posters.
+            if (event is KeyDownEvent &&
+                event.logicalKey == LogicalKeyboardKey.arrowLeft &&
+                _pillFocus.hasPrimaryFocus) {
+              if (_sideMenu) {
+                NavigationLayout.focusNavbarNotifier.value?.call();
+              }
               return KeyEventResult.handled;
             }
             return KeyEventResult.ignored;

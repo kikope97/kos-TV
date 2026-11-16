@@ -177,7 +177,7 @@ void main() {
     await tester.tap(_shows);
     await tester.pumpAndSettle();
 
-    expect(opened, ['/library/1?serverId=s2']);
+    expect(opened, ['/library/1?kind=tvshows&title=Shows&serverId=s2']);
   });
 
   testWidgets('the menu stays while the setting is off', (tester) async {

@@ -20,7 +20,6 @@ import 'bottom_nav_tab.dart';
 import 'bottom_nav_theme.dart';
 import 'bottom_navbar_hub_sheet.dart';
 import 'dock_bar.dart';
-import 'libraries_sheet.dart';
 import 'split_bar.dart';
 import 'strip_bar.dart';
 
@@ -180,15 +179,9 @@ class _BottomNavbarState extends State<BottomNavbar> {
         openBottomNavHome(context, alreadyHome: route == Destinations.home);
       case BottomNavItemKind.tab:
         final tab = item.tab!;
-        if (tab == BottomNavTab.libraries) {
-          showBottomNavLibrariesSheet(
-            context: context,
-            controller: _controller,
-            theme: theme,
-            style: _style,
-            barHeight: barHeight,
-          );
-        } else if (!bottomNavTabMatchesRoute(tab, route)) {
+        if (!bottomNavTabMatchesRoute(tab, route) ||
+            (tab == BottomNavTab.libraries &&
+                route != Destinations.kostvLibraries)) {
           openBottomNavTab(context, tab);
         }
       case BottomNavItemKind.you:

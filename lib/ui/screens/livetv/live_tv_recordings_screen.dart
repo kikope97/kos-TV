@@ -20,6 +20,8 @@ import '../../widgets/live_tv/incomplete_recording.dart';
 import '../../widgets/live_tv/series_recording_dialog.dart';
 import '../../widgets/overlay_sheet.dart';
 import '../../widgets/offline_aware_image.dart';
+import '../detail/kostv/kostv_detail_buttons.dart'
+    show kostvLight, kostvOnLight;
 
 class LiveTvRecordingsScreen extends StatefulWidget {
   const LiveTvRecordingsScreen({super.key});
@@ -177,7 +179,7 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
 
   Widget _buildRecordingsTab() {
     if (_vm.state == RecordingsState.loading) {
-      return Center(child: CircularProgressIndicator(color: AppColorScheme.accent));
+      return Center(child: const CircularProgressIndicator(color: Colors.white70));
     }
     if (_vm.state == RecordingsState.error) {
       return Center(
@@ -223,7 +225,7 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
 
   Widget _buildScheduledTab() {
     if (_scheduleVm.state == ScheduleState.loading) {
-      return Center(child: CircularProgressIndicator(color: AppColorScheme.accent));
+      return Center(child: const CircularProgressIndicator(color: Colors.white70));
     }
     if (_scheduleVm.state == ScheduleState.error) {
       return Center(
@@ -258,7 +260,7 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
 
   Widget _buildSeriesTab() {
     if (_seriesVm.state == SeriesRecordingsState.loading) {
-      return Center(child: CircularProgressIndicator(color: AppColorScheme.accent));
+      return Center(child: const CircularProgressIndicator(color: Colors.white70));
     }
     if (_seriesVm.state == SeriesRecordingsState.error) {
       return Center(
@@ -592,17 +594,29 @@ class _RecordingsPillButtonState extends State<_RecordingsPillButton> {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
           decoration: BoxDecoration(
-            color: active
-                ? AppColorScheme.accent.withValues(alpha: _focused ? 1.0 : 0.7)
+            // Kos TV: white while focused, a lighter grey when chosen.
+            color: _focused
+                ? kostvLight
+                : widget.isActive
+                ? Colors.white.withValues(alpha: 0.28)
                 : Colors.white.withValues(alpha: 0.10),
             borderRadius: AppRadius.circular(20),
           ),
           child: widget.icon != null
-              ? Icon(widget.icon, color: Colors.white.withValues(alpha: active ? 1.0 : 0.8), size: 18)
+              ? Icon(
+                  widget.icon,
+                  color: _focused
+                      ? kostvOnLight
+                      : Colors.white.withValues(alpha: active ? 1.0 : 0.8),
+                  size: 18,
+                )
               : Text(
                   widget.label ?? '',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: active ? 1.0 : 0.8),
+                    color: _focused
+                        ? kostvOnLight
+                        : Colors.white.withValues(alpha: active ? 1.0 : 0.8),
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                     fontSize: 13,
                   ),
                 ),

@@ -19588,4 +19588,30 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvGenreUnavailable => 'Couldn\'t load this genre';
+
+  @override
+  String get kostvCatalogUnwatched => 'Unwatched';
+
+  @override
+  String get kostvCatalogFavorites => 'Favourites';
+
+  @override
+  String get kostvLibraryKicker => 'Library';
+
+  @override
+  String kostvLibrariesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count libraries',
+      one: '1 library',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvLibrariesEmpty => 'There are no libraries on the server';
+
+  @override
+  String get kostvLibrariesUnavailable => 'Couldn\'t load the libraries';
 }

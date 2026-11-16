@@ -110,7 +110,12 @@ String libraryRoute(
     case 'livetv':
       return Destinations.liveTvGuide;
     default:
-      return Destinations.library(id, serverId: serverId);
+      return Destinations.library(
+        id,
+        serverId: serverId,
+        collectionType: collectionType,
+        title: name,
+      );
   }
 }
 
