@@ -530,14 +530,17 @@ final appRouter = GoRouter(
         final includeType = state.uri.queryParameters['includeType'];
         final serverId = state.uri.queryParameters['serverId'];
         // Kos TV: a genre of films and series opens the page of its own.
-        if (includeType == null ||
-            includeType == 'Movie' ||
-            includeType == 'Series') {
+        // Genres of a library of books, home videos or mixed ones keep the
+        // page that lists every kind.
+        if (includeType == 'Movie' ||
+            includeType == 'Series' ||
+            (includeType == null && parentId == null)) {
           return KostvGenreScreen(
             genreId: genreId,
             genreName: genreName,
             parentId: parentId,
             onlyType: includeType,
+            serverId: serverId,
           );
         }
         return LibraryBrowseScreen(
@@ -545,7 +548,7 @@ final appRouter = GoRouter(
           serverId: serverId,
           genreId: genreId,
           genreName: genreName,
-          includeItemTypes: [includeType],
+          includeItemTypes: includeType != null ? [includeType] : null,
         );
       },
     ),

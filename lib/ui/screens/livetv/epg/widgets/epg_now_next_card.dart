@@ -5,6 +5,8 @@ import '../../../../../l10n/app_localizations.dart';
 import '../../../../widgets/adaptive/adaptive_glass.dart';
 import '../../../../widgets/focus/focusable_wrapper.dart';
 import '../../../../widgets/offline_aware_image.dart';
+import '../../../detail/kostv/kostv_detail_buttons.dart'
+    show kostvLight;
 
 /// Premium mobile guide card: channel logo + number chip + name on the left,
 /// the current program with a live progress bar and remaining time, and the
@@ -101,7 +103,7 @@ class EpgNowNextCard extends StatelessWidget {
                             AppColorScheme.onSurface.withValues(alpha: 0.18),
                         // Kos TV: a white line, as on the rest of the app.
                         valueColor: const AlwaysStoppedAnimation<Color>(
-                            Color(0xFFF3F5FA)),
+                            kostvLight),
                       ),
                     ),
                   ),

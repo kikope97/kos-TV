@@ -3,6 +3,8 @@ import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../../widgets/bounded_network_image.dart';
 import '../../../../widgets/marquee_text.dart';
+import '../../../detail/kostv/kostv_detail_buttons.dart'
+    show kostvLight, kostvOnLight;
 
 /// Channel identity cell for the guide rail: logo pinned left, with the accent
 /// number chip and the channel name right-justified against the cell's trailing
@@ -45,8 +47,8 @@ class EpgChannelCell extends StatelessWidget {
   static const double _logoMaxWidth = 66;
   static const double _logoGap = 6;
   static const Color _restingCellColor = Color(0xEF353940);
-  static const Color _focusedCellColor = Color(0xFFF3F5FA);
-  static const Color _onFocusedCell = Color(0xFF14161C);
+  static const Color _focusedCellColor = kostvLight;
+  static const Color _onFocusedCell = kostvOnLight;
 
   const EpgChannelCell({
     super.key,
@@ -158,19 +160,36 @@ class EpgChannelCell extends StatelessWidget {
 
   /// The image viewport fills the cell's available height. The cell surface
   /// behind it supplies the contrast, so logos don't get a second card.
-  Widget _logo(double width) => SizedBox(
-    width: width,
-    height: double.infinity,
-    child: (logoUrl != null && logoUrl!.isNotEmpty)
-        ? BoundedNetworkImage(
-            imageUrl: logoUrl!,
-            fit: BoxFit.contain,
-            fadeInDuration: Duration.zero,
-            maxWidth: 256,
-            errorBuilder: (context, url, error) => _fallback(),
-          )
-        : _fallback(),
-  );
+  Widget _logo(double width) {
+    final image = SizedBox(
+      width: width,
+      height: double.infinity,
+      child: _logoImage(),
+    );
+    // Kos TV: on the white of the focused channel a white logo would
+    // vanish: it keeps a plate of the resting cell's colour behind it.
+    if (!focused || apple) return image;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: _restingCellColor,
+          borderRadius: AppRadius.circular(7),
+        ),
+        child: image,
+      ),
+    );
+  }
+
+  Widget _logoImage() => (logoUrl != null && logoUrl!.isNotEmpty)
+      ? BoundedNetworkImage(
+          imageUrl: logoUrl!,
+          fit: BoxFit.contain,
+          fadeInDuration: Duration.zero,
+          maxWidth: 256,
+          errorBuilder: (context, url, error) => _fallback(),
+        )
+      : _fallback();
 
   Widget _fallback() => Icon(
     Icons.tv,

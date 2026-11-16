@@ -4,6 +4,8 @@ import 'package:moonfin_design/moonfin_design.dart';
 import '../../../../widgets/live_tv/live_tv_recording_icon.dart';
 import '../../../../widgets/marquee_text.dart';
 import '../epg_genre.dart';
+import '../../../detail/kostv/kostv_detail_buttons.dart'
+    show kostvLight;
 
 /// A single program in the guide grid. Pure presentation: the host positions it
 /// (left/width along the timeline) and owns focus, passing [focused]. The genre
@@ -87,7 +89,7 @@ class EpgProgramCell extends StatelessWidget {
 
     final focusBorder = focused
         // Kos TV: white, not the theme's blue, as on the rest of the app.
-        ? Border.all(color: const Color(0xFFF3F5FA), width: apple ? 1.5 : 2)
+        ? Border.all(color: kostvLight, width: apple ? 1.5 : 2)
         : null;
 
     // Loading and failed placeholders span the whole row while programs are
@@ -314,7 +316,7 @@ class EpgProgramCell extends StatelessWidget {
                 backgroundColor: AppColorScheme.rangeTrack,
                 // Kos TV: a thin white line, as on the rest of the app.
                 valueColor: const AlwaysStoppedAnimation<Color>(
-                  Color(0xFFF3F5FA),
+                  kostvLight,
                 ),
               ),
             ),

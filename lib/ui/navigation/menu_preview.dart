@@ -81,6 +81,16 @@ class MenuPreview {
   static void show(BuildContext context, String route) {
     if (!supported || !Destinations.isMenuPage(route)) return;
     final router = GoRouter.of(context);
+    final under = _menuPageUnder(router);
+    if (under != null && route != Destinations.home) {
+      // On a page inside another menu page (a genre, within Genres): back
+      // out to that page first, so the stack stays Home and one menu page.
+      if (under == route) return;
+      _unwind(router, () => router.pushReplacement(route));
+      arriving.value = route;
+      _hold();
+      return;
+    }
     final here = shownPath(router);
     if (here == route) return;
     arriving.value = route;
@@ -103,6 +113,17 @@ class MenuPreview {
   static bool open(BuildContext context, String route) {
     _release();
     final router = GoRouter.of(context);
+    final under = _menuPageUnder(router);
+    if (under != null && route != Destinations.home) {
+      // On a page inside another menu page: back out to it first. Its own
+      // button just goes back to it.
+      if (under == route) {
+        _unwind(router, null);
+        return false;
+      }
+      _unwind(router, () => router.pushReplacement(route));
+      return false;
+    }
     final here = shownPath(router);
     if (here == route) return true;
     if (route == Destinations.home || PlatformDetection.isWeb) {
@@ -113,6 +134,39 @@ class MenuPreview {
       router.push(route);
     }
     return false;
+  }
+
+  /// The menu page (not Home) that the page on screen was opened from, when
+  /// the page on screen is not a menu page itself: Genres under a genre.
+  /// Never on the web, where menu pages replace the whole stack.
+  static String? _menuPageUnder(GoRouter router) {
+    if (PlatformDetection.isWeb) return null;
+    final matches = router.routerDelegate.currentConfiguration.matches;
+    if (matches.length < 2) return null;
+    if (Destinations.isMenuPage(matches.last.matchedLocation)) return null;
+    for (var i = matches.length - 2; i >= 0; i--) {
+      final at = matches[i].matchedLocation;
+      if (at == Destinations.home) return null;
+      if (Destinations.isMenuPage(at)) return at;
+    }
+    return null;
+  }
+
+  /// Pops back to the menu page under the one on screen, then runs [then]
+  /// once the router has settled.
+  static void _unwind(GoRouter router, VoidCallback? then) {
+    final matches = router.routerDelegate.currentConfiguration.matches;
+    var pops = 0;
+    for (var i = matches.length - 1; i > 0; i--) {
+      if (Destinations.isMenuPage(matches[i].matchedLocation)) break;
+      pops++;
+    }
+    for (var i = 0; i < pops && router.canPop(); i++) {
+      router.pop();
+    }
+    if (then != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => then());
+    }
   }
 
   /// The page on screen. A page pushed over another (Search over Home, on a

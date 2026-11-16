@@ -4,6 +4,8 @@ import 'package:moonfin_design/moonfin_design.dart';
 import '../../../../widgets/adaptive/adaptive_glass.dart';
 import '../../../../widgets/focus/focus_theme.dart';
 import '../../../../widgets/focus/focusable_wrapper.dart';
+import '../../../detail/kostv/kostv_detail_buttons.dart'
+    show kostvLight;
 
 /// Horizontal genre filter rail. Focusable pill chips (full d-pad on every
 /// platform); on Apple the chips sit inside a frosted segmented-style container
@@ -195,7 +197,7 @@ class _EpgFilterRailState extends State<EpgFilterRail> {
       fg = FocusTheme.solidFocusForeground;
     } else if (selected) {
       // Kos TV: the one picked is white, not the accent.
-      bg = const Color(0xFFF4F8FC);
+      bg = kostvLight;
       fg = const Color(0xFF10242E);
     } else {
       bg = apple

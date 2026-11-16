@@ -8,6 +8,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart' hide ImageType;
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/utils/genre_browse_utils.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/preference_constants.dart';
@@ -41,7 +42,11 @@ class KostvGenreScreen extends StatefulWidget {
     required this.genreName,
     this.parentId,
     this.onlyType,
+    this.serverId,
   });
+
+  /// The server the genre belongs to; the active one when not given.
+  final String? serverId;
 
   final String genreId;
   final String genreName;
@@ -60,7 +65,11 @@ class KostvGenreScreen extends StatefulWidget {
 class _KostvGenreScreenState extends State<KostvGenreScreen> {
   static const _page = 60;
 
-  final _client = GetIt.instance<MediaServerClient>();
+  // The server the genre came from (a Home row may show another one's).
+  late final MediaServerClient _client =
+      GetIt.instance<MediaServerClientFactory>().clientForServerOrActive(
+        widget.serverId,
+      );
   final _prefs = GetIt.instance<UserPreferences>();
   final _scroll = ScrollController();
   final _firstFocus = FocusNode(debugLabel: 'kostvGenreFirst');
@@ -98,6 +107,8 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
   @override
   void initState() {
     super.initState();
+    _wasGrouped = _grouped;
+    _prefs.addListener(_onPrefs);
     _scroll.addListener(_onScroll);
     unawaited(_counts());
     unawaited(_load(reset: true));
@@ -105,6 +116,7 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
 
   @override
   void dispose() {
+    _prefs.removeListener(_onPrefs);
     _token++;
     _scroll.dispose();
     _firstFocus.dispose();
@@ -116,6 +128,15 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
   }
 
   bool get _grouped => _prefs.get(UserPreferences.groupItemsIntoCollections);
+  late bool _wasGrouped;
+
+  /// Grouping into collections changed in Settings: the list follows.
+  void _onPrefs() {
+    final grouped = _grouped;
+    if (grouped == _wasGrouped || !mounted) return;
+    _wasGrouped = grouped;
+    unawaited(_load(reset: true));
+  }
 
   List<String> get _types => switch (_kind) {
     _Kind.all => const ['Movie', 'Series'],
@@ -130,6 +151,8 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
   };
 
   Future<void> _counts() async {
+    // Only films or only series: there is no choice to offer.
+    if (widget.onlyType != null) return;
     Future<int> count(String type) async {
       final response = await _client.itemsApi.getItems(
         parentId: widget.parentId,
@@ -255,7 +278,6 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
   @override
   Widget build(BuildContext context) {
     final phone = PlatformDetection.useMobileUi;
-    final hasItems = _items.isNotEmpty;
     return Scaffold(
       backgroundColor: AppColorScheme.background,
       body: NavigationLayout(
@@ -264,7 +286,9 @@ class _KostvGenreScreenState extends State<KostvGenreScreen> {
           fit: StackFit.expand,
           children: [
             _Art(url: _art),
-            phone || !hasItems
+            // Always the same wrapper: changing the filter mustn't rebuild
+            // the page and throw the focus off the pills.
+            phone
                 ? _content(context)
                 : RequestInitialFocus(
                     targetNode: _firstFocus,

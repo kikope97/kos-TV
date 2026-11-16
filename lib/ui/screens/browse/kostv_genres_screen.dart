@@ -60,11 +60,14 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
   @override
   void initState() {
     super.initState();
+    _wasGrouped = _grouped;
+    _prefs.addListener(_onPrefs);
     unawaited(_load());
   }
 
   @override
   void dispose() {
+    _prefs.removeListener(_onPrefs);
     _disposed = true;
     _firstFocus.dispose();
     _scroll.dispose();
@@ -72,6 +75,17 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
   }
 
   bool get _grouped => _prefs.get(UserPreferences.groupItemsIntoCollections);
+  late bool _wasGrouped;
+
+  /// Grouping into collections changed in Settings: counts and pictures
+  /// follow.
+  void _onPrefs() {
+    final grouped = _grouped;
+    if (grouped == _wasGrouped || _disposed) return;
+    _wasGrouped = grouped;
+    _used.clear();
+    unawaited(_load());
+  }
 
   Future<void> _load() async {
     final token = ++_token;
@@ -140,7 +154,13 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
   /// A film of each genre for its picture, a few genres at a time; a genre
   /// with nothing to open goes.
   Future<void> _loadPictures(int token) async {
-    final todo = List<_Genre>.of(_genres);
+    // A genre with its own picture and a count from the server needs no
+    // asking, unless collections change what it counts.
+    final grouped = _grouped;
+    final todo = [
+      for (final g in _genres)
+        if (g.image == null || grouped || g.count <= 0) g,
+    ];
     for (var i = 0; i < todo.length; i += 4) {
       if (_disposed || token != _token) return;
       await Future.wait(todo.skip(i).take(4).map((g) => _picture(g, token)));

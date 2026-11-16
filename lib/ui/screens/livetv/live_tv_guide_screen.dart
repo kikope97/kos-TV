@@ -47,6 +47,8 @@ import 'guide/guide_layout_profile.dart';
 import 'guide/guide_selection.dart';
 import 'guide/guide_window.dart';
 import 'live_tv_channel_player_loader.dart';
+import '../detail/kostv/kostv_detail_buttons.dart'
+    show kostvLight, kostvOnLight;
 
 // Start fetching the next batch of channel programs this many rows before the
 // lazily-loaded edge, so rows are usually populated by the time they're visible.
@@ -888,14 +890,17 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
   }
 
   /// Kos TV: what kind of program it is, in the person's language.
-  String _kindLabel(AppLocalizations l10n, GuideProgram p) {
-    if (p.isMovie) return l10n.kostvEpgMovie;
-    if (p.isSports) return l10n.kostvEpgSports;
-    if (p.isNews) return l10n.kostvEpgNews;
-    if (p.isKids) return l10n.kostvEpgKids;
-    if (p.isSeries) return l10n.kostvEpgSeries;
-    return '';
-  }
+  /// The program's kind in the person's language, the one [epgGenreFor]
+  /// picks (and colours the cell by).
+  String _kindLabel(AppLocalizations l10n, GuideProgram p) =>
+      switch (epgGenreFor(p).label) {
+        'Movie' => l10n.kostvEpgMovie,
+        'Sports' => l10n.kostvEpgSports,
+        'News' => l10n.kostvEpgNews,
+        'Kids' => l10n.kostvEpgKids,
+        'Series' => l10n.kostvEpgSeries,
+        _ => '',
+      };
 
   GuideProgram? _currentProgramForChannel(String channelId) {
     final programs = _vm.programsForChannel(channelId);
@@ -965,7 +970,11 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
       final below = matches.length >= 2
           ? matches[matches.length - 2].matchedLocation
           : null;
-      if (below == null || below == Destinations.liveTv) {
+      // Pushed (from the menu over Home, or from the Live TV page itself),
+      // Back goes back to where it came from; only the page the address
+      // nests under it is skipped.
+      final pushed = matches.isNotEmpty && matches.last is ImperativeRouteMatch;
+      if (below == null || (below == Destinations.liveTv && !pushed)) {
         context.go(Destinations.home);
         return;
       }
@@ -3019,7 +3028,7 @@ class _GuidePillButtonState extends State<_GuidePillButton> {
         // Kos TV: grey, white with the focus, as the rest of the app.
         decoration: BoxDecoration(
           color: _focused
-              ? const Color(0xFFF3F5FA)
+              ? kostvLight
               : Colors.white.withValues(alpha: active ? 0.2 : 0.10),
           borderRadius: AppRadius.circular(20),
         ),
@@ -3030,7 +3039,7 @@ class _GuidePillButtonState extends State<_GuidePillButton> {
 
   Widget _buildChild(bool active) {
     final color = _focused
-        ? const Color(0xFF14161C)
+        ? kostvOnLight
         : Colors.white.withValues(alpha: active ? 1.0 : 0.8);
     if (widget.icon != null && widget.label != null) {
       return Row(
