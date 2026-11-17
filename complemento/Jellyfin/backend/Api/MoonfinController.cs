@@ -96,7 +96,7 @@ public class MoonfinController : ControllerBase
         {
             if (!_configBackup.Restore())
             {
-                return NotFound(new { error = "No configuration backup was found." });
+                return NotFound(new { error = "No hay ninguna copia de la configuración." });
             }
         }
         catch (Exception ex)
@@ -501,7 +501,7 @@ public class MoonfinController : ControllerBase
 
         if (config?.EnableSettingsSync != true)
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = "Settings sync is disabled" });
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = "La sincronización de ajustes está apagada" });
         }
 
         var profiles = ProfilesOrAll(request.Profiles);
@@ -512,17 +512,17 @@ public class MoonfinController : ControllerBase
 
         if (profiles.All(p => config.GetDefaultsFor(p) == null))
         {
-            return BadRequest(new { error = "No default user settings configured" });
+            return BadRequest(new { error = "No hay valores por defecto guardados" });
         }
 
         if (request.Overwrite && request.Keys != null)
         {
-            return BadRequest(new { error = "A full reset applies every default, so it can't take a list of settings" });
+            return BadRequest(new { error = "Restablecer aplica todos los valores por defecto: no admite una lista de ajustes" });
         }
 
         if (request.UserIds != null && (request.UserIds.Count == 0 || request.UserIds.Contains(Guid.Empty)))
         {
-            return BadRequest(new { error = "A valid userId is required" });
+            return BadRequest(new { error = "Falta un usuario válido" });
         }
 
         var serverUserIds = request.UserIds == null ? GetAllServerUserIds() : null;
@@ -534,7 +534,7 @@ public class MoonfinController : ControllerBase
             var targets = request.UserIds ?? serverUserIds;
             if (targets == null)
             {
-                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = "User manager unavailable" });
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = "No se pueden leer los usuarios del servidor" });
             }
 
             (usersAffected, orphansDeleted) = await _settingsService.ResetUsersToDefaultsAsync(
@@ -587,13 +587,13 @@ public class MoonfinController : ControllerBase
 
         if (config?.EnableSettingsSync != true)
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = "Settings sync is disabled" });
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new { error = "La sincronización de ajustes está apagada" });
         }
 
         var targets = (request.ToUserIds ?? new List<Guid>()).Where(id => id != Guid.Empty && id != request.FromUserId).Distinct().ToList();
         if (request.FromUserId == Guid.Empty || targets.Count == 0)
         {
-            return BadRequest(new { error = "A user to copy from and at least one other user to copy to are required" });
+            return BadRequest(new { error = "Hace falta de quién copiar y al menos otro usuario al que copiar" });
         }
 
         var profiles = ProfilesOrAll(request.Profiles);
@@ -604,12 +604,12 @@ public class MoonfinController : ControllerBase
 
         if (request.Replace && request.Keys != null)
         {
-            return BadRequest(new { error = "Replace copies whole profiles, so it can't take a list of settings" });
+            return BadRequest(new { error = "Reemplazar copia perfiles enteros: no admite una lista de ajustes" });
         }
 
         if (await _settingsService.GetUserSettingsAsync(request.FromUserId) == null)
         {
-            return NotFound(new { error = "That user has no saved Moonfin settings" });
+            return NotFound(new { error = "Esa persona no tiene ajustes guardados" });
         }
 
         var usersAffected = await _settingsService.CopySettingsAsync(request.FromUserId, targets, profiles, request.Keys, request.Replace);
@@ -617,7 +617,7 @@ public class MoonfinController : ControllerBase
     }
 
     private static readonly string UnknownProfileError =
-        "Unknown profile. Valid profiles: " + string.Join(", ", MoonfinUserSettings.ValidProfiles);
+        "Perfil desconocido. Los perfiles válidos son: " + string.Join(", ", MoonfinUserSettings.ValidProfiles);
 
     /// <summary>The requested profile names, every profile when none were given, or null when one isn't valid.</summary>
     private static List<string>? ProfilesOrAll(List<string>? requested)
@@ -1195,7 +1195,16 @@ public class MoonfinController : ControllerBase
             return NotFound();
         }
 
-        var effectiveUserId = (userId.HasValue && userId.Value != Guid.Empty) ? userId : this.GetUserIdFromClaims();
+        // Kos TV: the caller's own libraries. Another person's (userId) only for
+        // an administrator: anyone else would read what that person may see.
+        var callerId = this.GetUserIdFromClaims();
+        var askedForOther = userId.HasValue && userId.Value != Guid.Empty && userId != callerId;
+        if (askedForOther && !this.IsAdminFromClaims())
+        {
+            return StatusCode(StatusCodes.Status403Forbidden);
+        }
+
+        var effectiveUserId = askedForOther ? userId : callerId;
         var queryUser = (effectiveUserId.HasValue && effectiveUserId.Value != Guid.Empty) ? ResolveQueryUser(effectiveUserId.Value) : null;
 
         // Without a resolved user we can't tell which libraries this caller is allowed to see, so

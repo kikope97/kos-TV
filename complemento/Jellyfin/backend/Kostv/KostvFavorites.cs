@@ -1,3 +1,4 @@
+using MediaBrowser.Model.Entities;
 using System.Text.Json.Serialization;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Hosting;
@@ -25,6 +26,15 @@ public sealed class KostvFavoriteData
 public sealed class KostvFavoriteDates : FileBackedCacheService<KostvFavoriteData>
 {
     private readonly object _lock = new();
+
+    /// <summary>The entries change under <see cref="_lock"/>, so they are written out under it.</summary>
+    protected override T WithEntriesLocked<T>(Func<T> read)
+    {
+        lock (_lock)
+        {
+            return read();
+        }
+    }
 
     public KostvFavoriteDates(ILogger<KostvFavoriteDates> logger)
         : base(logger, "kostv-favorites.json", "kOS TV favourites")
@@ -124,7 +134,16 @@ public sealed class KostvFavoritesWatcher : IHostedService
                 return;
             }
 
-            // Saved for every bit of progress too: only a change of heart is written.
+            // Saved for every bit of progress too: only a change of heart is written. A
+            // favourite is dated only when it is marked (the heart, or an app saving the
+            // person's data); one first met while saving progress was marked before this was
+            // kept, so its moment stays unknown instead of being today.
+            var marking = e.SaveReason is UserDataSaveReason.UpdateUserRating or UserDataSaveReason.UpdateUserData;
+            if (e.UserData.IsFavorite && !marking)
+            {
+                return;
+            }
+
             if (_dates.Mark(e.UserId, e.Item.Id, e.UserData.IsFavorite, DateTimeOffset.UtcNow))
             {
                 _ = _dates.FlushAsync();

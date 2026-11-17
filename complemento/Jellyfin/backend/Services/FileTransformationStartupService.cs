@@ -17,7 +17,7 @@ public class FileTransformationStartupService : IScheduledTask
     public string Name => "kOS TV: arranque";
     public string Key => "Moonfin.Server.Startup";
     public string Description => "Registra a mano los cambios del complemento en la web de Jellyfin. Normalmente se hace solo: úsalo solo si no aparece su botón en la cabecera.";
-    public string Category => "Startup Services";
+    public string Category => "kOS TV";
 
     private readonly ILogger<FileTransformationStartupService> _logger;
 

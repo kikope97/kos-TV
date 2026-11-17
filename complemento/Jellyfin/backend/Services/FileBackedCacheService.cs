@@ -27,6 +27,15 @@ public abstract class FileBackedCacheService<TEntry>
     };
 
     private ConcurrentDictionary<string, TEntry>? _cache;
+    private long _snapshotSeq;
+    private long _writtenSeq;
+
+    /// <summary>
+    /// Kos TV: runs <paramref name="read"/> under the lock the entries change under, for a
+    /// subclass whose entries are changed in place under a lock of its own. By default the
+    /// dictionary's own safety is enough.
+    /// </summary>
+    protected virtual T WithEntriesLocked<T>(Func<T> read) => read();
 
     protected FileBackedCacheService(ILogger logger, string cacheFileName, string displayName)
     {
@@ -48,12 +57,35 @@ public abstract class FileBackedCacheService<TEntry>
         var cache = _cache;
         if (cache == null) return;
 
+        // Kos TV: the copy is taken under the subclass's own lock (the one its entries change
+        // under), then written through a temp file and a rename (keeping a .bak), so a crash
+        // or a full disk midway never leaves the stored data half written. Some of these
+        // caches hold what people chose (their list, what they dismissed, when they marked a
+        // favourite), not just what can be fetched again.
+        string json;
+        int count;
+        long seq;
+        try
+        {
+            (json, count, seq) = WithEntriesLocked(() =>
+                (JsonSerializer.Serialize(new Dictionary<string, TEntry>(cache, StringComparer.OrdinalIgnoreCase), JsonOptions),
+                 cache.Count,
+                 Interlocked.Increment(ref _snapshotSeq)));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to flush {CacheName} cache to disk", _displayName);
+            return;
+        }
+
         await _fileLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            await using var stream = File.Create(_cacheFilePath);
-            await JsonSerializer.SerializeAsync(stream, cache, JsonOptions).ConfigureAwait(false);
-            _logger.LogDebug("{CacheName} cache flushed to disk ({Count} entries)", _displayName, cache.Count);
+            // A newer copy already went to disk: this older one would undo it.
+            if (seq < _writtenSeq) return;
+            _writtenSeq = seq;
+            await AtomicFile.WriteAllTextAsync(_cacheFilePath, json).ConfigureAwait(false);
+            _logger.LogDebug("{CacheName} cache flushed to disk ({Count} entries)", _displayName, count);
         }
         catch (Exception ex)
         {
@@ -88,25 +120,25 @@ public abstract class FileBackedCacheService<TEntry>
         {
             if (_cache != null) return _cache;
 
-            if (File.Exists(_cacheFilePath))
+            // Kos TV: the file, or its .bak when the file is missing or broken.
+            var loaded = AtomicFile.ReadWithRecovery(
+                _cacheFilePath,
+                text => JsonSerializer.Deserialize<Dictionary<string, TEntry>>(text, JsonOptions));
+            if (loaded != null)
             {
-                try
-                {
-                    using var stream = File.OpenRead(_cacheFilePath);
-                    var loaded = JsonSerializer.Deserialize<Dictionary<string, TEntry>>(stream, JsonOptions);
-                    _cache = loaded != null
-                        ? new ConcurrentDictionary<string, TEntry>(loaded, StringComparer.OrdinalIgnoreCase)
-                        : new ConcurrentDictionary<string, TEntry>(StringComparer.OrdinalIgnoreCase);
-                    _logger.LogInformation("{CacheName} cache loaded from disk ({Count} entries)", _displayName, _cache.Count);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to load {CacheName} cache from disk, starting fresh", _displayName);
-                    _cache = new ConcurrentDictionary<string, TEntry>(StringComparer.OrdinalIgnoreCase);
-                }
+                _cache = new ConcurrentDictionary<string, TEntry>(loaded, StringComparer.OrdinalIgnoreCase);
+                _logger.LogInformation("{CacheName} cache loaded from disk ({Count} entries)", _displayName, _cache.Count);
             }
             else
             {
+                if (File.Exists(_cacheFilePath))
+                {
+                    // Neither copy could be read: the broken one is put aside rather than written
+                    // over by the next flush, so what it held can still be looked at.
+                    SetAside(_cacheFilePath);
+                    _logger.LogWarning("Failed to load {CacheName} cache from disk, starting fresh (the unreadable file was kept beside it)", _displayName);
+                }
+
                 _cache = new ConcurrentDictionary<string, TEntry>(StringComparer.OrdinalIgnoreCase);
             }
         }
@@ -116,5 +148,17 @@ public abstract class FileBackedCacheService<TEntry>
         }
 
         return _cache;
+    }
+
+    private void SetAside(string path)
+    {
+        try
+        {
+            File.Move(path, $"{path}.broken-{DateTime.UtcNow:yyyyMMddHHmmss}", overwrite: true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not put the unreadable {CacheName} cache aside", _displayName);
+        }
     }
 }

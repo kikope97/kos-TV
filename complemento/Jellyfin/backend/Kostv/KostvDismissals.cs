@@ -33,6 +33,15 @@ public sealed class KostvDismissals : FileBackedCacheService<KostvDismissedList>
 
     private readonly object _lock = new();
 
+    /// <summary>The entries change under <see cref="_lock"/>, so they are written out under it.</summary>
+    protected override T WithEntriesLocked<T>(Func<T> read)
+    {
+        lock (_lock)
+        {
+            return read();
+        }
+    }
+
     public KostvDismissals(ILogger<KostvDismissals> logger)
         : base(logger, "kostv-home-dismissed.json", "kOS TV not interested")
     {

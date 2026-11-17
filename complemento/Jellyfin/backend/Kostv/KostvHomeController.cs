@@ -45,7 +45,7 @@ public class KostvHomeController : ControllerBase
             return Unauthorized(new { Error = "User not authenticated" });
         }
 
-        var page = await _home.GetAsync(userId.Value, user, refresh).ConfigureAwait(false);
+        var page = await _home.GetAsync(userId.Value, user, refresh, keep: start > 0).ConfigureAwait(false);
         start = Math.Max(0, start);
         limit = Math.Clamp(limit, 1, 20);
         var rows = page.Rows.Skip(start).Take(limit).Select(row => new
@@ -55,7 +55,7 @@ public class KostvHomeController : ControllerBase
             SeedId = row.SeedItemId,
             Items = row.ItemIds
                 .Select(id => Guid.TryParse(id, out var guid) ? _libraryManager.GetItemById(guid) : null)
-                .Where(item => item != null && UserReflection.IsVisibleTo(item, user))
+                .Where(item => item != null && UserReflection.IsVisibleStandaloneTo(item, user))
                 .Select(item => _cards.Map(item!, user))
                 .ToList()
         }).ToList();
@@ -73,7 +73,7 @@ public class KostvHomeController : ControllerBase
             Total = page.Rows.Count,
             page.Tmdb,
             NewEpisodes = first
-                ? newEpisodes.Where(item => UserReflection.IsVisibleTo(item, user)).Select(item => _cards.Map(item, user)).ToList()
+                ? newEpisodes.Where(item => UserReflection.IsVisibleStandaloneTo(item, user)).Select(item => _cards.Map(item, user)).ToList()
                 : null,
             // Of those, the series the person marked as favourite, to show it on their cards.
             FavoriteSeriesIds = first ? favoriteSeries.Select(id => id.ToString("N")).ToList() : null,
@@ -105,7 +105,7 @@ public class KostvHomeController : ControllerBase
             return Unauthorized(new { Error = "User not authenticated" });
         }
 
-        var list = _home.MyList(userId.Value, user);
+        var list = _home.MyList(userId.Value, user, fresh: true);
         return Ok(new
         {
             Watching = Cards(list.Watching, user),
@@ -176,7 +176,7 @@ public class KostvHomeController : ControllerBase
             return Unauthorized(new { Error = "User not authenticated" });
         }
 
-        if (_libraryManager.GetItemById(itemId) is not { } item || !UserReflection.IsVisibleTo(item, user))
+        if (_libraryManager.GetItemById(itemId) is not { } item || !UserReflection.IsVisibleStandaloneTo(item, user))
         {
             return NotFound();
         }

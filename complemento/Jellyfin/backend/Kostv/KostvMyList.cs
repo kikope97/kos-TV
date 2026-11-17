@@ -44,12 +44,47 @@ public sealed class KostvMyList : FileBackedCacheService<KostvMyListData>
 
     private readonly object _lock = new();
 
+    /// <summary>The entries change under <see cref="_lock"/>, so they are written out under it.</summary>
+    protected override T WithEntriesLocked<T>(Func<T> read)
+    {
+        lock (_lock)
+        {
+            return read();
+        }
+    }
+
     public KostvMyList(ILogger<KostvMyList> logger)
         : base(logger, "kostv-my-list.json", "kOS TV my list")
     {
     }
 
     private static string KeyOf(Guid userId) => userId.ToString("N");
+
+    /// <summary>
+    /// Kos TV: <paramref name="oldId"/> on the person's list is now <paramref name="newId"/> (the
+    /// server gave the title a new id); it keeps its place and when it was added. False when it
+    /// isn't on the list, or the new id already is.
+    /// </summary>
+    public bool Repoint(Guid userId, string oldId, string newId)
+    {
+        lock (_lock)
+        {
+            if (!EnsureLoaded().TryGetValue(KeyOf(userId), out var data) ||
+                data.Items.Any(e => e.ItemId == newId))
+            {
+                return false;
+            }
+
+            var entry = data.Items.FirstOrDefault(e => e.ItemId == oldId);
+            if (entry == null)
+            {
+                return false;
+            }
+
+            entry.ItemId = newId;
+            return true;
+        }
+    }
 
     /// <summary>The list of <paramref name="userId"/>, the newest first.</summary>
     public IReadOnlyList<KostvMyListEntry> For(Guid userId)

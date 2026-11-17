@@ -38,6 +38,52 @@ public sealed class MoonfinControllerCardContractTests
         Assert.Equal("PG-13", dto.GetType().GetProperty("OfficialRating")?.GetValue(dto));
     }
 
+    // Kos TV: an episode's card says where it belongs (T1:E6 and its series), or the app's
+    // news of favourite series and the hearts on «Episodios nuevos» have nothing to go on.
+    [Fact]
+    public void Map_CarriesWhereAnEpisodeBelongs()
+    {
+        var seriesId = Guid.NewGuid();
+        var seasonId = Guid.NewGuid();
+        var dto = Mapper().Map(
+            new MediaBrowser.Controller.Entities.TV.Episode
+            {
+                Name = "Piloto",
+                IndexNumber = 6,
+                ParentIndexNumber = 1,
+                SeriesId = seriesId,
+                SeasonId = seasonId,
+                SeriesName = "Serie",
+            },
+            null);
+
+        object? Field(string name) => dto.GetType().GetProperty(name)?.GetValue(dto);
+        Assert.Equal(6, Field("IndexNumber"));
+        Assert.Equal(1, Field("ParentIndexNumber"));
+        Assert.Equal(seriesId, Field("SeriesId"));
+        Assert.Equal(seasonId, Field("SeasonId"));
+        Assert.Equal("Serie", Field("SeriesName"));
+    }
+
+    [Fact]
+    public void Map_CarriesASongsArtists()
+    {
+        var dto = Mapper().Map(
+            new MediaBrowser.Controller.Entities.Audio.Audio
+            {
+                Name = "Canción",
+                Artists = ["Ana"],
+                AlbumArtists = ["Ana y Luis"],
+            },
+            null);
+
+        Assert.Equal("Ana y Luis", dto.GetType().GetProperty("AlbumArtist")?.GetValue(dto));
+        Assert.Equal(new[] { "Ana" }, dto.GetType().GetProperty("Artists")?.GetValue(dto) as IEnumerable<string>);
+        // A film has none of it.
+        var film = Mapper().Map(new Movie { Name = "Seed" }, null);
+        Assert.Null(film.GetType().GetProperty("SeriesId")?.GetValue(film));
+    }
+
     // A rename on the server side would leave the lookup null and quietly send every card without
     // user data, which nothing else here would notice.
     [Fact]

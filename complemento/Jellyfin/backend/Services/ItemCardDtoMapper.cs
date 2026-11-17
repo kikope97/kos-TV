@@ -1,5 +1,7 @@
 using System.Reflection;
 using MediaBrowser.Controller.Entities;
+using MediaBrowser.Controller.Entities.Audio;
+using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Library;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
@@ -57,6 +59,12 @@ public class ItemCardDtoMapper
 
         var backdropTags = item.GetImages(ImageType.Backdrop).Select(GetTag).ToList();
 
+        // Kos TV: looked up once (each is a trip to the library).
+        var episode = item as Episode;
+        var series = Lookup(() => episode?.Series);
+        var seriesBackdrops = series?.GetImages(ImageType.Backdrop).Select(GetTag).ToList();
+        var album = Lookup(() => (item as Audio)?.AlbumEntity);
+
         return new
         {
             item.Id,
@@ -71,8 +79,46 @@ public class ItemCardDtoMapper
             item.CriticRating,
             ImageTags = imageTags,
             BackdropImageTags = backdropTags,
-            UserData = BuildUserData(item, user)
+            UserData = BuildUserData(item, user),
+            // Kos TV: what an episode's or a song's card shows of where it belongs (T1:E6,
+            // the series' name and pictures, the album and its artist), as a stock item does.
+            item.IndexNumber,
+            item.ParentIndexNumber,
+            SeriesId = episode != null && episode.SeriesId != Guid.Empty ? episode.SeriesId : (Guid?)null,
+            SeriesName = episode?.SeriesName,
+            SeasonId = episode != null && episode.SeasonId != Guid.Empty ? episode.SeasonId : (Guid?)null,
+            SeriesPrimaryImageTag = TagOf(series, ImageType.Primary),
+            ParentBackdropItemId = seriesBackdrops is { Count: > 0 } ? series!.Id : (Guid?)null,
+            ParentBackdropImageTags = seriesBackdrops is { Count: > 0 } ? seriesBackdrops : null,
+            ParentLogoItemId = TagOf(series, ImageType.Logo) != null ? series!.Id : (Guid?)null,
+            ParentLogoImageTag = TagOf(series, ImageType.Logo),
+            AlbumId = album?.Id,
+            AlbumPrimaryImageTag = TagOf(album, ImageType.Primary),
+            AlbumArtist = (item as IHasAlbumArtist)?.AlbumArtists?.FirstOrDefault(),
+            Artists = (item as IHasArtist)?.Artists
         };
+    }
+
+    // A lookup that can't be made (the item outside a library) leaves those fields out
+    // instead of failing the whole card.
+    private T? Lookup<T>(Func<T?> find)
+        where T : class
+    {
+        try
+        {
+            return find();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Card lookup failed");
+            return null;
+        }
+    }
+
+    private static string? TagOf(BaseItem? owner, ImageType type)
+    {
+        var info = owner?.GetImageInfo(type, 0);
+        return info == null ? null : GetTag(info);
     }
 
     /// <summary>
