@@ -53,7 +53,8 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer>
   bool _current = true;
 
   /// Out of sight for now: covered by another page or a menu, or the app
-  /// sent to the background. The player goes; it comes back from the start.
+  /// sent to the background. The player goes; if it hadn't shown yet, it
+  /// waits its few seconds again on coming back.
   bool _away = false;
 
   @override
@@ -75,25 +76,47 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer>
     if (current == _current) return;
     _current = current;
     // Covered by the player, another page or a menu: its sound-free video
-    // mustn't run underneath; back on top, it starts again.
+    // mustn't run underneath.
     _setAway(!current);
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // On a TV's Home button the app stays alive in the background: the
-    // video mustn't go on playing there.
-    _setAway(state != AppLifecycleState.resumed || !_current);
+    // video mustn't go on playing there. Only a moment «inactive» (a
+    // browser window without the focus, the phone's notifications pulled
+    // down) isn't away: it's still in sight.
+    final hidden =
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.detached;
+    _setAway(hidden || !_current);
     if (mounted) setState(() {});
   }
 
   void _setAway(bool away) {
     if (away == _away) return;
     _away = away;
-    _visible = false;
+    if (away) {
+      // Seen, all or part of it: it plays once, so back on top the art
+      // stays. Not yet started: its wait starts over on coming back.
+      if (_visible) _finished = true;
+      _visible = false;
+      _timer?.cancel();
+      return;
+    }
+    if (_finished) {
+      _videoId = null;
+      return;
+    }
+    _videoId = null;
+    if (KostvBackdropTrailer.supported) {
+      _timer = Timer(widget.delay, _find);
+    }
   }
 
   Future<void> _find() async {
+    if (_away) return;
     final item = widget.item;
     try {
       final trailers = await KostvTrailers.sorted(
@@ -101,7 +124,7 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer>
         tmdbId: item.tmdbId,
         server: item.remoteTrailers,
       );
-      if (!mounted || _finished) return;
+      if (!mounted || _finished || _away) return;
       for (final trailer in trailers) {
         final url = trailer['Url'];
         if (url is! String) continue;

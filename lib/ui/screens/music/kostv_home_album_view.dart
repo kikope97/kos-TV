@@ -1,8 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show BrowserContextMenu;
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
@@ -24,6 +22,7 @@ import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
 import 'kostv_music_album_screen.dart';
 import 'kostv_music_widgets.dart';
+import '../../../util/kostv_browser_menu.dart';
 
 enum _AlbumChoice { playlist, download, artist }
 
@@ -59,13 +58,13 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
     super.initState();
     KostvNowPlaying.instance.addListener(_onNowPlaying);
     // With a mouse, the right click is the songs' menu, not the browser's.
-    if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
+    kostvHoldBrowserMenu();
   }
 
   @override
   void dispose() {
     KostvNowPlaying.instance.removeListener(_onNowPlaying);
-    if (kIsWeb) unawaited(BrowserContextMenu.enableContextMenu());
+    kostvReleaseBrowserMenu();
     _playFocus.dispose();
     super.dispose();
   }
@@ -312,7 +311,9 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
               autofocus: PlatformDetection.isTV,
               onTap: tracks.isEmpty
                   ? () {}
-                  : () => unawaited(playMusicTracks(context, tracks)),
+                  : () => unawaited(
+                      kostvMusicOnce(() => playMusicTracks(context, tracks)),
+                    ),
             ),
             if (tracks.length > 1)
               KostvMusicButton(
@@ -320,9 +321,11 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
                 icon: Icons.shuffle_rounded,
                 label: l10n.shuffle,
                 onTap: () => unawaited(
-                  playMusicTracks(
-                    context,
-                    List<AggregatedItem>.of(tracks)..shuffle(),
+                  kostvMusicOnce(
+                    () => playMusicTracks(
+                      context,
+                      List<AggregatedItem>.of(tracks)..shuffle(),
+                    ),
                   ),
                 ),
               ),
@@ -400,8 +403,11 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
           duration: track.runtime?.inSeconds,
           sounding: track.id == soundingId,
           soundingPlays: track.id == soundingId && now.playing,
-          onTap: () =>
-              unawaited(playMusicTracks(context, tracks, startIndex: i)),
+          onTap: () => unawaited(
+            kostvMusicOnce(
+              () => playMusicTracks(context, tracks, startIndex: i),
+            ),
+          ),
           onMenu: () => unawaited(showKostvMusicSongMenu(context, item: track)),
         ),
     ];

@@ -102,6 +102,18 @@ class _KostvMyListScreenState extends State<KostvMyListScreen> {
   Future<void> _clearWatched() async {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    // The row of watched ones goes with the focus in it: the focus moves
+    // first to the row above, or up to the menu.
+    final page = _list.page;
+    if (page != null) {
+      final shown = _shown(page);
+      final at = shown.indexOf(_Part.watched);
+      if (at > 0) {
+        _rowKeys[shown[at - 1]]?.currentState?.requestFocusAt(0);
+      } else {
+        NavigationLayout.focusNavbarNotifier.value?.call();
+      }
+    }
     final done = await _list.clearWatched();
     messenger.showSnackBar(
       SnackBar(

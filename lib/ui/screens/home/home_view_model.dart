@@ -76,7 +76,46 @@ class HomeViewModel extends ChangeNotifier {
   final TvChannelsService _tvChannels = TvChannelsService();
 
   List<HomeRow> _rows = [];
+
+  /// What [rows] last gave, and from what: Home reads it many times a
+  /// build, and a new list each time would make every row look changed.
+  ({List<Object?> from, List<HomeRow> out})? _rowsMemo;
+
   List<HomeRow> get rows {
+    final from = <Object?>[
+      _rows,
+      _emptySectionIds.isEmpty
+          ? null
+          : Object.hashAllUnordered(_emptySectionIds),
+      _emptySectionIds.length,
+      _kostvHiddenVersion,
+      _appsRow,
+      _watchPartyRow,
+      _prefs.kostvHomeActive ? _kostvRewatchRow : null,
+      _shuffleRow,
+    ];
+    final memo = _rowsMemo;
+    if (memo != null && _sameInputs(memo.from, from)) return memo.out;
+    final out = _buildRows();
+    _rowsMemo = (from: from, out: out);
+    return out;
+  }
+
+  static bool _sameInputs(List<Object?> a, List<Object?> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      final x = a[i];
+      final y = b[i];
+      if (x is int || y is int || x == null || y == null) {
+        if (x != y) return false;
+      } else if (!identical(x, y)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  List<HomeRow> _buildRows() {
     final all = _emptySectionIds.isEmpty
         ? _rows
         : _rows.where((row) => !_isEmptySectionPlaceholder(row)).toList();
@@ -1886,6 +1925,17 @@ class HomeViewModel extends ChangeNotifier {
     _awaitingRequestsService = true;
     late final VoidCallback listener;
     listener = () {
+      // Kos TV: another person signed in since: this Home is no longer the
+      // app's (a new one was made for them) and loads nothing more, or it
+      // would load the last person's rows into the new one's caches.
+      final getIt = GetIt.instance;
+      if (!getIt.isRegistered<HomeViewModel>() ||
+          !identical(getIt<HomeViewModel>(), this)) {
+        stremfin.removeListener(listener);
+        _requestsServiceListener = null;
+        _awaitingRequestsService = false;
+        return;
+      }
       if (!stremfin.isAllowed) return;
       stremfin.removeListener(listener);
       _requestsServiceListener = null;
@@ -1987,6 +2037,7 @@ class HomeViewModel extends ChangeNotifier {
       );
       _kostvServerHidden = page.hidden;
       _kostvVisibleMemo = null;
+      _kostvHiddenVersion++;
       if (page.myListIds case final ids?) _myList?.noteIds(ids);
     }
     final myListRow = more
@@ -2112,8 +2163,14 @@ class HomeViewModel extends ChangeNotifier {
 
   /// Puts [item] back, within its undo time.
   void kostvUndoNotInterested(AggregatedItem item) {
-    _kostvPending.remove(item.id)?.timer.cancel();
+    final pending = _kostvPending.remove(item.id);
+    pending?.timer.cancel();
     if (_kostvDismissed.remove(item.id)) {
+      // Taken back just as the time ran out: the server already heard it,
+      // so it's told to forget it too.
+      if (pending == null) {
+        unawaited(_kostvHome.notInterested(item.id, undo: true));
+      }
       _kostvHiddenVersion++;
       notifyListeners();
     }

@@ -594,6 +594,31 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     }
   }
 
+  /// With a remote: the last of a kind taken off took its row away, and the
+  /// focus with it. It comes back to the page's first buttons rather than
+  /// staying nowhere, where the next arrow lands anywhere.
+  void _keepFocusOnPage() {
+    if (PlatformDetection.useMobileUi ||
+        InputModeTracker.of(context) != InputMode.keyboard) {
+      return;
+    }
+    final hadFocus = FocusManager.instance.primaryFocus;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? false)) return;
+      final now = FocusManager.instance.primaryFocus;
+      final lost =
+          now == null ||
+          (now is FocusScopeNode && now.focusedChild == null) ||
+          (hadFocus != null && identical(now, hadFocus) && now.context == null);
+      if (!lost) return;
+      if (_firstChip.context?.mounted == true) {
+        _firstChip.requestFocus();
+      } else if (_firstRow.context?.mounted == true) {
+        _firstRow.requestFocus();
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -605,6 +630,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
         _vm.state != FavoritesState.loading) {
       _only = null;
     }
+    _keepFocusOnPage();
     Widget body;
     if (_vm.state == FavoritesState.loading && kinds.isEmpty) {
       body = const Center(child: CircularProgressIndicator());
@@ -1293,7 +1319,9 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
             watchedBehavior: _prefs.get(
               UserPreferences.watchedIndicatorBehavior,
             ),
-            focusColor: Color(_prefs.get(UserPreferences.focusColor).colorValue),
+            focusColor: Color(
+              _prefs.get(UserPreferences.focusColor).colorValue,
+            ),
             cardFocusExpansion:
                 !phone && _prefs.get(UserPreferences.cardFocusExpansion),
             externalIsFocused: InputModeTracker.showFocusVisuals(

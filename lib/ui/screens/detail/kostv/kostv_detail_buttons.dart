@@ -124,8 +124,12 @@ class KostvButtonFace extends StatelessWidget {
   final Color? activeColor;
   final bool focused;
 
-  /// A phone: Play across the width, smaller circles.
+  /// A phone: smaller buttons.
   final bool compact;
+
+  /// Play across the width: a phone held upright. Held sideways it sits on
+  /// the line of the circles, as wide as what it says.
+  final bool? fill;
   final KostvPlayText? play;
 
   const KostvButtonFace({
@@ -138,6 +142,7 @@ class KostvButtonFace extends StatelessWidget {
     required this.activeColor,
     required this.focused,
     required this.compact,
+    this.fill,
     this.play,
   });
 
@@ -158,6 +163,7 @@ class KostvButtonFace extends StatelessWidget {
         ? const Color(0xFF55566A)
         : const Color(0xFFF3F5FA).withValues(alpha: 0.7);
     final height = compact ? 56.0 : 72.0;
+    final wide = fill ?? compact;
     final title = Text(
       text.title,
       maxLines: 1,
@@ -271,11 +277,11 @@ class KostvButtonFace extends StatelessWidget {
       child: AnimatedContainer(
         duration: _duration,
         height: height,
-        width: compact ? double.infinity : null,
+        width: wide ? double.infinity : null,
         padding: EdgeInsets.symmetric(horizontal: compact ? 18 : 30),
-        // Only the phone's spans the width; elsewhere it's as wide as what it
-        // says.
-        alignment: compact ? Alignment.center : null,
+        // Only the upright phone's spans the width; elsewhere it's as wide as
+        // what it says.
+        alignment: wide ? Alignment.center : null,
         decoration: BoxDecoration(
           color: light
               ? const Color(0xFFF3F5FA)

@@ -12745,11 +12745,12 @@ class _DetailActionButtonState extends State<_DetailActionButton>
         activeColor: widget.activeColor,
         focused: showHighlight,
         compact: isMobile,
+        fill: host!.fullWidthPrimary,
         play: widget.isPrimary
             ? KostvPlayText.of(
                 AppLocalizations.of(context),
                 widget.label,
-                host!.viewModel.item,
+                host.viewModel.item,
                 nextUp: host.viewModel.nextUp,
               )
             : null,

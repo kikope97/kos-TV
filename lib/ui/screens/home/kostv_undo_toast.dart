@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../util/focus/dpad_keys.dart';
+import '../../../util/platform_detection.dart';
+import '../../widgets/navigation_layout.dart';
 
 /// Kos TV: the notice after turning a title down, with a few seconds to take
 /// it back, as an email app does after deleting one: what happened, a ring
@@ -267,6 +269,19 @@ class _RingPainter extends CustomPainter {
       old.left != left || old.color != color;
 }
 
+/// Whether the phone's bottom bar is under the notice.
+bool _overBottomBar() {
+  if (!PlatformDetection.useMobileUi) return false;
+  try {
+    return NavigationLayout.usesBottomNavbar;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Takes away the notice showing, if there is one.
+VoidCallback? _kostvUndoToastShowing;
+
 /// Shows a [KostvUndoToast] low in the middle of the screen, over everything,
 /// until its time is up or it is taken back.
 void showKostvUndoToast(
@@ -279,19 +294,29 @@ void showKostvUndoToast(
   bool takeFocus = false,
 }) {
   final overlay = Overlay.of(context, rootOverlay: true);
+  // One notice at a time: a new one takes the place of the one showing,
+  // whose title stays turned down, rather than piling up over it.
+  _kostvUndoToastShowing?.call();
   late final OverlayEntry entry;
   var removed = false;
   void remove() {
     if (removed) return;
     removed = true;
+    if (identical(_kostvUndoToastShowing, remove)) {
+      _kostvUndoToastShowing = null;
+    }
     entry.remove();
   }
+
+  _kostvUndoToastShowing = remove;
 
   entry = OverlayEntry(
     builder: (context) => Positioned(
       left: 16,
       right: 16,
-      bottom: MediaQuery.paddingOf(context).bottom + 32,
+      // Over the phone's bottom bar, not hidden behind it.
+      bottom:
+          MediaQuery.paddingOf(context).bottom + (_overBottomBar() ? 96 : 32),
       child: Center(
         child: TweenAnimationBuilder<double>(
           tween: Tween(begin: 0, end: 1),

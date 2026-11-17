@@ -201,6 +201,8 @@ class _KostvDetailContentState extends State<KostvDetailContent>
             child: scores,
           );
     final textWidth = math.min(size.width * 0.52, 900.0);
+    // A phone held sideways: little height, so less room around the text.
+    final short = !PlatformDetection.isTV && size.height < 500;
 
     final Widget hero;
     if (landscape) {
@@ -212,9 +214,9 @@ class _KostvDetailContentState extends State<KostvDetailContent>
             Padding(
               padding: EdgeInsets.fromLTRB(
                 side.left,
-                PlatformDetection.isTV ? 110 : 96,
+                PlatformDetection.isTV ? 110 : (short ? 52 : 96),
                 side.right,
-                24,
+                short ? 14 : 24,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -237,7 +239,9 @@ class _KostvDetailContentState extends State<KostvDetailContent>
                   ),
                   // Room for Play growing as it takes the focus (and for
                   // its progress bar) without reaching the text above.
-                  SizedBox(height: PlatformDetection.isTV ? 46 : 34),
+                  SizedBox(
+                    height: PlatformDetection.isTV ? 46 : (short ? 22 : 34),
+                  ),
                   // Wider than the text: the buttons go on one line.
                   _buildActions(landscape),
                 ],
@@ -296,14 +300,19 @@ class _KostvDetailContentState extends State<KostvDetailContent>
           children: [
             hero,
             for (final s in parts)
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  side.left,
-                  landscape ? 24 : 16,
-                  side.right,
-                  0,
+              // Each section keeps its own state when another shows up
+              // ahead of it (a collection, the cast, audio and subtitles).
+              KeyedSubtree(
+                key: ObjectKey(s.node),
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    side.left,
+                    landscape ? 24 : 16,
+                    side.right,
+                    0,
+                  ),
+                  child: s.child,
                 ),
-                child: s.child,
               ),
           ],
         ),

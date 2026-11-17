@@ -30,6 +30,10 @@ class _Genre {
   final String name;
   int count;
   String? image;
+
+  /// Whether [count] came from asking the server for this genre's titles
+  /// (collections grouped or not), rather than the genre list's own.
+  bool counted = false;
 }
 
 /// Kos TV: the genres of the home server, as Apple TV shows a category: a
@@ -58,9 +62,23 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
   /// Pictures already on a tile, so two genres don't show the same film.
   final _used = <String>{};
 
+  /// The genres last shown, with their pictures and counts, and whose they
+  /// were: the page comes back at once with them (it opens just by resting
+  /// on its menu button) and freshens them behind, without asking for every
+  /// picture again.
+  static List<_Genre>? _last;
+  static String? _lastKey;
+
+  String get _key => '${_client.baseUrl}|${_client.userId}|$_grouped';
+
   @override
   void initState() {
     super.initState();
+    final last = _last;
+    if (last != null && _lastKey == _key) {
+      _genres = last;
+      _loading = false;
+    }
     _wasGrouped = _grouped;
     _prefs.addListener(_onPrefs);
     unawaited(_load());
@@ -145,10 +163,23 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
       }
     }
     if (_disposed || token != _token) return;
+    // Kept from before: a genre already shown keeps its picture and count.
+    final before = {for (final g in _genres) g.id: g};
+    for (final g in found) {
+      final old = before[g.id];
+      if (old != null && g.image == null) {
+        g.image = old.image;
+        g.counted = old.counted;
+        if (old.counted) g.count = old.count;
+      }
+    }
+    if (_failed && _genres.isNotEmpty) return;
     setState(() {
       _genres = found;
       _loading = false;
     });
+    _last = found;
+    _lastKey = _key;
     unawaited(_loadPictures(token));
   }
 
@@ -160,7 +191,7 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
     final grouped = _grouped;
     final todo = [
       for (final g in _genres)
-        if (g.image == null || grouped || g.count <= 0) g,
+        if (g.image == null || g.count <= 0 || (grouped && !g.counted)) g,
     ];
     for (var i = 0; i < todo.length; i += 4) {
       if (_disposed || token != _token) return;
@@ -196,6 +227,7 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
         return;
       }
       genre.count = count;
+      genre.counted = true;
       if (genre.image == null) {
         final items = ((response['Items'] as List?) ?? const [])
             .whereType<Map>()

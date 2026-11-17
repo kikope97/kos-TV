@@ -12,6 +12,7 @@ import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
 import 'kostv_music_widgets.dart';
+import '../../../util/kostv_browser_menu.dart';
 
 /// Kos TV: an artist the home server may not have all of: their picture
 /// and name, how many of their albums are at home, their most played songs,
@@ -33,7 +34,15 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
   @override
   void initState() {
     super.initState();
+    // Its songs have a menu of their own on a right click.
+    kostvHoldBrowserMenu();
     unawaited(_load());
+  }
+
+  @override
+  void dispose() {
+    kostvReleaseBrowserMenu();
+    super.dispose();
   }
 
   Future<void> _load() async {

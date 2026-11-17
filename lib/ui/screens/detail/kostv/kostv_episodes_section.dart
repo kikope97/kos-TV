@@ -125,8 +125,16 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
 
   void _selectSeason(int number) {
     if (_selectedSeason == number) return;
-    setState(() => _selectedSeason = number);
+    setState(() {
+      _selectedSeason = number;
+      _phoneShown = _phonePage;
+    });
   }
+
+  /// On a phone a long season shows a page of episodes at a time, not two
+  /// hundred built at once: with «show more» under them.
+  static const _phonePage = 30;
+  int _phoneShown = _phonePage;
 
   void _openEpisode(BuildContext context, AggregatedItem episode) {
     if (episode.id == _vm.item?.id) {
@@ -169,6 +177,12 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
   /// The episode to watch next in [entries]: the one the server says, else
   /// the first not watched after one that is. None in a season not started.
   int _nextIndex(List<KostvEpisodeEntry> entries) {
+    // An episode's own page opens on that episode.
+    if (_isEpisode) {
+      final own = _vm.item?.id;
+      final at = entries.indexWhere((e) => e.episode?.id == own);
+      if (at >= 0) return at;
+    }
     final nextId = _vm.nextUp?.id;
     if (nextId != null) {
       final at = entries.indexWhere((e) => e.episode?.id == nextId);
@@ -188,8 +202,17 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
   void _placeRail(String hub, int index, String? key, double step) {
     // Once per season shown and per episode to watch: the list can grow
     // under it (missing episodes, the next one arriving late).
-    final placing = '$hub|$key';
+    // Its place too: missing episodes arriving ahead of it move it along.
+    final placing = '$hub|$key|$index';
     if (_placedHub == placing) return;
+    final rail = _railKey.currentState;
+    // Not under the person's feet: while they're in the row it stays put.
+    if (rail != null &&
+        rail.hasFocusedItem &&
+        _placedHub != null &&
+        _placedHub!.startsWith('$hub|')) {
+      return;
+    }
     _placedHub = placing;
     final at = index <= 0 ? 0 : index;
     // This visit opens on the episode to watch, whatever the last one left.
@@ -197,7 +220,10 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
     // Another season's row starts at its own place, not where the last one
     // was left.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_railController.hasClients) return;
+      if (!mounted) return;
+      final rail = _railKey.currentState;
+      if (rail != null && !rail.hasFocusedItem) rail.placeAt(at);
+      if (!_railController.hasClients) return;
       final position = _railController.position;
       _railController.jumpTo((at * step).clamp(0.0, position.maxScrollExtent));
     });
@@ -558,6 +584,8 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
     final ask = v.ask;
     final askFocus = ask?.button != null && ask!.enabled;
     final selected = v.selected;
+    // The one to watch is always among those shown.
+    final shown = math.max(_phoneShown, v.next + 1 + 5);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -595,7 +623,7 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
           Text(status, style: const TextStyle(color: _muted, fontSize: 14)),
         ],
         const SizedBox(height: 8),
-        for (final entry in v.entries)
+        for (final entry in v.entries.take(shown))
           if (entry.ghost case final ghost?)
             _Line(
               dim: true,
@@ -635,6 +663,17 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
               onTap: () => _openEpisode(context, entry.episode!),
               onLongPress: () => _entryMenu(context, entry),
             ),
+        if (v.entries.length > shown) ...[
+          const SizedBox(height: 8),
+          _Button(
+            label: l10n.kostvSeasonShowMore(
+              math.min(_phonePage, v.entries.length - shown),
+            ),
+            icon: Icons.expand_more_rounded,
+            expand: true,
+            onSelect: () => setState(() => _phoneShown = shown + _phonePage),
+          ),
+        ],
       ],
     );
   }

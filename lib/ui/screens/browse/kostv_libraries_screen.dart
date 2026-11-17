@@ -92,9 +92,11 @@ class _KostvLibrariesScreenState extends State<KostvLibrariesScreen> {
   /// Whose libraries these are: the same person on the same server.
   String get _serverKey {
     try {
-      return GetIt.instance<MediaServerClientFactory>()
-          .clientForServerOrActive(null)
-          .baseUrl;
+      final client = GetIt.instance<MediaServerClientFactory>()
+          .clientForServerOrActive(null);
+      // The person too: a child's profile on the same server mustn't see
+      // the libraries a parent's showed.
+      return '${client.baseUrl}|${client.userId}';
     } catch (_) {
       return '';
     }

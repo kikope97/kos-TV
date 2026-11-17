@@ -33716,6 +33716,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t load the libraries'**
   String get kostvLibrariesUnavailable;
+
+  /// Kos TV Home banner: a film's length in hours and minutes.
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h {minutes}m'**
+  String kostvHeroRuntime(int hours, int minutes);
+
+  /// A list from an outside source (Home row subtitle).
+  ///
+  /// In en, this message translates to:
+  /// **'List'**
+  String get kostvRowSourceList;
+
+  /// A list read from a link (Home row subtitle).
+  ///
+  /// In en, this message translates to:
+  /// **'List from URL'**
+  String get kostvRowSourceListFromUrl;
+
+  /// A Letterboxd diary (Home row subtitle).
+  ///
+  /// In en, this message translates to:
+  /// **'Diary'**
+  String get kostvRowSourceDiary;
+
+  /// A watchlist (Home row subtitle).
+  ///
+  /// In en, this message translates to:
+  /// **'Watchlist'**
+  String get kostvRowSourceWatchlist;
+
+  /// Every film of a person (Home row subtitle).
+  ///
+  /// In en, this message translates to:
+  /// **'Complete Films'**
+  String get kostvRowSourceFilms;
+
+  /// Awards or events list (Home row subtitle).
+  ///
+  /// In en, this message translates to:
+  /// **'Awards/Events'**
+  String get kostvRowSourceAwards;
+
+  /// A film collection (Home row subtitle).
+  ///
+  /// In en, this message translates to:
+  /// **'Collection'**
+  String get kostvRowSourceCollection;
+
+  /// Home row subtitle of TMDB lists.
+  ///
+  /// In en, this message translates to:
+  /// **'TMDB Lists'**
+  String get kostvRowSourceTmdbLists;
+
+  /// Home row subtitle of an IMDb list.
+  ///
+  /// In en, this message translates to:
+  /// **'IMDb List'**
+  String get kostvRowSourceImdbList;
+
+  /// Home row subtitle: what kind of list, from which site (IMDb, TMDB...).
+  ///
+  /// In en, this message translates to:
+  /// **'{source} {kind}'**
+  String kostvRowSourceOf(String kind, String source);
+
+  /// Kos TV detail page on a phone: button under a long season's episodes to show more of them.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Show 1 more episode} other{Show {count} more episodes}}'**
+  String kostvSeasonShowMore(int count);
 }
 
 class _AppLocalizationsDelegate

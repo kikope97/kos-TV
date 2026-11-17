@@ -198,7 +198,12 @@ class FavoritesViewModel extends ChangeNotifier {
   /// Rows whose request failed in the last load.
   int _failedRows = 0;
 
+  /// Kos TV: which load the answers belong to. A load started after them
+  /// (the order changed twice quickly) wins, whichever answer comes last.
+  int _generation = 0;
+
   Future<void> load() async {
+    final generation = ++_generation;
     _state = FavoritesState.loading;
     _failedRows = 0;
     _rowItems = {};
@@ -214,6 +219,7 @@ class FavoritesViewModel extends ChangeNotifier {
         final results = await Future.wait(
           rowTypes.map((type) => _fetchRowItems(type, startIndex: 0)),
         );
+        if (generation != _generation) return;
         final map = <FavoriteTypeFilter, List<AggregatedItem>>{};
         for (var i = 0; i < rowTypes.length; i++) {
           if (results[i].$1.isNotEmpty) {
@@ -229,9 +235,11 @@ class FavoritesViewModel extends ChangeNotifier {
         }
       } else {
         await _fetchGridPage(0);
+        if (generation != _generation) return;
       }
       _state = FavoritesState.ready;
     } catch (e) {
+      if (generation != _generation) return;
       _error = e;
       _isNetworkError = isNetworkException(e);
       _state = FavoritesState.error;
@@ -412,18 +420,25 @@ class FavoritesViewModel extends ChangeNotifier {
     if (_inFlightPagingRowTypes.contains(type)) return;
 
     _inFlightPagingRowTypes.add(type);
+    final generation = _generation;
+    final failedBefore = _failedRows;
     try {
       final currentOffset = fetched;
       final (newItems, totalCount) = await _fetchRowItems(
         type,
         startIndex: currentOffset,
       );
+      // Kos TV: a page of an earlier load (the order changed meanwhile)
+      // isn't added to the new one; a page that failed leaves the count
+      // as it was, so the next try can still bring the rest.
+      if (generation != _generation) return;
+      if (_failedRows > failedBefore) return;
       _rowTotalCounts[type] = totalCount;
 
       if (newItems.isNotEmpty) {
-        _rowItems[type] = [...items, ...newItems];
+        _rowItems[type] = [...(_rowItems[type] ?? items), ...newItems];
         notifyListeners();
-      } else {
+      } else if ((_rowFetchedCounts[type] ?? 0) >= totalCount) {
         _rowTotalCounts[type] = items.length;
       }
     } catch (_) {

@@ -86,11 +86,14 @@ class KostvNowPlaying extends ChangeNotifier {
         _sleepAfterSong = false;
         _autoplaySeed = null;
         autoplayIds.clear();
-      } else if (_sleepAfterSong && before != null) {
-        // «Al acabar la canción»: the next one doesn't go on.
+      } else if (_sleepAfterSong && before != null && !_personChose) {
+        // «Al acabar la canción»: the next one doesn't go on. One the person
+        // chose (skipped to, or another album put on) isn't the song ending:
+        // the timer goes on to it.
         _sleepAfterSong = false;
         unawaited(_manager?.pause());
       }
+      _personChose = false;
     }
     _playing = playing;
     notifyListeners();
@@ -136,9 +139,20 @@ class KostvNowPlaying extends ChangeNotifier {
     unawaited(manager.state.isPlaying ? manager.pause() : manager.resume());
   }
 
-  void next() => unawaited(_manager?.next());
+  void next() {
+    noteChosen();
+    unawaited(_manager?.next());
+  }
 
-  void previous() => unawaited(_manager?.previous());
+  void previous() {
+    noteChosen();
+    unawaited(_manager?.previous());
+  }
+
+  /// The song about to sound is the person's choice, not the one before
+  /// ending.
+  bool _personChose = false;
+  void noteChosen() => _personChose = true;
 
   /// The ✕: the music stops and the floating player goes away.
   void close() {

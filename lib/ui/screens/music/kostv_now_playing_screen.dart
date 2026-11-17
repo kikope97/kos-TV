@@ -30,6 +30,7 @@ import '../../widgets/music/kostv_now_playing_capsule.dart'
 import '../../widgets/offline_aware_image.dart';
 import '../playback/audiobook_player_view.dart';
 import 'kostv_music_widgets.dart' show kostvMusicColor;
+import 'kostv_music_actions.dart' show kostvMusicFavoritesChanged;
 
 /// Kos TV: «Reproduciendo», the music player. Its background takes the
 /// colours of the cover; the cover breathes with the music (smaller while
@@ -235,6 +236,14 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
         item.id,
         isFavorite: !was,
       );
+      // As the song's menu does: on the item too, for its menu, and
+      // «Tus favoritas» on the Music page hears of it.
+      final data = Map<String, dynamic>.from(
+        (item.rawData['UserData'] as Map?) ?? const {},
+      );
+      data['IsFavorite'] = !was;
+      item.rawData['UserData'] = data;
+      kostvMusicFavoritesChanged.value++;
     } catch (_) {
       if (mounted) setState(() => _favorite = was);
     }
@@ -333,6 +342,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
               GetIt.instance<MediaServerClient>(),
         ).mix(item.id).catchError((Object _) => const <AggregatedItem>[]);
         if (!mounted || mix.isEmpty) return;
+        KostvNowPlaying.instance.noteChosen();
         await _manager.playItems([
           item,
           for (final other in mix)
@@ -1793,7 +1803,10 @@ class _QueuePanel extends StatelessWidget {
       final fromAutoplay = music.autoplayIds.contains(item.id);
       final tile = _Stop(
         key: ValueKey('queue-${item.id}-${entry.index}'),
-        onTap: () => unawaited(manager.playFromQueue(entry.index)),
+        onTap: () {
+          KostvNowPlaying.instance.noteChosen();
+          unawaited(manager.playFromQueue(entry.index));
+        },
         builder: (context, lit) => AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

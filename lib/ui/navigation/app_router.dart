@@ -241,7 +241,11 @@ final appRouter = GoRouter(
     // The hard gate for Kids Mode. Hiding a nav entry is presentation, but a
     // deep link reaches these screens without one.
     if (getIt<UserPreferences>().get(UserPreferences.kidsModeEnabled) &&
-        (path.startsWith('/admin') || path.startsWith('/live-tv'))) {
+        (path.startsWith('/admin') ||
+            path.startsWith('/live-tv') ||
+            // Kos TV: Discover and asking for titles are hidden in Kids
+            // Mode; an address typed on the web mustn't reach them.
+            path.startsWith(Destinations.kostvDiscover))) {
       return Destinations.home;
     }
 

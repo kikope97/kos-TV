@@ -204,9 +204,13 @@ abstract class KostvRequestController extends ChangeNotifier {
   }
 
   Future<void> _tick() async {
-    if (_ticking || _disposed) return;
+    // While something is being sent its own reading follows, and planning
+    // again after it.
+    if (_ticking || _disposed || sending) return;
     _ticking = true;
     _lastTick = clock.now();
+    final done = Completer<void>();
+    _tickRun = done.future;
     try {
       await refresh();
       _backoff = null;
@@ -214,10 +218,15 @@ abstract class KostvRequestController extends ChangeNotifier {
       _backoff = e.retryAfter ?? backoffInterval;
     } finally {
       _ticking = false;
+      _tickRun = null;
+      done.complete();
     }
     _notify();
     _plan();
   }
+
+  /// The round of asking under way, if one is.
+  Future<void>? _tickRun;
 
   /// Reads the page again after asking: if that fails, the request was
   /// still made, and the next round of asking catches up.
@@ -237,6 +246,9 @@ abstract class KostvRequestController extends ChangeNotifier {
     sending = true;
     _notify();
     try {
+      // A round of asking that started before must not land after this,
+      // with what it read before: it finishes first.
+      if (_tickRun case final running?) await running;
       await action();
     } on StremfinException catch (e) {
       onNotice?.call(KostvRequestNotice.error(e));

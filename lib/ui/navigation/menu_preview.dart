@@ -86,7 +86,7 @@ class MenuPreview {
       // On a page inside another menu page (a genre, within Genres): back
       // out to that page first, so the stack stays Home and one menu page.
       if (under == route) return;
-      _unwind(router, () => router.pushReplacement(route));
+      _unwind(router, () => _replaceUnder(router, under, route));
       arriving.value = route;
       _hold();
       return;
@@ -95,7 +95,12 @@ class MenuPreview {
     if (here == route) return;
     arriving.value = route;
     _hold();
-    if (route == Destinations.home || PlatformDetection.isWeb) {
+    if (PlatformDetection.isWeb && route != Destinations.home) {
+      // Resting on a button isn't a visit: it takes the place of the page
+      // in the browser's history, or Back would go through every page the
+      // menu showed on its way.
+      Router.neglect(context, () => router.go(route));
+    } else if (route == Destinations.home || PlatformDetection.isWeb) {
       router.go(route);
     } else if (Destinations.isMenuPage(here) && here != Destinations.home) {
       // One menu page replaces another, so Back still goes to Home.
@@ -121,7 +126,7 @@ class MenuPreview {
         _unwind(router, null);
         return false;
       }
-      _unwind(router, () => router.pushReplacement(route));
+      _unwind(router, () => _replaceUnder(router, under, route));
       return false;
     }
     final here = shownPath(router);
@@ -150,6 +155,19 @@ class MenuPreview {
       if (Destinations.isMenuPage(at)) return at;
     }
     return null;
+  }
+
+  /// After backing out to [under]: [route] takes its place. Only if [under]
+  /// is still the page on screen: Back pressed meanwhile left Home there,
+  /// which [route] goes over instead of taking the place of; a page opened
+  /// meanwhile is left alone.
+  static void _replaceUnder(GoRouter router, String under, String route) {
+    final here = shownPath(router);
+    if (here == under) {
+      router.pushReplacement(route);
+    } else if (here == Destinations.home) {
+      router.push(route);
+    }
   }
 
   /// Pops back to the menu page under the one on screen, then runs [then]
@@ -236,7 +254,8 @@ class MenuPreview {
       // Back takes the page the menu showed away: the menu has nothing
       // left to hold the focus for (it stays where it is), and the page
       // under may take it as it would.
-      if (_backKeys.contains(event.logicalKey) && arriving.value == null) {
+      // So too while the page was still on its way: it won't arrive now.
+      if (_backKeys.contains(event.logicalKey)) {
         WidgetsBinding.instance.addPostFrameCallback((_) => _release());
       }
     }

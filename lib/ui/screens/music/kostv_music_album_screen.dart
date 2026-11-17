@@ -1,8 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show BrowserContextMenu;
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
@@ -21,6 +19,7 @@ import '../../widgets/music/kostv_now_playing_capsule.dart'
     show KostvEqualizerBars;
 import 'kostv_music_actions.dart';
 import 'kostv_music_widgets.dart';
+import '../../../util/kostv_browser_menu.dart';
 
 /// Kos TV: an album that isn't at home, as Apple Music shows an album: its
 /// big cover, title, artist and what it is, the button to ask for it and,
@@ -60,13 +59,13 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     super.initState();
     _preview.addListener(_onPreview);
     // With a mouse, the right click is the songs' menu, not the browser's.
-    if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
+    kostvHoldBrowserMenu();
     unawaited(_load());
   }
 
   @override
   void dispose() {
-    if (kIsWeb) unawaited(BrowserContextMenu.enableContextMenu());
+    kostvReleaseBrowserMenu();
     _preview
       ..removeListener(_onPreview)
       ..dispose();
@@ -407,6 +406,8 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
             download.label ?? l10n.kostvMusicOnItsWay,
             if (download.percent != null) '${download.percent} %',
           ].join(' · '),
+          // The same node as the ask it took the place of: the focus stays.
+          focusNode: join ? null : _askFocus,
           autofocus: PlatformDetection.isTV && !join,
           onTap: () {},
         ),
@@ -418,6 +419,8 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
         KostvMusicButton(
           icon: Icons.check_rounded,
           label: request.statusLabel ?? l10n.kostvMusicAsked,
+          // The same node as the ask it took the place of: the focus stays.
+          focusNode: join ? null : _askFocus,
           autofocus: PlatformDetection.isTV && !join,
           onTap: () {},
         ),
@@ -472,7 +475,8 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
           onTap: song.jellyfinId == null
               ? null
               : () {
-                  unawaited(_preview.stop());
+                  // Its own music doesn't come back for a moment between.
+                  unawaited(_preview.stop(resume: false));
                   unawaited(playKostvMusicTrack(context, song.jellyfinId!));
                 },
           onMenu: song.jellyfinId == null
@@ -634,11 +638,15 @@ class KostvMusicTrackRow extends StatelessWidget {
         ? null
         : '${duration! ~/ 60}:${(duration! % 60).toString().padLeft(2, '0')}';
     final onTap = this.onTap;
-    if (onTap == null) return _row(context, l10n, length, lit: false);
+    // One not at home plays nothing; on a TV it still takes the focus, or
+    // the remote couldn't go down the list to read the rest.
+    if (onTap == null && !PlatformDetection.isTV) {
+      return _row(context, l10n, length, lit: false);
+    }
     return KostvMusicPressable(
       focusNode: focusNode,
       autofocus: autofocus,
-      onTap: onTap,
+      onTap: onTap ?? () {},
       onLongPress: onMenu,
       builder: (context, lit) => _row(context, l10n, length, lit: lit),
     );

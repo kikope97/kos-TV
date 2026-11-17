@@ -13805,5 +13805,74 @@
   "kostvLibrariesUnavailable": "No se han podido cargar las bibliotecas",
   "@kostvLibrariesUnavailable": {
     "description": "Kos TV libraries page: loading failed."
+  },
+  "kostvHeroRuntime": "{hours} h {minutes} min",
+  "@kostvHeroRuntime": {
+    "description": "Kos TV Home banner: a film's length in hours and minutes.",
+    "placeholders": {
+      "hours": {
+        "type": "int"
+      },
+      "minutes": {
+        "type": "int"
+      }
+    }
+  },
+  "kostvRowSourceList": "Lista",
+  "@kostvRowSourceList": {
+    "description": "A list from an outside source (Home row subtitle)."
+  },
+  "kostvRowSourceListFromUrl": "Lista por enlace",
+  "@kostvRowSourceListFromUrl": {
+    "description": "A list read from a link (Home row subtitle)."
+  },
+  "kostvRowSourceDiary": "Diario",
+  "@kostvRowSourceDiary": {
+    "description": "A Letterboxd diary (Home row subtitle)."
+  },
+  "kostvRowSourceWatchlist": "Pendientes",
+  "@kostvRowSourceWatchlist": {
+    "description": "A watchlist (Home row subtitle)."
+  },
+  "kostvRowSourceFilms": "Películas",
+  "@kostvRowSourceFilms": {
+    "description": "Every film of a person (Home row subtitle)."
+  },
+  "kostvRowSourceAwards": "Premios y eventos",
+  "@kostvRowSourceAwards": {
+    "description": "Awards or events list (Home row subtitle)."
+  },
+  "kostvRowSourceCollection": "Colección",
+  "@kostvRowSourceCollection": {
+    "description": "A film collection (Home row subtitle)."
+  },
+  "kostvRowSourceTmdbLists": "Listas de TMDB",
+  "@kostvRowSourceTmdbLists": {
+    "description": "Home row subtitle of TMDB lists."
+  },
+  "kostvRowSourceImdbList": "Lista de IMDb",
+  "@kostvRowSourceImdbList": {
+    "description": "Home row subtitle of an IMDb list."
+  },
+  "kostvRowSourceOf": "{kind} de {source}",
+  "@kostvRowSourceOf": {
+    "description": "Home row subtitle: what kind of list, from which site (IMDb, TMDB...).",
+    "placeholders": {
+      "kind": {
+        "type": "String"
+      },
+      "source": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvSeasonShowMore": "{count, plural, =1{Ver 1 episodio más} other{Ver {count} episodios más}}",
+  "@kostvSeasonShowMore": {
+    "description": "Kos TV detail page on a phone: button under a long season's episodes to show more of them.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

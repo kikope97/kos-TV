@@ -600,7 +600,7 @@ class KostvMusicSongRow extends StatelessWidget {
       onKey: onKey,
       builder: (context, lit) => AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        height: phone ? 62 : 70,
+        height: kostvMusicSongRowHeight(context, phone),
         padding: const EdgeInsets.symmetric(horizontal: 8),
         decoration: BoxDecoration(
           color: lit ? Colors.white : Colors.transparent,
@@ -837,4 +837,12 @@ class KostvMusicMixArt extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A song row's height: grows with the person's text size, as the lists
+/// that hold the rows do.
+double kostvMusicSongRowHeight(BuildContext context, bool phone) {
+  final base = phone ? 62.0 : 70.0;
+  final grown = MediaQuery.textScalerOf(context).scale(36) - 36;
+  return base + (grown > 0 ? grown : 0);
 }

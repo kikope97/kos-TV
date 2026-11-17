@@ -10,6 +10,7 @@ import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../navigation/destinations.dart';
+import 'kostv_now_playing.dart';
 
 /// The screens a music library's categories open.
 enum MusicCategoryKind {
@@ -132,8 +133,9 @@ Future<void> playMusicTrack(BuildContext context, AggregatedItem item) async {
     builder: (_) => const Center(child: CircularProgressIndicator()),
   );
 
-  final albumId =
-      item.albumId?.isNotEmpty == true ? item.albumId : item.parentId;
+  final albumId = item.albumId?.isNotEmpty == true
+      ? item.albumId
+      : item.parentId;
 
   try {
     var tracks = <AggregatedItem>[item];
@@ -153,15 +155,18 @@ Future<void> playMusicTrack(BuildContext context, AggregatedItem item) async {
         fields: 'PrimaryImageAspectRatio,BasicSyncInfo',
       );
 
-      final loadedTracks = (data['Items'] as List?)
+      final loadedTracks =
+          (data['Items'] as List?)
               ?.whereType<Map>()
               .map((raw) => raw.cast<String, dynamic>())
               .where((raw) => raw['Id']?.toString().isNotEmpty == true)
-              .map((raw) => AggregatedItem(
-                    id: raw['Id'].toString(),
-                    serverId: item.serverId,
-                    rawData: raw,
-                  ))
+              .map(
+                (raw) => AggregatedItem(
+                  id: raw['Id'].toString(),
+                  serverId: item.serverId,
+                  rawData: raw,
+                ),
+              )
               .toList() ??
           const <AggregatedItem>[];
 
@@ -174,6 +179,7 @@ Future<void> playMusicTrack(BuildContext context, AggregatedItem item) async {
       }
     }
 
+    KostvNowPlaying.instance.noteChosen();
     await manager.playItems(tracks, startIndex: startIndex);
     dismissLoading();
     if (context.mounted) {
@@ -181,6 +187,7 @@ Future<void> playMusicTrack(BuildContext context, AggregatedItem item) async {
     }
   } catch (_) {
     dismissLoading();
+    KostvNowPlaying.instance.noteChosen();
     await manager.playItems([item]);
     if (context.mounted) {
       context.push(Destinations.audioPlayer);
@@ -196,6 +203,7 @@ Future<void> playMusicTracks(
   int startIndex = 0,
 }) async {
   if (tracks.isEmpty) return;
+  KostvNowPlaying.instance.noteChosen();
   await GetIt.instance<PlaybackManager>().playItems(
     tracks,
     startIndex: startIndex,
@@ -223,11 +231,13 @@ Future<void> shuffleMusic(
     );
     final tracks = ((response['Items'] as List?) ?? const [])
         .whereType<Map>()
-        .map((raw) => AggregatedItem(
-              id: raw['Id']?.toString() ?? '',
-              serverId: client.baseUrl,
-              rawData: raw.cast<String, dynamic>(),
-            ))
+        .map(
+          (raw) => AggregatedItem(
+            id: raw['Id']?.toString() ?? '',
+            serverId: client.baseUrl,
+            rawData: raw.cast<String, dynamic>(),
+          ),
+        )
         .where((track) => track.id.isNotEmpty)
         .toList();
     if (context.mounted) await playMusicTracks(context, tracks);

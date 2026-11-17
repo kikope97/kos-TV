@@ -14,6 +14,7 @@ import '../shuffle_overlay.dart';
 import '../user_menu_dialog.dart';
 import 'bottom_nav_model.dart';
 import 'bottom_nav_tab.dart';
+import '../../navigation/menu_preview.dart';
 
 String bottomNavTabLabel(AppLocalizations l10n, BottomNavTab tab) =>
     switch (tab) {
@@ -162,7 +163,14 @@ void openBottomNavTab(BuildContext context, BottomNavTab tab) {
     // Kos TV: Libraries has a page of its own.
     BottomNavTab.libraries => Destinations.kostvLibraries,
   };
-  context.navigateTopLevel(route);
+  // As the TV's menu does: one menu page takes the place of another, a page
+  // opened inside one (a genre, an album) goes back to it, so Back always
+  // goes to Home.
+  if (Destinations.isMenuPage(route)) {
+    MenuPreview.open(context, route);
+  } else {
+    context.navigateTopLevel(route);
+  }
 }
 
 /// Home refreshes when tapped where it already is, and asks for a refresh on

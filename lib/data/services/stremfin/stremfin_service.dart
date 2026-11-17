@@ -123,12 +123,22 @@ class StremfinService extends ChangeNotifier {
   /// Discover but never signs anyone out of the app.
   Future<void> refreshAccess() {
     if (!_client.isConfigured) return Future.value();
-    return _checking ??= _checkAccess().whenComplete(() => _checking = null);
+    final running = _checking;
+    if (running != null) return running;
+    late final Future<void> check;
+    check = _checkAccess().whenComplete(() {
+      if (identical(_checking, check)) _checking = null;
+    });
+    return _checking = check;
   }
 
   Future<void> _checkAccess() async {
     _retry?.cancel();
     if (_disposed) return;
+    // Kos TV: another person signed in meanwhile: what this check finds is
+    // the last one's (their age limit!) and is thrown away.
+    final generation = _generation;
+    bool stale() => _disposed || generation != _generation;
     // Kos TV: the person's age limit first, from their home server account.
     // Without it nothing can be shown safely, so it counts as the service
     // not answering; once known, a failed read keeps what was known.
@@ -136,14 +146,14 @@ class StremfinService extends ChangeNotifier {
     if (readAgeLimit != null) {
       try {
         final limit = await readAgeLimit();
-        if (_disposed) return;
+        if (stale()) return;
         if (limit != _ageLimit) {
           _ageLimit = limit;
           listsRevision.value++;
           notifyListeners();
         }
       } catch (_) {
-        if (_disposed) return;
+        if (stale()) return;
         if (_ageLimit == null) {
           if (_access == StremfinAccess.unknown) {
             _setAccess(StremfinAccess.denied);
@@ -155,7 +165,7 @@ class StremfinService extends ChangeNotifier {
     }
     try {
       final me = await _client.me();
-      if (_disposed) return;
+      if (stale()) return;
       final before = _me;
       _me = me;
       final access = me.canDiscover
@@ -169,6 +179,7 @@ class StremfinService extends ChangeNotifier {
       }
       _setAccess(access);
     } on StremfinException catch (e) {
+      if (stale()) return;
       if (e.isNoAccess) {
         _setAccess(StremfinAccess.denied);
       } else {
@@ -215,6 +226,8 @@ class StremfinService extends ChangeNotifier {
     _ageLimit = null;
     _generation++;
     _retry?.cancel();
+    // A check under way is the last person's: the next one starts afresh.
+    _checking = null;
     _lists.clear();
     _loading.clear();
     _searches.clear();
@@ -566,9 +579,11 @@ class StremfinService extends ChangeNotifier {
         DateTime.now().difference(failed) < trailersRetryAfter) {
       return Future.value(const <StremfinTrailer>[]);
     }
+    // Before the loading is kept: answered at once, its clean-up would run
+    // before it was kept, and the empty answer would stay for good.
+    if (!isConfigured) return Future.value(const <StremfinTrailer>[]);
     return _trailersLoading[key] ??= () async {
       try {
-        if (!isConfigured) return const <StremfinTrailer>[];
         if (!isAllowed) {
           await refreshAccess();
           if (!isAllowed) return const <StremfinTrailer>[];
@@ -660,20 +675,54 @@ class StremfinService extends ChangeNotifier {
 
   void _note(StremfinTitle title, StremfinTitle Function(StremfinTitle) apply) {
     if (_disposed) return;
-    _latest[_titleKey(title)] = title;
+    final key = _titleKey(title);
+    final before = _latest[key];
+    _latest[key] = title;
+    var inLists = false;
+    var changed = before != null && _standing(before) != _standing(title);
     for (final entry in _lists.entries.toList()) {
       final items = entry.value.items;
       final index = items.indexWhere(
         (t) => t.type == title.type && t.tmdbId == title.tmdbId,
       );
       if (index < 0) continue;
+      inLists = true;
+      final now = apply(items[index]);
+      if (_standing(now) == _standing(items[index])) continue;
+      changed = true;
       _lists[entry.key] = (
         at: entry.value.at,
-        items: [...items]..[index] = apply(items[index]),
+        items: [...items]..[index] = now,
       );
     }
-    // Always: the search shows titles outside the lists and hears of it too.
-    listsRevision.value++;
+    // Only when it changes something: a title read again as it was (the
+    // spotlight's, as the focus rests on each card) mustn't rebuild every
+    // row. One the lists don't have, first seen, the search may show.
+    if (changed || (before == null && !inLists)) listsRevision.value++;
+  }
+
+  /// What a card shows of where a title stands: at home, on its way, asked
+  /// for by whom.
+  static String _standing(StremfinTitle t) {
+    final l = t.library;
+    final r = t.request;
+    return [
+      l.status.name,
+      l.inLibrary,
+      l.itemId,
+      l.downloading,
+      l.season,
+      l.seasonEpisodesHave,
+      l.seasonEpisodes,
+      r?.id,
+      r?.status,
+      r?.statusLabel,
+      r?.mine,
+      r?.season,
+      r?.episode,
+      r?.direct,
+      r?.requesters.join(','),
+    ].join('|');
   }
 
   bool _disposed = false;

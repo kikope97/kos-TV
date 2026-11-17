@@ -277,10 +277,17 @@ class StremfinInbox extends ChangeNotifier {
       final finishedMeanwhile = _items.values.any(
         (r) => r.status.isOpen && !open.contains(r.id),
       );
+      var changed = finishedMeanwhile;
       for (final request in page.items) {
+        final before = _items[request.id];
+        if (before == null || _shown(before) != _shown(request)) {
+          changed = true;
+        }
         _items[request.id] = request;
       }
-      _notify();
+      // Only when something moved: with the tray open, every few seconds
+      // would rebuild it and the menu's badges for nothing.
+      if (changed) _notify();
       // One that isn't open any more arrived, was turned down or went.
       if (finishedMeanwhile) await sync();
     } on StremfinException {
@@ -320,6 +327,34 @@ class StremfinInbox extends ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList(_seenKey(user), seen.toList());
     } catch (_) {}
+  }
+
+  /// What the tray and the badges show of [r]: how it stands and how far
+  /// it has got.
+  static String _shown(StremfinRequest r) {
+    final p = r.progress;
+    final t = p?.transfer;
+    return [
+      r.status.name,
+      r.statusLabel,
+      r.reasonLabel,
+      r.canWithdraw,
+      r.cancelled,
+      r.updatedAt?.millisecondsSinceEpoch,
+      p?.state.name,
+      p?.label,
+      p?.episodesDone,
+      p?.episodesTotal,
+      p?.episodesAttention,
+      t?.phase?.name,
+      t?.label,
+      t?.percent,
+      t?.downloadedBytes,
+      t?.totalBytes,
+      t?.speed,
+      t?.etaSeconds,
+      t?.paused,
+    ].join('|');
   }
 
   void _notify() {

@@ -38,6 +38,7 @@ import '../../../data/services/stremfin/kostv_trailers.dart';
 import '../../../data/services/youtube_stream_resolver.dart';
 import '../../../data/services/connectivity_service.dart';
 import '../../../data/services/log_service.dart';
+import '../../../data/utils/blocked_ratings.dart' show withoutBlockedItems;
 import '../../../data/utils/media_type_badges.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../playback/appletv_preview_player.dart';
@@ -309,10 +310,14 @@ class _HomeShellState extends State<_HomeShell>
   Future<void> _dealShuffleRow() async {
     final deal = ++_shuffleDeal;
     try {
-      final items = await fetchRandomItems(
-        contentType: _userPrefs.get(UserPreferences.shuffleContentType),
-        limit: _shuffleRowSize,
-      );
+      // Parental control: a blocked title mustn't slip in by chance. A few
+      // more are asked for, so the row stays full after dropping them.
+      final items = withoutBlockedItems(
+        await fetchRandomItems(
+          contentType: _userPrefs.get(UserPreferences.shuffleContentType),
+          limit: _shuffleRowSize + 6,
+        ),
+      ).take(_shuffleRowSize).toList();
       if (!mounted || deal != _shuffleDeal) return;
       _viewModel.setShuffleRow(
         items.isEmpty
@@ -4626,8 +4631,8 @@ class _ContentRowsState extends State<_ContentRows>
     if (row.id == 'merged_calendar') return l10n.arrCalendarsRowSubtitle;
     if (row.id == 'radarr_calendar') return l10n.radarrCalendarRowSubtitle;
     if (row.id == 'sonarr_calendar') return l10n.sonarrCalendarRowSubtitle;
-    if (row.id.startsWith('tmdb_')) return 'TMDB Lists';
-    if (row.id.startsWith('imdb_')) return 'IMDb List';
+    if (row.id.startsWith('tmdb_')) return l10n.kostvRowSourceTmdbLists;
+    if (row.id.startsWith('imdb_')) return l10n.kostvRowSourceImdbList;
     if (row.id == 'seasonal') return l10n.seasonalRowSubtitle;
 
     final config = widget.prefs.homeSectionsConfig.firstWhereOrNull((c) => c.stableId == row.id);
@@ -4652,16 +4657,18 @@ class _ContentRowsState extends State<_ContentRows>
       };
       final typeLabel = switch (type) {
         'user_list' => source == 'tmdb'
-            ? 'List'
-            : (source == 'mdblist' ? '' : 'List from URL'),
-        'user_diary' => 'Diary',
-        'watchlist' => 'Watchlist',
-        'films' => 'Complete Films',
-        'awards_events' => 'Awards/Events',
-        'movie_collection' => 'Collection',
+            ? l10n.kostvRowSourceList
+            : (source == 'mdblist' ? '' : l10n.kostvRowSourceListFromUrl),
+        'user_diary' => l10n.kostvRowSourceDiary,
+        'watchlist' => l10n.kostvRowSourceWatchlist,
+        'films' => l10n.kostvRowSourceFilms,
+        'awards_events' => l10n.kostvRowSourceAwards,
+        'movie_collection' => l10n.kostvRowSourceCollection,
         _ => type,
       };
-      return '$sourceLabel $typeLabel'.trim();
+      return typeLabel.isEmpty
+          ? sourceLabel
+          : l10n.kostvRowSourceOf(typeLabel, sourceLabel);
     }
     return null;
   }
@@ -6345,9 +6352,13 @@ class _ContentRowsState extends State<_ContentRows>
                   label: kostvStyle.fresh ? l10n.kostvHomeNewTag : null,
                   heart: KostvHomeRepository.isOfFavoriteSeries(item),
                   color: kostvStyle.color,
+                  // The image as the card paints it: a wide one is lower.
                   imageHeight: isRowsV2
                       ? v2ImageHeight
-                      : posterSize.portraitHeight * platformScale,
+                      : (aspectRatioForRowItem(item, row, rowImageType) > 1
+                                ? posterSize.landscapeHeight
+                                : posterSize.portraitHeight) *
+                            platformScale,
                   child: card,
                 );
 

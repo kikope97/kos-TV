@@ -104,6 +104,8 @@ class _KostvFavoritesNewsHeroState extends State<KostvFavoritesNewsHero> {
   void didUpdateWidget(KostvFavoritesNewsHero old) {
     super.didUpdateWidget(old);
     if (_at >= widget.news.length) _at = 0;
+    // From one piece of news to several: it starts going round.
+    if (widget.news.length != old.news.length) _restartTimer();
   }
 
   @override
@@ -320,7 +322,12 @@ class _KostvFavoritesNewsHeroState extends State<KostvFavoritesNewsHero> {
       ],
     );
 
-    final height = phone ? 236.0 : 300.0;
+    // On a narrow phone the two buttons take two lines: more room then,
+    // and with a large text size.
+    final narrow = phone && MediaQuery.sizeOf(context).width < 400;
+    final grown = MediaQuery.textScalerOf(context).scale(60) - 60;
+    final height =
+        (phone ? (narrow ? 284.0 : 236.0) : 300.0) + (grown > 0 ? grown : 0);
     return MouseRegion(
       onEnter: (_) => _held = true,
       onExit: (_) => _held = false,

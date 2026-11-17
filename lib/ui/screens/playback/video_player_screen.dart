@@ -120,6 +120,7 @@ import 'episode_browser_panel.dart';
 import 'osd_buttons.dart';
 import 'trickplay_housing_inset.dart';
 import '../../../util/episode_code.dart';
+import '../../../util/kostv_browser_menu.dart';
 
 class _SubtitleLoadingSpinner extends StatefulWidget {
   const _SubtitleLoadingSpinner();
@@ -831,7 +832,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     });
     FocusManager.instance.addListener(_restoreOverlayFocus);
     // A right-click hides the controls, so the browser's own menu stays shut.
-    if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
+    kostvHoldBrowserMenu();
     if (PlatformDetection.isTV || PlatformDetection.isMobile) {
       // The decoder wants every megabyte a constrained box has, and a stale
       // IME binding swallows d-pad presses mid-playback. Desktop keeps its
@@ -1098,7 +1099,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   @override
   void dispose() {
-    if (kIsWeb) unawaited(BrowserContextMenu.enableContextMenu());
+    kostvReleaseBrowserMenu();
     _cancelPopAfterBackKeyUp?.call();
     _trickplayLoadGeneration++;
     _hdrStatus?.removeListener(_onHdrStatusChanged);

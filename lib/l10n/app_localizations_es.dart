@@ -19941,4 +19941,52 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvLibrariesUnavailable =>
       'No se han podido cargar las bibliotecas';
+
+  @override
+  String kostvHeroRuntime(int hours, int minutes) {
+    return '$hours h $minutes min';
+  }
+
+  @override
+  String get kostvRowSourceList => 'Lista';
+
+  @override
+  String get kostvRowSourceListFromUrl => 'Lista por enlace';
+
+  @override
+  String get kostvRowSourceDiary => 'Diario';
+
+  @override
+  String get kostvRowSourceWatchlist => 'Pendientes';
+
+  @override
+  String get kostvRowSourceFilms => 'Películas';
+
+  @override
+  String get kostvRowSourceAwards => 'Premios y eventos';
+
+  @override
+  String get kostvRowSourceCollection => 'Colección';
+
+  @override
+  String get kostvRowSourceTmdbLists => 'Listas de TMDB';
+
+  @override
+  String get kostvRowSourceImdbList => 'Lista de IMDb';
+
+  @override
+  String kostvRowSourceOf(String kind, String source) {
+    return '$kind de $source';
+  }
+
+  @override
+  String kostvSeasonShowMore(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Ver $count episodios más',
+      one: 'Ver 1 episodio más',
+    );
+    return '$_temp0';
+  }
 }

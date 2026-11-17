@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:custom_tv_text_field/custom_tv_text_field.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -22,6 +21,7 @@ import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
 import 'kostv_music_widgets.dart';
+import '../../../util/kostv_browser_menu.dart';
 
 /// Kos TV: Music, a page of its own as the music apps open: a big search
 /// at the top (only music: what is at home and, under it, what can be asked
@@ -103,7 +103,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     _search.addListener(_onQuery);
     kostvMusicFavoritesChanged.addListener(_reloadFavorites);
     // With a mouse, the right click is the songs' menu, not the browser's.
-    if (kIsWeb) unawaited(BrowserContextMenu.disableContextMenu());
+    kostvHoldBrowserMenu();
     unawaited(_stremfinReady);
   }
 
@@ -128,7 +128,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     _debounce?.cancel();
     _refreshing?.cancel();
     kostvMusicFavoritesChanged.removeListener(_reloadFavorites);
-    if (kIsWeb) unawaited(BrowserContextMenu.enableContextMenu());
+    kostvReleaseBrowserMenu();
     _scroll.dispose();
     _search.dispose();
     _searchFocus.dispose();
@@ -435,7 +435,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     if (event.logicalKey.isDownKey) {
       // The first stop, if something has it now; otherwise the nearest
       // thing down there.
-      if (_firstStopShown && _firstStop.context != null) {
+      if (_firstStopShown && _firstStop.context?.mounted == true) {
         _firstStop.requestFocus();
       } else {
         node.focusInDirection(TraversalDirection.down);
@@ -962,7 +962,10 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                         cover: kostvMusicImageOf(songs[i]),
                         atHome: true,
                         onTap: () => unawaited(
-                          playMusicTracks(context, songs, startIndex: i),
+                          kostvMusicOnce(
+                            () =>
+                                playMusicTracks(context, songs, startIndex: i),
+                          ),
                         ),
                         onLongPress: () => unawaited(
                           showKostvMusicSongMenu(context, item: songs[i]),
@@ -1465,8 +1468,5 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
 
 /// The height of a song's line in the columns of songs, grown with the
 /// TV's or phone's own text size: its two lines of text get taller.
-double _songRowHeight(BuildContext context, bool phone) {
-  final base = phone ? 62.0 : 70.0;
-  final grown = MediaQuery.textScalerOf(context).scale(36) - 36;
-  return base + (grown > 0 ? grown : 0);
-}
+double _songRowHeight(BuildContext context, bool phone) =>
+    kostvMusicSongRowHeight(context, phone);

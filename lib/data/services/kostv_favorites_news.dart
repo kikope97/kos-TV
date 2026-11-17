@@ -147,9 +147,19 @@ class KostvFavoritesNewsService extends ChangeNotifier {
   }
 
   /// Reads the news again, unless it was read a moment ago.
-  Future<void> refresh({bool force = false}) async {
+  Future<void> refresh({bool force = false}) {
     _checkOwner();
-    if (!available || _reading) return;
+    if (!available) return Future.value();
+    // A read already under way is waited for, not skipped: whoever asked
+    // (Favourites, about to mark the news seen) gets its answer first.
+    final inFlight = _inFlight;
+    if (_reading && inFlight != null) return inFlight;
+    return _inFlight = _read(force: force);
+  }
+
+  Future<void>? _inFlight;
+
+  Future<void> _read({required bool force}) async {
     final readAt = _readAt;
     if (!force &&
         readAt != null &&

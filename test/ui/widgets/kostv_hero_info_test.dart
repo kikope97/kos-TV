@@ -1,6 +1,10 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/data/models/media_bar_slide_item.dart';
 import 'package:moonfin/ui/widgets/mediabar/kostv_hero_info.dart';
+
+final es = lookupAppLocalizations(const Locale('es'));
 
 void main() {
   test('the line of facts of a film carries its length and two genres', () {
@@ -14,8 +18,8 @@ void main() {
       genres: ['Thriller', 'Drama', 'Misterio'],
     );
     expect(
-      KostvHeroInfo.facts(film),
-      '2024  •  16  •  1h 45m  •  Thriller  •  Drama',
+      KostvHeroInfo.facts(film, es),
+      '2024  •  16  •  1 h 45 min  •  Thriller  •  Drama',
     );
   });
 
@@ -28,10 +32,11 @@ void main() {
       year: 2021,
       runtime: Duration(minutes: 50),
     );
-    expect(KostvHeroInfo.facts(series), '2021');
+    expect(KostvHeroInfo.facts(series, es), '2021');
     expect(
       KostvHeroInfo.facts(
         const MediaBarSlideItem(itemId: 'a', serverId: 's', title: 'Una'),
+        es,
       ),
       '',
     );

@@ -178,12 +178,9 @@ class _BottomNavbarState extends State<BottomNavbar> {
       case BottomNavItemKind.home:
         openBottomNavHome(context, alreadyHome: route == Destinations.home);
       case BottomNavItemKind.tab:
-        final tab = item.tab!;
-        if (!bottomNavTabMatchesRoute(tab, route) ||
-            (tab == BottomNavTab.libraries &&
-                route != Destinations.kostvLibraries)) {
-          openBottomNavTab(context, tab);
-        }
+        // Its page decides: already on it, nothing; on a page opened
+        // inside it, back to it; elsewhere, it opens.
+        openBottomNavTab(context, item.tab!);
       case BottomNavItemKind.you:
         showBottomNavbarHub(
           context: context,

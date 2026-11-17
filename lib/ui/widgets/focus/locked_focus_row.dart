@@ -122,12 +122,16 @@ class LockedFocusRowState<T> extends State<LockedFocusRow<T>>
   @override
   void initState() {
     super.initState();
-    _focusNode = widget.focusNode ??
+    _focusNode =
+        widget.focusNode ??
         FocusNode(debugLabel: 'LockedFocusRow:${widget.hubKey}');
     _ownsFocusNode = widget.focusNode == null;
     _scrollController = widget.controller ?? ScrollController();
     _ownsScrollController = widget.controller == null;
-    _focusedIndex = HubFocusMemory.getForHub(widget.hubKey, widget.items.length);
+    _focusedIndex = HubFocusMemory.getForHub(
+      widget.hubKey,
+      widget.items.length,
+    );
     widget.glide?.jumpTo(_focusedIndex);
     _syncItemKeys();
     _focusNode.addListener(_onRowFocusChange);
@@ -137,18 +141,29 @@ class LockedFocusRowState<T> extends State<LockedFocusRow<T>>
   void didUpdateWidget(covariant LockedFocusRow<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.focusNode != widget.focusNode) {
+      // The row had the focus: it keeps it on its new node, rather than it
+      // going with the old one to wherever that one is now, or nowhere.
+      final hadFocus = _focusNode.hasFocus;
       _focusNode.removeListener(_onRowFocusChange);
       if (_ownsFocusNode) {
         _focusNode.dispose();
       }
-      _focusNode = widget.focusNode ??
+      _focusNode =
+          widget.focusNode ??
           FocusNode(debugLabel: 'LockedFocusRow:${widget.hubKey}');
       _ownsFocusNode = widget.focusNode == null;
       _focusNode.addListener(_onRowFocusChange);
+      if (hadFocus) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _focusNode.canRequestFocus) _focusNode.requestFocus();
+        });
+      }
     }
     if (widget.items.length != oldWidget.items.length) {
-      final clamped =
-          _focusedIndex.clamp(0, widget.items.isEmpty ? 0 : widget.items.length - 1);
+      final clamped = _focusedIndex.clamp(
+        0,
+        widget.items.isEmpty ? 0 : widget.items.length - 1,
+      );
       if (clamped != _focusedIndex) widget.glide?.jumpTo(clamped);
       _focusedIndex = clamped;
     }
@@ -163,7 +178,9 @@ class LockedFocusRowState<T> extends State<LockedFocusRow<T>>
         widget.itemKey != oldWidget.itemKey) {
       _syncItemKeys();
     }
-    if (_hasRowFocus && widget.items.isNotEmpty && _focusedIndex < widget.items.length) {
+    if (_hasRowFocus &&
+        widget.items.isNotEmpty &&
+        _focusedIndex < widget.items.length) {
       final oldItem = (oldWidget.items.length > _focusedIndex)
           ? oldWidget.items[_focusedIndex]
           : null;
@@ -192,8 +209,8 @@ class LockedFocusRowState<T> extends State<LockedFocusRow<T>>
   /// The selected card's layout, while keyboard focus remains on the row.
   BuildContext? get focusedItemContext =>
       _hasRowFocus && _focusedIndex >= 0 && _focusedIndex < _itemKeys.length
-          ? _itemKeys[_focusedIndex].currentContext
-          : null;
+      ? _itemKeys[_focusedIndex].currentContext
+      : null;
 
   /// Keeps the key of every item still present and allocates only for new
   /// ones, so appending a page leaves the existing elements alone.
@@ -227,6 +244,15 @@ class LockedFocusRowState<T> extends State<LockedFocusRow<T>>
     _setFocusedIndex(clamped);
     _focusNode.requestFocus();
     _scrollToIndex(clamped);
+  }
+
+  /// Moves the row's place to [index] without taking the focus: where it
+  /// opens when the focus comes in.
+  void placeAt(int index) {
+    if (widget.items.isEmpty) return;
+    final clamped = index.clamp(0, widget.items.length - 1);
+    widget.glide?.jumpTo(clamped);
+    _setFocusedIndex(clamped);
   }
 
   void requestFocusFromMemory() {
@@ -328,25 +354,24 @@ class LockedFocusRowState<T> extends State<LockedFocusRow<T>>
       _glideTicker?.stop();
       return;
     }
-    final dt = (elapsed - _glideLastTick).inMicroseconds /
+    final dt =
+        (elapsed - _glideLastTick).inMicroseconds /
         Duration.microsecondsPerSecond;
     _glideLastTick = elapsed;
     final moving = glide.tick(dt.clamp(0.0, 0.05));
     if (_scrollController.hasClients) {
       final position = _scrollController.position;
-      final offset = _glideScrollOffset(glide).clamp(
-        position.minScrollExtent,
-        position.maxScrollExtent,
-      );
+      final offset = _glideScrollOffset(glide)
+          .clamp(position.minScrollExtent, position.maxScrollExtent);
       if (offset != position.pixels) _scrollController.jumpTo(offset);
     }
     if (!moving) _glideTicker?.stop();
   }
 
   double _glideScrollOffset(RowGlide glide) => glide.scrollOffset(
-        leading: widget.leadingPadding + _layoutDrift(),
-        stride: widget.itemExtent + widget.itemSpacing,
-      );
+    leading: widget.leadingPadding + _layoutDrift(),
+    stride: widget.itemExtent + widget.itemSpacing,
+  );
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (widget.items.isEmpty) return KeyEventResult.ignored;

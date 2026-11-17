@@ -97,7 +97,11 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
   void initState() {
     super.initState();
     _news.addAll(_inbox.news.map((r) => r.id));
-    unawaited(_inbox.markAllSeen());
+    // After the first frame: it tells the tray's button, which mustn't be
+    // told to rebuild while this is being built.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_inbox.markAllSeen());
+    });
     _inbox.addListener(_onInbox);
     _service.addListener(_onInbox);
     unawaited(_inbox.sync());
@@ -313,11 +317,17 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
       for (final r in inbox.finished)
         if (!_news.contains(r.id)) r,
     ];
-    final rows = <({String key, StremfinRequest request, bool isNew})>[
-      for (final r in news) (key: 'n${r.id}', request: r, isNew: true),
-      for (final r in active) (key: 'a${r.id}', request: r, isNew: false),
-      for (final r in finished) (key: 'f${r.id}', request: r, isNew: false),
-    ];
+    final rows =
+        <({String key, StremfinRequest request, bool isNew, String part})>[
+          // Keyed by the request alone: one that moves to another section
+          // (its download finished) keeps its focus.
+          for (final r in news)
+            (key: '${r.id}', request: r, isNew: true, part: 'n'),
+          for (final r in active)
+            (key: '${r.id}', request: r, isNew: false, part: 'a'),
+          for (final r in finished)
+            (key: '${r.id}', request: r, isNew: false, part: 'f'),
+        ];
 
     final Widget body;
     if (!inbox.isLoaded) {
@@ -350,17 +360,22 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
       );
     } else {
       var index = 0;
-      Widget row(({String key, StremfinRequest request, bool isNew}) entry) {
+      Widget row(
+        ({String key, StremfinRequest request, bool isNew, String part}) entry,
+      ) {
         final at = index++;
-        return _row(
-          l10n,
-          entry.request,
-          key: entry.key,
-          isNew: entry.isNew,
-          panel: panel,
-          up: at > 0 ? rows[at - 1].key : null,
-          down: at + 1 < rows.length ? rows[at + 1].key : null,
-          first: at == 0,
+        return KeyedSubtree(
+          key: ValueKey('tray-${entry.key}'),
+          child: _row(
+            l10n,
+            entry.request,
+            key: entry.key,
+            isNew: entry.isNew,
+            panel: panel,
+            up: at > 0 ? rows[at - 1].key : null,
+            down: at + 1 < rows.length ? rows[at + 1].key : null,
+            first: at == 0,
+          ),
         );
       }
 
@@ -374,13 +389,11 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
           ],
           if (active.isNotEmpty) ...[
             _heading(l10n.kostvTrayActive, active.length),
-            for (final entry in rows.where((r) => r.key.startsWith('a')))
-              row(entry),
+            for (final entry in rows.where((r) => r.part == 'a')) row(entry),
           ],
           if (finished.isNotEmpty) ...[
             _heading(l10n.kostvTrayFinished, finished.length),
-            for (final entry in rows.where((r) => r.key.startsWith('f')))
-              row(entry),
+            for (final entry in rows.where((r) => r.part == 'f')) row(entry),
           ],
         ],
       );

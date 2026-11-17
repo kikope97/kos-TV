@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/media_bar_slide_item.dart';
@@ -31,15 +32,18 @@ class KostvHeroInfo extends StatelessWidget {
   static const logoHeight = 92.0;
 
   /// The line of facts: «2024 · 16 · 1h 45m · Thriller · Drama».
-  static String facts(MediaBarSlideItem item) {
+  static String facts(MediaBarSlideItem item, AppLocalizations l10n) {
     final runtime = item.runtime;
     return [
       if (item.year != null) '${item.year}',
       if (item.officialRating?.isNotEmpty == true) item.officialRating!,
       if (item.itemType != 'Series' && runtime != null)
         runtime.inHours > 0
-            ? '${runtime.inHours}h ${runtime.inMinutes.remainder(60)}m'
-            : '${runtime.inMinutes}m',
+            ? l10n.kostvHeroRuntime(
+                runtime.inHours,
+                runtime.inMinutes.remainder(60),
+              )
+            : l10n.durationMinutes(runtime.inMinutes),
       ...item.genres.take(2),
     ].join('  •  ');
   }
@@ -63,8 +67,9 @@ class KostvHeroInfo extends StatelessWidget {
     final shadows = [
       Shadow(blurRadius: 6, color: AppColorScheme.scrim.withValues(alpha: 0.6)),
     ];
-    final reason = why(item, AppLocalizations.of(context));
-    final line = facts(item);
+    final l10n = AppLocalizations.of(context);
+    final reason = why(item, l10n);
+    final line = facts(item, l10n);
     final rating = item.communityRating;
     final overview = cleanOverview(item.overview);
     final factStyle = theme.textTheme.bodySmall?.copyWith(
@@ -116,7 +121,14 @@ class KostvHeroInfo extends StatelessWidget {
                   color: Color(0xFFFBBF24),
                 ),
                 const SizedBox(width: 3),
-                Text(rating.toStringAsFixed(1), style: factStyle),
+                Text(
+                  // «7,5» in Spanish, «7.5» in English.
+                  NumberFormat(
+                    '0.0',
+                    Localizations.localeOf(context).toString(),
+                  ).format(rating),
+                  style: factStyle,
+                ),
                 if (line.isNotEmpty) Text('  •  ', style: factStyle),
               ],
               Flexible(

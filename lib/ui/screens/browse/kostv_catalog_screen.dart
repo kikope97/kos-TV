@@ -104,6 +104,7 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
   final _scroll = ScrollController();
   final _firstFocus = FocusNode(debugLabel: 'kostvCatalogFirst');
   final _pillFocus = FocusNode(debugLabel: 'kostvCatalogPills');
+  final _lastPillFocus = FocusNode(debugLabel: 'kostvCatalogLastPill');
 
   /// The posters' focus, by place, for the remote to move along the grid.
   final Map<int, FocusNode> _nodes = {};
@@ -152,6 +153,7 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
     _scroll.dispose();
     _firstFocus.dispose();
     _pillFocus.dispose();
+    _lastPillFocus.dispose();
     for (final node in _nodes.values) {
       node.dispose();
     }
@@ -267,7 +269,11 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
       final total = response['TotalRecordCount'];
       setState(() {
         _items.addAll(found);
-        _total = total is num ? total.toInt() : _items.length;
+        // A page that brings nothing ends the list, whatever the count
+        // said, so the spinner at its foot doesn't stay for ever.
+        _total = found.isEmpty
+            ? _items.length
+            : (total is num ? total.toInt() : _items.length);
         _loading = false;
         _more = false;
         _art ??= _pickArt(found);
@@ -497,6 +503,7 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
       const _Dot(),
       for (final order in _Order.values)
         _Pill(
+          focusNode: order == _Order.values.last ? _lastPillFocus : null,
           label: switch (order) {
             _Order.newest => l10n.kostvGenreSortNew,
             _Order.name => l10n.kostvGenreSortName,
@@ -566,6 +573,13 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
               }
               return KeyEventResult.handled;
             }
+            // Right from the last pill stays: nothing of the row is
+            // there, and the posters below aren't to its right.
+            if ((event is KeyDownEvent || event is KeyRepeatEvent) &&
+                event.logicalKey == LogicalKeyboardKey.arrowRight &&
+                _lastPillFocus.hasPrimaryFocus) {
+              return KeyEventResult.handled;
+            }
             return KeyEventResult.ignored;
           },
           onFocusChange: (has) {
@@ -609,6 +623,9 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
       } else if ((index ~/ columns) < ((_items.length - 1) ~/ columns)) {
         target = _items.length - 1;
       } else {
+        // The last row: more to come (a page that failed to load, say)
+        // is asked for again.
+        if (_hasMore) unawaited(_load());
         return KeyEventResult.handled;
       }
     } else if (key == LogicalKeyboardKey.arrowUp) {

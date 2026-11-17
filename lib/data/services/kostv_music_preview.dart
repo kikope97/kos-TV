@@ -55,13 +55,16 @@ class KostvMusicPreview extends ChangeNotifier {
     }
   }
 
-  Future<void> stop() async {
+  /// Stops the preview. With [resume] false the app's own music, paused for
+  /// it, stays paused: something else is about to play.
+  Future<void> stop({bool resume = true}) async {
     _turn++;
     if (_playing == null) return;
     _playing = null;
     _tell();
+    if (!resume) _paused = null;
     await _engine?.stop();
-    _resumeApp();
+    if (resume) _resumeApp();
   }
 
   // What the app was playing when a preview paused it, to go on with it
