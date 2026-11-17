@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -999,7 +1000,19 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
           textScaleFactor: MediaQuery.textScalerOf(context).scale(1),
         );
         _layoutProfile = profile;
-        final heroVisible = landscape && !widget.miniPlayerMode;
+        // A short screen (a wide TV, a large text size) keeps its rows of
+        // channels: the band over them goes when it would leave fewer than
+        // two and a half in sight.
+        final textScale = MediaQuery.textScalerOf(context).scale(1);
+        final heroBand =
+            EpgHeroPreview.compactHeight +
+            math.max(0.0, textScale * 100 - 100) +
+            100 * textScale;
+        final rowsUnderHero =
+            (area.height - heroBand - profile.timeHeaderHeight) /
+            profile.rowHeight;
+        final heroVisible =
+            landscape && !widget.miniPlayerMode && rowsUnderHero >= 2.5;
         if (heroVisible != _heroVisible) {
           _heroVisible = heroVisible;
           // Deferred because this runs during build: gaining the hero has
@@ -1164,7 +1177,10 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [_buildToolbar(), const SizedBox(height: 2), _buildHero()],
+      children: [
+        _buildToolbar(),
+        if (_heroVisible) ...[const SizedBox(height: 2), _buildHero()],
+      ],
     );
   }
 

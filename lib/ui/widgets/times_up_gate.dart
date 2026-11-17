@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 import 'package:moonfin_design/moonfin_design.dart';
@@ -66,10 +67,9 @@ class TimesUpGate extends StatelessWidget {
   Widget build(BuildContext context) {
     final watched = service ?? GetIt.instance<AccessScheduleService>();
     return ListenableBuilder(
-      listenable: Listenable.merge([
-        watched,
-        routeChanges ?? appRouter.routerDelegate,
-      ]),
+      listenable: _AfterBuild(
+        Listenable.merge([watched, routeChanges ?? appRouter.routerDelegate]),
+      ),
       builder: (context, _) {
         if (!isShowing(service: watched, currentPath: currentPath)) {
           return const SizedBox.shrink();
@@ -121,10 +121,9 @@ class TimesUpFocusGuard extends StatelessWidget {
   Widget build(BuildContext context) {
     final watched = service ?? GetIt.instance<AccessScheduleService>();
     return ListenableBuilder(
-      listenable: Listenable.merge([
-        watched,
-        routeChanges ?? appRouter.routerDelegate,
-      ]),
+      listenable: _AfterBuild(
+        Listenable.merge([watched, routeChanges ?? appRouter.routerDelegate]),
+      ),
       builder: (context, child) => ExcludeFocus(
         excluding: TimesUpGate.isShowing(
           service: watched,
@@ -293,4 +292,49 @@ String? timesUpResumeMessage({
       ? DateFormat.EEEE(locale).format(nextAccess)
       : DateFormat.MMMMEEEEd(locale).format(nextAccess);
   return l10n.timesUpResumesOn(when, time);
+}
+
+/// Kos TV: passes on [source]'s changes, but one that comes while the app is
+/// being built (the router telling of a page change from inside a build) is
+/// passed on once that's over. Marked dirty in the middle of a build, a
+/// widget that isn't under the one being built may not be built again.
+class _AfterBuild implements Listenable {
+  _AfterBuild(this.source);
+
+  final Listenable source;
+  final Map<VoidCallback, VoidCallback> _wrapped = {};
+
+  @override
+  void addListener(VoidCallback listener) {
+    // Told while the app is being built (the router can tell of a change
+    // from inside a build, even one outside a frame), it waits for that to
+    // be over.
+    void relay() {
+      var building =
+          SchedulerBinding.instance.schedulerPhase ==
+          SchedulerPhase.persistentCallbacks;
+      assert(() {
+        building =
+            building ||
+            (WidgetsBinding.instance.buildOwner?.debugBuilding ?? false);
+        return true;
+      }());
+      if (!building) {
+        listener();
+        return;
+      }
+      scheduleMicrotask(() {
+        if (_wrapped.containsKey(listener)) listener();
+      });
+    }
+
+    _wrapped[listener] = relay;
+    source.addListener(relay);
+  }
+
+  @override
+  void removeListener(VoidCallback listener) {
+    final relay = _wrapped.remove(listener);
+    if (relay != null) source.removeListener(relay);
+  }
 }

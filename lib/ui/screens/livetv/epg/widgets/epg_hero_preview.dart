@@ -282,7 +282,16 @@ class EpgHeroPreview extends StatelessWidget {
           );
 
     final content = compact
-        ? SizedBox(height: compactHeight, child: inner)
+        // Its text grows with the TV's own text size, and the band with it.
+        ? SizedBox(
+            height:
+                compactHeight +
+                (MediaQuery.textScalerOf(context).scale(100) - 100).clamp(
+                  0.0,
+                  double.infinity,
+                ),
+            child: inner,
+          )
         : inner;
 
     return apple

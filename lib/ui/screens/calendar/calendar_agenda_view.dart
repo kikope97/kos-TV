@@ -250,7 +250,18 @@ class _Header extends StatelessWidget {
         const SizedBox(height: 10),
         // On TV the button shares the tabs' row, so Right from the tabs
         // reaches it instead of skipping up to the top bar.
-        if (mobile) tabs else Row(children: [tabs, const Spacer(), full]),
+        // With a large text size the button goes under the tabs when
+        // they don't fit side by side.
+        if (mobile)
+          tabs
+        else
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [tabs, full],
+          ),
       ],
     );
   }

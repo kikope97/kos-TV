@@ -445,6 +445,8 @@ class KostvPictureTile extends StatelessWidget {
       focusNode: focusNode,
       onTap: onTap,
       onKey: onKey,
+      // The grid keeps its place; moving along it keeps the tile in sight.
+      centerVertically: false,
       builder: (context, lit) => AnimatedScale(
         scale: lit ? 1.06 : 1,
         duration: const Duration(milliseconds: 160),

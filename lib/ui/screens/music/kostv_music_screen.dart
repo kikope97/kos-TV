@@ -605,7 +605,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   Widget _searchField(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final phone = KostvMusicSizes.phone;
-    final height = phone ? 50.0 : 60.0;
+    // Taller with the TV's or phone's own larger text.
+    final grown = MediaQuery.textScalerOf(context).scale(20) - 20;
+    final height = (phone ? 50.0 : 60.0) + (grown > 0 ? grown : 0);
     final focused = _searchFocus.hasFocus;
     const fill = Color(0xFF1C1C1E);
     final icon = Icon(
@@ -925,7 +927,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     final l10n = AppLocalizations.of(context);
     const perColumn = 4;
     final columns = (songs.length / perColumn).ceil();
-    final rowHeight = KostvMusicSizes.phone ? 62.0 : 70.0;
+    final rowHeight = _songRowHeight(context, KostvMusicSizes.phone);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1040,7 +1042,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     const perColumn = 4;
     final columns = (songs.length / perColumn).ceil();
     final phone = KostvMusicSizes.phone;
-    final rowHeight = phone ? 62.0 : 70.0;
+    final rowHeight = _songRowHeight(context, phone);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1459,4 +1461,12 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       ),
     ];
   }
+}
+
+/// The height of a song's line in the columns of songs, grown with the
+/// TV's or phone's own text size: its two lines of text get taller.
+double _songRowHeight(BuildContext context, bool phone) {
+  final base = phone ? 62.0 : 70.0;
+  final grown = MediaQuery.textScalerOf(context).scale(36) - 36;
+  return base + (grown > 0 ? grown : 0);
 }

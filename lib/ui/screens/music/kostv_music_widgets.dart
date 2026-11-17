@@ -93,7 +93,13 @@ class KostvMusicPressable extends StatefulWidget {
     this.autofocus = false,
     this.onLongPress,
     this.onKey,
+    this.centerVertically = true,
   });
+
+  /// Whether the focus brings its line to the middle of the page. A grid
+  /// whose page keeps its own place (Genres) says no: its top row stays
+  /// where it is, with the menu and title above it in sight.
+  final bool centerVertically;
 
   final Widget Function(BuildContext context, bool lit) builder;
   final VoidCallback onTap;
@@ -162,7 +168,7 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
       );
       scrollable = Scrollable.maybeOf(scrollable.context);
     }
-    if (scrollable != null) {
+    if (scrollable != null && widget.centerVertically) {
       final page = scrollable;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) kostvMusicRevealVertically(context, page);
@@ -705,7 +711,11 @@ class KostvMusicShelf extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gap = KostvMusicSizes.gap;
-    final height = this.height ?? KostvMusicSizes.cover + 64;
+    // The lines of text under the pictures grow with the TV's or phone's
+    // own text size, and the shelf with them.
+    final grown = MediaQuery.textScalerOf(context).scale(40) - 40;
+    final height =
+        (this.height ?? KostvMusicSizes.cover + 64) + (grown > 0 ? grown : 0);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

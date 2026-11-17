@@ -461,6 +461,11 @@ class _KostvDetailContentState extends State<KostvDetailContent>
     );
   }
 
+  /// The text over the buttons, the fullest version that fits: everything
+  /// (tagline, four lines of overview, who made it), then two lines of
+  /// overview and nothing more, and at worst the title and facts alone,
+  /// made smaller. A short screen (a wide TV, a large text size) never has
+  /// it run into the buttons.
   Widget _buildHeroText(
     AggregatedItem item,
     DetailSectionVisibility sections,
@@ -468,24 +473,37 @@ class _KostvDetailContentState extends State<KostvDetailContent>
     Size size,
     Widget? ratings,
   ) {
+    return _HeroTextFit(
+      key: const ValueKey('kostv-hero'),
+      full: _heroTextLevel(item, sections, landscape, size, ratings, 0),
+      shorter: _heroTextLevel(item, sections, landscape, size, ratings, 1),
+      least: _heroTextLevel(item, sections, landscape, size, ratings, 2),
+    );
+  }
+
+  /// One version of the text over the buttons: [level] 0 has everything,
+  /// 1 two lines of overview and nothing more, 2 the title and facts.
+  Widget _heroTextLevel(
+    AggregatedItem item,
+    DetailSectionVisibility sections,
+    bool landscape,
+    Size size,
+    Widget? ratings,
+    int level,
+  ) {
     final muted = AppColorScheme.onBackground.withValues(alpha: 0.86);
-    final overview = overviewText(item);
+    final overview = level < 2 ? overviewText(item) : null;
     final overviewStyle = TextStyle(
       color: muted,
       fontSize: PlatformDetection.isTV ? 21 : 17,
       height: 1.5,
     );
-    // A short screen (a phone on its side, a small window) keeps the title,
-    // facts and overview, and lets the tagline and the credits go, so the
-    // text never runs into the buttons.
-    final roomy = MediaQuery.sizeOf(context).height >= 600;
-    final tagline = roomy && sections.shows(DetailSection.tagline)
+    final tagline = level == 0 && sections.shows(DetailSection.tagline)
         ? item.tagline
         : null;
-    final credits = roomy ? _credits() : null;
+    final credits = level == 0 ? _credits() : null;
 
     return Column(
-      key: const ValueKey('kostv-hero'),
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -508,59 +526,20 @@ class _KostvDetailContentState extends State<KostvDetailContent>
         ],
         if (overview != null) ...[
           const SizedBox(height: 10),
-          // As much of the overview as fits above the buttons.
-          Flexible(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final line =
-                    MediaQuery.textScalerOf(context)
-                        .scale(overviewStyle.fontSize ?? 16) *
-                    (overviewStyle.height ?? 1);
-                final fit = constraints.maxHeight.isFinite
-                    ? (constraints.maxHeight / line).floor()
-                    : 4;
-                final lines = math.min(fit, 4);
-                if (lines <= 0) return const SizedBox.shrink();
-                return Text(
-                  overview,
-                  maxLines: lines,
-                  overflow: TextOverflow.ellipsis,
-                  style: overviewStyle,
-                );
-              },
-            ),
+          Text(
+            overview,
+            maxLines: level == 0 ? 4 : 2,
+            overflow: TextOverflow.ellipsis,
+            style: overviewStyle,
           ),
         ],
-        // Who made it only when there's room for it: a tall logo and no
-        // overview mustn't push it down over the buttons.
-        if (credits != null)
-          Flexible(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final line =
-                    MediaQuery.textScalerOf(context)
-                        .scale(PlatformDetection.isTV ? 18 : 15) *
-                    1.3;
-                if (constraints.maxHeight.isFinite &&
-                    constraints.maxHeight < 14 + line) {
-                  return const SizedBox.shrink();
-                }
-                final lines = constraints.maxHeight.isFinite
-                    ? ((constraints.maxHeight - 14) / line).floor().clamp(1, 2)
-                    : 2;
-                return Padding(
-                  padding: const EdgeInsets.only(top: 14),
-                  child: _credits(maxLines: lines) ?? credits,
-                );
-              },
-            ),
-          ),
+        if (credits != null) ...[const SizedBox(height: 14), credits],
       ],
     );
   }
 
   /// «Dirección Lucía Ferrer · Con Ana Ortiz, Mario Sanz, Pablo Rey».
-  Widget? _credits({int maxLines = 2}) {
+  Widget? _credits() {
     final l10n = AppLocalizations.of(context);
     String names(List<Map<String, dynamic>> people, int count) => people
         .map((p) => p['Name']?.toString() ?? '')
@@ -593,7 +572,7 @@ class _KostvDetailContentState extends State<KostvDetailContent>
           ],
         ],
       ),
-      maxLines: maxLines,
+      maxLines: 2,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(color: dim, fontSize: PlatformDetection.isTV ? 18 : 15),
     );
@@ -949,4 +928,71 @@ class _KostvSectionState extends State<_KostvSection> {
       ),
     );
   }
+}
+
+/// The fullest of three versions of a text that fits the room it has: the
+/// first if it fits whole, else the second, else the third made as small as
+/// it must. Each sits at the foot of the room, where the text meets the
+/// buttons under it.
+class _HeroTextFit extends StatelessWidget {
+  const _HeroTextFit({
+    super.key,
+    required this.full,
+    required this.shorter,
+    required this.least,
+  });
+
+  final Widget full;
+  final Widget shorter;
+  final Widget least;
+
+  @override
+  Widget build(BuildContext context) => CustomMultiChildLayout(
+    delegate: _HeroTextFitDelegate(),
+    children: [
+      LayoutId(id: 0, child: full),
+      LayoutId(id: 1, child: shorter),
+      LayoutId(
+        id: 2,
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.bottomLeft,
+          child: least,
+        ),
+      ),
+    ],
+  );
+}
+
+class _HeroTextFitDelegate extends MultiChildLayoutDelegate {
+  @override
+  void performLayout(Size size) {
+    final loose = BoxConstraints(maxWidth: size.width);
+    final full = layoutChild(0, loose);
+    final shorter = layoutChild(1, loose);
+    final least = layoutChild(
+      2,
+      BoxConstraints(maxWidth: size.width, maxHeight: size.height),
+    );
+    // The ones not used are put out of sight, below the room (clipped).
+    final away = Offset(0, size.height + 10000);
+    int chosen;
+    if (full.height <= size.height) {
+      chosen = 0;
+    } else if (shorter.height <= size.height) {
+      chosen = 1;
+    } else {
+      chosen = 2;
+    }
+    final sizes = [full, shorter, least];
+    for (var id = 0; id < 3; id++) {
+      positionChild(
+        id,
+        id == chosen ? Offset(0, size.height - sizes[id].height) : away,
+      );
+    }
+  }
+
+  @override
+  bool shouldRelayout(_HeroTextFitDelegate oldDelegate) => false;
 }

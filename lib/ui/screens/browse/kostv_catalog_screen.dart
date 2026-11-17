@@ -410,7 +410,11 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
                 crossAxisSpacing: gap,
                 mainAxisSpacing: phone ? 14 : 26,
                 // The poster and its two lines of text under it.
-                childAspectRatio: cardWidth / (cardWidth * 1.5 + 50),
+                // (as tall as the TV's own text size makes them)
+                childAspectRatio:
+                    cardWidth /
+                    (cardWidth * 1.5 +
+                        MediaQuery.textScalerOf(context).scale(50)),
               ),
               delegate: SliverChildBuilderDelegate(
                 (context, i) => _card(

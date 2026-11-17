@@ -101,24 +101,34 @@ class EpgChannelCell extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (hasTopRow) ...[
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      if (isFavorite) ...[
-                        Icon(
-                          Icons.favorite,
-                          size:
-                              scaler.scale(_numberSize(width)) *
-                              _inlineIconShare,
-                          color: AppColors.red500,
-                        ),
-                        const SizedBox(width: 4),
-                      ],
-                      ?chip,
-                    ],
+                  // Gives way (smaller) in a row made short by a large text
+                  // size, so the name under it keeps its line.
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (isFavorite) ...[
+                            Icon(
+                              Icons.favorite,
+                              size:
+                                  scaler.scale(_numberSize(width)) *
+                                  _inlineIconShare,
+                              color: AppColors.red500,
+                            ),
+                            const SizedBox(width: 4),
+                          ],
+                          ?chip,
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 3),
+                  // The gap gives way first in a row made short by a large
+                  // text size.
+                  const Flexible(child: SizedBox(height: 3)),
                 ],
                 focused
                     ? SizedBox(
