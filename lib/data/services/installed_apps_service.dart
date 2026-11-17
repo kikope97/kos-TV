@@ -252,12 +252,21 @@ class InstalledAppsService extends ChangeNotifier {
 }
 
 /// Kos TV: whether this is a TV whose apps can be listed, which is where the
-/// Apps row, the Apps button and their settings appear.
+/// Apps row, the Apps button and their settings appear. Never in Kids Mode:
+/// the TV's apps (YouTube, the browser…) are out of reach of its limits.
 bool kostvAppsAvailable() {
   final getIt = GetIt.instance;
   return PlatformDetection.isTV &&
       getIt.isRegistered<InstalledAppsService>() &&
-      getIt<InstalledAppsService>().isSupported;
+      getIt<InstalledAppsService>().isSupported &&
+      !kostvKidsModeOn();
+}
+
+/// Kos TV: whether Kids Mode is on for whoever is using the app.
+bool kostvKidsModeOn() {
+  final getIt = GetIt.instance;
+  return getIt.isRegistered<UserPreferences>() &&
+      getIt<UserPreferences>().get(UserPreferences.kidsModeEnabled);
 }
 
 /// Kos TV: whether the navigation bar shows the Apps button: where

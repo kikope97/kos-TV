@@ -72,8 +72,12 @@ class _AccountScreen extends StatelessWidget {
                 leading: const Icon(Icons.family_restroom),
                 title: Text(l10n.parentalControls),
                 subtitle: Text(l10n.contentRatingRestrictions),
-                onTap: () =>
-                    context.pushSettingsScreen(const ParentalSettingsScreen()),
+                // Kos TV: behind the account's PIN, when it has one.
+                onTap: () async {
+                  if (!await kostvAccountPinLetsIn(context)) return;
+                  if (!context.mounted) return;
+                  context.pushSettingsScreen(const ParentalSettingsScreen());
+                },
               ),
             ],
           ),

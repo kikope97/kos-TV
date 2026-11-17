@@ -49,6 +49,7 @@ import '../../../util/pin_code_util.dart';
 import '../../../util/signed_in_server_features.dart';
 import '../../widgets/kos_intro.dart';
 import '../../widgets/pin_entry_dialog.dart';
+import '../../widgets/kostv_kids_mode_gate.dart';
 import '../../widgets/app_update_dialog.dart';
 
 import '../../../auth/store/authentication_preferences.dart';
@@ -972,6 +973,7 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
         context.navigateTopLevel(Destinations.admin);
       },
       openThemeEditor: () => unawaited(_openThemeEditor(context)),
+      context: context,
     );
     final results = _filterSettingsIndex(index, _query);
     if (results.isEmpty) {

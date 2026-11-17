@@ -246,6 +246,9 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Solicitar'), findsNothing);
+    // Neither what it is about nor its picture.
+    expect(find.text('Un coche de carreras…'), findsNothing);
+    expect(find.byType(Image), findsNothing);
     await tester.tap(find.text('No disponible para tu perfil'));
     await settle(tester);
     expect(fake.requests, isEmpty);

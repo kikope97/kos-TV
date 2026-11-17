@@ -120,6 +120,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
   required void Function(Widget screen) push,
   required VoidCallback openAdmin,
   required VoidCallback openThemeEditor,
+  required BuildContext context,
 }) {
   final tmdbAvailable = GetIt.instance<PluginSyncService>().tmdbAvailable;
   final pluginAvailable = GetIt.instance<PluginSyncService>().pluginAvailable;
@@ -158,7 +159,12 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     slug: 'parental',
     path: [l10n.account, l10n.parentalControls],
     icon: Icons.shield,
-    open: () => push(const ParentalSettingsScreen()),
+    // Kos TV: behind the account's PIN, as from Account.
+    open: () => unawaited(
+      kostvAccountPinLetsIn(context).then((ok) {
+        if (ok && context.mounted) push(const ParentalSettingsScreen());
+      }),
+    ),
   );
   final settingsSync = _SearchSection(
     slug: 'settings-sync',

@@ -350,6 +350,8 @@ class _HomeShellState extends State<_HomeShell>
         apps.isSupported &&
         apps.isLoaded &&
         PlatformDetection.isTV &&
+        // Kos TV: not in Kids Mode (see kostvAppsAvailable).
+        !_userPrefs.get(UserPreferences.kidsModeEnabled) &&
         _userPrefs.get(UserPreferences.showAppsRow);
     if (!show) {
       if (_appsRowSignature != null) {

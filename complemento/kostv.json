@@ -5,7 +5,7 @@
   "category": "General",
   "targetAbi": "10.10.0.0",
   "overview": "El complemento del servidor de kOS TV",
-  "description": "Complemento del servidor de kOS TV, basado en Moonbase (el complemento oficial de Moonfin, GPLv3): sincroniza los ajustes de cada persona entre sus aparatos, con los valores por defecto del administrador; valoraciones (MDBList y TMDB), filas de listas y de temporada, búsqueda inteligente, ver juntos, avisos y PIN de perfiles.",
+  "description": "Complemento del servidor de kOS TV: sincroniza los ajustes de cada persona entre sus aparatos, con los valores por defecto del administrador; valoraciones (MDBList y TMDB), filas de listas y de temporada, búsqueda inteligente, ver juntos, avisos y PIN de perfiles.",
   "catalog": "https://github.com/kikope97/kos-TV/releases/download/complemento/manifest.json",
   "imageUrl": "https://github.com/kikope97/kos-TV/releases/download/complemento/logo.png",
   "assemblies": ["Moonfin.Server.dll", "SharpCompress.dll"]

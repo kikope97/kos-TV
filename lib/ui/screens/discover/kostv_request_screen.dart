@@ -956,7 +956,12 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     ];
   }
 
-  String? get _art => _c.title?.backdrop ?? _c.title?.poster;
+  // Kos TV: a title the person may not see shows neither its picture nor
+  // what it is about, only that it isn't for their profile.
+  String? get _art =>
+      _c.ageBlocked ? null : (_c.title?.backdrop ?? _c.title?.poster);
+
+  String? get _overview => _c.ageBlocked ? null : _c.title?.overview;
 
   // ------------------------------------------------------------- the page
 
@@ -1102,7 +1107,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
             const SizedBox(height: 18),
             _strip(stats, _stripProgress, wide: true),
           ],
-          if (title?.overview case final overview?) ...[
+          if (_overview case final overview?) ...[
             const SizedBox(height: 16),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 760),
@@ -1356,7 +1361,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
                       const SizedBox(height: 16),
                       _strip(stats, _stripProgress, wide: false),
                     ],
-                    if (title?.overview case final overview?) ...[
+                    if (_overview case final overview?) ...[
                       const SizedBox(height: 16),
                       Text(
                         overview,

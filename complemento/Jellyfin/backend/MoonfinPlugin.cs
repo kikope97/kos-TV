@@ -60,7 +60,7 @@ public class MoonfinPlugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public override string Name => "kOS TV";
 
     /// <inheritdoc />
-    public override string Description => "Complemento del servidor de kOS TV, basado en Moonbase (el complemento oficial de Moonfin, GPLv3): sincroniza los ajustes de cada persona entre sus aparatos, con los valores por defecto del administrador; valoraciones (MDBList y TMDB), filas de listas y de temporada, búsqueda inteligente, ver juntos, avisos y PIN de perfiles.";
+    public override string Description => "Complemento del servidor de kOS TV: sincroniza los ajustes de cada persona entre sus aparatos, con los valores por defecto del administrador; valoraciones (MDBList y TMDB), filas de listas y de temporada, búsqueda inteligente, ver juntos, avisos y PIN de perfiles.";
 
     /// <inheritdoc />
     public override Guid Id => Guid.Parse("561f86df-fa00-4fca-aa4d-2fed0e332670");
