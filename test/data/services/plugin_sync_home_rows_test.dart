@@ -104,6 +104,8 @@ void main() {
 
   Future<void> pushLayout(List<Map<String, dynamic>> sections) async {
     adapter.resolvedProfile = {'homeSections': sections};
+    // Local set-up goes up first, or the update would wait for it.
+    await service.flushPendingPushForTesting();
     await service.handleServerEvent(client, {'type': 'settingsUpdated'});
   }
 
@@ -180,6 +182,8 @@ void main() {
     adapter.resolvedProfile = {
       'homeRowOrder': ['resume'],
     };
+    // Local set-up goes up first, or the update would wait for it.
+    await service.flushPendingPushForTesting();
     await service.handleServerEvent(client, {'type': 'settingsUpdated'});
 
     final watchingNow = prefs.homeSectionsConfig.firstWhere(

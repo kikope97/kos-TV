@@ -877,6 +877,19 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       subtitle: l10n.settingsAlwaysExpandNavbarLabels,
       keywords: ['labels'],
     ),
+    // Kos TV: its own buttons.
+    if (kostvDiscoverAllowed())
+      navigation.leaf(
+        'kostv_show_discover_button',
+        l10n.kostvShowDiscoverButton,
+        keywords: ['discover', 'descubrir', 'pedir', 'solicitar'],
+      ),
+    navigation.leaf(
+      'kostv_show_music_button',
+      l10n.kostvMusicShowButton,
+      subtitle: l10n.kostvMusicShowButtonSubtitle,
+      keywords: ['music', 'música', 'canciones'],
+    ),
     if (calendarAvailable)
       navigation.leaf(
         'pref_show_calendar_button',
@@ -954,6 +967,30 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     ],
 
     home.screen(keywords: ['home page', 'rows']),
+    // Kos TV: the Home built around the person, where the plugin offers it.
+    if (GetIt.instance<UserPreferences>().get(
+      UserPreferences.kostvHomeAvailable,
+    )) ...[
+      home.leaf(
+        'kostv_home_recommended',
+        l10n.kostvHomeSetting,
+        subtitle: l10n.kostvHomeSettingSubtitle,
+        keywords: ['recomendaciones', 'recommendations', 'para ti'],
+      ),
+      home.leaf(
+        'kostv_home_show_recent',
+        l10n.kostvHomeRecentSetting,
+        subtitle: l10n.kostvHomeRecentSettingSubtitle,
+        keywords: ['recent', 'reciente', 'nuevo'],
+      ),
+    ],
+    if (pluginAvailable)
+      home.leaf(
+        'pref_media_type_badge_behavior',
+        l10n.kostvMediaTypeBadges,
+        subtitle: l10n.kostvMediaTypeBadgesSubtitle,
+        keywords: ['badge', 'etiqueta'],
+      ),
     home.leaf('pref_home_rows_style', l10n.rowsType, keywords: [
       'classic',
       'modern rows',
@@ -2030,8 +2067,23 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       ]),
       downloads.leaf('clear_image_cache', l10n.clearImageCache),
     ],
+    // Kos TV: on a TV, only the switch that turns downloading on until it
+    // is on; the rest of the options show once it is, as on the screen.
     if (PlatformDetection.supportsOfflineDownloads &&
-        !PlatformDetection.isWeb) ...[
+        !PlatformDetection.isWeb &&
+        PlatformDetection.isTV)
+      downloads.leaf(
+        'tv_offline_downloads',
+        l10n.tvOfflineDownloads,
+        subtitle: l10n.tvOfflineDownloadsSubtitle,
+        keywords: ['offline', 'descargas', 'downloads'],
+      ),
+    if (PlatformDetection.supportsOfflineDownloads &&
+        !PlatformDetection.isWeb &&
+        (!PlatformDetection.isTV ||
+            GetIt.instance<UserPreferences>().get(
+              UserPreferences.tvOfflineDownloads,
+            ))) ...[
       downloads.leaf(
         'download_default_quality',
         l10n.defaultDownloadQuality,

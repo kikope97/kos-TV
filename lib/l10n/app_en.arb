@@ -17102,6 +17102,10 @@
   "@kostvMoreMediaBarSummary": {
     "description": "Kos TV: what the Media bar screen's More settings holds"
   },
+  "kostvMoreMediaBarRecommendedSummary": "With «Home with recommendations», the bar shows what you may like: which titles show and where from only counts when there are none",
+  "@kostvMoreMediaBarRecommendedSummary": {
+    "description": "Kos TV: the Media bar screen's More settings while the recommended Home picks what the bar shows"
+  },
   "kostvMoreLibrariesSummary": "Library styles, collections, titles under posters, books…",
   "@kostvMoreLibrariesSummary": {
     "description": "Kos TV: what the Libraries screen's More settings holds"

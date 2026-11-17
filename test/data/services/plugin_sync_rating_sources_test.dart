@@ -102,6 +102,8 @@ void main() {
       'homeRowsMdblistRatingSources': ['myAnimeList', 'stars'],
       'mediaBarMdblistRatingSources': ['rogerEbert'],
     };
+    // Local set-up goes up first, or the update would wait for it.
+    await service.flushPendingPushForTesting();
     await service.handleServerEvent(client, {'type': 'settingsUpdated'});
 
     expect(prefs.get(UserPreferences.enabledRatings), 'imdb');
@@ -114,6 +116,8 @@ void main() {
     adapter.resolvedProfile = {
       'mdblistRatingSources': ['imdb'],
     };
+    // Local set-up goes up first, or the update would wait for it.
+    await service.flushPendingPushForTesting();
     await service.handleServerEvent(client, {'type': 'settingsUpdated'});
 
     expect(prefs.get(UserPreferences.homeRowsEnabledRatings), 'tmdb');
@@ -132,6 +136,8 @@ void main() {
       'homeRowsMdblistRatingSources': <String>[],
       'mediaBarMdblistRatingSources': <String>[],
     };
+    // Local set-up goes up first, or the update would wait for it.
+    await service.flushPendingPushForTesting();
     await service.handleServerEvent(client, {'type': 'settingsUpdated'});
 
     expect(prefs.get(UserPreferences.enabledRatings), '');

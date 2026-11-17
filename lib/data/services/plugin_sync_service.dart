@@ -131,6 +131,8 @@ class PluginSyncService extends ChangeNotifier {
 
   bool _isSyncingFromServer = false;
   Timer? _pushDebounceTimer;
+  int _pushesInFlight = 0;
+  bool _serverUpdateWaiting = false;
   static const _pushDebounce = Duration(milliseconds: 1000);
 
   /// Profile JSON as last pushed to, or applied from, each server and profile.
@@ -228,6 +230,7 @@ class PluginSyncService extends ChangeNotifier {
     // has read, or what waits for them («Personalizar el aspecto») would
     // wait for the rest of the session.
     if (!keepSignInRead) _signInSettingsRead.clear();
+    _serverUpdateWaiting = false;
     if (stopStream) {
       _stopSettingsStream();
     }
@@ -677,14 +680,50 @@ class PluginSyncService extends ChangeNotifier {
       return;
     }
 
+    // A change made here that hasn't reached the server yet goes first: the
+    // server's copy is older than it, and applying it now would undo the
+    // change (and mark it as sent). The update is read once the push is done.
+    if (_hasUnsentLocalChange) {
+      _serverUpdateWaiting = true;
+      return;
+    }
+
     final profile = syncProfile;
     final resolved = await _fetchResolvedProfile(client, profile);
     if (resolved == null) {
       return;
     }
+    // Changed while the server's copy was on its way.
+    if (_hasUnsentLocalChange) {
+      _serverUpdateWaiting = true;
+      return;
+    }
 
     await _applyServerSettings(client, profile, resolved);
     notifyListeners();
+  }
+
+  /// Something changed here is waiting to be pushed, or being pushed.
+  bool get _hasUnsentLocalChange =>
+      (_pushDebounceTimer?.isActive ?? false) || _pushesInFlight > 0;
+
+  /// Reads the server update held back by a local change, once that change
+  /// has gone up (or turned out to have nothing to send).
+  Future<void> _readWaitingServerUpdate(MediaServerClient client) async {
+    if (!_serverUpdateWaiting || _hasUnsentLocalChange) return;
+    _serverUpdateWaiting = false;
+    try {
+      await _dispatchServerEvent(client, const {'type': 'settingsUpdated'});
+    } catch (_) {}
+  }
+
+  /// Sends a change still waiting out the push delay right away, so a test
+  /// can set up local state and then play a server update over it.
+  @visibleForTesting
+  Future<void> flushPendingPushForTesting() async {
+    if (!(_pushDebounceTimer?.isActive ?? false)) return;
+    _pushDebounceTimer!.cancel();
+    await _pushWhenProfileRead();
   }
 
   /// Sign-in leaves this running rather than waiting on it. The server can
@@ -805,13 +844,18 @@ class PluginSyncService extends ChangeNotifier {
         return;
       }
 
-      await _dio.post(
-        '${ep.base}/Moonfin/Settings/Profile/$profile',
-        data: {'profile': payloadProfile, 'clientId': 'moonfin-flutter'},
-        options: Options(
-          headers: {...headers, 'Content-Type': 'application/json'},
-        ),
-      );
+      _pushesInFlight++;
+      try {
+        await _dio.post(
+          '${ep.base}/Moonfin/Settings/Profile/$profile',
+          data: {'profile': payloadProfile, 'clientId': 'moonfin-flutter'},
+          options: Options(
+            headers: {...headers, 'Content-Type': 'application/json'},
+          ),
+        );
+      } finally {
+        _pushesInFlight--;
+      }
       // Only after the POST lands, so a failed push retries on the next change.
       _lastSyncedProfileJson[snapshotKey] = payloadJson;
     } catch (_) {}
@@ -2124,7 +2168,7 @@ class PluginSyncService extends ChangeNotifier {
   /// Sign-in reads the server profile behind the calls ahead of it, so a change
   /// made in that window would write local state over the stored profile and
   /// take the rows it defines with it. Waiting keeps the change.
-  void _pushWhenProfileRead() {
+  Future<void> _pushWhenProfileRead() async {
     if (_readingProfileOnSignIn) {
       _pushDebounceTimer = Timer(_pushDebounce, _pushWhenProfileRead);
       return;
@@ -2135,7 +2179,8 @@ class PluginSyncService extends ChangeNotifier {
     if (client != null &&
         client.accessToken != null &&
         client.accessToken!.isNotEmpty) {
-      pushSettings(client);
+      await pushSettings(client);
+      await _readWaitingServerUpdate(client);
     }
   }
 

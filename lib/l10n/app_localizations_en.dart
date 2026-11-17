@@ -17672,6 +17672,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Which titles show and where from, ratings, auto-advance…';
 
   @override
+  String get kostvMoreMediaBarRecommendedSummary =>
+      'With «Home with recommendations», the bar shows what you may like: which titles show and where from only counts when there are none';
+
+  @override
   String get kostvMoreLibrariesSummary =>
       'Library styles, collections, titles under posters, books…';
 

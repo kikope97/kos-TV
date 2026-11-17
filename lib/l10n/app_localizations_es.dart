@@ -17987,6 +17987,10 @@ class AppLocalizationsEs extends AppLocalizations {
       'Qué títulos salen y de dónde, valoraciones, avance automático…';
 
   @override
+  String get kostvMoreMediaBarRecommendedSummary =>
+      'Con «Inicio con recomendaciones», la barra enseña lo que te puede gustar: qué títulos salen y de dónde solo cuenta si no hay recomendaciones';
+
+  @override
   String get kostvMoreLibrariesSummary =>
       'Estilos de biblioteca, colecciones, títulos bajo los pósteres, libros…';
 

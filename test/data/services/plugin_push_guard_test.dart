@@ -133,6 +133,30 @@ void main() {
     expect(profilePosts(), isNotEmpty);
   });
 
+  // The server's copy is older than a change made here that hasn't gone up
+  // yet: applying it would undo the change and mark it as sent.
+  test('a server update leaves an unsent change alone', () async {
+    await prefs.set(UserPreferences.use24HourClock, false);
+    await service.handleServerEvent(client, {'type': 'settingsUpdated'});
+
+    expect(
+      adapter.requests.where((r) => r.contains('/Settings/Resolved/')),
+      isEmpty,
+    );
+    expect(prefs.get(UserPreferences.use24HourClock), isFalse);
+
+    // Once it went up, the update held back is read.
+    await settle();
+    expect(profilePosts(), isNotEmpty);
+    final post = adapter.requests.indexWhere(
+      (r) => r.startsWith('POST') && r.contains('/Settings/Profile/'),
+    );
+    final read = adapter.requests.indexWhere(
+      (r) => r.contains('/Settings/Resolved/'),
+    );
+    expect(read, greaterThan(post));
+  });
+
   group('sync profile', () {
     test('follows the device profile until one is picked', () {
       expect(service.syncProfile, service.currentDeviceProfile);
@@ -181,8 +205,10 @@ void main() {
 
     test('sign in and server updates read the picked profile', () async {
       await service.setSyncProfile('global');
+      await service.flushPendingPushForTesting();
 
       await service.syncOnLogin(client, serverId: 'srv1');
+      await service.flushPendingPushForTesting();
       await service.handleServerEvent(client, {'type': 'settingsUpdated'});
 
       final reads = adapter.requests

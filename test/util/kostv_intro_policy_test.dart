@@ -86,6 +86,13 @@ void main() {
       expect(prefs.get(UserPreferences.kostvIntroEnabled), isFalse);
     });
 
+    test('a new install keeps it off at the next opening', () async {
+      final prefs = await register();
+      await launchAt(morning);
+      await launchAt(morning.add(const Duration(hours: 1)));
+      expect(prefs.get(UserPreferences.kostvIntroEnabled), isFalse);
+    });
+
     test('an install from before keeps it on', () async {
       SharedPreferences.setMockInitialValues({
         'kostv_intro_last_seen_ms': morning.millisecondsSinceEpoch,

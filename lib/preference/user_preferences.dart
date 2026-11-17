@@ -656,6 +656,16 @@ class UserPreferences extends ChangeNotifier {
     'pref_show_live_tv_button',
     // Kos TV: the Discover button belongs to each person, and syncs.
     'kostv_show_discover_button',
+    // Kos TV: each person's own on this device (not synced): the Music
+    // button and its autoplay, the Home built around them and whether it
+    // keeps «Añadido recientemente», and how they order their Favorites.
+    'kostv_show_music_button',
+    'kostv_music_autoplay',
+    'kostv_home_recommended',
+    'kostv_home_show_recent',
+    'library_sort_by_favorites',
+    'library_sort_dir_favorites',
+    'kostv_favorites_by_marked',
     'pref_show_syncplay_button',
     'pref_show_downloads_button',
     'pref_show_libraries_in_toolbar',
@@ -2760,7 +2770,8 @@ class UserPreferences extends ChangeNotifier {
   /// Off unless turned on on that TV: kOS TV is the TV's start screen only
   /// on some of them. Kept on each device.
   /// Kos TV: Home built around the person (what they'd like, from what they
-  /// watched) instead of the layout of sections. Kept on each device.
+  /// watched) instead of the layout of sections. Kept for each person on
+  /// each device.
   static final kostvHomeRecommended = Preference<bool>(
     key: 'kostv_home_recommended',
     defaultValue: true,

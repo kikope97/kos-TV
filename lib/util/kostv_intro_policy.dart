@@ -34,7 +34,14 @@ abstract final class KostvIntroPolicy {
       final lastSeen = prefs.getInt(_lastSeenKey);
       // Opened before (it noted when): an install from when the animation
       // was on by default keeps it on; only a new one starts without it.
-      if (lastSeen != null) _keepIntroOn();
+      // A new one keeps it off for good: the off of a new install is
+      // written down now, or the next opening would take it for an old one
+      // and turn it on.
+      if (lastSeen != null) {
+        _keepIntroOn();
+      } else {
+        _startIntroOff();
+      }
       _playsThisLaunch = decide(
         closed: prefs.getBool(_closedKey) ?? false,
         lastSeen: lastSeen == null
@@ -64,6 +71,14 @@ abstract final class KostvIntroPolicy {
     final prefs = getIt<UserPreferences>();
     if (prefs.containsPreference(UserPreferences.kostvIntroEnabled)) return;
     prefs.set(UserPreferences.kostvIntroEnabled, true);
+  }
+
+  static void _startIntroOff() {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<UserPreferences>()) return;
+    final prefs = getIt<UserPreferences>();
+    if (prefs.containsPreference(UserPreferences.kostvIntroEnabled)) return;
+    prefs.set(UserPreferences.kostvIntroEnabled, false);
   }
 
   static bool _writeFailed(Object e) {

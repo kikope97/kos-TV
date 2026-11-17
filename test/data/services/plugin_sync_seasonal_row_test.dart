@@ -100,6 +100,8 @@ void main() {
 
   Future<void> pull(Map<String, dynamic> profile) async {
     adapter.resolvedProfile = profile;
+    // Local set-up goes up first, or the update would wait for it.
+    await service.flushPendingPushForTesting();
     await service.handleServerEvent(client, {'type': 'settingsUpdated'});
   }
 

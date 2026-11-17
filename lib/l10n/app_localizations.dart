@@ -30513,6 +30513,12 @@ abstract class AppLocalizations {
   /// **'Which titles show and where from, ratings, auto-advance…'**
   String get kostvMoreMediaBarSummary;
 
+  /// Kos TV: the Media bar screen's More settings while the recommended Home picks what the bar shows
+  ///
+  /// In en, this message translates to:
+  /// **'With «Home with recommendations», the bar shows what you may like: which titles show and where from only counts when there are none'**
+  String get kostvMoreMediaBarRecommendedSummary;
+
   /// Kos TV: what the Libraries screen's More settings holds
   ///
   /// In en, this message translates to:

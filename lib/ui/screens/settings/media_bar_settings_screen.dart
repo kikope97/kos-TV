@@ -330,7 +330,11 @@ class _MediaBarSettingsScreenState extends State<MediaBarSettingsScreen> {
             ...settingsMore(
               context,
               id: 'appearance.mediaBar',
-              summary: l10n.kostvMoreMediaBarSummary,
+              // Kos TV: with the recommended Home, the bar shows its picks
+              // and most of these only count when there are none.
+              summary: _prefs.kostvHomeActive
+                  ? l10n.kostvMoreMediaBarRecommendedSummary
+                  : l10n.kostvMoreMediaBarSummary,
               children: [
                 SettingsSectionHeader(l10n.general),
                 adaptiveListSection(
