@@ -1108,7 +1108,8 @@ class _Still extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = _progressOf(episode);
+    // Kos TV: a watched one has its line full, as on Netflix, besides the ✓.
+    final progress = episode.isPlayed ? 1.0 : _progressOf(episode);
     return ClipRRect(
       borderRadius: AppRadius.circular(radius),
       child: Stack(
