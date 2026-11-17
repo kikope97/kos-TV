@@ -1343,8 +1343,10 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                       _openFromMenu(Destinations.myList);
                     },
                   ),
-                // Kos TV: Music, the page of its own.
-                if (_prefs.get(UserPreferences.kostvShowMusicButton))
+                // Kos TV: Music, the page of its own (not in Kids Mode,
+                // where albums can't be asked for).
+                if (!_kidsMode &&
+                    _prefs.get(UserPreferences.kostvShowMusicButton))
                   _SidebarItem(
                     key: const ValueKey('sidebar-music'),
                     focusNode: _menuNode(Destinations.kostvMusic),

@@ -10,6 +10,7 @@ import '../../../data/repositories/multi_server_repository.dart';
 import '../../../data/repositories/user_views_repository.dart';
 import '../../../data/services/library_scope_service.dart';
 import '../../../data/services/media_server_client_factory.dart';
+import '../../../data/utils/blocked_ratings.dart';
 import '../../../data/utils/genre_browse_utils.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/user_preferences.dart';
@@ -162,9 +163,11 @@ class _KostvLibrariesScreenState extends State<KostvLibrariesScreen> {
         imageTypeLimit: 1,
       );
       if (_disposed) return;
+      // Its picture never from a title parental control blocks.
       final items = ((response['Items'] as List?) ?? const [])
           .whereType<Map>()
           .map((i) => i.cast<String, dynamic>())
+          .where((i) => !isRawItemBlocked(i))
           .toList();
       final (image, _, used) = resolveGenreFallbackArtwork(
         items: items,

@@ -165,6 +165,30 @@ class _ServerScreenState extends State<ServerScreen> {
     }
   }
 
+  /// The PIN of [userId] on [server], asked with the token just received.
+  /// True when there is none, or it was typed right.
+  Future<bool> _passesPinAfterSignIn(Server server, String userId) async {
+    final guard = PinGuard.forAccount(
+      store: GetIt.instance<PreferenceStore>(),
+      service: GetIt.instance<ServerPinService>(),
+      userId: userId,
+      server: server,
+      accessToken: _userRepo
+          .getStoredServerUsers(server.id)
+          .where((stored) => stored.id == userId)
+          .map((stored) => stored.accessToken)
+          .firstOrNull,
+    );
+    await guard.refresh();
+    if (!mounted) return false;
+    if (!guard.pin.isPinEnabled) return true;
+    return PinEntryDialog.show(
+      context,
+      mode: PinEntryMode.verify,
+      onVerifyAsync: guard.verify,
+    );
+  }
+
   Future<void> _handleUserTap(_MergedUser user) async {
     final server = _server;
     if (server == null) return;
@@ -183,6 +207,9 @@ class _ServerScreenState extends State<ServerScreen> {
     await guard.refresh();
     if (!mounted) return;
 
+    // Asked here only when this device knew of it; otherwise, once there is
+    // a token to ask the server with (below).
+    final pinAsked = guard.pin.isPinEnabled;
     if (guard.pin.isPinEnabled) {
       final verified = await PinEntryDialog.show(
         context,
@@ -243,7 +270,13 @@ class _ServerScreenState extends State<ServerScreen> {
           ),
         );
         if (switched && mounted) {
-          context.go(Destinations.home);
+          // Kos TV: a profile this device had no token of could only have
+          // its PIN asked now: a wrong or cancelled one signs it back out.
+          if (!pinAsked && !await _passesPinAfterSignIn(server, result.userId)) {
+            await _sessionRepo.destroyCurrentSession();
+            return;
+          }
+          if (mounted) context.go(Destinations.home);
           return;
         }
       }

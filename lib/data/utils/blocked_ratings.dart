@@ -45,6 +45,12 @@ bool _isItemBlocked(AggregatedItem item, {String? fallbackRating}) {
   );
 }
 
+/// Whether [raw], an item as the server sends it, is blocked by its rating.
+bool isRawItemBlocked(Map<String, dynamic> raw) {
+  final rating = raw['OfficialRating'];
+  return isRatingBlocked(rating is String ? rating : null);
+}
+
 /// [items] with the blocked ones dropped.
 ///
 /// [fallbackRating] covers episodes, which usually carry no rating of their own

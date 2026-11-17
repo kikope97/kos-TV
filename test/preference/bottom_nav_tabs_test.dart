@@ -78,13 +78,12 @@ void main() {
       ]);
     });
 
-    test('Kids Mode leaves out Libraries and Live TV', () {
+    test('Kids Mode leaves out Libraries, Live TV and Music', () {
       const gates = BottomNavTabGates(kidsMode: true, showLiveTv: true);
       expect(gates.resolvePins(''), [
         BottomNavTab.search,
         BottomNavTab.genres,
-        // Kos TV: Music is fine for children.
-        BottomNavTab.kostvMusic,
+        // Kos TV: not Music either, where albums can be asked for.
       ]);
     });
   });

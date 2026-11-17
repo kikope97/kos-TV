@@ -13,6 +13,7 @@ import 'package:jellyfin_preference/jellyfin_preference.dart';
 import '../../auth/models/server.dart';
 import '../../auth/models/user.dart';
 import '../../auth/repositories/server_repository.dart';
+import '../../auth/kostv_household_server.dart';
 import '../../auth/repositories/session_repository.dart';
 import '../../auth/repositories/user_repository.dart';
 import '../../auth/services/silo_household.dart';
@@ -31,6 +32,7 @@ import 'adaptive/adaptive_dialog.dart';
 import '../screens/auth/silo_profile_unlock.dart';
 import '../screens/discover/kostv_requests_tray.dart';
 import '../screens/settings/settings_side_panel.dart';
+import 'kostv_kids_mode_gate.dart';
 import 'kostv_requests_tray_button.dart';
 import 'navigation_layout.dart';
 import 'overlay_sheet.dart';
@@ -174,6 +176,8 @@ class _AccountDialogState extends State<_AccountDialog> {
     // picked while this one is still being asked for.
     setState(() => _busy = true);
     try {
+      // Kos TV: Kids Mode isn't left by picking a grown-up's profile.
+      if (!await kostvKidsModeLetsOut(context) || !mounted) return;
       await _switchVerifiedAccount(account);
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -243,6 +247,7 @@ class _AccountDialogState extends State<_AccountDialog> {
   /// profile is in use.
   Future<void> _signOutCurrent() async {
     if (_busy) return;
+    if (!await kostvKidsModeLetsOut(context) || !mounted) return;
     setState(() => _busy = true);
     await _sessionRepo.signOutSiloAccount();
 
@@ -253,14 +258,23 @@ class _AccountDialogState extends State<_AccountDialog> {
 
   Future<void> _signOutAll() async {
     if (_busy) return;
+    if (!await kostvKidsModeLetsOut(context) || !mounted) return;
     setState(() => _busy = true);
 
     // A Silo household's login ends on Silo too, not only on this device.
     await _sessionRepo.signOutSiloAccount();
     await _serverRepo.loadStoredServers();
-    final serverIds = _serverRepo.servers.map((s) => s.id).toList();
-    for (final id in serverIds) {
-      await _serverRepo.deleteServer(id);
+    for (final server in _serverRepo.servers.toList()) {
+      if (isKostvHouseholdServer(server)) {
+        // Kos TV: the household server stays, with the id it has: what this
+        // device keeps of each person (Kids Mode, parental control) is
+        // filed under it, and a new one would leave it all behind.
+        for (final user in _authStore.getUsers(server.id)) {
+          await _authStore.removeUser(server.id, user.id);
+        }
+        continue;
+      }
+      await _serverRepo.deleteServer(server.id);
     }
 
     if (!mounted) return;
@@ -268,7 +282,8 @@ class _AccountDialogState extends State<_AccountDialog> {
     context.go(Destinations.serverSelect);
   }
 
-  void _addUser() {
+  Future<void> _addUser() async {
+    if (!await kostvKidsModeLetsOut(context) || !mounted) return;
     final activeServer = _activeServerId;
     final router = GoRouter.of(context);
     Navigator.of(context).pop();
@@ -279,7 +294,8 @@ class _AccountDialogState extends State<_AccountDialog> {
     router.go(Destinations.serverSelect);
   }
 
-  void _changeServer() {
+  Future<void> _changeServer() async {
+    if (!await kostvKidsModeLetsOut(context) || !mounted) return;
     final router = GoRouter.of(context);
     Navigator.of(context).pop();
     router.go(Destinations.serverSelect);

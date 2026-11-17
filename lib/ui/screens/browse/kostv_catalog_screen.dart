@@ -8,6 +8,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart' hide ImageType;
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/utils/blocked_ratings.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/utils/genre_browse_utils.dart';
 import '../../../l10n/app_localizations.dart';
@@ -123,6 +124,14 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
   _Show _show = _Show.all;
   final List<AggregatedItem> _items = [];
   int? _total;
+
+  /// How many titles the server has given so far: where its next page
+  /// starts. Not [_items], which leaves out those the device's parental
+  /// control blocks.
+  int _fetched = 0;
+
+  /// How many of those it left out, for the count in the header.
+  int _blocked = 0;
   bool _loading = true;
   bool _more = false;
   bool _failed = false;
@@ -220,6 +229,8 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
     if (reset) {
       setState(() {
         _items.clear();
+        _fetched = 0;
+        _blocked = 0;
         _total = null;
         _loading = true;
         _failed = false;
@@ -247,7 +258,7 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
         sortBy: sortBy,
         sortOrder: sortOrder,
         recursive: true,
-        startIndex: _items.length,
+        startIndex: _fetched,
         limit: _page,
         enableTotalRecordCount: true,
         fields:
@@ -257,7 +268,7 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
         imageTypeLimit: 1,
       );
       if (!mounted || token != _token) return;
-      final found = [
+      final page = [
         for (final raw in (response['Items'] as List?) ?? const [])
           if (raw is Map && raw['Id'] != null)
             AggregatedItem(
@@ -266,18 +277,26 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
               rawData: raw.cast<String, dynamic>(),
             ),
       ];
+      // Parental control: what the device blocks isn't shown, not even its
+      // poster or its name.
+      final found = withoutBlockedItems(page);
       final total = response['TotalRecordCount'];
       setState(() {
+        _fetched += page.length;
+        _blocked += page.length - found.length;
         _items.addAll(found);
         // A page that brings nothing ends the list, whatever the count
         // said, so the spinner at its foot doesn't stay for ever.
-        _total = found.isEmpty
-            ? _items.length
-            : (total is num ? total.toInt() : _items.length);
+        _total = page.isEmpty
+            ? _fetched
+            : (total is num ? total.toInt() : _fetched);
         _loading = false;
         _more = false;
         _art ??= _pickArt(found);
       });
+      // A page whose titles were all blocked adds nothing to scroll down
+      // to: the next one is asked for at once.
+      if (found.isEmpty && page.isNotEmpty && _hasMore) unawaited(_load());
     } catch (_) {
       if (!mounted || token != _token) return;
       setState(() {
@@ -309,7 +328,7 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
           ) ==
           NavbarPosition.left;
 
-  bool get _hasMore => _total != null && _items.length < _total!;
+  bool get _hasMore => _total != null && _fetched < _total!;
 
   void _onScroll() {
     if (!_hasMore || _more) return;
@@ -473,7 +492,7 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
   Widget _header(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final phone = PlatformDetection.useMobileUi;
-    final count = _total ?? 0;
+    final count = ((_total ?? 0) - _blocked).clamp(0, 1 << 30);
     final kinds = _choosesKind && _movies > 0 && _series > 0;
     final pills = <Widget>[
       if (kinds) ...[

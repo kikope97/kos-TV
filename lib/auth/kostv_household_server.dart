@@ -12,13 +12,17 @@ import 'repositories/server_repository.dart';
 /// (see the server list route in `app_router.dart`).
 Future<Server?> kostvHouseholdServer(ServerRepository repo) async {
   if (!hasKostvServer) return null;
-  final wanted = normalizeServerBaseUrl(kostvServerUrl);
-  bool isHousehold(Server s) =>
-      normalizeServerBaseUrl(s.address) == wanted ||
-      normalizeServerBaseUrl(s.displayAddress ?? '') == wanted;
-  final known = repo.servers.where(isHousehold).firstOrNull;
+  final known = repo.servers.where(isKostvHouseholdServer).firstOrNull;
   if (known != null) return known;
   await repo.loadStoredServers();
-  return repo.servers.where(isHousehold).firstOrNull ??
+  return repo.servers.where(isKostvHouseholdServer).firstOrNull ??
       await repo.addServer(kostvServerUrl);
+}
+
+/// Whether [server] is the household server built in.
+bool isKostvHouseholdServer(Server server) {
+  if (!hasKostvServer) return false;
+  final wanted = normalizeServerBaseUrl(kostvServerUrl);
+  return normalizeServerBaseUrl(server.address) == wanted ||
+      normalizeServerBaseUrl(server.displayAddress ?? '') == wanted;
 }

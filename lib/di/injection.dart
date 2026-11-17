@@ -471,7 +471,19 @@ Future<void> configureDependencies() async {
 
   registerPreferenceModule(preferenceStore);
   getIt.registerLazySingleton<RecentSearchesStore>(
-    () => RecentSearchesStore(preferenceStore),
+    () => RecentSearchesStore(
+      preferenceStore,
+      // Kos TV: each person's own, and none in Kids Mode.
+      scope: () {
+        if (!getIt.isRegistered<MediaServerClient>()) return '';
+        final client = getIt<MediaServerClient>();
+        final userId = client.userId ?? '';
+        return userId.isEmpty ? '' : '${client.baseUrl}|$userId';
+      },
+      paused: () =>
+          getIt.isRegistered<UserPreferences>() &&
+          getIt<UserPreferences>().get(UserPreferences.kidsModeEnabled),
+    ),
   );
 
   registerOfflineStorage();

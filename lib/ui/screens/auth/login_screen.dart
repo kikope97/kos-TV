@@ -595,6 +595,9 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     if (mounted) {
       if (!await _passesPinCheck(authResult.userId, canResetPin: true)) {
+        // Kos TV: signed in already, so a PIN not passed signs them back
+        // out, or the way back (the browser's Back) would be in.
+        await _sessionRepo.destroyCurrentSession();
         if (mounted && _pinResetRefused) {
           _finishLoginWithError(AppLocalizations.of(context).pinResetFailed);
           return;
@@ -859,6 +862,9 @@ class _LoginScreenState extends State<LoginScreen> {
               canResetPin: _passwordController.text.isNotEmpty,
             );
             if (!passed) {
+              // Kos TV: signed in already, so a PIN not passed signs them
+              // back out, or the way back would be in.
+              await _sessionRepo.destroyCurrentSession();
               if (mounted && _pinResetRefused) {
                 _finishLoginWithError(l10n.pinResetFailed);
                 return;

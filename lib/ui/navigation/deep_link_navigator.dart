@@ -6,9 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 
 import '../../auth/repositories/server_repository.dart';
+import '../../auth/repositories/server_user_repository.dart';
 import '../../auth/repositories/session_repository.dart';
 import '../../auth/store/authentication_preferences.dart';
 import '../../auth/store/authentication_store.dart';
+import '../../data/services/pin_guard.dart';
+import '../../data/services/server_pin_service.dart';
 import '../../preference/user_preferences.dart';
 import '../../util/pin_code_util.dart';
 import 'app_router.dart';
@@ -95,6 +98,9 @@ Future<void> _pinUserIfRequested(
   bool pinned = false;
   try {
     await GetIt.instance<ServerRepository>().loadStoredServers();
+    // Kos TV: a PIN put on from another device holds here too.
+    await _refreshPinOf(serverId, userId);
+    if (_switchBlocked(userId)) return;
     pinned = await session.switchCurrentSession(
       serverId: serverId,
       userId: userId,
@@ -110,6 +116,26 @@ Future<void> _pinUserIfRequested(
 String? _pinnedUserId(String route) {
   final userId = Uri.tryParse(route)?.queryParameters['userId'];
   return (userId == null || userId.isEmpty) ? null : userId;
+}
+
+/// Asks the server whether [userId] has a PIN, with the token kept for
+/// them, briefly: one that doesn't answer leaves it to what is known here.
+Future<void> _refreshPinOf(String serverId, String userId) async {
+  try {
+    final getIt = GetIt.instance;
+    final token = getIt<ServerUserRepository>()
+        .getStoredServerUsers(serverId)
+        .where((stored) => stored.id == userId)
+        .map((stored) => stored.accessToken)
+        .firstOrNull;
+    await PinGuard.forAccount(
+      store: getIt<PreferenceStore>(),
+      service: getIt<ServerPinService>(),
+      userId: userId,
+      server: getIt<ServerRepository>().getServer(serverId),
+      accessToken: token,
+    ).refresh().timeout(const Duration(seconds: 4));
+  } catch (_) {}
 }
 
 /// The gates the picker applies before switching to a user. A link must never
@@ -173,6 +199,12 @@ Future<void> _switchUserAndNavigate(String route, String userId) async {
   bool pinned = false;
   try {
     await GetIt.instance<ServerRepository>().loadStoredServers();
+    // Kos TV: a PIN put on from another device holds here too.
+    await _refreshPinOf(serverId, userId);
+    if (_switchBlocked(userId)) {
+      unawaited(openLinkedRoute(appRouter, route));
+      return;
+    }
     pinned = await GetIt.instance<SessionRepository>().switchCurrentSession(
       serverId: serverId,
       userId: userId,

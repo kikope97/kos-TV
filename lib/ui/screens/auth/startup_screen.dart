@@ -8,10 +8,13 @@ import 'package:server_core/server_core.dart';
 
 import '../../../auth/kostv_household_server.dart';
 import '../../../auth/repositories/server_repository.dart';
+import '../../../auth/repositories/server_user_repository.dart';
 import '../../../auth/repositories/session_repository.dart';
 import '../../../auth/store/authentication_preferences.dart';
 import '../../../auth/store/credential_store.dart';
 import '../../../data/services/connectivity_service.dart';
+import '../../../data/services/pin_guard.dart';
+import '../../../data/services/server_pin_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/kostv_intro_policy.dart';
 import '../../../util/kostv_server.dart';
@@ -150,6 +153,10 @@ class _StartupScreenState extends State<StartupScreen> {
 
     bool pinEnabledForAutoLoginUser = false;
     if (targetUserId != null && targetUserId.isNotEmpty) {
+      // Kos TV: a PIN put on from another device is learnt of before going
+      // in, asking the server with the token kept here.
+      await _refreshPinOf(serverRepo, targetServerId, targetUserId);
+      if (!mounted) return;
       final store = GetIt.instance<PreferenceStore>();
       final pinUtil = PinCodeUtil(store, targetUserId);
       pinEnabledForAutoLoginUser = pinUtil.isPinEnabled;
@@ -207,6 +214,31 @@ class _StartupScreenState extends State<StartupScreen> {
         }
       }
     }
+  }
+
+  /// Asks the server whether [userId] has a PIN, briefly: a server that
+  /// doesn't answer in time leaves it to what this device knows.
+  Future<void> _refreshPinOf(
+    ServerRepository serverRepo,
+    String? serverId,
+    String userId,
+  ) async {
+    if (serverId == null || serverId.isEmpty) return;
+    try {
+      final getIt = GetIt.instance;
+      final token = getIt<ServerUserRepository>()
+          .getStoredServerUsers(serverId)
+          .where((stored) => stored.id == userId)
+          .map((stored) => stored.accessToken)
+          .firstOrNull;
+      await PinGuard.forAccount(
+        store: getIt<PreferenceStore>(),
+        service: getIt<ServerPinService>(),
+        userId: userId,
+        server: serverRepo.getServer(serverId),
+        accessToken: token,
+      ).refresh().timeout(const Duration(seconds: 4));
+    } catch (_) {}
   }
 
   /// Kos TV: with the household server built in, a first start skips the

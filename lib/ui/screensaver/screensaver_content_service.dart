@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
+import '../../data/utils/blocked_ratings.dart';
 import '../../preference/user_preferences.dart';
 
 class ScreensaverItem {
@@ -184,6 +185,9 @@ class ScreensaverContentService {
   }) {
     final id = raw['Id']?.toString() ?? '';
     if (id.isEmpty) return null;
+    // Kos TV: the device's parental control too, not only the screensaver's
+    // own age limit.
+    if (isRawItemBlocked(raw)) return null;
     if (requireRating &&
         ((raw['OfficialRating'] as String?)?.isEmpty ?? true)) {
       return null;

@@ -244,8 +244,10 @@ final appRouter = GoRouter(
         (path.startsWith('/admin') ||
             path.startsWith('/live-tv') ||
             // Kos TV: Discover and asking for titles are hidden in Kids
-            // Mode; an address typed on the web mustn't reach them.
-            path.startsWith(Destinations.kostvDiscover))) {
+            // Mode; an address typed on the web mustn't reach them. Music
+            // too: it asks for albums and plays the charts' previews.
+            path.startsWith(Destinations.kostvDiscover) ||
+            path.startsWith(Destinations.kostvMusic))) {
       return Destinations.home;
     }
 

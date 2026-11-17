@@ -8,6 +8,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart' hide ImageType;
 
 import '../../../data/services/log_service.dart';
+import '../../../data/utils/blocked_ratings.dart';
 import '../../../data/utils/genre_browse_utils.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/user_preferences.dart';
@@ -229,9 +230,11 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
       genre.count = count;
       genre.counted = true;
       if (genre.image == null) {
+        // Its picture never from a title parental control blocks.
         final items = ((response['Items'] as List?) ?? const [])
             .whereType<Map>()
             .map((i) => i.cast<String, dynamic>())
+            .where((i) => !isRawItemBlocked(i))
             .toList();
         final (image, _, used) = resolveGenreFallbackArtwork(
           items: items,

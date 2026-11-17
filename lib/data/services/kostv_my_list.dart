@@ -7,6 +7,7 @@ import 'package:server_core/server_core.dart';
 
 import '../../preference/user_preferences.dart';
 import '../models/aggregated_item.dart';
+import '../utils/blocked_ratings.dart';
 import 'moonbase_endpoint.dart';
 
 /// Kos TV: what is on the person's list, in its three parts.
@@ -122,7 +123,9 @@ class KostvMyListService extends ChangeNotifier {
       );
       final data = response.data;
       if (data is! Map || owner != _owner) return null;
-      List<AggregatedItem> cards(Object? raw) => [
+      // Parental control: what the device blocks stays off the page too,
+      // as off Home's row.
+      List<AggregatedItem> cards(Object? raw) => withoutBlockedItems([
         if (raw is List)
           for (final item in raw)
             if (item is Map && item['Id'] != null)
@@ -131,7 +134,7 @@ class KostvMyListService extends ChangeNotifier {
                 serverId: client.baseUrl,
                 rawData: item.cast<String, dynamic>(),
               ),
-      ];
+      ]);
       _page = KostvMyListPage(
         watching: cards(data['Watching']),
         toStart: cards(data['ToStart']),

@@ -1410,8 +1410,10 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   ),
                 ),
               ],
-              // Kos TV: Music, the page of its own.
-              if (_prefs.get(UserPreferences.kostvShowMusicButton)) ...[
+              // Kos TV: Music, the page of its own (not in Kids Mode, where
+              // albums can't be asked for).
+              if (!kidsMode &&
+                  _prefs.get(UserPreferences.kostvShowMusicButton)) ...[
                 _gap(),
                 _orderButton(
                   order: (order++).toDouble(),

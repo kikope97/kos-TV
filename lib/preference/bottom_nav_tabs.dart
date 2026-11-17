@@ -132,7 +132,7 @@ class BottomNavTabGates {
         BottomNavTab.search => true,
         BottomNavTab.kostvDiscover =>
           !kidsMode && showKostvDiscover && kostvDiscoverAvailable,
-        BottomNavTab.kostvMusic => showKostvMusic,
+        BottomNavTab.kostvMusic => !kidsMode && showKostvMusic,
         BottomNavTab.libraries => !kidsMode && showLibraries,
         // Kos TV: always there, in the You hub (with «Mi lista» on the bar
         // a Favorites tab too would only confuse).

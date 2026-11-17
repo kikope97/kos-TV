@@ -8,6 +8,7 @@ import 'package:server_core/server_core.dart';
 import '../../data/models/aggregated_item.dart';
 import '../../data/models/aggregated_library.dart';
 import '../../data/repositories/user_views_repository.dart';
+import '../../data/utils/blocked_ratings.dart';
 
 const String _kShuffleOverlayItemFields =
     'Name,Type,UserData,RunTimeTicks,ProductionYear,ImageTags,BackdropImageTags,'
@@ -112,6 +113,8 @@ Future<List<AggregatedItem>> _collectRandomItems({
       if (_isExcludedShuffleItemType(cast['Type'] as String?)) {
         continue;
       }
+      // Kos TV: parental control: a blocked title never comes up by chance.
+      if (isRawItemBlocked(cast)) continue;
 
       seenIds.add(id);
       collected.add(AggregatedItem(id: id, serverId: serverId, rawData: cast));

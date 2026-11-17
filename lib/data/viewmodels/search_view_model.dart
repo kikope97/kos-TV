@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../l10n/current_app_localizations.dart';
+import '../../preference/user_preferences.dart';
 import '../../util/accent_folding.dart';
 import '../models/aggregated_item.dart';
 import '../repositories/multi_server_repository.dart';
@@ -197,8 +199,17 @@ class SearchViewModel extends ChangeNotifier {
     ];
   }
 
+  /// Kos TV: Kids Mode has no Live TV (its pages send back to Home), so its
+  /// channels and programmes aren't offered either.
+  static bool get _kidsMode {
+    final getIt = GetIt.instance;
+    return getIt.isRegistered<UserPreferences>() &&
+        getIt<UserPreferences>().get(UserPreferences.kidsModeEnabled);
+  }
+
   static List<SearchResultGroup> _searchGroups() {
     final l10n = currentAppLocalizations();
+    final kids = _kidsMode;
     return [
       SearchResultGroup(title: l10n.books, itemTypes: const ['Book']),
       SearchResultGroup(title: l10n.audiobooks, itemTypes: const ['AudioBook']),
@@ -208,11 +219,13 @@ class SearchViewModel extends ChangeNotifier {
       SearchResultGroup(title: l10n.episodes, itemTypes: const ['Episode']),
       SearchResultGroup(title: l10n.videos, itemTypes: const ['Video']),
       SearchResultGroup(title: l10n.trailers, itemTypes: const ['Trailer']),
-      SearchResultGroup(title: l10n.programs, itemTypes: const ['Program']),
-      SearchResultGroup(
-        title: l10n.channels,
-        itemTypes: const ['LiveTvChannel', 'TvChannel'],
-      ),
+      if (!kids)
+        SearchResultGroup(title: l10n.programs, itemTypes: const ['Program']),
+      if (!kids)
+        SearchResultGroup(
+          title: l10n.channels,
+          itemTypes: const ['LiveTvChannel', 'TvChannel'],
+        ),
       SearchResultGroup(title: l10n.playlists, itemTypes: const ['Playlist']),
       SearchResultGroup(title: l10n.photoAlbums, itemTypes: const ['PhotoAlbum']),
       SearchResultGroup(title: l10n.photos, itemTypes: const ['Photo']),
@@ -537,7 +550,7 @@ class SearchViewModel extends ChangeNotifier {
     // Channels come back wholesale rather than through a search the server
     // answers, so the folding it would have done has to happen here.
     final q = foldForSearch(query.trim());
-    if (q.isEmpty || q.startsWith('studio:')) return const [];
+    if (q.isEmpty || q.startsWith('studio:') || _kidsMode) return const [];
     _channelsFuture ??= _searchEachServer(
       (repository) => repository.fetchLiveTvChannels(),
       label: 'channel lineup',
