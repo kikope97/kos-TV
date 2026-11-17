@@ -301,9 +301,25 @@ class _StartupScreenState extends State<StartupScreen> {
   }
 
 
+  final _retryFocus = FocusNode(debugLabel: 'kostvStartupRetry');
+
   @override
-  Widget build(BuildContext context) =>
-      RequestInitialFocus(child: _buildContent(context));
+  void dispose() {
+    _retryFocus.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_kostvServerFailed && !_retryFocus.hasFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _kostvServerFailed && !_retryFocus.hasFocus) {
+          _retryFocus.requestFocus();
+        }
+      });
+    }
+    return RequestInitialFocus(child: _buildContent(context));
+  }
 
   Widget _buildContent(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -322,6 +338,9 @@ class _StartupScreenState extends State<StartupScreen> {
               const SizedBox(height: 16),
               FilledButton(
                 autofocus: true,
+                // Kos TV: asked for too, as the intro may hold the focus
+                // already, where autofocus does nothing.
+                focusNode: _retryFocus,
                 onPressed: _retryKostvServer,
                 child: Text(l10n.retry),
               ),

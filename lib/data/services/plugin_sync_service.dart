@@ -221,9 +221,13 @@ class PluginSyncService extends ChangeNotifier {
     bool notify = true,
     bool stopStream = true,
     bool keepIncompleteRecordings = false,
+    bool keepSignInRead = false,
   }) {
     _syncRetryTimer?.cancel();
-    _signInSettingsRead.clear();
+    // Kos TV: a re-ping of the same session keeps knowing whose settings it
+    // has read, or what waits for them («Personalizar el aspecto») would
+    // wait for the rest of the session.
+    if (!keepSignInRead) _signInSettingsRead.clear();
     if (stopStream) {
       _stopSettingsStream();
     }
@@ -261,6 +265,7 @@ class PluginSyncService extends ChangeNotifier {
       notify: false,
       stopStream: false,
       keepIncompleteRecordings: true,
+      keepSignInRead: true,
     );
 
     // A server that can't have the plugin has nothing to ping. Every caller
@@ -379,6 +384,38 @@ class PluginSyncService extends ChangeNotifier {
       return _PluginAvailabilityStatus.unknown;
     }
   }
+
+  /// Kos TV: asks the plugin again only where the requests service is (a TV
+  /// keeps the app open for days), leaving everything else as it stands: a
+  /// full re-ping would start the session's sync over, and one that failed
+  /// (the wifi not back yet) would leave it off until the app was reopened.
+  Future<void> refreshKostvAddress(MediaServerClient client) async {
+    if (!client.features.supportsMoonfinPlugin) return;
+    try {
+      final ping = await _ping(client);
+      if (ping == null) return;
+      await KostvRequestsAddress.update(_readString(ping, 'kostvRequestsUrl'));
+    } catch (_) {}
+  }
+
+  /// Kos TV: the plugin wasn't reached when the session began (the TV up
+  /// before the router after a power cut): asked again once the server is,
+  /// rather than going without it until the app is reopened.
+  Future<void> retryIfUnavailable(
+    MediaServerClient client, {
+    String? serverId,
+  }) async {
+    if (_pluginAvailable || _retryingUnavailable) return;
+    _retryingUnavailable = true;
+    try {
+      _syncRetryCount = 0;
+      await syncOnLogin(client, serverId: serverId);
+    } finally {
+      _retryingUnavailable = false;
+    }
+  }
+
+  bool _retryingUnavailable = false;
 
   Future<bool> refreshAvailability(MediaServerClient client) async {
     final status = await _refreshAvailabilityStatus(client);

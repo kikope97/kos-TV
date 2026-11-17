@@ -19684,4 +19684,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvTrackUnknown => 'Unknown';
+
+  @override
+  String get kostvBackOnline => 'Back online. Syncing what you watched…';
+
+  @override
+  String get kostvOffline => 'You are offline.';
 }

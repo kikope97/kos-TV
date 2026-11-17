@@ -198,7 +198,7 @@ Future<void> _downloadAndInstallWindowsUpdate(
       var downloaded = 0;
       final sink = file.openWrite();
 
-      await for (final chunk in response) {
+      await for (final chunk in response.timeout(_quiet)) {
         sink.add(chunk);
         downloaded += chunk.length;
         if (contentLength > 0) {
@@ -360,7 +360,7 @@ Future<void> _downloadTo(
   if (await file.exists()) await file.delete();
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
   try {
-    final response = await (await client.getUrl(uri)).close();
+    final response = await (await client.getUrl(uri)).close().timeout(_quiet);
     if (response.statusCode != 200) {
       throw HttpException('status ${response.statusCode}', uri: uri);
     }
@@ -368,7 +368,7 @@ Future<void> _downloadTo(
     var received = 0;
     final sink = file.openWrite();
     try {
-      await for (final chunk in response) {
+      await for (final chunk in response.timeout(_quiet)) {
         sink.add(chunk);
         received += chunk.length;
         if (total > 0) progress.value = received / total;
@@ -384,6 +384,11 @@ Future<void> _downloadTo(
     client.close(force: true);
   }
 }
+
+/// Kos TV: a download that goes quiet this long (the router without
+/// internet, the wifi still up) fails, instead of holding the bar where it
+/// stopped for ever with no way to close it.
+const _quiet = Duration(seconds: 30);
 
 /// The app's own navigator, always there.
 BuildContext? _appContext() {

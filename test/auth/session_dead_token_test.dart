@@ -151,6 +151,7 @@ class _TestPluginSyncService extends Fake implements PluginSyncService {
     bool notify = true,
     bool stopStream = true,
     bool keepIncompleteRecordings = false,
+    bool keepSignInRead = false,
   }) {}
 }
 

@@ -33830,6 +33830,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unknown'**
   String get kostvTrackUnknown;
+
+  /// Notice when the device gets its connection back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back online. Syncing what you watched…'**
+  String get kostvBackOnline;
+
+  /// Notice when the device loses its connection.
+  ///
+  /// In en, this message translates to:
+  /// **'You are offline.'**
+  String get kostvOffline;
 }
 
 class _AppLocalizationsDelegate

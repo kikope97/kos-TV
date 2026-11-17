@@ -217,6 +217,13 @@ class MediaBarViewModel extends ChangeNotifier {
     }
   }
 
+  /// Kos TV: another person signed in: this banner is no longer the app's,
+  /// and stops listening (it would load again for the new person's changes).
+  void retire() {
+    _prefs.removeListener(_onPrefsChanged);
+    _sync?.removeListener(_onPluginChanged);
+  }
+
   @override
   void dispose() {
     _prefs.removeListener(_onPrefsChanged);

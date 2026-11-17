@@ -77,6 +77,8 @@ class AppUpdateService {
 
   static const _lastCheckMsKey = 'app_update_last_check_ms';
   static const _lastNotifiedVersionKey = 'app_update_last_notified_version';
+  static const _lastNotifiedAtKey = 'kostv_update_last_offered_at';
+  static const _offerAgainAfter = Duration(hours: 24);
 
   /// Installers that deliver their own updates. The distribution channel only
   /// records which artifact a build came from, and stores that redistribute the
@@ -194,7 +196,16 @@ class AppUpdateService {
     }
 
     final lastNotified = _store.getString(_lastNotifiedVersionKey);
+    // Kos TV: a version turned down for now (Cancel, a failed download, the
+    // installer closed) is offered again the next day, not never.
+    final lastAt = DateTime.tryParse(
+      _store.getString(_lastNotifiedAtKey) ?? '',
+    );
+    final offeredLately =
+        lastAt != null &&
+        DateTime.now().difference(lastAt) < _offerAgainAfter;
     if (suppressIfAlreadyNotified &&
+        offeredLately &&
         _normalizeVersion(lastNotified) == _normalizeVersion(release.version)) {
       return const DesktopUpdateCheckResult(
         status: DesktopUpdateCheckStatus.alreadyNotified,
@@ -202,6 +213,10 @@ class AppUpdateService {
     }
 
     await _store.setString(_lastNotifiedVersionKey, release.version);
+    await _store.setString(
+      _lastNotifiedAtKey,
+      DateTime.now().toIso8601String(),
+    );
 
     return DesktopUpdateCheckResult(
       status: DesktopUpdateCheckStatus.updateAvailable,

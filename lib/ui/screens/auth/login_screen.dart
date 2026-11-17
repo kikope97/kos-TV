@@ -480,7 +480,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       setState(() {
         _errorMessage = isQcDisabled
-            ? 'QuickConnect is disabled'
+            ? l10n.quickConnectDisabled
             : (status == null
                 ? l10n.quickConnectUnavailableWithStatus(e.type.name, detail)
                 : l10n.quickConnectUnavailableWithStatus(

@@ -2,10 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
+import '../../data/services/connectivity_service.dart';
 import '../../di/providers.dart';
 import '../../l10n/app_localizations.dart';
+import '../../util/kostv_server.dart';
 import '../../util/platform_detection.dart';
 import '../navigation/app_router.dart';
 import '../navigation/destinations.dart';
@@ -126,11 +129,25 @@ class _OfflineBannerState extends ConsumerState<OfflineBanner>
           )
         else ...[
           if (isServerUnavailable) ...[
-            BannerActionCapsule(
-              label: l10n.offlineSwitchServer,
-              tint: tint,
-              onTap: () => appRouter.go(Destinations.serverSelect),
-            ),
+            // Kos TV: with the household server built in there's no other
+            // server to switch to: the way out is asking it again.
+            hasKostvServer
+                ? BannerActionCapsule(
+                    label: l10n.retry,
+                    tint: tint,
+                    onTap: () {
+                      if (GetIt.instance.isRegistered<ConnectivityService>()) {
+                        unawaited(
+                          GetIt.instance<ConnectivityService>().recheckNow(),
+                        );
+                      }
+                    },
+                  )
+                : BannerActionCapsule(
+                    label: l10n.offlineSwitchServer,
+                    tint: tint,
+                    onTap: () => appRouter.go(Destinations.serverSelect),
+                  ),
             const SizedBox(width: 2),
           ],
           IconButton(

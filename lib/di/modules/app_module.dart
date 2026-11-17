@@ -72,6 +72,7 @@ import '../../playback/external_player_service.dart';
 import '../../preference/user_preferences.dart';
 import '../../ui/navigation/app_router.dart';
 import '../../ui/navigation/destinations.dart';
+import '../../ui/navigation/home_refresh_bus.dart';
 import '../../ui/screensaver/screensaver_controller.dart';
 import '../../ui/screens/home/home_view_model.dart';
 import '../../ui/screens/setup/setup_wizard_gate.dart';
@@ -88,6 +89,21 @@ void resetUserScopedSingletons() {
     }
   }
 
+  // Kos TV: the last person's Home, banner and theme music let go of what
+  // they listen to, or they'd live on (and act) next to the new ones. Only
+  // ones already made: asking for a lazy one would make it.
+  T? made<T extends Object>() {
+    if (!_getIt.isRegistered<T>()) return null;
+    try {
+      return _getIt.checkLazySingletonInstanceExists<T>() ? _getIt<T>() : null;
+    } on StateError {
+      return _getIt<T>();
+    }
+  }
+
+  made<HomeViewModel>()?.retire();
+  made<MediaBarViewModel>()?.retire();
+  made<ThemeMusicService>()?.dispose();
   unregister<HomeViewModel>();
   unregister<MediaBarViewModel>();
   unregister<MultiServerRepository>();
@@ -226,6 +242,14 @@ void registerAppModule() {
     final service = AccessScheduleService(
       loadSchedules: _loadAccessSchedules,
       onBlocked: _stopPlaybackForAccessSchedule,
+      // Kos TV: Home loaded behind «time's up» got turned away: it loads
+      // again once the time opens, and so does the requests service's say.
+      onAllowed: () {
+        homeRefreshBus.requestNowOrAfterNavigation();
+        if (_getIt.isRegistered<StremfinService>()) {
+          unawaited(_getIt<StremfinService>().refreshAccess());
+        }
+      },
       serverRefuses: _serverRefusesUser,
     );
     // An administrator has no schedule to enforce.

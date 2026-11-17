@@ -26,6 +26,7 @@ import '../../../data/models/home_row.dart';
 import '../../../data/repositories/mdblist_repository.dart';
 import '../../../data/repositories/tmdb_repository.dart';
 import '../../../data/repositories/user_views_repository.dart';
+import '../../../data/services/access_schedule_service.dart';
 import '../../../data/services/background_service.dart';
 import '../../widgets/modern_row.dart';
 import '../../../data/services/theme_music_service.dart';
@@ -1024,7 +1025,16 @@ class _ContentRowsState extends State<_ContentRows>
     _chromeAudioActiveNotifier,
     _screensaverVisible,
     _mediaBarFocusNode,
+    ?_accessSchedule,
   ]);
+
+  /// Kos TV: the time allowed is over: the «time's up» screen covers Home,
+  /// and the banner under it stops (on a phone or the web it went on with
+  /// its trailers, sound and all).
+  final AccessScheduleService? _accessSchedule =
+      GetIt.instance.isRegistered<AccessScheduleService>()
+      ? GetIt.instance<AccessScheduleService>()
+      : null;
 
   double get _scrollOffset => _scrollOffsetNotifier.value;
   set _scrollOffset(double value) {
@@ -4960,7 +4970,9 @@ class _ContentRowsState extends State<_ContentRows>
                                               (!PlatformDetection.isMobile &&
                                                   _isActivelyScrolling) ||
                                               chromeAudioActive ||
-                                              _screensaverVisible.value;
+                                              _screensaverVisible.value ||
+                                              (_accessSchedule?.isBlocked ??
+                                                  false);
 
                                           final bar = RepaintBoundary(
                                             child: bannerMode

@@ -559,6 +559,7 @@ class SessionRepository {
   /// Called when the app returns to the foreground. Reconnects the websocket
   /// if it was dropped while backgrounded.
   void onAppResumed() {
+    unawaited(_checkTokenStillValid());
     _cancelSocketIdleTimer();
     if (!_socketSuspended) {
       // A socket that dropped while the app sat idle is waiting out its
@@ -573,6 +574,39 @@ class SessionRepository {
     if (client != null) {
       _socketHandler.connectTo(client);
     }
+  }
+
+  DateTime? _tokenCheckedAt;
+
+  /// Kos TV: back in front (a TV left on for days), whether the server still
+  /// takes this session's token: a password changed or the device removed
+  /// in Jellyfin revokes it, and the app would otherwise stay «in» loading
+  /// nothing. Turned down for sure (401), it goes to the sign-in with the
+  /// name filled in, as at start-up. At most every 10 minutes.
+  Future<void> _checkTokenStillValid() async {
+    final serverId = _activeServerId;
+    final userId = _activeUserId;
+    if (serverId == null || userId == null) return;
+    final last = _tokenCheckedAt;
+    if (last != null &&
+        DateTime.now().difference(last) < const Duration(minutes: 10)) {
+      return;
+    }
+    _tokenCheckedAt = DateTime.now();
+    final client = _clientFactory.getClientIfExists(serverId);
+    if (client == null) return;
+    try {
+      await client.usersApi.getCurrentUser();
+    } on DioException catch (e) {
+      if (e.response?.statusCode != 401) return;
+      if (_activeServerId != serverId || _activeUserId != userId) return;
+      final name = _userRepository.currentUser?.name ?? '';
+      _logger.w('The session token was revoked. Signing out.');
+      await destroyCurrentSession(tokenKnownInvalid: true);
+      appRouter.go(
+        '${Destinations.login}?serverId=$serverId&username=${Uri.encodeComponent(name)}',
+      );
+    } catch (_) {}
   }
 
   /// Called when the device regains a network, so a socket part way through

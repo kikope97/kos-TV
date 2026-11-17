@@ -13902,5 +13902,13 @@
   "kostvTrackUnknown": "Desconocido",
   "@kostvTrackUnknown": {
     "description": "Player subtitle list: the subtitle format is not known."
+  },
+  "kostvBackOnline": "Conexión recuperada. Sincronizando lo que has visto…",
+  "@kostvBackOnline": {
+    "description": "Notice when the device gets its connection back."
+  },
+  "kostvOffline": "Sin conexión.",
+  "@kostvOffline": {
+    "description": "Notice when the device loses its connection."
   }
 }

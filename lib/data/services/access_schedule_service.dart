@@ -43,6 +43,7 @@ class AccessScheduleService extends ChangeNotifier {
   AccessScheduleService({
     required this.loadSchedules,
     required this.onBlocked,
+    this.onAllowed,
     this.serverRefuses,
     this.now = DateTime.now,
   });
@@ -69,6 +70,10 @@ class AccessScheduleService extends ChangeNotifier {
 
   /// Runs once each time the user is turned away, to stop what is playing.
   final Future<void> Function() onBlocked;
+
+  /// Kos TV: runs once each time the user is let in again, for what loaded
+  /// (or failed to) while they were turned away to load afresh.
+  final void Function()? onAllowed;
 
   /// Whether the server is turning the user away right now: true when it
   /// refuses, false when it answers, null when it can't tell. Without one the
@@ -191,6 +196,11 @@ class AccessScheduleService extends ChangeNotifier {
     );
     if (wasAllowed && !allowed) {
       unawaited(_runOnBlocked());
+    }
+    if (!wasAllowed && allowed) {
+      try {
+        onAllowed?.call();
+      } catch (_) {}
     }
 
     var delay = failed

@@ -84,7 +84,13 @@ class _AppUpdateBannerState extends State<AppUpdateBanner>
   /// since the service records a version as shown once it returns it.
   static bool _isWatching() {
     try {
-      final path = appRouter.routerDelegate.currentConfiguration.uri.path;
+      // The player is pushed over the page it was opened from, which the
+      // address keeps naming: the page on screen is the last match.
+      if (PlayerRouteObserver.instance.isPlayerActive.value) return true;
+      final matches = appRouter.routerDelegate.currentConfiguration.matches;
+      final path = matches.isEmpty
+          ? appRouter.routerDelegate.currentConfiguration.uri.path
+          : matches.last.matchedLocation;
       return path.startsWith('/player') ||
           path.startsWith('/live-tv/player') ||
           path.startsWith('/game-player');

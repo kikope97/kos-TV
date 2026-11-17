@@ -3209,6 +3209,26 @@ class HomeViewModel extends ChangeNotifier {
     });
   }
 
+  /// Kos TV: another person signed in, so this Home is no longer the app's.
+  /// What it listens to lets it go (or it would be kept alive, and act, for
+  /// good), and a «not interested» still within its undo time is dropped:
+  /// sent now, it would go with the new person's token.
+  void retire() {
+    for (final pending in _kostvPending.values) {
+      pending.timer.cancel();
+    }
+    _kostvPending.clear();
+    unawaited(_kostvPlayWatch?.cancel());
+    _kostvPlayWatch = null;
+    _myList?.removeListener(_onMyListChanged);
+    if (_requestsServiceListener case final listener?) {
+      _kostvHome.stremfin?.removeListener(listener);
+      _requestsServiceListener = null;
+    }
+    _watchingNowTimer?.cancel();
+    _watchingNowTimer = null;
+  }
+
   @override
   void dispose() {
     unawaited(_kostvPlayWatch?.cancel());

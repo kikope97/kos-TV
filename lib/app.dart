@@ -1239,7 +1239,7 @@ class _ConnectivityListenerState extends ConsumerState<_ConnectivityListener>
           GetIt.instance.isRegistered<PluginSyncService>() &&
           GetIt.instance.isRegistered<MediaServerClient>()) {
         unawaited(
-          GetIt.instance<PluginSyncService>().refreshAvailability(
+          GetIt.instance<PluginSyncService>().refreshKostvAddress(
             GetIt.instance<MediaServerClient>(),
           ),
         );
@@ -1452,6 +1452,20 @@ class _ConnectivityListenerState extends ConsumerState<_ConnectivityListener>
   void _handleServerReachabilityChanged() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       homeRefreshBus.requestNowOrAfterNavigation();
+      // Kos TV: the plugin, if it couldn't be reached when this began.
+      final getIt = GetIt.instance;
+      if (getIt.isRegistered<PluginSyncService>() &&
+          getIt.isRegistered<MediaServerClient>() &&
+          getIt.isRegistered<SessionRepository>() &&
+          getIt<SessionRepository>().activeUserId != null &&
+          getIt<ConnectivityService>().canReachServer) {
+        unawaited(
+          getIt<PluginSyncService>().retryIfUnavailable(
+            getIt<MediaServerClient>(),
+            serverId: getIt<SessionRepository>().activeServerId,
+          ),
+        );
+      }
     });
   }
 
@@ -1473,8 +1487,8 @@ class _ConnectivityListenerState extends ConsumerState<_ConnectivityListener>
           SnackBar(
             content: Text(
               isOnline
-                  ? 'Back online. Syncing progress...'
-                  : 'You are offline.',
+                  ? currentAppLocalizations().kostvBackOnline
+                  : currentAppLocalizations().kostvOffline,
             ),
             duration: const Duration(seconds: 3),
           ),
