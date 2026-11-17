@@ -228,19 +228,21 @@ void main() {
     late int seriesReads;
     late List<Object?> posts;
     late bool askedFor7;
+    late bool letIn;
 
     setUp(() {
       KostvSeriesGapsController.clearKept();
       seriesReads = 0;
       posts = [];
       askedFor7 = false;
+      letIn = true;
       adapter = FakeStremfinAdapter.withMethod((method, path, sent) {
         if (path == '/me') {
           return (
             status: 200,
             body: {
               'user': {'role': 'member'},
-              'access': {'can_request': true},
+              'access': {'can_request': letIn},
             },
             headers: const <String, String>{},
           );
@@ -336,6 +338,23 @@ void main() {
         first.gapsFor([atHome(1, 1)]).season(1)!.missing.single.state,
         KostvGhostState.requested,
       );
+    });
+
+    test('a page opened before the service lets the person in is read '
+        'once it does', () async {
+      letIn = false;
+      final stremfin = service();
+      final c = KostvSeriesGapsController(service: stremfin);
+      addTearDown(c.dispose);
+      await c.loadFor(series);
+      expect(c.detail, isNull);
+      expect(seriesReads, 0);
+
+      letIn = true;
+      await stremfin.refreshAccess();
+      await pumpEventQueue();
+      expect(seriesReads, 1);
+      expect(c.detail, isNotNull);
     });
 
     test('shows nothing for a series beyond the age limit', () async {

@@ -43,6 +43,38 @@ class MediaBarViewModel extends ChangeNotifier {
   List<MediaBarSlideItem> get items =>
       _state is MediaBarReady ? (_state as MediaBarReady).items : const [];
 
+  /// Kos TV: titles the person just turned down («No me interesa»): off the
+  /// banner at once, not at its next load. Kept for the session, as the
+  /// server takes a few seconds to hear of it.
+  final _kostvHidden = <String>{};
+
+  /// What the last load gave, before taking those off.
+  List<MediaBarSlideItem>? _kostvLoaded;
+
+  void kostvHide(String itemId) {
+    if (_kostvHidden.add(itemId)) _kostvShowLoaded();
+  }
+
+  /// Taken back within its time: it comes back where it was.
+  void kostvUnhide(String itemId) {
+    if (_kostvHidden.remove(itemId)) _kostvShowLoaded();
+  }
+
+  void _kostvShowLoaded() {
+    final loaded = _kostvLoaded;
+    if (loaded == null || _state is! MediaBarReady) return;
+    _state = MediaBarReady(_kostvWithoutHidden(loaded));
+    notifyListeners();
+  }
+
+  List<MediaBarSlideItem> _kostvWithoutHidden(List<MediaBarSlideItem> all) =>
+      _kostvHidden.isEmpty
+      ? all
+      : [
+          for (final item in all)
+            if (!_kostvHidden.contains(item.itemId)) item,
+        ];
+
   Map<String, double> ratingsFor(String itemId) => _ratings[itemId] ?? const {};
 
   // Outside titles aren't on the server, so there is no item to read.
@@ -228,6 +260,11 @@ class MediaBarViewModel extends ChangeNotifier {
           previousReady != null &&
           preserveCurrent) {
         _state = previousReady;
+      } else if (nextState is MediaBarReady) {
+        _kostvLoaded = nextState.items;
+        _state = _kostvHidden.isEmpty
+            ? nextState
+            : MediaBarReady(_kostvWithoutHidden(nextState.items));
       } else {
         _state = nextState;
       }

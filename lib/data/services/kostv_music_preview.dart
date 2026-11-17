@@ -34,12 +34,14 @@ class KostvMusicPreview extends ChangeNotifier {
   Future<void> toggle(String url) async {
     if (_playing == url) return stop();
     _pauseApp();
+    _watchApp();
     final turn = ++_turn;
     _playing = url;
     _tell();
     void over() {
       if (turn != _turn || _playing != url) return;
       _playing = null;
+      _forgetApp();
       _tell();
       _resumeApp();
     }
@@ -61,6 +63,7 @@ class KostvMusicPreview extends ChangeNotifier {
     _turn++;
     if (_playing == null) return;
     _playing = null;
+    _forgetApp();
     _tell();
     if (!resume) _paused = null;
     await _engine?.stop();
@@ -70,6 +73,31 @@ class KostvMusicPreview extends ChangeNotifier {
   // What the app was playing when a preview paused it, to go on with it
   // once the preview is over.
   dynamic _paused;
+
+  /// The app's own music starting again while a preview sounds (the
+  /// floating player, the remote's play key): the preview gives way, rather
+  /// than both sounding at once.
+  StreamSubscription<bool>? _appWatch;
+
+  void _watchApp() {
+    if (_appWatch != null || !GetIt.instance.isRegistered<PlaybackManager>()) {
+      return;
+    }
+    try {
+      _appWatch = GetIt.instance<PlaybackManager>().state.playingStream.listen((
+        playing,
+      ) {
+        if (playing && _playing != null) unawaited(stop(resume: false));
+      });
+    } catch (_) {
+      // A stand-in player (the tests') without it.
+    }
+  }
+
+  void _forgetApp() {
+    unawaited(_appWatch?.cancel());
+    _appWatch = null;
+  }
 
   void _pauseApp() {
     if (!GetIt.instance.isRegistered<PlaybackManager>()) return;
@@ -100,6 +128,7 @@ class KostvMusicPreview extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _turn++;
+    _forgetApp();
     final engine = _engine;
     if (_playing != null) {
       _playing = null;

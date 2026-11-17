@@ -112,6 +112,30 @@ void main() {
     viewModel.dispose();
   });
 
+  test('a title turned down goes off the banner at once, and comes back '
+      'if taken back', () async {
+    const a = MediaBarSlideItem(itemId: 'a', serverId: 'server', title: 'A');
+    const b = MediaBarSlideItem(itemId: 'b', serverId: 'server', title: 'B');
+    final viewModel = create();
+    unawaited(viewModel.load());
+    loads.first.complete(const MediaBarReady([a, b]));
+    await pumpEventQueue();
+    expect(viewModel.items.map((i) => i.itemId), ['a', 'b']);
+
+    viewModel.kostvHide('a');
+    expect(viewModel.items.map((i) => i.itemId), ['b']);
+
+    // A load meanwhile still leaves it off.
+    unawaited(viewModel.load(force: true));
+    loads.last.complete(const MediaBarReady([a, b]));
+    await pumpEventQueue();
+    expect(viewModel.items.map((i) => i.itemId), ['b']);
+
+    viewModel.kostvUnhide('a');
+    expect(viewModel.items.map((i) => i.itemId), ['a', 'b']);
+    viewModel.dispose();
+  });
+
   test('picked lists load again once Moonbase answers', () async {
     await prefs.set(UserPreferences.mediaBarExternalLists, 'imdb_top_250_movies');
     final viewModel = create();

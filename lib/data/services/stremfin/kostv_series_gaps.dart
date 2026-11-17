@@ -358,8 +358,19 @@ class KostvSeriesGapsController extends ChangeNotifier {
   }
 
   void _onService() {
-    if (!_disposed) notifyListeners();
+    if (_disposed) return;
+    // Kos TV: the page was opened before the service let the person in (its
+    // address comes from the server a moment after starting): it's read now.
+    final waiting = _waitingFor;
+    if (waiting != null && (_service?.isAllowed ?? false)) {
+      _waitingFor = null;
+      unawaited(loadFor(waiting));
+    }
+    notifyListeners();
   }
+
+  /// The title whose page waits for the service to let the person in.
+  AggregatedItem? _waitingFor;
 
   /// Reads the service's page of the series [item] belongs to (a series, a
   /// season or an episode). Quietly does nothing for a series the service
@@ -368,8 +379,14 @@ class KostvSeriesGapsController extends ChangeNotifier {
     final service = _service;
     if (service == null) return;
     final load = ++_load;
+    _waitingFor = null;
     if (!service.isAllowed) await service.refreshAccess();
-    if (_disposed || load != _load || !service.isAllowed) return;
+    if (_disposed || load != _load) return;
+    if (!service.isAllowed) {
+      // Tried again when it does.
+      _waitingFor = item;
+      return;
+    }
     final tmdb = int.tryParse((await _tmdbIdOf(item)) ?? '');
     if (_disposed || load != _load) return;
     if (tmdb != _tmdbId) {

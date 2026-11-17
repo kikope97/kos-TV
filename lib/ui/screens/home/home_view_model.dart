@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
+import 'package:playback_core/playback_core.dart' show PlaybackManager;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
@@ -522,6 +523,9 @@ class HomeViewModel extends ChangeNotifier {
     if (newSectionsOnly) preserveExisting = true;
     _isLoading = true;
     _loadStarted = true;
+    _kostvWatchPlayback();
+    // A whole load asks for the rows made for the person too.
+    if (!newSectionsOnly) _kostvAskedAt = DateTime.now();
     final done = Completer<void>();
     _loadDone = done.future;
     if (!newSectionsOnly) {
@@ -1175,7 +1179,10 @@ class HomeViewModel extends ChangeNotifier {
     while (_isLoading) {
       await _loadDone;
     }
-    unawaited(_refreshKostvForYou());
+    // Kos TV: the rows made for the person only change from what they
+    // watch, so they're asked for again after a film or an episode played,
+    // or after a long while, not on every return from any page.
+    if (_kostvRefreshDue()) unawaited(_refreshKostvForYou());
 
     // A row that came back empty was dropped, so there's no row to refresh in
     // place. Loading it as a new section brings it back once it has items.
@@ -1887,9 +1894,43 @@ class HomeViewModel extends ChangeNotifier {
   /// the next fetch, after they have watched something.
   bool _kostvRefreshNext = false;
 
+  /// Whether a film or an episode played since the rows made for the person
+  /// were last asked for.
+  bool _kostvWatched = false;
+  DateTime? _kostvAskedAt;
+  StreamSubscription<bool>? _kostvPlayWatch;
+
+  /// Listens for something being watched, once Home first loads.
+  void _kostvWatchPlayback() {
+    if (_kostvPlayWatch != null) return;
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<PlaybackManager>()) return;
+    final manager = getIt<PlaybackManager>();
+    try {
+      _kostvPlayWatch = manager.state.playingStream.listen((playing) {
+        if (!playing) return;
+        final item = manager.queueService.currentItem;
+        if (item is AggregatedItem && !item.isAudioLike) _kostvWatched = true;
+      });
+    } catch (_) {
+      // A stand-in player (the tests') without it.
+    }
+  }
+
+  bool _kostvRefreshDue() {
+    final asked = _kostvAskedAt;
+    final due =
+        _kostvWatched ||
+        asked == null ||
+        DateTime.now().difference(asked) >= const Duration(minutes: 30);
+    if (due) _kostvWatched = false;
+    return due;
+  }
+
   Future<void> _refreshKostvForYou() async {
     final loadSection = _loadDeferredSection;
     if (!_prefs.kostvHomeActive || loadSection == null) return;
+    _kostvAskedAt = DateTime.now();
     // The server needs a moment to take in what was just watched.
     await Future<void>.delayed(const Duration(seconds: 3));
     try {
@@ -2151,6 +2192,8 @@ class HomeViewModel extends ChangeNotifier {
     _kostvPending.remove(item.id)?.timer.cancel();
     _kostvDismissed.add(item.id);
     _kostvHiddenVersion++;
+    // Off the banner too, if it's there.
+    _mediaBarViewModel.kostvHide(item.id);
     _kostvPending[item.id] = (
       itemId: item.id,
       timer: Timer(kostvUndoTime, () {
@@ -2165,6 +2208,7 @@ class HomeViewModel extends ChangeNotifier {
   void kostvUndoNotInterested(AggregatedItem item) {
     final pending = _kostvPending.remove(item.id);
     pending?.timer.cancel();
+    _mediaBarViewModel.kostvUnhide(item.id);
     if (_kostvDismissed.remove(item.id)) {
       // Taken back just as the time ran out: the server already heard it,
       // so it's told to forget it too.
@@ -3167,6 +3211,7 @@ class HomeViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    unawaited(_kostvPlayWatch?.cancel());
     _myList?.removeListener(_onMyListChanged);
     // A «not interested» still within its undo time goes through now.
     for (final pending in _kostvPending.values) {

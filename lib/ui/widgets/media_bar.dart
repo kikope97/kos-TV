@@ -557,8 +557,20 @@ class _MediaBarState extends State<MediaBar>
 
   void _onStateChanged() {
     if (!mounted) return;
-    setState(() {});
     final state = widget.viewModel.state;
+    if (state is MediaBarReady) {
+      // Kos TV: a title turned down goes off at once: the slide shown stays
+      // within the list, and its trailer stops.
+      if (state.items.isNotEmpty && _currentIndex >= state.items.length) {
+        _currentIndex = state.items.length - 1;
+      }
+      final playing = _activeTrailerItemId;
+      if (playing != null &&
+          !state.items.any((item) => item.itemId == playing)) {
+        _cancelTrailerPreview(rebuild: false);
+      }
+    }
+    setState(() {});
     if (state is MediaBarLoading) {
       _readyHooksAppliedForCurrentLoad = false;
     }
