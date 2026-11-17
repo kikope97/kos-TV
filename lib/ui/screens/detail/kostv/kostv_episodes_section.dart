@@ -18,6 +18,7 @@ import '../../../widgets/focus/context_menu_sheet.dart';
 import '../../../widgets/focus/focusable_wrapper.dart';
 import '../../../widgets/focus/hub_focus_memory.dart';
 import '../../../widgets/focus/locked_focus_row.dart';
+import '../../../widgets/kos_logo.dart';
 import '../../../widgets/kostv_missing_episodes.dart';
 import '../../../widgets/offline_aware_image.dart';
 import '../../../widgets/scroll_edge_arrows.dart';
@@ -1114,9 +1115,16 @@ class _Still extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           _picture(imageUrl),
-          // Watched ones step back a little.
-          if (episode.isPlayed)
+          // Watched ones step back a little, and say so with a ✓ in the
+          // corner, as plain to see as Jellyfin's own.
+          if (episode.isPlayed) ...[
             ColoredBox(color: Colors.black.withValues(alpha: 0.28)),
+            Positioned(
+              top: inset * 0.75,
+              right: inset * 0.75,
+              child: _WatchedMark(size: inset >= 12 ? 28 : 22),
+            ),
+          ],
           if (progress != null)
             Positioned(
               left: inset,
@@ -1145,6 +1153,34 @@ class _Still extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Kos TV: the ✓ of a watched episode, in the brand's colours.
+class _WatchedMark extends StatelessWidget {
+  const _WatchedMark({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: AppLocalizations.of(context).watched,
+    child: Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [KosBrand.cyan, KosBrand.violet],
+        ),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 6),
+        ],
+      ),
+      child: Icon(Icons.check_rounded, size: size * 0.68, color: Colors.white),
+    ),
+  );
 }
 
 /// The series' picture in grey, darkened, with a «+» (or what's become of
