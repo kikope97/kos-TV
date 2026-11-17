@@ -638,9 +638,10 @@ class KostvMusicTrackRow extends StatelessWidget {
         ? null
         : '${duration! ~/ 60}:${(duration! % 60).toString().padLeft(2, '0')}';
     final onTap = this.onTap;
-    // One not at home plays nothing; on a TV it still takes the focus, or
-    // the remote couldn't go down the list to read the rest.
-    if (onTap == null && !PlatformDetection.isTV) {
+    // One not at home plays nothing; with a remote or keys (a TV, the web on
+    // a computer) it still takes the focus, or the list couldn't be gone
+    // down to read the rest.
+    if (onTap == null && PlatformDetection.useMobileUi) {
       return _row(context, l10n, length, lit: false);
     }
     return KostvMusicPressable(

@@ -106,10 +106,17 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
     _service.addListener(_onInbox);
     unawaited(_inbox.sync());
     _inbox.watch();
+    // «hace X min» keeps up while the tray stays open.
+    _clock = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(() {});
+    });
   }
+
+  Timer? _clock;
 
   @override
   void dispose() {
+    _clock?.cancel();
     _inbox.unwatch();
     _inbox.removeListener(_onInbox);
     _service.removeListener(_onInbox);

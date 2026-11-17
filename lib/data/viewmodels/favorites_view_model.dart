@@ -198,6 +198,10 @@ class FavoritesViewModel extends ChangeNotifier {
   /// Rows whose request failed in the last load.
   int _failedRows = 0;
 
+  /// Kos TV: the rows whose last read failed, so a page of one row isn't
+  /// thrown away because another row failed at the same time.
+  final Set<FavoriteTypeFilter> _failedTypes = {};
+
   /// Kos TV: which load the answers belong to. A load started after them
   /// (the order changed twice quickly) wins, whichever answer comes last.
   int _generation = 0;
@@ -206,6 +210,7 @@ class FavoritesViewModel extends ChangeNotifier {
     final generation = ++_generation;
     _state = FavoritesState.loading;
     _failedRows = 0;
+    _failedTypes.clear();
     _rowItems = {};
     _rowTotalCounts.clear();
     _rowFetchedCounts.clear();
@@ -252,7 +257,14 @@ class FavoritesViewModel extends ChangeNotifier {
     int startIndex = 0,
   }) async {
     if (type == FavoriteTypeFilter.watchlist) return _fetchWatchlist();
-    if (byMarked) return _fetchByMarked(type, startIndex: startIndex);
+    final generation = _generation;
+    if (byMarked) {
+      return _fetchByMarked(
+        type,
+        startIndex: startIndex,
+        generation: generation,
+      );
+    }
     try {
       final sortValue = sortValueFor(type, _sortBy);
       final sortOrder = _sortDirection == SortDirection.ascending
@@ -299,11 +311,16 @@ class FavoritesViewModel extends ChangeNotifier {
             ),
           )
           .toList();
-      _rowFetchedCounts[type] = startIndex + rawItems.length;
+      // Kos TV: only for the load still showing (the order may have changed
+      // while it was on its way).
+      if (generation == _generation) {
+        _rowFetchedCounts[type] = startIndex + rawItems.length;
+      }
       final totalCount = response['TotalRecordCount'] as int? ?? items.length;
       return (withoutBlockedItems(items), totalCount);
     } catch (_) {
       _failedRows++;
+      _failedTypes.add(type);
       return (const <AggregatedItem>[], 0);
     }
   }
@@ -313,6 +330,7 @@ class FavoritesViewModel extends ChangeNotifier {
   Future<(List<AggregatedItem>, int)> _fetchByMarked(
     FavoriteTypeFilter type, {
     required int startIndex,
+    required int generation,
   }) async {
     final types = type.itemTypes;
     if (types == null) return (const <AggregatedItem>[], 0);
@@ -340,11 +358,14 @@ class FavoritesViewModel extends ChangeNotifier {
             rawData: raw.cast<String, dynamic>(),
           ),
       ];
-      _rowFetchedCounts[type] = startIndex + rawItems.length;
+      if (generation == _generation) {
+        _rowFetchedCounts[type] = startIndex + rawItems.length;
+      }
       final total = data['TotalRecordCount'] as int? ?? items.length;
       return (withoutBlockedItems(items), total);
     } catch (_) {
       _failedRows++;
+      _failedTypes.add(type);
       return (const <AggregatedItem>[], 0);
     }
   }
@@ -421,7 +442,7 @@ class FavoritesViewModel extends ChangeNotifier {
 
     _inFlightPagingRowTypes.add(type);
     final generation = _generation;
-    final failedBefore = _failedRows;
+    _failedTypes.remove(type);
     try {
       final currentOffset = fetched;
       final (newItems, totalCount) = await _fetchRowItems(
@@ -432,7 +453,7 @@ class FavoritesViewModel extends ChangeNotifier {
       // isn't added to the new one; a page that failed leaves the count
       // as it was, so the next try can still bring the rest.
       if (generation != _generation) return;
-      if (_failedRows > failedBefore) return;
+      if (_failedTypes.remove(type)) return;
       _rowTotalCounts[type] = totalCount;
 
       if (newItems.isNotEmpty) {

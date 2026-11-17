@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -641,14 +642,17 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
   /// With a remote: the last of a kind taken off took its row away, and the
   /// focus with it. It comes back to the page's first buttons rather than
   /// staying nowhere, where the next arrow lands anywhere.
-  void _keepFocusOnPage() {
-    if (PlatformDetection.useMobileUi ||
-        InputModeTracker.of(context) != InputMode.keyboard) {
-      return;
-    }
+  ///
+  /// Kos TV: only when the kinds shown changed (not on every build), and the
+  /// page goes back up to where those buttons are.
+  void _keepFocusOnPage(List<Object?> kinds) {
+    final changed = !listEquals(kinds, _kindsBefore);
+    _kindsBefore = List.of(kinds);
+    if (!changed || PlatformDetection.useMobileUi) return;
     final hadFocus = FocusManager.instance.primaryFocus;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? false)) return;
+      if (InputModeTracker.of(context) != InputMode.keyboard) return;
       final now = FocusManager.instance.primaryFocus;
       final lost =
           now == null ||
@@ -659,9 +663,22 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
         _firstChip.requestFocus();
       } else if (_firstRow.context?.mounted == true) {
         _firstRow.requestFocus();
+      } else {
+        return;
+      }
+      if (_scroll.hasClients) {
+        unawaited(
+          _scroll.animateTo(
+            0,
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+          ),
+        );
       }
     });
   }
+
+  List<Object?>? _kindsBefore;
 
   @override
   Widget build(BuildContext context) {
@@ -674,7 +691,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
         _vm.state != FavoritesState.loading) {
       _only = null;
     }
-    _keepFocusOnPage();
+    _keepFocusOnPage(kinds);
     Widget body;
     if (_vm.state == FavoritesState.loading && kinds.isEmpty) {
       body = const Center(child: CircularProgressIndicator());

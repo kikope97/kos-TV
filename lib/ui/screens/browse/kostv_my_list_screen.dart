@@ -102,19 +102,25 @@ class _KostvMyListScreenState extends State<KostvMyListScreen> {
   Future<void> _clearWatched() async {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    // The row of watched ones goes with the focus in it: the focus moves
-    // first to the row above, or up to the menu.
+    // The row of watched ones goes with the focus in it: once it is gone,
+    // the focus moves to the row above, or up to the menu. Only with the
+    // remote or the keyboard: a touch leaves no focus to move, and moving
+    // it would scroll the page.
+    final withKeys = InputModeTracker.of(context) == InputMode.keyboard;
     final page = _list.page;
-    if (page != null) {
-      final shown = _shown(page);
-      final at = shown.indexOf(_Part.watched);
-      if (at > 0) {
-        _rowKeys[shown[at - 1]]?.currentState?.requestFocusAt(0);
-      } else {
-        NavigationLayout.focusNavbarNotifier.value?.call();
-      }
-    }
+    final shown = page == null ? const <_Part>[] : _shown(page);
+    final at = shown.indexOf(_Part.watched);
     final done = await _list.clearWatched();
+    if (done && withKeys && mounted && page != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (at > 0) {
+          _rowKeys[shown[at - 1]]?.currentState?.requestFocusAt(0);
+        } else {
+          NavigationLayout.focusNavbarNotifier.value?.call();
+        }
+      });
+    }
     messenger.showSnackBar(
       SnackBar(
         content: Text(

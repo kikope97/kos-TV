@@ -95,10 +95,14 @@ class MenuPreview {
     if (here == route) return;
     arriving.value = route;
     _hold();
-    if (PlatformDetection.isWeb && route != Destinations.home) {
-      // Resting on a button isn't a visit: it takes the place of the page
-      // in the browser's history, or Back would go through every page the
-      // menu showed on its way.
+    if (PlatformDetection.isWeb &&
+        route != Destinations.home &&
+        Destinations.isMenuPage(here) &&
+        here != Destinations.home) {
+      // Resting on a button isn't a visit: it takes the place of the menu
+      // page shown before in the browser's history, or Back would go
+      // through every page the menu showed on its way. Leaving Home is a
+      // visit, so Back comes back to it.
       Router.neglect(context, () => router.go(route));
     } else if (route == Destinations.home || PlatformDetection.isWeb) {
       router.go(route);

@@ -255,12 +255,17 @@ class _Header extends StatelessWidget {
         if (mobile)
           tabs
         else
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            spacing: 8,
-            runSpacing: 8,
-            children: [tabs, full],
+          // The whole width, or spaceBetween has no room to put the button
+          // at the end.
+          SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [tabs, full],
+            ),
           ),
       ],
     );

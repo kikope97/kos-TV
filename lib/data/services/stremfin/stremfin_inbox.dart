@@ -354,6 +354,8 @@ class StremfinInbox extends ChangeNotifier {
       t?.speed,
       t?.etaSeconds,
       t?.paused,
+      // Kos TV: «se sigue intentando solo…» changes the card too.
+      p?.recheck?.text,
     ].join('|');
   }
 

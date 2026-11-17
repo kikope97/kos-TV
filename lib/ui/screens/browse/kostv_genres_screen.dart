@@ -104,6 +104,11 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
     if (grouped == _wasGrouped || _disposed) return;
     _wasGrouped = grouped;
     _used.clear();
+    // Kos TV: what was counted counted the other way; the next load asks
+    // again instead of keeping it.
+    for (final g in _genres) {
+      g.counted = false;
+    }
     unawaited(_load());
   }
 
@@ -225,6 +230,8 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
       final count = total is num ? total.toInt() : genre.count;
       if (count <= 0) {
         setState(() => _genres = [..._genres]..remove(genre));
+        // Kos TV: coming back to the page doesn't bring it back.
+        if (_lastKey == _key) _last = _genres;
         return;
       }
       genre.count = count;

@@ -963,10 +963,15 @@ class _HeroTextFit extends StatelessWidget {
       LayoutId(id: 1, child: shorter),
       LayoutId(
         id: 2,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.bottomLeft,
-          child: least,
+        // Laid out at the room's width first, so it wraps as the others do,
+        // and only then made smaller if it is still too tall. A FittedBox on
+        // its own measures it with no width limit: all on one line, shrunk.
+        child: LayoutBuilder(
+          builder: (context, constraints) => FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.bottomLeft,
+            child: SizedBox(width: constraints.maxWidth, child: least),
+          ),
         ),
       ),
     ],

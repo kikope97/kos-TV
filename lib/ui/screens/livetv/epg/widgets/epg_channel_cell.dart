@@ -103,7 +103,11 @@ class EpgChannelCell extends StatelessWidget {
                 if (hasTopRow) ...[
                   // Gives way (smaller) in a row made short by a large text
                   // size, so the name under it keeps its line.
+                  // Almost all of the room left goes to this row: with an
+                  // even split with the gap below, the number was drawn at
+                  // half its size.
                   Flexible(
+                    flex: 100,
                     child: FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerRight,
