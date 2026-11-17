@@ -19662,4 +19662,26 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get kostvPlaybackFailed =>
+      'Couldn\'t play this. Try again in a moment.';
+
+  @override
+  String get kostvTrackSubtitle => 'Subtitle';
+
+  @override
+  String get kostvTrackAudio => 'Audio';
+
+  @override
+  String get kostvTrackExternal => 'External';
+
+  @override
+  String get kostvTrackEmbedded => 'Embedded';
+
+  @override
+  String get kostvTrackInternal => 'Internal';
+
+  @override
+  String get kostvTrackUnknown => 'Unknown';
 }

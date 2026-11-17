@@ -41,7 +41,7 @@ class TrackChoices {
     bool secondary = false,
     String preferredSecondaryLanguage = '',
   }) async {
-    final streamType = audio ? 'Audio' : 'Subtitle';
+    final streamType = audio ? l10n.kostvTrackAudio : l10n.kostvTrackSubtitle;
     final offlineMeta = manager.currentOfflineMetadata;
     final allStreams =
         manager.currentResolution?.mediaStreams ??
@@ -101,15 +101,17 @@ class TrackChoices {
                 if (s['Channels'] != null) '${s['Channels']}ch',
               ].join(' · ')
             : (() {
-                final subtitleType =
-                    ((codec == null || codec.isEmpty) ? 'Unknown' : codec)
-                        .toUpperCase();
+                final subtitleType = (codec == null || codec.isEmpty)
+                    ? l10n.kostvTrackUnknown
+                    : codec.toUpperCase();
                 final deliveryMethod = (s['DeliveryMethod'] as String?)
                     ?.trim()
                     .toLowerCase();
                 final location = s['IsExternal'] == true
-                    ? 'External'
-                    : (deliveryMethod == 'embed' ? 'Embedded' : 'Internal');
+                    ? l10n.kostvTrackExternal
+                    : (deliveryMethod == 'embed'
+                          ? l10n.kostvTrackEmbedded
+                          : l10n.kostvTrackInternal);
                 return '$subtitleType · $location';
               })();
         return TrackOption(

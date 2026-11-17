@@ -120,13 +120,13 @@ abstract final class TrackPicker {
     String trackLabel(int? index) {
       if (index == null || index < 0) return l10n.off;
       final trackNumber = streams.indexWhere((entry) => entry['Index'] == index);
-      if (trackNumber < 0) return l10n.streamTypeFallback('Subtitle', index + 1);
+      if (trackNumber < 0) return l10n.streamTypeFallback(l10n.kostvTrackSubtitle, index + 1);
       final stream = streams[trackNumber];
       for (final key in ['DisplayTitle', 'Title', 'Language']) {
         final title = (stream[key] as String?)?.trim();
         if (title != null && title.isNotEmpty) return title;
       }
-      return l10n.streamTypeFallback('Subtitle', trackNumber + 1);
+      return l10n.streamTypeFallback(l10n.kostvTrackSubtitle, trackNumber + 1);
     }
 
     final options = <TrackOption>[

@@ -376,6 +376,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   StreamSubscription<bool>? _screenLockSub;
   StreamSubscription<bool>? _screensaverPlayingSub;
   StreamSubscription<void>? _completedSub;
+  StreamSubscription<void>? _heldAtEndSub;
   bool _isRestoringPosition = false;
   DateTime? _suppressSeekPromptsUntil;
   bool _wasPlayingBeforeScreenLock = false;
@@ -409,6 +410,32 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   // card that says so instead of moving on past them. It shows while
   // [_showNextUp] and [_kostvGapShown] are set.
   KostvSeriesGapsController? _kostvGaps;
+
+  /// Listening to [_kostvGaps] for the series page it couldn't read yet.
+  VoidCallback? _kostvGapWaiting;
+
+  void _kostvGapRetryWhenRead(KostvSeriesGapsController gaps, int lookup) {
+    _stopKostvGapWait();
+    late final VoidCallback listener;
+    listener = () {
+      if (!mounted || lookup != _kostvGapLookup) {
+        _stopKostvGapWait();
+        return;
+      }
+      if (gaps.detail == null) return;
+      _stopKostvGapWait();
+      unawaited(_loadKostvGap());
+    };
+    _kostvGapWaiting = listener;
+    gaps.addListener(listener);
+  }
+
+  void _stopKostvGapWait() {
+    final listener = _kostvGapWaiting;
+    if (listener == null) return;
+    _kostvGapWaiting = null;
+    _kostvGaps?.removeListener(listener);
+  }
   List<KostvGhostEpisode> _kostvGap = const [];
   List<AggregatedItem> _kostvGapEpisodes = const [];
   AggregatedItem? _kostvGapNext;
@@ -655,7 +682,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       if (!mounted) {
         return;
       }
-      _showThrottledPlaybackError(error.toString());
+      _showThrottledPlaybackError(
+        describeError(error, AppLocalizations.of(context)),
+      );
     }
   }
 
@@ -935,6 +964,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       if (!mounted || _isStopping) return;
       unawaited(_exitPlayback());
     });
+    // Kos TV: an episode with missing ones after it ended held there (it
+    // got to its end by skipping forward, or skipping the credits, before
+    // its card could show): the card shows now.
+    _heldAtEndSub = _manager.heldAtEndStream.listen((_) {
+      if (!mounted || _isStopping || _showNextUp) return;
+      if (_kostvGap.isNotEmpty && !_nextUpDismissed) _presentKostvGap();
+    });
     _listenToLetterboxCropState(_activeBackend);
     _backendSub = _manager.backendChangedStream.listen((backend) {
       _listenToLetterboxCropState(backend);
@@ -1100,6 +1136,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   @override
   void dispose() {
     kostvReleaseBrowserMenu();
+    // Kos TV: left another way than the player's own (the browser's Back, a
+    // mouse's back button): full screen, if it went into it, ends too.
+    if (PlatformDetection.isWeb &&
+        PlatformDetection.useDesktopUi &&
+        _wasDesktopFullscreenOnEntry == false) {
+      unawaited(() async {
+        try {
+          if (await FullscreenHelper.isFullscreen()) {
+            await FullscreenHelper.setFullscreen(false);
+          }
+        } catch (_) {}
+      }());
+    }
     _cancelPopAfterBackKeyUp?.call();
     _trickplayLoadGeneration++;
     _hdrStatus?.removeListener(_onHdrStatusChanged);
@@ -1191,12 +1240,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _aetherRemoteCommandSub?.cancel();
     _screenLockSub?.cancel();
     _completedSub?.cancel();
+    _heldAtEndSub?.cancel();
     _tvBackgroundExitTimer?.cancel();
     FocusManager.instance.removeListener(_restoreOverlayFocus);
     _overlayFocus.dispose();
     _tvSeekbarFocus.dispose();
     _tvSkipSegmentFocus.dispose();
     _tvNextUpPlayFocus.dispose();
+    _stopKostvGapWait();
     _kostvGaps?.dispose();
     _tvNextUpDismissFocus.dispose();
     _tvTransportFirstFocus.dispose();
@@ -1335,6 +1386,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (error == null || error.isEmpty) {
       return;
     }
+    // Kos TV: given up because the person left: nothing to tell them.
+    if (_isStopping || error == 'startupRecoveryAborted') return;
     // These are internal sentinels the manager uses to tag why it gave up,
     // not viewer-facing text.
     if (error == liveStreamLostError || error == streamStarvedError) {
@@ -1357,7 +1410,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       siloEndedOnServerMessage => l10n.siloPlaybackEndedOnServer,
       _ => null,
     };
-    _showThrottledPlaybackError(siloText ?? error);
+    // Kos TV: anything else the player says is its own words, in English
+    // or an internal name («Playback failed.», «mediaNotReady», an
+    // exception's name): one plain sentence in the app's language instead.
+    _showThrottledPlaybackError(siloText ?? l10n.kostvPlaybackFailed);
   }
 
   Future<void> _refreshRemoteVolume() async {
@@ -2569,7 +2625,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       await gaps.loadFor(item);
       final detail = gaps.detail;
       if (!mounted || lookup != _kostvGapLookup) return;
-      if (detail == null || !gaps.enabled) return;
+      if (detail == null || !gaps.enabled) {
+        // Kos TV: the requests service let the person in only after this
+        // began (just after starting the app): worked out once it does.
+        if (detail == null) _kostvGapRetryWhenRead(gaps, lookup);
+        return;
+      }
       // Only when the service says something after this one isn't at home
       // is the home server asked for the season's episodes.
       final listed = detail.seasons.where((s) => s.number == season);
@@ -2611,14 +2672,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             nextSeason: nextHere ? next.parentIndexNumber : null,
             nextEpisode: nextHere ? next.indexNumber : null,
           );
+      // Held at its end from now on: however it gets there, it doesn't move
+      // on past the gap without its card.
+      if (_kostvGap.isNotEmpty && !_nextUpDismissed) {
+        _manager.suppressAutoNext = true;
+      }
     } catch (e) {
       debugPrint('[VideoPlayer] Missing episodes lookup failed: $e');
     }
   }
 
+  // Not held back by the quiet after a skip forward, as the next-up card
+  // is: skipping into the very end is reaching it.
   bool _shouldShowKostvGap() =>
       _kostvGap.isNotEmpty &&
-      !_areSeekPromptsSuppressed() &&
       !_nextUpDismissed &&
       !_showNextUp &&
       !_isPrerollQueueItem(_queue.currentItem);
@@ -2662,6 +2729,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         seasonGaps.canAskSeason &&
         seasonGaps.askable == ghosts.length;
     setState(() => _kostvGapAsk = KostvGapAsk.sending);
+    // Another episode may be on by the time it answers: what it says is
+    // this one's, not the next one's card.
+    final lookup = _kostvGapLookup;
     try {
       final result = wholeSeason
           ? await gaps.ask(season: season)
@@ -2671,7 +2741,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               season: season,
               episodes: [for (final ghost in ghosts) ghost.number],
             );
-      if (!mounted) return;
+      if (!mounted || lookup != _kostvGapLookup) return;
       final sent =
           result != null &&
           result.outcome != StremfinOutcome.limit &&
@@ -2697,7 +2767,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       }
     } catch (e) {
       debugPrint('[VideoPlayer] Asking for missing episodes failed: $e');
-      if (mounted) setState(() => _kostvGapAsk = KostvGapAsk.failed);
+      if (mounted && lookup == _kostvGapLookup) {
+        setState(() => _kostvGapAsk = KostvGapAsk.failed);
+      }
     }
   }
 
@@ -2983,6 +3055,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         _skipSegment?.type == MediaSegmentType.outro ||
         _segmentService.activeSegment?.type == MediaSegmentType.outro;
     if (isOutro) _markCurrentItemPlayedForOutroSkip();
+    // Kos TV: credits with missing episodes after them: their card, rather
+    // than running on to the end of the file and past the gap.
+    if (isOutro && _shouldShowKostvGap()) {
+      final skipTo = _skipTo;
+      if (skipTo != null) unawaited(_seekDirect(skipTo));
+      _presentKostvGap();
+      return;
+    }
     if (replaceSkipOutroWithNextUp && isOutro && _shouldShowNextUpOverlay()) {
       final skipTo = _skipTo;
       if (skipTo != null) {
@@ -6336,7 +6416,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               onPressed: () => _showTrackSelector(audio: true),
               size: secondaryIconSize,
               extent: secondaryExtent,
-              tooltip: l10n.audio,
+              // Kos TV: «Idioma», as in «Más» and in Settings.
+              tooltip: l10n.kostvOsdLanguage,
             ),
           if (hasCast && shows(OsdButton.castAndCrew))
             OsdButton.castAndCrew: _controlButton(
@@ -6561,18 +6642,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                 ? item.type == 'Episode'
                 : (item is Map && item['Type'] == 'Episode');
         final moreEntries = <_OsdMoreEntry>[
-          if (_queue.hasPrevious || hasChapters)
-            _OsdMoreEntry(
-              Icons.skip_previous_rounded,
-              l10n.kostvOsdPrevious,
-              _manager.previous,
-            ),
           for (final button in osdButtonLayout.ordered(
             OsdButton.values,
             (button) => button.id,
             _prefs,
           ))
             if (!shows(button) && button.isOffered) ?moreOf(button),
+          // Kos TV: last, so the focus the window opens on isn't it (an OK
+          // pressed twice would start over): the episode before, straight
+          // away; or, with nothing before, the chapter before.
+          if (_queue.hasPrevious || hasChapters)
+            _OsdMoreEntry(
+              Icons.skip_previous_rounded,
+              l10n.kostvOsdPrevious,
+              _queue.hasPrevious ? _manager.previousInQueue : _manager.previous,
+            ),
         ];
 
         final secondaryButtons = _wireTvSecondaryEnds([
@@ -6582,11 +6666,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             _prefs,
           ))
             ?byButton[button],
-          // Kos TV: the next episode, in sight, when there is one.
+          // Kos TV: the next episode, in sight, when there is one: the next
+          // in the queue, not the next chapter of this one.
           if (_queue.hasNext)
             _controlButton(
               Icons.skip_next_rounded,
-              onPressed: _manager.next,
+              onPressed: _manager.nextInQueue,
               size: secondaryIconSize,
               extent: secondaryExtent,
               tooltip: isEpisode ? l10n.nextEpisode : l10n.next,

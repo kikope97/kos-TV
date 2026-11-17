@@ -13874,5 +13874,33 @@
         "type": "int"
       }
     }
+  },
+  "kostvPlaybackFailed": "No se ha podido reproducir. Inténtalo de nuevo en un momento.",
+  "@kostvPlaybackFailed": {
+    "description": "Kos TV player: playback could not start or went wrong (instead of the internal English error)."
+  },
+  "kostvTrackSubtitle": "Subtítulo",
+  "@kostvTrackSubtitle": {
+    "description": "Player track lists: an unnamed subtitle track, before its number."
+  },
+  "kostvTrackAudio": "Audio",
+  "@kostvTrackAudio": {
+    "description": "Player track lists: an unnamed audio track, before its number."
+  },
+  "kostvTrackExternal": "Externo",
+  "@kostvTrackExternal": {
+    "description": "Player subtitle list: the subtitle comes from a file beside the video."
+  },
+  "kostvTrackEmbedded": "Incrustado",
+  "@kostvTrackEmbedded": {
+    "description": "Player subtitle list: the subtitle is burnt into the picture."
+  },
+  "kostvTrackInternal": "Interno",
+  "@kostvTrackInternal": {
+    "description": "Player subtitle list: the subtitle is inside the video file."
+  },
+  "kostvTrackUnknown": "Desconocido",
+  "@kostvTrackUnknown": {
+    "description": "Player subtitle list: the subtitle format is not known."
   }
 }

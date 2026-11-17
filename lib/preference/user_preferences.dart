@@ -4696,68 +4696,98 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: 'alphabetical',
   );
 
-  SeriesTrackPreference getSeriesSubtitlePreference(String seriesId) {
-    final pref = Preference(
-      key: 'pref_series_subtitle_lang_$seriesId',
-      defaultValue: '',
-    );
-    final raw = _store.get(pref);
-    return SeriesTrackPreference.fromRawString(raw);
+  /// Kos TV: the languages and tracks someone picks are theirs, not the
+  /// device's: another person on the same TV keeps their own. What was kept
+  /// for the whole device before is where each person starts from.
+  String _personTrackKey(String base, String id) {
+    final suffix = _activeProfileScopeSuffix();
+    return suffix == null ? '$base$id' : '$base${suffix}_$id';
   }
+
+  String _personTrackString(String base, String id) {
+    final own = _store.get(
+      Preference(key: _personTrackKey(base, id), defaultValue: ''),
+    );
+    if (own.isNotEmpty) return own;
+    return _store.get(Preference(key: '$base$id', defaultValue: ''));
+  }
+
+  int _personTrackIndex(String base, String id) {
+    final own = _store.get(
+      Preference<int>(key: _personTrackKey(base, id), defaultValue: -2),
+    );
+    if (own == _clearedTrack) return -2;
+    if (own != -2) return own;
+    return _store.get(Preference<int>(key: '$base$id', defaultValue: -2));
+  }
+
+  /// A choice this person cleared: what the device kept from before doesn't
+  /// come back in its place.
+  static const _clearedTrack = -3;
+
+  Future<void> _setPersonTrackIndex(String base, String id, int? index) async {
+    final pref = Preference<int>(
+      key: _personTrackKey(base, id),
+      defaultValue: -2,
+    );
+    if (index != null) {
+      await _store.set(pref, index);
+    } else if (_activeProfileScopeSuffix() != null) {
+      await _store.set(pref, _clearedTrack);
+    } else {
+      await _store.delete(pref);
+    }
+    notifyListeners();
+  }
+
+  static const _seriesSubtitleLangPrefix = 'pref_series_subtitle_lang_';
+  static const _seriesAudioLangPrefix = 'pref_series_audio_lang_';
+  static const _itemSubtitleIndexPrefix = 'pref_item_subtitle_index_';
+  static const _itemAudioIndexPrefix = 'pref_item_audio_index_';
+
+  SeriesTrackPreference getSeriesSubtitlePreference(String seriesId) =>
+      SeriesTrackPreference.fromRawString(
+        _personTrackString(_seriesSubtitleLangPrefix, seriesId),
+      );
 
   Future<void> setSeriesSubtitlePreference(
     String seriesId,
     SeriesTrackPreference pref,
   ) async {
-    final key = Preference(
-      key: 'pref_series_subtitle_lang_$seriesId',
-      defaultValue: '',
+    await _store.set(
+      Preference(
+        key: _personTrackKey(_seriesSubtitleLangPrefix, seriesId),
+        defaultValue: '',
+      ),
+      pref.toRawString(),
     );
-    await _store.set(key, pref.toRawString());
     notifyListeners();
   }
 
-  SeriesTrackPreference getSeriesAudioPreference(String seriesId) {
-    final pref = Preference(
-      key: 'pref_series_audio_lang_$seriesId',
-      defaultValue: '',
-    );
-    final raw = _store.get(pref);
-    return SeriesTrackPreference.fromRawString(raw);
-  }
+  SeriesTrackPreference getSeriesAudioPreference(String seriesId) =>
+      SeriesTrackPreference.fromRawString(
+        _personTrackString(_seriesAudioLangPrefix, seriesId),
+      );
 
   Future<void> setSeriesAudioPreference(
     String seriesId,
     SeriesTrackPreference pref,
   ) async {
-    final key = Preference(
-      key: 'pref_series_audio_lang_$seriesId',
-      defaultValue: '',
+    await _store.set(
+      Preference(
+        key: _personTrackKey(_seriesAudioLangPrefix, seriesId),
+        defaultValue: '',
+      ),
+      pref.toRawString(),
     );
-    await _store.set(key, pref.toRawString());
     notifyListeners();
   }
 
-  int getItemSubtitleStreamIndex(String itemId) {
-    final pref = Preference<int>(
-      key: 'pref_item_subtitle_index_$itemId',
-      defaultValue: -2,
-    );
-    return _store.get(pref);
-  }
+  int getItemSubtitleStreamIndex(String itemId) =>
+      _personTrackIndex(_itemSubtitleIndexPrefix, itemId);
 
-  Future<void> setItemSubtitleStreamIndex(String itemId, int? index) async {
-    final pref = Preference<int>(
-      key: 'pref_item_subtitle_index_$itemId',
-      defaultValue: -2,
-    );
-    if (index == null) {
-      await _store.delete(pref);
-    } else {
-      await _store.set(pref, index);
-    }
-    notifyListeners();
-  }
+  Future<void> setItemSubtitleStreamIndex(String itemId, int? index) =>
+      _setPersonTrackIndex(_itemSubtitleIndexPrefix, itemId, index);
 
   Map<String, dynamic>? getItemSecondarySubtitleSelection(String itemId) {
     final pref = Preference<String>(
@@ -4794,26 +4824,11 @@ class UserPreferences extends ChangeNotifier {
         : '$_itemSecondarySubtitleSelectionPrefix${suffix}_$itemId';
   }
 
-  int getItemAudioStreamIndex(String itemId) {
-    final pref = Preference<int>(
-      key: 'pref_item_audio_index_$itemId',
-      defaultValue: -2,
-    );
-    return _store.get(pref);
-  }
+  int getItemAudioStreamIndex(String itemId) =>
+      _personTrackIndex(_itemAudioIndexPrefix, itemId);
 
-  Future<void> setItemAudioStreamIndex(String itemId, int? index) async {
-    final pref = Preference<int>(
-      key: 'pref_item_audio_index_$itemId',
-      defaultValue: -2,
-    );
-    if (index == null) {
-      await _store.delete(pref);
-    } else {
-      await _store.set(pref, index);
-    }
-    notifyListeners();
-  }
+  Future<void> setItemAudioStreamIndex(String itemId, int? index) =>
+      _setPersonTrackIndex(_itemAudioIndexPrefix, itemId, index);
 
   static final hiddenContinueWatchingItems = Preference<String>(
     key: 'hidden_continue_watching_items',

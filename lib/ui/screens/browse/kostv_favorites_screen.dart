@@ -13,6 +13,7 @@ import '../../../data/models/aggregated_item.dart';
 import '../../../data/repositories/mdblist_repository.dart';
 import '../../../data/services/background_service.dart';
 import '../../../data/services/kostv_favorites_news.dart';
+import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/viewmodels/favorites_view_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/preference_constants.dart';
@@ -501,7 +502,9 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
 
   void _flipDirection() => unawaited(_vm.toggleSortDirection());
 
-  /// Plays the first of a favourite series' new episodes.
+  /// Plays the first of a favourite series' new episodes, with the rest of
+  /// its season after it (so the next one follows on), from where it was
+  /// left if it was started.
   Future<void> _watch(AggregatedItem episode) async {
     final manager = GetIt.instance<PlaybackManager>();
     await launchPlayerWhilePreparing(
@@ -509,13 +512,54 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
       manager: manager,
       destination: Destinations.videoPlayer,
       startPlayback: (launchSession) async {
+        final season = await _seasonOf(episode);
+        // The plugin's ids may carry dashes; the server's lists don't.
+        String bare(String id) => id.replaceAll('-', '').toLowerCase();
+        final at = season.indexWhere((e) => bare(e.id) == bare(episode.id));
         await runPlaybackStart(
           launchSession,
-          () => manager.playItems([episode]),
+          () => at < 0
+              ? manager.playItems(
+                  [episode],
+                  startPosition: episode.playbackPosition ?? Duration.zero,
+                )
+              : manager.playItems(
+                  season,
+                  startIndex: at,
+                  startPosition:
+                      season[at].playbackPosition ??
+                      episode.playbackPosition ??
+                      Duration.zero,
+                ),
         );
         return true;
       },
     );
+  }
+
+  /// The episodes of [episode]'s season, or none when they can't be read.
+  Future<List<AggregatedItem>> _seasonOf(AggregatedItem episode) async {
+    final seriesId = episode.seriesId;
+    if (seriesId == null || seriesId.isEmpty) return const [];
+    try {
+      final client = GetIt.instance<MediaServerClientFactory>()
+          .clientForServerOrActive(episode.serverId);
+      final data = await client.itemsApi.getEpisodes(
+        seriesId,
+        seasonId: episode.seasonId,
+      );
+      return [
+        for (final raw in (data['Items'] as List?) ?? const [])
+          if (raw is Map && raw['Id'] != null)
+            AggregatedItem(
+              id: raw['Id'].toString(),
+              serverId: episode.serverId,
+              rawData: raw.cast<String, dynamic>(),
+            ),
+      ];
+    } catch (_) {
+      return const [];
+    }
   }
 
   /// Whether the row of news is on the page: in «Todo», with more news than

@@ -33788,6 +33788,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{Show 1 more episode} other{Show {count} more episodes}}'**
   String kostvSeasonShowMore(int count);
+
+  /// Kos TV player: playback could not start or went wrong (instead of the internal English error).
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t play this. Try again in a moment.'**
+  String get kostvPlaybackFailed;
+
+  /// Player track lists: an unnamed subtitle track, before its number.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitle'**
+  String get kostvTrackSubtitle;
+
+  /// Player track lists: an unnamed audio track, before its number.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get kostvTrackAudio;
+
+  /// Player subtitle list: the subtitle comes from a file beside the video.
+  ///
+  /// In en, this message translates to:
+  /// **'External'**
+  String get kostvTrackExternal;
+
+  /// Player subtitle list: the subtitle is burnt into the picture.
+  ///
+  /// In en, this message translates to:
+  /// **'Embedded'**
+  String get kostvTrackEmbedded;
+
+  /// Player subtitle list: the subtitle is inside the video file.
+  ///
+  /// In en, this message translates to:
+  /// **'Internal'**
+  String get kostvTrackInternal;
+
+  /// Player subtitle list: the subtitle format is not known.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown'**
+  String get kostvTrackUnknown;
 }
 
 class _AppLocalizationsDelegate

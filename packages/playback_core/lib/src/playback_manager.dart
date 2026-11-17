@@ -643,6 +643,10 @@ class PlaybackManager implements AudioOwnable {
   final _bringupStateController =
       StreamController<PlaybackBringupState>.broadcast();
   final _sessionEndedController = StreamController<void>.broadcast();
+
+  /// Kos TV: the item played to its end while [suppressAutoNext] held the
+  /// queue, so the screen can say what comes next (missing episodes).
+  final _heldAtEndController = StreamController<void>.broadcast();
   final _liveRecoveryStatusController =
       StreamController<LiveRecoveryStatus?>.broadcast();
   final _volumeController = StreamController<double>.broadcast();
@@ -746,6 +750,8 @@ class PlaybackManager implements AudioOwnable {
   Stream<PlaybackBringupState> get bringupStateStream =>
       _bringupStateController.stream;
   Stream<void> get sessionEndedStream => _sessionEndedController.stream;
+
+  Stream<void> get heldAtEndStream => _heldAtEndController.stream;
   LiveRecoveryStatus? get liveRecoveryStatus => _liveRecoveryStatus;
   Stream<LiveRecoveryStatus?> get liveRecoveryStatusStream =>
       _liveRecoveryStatusController.stream;
@@ -1599,6 +1605,13 @@ class PlaybackManager implements AudioOwnable {
         _isManualNexting ||
         suppressAutoNext) {
       _logCompletion('suppressed');
+      if (suppressAutoNext &&
+          !_waitingForMedia &&
+          !_isAutoNexting &&
+          !_isManualNexting &&
+          !_heldAtEndController.isClosed) {
+        _heldAtEndController.add(null);
+      }
       return;
     }
     if (!autoAdvanceEnabled && !_isPreroll(queueService.currentItem)) {
@@ -3355,7 +3368,7 @@ class PlaybackManager implements AudioOwnable {
     }
 
     if (sessionToken != _playbackSessionToken) {
-      _cleanupPreemptedSession(item, resolution);
+      _cleanupPreemptedSession(item, resolution, startPosition);
       return;
     }
     autoPlay = autoPlayIntent?.call() ?? autoPlay;
@@ -3385,7 +3398,7 @@ class PlaybackManager implements AudioOwnable {
       _mediaSourceId = resolution.mediaSourceId;
       resolution = await resolve(maxBitrate);
       if (sessionToken != _playbackSessionToken) {
-        _cleanupPreemptedSession(item, resolution);
+        _cleanupPreemptedSession(item, resolution, startPosition);
         return;
       }
     }
@@ -3399,7 +3412,7 @@ class PlaybackManager implements AudioOwnable {
         resolution.playMethod == StreamPlayMethod.transcode) {
       measuredBitrate ??= await autoBitrateProvider!();
       if (sessionToken != _playbackSessionToken) {
-        _cleanupPreemptedSession(item, resolution);
+        _cleanupPreemptedSession(item, resolution, startPosition);
         return;
       }
       final cap = measuredBitrate == null || measuredBitrate <= 0
@@ -3414,7 +3427,7 @@ class PlaybackManager implements AudioOwnable {
         profile['MaxStreamingBitrate'] = cap;
         resolution = await resolve(cap);
         if (sessionToken != _playbackSessionToken) {
-          _cleanupPreemptedSession(item, resolution);
+          _cleanupPreemptedSession(item, resolution, startPosition);
           return;
         }
       }
@@ -3431,7 +3444,7 @@ class PlaybackManager implements AudioOwnable {
         _backend!.decodesHevcOnlyFromOriginalFile) {
       resolution = await resolve(maxBitrate, originalFile: true);
       if (sessionToken != _playbackSessionToken) {
-        _cleanupPreemptedSession(item, resolution);
+        _cleanupPreemptedSession(item, resolution, startPosition);
         return;
       }
     }
@@ -3703,14 +3716,14 @@ class PlaybackManager implements AudioOwnable {
       final readAutoPlayIntent = autoPlayIntent;
       if (readAutoPlayIntent == null) return true;
       if (sessionToken != _playbackSessionToken) {
-        _cleanupPreemptedSession(item, resolution);
+        _cleanupPreemptedSession(item, resolution, startPosition);
         return false;
       }
 
       var desiredAutoPlay = readAutoPlayIntent();
       while (desiredAutoPlay != autoPlay) {
         if (sessionToken != _playbackSessionToken) {
-          _cleanupPreemptedSession(item, resolution);
+          _cleanupPreemptedSession(item, resolution, startPosition);
           return false;
         }
         if (desiredAutoPlay) {
@@ -3719,7 +3732,7 @@ class PlaybackManager implements AudioOwnable {
           await _backend!.pause();
         }
         if (sessionToken != _playbackSessionToken) {
-          _cleanupPreemptedSession(item, resolution);
+          _cleanupPreemptedSession(item, resolution, startPosition);
           return false;
         }
         autoPlay = desiredAutoPlay;
@@ -3776,7 +3789,7 @@ class PlaybackManager implements AudioOwnable {
       );
       await _arbiter?.acquire(AudioProducer.mainPlayback);
       if (sessionToken != _playbackSessionToken) {
-        _cleanupPreemptedSession(item, resolution);
+        _cleanupPreemptedSession(item, resolution, startPosition);
         return;
       }
       if (autoPlayIntent != null) {
@@ -3795,7 +3808,7 @@ class PlaybackManager implements AudioOwnable {
             : Duration.zero,
       );
       if (sessionToken != _playbackSessionToken) {
-        _cleanupPreemptedSession(item, resolution);
+        _cleanupPreemptedSession(item, resolution, startPosition);
         return;
       }
       if (autoPlayIntent != null &&
@@ -3803,12 +3816,12 @@ class PlaybackManager implements AudioOwnable {
         return;
       }
       if (sessionToken != _playbackSessionToken) {
-        _cleanupPreemptedSession(item, resolution);
+        _cleanupPreemptedSession(item, resolution, startPosition);
         return;
       }
       await _syncBackendRepeatModeIfSupported();
       if (sessionToken != _playbackSessionToken) {
-        _cleanupPreemptedSession(item, resolution);
+        _cleanupPreemptedSession(item, resolution, startPosition);
         return;
       }
       if (_backend!.requiresStartupMediaReadyCheck) {
@@ -3829,7 +3842,7 @@ class PlaybackManager implements AudioOwnable {
         mediaReady = true;
       }
       if (sessionToken != _playbackSessionToken) {
-        _cleanupPreemptedSession(item, resolution);
+        _cleanupPreemptedSession(item, resolution, startPosition);
         return;
       }
     } catch (e, st) {
@@ -3843,7 +3856,7 @@ class PlaybackManager implements AudioOwnable {
     }
 
     if (sessionToken != _playbackSessionToken) {
-      _cleanupPreemptedSession(item, resolution);
+      _cleanupPreemptedSession(item, resolution, startPosition);
       return;
     }
 
@@ -3978,7 +3991,7 @@ class PlaybackManager implements AudioOwnable {
       return;
     }
     if (sessionToken != _playbackSessionToken) {
-      _cleanupPreemptedSession(item, resolution);
+      _cleanupPreemptedSession(item, resolution, startPosition);
       return;
     }
 
@@ -4458,6 +4471,23 @@ class PlaybackManager implements AudioOwnable {
     // A press this far in restarts the item, and so does one with nothing to
     // step back to.
     if (state.position.inSeconds > 3 || !queueService.hasPrevious) {
+      await seekTo(Duration.zero);
+      return;
+    }
+    _beginNewPlaybackSource('the viewer moved to the previous item');
+    _mediaSourceId = null;
+    await _stopAndReportCurrent(skipQueueChange: true);
+    _resetBackendSelectionLock();
+    queueService.previous();
+    await _playCurrentItem();
+  }
+
+  /// Straight to the item before, without stepping chapters or restarting
+  /// this one first: what «previous episode» means however far in it is.
+  /// With nothing before, this one starts again.
+  Future<void> previousInQueue() async {
+    if (await _maybeIntercept(TransportAction.previous)) return;
+    if (!queueService.hasPrevious) {
       await seekTo(Duration.zero);
       return;
     }
@@ -5708,14 +5738,21 @@ class PlaybackManager implements AudioOwnable {
     }
   }
 
-  void _cleanupPreemptedSession(dynamic item, StreamResolutionResult? resolution) {
+  /// Ends the server's session of a start that was given up on. Reported at
+  /// [startPosition], where it was opening from: a stop at zero would wipe
+  /// the resume point of a film left while it was still loading (Kos TV).
+  void _cleanupPreemptedSession(
+    dynamic item,
+    StreamResolutionResult? resolution,
+    Duration startPosition,
+  ) {
     if (item != null && resolution != null) {
       unawaited(
         _service
             ?.onPlaybackStop(
               item,
               resolution,
-              Duration.zero,
+              startPosition,
               releaseLiveStream: _claimLiveStreamRelease(resolution),
             )
             .catchError((_) => null),
@@ -5732,6 +5769,7 @@ class PlaybackManager implements AudioOwnable {
     _backendChangedController.close();
     _bringupStateController.close();
     _sessionEndedController.close();
+    _heldAtEndController.close();
     _liveRecoveryStatusController.close();
     _reconnectRetry?.cancel();
     _reconnectProvenTimer?.cancel();
