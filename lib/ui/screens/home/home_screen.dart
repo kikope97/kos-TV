@@ -5499,7 +5499,15 @@ class _ContentRowsState extends State<_ContentRows>
       if (app == null) return;
       final onHome = service.homeApps;
       final at = onHome.indexWhere((a) => a.packageName == app.packageName);
-      int? focusAfter;
+      // Keep the moved app under the focus, so it can be moved again. The
+      // menu is already closed (and has put the focus back on the old place)
+      // when its action runs, so the focus follows the app from there.
+      void focusAfter(int index) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _rowStateOf(rowIndex)?.requestFocusAt(index);
+        });
+      }
+
       await showSavedMediaMenu(
         context,
         title: app.label,
@@ -5515,7 +5523,7 @@ class _ContentRowsState extends State<_ContentRows>
               label: l10n.kostvAppMoveLeft,
               onSelect: () async {
                 await service.moveOnHome(app, -1);
-                focusAfter = at - 1;
+                focusAfter(at - 1);
               },
             ),
           if (at >= 0 && at < onHome.length - 1)
@@ -5524,7 +5532,7 @@ class _ContentRowsState extends State<_ContentRows>
               label: l10n.kostvAppMoveRight,
               onSelect: () async {
                 await service.moveOnHome(app, 1);
-                focusAfter = at + 1;
+                focusAfter(at + 1);
               },
             ),
           SavedMediaAction(
@@ -5535,12 +5543,6 @@ class _ContentRowsState extends State<_ContentRows>
           ),
         ],
       );
-      final index = focusAfter;
-      if (index == null || !mounted) return;
-      // Keep the moved app under the focus, so it can be moved again.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _rowStateOf(rowIndex)?.requestFocusAt(index);
-      });
     }
 
     return _buildTitledRow(

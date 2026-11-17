@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
+import 'kostv_recording_labels.dart';
 
 import '../../../data/viewmodels/series_recordings_view_model.dart';
 import '../../../l10n/app_localizations.dart';
@@ -149,7 +150,7 @@ class _LiveTvSeriesRecordingsScreenState
     final option = await showSeriesTimerOptionsDialog(
       context: context,
       name: timer.name,
-      subtitle: timer.subtitle,
+      subtitle: kostvSeriesTimerSubtitle(AppLocalizations.of(context), timer),
     );
     if (!mounted) return;
     switch (option) {
@@ -250,9 +251,9 @@ class _FocusedTimerHud extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (timer!.subtitle.isNotEmpty)
+                if (kostvSeriesTimerSubtitle(AppLocalizations.of(context), timer!).isNotEmpty)
                   Text(
-                    timer!.subtitle,
+                    kostvSeriesTimerSubtitle(AppLocalizations.of(context), timer!),
                     style: TextStyle(
                       fontSize: 12,
                       color: Colors.white.withValues(alpha: 0.6),
@@ -356,9 +357,9 @@ class _SeriesTimerCardState extends State<_SeriesTimerCard> with FocusStateMixin
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (widget.timer.subtitle.isNotEmpty)
+                    if (kostvSeriesTimerSubtitle(AppLocalizations.of(context), widget.timer).isNotEmpty)
                       Text(
-                        widget.timer.subtitle,
+                        kostvSeriesTimerSubtitle(AppLocalizations.of(context), widget.timer),
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.white.withValues(alpha: 0.6),

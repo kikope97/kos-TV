@@ -33848,6 +33848,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You are offline.'**
   String get kostvOffline;
+
+  /// Kos TV: guide sort option, by channel number
+  ///
+  /// In en, this message translates to:
+  /// **'Channel number'**
+  String get kostvChannelSortNumber;
+
+  /// Kos TV: guide sort option, by channel name
+  ///
+  /// In en, this message translates to:
+  /// **'Name'**
+  String get kostvChannelSortName;
+
+  /// Kos TV: guide sort option, favourite channels first
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites first'**
+  String get kostvChannelSortFavorites;
+
+  /// Kos TV: a recordings schedule day, today
+  ///
+  /// In en, this message translates to:
+  /// **'Today'**
+  String get kostvDayToday;
+
+  /// Kos TV: a recordings schedule day, tomorrow
+  ///
+  /// In en, this message translates to:
+  /// **'Tomorrow'**
+  String get kostvDayTomorrow;
+
+  /// Kos TV: a recordings schedule day, yesterday
+  ///
+  /// In en, this message translates to:
+  /// **'Yesterday'**
+  String get kostvDayYesterday;
+
+  /// Kos TV: a series recording that records on any channel
+  ///
+  /// In en, this message translates to:
+  /// **'All channels'**
+  String get kostvAllChannels;
+
+  /// Kos TV: a series recording day pattern, every day
+  ///
+  /// In en, this message translates to:
+  /// **'Every day'**
+  String get kostvEveryDay;
+
+  /// Kos TV: a series recording day pattern, Monday to Friday
+  ///
+  /// In en, this message translates to:
+  /// **'Weekdays'**
+  String get kostvWeekdays;
+
+  /// Kos TV: a series recording day pattern, Saturday and Sunday
+  ///
+  /// In en, this message translates to:
+  /// **'Weekends'**
+  String get kostvWeekends;
+
+  /// Kos TV: a TV channel could not be opened
+  ///
+  /// In en, this message translates to:
+  /// **'Unable to open channel'**
+  String get kostvChannelOpenFailed;
 }
 
 class _AppLocalizationsDelegate

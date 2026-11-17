@@ -189,10 +189,20 @@ class _SearchScreenState extends State<SearchScreen>
       _focusTabsAfterResults = false;
       _selectedTab = _defaultTab;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _tabsFocusNode.canRequestFocus) {
+        // Kos TV: not while the keyboard is open (still typing), nor from
+        // under a page opened on top.
+        if (mounted &&
+            _tabsFocusNode.canRequestFocus &&
+            !CustomTVTextField.isKeyboardVisibleNotifier.value &&
+            (ModalRoute.of(context)?.isCurrent ?? true)) {
           _tabsFocusNode.requestFocus();
         }
       });
+    } else if (_focusTabsAfterResults &&
+        (_vm.state == SearchState.ready || _vm.state == SearchState.error)) {
+      // Kos TV: a search that found nothing drops the wish, or a later one
+      // (typed, not submitted) would pull the focus off the keyboard.
+      _focusTabsAfterResults = false;
     }
     _maybeBumpGridVersion();
     _keepFocusedAllCardInView();
@@ -260,6 +270,11 @@ class _SearchScreenState extends State<SearchScreen>
   void _onSearchTextChanged() {
     if (!_applyingRemoteSearch && _searchController.text != _lastSearchText) {
       widget.remoteSearch?.close();
+    }
+    // Kos TV: typing again is a new search; only a submitted one moves on to
+    // the results.
+    if (_searchController.text != _lastSearchText) {
+      _focusTabsAfterResults = false;
     }
     _lastSearchText = _searchController.text;
     _vm.searchDebounced(_searchController.text);
@@ -1709,11 +1724,12 @@ class _SearchScreenState extends State<SearchScreen>
 
         return GridView.builder(
           controller: _resultsScrollController,
+          // Kos TV: clears the phone's bar at the bottom, as the rows do.
           padding: EdgeInsets.fromLTRB(
             horizontalPadding,
             12,
             horizontalPadding,
-            32,
+            bottomNavContentPadding(context, 32),
           ),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,

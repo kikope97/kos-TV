@@ -277,8 +277,12 @@ class SearchViewModel extends ChangeNotifier {
     _executeSearch(trimmed);
   }
 
+  // Kos TV: only where the service is set up and lets this person in, or
+  // «Buscando lo que puedes solicitar…» shows for nothing.
   bool _wantsRequestable(String query) =>
       _requests != null &&
+      _requests.isConfigured &&
+      _requests.access != StremfinAccess.denied &&
       _scopedParentId == null &&
       query.length >= requestableMinLength &&
       !query.toLowerCase().startsWith('studio:');
@@ -627,8 +631,18 @@ class SearchViewModel extends ChangeNotifier {
     return perLibrary.expand((results) => results).toList();
   }
 
+  bool _disposed = false;
+
+  /// Kos TV: an answer that lands after the screen closed tells nobody.
+  @override
+  void notifyListeners() {
+    if (_disposed) return;
+    super.notifyListeners();
+  }
+
   @override
   void dispose() {
+    _disposed = true;
     _debounceTimer?.cancel();
     _requestableTimer?.cancel();
     _requestableRun++;

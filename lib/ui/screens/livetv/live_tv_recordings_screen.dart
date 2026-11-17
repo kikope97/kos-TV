@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
+import 'kostv_recording_labels.dart';
 
 import '../../../data/models/live_tv_recording_state.dart';
 import '../../../data/viewmodels/recordings_view_model.dart';
@@ -248,7 +249,7 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
       children: [
         for (final group in _scheduleVm.groups)
           _RecordingRow(
-            title: group.dateLabel,
+            title: kostvScheduleDayLabel(AppLocalizations.of(context), group),
             items: group.items,
             imageApi: _scheduleVm.imageApi,
             onItemFocused: _scheduleVm.setFocusedItem,
@@ -333,7 +334,7 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
     final option = await showSeriesTimerOptionsDialog(
       context: context,
       name: timer.name,
-      subtitle: timer.subtitle,
+      subtitle: kostvSeriesTimerSubtitle(AppLocalizations.of(context), timer),
     );
     if (!mounted) return;
     switch (option) {
@@ -533,9 +534,9 @@ class _SeriesTimerCardState extends State<_SeriesTimerCard> with FocusStateMixin
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (widget.timer.subtitle.isNotEmpty)
+                    if (kostvSeriesTimerSubtitle(AppLocalizations.of(context), widget.timer).isNotEmpty)
                       Text(
-                        widget.timer.subtitle,
+                        kostvSeriesTimerSubtitle(AppLocalizations.of(context), widget.timer),
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.white.withValues(alpha: 0.5),

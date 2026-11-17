@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
+import 'kostv_recording_labels.dart';
 
 import '../../../data/viewmodels/recordings_view_model.dart';
 import '../../../data/viewmodels/schedule_view_model.dart';
@@ -223,7 +224,7 @@ class _ScheduleGroupRow extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: 60, bottom: 8),
               child: Text(
-                group.dateLabel,
+                kostvScheduleDayLabel(AppLocalizations.of(context), group),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,

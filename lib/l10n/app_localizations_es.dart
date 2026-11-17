@@ -20022,4 +20022,37 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvOffline => 'Sin conexión.';
+
+  @override
+  String get kostvChannelSortNumber => 'Número de canal';
+
+  @override
+  String get kostvChannelSortName => 'Nombre';
+
+  @override
+  String get kostvChannelSortFavorites => 'Favoritos primero';
+
+  @override
+  String get kostvDayToday => 'Hoy';
+
+  @override
+  String get kostvDayTomorrow => 'Mañana';
+
+  @override
+  String get kostvDayYesterday => 'Ayer';
+
+  @override
+  String get kostvAllChannels => 'Todos los canales';
+
+  @override
+  String get kostvEveryDay => 'Todos los días';
+
+  @override
+  String get kostvWeekdays => 'Entre semana';
+
+  @override
+  String get kostvWeekends => 'Fines de semana';
+
+  @override
+  String get kostvChannelOpenFailed => 'No se ha podido abrir el canal';
 }

@@ -19411,5 +19411,49 @@
   "kostvOffline": "You are offline.",
   "@kostvOffline": {
     "description": "Notice when the device loses its connection."
+  },
+  "kostvChannelSortNumber": "Channel number",
+  "@kostvChannelSortNumber": {
+    "description": "Kos TV: guide sort option, by channel number"
+  },
+  "kostvChannelSortName": "Name",
+  "@kostvChannelSortName": {
+    "description": "Kos TV: guide sort option, by channel name"
+  },
+  "kostvChannelSortFavorites": "Favorites first",
+  "@kostvChannelSortFavorites": {
+    "description": "Kos TV: guide sort option, favourite channels first"
+  },
+  "kostvDayToday": "Today",
+  "@kostvDayToday": {
+    "description": "Kos TV: a recordings schedule day, today"
+  },
+  "kostvDayTomorrow": "Tomorrow",
+  "@kostvDayTomorrow": {
+    "description": "Kos TV: a recordings schedule day, tomorrow"
+  },
+  "kostvDayYesterday": "Yesterday",
+  "@kostvDayYesterday": {
+    "description": "Kos TV: a recordings schedule day, yesterday"
+  },
+  "kostvAllChannels": "All channels",
+  "@kostvAllChannels": {
+    "description": "Kos TV: a series recording that records on any channel"
+  },
+  "kostvEveryDay": "Every day",
+  "@kostvEveryDay": {
+    "description": "Kos TV: a series recording day pattern, every day"
+  },
+  "kostvWeekdays": "Weekdays",
+  "@kostvWeekdays": {
+    "description": "Kos TV: a series recording day pattern, Monday to Friday"
+  },
+  "kostvWeekends": "Weekends",
+  "@kostvWeekends": {
+    "description": "Kos TV: a series recording day pattern, Saturday and Sunday"
+  },
+  "kostvChannelOpenFailed": "Unable to open channel",
+  "@kostvChannelOpenFailed": {
+    "description": "Kos TV: a TV channel could not be opened"
   }
 }

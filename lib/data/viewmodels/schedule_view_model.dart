@@ -8,10 +8,22 @@ import '../models/live_tv_recording_state.dart';
 import 'recordings_view_model.dart';
 
 class ScheduleGroup {
+  /// In English, for logs and tests: the screens show [date] in the
+  /// person's language (see kostvScheduleDayLabel).
   final String dateLabel;
   final List<RecordingItem> items;
 
-  const ScheduleGroup({required this.dateLabel, required this.items});
+  /// The day it groups, and how many days it is from today (0 today, 1
+  /// tomorrow, -1 yesterday).
+  final DateTime? date;
+  final int? daysFromToday;
+
+  const ScheduleGroup({
+    required this.dateLabel,
+    required this.items,
+    this.date,
+    this.daysFromToday,
+  });
 }
 
 enum ScheduleState { loading, ready, error }
@@ -86,6 +98,8 @@ class ScheduleViewModel extends ChangeNotifier {
         return ScheduleGroup(
           dateLabel: _friendlyDate(date, now),
           items: grouped[key]!,
+          date: date,
+          daysFromToday: calendarDaysBetween(now, date),
         );
       }).toList();
 
@@ -109,6 +123,8 @@ class ScheduleViewModel extends ChangeNotifier {
         _groups[i] = ScheduleGroup(
           dateLabel: _groups[i].dateLabel,
           items: filtered,
+          date: _groups[i].date,
+          daysFromToday: _groups[i].daysFromToday,
         );
       }
     }

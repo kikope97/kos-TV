@@ -88,10 +88,11 @@ void main() {
     );
   }
 
-  StremfinService requests() {
+  StremfinService requests({bool letIn = true}) {
     late final FakeStremfinAdapter adapter;
     adapter = FakeStremfinAdapter.withMethod((method, path, sent) {
       if (path == '/me') {
+        if (!letIn) return (status: 403, body: null, headers: const {});
         return (
           status: 200,
           body: {
@@ -254,6 +255,29 @@ void main() {
       );
       expect(told, 1);
       expect(vm.requestable.first.request?.mine, isTrue);
+
+      vm.dispose();
+      service.dispose();
+    });
+  });
+
+  test('someone the service turns away sees no «searching» either', () {
+    fakeAsync((async) {
+      homeHas([]);
+      final service = requests(letIn: false);
+      settle(async);
+      expect(service.access, StremfinAccess.denied);
+      final vm = SearchViewModel(
+        SearchRepository(client),
+        client,
+        requests: service,
+      );
+
+      vm.searchDebounced('cumbres');
+      expect(vm.requestableSearching, isFalse);
+      async.elapse(SearchViewModel.requestableDelay);
+      settle(async);
+      expect(searches, isEmpty);
 
       vm.dispose();
       service.dispose();

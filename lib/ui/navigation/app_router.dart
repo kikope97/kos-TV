@@ -8,6 +8,7 @@ import '../../auth/repositories/server_repository.dart';
 import '../../auth/repositories/session_repository.dart';
 import '../../auth/repositories/user_repository.dart';
 import '../../util/kostv_server.dart';
+import '../../data/services/installed_apps_service.dart';
 import '../../data/services/connectivity_service.dart';
 import '../../data/services/remote_search_session.dart';
 import '../../data/services/retro_artwork/retro_artwork_activity_gate.dart';
@@ -432,6 +433,10 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: Destinations.apps,
+      // Kos TV: the TV's apps only exist on a TV; anywhere else the page
+      // would wait for a list that never comes.
+      redirect: (context, state) =>
+          kostvAppsAvailable() ? null : Destinations.home,
       builder: (context, state) => const AllAppsScreen(),
     ),
     GoRoute(

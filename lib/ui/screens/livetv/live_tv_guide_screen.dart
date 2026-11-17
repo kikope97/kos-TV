@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
 
+import '../../navigation/menu_preview.dart';
 import '../../../data/models/series_recording_episodes.dart';
 import '../../../data/viewmodels/live_tv_guide_view_model.dart';
 import '../../../data/services/user_data_sync.dart';
@@ -499,7 +500,9 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
     if (focus == null) return false;
     return !_filterFocusNodes.containsValue(focus) &&
         !_windowBarFocusNodes.containsValue(focus) &&
-        focus != _miniPlayerFocusNode;
+        focus != _miniPlayerFocusNode &&
+        // Kos TV: nor on the menu above the page, where Back goes Home.
+        !MenuPreview.isMenu(focus);
   }
 
   /// A channel row's FocusNode is cached by row index, so a filter that swaps
@@ -810,10 +813,12 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
                   RadioListTile<ChannelSortBy>(
                     value: option,
                     autofocus: option == _vm.sortBy,
-                    title: Text(
-                      option.displayName,
-                      style: const TextStyle(color: Colors.white),
-                    ),
+                    title: Text(switch (option) {
+                      ChannelSortBy.number => l10n.kostvChannelSortNumber,
+                      ChannelSortBy.name => l10n.kostvChannelSortName,
+                      ChannelSortBy.favoritesFirst =>
+                        l10n.kostvChannelSortFavorites,
+                    }, style: const TextStyle(color: Colors.white)),
                   ),
               ],
             ),
@@ -1032,6 +1037,7 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
           });
         }
         if (landscape) _scheduleGuideWindowUpdate(profile.guideWindow);
+        _showingNowNextList = !landscape && _mobileView == EpgMobileView.list;
         return Padding(
           padding: EdgeInsets.only(
             top: topInset,
@@ -1069,9 +1075,13 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
             padding: EdgeInsets.only(
               top: phone ? chrome.top - 8 : chrome.top - 16,
               left: leftMenu ? chrome.left - guideContentLeftInset : 0,
-              bottom: phone && NavigationLayout.usesBottomNavbar
+              // Kos TV: with the menu at the top, the last channel still
+              // clears the phone's own bar at the bottom.
+              bottom: !phone
+                  ? 0
+                  : NavigationLayout.usesBottomNavbar
                   ? MediaQuery.paddingOf(context).bottom + 84
-                  : 0,
+                  : MediaQuery.paddingOf(context).bottom,
             ),
             child: body,
           ),
@@ -1404,6 +1414,9 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
                 : Icons.grid_view,
             onPressed: _toggleMobileView,
           ),
+          // Kos TV: Recordings, as the wide guide has.
+          const SizedBox(width: 6),
+          _GuidePillButton(icon: Icons.fiber_dvr, onPressed: _openRecordings),
         ],
       ),
     );
@@ -2190,7 +2203,11 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
 
     _cancelPendingVerticalMove();
     _selection = updated;
-    _focusSelectedCell(updated, cells);
+    // Kos TV: the focus moves along only from a programme: on a channel's
+    // name, a filter or the menu it stays where the viewer left it.
+    if (_gridHasFocus && !_channelRailFocused.value) {
+      _focusSelectedCell(updated, cells);
+    }
   }
 
   void _focusSelectedCell(GuideSelection selection, List<GuideCell> cells) {
@@ -2433,10 +2450,15 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
   /// focus up to the header and the next back leaves. Elsewhere the press
   /// falls through to the normal close/exit path. With no channel ever tuned,
   /// the target is row 0 as long as the lineup is non-empty.
+  /// Kos TV: the phone's list of channels (now and next) is showing. It has
+  /// no grid to explore or reset, so Back leaves straight away.
+  bool _showingNowNextList = false;
+
   bool _consumeBackIfExploring() {
     // A reset already running owns this press. Consuming it keeps the guide
     // from closing out from under a reset that is about to land.
     if (_resettingToEntryState) return true;
+    if (_showingNowNextList) return false;
     if (PlatformDetection.isTV && !_gridHasFocus) return false;
     if (!_isExploringAwayFromEntry()) {
       if (!PlatformDetection.isTV) return false;

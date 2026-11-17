@@ -5,6 +5,7 @@ import 'package:server_core/server_core.dart';
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/viewmodels/live_tv_guide_view_model.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../playback/apple_player_ui.dart';
 import '../../../playback/external_player_policy.dart';
 import '../../../preference/user_preferences.dart';
@@ -82,7 +83,9 @@ class _LiveTvChannelPlayerLoaderState extends State<LiveTvChannelPlayerLoader> {
       } catch (_) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unable to open channel')),
+          SnackBar(
+            content: Text(AppLocalizations.of(context).kostvChannelOpenFailed),
+          ),
         );
         Navigator.of(context).pop();
         return;
