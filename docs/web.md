@@ -95,8 +95,9 @@ Ya está: `https://kostv.example.com` abre kOS TV para la familia y
 |---|---|---|
 | `KOSTV_SERVER_URL` | El Jellyfin de casa **tal como lo abre el navegador** de quien entra: la dirección pública, con https. No sirve una interna como `http://jellyfin:8096`, porque es el navegador quien habla con Jellyfin | La app pide la dirección del servidor |
 | `KOSTV_REQUESTS_URL` | **Ya no hace falta.** Solo para pasar por el contenedor (en `/stremfin`) mientras Stremfin no acepte llamadas de la web (CORS): el servicio de peticiones tal como lo alcanza el contenedor | La web habla directamente con la dirección que da el complemento |
+| `KOSTV_REQUESTS_VERIFY` | Solo con `KOSTV_REQUESTS_URL`: `off` si el servicio de peticiones usa un certificado propio de la red de casa. Por defecto (`on`) el contenedor comprueba su certificado, como hacen las apps | Se comprueba |
 | `KOSTV_ADMIN_USER` | El usuario del panel de administración | `admin` |
-| `KOSTV_ADMIN_PASSWORD` | Su contraseña (al menos 10 caracteres). En lugar de ella se puede usar `KOSTV_ADMIN_PASSWORD_FILE`, la ruta de un archivo que la contenga (para los *secrets* de Docker) | `/admin` queda cerrado |
+| `KOSTV_ADMIN_PASSWORD` | Su contraseña, **de al menos 10 caracteres** (con una más corta el contenedor no arranca y lo dice en `docker compose logs`). Mejor aún, `KOSTV_ADMIN_PASSWORD_FILE`: la ruta de un archivo que la contenga (los *secrets* de Docker), así no queda en las variables del contenedor | `/admin` queda cerrado |
 
 Da igual que lleven o no la barra final o `/api/v1`. Una dirección mal escrita
 detiene el contenedor con un mensaje en `docker compose logs`.
@@ -110,8 +111,9 @@ detiene el contenedor con un mensaje en `docker compose logs`.
   Stremfin tiene que aceptar llamadas de la dirección de la web (CORS), igual
   que hace Jellyfin. Si el contenedor tiene `KOSTV_REQUESTS_URL`, la web pasa en
   cambio por `/stremfin` y el contenedor se lo pasa al servicio (así era antes;
-  queda para la transición). El token de la sesión no queda en ningún
-  registro.
+  queda para la transición): solo su API (`/stremfin/api/v1/…`), nada más del
+  servicio, y comprobando su certificado. El token de la sesión no queda en
+  ningún registro.
 
 ## Panel de administración (`/admin`)
 
@@ -119,13 +121,24 @@ De momento es un panel en blanco que iremos llenando (módulos, dispositivos,
 servicios de casa). Al entrar, el navegador pide el usuario y la contraseña de
 `KOSTV_ADMIN_USER` y `KOSTV_ADMIN_PASSWORD`.
 
-- La contraseña no se guarda tal cual: al arrancar, el contenedor guarda solo
-  su huella cifrada (SHA-512), que únicamente puede leer nginx.
-- Tras unos 30 intentos seguidos, responde "demasiadas peticiones" durante un
-  rato, para frenar a quien intente adivinarla.
+- Para nginx, la contraseña no se guarda tal cual: al arrancar, el contenedor
+  guarda solo su huella cifrada (SHA-512), que únicamente puede leer nginx.
+  Pero si se da en `KOSTV_ADMIN_PASSWORD`, sigue en las variables del
+  contenedor (las ve quien pueda hacer `docker inspect`); con
+  `KOSTV_ADMIN_PASSWORD_FILE` no.
+- Admite unas 30 peticiones por minuto; pasado eso responde "demasiadas
+  peticiones" hasta que baja el ritmo, para frenar a quien intente adivinarla.
+  Detrás de un proxy, el límite es para todos los que entran por él.
 - Sin contraseña, `/admin` queda cerrado.
 - Para salir, cierra el navegador (con este tipo de acceso no hay botón de
   cerrar sesión; llegará con el admin de verdad).
+
+## En un ordenador que no es tuyo
+
+La web recuerda la sesión, como las apps: al volver a abrirla sigues dentro.
+En un aparato compartido (el ordenador de otra persona, la tele de un hotel),
+**cierra la sesión al terminar** desde el menú de tu perfil >
+«Cerrar sesión», o abre la web en una ventana privada.
 - **Si la contraseña lleva `$`**, ponla entre comillas simples en el `.env`
   (`KOSTV_ADMIN_PASSWORD='mi$clave'`): sin ellas, Docker Compose toma `$clave`
   por una variable y la contraseña cambia.

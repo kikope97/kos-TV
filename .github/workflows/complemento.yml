@@ -68,7 +68,14 @@ jobs:
           URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/complemento-$VERSION/$ZIP"
           MD5="$(cat "$RUNNER_TEMP/salida/$ZIP.md5")"
           mkdir -p "$RUNNER_TEMP/antes"
-          gh release download complemento -p manifest.json -D "$RUNNER_TEMP/antes" 2>/dev/null || true
+          # Starts from an empty catalogue only when there is none yet: if
+          # the download fails otherwise, stop, or the versions already
+          # published would drop out of it.
+          if gh release view complemento >/dev/null 2>&1; then
+            gh release download complemento -p manifest.json -D "$RUNNER_TEMP/antes"
+          else
+            echo "Aún no hay catálogo: se empieza uno nuevo."
+          fi
           python3 complemento/catalogo.py "$RUNNER_TEMP/antes/manifest.json" "$VERSION" "$URL" "$MD5" \
             "$CHANGELOG" "$RUNNER_TEMP/salida/manifest.json"
 

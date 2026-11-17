@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 
 import '../../../auth/models/login_state.dart';
+import '../../navigation/kostv_auth_go.dart';
 import '../../../auth/models/server.dart';
 import '../../../auth/repositories/auth_repository.dart';
 import '../../../auth/repositories/server_repository.dart';
@@ -61,7 +61,7 @@ class _ServerScreenState extends State<ServerScreen> {
       await _serverRepo.loadStoredServers();
       final server = _serverRepo.getServer(widget.serverId);
       if (server == null) {
-        if (mounted) context.go(Destinations.serverSelect);
+        if (mounted) kostvAuthGo(context, Destinations.serverSelect);
         return;
       }
 
@@ -93,7 +93,7 @@ class _ServerScreenState extends State<ServerScreen> {
       }
 
       if (mounted && merged.isEmpty) {
-        context.go('${Destinations.login}?serverId=${server.id}&noUsers=true');
+        kostvAuthGo(context, '${Destinations.login}?serverId=${server.id}&noUsers=true');
         return;
       }
 
@@ -217,7 +217,7 @@ class _ServerScreenState extends State<ServerScreen> {
         onVerifyAsync: guard.verify,
         onForgotPin: () {
           if (mounted) {
-            context.go(_buildUserLoginRoute(server, user, resetPin: true));
+            kostvAuthGo(context, _buildUserLoginRoute(server, user, resetPin: true));
           }
         },
       );
@@ -249,11 +249,11 @@ class _ServerScreenState extends State<ServerScreen> {
         () => _trySwitchSession(server.id, user.id),
       );
       if (success && mounted) {
-        context.go(Destinations.home);
+        kostvAuthGo(context, Destinations.home);
         return;
       }
       if (mounted) {
-        context.go(_buildUserLoginRoute(server, user));
+        kostvAuthGo(context, _buildUserLoginRoute(server, user));
       }
       return;
     }
@@ -276,18 +276,18 @@ class _ServerScreenState extends State<ServerScreen> {
             await _sessionRepo.destroyCurrentSession();
             return;
           }
-          if (mounted) context.go(Destinations.home);
+          if (mounted) kostvAuthGo(context, Destinations.home);
           return;
         }
       }
       if (mounted) {
-        context.go(_buildUserLoginRoute(server, user));
+        kostvAuthGo(context, _buildUserLoginRoute(server, user));
       }
       return;
     }
 
     if (mounted) {
-      context.go(_buildUserLoginRoute(server, user));
+      kostvAuthGo(context, _buildUserLoginRoute(server, user));
     }
   }
 
@@ -329,7 +329,7 @@ class _ServerScreenState extends State<ServerScreen> {
     // so Back leaves the app as on any first page.
     onBack: () => hasKostvServer
         ? unawaited(AppExit.closeApp())
-        : context.go(Destinations.serverSelect),
+        : kostvAuthGo(context, Destinations.serverSelect),
     child: _buildContent(context),
   );
 
@@ -406,14 +406,14 @@ class _ServerScreenState extends State<ServerScreen> {
                   icon: Icons.person,
                   label: l10n.addUser,
                   onPressed: () =>
-                      context.go('${Destinations.login}?serverId=${server.id}'),
+                      kostvAuthGo(context, '${Destinations.login}?serverId=${server.id}'),
                 ),
                 // Kos TV: no other server to pick with the household one.
                 if (!hasKostvServer)
                   _pillButton(
                     icon: Icons.home,
                     label: l10n.selectServer,
-                    onPressed: () => context.go(Destinations.serverSelect),
+                    onPressed: () => kostvAuthGo(context, Destinations.serverSelect),
                   ),
               ],
             ),
@@ -467,7 +467,7 @@ class _ServerScreenState extends State<ServerScreen> {
                         selected: _selected,
                         onSelected: (index) => setState(() => _selected = index),
                         onAdd: () =>
-                            context.go('${Destinations.login}?serverId=${server.id}'),
+                            kostvAuthGo(context, '${Destinations.login}?serverId=${server.id}'),
                         addLabel: l10n.addUser,
                       ),
                       ..._buildNotices(server),
@@ -484,7 +484,7 @@ class _ServerScreenState extends State<ServerScreen> {
             const SizedBox(height: 4),
             if (!hasKostvServer)
               TextButton(
-                onPressed: () => context.go(Destinations.serverSelect),
+                onPressed: () => kostvAuthGo(context, Destinations.serverSelect),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColorScheme.onSurface.withValues(alpha: 0.78),
                   minimumSize: const Size(0, 44),

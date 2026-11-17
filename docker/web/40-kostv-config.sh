@@ -15,6 +15,10 @@
 #
 # Either may be left out: without the first the app asks for a server.
 #
+#   KOSTV_REQUESTS_VERIFY on (by default) checks the requests service's
+#                       certificate; off only for one with a certificate of
+#                       its own on the home network.
+#
 #   KOSTV_ADMIN_USER      the admin panel's user (admin if left out).
 #   KOSTV_ADMIN_PASSWORD  its password (or KOSTV_ADMIN_PASSWORD_FILE, a file
 #                         holding it, for Docker secrets). Without one, /admin
@@ -78,13 +82,22 @@ if [ -n "$requests" ]; then
   [ -z "$resolver" ] && resolver=127.0.0.11
   case "$resolver" in *:*) resolver="[$resolver]" ;; esac
 
+  verify=on
+  case "${KOSTV_REQUESTS_VERIFY:-on}" in
+    off|false|0|no)
+      verify=off
+      log "aviso: no se comprueba el certificado del servicio de peticiones (KOSTV_REQUESTS_VERIFY=off)" >&2
+      ;;
+  esac
+
   cat > "$includes/stremfin.conf" <<NGINX
-# Written by 40-kostv-config.sh from KOSTV_REQUESTS_URL.
-location /stremfin/ {
+# Written by 40-kostv-config.sh from KOSTV_REQUESTS_URL. Only the service's
+# API (what the app uses), not the rest of it (its own web, its admin).
+location ^~ /stremfin/api/v1/ {
     resolver $resolver valid=60s;
     resolver_timeout 5s;
     set \$kostv_stremfin "$scheme://$hostport";
-    rewrite ^/stremfin/(.*)\$ $path/\$1 break;
+    rewrite ^/stremfin/api/v1/(.*)\$ $path/api/v1/\$1 break;
     proxy_pass \$kostv_stremfin;
     proxy_http_version 1.1;
     proxy_set_header Host $hostport;
@@ -93,10 +106,18 @@ location /stremfin/ {
     proxy_set_header X-Real-IP \$remote_addr;
     proxy_ssl_server_name on;
     proxy_ssl_name $host;
+    # The service's certificate is checked, as the apps do (unless
+    # KOSTV_REQUESTS_VERIFY=off, for one of its own on the home network).
+    proxy_ssl_verify $verify;
+    proxy_ssl_verify_depth 3;
+    proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
     proxy_connect_timeout 10s;
     proxy_read_timeout 60s;
     # Every call carries the person's token: keep it out of the log.
     access_log off;
+}
+location ^~ /stremfin/ {
+    return 404;
 }
 NGINX
   requests_json='"/stremfin"'
@@ -124,7 +145,8 @@ if [ -n "$admin_password" ]; then
     exit 1
   fi
   if [ "${#admin_password}" -lt 10 ]; then
-    log "aviso: la contraseña de /admin es corta; usa al menos 10 caracteres" >&2
+    log "la contraseña de /admin es demasiado corta: usa al menos 10 caracteres" >&2
+    exit 1
   fi
   hash=$(printf '%s' "$admin_password" | mkpasswd -m sha512 -s)
   printf '%s:%s\n' "$admin_user" "$hash" > "$admin_htpasswd"
@@ -135,7 +157,7 @@ if [ -n "$admin_password" ]; then
 location = /admin {
     return 301 /admin/;
 }
-location /admin/ {
+location ^~ /admin/ {
     auth_basic "kOS TV - Administracion";
     auth_basic_user_file $admin_htpasswd;
     limit_req zone=kostv_admin burst=30 nodelay;
@@ -145,6 +167,8 @@ location /admin/ {
     add_header Cache-Control "no-store" always;
     add_header X-Robots-Tag "noindex, nofollow" always;
     add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
 }
 NGINX
   log "panel de administración en /admin (usuario: $admin_user)"

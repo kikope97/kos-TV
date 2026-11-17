@@ -5,13 +5,13 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
-import 'package:go_router/go_router.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../l10n/app_localizations.dart';
+import '../../navigation/kostv_auth_go.dart';
 import '../../util/error_message.dart';
 import '../../../auth/models/login_state.dart';
 import '../../../auth/models/server.dart';
@@ -334,7 +334,7 @@ class _LoginScreenState extends State<LoginScreen> {
     await _serverRepo.loadStoredServers();
     final server = _serverRepo.getServer(widget.serverId);
     if (server == null) {
-      if (mounted) context.go(Destinations.serverSelect);
+      if (mounted) kostvAuthGo(context, Destinations.serverSelect);
       return;
     }
 
@@ -604,11 +604,11 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         // A failed PIN goes back to sign in, where another account or
         // method can be tried.
-        if (mounted) context.go('${Destinations.login}?serverId=${_server!.id}');
+        if (mounted) kostvAuthGo(context, '${Destinations.login}?serverId=${_server!.id}');
         return;
       }
 
-      if (mounted) context.go(Destinations.home);
+      if (mounted) kostvAuthGo(context, Destinations.home);
     }
   }
 
@@ -639,10 +639,10 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     final server = _server;
     if (server == null || widget.backToServerList) {
-      context.go(Destinations.serverSelect);
+      kostvAuthGo(context, Destinations.serverSelect);
       return;
     }
-    context.go('${Destinations.server}?serverId=${server.id}');
+    kostvAuthGo(context, '${Destinations.server}?serverId=${server.id}');
   }
 
   void _showUntrustedCertificate() {
@@ -742,7 +742,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return false;
     }
 
-    context.go(
+    kostvAuthGo(context, 
       Destinations.webDiagnosticsRoute(
         reason: webDiagnosticsFailureReasonToQuery(reason),
         targetUrl: targetUrl,
@@ -797,7 +797,7 @@ class _LoginScreenState extends State<LoginScreen> {
   /// server's user grid is the "who's watching" picker.
   void _openProfileChoice(String serverId) {
     setState(() => _isLoading = false);
-    context.go('${Destinations.server}?serverId=$serverId');
+    kostvAuthGo(context, '${Destinations.server}?serverId=$serverId');
   }
 
   Future<void> _login() async {
@@ -872,12 +872,12 @@ class _LoginScreenState extends State<LoginScreen> {
               // Lands back on a screen that has to take another attempt.
               if (mounted) {
                 setState(() => _isLoading = false);
-                context.go('${Destinations.login}?serverId=${_server!.id}');
+                kostvAuthGo(context, '${Destinations.login}?serverId=${_server!.id}');
               }
               return;
             }
 
-            if (mounted) context.go(Destinations.home);
+            if (mounted) kostvAuthGo(context, Destinations.home);
             return;
           }
           _finishLoginWithError(l10n.loginFailed);

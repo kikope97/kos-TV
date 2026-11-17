@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import 'package:go_router/go_router.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../auth/kostv_household_server.dart';
+import '../../navigation/kostv_auth_go.dart';
 import '../../../auth/repositories/server_repository.dart';
 import '../../../auth/repositories/server_user_repository.dart';
 import '../../../auth/repositories/session_repository.dart';
@@ -129,7 +129,7 @@ class _StartupScreenState extends State<StartupScreen> {
       _preloadHome();
       await _waitForNetworkSettle();
       await _introDone.future;
-      if (mounted) context.go(Destinations.home);
+      if (mounted) kostvAuthGo(context, Destinations.home);
       return;
     }
 
@@ -189,28 +189,28 @@ class _StartupScreenState extends State<StartupScreen> {
           mode: PinEntryMode.verify,
           onVerify: pinUtil.verifyPin,
           onForgotPin: () {
-            if (mounted) context.go(Destinations.serverSelect);
+            if (mounted) kostvAuthGo(context, Destinations.serverSelect);
           },
         );
 
         if (!verified) {
-          if (mounted) context.go(Destinations.serverSelect);
+          if (mounted) kostvAuthGo(context, Destinations.serverSelect);
           return;
         }
       }
 
       await _waitForNetworkSettle();
-      if (mounted) context.go(Destinations.home);
+      if (mounted) kostvAuthGo(context, Destinations.home);
     } else {
       if (mounted) {
         if (targetServerId != null && targetServerId.isNotEmpty) {
           // A previously-used server is known — go straight to user selection
           // for that server rather than the Add Server page.
-          context.go('${Destinations.server}?serverId=$targetServerId');
+          kostvAuthGo(context, '${Destinations.server}?serverId=$targetServerId');
         } else if (hasKostvServer) {
           await _openKostvServer();
         } else {
-          context.go(Destinations.serverSelect);
+          kostvAuthGo(context, Destinations.serverSelect);
         }
       }
     }
@@ -257,7 +257,7 @@ class _StartupScreenState extends State<StartupScreen> {
       return;
     }
     // Its users, if it shows any; its sign-in otherwise.
-    context.go('${Destinations.server}?serverId=${server.id}');
+    kostvAuthGo(context, '${Destinations.server}?serverId=${server.id}');
   }
 
   /// Kos TV: while the opening plays, Home's rows and the first page of

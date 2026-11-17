@@ -34,8 +34,10 @@ dos originales. El registro está en `docs/revision-semanal.md`.
   revisión en ese registro. Si han pasado 7 días o más (o no hay ninguna),
   pregúntale si la hacemos ahora. No la hagas sin preguntar, y no lo repitas
   más de una vez por conversación si dice que no.
-- **La app:** `git fetch upstream` y repasa los commits de `upstream/main`
-  desde el último revisado. Sepáralos en: merece la pena traer (arreglos del
+- **La app:** `git fetch upstream --no-tags` (sus etiquetas, 2.0.0, 3.0.0…,
+  se confunden con nuestras versiones; y nunca se hace `push` a `upstream`:
+  `git config remote.upstream.pushurl no-push`) y repasa los commits de
+  `upstream/main` desde el último revisado. Sepáralos en: merece la pena traer (arreglos del
   reproductor, fallos, rendimiento, seguridad, mejoras que encajen con la
   familia), no aplica (Plex, Emby, Silo, escritorio, Seerr, Firebase y todo lo
   que ya quitamos) y dudoso. Propón qué integrar y no integres nada sin el

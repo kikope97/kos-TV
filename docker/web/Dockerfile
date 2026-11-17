@@ -15,6 +15,9 @@ LABEL org.opencontainers.image.title="kOS TV (web)" \
       org.opencontainers.image.source="https://github.com/kikope97/kos-TV" \
       org.opencontainers.image.licenses="GPL-2.0-or-later"
 
+# The certificates the requests service's is checked against.
+RUN apk add --no-cache ca-certificates
+
 COPY docker/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --chmod=755 docker/web/40-kostv-config.sh /docker-entrypoint.d/40-kostv-config.sh
 COPY build/web /usr/share/nginx/html

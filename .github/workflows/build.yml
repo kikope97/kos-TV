@@ -27,6 +27,10 @@ on:
         description: 'Kos TV: publish the APKs of this build as a test pre-release. The apps never offer it as an update (they only read the latest release).'
         type: boolean
         default: false
+      skip_version_check:
+        description: 'Kos TV: publish release_version even if it is not the next PATCH, MINOR or MAJOR after the last release.'
+        type: boolean
+        default: false
       distribution:
         description: Where the Apple builds go. release keeps the artifacts, testflight uploads to App Store Connect and skips every other platform
         type: choice
@@ -85,6 +89,8 @@ jobs:
       apple_tests: ${{ steps.plan.outputs.apple_tests }}
       release_version: ${{ steps.plan.outputs.release_version }}
       test_apk: ${{ steps.plan.outputs.test_apk }}
+      test_base: ${{ steps.versions.outputs.test_base }}
+      test_n: ${{ steps.versions.outputs.test_n }}
     steps:
       - id: plan
         env:
@@ -143,6 +149,75 @@ jobs:
               f.write(f'release_version={release_version}\n')
               f.write(f'test_apk={"true" if test_apk else "false"}\n')
           print(out, 'release:', release_version or None, 'test apk:', test_apk)
+          EOF
+
+      # Kos TV: what the last published version is decides the next one. A
+      # release has to be the next PATCH, MINOR or MAJOR after it (the apps
+      # only take one that is greater), unless skip_version_check is on. A
+      # test takes the last version plus -prueba.N, N counting the tests
+      # since that version, so each one installs over the one before.
+      - id: versions
+        if: steps.plan.outputs.release_version != '' || steps.plan.outputs.test_apk == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RELEASE_VERSION: ${{ steps.plan.outputs.release_version }}
+          SKIP_CHECK: ${{ inputs.skip_version_check }}
+        run: |
+          python3 - <<'EOF'
+          import json, os, re, urllib.error, urllib.request
+          repo = os.environ['REPO']
+          def get(path):
+              req = urllib.request.Request(
+                  f'https://api.github.com/repos/{repo}{path}',
+                  headers={'Authorization': f'Bearer {os.environ["GH_TOKEN"]}',
+                           'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(req, timeout=30) as r:
+                  return json.load(r)
+          try:
+              latest = get('/releases/latest')
+          except urllib.error.HTTPError as e:
+              if e.code != 404:
+                  raise
+              latest = None  # nothing published yet
+          tag = (latest or {}).get('tag_name') or ''
+          if not re.fullmatch(r'\d+\.\d+\.\d+', tag):
+              tag = ''
+          print('última publicada:', tag or 'ninguna')
+          out = {}
+          release = os.environ['RELEASE_VERSION']
+          if release:
+              new = tuple(map(int, release.split('.')))
+              if tag and os.environ.get('SKIP_CHECK') != 'true':
+                  a, b, c = map(int, tag.split('.'))
+                  allowed = {(a, b, c + 1), (a, b + 1, 0), (a + 1, 0, 0)}
+                  if new not in allowed:
+                      nice = ', '.join('.'.join(map(str, v)) for v in sorted(allowed))
+                      print(f'::error::{release} no es la siguiente a {tag}: tiene que ser {nice} (o lanzar con skip_version_check).')
+                      raise SystemExit(1)
+          else:
+              base = tag or '0.1.0'
+              since = (latest or {}).get('published_at') or ''
+              tests = 0
+              page = 1
+              while page <= 5:
+                  found = get(f'/releases?per_page=100&page={page}')
+                  for r in found:
+                      if (r.get('tag_name') or '').startswith('prueba-') and \
+                              (r.get('created_at') or '') > since:
+                          tests += 1
+                  if len(found) < 100:
+                      break
+                  page += 1
+              n = tests + 1
+              if n > 99:
+                  print('::error::Ya hay 99 pruebas sobre esta versión: publica una versión antes de la siguiente prueba.')
+                  raise SystemExit(1)
+              out = {'test_base': base, 'test_n': str(n)}
+              print('prueba:', f'{base}-prueba.{n}')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              for k, v in out.items():
+                  f.write(f'{k}={v}\n')
           EOF
 
   # Android APK + AAB, with mobile and TV on their own runners
@@ -250,19 +325,9 @@ jobs:
       - name: Set the test version
         if: needs.plan.outputs.test_apk == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          RUN_NUMBER: ${{ github.run_number }}
-        run: |
-          base=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$REPO/releases/latest" \
-            | python3 -c 'import json, sys; print(json.load(sys.stdin)["tag_name"])' || true)
-          if ! [[ "$base" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "No release yet, the test build stays on 0.1.0."
-            base=0.1.0
-          fi
-          ./scripts/kostv_set_version.sh "$base" $(( (RUN_NUMBER - 1) % 99 + 1 ))
+          TEST_BASE: ${{ needs.plan.outputs.test_base }}
+          TEST_N: ${{ needs.plan.outputs.test_n }}
+        run: ./scripts/kostv_set_version.sh "$TEST_BASE" "$TEST_N"
 
       # Kos TV: a release must have the household server built in, so the app
       # opens on its sign-in. It comes from a secret and stays out of the
@@ -581,8 +646,9 @@ jobs:
   # each also keeps a tag of its own (X.Y.Z, or prueba and prueba-N). It
   # holds no address: the container gets them in its variables, so it is
   # built without the secrets.
+  # After the APKs: an image of a build whose Android failed isn't put up.
   web-image:
-    needs: plan
+    needs: [plan, android]
     if: needs.plan.outputs.release_version != '' || needs.plan.outputs.test_apk == 'true'
     runs-on: ubuntu-26.04
     permissions:
@@ -600,22 +666,14 @@ jobs:
       - name: Set the version
         env:
           RELEASE_VERSION: ${{ needs.plan.outputs.release_version }}
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          RUN_NUMBER: ${{ github.run_number }}
+          TEST_BASE: ${{ needs.plan.outputs.test_base }}
+          TEST_N: ${{ needs.plan.outputs.test_n }}
         run: |
           if [ -n "$RELEASE_VERSION" ]; then
             ./scripts/kostv_set_version.sh "$RELEASE_VERSION"
-            exit 0
+          else
+            ./scripts/kostv_set_version.sh "$TEST_BASE" "$TEST_N"
           fi
-          base=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$REPO/releases/latest" \
-            | python3 -c 'import json, sys; print(json.load(sys.stdin)["tag_name"])' || true)
-          if ! [[ "$base" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            base=0.1.0
-          fi
-          ./scripts/kostv_set_version.sh "$base" $(( (RUN_NUMBER - 1) % 99 + 1 ))
 
       # WebAssembly (skwasm): smoother than the JavaScript build. A browser
       # without WebAssembly GC (older Safari, some TVs' browsers) gets the
