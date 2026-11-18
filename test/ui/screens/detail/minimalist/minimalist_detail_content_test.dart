@@ -338,6 +338,8 @@ void main() {
         sortBy: any(named: 'sortBy'),
         sortOrder: any(named: 'sortOrder'),
         fields: any(named: 'fields'),
+        imageTypeLimit: any(named: 'imageTypeLimit'),
+        enableTotalRecordCount: any(named: 'enableTotalRecordCount'),
       ),
     ).thenAnswer((_) async => members);
   }

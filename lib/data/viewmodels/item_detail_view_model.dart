@@ -1811,7 +1811,10 @@ class ItemDetailViewModel extends ChangeNotifier {
         }
       }
 
-      final scannedCollections = await _findParentCollectionsByScanningBoxSets(item.id);
+      final scannedCollections = await _findParentCollectionsByScanningBoxSets(
+        item.id,
+        known: boxSetInfo.keys.toSet(),
+      );
       boxSetInfo.addAll(scannedCollections);
 
       if (boxSetInfo.isEmpty) {
@@ -1872,6 +1875,9 @@ class ItemDetailViewModel extends ChangeNotifier {
       final membership = await _client.itemsApi.getItems(
         parentId: boxSetId,
         fields: 'BasicSyncInfo',
+        // Kos TV: only the ids are read, not the artwork or the count.
+        imageTypeLimit: 0,
+        enableTotalRecordCount: false,
       );
       final members = (membership['Items'] as List?) ?? const [];
       return members.whereType<Map>().any((entry) {
@@ -1883,7 +1889,10 @@ class ItemDetailViewModel extends ChangeNotifier {
     }
   }
 
-  Future<Map<String, ({String name, Map<String, dynamic> rawData})>> _findParentCollectionsByScanningBoxSets(String itemId) async {
+  Future<Map<String, ({String name, Map<String, dynamic> rawData})>> _findParentCollectionsByScanningBoxSets(
+    String itemId, {
+    Set<String> known = const {},
+  }) async {
     final Map<String, ({String name, Map<String, dynamic> rawData})> result = {};
     try {
       const pageSize = 200;
@@ -1912,18 +1921,30 @@ class ItemDetailViewModel extends ChangeNotifier {
           if (boxSetId == null || boxSetId.isEmpty || boxSetName == null) {
             continue;
           }
+          // Kos TV: already found among its ancestors, no need to ask
+          // again (its entry is still this page's, as it was).
+          if (known.contains(boxSetId)) {
+            result[boxSetId] = (name: boxSetName, rawData: boxSet);
+            continue;
+          }
           candidates.add((id: boxSetId, name: boxSetName, rawData: boxSet));
         }
 
         // Cap how many membership lookups run at once so a large library
         // doesn't fire a whole page of requests in one burst.
-        const maxConcurrent = 12;
+        // Kos TV: fewer on the web, where a browser keeps only a few
+        // connections to the server and the page's artwork waits behind
+        // them.
+        final maxConcurrent = kIsWeb ? 4 : 12;
         for (var i = 0; i < candidates.length; i += maxConcurrent) {
           final batch = candidates.skip(i).take(maxConcurrent);
           await Future.wait(batch.map((candidate) async {
             final membership = await _client.itemsApi.getItems(
               parentId: candidate.id,
               fields: 'BasicSyncInfo',
+              // Kos TV: only the ids are read, not the artwork or the count.
+              imageTypeLimit: 0,
+              enableTotalRecordCount: false,
             );
             final members = (membership['Items'] as List?) ?? const [];
             final hasItem = members.whereType<Map>().any((entry) {

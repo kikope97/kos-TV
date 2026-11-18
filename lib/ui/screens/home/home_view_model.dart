@@ -2058,14 +2058,34 @@ class HomeViewModel extends ChangeNotifier {
     bool refresh = false,
   }) async {
     final prefix = more ? _kostvMorePrefix : _kostvRowPrefix;
-    final page = await _kostvHome.rows(
+    final pageLoad = _kostvHome.rows(
       start: more ? KostvHomeRepository.firstBatch : 0,
       limit: more
           ? KostvHomeRepository.moreBatch
           : KostvHomeRepository.firstBatch,
       refresh: !more && (refresh || _kostvRefreshNext),
     );
+    // Kos TV: the requests service and, for the first rows, the top of all
+    // platforms are asked for while the rows come, not after them.
+    final stremfinLoad = _kostvHome.allowedStremfin();
+    final allTopLoad = more
+        ? null
+        : stremfinLoad.then(
+            (stremfin) => stremfin == null
+                ? null
+                : _kostvTop(
+                    const StremfinPlatform(
+                      id: StremfinPlatform.allId,
+                      name: '',
+                    ),
+                    prefix,
+                    l10n,
+                  ),
+          );
+    final page = await pageLoad;
     if (page == null) {
+      stremfinLoad.ignore();
+      allTopLoad?.ignore();
       if (!more) _kostvRewatchRow = null;
       return const [];
     }
@@ -2108,33 +2128,24 @@ class HomeViewModel extends ChangeNotifier {
           ),
     ];
 
-    final stremfin = await _kostvHome.allowedStremfin();
+    final stremfin = await stremfinLoad;
     if (stremfin == null) _reloadWhenRequestsServiceIsIn();
-    final platforms = stremfin == null
-        ? const <StremfinPlatform>[]
-        : more
-        ? [
-            for (final p in await stremfin.platforms().catchError(
-              (Object _) => const <StremfinPlatform>[],
-            ))
-              if (!p.isAll) p,
-          ]
-        : const [StremfinPlatform(id: StremfinPlatform.allId, name: '')];
-    final tops = await Future.wait([
-      for (final platform in platforms)
-        _kostvHome
-            .top(
-              platform: platform.id,
-              id: '${prefix}top_${platform.id}',
-              title: platform.isAll
-                  ? l10n.kostvHomeTopNow
-                  : l10n.kostvHomeTopOn(platform.name),
-            )
-            .catchError((Object e) {
-              debugPrint('[Home] Top ${platform.id} failed: $e');
-              return null;
-            }),
-    ]);
+    final List<HomeRow?> tops;
+    if (allTopLoad != null) {
+      tops = [await allTopLoad];
+    } else {
+      final platforms = stremfin == null
+          ? const <StremfinPlatform>[]
+          : [
+              for (final p in await stremfin.platforms().catchError(
+                (Object _) => const <StremfinPlatform>[],
+              ))
+                if (!p.isAll) p,
+            ];
+      tops = await Future.wait([
+        for (final platform in platforms) _kostvTop(platform, prefix, l10n),
+      ]);
+    }
     return [
       ?newEpisodes,
       ?myListRow,
@@ -2145,6 +2156,24 @@ class HomeViewModel extends ChangeNotifier {
       ]),
     ];
   }
+
+  /// Kos TV: one platform's most watched row, or null if it failed.
+  Future<HomeRow?> _kostvTop(
+    StremfinPlatform platform,
+    String prefix,
+    AppLocalizations l10n,
+  ) => _kostvHome
+      .top(
+        platform: platform.id,
+        id: '${prefix}top_${platform.id}',
+        title: platform.isAll
+            ? l10n.kostvHomeTopNow
+            : l10n.kostvHomeTopOn(platform.name),
+      )
+      .catchError((Object e) {
+        debugPrint('[Home] Top ${platform.id} failed: $e');
+        return null;
+      });
 
   // ------------------------------------------------ Kos TV: not interested
 

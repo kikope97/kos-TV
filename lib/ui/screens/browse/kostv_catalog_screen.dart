@@ -474,13 +474,7 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.only(bottom: bottom),
-                  child: const Center(
-                    child: SizedBox(
-                      width: 28,
-                      height: 28,
-                      child: CircularProgressIndicator(strokeWidth: 2.5),
-                    ),
-                  ),
+                  child: _FooterSpinner(scroll: _scroll),
                 ),
               ),
           ],
@@ -925,4 +919,67 @@ class _Dot extends StatelessWidget {
       shape: BoxShape.circle,
     ),
   );
+}
+
+/// The spinner at the foot of the grid while more is on its way.
+///
+/// Kos TV: it only turns once the foot is near the screen. Far below, it
+/// still asked for every frame, and on the web each frame is the whole
+/// screen drawn again.
+class _FooterSpinner extends StatefulWidget {
+  const _FooterSpinner({required this.scroll});
+
+  final ScrollController scroll;
+
+  @override
+  State<_FooterSpinner> createState() => _FooterSpinnerState();
+}
+
+class _FooterSpinnerState extends State<_FooterSpinner> {
+  // Until the layout says otherwise, as it always was.
+  bool _near = true;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.scroll.addListener(_check);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _check());
+  }
+
+  @override
+  void didUpdateWidget(_FooterSpinner old) {
+    super.didUpdateWidget(old);
+    if (old.scroll != widget.scroll) {
+      old.scroll.removeListener(_check);
+      widget.scroll.addListener(_check);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.scroll.removeListener(_check);
+    super.dispose();
+  }
+
+  void _check() {
+    if (!mounted || !widget.scroll.hasClients) return;
+    final position = widget.scroll.position;
+    if (!position.hasContentDimensions) return;
+    final near = position.extentAfter < 600;
+    if (near != _near) setState(() => _near = near);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: TickerMode(
+          enabled: _near,
+          child: const CircularProgressIndicator(strokeWidth: 2.5),
+        ),
+      ),
+    );
+  }
 }

@@ -227,6 +227,11 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
   final Map<Object, GlobalKey<LockedFocusRowState<AggregatedItem>>> _rowKeys =
       {};
   final Map<Object, GlobalKey> _sectionKeys = {};
+
+  /// Kos TV: the last line each kind's grid has, to ask for its next page
+  /// when that line comes near the screen (see [_checkGridMore]).
+  final Map<FavoriteTypeFilter, int> _gridLastLine = {};
+  bool _gridCheckScheduled = false;
   final _firstChip = FocusNode(debugLabel: 'kostvFavoritesFirstChip');
 
   /// The bar's other pills, in order after [_firstChip].
@@ -281,6 +286,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
       mdbListRepository: GetIt.instance<MdbListRepository>(),
     );
     _vm.addListener(_onChanged);
+    _scroll.addListener(_checkGridMore);
     _news?.addListener(_onNews);
     unawaited(_readNews());
     // The page is always rows, whatever the old one was left on, and in an
@@ -938,17 +944,7 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
                   onTap: _flipDirection,
                 ),
               ],
-              AnimatedOpacity(
-                opacity: reloading ? 1 : 0,
-                duration: const Duration(milliseconds: 200),
-                child: const Padding(
-                  padding: EdgeInsets.only(left: 14),
-                  child: SizedBox.square(
-                    dimension: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              ),
+              _ReloadSpinner(visible: reloading),
             ],
           ),
         ),
@@ -1397,6 +1393,34 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     );
   }
 
+  /// Kos TV: a grid's next page is asked for once its last line is within
+  /// a screen and a bit of the bottom, by scroll or by a page that came in.
+  /// Each line used to ask as soon as it was built, and the whole column is
+  /// built at once, so every page came in one after the other until there
+  /// were no more, the rest of the screen waiting on them.
+  void _checkGridMore() {
+    if (!mounted) return;
+    final reach = MediaQuery.sizeOf(context).height + 900;
+    for (final MapEntry(key: type, value: last) in _gridLastLine.entries) {
+      if (last < 0) continue;
+      final box = _sectionKeys[(type, last)]?.currentContext
+          ?.findRenderObject();
+      if (box is! RenderBox || !box.attached || !box.hasSize) continue;
+      if (box.localToGlobal(Offset.zero).dy < reach) {
+        unawaited(_vm.loadMoreForType(type));
+      }
+    }
+  }
+
+  void _scheduleGridCheck() {
+    if (_gridCheckScheduled) return;
+    _gridCheckScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _gridCheckScheduled = false;
+      _checkGridMore();
+    });
+  }
+
   /// One kind on its own: all of it, in lines as wide as the page.
   Widget _grid(
     BuildContext context,
@@ -1418,6 +1442,8 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
           for (var i = 0; i < items.length; i += columns)
             items.sublist(i, math.min(i + columns, items.length)),
         ];
+        _gridLastLine[type] = lines.length - 1;
+        _scheduleGridCheck();
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1468,12 +1494,8 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
                   },
                   onTap: (_, item) => _open(item),
                   onLongPress: (_, item) => showContextMenu(context, item),
-                  itemBuilder: (context, item, index, focused) {
-                    if (line >= lines.length - 1) {
-                      scheduleMicrotask(() => _vm.loadMoreForType(type));
-                    }
-                    return _card(context, item, kind, focused);
-                  },
+                  itemBuilder: (context, item, index, focused) =>
+                      _card(context, item, kind, focused),
                 ),
               ),
           ],
@@ -1607,6 +1629,51 @@ class _FavChipState extends State<_FavChip> {
                 ),
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The spinner beside the chips while the list reloads, fading in and out.
+///
+/// Kos TV: hidden, it stays in place (the chips don't move) but stops
+/// turning: a spinner at zero opacity still asked for every frame, and on
+/// the web each frame is the whole screen drawn again.
+class _ReloadSpinner extends StatefulWidget {
+  const _ReloadSpinner({required this.visible});
+
+  final bool visible;
+
+  @override
+  State<_ReloadSpinner> createState() => _ReloadSpinnerState();
+}
+
+class _ReloadSpinnerState extends State<_ReloadSpinner> {
+  bool _fading = false;
+
+  @override
+  void didUpdateWidget(_ReloadSpinner old) {
+    super.didUpdateWidget(old);
+    if (old.visible != widget.visible) _fading = true;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      opacity: widget.visible ? 1 : 0,
+      duration: const Duration(milliseconds: 200),
+      onEnd: () {
+        if (mounted && _fading) setState(() => _fading = false);
+      },
+      child: TickerMode(
+        enabled: widget.visible || _fading,
+        child: const Padding(
+          padding: EdgeInsets.only(left: 14),
+          child: SizedBox.square(
+            dimension: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
           ),
         ),
       ),

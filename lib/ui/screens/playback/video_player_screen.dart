@@ -2622,6 +2622,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     };
     final gaps = _kostvGaps ??= KostvSeriesGapsController();
     try {
+      // Only for the card at the end: asked once the video plays, not in
+      // the way of its start.
+      await _untilPlaying();
+      if (!mounted || lookup != _kostvGapLookup) return;
       await gaps.loadFor(item);
       final detail = gaps.detail;
       if (!mounted || lookup != _kostvGapLookup) return;
@@ -2773,6 +2777,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
   }
 
+  /// Kos TV: done when the video is playing, or after a few seconds if it
+  /// doesn't (paused before it began), whichever comes first.
+  Future<void> _untilPlaying() async {
+    if (_state.isPlaying) return;
+    try {
+      await _state.playingStream
+          .firstWhere((playing) => playing)
+          .timeout(const Duration(seconds: 6));
+    } catch (_) {}
+  }
+
   /// Looks up when the series' next episode airs, for an episode the queue has
   /// nothing after.
   Future<void> _loadNextAirDate() async {
@@ -2789,6 +2804,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       return;
     }
     try {
+      // Only for the end of the episode: asked once the video plays, not in
+      // the way of its start.
+      await _untilPlaying();
+      if (!mounted || lookup != _nextAirDateLookup) return;
       final series = AggregatedItem(
         id: seriesId,
         serverId: item.serverId,

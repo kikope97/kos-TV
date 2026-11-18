@@ -47,6 +47,17 @@ class KostvHomeServerRow {
   };
 }
 
+/// Kos TV: a page of the person's rows from the server plugin.
+typedef KostvHomePage = ({
+  List<KostvHomeServerRow> rows,
+  int total,
+  List<AggregatedItem> newEpisodes,
+  Set<String> hidden,
+  List<AggregatedItem> myList,
+  List<String>? myListIds,
+  List<AggregatedItem> rewatch,
+});
+
 /// Kos TV: the home page built around the person: what they asked for and
 /// has arrived, and rows of what they'd like, worked out by the server plugin
 /// from what they watched, with what is most watched now in between. All of
@@ -98,21 +109,76 @@ class KostvHomeRepository {
           ),
   ];
 
+  /// Kos TV: the first page being asked for, per server and person, so the
+  /// banner and the rows below it, which both want it as the home page
+  /// opens, share one answer (and the server builds the person's page once).
+  static final Map<
+    String,
+    ({int limit, bool refresh, Future<KostvHomePage?> load})
+  >
+  _firstPageInFlight = {};
+
   /// The person's rows from [start], or null when the plugin can't be asked.
   /// With the first rows, the new episodes of the series they follow and the
   /// home server's items of the titles they turned down.
-  Future<
-    ({
-      List<KostvHomeServerRow> rows,
-      int total,
-      List<AggregatedItem> newEpisodes,
-      Set<String> hidden,
-      List<AggregatedItem> myList,
-      List<String>? myListIds,
-      List<AggregatedItem> rewatch,
-    })?
-  >
-  rows({required int start, required int limit, bool refresh = false}) async {
+  Future<KostvHomePage?> rows({
+    required int start,
+    required int limit,
+    bool refresh = false,
+  }) async {
+    if (start != 0) {
+      return _fetchRows(start: start, limit: limit, refresh: refresh);
+    }
+    final key = '$_serverId|${_client.userId ?? ''}';
+    final current = _firstPageInFlight[key];
+    if (current != null &&
+        current.limit >= limit &&
+        (current.refresh || !refresh)) {
+      final page = await current.load;
+      if (page == null) return null;
+      // The rows asked for, as their own copies.
+      return (
+        rows: [
+          for (final row in page.rows.take(limit))
+            KostvHomeServerRow(
+              kind: row.kind,
+              label: row.label,
+              seedId: row.seedId,
+              items: [
+                for (final item in row.items)
+                  AggregatedItem(
+                    id: item.id,
+                    serverId: item.serverId,
+                    rawData: Map<String, dynamic>.of(item.rawData),
+                  ),
+              ],
+            ),
+        ],
+        total: page.total,
+        newEpisodes: page.newEpisodes,
+        hidden: page.hidden,
+        myList: page.myList,
+        myListIds: page.myListIds,
+        rewatch: page.rewatch,
+      );
+    }
+    final load = _fetchRows(start: 0, limit: limit, refresh: refresh);
+    final entry = (limit: limit, refresh: refresh, load: load);
+    _firstPageInFlight[key] = entry;
+    try {
+      return await load;
+    } finally {
+      if (identical(_firstPageInFlight[key], entry)) {
+        _firstPageInFlight.remove(key);
+      }
+    }
+  }
+
+  Future<KostvHomePage?> _fetchRows({
+    required int start,
+    required int limit,
+    required bool refresh,
+  }) async {
     final ep = await moonbaseEndpoint(_client, _dio);
     if (ep == null) return null;
     final response = await _dio.get<dynamic>(

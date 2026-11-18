@@ -831,8 +831,34 @@ class _KostvEqualizerBarsState extends State<KostvEqualizerBars> {
   static const _loop = Duration(milliseconds: 1800);
   static const _step = Duration(milliseconds: 66);
 
+  // Kos TV: one timer for every set of bars on screen (the menu's, the
+  // floating player's), so they move on the same frames rather than each
+  // asking for its own 15 a second.
+  static final _clock = ValueNotifier<double>(0);
+  static Timer? _clockTimer;
+  static int _clockUsers = 0;
+
+  static void _joinClock() {
+    _clockUsers++;
+    _clockTimer ??= Timer.periodic(_step, (_) {
+      _clock.value =
+          (_clock.value + _step.inMicroseconds / _loop.inMicroseconds) % 1;
+    });
+  }
+
+  static void _leaveClock() {
+    _clockUsers--;
+    if (_clockUsers <= 0) {
+      _clockUsers = 0;
+      _clockTimer?.cancel();
+      _clockTimer = null;
+    }
+  }
+
   final _t = ValueNotifier<double>(0);
-  Timer? _timer;
+  bool _ticking = false;
+
+  void _onClock() => _t.value = _clock.value;
 
   bool get _moves => widget.playing && widget.animated;
 
@@ -852,19 +878,23 @@ class _KostvEqualizerBarsState extends State<KostvEqualizerBars> {
     // Also still where animations are off (a page underneath, the menu
     // scrolled away or hidden under a trailer).
     final moves = _moves && TickerMode.valuesOf(context).enabled;
-    if (moves && _timer == null) {
-      _timer = Timer.periodic(_step, (_) {
-        _t.value = (_t.value + _step.inMicroseconds / _loop.inMicroseconds) % 1;
-      });
-    } else if (!moves && _timer != null) {
-      _timer!.cancel();
-      _timer = null;
+    if (moves && !_ticking) {
+      _ticking = true;
+      _joinClock();
+      _clock.addListener(_onClock);
+    } else if (!moves && _ticking) {
+      _ticking = false;
+      _clock.removeListener(_onClock);
+      _leaveClock();
     }
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    if (_ticking) {
+      _clock.removeListener(_onClock);
+      _leaveClock();
+    }
     _t.dispose();
     super.dispose();
   }

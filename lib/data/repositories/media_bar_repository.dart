@@ -848,19 +848,22 @@ class MediaBarRepository {
   /// asked in time, so the bar falls back to its own picks.
   Future<List<MediaBarSlideItem>> _kostvRecommended(int max) async {
     try {
+      // Kos TV: asked for as the rows below ask for theirs, so whichever
+      // goes first serves both; only the first three are used.
       final page = await _kostvHome
-          .rows(start: 0, limit: 3)
+          .rows(start: 0, limit: KostvHomeRepository.firstBatch)
           .timeout(const Duration(seconds: 8));
       if (page == null) return const [];
       final seen = <String>{};
       // Which row each pick came from, for the banner's «why» line.
+      final top = page.rows.take(3).toList();
       final rowOf = <String, KostvHomeServerRow>{
-        for (final row in page.rows.reversed)
+        for (final row in top.reversed)
           for (final item in row.items) item.id: row,
       };
       return [
         for (final item in KostvHomeRepository.byTurns([
-          for (final row in page.rows) withoutBlockedItems(row.items),
+          for (final row in top) withoutBlockedItems(row.items),
         ]))
           if ((item.rawData['BackdropImageTags'] as List?)?.isNotEmpty ==
                   true &&
