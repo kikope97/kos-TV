@@ -1408,6 +1408,10 @@ class HomeViewModel extends ChangeNotifier {
     if (_prefs.effectiveMergeContinueWatchingNextUp) {
       // The full load starts a merged fetch of its own, so wait for that first.
       await _bgMerge;
+      // Pages loaded before leaving Home are out of date now, so the row
+      // starts over from its first page like the separate rows do. Paging
+      // after this point still keeps the row.
+      _rowsPagedThisLoad.remove('resume');
       await _loadResumeAndNextUpInBackground();
       return;
     }
