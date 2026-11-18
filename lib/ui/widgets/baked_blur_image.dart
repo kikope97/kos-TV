@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 /// Paints [image] blurred, drawing the blur once when the source loads.
@@ -116,12 +117,24 @@ class _BakedBlurImageState extends State<BakedBlurImage> {
     );
   }
 
+  /// Kos TV: on the web the source arrives at the size the server sent it,
+  /// which for a backdrop is a full screen of pixels. A blur this soft looks
+  /// the same drawn from a smaller copy, so there the bake is done at the
+  /// size that keeps the blur this many pixels wide, and the result is
+  /// stretched back over the box. Elsewhere the decode is already small.
+  static const double _webBakedSigma = 12;
+
   ui.Image _bake(ui.Image source, Size box) {
     final sourceSize = Size(source.width.toDouble(), source.height.toDouble());
     final fitted = applyBoxFit(widget.fit, sourceSize, box);
     // The blur runs on the decoded pixels, which are scaled up or down to
     // the box, so the sigma follows that scale.
-    final sigma = widget.sigma * fitted.source.width / fitted.destination.width;
+    final sourceSigma =
+        widget.sigma * fitted.source.width / fitted.destination.width;
+    final reduce = kIsWeb && sourceSigma > _webBakedSigma
+        ? _webBakedSigma / sourceSigma
+        : 1.0;
+    final sigma = sourceSigma * reduce;
     final filter = ui.ImageFilter.blur(
       sigmaX: sigma,
       sigmaY: sigma,
@@ -131,6 +144,10 @@ class _BakedBlurImageState extends State<BakedBlurImage> {
     final canvas = Canvas(recorder);
     final int width;
     final int height;
+    // Smoothed when drawn smaller, so the copy the blur reads is not
+    // aliased.
+    final draw = Paint()
+      ..filterQuality = reduce < 1 ? FilterQuality.medium : FilterQuality.none;
     if (widget.cropToBox) {
       // The shown part, in source pixels, blurred as a layer of its own so
       // nothing past its edges reaches the blur.
@@ -138,12 +155,20 @@ class _BakedBlurImageState extends State<BakedBlurImage> {
         fitted.source,
         Offset.zero & sourceSize,
       );
-      width = math.max(1, shown.width.round());
-      height = math.max(1, shown.height.round());
+      width = math.max(1, (shown.width * reduce).round());
+      height = math.max(1, (shown.height * reduce).round());
       final bounds = Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble());
       canvas
         ..saveLayer(bounds, Paint()..imageFilter = filter)
-        ..drawImageRect(source, shown, bounds, Paint())
+        ..drawImageRect(source, shown, bounds, draw)
+        ..restore();
+    } else if (reduce < 1) {
+      width = math.max(1, (source.width * reduce).round());
+      height = math.max(1, (source.height * reduce).round());
+      final bounds = Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble());
+      canvas
+        ..saveLayer(bounds, Paint()..imageFilter = filter)
+        ..drawImageRect(source, Offset.zero & sourceSize, bounds, draw)
         ..restore();
     } else {
       width = source.width;

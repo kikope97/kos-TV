@@ -167,7 +167,13 @@ class OfflineAwareImage extends StatelessWidget {
       );
     }
     return CachedNetworkImage(
-      imageUrl: imageUrl,
+      // The same URL the bounded provider fetches, so they share a cache
+      // entry (on the web it asks the server for the painted size).
+      imageUrl: webSizedArtworkUrl(
+        imageUrl,
+        width: decodeWidth,
+        height: decodeHeight,
+      ),
       httpHeaders: headers,
       cacheManager: cacheManager,
       // CachedNetworkImage hands its builder the bare provider, not the
@@ -179,7 +185,10 @@ class OfflineAwareImage extends StatelessWidget {
           : (c, _) => imageBuilder!(c, bounded),
       placeholder: placeholder,
       progressIndicatorBuilder: progressIndicatorBuilder,
-      errorWidget: errorWidget,
+      // Told the URL it was given, not the one sized for the web.
+      errorWidget: errorWidget == null
+          ? null
+          : (c, _, error) => errorWidget!(c, imageUrl, error),
       placeholderFadeInDuration: placeholderFadeInDuration,
       fadeOutDuration: fadeOutDuration,
       fadeOutCurve: fadeOutCurve,

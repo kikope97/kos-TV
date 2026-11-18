@@ -17,6 +17,69 @@ export '../../util/image_fetch_priority.dart' show ImageFetchPriority;
 bool isLocalImagePath(String url) =>
     !kIsWeb && url.isNotEmpty && !url.startsWith('http');
 
+/// Kos TV: on the web, the URL to fetch for a Jellyfin artwork decoded at
+/// [width] x [height], with the server asked for that size.
+///
+/// The browser decodes a network image at the size it was sent: the decode
+/// bound the app gives (a [ResizeImage]) never reaches it there. A poster
+/// painted 300 pixels wide arrived at the 600 or 1920 the URL asked for, and
+/// every one of them took its full size in the GPU memory an iPhone has
+/// little of. Asking the server for the painted size gives the same picture
+/// on screen for a fraction of the bytes.
+///
+/// The size asked for is a step at or a quarter above the bound, so cards a
+/// few pixels apart share one download, and an image is never fetched
+/// smaller than the decode the other platforms make of it. A URL that
+/// already asks for that size or less, any other server, a local file and
+/// every platform other than the web are left as they are.
+String webSizedArtworkUrl(String url, {int? width, int? height}) {
+  if (!kIsWeb || (width == null && height == null)) return url;
+  return sizedJellyfinArtworkUrl(url, width: width, height: height);
+}
+
+/// The rewrite behind [webSizedArtworkUrl], on any platform, for its tests.
+@visibleForTesting
+String sizedJellyfinArtworkUrl(String url, {int? width, int? height}) {
+  if (!url.startsWith('http')) return url;
+  final uri = Uri.tryParse(url);
+  if (uri == null || !_jellyfinArtworkPath.hasMatch(uri.path)) return url;
+  final all = uri.queryParametersAll;
+  // A repeated parameter is not something this rewrite understands.
+  if (all.values.any((values) => values.length > 1)) return url;
+  final params = Map<String, String>.of(uri.queryParameters);
+  var changed = false;
+  void bound(String key, int? pixels) {
+    if (pixels == null || pixels <= 0) return;
+    final asked = _artworkFetchStep((pixels * 1.25).ceil());
+    final current = int.tryParse(params[key] ?? '');
+    // Not worth a second download of what is nearly the same size.
+    if (current != null && asked > current * 0.8) return;
+    params[key] = '$asked';
+    changed = true;
+  }
+
+  bound('maxWidth', width);
+  bound('maxHeight', height);
+  if (!changed) return url;
+  return uri.replace(queryParameters: params).toString();
+}
+
+final _jellyfinArtworkPath = RegExp(r'/Items/[^/]+/Images/');
+
+/// The sizes the web asks the server for: few enough that the server's own
+/// cache of resized artwork stays small, close enough that nothing arrives
+/// much larger than it is painted.
+const _artworkFetchSteps = <int>[
+  120, 160, 240, 320, 400, 480, 640, 800, 960, 1280, 1600, 1920, //
+];
+
+int _artworkFetchStep(int pixels) {
+  for (final step in _artworkFetchSteps) {
+    if (step >= pixels) return step;
+  }
+  return pixels;
+}
+
 /// Drop-in replacement for [CachedNetworkImageProvider] construction that
 /// resolves local file paths to a [FileImage].
 ImageProvider offlineAwareImageProvider(
@@ -38,7 +101,7 @@ ImageProvider offlineAwareImageProvider(
   // They are deliberately not passed to the provider: that would make the cache
   // manager keep the original and write a second, PNG re-encoded copy per size.
   final provider = CachedNetworkImageProvider(
-    url,
+    webSizedArtworkUrl(url, width: maxWidth, height: maxHeight),
     cacheKey: cacheKey,
     headers: headers,
     cacheManager: cacheManager,

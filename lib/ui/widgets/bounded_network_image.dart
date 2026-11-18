@@ -171,7 +171,13 @@ class BoundedNetworkImage extends StatelessWidget {
       );
     }
     return CachedNetworkImage(
-      imageUrl: imageUrl,
+      // The same URL the bounded provider fetches, so they share a cache
+      // entry (on the web it asks the server for the painted size).
+      imageUrl: webSizedArtworkUrl(
+        imageUrl,
+        width: decodeWidth,
+        height: decodeHeight,
+      ),
       httpHeaders: headers,
       cacheManager: cacheManager,
       fit: fit,
