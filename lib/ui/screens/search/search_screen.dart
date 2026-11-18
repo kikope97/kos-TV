@@ -268,14 +268,15 @@ class _SearchScreenState extends State<SearchScreen>
   }
 
   void _onSearchTextChanged() {
-    if (!_applyingRemoteSearch && _searchController.text != _lastSearchText) {
+    // Kos TV: the field also tells of the cursor moving and of a selection;
+    // only a change of the text is a new search (and a new frame).
+    if (_searchController.text == _lastSearchText) return;
+    if (!_applyingRemoteSearch) {
       widget.remoteSearch?.close();
     }
     // Kos TV: typing again is a new search; only a submitted one moves on to
     // the results.
-    if (_searchController.text != _lastSearchText) {
-      _focusTabsAfterResults = false;
-    }
+    _focusTabsAfterResults = false;
     _lastSearchText = _searchController.text;
     _vm.searchDebounced(_searchController.text);
     if (mounted) setState(() {});

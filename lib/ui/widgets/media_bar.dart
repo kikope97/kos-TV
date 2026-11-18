@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:moonfin/ui/widgets/top_toolbar.dart';
 
+import '../../util/image_fetch_priority.dart';
 import 'offline_aware_image.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -695,6 +696,7 @@ class _MediaBarState extends State<MediaBar>
     };
 
     final isBookshelf = _isBookshelfMode();
+    final coverflow = _isCoverflow();
 
     final windowStart = (centerIndex - 2).clamp(0, items.length);
     final windowEnd = (centerIndex + 11).clamp(0, items.length);
@@ -713,7 +715,18 @@ class _MediaBarState extends State<MediaBar>
         if (!mounted) return;
 
         try {
-          if (isBookshelf) {
+          if (coverflow) {
+            final url = item.posterUrl ?? item.backdropUrl;
+            if (url != null) {
+              await precacheImage(
+                ArtworkDecode.provider(
+                  url,
+                  width: GalleryCoverflow.kCoverDecodeWidth,
+                ),
+                context,
+              );
+            }
+          } else if (isBookshelf) {
             if (item.posterUrl != null) {
               await precacheImage(
                 ArtworkDecode.provider(item.posterUrl!, width: posterCacheW),
@@ -896,6 +909,15 @@ class _MediaBarState extends State<MediaBar>
 
   void _prefetchAround(List<MediaBarSlideItem> items, int centerIndex) {
     if (!mounted || items.isEmpty) return;
+    if (_isCoverflow()) {
+      _prefetchCovers(items, [
+        centerIndex + 1,
+        centerIndex + 2,
+        centerIndex - 1,
+        centerIndex - 2,
+      ]);
+      return;
+    }
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
     // Calculate dimensions matching layout constraints exactly to maximize memory cache hits.
@@ -967,6 +989,33 @@ class _MediaBarState extends State<MediaBar>
       widget.prefs.get(UserPreferences.mediaBarMode),
     );
     return mode == UserPreferences.mediaBarModeBookshelf;
+  }
+
+  /// Kos TV: the gallery on a phone held upright is the coverflow, which
+  /// paints each slide's poster (its backdrop when it has none) and no
+  /// backdrops or logos. Same test as [_buildGallerySlideshow].
+  bool _isCoverflow() =>
+      _isGalleryMode() &&
+      PlatformDetection.useMobileUi &&
+      MediaQuery.orientationOf(context) == Orientation.portrait;
+
+  /// Kos TV: warms the coverflow's cards for [indices], at the decode the
+  /// cards use, instead of backdrops and logos it doesn't paint.
+  void _prefetchCovers(List<MediaBarSlideItem> items, Iterable<int> indices) {
+    for (final i in indices) {
+      if (i < 0 || i >= items.length) continue;
+      final url = items[i].posterUrl ?? items[i].backdropUrl;
+      if (url == null) continue;
+      precacheImage(
+        ArtworkDecode.provider(
+          url,
+          width: GalleryCoverflow.kCoverDecodeWidth,
+          headers: artworkFetchHeaders(url, ImageFetchPriority.low),
+        ),
+        context,
+        onError: (_, _) {},
+      );
+    }
   }
 
   bool _isGalleryMode() {
@@ -3070,6 +3119,8 @@ class _MediaBarState extends State<MediaBar>
 
   void _prefetchGalleryWindow(List<MediaBarSlideItem> items, int centerIndex) {
     if (!mounted || items.isEmpty) return;
+    // The coverflow's cards are warmed by _prefetchAround.
+    if (_isCoverflow()) return;
     final pageSize = GalleryLayout.pageSize;
     final start = (centerIndex ~/ pageSize) * pageSize;
     final end = (start + pageSize * 2).clamp(0, items.length);

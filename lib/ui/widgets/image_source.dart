@@ -41,6 +41,15 @@ String webSizedArtworkUrl(String url, {int? width, int? height}) {
 @visibleForTesting
 String sizedJellyfinArtworkUrl(String url, {int? width, int? height}) {
   if (!url.startsWith('http')) return url;
+  // A TMDB backdrop (from the requests service or the calendar) asked for
+  // at 1280 and painted small comes at 780, the one smaller size TMDB has
+  // for every kind of picture.
+  if (url.contains(_tmdbBackdropSize) && url.contains('image.tmdb.org/')) {
+    if (width != null && width > 0 && (width * 1.25).ceil() <= 780) {
+      return url.replaceFirst(_tmdbBackdropSize, '/t/p/w780/');
+    }
+    return url;
+  }
   final uri = Uri.tryParse(url);
   if (uri == null || !_jellyfinArtworkPath.hasMatch(uri.path)) return url;
   final all = uri.queryParametersAll;
@@ -65,6 +74,7 @@ String sizedJellyfinArtworkUrl(String url, {int? width, int? height}) {
 }
 
 final _jellyfinArtworkPath = RegExp(r'/Items/[^/]+/Images/');
+const _tmdbBackdropSize = '/t/p/w1280/';
 
 /// The sizes the web asks the server for: few enough that the server's own
 /// cache of resized artwork stays small, close enough that nothing arrives

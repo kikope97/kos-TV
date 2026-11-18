@@ -334,6 +334,12 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
     if (dataAny == null || !dataAny.isA<JSString>()) return;
     final raw = (dataAny as JSString).toDart;
     if (!raw.contains('"event"')) return;
+    // Kos TV: the player reports its progress several times a second, a
+    // long message that only matters here when it carries the state. Left
+    // without decoding when it doesn't, as it would come to nothing.
+    if (raw.contains('"infoDelivery"') && !raw.contains('"playerState"')) {
+      return;
+    }
 
     Map<String, dynamic> decoded;
     try {

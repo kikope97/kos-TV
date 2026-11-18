@@ -467,6 +467,9 @@ class _HomeShellState extends State<_HomeShell>
   }
 
 
+  /// Kos TV: whether the page was hidden since it last resumed.
+  bool _hiddenSinceResume = false;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -478,8 +481,18 @@ class _HomeShellState extends State<_HomeShell>
       _partyRooms?.setForeground(false);
     }
     if (state == AppLifecycleState.resumed) {
-      _viewModel.refresh(preserveExisting: true);
+      // Kos TV: on the web the page "resumes" every time the window gets
+      // focus back (a click out of a trailer's frame, the address bar),
+      // which reloaded every row. There only after the page was hidden.
+      if (!PlatformDetection.isWeb || _hiddenSinceResume) {
+        _viewModel.refresh(preserveExisting: true);
+      }
+      _hiddenSinceResume = false;
     } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.hidden) {
+      _hiddenSinceResume = true;
+    }
+    if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         (state == AppLifecycleState.inactive &&
             !PlatformDetection.isDesktop &&
@@ -1060,7 +1073,9 @@ class _ContentRowsState extends State<_ContentRows>
   int _rowPrefetchInFlight = 0;
   bool _isBackgrounded = false;
   static const _rowPrefetchDelay = Duration(milliseconds: 250);
-  static const _rowPrefetchMaxInFlight = 8;
+  // Kos TV: on the web the low lane doesn't exist (the browser fetches in
+  // its own order), so fewer at a time leave room for what is on screen.
+  static final _rowPrefetchMaxInFlight = PlatformDetection.isWeb ? 3 : 8;
   static const _rowPrefetchCardSpacing = 16.0;
   final ValueNotifier<Map<String, Map<String, double>>> _v2AdditionalRatingsNotifier = ValueNotifier({});
   Map<String, Map<String, double>> get _v2AdditionalRatingsByKey => _v2AdditionalRatingsNotifier.value;
@@ -7156,8 +7171,11 @@ class _ContentRowsState extends State<_ContentRows>
       for (final item in row.items.take(target.count)) {
         final image = imageOf(row, item);
         final url = image.url;
-        if (url == null || !_rowPrefetchedUrls.add(url)) continue;
+        if (url == null || _rowPrefetchedUrls.contains(url)) continue;
+        // Checked before the URL is noted, so one left out for now is
+        // still warmed on a later pass.
         if (_rowPrefetchInFlight >= _rowPrefetchMaxInFlight) return;
+        _rowPrefetchedUrls.add(url);
         _rowPrefetchInFlight++;
         unawaited(
           ArtworkDecode.precache(

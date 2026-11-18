@@ -136,12 +136,22 @@ class _KostvLibrariesScreenState extends State<KostvLibrariesScreen> {
     });
     _last = fresh;
     _lastServer = _serverKey;
-    for (final lib in _libraries) {
-      if (_disposed) return;
-      // Kept from before: its picture stays, not a new one each visit.
-      if (lib.image != null) continue;
-      await _picture(lib);
+    // Kept from before: its picture stays, not a new one each visit.
+    // Kos TV: three at a time, in order, rather than each waiting for the
+    // one before.
+    final waiting = [
+      for (final lib in _libraries)
+        if (lib.image == null) lib,
+    ];
+    var next = 0;
+    Future<void> worker() async {
+      while (next < waiting.length) {
+        if (_disposed) return;
+        await _picture(waiting[next++]);
+      }
     }
+
+    await Future.wait([for (var i = 0; i < 3; i++) worker()]);
   }
 
   /// A title of the library for its picture, and how many it has.

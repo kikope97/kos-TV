@@ -87,6 +87,7 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
 
   @override
   void dispose() {
+    _repaint?.cancel();
     _prefs.removeListener(_onPrefs);
     _disposed = true;
     _firstFocus.dispose();
@@ -252,8 +253,18 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
         genre.image = image;
         if (used != null) _used.add(used);
       }
-      setState(() {});
+      _repaintSoon();
     } catch (_) {}
+  }
+
+  /// Kos TV: one rebuild for the genres counted within a moment of each
+  /// other, not one per answer (a page of genres is dozens of them).
+  Timer? _repaint;
+  void _repaintSoon() {
+    _repaint ??= Timer(const Duration(milliseconds: 50), () {
+      _repaint = null;
+      if (!_disposed && mounted) setState(() {});
+    });
   }
 
   void _open(_Genre genre) =>

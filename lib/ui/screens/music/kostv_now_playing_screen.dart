@@ -739,9 +739,11 @@ class _Backdrop extends StatelessWidget {
             if (image != null)
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 900),
-                child: Opacity(
+                // Kos TV: the cover is drawn at 0.38 itself rather than under
+                // an Opacity, a layer the whole screen paid for at every tick
+                // of the progress bar.
+                child: KeyedSubtree(
                   key: ValueKey(item!.id),
-                  opacity: 0.38,
                   // On the TV, a tiny copy of the cover, stretched: as soft
                   // as a blur and nothing to work out on every frame (a
                   // slow TV repainted a full-screen blur at every tick).
@@ -753,6 +755,7 @@ class _Backdrop extends StatelessWidget {
                             image: ResizeImage(image, width: 12, height: 12),
                             fit: BoxFit.cover,
                             filterQuality: FilterQuality.medium,
+                            opacity: const AlwaysStoppedAnimation(0.38),
                             width: double.infinity,
                             height: double.infinity,
                             errorBuilder: (_, _, _) => const SizedBox.shrink(),
@@ -762,7 +765,11 @@ class _Backdrop extends StatelessWidget {
                           scale: 1.5,
                           // Blurred once when the cover loads, not again on
                           // every frame of the progress bar or the lyrics.
-                          child: BakedBlurImage(image: image, sigma: 70),
+                          child: BakedBlurImage(
+                            image: image,
+                            sigma: 70,
+                            opacity: 0.38,
+                          ),
                         ),
                 ),
               ),

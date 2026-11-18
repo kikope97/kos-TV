@@ -19,7 +19,12 @@ class BakedBlurImage extends StatefulWidget {
     this.alignment = Alignment.center,
     this.tileMode = TileMode.decal,
     this.cropToBox = false,
+    this.opacity = 1.0,
   });
+
+  /// Kos TV: drawn this see-through, straight on the image, which is what an
+  /// Opacity around it gives without a layer of its own on every frame.
+  final double opacity;
 
   final ImageProvider image;
 
@@ -112,6 +117,9 @@ class _BakedBlurImageState extends State<BakedBlurImage> {
           image: _baked,
           fit: widget.fit,
           alignment: widget.alignment,
+          opacity: widget.opacity < 1
+              ? AlwaysStoppedAnimation<double>(widget.opacity)
+              : null,
         );
       },
     );

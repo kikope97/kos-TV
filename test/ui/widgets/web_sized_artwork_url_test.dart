@@ -25,8 +25,19 @@ void main() {
     expect(sizedJellyfinArtworkUrl(close, width: 300), close);
   });
 
-  test('leaves other servers, files and unbounded decodes alone', () {
+  test('a TMDB backdrop painted small comes at 780, never smaller', () {
     const tmdb = 'https://image.tmdb.org/t/p/w1280/x.jpg';
+    expect(
+      sizedJellyfinArtworkUrl(tmdb, width: 600),
+      'https://image.tmdb.org/t/p/w780/x.jpg',
+    );
+    expect(sizedJellyfinArtworkUrl(tmdb, width: 700), tmdb);
+    const poster = 'https://image.tmdb.org/t/p/w500/x.jpg';
+    expect(sizedJellyfinArtworkUrl(poster, width: 100), poster);
+  });
+
+  test('leaves other servers, files and unbounded decodes alone', () {
+    const tmdb = 'https://cdn.example.com/t/p/w1280/x.jpg';
     expect(sizedJellyfinArtworkUrl(tmdb, width: 200), tmdb);
     const file = '/data/images/Items/abc/Images/Primary';
     expect(sizedJellyfinArtworkUrl(file, width: 200), file);
