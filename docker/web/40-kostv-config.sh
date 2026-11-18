@@ -184,6 +184,8 @@ NGINX
   log "sin KOSTV_ADMIN_PASSWORD: /admin queda cerrado"
 fi
 
+# Written now, so never a compressed copy from the image in its place.
+rm -f "$html/config.json.gz"
 cat > "$html/config.json" <<JSON
 {
   "schemaVersion": 1,

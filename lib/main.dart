@@ -861,7 +861,16 @@ void main() async {
   // when the glass tier uses the package renderer, so TV and web (sheen)
   // don't wait on shaders they never draw with. The Impeller pipeline
   // warm-up is deferred past the first frame internally.
-  final glassWarmUp = LiquidGlassWidgets.initialize();
+  // Kos TV: the web never draws with them (its glass is always the sheen),
+  // and compiling them there takes the one thread the app has.
+  final Future<void> glassWarmUp = PlatformDetection.isWeb
+      ? Future<void>.value()
+      : LiquidGlassWidgets.initialize();
+  // Kos TV: the web's config.json asked for at once, while the rest gets
+  // ready (it is waited for further down, where it was).
+  final Future<void>? webConfig = PlatformDetection.isWeb
+      ? loadWebRuntimeConfig()
+      : null;
 
   registerGameCoreLicenses();
   registerEpubJsLicenses();
@@ -902,8 +911,8 @@ void main() async {
     };
   }
 
-  if (PlatformDetection.isWeb) {
-    await loadWebRuntimeConfig();
+  if (webConfig != null) {
+    await webConfig;
   }
 
   if (PlatformDetection.isDesktop) {

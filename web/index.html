@@ -18,6 +18,12 @@
 
   <title>kOS TV</title>
   <link rel="manifest" href="manifest.json">
+  <!-- Kos TV: what the app asks for first, asked for already while the
+       app itself downloads: its config.json, and the connection to the
+       place the drawing engine (and its fallback fonts) comes from. -->
+  <link rel="preload" href="config.json" as="fetch" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
   <style>
     html,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:path_provider/path_provider.dart';
@@ -442,8 +444,9 @@ Future<void> configureBackgroundDependencies({bool offline = false}) async {
 Future<void> configureDependencies() async {
   final preferenceStore = PreferenceStore();
   await preferenceStore.init();
-  await AppBeta.load();
-  final appVersion = await _resolveAppVersion();
+  // Kos TV: both read a file of the app (on the web, two trips to the
+  // server), and neither needs the other.
+  final (_, appVersion) = await (AppBeta.load(), _resolveAppVersion()).wait;
   setServerUserAgentVersion(appVersion);
   await _migrateLegacyBitrateCap(preferenceStore);
   await _migrateAndroidMobileStereoAacFallbackDefault(preferenceStore);
@@ -488,7 +491,14 @@ Future<void> configureDependencies() async {
 
   registerOfflineStorage();
   await _migrateIosPaths(getIt<OfflineRepository>());
-  await getIt<OfflineCatalog>().warm();
+  // Kos TV: on the web nothing is downloaded into the app (downloads go to
+  // the browser), so the catalogue is always empty: it gets ready in the
+  // background instead of starting its database before the first frame.
+  if (PlatformDetection.isWeb) {
+    unawaited(getIt<OfflineCatalog>().warm().catchError((Object _) {}));
+  } else {
+    await getIt<OfflineCatalog>().warm();
+  }
 
   final connectivityService = ConnectivityService();
   connectivityService.initialize();

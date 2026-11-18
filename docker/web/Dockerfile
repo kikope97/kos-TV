@@ -21,6 +21,21 @@ RUN apk add --no-cache ca-certificates
 COPY docker/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --chmod=755 docker/web/40-kostv-config.sh /docker-entrypoint.d/40-kostv-config.sh
 COPY build/web /usr/share/nginx/html
+
+# Kos TV: what takes long to arrive on a phone, compressed once and at the
+# most (nginx sends the .gz as it is, gzip_static) instead of on each
+# request at its lightest; and each file's date taken from its content, so
+# the ETag only changes when the file does and a new version doesn't make
+# the browser fetch again what is the same. config.json is written when the
+# container starts, so it is left out.
+RUN cd /usr/share/nginx/html \
+ && find . -type f \( -name '*.js' -o -name '*.mjs' -o -name '*.wasm' -o -name '*.json' \
+      -o -name '*.ttf' -o -name '*.otf' -o -name '*.css' -o -name '*.svg' -o -name '*.html' \) \
+      ! -name config.json -size +1k \
+      -exec sh -c 'gzip -9 -n -c "$1" > "$1.gz"' _ {} \; \
+ && find . -type f ! -name config.json | while read -r f; do \
+      h=$(sha256sum "$f" | cut -c1-7); touch -d "@$((0x$h + 1000000000))" "$f"; \
+    done
 COPY docker/web/admin /usr/share/nginx/admin
 
 EXPOSE 80
