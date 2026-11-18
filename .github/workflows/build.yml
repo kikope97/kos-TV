@@ -938,6 +938,16 @@ jobs:
           pattern: android*
           merge-multiple: true
 
+      # Kos TV: a copy of each APK under a name without the version, so
+      # .../releases/latest/download/KosTV_AndroidTV.apk (and KosTV_Android.apk)
+      # is always the latest one. The apps' update check takes either: the
+      # same file.
+      - name: Names without the version
+        run: |
+          cp KosTV_AndroidTV_v*.apk KosTV_AndroidTV.apk
+          cp KosTV_Android_v*.apk KosTV_Android.apk
+          ls -l KosTV_*.apk
+
       - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.plan.outputs.release_version }}
@@ -947,6 +957,10 @@ jobs:
             - Android TV: `KosTV_AndroidTV_v${{ needs.plan.outputs.release_version }}.apk`
             - Móvil y tablet: `KosTV_Android_v${{ needs.plan.outputs.release_version }}.apk`
             - Web (Docker): `ghcr.io/${{ github.repository_owner }}/kos-tv-web:${{ needs.plan.outputs.release_version }}` (también `:latest`)
+
+            Enlaces que siempre dan la última versión:
+            - Android TV: https://github.com/${{ github.repository }}/releases/latest/download/KosTV_AndroidTV.apk
+            - Móvil y tablet: https://github.com/${{ github.repository }}/releases/latest/download/KosTV_Android.apk
           files: KosTV_*.apk
           fail_on_unmatched_files: true
           draft: false

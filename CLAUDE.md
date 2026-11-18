@@ -97,7 +97,10 @@ publícala al terminarlo y probarlo.
    trabajo terminado y subido, `inputs: {"release_version": "X.Y.Z"}`.
 3. Espera a que termine (unos 25 minutos) y comprueba que la release
    `Kos TV X.Y.Z` existe y tiene `KosTV_AndroidTV_vX.Y.Z.apk` y
-   `KosTV_Android_vX.Y.Z.apk`, y que el trabajo `web-image` subió la imagen
+   `KosTV_Android_vX.Y.Z.apk` (y sus copias sin versión, `KosTV_AndroidTV.apk`
+   y `KosTV_Android.apk`, que son las del enlace fijo
+   `.../releases/latest/download/KosTV_AndroidTV.apk` con el que la familia
+   instala la app; ese enlace no se cambia), y que el trabajo `web-image` subió la imagen
    web (`ghcr.io/kikope97/kos-tv-web:X.Y.Z` y `:latest`, ver `docs/web.md`).
    Si falla, lee el registro del trabajo y arréglalo.
 4. Dile al usuario qué versión salió y qué trae. Las apps la ofrecen solas
