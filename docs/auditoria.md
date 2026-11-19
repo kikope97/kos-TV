@@ -62,6 +62,10 @@ y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
   Recomendación: publicarla junto con la versión de la app.
 
 ### Bloque 3
-- **«Quiero verlo» en el modo infantil.** Hoy la fila de botones del modo
-  infantil no lo tiene. Recomendación: dárselo (es inofensivo y útil para que
-  los niños apunten lo que quieren ver).
+- **«Quiero verlo» en el modo infantil.** Hoy la fila de botones de la ficha en
+  el modo infantil no lo tiene, pero la página de «Quiero verlo» y el menú de
+  las tarjetas sí. Recomendación: dárselo también en la ficha (es inofensivo y
+  útil para que los niños apunten lo que quieren ver).
+- **Ocultar de «Seguir viendo».** En Jellyfin ocultar algo de esa fila borra
+  también por dónde ibas. Recomendación: avisarlo en la propia opción («Quitar
+  de Seguir viendo (se olvida por dónde ibas)») y dejar deshacerlo 5 s.
