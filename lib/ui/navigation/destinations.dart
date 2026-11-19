@@ -165,8 +165,6 @@ class Destinations {
   static const bookReader = '/player/book/:itemId';
   static const photoPlayer = '/player/photo/:itemId';
   static const trailerPlayer = '/player/trailer';
-  static const nextUp = '/player/next-up/:itemId';
-  static const stillWatching = '/player/still-watching/:itemId';
 
   // Admin
   static const admin = '/admin';
@@ -430,9 +428,6 @@ class Destinations {
     return item(itemId, serverId: serverId);
   }
 
-  static String nextUpFor(String itemId) => '/player/next-up/$itemId';
-  static String stillWatchingFor(String itemId) =>
-      '/player/still-watching/$itemId';
   static String searchWith(String query) =>
       '/search?query=${Uri.encodeComponent(query)}';
   static String searchInLibrary(String libraryId, {String? query}) {

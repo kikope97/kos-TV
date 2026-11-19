@@ -19892,4 +19892,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvCollectionAddFailed => 'Couldn\'t add it to the collection';
+
+  @override
+  String get kostvCastStatePlaying => 'Playing';
+
+  @override
+  String get kostvCastStateBuffering => 'Buffering';
+
+  @override
+  String kostvVolumeBoost(int level) {
+    return 'Volume +$level';
+  }
 }

@@ -114,6 +114,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../util/error_message.dart';
 import '../../../playback/media3_player_backend.dart';
 import '../../../util/system_ui.dart';
+import '../../navigation/playback_launcher.dart';
 import 'playback_takeover.dart';
 import 'episode_browser.dart';
 import 'episode_browser_panel.dart';
@@ -411,6 +412,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   // [_showNextUp] and [_kostvGapShown] are set.
   KostvSeriesGapsController? _kostvGaps;
 
+  /// The series [_kostvGaps] was made for: another one gets its own, so
+  /// the episode browser never shows the last series' missing episodes.
+  String? _kostvGapsSeriesId;
+
   /// Listening to [_kostvGaps] for the series page it couldn't read yet.
   VoidCallback? _kostvGapWaiting;
 
@@ -446,6 +451,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   bool _nextUpDismissed = false;
   bool _isNextUpAdvancing = false;
   int _consecutiveEpisodes = 0;
+
+  /// Kos TV: this item played to its end while held there for a card, so
+  /// the player won't move on or finish by itself any more.
+  bool _endedHeld = false;
   StreamSubscription? _positionSub;
   StreamSubscription? _queueSub;
   StreamSubscription<PlayerBackend>? _backendSub;
@@ -467,7 +476,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   StreamSubscription<Map<String, dynamic>>? _airPlayEventsSub;
   StreamSubscription<Map<String, dynamic>>? _media3ActivityActionSub;
   StreamSubscription<Map<String, dynamic>>? _aetherRemoteCommandSub;
-  final Map<String, List<Map<String, dynamic>>> _media3CastPeopleCache = {};
 
   TrickplayInfo? _trickplayInfo;
   String? _trickplayMediaSourceId;
@@ -732,6 +740,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _overlayFocus.hasFocus) return;
       if (ModalRoute.of(context)?.isCurrent != true) return;
+      // Kos TV: back from a dialog with a card up, the focus goes to it.
+      if (_showNextUp && _tvNextUpPlayFocus.context != null) {
+        _tvNextUpPlayFocus.requestFocus();
+        return;
+      }
       _overlayFocus.requestFocus();
     });
   }
@@ -968,6 +981,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // got to its end by skipping forward, or skipping the credits, before
     // its card could show): the card shows now.
     _heldAtEndSub = _manager.heldAtEndStream.listen((_) {
+      // Kos TV: the end was spent while held, so no other one comes: a card
+      // closed from here on leaves nothing to watch.
+      _endedHeld = true;
       if (!mounted || _isStopping || _showNextUp) return;
       if (_kostvGap.isNotEmpty && !_nextUpDismissed) _presentKostvGap();
     });
@@ -981,7 +997,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         _syncMedia3VolumeBoostLevel(resetWhenUnavailable: true);
       }
       // Re-apply the desktop player volume whenever the backend (re)appears.
-      if (PlatformDetection.isDesktop) {
+      if (_usesStoredPlayerVolume) {
         unawaited(backend.setVolume(_playerVolume));
       }
       if (!mounted) return;
@@ -1027,6 +1043,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
     _queueSub = _queue.queueChangedStream.listen((_) {
       _closeEpisodeBrowser();
+      // Kos TV: a scrub left pending on the last item would freeze the bar
+      // on its time and commit it on this one the moment play is pressed.
+      _dropScrubSession(resume: false);
+      _lastScrubCommitTarget = null;
+      _hoverPosition = null;
+      _endedHeld = false;
       _loadSegmentsForCurrentItem();
       unawaited(_loadNextAirDate());
       unawaited(_loadKostvGap());
@@ -1041,6 +1063,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       setState(() {
         _nextUpDismissed = false;
         _showNextUp = false;
+        // Kos TV: worked out for the last item's card, not this one's.
+        _nextUpItem = null;
+        _kostvGapNext = null;
         _skipSegment = null;
         // Stream indexes belong to the file they came from, so the next item
         // must not have a track from the last one put back on it.
@@ -1055,6 +1080,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       }
     });
 
+    videoPlayerHandover = _handOverPlayback;
     _media3ActivityActionSub = Media3PlayerBackend.activityActionStream.listen(
       _onMedia3ActivityAction,
       onError: (_) {},
@@ -1128,13 +1154,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
     if (_useSystemVolume) {
       _initSystemVolume();
-    } else if (PlatformDetection.isDesktop) {
+    } else if (_usesStoredPlayerVolume) {
       _initDesktopVolume();
     }
   }
 
   @override
   void dispose() {
+    if (videoPlayerHandover == _handOverPlayback) videoPlayerHandover = null;
     kostvReleaseBrowserMenu();
     // Kos TV: left another way than the player's own (the browser's Back, a
     // mouse's back button): full screen, if it went into it, ends too.
@@ -1198,7 +1225,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     _skipBackwardTimer?.cancel();
     _surfaceTaps.cancel();
     _persistVolumeTimer?.cancel();
-    if (PlatformDetection.isDesktop) {
+    if (_usesStoredPlayerVolume) {
       unawaited(_prefs.set(UserPreferences.playerVolume, _playerVolume));
     }
     _volumeListenerSub?.cancel();
@@ -1332,10 +1359,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           final protocolLabel = castKind == CastTargetKind.googleCast
               ? 'Google Cast'
               : 'DLNA';
-          final message =
-              event['message'] as String? ??
-              l10n.castSessionError(protocolLabel);
-          _showThrottledCastError(message);
+          // Kos TV: the device's own message is in English (or whatever
+          // it speaks): it goes to the log, the person gets ours.
+          final nativeMessage = event['message'] as String?;
+          if (nativeMessage != null && nativeMessage.isNotEmpty) {
+            debugPrint('[VideoPlayer] $protocolLabel error: $nativeMessage');
+          }
+          _showThrottledCastError(l10n.castSessionError(protocolLabel));
         }
     }
   }
@@ -1912,67 +1942,41 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     };
   }
 
+  /// Kos TV: the remote device's state, in the app's language.
+  String _castStateName(String state, AppLocalizations l10n) =>
+      switch (state) {
+        'playing' => l10n.kostvCastStatePlaying,
+        'paused' => l10n.paused,
+        'buffering' => l10n.kostvCastStateBuffering,
+        'idle' => l10n.idle,
+        '' => l10n.unknown,
+        _ => '${state[0].toUpperCase()}${state.substring(1)}',
+      };
+
+  /// Kos TV: what a person does in the credits, in the app's language; the
+  /// server's own word only for a kind not known here.
+  String _personTypeLabel(String? type, AppLocalizations l10n) =>
+      switch (type) {
+        null => '',
+        'Actor' => l10n.adminMetadataPersonKindActor,
+        'GuestStar' => l10n.adminMetadataPersonKindGuestStar,
+        'Director' => l10n.adminMetadataPersonKindDirector,
+        'Writer' => l10n.adminMetadataPersonKindWriter,
+        'Producer' => l10n.adminMetadataPersonKindProducer,
+        'Composer' => l10n.adminMetadataPersonKindComposer,
+        'Conductor' => l10n.adminMetadataPersonKindConductor,
+        'Creator' => l10n.adminMetadataPersonKindCreator,
+        'Artist' => l10n.adminMetadataPersonKindArtist,
+        'Narrator' => l10n.adminMetadataPersonKindNarrator,
+        _ => type,
+      };
+
   String _castStateLabel(String state, AppLocalizations l10n) {
-    final base = state.isEmpty
-        ? l10n.unknown
-        : '${state[0].toUpperCase()}${state.substring(1)}';
+    final base = _castStateName(state, l10n);
     if (_remotePositionTicks <= 0) {
       return base;
     }
     return '$base · ${formatPlaybackDuration(Duration(microseconds: _remotePositionTicks ~/ 10))}';
-  }
-
-  Future<List<Map<String, dynamic>>> _resolveCastPeopleForMetadata(
-    dynamic item,
-  ) async {
-    if (item is! AggregatedItem || !_hasCastCrew(item)) {
-      return const <Map<String, dynamic>>[];
-    }
-
-    final cacheKey = '${item.serverId}:${item.id}';
-    final cached = _media3CastPeopleCache[cacheKey];
-    if (cached != null) {
-      return cached;
-    }
-
-    final imageApi = _clientForItem(item).imageApi;
-    final people = await _resolveCastPeople(item);
-    final resolved = people
-        .map((person) {
-          final name = (person['Name'] as String?)?.trim() ?? '';
-          if (name.isEmpty) {
-            return null;
-          }
-          final personId = person['Id']?.toString().trim() ?? '';
-          final imageTag = (person['PrimaryImageTag'] as String?)?.trim();
-          final role = (person['Role'] as String?)?.trim();
-          final type = (person['Type'] as String?)?.trim();
-          final subtitle = (role != null && role.isNotEmpty)
-              ? role
-              : ((type != null && type.isNotEmpty) ? type : '');
-
-          String imageUrl = '';
-          if (personId.isNotEmpty && imageTag != null && imageTag.isNotEmpty) {
-            imageUrl = imageApi.getPrimaryImageUrl(
-              personId,
-              maxHeight: 200,
-              tag: imageTag,
-            );
-          }
-
-          return <String, dynamic>{
-            'name': name,
-            'subtitle': subtitle,
-            'personId': personId,
-            'imageUrl': imageUrl,
-            'serverId': item.serverId,
-          };
-        })
-        .whereType<Map<String, dynamic>>()
-        .toList(growable: false);
-
-    _media3CastPeopleCache[cacheKey] = resolved;
-    return resolved;
   }
 
   Future<void> _openMedia3CastPerson(Map<String, dynamic> event) async {
@@ -2000,7 +2004,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final chapters = _chapters;
     final streamInfoSections = _buildMedia3StreamInfoSections();
     final hasCastCrew = _hasCastCrew(item);
-    final castPeople = await _resolveCastPeopleForMetadata(item);
     final castKind = _castService.activeKind;
     final canCastControl = castKind != null;
     final castKindLabel = castKind == null
@@ -2057,7 +2060,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           : _zoomModeLabel(l10n, _zoomMode),
       streamInfoSections: streamInfoSections,
       hasCastCrew: hasCastCrew,
-      castPeople: castPeople,
+      // Kos TV: only the full-screen native activity, which this app never
+      // starts, shows the cast; reading it here cost every episode a full
+      // fetch of its season and its series for nothing.
+      castPeople: const <Map<String, dynamic>>[],
       canCastControl: canCastControl,
       castKindLabel: castKindLabel,
       castStateLabel: castStateLabel,
@@ -2370,6 +2376,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   void _onPositionUpdate(Duration position) {
     if (!mounted || _isSeeking || _isRestoringPosition) return;
+    if (_endedHeld && _state.duration - position > _episodeOverMargin) {
+      _endedHeld = false;
+    }
     if (PlatformDetection.useNativeVideoSurface) {
       _syncSubtitleActive();
     }
@@ -2503,7 +2512,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     });
 
     if (hadNextUpPrompt) {
-      _manager.suppressAutoNext = false;
+      // Kos TV: missing episodes after this one keep it held at its end,
+      // where their card shows again; it doesn't run on past the gap.
+      _manager.suppressAutoNext = _kostvGap.isNotEmpty && !_nextUpDismissed;
     }
   }
 
@@ -2525,6 +2536,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         return;
       }
       if (isOutro) _markCurrentItemPlayedForOutroSkip();
+      // Kos TV: as with the manual skip, credits with missing episodes after
+      // them show their card instead of closing the player.
+      if (isOutro && _shouldShowKostvGap()) {
+        unawaited(_seekDirect(skipTo));
+        _presentKostvGap();
+        return;
+      }
       if (replaceSkipOutroWithNextUp && isOutro && _shouldShowNextUpOverlay()) {
         unawaited(_seekDirect(skipTo));
         _presentNextUpOverlay();
@@ -2613,6 +2631,18 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     final season = item.parentIndexNumber;
     final number = item.indexNumber;
     final seriesId = item.seriesId;
+    // Kos TV: another series' page (read for the last item) says nothing of
+    // this one, and its browser would show that one's missing episodes.
+    final previousGaps = _kostvGaps;
+    if (previousGaps != null && _kostvGapsSeriesId != seriesId) {
+      _stopKostvGapWait();
+      _kostvGaps = null;
+      // After the frame: the closing episode browser may still listen to it.
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => previousGaps.dispose(),
+      );
+    }
+    _kostvGapsSeriesId = seriesId;
     if (season == null || season < 1 || number == null || seriesId == null) {
       return;
     }
@@ -2975,6 +3005,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
   }
 
+  /// Kos TV: "watch the next one" pressed on a card is the viewer being
+  /// here, so it doesn't ask whether they're still watching.
+  void _watchNextFromCard() {
+    _noteViewerActivity();
+    unawaited(_handleNextUpPlay());
+  }
+
   void _handleNextUpDismiss() {
     _suppressBackNavigation(duration: const Duration(milliseconds: 500));
     _manager.suppressAutoNext = false;
@@ -2983,6 +3020,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _nextUpDismissed = true;
     });
   }
+
+  static const _episodeOverMargin = Duration(seconds: 3);
+
+  /// Kos TV: the episode under the card is over, so closing the card leaves
+  /// nothing to watch.
+  bool get _nextUpEpisodeOver =>
+      _endedHeld || _state.duration - _state.position < _episodeOverMargin;
 
   void _handleNextUpCancel() {
     _suppressBackNavigation(duration: const Duration(milliseconds: 500));
@@ -3195,6 +3239,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           ? _manager.stopAsFinished()
           : _manager.stop(userInitiated: false),
     );
+  }
+
+  /// Kos TV: a start made from a page opened over the player (a person from
+  /// its cast, then one of their films) takes over: playback stops here as on
+  /// leaving, saving where it was, and the launcher takes this route out from
+  /// under that page rather than ignoring the press.
+  Future<void> _handOverPlayback() async {
+    if (_isStopping || !mounted) return;
+    setState(() => _isStopping = true);
+    _cancelTemporarySpeed();
+    if (!PlatformDetection.isTV) _pipService.enableAutoPiP(false);
+    await _restoreSystemUiForExit();
+    await _manager.stop(userInitiated: false);
   }
 
   /// Shrinks the player into the bar along the bottom of the app. Playback
@@ -3464,7 +3521,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       return true;
     }
     if (_showNextUp) {
-      _handleNextUpDismiss();
+      // Kos TV: once the episode is over (or on the air date card, which
+      // only comes after it) there's nothing left to go back to: Back
+      // leaves the player rather than leaving its last frame on screen.
+      if (_endedHeld || (_nextUpItem == null && !_kostvGapShown)) {
+        _handleNextUpCancel();
+      } else {
+        _handleNextUpDismiss();
+      }
       return true;
     }
     if (_isSkipSegmentButtonVisible) {
@@ -4088,6 +4152,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
     if (PlatformDetection.isTV || fromRemote) {
       if (_showNextUp) {
+        // Kos TV: the card came up under a dialog (or the focus went back
+        // to the player when one closed): any arrow or OK takes the focus
+        // to it, so its buttons are always in reach.
+        final onCard =
+            primaryFocus == _tvNextUpPlayFocus ||
+            primaryFocus == _tvNextUpDismissFocus;
+        if (!onCard &&
+            _tvNextUpPlayFocus.context != null &&
+            (event.logicalKey.isDirectional ||
+                event.logicalKey.isSelectKey)) {
+          _tvNextUpPlayFocus.requestFocus();
+          return KeyEventResult.handled;
+        }
         switch (event.logicalKey) {
           case LogicalKeyboardKey.arrowLeft:
             if (primaryFocus == _tvNextUpDismissFocus) {
@@ -4588,7 +4665,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                         ),
                       _buildBufferingIndicator(),
                       _buildVolumeOverlay(),
-                      if (PlatformDetection.useMobileUi)
+                      // Kos TV: no brightness to show in a browser.
+                      if (PlatformDetection.useMobileUi &&
+                          !PlatformDetection.isWeb)
                         _buildBrightnessOverlay(),
                       _buildSkipIndicatorOverlay(),
                       if (_temporarySpeedActive && !PlatformDetection.isTV)
@@ -4645,16 +4724,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                           atLimit: _kostvGaps?.atLimit ?? false,
                           sentNote: _kostvGapNote,
                           onAsk: _handleKostvGapAsk,
-                          onWatchNext: _handleNextUpPlay,
+                          onWatchNext: _watchNextFromCard,
                           // TV dismisses with Back, so its X exits the
                           // player; so does any X once the episode is over,
-                          // when there is nothing left to go back to.
-                          onClose:
-                              PlatformDetection.isTV ||
-                                  _state.duration - _state.position <
-                                      const Duration(seconds: 3)
-                              ? _handleNextUpCancel
-                              : _handleNextUpDismiss,
+                          // when there is nothing left to go back to. Worked
+                          // out on the tap, not when the card was built.
+                          onClose: () => PlatformDetection.isTV ||
+                                  _nextUpEpisodeOver
+                              ? _handleNextUpCancel()
+                              : _handleNextUpDismiss(),
                           focusNode: _tvNextUpPlayFocus,
                           secondFocusNode: _tvNextUpDismissFocus,
                         )
@@ -4677,11 +4755,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
                                 )
                               : null,
                           timeoutMs: _prefs.get(UserPreferences.nextUpTimeout),
-                          onPlayNext: _handleNextUpPlay,
-                          // TV dismisses with Back, so its X exits the player.
-                          onDismiss: PlatformDetection.isTV
-                              ? _handleNextUpCancel
-                              : _handleNextUpDismiss,
+                          onPlayNext: _watchNextFromCard,
+                          // TV dismisses with Back, so its X exits the
+                          // player; so does any X once the episode has
+                          // ended held there.
+                          onDismiss: () => PlatformDetection.isTV || _endedHeld
+                              ? _handleNextUpCancel()
+                              : _handleNextUpDismiss(),
                           onTimeout:
                               _prefs.get(UserPreferences.autoplayNextEpisode)
                               ? _handleNextUpPlay
@@ -6473,6 +6553,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               tooltip: l10n.playerTooltipCastControls,
             ),
           if (PlatformDetection.useDesktopUi &&
+              !playerVolumeIgnoredByBrowser &&
               _castService.activeKind == null &&
               shows(OsdButton.volume))
             OsdButton.volume: _buildVolumeButton(
@@ -6869,6 +6950,14 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   // like mpv/vlc; only mobile attenuates the system volume.
   bool get _useSystemVolume => PlatformDetection.isMobile;
 
+  /// Kos TV: the player's own volume, kept between videos and visits: the
+  /// desktop's and the web's (the browser's player is one for the whole app,
+  /// so its level carries over and the controls must start from it), except
+  /// where the browser ignores it.
+  bool get _usesStoredPlayerVolume =>
+      PlatformDetection.isDesktop ||
+      (PlatformDetection.isWeb && !playerVolumeIgnoredByBrowser);
+
   Future<void> _changeVolumeBy(double delta) async {
     final castKind = _castService.activeKind;
     if (castKind != null) {
@@ -6877,6 +6966,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       await _setRemoteVolume(next);
       return;
     }
+    // Kos TV: nothing to change, so no indicator pretending to.
+    if (playerVolumeIgnoredByBrowser) return;
 
     if (_useSystemVolume) {
       final media3Backend = _activeMedia3Backend;
@@ -6962,9 +7053,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         if (PlatformDetection.isIOS) {
           await brightness.setAutoReset(true);
           final current = await brightness.system;
-          if (mounted) {
-            setState(() => _brightnessValue = current);
-          }
+          // Kos TV: left meanwhile, dispose has been: nothing to listen for.
+          if (!mounted) return;
+          setState(() => _brightnessValue = current);
           _brightnessListenerSub = brightness.onSystemScreenBrightnessChanged
               .listen((value) {
                 if (mounted && (value - _brightnessValue).abs() > 0.01) {
@@ -6974,9 +7065,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
         } else {
           await brightness.setAutoReset(false);
           final current = await brightness.application;
-          if (mounted) {
-            setState(() => _brightnessValue = current);
-          }
+          // Kos TV: left meanwhile, dispose has been: nothing to listen for.
+          if (!mounted) return;
+          setState(() => _brightnessValue = current);
           _brightnessListenerSub = brightness
               .onApplicationScreenBrightnessChanged
               .listen((value) {
@@ -7040,7 +7131,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   void _persistPlayerVolume() {
-    if (!PlatformDetection.isDesktop) return;
+    if (!_usesStoredPlayerVolume) return;
     _persistVolumeTimer?.cancel();
     _persistVolumeTimer = Timer(const Duration(milliseconds: 400), () {
       unawaited(_prefs.set(UserPreferences.playerVolume, _playerVolume));
@@ -7246,6 +7337,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     );
     if (_verticalDragIgnored) return;
     _verticalDragIsVolume = details.localPosition.dx > size.width / 2;
+    // Kos TV: a browser changes no screen brightness, and Safari on iOS no
+    // volume either: those halves don't show a level that changes nothing.
+    if (PlatformDetection.isWeb &&
+        (!_verticalDragIsVolume || playerVolumeIgnoredByBrowser)) {
+      _verticalDragIgnored = true;
+      return;
+    }
     if (_verticalDragIsVolume) {
       final baseVolume = PlatformDetection.isMobile
           ? _systemVolume
@@ -7334,7 +7432,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               200.0
         : (displayVolume * 100 / maxPlayerVolume).clamp(0.0, 1.0);
     final overlayLabel = usingMedia3Boost && _media3VolumeBoostLevel > 0
-        ? 'Volume +$_media3VolumeBoostLevel'
+        ? AppLocalizations.of(context).kostvVolumeBoost(_media3VolumeBoostLevel)
         : '${(displayVolume * 100).round()}%';
     final inverted =
         _prefs.get(UserPreferences.gestureIndicatorPlacement) ==
@@ -7715,6 +7813,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   void _toggleMute() {
+    if (playerVolumeIgnoredByBrowser) return;
     if (_osdVolume > 0) {
       _volumeBeforeMute = _osdVolume;
       _setOsdVolume(0);
@@ -7954,6 +8053,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   /// Kos TV: «Más», the options that aren't on the row.
   void _showMoreOptions(List<_OsdMoreEntry> entries) {
     final l10n = AppLocalizations.of(context);
+    final openedFor = _queue.currentItem;
     unawaited(() async {
       final picked = await TrackSelectorDialog.show(
         context,
@@ -7967,7 +8067,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
             ),
         ],
       );
-      if (picked == null || !mounted) return;
+      // Kos TV: its actions were the last item's.
+      if (picked == null || !mounted || !_isStillPlaying(openedFor)) return;
       entries[picked].action();
       _showControls();
     }());
@@ -8279,11 +8380,21 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
           },
         ),
       );
-      if (result == null || !mounted) return;
+      // Kos TV: the chapters were the last item's.
+      if (result == null || !mounted || !_isStillPlaying(item)) return;
       _suppressSeekPrompts();
       _seekDirect(Duration(microseconds: startTicks(chapters[result]) ~/ 10));
     }());
     _showControls();
+  }
+
+  /// Kos TV: whether [item] is still the one playing, for a dialog opened
+  /// over it that answers after another one may have started.
+  bool _isStillPlaying(dynamic item) {
+    final current = _queue.currentItem;
+    if (identical(current, item)) return true;
+    final currentId = _itemIdForQueueItem(current);
+    return currentId != null && currentId == _itemIdForQueueItem(item);
   }
 
   bool _canBrowseEpisodes(dynamic item) => canBrowseEpisodes(
@@ -8460,7 +8571,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       final name = (person['Name'] as String?) ?? '';
       final role = person['Role'] as String?;
       final type = person['Type'] as String?;
-      final subtitle = (role != null && role.isNotEmpty) ? role : (type ?? '');
+      final subtitle = (role != null && role.isNotEmpty)
+          ? role
+          : _personTypeLabel(type, AppLocalizations.of(context));
       final personId = person['Id']?.toString();
       final tag = person['PrimaryImageTag'] as String?;
 
@@ -8644,7 +8757,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     };
 
     final playbackSubtitle = _remotePlaybackState != null
-        ? '${_remotePlaybackState![0].toUpperCase()}${_remotePlaybackState!.substring(1)}'
+        ? '${_castStateName(_remotePlaybackState!, l10n)}'
               ' · ${formatPlaybackDuration(Duration(microseconds: _remotePositionTicks ~/ 10))}'
         : null;
 

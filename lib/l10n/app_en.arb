@@ -19681,5 +19681,22 @@
     "kostvCollectionAddFailed": "Couldn't add it to the collection",
     "@kostvCollectionAddFailed": {
         "description": "Kos TV: adding an item to a collection, or creating one for it, failed"
+    },
+  "kostvCastStatePlaying": "Playing",
+  "@kostvCastStatePlaying": {
+    "description": "Kos TV: state of the device the video is sent to (Google Cast, DLNA), playing"
+  },
+  "kostvCastStateBuffering": "Buffering",
+  "@kostvCastStateBuffering": {
+    "description": "Kos TV: state of the device the video is sent to (Google Cast, DLNA), buffering"
+  },
+  "kostvVolumeBoost": "Volume +{level}",
+  "@kostvVolumeBoost": {
+    "description": "Kos TV: player volume indicator once the volume is raised past 100 % (the extra boost level)",
+    "placeholders": {
+      "level": {
+        "type": "int"
+      }
     }
+  }
 }

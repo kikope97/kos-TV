@@ -77,9 +77,7 @@ import '../screens/livetv/live_tv_screen.dart';
 import '../screens/livetv/live_tv_series_recordings_screen.dart';
 import '../screens/playback/book_reader_screen.dart';
 import '../screens/playback/external_player_host_screen.dart';
-import '../screens/playback/next_up_screen.dart';
 import '../screens/playback/photo_player_screen.dart';
-import '../screens/playback/still_watching_screen.dart';
 import '../screens/playback/trailer_player_screen.dart';
 import '../screens/playback/video_player_screen.dart';
 import '../screens/playback/appletv_player_host_screen.dart';
@@ -889,20 +887,6 @@ final appRouter = GoRouter(
         final videoId = state.uri.queryParameters['videoId'];
         final url = state.uri.queryParameters['url'];
         return TrailerPlayerScreen(videoId: videoId, trailerUrl: url);
-      },
-    ),
-    GoRoute(
-      path: Destinations.nextUp,
-      builder: (context, state) {
-        final itemId = state.pathParameters['itemId']!;
-        return NextUpScreen(itemId: itemId);
-      },
-    ),
-    GoRoute(
-      path: Destinations.stillWatching,
-      builder: (context, state) {
-        final itemId = state.pathParameters['itemId']!;
-        return StillWatchingScreen(itemId: itemId);
       },
     ),
 

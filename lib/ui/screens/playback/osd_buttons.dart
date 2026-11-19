@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
@@ -7,6 +8,12 @@ import '../../../preference/button_layout.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/platform_detection.dart';
+
+/// Kos TV: Safari on an iPhone or an iPad ignores a page setting a video's
+/// volume (only the device's buttons change it), so the web player there
+/// offers no volume control that would pretend to.
+bool get playerVolumeIgnoredByBrowser =>
+    kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
 /// The buttons around the playback controls, the ones a user can switch off.
 /// Play, pause, seek and track skip are absent on purpose, the player always
@@ -45,7 +52,8 @@ enum OsdButton {
   bool get isOffered => switch (this) {
     OsdButton.castControls => false,
     OsdButton.cast => !PlatformDetection.isTV,
-    OsdButton.volume => PlatformDetection.useDesktopUi,
+    OsdButton.volume =>
+      PlatformDetection.useDesktopUi && !playerVolumeIgnoredByBrowser,
     OsdButton.orientation => PlatformDetection.isMobile,
     OsdButton.fullscreen => PlatformDetection.useDesktopUi,
     OsdButton.floatOnTop =>

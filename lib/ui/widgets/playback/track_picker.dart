@@ -100,6 +100,8 @@ abstract final class TrackPicker {
           ? prefs.get(UserPreferences.preferredSecondarySubtitleLanguage)
           : '',
     );
+    // Kos TV: another item may have started while the tracks were read.
+    if (!_stillCurrent(manager, item)) return;
     final streams = choices.streams;
     final showSlots =
         !audio &&
@@ -297,7 +299,13 @@ abstract final class TrackPicker {
         closeKeys: closeKeys,
       ),
     );
-    if (result == null || !context.mounted) return;
+    // Kos TV: the list was the last item's; with another one playing now,
+    // its indexes would land on the wrong track (and be kept as its pick).
+    if (result == null ||
+        !context.mounted ||
+        !_stillCurrent(manager, item)) {
+      return;
+    }
     if (delayLimits != null && result == options.length - 1) {
       final label = secondary ? l10n.secondaryDelayAdjustment : delayLabel;
       void onDelayChanged(double d) => secondary
@@ -417,6 +425,15 @@ abstract final class TrackPicker {
         () => manager.changeAudioTrack(streamIndex),
       );
     }
+  }
+
+  /// Kos TV: whether [item] is still the one playing.
+  static bool _stillCurrent(PlaybackManager manager, Object? item) {
+    final current = manager.queueService.currentItem;
+    if (identical(current, item)) return true;
+    return current is AggregatedItem &&
+        item is AggregatedItem &&
+        current.id == item.id;
   }
 
   static Future<bool> _runDirectly(
@@ -545,7 +562,10 @@ abstract final class TrackPicker {
       ),
     );
 
-    if (!context.mounted || result == null || result >= results.length) {
+    if (!context.mounted ||
+        result == null ||
+        result >= results.length ||
+        !_stillCurrent(manager, item)) {
       return;
     }
 
@@ -576,7 +596,9 @@ abstract final class TrackPicker {
           );
         },
       );
-      if (!context.mounted) return;
+      // Kos TV: downloaded for the item it was asked for; not put on
+      // another one that started meanwhile.
+      if (!context.mounted || !_stillCurrent(manager, item)) return;
 
       if (newStream != null) {
         final streamIndex = newStream['Index'] as int?;
