@@ -205,33 +205,34 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          downloadedEpisodesProvider(
-            'bb',
-          ).overrideWith((_) => Stream.value(episodes)),
+          // Kos TV: the list does not read the episodes, so the first
+          // read only lands after the show has opened.
+          downloadedEpisodesProvider('bb').overrideWith(
+            (_) => Stream.fromFuture(
+              Future.delayed(const Duration(milliseconds: 300), () => episodes),
+            ),
+          ),
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
-          // Watching the episodes up front has them loaded before the show
-          // opens, like the list does; an empty show closes itself.
-          home: Consumer(
-            builder: (context, ref, _) {
-              ref.watch(downloadedEpisodesProvider('bb'));
-              return TextButton(
-                autofocus: true,
-                onPressed: () => context.pushSettingsScreen(
-                  const SavedShowScreen(seriesId: 'bb', title: 'Breaking Bad'),
-                  autofocus: false,
-                ),
-                child: const Text('open'),
-              );
-            },
+          home: Builder(
+            builder: (context) => TextButton(
+              autofocus: true,
+              onPressed: () => context.pushSettingsScreen(
+                const SavedShowScreen(seriesId: 'bb', title: 'Breaking Bad'),
+                autofocus: false,
+              ),
+              child: const Text('open'),
+            ),
           ),
         ),
       ),
     );
     await tester.pump();
     await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
     // Initial focus retries on a short timer until the row attaches.
     await tester.pump(const Duration(seconds: 1));

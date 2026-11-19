@@ -494,6 +494,24 @@ void main() {
       expect(await localSynced('m'), isTrue);
     });
 
+    test('refreshing the metadata keeps whose progress it is', () async {
+      await watchedBy('person-a');
+      when(() => server.client.userId).thenReturn('person-b');
+
+      await sync.syncPlaybackProgress(server.client, serverId: 'server-a');
+      await sync.refreshMetadata(server.client, serverId: 'server-a');
+
+      final row = (await repo.getItem('m'))!;
+      expect(row.progressUserId, 'person-a');
+      expect(row.progressSynced, isFalse);
+      expect(row.playbackPositionTicks, 40 * _min);
+
+      // A later sync as B still leaves A's position alone.
+      await sync.syncPlaybackProgress(server.client, serverId: 'server-a');
+      expect(server.stopReports, isEmpty);
+      expect(server.ticks('m'), 10 * _min);
+    });
+
     test('a row from before the person was kept syncs as before', () async {
       await watchedBy(null);
       when(() => server.client.userId).thenReturn('person-b');

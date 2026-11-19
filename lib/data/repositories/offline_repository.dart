@@ -129,6 +129,36 @@ class OfflineRepository {
     ));
   }
 
+  /// Kos TV: replaces the stored metadata of [serverId]'s [itemId] in place,
+  /// leaving every other column as it is. [syncedPositionTicks], when given,
+  /// is only adopted while the row has nothing left to push, so a position
+  /// recorded meanwhile is not overwritten.
+  Future<void> refreshItemMetadata(
+    String itemId, {
+    required String serverId,
+    required String metadataJson,
+    int? syncedPositionTicks,
+  }) async {
+    await _db.transaction(() async {
+      await (_db.update(_db.downloadedItems)..where(
+            (t) => t.itemId.equals(itemId) & t.serverId.equals(serverId),
+          ))
+          .write(DownloadedItemsCompanion(metadataJson: Value(metadataJson)));
+      if (syncedPositionTicks == null) return;
+      await (_db.update(_db.downloadedItems)..where(
+            (t) =>
+                t.itemId.equals(itemId) &
+                t.serverId.equals(serverId) &
+                t.progressSynced.equals(true),
+          ))
+          .write(
+            DownloadedItemsCompanion(
+              playbackPositionTicks: Value(syncedPositionTicks),
+            ),
+          );
+    });
+  }
+
   /// Merges [patch] into the stored item's UserData, with a null value
   /// removing the key, so the offline UI shows a queued rating right away.
   Future<void> patchUserData(String itemId, Map<String, dynamic> patch) async {

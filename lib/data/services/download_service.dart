@@ -861,16 +861,23 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
     await _deleteEmptyDirectoriesUpTo(parent, offlineRoot);
   }
 
+  /// Kos TV: [kept] are files other downloads still point at; they are left
+  /// alone, subtitles included, should a candidate path collide with one.
   Future<void> _deleteCandidateFileArtifacts(
     Directory dir,
     AggregatedItem item,
-    Directory offlineRoot,
-  ) async {
+    Directory offlineRoot, {
+    Set<String> kept = const {},
+  }) async {
     final candidatePaths = _candidateSavePaths(
       dir,
       item,
-    ).toList(growable: false);
-    final fileNameBases = candidatePaths.map(_fileNameBaseFromPath).toSet();
+    ).where((path) => !kept.contains(path)).toList(growable: false);
+    final keptBases = kept.map(_fileNameBaseFromPath).toSet();
+    final fileNameBases = candidatePaths
+        .map(_fileNameBaseFromPath)
+        .where((base) => !keptBases.contains(base))
+        .toSet();
 
     for (final savePath in candidatePaths) {
       final file = File(savePath);
@@ -3372,26 +3379,26 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
           return true;
 
         case 'Season':
-          final seasonImageIds = await _relatedImageIds(item);
-          if (await targetDir.exists()) {
-            await targetDir.delete(recursive: true);
-            final seriesDir = targetDir.parent;
-            if (await seriesDir.exists()) {
-              final remaining = await seriesDir.list().length;
-              if (remaining == 0) await seriesDir.delete();
-            }
-          }
-          await _deleteImagesForIds(seasonImageIds, imageDir);
-          await _offlineRepo.deleteSeasonItems(item.id);
-          return true;
-
         case 'Series':
-          final seriesImageIds = await _relatedImageIds(item);
-          final seriesName = _sanitizePath(item.seriesName ?? item.name);
-          final seriesDir = Directory('${downloadsDir.path}/TV/$seriesName');
-          if (await seriesDir.exists()) await seriesDir.delete(recursive: true);
-          await _deleteImagesForIds(seriesImageIds, imageDir);
-          await _offlineRepo.deleteSeriesItems(item.id);
+          // Kos TV: removed file by file from the episodes' own rows. A
+          // season item builds no folder of its own (its episodes sit under
+          // TV/<series>/Season NN), and a series folder is named only after
+          // the series, so another series of the same name can share it.
+          final imageIds = await _relatedImageIds(item);
+          // Folders go once they are left empty; nothing is deleted
+          // wholesale, as a download still in progress has no file path yet.
+          await _deleteEpisodeFiles(
+            item.type == 'Season'
+                ? await _offlineRepo.getSeasonEpisodes(item.id)
+                : await _offlineRepo.getSeriesEpisodes(item.id),
+            downloadsDir,
+          );
+          await _deleteImagesForIds(imageIds, imageDir);
+          if (item.type == 'Season') {
+            await _offlineRepo.deleteSeasonItems(item.id);
+          } else {
+            await _offlineRepo.deleteSeriesItems(item.id);
+          }
           return true;
 
         default:
@@ -3436,6 +3443,44 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
     final path = row?.localFilePath;
     if (path == null || path.isEmpty) return;
     await _deleteFileArtifacts(path);
+  }
+
+  /// Kos TV: deletes the files of [episodes], with their subtitles and the
+  /// folders they leave empty, skipping any file another download still
+  /// points at (a series of the same name shares the folder).
+  Future<void> _deleteEpisodeFiles(
+    List<DownloadedItem> episodes,
+    Directory offlineRoot,
+  ) async {
+    final ids = {for (final row in episodes) row.itemId};
+    final kept = {
+      for (final row in await _offlineRepo.getItems())
+        if (!ids.contains(row.itemId))
+          if (row.localFilePath case final path? when path.isNotEmpty) path,
+    };
+    for (final row in episodes) {
+      if (!kept.contains(row.localFilePath)) await _deleteStoredFile(row);
+      // Also the paths its current metadata builds, for a file the row lost
+      // track of, as deleting a single episode does.
+      final Object? decoded;
+      try {
+        decoded = jsonDecode(row.metadataJson);
+      } catch (_) {
+        continue;
+      }
+      if (decoded is! Map<String, dynamic>) continue;
+      final episode = AggregatedItem(
+        id: row.itemId,
+        serverId: row.serverId,
+        rawData: decoded,
+      );
+      await _deleteCandidateFileArtifacts(
+        Directory('${offlineRoot.path}/${_buildSubFolder(episode)}'),
+        episode,
+        offlineRoot,
+        kept: kept,
+      );
+    }
   }
 
   /// Whether another download's file sits under [dir], which a movie's
