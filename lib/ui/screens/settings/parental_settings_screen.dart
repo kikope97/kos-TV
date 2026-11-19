@@ -9,8 +9,11 @@ import '../../util/error_message.dart';
 import '../../widgets/settings/settings_section_header.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/parental_rating_severity.dart';
+import '../../../util/pin_code_util.dart';
 import '../../../util/platform_detection.dart';
 import '../../widgets/adaptive/adaptive_list_section.dart';
+import '../../widgets/kostv_kids_mode_gate.dart';
+import '../../widgets/pin_entry_dialog.dart';
 import '../../widgets/settings/preference_binding.dart';
 import '../../widgets/settings/preference_tiles.dart';
 import '../../widgets/settings/clean_settings_typography.dart';
@@ -30,6 +33,14 @@ class _ParentalSettingsScreenState extends State<ParentalSettingsScreen> {
     debugLabel: 'ParentalFirstRating',
   );
   final List<String> _serverRatings = [];
+
+  /// Kos TV: this screen's own PIN, apart from the profile's. Null with
+  /// nobody signed in, where there is no one to keep it for.
+  final PinCodeUtil? _parentalPin = kostvParentalPin();
+  final FocusNode _parentalPinFocusNode = FocusNode(
+    debugLabel: 'ParentalPin',
+  );
+  bool _pinBusy = false;
   bool _loadingRatings = true;
   String? _ratingsError;
 
@@ -46,6 +57,7 @@ class _ParentalSettingsScreenState extends State<ParentalSettingsScreen> {
   @override
   void dispose() {
     _firstRatingFocusNode.dispose();
+    _parentalPinFocusNode.dispose();
     _blockedRatings.dispose();
     super.dispose();
   }
@@ -181,6 +193,104 @@ class _ParentalSettingsScreenState extends State<ParentalSettingsScreen> {
     }
     _blockedRatings.value = current.join(',');
     setState(() {});
+  }
+
+  /// Kos TV: sets, changes or removes the Parental controls PIN. Changing or
+  /// removing it asks for the current one first. Focus goes back to the
+  /// section's first row, which the swap of rows would otherwise leave
+  /// nowhere on a TV.
+  Future<void> _editParentalPin({required bool remove}) async {
+    final pin = _parentalPin;
+    if (pin == null || _pinBusy) return;
+    _pinBusy = true;
+    try {
+      final had = pin.isPinEnabled;
+      if (had && !await kostvAskDevicePin(context, pin)) return;
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
+      final messenger = ScaffoldMessenger.maybeOf(context);
+      if (remove) {
+        await pin.removePin();
+      } else {
+        final saved = await PinEntryDialog.show(
+          context,
+          mode: PinEntryMode.set,
+          onPinSet: pin.setPin,
+        );
+        if (!saved) return;
+      }
+      if (!mounted) return;
+      setState(() {});
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text(
+            remove ? l10n.kostvParentalPinRemoved : l10n.kostvParentalPinSaved,
+          ),
+        ),
+      );
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && PlatformDetection.isTV) {
+          _parentalPinFocusNode.requestFocus();
+        }
+      });
+    } finally {
+      _pinBusy = false;
+    }
+  }
+
+  Widget _parentalPinTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    FocusNode? focusNode,
+  }) {
+    return TvFocusHighlight(
+      builder: (context, focused) => ListTile(
+        focusNode: focusNode,
+        focusColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+        leading: Icon(icon),
+        title: Text(title),
+        subtitle: Text(subtitle),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  List<Widget> _parentalPinSection(AppLocalizations l10n) {
+    final pin = _parentalPin;
+    if (pin == null) return const [];
+    return [
+      SettingsSectionHeader(l10n.kostvParentalPinSection),
+      adaptiveListSection(
+        children: pin.isPinEnabled
+            ? [
+                _parentalPinTile(
+                  icon: Icons.edit,
+                  title: l10n.changePin,
+                  subtitle: l10n.kostvParentalPinChangeSubtitle,
+                  focusNode: _parentalPinFocusNode,
+                  onTap: () => _editParentalPin(remove: false),
+                ),
+                _parentalPinTile(
+                  icon: Icons.delete,
+                  title: l10n.removePin,
+                  subtitle: l10n.kostvParentalPinRemoveSubtitle,
+                  onTap: () => _editParentalPin(remove: true),
+                ),
+              ]
+            : [
+                _parentalPinTile(
+                  icon: Icons.pin,
+                  title: l10n.kostvParentalPinSet,
+                  subtitle: l10n.kostvParentalPinSetSubtitle,
+                  focusNode: _parentalPinFocusNode,
+                  onTap: () => _editParentalPin(remove: false),
+                ),
+              ],
+      ),
+    ];
   }
 
   Widget _ratingTile(
@@ -332,6 +442,7 @@ class _ParentalSettingsScreenState extends State<ParentalSettingsScreen> {
                     ),
                   ],
                 ),
+                ..._parentalPinSection(l10n),
               ],
             );
           },

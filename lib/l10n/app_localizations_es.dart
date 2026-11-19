@@ -21178,4 +21178,27 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvUntitled => 'Sin título';
+
+  @override
+  String get kostvParentalPinSection => 'PIN del control parental';
+
+  @override
+  String get kostvParentalPinSet => 'Poner un PIN propio';
+
+  @override
+  String get kostvParentalPinSetSubtitle =>
+      'Aparte del PIN del perfil, para que solo quien lo sepa cambie estos límites en este dispositivo. Sin él, se pide el del perfil, si tiene.';
+
+  @override
+  String get kostvParentalPinChangeSubtitle => 'Primero se pide el PIN actual';
+
+  @override
+  String get kostvParentalPinRemoveSubtitle =>
+      'Primero se pide el PIN actual; después vuelve a pedirse el del perfil, si tiene';
+
+  @override
+  String get kostvParentalPinSaved => 'PIN del control parental guardado';
+
+  @override
+  String get kostvParentalPinRemoved => 'PIN del control parental quitado';
 }

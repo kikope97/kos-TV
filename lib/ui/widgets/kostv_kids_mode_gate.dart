@@ -33,8 +33,8 @@ Future<bool> kostvKidsModeLetsOut(BuildContext context) async {
   return passed;
 }
 
-/// Kos TV: the Kids Mode PIN, asked with its wait after wrong guesses. Typed
-/// right, the wrong guesses before it are forgotten, so the child's tries
+/// Kos TV: a PIN kept on the device (Kids Mode, Parental controls), asked
+/// with its wait after wrong guesses. Typed right, the wrong guesses before it are forgotten, so the child's tries
 /// don't keep costing the parent a wait.
 Future<bool> _askKidsModePin(BuildContext context, PinCodeUtil pin) async {
   final passed = await PinEntryDialog.show(
@@ -147,4 +147,30 @@ Future<bool> kostvAccountPinLetsIn(BuildContext context) async {
     mode: PinEntryMode.verify,
     onVerifyAsync: guard.verify,
   );
+}
+
+/// Kos TV: the Parental controls PIN of whoever is signed in, kept on this
+/// device as the ratings filter it guards is. Null with nobody signed in.
+PinCodeUtil? kostvParentalPin() {
+  final getIt = GetIt.instance;
+  if (!getIt.isRegistered<PreferenceStore>()) return null;
+  final userId = getIt.isRegistered<SessionRepository>()
+      ? getIt<SessionRepository>().activeUserId ?? ''
+      : '';
+  if (userId.isEmpty) return null;
+  return PinCodeUtil.parental(getIt<PreferenceStore>(), userId);
+}
+
+/// Kos TV: asks for [pin], a PIN kept on the device, with its wait after
+/// wrong guesses.
+Future<bool> kostvAskDevicePin(BuildContext context, PinCodeUtil pin) =>
+    _askKidsModePin(context, pin);
+
+/// Kos TV: what opens Parental controls asks first for their own PIN, when
+/// one is set, which whoever uses the profile needn't know. Without one it
+/// asks for the account's PIN, as before ([kostvAccountPinLetsIn]).
+Future<bool> kostvParentalControlsLetIn(BuildContext context) async {
+  final pin = kostvParentalPin();
+  if (pin == null || !pin.isPinEnabled) return kostvAccountPinLetsIn(context);
+  return _askKidsModePin(context, pin);
 }

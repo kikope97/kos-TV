@@ -119,10 +119,11 @@ class _BookCategoryScreenState extends State<BookCategoryScreen> {
     final prefs = GetIt.instance<UserPreferences>();
     return ListenableBuilder(
       listenable: prefs,
-      // Turning Discover off while it's open drops back to the titles.
+      // Turning Discover off while it's open drops back to the titles. Kos
+      // TV: so does Kids Mode, which leaves it out.
       builder: (context, _) => _buildKind(
         _kind == BookCategoryKind.discover &&
-                !prefs.get(UserPreferences.showBookDiscoverTab)
+                !prefs.effectiveShowBookDiscoverTab
             ? BookCategoryKind.titles
             : _kind,
       ),

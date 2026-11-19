@@ -35870,6 +35870,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Untitled'**
   String get kostvUntitled;
+
+  /// Kos TV: header and search entry for the optional PIN that guards Parental controls
+  ///
+  /// In en, this message translates to:
+  /// **'Parental controls PIN'**
+  String get kostvParentalPinSection;
+
+  /// Kos TV: sets a PIN just for Parental controls
+  ///
+  /// In en, this message translates to:
+  /// **'Set its own PIN'**
+  String get kostvParentalPinSet;
+
+  /// Kos TV: what the Parental controls PIN is for
+  ///
+  /// In en, this message translates to:
+  /// **'Separate from the profile\'s PIN, so only whoever knows it can change these limits on this device. Without it, the profile\'s PIN is asked for, if it has one.'**
+  String get kostvParentalPinSetSubtitle;
+
+  /// Kos TV: changing the Parental controls PIN asks for the current one
+  ///
+  /// In en, this message translates to:
+  /// **'Asks for the current PIN first'**
+  String get kostvParentalPinChangeSubtitle;
+
+  /// Kos TV: removing the Parental controls PIN
+  ///
+  /// In en, this message translates to:
+  /// **'Asks for the current PIN first; then the profile\'s PIN is asked for again, if it has one'**
+  String get kostvParentalPinRemoveSubtitle;
+
+  /// Kos TV: the Parental controls PIN was set or changed
+  ///
+  /// In en, this message translates to:
+  /// **'Parental controls PIN saved'**
+  String get kostvParentalPinSaved;
+
+  /// Kos TV: the Parental controls PIN was removed
+  ///
+  /// In en, this message translates to:
+  /// **'Parental controls PIN removed'**
+  String get kostvParentalPinRemoved;
 }
 
 class _AppLocalizationsDelegate

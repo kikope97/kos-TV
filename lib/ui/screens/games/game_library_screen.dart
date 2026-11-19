@@ -163,11 +163,18 @@ class _GameLibraryScreenState extends State<GameLibraryScreen>
         leading: BackButton(onPressed: () => context.popOrHome()),
         title: Text(widget.title ?? l10n.games),
         actions: [
+          // Kos TV: the games stay in Kids Mode, signing in to RomM doesn't.
           if (_rommAvailable)
-            TextButton.icon(
-              onPressed: () => context.push(Destinations.rommAccount),
-              icon: const Icon(Icons.account_circle_outlined),
-              label: Text(l10n.rommAccount),
+            ListenableBuilder(
+              listenable: _prefs,
+              builder: (context, _) =>
+                  _prefs.get(UserPreferences.kidsModeEnabled)
+                  ? const SizedBox.shrink()
+                  : TextButton.icon(
+                      onPressed: () => context.push(Destinations.rommAccount),
+                      icon: const Icon(Icons.account_circle_outlined),
+                      label: Text(l10n.rommAccount),
+                    ),
             ),
         ],
       ),

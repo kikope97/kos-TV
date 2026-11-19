@@ -19,7 +19,14 @@ bool kidsModeBlocksPath(String path) =>
     path.startsWith(Destinations.kostvDiscover) ||
     path.startsWith(Destinations.kostvMusic) ||
     // Kos TV: the calendar lists every upcoming title, unfiltered.
-    path.startsWith(Destinations.calendar);
+    path.startsWith(Destinations.calendar) ||
+    // Kos TV: book Discover (Open Library, LibriVox) is outside catalogs no
+    // parental rating reaches. The games stay; their RomM account doesn't.
+    _bookDiscoverPath.hasMatch(path) ||
+    path.startsWith(Destinations.rommAccount);
+
+/// A book library's Discover, `/books/<library>/discover`.
+final _bookDiscoverPath = RegExp(r'^/books/[^/]+/discover/?$');
 
 /// Surfaces that genuinely need the server. Everything else works offline
 /// against the downloads catalog.
