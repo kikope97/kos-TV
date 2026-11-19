@@ -268,21 +268,44 @@ class _NarrowShell extends StatelessWidget {
           children: [Expanded(child: child), const AdminUnsavedBar()],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        // The rail's tint, not the theme's secondary container.
-        indicatorColor: theme.colorScheme.primary.withValues(alpha: 0.14),
-        selectedIndex: index < 0 ? 0 : index,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        onDestinationSelected: (i) =>
-            context.go(Destinations.adminGroupPath(adminGroups[i].id)),
-        destinations: [
-          for (final g in adminGroups)
-            NavigationDestination(
-              icon: Icon(g.icon),
-              selectedIcon: Icon(g.icon, color: theme.colorScheme.primary),
-              label: g.title(l10n),
+      // Kos TV: the labels shrink together until the longest one fits its
+      // tab on one line («Reproducción» broke mid-word on phones).
+      bottomNavigationBar: LayoutBuilder(
+        builder: (context, constraints) {
+          final padding = MediaQuery.paddingOf(context);
+          final slot =
+              (constraints.maxWidth - padding.left - padding.right) /
+              adminGroups.length;
+          final labelStyle = _navBarLabelStyle(theme);
+          final fontSize = adminNavLabelFontSize(
+            context,
+            [for (final g in adminGroups) g.title(l10n)],
+            labelStyle.resolve(const {WidgetState.selected})!,
+            slot - 4,
+            // The bar never lets its labels grow past this.
+            maxTextScale: 1.3,
+          );
+          return NavigationBar(
+            // The rail's tint, not the theme's secondary container.
+            indicatorColor: theme.colorScheme.primary.withValues(alpha: 0.14),
+            selectedIndex: index < 0 ? 0 : index,
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            labelTextStyle: WidgetStateProperty.resolveWith(
+              (states) =>
+                  labelStyle.resolve(states)?.copyWith(fontSize: fontSize),
             ),
-        ],
+            onDestinationSelected: (i) =>
+                context.go(Destinations.adminGroupPath(adminGroups[i].id)),
+            destinations: [
+              for (final g in adminGroups)
+                NavigationDestination(
+                  icon: Icon(g.icon),
+                  selectedIcon: Icon(g.icon, color: theme.colorScheme.primary),
+                  label: g.title(l10n),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -297,6 +320,14 @@ class _GroupRail extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
+    // Kos TV: the labels shrink together until the longest one fits on one
+    // line, instead of «Reproducción» being cut to «Reproducc…».
+    final labelSize = adminNavLabelFontSize(
+      context,
+      [for (final group in adminGroups) group.title(l10n)],
+      _RailButton.labelStyle,
+      _RailButton.width - 4,
+    );
     return Semantics(
       container: true,
       label: l10n.adminAreasLabel,
@@ -320,6 +351,7 @@ class _GroupRail extends StatelessWidget {
               _RailButton(
                 icon: group.icon,
                 label: group.title(l10n),
+                labelSize: labelSize,
                 selected: group == selected,
                 // Wide windows show the page list beside the rail, so a group
                 // opens straight on its first page.
@@ -336,12 +368,22 @@ class _RailButton extends StatelessWidget {
   const _RailButton({
     required this.icon,
     required this.label,
+    required this.labelSize,
     required this.selected,
     required this.onTap,
   });
 
+  /// Kos TV: as wide as the rail allows, so labels keep as much size as
+  /// they can.
+  static const width = 64.0;
+  static const labelStyle = TextStyle(
+    fontSize: 10.5,
+    fontWeight: FontWeight.w500,
+  );
+
   final IconData icon;
   final String label;
+  final double labelSize;
   final bool selected;
   final VoidCallback onTap;
 
@@ -363,7 +405,7 @@ class _RailButton extends StatelessWidget {
             borderRadius: AppRadius.circular(10),
             onTap: onTap,
             child: SizedBox(
-              width: 60,
+              width: width,
               height: 58,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -374,9 +416,8 @@ class _RailButton extends StatelessWidget {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
+                    style: labelStyle.copyWith(
+                      fontSize: labelSize,
                       color: color,
                     ),
                   ),
@@ -657,4 +698,54 @@ class _AdminShellScrollBehavior extends MaterialScrollBehavior {
   ) {
     return child;
   }
+}
+
+/// Kos TV: the bar's own label style, as Material draws it when the theme
+/// sets none, so only its size changes.
+WidgetStateProperty<TextStyle?> _navBarLabelStyle(ThemeData theme) {
+  final themed = theme.navigationBarTheme.labelTextStyle;
+  if (themed != null) return themed;
+  final scheme = theme.colorScheme;
+  final base = theme.textTheme.labelMedium ?? const TextStyle(fontSize: 12);
+  return WidgetStateProperty.resolveWith(
+    (states) => base.apply(
+      color: states.contains(WidgetState.disabled)
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.38)
+          : states.contains(WidgetState.selected)
+          ? scheme.onSurface
+          : scheme.onSurfaceVariant,
+    ),
+  );
+}
+
+/// Kos TV: the font size, at most [style]'s, at which every one of [labels]
+/// fits on one line in [width], so the admin area's group bar and rail never
+/// break or cut a label in any language or text size.
+@visibleForTesting
+double adminNavLabelFontSize(
+  BuildContext context,
+  Iterable<String> labels,
+  TextStyle style,
+  double width, {
+  double maxTextScale = double.infinity,
+}) {
+  final size = style.fontSize ?? 14;
+  final effective = DefaultTextStyle.of(context).style.merge(style);
+  final scaler = MediaQuery.textScalerOf(
+    context,
+  ).clamp(maxScaleFactor: maxTextScale);
+  var widest = 0.0;
+  for (final label in labels) {
+    final painter = TextPainter(
+      text: TextSpan(text: label, style: effective),
+      textDirection: Directionality.of(context),
+      textScaler: scaler,
+      maxLines: 1,
+    )..layout();
+    if (painter.width > widest) widest = painter.width;
+    painter.dispose();
+  }
+  if (widest <= width || widest == 0) return size;
+  // Rounded down a little, since glyph widths don't scale exactly.
+  return size * width / widest * 0.98;
 }
