@@ -217,6 +217,9 @@ VoidCallback showMusicLoading(
 }
 
 void _sayCantPlay(ScaffoldMessengerState? messenger, AppLocalizations l10n) {
+  // Kos TV: a song that got as far as starting and failed there is told by
+  // the player, with its retry; this is for what failed before that.
+  if (KostvNowPlaying.instance.tellsStartFailure()) return;
   messenger
     ?..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(l10n.kostvMusicCantPlay)));

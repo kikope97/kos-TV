@@ -331,6 +331,16 @@ class KostvMovieRequestController extends KostvRequestController {
   @override
   Future<void> read({bool initial = false}) async {
     if (!initial) return _readMovie();
+    // Kos TV: how fast it could come down is asked along with the page, so
+    // the button doesn't wait for it afterwards; the service shares the call
+    // and keeps its answer for the check below. Not for whoever is at (or
+    // not yet known to be under) their limit, where it is still saved.
+    final me = service.me;
+    if (me != null && !me.atLimit) {
+      unawaited(
+        service.movieAvailability(tmdbId).then<void>((_) {}, onError: (_) {}),
+      );
+    }
     // Who the person is now (a quick call) along with the page: at their
     // limit, the costly check below isn't made.
     await Future.wait([service.refreshAccess(), _readMovie(initial: true)]);

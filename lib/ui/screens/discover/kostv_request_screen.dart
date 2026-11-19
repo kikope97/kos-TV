@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
+import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
@@ -290,7 +291,11 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     if (error != null) {
       return error.status == 429
           ? l10n.kostvRequestTooFast
-          : l10n.kostvRequestFailed;
+          : kostvStremfinErrorText(
+              l10n,
+              error,
+              fallback: l10n.kostvRequestFailed,
+            );
     }
     final result = notice.result!;
     return switch (result.outcome) {

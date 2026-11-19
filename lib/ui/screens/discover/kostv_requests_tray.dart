@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/services/stremfin/stremfin_client.dart';
+import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_inbox.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
@@ -237,9 +238,17 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
       await _service.withdrawRequest(request.id);
       if (!mounted) return;
       _snack(l10n.kostvRequestWithdrawn);
-    } on StremfinException {
+    } on StremfinException catch (e) {
       if (!mounted) return;
-      _snack(l10n.kostvRequestFailed);
+      _snack(
+        e.status == 429
+            ? l10n.kostvRequestTooFast
+            : kostvStremfinErrorText(
+                l10n,
+                e,
+                fallback: l10n.kostvRequestFailed,
+              ),
+      );
       unawaited(_inbox.sync());
     }
   }

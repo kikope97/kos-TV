@@ -220,6 +220,18 @@ class KostvNowPlaying extends ChangeNotifier {
     });
   }
 
+  /// Kos TV: whether this song's own failed start is being told by the
+  /// player (with its retry), so whoever asked to play it doesn't tell it a
+  /// second time.
+  bool tellsStartFailure() {
+    final manager = _manager;
+    final song = item;
+    if (manager == null || song == null || song.type != 'Audio') return false;
+    final state = manager.bringupState;
+    if (state.phase != PlaybackBringupPhase.failed) return false;
+    return state.itemId == null || state.itemId == song.id;
+  }
+
   void _tellFailure(AggregatedItem song) {
     final context = appRouter.routerDelegate.navigatorKey.currentContext;
     if (context == null || !context.mounted) return;
