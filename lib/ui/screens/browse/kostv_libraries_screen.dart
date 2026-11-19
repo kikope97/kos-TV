@@ -97,7 +97,10 @@ class _KostvLibrariesScreenState extends State<KostvLibrariesScreen> {
           .clientForServerOrActive(null);
       // The person too: a child's profile on the same server mustn't see
       // the libraries a parent's showed.
-      return '${client.baseUrl}|${client.userId}';
+      // Kos TV: and the ratings blocked on this device, so a picture
+      // chosen before one was blocked isn't shown after.
+      return '${client.baseUrl}|${client.userId}|'
+          '${_prefs.get(UserPreferences.blockedParentalRatings)}';
     } catch (_) {
       return '';
     }
@@ -194,6 +197,11 @@ class _KostvLibrariesScreenState extends State<KostvLibrariesScreen> {
     } catch (_) {}
   }
 
+  void _retry() {
+    setState(() => _loading = true);
+    unawaited(_load());
+  }
+
   void _open(AggregatedLibrary lib) => context.push(
     libraryRoute(lib.id, lib.collectionType, lib.name, serverId: lib.serverId),
   );
@@ -215,14 +223,30 @@ class _KostvLibrariesScreenState extends State<KostvLibrariesScreen> {
             _title(context, null),
             Expanded(
               child: Center(
-                child: Text(
-                  _failed
-                      ? l10n.kostvLibrariesUnavailable
-                      : l10n.kostvLibrariesEmpty,
-                  style: TextStyle(
-                    color: AppColorScheme.onSurface.withValues(alpha: 0.6),
-                    fontSize: 18,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _failed
+                          ? l10n.kostvLibrariesUnavailable
+                          : l10n.kostvLibrariesEmpty,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColorScheme.onSurface.withValues(alpha: 0.6),
+                        fontSize: 18,
+                      ),
+                    ),
+                    // Kos TV: tried again from here, with the focus on it on
+                    // the TV (there's nothing else on the page to hold it).
+                    if (_failed) ...[
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        autofocus: !phone,
+                        onPressed: _retry,
+                        child: Text(l10n.retry),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),

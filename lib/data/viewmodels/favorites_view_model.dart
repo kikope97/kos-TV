@@ -6,17 +6,21 @@ import '../../preference/preference_constants.dart';
 import '../../preference/user_preferences.dart';
 import '../../util/network_errors.dart';
 import '../models/aggregated_item.dart';
-import '../repositories/mdblist_repository.dart';
+import '../services/blocked_content_gate.dart';
 import '../services/moonbase_endpoint.dart';
 import '../services/user_data_sync.dart';
 import '../utils/blocked_ratings.dart';
 
 enum FavoritesState { loading, ready, error }
 
+/// The favourites, one row per kind.
+///
+/// Kos TV: the page is always rows. The grid view, the image type and
+/// poster size, the focused item's extra ratings and Silo's watchlist went
+/// with the pages that used them.
 class FavoritesViewModel extends ChangeNotifier {
   final MediaServerClient _client;
   final UserPreferences _prefs;
-  final MdbListRepository _mdbListRepository;
 
   static const _rowLimit = 30;
   static const _prefKey = 'favorites';
@@ -33,7 +37,6 @@ class FavoritesViewModel extends ChangeNotifier {
     FavoriteTypeFilter.musicArtist,
     FavoriteTypeFilter.musicAlbum,
     FavoriteTypeFilter.audio,
-    FavoriteTypeFilter.watchlist,
   ];
 
   FavoritesState _state = FavoritesState.loading;
@@ -41,10 +44,6 @@ class FavoritesViewModel extends ChangeNotifier {
 
   Map<FavoriteTypeFilter, List<AggregatedItem>> _rowItems = {};
   Map<FavoriteTypeFilter, List<AggregatedItem>> get rowItems => _rowItems;
-
-  int get totalCount => _viewStyle == FavoritesViewStyle.home
-      ? _rowItems.values.fold(0, (sum, list) => sum + list.length)
-      : _gridTotalCount;
 
   late LibrarySortBy _sortBy;
   LibrarySortBy get sortBy => _sortBy;
@@ -68,44 +67,19 @@ class FavoritesViewModel extends ChangeNotifier {
   late SortDirection _sortDirection;
   SortDirection get sortDirection => _sortDirection;
 
-  late ImageType _imageType;
-  ImageType get imageType => _imageType;
-
-  late PosterSize _posterSize;
-  PosterSize get posterSize => _posterSize;
-
   Object? _error;
   Object? get error => _error;
   bool _isNetworkError = false;
   bool get isNetworkError => _isNetworkError;
 
-  AggregatedItem? _focusedItem;
-  AggregatedItem? get focusedItem => _focusedItem;
-
-  Map<String, double> _focusedRatings = const {};
-  Map<String, double> get focusedRatings => _focusedRatings;
-
-  ImageApi get imageApi => _client.imageApi;
-
-  late FavoritesViewStyle _viewStyle;
-  FavoritesViewStyle get viewStyle => _viewStyle;
-
-  List<AggregatedItem> _gridItems = const [];
-  List<AggregatedItem> get gridItems => _gridItems;
-
-  int _gridTotalCount = 0;
-  int get gridTotalCount => _gridTotalCount;
-
-  bool _loadingMoreGrid = false;
-  bool get loadingMoreGrid => _loadingMoreGrid;
-
   /// Rows are paged from what the server handed over rather than from what is
   /// on screen, because a page thinned by the ratings filter would otherwise
   /// rewind the cursor and ask for rows it already has.
-  int _gridFetchedCount = 0;
+  ///
+  /// Kos TV: counted as the row was when read, the favourites taken off
+  /// since included; [loadMoreForType] works out where the server's list
+  /// now goes on.
   final Map<FavoriteTypeFilter, int> _rowFetchedCounts = {};
-
-  bool get hasMoreGrid => _gridFetchedCount < _gridTotalCount;
 
   final Map<FavoriteTypeFilter, int> _rowTotalCounts = {};
   final Set<FavoriteTypeFilter> _inFlightPagingRowTypes = {};
@@ -118,17 +92,10 @@ class FavoritesViewModel extends ChangeNotifier {
   FavoritesViewModel({
     required MediaServerClient client,
     required UserPreferences prefs,
-    required MdbListRepository mdbListRepository,
   }) : _client = client,
-       _prefs = prefs,
-       _mdbListRepository = mdbListRepository {
+       _prefs = prefs {
     _sortBy = _prefs.get(UserPreferences.librarySortBy(_prefKey));
     _sortDirection = _prefs.get(UserPreferences.librarySortDirection(_prefKey));
-    _imageType = _prefs.get(UserPreferences.libraryImageType(_prefKey));
-    _posterSize = _prefs.resolveScreenPosterSize(
-      UserPreferences.favoritesPosterSize,
-    );
-    _viewStyle = _prefs.get(UserPreferences.favoritesViewStyle);
     _byMarked = _prefs.get(UserPreferences.kostvFavoritesByMarked);
     userDataSync.addListener(_onUserDataChanged);
   }
@@ -150,12 +117,6 @@ class FavoritesViewModel extends ChangeNotifier {
       changed = true;
     }
 
-    final grid = userDataSync.applyAll(_gridItems);
-    if (!identical(grid, _gridItems)) {
-      _gridItems = grid;
-      changed = true;
-    }
-
     if (changed) notifyListeners();
   }
 
@@ -164,35 +125,6 @@ class FavoritesViewModel extends ChangeNotifier {
     _dio.close();
     userDataSync.removeListener(_onUserDataChanged);
     super.dispose();
-  }
-
-  void setFocusedItem(AggregatedItem? item) {
-    _focusedItem = item;
-    _focusedRatings = const {};
-    notifyListeners();
-    if (item != null) _loadFocusedRatings(item);
-  }
-
-  Future<void> setViewStyle(
-    FavoritesViewStyle value, {
-    bool reload = true,
-  }) async {
-    if (_viewStyle == value) return;
-    _viewStyle = value;
-    await _prefs.set(UserPreferences.favoritesViewStyle, value);
-    if (reload) await load();
-  }
-
-  Future<void> _loadFocusedRatings(AggregatedItem item) async {
-    if (!_prefs.get(UserPreferences.enableAdditionalRatings)) return;
-    final ratings = await _mdbListRepository.getRatingsForItem(
-      item,
-      episodeRatingsEnabled: _prefs.canFetchEpisodeRatings,
-    );
-    if (ratings != null && ratings.isNotEmpty && _focusedItem?.id == item.id) {
-      _focusedRatings = ratings;
-      notifyListeners();
-    }
   }
 
   /// Rows whose request failed in the last load.
@@ -214,33 +146,25 @@ class FavoritesViewModel extends ChangeNotifier {
     _rowItems = {};
     _rowTotalCounts.clear();
     _rowFetchedCounts.clear();
-    _gridItems = const [];
-    _gridTotalCount = 0;
-    _gridFetchedCount = 0;
     notifyListeners();
 
     try {
-      if (_viewStyle == FavoritesViewStyle.home) {
-        final results = await Future.wait(
-          rowTypes.map((type) => _fetchRowItems(type, startIndex: 0)),
-        );
-        if (generation != _generation) return;
-        final map = <FavoriteTypeFilter, List<AggregatedItem>>{};
-        for (var i = 0; i < rowTypes.length; i++) {
-          if (results[i].$1.isNotEmpty) {
-            map[rowTypes[i]] = results[i].$1;
-            _rowTotalCounts[rowTypes[i]] = results[i].$2;
-          }
+      final results = await Future.wait(
+        rowTypes.map((type) => _fetchRowItems(type, startIndex: 0)),
+      );
+      if (generation != _generation) return;
+      final map = <FavoriteTypeFilter, List<AggregatedItem>>{};
+      for (var i = 0; i < rowTypes.length; i++) {
+        if (results[i].$1.isNotEmpty) {
+          map[rowTypes[i]] = results[i].$1;
+          _rowTotalCounts[rowTypes[i]] = results[i].$2;
         }
-        _rowItems = map;
-        // Kos TV: nothing came and something failed: the server couldn't be
-        // asked, which isn't the same as having no favourites.
-        if (map.isEmpty && _failedRows > 0) {
-          throw StateError('Favourites could not be read');
-        }
-      } else {
-        await _fetchGridPage(0);
-        if (generation != _generation) return;
+      }
+      _rowItems = map;
+      // Kos TV: nothing came and something failed: the server couldn't be
+      // asked, which isn't the same as having no favourites.
+      if (map.isEmpty && _failedRows > 0) {
+        throw StateError('Favourites could not be read');
       }
       _state = FavoritesState.ready;
     } catch (e) {
@@ -252,16 +176,20 @@ class FavoritesViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// A page of [type] from [startIndex] of the server's list as it is now.
+  /// [removed] is how many of the row were taken off since it was read,
+  /// added back so [_rowFetchedCounts] goes on counting as the row was.
   Future<(List<AggregatedItem>, int)> _fetchRowItems(
     FavoriteTypeFilter type, {
     int startIndex = 0,
+    int removed = 0,
   }) async {
-    if (type == FavoriteTypeFilter.watchlist) return _fetchWatchlist();
     final generation = _generation;
     if (byMarked) {
       return _fetchByMarked(
         type,
         startIndex: startIndex,
+        removed: removed,
         generation: generation,
       );
     }
@@ -314,10 +242,10 @@ class FavoritesViewModel extends ChangeNotifier {
       // Kos TV: only for the load still showing (the order may have changed
       // while it was on its way).
       if (generation == _generation) {
-        _rowFetchedCounts[type] = startIndex + rawItems.length;
+        _rowFetchedCounts[type] = startIndex + removed + rawItems.length;
       }
       final totalCount = response['TotalRecordCount'] as int? ?? items.length;
-      return (withoutBlockedItems(items), totalCount);
+      return (await _withoutBlocked(type, items), totalCount);
     } catch (_) {
       _failedRows++;
       _failedTypes.add(type);
@@ -330,6 +258,7 @@ class FavoritesViewModel extends ChangeNotifier {
   Future<(List<AggregatedItem>, int)> _fetchByMarked(
     FavoriteTypeFilter type, {
     required int startIndex,
+    required int removed,
     required int generation,
   }) async {
     final types = type.itemTypes;
@@ -359,15 +288,29 @@ class FavoritesViewModel extends ChangeNotifier {
           ),
       ];
       if (generation == _generation) {
-        _rowFetchedCounts[type] = startIndex + rawItems.length;
+        _rowFetchedCounts[type] = startIndex + removed + rawItems.length;
       }
       final total = data['TotalRecordCount'] as int? ?? items.length;
-      return (withoutBlockedItems(items), total);
+      return (await _withoutBlocked(type, items), total);
     } catch (_) {
       _failedRows++;
       _failedTypes.add(type);
       return (const <AggregatedItem>[], 0);
     }
+  }
+
+  /// What parental control lets through. Kos TV: an episode rarely carries
+  /// a rating of its own, so it is judged by its series too, as the search
+  /// does: a favourite episode of a blocked series shows neither its
+  /// picture nor its name.
+  static Future<List<AggregatedItem>> _withoutBlocked(
+    FavoriteTypeFilter type,
+    List<AggregatedItem> items,
+  ) {
+    final rated = withoutBlockedItems(items);
+    return type == FavoriteTypeFilter.episode
+        ? withoutBlockedSeriesItems(rated)
+        : Future.value(rated);
   }
 
   /// Kos TV: favourites by when they were marked, newest first unless
@@ -395,43 +338,6 @@ class FavoritesViewModel extends ChangeNotifier {
     return sortBy.apiValue;
   }
 
-  /// Silo's watchlist, every title at once. Other servers have none.
-  Future<(List<AggregatedItem>, int)> _fetchWatchlist() async {
-    if (_client.serverType != ServerType.silo) {
-      return (const <AggregatedItem>[], 0);
-    }
-    final library = <AggregatedItem>[];
-    try {
-      // Every library title, 200 at a time.
-      const pageSize = 200;
-      for (var start = 0; ; start += pageSize) {
-        final response = await _client.itemsApi.getItems(
-          recursive: true,
-          filters: const ['IsInWatchlist'],
-          includeItemTypes: const ['Movie', 'Series'],
-          startIndex: start,
-          limit: pageSize,
-          fields: _browseFields,
-        );
-        final raws = (response['Items'] as List? ?? const [])
-            .cast<Map<String, dynamic>>();
-        library.addAll(
-          withoutBlockedItems([
-            for (final raw in raws)
-              AggregatedItem(
-                id: raw['Id']?.toString() ?? '',
-                serverId: _client.baseUrl,
-                rawData: raw,
-              ),
-          ]),
-        );
-        if (raws.length < pageSize) break;
-      }
-    } catch (_) {}
-    _rowFetchedCounts[FavoriteTypeFilter.watchlist] = library.length;
-    return (library, library.length);
-  }
-
   Future<void> loadMoreForType(FavoriteTypeFilter type) async {
     final items = _rowItems[type];
     if (items == null || items.isEmpty) return;
@@ -444,112 +350,43 @@ class FavoritesViewModel extends ChangeNotifier {
     final generation = _generation;
     _failedTypes.remove(type);
     try {
-      final currentOffset = fetched;
+      // Kos TV: the favourites taken off since the row was read (here, in
+      // the details or on another device) are no longer in the server's
+      // list, which now goes on that much earlier: starting where it read
+      // up to would skip as many.
+      final removed = items.where((item) => !item.isFavorite).length;
       final (newItems, totalCount) = await _fetchRowItems(
         type,
-        startIndex: currentOffset,
+        startIndex: (fetched - removed).clamp(0, fetched),
+        removed: removed,
       );
       // Kos TV: a page of an earlier load (the order changed meanwhile)
       // isn't added to the new one; a page that failed leaves the count
       // as it was, so the next try can still bring the rest.
       if (generation != _generation) return;
       if (_failedTypes.remove(type)) return;
-      _rowTotalCounts[type] = totalCount;
+      // Counted as the row was read, as the fetched count is.
+      final allCount = totalCount + removed;
+      _rowTotalCounts[type] = allCount;
 
-      if (newItems.isNotEmpty) {
-        _rowItems[type] = [...(_rowItems[type] ?? items), ...newItems];
+      // Kos TV: one marked meanwhile moves the list the other way, and
+      // what was already read comes again: it isn't added twice.
+      final current = _rowItems[type] ?? items;
+      final seen = {for (final item in current) item.id};
+      final fresh = [
+        for (final item in newItems)
+          if (seen.add(item.id)) item,
+      ];
+      if (fresh.isNotEmpty) {
+        _rowItems[type] = [...current, ...fresh];
         notifyListeners();
-      } else if ((_rowFetchedCounts[type] ?? 0) >= totalCount) {
-        _rowTotalCounts[type] = items.length;
+      } else if ((_rowFetchedCounts[type] ?? 0) >= allCount) {
+        _rowTotalCounts[type] = current.length;
       }
     } catch (_) {
     } finally {
       _inFlightPagingRowTypes.remove(type);
     }
-  }
-
-  Future<void> _fetchGridPage(int startIndex) async {
-    final sortValue = _sortBy.apiValue;
-    final sortOrder = _sortDirection == SortDirection.ascending
-        ? 'Ascending'
-        : 'Descending';
-    final pageSize = startIndex == 0 ? 75 : 48;
-
-    Map<String, dynamic> response;
-    try {
-      response = await _client.itemsApi.getItems(
-        sortBy: sortValue,
-        sortOrder: sortOrder,
-        startIndex: startIndex,
-        limit: pageSize,
-        recursive: true,
-        isFavorite: true,
-        fields: _browseFields,
-      );
-    } on DioException catch (e) {
-      final statusCode = e.response?.statusCode ?? 0;
-      if (statusCode < 500) rethrow;
-      final fallbackSort = sortValue.toLowerCase().contains('isfolder')
-          ? 'SortName'
-          : sortValue;
-      response = await _client.itemsApi.getItems(
-        sortBy: fallbackSort,
-        sortOrder: sortOrder,
-        startIndex: startIndex,
-        limit: pageSize,
-        recursive: true,
-        isFavorite: true,
-        fields: _browseFields,
-        enableTotalRecordCount: false,
-      );
-    }
-
-    final rawItems = (response['Items'] as List?) ?? [];
-    final totalFromServer = response['TotalRecordCount'] as int?;
-    if (totalFromServer != null) {
-      _gridTotalCount = totalFromServer;
-    } else {
-      _gridTotalCount =
-          startIndex + rawItems.length + (rawItems.length == pageSize ? 1 : 0);
-    }
-
-    final mapped = withoutBlockedItems(
-      rawItems
-          .cast<Map<String, dynamic>>()
-          .map(
-            (raw) => AggregatedItem(
-              id: raw['Id']?.toString() ?? '',
-              serverId: _client.baseUrl,
-              rawData: raw,
-            ),
-          )
-          .toList(),
-    );
-
-    _gridFetchedCount = startIndex + rawItems.length;
-
-    if (startIndex == 0) {
-      _gridItems = mapped;
-    } else {
-      _gridItems = [..._gridItems, ...mapped];
-    }
-  }
-
-  Future<void> loadMoreGrid() async {
-    if (_loadingMoreGrid || !hasMoreGrid) return;
-    _loadingMoreGrid = true;
-    notifyListeners();
-
-    final prevFetched = _gridFetchedCount;
-    try {
-      await _fetchGridPage(_gridFetchedCount);
-      if (_gridFetchedCount <= prevFetched) {
-        _gridTotalCount = _gridFetchedCount;
-      }
-    } catch (_) {}
-
-    _loadingMoreGrid = false;
-    notifyListeners();
   }
 
   Future<void> setSortBy(LibrarySortBy value) async {
@@ -585,18 +422,4 @@ class FavoritesViewModel extends ChangeNotifier {
         ? SortDirection.descending
         : SortDirection.ascending,
   );
-
-  Future<void> setImageType(ImageType value) async {
-    if (_imageType == value) return;
-    _imageType = value;
-    await _prefs.set(UserPreferences.libraryImageType(_prefKey), value);
-    notifyListeners();
-  }
-
-  Future<void> setPosterSize(PosterSize value) async {
-    if (_posterSize == value) return;
-    _posterSize = value;
-    await _prefs.set(UserPreferences.favoritesPosterSize, value);
-    notifyListeners();
-  }
 }

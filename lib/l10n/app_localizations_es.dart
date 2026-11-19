@@ -20381,4 +20381,16 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvCastReceiverFailed =>
       'El otro aparato no ha podido reproducirlo.';
+
+  @override
+  String get kostvCatalogEmpty => 'No hay nada por aquí con estos filtros';
+
+  @override
+  String get kostvCatalogEmptyLibrary => 'No hay nada en esta biblioteca';
+
+  @override
+  String get kostvCatalogUnavailable => 'No se ha podido cargar la biblioteca';
+
+  @override
+  String get kostvCatalogMoreFailed => 'No se han podido cargar más títulos';
 }

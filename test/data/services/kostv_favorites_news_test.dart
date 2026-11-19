@@ -5,8 +5,10 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin/data/services/kostv_favorites_news.dart';
+import 'package:moonfin/data/utils/blocked_ratings.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:server_core/server_core.dart';
 import 'package:server_jellyfin/server_jellyfin.dart';
@@ -28,7 +30,12 @@ class _Plugin implements HttpClientAdapter {
   Completer<void>? holdNextRead;
 
   Map<String, Object?> _entry(String series, {required bool unseen}) => {
-    'Series': {'Id': series, 'Name': series, 'Type': 'Series'},
+    'Series': {
+      'Id': series,
+      'Name': series,
+      'Type': 'Series',
+      'OfficialRating': series == 'faro' ? 'TV-MA' : 'TV-PG',
+    },
     'Episode': {
       'Id': '$series-e1',
       'Name': 'Uno',
@@ -130,6 +137,39 @@ void main() {
     expect(plugin.reads, 2);
     expect(news.unseen, 0);
     expect(told, greaterThanOrEqualTo(3));
+    news.dispose();
+  });
+
+  // Kos TV: a series marked before its rating was blocked here (or on a
+  // device without parental control) showed in big on Favourites and lit
+  // the heart.
+  test('a series this device blocks shows no news, nor counts for the '
+      'alert', () async {
+    final plugin = _Plugin();
+    final jf = client('ana');
+    final settings = await prefs(available: true);
+    GetIt.instance.registerSingleton<UserPreferences>(settings);
+    addTearDown(() async {
+      await GetIt.instance.reset();
+      resetParentalFilterCache();
+    });
+    final news = KostvFavoritesNewsService(
+      client: () => jf,
+      prefs: settings,
+      dio: Dio()..httpClientAdapter = plugin,
+    );
+    await news.refresh();
+    expect(news.news.map((n) => n.series.id), ['faro', 'puerto']);
+    expect(news.unseen, 1);
+
+    await settings.set(UserPreferences.blockedParentalRatings, 'TV-MA');
+    expect(news.news.map((n) => n.series.id), ['puerto']);
+    expect(news.unseen, 0);
+    // The same list while nothing changes, for the rows that keep it.
+    expect(identical(news.news, news.news), isTrue);
+
+    await settings.set(UserPreferences.blockedParentalRatings, '');
+    expect(news.news, hasLength(2));
     news.dispose();
   });
 

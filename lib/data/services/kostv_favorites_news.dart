@@ -6,7 +6,9 @@ import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../preference/user_preferences.dart';
+import '../../util/parental_filter.dart';
 import '../models/aggregated_item.dart';
+import '../utils/blocked_ratings.dart';
 import 'moonbase_endpoint.dart';
 
 /// Kos TV: what arrived lately of one favourite series.
@@ -87,10 +89,38 @@ class KostvFavoritesNewsService extends ChangeNotifier {
   bool get available => _prefs.get(UserPreferences.kostvFavoritesAvailable);
 
   /// The news, the latest first.
+  ///
+  /// Kos TV: without the series whose rating this device blocks (one
+  /// marked before it was blocked, or on a device without parental
+  /// control), nor an episode blocked by its own rating: neither its
+  /// picture nor its name shows, nor does it count for the heart's alert.
   List<KostvSeriesNews> get news {
     _checkOwner();
-    return _news;
+    final filter = activeParentalFilter;
+    if (!identical(_allowedFrom, _news) || _allowedFilter != filter) {
+      _allowedFrom = _news;
+      _allowedFilter = filter;
+      _allowed = filter.isActive
+          ? [
+              for (final n in _news)
+                if (!_isBlocked(n)) n,
+            ]
+          : _news;
+    }
+    return _allowed;
   }
+
+  /// [news] as last worked out, and from what, so it is the same list
+  /// while neither changes.
+  List<KostvSeriesNews> _allowed = const [];
+  List<KostvSeriesNews>? _allowedFrom;
+  ParentalFilter? _allowedFilter;
+
+  static bool _isBlocked(KostvSeriesNews n) =>
+      withoutBlockedItems([n.series]).isEmpty ||
+      withoutBlockedItems([
+        n.episode,
+      ], fallbackRating: n.series.officialRating).isEmpty;
 
   /// How many favourite series have news the person hasn't seen.
   int get unseen => available ? news.where((n) => n.unseen).length : 0;

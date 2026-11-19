@@ -62,8 +62,10 @@ void main() {
       await pressKey(tester, LogicalKeyboardKey.arrowDown);
       expect(focusedBookNode(), 'book:collection:2');
 
+      // Kos TV: on its details, with its books (it used to be a page
+      // with nothing on it).
       await pressKey(tester, LogicalKeyboardKey.enter);
-      expect(find.text('/collection/box-3'), findsOneWidget);
+      expect(find.textContaining('/item/box-3'), findsOneWidget);
     });
 
     testWidgets('Left from the first column reaches the rail', (tester) async {

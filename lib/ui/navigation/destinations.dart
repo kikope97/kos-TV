@@ -234,12 +234,7 @@ class Destinations {
   }
 
   static String libraryView(String libraryId) => '/library-view/$libraryId';
-  static String libraryGenresOf(String libraryId) =>
-      '/library/$libraryId/genres';
-  static String libraryLettersOf(String libraryId) =>
-      '/library/$libraryId/letters';
-  static String librarySuggestionsOf(String libraryId) =>
-      '/library/$libraryId/suggestions';
+
   /// [seasonContext] names the season the viewer was browsing, which is not
   /// always the item's own season: a special inlined by
   /// DisplaySpecialsWithinSeasons is listed under a regular season while still
@@ -348,7 +343,7 @@ class Destinations {
         : base;
   }
 
-  static String collection(String collectionId) => '/collection/$collectionId';
+
   static String musicLibrary(String libraryId) => '/music/$libraryId';
 
   /// One of a music library's category screens. [show] picks what it opens

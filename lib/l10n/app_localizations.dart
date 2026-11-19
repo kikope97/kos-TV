@@ -34436,6 +34436,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The other device couldn\'t play it.'**
   String get kostvCastReceiverFailed;
+
+  /// Kos TV: a library's page (not a genre) with nothing to show for the chosen filters
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing here with these filters'**
+  String get kostvCatalogEmpty;
+
+  /// Kos TV: a library's page (not a genre) with nothing in it and no filter on
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing in this library'**
+  String get kostvCatalogEmptyLibrary;
+
+  /// Kos TV: a library's page (not a genre) failed to load
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the library'**
+  String get kostvCatalogUnavailable;
+
+  /// Kos TV: library or genre page: the next page of titles failed to load; a Retry button follows
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load more titles'**
+  String get kostvCatalogMoreFailed;
 }
 
 class _AppLocalizationsDelegate

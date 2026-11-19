@@ -71,8 +71,10 @@ void openBookLibraryItem(
     );
     return;
   }
+  // Kos TV: a collection opens on its details, which list its books, as
+  // anywhere else in the app.
   if (type == 'BoxSet') {
-    context.push(Destinations.collection(item.id));
+    context.push(Destinations.item(item.id, serverId: item.serverId));
     return;
   }
   if (isFolder || type == 'Folder' || type == 'CollectionFolder') {

@@ -14371,5 +14371,21 @@
     "kostvCastReceiverFailed": "El otro aparato no ha podido reproducirlo.",
     "@kostvCastReceiverFailed": {
         "description": "Kos TV: Cast: the receiving device reported a playback error"
+    },
+    "kostvCatalogEmpty": "No hay nada por aquí con estos filtros",
+    "@kostvCatalogEmpty": {
+        "description": "Kos TV: a library's page (not a genre) with nothing to show for the chosen filters"
+    },
+    "kostvCatalogEmptyLibrary": "No hay nada en esta biblioteca",
+    "@kostvCatalogEmptyLibrary": {
+        "description": "Kos TV: a library's page (not a genre) with nothing in it and no filter on"
+    },
+    "kostvCatalogUnavailable": "No se ha podido cargar la biblioteca",
+    "@kostvCatalogUnavailable": {
+        "description": "Kos TV: a library's page (not a genre) failed to load"
+    },
+    "kostvCatalogMoreFailed": "No se han podido cargar más títulos",
+    "@kostvCatalogMoreFailed": {
+        "description": "Kos TV: library or genre page: the next page of titles failed to load; a Retry button follows"
     }
 }

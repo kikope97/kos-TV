@@ -39,6 +39,7 @@ import '../../widgets/bottom_nav/bottom_navbar.dart';
 import '../../widgets/library_row.dart';
 import '../../widgets/media_badge.dart';
 import '../../widgets/media_card.dart';
+import '../../widgets/music/music_navigation.dart' show openMusicItem;
 import '../../widgets/navigation_layout.dart';
 import '../../widgets/focus/context_menu_sheet.dart';
 import '../../widgets/focus/request_initial_focus.dart';
@@ -80,6 +81,8 @@ class _SearchScreenState extends State<SearchScreen>
   // and keys go by this rather than the row's position, so a row that arrives
   // late doesn't take focus or scroll position from the rows below it.
   List<String> _allRowIds = const [];
+  // How many cards each of those rows has, as of the last build.
+  List<int> _allRowLens = const [];
   // The results tab pill is a single focus stop.
   final _tabsFocusNode = FocusNode(debugLabel: 'search_tabs');
   // Vertical focus model: search field, then the tabs pill. Rebuilt each build.
@@ -206,7 +209,43 @@ class _SearchScreenState extends State<SearchScreen>
     }
     _maybeBumpGridVersion();
     _keepFocusedAllCardInView();
+    _keepAllFocusOnPage();
     if (mounted) setState(() {});
+  }
+
+  /// Kos TV: new results (a search typed on the phone, say) can take away
+  /// the card the remote was on in «Todo». The focus then goes to the same
+  /// row, as near the same place as it has cards, or up to the tabs when
+  /// the row went too, rather than being left nowhere.
+  void _keepAllFocusOnPage() {
+    final focused = FocusManager.instance.primaryFocus;
+    if (focused == null) return;
+    String? key;
+    for (final entry in _allRowNodes.entries) {
+      if (identical(entry.value, focused)) key = entry.key;
+    }
+    if (key == null) return;
+    final cut = key.lastIndexOf(':');
+    final rowId = key.substring(0, cut);
+    final col = int.tryParse(key.substring(cut + 1)) ?? 0;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || focused.hasPrimaryFocus) return;
+      // Only when the focus was lost with the card: one moved by hand
+      // meanwhile stays where it went.
+      final now = FocusManager.instance.primaryFocus;
+      if (now != null && now is! FocusScopeNode) return;
+      final row = _tabIsAll(_selectedTab) ? _allRowIds.indexOf(rowId) : -1;
+      if (row >= 0 && row < _allRowLens.length && _allRowLens[row] > 0) {
+        _focusAllCard(
+          row,
+          col.clamp(0, _allRowLens[row] - 1),
+          changedRow: false,
+        );
+      } else if (_tabsFocusNode.canRequestFocus &&
+          _tabsFocusNode.context != null) {
+        _tabsFocusNode.requestFocus();
+      }
+    });
   }
 
   // A row that arrives late pushes the rows below it down, which can leave the
@@ -1365,6 +1404,7 @@ class _SearchScreenState extends State<SearchScreen>
       if (hasGames) _vm.gameResults.length,
       if (requestable.isNotEmpty) _requestableCount,
     ];
+    _allRowLens = rowLens;
 
     final rows = <Widget>[];
     if (smartItems.isNotEmpty) {
@@ -1678,14 +1718,18 @@ class _SearchScreenState extends State<SearchScreen>
               }
               return onNavKey(node, event);
             },
-      onTap: () => context.push(
-        Destinations.itemOrPhoto(
-          item.id,
-          serverId: item.serverId,
-          type: item.type,
-          channelId: item.channelId,
-        ),
-      ),
+      // Kos TV: a song (from searching a music library) plays, as it does
+      // from the library's own pages.
+      onTap: () => item.type == 'Audio'
+          ? openMusicItem(context, item)
+          : context.push(
+              Destinations.itemOrPhoto(
+                item.id,
+                serverId: item.serverId,
+                type: item.type,
+                channelId: item.channelId,
+              ),
+            ),
       onLongPress: () => showContextMenu(
         context,
         item,
