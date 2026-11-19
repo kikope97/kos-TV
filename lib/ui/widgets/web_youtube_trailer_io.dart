@@ -26,6 +26,11 @@ class WebYouTubeTrailer extends StatefulWidget {
   /// watchdog disarms, but the WebView stays booted for a fast next swap.
   /// The widget must first mount unsuspended.
   final bool suspended;
+
+  /// Kos TV: holds the video where it is while it's out of sight for a
+  /// moment (scrolled off), and plays on from there when it goes back to
+  /// false. The player stays as it is, unlike [suspended].
+  final bool paused;
   final VoidCallback? onPlaybackStarted;
   final VoidCallback? onCompleted;
   final VoidCallback? onAutoplayFailed;
@@ -41,6 +46,7 @@ class WebYouTubeTrailer extends StatefulWidget {
     this.loop = true,
     this.ignorePointer = false,
     this.suspended = false,
+    this.paused = false,
     this.onPlaybackStarted,
     this.onCompleted,
     this.onAutoplayFailed,
@@ -134,6 +140,24 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
     }
     if (widget.suspended) {
       return;
+    }
+
+    if (oldWidget.paused != widget.paused) {
+      final controller = _controller;
+      if (controller != null) {
+        final call = widget.paused ? 'pause' : 'resume';
+        unawaited(
+          controller
+              .runJavaScript('window.$_bridgeName?.$call();')
+              .catchError((_) {}),
+        );
+      }
+      // Held before it started: its autoplay wait starts over on resuming.
+      if (widget.paused) {
+        _autoplayTimer?.cancel();
+      } else if (!_playbackStarted) {
+        _restartAutoplayTimer();
+      }
     }
 
     final videoChanged = oldWidget.videoId != widget.videoId;
@@ -388,7 +412,7 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
     _autoplayTimer?.cancel();
     // A dormant player firing a bogus autoplay failure would globally
     // disable embedded YouTube.
-    if (widget.suspended) {
+    if (widget.suspended || widget.paused) {
       return;
     }
     if (widget.onAutoplayFailed == null ||
@@ -546,6 +570,8 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
 
   let player = null;
   let currentVideoId = $initialVideoId;
+  // Kos TV: held while out of sight; a video that starts meanwhile waits.
+  let paused = false;
 
   const postMessage = (event, data) => {
     // videoId is captured at post time so Dart can drop stale events posted
@@ -650,6 +676,18 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
       playerVars.mute = muted ? 1 : 0;
       applyMute();
     },
+    pause: function() {
+      paused = true;
+      if (player) {
+        try { player.pauseVideo(); } catch (_) {}
+      }
+    },
+    resume: function() {
+      paused = false;
+      if (player) {
+        try { player.playVideo(); } catch (_) {}
+      }
+    },
     stop: function() {
       if (!player) {
         // Ready hasn't fired yet, so drop the video or Ready would start it.
@@ -710,6 +748,9 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
 
           if (event.data === 1) {
             applyCaptions();
+            if (paused) {
+              try { player.pauseVideo(); } catch (_) {}
+            }
           }
           if (event.data === 0 && playerVars.loop === 1) {
             loadCurrentVideo();

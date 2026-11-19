@@ -326,6 +326,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
   FocusNode? _initialContentFocusNode;
   ModalRoute<dynamic>? _observedRoute;
   late DetailSectionVisibility _sectionVisibility;
+  Timer? _collapseGuardTimer;
 
   FocusNode _ensureInitialFocusNode() => _initialContentFocusNode ??= FocusNode(
     debugLabel: 'detailInitialContent',
@@ -458,6 +459,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
     _themeMusicService.unregisterDetailScreen(this);
     _backgroundSub?.cancel();
     _focusedBackdropDebounce?.cancel();
+    _collapseGuardTimer?.cancel();
     if (!widget.quickLook &&
         _backgroundService.currentUrl == _backdropUrl.value) {
       _backgroundService.clearBackgrounds();
@@ -644,9 +646,20 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
     final node = useTargetNode ? _ensureInitialFocusNode() : null;
     final lastCollapse = ExpandableBiography.lastCollapseTime;
     final now = DateTime.now();
+    const collapseGuard = Duration(milliseconds: 350);
     final wasCollapsedRecently =
-        lastCollapse != null &&
-        now.difference(lastCollapse) < const Duration(milliseconds: 350);
+        lastCollapse != null && now.difference(lastCollapse) < collapseGuard;
+    // Kos TV: nothing else may rebuild the page once the guard runs out,
+    // which would leave Back refused for good.
+    _collapseGuardTimer?.cancel();
+    if (wasCollapsedRecently) {
+      _collapseGuardTimer = Timer(
+        collapseGuard - now.difference(lastCollapse),
+        () {
+          if (mounted) setState(() {});
+        },
+      );
+    }
 
     // Albums/playlists hide the chrome on TV/desktop (their split hero owns the
     // top area); on mobile they need the back arrow like every other screen.
@@ -7868,7 +7881,9 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
   void _afterIdentify(String? identified, AggregatedItem item) {
     if (identified == null || !mounted) return;
     if (identified == item.id) {
-      viewModel.load();
+      // Kos TV: matched again, its ratings, similar titles and the rest
+      // may be another title's now, so all of it is read again.
+      viewModel.reloadAll();
     } else {
       // The match gave the item a new id, and the old one is gone.
       context.pushReplacement(
@@ -9054,7 +9069,9 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
     }
 
     if (reloadOnReturn) {
-      viewModel.load();
+      // Kos TV: only what playing changed, in place: no loading page, no
+      // jump to the top and no trailer starting over.
+      unawaited(viewModel.refreshAfterPlayback());
     }
     return true;
   }

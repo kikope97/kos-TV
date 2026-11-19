@@ -16,6 +16,7 @@ import '../../../widgets/fullscreen_backdrop_switcher.dart';
 import '../../../widgets/live_tv/incomplete_recording.dart';
 import '../../../widgets/logo_view.dart';
 import '../../../widgets/navigation_layout.dart';
+import '../../../widgets/offline_aware_image.dart';
 import '../../../widgets/rating_display.dart';
 import '../detail_layout_metrics.dart';
 import '../detail_page.dart';
@@ -68,7 +69,30 @@ class _KostvDetailContentState extends State<KostvDetailContent>
   // sections exist depends on what loaded.
   List<FocusNode> _stops = const [];
 
+  /// Kos TV: whether the art at the top has been scrolled mostly off the
+  /// screen, so the trailer over it waits.
+  final _heroOutOfSight = ValueNotifier<bool>(false);
+  double _heroHeight = 0;
+
   ItemDetailViewModel get _vm => widget.viewModel;
+
+  @override
+  void initState() {
+    super.initState();
+    pageScroll.addListener(_trackHero);
+  }
+
+  @override
+  void dispose() {
+    pageScroll.removeListener(_trackHero);
+    _heroOutOfSight.dispose();
+    super.dispose();
+  }
+
+  void _trackHero() {
+    if (!pageScroll.hasClients || _heroHeight <= 0) return;
+    _heroOutOfSight.value = pageScroll.offset > _heroHeight * 0.6;
+  }
 
   @override
   ItemDetailViewModel get pageViewModel => widget.viewModel;
@@ -185,6 +209,7 @@ class _KostvDetailContentState extends State<KostvDetailContent>
     final heroHeight = landscape
         ? size.height - (parts.isEmpty ? 0 : (size.height * 0.1).clamp(70, 120))
         : (size.height * 0.5).clamp(320.0, 520.0);
+    _heroHeight = heroHeight;
     final side = _sideInsets(landscape, size);
     final scores = RatingsRow.forDetailScreen(
       item: item,
@@ -358,6 +383,7 @@ class _KostvDetailContentState extends State<KostvDetailContent>
                   key: ValueKey('kostv-trailer-${item.id}'),
                   item: item,
                   prefs: widget.prefs,
+                  outOfSight: _heroOutOfSight,
                 ),
               if (landscape)
                 DecoratedBox(
@@ -424,13 +450,15 @@ class _KostvDetailContentState extends State<KostvDetailContent>
   double _factsScale(bool landscape) =>
       landscape ? (PlatformDetection.isTV ? 1.45 : 1.25) : 1.05;
 
-  /// Kind, title and the facts line.
+  /// Kind, title and the facts line. [logoShadow] off is for a copy of it
+  /// that's measured and not shown.
   Widget _buildTitleBlock(
     AggregatedItem item,
     DetailSectionVisibility sections,
     bool landscape,
-    Size size,
-  ) {
+    Size size, {
+    bool logoShadow = true,
+  }) {
     final kicker = _kicker(AppLocalizations.of(context), item);
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -448,7 +476,7 @@ class _KostvDetailContentState extends State<KostvDetailContent>
           ),
           const SizedBox(height: 12),
         ],
-        _buildBranding(item, sections, landscape, size),
+        _buildBranding(item, sections, landscape, size, shadow: logoShadow),
         SizedBox(height: landscape ? 18 : 10),
         // The facts line, larger on a big screen than the other styles set
         // it: it's read from the sofa.
@@ -484,22 +512,30 @@ class _KostvDetailContentState extends State<KostvDetailContent>
   ) {
     return _HeroTextFit(
       key: const ValueKey('kostv-hero'),
-      full: _heroTextLevel(item, sections, landscape, size, ratings, 0),
-      shorter: _heroTextLevel(item, sections, landscape, size, ratings, 1),
-      least: _heroTextLevel(item, sections, landscape, size, ratings, 2),
+      level: (level, shown) => _heroTextLevel(
+        item,
+        sections,
+        landscape,
+        size,
+        ratings,
+        level,
+        shown: shown,
+      ),
     );
   }
 
   /// One version of the text over the buttons: [level] 0 has everything,
-  /// 1 two lines of overview and nothing more, 2 the title and facts.
+  /// 1 two lines of overview and nothing more, 2 the title and facts. Only
+  /// the one [shown] bakes its logo's shadow.
   Widget _heroTextLevel(
     AggregatedItem item,
     DetailSectionVisibility sections,
     bool landscape,
     Size size,
     Widget? ratings,
-    int level,
-  ) {
+    int level, {
+    bool shown = true,
+  }) {
     final muted = AppColorScheme.onBackground.withValues(alpha: 0.86);
     final overview = level < 2 ? overviewText(item) : null;
     final overviewStyle = TextStyle(
@@ -516,7 +552,7 @@ class _KostvDetailContentState extends State<KostvDetailContent>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildTitleBlock(item, sections, landscape, size),
+        _buildTitleBlock(item, sections, landscape, size, logoShadow: shown),
         if (ratings != null) ...[const SizedBox(height: 16), ratings],
         if (tagline != null && tagline.isNotEmpty) ...[
           const SizedBox(height: 18),
@@ -631,8 +667,9 @@ class _KostvDetailContentState extends State<KostvDetailContent>
     AggregatedItem item,
     DetailSectionVisibility sections,
     bool landscape,
-    Size size,
-  ) {
+    Size size, {
+    bool shadow = true,
+  }) {
     final partOfShow = item.type == 'Episode' || item.type == 'Season';
     final logoTag = sections.shows(DetailSection.logo)
         ? item.logoImageTag ?? (partOfShow ? item.seriesLogoImageTag : null)
@@ -648,7 +685,7 @@ class _KostvDetailContentState extends State<KostvDetailContent>
     final Widget mark = logoTag != null && logoId != null && logoId.isNotEmpty
         ? Align(
             alignment: Alignment.centerLeft,
-            child: LogoView(
+            child: _KostvLogo(
               imageUrl: _vm.imageApi.getLogoImageUrl(
                 logoId,
                 maxWidth: 800,
@@ -656,6 +693,7 @@ class _KostvDetailContentState extends State<KostvDetailContent>
               ),
               maxWidth: landscape ? 560 : 260,
               maxHeight: landscape ? math.min(170.0, size.height * 0.2) : 100,
+              shadow: shadow,
             ),
           )
         : Text(
@@ -939,46 +977,117 @@ class _KostvSectionState extends State<_KostvSection> {
   }
 }
 
+/// Kos TV: [LogoView], with its shadow left out of a copy that's only
+/// measured: each [BakedLogoShadow] blurs the logo once more and keeps the
+/// picture. The logo's box is the same with or without it.
+class _KostvLogo extends StatelessWidget {
+  const _KostvLogo({
+    required this.imageUrl,
+    required this.maxWidth,
+    required this.maxHeight,
+    required this.shadow,
+  });
+
+  final String imageUrl;
+  final double maxWidth;
+  final double maxHeight;
+  final bool shadow;
+
+  @override
+  Widget build(BuildContext context) {
+    if (shadow) {
+      return LogoView(
+        imageUrl: imageUrl,
+        maxWidth: maxWidth,
+        maxHeight: maxHeight,
+      );
+    }
+    if (imageUrl.isEmpty) return const SizedBox.shrink();
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight, maxWidth: maxWidth),
+      child: Image(
+        image: offlineAwareImageProvider(imageUrl),
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+      ),
+    );
+  }
+}
+
 /// The fullest of three versions of a text that fits the room it has: the
 /// first if it fits whole, else the second, else the third made as small as
 /// it must. Each sits at the foot of the room, where the text meets the
 /// buttons under it.
-class _HeroTextFit extends StatelessWidget {
-  const _HeroTextFit({
-    super.key,
-    required this.full,
-    required this.shorter,
-    required this.least,
-  });
+///
+/// Kos TV: [level] builds each version, told whether it's the one shown:
+/// the others are only measured, so they leave out the logo's shadow and
+/// are kept from screen readers (which would read the title three times).
+class _HeroTextFit extends StatefulWidget {
+  const _HeroTextFit({super.key, required this.level});
 
-  final Widget full;
-  final Widget shorter;
-  final Widget least;
+  final Widget Function(int level, bool shown) level;
 
   @override
-  Widget build(BuildContext context) => CustomMultiChildLayout(
-    delegate: _HeroTextFitDelegate(),
-    children: [
-      LayoutId(id: 0, child: full),
-      LayoutId(id: 1, child: shorter),
-      LayoutId(
-        id: 2,
-        // Laid out at the room's width first, so it wraps as the others do,
-        // and only then made smaller if it is still too tall. A FittedBox on
-        // its own measures it with no width limit: all on one line, shrunk.
-        child: LayoutBuilder(
-          builder: (context, constraints) => FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.bottomLeft,
-            child: SizedBox(width: constraints.maxWidth, child: least),
+  State<_HeroTextFit> createState() => _HeroTextFitState();
+}
+
+class _HeroTextFitState extends State<_HeroTextFit> {
+  /// The version the last layout picked.
+  final _chosen = ValueNotifier<int>(0);
+
+  @override
+  void dispose() {
+    _chosen.dispose();
+    super.dispose();
+  }
+
+  /// Told by the layout, which can't rebuild anything itself: the change
+  /// shows from the next frame.
+  void _onChosen(int level) {
+    if (level == _chosen.value) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _chosen.value = level;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<int>(
+    valueListenable: _chosen,
+    builder: (context, chosen, _) {
+      Widget version(int level) => ExcludeSemantics(
+        excluding: level != chosen,
+        child: widget.level(level, level == chosen),
+      );
+      return CustomMultiChildLayout(
+        delegate: _HeroTextFitDelegate(onChosen: _onChosen),
+        children: [
+          LayoutId(id: 0, child: version(0)),
+          LayoutId(id: 1, child: version(1)),
+          LayoutId(
+            id: 2,
+            // Laid out at the room's width first, so it wraps as the others
+            // do, and only then made smaller if it is still too tall. A
+            // FittedBox on its own measures it with no width limit: all on
+            // one line, shrunk.
+            child: LayoutBuilder(
+              builder: (context, constraints) => FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.bottomLeft,
+                child: SizedBox(width: constraints.maxWidth, child: version(2)),
+              ),
+            ),
           ),
-        ),
-      ),
-    ],
+        ],
+      );
+    },
   );
 }
 
 class _HeroTextFitDelegate extends MultiChildLayoutDelegate {
+  _HeroTextFitDelegate({required this.onChosen});
+
+  final ValueChanged<int> onChosen;
+
   @override
   void performLayout(Size size) {
     final loose = BoxConstraints(maxWidth: size.width);
@@ -998,6 +1107,7 @@ class _HeroTextFitDelegate extends MultiChildLayoutDelegate {
     } else {
       chosen = 2;
     }
+    onChosen(chosen);
     final sizes = [full, shorter, least];
     for (var id = 0; id < 3; id++) {
       positionChild(

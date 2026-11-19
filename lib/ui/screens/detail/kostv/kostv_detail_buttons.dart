@@ -86,17 +86,19 @@ class KostvPlayText {
     final isShow = item.type == 'Series' || item.type == 'Season';
     final s = nextUp?.parentIndexNumber;
     final e = nextUp?.indexNumber;
-    if (isShow && s != null && e != null && !(s == 1 && e == 1)) {
-      final nextRuntime = nextUp!.runtime;
-      final nextPosition = nextUp.playbackPosition ?? Duration.zero;
-      final started =
-          nextRuntime != null &&
-          nextRuntime > Duration.zero &&
-          nextPosition > Duration.zero &&
-          nextPosition < nextRuntime;
+    final nextRuntime = nextUp?.runtime;
+    final nextPosition = nextUp?.playbackPosition ?? Duration.zero;
+    final started =
+        nextRuntime != null &&
+        nextRuntime > Duration.zero &&
+        nextPosition > Duration.zero &&
+        nextPosition < nextRuntime;
+    // The first episode only says so once it's been started: before that,
+    // plain Play says the same.
+    if (isShow && s != null && e != null && (!(s == 1 && e == 1) || started)) {
       return KostvPlayText(
         l10n.kostvDetailContinueWith('$seasonMark$s:E$e'),
-        subtitle: nextUp.name,
+        subtitle: nextUp!.name,
         progress: started
             ? (nextPosition.inMilliseconds / nextRuntime.inMilliseconds).clamp(
                 0.0,

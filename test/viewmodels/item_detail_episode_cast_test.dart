@@ -201,7 +201,9 @@ void main() {
       },
     );
 
-    await vm.load();
+    // A second load of the same page is done in place and leaves the cast
+    // alone; reloading everything is what asks for it again.
+    await vm.reloadAll();
 
     for (var i = 0; i < 100 && vm.parentActors.isEmpty; i++) {
       await Future<void>.delayed(const Duration(milliseconds: 5));

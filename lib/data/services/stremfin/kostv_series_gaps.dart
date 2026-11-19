@@ -441,14 +441,22 @@ class KostvSeriesGapsController extends ChangeNotifier {
     final pending = _reading[tmdb];
     // A read asked for after a request must not settle for one from before.
     if (pending != null && !refresh) return pending;
-    final future = service
+    // Kept with when it was asked for, so a read from before a request that
+    // ends after the one asked for since can't put the older page back.
+    final askedAt = DateTime.now();
+    late final Future<StremfinSeriesDetail> future;
+    future = service
         .series(tmdb)
         .then((detail) {
-          _kept[tmdb] = (at: DateTime.now(), detail: detail);
+          final newer = _kept[tmdb];
+          if (newer == null || !newer.at.isAfter(askedAt)) {
+            _kept[tmdb] = (at: askedAt, detail: detail);
+          }
           return detail;
         })
         .whenComplete(() {
-          _reading.remove(tmdb);
+          // Only its own entry: a later read may have taken its place.
+          if (identical(_reading[tmdb], future)) _reading.remove(tmdb);
         });
     return _reading[tmdb] = future;
   }

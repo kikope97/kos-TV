@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../data/models/aggregated_item.dart';
@@ -15,7 +16,8 @@ import '../../../widgets/web_youtube_trailer.dart';
 /// it off, takes the first YouTube trailer of the list with the Spanish ones
 /// first, and fades in once it really plays. It plays once: at the end, or if
 /// it can't play, the art comes back and stays. Leaving the page (the player,
-/// another title) stops it for good.
+/// another title) stops it for good. Scrolled out of sight ([outOfSight]) it
+/// only waits: held where it was, it plays on once the art is back in view.
 ///
 /// Follows the same setting as the home banner's trailer, which also keeps it
 /// off on devices too slow for it.
@@ -24,11 +26,15 @@ class KostvBackdropTrailer extends StatefulWidget {
   final UserPreferences prefs;
   final Duration delay;
 
+  /// Kos TV: whether the art it plays over has been scrolled off the screen.
+  final ValueListenable<bool>? outOfSight;
+
   const KostvBackdropTrailer({
     super.key,
     required this.item,
     required this.prefs,
     this.delay = const Duration(seconds: 4),
+    this.outOfSight,
   });
 
   /// Whether this device plays the trailer at all: the embedded YouTube
@@ -57,15 +63,59 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer>
   /// waits its few seconds again on coming back.
   bool _away = false;
 
+  /// Scrolled off the screen with the art. Playing, it's held where it is
+  /// and plays on when the art is back, which doesn't count as seen; not
+  /// started yet, it waits its few seconds again then.
+  bool _scrolledOff = false;
+
+  /// Bumped whenever it goes out of sight or comes back, and by each look
+  /// for a trailer, so a look that ends after that can't put one up without
+  /// its wait.
+  int _attempt = 0;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.outOfSight?.addListener(_onScroll);
+    _scrolledOff = widget.outOfSight?.value ?? false;
     if (KostvBackdropTrailer.supported &&
         widget.prefs.resolveMediaBarTrailerPreview()) {
-      _timer = Timer(widget.delay, _find);
+      if (!_scrolledOff) _timer = Timer(widget.delay, _find);
     } else {
       _finished = true;
+    }
+  }
+
+  @override
+  void didUpdateWidget(KostvBackdropTrailer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.outOfSight != widget.outOfSight) {
+      oldWidget.outOfSight?.removeListener(_onScroll);
+      widget.outOfSight?.addListener(_onScroll);
+      _onScroll();
+    }
+  }
+
+  void _onScroll() {
+    final off = widget.outOfSight?.value ?? false;
+    if (off == _scrolledOff || !mounted) return;
+    _scrolledOff = off;
+    _attempt++;
+    if (_finished) return;
+    if (off) {
+      _timer?.cancel();
+      // Not on screen yet: let go of the player, and start over on return.
+      if (!_visible && _videoId != null) setState(() => _videoId = null);
+      if (_visible) setState(() {});
+      return;
+    }
+    if (_visible && _videoId != null) {
+      setState(() {});
+    } else if (!_away && KostvBackdropTrailer.supported) {
+      _videoId = null;
+      _timer?.cancel();
+      _timer = Timer(widget.delay, _find);
     }
   }
 
@@ -97,6 +147,7 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer>
   void _setAway(bool away) {
     if (away == _away) return;
     _away = away;
+    _attempt++;
     if (away) {
       // Seen, all or part of it: it plays once, so back on top the art
       // stays. Not yet started: its wait starts over on coming back.
@@ -110,13 +161,16 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer>
       return;
     }
     _videoId = null;
-    if (KostvBackdropTrailer.supported) {
+    _timer?.cancel();
+    // Scrolled off, it waits for the art to be back instead.
+    if (KostvBackdropTrailer.supported && !_scrolledOff) {
       _timer = Timer(widget.delay, _find);
     }
   }
 
   Future<void> _find() async {
-    if (_away) return;
+    if (_away || _scrolledOff) return;
+    final attempt = ++_attempt;
     final item = widget.item;
     try {
       final trailers = await KostvTrailers.sorted(
@@ -124,7 +178,10 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer>
         tmdbId: item.tmdbId,
         server: item.remoteTrailers,
       );
-      if (!mounted || _finished || _away) return;
+      // Gone out of sight and back meanwhile: that return's own wait looks
+      // again.
+      if (!mounted || attempt != _attempt) return;
+      if (_finished || _away) return;
       for (final trailer in trailers) {
         final url = trailer['Url'];
         if (url is! String) continue;
@@ -134,7 +191,9 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer>
           return;
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      if (!mounted || attempt != _attempt) return;
+    }
     _finished = true;
   }
 
@@ -147,6 +206,9 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer>
   void _end() {
     if (!mounted || _finished) return;
     setState(() => _visible = false);
+    // Done from now: scrolling away and back while it fades mustn't start
+    // it over.
+    _finished = true;
     Timer(_fade, _stop);
   }
 
@@ -158,6 +220,7 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer>
 
   @override
   void dispose() {
+    widget.outOfSight?.removeListener(_onScroll);
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
@@ -198,6 +261,7 @@ class _KostvBackdropTrailerState extends State<KostvBackdropTrailer>
                   showControls: false,
                   loop: false,
                   ignorePointer: true,
+                  paused: _scrolledOff,
                   onPlaybackStarted: _started,
                   onCompleted: _end,
                   onAutoplayFailed: _end,
