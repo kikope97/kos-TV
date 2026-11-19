@@ -20381,4 +20381,55 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvCastReceiverFailed =>
       'El otro aparato no ha podido reproducirlo.';
+
+  @override
+  String get kostvStremfinErrorSession =>
+      'Tu sesión ya no vale: vuelve a entrar en la app.';
+
+  @override
+  String get kostvStremfinErrorNotLinked =>
+      'Tu usuario aún no está dado de alta para pedir. Pídeselo a quien lleva el servidor.';
+
+  @override
+  String get kostvStremfinErrorNoAccess =>
+      'Ahora mismo no tienes permiso para pedir.';
+
+  @override
+  String get kostvStremfinErrorNotYours => 'Esa petición no es tuya.';
+
+  @override
+  String get kostvStremfinErrorNotFound =>
+      'Ya no existe: puede que se haya retirado o juntado con otra.';
+
+  @override
+  String get kostvStremfinErrorAlreadyAnswered =>
+      'Esa petición ya tiene respuesta.';
+
+  @override
+  String get kostvStremfinErrorDisabled =>
+      'Las peticiones están apagadas ahora mismo. Inténtalo más tarde.';
+
+  @override
+  String get kostvStremfinErrorNotConnected =>
+      'El servicio de peticiones aún no está conectado al servidor.';
+
+  @override
+  String get kostvStremfinErrorServerUnavailable =>
+      'Ahora mismo no se puede comprobar tu sesión. Inténtalo en un momento.';
+
+  @override
+  String get kostvStremfinErrorSourceUnavailable =>
+      'Ahora mismo no se puede consultar. Inténtalo más tarde.';
+
+  @override
+  String get kostvStremfinErrorBusy =>
+      'Hay otra petición guardándose en este momento. Inténtalo otra vez.';
+
+  @override
+  String get kostvStremfinErrorServerError =>
+      'El servicio de peticiones ha fallado. Inténtalo más tarde.';
+
+  @override
+  String get kostvStremfinErrorUnreachable =>
+      'No se puede conectar con el servicio de peticiones. Mira la conexión.';
 }

@@ -34,6 +34,9 @@ class StremfinInbox extends ChangeNotifier {
   bool _enabled = false;
   bool _foreground = true;
 
+  /// Kos TV: in kids mode the tray isn't shown, so nothing is asked.
+  bool _kidsMode = false;
+
   /// The service's clock at the last answer, to ask only what changed.
   String? _since;
   final Map<int, StremfinRequest> _items = {};
@@ -131,6 +134,9 @@ class StremfinInbox extends ChangeNotifier {
     _seen = null;
     _items.clear();
     _stopTimers();
+    // Kos TV: a read under way is the last person's: the next one doesn't
+    // wait on it (it would end without reading theirs).
+    _syncing = null;
     _notify();
   }
 
@@ -140,7 +146,11 @@ class StremfinInbox extends ChangeNotifier {
     _enabled = enabled;
     if (enabled) {
       unawaited(sync());
+      if (_watchers > 0) unawaited(_live());
     } else {
+      // Kos TV: a read under way doesn't fill it again afterwards.
+      _generation++;
+      _syncing = null;
       _stopTimers();
       _items.clear();
       _since = null;
@@ -160,14 +170,33 @@ class StremfinInbox extends ChangeNotifier {
     }
   }
 
+  /// Kos TV: kids mode came on (stop asking) or went (ask what changed).
+  void setKidsMode(bool kidsMode) {
+    if (_kidsMode == kidsMode) return;
+    _kidsMode = kidsMode;
+    if (kidsMode) {
+      _stopTimers();
+    } else {
+      unawaited(sync());
+      if (_watchers > 0) unawaited(_live());
+    }
+  }
+
   /// Asks what changed since last time.
-  Future<void> sync() => _syncing ??= _sync().whenComplete(() {
-    _syncing = null;
-  });
+  Future<void> sync() {
+    final running = _syncing;
+    if (running != null) return running;
+    late final Future<void> syncing;
+    // Kos TV: only its own: a newer one may have taken its place.
+    syncing = _sync().whenComplete(() {
+      if (identical(_syncing, syncing)) _syncing = null;
+    });
+    return _syncing = syncing;
+  }
 
   Future<void> _sync() async {
     final user = _userId;
-    if (!_enabled || user == null || _disposed) return;
+    if (!_enabled || _kidsMode || user == null || _disposed) return;
     final generation = _generation;
     _timer?.cancel();
     try {
@@ -216,7 +245,13 @@ class StremfinInbox extends ChangeNotifier {
 
   void _schedule() {
     _timer?.cancel();
-    if (_disposed || !_enabled || !_foreground || _userId == null) return;
+    if (_disposed ||
+        !_enabled ||
+        !_foreground ||
+        _kidsMode ||
+        _userId == null) {
+      return;
+    }
     _timer = Timer(syncInterval, () => unawaited(sync()));
   }
 
@@ -236,14 +271,27 @@ class StremfinInbox extends ChangeNotifier {
 
   /// A request as it stands now, read elsewhere (its page, or just asked
   /// for). [seen]: the person saw it so, so it isn't news.
-  void note(StremfinRequest request, {bool seen = false}) {
+  ///
+  /// Kos TV: only the person's own: a title's page shows whoever's request
+  /// it has, and the tray never holds someone else's (the service would
+  /// never update it, and the tray open would read it again every few
+  /// seconds). [own]: it is theirs, whatever it says (they just asked for
+  /// it). One the tray holds already is always brought up to date.
+  void note(StremfinRequest request, {bool seen = false, bool own = false}) {
     if (_disposed || _userId == null) return;
+    final before = _items[request.id];
+    if (before == null && !own && !request.mine) return;
     _items[request.id] = request;
     final key = _newsKey(request);
+    var changed = before == null || _shown(before) != _shown(request);
     if (seen && key != null && _seen != null && _seen!.add(key)) {
+      changed = true;
       unawaited(_saveSeen());
     }
-    _notify();
+    // Kos TV: only when something changed: a page reads its request every
+    // few seconds, and each would rebuild the tray buttons and the bottom
+    // bar for nothing.
+    if (changed) _notify();
   }
 
   /// A request taken back.
@@ -266,8 +314,11 @@ class StremfinInbox extends ChangeNotifier {
 
   Future<void> _live() async {
     _liveTimer?.cancel();
-    if (_watchers == 0 || !_enabled || !_foreground || _disposed) return;
+    if (_watchers == 0 || !_enabled || !_foreground || _kidsMode || _disposed) {
+      return;
+    }
     final generation = _generation;
+    Duration? wait;
     try {
       // How far each has got: its progress doesn't count as a change for
       // `since`, so the open ones are read as they are.
@@ -290,12 +341,15 @@ class StremfinInbox extends ChangeNotifier {
       if (changed) _notify();
       // One that isn't open any more arrived, was turned down or went.
       if (finishedMeanwhile) await sync();
-    } on StremfinException {
-      // Asked again in a moment.
+    } on StremfinException catch (e) {
+      // Asked again in a moment. Kos TV: or when the service says, if it
+      // said to wait.
+      if (generation != _generation) return;
+      wait = e.retryAfter;
     }
-    if (_watchers == 0 || _disposed || !_foreground) return;
+    if (_watchers == 0 || _disposed || !_foreground || _kidsMode) return;
     _liveTimer = Timer(
-      hasDownloading ? liveQuick : liveSlow,
+      wait ?? (hasDownloading ? liveQuick : liveSlow),
       () => unawaited(_live()),
     );
   }
@@ -320,9 +374,16 @@ class StremfinInbox extends ChangeNotifier {
     final user = _userId;
     final seen = _seen;
     if (user == null || seen == null) return;
-    // Only what still matters: requests it still holds.
-    final known = {for (final r in _items.values) r.id};
-    seen.removeWhere((key) => !known.contains(int.tryParse(key.split(':')[0])));
+    // Only what still matters: requests it still holds. Kos TV: once the
+    // list has been read for this person; until then (being read, or the
+    // service not answering) it holds next to nothing, and what was seen
+    // before would be lost and shown as news again.
+    if (isLoaded) {
+      final known = {for (final r in _items.values) r.id};
+      seen.removeWhere(
+        (key) => !known.contains(int.tryParse(key.split(':')[0])),
+      );
+    }
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList(_seenKey(user), seen.toList());

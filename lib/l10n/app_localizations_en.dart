@@ -20042,4 +20042,55 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvCastReceiverFailed => 'The other device couldn\'t play it.';
+
+  @override
+  String get kostvStremfinErrorSession =>
+      'Your session is no longer valid: sign in to the app again.';
+
+  @override
+  String get kostvStremfinErrorNotLinked =>
+      'Your user isn\'t set up for requests yet. Ask whoever runs the server.';
+
+  @override
+  String get kostvStremfinErrorNoAccess =>
+      'You can\'t make requests right now.';
+
+  @override
+  String get kostvStremfinErrorNotYours => 'That request isn\'t yours.';
+
+  @override
+  String get kostvStremfinErrorNotFound =>
+      'It no longer exists: it may have been withdrawn or merged with another.';
+
+  @override
+  String get kostvStremfinErrorAlreadyAnswered =>
+      'That request has already been answered.';
+
+  @override
+  String get kostvStremfinErrorDisabled =>
+      'Requests are switched off right now. Try again later.';
+
+  @override
+  String get kostvStremfinErrorNotConnected =>
+      'The requests service isn\'t connected to the server yet.';
+
+  @override
+  String get kostvStremfinErrorServerUnavailable =>
+      'Your session can\'t be checked right now. Try again in a moment.';
+
+  @override
+  String get kostvStremfinErrorSourceUnavailable =>
+      'It can\'t be looked up right now. Try again later.';
+
+  @override
+  String get kostvStremfinErrorBusy =>
+      'Another request is being saved right now. Try again.';
+
+  @override
+  String get kostvStremfinErrorServerError =>
+      'The requests service failed. Try again later.';
+
+  @override
+  String get kostvStremfinErrorUnreachable =>
+      'Can\'t reach the requests service. Check the connection.';
 }

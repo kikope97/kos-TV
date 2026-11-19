@@ -31,6 +31,10 @@ class StremfinMusicMemory {
   Future<void>? _loading;
   Timer? _saving;
 
+  /// Kos TV: bumped by [clear], so an answer kept just before (still
+  /// waiting for the device) isn't written after the person signed out.
+  int _cleared = 0;
+
   Future<void> _load() => _loading ??= () async {
     try {
       final raw = (await _prefs()).getString(_key);
@@ -56,8 +60,10 @@ class StremfinMusicMemory {
   /// a moment later. Another person's answers are dropped.
   void write(String scope, String key, Object? answer) {
     if (answer == null) return;
+    final cleared = _cleared;
     unawaited(
       _load().then((_) {
+        if (cleared != _cleared) return;
         if (scope != _scope) {
           _scope = scope;
           _answers = {};
@@ -77,6 +83,7 @@ class StremfinMusicMemory {
 
   /// Forgets everything (the person signed out).
   Future<void> clear() async {
+    _cleared++;
     await _load();
     _saving?.cancel();
     _scope = null;

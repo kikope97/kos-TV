@@ -302,7 +302,9 @@ class KostvSeriesGapsController extends ChangeNotifier {
   static Object? _keptFor;
 
   static void _keepFor(StremfinService service) {
-    final person = service.me?.name;
+    // Kos TV: the service's count of people signed in too: the name isn't
+    // always known yet.
+    final person = '${service.generation}|${service.me?.name}';
     if (identical(_keptFor, service) && _keptPerson == person) return;
     _keptFor = service;
     _keptPerson = person;
@@ -444,10 +446,17 @@ class KostvSeriesGapsController extends ChangeNotifier {
     // Kept with when it was asked for, so a read from before a request that
     // ends after the one asked for since can't put the older page back.
     final askedAt = DateTime.now();
+    // Kos TV: read for this person: one that ends after another person
+    // signed in isn't kept for them.
+    final generation = service.generation;
     late final Future<StremfinSeriesDetail> future;
     future = service
         .series(tmdb)
         .then((detail) {
+          if (generation != service.generation ||
+              !identical(_keptFor, service)) {
+            return detail;
+          }
           final newer = _kept[tmdb];
           if (newer == null || !newer.at.isAfter(askedAt)) {
             _kept[tmdb] = (at: askedAt, detail: detail);
