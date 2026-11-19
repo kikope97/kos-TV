@@ -97,6 +97,11 @@ class _CastTargetSheetState extends State<_CastTargetSheet> {
   StreamSubscription<CastTarget>? _sub;
   bool _done = false;
 
+  /// Kos TV: the search stays open for devices that answer late, so
+  /// "searching" ends after this even though the stream never does.
+  static const searchingFor = Duration(seconds: 8);
+  Timer? _searchingTimer;
+
   @override
   void initState() {
     super.initState();
@@ -108,10 +113,14 @@ class _CastTargetSheetState extends State<_CastTargetSheet> {
         if (mounted) setState(() => _done = true);
       },
     );
+    _searchingTimer = Timer(searchingFor, () {
+      if (mounted && !_done) setState(() => _done = true);
+    });
   }
 
   @override
   void dispose() {
+    _searchingTimer?.cancel();
     _sub?.cancel();
     super.dispose();
   }
@@ -234,6 +243,7 @@ class _CastTargetSheetState extends State<_CastTargetSheet> {
 
   Widget _deviceCard(ThemeData theme, CastTarget target) {
     final tint = theme.colorScheme.primary;
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
@@ -271,17 +281,22 @@ class _CastTargetSheetState extends State<_CastTargetSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        target.title,
+                        target.title.isEmpty
+                            ? l10n.kostvCastUnknownDevice
+                            : target.title,
                         style: theme.textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (target.subtitle.isNotEmpty) ...[
+                      if (target.subtitle.isNotEmpty ||
+                          target.nowPlaying) ...[
                         const SizedBox(height: 2),
                         Text(
-                          target.subtitle,
+                          target.subtitle.isEmpty
+                              ? l10n.nowPlaying
+                              : target.subtitle,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.outline,
                           ),

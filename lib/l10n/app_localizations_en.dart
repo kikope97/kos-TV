@@ -19906,4 +19906,140 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvMusicNotificationChannel => 'Music playback';
+
+  @override
+  String get kostvSyncPlayErrorLoadGroups => 'Couldn\'t load the groups.';
+
+  @override
+  String get kostvSyncPlayErrorUnavailable =>
+      'SyncPlay isn\'t available right now.';
+
+  @override
+  String get kostvSyncPlayErrorCreateGroup => 'Couldn\'t create the group.';
+
+  @override
+  String get kostvSyncPlayErrorJoinGroup => 'Couldn\'t join the group.';
+
+  @override
+  String get kostvSyncPlayErrorRecoverState =>
+      'Couldn\'t catch up with the group.';
+
+  @override
+  String get kostvSyncPlayErrorNotInGroup =>
+      'You\'re no longer in a SyncPlay group.';
+
+  @override
+  String get kostvSyncPlayErrorGroupGone =>
+      'That SyncPlay group no longer exists.';
+
+  @override
+  String get kostvSyncPlayErrorLibraryAccess =>
+      'You don\'t have access to something this group is watching.';
+
+  @override
+  String get kostvSyncPlayErrorServerRestarting => 'The server is restarting.';
+
+  @override
+  String get kostvSyncPlayErrorServerShuttingDown =>
+      'The server is shutting down.';
+
+  @override
+  String get kostvSyncPlayErrorSetCurrentItem =>
+      'Couldn\'t switch to that title.';
+
+  @override
+  String get kostvSyncPlayErrorRemoveFromQueue =>
+      'Couldn\'t remove it from the queue.';
+
+  @override
+  String get kostvSyncPlayErrorClearQueue => 'Couldn\'t clear the queue.';
+
+  @override
+  String get kostvSyncPlayErrorMoveQueueItem =>
+      'Couldn\'t move it in the queue.';
+
+  @override
+  String get kostvSyncPlayErrorQueueItems => 'Couldn\'t add it to the queue.';
+
+  @override
+  String get kostvSyncPlayErrorSetRepeat => 'Couldn\'t change repeat.';
+
+  @override
+  String get kostvSyncPlayErrorSetShuffle => 'Couldn\'t change shuffle.';
+
+  @override
+  String get kostvSyncPlayErrorIgnoreWait =>
+      'Couldn\'t change whether you wait for the others.';
+
+  @override
+  String get kostvSyncPlayErrorSyncQueue =>
+      'Couldn\'t share what\'s playing with the group.';
+
+  @override
+  String get kostvWatchPartyErrorGeneric => 'That didn\'t work. Try again.';
+
+  @override
+  String get kostvWatchPartyErrorNetwork => 'Couldn\'t reach the server.';
+
+  @override
+  String get kostvWatchPartyErrorNotHost => 'Only the host can do that.';
+
+  @override
+  String get kostvWatchPartyErrorNotAllowed =>
+      'You can\'t do that in this room.';
+
+  @override
+  String get kostvWatchPartyErrorPinRequired => 'This room needs a PIN.';
+
+  @override
+  String get kostvWatchPartyReplaced =>
+      'This profile joined the Watch Party on another device.';
+
+  @override
+  String get kostvExternalPlayerPreparing =>
+      'Getting the external player ready…';
+
+  @override
+  String kostvExternalPlayerChoosing(String title) {
+    return 'Choose an external player for $title…';
+  }
+
+  @override
+  String kostvExternalPlayerOpening(String title, String player) {
+    return 'Opening $title in $player…';
+  }
+
+  @override
+  String get kostvExternalPlayerDefaultName => 'External player';
+
+  @override
+  String get kostvExternalPlayerSelectedMissing =>
+      'The chosen external player isn\'t available. Pick another one.';
+
+  @override
+  String get kostvExternalPlayerNeedsDirect =>
+      'The external player needs the original file. Playing it in kOS TV instead.';
+
+  @override
+  String get kostvExternalPlayerUnavailable =>
+      'Couldn\'t open the external player. Playing it in kOS TV instead.';
+
+  @override
+  String kostvExternalPlayerReturnedError(String title) {
+    return 'The external player reported an error with $title.';
+  }
+
+  @override
+  String get kostvExternalPlayerFailed =>
+      'Couldn\'t play it with the external player.';
+
+  @override
+  String get kostvExternalPlayerFallbackFailed =>
+      'Couldn\'t play it in kOS TV either.';
+
+  @override
+  String get kostvCastUnknownDevice => 'Unknown device';
+
+  @override
+  String get kostvCastReceiverFailed => 'The other device couldn\'t play it.';
 }

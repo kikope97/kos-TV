@@ -12,6 +12,7 @@ import 'cast_transport_controls.dart';
 import 'native_airplay_channel.dart';
 import 'native_cast_channel.dart';
 import 'native_dlna_channel.dart';
+import 'remote_session_cast_provider.dart';
 
 class CastService {
   final List<CastProvider> _providers;
@@ -27,6 +28,19 @@ class CastService {
   final ValueNotifier<int> remotePositionNotifier = ValueNotifier(0);
   final ValueNotifier<double?> remoteVolumeNotifier = ValueNotifier(null);
   Timer? _remotePollTimer;
+
+  /// Kos TV: polls in a row that found the receiver gone or on nothing, and
+  /// whether it has been seen playing since the cast began.
+  int _remoteMisses = 0;
+  bool _remoteSeenPlaying = false;
+
+  /// Kos TV: polls in a row (5 s apart) that end a cast whose receiver
+  /// disappeared or stopped playing. One that hasn't started yet gets the
+  /// longer wait, since a title can take a while to open there.
+  @visibleForTesting
+  static const remoteMissesToEnd = 3;
+  @visibleForTesting
+  static const remoteMissesBeforeStartToEnd = 12;
 
   /// Reports a cast to its server session where the server needs it (Silo).
   late final CastSessionReporter sessionReporter = CastSessionReporter(
@@ -113,9 +127,10 @@ class CastService {
           '${event['message'] ?? 'unknown'}',
           level: LogLevel.warning,
         );
+        // Kos TV: the receiver's own text is in the log above; the mini
+        // player shows the app's words for any non-null value.
         if (activeKindNotifier.value == castKind) {
-          remoteErrorNotifier.value =
-              event['message'] as String? ?? 'Playback failed on the receiver';
+          remoteErrorNotifier.value = event['message'] as String? ?? '';
         }
       case 'deviceFound':
         _discoverySink?.call(_targetFromEvent(event, castKind));
@@ -135,6 +150,8 @@ class CastService {
   /// so its pause button stays a play button and its seek bar stays at zero.
   void _startRemotePolling(CastTargetKind kind) {
     _stopRemotePolling();
+    _remoteMisses = 0;
+    _remoteSeenPlaying = false;
     final pollable = _pollableForKind(kind);
     if (pollable == null) return;
     unawaited(_pollRemoteState(kind, pollable));
@@ -163,6 +180,23 @@ class CastService {
       // The target can be dropped while the request is out, and writing then
       // would light the mini player back up for a session nobody is on.
       if (snapshot == null || activeKindNotifier.value != kind) return;
+      // Kos TV: a receiver that disappeared, or stays on nothing, ends the
+      // cast here too, so the bar goes away on its own.
+      if (snapshot.state != null) {
+        _remoteSeenPlaying = true;
+        _remoteMisses = 0;
+      } else {
+        _remoteMisses++;
+        final limit = snapshot.sessionGone || _remoteSeenPlaying
+            ? remoteMissesToEnd
+            : remoteMissesBeforeStartToEnd;
+        if (_remoteMisses >= limit) {
+          castDiag('receiver gone or idle (${kind.name}), ending the cast');
+          _endLocally(kind);
+          return;
+        }
+        if (snapshot.sessionGone) return;
+      }
       remoteStateNotifier.value = snapshot.state;
       remotePositionNotifier.value = snapshot.positionTicks;
       remoteVolumeNotifier.value = snapshot.volume;
@@ -314,17 +348,44 @@ class CastService {
 
   Future<void> stop(CastTargetKind kind) async {
     final provider = _controlProviderForKind(kind);
-    await provider.stop(kind);
-    if (activeKindNotifier.value == kind) {
-      unawaited(sessionReporter.end());
-      _stopRemotePolling();
-      activeKindNotifier.value = null;
-      activeTargetNotifier.value = null;
-      castItemNotifier.value = null;
-      remoteStateNotifier.value = null;
-      remotePositionNotifier.value = 0;
-      remoteVolumeNotifier.value = null;
+    try {
+      await provider.stop(kind);
+    } finally {
+      // Kos TV: a receiver that is gone can't answer, and the cast is over
+      // here all the same: the bar goes even when the command fails.
+      if (activeKindNotifier.value == kind) _clearActive();
     }
+  }
+
+  /// Kos TV: the person using this device changed or signed out. Their cast
+  /// stops being followed here; the receiver keeps playing.
+  void endForSessionChange() {
+    if (activeKindNotifier.value == null) return;
+    for (final provider in _providers) {
+      if (provider is RemoteSessionCastProvider) provider.forget();
+    }
+    _clearActive();
+  }
+
+  void _endLocally(CastTargetKind kind) {
+    for (final provider in _providers) {
+      if (provider is RemoteSessionCastProvider &&
+          provider.controllableKinds.contains(kind)) {
+        provider.forget();
+      }
+    }
+    _clearActive();
+  }
+
+  void _clearActive() {
+    unawaited(sessionReporter.end());
+    _stopRemotePolling();
+    activeKindNotifier.value = null;
+    activeTargetNotifier.value = null;
+    castItemNotifier.value = null;
+    remoteStateNotifier.value = null;
+    remotePositionNotifier.value = 0;
+    remoteVolumeNotifier.value = null;
   }
 
   Future<double?> getVolume(CastTargetKind kind) async {

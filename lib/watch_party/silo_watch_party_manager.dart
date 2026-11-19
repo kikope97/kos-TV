@@ -19,6 +19,7 @@ import '../data/services/moonbase_endpoint.dart';
 import '../data/services/plugin_sync_service.dart' show pluginRequestOptions;
 import '../ui/navigation/app_router.dart';
 import '../ui/navigation/destinations.dart';
+import '../ui/navigation/player_route_check.dart';
 import '../ui/widgets/video_mini_player.dart';
 import '../util/platform_detection.dart';
 import 'moonbase_watch_party_api.dart';
@@ -70,6 +71,11 @@ class SiloWatchPartyManager extends ChangeNotifier {
   /// The room's server: the Silo client itself on Silo, else the active
   /// client.
   MediaServerClient? _client;
+
+  /// Kos TV: whose room this is (server and person), taken as text when it
+  /// was entered. The client object is shared by everyone on a server and
+  /// has its user swapped in place, so it cannot say this later.
+  String? _roomSessionKey;
   WatchPartyBackend? _backend;
   MediaServerClient? _moonbaseClient;
   MoonbaseWatchPartyApi? _moonbase;
@@ -340,8 +346,10 @@ class SiloWatchPartyManager extends ChangeNotifier {
   Future<bool> _stageOrVoteAgain(String contentId) async {
     if (await stage(contentId)) return true;
     final error = _error;
+    final errorCode = _errorCode;
     await setVoting(true);
     _error = error;
+    _errorCode = errorCode;
     notifyListeners();
     return false;
   }
@@ -606,7 +614,18 @@ class SiloWatchPartyManager extends ChangeNotifier {
     final active = _activeClient;
     return client != null &&
         active != null &&
-        _sessionKey(client) == _sessionKey(active);
+        _roomSessionKey != null &&
+        _roomSessionKey == _sessionKey(active);
+  }
+
+  /// Puts this manager in [room] as entered by [client]'s current person,
+  /// without a server, for tests of what happens around a room.
+  @visibleForTesting
+  void debugEnterRoom(SiloRoom room, MediaServerClient client) {
+    _client = client;
+    _roomSessionKey = _sessionKey(client);
+    _room = room;
+    notifyListeners();
   }
 
   Future<bool> setGuestsCanPause(bool allowed) => _hostAction(
@@ -733,7 +752,7 @@ class SiloWatchPartyManager extends ChangeNotifier {
         options: Options(headers: ep.headers),
       );
     } catch (e) {
-      _error = _describe(e);
+      _setError(e);
       notifyListeners();
       return false;
     }
@@ -959,6 +978,7 @@ class SiloWatchPartyManager extends ChangeNotifier {
         backend.isMoonbase ? leave() : _leaveRoom(null);
       }
       _client = siloClientOf(active) ?? active;
+      _roomSessionKey = _sessionKey(active);
       _backend = backend;
       _serverId = _serverIdOf(active);
       _room = access.room;
@@ -1020,16 +1040,32 @@ class SiloWatchPartyManager extends ChangeNotifier {
   }
 
   void _setError(Object e) {
-    _errorCode = MoonbaseWatchPartyApi.errorCode(e);
+    _errorCode = errorCodeFor(e);
     _error = _describe(e);
+    _logger.d('Watch Party: $_error');
   }
 
+  /// Kos TV: the code a failure is shown by. The server's own code when it
+  /// sent one, else one made up from what went wrong, and `unknown` for the
+  /// rest: the screens word every code, so no exception text reaches them.
+  @visibleForTesting
+  static String errorCodeFor(Object e) {
+    final code = MoonbaseWatchPartyApi.errorCode(e);
+    if (code != null) return code;
+    if (e is MoonbaseUnavailableException) return 'disabled';
+    if (e is DioException) {
+      if (e.response?.statusCode == 404) return 'not_found';
+      if (e.response == null) return 'network';
+    }
+    return 'unknown';
+  }
+
+  /// For the log only.
   String _describe(Object e) {
     if (e is DioException) {
       final data = e.response?.data;
       if (data is Map && data['detail'] is String) return data['detail'];
       if (data is Map && data['message'] is String) return data['message'];
-      if (e.response?.statusCode == 404) return 'No room has that code.';
     }
     return e.toString();
   }
@@ -1182,10 +1218,8 @@ class SiloWatchPartyManager extends ChangeNotifier {
       case 'notice':
         _onNotice(message);
       case 'connection_replaced':
-        _leaveRoom(
-          message['reason'] as String? ??
-              'This profile joined the Watch Party on another device.',
-        );
+        // Kos TV: a code the room screen words, not the server's text.
+        _leaveRoom('replaced');
       case 'error':
         final code = message['code'];
         if (code == 'not_found' || code == 'gone') {
@@ -1486,13 +1520,23 @@ class SiloWatchPartyManager extends ChangeNotifier {
       _applyingCount--;
       _opening = false;
     }
+    // Kos TV: the room was left, or moved to another title, while this one
+    // loaded. Its player isn't wanted any more.
+    if (_room?.roomId != room.roomId ||
+        _room?.selectionRevision != room.selectionRevision) {
+      if (_room == null) {
+        await _playbackManager.stop(userInitiated: false);
+      }
+      return;
+    }
     _ensurePlayerRoute();
     _tick();
   }
 
   void _ensurePlayerRoute() {
-    final path = appRouter.routerDelegate.currentConfiguration.uri.path;
-    if (path == Destinations.videoPlayer) return;
+    // Kos TV: a pushed player leaves the router's uri on the tab below, so
+    // the match list is what says the player is already up.
+    if (isVideoPlayerRouteOnTop(appRouter)) return;
     // A viewer who minimized the video keeps watching in the mini player.
     if (VideoMiniPlayerController.isSupported &&
         VideoMiniPlayerController.instance.isMinimized) {
@@ -1511,6 +1555,7 @@ class SiloWatchPartyManager extends ChangeNotifier {
     _room = null;
     _roomToken = null;
     _client = null;
+    _roomSessionKey = null;
     _backend = null;
     _chat.clear();
     _waitingSince = null;

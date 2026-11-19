@@ -16,6 +16,7 @@ import '../../l10n/current_app_localizations.dart';
 import '../../ui/navigation/app_router.dart';
 import '../../ui/navigation/destinations.dart';
 import '../../ui/navigation/home_refresh_bus.dart';
+import '../../ui/navigation/player_route_check.dart';
 import '../../ui/screensaver/screensaver_controller.dart';
 import '../../ui/widgets/overlay_sheet.dart';
 import '../../ui/widgets/floating_notification.dart';
@@ -249,6 +250,8 @@ class SessionRepository {
     final generation = ++_sessionGeneration;
     _tokenCheckedAt = null;
     if (serverId != _activeServerId || userId != _activeUserId) {
+      // Kos TV: out of the group first, so the stop isn't the group's.
+      await _endSharedPlaybackForSessionChange(notifyServer: true);
       await _stopPlaybackForSessionChange();
     }
     _setState(SessionState.switching);
@@ -900,9 +903,34 @@ class SessionRepository {
     } catch (_) {}
   }
 
+  /// Kos TV: a SyncPlay group and a cast to another device belong to the
+  /// session that started them. Before the client's user is swapped (so the
+  /// group is left with the token that joined it), they end here, or the
+  /// next person would stay in the group (and the ping would keep sending a
+  /// dead token after a sign-out) and keep the last person's cast bar. A
+  /// Watch Party room is left by its own manager once the session changed.
+  Future<void> _endSharedPlaybackForSessionChange({
+    required bool notifyServer,
+  }) async {
+    final getIt = GetIt.instance;
+    if (getIt.isRegistered<SyncPlayManager>()) {
+      try {
+        await getIt<SyncPlayManager>().resetForSessionChange(
+          notifyServer: notifyServer,
+        );
+      } catch (_) {}
+    }
+    if (getIt.isRegistered<CastService>()) {
+      try {
+        getIt<CastService>().endForSessionChange();
+      } catch (_) {}
+    }
+  }
+
   Future<void> destroyCurrentSession({bool tokenKnownInvalid = false}) async {
     _sessionGeneration++;
     _forgetUnrememberedPinOfActive();
+    await _endSharedPlaybackForSessionChange(notifyServer: !tokenKnownInvalid);
     await _stopPlaybackForSessionChange();
     _remoteVolumeGeneration++;
     _remoteNavigationGeneration++;
@@ -1262,13 +1290,13 @@ class SessionRepository {
         }
       }),
     );
-    final items = loaded.whereType<AggregatedItem>().toList(growable: false);
-
-    if (items.isEmpty) {
+    // Kos TV: the start index points into the full list, so a title that
+    // failed to load must not shift it onto another one.
+    final picked = syncPlayLoadedStart(loaded, message.startIndex);
+    if (picked == null) {
       return;
     }
-
-    final startIndex = message.startIndex.clamp(0, items.length - 1).toInt();
+    final (items, startIndex) = picked;
     final manager = GetIt.instance<PlaybackManager>();
     final command = message.playCommand.toLowerCase();
 
@@ -1307,19 +1335,82 @@ class SessionRepository {
           )
         : true;
 
-    _ensurePlayerRouteForItem(item);
-    await manager.playItems(
-      items,
-      startIndex: startIndex,
-      startPosition:
-          _durationFromTicks(message.startPositionTicks) ?? Duration.zero,
-      audioStreamIndex: message.audioStreamIndex,
-      subtitleStreamIndex: message.subtitleStreamIndex,
-      mediaSourceId: message.mediaSourceId,
-      enableDirectPlay: allowDirect,
-      enableDirectStream: allowDirect,
-      enableTranscoding: !isLiveTv || !allowDirect,
-    );
+    // Kos TV: like a launch from the app itself. The video player opens
+    // first (so it shows its loading state) with the external-player
+    // redirect held back, since the queue still holds the previous title;
+    // once playItems has decided, a title handed to the external player
+    // moves there, and one refused (blocked for this person) closes it
+    // again instead of leaving a black player behind. Audio opens its
+    // player once it is actually playing.
+    final isAudio = _isAudioItem(item);
+    final pushedVideo = !isAudio && !isMediaPlayerRouteOnTop(appRouter);
+    if (pushedVideo) {
+      manager.beginPlaybackPreparation();
+      manager.skipExternalRoutingOnce();
+      unawaited(appRouter.push(Destinations.videoPlayer));
+      // The push's redirect reads the held-back flag; let it run first.
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    try {
+      await manager.playItems(
+        items,
+        startIndex: startIndex,
+        startPosition:
+            _durationFromTicks(message.startPositionTicks) ?? Duration.zero,
+        audioStreamIndex: message.audioStreamIndex,
+        subtitleStreamIndex: message.subtitleStreamIndex,
+        mediaSourceId: message.mediaSourceId,
+        enableDirectPlay: allowDirect,
+        enableDirectStream: allowDirect,
+        enableTranscoding: !isLiveTv || !allowDirect,
+      );
+    } catch (_) {
+      if (pushedVideo) {
+        manager.consumeSkipExternalRoutingOnce();
+        manager.cancelPlaybackPreparation();
+      }
+      rethrow;
+    }
+    if (pushedVideo) manager.consumeSkipExternalRoutingOnce();
+
+    if (manager.playbackDeferredToExternalPlayer) {
+      final top = topRouteLocation(appRouter);
+      if (top == Destinations.videoPlayer) {
+        // The internal player stands aside without stopping what was
+        // handed over (its dispose checks the deferral).
+        unawaited(appRouter.pushReplacement(Destinations.externalPlayer));
+      } else if (top != Destinations.externalPlayer) {
+        unawaited(appRouter.push(Destinations.externalPlayer));
+      }
+      return;
+    }
+    final refused = isAudio
+        ? !_isCurrentQueueItem(manager, item)
+        : pushedVideo &&
+              manager.bringupState.phase == PlaybackBringupPhase.preparing;
+    if (refused) {
+      if (pushedVideo) {
+        if (topRouteLocation(appRouter) == Destinations.videoPlayer) {
+          appRouter.pop();
+        }
+        manager.cancelPlaybackPreparation();
+      }
+      return;
+    }
+    if (isAudio) _ensurePlayerRouteForItem(item);
+  }
+
+  bool _isAudioItem(AggregatedItem item) {
+    final mediaType = item.rawData['MediaType'] as String?;
+    return item.type == 'Audio' ||
+        item.type == 'MusicAlbum' ||
+        item.type == 'AudioBook' ||
+        mediaType == 'Audio';
+  }
+
+  bool _isCurrentQueueItem(PlaybackManager manager, AggregatedItem item) {
+    final current = manager.queueService.currentItem;
+    return current is AggregatedItem && current.id == item.id;
   }
 
   bool _isLiveTvItem(AggregatedItem item) {
@@ -1332,21 +1423,12 @@ class SessionRepository {
   }
 
   void _ensurePlayerRouteForItem(AggregatedItem item) {
-    final currentPath = appRouter.routerDelegate.currentConfiguration.uri.path;
-    if (currentPath == Destinations.videoPlayer ||
-        currentPath == Destinations.audioPlayer) {
-      return;
-    }
-
-    final mediaType = item.rawData['MediaType'] as String?;
-    final isAudio =
-        item.type == 'Audio' ||
-        item.type == 'MusicAlbum' ||
-        item.type == 'AudioBook' ||
-        mediaType == 'Audio';
+    // Kos TV: a pushed player leaves the router's uri on the tab below, so
+    // the match list is what says a player is already up.
+    if (isMediaPlayerRouteOnTop(appRouter)) return;
 
     appRouter.push(
-      isAudio ? Destinations.audioPlayer : Destinations.videoPlayer,
+      _isAudioItem(item) ? Destinations.audioPlayer : Destinations.videoPlayer,
     );
   }
 

@@ -9,10 +9,15 @@ class RemotePlaybackSnapshot {
   /// A fraction, or null when the receiver reports no volume of its own.
   final double? volume;
 
+  /// Kos TV: the server answered and the receiver's session isn't there any
+  /// more (the device was turned off or the app closed).
+  final bool sessionGone;
+
   const RemotePlaybackSnapshot({
     this.state,
     this.positionTicks = 0,
     this.volume,
+    this.sessionGone = false,
   });
 }
 

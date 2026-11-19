@@ -4,6 +4,7 @@ import '../data/models/aggregated_item.dart';
 import '../preference/user_preferences.dart';
 import '../syncplay/syncplay_manager.dart';
 import '../util/platform_detection.dart';
+import '../watch_party/silo_watch_party_manager.dart';
 
 class ExternalPlayerPolicy {
   static const Set<String> _supportedTypes = {
@@ -51,8 +52,14 @@ class ExternalPlayerPolicy {
         prefs.get(UserPreferences.kidsModeEnabled)) {
       return false;
     }
-    return !getIt.isRegistered<SyncPlayManager>() ||
-        !getIt<SyncPlayManager>().state.enabled;
+    if (getIt.isRegistered<SyncPlayManager>() &&
+        getIt<SyncPlayManager>().state.enabled) {
+      return false;
+    }
+    // Kos TV: a Watch Party room drives the app's own player (pause, seek,
+    // starting together); another app would play on its own, out of step.
+    return !getIt.isRegistered<SiloWatchPartyManager>() ||
+        !getIt<SiloWatchPartyManager>().inRoom;
   }
 
   /// Whether the external player setting sends [items] there on its own,

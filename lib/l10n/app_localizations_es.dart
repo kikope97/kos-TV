@@ -20236,4 +20236,149 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMusicNotificationChannel => 'Reproducción de música';
+
+  @override
+  String get kostvSyncPlayErrorLoadGroups =>
+      'No se han podido cargar los grupos.';
+
+  @override
+  String get kostvSyncPlayErrorUnavailable =>
+      'SyncPlay no está disponible ahora mismo.';
+
+  @override
+  String get kostvSyncPlayErrorCreateGroup => 'No se ha podido crear el grupo.';
+
+  @override
+  String get kostvSyncPlayErrorJoinGroup => 'No te has podido unir al grupo.';
+
+  @override
+  String get kostvSyncPlayErrorRecoverState =>
+      'No se ha podido recuperar el estado del grupo.';
+
+  @override
+  String get kostvSyncPlayErrorNotInGroup =>
+      'Ya no estás en un grupo de SyncPlay.';
+
+  @override
+  String get kostvSyncPlayErrorGroupGone =>
+      'Ese grupo de SyncPlay ya no existe.';
+
+  @override
+  String get kostvSyncPlayErrorLibraryAccess =>
+      'No tienes acceso a algo de lo que se ve en este grupo.';
+
+  @override
+  String get kostvSyncPlayErrorServerRestarting =>
+      'El servidor se está reiniciando.';
+
+  @override
+  String get kostvSyncPlayErrorServerShuttingDown =>
+      'El servidor se está apagando.';
+
+  @override
+  String get kostvSyncPlayErrorSetCurrentItem =>
+      'No se ha podido cambiar de título.';
+
+  @override
+  String get kostvSyncPlayErrorRemoveFromQueue =>
+      'No se ha podido quitar de la cola.';
+
+  @override
+  String get kostvSyncPlayErrorClearQueue => 'No se ha podido vaciar la cola.';
+
+  @override
+  String get kostvSyncPlayErrorMoveQueueItem =>
+      'No se ha podido mover en la cola.';
+
+  @override
+  String get kostvSyncPlayErrorQueueItems =>
+      'No se ha podido añadir a la cola.';
+
+  @override
+  String get kostvSyncPlayErrorSetRepeat =>
+      'No se ha podido cambiar la repetición.';
+
+  @override
+  String get kostvSyncPlayErrorSetShuffle =>
+      'No se ha podido cambiar el orden aleatorio.';
+
+  @override
+  String get kostvSyncPlayErrorIgnoreWait =>
+      'No se ha podido cambiar si esperas al resto.';
+
+  @override
+  String get kostvSyncPlayErrorSyncQueue =>
+      'No se ha podido pasar lo que suena al grupo.';
+
+  @override
+  String get kostvWatchPartyErrorGeneric =>
+      'No ha salido bien. Inténtalo otra vez.';
+
+  @override
+  String get kostvWatchPartyErrorNetwork =>
+      'No se ha podido conectar con el servidor.';
+
+  @override
+  String get kostvWatchPartyErrorNotHost =>
+      'Solo el anfitrión puede hacer eso.';
+
+  @override
+  String get kostvWatchPartyErrorNotAllowed =>
+      'En esta sala no puedes hacer eso.';
+
+  @override
+  String get kostvWatchPartyErrorPinRequired => 'Esta sala pide un PIN.';
+
+  @override
+  String get kostvWatchPartyReplaced =>
+      'Has entrado en Ver juntos con este perfil desde otro aparato.';
+
+  @override
+  String get kostvExternalPlayerPreparing =>
+      'Preparando el reproductor externo…';
+
+  @override
+  String kostvExternalPlayerChoosing(String title) {
+    return 'Elige un reproductor externo para $title…';
+  }
+
+  @override
+  String kostvExternalPlayerOpening(String title, String player) {
+    return 'Abriendo $title en $player…';
+  }
+
+  @override
+  String get kostvExternalPlayerDefaultName => 'Reproductor externo';
+
+  @override
+  String get kostvExternalPlayerSelectedMissing =>
+      'El reproductor externo elegido no está disponible. Elige otro.';
+
+  @override
+  String get kostvExternalPlayerNeedsDirect =>
+      'El reproductor externo necesita el archivo tal cual. Se reproduce en kOS TV.';
+
+  @override
+  String get kostvExternalPlayerUnavailable =>
+      'No se ha podido abrir el reproductor externo. Se reproduce en kOS TV.';
+
+  @override
+  String kostvExternalPlayerReturnedError(String title) {
+    return 'El reproductor externo ha dado un error con $title.';
+  }
+
+  @override
+  String get kostvExternalPlayerFailed =>
+      'No se ha podido reproducir con el reproductor externo.';
+
+  @override
+  String get kostvExternalPlayerFallbackFailed =>
+      'Tampoco se ha podido reproducir en kOS TV.';
+
+  @override
+  String get kostvCastUnknownDevice => 'Aparato desconocido';
+
+  @override
+  String get kostvCastReceiverFailed =>
+      'El otro aparato no ha podido reproducirlo.';
 }

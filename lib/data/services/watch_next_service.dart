@@ -11,6 +11,13 @@ import '../models/home_row.dart';
 import 'deep_link_service.dart';
 
 class WatchNextService {
+  // Kos TV: one instance app wide, as TvChannelsService, so signing out
+  // cancels the publish Home scheduled instead of letting it put the last
+  // person's row back on the launcher.
+  factory WatchNextService() => _instance;
+  WatchNextService._();
+  static final WatchNextService _instance = WatchNextService._();
+
   static const _channel = MethodChannel('org.moonfin.androidtv/watch_next');
   static const _maxItems = 20;
   // This window lets the progressive home-section loads on a cold start
@@ -31,6 +38,7 @@ class WatchNextService {
   void clear() {
     if (!_enabled) return;
     _debounce?.cancel();
+    _debounce = null;
     _lastPublishedSignature = null;
     unawaited(_channel.invokeMethod('clear').catchError((_) {}));
   }

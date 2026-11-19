@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:playback_core/playback_core.dart';
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/log_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../playback/audio_capability_profile.dart';
 import '../../../playback/device_profile_builder.dart';
@@ -14,6 +15,8 @@ import '../../../playback/external_player_service.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../navigation/destinations.dart';
+
+enum _HostStatus { preparing, choosing, opening }
 
 class ExternalPlayerHostScreen extends StatefulWidget {
   const ExternalPlayerHostScreen({super.key});
@@ -31,8 +34,12 @@ class _ExternalPlayerHostScreenState extends State<ExternalPlayerHostScreen> {
   bool _running = false;
   bool _finishing = false;
   bool _handoffToInternalPlayer = false;
-  String _status = 'Preparing external playback...';
-  String _playerLabel = 'External player';
+  // Kos TV: what the screen says is kept as a state and a name, and worded
+  // in build, so it follows the app's language.
+  _HostStatus _status = _HostStatus.preparing;
+  String? _itemName;
+  String? _playerLabel;
+  bool _askEachTime = false;
 
   @override
   void initState() {
@@ -60,9 +67,7 @@ class _ExternalPlayerHostScreenState extends State<ExternalPlayerHostScreen> {
       if (!mounted) return;
 
       if (component.isNotEmpty && selectedPlayer == null) {
-        _showError(
-          'Selected external player is unavailable. Showing app chooser instead.',
-        );
+        _showError((l10n) => l10n.kostvExternalPlayerSelectedMissing);
         component = '';
         unawaited(_prefs.set(UserPreferences.externalPlayerComponentName, ''));
       }
@@ -73,7 +78,7 @@ class _ExternalPlayerHostScreenState extends State<ExternalPlayerHostScreen> {
         });
       } else if (component.isEmpty) {
         setState(() {
-          _playerLabel = 'Ask each time';
+          _askEachTime = true;
         });
       }
 
@@ -91,9 +96,8 @@ class _ExternalPlayerHostScreenState extends State<ExternalPlayerHostScreen> {
         final useChooser = component.isEmpty;
 
         setState(() {
-          _status = useChooser
-              ? 'Choose an external player for ${currentItem.name}...'
-              : 'Opening ${currentItem.name} in $_playerLabel...';
+          _itemName = currentItem.name;
+          _status = useChooser ? _HostStatus.choosing : _HostStatus.opening;
         });
 
         await _manager.configureResolverForItem(currentItem);
@@ -173,9 +177,7 @@ class _ExternalPlayerHostScreenState extends State<ExternalPlayerHostScreen> {
         );
 
         if (resolution.playMethod == StreamPlayMethod.transcode) {
-          _showError(
-            'External playback requires a direct stream. Falling back to built-in player.',
-          );
+          _showError((l10n) => l10n.kostvExternalPlayerNeedsDirect);
           await _fallbackToInternalPlayer(startPosition);
           return;
         }
@@ -243,19 +245,20 @@ class _ExternalPlayerHostScreenState extends State<ExternalPlayerHostScreen> {
         );
 
         if (launchResult.hasError) {
+          // Kos TV: the player's own message is for the log; the viewer gets
+          // the app's words.
+          _log(
+            'External player error ${launchResult.errorCode}: '
+            '${launchResult.errorMessage ?? ''}',
+          );
           if (_shouldFallbackToInternalPlayer(launchResult.errorCode)) {
-            _showError(
-              launchResult.errorMessage ??
-                  'External player is unavailable. Falling back to built-in player.',
-            );
+            _showError((l10n) => l10n.kostvExternalPlayerUnavailable);
             await _fallbackToInternalPlayer(startPosition);
             return;
           }
 
-          _showError(
-            launchResult.errorMessage ??
-                'External player returned an error for ${currentItem.name}.',
-          );
+          final name = currentItem.name;
+          _showError((l10n) => l10n.kostvExternalPlayerReturnedError(name));
           break;
         }
 
@@ -269,7 +272,8 @@ class _ExternalPlayerHostScreenState extends State<ExternalPlayerHostScreen> {
         }
       }
     } catch (error) {
-      _showError('External playback failed: $error');
+      _log('External playback failed: $error');
+      _showError((l10n) => l10n.kostvExternalPlayerFailed);
     } finally {
       if (!_handoffToInternalPlayer) {
         await _finishAndExit();
@@ -327,7 +331,8 @@ class _ExternalPlayerHostScreenState extends State<ExternalPlayerHostScreen> {
       context.go(Destinations.videoPlayer);
     } catch (error) {
       _handoffToInternalPlayer = false;
-      _showError('Failed to fall back to built-in player: $error');
+      _log('Falling back to the built-in player failed: $error');
+      _showError((l10n) => l10n.kostvExternalPlayerFallbackFailed);
     }
   }
 
@@ -341,11 +346,20 @@ class _ExternalPlayerHostScreenState extends State<ExternalPlayerHostScreen> {
     context.popOrHome();
   }
 
-  void _showError(String message) {
+  void _showError(String Function(AppLocalizations l10n) message) {
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(SnackBar(content: Text(message)));
+    ).showSnackBar(SnackBar(content: Text(message(AppLocalizations.of(context)))));
+  }
+
+  void _log(String message) {
+    if (!GetIt.instance.isRegistered<LogService>()) return;
+    GetIt.instance<LogService>().log(
+      LogCategory.playback,
+      message,
+      level: LogLevel.warning,
+    );
   }
 
   String? _filenameForResolution(AggregatedItem item, String mediaSourceId) {
@@ -375,6 +389,18 @@ class _ExternalPlayerHostScreenState extends State<ExternalPlayerHostScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final playerLabel = _askEachTime
+        ? l10n.settingsAskEachTime
+        : (_playerLabel ?? l10n.kostvExternalPlayerDefaultName);
+    final itemName = _itemName ?? '';
+    final status = switch (_status) {
+      _HostStatus.preparing => l10n.kostvExternalPlayerPreparing,
+      _HostStatus.choosing => l10n.kostvExternalPlayerChoosing(itemName),
+      _HostStatus.opening => l10n.kostvExternalPlayerOpening(
+        itemName,
+        _playerLabel ?? l10n.kostvExternalPlayerDefaultName,
+      ),
+    };
 
     return PopScope(
       canPop: false,
@@ -395,13 +421,13 @@ class _ExternalPlayerHostScreenState extends State<ExternalPlayerHostScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _status,
+                  status,
                   style: const TextStyle(fontSize: 14),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  _playerLabel,
+                  playerLabel,
                   style: const TextStyle(fontSize: 12, color: Colors.white70),
                   textAlign: TextAlign.center,
                 ),

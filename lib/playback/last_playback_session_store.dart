@@ -1,8 +1,11 @@
 import 'dart:convert';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../auth/repositories/session_repository.dart';
+import '../auth/store/authentication_preferences.dart';
 import 'car_artwork.dart';
 
 /// Snapshot of the most recent audio queue, persisted across process death.
@@ -16,6 +19,9 @@ class LastPlaybackSession {
   final String? artUri;
   final bool isAudiobook;
 
+  /// Kos TV: the person whose queue this was. The store fills it in.
+  final String? userId;
+
   const LastPlaybackSession({
     required this.serverId,
     required this.itemIds,
@@ -25,6 +31,7 @@ class LastPlaybackSession {
     this.artist,
     this.artUri,
     this.isAudiobook = false,
+    this.userId,
   });
 
   Map<String, dynamic> toJson() => {
@@ -36,6 +43,7 @@ class LastPlaybackSession {
         'artist': artist,
         'artUri': artUri,
         'isAudiobook': isAudiobook,
+        'userId': userId,
       };
 
   static LastPlaybackSession? fromJson(Map<String, dynamic> json) {
@@ -52,6 +60,7 @@ class LastPlaybackSession {
       artist: json['artist'] as String?,
       artUri: json['artUri'] as String?,
       isAudiobook: json['isAudiobook'] as bool? ?? false,
+      userId: json['userId'] as String?,
     );
   }
 
@@ -62,13 +71,52 @@ class LastPlaybackSession {
 /// Persists the last audio queue so Android Auto's media-resumption card and
 /// an empty-queue play command (steering wheel / Bluetooth) can restore
 /// playback after the process dies.
+///
+/// Kos TV: the queue is kept with the person it belongs to, and only that
+/// person gets it back: after a switch on a shared phone, a headset's Play
+/// or Android's resume card must not bring back someone else's queue.
 class LastPlaybackSessionStore {
+  LastPlaybackSessionStore({String? Function()? currentUserId})
+    : _currentUserId = currentUserId ?? _signedInUserId;
+
   static const _key = 'last_playback_session';
   static const _maxQueueIds = 100;
 
+  final String? Function() _currentUserId;
+
+  /// The signed-in person, else the last one (a car or headset can wake the
+  /// app with no session restored yet).
+  static String? _signedInUserId() {
+    final getIt = GetIt.instance;
+    String? id;
+    try {
+      if (getIt.isRegistered<SessionRepository>()) {
+        id = getIt<SessionRepository>().activeUserId;
+      }
+      if ((id == null || id.isEmpty) &&
+          getIt.isRegistered<AuthenticationPreferences>()) {
+        id = getIt<AuthenticationPreferences>().savedLastUserId;
+      }
+    } catch (_) {
+      return null;
+    }
+    return id == null || id.isEmpty ? null : id;
+  }
+
   Future<void> save(LastPlaybackSession session) async {
     final prefs = await SharedPreferences.getInstance();
-    var toStore = session;
+    final owner = _currentUserId();
+    var toStore = LastPlaybackSession(
+      serverId: session.serverId,
+      itemIds: session.itemIds,
+      index: session.index,
+      positionMs: session.positionMs,
+      title: session.title,
+      artist: session.artist,
+      artUri: session.artUri,
+      isAudiobook: session.isAudiobook,
+      userId: owner,
+    );
     if (session.itemIds.length > _maxQueueIds) {
       // Keep a window around the current index so resume stays meaningful.
       final start = (session.index - _maxQueueIds ~/ 2)
@@ -83,6 +131,7 @@ class LastPlaybackSessionStore {
         artist: session.artist,
         artUri: session.artUri,
         isAudiobook: session.isAudiobook,
+        userId: owner,
       );
     }
     await prefs.setString(_key, jsonEncode(toStore.toJson()));
@@ -93,9 +142,16 @@ class LastPlaybackSessionStore {
     final raw = prefs.getString(_key);
     if (raw == null) return null;
     try {
-      return LastPlaybackSession.fromJson(
+      final session = LastPlaybackSession.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
+      // Kos TV: another person's queue (or one saved before queues carried
+      // their owner) isn't offered.
+      final owner = _currentUserId();
+      if (session == null || owner == null || session.userId != owner) {
+        return null;
+      }
+      return session;
     } catch (_) {
       return null;
     }

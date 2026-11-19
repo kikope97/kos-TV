@@ -234,17 +234,18 @@ class _SiloWatchPartyScreenState extends State<SiloWatchPartyScreen> {
               vertical: 16,
             ),
             children: [
-              if (_manager.error case final error?)
+              if (_manager.error != null)
                 _Banner(
-                  message:
-                      watchPartyErrorText(l10n, _manager.errorCode) ?? error,
+                  message: watchPartyErrorMessage(l10n, _manager.errorCode),
                 ),
               if (room == null && _manager.endedReason != null)
                 _Banner(
                   message: switch (_manager.endedReason) {
                     'closed' => l10n.watchPartyEnded,
                     'removed' => l10n.watchPartyRemoved,
-                    final reason => reason!,
+                    'replaced' => l10n.kostvWatchPartyReplaced,
+                    // Kos TV: never a server's own text.
+                    _ => l10n.watchPartyEnded,
                   },
                 ),
               if (room == null) ..._buildEntry(context, l10n),

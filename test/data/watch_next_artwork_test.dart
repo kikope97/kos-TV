@@ -187,4 +187,9 @@ void main() {
       expect(art, contains('/s1/Primary'));
     },
   );
+
+  // Kos TV: one instance, so signing out cancels the publish Home scheduled.
+  test('every caller shares one Watch Next service', () {
+    expect(identical(WatchNextService(), WatchNextService()), isTrue);
+  });
 }
