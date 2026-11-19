@@ -59,10 +59,7 @@ void main() {
           child: SizedBox(
             width: 80,
             height: 40,
-            child: BakedLogoShadow(
-              image: logo,
-              color: const Color(0xFF000000),
-            ),
+            child: BakedLogoShadow(image: logo, color: const Color(0xFF000000)),
           ),
         ),
       ),
