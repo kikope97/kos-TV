@@ -19727,4 +19727,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvChannelOpenFailed => 'Unable to open channel';
+
+  @override
+  String get kostvHomeForYouFailed =>
+      'Your recommendations couldn\'t be loaded';
 }

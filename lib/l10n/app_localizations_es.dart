@@ -20055,4 +20055,8 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvChannelOpenFailed => 'No se ha podido abrir el canal';
+
+  @override
+  String get kostvHomeForYouFailed =>
+      'No se han podido cargar tus recomendaciones';
 }

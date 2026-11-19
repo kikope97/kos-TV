@@ -1,15 +1,31 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
+
 import '../models/aggregated_item.dart';
 import '../models/home_row.dart';
 import 'home_row_cache/home_row_cache_storage.dart';
 
-/// Persists the home rows to a single JSON file (on the web, the browser's
-/// local storage) so a cold start can paint
-/// cached content immediately, then revalidate in the background.
+/// Persists the home rows to a JSON file (on the web, the browser's local
+/// storage) so a cold start can paint cached content immediately, then
+/// revalidate in the background.
 ///
-/// Single-slot: only the last-written (server + section config) signature is
-/// kept, so switching servers or changing the home layout invalidates it on the
-/// next read. All operations are best-effort and never throw to the caller.
+/// Kos TV: one slot per person ([owner]), so on a TV the family shares each
+/// one starts with their own rows; only the last few people are kept (see
+/// the storage). Within a slot only the last-written signature is kept, so
+/// changing the home layout invalidates it on the next read. All operations
+/// are best-effort and never throw to the caller.
 class HomeRowCacheStore {
+  /// [owner] says whose rows these are (server and person); each owner has
+  /// a slot of their own.
+  HomeRowCacheStore({String owner = ''}) : _slot = slotFor(owner);
+
+  final String _slot;
+
+  /// The name of [owner]'s slot: short, and safe in a file name.
+  static String slotFor(String owner) =>
+      sha1.convert(utf8.encode(owner)).toString().substring(0, 16);
+
   static const _maxAge = Duration(days: 3);
 
   /// Rows whose items are only true for the minutes they describe. Replaying
@@ -21,7 +37,7 @@ class HomeRowCacheStore {
   /// signature mismatch, too old, corrupt, or empty).
   Future<List<HomeRow>?> read(String cacheKey) async {
     try {
-      final raw = await readHomeRowCache();
+      final raw = await readHomeRowCache(_slot);
       if (raw == null) return null;
       final decoded = await decodeHomeRowCache(raw);
       if (decoded is! Map<String, dynamic>) return null;
@@ -77,22 +93,24 @@ class HomeRowCacheStore {
   Future<void> _clear(String cacheKey) async {
     try {
       if (await read(cacheKey) == null) return;
-      await deleteHomeRowCache();
+      await deleteHomeRowCache(_slot);
     } catch (_) {}
   }
 
   Future<void> _writeEnvelope(Map<String, Object> envelope) async {
     try {
       final payload = await encodeHomeRowCache(envelope);
-      await writeHomeRowCache(payload);
+      await writeHomeRowCache(_slot, payload);
     } catch (_) {}
   }
 
   Map<String, dynamic> _rowToJson(HomeRow row) => {
     'id': row.id,
     'title': row.title,
+    'subtitle': ?row.subtitle,
     'rowType': row.rowType.name,
     'totalCount': row.totalCount,
+    if (row.isAudio) 'isAudio': true,
     'items': row.items
         .map((i) => {'id': i.id, 'serverId': i.serverId, 'rawData': i.rawData})
         .toList(growable: false),
@@ -136,10 +154,12 @@ class HomeRowCacheStore {
     return HomeRow(
       id: id,
       title: title,
+      subtitle: json['subtitle'] as String?,
       items: items,
       rowType: rowType,
       totalCount: (json['totalCount'] as num?)?.toInt() ?? items.length,
       isLoading: false,
+      isAudio: json['isAudio'] == true,
     );
   }
 }

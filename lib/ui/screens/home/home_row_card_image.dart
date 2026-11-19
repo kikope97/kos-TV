@@ -190,8 +190,19 @@ ImageType homeRowImageTypeForRow(HomeRow row, UserPreferences prefs) {
   return prefs.get(UserPreferences.homeRowImageType(sectionType));
 }
 
-HomeSectionType? _sectionTypeForRow(HomeRow row, UserPreferences prefs) =>
-    HomeViewModel.sectionConfigForRow(row, prefs.homeSectionsConfig)?.type;
+HomeSectionType? _sectionTypeForRow(HomeRow row, UserPreferences prefs) {
+  final configs = prefs.homeSectionsConfig;
+  // Kos TV: the recommended Home's rows take the latest media setting, as
+  // they did while that section claimed them, without it claiming them.
+  if (HomeViewModel.isKostvRow(row)) {
+    return configs.any(
+          (c) => c.isBuiltin && c.type == HomeSectionType.latestMedia,
+        )
+        ? HomeSectionType.latestMedia
+        : null;
+  }
+  return HomeViewModel.sectionConfigForRow(row, configs)?.type;
+}
 
 bool _isLatestMusicRow(HomeRow row) {
   if (row.rowType != HomeRowType.latestMedia || row.items.isEmpty) {

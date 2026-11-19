@@ -26,11 +26,21 @@ class KostvUndoToast extends StatefulWidget {
     required this.onDone,
     this.onLeave,
     this.takeFocus = false,
+    this.icon = Icons.undo_rounded,
+    this.countdown = true,
   });
 
   final String message;
   final String undoLabel;
   final Duration duration;
+
+  /// Kos TV: the button's icon. The same notice offers to try again what
+  /// failed, with its own icon.
+  final IconData icon;
+
+  /// Whether the seconds left are shown in a ring; without it, a notice of
+  /// something that failed shows a warning sign there instead.
+  final bool countdown;
 
   /// The person took it back.
   final VoidCallback onUndo;
@@ -136,33 +146,40 @@ class _KostvUndoToastState extends State<KostvUndoToast>
           mainAxisSize: MainAxisSize.min,
           children: [
             // The seconds left, in a ring that empties.
-            AnimatedBuilder(
-              animation: _clock,
-              builder: (context, _) {
-                final left = (seconds * (1 - _clock.value)).ceil().clamp(
-                  0,
-                  seconds,
-                );
-                return SizedBox.square(
-                  dimension: 30,
-                  child: CustomPaint(
-                    painter: _RingPainter(
-                      left: 1 - _clock.value,
-                      color: AppColorScheme.accent,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$left',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: ink,
-                          fontWeight: FontWeight.w700,
+            if (!widget.countdown)
+              Icon(
+                Icons.cloud_off_rounded,
+                size: 26,
+                color: ink.withValues(alpha: 0.8),
+              )
+            else
+              AnimatedBuilder(
+                animation: _clock,
+                builder: (context, _) {
+                  final left = (seconds * (1 - _clock.value)).ceil().clamp(
+                    0,
+                    seconds,
+                  );
+                  return SizedBox.square(
+                    dimension: 30,
+                    child: CustomPaint(
+                      painter: _RingPainter(
+                        left: 1 - _clock.value,
+                        color: AppColorScheme.accent,
+                      ),
+                      child: Center(
+                        child: Text(
+                          '$left',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: ink,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+              ),
             const SizedBox(width: 12),
             Flexible(
               child: Text(
@@ -204,7 +221,7 @@ class _KostvUndoToastState extends State<KostvUndoToast>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
-                              Icons.undo_rounded,
+                              widget.icon,
                               size: 18,
                               color: focused ? Colors.white : ink,
                             ),
@@ -292,6 +309,8 @@ void showKostvUndoToast(
   required VoidCallback onUndo,
   VoidCallback? onLeave,
   bool takeFocus = false,
+  IconData icon = Icons.undo_rounded,
+  bool countdown = true,
 }) {
   final overlay = Overlay.of(context, rootOverlay: true);
   // One notice at a time: a new one takes the place of the one showing,
@@ -334,6 +353,8 @@ void showKostvUndoToast(
             undoLabel: undoLabel,
             duration: duration,
             takeFocus: takeFocus,
+            icon: icon,
+            countdown: countdown,
             onUndo: onUndo,
             onLeave: onLeave,
             onDone: () => scheduleMicrotask(remove),

@@ -13958,5 +13958,9 @@
     "kostvChannelOpenFailed": "No se ha podido abrir el canal",
     "@kostvChannelOpenFailed": {
         "description": "Kos TV: a TV channel could not be opened"
+    },
+    "kostvHomeForYouFailed": "No se han podido cargar tus recomendaciones",
+    "@kostvHomeForYouFailed": {
+        "description": "Kos TV: notice when the rows recommended for the person on Home failed to load, with a Retry button next to it"
     }
 }
