@@ -38,6 +38,8 @@ import 'ui/navigation/deferred_route_pop.dart';
 import 'ui/navigation/deep_link_navigator.dart';
 import 'ui/navigation/destinations.dart';
 import 'ui/navigation/home_refresh_bus.dart';
+import 'ui/navigation/kids_mode_page_guard.dart';
+import 'ui/navigation/route_gates.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/theme/app_theme_controller.dart';
 import 'ui/widgets/app_update_banner.dart';
@@ -114,6 +116,9 @@ class _MoonfinAppState extends State<MoonfinApp> {
   late final AppThemeController _themeController;
   final DeepLinkService _deepLinks = DeepLinkService();
   Locale? _lastResolvedLocale;
+  // Kos TV: takes the person to Home when Kids Mode goes on over a page it
+  // blocks.
+  KidsModePageGuard? _kidsModeGuard;
 
   @override
   void initState() {
@@ -129,6 +134,11 @@ class _MoonfinAppState extends State<MoonfinApp> {
     _prefs.addListener(_syncLocaleFromPrefs);
     _prefs.addListener(_syncIdiomFromPrefs);
     _prefs.addListener(_syncGlassFromPrefs);
+    _kidsModeGuard = KidsModePageGuard(
+      prefs: _prefs,
+      router: appRouter,
+      settingsOpen: SettingsPanel.isOpenNotifier,
+    );
     if (PlatformDetection.isAppleTV) {
       TopShelfService().startDeepLinkListener(navigateWhenReady);
       if (!FlutterTvosPlatform.isTvos) {
@@ -253,6 +263,7 @@ class _MoonfinAppState extends State<MoonfinApp> {
     _prefs.removeListener(_syncIdiomFromPrefs);
     _prefs.removeListener(_syncGlassFromPrefs);
     _prefs.removeListener(_syncSiriRemoteFromPrefs);
+    _kidsModeGuard?.dispose();
     _deepLinks.dispose();
     _themeController.dispose();
     super.dispose();
@@ -598,10 +609,13 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
       return true;
     }
     if (!appRouter.canPop()) {
-      if (!_leaveAdminArea() && !_exitDialogShowing) {
-        _exitDialogShowing = true;
-        unawaited(_showExitConfirmation());
+      if (_leaveAdminArea() || _exitDialogShowing) return true;
+      if (PlatformDetection.isWeb) {
+        _webBackWithNothingUnder();
+        return true;
       }
+      _exitDialogShowing = true;
+      unawaited(_showExitConfirmation());
       return true;
     }
     return false;
@@ -756,6 +770,10 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
           return true;
         }
         if (_leaveAdminArea()) return true;
+        if (PlatformDetection.isWeb) {
+          _webBackWithNothingUnder();
+          return true;
+        }
         _exitDialogShowing = true;
         unawaited(_showExitConfirmation());
       }
@@ -782,6 +800,21 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
     }
 
     return false;
+  }
+
+  /// Kos TV: on the web a tab can't be closed from the page, and closing the
+  /// app there only tears down the browser's history (Back and Forward stop
+  /// moving the app until it reloads). So Back with nothing under the page
+  /// does what it does on a TV or a phone, where a menu page sits over Home:
+  /// it goes to Home. On Home, and on the sign-in screens, it does nothing.
+  void _webBackWithNothingUnder() {
+    if (!webBackGoesHome(
+      _currentRoutePath(),
+      signedIn: GetIt.instance<SessionRepository>().activeUserId != null,
+    )) {
+      return;
+    }
+    appRouter.go(Destinations.home);
   }
 
   Future<void> _showExitConfirmation() async {

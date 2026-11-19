@@ -21,6 +21,7 @@ import '../../../preference/bottom_nav_tabs.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/game_library.dart';
+import '../../navigation/nav_libraries_memory.dart';
 import '../../../util/live_tv_library.dart';
 import '../../../util/signed_in_server_features.dart';
 import '../downloads_nav_slot.dart';
@@ -37,7 +38,10 @@ class BottomNavController extends ChangeNotifier {
     _viewsRepo.addListener(_scheduleLibrariesReload);
     _pluginSync?.addListener(_onPrefsChanged);
     _stremfin?.addListener(notifyListeners);
-    _stremfin?.inbox.addListener(notifyListeners);
+    // Kos TV: of the tray the bar only shows its news, while a download
+    // makes it notify every few seconds.
+    _inboxNews = _stremfin?.inbox.newsCount ?? 0;
+    _stremfin?.inbox.addListener(_onInboxChanged);
     _favoritesNews?.addListener(notifyListeners);
     _messages?.addListener(notifyListeners);
     _achievements?.addListener(notifyListeners);
@@ -85,10 +89,13 @@ class BottomNavController extends ChangeNotifier {
   StreamSubscription? _userSub;
   Timer? _librariesReloadDebounce;
   String _signature = '';
+  int _inboxNews = 0;
   late bool _multiServer;
   bool _disposed = false;
 
-  List<AggregatedLibrary> _libraries = const [];
+  // Kos TV: the last libraries the menu had for this person, so the Live TV
+  // tab is in place from the bar's first frame (see NavLibrariesMemory).
+  List<AggregatedLibrary> _libraries = NavLibrariesMemory.forActiveUser();
   String? _userImageUrl;
   String _userName = '';
   bool _hubOpen = false;
@@ -227,6 +234,14 @@ class BottomNavController extends ChangeNotifier {
         _pluginSync?.calendarAvailable ?? false,
       ].join('|');
 
+  /// Kos TV: the tray changed. Only a change to its news reaches the bar.
+  void _onInboxChanged() {
+    final news = _stremfin?.inbox.newsCount ?? 0;
+    if (news == _inboxNews) return;
+    _inboxNews = news;
+    notifyListeners();
+  }
+
   void _onPrefsChanged() {
     final next = _prefsSignature();
     if (next == _signature) return;
@@ -266,6 +281,7 @@ class BottomNavController extends ChangeNotifier {
   }
 
   Future<void> _loadLibraries() async {
+    final userId = NavLibrariesMemory.activeUserId();
     try {
       final useMultiServer = _prefs.get(
         UserPreferences.enableMultiServerLibraries,
@@ -284,6 +300,7 @@ class BottomNavController extends ChangeNotifier {
               .withoutHiddenLibraries(libs)
           : libs;
 
+      NavLibrariesMemory.remember(userId, filtered);
       if (_disposed || _sameLibraries(_libraries, filtered)) return;
       _libraries = filtered;
       notifyListeners();
@@ -312,7 +329,7 @@ class BottomNavController extends ChangeNotifier {
       _achievements?.removeListener(notifyListeners);
       _savedMedia?.removeListener(notifyListeners);
       _stremfin?.removeListener(notifyListeners);
-      _stremfin?.inbox.removeListener(notifyListeners);
+      _stremfin?.inbox.removeListener(_onInboxChanged);
       _favoritesNews?.removeListener(notifyListeners);
     } catch (_) {}
     _userSub?.cancel();

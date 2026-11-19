@@ -34,6 +34,16 @@ class HomeRefreshBus extends ValueNotifier<int> {
     _pendingRefresh = true;
   }
 
+  /// Kos TV: going to Home from the menu. A Home still alive underneath (on
+  /// a TV or a phone menu pages go over it) stays as it was, so nothing is
+  /// asked of it; only a Home built afresh (the web's) refreshes as it comes.
+  /// Left pending with Home alive, the request lingered and fired on the
+  /// next Home built: the next profile's.
+  void requestOnArrival() {
+    if (hasListeners) return;
+    requestAfterNavigation();
+  }
+
   void requestNowOrAfterNavigation({bool newSectionsOnly = false}) {
     if (hasListeners) {
       request(newSectionsOnly: newSectionsOnly);
