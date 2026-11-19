@@ -281,10 +281,12 @@ class _SpeedSheetState extends State<_SpeedSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    String statusText = '';
-    if (_sliderFocusNode.hasFocus) {
-      statusText = _sliderEditing ? ' (Adjusting)' : ' (Press OK to Adjust)';
-    }
+    // Kos TV: on TV the title says whether OK adjusts the slider.
+    final fineTuneTitle = !_sliderFocusNode.hasFocus
+        ? l10n.kostvAudiobookFineTune
+        : _sliderEditing
+            ? l10n.kostvAudiobookFineTuneAdjusting
+            : l10n.kostvAudiobookFineTunePressOk;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -399,14 +401,17 @@ class _SpeedSheetState extends State<_SpeedSheet> {
               const SizedBox(height: AppSpacing.spaceMd),
               Row(
                 children: [
-                  Text(
-                    'Fine Tune$statusText',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Text(
+                      fineTuneTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                  const Spacer(),
                   Text(
                     '${_value.toStringAsFixed(2)}x',
                     style: TextStyle(
@@ -513,8 +518,10 @@ class _SleepSheet extends StatelessWidget {
       builder: (context, _) {
         final titleText = controller.isActive
             ? (controller.isPaused
-                ? 'Sleep Timer Paused — Time Remaining: ${formatAudiobookCountdown(controller.remaining)}'
-                : 'Sleep Mode Activated — Time Remaining: ${formatAudiobookCountdown(controller.remaining)}')
+                ? l10n.kostvAudiobookSleepPausedRemaining(
+                    formatAudiobookCountdown(controller.remaining))
+                : l10n.kostvAudiobookSleepActiveRemaining(
+                    formatAudiobookCountdown(controller.remaining)))
             : l10n.audiobookSleepTimer;
 
         return Padding(
@@ -560,12 +567,18 @@ class _SleepSheet extends StatelessWidget {
                                 color: AppColorScheme.accent,
                               ),
                               const SizedBox(width: 6),
-                              Text(
-                                controller.isPaused ? 'Resume Timer' : 'Pause Timer',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: AppColorScheme.accent,
+                              Flexible(
+                                child: Text(
+                                  controller.isPaused
+                                      ? l10n.kostvAudiobookResumeTimer
+                                      : l10n.kostvAudiobookPauseTimer,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColorScheme.accent,
+                                  ),
                                 ),
                               ),
                             ],
@@ -598,12 +611,16 @@ class _SleepSheet extends StatelessWidget {
                                 color: Colors.red.withValues(alpha: 0.85),
                               ),
                               const SizedBox(width: 6),
-                              const Text(
-                                'Stop Timer',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.redAccent,
+                              Flexible(
+                                child: Text(
+                                  l10n.kostvAudiobookStopTimer,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.redAccent,
+                                  ),
                                 ),
                               ),
                             ],

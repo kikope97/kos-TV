@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/data/models/reader_settings.dart';
+import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/ui/widgets/reader/reader_chrome_bar.dart';
 
 void main() {
@@ -14,6 +15,8 @@ void main() {
   testWidgets('ReaderTopBar renders with non-zero size', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: Stack(
             children: [
@@ -49,6 +52,8 @@ void main() {
   testWidgets('ReaderBottomBar renders with non-zero size', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(
           body: Stack(
             children: [

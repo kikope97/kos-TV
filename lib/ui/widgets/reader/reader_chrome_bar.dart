@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../../../data/models/reader_settings.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../util/platform_detection.dart';
 import '../focus/focusable_wrapper.dart';
 
@@ -135,6 +136,7 @@ class ReaderTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = _ChromePalette.from(pageColors);
     final apple = PlatformDetection.isApple;
+    final l10n = AppLocalizations.of(context);
 
     final backIcon = apple ? CupertinoIcons.back : Icons.arrow_back;
     final contentsIcon = apple ? CupertinoIcons.list_bullet : Icons.menu;
@@ -148,21 +150,21 @@ class ReaderTopBar extends StatelessWidget {
         _ChromeIconButton(
           icon: contentsIcon,
           color: palette.icon,
-          tooltip: 'Contents',
+          tooltip: l10n.tableOfContents,
           onPressed: onContents,
         ),
       if (onSearch != null)
         _ChromeIconButton(
           icon: searchIcon,
           color: palette.icon,
-          tooltip: 'Search',
+          tooltip: l10n.search,
           onPressed: onSearch,
         ),
       if (showSettings) _AaButton(color: palette.icon, onPressed: onSettings),
       _ChromeIconButton(
         icon: bookmarkIcon,
         color: palette.icon,
-        tooltip: 'Bookmark',
+        tooltip: l10n.bookmark,
         onPressed: onBookmark,
       ),
     ];
@@ -187,7 +189,7 @@ class ReaderTopBar extends StatelessWidget {
               _ChromeIconButton(
                 icon: backIcon,
                 color: palette.icon,
-                tooltip: 'Back',
+                tooltip: l10n.back,
                 onPressed: onBack,
               ),
               if (apple) ...[
@@ -262,7 +264,7 @@ class _AaButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: 'Reading settings',
+      message: AppLocalizations.of(context).kostvReaderSettings,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: onPressed,

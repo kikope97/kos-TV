@@ -3,6 +3,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 import 'package:flutter/material.dart';
 
 import '../../../data/models/reader_settings.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../util/platform_detection.dart';
 
 Future<void> showReaderSettingsSheet({
@@ -144,12 +145,13 @@ class _ReaderSettingsBodyState extends State<_ReaderSettingsBody> {
   }
 
   Widget _themeSwatches() {
-    const labels = {
-      ReaderPageTheme.original: 'Original',
-      ReaderPageTheme.paper: 'Paper',
-      ReaderPageTheme.quiet: 'Quiet',
-      ReaderPageTheme.calm: 'Calm',
-      ReaderPageTheme.night: 'Night',
+    final l10n = AppLocalizations.of(context);
+    final labels = {
+      ReaderPageTheme.original: l10n.original,
+      ReaderPageTheme.paper: l10n.kostvReaderThemePaper,
+      ReaderPageTheme.quiet: l10n.kostvReaderThemeQuiet,
+      ReaderPageTheme.calm: l10n.kostvReaderThemeCalm,
+      ReaderPageTheme.night: l10n.kostvReaderThemeNight,
     };
     final brightness = MediaQuery.platformBrightnessOf(context);
     return Row(
@@ -202,6 +204,8 @@ class _ReaderSettingsBodyState extends State<_ReaderSettingsBody> {
           const SizedBox(height: 4),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(color: selected ? _accent : _muted, fontSize: 10),
           ),
         ],
@@ -235,11 +239,12 @@ class _ReaderSettingsBodyState extends State<_ReaderSettingsBody> {
   }
 
   Widget _fontFamilyRow() {
-    const labels = {
-      ReaderFontFamily.system: 'System',
-      ReaderFontFamily.serif: 'Serif',
-      ReaderFontFamily.sans: 'Sans',
-      ReaderFontFamily.mono: 'Mono',
+    final l10n = AppLocalizations.of(context);
+    final labels = {
+      ReaderFontFamily.system: l10n.kostvReaderFontSystem,
+      ReaderFontFamily.serif: l10n.kostvReaderFontSerif,
+      ReaderFontFamily.sans: l10n.kostvReaderFontSans,
+      ReaderFontFamily.mono: l10n.kostvReaderFontMono,
     };
     return Row(
       children: [
@@ -259,6 +264,7 @@ class _ReaderSettingsBodyState extends State<_ReaderSettingsBody> {
   }
 
   Widget _layoutRow() {
+    final l10n = AppLocalizations.of(context);
     return Column(
       children: [
         Row(
@@ -302,7 +308,7 @@ class _ReaderSettingsBodyState extends State<_ReaderSettingsBody> {
           children: [
             Expanded(
               child: _pill(
-                label: 'Justify',
+                label: l10n.kostvReaderJustify,
                 icon: Icons.format_align_justify,
                 selected: _s.justify,
                 onTap: () => _update(_s.copyWith(justify: !_s.justify)),
@@ -311,7 +317,7 @@ class _ReaderSettingsBodyState extends State<_ReaderSettingsBody> {
             const SizedBox(width: 10),
             Expanded(
               child: _pill(
-                label: 'Bold',
+                label: l10n.kostvReaderBold,
                 icon: Icons.format_bold,
                 selected: _s.bold,
                 onTap: () => _update(_s.copyWith(bold: !_s.bold)),
@@ -321,7 +327,7 @@ class _ReaderSettingsBodyState extends State<_ReaderSettingsBody> {
               const SizedBox(width: 10),
               Expanded(
                 child: _pill(
-                  label: 'Scroll',
+                  label: l10n.kostvReaderScroll,
                   icon: Icons.swap_vert,
                   selected: _s.scrolled,
                   onTap: () => _update(_s.copyWith(scrolled: !_s.scrolled)),

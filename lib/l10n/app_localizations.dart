@@ -35480,6 +35480,264 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Westerns'**
   String get kostvBookGenreWesterns;
+
+  /// Kos TV book reader: tab with the passages the reader highlighted
+  ///
+  /// In en, this message translates to:
+  /// **'Highlights'**
+  String get kostvReaderHighlights;
+
+  /// Kos TV book reader: empty highlights tab
+  ///
+  /// In en, this message translates to:
+  /// **'No highlights yet'**
+  String get kostvReaderNoHighlights;
+
+  /// Kos TV book reader: footer action when the book is already marked as read
+  ///
+  /// In en, this message translates to:
+  /// **'Read'**
+  String get kostvReaderRead;
+
+  /// Kos TV book reader: footer action that reloads the book
+  ///
+  /// In en, this message translates to:
+  /// **'Reload'**
+  String get kostvReaderReload;
+
+  /// Kos TV book reader: tooltip of the Aa button
+  ///
+  /// In en, this message translates to:
+  /// **'Reading settings'**
+  String get kostvReaderSettings;
+
+  /// Kos TV book reader: page colour theme (sepia)
+  ///
+  /// In en, this message translates to:
+  /// **'Paper'**
+  String get kostvReaderThemePaper;
+
+  /// Kos TV book reader: page colour theme (light grey)
+  ///
+  /// In en, this message translates to:
+  /// **'Quiet'**
+  String get kostvReaderThemeQuiet;
+
+  /// Kos TV book reader: page colour theme (dark grey)
+  ///
+  /// In en, this message translates to:
+  /// **'Calm'**
+  String get kostvReaderThemeCalm;
+
+  /// Kos TV book reader: page colour theme (black)
+  ///
+  /// In en, this message translates to:
+  /// **'Night'**
+  String get kostvReaderThemeNight;
+
+  /// Kos TV book reader: font choice: the device font
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get kostvReaderFontSystem;
+
+  /// Kos TV book reader: font choice
+  ///
+  /// In en, this message translates to:
+  /// **'Serif'**
+  String get kostvReaderFontSerif;
+
+  /// Kos TV book reader: font choice
+  ///
+  /// In en, this message translates to:
+  /// **'Sans'**
+  String get kostvReaderFontSans;
+
+  /// Kos TV book reader: font choice: monospaced
+  ///
+  /// In en, this message translates to:
+  /// **'Mono'**
+  String get kostvReaderFontMono;
+
+  /// Kos TV book reader: toggle to justify the text
+  ///
+  /// In en, this message translates to:
+  /// **'Justify'**
+  String get kostvReaderJustify;
+
+  /// Kos TV book reader: toggle for bold text
+  ///
+  /// In en, this message translates to:
+  /// **'Bold'**
+  String get kostvReaderBold;
+
+  /// Kos TV book reader: toggle to scroll instead of turning pages
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll'**
+  String get kostvReaderScroll;
+
+  /// Kos TV book reader: text selection menu item that highlights the selection
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight'**
+  String get kostvReaderHighlight;
+
+  /// Kos TV book reader: snackbar after saving a highlight
+  ///
+  /// In en, this message translates to:
+  /// **'Highlight saved'**
+  String get kostvReaderHighlightSaved;
+
+  /// Kos TV book reader: hint of the PDF search field
+  ///
+  /// In en, this message translates to:
+  /// **'Search in document'**
+  String get kostvReaderSearchInDocument;
+
+  /// Kos TV book reader: shown when opening a book on Apple TV
+  ///
+  /// In en, this message translates to:
+  /// **'Reading books is not supported on Apple TV.'**
+  String get kostvReaderAppleTvUnsupported;
+
+  /// Kos TV book reader: comic layout: one page at a time
+  ///
+  /// In en, this message translates to:
+  /// **'Single'**
+  String get kostvReaderComicSingle;
+
+  /// Kos TV book reader: comic layout: two pages side by side
+  ///
+  /// In en, this message translates to:
+  /// **'Two-page'**
+  String get kostvReaderComicTwoPage;
+
+  /// Kos TV book reader: comic layout: vertical strip
+  ///
+  /// In en, this message translates to:
+  /// **'Vertical'**
+  String get kostvReaderComicVertical;
+
+  /// Kos TV book reader: comic reading direction
+  ///
+  /// In en, this message translates to:
+  /// **'Right to left (manga)'**
+  String get kostvReaderComicRightToLeft;
+
+  /// Kos TV book reader: comic reading direction
+  ///
+  /// In en, this message translates to:
+  /// **'Left to right'**
+  String get kostvReaderComicLeftToRight;
+
+  /// Kos TV book reader: toggle for the strip of page thumbnails
+  ///
+  /// In en, this message translates to:
+  /// **'Thumbnails'**
+  String get kostvReaderComicThumbnails;
+
+  /// Kos TV book reader: toggle that inverts the page colours
+  ///
+  /// In en, this message translates to:
+  /// **'Invert colors'**
+  String get kostvReaderInvertColors;
+
+  /// Kos TV audiobook player: a bookmark in the list
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark {number}: {label}'**
+  String kostvAudiobookBookmarkTitle(int number, String label);
+
+  /// Kos TV audiobook player: a note in the timeline
+  ///
+  /// In en, this message translates to:
+  /// **'Note: {body}'**
+  String kostvAudiobookNoteTitle(String body);
+
+  /// Kos TV audiobook player: speed slider title
+  ///
+  /// In en, this message translates to:
+  /// **'Fine Tune'**
+  String get kostvAudiobookFineTune;
+
+  /// Kos TV audiobook player: speed slider title on TV while it is being adjusted
+  ///
+  /// In en, this message translates to:
+  /// **'Fine Tune (Adjusting)'**
+  String get kostvAudiobookFineTuneAdjusting;
+
+  /// Kos TV audiobook player: speed slider title on TV when focused
+  ///
+  /// In en, this message translates to:
+  /// **'Fine Tune (Press OK to Adjust)'**
+  String get kostvAudiobookFineTunePressOk;
+
+  /// Kos TV audiobook player: sleep timer sheet title while paused
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep Timer Paused — Time Remaining: {time}'**
+  String kostvAudiobookSleepPausedRemaining(String time);
+
+  /// Kos TV audiobook player: sleep timer sheet title while running
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep Mode Activated — Time Remaining: {time}'**
+  String kostvAudiobookSleepActiveRemaining(String time);
+
+  /// Kos TV audiobook player: resumes the paused sleep timer
+  ///
+  /// In en, this message translates to:
+  /// **'Resume Timer'**
+  String get kostvAudiobookResumeTimer;
+
+  /// Kos TV audiobook player: pauses the sleep timer
+  ///
+  /// In en, this message translates to:
+  /// **'Pause Timer'**
+  String get kostvAudiobookPauseTimer;
+
+  /// Kos TV audiobook player: cancels the sleep timer
+  ///
+  /// In en, this message translates to:
+  /// **'Stop Timer'**
+  String get kostvAudiobookStopTimer;
+
+  /// Kos TV audiobook player: dialog when the sleep timer ends
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep Timer Finished'**
+  String get kostvAudiobookSleepFinishedTitle;
+
+  /// Kos TV audiobook player: dialog when the sleep timer ends; label is the timer that ran
+  ///
+  /// In en, this message translates to:
+  /// **'Your sleep timer ({label}) has finished. What would you like to do?'**
+  String kostvAudiobookSleepFinishedBody(String label);
+
+  /// Kos TV audiobook player: label in the finished dialog when the timer kind is unknown
+  ///
+  /// In en, this message translates to:
+  /// **'chosen timer'**
+  String get kostvAudiobookSleepChosenTimer;
+
+  /// Kos TV audiobook player: dialog action: start the same sleep timer again
+  ///
+  /// In en, this message translates to:
+  /// **'Restart Sleep Timer'**
+  String get kostvAudiobookSleepRestart;
+
+  /// Kos TV audiobook player: dialog action: leave playback stopped
+  ///
+  /// In en, this message translates to:
+  /// **'Stop Playback'**
+  String get kostvAudiobookSleepStopPlayback;
+
+  /// Kos TV audiobook player: dialog action: open the sleep timer sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Add Custom Value to Timer'**
+  String get kostvAudiobookSleepCustomValue;
 }
 
 class _AppLocalizationsDelegate
