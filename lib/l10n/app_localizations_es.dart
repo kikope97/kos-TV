@@ -21044,4 +21044,121 @@ class AppLocalizationsEs extends AppLocalizations {
   String kostvFailedToSyncSettingsToProfile(String profile) {
     return 'No se han podido subir los ajustes al perfil $profile.';
   }
+
+  @override
+  String get kostvReaderHighlights => 'Subrayados';
+
+  @override
+  String get kostvReaderNoHighlights => 'Aún no hay subrayados';
+
+  @override
+  String get kostvReaderRead => 'Leído';
+
+  @override
+  String get kostvReaderReload => 'Recargar';
+
+  @override
+  String get kostvReaderSettings => 'Ajustes de lectura';
+
+  @override
+  String get kostvReaderThemePaper => 'Papel';
+
+  @override
+  String get kostvReaderThemeQuiet => 'Suave';
+
+  @override
+  String get kostvReaderThemeCalm => 'Calma';
+
+  @override
+  String get kostvReaderThemeNight => 'Noche';
+
+  @override
+  String get kostvReaderFontSystem => 'Sistema';
+
+  @override
+  String get kostvReaderFontSerif => 'Con serifa';
+
+  @override
+  String get kostvReaderFontSans => 'Sin serifa';
+
+  @override
+  String get kostvReaderFontMono => 'Mono';
+
+  @override
+  String get kostvReaderJustify => 'Justificar';
+
+  @override
+  String get kostvReaderBold => 'Negrita';
+
+  @override
+  String get kostvReaderScroll => 'Desplazar';
+
+  @override
+  String get kostvReaderHighlight => 'Subrayar';
+
+  @override
+  String get kostvReaderHighlightSaved => 'Subrayado guardado';
+
+  @override
+  String get kostvReaderSearchInDocument => 'Buscar en el documento';
+
+  @override
+  String get kostvReaderAppleTvUnsupported =>
+      'En el Apple TV no se pueden leer libros.';
+
+  @override
+  String get kostvReaderComicSingle => 'Una página';
+
+  @override
+  String get kostvReaderComicTwoPage => 'Dos páginas';
+
+  @override
+  String get kostvReaderComicVertical => 'Vertical';
+
+  @override
+  String get kostvReaderComicRightToLeft => 'De derecha a izquierda (manga)';
+
+  @override
+  String get kostvReaderComicLeftToRight => 'De izquierda a derecha';
+
+  @override
+  String get kostvReaderComicThumbnails => 'Miniaturas';
+
+  @override
+  String get kostvReaderInvertColors => 'Invertir colores';
+
+  @override
+  String kostvAudiobookNoteTitle(String body) {
+    return 'Nota: $body';
+  }
+
+  @override
+  String kostvAudiobookSleepPausedRemaining(String time) {
+    return 'Temporizador en pausa · Quedan $time';
+  }
+
+  @override
+  String kostvAudiobookSleepActiveRemaining(String time) {
+    return 'Temporizador activado · Quedan $time';
+  }
+
+  @override
+  String get kostvAudiobookSleepFinishedTitle => 'Se acabó el temporizador';
+
+  @override
+  String kostvAudiobookSleepFinishedBody(String label) {
+    return 'El temporizador de apagado ($label) ha terminado. ¿Qué quieres hacer?';
+  }
+
+  @override
+  String get kostvAudiobookSleepChosenTimer => 'el que elegiste';
+
+  @override
+  String get kostvAudiobookSleepRestart => 'Volver a ponerlo';
+
+  @override
+  String get kostvAudiobookSleepStopPlayback => 'Dejarlo parado';
+
+  @override
+  String get kostvAudiobookSleepCustomValue => 'Elegir otro tiempo';
 }

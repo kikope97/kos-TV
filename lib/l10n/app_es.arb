@@ -15256,5 +15256,169 @@
                 "type": "String"
             }
         }
+    },
+    "kostvReaderHighlights": "Subrayados",
+    "@kostvReaderHighlights": {
+        "description": "Kos TV book reader: tab with the passages the reader highlighted"
+    },
+    "kostvReaderNoHighlights": "Aún no hay subrayados",
+    "@kostvReaderNoHighlights": {
+        "description": "Kos TV book reader: empty highlights tab"
+    },
+    "kostvReaderRead": "Leído",
+    "@kostvReaderRead": {
+        "description": "Kos TV book reader: footer action when the book is already marked as read"
+    },
+    "kostvReaderReload": "Recargar",
+    "@kostvReaderReload": {
+        "description": "Kos TV book reader: footer action that reloads the book"
+    },
+    "kostvReaderSettings": "Ajustes de lectura",
+    "@kostvReaderSettings": {
+        "description": "Kos TV book reader: tooltip of the Aa button"
+    },
+    "kostvReaderThemePaper": "Papel",
+    "@kostvReaderThemePaper": {
+        "description": "Kos TV book reader: page colour theme (sepia)"
+    },
+    "kostvReaderThemeQuiet": "Suave",
+    "@kostvReaderThemeQuiet": {
+        "description": "Kos TV book reader: page colour theme (light grey)"
+    },
+    "kostvReaderThemeCalm": "Calma",
+    "@kostvReaderThemeCalm": {
+        "description": "Kos TV book reader: page colour theme (dark grey)"
+    },
+    "kostvReaderThemeNight": "Noche",
+    "@kostvReaderThemeNight": {
+        "description": "Kos TV book reader: page colour theme (black)"
+    },
+    "kostvReaderFontSystem": "Sistema",
+    "@kostvReaderFontSystem": {
+        "description": "Kos TV book reader: font choice: the device font"
+    },
+    "kostvReaderFontSerif": "Con serifa",
+    "@kostvReaderFontSerif": {
+        "description": "Kos TV book reader: font choice"
+    },
+    "kostvReaderFontSans": "Sin serifa",
+    "@kostvReaderFontSans": {
+        "description": "Kos TV book reader: font choice"
+    },
+    "kostvReaderFontMono": "Mono",
+    "@kostvReaderFontMono": {
+        "description": "Kos TV book reader: font choice: monospaced"
+    },
+    "kostvReaderJustify": "Justificar",
+    "@kostvReaderJustify": {
+        "description": "Kos TV book reader: toggle to justify the text"
+    },
+    "kostvReaderBold": "Negrita",
+    "@kostvReaderBold": {
+        "description": "Kos TV book reader: toggle for bold text"
+    },
+    "kostvReaderScroll": "Desplazar",
+    "@kostvReaderScroll": {
+        "description": "Kos TV book reader: toggle to scroll instead of turning pages"
+    },
+    "kostvReaderHighlight": "Subrayar",
+    "@kostvReaderHighlight": {
+        "description": "Kos TV book reader: text selection menu item that highlights the selection"
+    },
+    "kostvReaderHighlightSaved": "Subrayado guardado",
+    "@kostvReaderHighlightSaved": {
+        "description": "Kos TV book reader: snackbar after saving a highlight"
+    },
+    "kostvReaderSearchInDocument": "Buscar en el documento",
+    "@kostvReaderSearchInDocument": {
+        "description": "Kos TV book reader: hint of the PDF search field"
+    },
+    "kostvReaderAppleTvUnsupported": "En el Apple TV no se pueden leer libros.",
+    "@kostvReaderAppleTvUnsupported": {
+        "description": "Kos TV book reader: shown when opening a book on Apple TV"
+    },
+    "kostvReaderComicSingle": "Una página",
+    "@kostvReaderComicSingle": {
+        "description": "Kos TV book reader: comic layout: one page at a time"
+    },
+    "kostvReaderComicTwoPage": "Dos páginas",
+    "@kostvReaderComicTwoPage": {
+        "description": "Kos TV book reader: comic layout: two pages side by side"
+    },
+    "kostvReaderComicVertical": "Vertical",
+    "@kostvReaderComicVertical": {
+        "description": "Kos TV book reader: comic layout: vertical strip"
+    },
+    "kostvReaderComicRightToLeft": "De derecha a izquierda (manga)",
+    "@kostvReaderComicRightToLeft": {
+        "description": "Kos TV book reader: comic reading direction"
+    },
+    "kostvReaderComicLeftToRight": "De izquierda a derecha",
+    "@kostvReaderComicLeftToRight": {
+        "description": "Kos TV book reader: comic reading direction"
+    },
+    "kostvReaderComicThumbnails": "Miniaturas",
+    "@kostvReaderComicThumbnails": {
+        "description": "Kos TV book reader: toggle for the strip of page thumbnails"
+    },
+    "kostvReaderInvertColors": "Invertir colores",
+    "@kostvReaderInvertColors": {
+        "description": "Kos TV book reader: toggle that inverts the page colours"
+    },
+    "kostvAudiobookNoteTitle": "Nota: {body}",
+    "@kostvAudiobookNoteTitle": {
+        "description": "Kos TV audiobook player: a note in the timeline",
+        "placeholders": {
+            "body": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvAudiobookSleepPausedRemaining": "Temporizador en pausa · Quedan {time}",
+    "@kostvAudiobookSleepPausedRemaining": {
+        "description": "Kos TV audiobook player: sleep timer sheet title while paused",
+        "placeholders": {
+            "time": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvAudiobookSleepActiveRemaining": "Temporizador activado · Quedan {time}",
+    "@kostvAudiobookSleepActiveRemaining": {
+        "description": "Kos TV audiobook player: sleep timer sheet title while running",
+        "placeholders": {
+            "time": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvAudiobookSleepFinishedTitle": "Se acabó el temporizador",
+    "@kostvAudiobookSleepFinishedTitle": {
+        "description": "Kos TV audiobook player: dialog when the sleep timer ends"
+    },
+    "kostvAudiobookSleepFinishedBody": "El temporizador de apagado ({label}) ha terminado. ¿Qué quieres hacer?",
+    "@kostvAudiobookSleepFinishedBody": {
+        "description": "Kos TV audiobook player: dialog when the sleep timer ends; label is the timer that ran",
+        "placeholders": {
+            "label": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvAudiobookSleepChosenTimer": "el que elegiste",
+    "@kostvAudiobookSleepChosenTimer": {
+        "description": "Kos TV audiobook player: label in the finished dialog when the timer kind is unknown"
+    },
+    "kostvAudiobookSleepRestart": "Volver a ponerlo",
+    "@kostvAudiobookSleepRestart": {
+        "description": "Kos TV audiobook player: dialog action: start the same sleep timer again"
+    },
+    "kostvAudiobookSleepStopPlayback": "Dejarlo parado",
+    "@kostvAudiobookSleepStopPlayback": {
+        "description": "Kos TV audiobook player: dialog action: leave playback stopped"
+    },
+    "kostvAudiobookSleepCustomValue": "Elegir otro tiempo",
+    "@kostvAudiobookSleepCustomValue": {
+        "description": "Kos TV audiobook player: dialog action: open the sleep timer sheet"
     }
 }

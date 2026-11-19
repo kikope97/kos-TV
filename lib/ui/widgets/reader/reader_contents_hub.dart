@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/reader_settings.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../util/platform_detection.dart';
 
 class ReaderHubEntry {
@@ -67,7 +68,7 @@ Future<void> showReaderContentsHub({
     return showGeneralDialog<void>(
       context: context,
       barrierDismissible: true,
-      barrierLabel: 'Contents',
+      barrierLabel: AppLocalizations.of(context).tableOfContents,
       barrierColor: const Color(0xB3000000),
       transitionDuration: const Duration(milliseconds: 220),
       pageBuilder: (ctx, _, _) {
@@ -167,6 +168,7 @@ class _ContentsHubBodyState extends State<_ContentsHubBody> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -175,11 +177,11 @@ class _ContentsHubBodyState extends State<_ContentsHubBody> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Row(
             children: [
-              _tabChip('Chapters', _HubTab.chapters),
+              _tabChip(l10n.chapters, _HubTab.chapters),
               const SizedBox(width: 8),
-              _tabChip('Bookmarks', _HubTab.bookmarks),
+              _tabChip(l10n.bookmarks, _HubTab.bookmarks),
               const SizedBox(width: 8),
-              _tabChip('Highlights', _HubTab.highlights),
+              _tabChip(l10n.kostvReaderHighlights, _HubTab.highlights),
             ],
           ),
         ),
@@ -190,7 +192,7 @@ class _ContentsHubBodyState extends State<_ContentsHubBody> {
             style: TextStyle(color: _text, fontSize: 14),
             decoration: InputDecoration(
               isDense: true,
-              hintText: 'Search',
+              hintText: l10n.search,
               hintStyle: TextStyle(color: _muted),
               prefixIcon: Icon(Icons.search, color: _muted, size: 18),
               filled: true,
@@ -203,8 +205,8 @@ class _ContentsHubBodyState extends State<_ContentsHubBody> {
             ),
           ),
         ),
-        Flexible(child: _list()),
-        _footer(),
+        Flexible(child: _list(l10n)),
+        _footer(l10n),
       ],
     );
   }
@@ -223,6 +225,8 @@ class _ContentsHubBodyState extends State<_ContentsHubBody> {
           ),
           child: Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: selected ? Colors.white : _text,
               fontSize: 12.5,
@@ -234,13 +238,13 @@ class _ContentsHubBodyState extends State<_ContentsHubBody> {
     );
   }
 
-  Widget _list() {
+  Widget _list(AppLocalizations l10n) {
     final items = _filtered;
     if (items.isEmpty) {
       final msg = switch (_tab) {
-        _HubTab.chapters => 'No table of contents available',
-        _HubTab.bookmarks => 'No bookmarks yet',
-        _HubTab.highlights => 'No highlights yet',
+        _HubTab.chapters => l10n.noTableOfContentsAvailable,
+        _HubTab.bookmarks => l10n.audiobookNoBookmarks,
+        _HubTab.highlights => l10n.kostvReaderNoHighlights,
       };
       return Padding(
         padding: const EdgeInsets.all(28),
@@ -291,7 +295,7 @@ class _ContentsHubBodyState extends State<_ContentsHubBody> {
     );
   }
 
-  Widget _footer() {
+  Widget _footer(AppLocalizations l10n) {
     return SafeArea(
       top: false,
       child: Container(
@@ -301,32 +305,42 @@ class _ContentsHubBodyState extends State<_ContentsHubBody> {
           ),
         ),
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        // Kos TV: the actions wrap to a second line when their Spanish
+        // labels don't fit the phone's width, instead of overflowing.
         child: Row(
           children: [
-            _footerAction(
-              widget.isPlayed ? Icons.check_circle : Icons.check_circle_outline,
-              widget.isPlayed ? 'Read' : 'Mark read',
-              () {
-                Navigator.of(context).maybePop();
-                widget.onToggleRead();
-              },
-            ),
-            const SizedBox(width: 18),
-            _footerAction(Icons.refresh, 'Reload', () {
-              Navigator.of(context).maybePop();
-              widget.onReload();
-            }),
-            if (widget.onExtraAction != null) ...[
-              const SizedBox(width: 18),
-              _footerAction(
-                widget.extraActionIcon ?? Icons.tune,
-                widget.extraActionLabel ?? 'More',
-                widget.onExtraAction!,
+            Expanded(
+              child: Wrap(
+                spacing: 18,
+                runSpacing: 8,
+                children: [
+                  _footerAction(
+                    widget.isPlayed
+                        ? Icons.check_circle
+                        : Icons.check_circle_outline,
+                    widget.isPlayed ? l10n.kostvReaderRead : l10n.markAsRead,
+                    () {
+                      Navigator.of(context).maybePop();
+                      widget.onToggleRead();
+                    },
+                  ),
+                  _footerAction(Icons.refresh, l10n.kostvReaderReload, () {
+                    Navigator.of(context).maybePop();
+                    widget.onReload();
+                  }),
+                  if (widget.onExtraAction != null)
+                    _footerAction(
+                      widget.extraActionIcon ?? Icons.tune,
+                      widget.extraActionLabel ?? l10n.more,
+                      widget.onExtraAction!,
+                    ),
+                ],
               ),
-            ],
-            const Spacer(),
-            if (widget.progressLabel != null)
-              Flexible(
+            ),
+            if (widget.progressLabel != null) ...[
+              const SizedBox(width: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 120),
                 child: Text(
                   widget.progressLabel!,
                   textAlign: TextAlign.end,
@@ -334,6 +348,7 @@ class _ContentsHubBodyState extends State<_ContentsHubBody> {
                   style: TextStyle(color: _muted, fontSize: 12),
                 ),
               ),
+            ],
           ],
         ),
       ),
@@ -349,7 +364,14 @@ class _ContentsHubBodyState extends State<_ContentsHubBody> {
         children: [
           Icon(icon, size: 18, color: _text),
           const SizedBox(width: 6),
-          Text(label, style: TextStyle(color: _text, fontSize: 12.5)),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: _text, fontSize: 12.5),
+            ),
+          ),
         ],
       ),
     );

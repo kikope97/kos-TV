@@ -559,9 +559,8 @@ class _AudiobookBookmarksListState extends State<AudiobookBookmarksList> {
                         return _DenseRow(
                           focused: isTvFocused,
                           highlighted: isPlayFocused,
-                          title: AppLocalizations.of(
-                            context,
-                          ).kostvAudiobookBookmarkTitle(index + 1, b.label),
+                          title: AppLocalizations.of(context)
+                              .kostvAudiobookBookmarkTitle(index + 1, b.label),
                           trailingText: formatAudiobookClock(
                               Duration(milliseconds: b.positionMs)),
                           onTap: () => widget.onJump(b),
@@ -616,9 +615,8 @@ class _AudiobookBookmarksListState extends State<AudiobookBookmarksList> {
                             ),
                           ),
                           title: Text(
-                            AppLocalizations.of(
-                              context,
-                            ).kostvAudiobookBookmarkTitle(index + 1, b.label),
+                            AppLocalizations.of(context)
+                                .kostvAudiobookBookmarkTitle(index + 1, b.label),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(

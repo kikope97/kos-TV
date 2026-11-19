@@ -289,11 +289,12 @@ class DiscoverBook {
             .where((name) => name.isNotEmpty)
             .toList() ??
         const <String>[];
+    // Kos TV: with no author, "Unknown Author" in the app's language.
     final author = authorNamesFromSearch.isNotEmpty
         ? authorNamesFromSearch.first
         : authorNamesFromWorks.isNotEmpty
         ? authorNamesFromWorks.first
-        : 'Unknown Author';
+        : currentAppLocalizations().unknownAuthor;
 
     final coverId =
         (map['cover_i'] as num?)?.toInt() ?? (map['cover_id'] as num?)?.toInt();
@@ -362,7 +363,7 @@ class LibrivoxBook {
             })
             .where((name) => name.isNotEmpty)
             .firstOrNull ??
-        'Unknown Author';
+        currentAppLocalizations().unknownAuthor;
     final isbns = <String>{};
     String? normalizeIsbn(dynamic raw) {
       final value = (raw ?? '').toString().trim();

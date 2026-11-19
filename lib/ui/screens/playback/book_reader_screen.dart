@@ -1711,7 +1711,11 @@ class _BookReaderScreenState extends State<BookReaderScreen>
     if (mounted) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Highlight saved')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(AppLocalizations.of(context).kostvReaderHighlightSaved),
+        ),
+      );
     }
   }
 
@@ -2390,7 +2394,7 @@ class _BookReaderScreenState extends State<BookReaderScreen>
 
   String _formatDuration(Duration? value) {
     if (value == null) {
-      return 'Unknown';
+      return AppLocalizations.of(context).unknown;
     }
 
     if (value.inHours > 0) {
@@ -2406,12 +2410,12 @@ class _BookReaderScreenState extends State<BookReaderScreen>
   @override
   Widget build(BuildContext context) {
     if (PlatformDetection.isAppleTV) {
-      return const Scaffold(
+      return Scaffold(
         body: Center(
           child: Padding(
-            padding: EdgeInsets.all(48),
+            padding: const EdgeInsets.all(48),
             child: Text(
-              'Reading books is not supported on Apple TV.',
+              AppLocalizations.of(context).kostvReaderAppleTvUnsupported,
               textAlign: TextAlign.center,
             ),
           ),
@@ -2991,9 +2995,9 @@ class _BookReaderScreenState extends State<BookReaderScreen>
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  pill('Single', _ComicLayout.single),
-                  pill('Two-page', _ComicLayout.double),
-                  pill('Vertical', _ComicLayout.vertical),
+                  pill(l10n.kostvReaderComicSingle, _ComicLayout.single),
+                  pill(l10n.kostvReaderComicTwoPage, _ComicLayout.double),
+                  pill(l10n.kostvReaderComicVertical, _ComicLayout.vertical),
                 ],
               ),
             ),
@@ -3005,8 +3009,8 @@ class _BookReaderScreenState extends State<BookReaderScreen>
                   : Icons.format_textdirection_l_to_r,
               _comicDirection == _ComicDirection.rtl,
               _comicDirection == _ComicDirection.rtl
-                  ? 'Right to left (manga)'
-                  : 'Left to right',
+                  ? l10n.kostvReaderComicRightToLeft
+                  : l10n.kostvReaderComicLeftToRight,
               () => _setComicDirection(
                 _comicDirection == _ComicDirection.rtl
                     ? _ComicDirection.ltr
@@ -3016,13 +3020,13 @@ class _BookReaderScreenState extends State<BookReaderScreen>
           iconToggle(
             Icons.view_carousel_outlined,
             _filmstripVisible,
-            'Thumbnails',
+            l10n.kostvReaderComicThumbnails,
             () => setState(() => _filmstripVisible = !_filmstripVisible),
           ),
           iconToggle(
             Icons.invert_colors,
             _invertFixedLayout,
-            'Invert colors',
+            l10n.kostvReaderInvertColors,
             () => _setFixedLayoutInvert(!_invertFixedLayout),
           ),
           iconToggle(
@@ -3207,7 +3211,7 @@ class _BookReaderScreenState extends State<BookReaderScreen>
                 textInputAction: TextInputAction.search,
                 decoration: InputDecoration(
                   isDense: true,
-                  hintText: 'Search in document',
+                  hintText: AppLocalizations.of(context).kostvReaderSearchInDocument,
                   hintStyle: TextStyle(
                     color: colors.foreground.withValues(alpha: 0.5),
                   ),
@@ -3514,7 +3518,7 @@ class _BookReaderScreenState extends State<BookReaderScreen>
                   menuItems: [
                     ContextMenuItem(
                       id: 1,
-                      title: 'Highlight',
+                      title: AppLocalizations.of(context).kostvReaderHighlight,
                       action: () async {
                         final selected = await _epubJs.selectedText();
                         if (selected.trim().isNotEmpty) {
@@ -3577,7 +3581,7 @@ class _BookReaderScreenState extends State<BookReaderScreen>
               menuItems: [
                 ContextMenuItem(
                   id: 1,
-                  title: 'Highlight',
+                  title: AppLocalizations.of(context).kostvReaderHighlight,
                   action: () async {
                     final selected = await _webController?.getSelectedText();
                     if (selected != null && selected.trim().isNotEmpty) {

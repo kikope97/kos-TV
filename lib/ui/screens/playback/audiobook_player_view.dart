@@ -247,18 +247,18 @@ class _AudiobookPlayerViewState extends State<AudiobookPlayerView> {
       context: context,
       barrierDismissible: false,
       builder: (context) {
-        String label = 'chosen timer';
+        final l10n = AppLocalizations.of(context);
+        String label = l10n.kostvAudiobookSleepChosenTimer;
         if (lastMode == SleepTimerMode.duration) {
-          label = '${lastDuration.inMinutes} min';
+          label = l10n.audiobookSleepMinutes(lastDuration.inMinutes);
         } else if (lastMode == SleepTimerMode.endOfChapter) {
-          final l10n = AppLocalizations.of(context);
           label = l10n.audiobookSleepEndOfChapter;
         }
 
         return AlertDialog(
           backgroundColor: AppColorScheme.surface,
-          title: const Text('Sleep Timer Finished'),
-          content: Text('Your sleep timer ($label) has finished. What would you like to do?'),
+          title: Text(l10n.kostvAudiobookSleepFinishedTitle),
+          content: Text(l10n.kostvAudiobookSleepFinishedBody(label)),
           actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           actionsAlignment: MainAxisAlignment.center,
           actions: [
@@ -284,14 +284,14 @@ class _AudiobookPlayerViewState extends State<AudiobookPlayerView> {
                     backgroundColor: AppColorScheme.accent,
                     foregroundColor: AppColorScheme.onAccent,
                   ),
-                  child: const Text('Restart Sleep Timer'),
+                  child: Text(l10n.kostvAudiobookSleepRestart),
                 ),
                 const SizedBox(height: 8),
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop();
                   },
-                  child: const Text('Stop Playback'),
+                  child: Text(l10n.kostvAudiobookSleepStopPlayback),
                 ),
                 const SizedBox(height: 8),
                 TextButton(
@@ -299,7 +299,7 @@ class _AudiobookPlayerViewState extends State<AudiobookPlayerView> {
                     Navigator.of(context).pop();
                     _showSleepSheet(chapters, resumeOnSelect: true);
                   },
-                  child: const Text('Add Custom Value to Timer'),
+                  child: Text(l10n.kostvAudiobookSleepCustomValue),
                 ),
               ],
             ),
@@ -344,6 +344,7 @@ class _AudiobookPlayerViewState extends State<AudiobookPlayerView> {
   }
 
   List<TimelineEvent> _getTimelineEvents(List<Chapter> chapters) {
+    final l10n = AppLocalizations.of(context);
     final events = <TimelineEvent>[];
     for (var i = 0; i < chapters.length; i++) {
       final c = chapters[i];
@@ -361,7 +362,7 @@ class _AudiobookPlayerViewState extends State<AudiobookPlayerView> {
       events.add(TimelineEvent(
         id: 'bookmark_${b.positionMs}',
         type: TimelineEventType.bookmark,
-        title: 'Bookmark ${i + 1}: ${b.label}',
+        title: l10n.kostvAudiobookBookmarkTitle(i + 1, b.label),
         positionMs: b.positionMs,
         date: b.createdAt,
         originalObject: b,
@@ -372,7 +373,7 @@ class _AudiobookPlayerViewState extends State<AudiobookPlayerView> {
       events.add(TimelineEvent(
         id: 'note_${n.id}',
         type: TimelineEventType.note,
-        title: 'Note: ${n.body}',
+        title: l10n.kostvAudiobookNoteTitle(n.body),
         content: n.body,
         positionMs: n.positionMs,
         date: n.updatedAt,
@@ -475,7 +476,7 @@ class _AudiobookPlayerViewState extends State<AudiobookPlayerView> {
       out.add(Chapter(
         title: (title != null && title.isNotEmpty)
             ? title
-            : 'Chapter ${i + 1}',
+            : AppLocalizations.of(context).chapterNumber(i + 1),
         startMs: ticks ~/ 10000,
       ));
     }
@@ -1077,7 +1078,8 @@ class _AudiobookPlayerViewState extends State<AudiobookPlayerView> {
                 .map((n) => TimelineEvent(
                       id: 'note_${n.id}',
                       type: TimelineEventType.note,
-                      title: 'Note: ${n.body}',
+                      title: AppLocalizations.of(context)
+                          .kostvAudiobookNoteTitle(n.body),
                       content: n.body,
                       positionMs: n.positionMs,
                       date: n.updatedAt,
