@@ -60,3 +60,8 @@ y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
   que llegaban tarde, lo recién llegado que no salía al actualizar, consultas
   de más). Se instala en el servidor de casa y hay que reiniciarlo.
   Recomendación: publicarla junto con la versión de la app.
+
+### Bloque 3
+- **«Quiero verlo» en el modo infantil.** Hoy la fila de botones del modo
+  infantil no lo tiene. Recomendación: dárselo (es inofensivo y útil para que
+  los niños apunten lo que quieren ver).
