@@ -108,7 +108,7 @@ public class MdbListController : ControllerBase
             return Ok(new MdbListResponse
             {
                 Success = false,
-                Error = "No MDBList API key configured. Add your key in Moonfin Settings, or ask your server admin to set a server-wide key."
+                Error = "No hay ninguna clave de MDBList configurada. Añade la tuya en los ajustes de kOS TV o pide al administrador del servidor que ponga una para todos."
             });
         }
 
@@ -207,7 +207,7 @@ public class MdbListController : ControllerBase
         var apiKey = string.IsNullOrWhiteSpace(key) ? MoonfinPlugin.Instance?.Configuration?.MdblistApiKey : key.Trim();
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            return Ok(new MdbListKeyInfoResponse { Success = false, Error = "No MDBList API key configured." });
+            return Ok(new MdbListKeyInfoResponse { Success = false, Error = "No hay ninguna clave de MDBList configurada." });
         }
 
         try
@@ -221,8 +221,8 @@ public class MdbListController : ControllerBase
             if (!response.IsSuccessStatusCode)
             {
                 var reason = (int)response.StatusCode == 429
-                    ? "MDBList rate limit reached. Try again later."
-                    : $"MDBList rejected the key (status {(int)response.StatusCode}).";
+                    ? "Se ha llegado al límite de peticiones de MDBList. Vuelve a probar más tarde."
+                    : $"MDBList no acepta la clave (código {(int)response.StatusCode}).";
                 return Ok(new MdbListKeyInfoResponse { Success = false, Error = reason });
             }
 
@@ -230,7 +230,7 @@ public class MdbListController : ControllerBase
             var info = JsonSerializer.Deserialize<MdbListUserInfo>(json, JsonOptions);
             if (info == null || string.IsNullOrEmpty(info.Username))
             {
-                return Ok(new MdbListKeyInfoResponse { Success = false, Error = "Unexpected response from MDBList." });
+                return Ok(new MdbListKeyInfoResponse { Success = false, Error = "MDBList ha dado una respuesta inesperada." });
             }
 
             return Ok(new MdbListKeyInfoResponse
@@ -250,7 +250,7 @@ public class MdbListController : ControllerBase
         }
         catch (Exception ex)
         {
-            return Ok(new MdbListKeyInfoResponse { Success = false, Error = $"Failed to reach MDBList: {ex.Message}" });
+            return Ok(new MdbListKeyInfoResponse { Success = false, Error = $"No se ha podido conectar con MDBList: {ex.Message}" });
         }
     }
 
@@ -283,7 +283,7 @@ public class MdbListController : ControllerBase
             return Ok(new MdbListCatalogResponse
             {
                 Success = false,
-                Error = "No MDBList lists cached yet. Ask your server admin to set a server-wide MDBList key and run the Moonfin MDBList Official Lists Sync task."
+                Error = "Todavía no hay listas de MDBList guardadas. Pide al administrador del servidor que ponga una clave de MDBList para todos y ejecute la tarea «kOS TV: listas oficiales de MDBList»."
             });
         }
 
@@ -328,7 +328,7 @@ public class MdbListController : ControllerBase
             {
                 Success = false,
                 Slug = slug,
-                Error = "This list is not cached yet. It may sync on the next run of the Moonfin MDBList Official Lists Sync task."
+                Error = "Esta lista todavía no está guardada. Puede que llegue la próxima vez que se ejecute la tarea «kOS TV: listas oficiales de MDBList»."
             });
         }
 
@@ -371,7 +371,7 @@ public class MdbListController : ControllerBase
         {
             return Ok(new MdbListWatchingNowResponse
             {
-                Error = "No MDBList API key configured. Add your key in Moonfin Settings, or ask your server admin to set a server-wide key."
+                Error = "No hay ninguna clave de MDBList configurada. Añade la tuya en los ajustes de kOS TV o pide al administrador del servidor que ponga una para todos."
             });
         }
 

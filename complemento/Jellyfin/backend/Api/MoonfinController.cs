@@ -109,7 +109,7 @@ public class MoonfinController : ControllerBase
         {
             restored = true,
             restartRequired = true,
-            message = "Configuration restored. Restart the server for it to take effect.",
+            message = "Configuración restaurada. Reinicia el servidor para que se aplique.",
         });
     }
 

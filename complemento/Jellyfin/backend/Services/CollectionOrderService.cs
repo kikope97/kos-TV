@@ -14,6 +14,9 @@ public class CollectionOrderService
 
     private const int MaxItems = 5000;
 
+    /// <summary>Kos TV: an order of a collection that is gone is kept this long untouched before it goes.</summary>
+    public static readonly TimeSpan OrphanAfter = TimeSpan.FromDays(30);
+
     public CollectionOrderService()
     {
         var dataPath = MoonfinPlugin.Instance?.DataFolderPath
@@ -21,11 +24,23 @@ public class CollectionOrderService
         _rootPath = Path.Combine(dataPath, "collections");
     }
 
+    /// <summary>Kos TV: the store under <paramref name="rootPath"/>, for the tests.</summary>
+    internal CollectionOrderService(string rootPath)
+    {
+        _rootPath = rootPath;
+    }
+
+    /// <summary>
+    /// Kos TV: whether <paramref name="collectionId"/> can name a stored order (it keeps some
+    /// letters or digits), so a bad one is answered as such instead of failing.
+    /// </summary>
+    public bool IsValidId(Guid userId, string? collectionId) => ResolvePath(userId, collectionId ?? string.Empty) != null;
+
     /// <summary>Returns the stored order for the user+collection, or an empty list when none is set.</summary>
     public async Task<List<string>> GetAsync(Guid userId, string collectionId, CancellationToken cancellationToken)
     {
         var path = ResolvePath(userId, collectionId);
-        if (path == null || !File.Exists(path))
+        if (path == null)
         {
             return new List<string>();
         }
@@ -33,9 +48,9 @@ public class CollectionOrderService
         await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            await using var stream = File.OpenRead(path);
-            var list = await JsonSerializer.DeserializeAsync<List<string>>(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
-            return list ?? new List<string>();
+            // Kos TV: the file, or its .bak when the file was cut short, instead of an empty order.
+            return AtomicFile.ReadWithRecovery(path, text => JsonSerializer.Deserialize<List<string>>(text))
+                ?? new List<string>();
         }
         catch
         {
@@ -63,18 +78,61 @@ public class CollectionOrderService
         {
             if (normalized.Count == 0)
             {
-                if (File.Exists(path)) File.Delete(path);
+                AtomicFile.DeleteWithSidecars(path);
                 return;
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            await using var stream = File.Create(path);
-            await JsonSerializer.SerializeAsync(stream, normalized, cancellationToken: cancellationToken).ConfigureAwait(false);
+            // Kos TV: through a temp file and a rename (keeping a .bak), so a crash or a full disk
+            // midway never leaves the order someone dragged by hand half written.
+            await AtomicFile.WriteAllTextAsync(path, JsonSerializer.Serialize(normalized), cancellationToken).ConfigureAwait(false);
         }
         finally
         {
             _lock.Release();
         }
+    }
+
+    /// <summary>
+    /// Kos TV: forgets the person's orders of collections that no longer exist
+    /// (<paramref name="exists"/> says no) and haven't been touched in <see cref="OrphanAfter"/>,
+    /// so their folder doesn't keep growing. Only orders named by an item id are judged; how many
+    /// went.
+    /// </summary>
+    public async Task<int> PruneAsync(Guid userId, Func<Guid, bool> exists, CancellationToken cancellationToken)
+    {
+        var folder = Path.Combine(_rootPath, userId.ToString("N"));
+        if (!Directory.Exists(folder))
+        {
+            return 0;
+        }
+
+        var removed = 0;
+        await _lock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var before = DateTime.UtcNow - OrphanAfter;
+            foreach (var file in Directory.EnumerateFiles(folder, "*.json"))
+            {
+                if (Guid.TryParseExact(Path.GetFileNameWithoutExtension(file), "N", out var id) &&
+                    File.GetLastWriteTimeUtc(file) < before &&
+                    !exists(id))
+                {
+                    AtomicFile.DeleteWithSidecars(file);
+                    removed++;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Tidying only: what is left is tried again next time.
+        }
+        finally
+        {
+            _lock.Release();
+        }
+
+        return removed;
     }
 
     // Drops blanks and duplicates, keeps the first occurrence so the drag order survives, and caps the count.
