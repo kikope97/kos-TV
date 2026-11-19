@@ -10,6 +10,48 @@ class PlaySessionService implements PlayerService {
 
   PlaySessionService(this._client);
 
+  /// Kos TV: the token each session was started with, keyed by
+  /// [_sessionKey]. The Jellyfin client is one per server and switching
+  /// person swaps its token in place, so a progress or stop for the person
+  /// before (the manager sends a second stop once a late progress settles)
+  /// would otherwise land in the new person's watch data. Entries outlive
+  /// the first stop for that second one, so the map is capped instead.
+  final Map<String, String?> _startTokens = {};
+  static const _maxStartTokens = 64;
+
+  String _sessionKey(dynamic mediaItem, StreamResolutionResult resolution) {
+    final playSessionId = resolution.playSessionId;
+    if (playSessionId != null && playSessionId.isNotEmpty) {
+      return 'session:$playSessionId';
+    }
+    return 'item:${MediaStreamResolver.extractItemId(mediaItem)}'
+        '|${resolution.mediaSourceId}';
+  }
+
+  void _rememberStartToken(
+    dynamic mediaItem,
+    StreamResolutionResult resolution,
+  ) {
+    final key = _sessionKey(mediaItem, resolution);
+    _startTokens.remove(key);
+    _startTokens[key] = _client.accessToken;
+    while (_startTokens.length > _maxStartTokens) {
+      _startTokens.remove(_startTokens.keys.first);
+    }
+  }
+
+  /// True when [resolution] was started under another token than the
+  /// client holds now: its person's stop already went out before the
+  /// switch, and anything more would be reported as the new person.
+  bool _startedByAnotherPerson(
+    dynamic mediaItem,
+    StreamResolutionResult resolution,
+  ) {
+    final key = _sessionKey(mediaItem, resolution);
+    if (!_startTokens.containsKey(key)) return false;
+    return _startTokens[key] != _client.accessToken;
+  }
+
   @override
   Future<void> onPlaybackStart(
     dynamic mediaItem,
@@ -27,6 +69,7 @@ class PlaySessionService implements PlayerService {
       audioStreamIndex: audioStreamIndex,
       subtitleStreamIndex: subtitleStreamIndex,
     );
+    _rememberStartToken(mediaItem, resolution);
     await _client.playbackApi.reportPlaybackStart(report.toJson());
     _armExitBeacon(mediaItem, resolution, positionTicks ?? 0);
   }
@@ -42,6 +85,7 @@ class PlaySessionService implements PlayerService {
     int? volumeLevel,
     bool? isMuted,
   }) async {
+    if (_startedByAnotherPerson(mediaItem, resolution)) return;
     final report = PlaybackProgressReport(
       itemId: MediaStreamResolver.extractItemId(mediaItem),
       mediaSourceId: resolution.mediaSourceId,
@@ -70,10 +114,11 @@ class PlaySessionService implements PlayerService {
       resolution,
       position.inMicroseconds * 10,
     );
+    final otherPerson = _startedByAnotherPerson(mediaItem, resolution);
     Object? reportError;
     StackTrace? reportStackTrace;
     try {
-      if (!_isAudiobook(mediaItem)) {
+      if (!_isAudiobook(mediaItem) && !otherPerson) {
         await _client.playbackApi.reportPlaybackStopped(report.toJson());
       }
     } catch (error, stackTrace) {

@@ -245,6 +245,9 @@ WebPlaybackCapabilities detectWebPlaybackCapabilities() {
       isMobile: browser.isMobile,
       browserMajorVersion: browser.browserMajorVersion,
       maxStreamingBitrate: 120000000,
+      supportsVp9InMse:
+          _hasMediaSourceSupport() &&
+          _isTypeSupportedByMse('video/mp4; codecs="vp09.00.10.08"'),
     );
 
     _cached = result;

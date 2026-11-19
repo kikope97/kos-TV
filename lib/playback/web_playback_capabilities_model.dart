@@ -58,6 +58,7 @@ class WebPlaybackCapabilities {
     required this.isMobile,
     required this.browserMajorVersion,
     required this.maxStreamingBitrate,
+    this.supportsVp9InMse = false,
   });
 
   final bool supportsAvc;
@@ -118,6 +119,10 @@ class WebPlaybackCapabilities {
   final bool isMobile;
   final int browserMajorVersion;
   final int maxStreamingBitrate;
+
+  /// Kos TV: whether MediaSource (what hls.js plays through) takes VP9 in
+  /// fMP4. Only matters where the browser's own HLS is not used.
+  final bool supportsVp9InMse;
 
   static const WebPlaybackCapabilities conservative = WebPlaybackCapabilities(
     supportsAvc: false,

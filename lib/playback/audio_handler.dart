@@ -12,6 +12,7 @@ import 'package:server_core/server_core.dart';
 import '../data/models/aggregated_item.dart';
 import '../data/services/audiobook_resume_service.dart';
 import '../data/services/media_server_client_factory.dart';
+import '../l10n/current_app_localizations.dart';
 import '../util/audio_artwork_url.dart';
 import '../platform/pip_service.dart';
 import '../util/platform_detection.dart';
@@ -775,7 +776,10 @@ Future<void> initAudioService({
         MoonfinAudioHandler(manager, clientFactory, browse, lastSessionStore),
     config: AudioServiceConfig(
       androidNotificationChannelId: 'com.moonfin.app.audio',
-      androidNotificationChannelName: 'Music Playback',
+      // Kos TV: shown in Android's notification settings for the app, so it
+      // is in the app's language (Android renames an existing channel).
+      androidNotificationChannelName: currentAppLocalizations()
+          .kostvMusicNotificationChannel,
       androidNotificationOngoing: false,
       // Must stay true. When false, audio_service holds its partial wake lock
       // and the media playback foreground service forever after a pause, which

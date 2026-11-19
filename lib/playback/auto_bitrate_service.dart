@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -104,6 +104,7 @@ class AutoBitrateService {
       if (raw == null) return;
       (jsonDecode(raw) as Map<String, dynamic>).forEach((url, entry) {
         if (entry case [final int bps, final int measuredAt]) {
+          if (discardSavedMeasurement(bps, isWeb: kIsWeb)) return;
           _cache[url] = (
             bps: bps,
             measuredAt: DateTime.fromMillisecondsSinceEpoch(measuredAt),
@@ -124,6 +125,14 @@ class AutoBitrateService {
       );
     } catch (_) {}
   }
+
+  /// Kos TV: the web build used to time a body the browser had already
+  /// downloaded whole, which always came out at the 32 bit ceiling. A web
+  /// measurement saved at exactly that ceiling is one of those, so it is
+  /// dropped and measured again instead of lifting the cap for good.
+  @visibleForTesting
+  static bool discardSavedMeasurement(int bps, {required bool isWeb}) =>
+      isWeb && bps >= _maxBps;
 
   /// Runs [sample] over the probe sizes and returns the last rate it got, or
   /// null when the first probe failed.
@@ -188,6 +197,11 @@ class AutoBitrateService {
   /// Times one body from the moment its headers arrive, so the connection
   /// setup and the server's own turnaround don't count against the link.
   /// Past [_probeBudget] it stops reading and times what came.
+  ///
+  /// Kos TV: on the web Dio's adapter only completes once the browser holds
+  /// the whole body, so the clock starts before the request there. That
+  /// counts the server's turnaround too, which only makes the cap more
+  /// cautious.
   Future<int?> _sample(
     Dio dio,
     String url,
@@ -196,6 +210,8 @@ class AutoBitrateService {
     Map<String, String>? headers,
   }) async {
     try {
+      final stopwatch = Stopwatch();
+      if (kIsWeb) stopwatch.start();
       final response = await dio.get<ResponseBody>(
         url,
         options: Options(headers: headers),
@@ -203,7 +219,7 @@ class AutoBitrateService {
       final body = response.data;
       if (body == null) return null;
 
-      final stopwatch = Stopwatch()..start();
+      if (!kIsWeb) stopwatch.start();
       var received = 0;
       var outOfTime = false;
       await for (final chunk in body.stream.timeout(_requestTimeout)) {

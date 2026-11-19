@@ -1,4 +1,5 @@
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'package:web/web.dart' as web;
 
@@ -28,6 +29,29 @@ class PlaybackExitBeacon {
     final url = _url;
     final body = _body;
     if (url == null || body == null) return;
+    // Kos TV: Chromium refuses sendBeacon with an application/json Blob
+    // (not a CORS-safelisted type) and throws, so the stop never left on
+    // Chrome and Edge. A keepalive fetch carries the type and outlives the
+    // page; sendBeacon stays for a browser without fetch.
+    if (globalContext.has('fetch')) {
+      try {
+        final headers = web.Headers()
+          ..append('Content-Type', 'application/json');
+        web.window
+            .fetch(
+              url.toJS,
+              web.RequestInit(
+                method: 'POST',
+                headers: headers,
+                body: body.toJS,
+                keepalive: true,
+              ),
+            )
+            .toDart
+            .then<void>((_) {}, onError: (Object _) {});
+        return;
+      } catch (_) {}
+    }
     try {
       final blob = web.Blob(
         <JSAny>[body.toJS].toJS,

@@ -14201,5 +14201,9 @@
                 "type": "int"
             }
         }
+    },
+    "kostvMusicNotificationChannel": "Reproducción de música",
+    "@kostvMusicNotificationChannel": {
+        "description": "Kos TV: name of the Android notification channel for music and audio playback, shown in the system notification settings"
     }
 }

@@ -121,7 +121,11 @@ class OfflineUserLibraryApi implements UserLibraryApi {
     if (serverId == null || serverId.isEmpty) {
       throw offlineUnavailable('/UserItems/$itemId/UserData');
     }
-    await _offlineRepo.updatePlaybackPosition(itemId, positionTicks);
+    await _offlineRepo.updatePlaybackPosition(
+      itemId,
+      positionTicks,
+      userId: _userId(),
+    );
   }
 
   @override

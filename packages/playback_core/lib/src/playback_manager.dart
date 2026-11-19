@@ -3787,6 +3787,9 @@ class PlaybackManager implements AudioOwnable {
             ? _subtitleLanguageForStream(_secondarySubtitleStreamIndex!)
             : null,
       );
+      // Kos TV: the web player tells a failed transcode (final) from a
+      // failed direct play (worth a transcode) by this.
+      backendMediaPayload['playMethod'] = resolution.playMethod.name;
       await _arbiter?.acquire(AudioProducer.mainPlayback);
       if (sessionToken != _playbackSessionToken) {
         _cleanupPreemptedSession(item, resolution, startPosition);
@@ -4035,13 +4038,16 @@ class PlaybackManager implements AudioOwnable {
       }
     }
 
-    _service?.onPlaybackStart(
+    // Kos TV: a start report that fails (a dropped link, a 5xx) is not a
+    // crash; uncaught it reached the app's crash handler.
+    final startReport = _service?.onPlaybackStart(
       item,
       resolution,
       positionTicks: startTicks,
       audioStreamIndex: _audioStreamIndex,
       subtitleStreamIndex: _subtitleStreamIndex,
     );
+    if (startReport != null) unawaited(startReport.catchError((_) {}));
 
     // Live TV played directly from the upstream URL no longer needs the server's
     // live-stream session; close it so only the client's connection remains
@@ -4462,6 +4468,10 @@ class PlaybackManager implements AudioOwnable {
 
   Future<void> previous() async {
     if (await _maybeIntercept(TransportAction.previous)) return;
+    // Kos TV: a second press while the item before is still loading would
+    // step back again, or restart the loading one from its seeded resume
+    // point.
+    if (_isManualNexting) return;
     final chapter =
         previousChapterStart(_currentChapterStarts, state.position);
     if (chapter != null) {
@@ -4475,11 +4485,7 @@ class PlaybackManager implements AudioOwnable {
       return;
     }
     _beginNewPlaybackSource('the viewer moved to the previous item');
-    _mediaSourceId = null;
-    await _stopAndReportCurrent(skipQueueChange: true);
-    _resetBackendSelectionLock();
-    queueService.previous();
-    await _playCurrentItem();
+    await _switchQueueItem(() => queueService.previous());
   }
 
   /// Straight to the item before, without stepping chapters or restarting
@@ -4487,25 +4493,35 @@ class PlaybackManager implements AudioOwnable {
   /// With nothing before, this one starts again.
   Future<void> previousInQueue() async {
     if (await _maybeIntercept(TransportAction.previous)) return;
+    if (_isManualNexting) return;
     if (!queueService.hasPrevious) {
       await seekTo(Duration.zero);
       return;
     }
     _beginNewPlaybackSource('the viewer moved to the previous item');
-    _mediaSourceId = null;
-    await _stopAndReportCurrent(skipQueueChange: true);
-    _resetBackendSelectionLock();
-    queueService.previous();
-    await _playCurrentItem();
+    await _switchQueueItem(() => queueService.previous());
   }
 
   Future<void> playFromQueue(int index) async {
+    if (_isManualNexting) return;
     _beginNewPlaybackSource('the viewer selected another queued item');
+    await _switchQueueItem(() => queueService.jumpTo(index));
+  }
+
+  /// Kos TV: stops the current item, moves the queue with [move] and plays
+  /// what it lands on, marked as a manual change like [_advanceQueue] so a
+  /// second press waits it out instead of moving the queue twice.
+  Future<void> _switchQueueItem(void Function() move) async {
+    _isManualNexting = true;
     _mediaSourceId = null;
-    await _stopAndReportCurrent(skipQueueChange: true);
-    _resetBackendSelectionLock();
-    queueService.jumpTo(index);
-    await _playCurrentItem();
+    try {
+      await _stopAndReportCurrent(skipQueueChange: true);
+      _resetBackendSelectionLock();
+      move();
+      await _playCurrentItem();
+    } finally {
+      _isManualNexting = false;
+    }
   }
 
   void toggleRepeat() {
@@ -5369,23 +5385,25 @@ class PlaybackManager implements AudioOwnable {
         if (sessionToken != _playbackSessionToken) return;
       }
 
-      _applyStoredTrackSelections(
+      await _applyStoredTrackSelections(
         sessionToken,
         restorePosition: restorePosition,
       );
-    });
+      // Kos TV: an engine refusing a track is logged by the engine; left
+      // uncaught it was recorded as an app crash.
+    }).catchError((_) {});
   }
 
   void _waitAndDisableSubtitles(int sessionToken, {bool force = false}) {
-    _backend?.waitForTracksReady().then((_) {
+    _backend?.waitForTracksReady().then((_) async {
       if (sessionToken != _playbackSessionToken) return;
       if (!force &&
           _subtitleStreamIndex != null &&
           _subtitleStreamIndex! >= 0) {
         return;
       }
-      _backend?.disableSubtitleTrack();
-    });
+      await _backend?.disableSubtitleTrack();
+    }).catchError((_) {});
   }
 
   void _waitAndApplyExternalSubtitle(

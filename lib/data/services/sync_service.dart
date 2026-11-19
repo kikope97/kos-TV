@@ -88,6 +88,17 @@ class SyncService extends ChangeNotifier {
   ) =>
       isStoredServer(row.serverId, serverId: serverId, baseUrl: client.baseUrl);
 
+  /// Kos TV: whether progress kept for [progressUserId] may be sent as
+  /// [signedInUserId]. A row from before the person was kept belongs to
+  /// anyone, as it always did.
+  @visibleForTesting
+  static bool isProgressOf(String? progressUserId, String? signedInUserId) {
+    if (progressUserId == null || progressUserId.isEmpty) return true;
+    String normalize(String? id) =>
+        (id ?? '').replaceAll('-', '').toLowerCase();
+    return normalize(progressUserId) == normalize(signedInUserId);
+  }
+
   /// Pushes progress recorded offline through [client], furthest progress
   /// winning. Only rows from [serverId] are touched: a server answers a stop
   /// report for an item it does not have with success, so another server's
@@ -103,8 +114,15 @@ class SyncService extends ChangeNotifier {
 
     _setState(SyncState.syncing);
 
+    // Kos TV: a row someone else watched waits until they are signed in
+    // again, so it never lands in this person's watch data.
     final unsynced = (await _offlineRepo.getUnsyncedProgress())
-        .where((row) => _isFromServer(row, client, serverId))
+        .where(
+          (row) =>
+              _isFromServer(row, client, serverId) &&
+              (row.progressUserId == null ||
+                  isProgressOf(row.progressUserId, client.userId)),
+        )
         .toList();
     if (unsynced.isEmpty) {
       _setState(SyncState.done);

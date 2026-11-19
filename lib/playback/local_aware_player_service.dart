@@ -14,6 +14,10 @@ class LocalAwarePlayerService implements PlayerService {
   final OfflineRepository _offlineRepo;
   final bool Function() _canReachServer;
 
+  /// Kos TV: who is signed in, so progress kept for a download is synced
+  /// later only as the person who watched it.
+  final String? Function() _userId;
+
   /// Told which item stopped, how it played and where, once its stop has been
   /// reported, so whatever reacts to a finished episode reads the server's
   /// played state after it.
@@ -28,6 +32,7 @@ class LocalAwarePlayerService implements PlayerService {
     this._inner,
     this._offlineRepo, {
     required bool Function() canReachServer,
+    String? Function()? userId,
     void Function(
       dynamic mediaItem,
       StreamResolutionResult resolution,
@@ -35,20 +40,30 @@ class LocalAwarePlayerService implements PlayerService {
     )?
     onStopped,
   }) : _canReachServer = canReachServer,
+       _userId = userId ?? (() => null),
        _onStopped = onStopped;
 
   Future<void> _recordLocal(dynamic mediaItem, int positionTicks) async {
     try {
       final itemId = MediaStreamResolver.extractItemId(mediaItem);
-      await _offlineRepo.updatePlaybackPosition(itemId, positionTicks);
+      await _offlineRepo.updatePlaybackPosition(
+        itemId,
+        positionTicks,
+        userId: _userId(),
+      );
     } catch (_) {}
   }
 
-  Future<void> _forward(Future<void> Function() report) async {
-    if (!_canReachServer()) return;
+  /// Sends [report] when the server is reachable, and says whether the
+  /// server took it.
+  Future<bool> _forward(Future<void> Function() report) async {
+    if (!_canReachServer()) return false;
     try {
       await report();
-    } catch (_) {}
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
@@ -134,7 +149,7 @@ class LocalAwarePlayerService implements PlayerService {
         );
       }
       await _recordLocal(mediaItem, position.inMicroseconds * 10);
-      await _forward(
+      final reported = await _forward(
         () => _inner.onPlaybackStop(
           mediaItem,
           resolution,
@@ -142,6 +157,15 @@ class LocalAwarePlayerService implements PlayerService {
           releaseLiveStream: releaseLiveStream,
         ),
       );
+      // Kos TV: the server already has this stop, so the next sync must not
+      // send it again (as whoever is signed in by then).
+      if (reported) {
+        try {
+          await _offlineRepo.markProgressSynced(
+            MediaStreamResolver.extractItemId(mediaItem),
+          );
+        } catch (_) {}
+      }
     } finally {
       _onStopped?.call(mediaItem, resolution, position);
     }

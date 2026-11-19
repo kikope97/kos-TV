@@ -304,4 +304,26 @@ void main() {
     });
   });
 
+  group('AutoBitrateService.discardSavedMeasurement', () {
+    test('a web measurement stuck at the ceiling is measured again', () {
+      expect(
+        AutoBitrateService.discardSavedMeasurement(2147483647, isWeb: true),
+        isTrue,
+      );
+    });
+
+    test('a real web measurement is kept', () {
+      expect(
+        AutoBitrateService.discardSavedMeasurement(40000000, isWeb: true),
+        isFalse,
+      );
+    });
+
+    test('the ceiling outside the web is a real local link and is kept', () {
+      expect(
+        AutoBitrateService.discardSavedMeasurement(2147483647, isWeb: false),
+        isFalse,
+      );
+    });
+  });
 }

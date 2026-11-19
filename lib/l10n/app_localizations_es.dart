@@ -20233,4 +20233,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String kostvVolumeBoost(int level) {
     return 'Volumen +$level';
   }
+
+  @override
+  String get kostvMusicNotificationChannel => 'Reproducción de música';
 }

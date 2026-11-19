@@ -46,6 +46,11 @@ class DownloadedItems extends Table {
   TextColumn get downloadSource =>
       text().withDefault(const Constant('manual'))();
 
+  /// Kos TV: whose watching left [playbackPositionTicks] unsynced, so the
+  /// sync only sends it as that person. Null on rows from before it was
+  /// kept, which sync with whoever is signed in, as they always did.
+  TextColumn get progressUserId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {itemId, serverId};
 }
@@ -72,7 +77,7 @@ class OfflineDatabase extends _$OfflineDatabase {
   OfflineDatabase(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -83,6 +88,11 @@ class OfflineDatabase extends _$OfflineDatabase {
           () => m.addColumn(downloadedItems, downloadedItems.downloadSource),
         );
         await _tolerateExisting(() => m.createTable(autoDownloadSubscriptions));
+      }
+      if (from < 3) {
+        await _tolerateExisting(
+          () => m.addColumn(downloadedItems, downloadedItems.progressUserId),
+        );
       }
     },
   );

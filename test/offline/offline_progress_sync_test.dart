@@ -466,6 +466,45 @@ void main() {
   // A server answers a stop report for an item it does not have with success,
   // so syncing another server's row would mark it synced and its own server
   // would never get it.
+  // Kos TV: a download's progress belongs to whoever watched it.
+  group('only the person who watched it is synced', () {
+    late _FakeServer server;
+
+    setUp(() => server = _FakeServer('http://server-a.test'));
+
+    Future<void> watchedBy(String? userId) async {
+      await download('m', ticksAtDownload: 10 * _min);
+      server.set('m', ticks: 10 * _min);
+      await repo.updatePlaybackPosition('m', 40 * _min, userId: userId);
+    }
+
+    test('someone else\'s progress waits until they are back', () async {
+      await watchedBy('person-a');
+      when(() => server.client.userId).thenReturn('person-b');
+
+      await sync.syncPlaybackProgress(server.client, serverId: 'server-a');
+
+      expect(server.stopReports, isEmpty);
+      expect(await localSynced('m'), isFalse);
+
+      when(() => server.client.userId).thenReturn('PERSON-A');
+      await sync.syncPlaybackProgress(server.client, serverId: 'server-a');
+
+      expect(server.ticks('m'), 40 * _min);
+      expect(await localSynced('m'), isTrue);
+    });
+
+    test('a row from before the person was kept syncs as before', () async {
+      await watchedBy(null);
+      when(() => server.client.userId).thenReturn('person-b');
+
+      await sync.syncPlaybackProgress(server.client, serverId: 'server-a');
+
+      expect(server.ticks('m'), 40 * _min);
+      expect(await localSynced('m'), isTrue);
+    });
+  });
+
   group('only the active server is synced', () {
     late _FakeServer serverA;
     late _FakeServer serverB;

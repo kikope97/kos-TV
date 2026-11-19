@@ -28,8 +28,17 @@ class _Offline extends Fake implements OfflineRepository {
   final List<String> events;
 
   @override
-  Future<void> updatePlaybackPosition(String itemId, int positionTicks) async {
-    events.add('recorded');
+  Future<void> updatePlaybackPosition(
+    String itemId,
+    int positionTicks, {
+    String? userId,
+  }) async {
+    events.add(userId == null ? 'recorded' : 'recorded for $userId');
+  }
+
+  @override
+  Future<void> markProgressSynced(String itemId) async {
+    events.add('synced $itemId');
   }
 }
 
@@ -49,11 +58,15 @@ void main() {
 
   setUp(() => events = []);
 
-  LocalAwarePlayerService service({bool reachable = true, bool fail = false}) =>
-      LocalAwarePlayerService(
+  LocalAwarePlayerService service({
+    bool reachable = true,
+    bool fail = false,
+    String? userId,
+  }) => LocalAwarePlayerService(
         _Server(events, fail: fail),
         _Offline(events),
         canReachServer: () => reachable,
+        userId: () => userId,
         onStopped: (stopped, resolution, position) => events.add(
           'stopped ${stopped['Id']}'
           '${resolution.isLocalMedia ? ' from its download' : ''}'
@@ -78,8 +91,25 @@ void main() {
       const Duration(minutes: 40),
     );
 
+    // Kos TV: the server took the stop, so the row is not left for the
+    // next sync to send again as whoever is signed in by then.
     expect(events, [
       'recorded',
+      'reported',
+      'synced episode-1',
+      'stopped episode-1 from its download at 2400s',
+    ]);
+  });
+
+  test('a downloaded stop the server refused stays for the sync', () async {
+    await service(fail: true, userId: 'person-a').onPlaybackStop(
+      item,
+      _resolution(local: true),
+      const Duration(minutes: 40),
+    );
+
+    expect(events, [
+      'recorded for person-a',
       'reported',
       'stopped episode-1 from its download at 2400s',
     ]);

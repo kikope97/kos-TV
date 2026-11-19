@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:playback_core/playback_core.dart';
 
@@ -6,6 +8,9 @@ class _TestBackend extends Fake implements PlayerBackend {
   int stopCalls = 0;
   Duration currentPosition = Duration.zero;
   bool playing = true;
+
+  /// Holds a stop until completed, to keep an item change in flight.
+  Completer<void>? stopGate;
 
   @override
   Duration get position => currentPosition;
@@ -43,6 +48,7 @@ class _TestBackend extends Fake implements PlayerBackend {
   @override
   Future<void> stop() async {
     stopCalls++;
+    await stopGate?.future;
     playing = false;
   }
 }
@@ -93,5 +99,42 @@ void main() {
       1,
       reason: 'a late press restarts rather than stepping back',
     );
+  });
+
+  // Kos TV: a second press while the item before is still loading used to
+  // step back again.
+  for (final (name, press)
+      in <(String, Future<void> Function(PlaybackManager))>[
+        ('previous', (m) => m.previous()),
+        ('previousInQueue', (m) => m.previousInQueue()),
+      ]) {
+    test('$name pressed twice moves the queue once', () async {
+      manager.queueService.setQueue(['a', 'b', 'c'], startIndex: 2);
+      manager.state.setPosition(const Duration(seconds: 1));
+      backend.stopGate = Completer<void>();
+
+      final first = press(manager).catchError((_) {});
+      await Future<void>.delayed(Duration.zero);
+      final second = press(manager).catchError((_) {});
+      backend.stopGate!.complete();
+      await first;
+      await second;
+
+      expect(manager.queueService.currentIndex, 1);
+    });
+  }
+
+  test('a second queue pick while the first loads is dropped', () async {
+    manager.queueService.setQueue(['a', 'b', 'c'], startIndex: 2);
+    backend.stopGate = Completer<void>();
+
+    final first = manager.playFromQueue(1).catchError((_) {});
+    await Future<void>.delayed(Duration.zero);
+    final second = manager.playFromQueue(0).catchError((_) {});
+    backend.stopGate!.complete();
+    await first;
+    await second;
+
+    expect(manager.queueService.currentIndex, 1);
   });
 }

@@ -121,6 +121,10 @@ class _TestResolver extends MediaStreamResolver {
 }
 
 class _TestService implements PlayerService {
+  _TestService({this.failStart = false});
+
+  final bool failStart;
+
   @override
   Future<void> onPlaybackStart(
     dynamic mediaItem,
@@ -128,7 +132,9 @@ class _TestService implements PlayerService {
     int? positionTicks,
     int? audioStreamIndex,
     int? subtitleStreamIndex,
-  }) async {}
+  }) async {
+    if (failStart) throw StateError('server unreachable');
+  }
 
   @override
   Future<void> onPlaybackProgress(
@@ -161,11 +167,11 @@ class _TestService implements PlayerService {
 }
 
 class _Harness {
-  _Harness({Object? resolveError}) {
+  _Harness({Object? resolveError, bool failStart = false}) {
     manager = PlaybackManager()
       ..setBackend(backend)
       ..setResolver(_TestResolver(error: resolveError))
-      ..setPlayerService(_TestService())
+      ..setPlayerService(_TestService(failStart: failStart))
       ..setDiagnosticLogger(notes.add);
     _states = manager.bringupStateStream.listen(phases.add);
   }
@@ -200,6 +206,23 @@ const _lateError = <String, dynamic>{
 };
 
 void main() {
+  // Kos TV: an unanswered start report reached the app's crash handler.
+  test('a start report that fails is not an uncaught error', () async {
+    final h = _Harness(failStart: true);
+    final uncaught = <Object>[];
+    try {
+      await runZonedGuarded(() async {
+        await h.manager.playItems(<dynamic>[_item]);
+        await pumpEventQueue();
+      }, (error, _) => uncaught.add(error));
+
+      expect(uncaught, isEmpty);
+      expect(h.sawFailure, isFalse);
+    } finally {
+      await h.dispose();
+    }
+  });
+
   test('a backend error after stop does not fail a bring-up that is over', () async {
     final h = _Harness();
     try {

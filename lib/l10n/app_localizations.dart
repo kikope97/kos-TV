@@ -34208,6 +34208,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Volume +{level}'**
   String kostvVolumeBoost(int level);
+
+  /// Kos TV: name of the Android notification channel for music and audio playback, shown in the system notification settings
+  ///
+  /// In en, this message translates to:
+  /// **'Music playback'**
+  String get kostvMusicNotificationChannel;
 }
 
 class _AppLocalizationsDelegate
