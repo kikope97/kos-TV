@@ -35936,6 +35936,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Music volume'**
   String get kostvPlayerVolume;
+
+  /// Kos TV: forgot a PIN kept on the device; the account's password removes it
+  ///
+  /// In en, this message translates to:
+  /// **'Type this account\'s Jellyfin password to remove the PIN.'**
+  String get kostvPinRecoveryMessage;
+
+  /// Kos TV: forgot the Kids Mode PIN; the account's password removes it and leaves the mode
+  ///
+  /// In en, this message translates to:
+  /// **'Type this account\'s Jellyfin password to remove the PIN and leave Kids Mode.'**
+  String get kostvPinRecoveryKidsMessage;
+
+  /// Kos TV: the account whose password is asked to recover a PIN
+  ///
+  /// In en, this message translates to:
+  /// **'User: {name}'**
+  String kostvPinRecoveryUser(String name);
+
+  /// Kos TV: recovering a PIN, for an account without a password
+  ///
+  /// In en, this message translates to:
+  /// **'If the account has no password, leave it blank.'**
+  String get kostvPinRecoveryEmptyHint;
+
+  /// Kos TV: button that checks the password and removes the forgotten PIN
+  ///
+  /// In en, this message translates to:
+  /// **'Remove PIN'**
+  String get kostvPinRecoveryConfirm;
+
+  /// Kos TV: the server turned down the password typed to recover a PIN
+  ///
+  /// In en, this message translates to:
+  /// **'Incorrect password'**
+  String get kostvPinRecoveryWrong;
+
+  /// Kos TV: a forgotten PIN can't be recovered without reaching the server
+  ///
+  /// In en, this message translates to:
+  /// **'Recovering the PIN needs the server. Try again when you\'re connected.'**
+  String get kostvPinRecoveryNeedsServer;
 }
 
 class _AppLocalizationsDelegate
