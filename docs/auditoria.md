@@ -149,3 +149,12 @@ y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
   desde fuera de casa se entra siempre por el proxy con https.
 - (Para saber) Hay borradas en local 17 etiquetas de la app original que no
   estaban en GitHub, para que nunca se suban por error.
+
+## Lo que decidió el usuario
+
+Todo como se recomendaba (19 de noviembre de 2026). Se hacen: 1 (PIN propio
+del control parental), 3, 5, 6, 7, 10, 11, 12, 13, 14, 16, 17, 18, 19, 21 y 23.
+Se quedan como están: 2, 8, 15, 22 (más adelante) y 24. «Tus listas» con la
+ficha de Música (9), más adelante como novedad. El complemento (4) se publica
+junto con la próxima versión de la app. El panel de administración (20) queda
+como excepción: solo móvil y web.
