@@ -1,22 +1,15 @@
-import 'dart:convert';
-import 'dart:io';
-import 'dart:isolate';
-
-import 'package:path_provider/path_provider.dart';
-
-import '../../util/platform_detection.dart';
 import '../models/aggregated_item.dart';
 import '../models/home_row.dart';
+import 'home_row_cache/home_row_cache_storage.dart';
 
-/// Persists the home rows to a single JSON file so a cold start can paint
+/// Persists the home rows to a single JSON file (on the web, the browser's
+/// local storage) so a cold start can paint
 /// cached content immediately, then revalidate in the background.
 ///
 /// Single-slot: only the last-written (server + section config) signature is
 /// kept, so switching servers or changing the home layout invalidates it on the
 /// next read. All operations are best-effort and never throw to the caller.
 class HomeRowCacheStore {
-  static const _fileName = 'home_rows_cache.json';
-
   static const _maxAge = Duration(days: 3);
 
   /// Rows whose items are only true for the minutes they describe. Replaying
@@ -24,22 +17,13 @@ class HomeRowCacheStore {
   static bool isTimeBound(HomeRowType rowType) =>
       rowType == HomeRowType.liveTvOnNow;
 
-  Future<File> _file() async {
-    final dir = PlatformDetection.isAppleTV
-        ? await getApplicationCacheDirectory()
-        : await getApplicationSupportDirectory();
-    return File('${dir.path}/$_fileName');
-  }
-
   /// Returns the cached rows for [cacheKey], or null on any miss (no file,
   /// signature mismatch, too old, corrupt, or empty).
   Future<List<HomeRow>?> read(String cacheKey) async {
     try {
-      final file = await _file();
-      if (!file.existsSync()) return null;
-      final raw = await file.readAsString();
-      // The cache file can be hundreds of KB; keep JSON off the UI isolate.
-      final decoded = await Isolate.run(() => jsonDecode(raw));
+      final raw = await readHomeRowCache();
+      if (raw == null) return null;
+      final decoded = await decodeHomeRowCache(raw);
       if (decoded is! Map<String, dynamic>) return null;
       if (decoded['key'] != cacheKey) return null;
       final savedAt = decoded['savedAt'];
@@ -93,15 +77,14 @@ class HomeRowCacheStore {
   Future<void> _clear(String cacheKey) async {
     try {
       if (await read(cacheKey) == null) return;
-      await (await _file()).delete();
+      await deleteHomeRowCache();
     } catch (_) {}
   }
 
   Future<void> _writeEnvelope(Map<String, Object> envelope) async {
     try {
-      final payload = await Isolate.run(() => jsonEncode(envelope));
-      final file = await _file();
-      await file.writeAsString(payload, flush: true);
+      final payload = await encodeHomeRowCache(envelope);
+      await writeHomeRowCache(payload);
     } catch (_) {}
   }
 

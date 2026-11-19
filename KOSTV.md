@@ -157,13 +157,18 @@ que es el historial de lo que se ha mirado, traído o descartado.
   episodios recordados mientras no cambian. Probado: suite completa y fotos
   de tele, móvil y web. Se dejó el aviso de la ficha de solicitar en cada
   sondeo: enseña el progreso en directo.
-  **Decisiones del usuario pendientes:** HLS nativo en iOS en vez de hls.js
-  (recupera AirPlay, hay que probarlo); caché de filas de Inicio en la web;
-  activar skwasm en Safari; el anillo de la bandeja gira a 60 fps mientras
-  se descarga algo (en la web redibuja toda la pantalla: ¿menos fotogramas?);
-  posible fallo: las tarjetas del complemento no traen `ProviderIds`, así que
-  las diapositivas recomendadas del banner no encuentran tráilers en español
-  (arreglo en el complemento, `ItemCardDtoMapper`).
+  **Decisiones (tomadas el 19-11-2026):** en el iPhone y el iPad el vídeo
+  HLS lo reproduce Safari solo, no hls.js (`playsHlsNatively` en
+  `web/index.html`; más fluido, menos batería y puede ir a AirPlay); probarlo
+  en el iPhone con la imagen web de prueba antes de publicarlo (una película
+  con subtítulos y otra con varios audios). Inicio guarda sus filas también
+  en la web (en el almacenamiento del navegador, `home_row_cache/`), como en
+  la tele y el móvil. Las diapositivas que recomienda el complemento sacan
+  el id de TMDB de la ficha completa, así que Stremfin da sus tráilers en
+  español también para ellas (antes se quedaban con el del servidor). No se
+  activa skwasm en Safari (Flutter lo tiene apagado por fallos de WebKit;
+  llegará solo cuando lo active) y el anillo de la bandeja se queda como
+  está.
 
 - **Quitar Silo.** Está muy entrelazado con "Ver juntos" (Watch Party): la
   pantalla y el gestor de salas, que también usa Moonbase con Jellyfin, viven en

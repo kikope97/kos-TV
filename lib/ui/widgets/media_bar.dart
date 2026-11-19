@@ -1186,6 +1186,10 @@ class _MediaBarState extends State<MediaBar>
     }
 
     List<Map<String, dynamic>> remoteTrailers = item.remoteTrailers;
+    // Kos TV: the requests service is asked for a title's trailers by its
+    // TMDB id. The slides the server plugin recommends come without it (or
+    // the server's trailer links), so it is read from the full item below.
+    var tmdbId = item.tmdbId;
     // Plex items never carry trailer links, so there's nothing to fetch and
     // one is searched for instead.
     if (!client.features.supportsRemoteTrailers) {
@@ -1201,14 +1205,21 @@ class _MediaBarState extends State<MediaBar>
           ];
         }
       }
-    } else if (remoteTrailers.isEmpty && !item.isExternal) {
+    } else if ((remoteTrailers.isEmpty || tmdbId == null) &&
+        !item.isExternal) {
       try {
         final fullItem = await client.itemsApi.getItem(item.itemId);
         if (!mounted || resolveId != _trailerResolveId) return;
-        remoteTrailers =
-            (fullItem['RemoteTrailers'] as List?)
-                ?.cast<Map<String, dynamic>>() ??
-            const [];
+        if (remoteTrailers.isEmpty) {
+          remoteTrailers =
+              (fullItem['RemoteTrailers'] as List?)
+                  ?.cast<Map<String, dynamic>>() ??
+              const [];
+        }
+        if (tmdbId == null && fullItem['ProviderIds'] is Map) {
+          final ids = fullItem['ProviderIds'] as Map;
+          tmdbId = (ids['Tmdb'] ?? ids['tmdb'])?.toString();
+        }
       } catch (_) {}
     }
 
@@ -1216,7 +1227,7 @@ class _MediaBarState extends State<MediaBar>
     if (streamUrl == null && !item.isExternal) {
       remoteTrailers = await KostvTrailers.sorted(
         itemType: item.itemType,
-        tmdbId: item.tmdbId,
+        tmdbId: tmdbId,
         server: remoteTrailers,
       );
       if (!mounted || resolveId != _trailerResolveId) return;

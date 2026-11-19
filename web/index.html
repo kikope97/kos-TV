@@ -104,14 +104,35 @@
         return !!forceHls || isHlsPlaylistUrl(url);
       }
 
+      // Kos TV: an iPhone or iPad (an iPad says it is a Mac with a touch
+      // screen) plays HLS itself, with the phone's own decoder: smoother,
+      // lighter on the battery than hls.js on its ManagedMediaSource, and
+      // the video can go to AirPlay.
+      function playsHlsNatively(video) {
+        var ua = navigator.userAgent || '';
+        var appleMobile =
+          /iPad|iPhone|iPod/.test(ua) ||
+          (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+        return (
+          appleMobile &&
+          !!video &&
+          typeof video.canPlayType === 'function' &&
+          video.canPlayType('application/vnd.apple.mpegurl') !== ''
+        );
+      }
+
       window.MoonfinHlsBridge = {
         // hls.js is preferred whenever MediaSource is available. canPlayType
         // isn't consulted because Chromium reports native HLS support it
         // can't actually deliver (black screen on MPEG-TS segments). Browsers
         // without MSE, like iPhone Safari, fall through to the native
-        // video element, which plays HLS natively there.
+        // video element, which plays HLS natively there; so do iPhones and
+        // iPads that have MSE now (see playsHlsNatively).
         canUseHlsJs: function (video, url, forceHls) {
           if (!shouldTreatAsHls(url, forceHls)) {
+            return false;
+          }
+          if (playsHlsNatively(video)) {
             return false;
           }
           if (typeof window.Hls === 'undefined') {

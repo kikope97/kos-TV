@@ -227,6 +227,8 @@ class HtmlVideoBackend extends PlayerBackend
       ..style.pointerEvents = 'none'
       ..style.backgroundColor = 'black';
     element.setAttribute('playsinline', '');
+    // Kos TV: an iPhone playing the stream itself can send it to AirPlay.
+    element.setAttribute('x-webkit-airplay', 'allow');
     return element;
   }
 
