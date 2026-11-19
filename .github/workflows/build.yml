@@ -49,8 +49,10 @@ on:
   # Fires only once a merge queue is enabled on main.
   merge_group:
 
+# Kos TV: read-only by default. Only the jobs that publish (release,
+# test-release) can write to the repository, and web-image to the registry.
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 # A new push to a pull request replaces its running build. Every other run
@@ -238,6 +240,8 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-java@v5
         with:
@@ -274,7 +278,20 @@ jobs:
           STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          # Kos TV: a release or a test APK reaches the family's devices, so
+          # it has to be signed with the release key: a debug-signed APK
+          # doesn't install over the one they have.
+          PUBLISHED: ${{ needs.plan.outputs.release_version != '' || needs.plan.outputs.test_apk == 'true' }}
         run: |
+          if [ "$PUBLISHED" = true ]; then
+            if [ -z "$ANDROID_KEYSTORE_BASE64" ] || [ -z "$KEY_ALIAS" ]; then
+              echo "::error::A release or test APK needs the ANDROID_KEYSTORE_BASE64 and ANDROID_KEY_ALIAS secrets (signed with a debug key, it would not install over the family's app)."
+              exit 1
+            fi
+            # Gradle then stops instead of falling back to the debug key.
+            echo "KOSTV_REQUIRE_RELEASE_SIGNING=true" >> "$GITHUB_ENV"
+          fi
+
           # On PRs from forks the signing secrets are not available. Skip signing
           # setup so Gradle falls back to debug signing and the build still runs.
           if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
@@ -293,12 +310,16 @@ jobs:
           keyPassword=$KEY_PASSWORD
           EOF
 
-          # Fail fast with a clearer error if the keystore secret or type is wrong.
+          # Fail fast with a clearer error if the keystore secret or type is
+          # wrong, or (Kos TV) if it holds no key under the alias given.
+          args=(-list -keystore android/app/release.keystore -storepass "$STORE_PASSWORD")
           if [ -n "$STORE_TYPE" ]; then
-            keytool -list -v -keystore android/app/release.keystore -storetype "$STORE_TYPE" -storepass "$STORE_PASSWORD" >/dev/null
-          else
-            keytool -list -v -keystore android/app/release.keystore -storepass "$STORE_PASSWORD" >/dev/null
+            args+=(-storetype "$STORE_TYPE")
           fi
+          if [ -n "$KEY_ALIAS" ]; then
+            args+=(-alias "$KEY_ALIAS")
+          fi
+          keytool "${args[@]}" >/dev/null
 
       # The 8 GB heap in android/gradle.properties suits a dev machine, but on
       # the 16 GB runner it leaves no room for the Dart AOT compiles. The user
@@ -349,6 +370,15 @@ jobs:
           chmod +x build-android.sh
           ./build-android.sh ${{ matrix.target }}
 
+      # Kos TV: what is published must carry the release key, never the
+      # Android debug one; with the KOSTV_SIGNING_SHA256 repository variable
+      # (the certificate's SHA-256, see docs/web.md), exactly that key.
+      - name: Check the APK signature
+        if: needs.plan.outputs.release_version != '' || needs.plan.outputs.test_apk == 'true'
+        env:
+          EXPECTED_SHA256: ${{ vars.KOSTV_SIGNING_SHA256 }}
+        run: ./scripts/ci/check-apk-signature.sh KosTV_*.apk
+
       - uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.artifact }}
@@ -361,6 +391,8 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - uses: subosito/flutter-action@v2
         with:
@@ -452,6 +484,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Select Xcode 26.3
         run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
@@ -626,13 +660,15 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
 
       - name: Build web
-        run: flutter build web --wasm --release
+        run: flutter build web --wasm --release --no-web-resources-cdn
 
       - uses: actions/upload-artifact@v6
         with:
@@ -646,16 +682,20 @@ jobs:
   # each also keeps a tag of its own (X.Y.Z, or prueba and prueba-N). It
   # holds no address: the container gets them in its variables, so it is
   # built without the secrets.
-  # After the APKs: an image of a build whose Android failed isn't put up.
+  # After the release (or the test pre-release) is up: an image of a build
+  # whose APKs failed or weren't published isn't put up, so latest never
+  # moves to a version that doesn't exist.
   web-image:
-    needs: [plan, android]
-    if: needs.plan.outputs.release_version != '' || needs.plan.outputs.test_apk == 'true'
+    needs: [plan, android, release, test-release]
+    if: always() && (needs.release.result == 'success' || needs.test-release.result == 'success')
     runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - uses: subosito/flutter-action@v2
         with:
@@ -680,8 +720,11 @@ jobs:
       # JavaScript build that comes in the same folder, on its own. No
       # COOP/COEP headers: they'd break the trailers' YouTube frames, and
       # skwasm runs single-threaded without them.
+      # Kos TV: the drawing engine (canvaskit/, skwasm and canvaskit) is
+      # loaded from the image, not from Google's CDN, so the web opens at
+      # home without internet and Google doesn't see each visit.
       - name: Build web
-        run: flutter build web --wasm --release
+        run: flutter build web --wasm --release --no-web-resources-cdn
 
       - name: Image name and tags
         id: image
@@ -727,6 +770,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - uses: subosito/flutter-action@v2
         with:
@@ -926,12 +971,18 @@ jobs:
   # GitHub Release
   # Kos TV: publishes the Android APKs as the latest GitHub release, which is
   # what the apps' update check reads (AppUpdateService): the TV build takes
-  # the APK named *AndroidTV*, phones the other. Published at once, not as a
-  # draft, and only after both APKs built, so the release appears whole.
+  # the APK named *AndroidTV*, phones the other. Only after both APKs built,
+  # and first as a draft that gets every APK; it is published (and made the
+  # latest) only once all four are on it, so the release appears whole and
+  # .../releases/latest/download/KosTV_AndroidTV.apk never points at a
+  # release without it. A draft left by a failed run isn't the latest
+  # release, so running the workflow again for the same version works.
   release:
     if: needs.plan.outputs.release_version != ''
     needs: [plan, android]
     runs-on: ubuntu-26.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v7
         with:
@@ -949,6 +1000,7 @@ jobs:
           ls -l KosTV_*.apk
 
       - uses: softprops/action-gh-release@v3
+        id: draft
         with:
           tag_name: ${{ needs.plan.outputs.release_version }}
           target_commitish: ${{ github.sha }}
@@ -963,10 +1015,30 @@ jobs:
             - Móvil y tablet: https://github.com/${{ github.repository }}/releases/latest/download/KosTV_Android.apk
           files: KosTV_*.apk
           fail_on_unmatched_files: true
-          draft: false
+          draft: true
           prerelease: false
           make_latest: 'true'
           generate_release_notes: true
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RELEASE_ID: ${{ steps.draft.outputs.id }}
+          VERSION: ${{ needs.plan.outputs.release_version }}
+        run: |
+          if [ -z "$RELEASE_ID" ]; then
+            echo "::error::The release step gave no release id."
+            exit 1
+          fi
+          assets=$(gh api "repos/$REPO/releases/$RELEASE_ID" --jq '.assets[] | select(.state == "uploaded") | .name')
+          for name in "KosTV_AndroidTV_v$VERSION.apk" "KosTV_Android_v$VERSION.apk" KosTV_AndroidTV.apk KosTV_Android.apk; do
+            if ! grep -qxF "$name" <<<"$assets"; then
+              echo "::error::$name is missing from the draft release, so it is left unpublished."
+              exit 1
+            fi
+          done
+          gh api -X PATCH "repos/$REPO/releases/$RELEASE_ID" -F draft=false -f make_latest=true --jq '.html_url'
 
   # Kos TV: a test build to install by hand. Published as a pre-release, so
   # GitHub never returns it as the latest release and the apps' update check
@@ -978,6 +1050,8 @@ jobs:
     if: needs.plan.outputs.test_apk == 'true'
     needs: [plan, android]
     runs-on: ubuntu-26.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/download-artifact@v7
         with:
