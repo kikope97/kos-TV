@@ -9,8 +9,9 @@ import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/detail/playlist_sort_filter_bar.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-Widget buildTestWidget({required Widget child}) {
+Widget buildTestWidget({required Widget child, Locale? locale}) {
   return MaterialApp(
+    locale: locale,
     localizationsDelegates: const [
       AppLocalizations.delegate,
       GlobalMaterialLocalizations.delegate,
@@ -174,6 +175,40 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(PlaylistFilterDialog), findsNothing);
+    });
+
+    // Kos TV: the pills, the count and the server's type names were English
+    // whatever the app's language.
+    testWidgets('speaks the app language, type names included', (tester) async {
+      await tester.pumpWidget(
+        buildTestWidget(
+          locale: const Locale('es'),
+          child: PlaylistSortFilterBar(
+            sortBy: LibrarySortBy.playlistOrder,
+            sortDirection: SortDirection.ascending,
+            onSortChanged: (_) {},
+            playedFilter: PlayedStatusFilter.all,
+            favoriteOnly: false,
+            mediaTypeFilter: 'Video',
+            availableMediaTypes: const ['Video', 'Audio'],
+            onFilterChanged: (_, _, _) {},
+            onReset: () {},
+            totalCount: 10,
+            filteredCount: 3,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Orden: '), findsOneWidget);
+      expect(find.text('Filtro: Vídeos'), findsOneWidget);
+      expect(find.text('3 de 10'), findsOneWidget);
+      expect(find.textContaining('Sort:'), findsNothing);
+
+      await tester.tap(find.text('Filtro: Vídeos'));
+      await tester.pumpAndSettle();
+      expect(find.text('Vídeos'), findsOneWidget);
+      expect(find.text('Audio'), findsOneWidget);
     });
   });
 }

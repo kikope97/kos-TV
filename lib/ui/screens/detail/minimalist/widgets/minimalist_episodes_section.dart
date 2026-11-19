@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:moonfin_design/moonfin_design.dart';
 import 'package:moonfin/util/season_queue_context.dart';
 
 import '../../../../../data/models/aggregated_item.dart';
@@ -11,6 +12,7 @@ import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/artwork_request_size.dart';
 import '../../../../navigation/destinations.dart';
 import '../../../../widgets/focus/context_menu_sheet.dart';
+import '../../../../widgets/focus/focusable_wrapper.dart';
 import '../../../../widgets/focus/locked_focus_row.dart';
 import '../../../../widgets/scroll_edge_arrows.dart';
 import '../../../../widgets/sliding_pill_tabs.dart';
@@ -73,6 +75,10 @@ class _MinimalistEpisodesSectionState extends State<MinimalistEpisodesSection> {
   int? _selectedSeason;
   bool _loadStarted = false;
 
+  // Kos TV: the series' episodes didn't come, so the section offers to ask
+  // again instead of leaving the page with nothing under Play.
+  bool _loadFailed = false;
+
   ItemDetailViewModel get _vm => widget.viewModel;
   bool get _isSeries => _vm.item?.type == 'Series';
   bool get _isSeason => _vm.item?.type == 'Season';
@@ -101,8 +107,56 @@ class _MinimalistEpisodesSectionState extends State<MinimalistEpisodesSection> {
     unawaited(
       viewModel.loadAllSeriesEpisodes().whenComplete(() {
         if (!mounted || !identical(_vm, viewModel)) return;
-        setState(() {});
+        setState(() {
+          _loadFailed =
+              !viewModel.seriesEpisodesLoaded &&
+              viewModel.seriesEpisodes.isEmpty;
+        });
       }),
+    );
+  }
+
+  void _retryEpisodesLoad() {
+    setState(() {
+      _loadFailed = false;
+      _loadStarted = false;
+    });
+    _beginEpisodesLoad();
+  }
+
+  /// Kos TV: a short notice with Retry where the rail would be. It takes the
+  /// section's focus node, so Down from Play still lands on something.
+  Widget _loadFailedNotice(BuildContext context, AppLocalizations l10n) {
+    final textTheme = Theme.of(context).textTheme;
+    return Row(
+      key: const ValueKey('minimalist-episodes-failed'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Flexible(
+          child: Text(
+            l10n.kostvEpisodesLoadFailed,
+            style: textTheme.bodyMedium?.copyWith(color: Colors.white70),
+          ),
+        ),
+        const SizedBox(width: 12),
+        FocusableWrapper(
+          focusNode: widget.episodesFocusNode,
+          onSelect: _retryEpisodesLoad,
+          onNavigateUp: () => widget.onVerticalNavigation?.call(true),
+          onNavigateLeft: widget.onLeftEdge,
+          borderRadius: 8,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: Text(
+              l10n.retry,
+              style: textTheme.labelLarge?.copyWith(
+                color: AppColorScheme.accent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -182,7 +236,11 @@ class _MinimalistEpisodesSectionState extends State<MinimalistEpisodesSection> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final all = _allEpisodes;
-    if (all.isEmpty) return const SizedBox.shrink();
+    if (all.isEmpty) {
+      return _loadFailed
+          ? _loadFailedNotice(context, l10n)
+          : const SizedBox.shrink();
+    }
 
     final seasons = _seasonNumbers(all);
     // Landing on an episode opens its own season rather than the first one.

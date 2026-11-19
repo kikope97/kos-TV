@@ -515,7 +515,7 @@ class _PremiereDetailContentState extends State<PremiereDetailContent>
   }
 
   Widget _buildActions(bool landscape) {
-    final kidsMode = widget.prefs.get(UserPreferences.kidsModeEnabled);
+    // Kids Mode never gets here: it always builds the Minimalist page.
     // Left on Auto, a TV would line up every button it has. Play, four
     // circles and the ellipsis keep the row the width of the title.
     final auto = widget.prefs.get(UserPreferences.detailButtonsMaxVisible) == 0;
@@ -536,7 +536,7 @@ class _PremiereDetailContentState extends State<PremiereDetailContent>
       modernStyle: true,
       fullWidthPrimary: !landscape,
       centerRow: true,
-      overflowAsMenu: !kidsMode,
+      overflowAsMenu: true,
       maxVisibleButtonsOverride: auto && landscape ? 6 : null,
       actionsExpanded: widget.actionsExpanded,
       onActionsExpandedChanged: widget.onActionsExpandedChanged,

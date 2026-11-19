@@ -595,6 +595,13 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     }
   }
 
+  // Kos TV: after an episode's long-press menu. The view model already
+  // applies what it changed to its lists, and a full load would swap the page
+  // for its skeleton, closing the Episodes tab and the open seasons.
+  void _onEpisodeChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
     _dropGaps();
@@ -692,7 +699,11 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     if (item == null || _tmdbStudiosItemId == item.id) return;
     _tmdbStudiosItemId = item.id;
 
-    final tmdbId = item.tmdbId;
+    // Kos TV: only a film or a series has production companies to ask for.
+    // A person's, a collection's or an episode's TMDB id isn't a film's.
+    final tmdbId = const {'Movie', 'Series', 'Trailer'}.contains(item.type)
+        ? item.tmdbId
+        : null;
     final pluginAvailable = GetIt.instance<PluginSyncService>().pluginAvailable;
     if (tmdbId == null || !pluginAvailable) {
       if (_tmdbStudios.isNotEmpty && mounted) {
@@ -1268,33 +1279,25 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
       double? width,
       double? height,
       bool topRow = true,
-    }) => ColorFiltered(
-      // Greyed and dimmed to 55 % in one layer: the alpha row carries what
-      // an Opacity around it would.
-      colorFilter: const ColorFilter.matrix([
-        0.2126, 0.7152, 0.0722, 0, 0, //
-        0.2126, 0.7152, 0.0722, 0, 0,
-        0.2126, 0.7152, 0.0722, 0, 0,
-        0, 0, 0, 0.55, 0,
-      ]),
-      child: SeasonCard(
-        title: l10n.seasonNumber(ghost.number),
-        subtitle: ghost.notOnYet
-            ? KostvGhostTexts.premiere(context, ghost.premiere)
-            : l10n.kostvGhostNotAtHome,
-        imageUrl: showPosterUrl,
-        isFallbackImage: true,
-        landscape: _landscape,
-        onNavigateUp: topRow ? _focusSelectedTab : null,
-        focusNode: first ? _seasonsFirstFocusNode : null,
-        width: width,
-        height: height,
-        autoScroll: true,
-        onTap: () => showKostvSeasonSheet(
-          context,
-          controller: gaps!,
-          season: ghost,
-        ),
+    }) => SeasonCard(
+      // Greyed inside the card, so the focus frame keeps its colour.
+      greyed: true,
+      title: l10n.seasonNumber(ghost.number),
+      subtitle: ghost.notOnYet
+          ? KostvGhostTexts.premiere(context, ghost.premiere)
+          : l10n.kostvGhostNotAtHome,
+      imageUrl: showPosterUrl,
+      isFallbackImage: true,
+      landscape: _landscape,
+      onNavigateUp: topRow ? _focusSelectedTab : null,
+      focusNode: first ? _seasonsFirstFocusNode : null,
+      width: width,
+      height: height,
+      autoScroll: true,
+      onTap: () => showKostvSeasonSheet(
+        context,
+        controller: gaps!,
+        season: ghost,
       ),
     );
 
@@ -1579,7 +1582,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
             child: DetailEpisodeCard(
               episode: episode,
               imageApi: _vm.imageApi,
-              onChanged: () => _vm.load(),
+              onChanged: _onEpisodeChanged,
               isActive: episode.id == activeId,
               isOnScreen: episode.id == item.id,
               contextSeasonId: _vm.effectiveSeasonId,
@@ -1739,7 +1742,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
                   child: DetailEpisodeCard(
                     episode: episode,
                     imageApi: _vm.imageApi,
-                    onChanged: () => _vm.load(),
+                    onChanged: _onEpisodeChanged,
                     isActive: episode.id == _vm.nextUp?.id,
                   ),
                 ),
@@ -2913,11 +2916,11 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     // File name and Size
     final formattedSize =
         formatMediaSourceSize(mediaSource['Size'] as int? ?? 0) ??
-        'Unknown Size';
+        l10n.kostvUnknownSize;
 
     final String path = mediaSource['Path'] as String? ?? '';
     final String fileName = path.split('/').last.split('\\').last;
-    final String container = mediaSource['Container']?.toString().toUpperCase() ?? 'Unknown';
+    final String container = mediaSource['Container']?.toString().toUpperCase() ?? l10n.unknown;
 
     // Parse streams
     final rawStreams = mediaSourceStreams(mediaSource);
@@ -2928,10 +2931,10 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
 
     final videoDetails = videoStreams.isEmpty
         ? const <String>[]
-        : videoStreamSummary(videoStreams.first, unknownCodec: 'Unknown Codec');
+        : videoStreamSummary(videoStreams.first, unknownCodec: l10n.kostvUnknownCodec);
 
     String formatLang(String? code) =>
-        streamLanguageLabel(code, unknown: 'Unknown');
+        streamLanguageLabel(code, unknown: l10n.unknown);
 
     final manager = GetIt.instance<PlaybackManager>();
     // The queue holds bare id strings during offline playback, so this checks
@@ -3958,7 +3961,8 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
             ),
           ),
           child: Text(
-            selectedSource?['Name'] as String? ?? 'Default',
+            selectedSource?['Name'] as String? ??
+                AppLocalizations.of(context).kostvVersionDefault,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: textTheme.bodySmall?.copyWith(

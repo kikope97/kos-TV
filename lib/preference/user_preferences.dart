@@ -853,6 +853,14 @@ class UserPreferences extends ChangeNotifier {
       }
     }
 
+    // Kos TV: a style written here was picked by the person (Settings, the
+    // setup wizard) or is the move itself, so the one-time move to the kOS TV
+    // page must never undo it. Server applies write the store directly and
+    // bring their own mark along.
+    if (pref.key == detailScreenStyle.key) {
+      await set(kostvDetailAdopted, true);
+    }
+
     if (_isScopedPreference(pref)) {
       final scoped = _scopedPreference(pref);
       final target = scoped ?? pref;
@@ -1943,7 +1951,9 @@ class UserPreferences extends ChangeNotifier {
   /// other devices.
   /// Kos TV: whether this profile has been moved to the kOS TV details
   /// page once. Its old default (Frost on a TV, Modern on a phone) gives way
-  /// to it a single time; a style picked after that is kept.
+  /// to it a single time; a style picked after that is kept. Picking a style
+  /// sets it too, and it syncs along with [detailScreenStyle], so a new device
+  /// or browser keeps a style the person chose instead of moving it again.
   static final kostvDetailAdopted = Preference<bool>(
     key: 'kostv_detail_adopted',
     defaultValue: false,

@@ -193,6 +193,21 @@ void main() {
       expect(find.byType(InkWell), findsNothing);
     });
 
+    // Kos TV: in Kids Mode the links would take a child out of the app.
+    testWidgets('Kids Mode hides the links', (tester) async {
+      await GetIt.instance<UserPreferences>().set(
+        UserPreferences.kidsModeEnabled,
+        true,
+      );
+
+      await tester.pumpWidget(
+        app(PersonLinksRow(item: _person(), accounts: _jackBlack)),
+      );
+
+      expect(find.byType(InkWell), findsNothing);
+      expect(find.byType(Wrap), findsNothing);
+    });
+
     testWidgets('a person with nothing to link gets no row', (tester) async {
       await tester.pumpWidget(
         app(PersonLinksRow(item: _person(ids: const {}))),

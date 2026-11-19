@@ -214,8 +214,16 @@ class _DetailsScreenSettingsScreenState
                           const _DetailSectionsScreen(),
                         ),
                       ),
-                      if (prefs.get(UserPreferences.detailScreenStyle) ==
-                          DetailScreenStyle.modern)
+                      // Kos TV: also for the styles that hand people,
+                      // collections and the like to the Modern page.
+                      if (const {
+                        DetailScreenStyle.modern,
+                        DetailScreenStyle.quickLook,
+                        DetailScreenStyle.kostv,
+                        DetailScreenStyle.stage,
+                        DetailScreenStyle.premiere,
+                        DetailScreenStyle.frost,
+                      }.contains(prefs.get(UserPreferences.detailScreenStyle)))
                         SwitchPreferenceTile(
                           preference: UserPreferences.detailExpandedTabs,
                           title: l10n.expandedTabs,

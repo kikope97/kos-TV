@@ -33921,167 +33921,77 @@ abstract class AppLocalizations {
   /// **'The downloaded update is incomplete or doesn\'t match the published one, so it wasn\'t installed. Please try again.'**
   String get updateDownloadCorrupt;
 
-  /// Kos TV Home: row of titles liked by people who liked a favourite, or a title of their list, the person hasn't watched yet.
+  /// Kos TV: playlist sort pill, with the chosen order
   ///
   /// In en, this message translates to:
-  /// **'Because you like {title}'**
-  String kostvHomeBecauseLiked(String title);
+  /// **'Sort: {sort}'**
+  String kostvPlaylistSortLabel(String sort);
 
-  /// Kos TV: title of the screen shown when the app fails while starting, before anything else loads
+  /// Kos TV: playlist filter pill, with the active filter
   ///
   /// In en, this message translates to:
-  /// **'kOS TV couldn\'t open'**
-  String get kostvStartupFailedTitle;
+  /// **'Filter: {filter}'**
+  String kostvPlaylistFilterLabel(String filter);
 
-  /// Kos TV: body of the screen shown when the app fails while starting
+  /// Kos TV: how many playlist items the filter leaves out of all of them
   ///
   /// In en, this message translates to:
-  /// **'Something went wrong while starting. Try again, and if it keeps happening, restart the device or check it has free space left.'**
-  String get kostvStartupFailedMessage;
+  /// **'{shown} of {total}'**
+  String kostvPlaylistFilteredCount(int shown, int total);
 
-  /// Kos TV: note with a Retry button on the start screen when a step of opening the app failed
+  /// Kos TV: file size shown when the server doesn't give one
   ///
   /// In en, this message translates to:
-  /// **'Something went wrong while opening kOS TV. Try again.'**
-  String get kostvStartupStepFailed;
+  /// **'Unknown size'**
+  String get kostvUnknownSize;
 
-  /// Kos TV: title of the page shown for an address the app has no page for
+  /// Kos TV: video codec shown when the server doesn't give one
   ///
   /// In en, this message translates to:
-  /// **'This page doesn\'t exist'**
-  String get kostvPageNotFoundTitle;
+  /// **'Unknown codec'**
+  String get kostvUnknownCodec;
 
-  /// Kos TV: body of the page shown for an address the app has no page for
+  /// Kos TV: name of a media version that has none
   ///
   /// In en, this message translates to:
-  /// **'The address may be mistyped, or the page may no longer be here.'**
-  String get kostvPageNotFoundMessage;
+  /// **'Default'**
+  String get kostvVersionDefault;
 
-  /// Kos TV: button that goes to the Home screen
+  /// Kos TV: title of the menu a long press on Play opens
   ///
   /// In en, this message translates to:
-  /// **'Go to Home'**
-  String get kostvGoToHome;
+  /// **'Advanced playback'**
+  String get kostvAdvancedPlayback;
 
-  /// Kos TV: a download failed, with no more detail
+  /// Kos TV: advanced playback option that hands the video to the external player app
   ///
   /// In en, this message translates to:
-  /// **'Download failed'**
-  String get kostvDownloadFailed;
+  /// **'Open in external player'**
+  String get kostvOpenInExternalPlayer;
 
-  /// Kos TV: a download in the browser failed
+  /// Kos TV: advanced playback option, the server converts the video to 1080p
   ///
   /// In en, this message translates to:
-  /// **'Download failed: {name} ({error})'**
-  String kostvDownloadFailedNamed(String name, String error);
+  /// **'Transcode stream: high quality (1080p)'**
+  String get kostvTranscodeHigh;
 
-  /// Kos TV: a download failed because the disk is full
+  /// Kos TV: advanced playback option, the server converts the video to 720p
   ///
   /// In en, this message translates to:
-  /// **'The download disk is full. Free up space in the download location and retry.'**
-  String get kostvDownloadDiskFull;
+  /// **'Transcode stream: medium quality (720p)'**
+  String get kostvTranscodeMedium;
 
-  /// Kos TV: a download was refused because downloads are set to WiFi only
+  /// Kos TV: advanced playback option, the server converts the video to 480p
   ///
   /// In en, this message translates to:
-  /// **'WiFi-only mode enabled. Connect to WiFi to download.'**
-  String get kostvDownloadWifiOnly;
+  /// **'Transcode stream: low quality (480p)'**
+  String get kostvTranscodeLow;
 
-  /// Kos TV: a download was refused for lack of free space in the download folder
+  /// Kos TV: a series page whose episode list failed to load, with a Retry button
   ///
   /// In en, this message translates to:
-  /// **'Not enough free space in {path}. Needs about {needed}, {free} available.'**
-  String kostvDownloadNotEnoughSpace(String path, String needed, String free);
-
-  /// Kos TV: a download failed because its folder cannot be written to
-  ///
-  /// In en, this message translates to:
-  /// **'Cannot write to download folder. Please reset the download location in Settings → Downloads, or grant storage permissions.'**
-  String get kostvDownloadFolderNotWritable;
-
-  /// Kos TV: a download was refused by the server (HTTP 403)
-  ///
-  /// In en, this message translates to:
-  /// **'Download forbidden (403). Retried alternate endpoints but access was denied.'**
-  String get kostvDownloadForbidden;
-
-  /// Kos TV: a download was refused because the session is not accepted (HTTP 401)
-  ///
-  /// In en, this message translates to:
-  /// **'Download unauthorized (401). Please re-login and try again.'**
-  String get kostvDownloadUnauthorized;
-
-  /// Kos TV: a download failed because the file is not on the server (HTTP 404)
-  ///
-  /// In en, this message translates to:
-  /// **'Download source not found (404). The file may no longer be available.'**
-  String get kostvDownloadSourceNotFound;
-
-  /// Kos TV: a download took too long to finish
-  ///
-  /// In en, this message translates to:
-  /// **'Download timed out while waiting for transfer completion.'**
-  String get kostvDownloadTimedOut;
-
-  /// Kos TV: the server turned the username and password down
-  ///
-  /// In en, this message translates to:
-  /// **'Wrong username or password'**
-  String get loginWrongCredentials;
-
-  /// Kos TV: the server answered the sign-in with an error of its own
-  ///
-  /// In en, this message translates to:
-  /// **'The server ran into a problem. Try again later.'**
-  String get loginServerError;
-
-  /// Kos TV: the server forgot the Quick Connect code before it was approved
-  ///
-  /// In en, this message translates to:
-  /// **'This code has expired. Get a new one to sign in.'**
-  String get quickConnectCodeExpired;
-
-  /// Kos TV: sign-in to the built-in household server found a certificate that is not valid
-  ///
-  /// In en, this message translates to:
-  /// **'The server\'s certificate isn\'t valid, so the connection isn\'t safe. You may be on a network that intercepts connections (a hotel\'s, for example). Try another network or try again later.'**
-  String get kostvUntrustedServerCertificate;
-
-  /// Kos TV: the home banner found no titles with a background picture
-  ///
-  /// In en, this message translates to:
-  /// **'No items with backdrop images found'**
-  String get mediaBarNoBackdrops;
-
-  /// Kos TV: label over the director in the gallery banner (upper case)
-  ///
-  /// In en, this message translates to:
-  /// **'DIRECTOR'**
-  String get mediaBarGalleryDirector;
-
-  /// Kos TV: label over the cast in the gallery banner (upper case)
-  ///
-  /// In en, this message translates to:
-  /// **'STARRING'**
-  String get mediaBarGalleryCast;
-
-  /// Kos TV: big upper-case line while the bookshelf or gallery banner opens a title to play
-  ///
-  /// In en, this message translates to:
-  /// **'BUFFERING'**
-  String get mediaBarTheaterBuffering;
-
-  /// Kos TV: small upper-case line under it
-  ///
-  /// In en, this message translates to:
-  /// **'OPTIMIZING FOR YOU'**
-  String get mediaBarTheaterPreparing;
-
-  /// Kos TV: notice when the rows recommended for the person on Home failed to load, with a Retry button next to it
-  ///
-  /// In en, this message translates to:
-  /// **'Your recommendations couldn\'t be loaded'**
-  String get kostvHomeForYouFailed;
+  /// **'The episodes couldn\'t be loaded'**
+  String get kostvEpisodesLoadFailed;
 }
 
 class _AppLocalizationsDelegate

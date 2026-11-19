@@ -1,10 +1,13 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/preference/detail_section_layout.dart';
 import 'package:moonfin/preference/preference_constants.dart';
+import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/util/platform_detection.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _PluginSync extends Mock implements PluginSyncService {}
 
@@ -68,6 +71,20 @@ void main() {
     PlatformDetection.setTvMode(true);
     addTearDown(() => PlatformDetection.setTvMode(false));
     expect(DetailSection.personLinks.isOffered, isFalse);
+  });
+
+  // Kos TV: the links leave the app, which Kids Mode exists to stop.
+  test('person links are not offered in Kids Mode', () async {
+    SharedPreferences.setMockInitialValues({});
+    final store = PreferenceStore();
+    await store.init();
+    final prefs = UserPreferences(store);
+    GetIt.instance.registerSingleton<UserPreferences>(prefs);
+    expect(DetailSection.personLinks.isOffered, isTrue);
+
+    await prefs.set(UserPreferences.kidsModeEnabled, true);
+    expect(DetailSection.personLinks.isOffered, isFalse);
+    expect(DetailSection.cast.isOffered, isTrue);
   });
 
   test('visibility reads the hidden ids', () {

@@ -41,6 +41,11 @@ const _minimalistTypes = {
   'MusicVideo',
 };
 
+/// Whether Minimalist draws [type] itself. Kos TV: the details screen asks
+/// before building it, so what goes to Spotlight or Modern gets the page's
+/// full set of callbacks (chapters, the navbar, the focused backdrop).
+bool minimalistDraws(String? type) => _minimalistTypes.contains(type);
+
 /// The smallest detail screen: artwork, the title, one play button and the
 /// episodes. No cast, no chapters, no recommendations. Extras and collections
 /// each sit behind a button.

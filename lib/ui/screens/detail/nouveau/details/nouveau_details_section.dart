@@ -998,7 +998,7 @@ class NouveauDetailsSectionState extends State<NouveauDetailsSection> {
 
     String formatLanguage(String? code) {
       if (code == null || code.isEmpty) {
-        return 'Unknown';
+        return l10n.unknown;
       }
 
       return code.toUpperCase();
@@ -1016,7 +1016,7 @@ class NouveauDetailsSectionState extends State<NouveauDetailsSection> {
           formattedSize = '${mb.toStringAsFixed(0)} MB';
         }
       } else {
-        formattedSize = 'Unknown Size';
+        formattedSize = l10n.kostvUnknownSize;
       }
 
       final path = mediaSource['Path'] as String? ?? '';
@@ -1024,7 +1024,7 @@ class NouveauDetailsSectionState extends State<NouveauDetailsSection> {
       fileName = path.split('/').last.split('\\').last;
 
       container =
-          mediaSource['Container']?.toString().toUpperCase() ?? 'Unknown';
+          mediaSource['Container']?.toString().toUpperCase() ?? l10n.unknown;
 
       final rawStreams =
           (mediaSource['MediaStreams'] as List?)
@@ -1049,7 +1049,7 @@ class NouveauDetailsSectionState extends State<NouveauDetailsSection> {
         final video = videoStreams.first;
 
         final codec =
-            video['Codec']?.toString().toUpperCase() ?? 'Unknown Codec';
+            video['Codec']?.toString().toUpperCase() ?? l10n.kostvUnknownCodec;
 
         final profile = video['Profile']?.toString();
 
@@ -1850,7 +1850,7 @@ class NouveauDetailsSectionState extends State<NouveauDetailsSection> {
               final title =
                   stream['DisplayTitle']?.toString() ??
                   stream['Codec']?.toString().toUpperCase() ??
-                  'Unknown';
+                  l10n.unknown;
 
               final language = formatLanguage(stream['Language']?.toString());
 

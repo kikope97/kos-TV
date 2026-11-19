@@ -89,6 +89,9 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   en `/Moonfin/Ping` (`kostvFavorites`).
 - **El botón Descubrir se sincroniza** como los demás (`showDiscoverButton`), con
   su valor por defecto en la página.
+- **La marca del paso a la ficha de kOS TV se sincroniza** junto al estilo de la
+  ficha (`kostvDetailAdopted`), para que un aparato nuevo no vuelva a cambiar a
+  kOS TV un estilo que la persona eligió a mano.
 - **Sin la web de Moonfin dentro:** el paquete no la lleva, así que el botón que
   el oficial añade a la cabecera de la web de Jellyfin solo sale si esa web
   existe.

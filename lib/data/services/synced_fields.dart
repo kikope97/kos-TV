@@ -111,6 +111,9 @@ final List<SyncedField> syncedFields = <SyncedField>[
   SyncedField('modernCardsOnMyMediaRow', UserPreferences.modernCardsOnMyMediaRow, SyncCodec.boolean),
   SyncedField('recommendationSystemSource', UserPreferences.recommendationSystemSource, SyncCodec.enumName, enumValues: prefs.RecommendationSystemSource.values),
   SyncedField('detailScreenStyle', UserPreferences.detailScreenStyle, SyncCodec.enumName, enumValues: prefs.DetailScreenStyle.values),
+  // Kos TV: travels with the style, so a style picked by hand on one device
+  // isn't moved to the kOS TV page again by the next one to read it.
+  SyncedField('kostvDetailAdopted', UserPreferences.kostvDetailAdopted, SyncCodec.boolean),
   SyncedField('personalRatingStyle', UserPreferences.personalRatingStyle, SyncCodec.enumName, enumValues: prefs.PersonalRatingStyle.values),
   SyncedField('detailExpandedTabs', UserPreferences.detailExpandedTabs, SyncCodec.boolean),
   SyncedField('detailShowTechnicalDetails', UserPreferences.detailShowTechnicalDetails, SyncCodec.boolean),
