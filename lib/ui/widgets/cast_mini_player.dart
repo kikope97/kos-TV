@@ -75,8 +75,12 @@ class _CastMiniPlayerContentState extends State<_CastMiniPlayerContent> {
     final message = _castService.remoteErrorNotifier.value;
     if (message == null || !mounted) return;
     _castService.remoteErrorNotifier.value = null;
+    // Kos TV: the receiver's own text is English (and in the log); this says
+    // it in the app's language.
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppLocalizations.of(context).castingFailed(message))),
+      SnackBar(
+        content: Text(AppLocalizations.of(context).kostvCastReceiverFailed),
+      ),
     );
   }
 

@@ -19681,5 +19681,171 @@
     "kostvCollectionAddFailed": "Couldn't add it to the collection",
     "@kostvCollectionAddFailed": {
         "description": "Kos TV: adding an item to a collection, or creating one for it, failed"
+    },
+  "kostvSyncPlayErrorLoadGroups": "Couldn't load the groups.",
+  "@kostvSyncPlayErrorLoadGroups": {
+    "description": "Kos TV: SyncPlay: the group list failed to load"
+  },
+  "kostvSyncPlayErrorUnavailable": "SyncPlay isn't available right now.",
+  "@kostvSyncPlayErrorUnavailable": {
+    "description": "Kos TV: SyncPlay: off or not offered by the server"
+  },
+  "kostvSyncPlayErrorCreateGroup": "Couldn't create the group.",
+  "@kostvSyncPlayErrorCreateGroup": {
+    "description": "Kos TV: SyncPlay: creating a group failed"
+  },
+  "kostvSyncPlayErrorJoinGroup": "Couldn't join the group.",
+  "@kostvSyncPlayErrorJoinGroup": {
+    "description": "Kos TV: SyncPlay: joining a group failed"
+  },
+  "kostvSyncPlayErrorRecoverState": "Couldn't catch up with the group.",
+  "@kostvSyncPlayErrorRecoverState": {
+    "description": "Kos TV: SyncPlay: reading the group's state after a reconnect failed"
+  },
+  "kostvSyncPlayErrorNotInGroup": "You're no longer in a SyncPlay group.",
+  "@kostvSyncPlayErrorNotInGroup": {
+    "description": "Kos TV: SyncPlay: the server says this device is not in a group"
+  },
+  "kostvSyncPlayErrorGroupGone": "That SyncPlay group no longer exists.",
+  "@kostvSyncPlayErrorGroupGone": {
+    "description": "Kos TV: SyncPlay: the group was closed"
+  },
+  "kostvSyncPlayErrorLibraryAccess": "You don't have access to something this group is watching.",
+  "@kostvSyncPlayErrorLibraryAccess": {
+    "description": "Kos TV: SyncPlay: the group plays something this person cannot see"
+  },
+  "kostvSyncPlayErrorServerRestarting": "The server is restarting.",
+  "@kostvSyncPlayErrorServerRestarting": {
+    "description": "Kos TV: SyncPlay: the server announced a restart, so the group ended"
+  },
+  "kostvSyncPlayErrorServerShuttingDown": "The server is shutting down.",
+  "@kostvSyncPlayErrorServerShuttingDown": {
+    "description": "Kos TV: SyncPlay: the server announced a shutdown, so the group ended"
+  },
+  "kostvSyncPlayErrorSetCurrentItem": "Couldn't switch to that title.",
+  "@kostvSyncPlayErrorSetCurrentItem": {
+    "description": "Kos TV: SyncPlay: picking another item of the queue failed"
+  },
+  "kostvSyncPlayErrorRemoveFromQueue": "Couldn't remove it from the queue.",
+  "@kostvSyncPlayErrorRemoveFromQueue": {
+    "description": "Kos TV: SyncPlay: removing a queue item failed"
+  },
+  "kostvSyncPlayErrorClearQueue": "Couldn't clear the queue.",
+  "@kostvSyncPlayErrorClearQueue": {
+    "description": "Kos TV: SyncPlay: clearing the queue failed"
+  },
+  "kostvSyncPlayErrorMoveQueueItem": "Couldn't move it in the queue.",
+  "@kostvSyncPlayErrorMoveQueueItem": {
+    "description": "Kos TV: SyncPlay: reordering the queue failed"
+  },
+  "kostvSyncPlayErrorQueueItems": "Couldn't add it to the queue.",
+  "@kostvSyncPlayErrorQueueItems": {
+    "description": "Kos TV: SyncPlay: adding to the queue failed"
+  },
+  "kostvSyncPlayErrorSetRepeat": "Couldn't change repeat.",
+  "@kostvSyncPlayErrorSetRepeat": {
+    "description": "Kos TV: SyncPlay: changing the repeat mode failed"
+  },
+  "kostvSyncPlayErrorSetShuffle": "Couldn't change shuffle.",
+  "@kostvSyncPlayErrorSetShuffle": {
+    "description": "Kos TV: SyncPlay: changing the shuffle mode failed"
+  },
+  "kostvSyncPlayErrorIgnoreWait": "Couldn't change whether you wait for the others.",
+  "@kostvSyncPlayErrorIgnoreWait": {
+    "description": "Kos TV: SyncPlay: changing the ignore-wait option failed"
+  },
+  "kostvSyncPlayErrorSyncQueue": "Couldn't share what's playing with the group.",
+  "@kostvSyncPlayErrorSyncQueue": {
+    "description": "Kos TV: SyncPlay: sending the local queue to the group failed"
+  },
+  "kostvWatchPartyErrorGeneric": "That didn't work. Try again.",
+  "@kostvWatchPartyErrorGeneric": {
+    "description": "Kos TV: Watch Party: an error with no specific message"
+  },
+  "kostvWatchPartyErrorNetwork": "Couldn't reach the server.",
+  "@kostvWatchPartyErrorNetwork": {
+    "description": "Kos TV: Watch Party: the server did not answer"
+  },
+  "kostvWatchPartyErrorNotHost": "Only the host can do that.",
+  "@kostvWatchPartyErrorNotHost": {
+    "description": "Kos TV: Watch Party: a host-only action by a guest"
+  },
+  "kostvWatchPartyErrorNotAllowed": "You can't do that in this room.",
+  "@kostvWatchPartyErrorNotAllowed": {
+    "description": "Kos TV: Watch Party: the room's rules do not allow the action"
+  },
+  "kostvWatchPartyErrorPinRequired": "This room needs a PIN.",
+  "@kostvWatchPartyErrorPinRequired": {
+    "description": "Kos TV: Watch Party: joining a room locked with a PIN"
+  },
+  "kostvWatchPartyReplaced": "This profile joined the Watch Party on another device.",
+  "@kostvWatchPartyReplaced": {
+    "description": "Kos TV: Watch Party: the room was left because the same profile joined elsewhere"
+  },
+  "kostvExternalPlayerPreparing": "Getting the external player ready…",
+  "@kostvExternalPlayerPreparing": {
+    "description": "Kos TV: External player screen: before anything opens"
+  },
+  "kostvExternalPlayerChoosing": "Choose an external player for {title}…",
+  "@kostvExternalPlayerChoosing": {
+    "description": "Kos TV: External player screen: the app chooser is open",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
     }
+  },
+  "kostvExternalPlayerOpening": "Opening {title} in {player}…",
+  "@kostvExternalPlayerOpening": {
+    "description": "Kos TV: External player screen: opening the title in the chosen app",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      },
+      "player": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvExternalPlayerDefaultName": "External player",
+  "@kostvExternalPlayerDefaultName": {
+    "description": "Kos TV: External player screen: the player's name while it is not known"
+  },
+  "kostvExternalPlayerSelectedMissing": "The chosen external player isn't available. Pick another one.",
+  "@kostvExternalPlayerSelectedMissing": {
+    "description": "Kos TV: External player: the saved app is gone, so the chooser opens"
+  },
+  "kostvExternalPlayerNeedsDirect": "The external player needs the original file. Playing it in kOS TV instead.",
+  "@kostvExternalPlayerNeedsDirect": {
+    "description": "Kos TV: External player: the title would be converted, so the app's own player takes it"
+  },
+  "kostvExternalPlayerUnavailable": "Couldn't open the external player. Playing it in kOS TV instead.",
+  "@kostvExternalPlayerUnavailable": {
+    "description": "Kos TV: External player: launching it failed, so the app's own player takes it"
+  },
+  "kostvExternalPlayerReturnedError": "The external player reported an error with {title}.",
+  "@kostvExternalPlayerReturnedError": {
+    "description": "Kos TV: External player: the app came back with an error",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvExternalPlayerFailed": "Couldn't play it with the external player.",
+  "@kostvExternalPlayerFailed": {
+    "description": "Kos TV: External player: something failed before or while handing over"
+  },
+  "kostvExternalPlayerFallbackFailed": "Couldn't play it in kOS TV either.",
+  "@kostvExternalPlayerFallbackFailed": {
+    "description": "Kos TV: External player: falling back to the app's own player failed too"
+  },
+  "kostvCastUnknownDevice": "Unknown device",
+  "@kostvCastUnknownDevice": {
+    "description": "Kos TV: Cast list: a device with no user or device name"
+  },
+  "kostvCastReceiverFailed": "The other device couldn't play it.",
+  "@kostvCastReceiverFailed": {
+    "description": "Kos TV: Cast: the receiving device reported a playback error"
+  }
 }

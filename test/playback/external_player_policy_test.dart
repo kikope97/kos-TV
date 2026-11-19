@@ -5,7 +5,15 @@ import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/playback/external_player_policy.dart';
 import 'package:moonfin/preference/user_preferences.dart';
+import 'package:moonfin/watch_party/silo_watch_party_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _Party extends Fake implements SiloWatchPartyManager {
+  _Party(this.inRoom);
+
+  @override
+  final bool inRoom;
+}
 
 AggregatedItem _item(String type) => AggregatedItem(
   id: type,
@@ -70,6 +78,18 @@ void main() {
     expect(_covers(['TvChannel']), isFalse);
 
     await prefs.set(UserPreferences.kidsModeEnabled, false);
+    expect(_covers(['Movie']), isTrue);
+  });
+
+  // Kos TV: a Watch Party room drives the app's own player.
+  test('a Watch Party room keeps the title in the built-in player', () async {
+    await prefs.set(UserPreferences.useExternalPlayer, true);
+    GetIt.instance.registerSingleton<SiloWatchPartyManager>(_Party(true));
+    expect(ExternalPlayerPolicy.isEnabled, isFalse);
+    expect(_covers(['Movie']), isFalse);
+
+    await GetIt.instance.unregister<SiloWatchPartyManager>();
+    GetIt.instance.registerSingleton<SiloWatchPartyManager>(_Party(false));
     expect(_covers(['Movie']), isTrue);
   });
 }

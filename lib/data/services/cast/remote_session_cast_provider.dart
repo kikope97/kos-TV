@@ -63,8 +63,10 @@ class RemoteSessionCastProvider
       final clientName = session['Client'] as String?;
       final deviceName = session['DeviceName'] as String?;
       final nowPlaying = session['NowPlayingItem'] as Map<String, dynamic>?;
+      // Kos TV: an unnamed title or device is left empty here and worded by
+      // the list, in the app's language.
       final subtitle = nowPlaying != null
-          ? (nowPlaying['Name'] as String? ?? 'Now playing')
+          ? (nowPlaying['Name'] as String? ?? '')
           : [
               if (clientName != null && clientName.isNotEmpty) clientName,
               if (deviceName != null && deviceName.isNotEmpty) deviceName,
@@ -73,7 +75,7 @@ class RemoteSessionCastProvider
           ? user
           : (deviceName?.isNotEmpty ?? false)
           ? deviceName!
-          : 'Unknown device';
+          : '';
 
       targets.add(
         CastTarget(
@@ -81,6 +83,7 @@ class RemoteSessionCastProvider
           kind: CastTargetKind.jellyfinSession,
           title: title,
           subtitle: subtitle,
+          nowPlaying: nowPlaying != null,
         ),
       );
     }
@@ -144,26 +147,44 @@ class RemoteSessionCastProvider
   Future<void> stop(CastTargetKind kind) async {
     final sessionId = _activeSessionId;
     if (sessionId == null) return;
-    await _activeClient.sessionApi.sendPlayStateCommand(sessionId, 'Stop');
-    _activeSessionId = null;
-    _activeServerId = null;
-    _lastSentVolume = null;
+    try {
+      await _activeClient.sessionApi.sendPlayStateCommand(sessionId, 'Stop');
+    } finally {
+      // Kos TV: a session that is gone answers with an error, and the cast
+      // is over here all the same.
+      forget();
+    }
   }
 
   /// The server's current record of the session being cast to, or null when
   /// nothing is active or the server could not be reached.
-  Future<Map<String, dynamic>?> _fetchActiveSession() async {
+  Future<Map<String, dynamic>?> _fetchActiveSession() async =>
+      (await _lookUpActiveSession())?.session;
+
+  /// Null when nothing is active or the server could not be reached; else
+  /// the session's record, null inside when the server no longer lists it.
+  Future<({Map<String, dynamic>? session})?> _lookUpActiveSession() async {
     final sessionId = _activeSessionId;
     if (sessionId == null) return null;
     try {
       final sessions = await _activeClient.sessionApi.getSessions();
-      return sessions.cast<Map<String, dynamic>?>().firstWhere(
-        (entry) => entry?['Id']?.toString() == sessionId,
-        orElse: () => null,
+      return (
+        session: sessions.cast<Map<String, dynamic>?>().firstWhere(
+          (entry) => entry?['Id']?.toString() == sessionId,
+          orElse: () => null,
+        ),
       );
     } catch (_) {
       return null;
     }
+  }
+
+  /// Kos TV: forgets the session being cast to, without telling it anything:
+  /// the cast ended on its own or the person using this device changed.
+  void forget() {
+    _activeSessionId = null;
+    _activeServerId = null;
+    _lastSentVolume = null;
   }
 
   double? _volumeFrom(Map<String, dynamic>? session) {
@@ -177,8 +198,11 @@ class RemoteSessionCastProvider
   Future<RemotePlaybackSnapshot?> fetchRemoteSnapshot(
     CastTargetKind kind,
   ) async {
-    final session = await _fetchActiveSession();
-    if (session == null) return null;
+    final lookup = await _lookUpActiveSession();
+    if (lookup == null) return null;
+    final session = lookup.session;
+    // Kos TV: the server answered without the session: it is gone.
+    if (session == null) return const RemotePlaybackSnapshot(sessionGone: true);
 
     final playState = session['PlayState'] as Map<String, dynamic>?;
     final nowPlaying = session['NowPlayingItem'] as Map<String, dynamic>?;

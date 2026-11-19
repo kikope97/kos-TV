@@ -168,9 +168,7 @@ class MoonbaseWatchPartyApi implements WatchPartyBackend {
 
   Future<MoonbaseEndpoint> _resolve() async {
     final ep = await _endpoint();
-    if (ep == null) {
-      throw const FormatException('This server has no Moonbase');
-    }
+    if (ep == null) throw const MoonbaseUnavailableException();
     _base = ep.base;
     return ep;
   }
@@ -549,4 +547,13 @@ class _LongPoll implements WatchPartyChannel {
     _cancel.cancel();
     await _finish();
   }
+}
+
+/// Kos TV: the server plugin doesn't answer on this server. The screens say
+/// Watch Party isn't offered here, never this exception's text.
+class MoonbaseUnavailableException implements Exception {
+  const MoonbaseUnavailableException();
+
+  @override
+  String toString() => 'MoonbaseUnavailableException: no server plugin';
 }

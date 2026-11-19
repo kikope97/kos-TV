@@ -13,10 +13,59 @@ import '../playback/media_kit_player_backend.dart';
 import '../preference/user_preferences.dart';
 import '../ui/navigation/app_router.dart';
 import '../ui/navigation/destinations.dart';
+import '../ui/navigation/player_route_check.dart';
 import '../ui/widgets/video_mini_player.dart';
 import 'sync_correction_policy.dart';
 import 'syncplay_state.dart';
 import 'time_sync_manager.dart';
+
+/// Kos TV: what a SyncPlay failure was, so the screen can say it in the
+/// viewer's language.
+enum SyncPlayError {
+  loadGroups,
+  unavailable,
+  createGroup,
+  joinGroup,
+  recoverState,
+  notInGroup,
+  groupDoesNotExist,
+  libraryAccessDenied,
+  serverRestarting,
+  serverShuttingDown,
+  setCurrentItem,
+  removeFromQueue,
+  clearQueue,
+  moveQueueItem,
+  queueItems,
+  setRepeatMode,
+  setShuffleMode,
+  updateIgnoreWait,
+  syncQueue,
+}
+
+/// Kos TV: the items to play and where to start, from a group playlist
+/// loaded entry by entry ([loaded] lines up with the playlist, null where an
+/// entry failed). Null when the group's current entry is among the failed
+/// ones, or nothing loaded.
+(List<T>, int)? syncPlayLoadedStart<T extends Object>(
+  List<T?> loaded,
+  int playingIndex,
+) {
+  if (loaded.isEmpty) return null;
+  final current = playingIndex < 0
+      ? 0
+      : (playingIndex >= loaded.length ? loaded.length - 1 : playingIndex);
+  if (loaded[current] == null) return null;
+  final items = <T>[];
+  var start = 0;
+  for (var i = 0; i < loaded.length; i++) {
+    final item = loaded[i];
+    if (item == null) continue;
+    if (i == current) start = items.length;
+    items.add(item);
+  }
+  return (items, start);
+}
 
 class SyncPlayManager extends ChangeNotifier {
   static const int _pingIntervalMs = 15000;
@@ -51,7 +100,7 @@ class SyncPlayManager extends ChangeNotifier {
   SyncPlayState _state = SyncPlayState();
   List<SyncPlayGroupInfo> _availableGroups = const [];
   bool _isLoading = false;
-  String? _errorMessage;
+  SyncPlayError? _error;
   bool _ignoreWaitEnabled = false;
 
   TimeSyncManager? _timeSync;
@@ -137,7 +186,9 @@ class SyncPlayManager extends ChangeNotifier {
   SyncPlayState get state => _state;
   List<SyncPlayGroupInfo> get availableGroups => _availableGroups;
   bool get isLoading => _isLoading;
-  String? get errorMessage => _errorMessage;
+  /// Kos TV: what went wrong last, as a code the screen words in the
+  /// viewer's language.
+  SyncPlayError? get error => _error;
   bool get ignoreWaitEnabled => _ignoreWaitEnabled;
   TimeSyncManager? get timeSyncManager => _timeSync;
 
@@ -300,8 +351,8 @@ class SyncPlayManager extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _setError(String? message) {
-    _errorMessage = message;
+  void _setError(SyncPlayError? error) {
+    _error = error;
     notifyListeners();
   }
 
@@ -329,11 +380,11 @@ class SyncPlayManager extends ChangeNotifier {
     final api = _api;
     if (api == null) return;
     _setLoading(true);
-    _errorMessage = null;
+    _error = null;
     try {
       _availableGroups = await api.getGroups();
     } catch (e) {
-      _errorMessage = 'Failed to load groups';
+      _error = SyncPlayError.loadGroups;
       _logger.w('SyncPlay fetchGroups failed', error: e);
     }
     _setLoading(false);
@@ -344,13 +395,13 @@ class SyncPlayManager extends ChangeNotifier {
     bool withCurrentQueueSnapshot = true,
   }) async {
     if (!syncPlayEnabled) {
-      _setError('SyncPlay is currently unavailable');
+      _setError(SyncPlayError.unavailable);
       return;
     }
     final api = _api;
     if (api == null) return;
     _setLoading(true);
-    _errorMessage = null;
+    _error = null;
     try {
       await api.createGroup(name);
       _state.enabled = true;
@@ -361,7 +412,7 @@ class SyncPlayManager extends ChangeNotifier {
         await syncCurrentPlaybackQueueToGroup();
       }
     } catch (e) {
-      _errorMessage = 'Failed to create group';
+      _error = SyncPlayError.createGroup;
       _logger.w('SyncPlay createGroup failed', error: e);
     }
     _setLoading(false);
@@ -372,13 +423,13 @@ class SyncPlayManager extends ChangeNotifier {
     bool withCurrentQueueSnapshot = false,
   }) async {
     if (!syncPlayEnabled) {
-      _setError('SyncPlay is currently unavailable');
+      _setError(SyncPlayError.unavailable);
       return;
     }
     final api = _api;
     if (api == null) return;
     _setLoading(true);
-    _errorMessage = null;
+    _error = null;
     try {
       await api.joinGroup(groupId);
       _state.enabled = true;
@@ -389,7 +440,7 @@ class SyncPlayManager extends ChangeNotifier {
         await syncCurrentPlaybackQueueToGroup();
       }
     } catch (e) {
-      _errorMessage = 'Failed to join group';
+      _error = SyncPlayError.joinGroup;
       _logger.w('SyncPlay joinGroup failed', error: e);
     }
     _setLoading(false);
@@ -417,6 +468,33 @@ class SyncPlayManager extends ChangeNotifier {
     _lastCommandKey = null;
     _forgetSyncPoint();
     _clearLocalCorrections();
+    notifyListeners();
+  }
+
+  /// Kos TV: the person or the server changed, or the session was signed
+  /// out. A group belongs to the session that joined it, so it is left
+  /// (told to the server while [notifyServer] and the old token still
+  /// work) and everything kept for that session goes: the ping and clock
+  /// loops, the transport interceptor, the user list and the title cache.
+  Future<void> resetForSessionChange({bool notifyServer = true}) async {
+    if (_state.enabled && notifyServer) {
+      final api = _api;
+      if (api != null) {
+        try {
+          await api.leaveGroup().timeout(const Duration(seconds: 3));
+        } catch (_) {}
+      }
+    }
+    if (_state.enabled) _resetState();
+    _error = null;
+    _availableGroups = const [];
+    _usersByName.clear();
+    _usersLoaded = false;
+    _usersLoading = false;
+    _usersFailedAt = null;
+    _usersGeneration++;
+    _itemTitleCache.clear();
+    _pendingTitleLookups.clear();
     notifyListeners();
   }
 
@@ -482,8 +560,8 @@ class SyncPlayManager extends ChangeNotifier {
     _refreshCurrentGroupStateAfterReconnect();
   }
 
-  void handleRealtimeSessionInterrupted(String message) {
-    _errorMessage = message;
+  void handleRealtimeSessionInterrupted(SyncPlayError error) {
+    _error = error;
     _resetState();
   }
 
@@ -518,7 +596,7 @@ class SyncPlayManager extends ChangeNotifier {
         _reconcileLocalPlayback();
         notifyListeners();
       } catch (_) {
-        _errorMessage = 'Failed to recover SyncPlay state';
+        _error = SyncPlayError.recoverState;
         notifyListeners();
       }
     }
@@ -617,16 +695,15 @@ class SyncPlayManager extends ChangeNotifier {
         _resetState();
         break;
       case SyncPlayGroupUpdateType.notInGroup:
-        _errorMessage = 'You are no longer in a SyncPlay group';
+        _error = SyncPlayError.notInGroup;
         _resetState();
         break;
       case SyncPlayGroupUpdateType.groupDoesNotExist:
-        _errorMessage = 'That SyncPlay group no longer exists';
+        _error = SyncPlayError.groupDoesNotExist;
         _resetState();
         break;
       case SyncPlayGroupUpdateType.libraryAccessDenied:
-        _errorMessage =
-            'You do not have access to one or more items in this group';
+        _error = SyncPlayError.libraryAccessDenied;
         _uiEventsController
             .add(const SyncPlayUiEvent.libraryAccessDenied());
         _resetState();
@@ -781,16 +858,18 @@ class SyncPlayManager extends ChangeNotifier {
         return null;
       }
     }));
-    final items = loaded.whereType<AggregatedItem>().toList(growable: false);
-    if (items.isEmpty) return;
     if (!_state.enabled) return;
     if (_state.currentPlaylistItemId != targetPlaylistItemId) return;
-
-    final startIndex = update.playingItemIndex < 0
-        ? 0
-        : (update.playingItemIndex >= items.length
-            ? items.length - 1
-            : update.playingItemIndex);
+    // Kos TV: the group's index points into its whole playlist. One entry
+    // failing to load must not shift it onto another title, so the start is
+    // found among the loaded ones, and nothing plays if the group's own
+    // title is the one that failed.
+    final picked = syncPlayLoadedStart(loaded, update.playingItemIndex);
+    if (picked == null) {
+      _logger.w('SyncPlay: the group\'s current item failed to load');
+      return;
+    }
+    final (items, startIndex) = picked;
 
     _applyingRemoteCommand = true;
     try {
@@ -818,12 +897,9 @@ class SyncPlayManager extends ChangeNotifier {
   }
 
   void _ensurePlayerRouteForItem(AggregatedItem item) {
-    final currentPath =
-        appRouter.routerDelegate.currentConfiguration.uri.path;
-    if (currentPath == Destinations.videoPlayer ||
-        currentPath == Destinations.audioPlayer) {
-      return;
-    }
+    // Kos TV: a pushed player leaves the router's uri on the tab below, so
+    // the match list is what says a player is already up.
+    if (isMediaPlayerRouteOnTop(appRouter)) return;
     final mediaType = item.rawData['MediaType'] as String?;
     final isAudio = item.type == 'Audio' ||
         item.type == 'MusicAlbum' ||
@@ -1660,7 +1736,7 @@ class SyncPlayManager extends ChangeNotifier {
     try {
       await _api?.setPlaylistItem(playlistItemId);
     } catch (_) {
-      _setError('Failed to set current item');
+      _setError(SyncPlayError.setCurrentItem);
     }
   }
 
@@ -1669,7 +1745,7 @@ class SyncPlayManager extends ChangeNotifier {
     try {
       await _api?.removeFromPlaylist([playlistItemId]);
     } catch (_) {
-      _setError('Failed to remove from queue');
+      _setError(SyncPlayError.removeFromQueue);
     }
   }
 
@@ -1682,7 +1758,7 @@ class SyncPlayManager extends ChangeNotifier {
         clearPlayingItem: clearPlayingItem,
       );
     } catch (_) {
-      _setError('Failed to clear queue');
+      _setError(SyncPlayError.clearQueue);
     }
   }
 
@@ -1694,7 +1770,7 @@ class SyncPlayManager extends ChangeNotifier {
         newIndex: newIndex < 0 ? 0 : newIndex,
       );
     } catch (_) {
-      _setError('Failed to move queue item');
+      _setError(SyncPlayError.moveQueueItem);
     }
   }
 
@@ -1706,7 +1782,7 @@ class SyncPlayManager extends ChangeNotifier {
     try {
       await _api?.queue(itemIds: itemIds, mode: mode);
     } catch (_) {
-      _setError('Failed to queue items');
+      _setError(SyncPlayError.queueItems);
     }
   }
 
@@ -1719,7 +1795,7 @@ class SyncPlayManager extends ChangeNotifier {
       await _api?.setRepeatMode(mode);
     } catch (_) {
       _state.repeatMode = previous;
-      _setError('Failed to set repeat mode');
+      _setError(SyncPlayError.setRepeatMode);
     }
   }
 
@@ -1732,7 +1808,7 @@ class SyncPlayManager extends ChangeNotifier {
       await _api?.setShuffleMode(mode);
     } catch (_) {
       _state.shuffleMode = previous;
-      _setError('Failed to set shuffle mode');
+      _setError(SyncPlayError.setShuffleMode);
     }
   }
 
@@ -1745,7 +1821,7 @@ class SyncPlayManager extends ChangeNotifier {
       await _api?.setIgnoreWait(enabled);
     } catch (_) {
       _ignoreWaitEnabled = previous;
-      _setError('Failed to update ignore-wait');
+      _setError(SyncPlayError.updateIgnoreWait);
     }
   }
 
@@ -1791,7 +1867,7 @@ class SyncPlayManager extends ChangeNotifier {
         startPositionTicks: positionTicks,
       );
     } catch (_) {
-      _setError('Failed to sync current playback queue');
+      _setError(SyncPlayError.syncQueue);
     }
   }
 

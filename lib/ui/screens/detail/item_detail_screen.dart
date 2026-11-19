@@ -8313,7 +8313,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
       SnackBar(
         content: Text(
           !picked
-              ? party.error ?? ''
+              ? watchPartyErrorMessage(l10n, party.errorCode)
               : suggested
               ? l10n.watchPartySuggested
               : l10n.watchPartyStaged,

@@ -105,6 +105,9 @@ class ExternalPlayerLaunchResult {
   final Duration? endPosition;
   final bool hasError;
   final String? errorCode;
+
+  /// Kos TV: for the log only, never shown. It is the platform's or the
+  /// other app's English text; the screen words [errorCode] itself.
   final String? errorMessage;
   final String? playerAction;
 

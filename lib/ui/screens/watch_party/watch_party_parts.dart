@@ -9,8 +9,18 @@ String? watchPartyErrorText(AppLocalizations l10n, String? code) =>
       'not_found' => l10n.watchPartyNoSuchCode,
       'no_access' => l10n.watchPartyNoAccess,
       'disabled' => l10n.watchPartyUnavailable,
+      // Kos TV: the rest of the server plugin's codes, and the app's own.
+      'not_host' => l10n.kostvWatchPartyErrorNotHost,
+      'not_allowed' => l10n.kostvWatchPartyErrorNotAllowed,
+      'pin_required' => l10n.kostvWatchPartyErrorPinRequired,
+      'network' => l10n.kostvWatchPartyErrorNetwork,
       _ => null,
     };
+
+/// Kos TV: what a failed Watch Party action says: its code worded, or a
+/// generic line, never the exception's own text.
+String watchPartyErrorMessage(AppLocalizations l10n, String? code) =>
+    watchPartyErrorText(l10n, code) ?? l10n.kostvWatchPartyErrorGeneric;
 
 String? watchPartyStatusLabel(AppLocalizations l10n, String? status) =>
     switch (status) {
@@ -213,9 +223,8 @@ Future<bool> joinListedRoom(
     open();
   } else if (manager.roomScreensOpen == 0 && navigator.mounted) {
     // Off the Watch Parties screen nothing else shows why.
-    final error =
-        watchPartyErrorText(l10n, manager.errorCode) ?? manager.error;
-    if (error != null) {
+    if (manager.error != null) {
+      final error = watchPartyErrorMessage(l10n, manager.errorCode);
       ScaffoldMessenger.maybeOf(navigator.context)
           ?.showSnackBar(SnackBar(content: Text(error)));
     }

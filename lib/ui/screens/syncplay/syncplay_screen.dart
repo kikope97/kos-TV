@@ -268,8 +268,8 @@ class _SyncPlayScreenState extends ConsumerState<SyncPlayScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        if (manager.errorMessage != null)
-          _ErrorBanner(message: manager.errorMessage!),
+        if (manager.error case final error?)
+          _ErrorBanner(message: syncPlayErrorText(l10n, error)),
         if (manager.state.enabled)
           _ActiveGroupSection(
             manager: manager,
@@ -324,6 +324,33 @@ class _Message extends StatelessWidget {
     );
   }
 }
+
+/// Kos TV: a SyncPlay failure in the viewer's language.
+String syncPlayErrorText(AppLocalizations l10n, SyncPlayError error) =>
+    switch (error) {
+      SyncPlayError.loadGroups => l10n.kostvSyncPlayErrorLoadGroups,
+      SyncPlayError.unavailable => l10n.kostvSyncPlayErrorUnavailable,
+      SyncPlayError.createGroup => l10n.kostvSyncPlayErrorCreateGroup,
+      SyncPlayError.joinGroup => l10n.kostvSyncPlayErrorJoinGroup,
+      SyncPlayError.recoverState => l10n.kostvSyncPlayErrorRecoverState,
+      SyncPlayError.notInGroup => l10n.kostvSyncPlayErrorNotInGroup,
+      SyncPlayError.groupDoesNotExist => l10n.kostvSyncPlayErrorGroupGone,
+      SyncPlayError.libraryAccessDenied =>
+        l10n.kostvSyncPlayErrorLibraryAccess,
+      SyncPlayError.serverRestarting =>
+        l10n.kostvSyncPlayErrorServerRestarting,
+      SyncPlayError.serverShuttingDown =>
+        l10n.kostvSyncPlayErrorServerShuttingDown,
+      SyncPlayError.setCurrentItem => l10n.kostvSyncPlayErrorSetCurrentItem,
+      SyncPlayError.removeFromQueue => l10n.kostvSyncPlayErrorRemoveFromQueue,
+      SyncPlayError.clearQueue => l10n.kostvSyncPlayErrorClearQueue,
+      SyncPlayError.moveQueueItem => l10n.kostvSyncPlayErrorMoveQueueItem,
+      SyncPlayError.queueItems => l10n.kostvSyncPlayErrorQueueItems,
+      SyncPlayError.setRepeatMode => l10n.kostvSyncPlayErrorSetRepeat,
+      SyncPlayError.setShuffleMode => l10n.kostvSyncPlayErrorSetShuffle,
+      SyncPlayError.updateIgnoreWait => l10n.kostvSyncPlayErrorIgnoreWait,
+      SyncPlayError.syncQueue => l10n.kostvSyncPlayErrorSyncQueue,
+    };
 
 class _ErrorBanner extends StatelessWidget {
   final String message;
@@ -1256,7 +1283,7 @@ class _CreateGroupSection extends StatelessWidget {
     await confirmSyncPlayJoin(context, manager, () async {
       await manager.createGroup(name);
       // fetchGroups clears the error, so keep a failed create's banner up.
-      if (manager.errorMessage == null) await manager.fetchGroups();
+      if (manager.error == null) await manager.fetchGroups();
     });
   }
 
@@ -1479,7 +1506,7 @@ class _AvailableGroupsSection extends StatelessWidget {
         : '${syncPlayServerStateLabel(g.state?.serverValue, l10n)} • $who';
     Future<void> join() => confirmSyncPlayJoin(context, manager, () async {
       await manager.joinGroup(g.groupId);
-      if (manager.errorMessage == null) await manager.fetchGroups();
+      if (manager.error == null) await manager.fetchGroups();
     });
     return _syncPlayTile(
       enabled: !manager.isLoading,

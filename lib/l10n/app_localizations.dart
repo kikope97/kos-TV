@@ -34190,6 +34190,228 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t add it to the collection'**
   String get kostvCollectionAddFailed;
+
+  /// Kos TV: SyncPlay: the group list failed to load
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the groups.'**
+  String get kostvSyncPlayErrorLoadGroups;
+
+  /// Kos TV: SyncPlay: off or not offered by the server
+  ///
+  /// In en, this message translates to:
+  /// **'SyncPlay isn\'t available right now.'**
+  String get kostvSyncPlayErrorUnavailable;
+
+  /// Kos TV: SyncPlay: creating a group failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t create the group.'**
+  String get kostvSyncPlayErrorCreateGroup;
+
+  /// Kos TV: SyncPlay: joining a group failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t join the group.'**
+  String get kostvSyncPlayErrorJoinGroup;
+
+  /// Kos TV: SyncPlay: reading the group's state after a reconnect failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t catch up with the group.'**
+  String get kostvSyncPlayErrorRecoverState;
+
+  /// Kos TV: SyncPlay: the server says this device is not in a group
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re no longer in a SyncPlay group.'**
+  String get kostvSyncPlayErrorNotInGroup;
+
+  /// Kos TV: SyncPlay: the group was closed
+  ///
+  /// In en, this message translates to:
+  /// **'That SyncPlay group no longer exists.'**
+  String get kostvSyncPlayErrorGroupGone;
+
+  /// Kos TV: SyncPlay: the group plays something this person cannot see
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have access to something this group is watching.'**
+  String get kostvSyncPlayErrorLibraryAccess;
+
+  /// Kos TV: SyncPlay: the server announced a restart, so the group ended
+  ///
+  /// In en, this message translates to:
+  /// **'The server is restarting.'**
+  String get kostvSyncPlayErrorServerRestarting;
+
+  /// Kos TV: SyncPlay: the server announced a shutdown, so the group ended
+  ///
+  /// In en, this message translates to:
+  /// **'The server is shutting down.'**
+  String get kostvSyncPlayErrorServerShuttingDown;
+
+  /// Kos TV: SyncPlay: picking another item of the queue failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t switch to that title.'**
+  String get kostvSyncPlayErrorSetCurrentItem;
+
+  /// Kos TV: SyncPlay: removing a queue item failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t remove it from the queue.'**
+  String get kostvSyncPlayErrorRemoveFromQueue;
+
+  /// Kos TV: SyncPlay: clearing the queue failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t clear the queue.'**
+  String get kostvSyncPlayErrorClearQueue;
+
+  /// Kos TV: SyncPlay: reordering the queue failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t move it in the queue.'**
+  String get kostvSyncPlayErrorMoveQueueItem;
+
+  /// Kos TV: SyncPlay: adding to the queue failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t add it to the queue.'**
+  String get kostvSyncPlayErrorQueueItems;
+
+  /// Kos TV: SyncPlay: changing the repeat mode failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t change repeat.'**
+  String get kostvSyncPlayErrorSetRepeat;
+
+  /// Kos TV: SyncPlay: changing the shuffle mode failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t change shuffle.'**
+  String get kostvSyncPlayErrorSetShuffle;
+
+  /// Kos TV: SyncPlay: changing the ignore-wait option failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t change whether you wait for the others.'**
+  String get kostvSyncPlayErrorIgnoreWait;
+
+  /// Kos TV: SyncPlay: sending the local queue to the group failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t share what\'s playing with the group.'**
+  String get kostvSyncPlayErrorSyncQueue;
+
+  /// Kos TV: Watch Party: an error with no specific message
+  ///
+  /// In en, this message translates to:
+  /// **'That didn\'t work. Try again.'**
+  String get kostvWatchPartyErrorGeneric;
+
+  /// Kos TV: Watch Party: the server did not answer
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t reach the server.'**
+  String get kostvWatchPartyErrorNetwork;
+
+  /// Kos TV: Watch Party: a host-only action by a guest
+  ///
+  /// In en, this message translates to:
+  /// **'Only the host can do that.'**
+  String get kostvWatchPartyErrorNotHost;
+
+  /// Kos TV: Watch Party: the room's rules do not allow the action
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t do that in this room.'**
+  String get kostvWatchPartyErrorNotAllowed;
+
+  /// Kos TV: Watch Party: joining a room locked with a PIN
+  ///
+  /// In en, this message translates to:
+  /// **'This room needs a PIN.'**
+  String get kostvWatchPartyErrorPinRequired;
+
+  /// Kos TV: Watch Party: the room was left because the same profile joined elsewhere
+  ///
+  /// In en, this message translates to:
+  /// **'This profile joined the Watch Party on another device.'**
+  String get kostvWatchPartyReplaced;
+
+  /// Kos TV: External player screen: before anything opens
+  ///
+  /// In en, this message translates to:
+  /// **'Getting the external player ready…'**
+  String get kostvExternalPlayerPreparing;
+
+  /// Kos TV: External player screen: the app chooser is open
+  ///
+  /// In en, this message translates to:
+  /// **'Choose an external player for {title}…'**
+  String kostvExternalPlayerChoosing(String title);
+
+  /// Kos TV: External player screen: opening the title in the chosen app
+  ///
+  /// In en, this message translates to:
+  /// **'Opening {title} in {player}…'**
+  String kostvExternalPlayerOpening(String title, String player);
+
+  /// Kos TV: External player screen: the player's name while it is not known
+  ///
+  /// In en, this message translates to:
+  /// **'External player'**
+  String get kostvExternalPlayerDefaultName;
+
+  /// Kos TV: External player: the saved app is gone, so the chooser opens
+  ///
+  /// In en, this message translates to:
+  /// **'The chosen external player isn\'t available. Pick another one.'**
+  String get kostvExternalPlayerSelectedMissing;
+
+  /// Kos TV: External player: the title would be converted, so the app's own player takes it
+  ///
+  /// In en, this message translates to:
+  /// **'The external player needs the original file. Playing it in kOS TV instead.'**
+  String get kostvExternalPlayerNeedsDirect;
+
+  /// Kos TV: External player: launching it failed, so the app's own player takes it
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t open the external player. Playing it in kOS TV instead.'**
+  String get kostvExternalPlayerUnavailable;
+
+  /// Kos TV: External player: the app came back with an error
+  ///
+  /// In en, this message translates to:
+  /// **'The external player reported an error with {title}.'**
+  String kostvExternalPlayerReturnedError(String title);
+
+  /// Kos TV: External player: something failed before or while handing over
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t play it with the external player.'**
+  String get kostvExternalPlayerFailed;
+
+  /// Kos TV: External player: falling back to the app's own player failed too
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t play it in kOS TV either.'**
+  String get kostvExternalPlayerFallbackFailed;
+
+  /// Kos TV: Cast list: a device with no user or device name
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown device'**
+  String get kostvCastUnknownDevice;
+
+  /// Kos TV: Cast: the receiving device reported a playback error
+  ///
+  /// In en, this message translates to:
+  /// **'The other device couldn\'t play it.'**
+  String get kostvCastReceiverFailed;
 }
 
 class _AppLocalizationsDelegate

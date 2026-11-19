@@ -1,9 +1,12 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/services/media_server_client_factory.dart';
+import 'package:moonfin/watch_party/moonbase_watch_party_api.dart';
 import 'package:moonfin/watch_party/silo_watch_party_manager.dart';
 import 'package:playback_core/playback_core.dart';
 import 'package:server_core/server_core.dart';
+import 'package:server_silo/server_silo.dart' show SiloRoom;
 
 const _item = {
   'MediaSources': [
@@ -193,5 +196,84 @@ void main() {
     await getIt.unregister<MediaServerClient>();
     getIt.registerSingleton<MediaServerClient>(other);
     expect(manager.activeSiloClient, isNull);
+  });
+
+  // Kos TV: everyone on a server shares one client, whose user is swapped in
+  // place, so the room has to remember whose it is.
+  group('a person switch on the same server', () {
+    late MediaServerClient client;
+    late SiloWatchPartyManager manager;
+
+    setUp(() {
+      final getIt = GetIt.instance;
+      final factory = MediaServerClientFactory(
+        deviceInfo: const DeviceInfo(
+          id: 'device',
+          name: 'Device',
+          appName: 'Moonfin',
+          appVersion: '1.0.0',
+        ),
+      );
+      client = factory.getClient(
+        serverId: 'home',
+        serverType: ServerType.jellyfin,
+        baseUrl: 'https://jellyfin.example',
+      )..userId = 'adult';
+      getIt.registerSingleton<MediaServerClientFactory>(factory);
+      getIt.registerSingleton<MediaServerClient>(client);
+      manager = SiloWatchPartyManager(_NoPlayback())
+        ..debugEnterRoom(SiloRoom.fromJson({'room_id': 'r1'}), client);
+    });
+
+    tearDown(() => GetIt.instance.reset());
+
+    test('leaves the room the last person was in', () {
+      client.userId = 'child';
+      manager.onSessionChanged();
+      expect(manager.inRoom, isFalse);
+    });
+
+    test('keeps the room when the same person comes back in', () {
+      manager.onSessionChanged();
+      expect(manager.inRoom, isTrue);
+    });
+  });
+
+  // Kos TV: no exception text, and never the plugin's name, reaches a screen.
+  test('every failure has a code the screens word', () {
+    final options = RequestOptions(path: '/x');
+    expect(
+      SiloWatchPartyManager.errorCodeFor(const MoonbaseUnavailableException()),
+      'disabled',
+    );
+    expect(
+      SiloWatchPartyManager.errorCodeFor(
+        DioException(
+          requestOptions: options,
+          response: Response(
+            requestOptions: options,
+            statusCode: 403,
+            data: {'code': 'wrong_pin'},
+          ),
+        ),
+      ),
+      'wrong_pin',
+    );
+    expect(
+      SiloWatchPartyManager.errorCodeFor(
+        DioException(
+          requestOptions: options,
+          response: Response(requestOptions: options, statusCode: 404),
+        ),
+      ),
+      'not_found',
+    );
+    expect(
+      SiloWatchPartyManager.errorCodeFor(
+        DioException.connectionError(requestOptions: options, reason: 'down'),
+      ),
+      'network',
+    );
+    expect(SiloWatchPartyManager.errorCodeFor(StateError('x')), 'unknown');
   });
 }
