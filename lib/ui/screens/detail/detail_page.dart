@@ -233,6 +233,20 @@ mixin DetailPage<T extends StatefulWidget> on State<T> {
     if (key == LogicalKeyboardKey.arrowRight && index == length - 1) {
       return KeyEventResult.handled;
     }
+    // Kos TV: moving along the row is done here rather than left to the
+    // app's shortcuts. On the web they turn Left and Right into a scroll of
+    // the row, so focus stayed on its card while the card slid under the
+    // frame's edge. Off the web this is what the shortcuts already did. Left
+    // off the first card is still theirs, so it reaches a sidebar as before.
+    final step = key == LogicalKeyboardKey.arrowRight
+        ? TraversalDirection.right
+        : (key == LogicalKeyboardKey.arrowLeft && index > 0
+              ? TraversalDirection.left
+              : null);
+    if (step != null) {
+      FocusManager.instance.primaryFocus?.focusInDirection(step);
+      return KeyEventResult.handled;
+    }
     return KeyEventResult.ignored;
   };
 
