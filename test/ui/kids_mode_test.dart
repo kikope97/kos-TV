@@ -471,6 +471,70 @@ void main() {
       expect(pin.verifyPin('3333'), isTrue);
     });
 
+    group('against the device clock', () {
+      var now = DateTime.utc(2026, 11, 19, 18);
+      var uptime = const Duration(hours: 1);
+      final realClock = PinCodeUtil.clock;
+      final realElapsed = PinCodeUtil.elapsed;
+
+      setUp(() {
+        now = DateTime.utc(2026, 11, 19, 18);
+        uptime = const Duration(hours: 1);
+        PinCodeUtil.clock = () => now;
+        PinCodeUtil.elapsed = () => uptime;
+      });
+
+      tearDown(() {
+        PinCodeUtil.clock = realClock;
+        PinCodeUtil.elapsed = realElapsed;
+      });
+
+      test('moving it ahead doesn\'t end a wait started while running', () async {
+        final pin = PinCodeUtil.kidsMode(await _store(), 'usr1');
+        await pin.setPin('2222');
+        Duration wait = Duration.zero;
+        for (var i = 0; i < 8; i++) {
+          wait = await pin.registerFailedAttempt();
+        }
+        expect(wait, greaterThan(Duration.zero));
+
+        now = now.add(const Duration(days: 1));
+        expect(pin.isLockedOut, isTrue);
+        expect(pin.verifyPin('2222'), isFalse);
+
+        uptime += wait;
+        expect(pin.isLockedOut, isFalse);
+        expect(pin.verifyPin('2222'), isTrue);
+      });
+
+      test('setting it back can\'t stretch a wait past its length', () async {
+        // A lockout from an earlier run of the app: only the stored times.
+        final store = await _store();
+        final pin = PinCodeUtil.kidsMode(store, 'usr1');
+        await pin.setPin('2222');
+        final at = now.millisecondsSinceEpoch;
+        await store.setInt('kids_pin_locked_at_usr1', at);
+        await store.setInt(
+          'kids_pin_locked_until_usr1',
+          at + const Duration(seconds: 30).inMilliseconds,
+        );
+
+        now = now.subtract(const Duration(days: 2));
+        expect(pin.lockoutRemaining, const Duration(seconds: 30));
+      });
+
+      test('a wait stored before this note is capped at the longest', () async {
+        final store = await _store();
+        final pin = PinCodeUtil.kidsMode(store, 'usr1');
+        await pin.setPin('2222');
+        await store.setInt(
+          'kids_pin_locked_until_usr1',
+          now.add(const Duration(days: 3)).millisecondsSinceEpoch,
+        );
+        expect(pin.lockoutRemaining, const Duration(minutes: 15));
+      });
+    });
+
     test('forgets past guesses when the PIN is set again', () async {
       final pin = PinCodeUtil.kidsMode(await _store(), 'usr1');
       await pin.setPin('2222');

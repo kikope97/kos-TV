@@ -39,10 +39,16 @@ class ExternalPlayerPolicy {
 
   /// Whether the external player setting is on and in force here. A Live TV
   /// channel always qualifies once it is.
+  ///
+  /// Kos TV: never in Kids Mode. Another app has its own way around the files
+  /// and the network, and only the app's own player checks what is blocked on
+  /// this device before each title (as trailers stay in the app there too).
   static bool get isEnabled {
     if (!PlatformDetection.isAndroid) return false;
     final getIt = GetIt.instance;
-    if (!getIt<UserPreferences>().get(UserPreferences.useExternalPlayer)) {
+    final prefs = getIt<UserPreferences>();
+    if (!prefs.get(UserPreferences.useExternalPlayer) ||
+        prefs.get(UserPreferences.kidsModeEnabled)) {
       return false;
     }
     return !getIt.isRegistered<SyncPlayManager>() ||

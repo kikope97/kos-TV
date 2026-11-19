@@ -13958,5 +13958,9 @@
     "kostvChannelOpenFailed": "No se ha podido abrir el canal",
     "@kostvChannelOpenFailed": {
         "description": "Kos TV: a TV channel could not be opened"
+    },
+    "updateDownloadCorrupt": "La actualización descargada está incompleta o no coincide con la publicada, así que no se ha instalado. Inténtalo de nuevo.",
+    "@updateDownloadCorrupt": {
+        "description": "Kos TV: the downloaded update APK doesn't match the size or SHA-256 the release lists, so it was deleted and not installed"
     }
 }

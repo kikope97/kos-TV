@@ -27,6 +27,7 @@ import '../../widgets/pin_entry_dialog.dart';
 import '../../widgets/profile_carousel.dart';
 import 'silo_profile_unlock.dart';
 import '../../widgets/kos_logo.dart';
+import '../../widgets/kostv_kids_mode_gate.dart';
 
 class ServerScreen extends StatefulWidget {
   final String serverId;
@@ -50,10 +51,37 @@ class _ServerScreenState extends State<ServerScreen> {
   final _carouselFocus = FocusNode();
   int _selected = 0;
 
+  /// Kos TV: the profile in Kids Mode on this device, if any, and whether
+  /// the mode's PIN was already typed on the way here.
+  String? _kidsModeHolder;
+  bool _kidsModeExitGranted = false;
+
   @override
   void initState() {
     super.initState();
+    final holder = _kidsModeHolder = kostvKidsModeHolder();
+    _kidsModeExitGranted = holder != null && kostvTakeKidsModeExit(holder);
     _load();
+  }
+
+  /// Kos TV: whether the picker may take [pickedUserId] (null: a sign-in or
+  /// server of someone's choosing). With this device in Kids Mode, anyone but
+  /// the child needs the mode's PIN; typed once, it isn't asked again here.
+  Future<bool> _kidsModeLetsPick([String? pickedUserId]) async {
+    final passed = await kostvKidsModeLetsPick(
+      context,
+      holder: _kidsModeHolder,
+      pickedUserId: pickedUserId,
+      granted: _kidsModeExitGranted,
+    );
+    if (passed && pickedUserId != _kidsModeHolder) _kidsModeExitGranted = true;
+    return passed && mounted;
+  }
+
+  /// Kos TV: [route] (a sign-in or the server list), once Kids Mode lets it.
+  Future<void> _goPastKidsMode(String route) async {
+    if (!await _kidsModeLetsPick()) return;
+    if (mounted) kostvAuthGo(context, route);
   }
 
   Future<void> _load() async {
@@ -192,6 +220,8 @@ class _ServerScreenState extends State<ServerScreen> {
   Future<void> _handleUserTap(_MergedUser user) async {
     final server = _server;
     if (server == null) return;
+    // Kos TV: Kids Mode isn't left by picking someone else here either.
+    if (!await _kidsModeLetsPick(user.id)) return;
 
     final guard = PinGuard.forAccount(
       store: GetIt.instance<PreferenceStore>(),
@@ -329,7 +359,7 @@ class _ServerScreenState extends State<ServerScreen> {
     // so Back leaves the app as on any first page.
     onBack: () => hasKostvServer
         ? unawaited(AppExit.closeApp())
-        : kostvAuthGo(context, Destinations.serverSelect),
+        : unawaited(_goPastKidsMode(Destinations.serverSelect)),
     child: _buildContent(context),
   );
 
@@ -405,15 +435,17 @@ class _ServerScreenState extends State<ServerScreen> {
                 _pillButton(
                   icon: Icons.person,
                   label: l10n.addUser,
-                  onPressed: () =>
-                      kostvAuthGo(context, '${Destinations.login}?serverId=${server.id}'),
+                  onPressed: () => unawaited(
+                    _goPastKidsMode('${Destinations.login}?serverId=${server.id}'),
+                  ),
                 ),
                 // Kos TV: no other server to pick with the household one.
                 if (!hasKostvServer)
                   _pillButton(
                     icon: Icons.home,
                     label: l10n.selectServer,
-                    onPressed: () => kostvAuthGo(context, Destinations.serverSelect),
+                    onPressed: () =>
+                        unawaited(_goPastKidsMode(Destinations.serverSelect)),
                   ),
               ],
             ),
@@ -466,8 +498,9 @@ class _ServerScreenState extends State<ServerScreen> {
                         entries: entries,
                         selected: _selected,
                         onSelected: (index) => setState(() => _selected = index),
-                        onAdd: () =>
-                            kostvAuthGo(context, '${Destinations.login}?serverId=${server.id}'),
+                        onAdd: () => unawaited(
+                          _goPastKidsMode('${Destinations.login}?serverId=${server.id}'),
+                        ),
                         addLabel: l10n.addUser,
                       ),
                       ..._buildNotices(server),
@@ -484,7 +517,8 @@ class _ServerScreenState extends State<ServerScreen> {
             const SizedBox(height: 4),
             if (!hasKostvServer)
               TextButton(
-                onPressed: () => kostvAuthGo(context, Destinations.serverSelect),
+                onPressed: () =>
+                    unawaited(_goPastKidsMode(Destinations.serverSelect)),
                 style: TextButton.styleFrom(
                   foregroundColor: AppColorScheme.onSurface.withValues(alpha: 0.78),
                   minimumSize: const Size(0, 44),

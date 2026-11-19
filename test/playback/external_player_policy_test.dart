@@ -59,4 +59,17 @@ void main() {
     debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     expect(_covers(['Movie']), isFalse);
   });
+
+  // Kos TV: another app has its own way around the files and the network,
+  // and only the app's own player checks what is blocked before each title.
+  test('Kids Mode keeps everything in the built-in player', () async {
+    await prefs.set(UserPreferences.useExternalPlayer, true);
+    await prefs.set(UserPreferences.kidsModeEnabled, true);
+    expect(ExternalPlayerPolicy.isEnabled, isFalse);
+    expect(_covers(['Movie']), isFalse);
+    expect(_covers(['TvChannel']), isFalse);
+
+    await prefs.set(UserPreferences.kidsModeEnabled, false);
+    expect(_covers(['Movie']), isTrue);
+  });
 }

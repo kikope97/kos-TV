@@ -20055,4 +20055,8 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvChannelOpenFailed => 'No se ha podido abrir el canal';
+
+  @override
+  String get updateDownloadCorrupt =>
+      'La actualización descargada está incompleta o no coincide con la publicada, así que no se ha instalado. Inténtalo de nuevo.';
 }

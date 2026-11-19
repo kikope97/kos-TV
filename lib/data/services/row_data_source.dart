@@ -16,6 +16,7 @@ import '../utils/bounded_concurrency.dart';
 import '../utils/latest_media_row_normalizer.dart';
 import '../../util/parental_filter.dart';
 import '../utils/blocked_ratings.dart';
+import 'blocked_content_gate.dart';
 import '../utils/genre_browse_utils.dart';
 import '../utils/next_up_cutoff.dart';
 import '../utils/next_up_enrichment.dart';
@@ -209,12 +210,14 @@ class RowDataSource {
       startIndex: startIndex,
       limit: _defaultLimit,
     );
-    return _buildRow(
-      id: 'resume',
-      title: _l10n.continueWatching,
-      response: response,
-      serverId: serverId,
-      rowType: HomeRowType.resume,
+    return _withoutBlockedSeries(
+      _buildRow(
+        id: 'resume',
+        title: _l10n.continueWatching,
+        response: response,
+        serverId: serverId,
+        rowType: HomeRowType.resume,
+      ),
     );
   }
 
@@ -251,7 +254,7 @@ class RowDataSource {
       row.items,
       recentlyPlayed,
     );
-    return row.copyWith(items: enrichedItems);
+    return _withoutBlockedSeries(row.copyWith(items: enrichedItems));
   }
 
   Future<HomeRow> loadResumeRelaxed(String serverId) async {
@@ -259,12 +262,14 @@ class RowDataSource {
       mediaTypes: 'Video',
       limit: _defaultLimit,
     );
-    return _buildRow(
-      id: 'resume',
-      title: _l10n.continueWatching,
-      response: response,
-      serverId: serverId,
-      rowType: HomeRowType.resume,
+    return _withoutBlockedSeries(
+      _buildRow(
+        id: 'resume',
+        title: _l10n.continueWatching,
+        response: response,
+        serverId: serverId,
+        rowType: HomeRowType.resume,
+      ),
     );
   }
 
@@ -283,7 +288,7 @@ class RowDataSource {
       row.items,
       recentlyPlayed,
     );
-    return row.copyWith(items: enrichedItems);
+    return _withoutBlockedSeries(row.copyWith(items: enrichedItems));
   }
 
   Future<HomeRow> loadLatestMedia(
@@ -1047,12 +1052,14 @@ class RowDataSource {
       mediaTypes: 'Video',
       limit: _defaultLimit,
     );
-    return _buildRow(
-      id: 'resume_$parentId',
-      title: _l10n.continueWatching,
-      response: response,
-      serverId: serverId,
-      rowType: HomeRowType.resume,
+    return _withoutBlockedSeries(
+      _buildRow(
+        id: 'resume_$parentId',
+        title: _l10n.continueWatching,
+        response: response,
+        serverId: serverId,
+        rowType: HomeRowType.resume,
+      ),
     );
   }
 
@@ -1074,7 +1081,7 @@ class RowDataSource {
       row.items,
       recentlyPlayed,
     );
-    return row.copyWith(items: enrichedItems);
+    return _withoutBlockedSeries(row.copyWith(items: enrichedItems));
   }
 
   Future<HomeRow> loadLibraryFavorites(
@@ -2129,6 +2136,14 @@ class RowDataSource {
       );
       return response;
     }
+  }
+
+  /// Kos TV: [row] without the episodes of series blocked on this device,
+  /// which rarely carry a rating of their own (see
+  /// [BlockedContentGate.withoutBlockedSeriesItems]).
+  static Future<HomeRow> _withoutBlockedSeries(HomeRow row) async {
+    final items = await withoutBlockedSeriesItems(row.items);
+    return identical(items, row.items) ? row : row.copyWith(items: items);
   }
 
   HomeRow _buildRow({

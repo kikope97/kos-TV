@@ -47,6 +47,7 @@ import '../../../util/game_library.dart';
 import '../../../util/platform_detection.dart';
 import '../../../util/server_url.dart';
 import '../../../data/services/custom_external_lists_service.dart';
+import '../../../data/services/blocked_content_gate.dart';
 import '../../../data/utils/blocked_ratings.dart';
 import '../../../util/seasonal_country.dart';
 import '../../util/home_row_title_localizer.dart';
@@ -2090,9 +2091,25 @@ class HomeViewModel extends ChangeNotifier {
       return const [];
     }
     _l10nForRows = l10n;
+    // Kos TV: nor the episodes of a series blocked on this device, which
+    // rarely carry a rating of their own. Their series are asked for at once.
+    final seriesBlocked = await _blockedBySeries([
+      if (!more) ...page.rewatch,
+      if (!more) ...page.newEpisodes,
+      for (final row in page.rows) ...row.items,
+    ]);
+    List<AggregatedItem> visibleOf(List<AggregatedItem> items) {
+      final rated = withoutBlockedItems(items);
+      if (seriesBlocked.isEmpty) return rated;
+      return [
+        for (final item in rated)
+          if (!seriesBlocked.contains(item.id)) item,
+      ];
+    }
+
     if (!more) {
       _kostvRewatchRow = KostvHomeRepository.rewatchRow(
-        withoutBlockedItems(page.rewatch),
+        visibleOf(page.rewatch),
         prefix,
         l10n,
       );
@@ -2111,14 +2128,13 @@ class HomeViewModel extends ChangeNotifier {
     final newEpisodes = more
         ? null
         : KostvHomeRepository.newEpisodesRow(
-            withoutBlockedItems(page.newEpisodes),
+            visibleOf(page.newEpisodes),
             prefix,
             l10n,
           );
     final rows = [
       for (final row in page.rows)
-        if (withoutBlockedItems(row.items) case final items
-            when items.isNotEmpty)
+        if (visibleOf(row.items) case final items when items.isNotEmpty)
           HomeRow(
             id: row.idWith(prefix),
             title: row.title(l10n),
@@ -2155,6 +2171,20 @@ class HomeViewModel extends ChangeNotifier {
             top.copyWith(items: withoutBlockedItems(top.items)),
       ]),
     ];
+  }
+
+  /// Kos TV: the ids among [items] left out for the series they belong to
+  /// (see [BlockedContentGate.withoutBlockedSeriesItems]).
+  static Future<Set<String>> _blockedBySeries(
+    List<AggregatedItem> items,
+  ) async {
+    final kept = await withoutBlockedSeriesItems(items);
+    if (identical(kept, items)) return const {};
+    final keptIds = {for (final item in kept) item.id};
+    return {
+      for (final item in items)
+        if (!keptIds.contains(item.id)) item.id,
+    };
   }
 
   /// Kos TV: one platform's most watched row, or null if it failed.

@@ -1,10 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/services/app_update_service.dart';
@@ -98,129 +99,9 @@ Future<void> showAppUpdateDialog(
     return;
   }
 
-  if (choice == 'download' &&
-      Platform.isWindows &&
-      update.downloadUri.isScheme('https')) {
-    await _downloadAndInstallWindowsUpdate(context, update);
-    return;
-  }
-
   final uri =
       choice == 'notes' ? Uri.parse(update.releaseNotesUrl) : update.downloadUri;
   await launchUrl(uri, mode: LaunchMode.externalApplication);
-}
-
-Future<void> _downloadAndInstallWindowsUpdate(
-  BuildContext context,
-  DesktopUpdateInfo update,
-) async {
-  final l10n = AppLocalizations.of(context);
-  final valueNotifier = ValueNotifier<double>(0.0);
-  final errorNotifier = ValueNotifier<String?>(null);
-
-  showStyledPlayerDialog<void>(
-    context,
-    title: l10n.updating,
-    barrierDismissible: false,
-    builder: (dialogContext) => PopScope(
-      canPop: false,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        child: AnimatedBuilder(
-          animation: Listenable.merge([valueNotifier, errorNotifier]),
-          builder: (context, child) {
-            final error = errorNotifier.value;
-            if (error != null) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    error,
-                    style: const TextStyle(color: Colors.redAccent, fontSize: 14),
-                  ),
-                  const SizedBox(height: 16),
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: TextButton(
-                      onPressed: () => Navigator.of(dialogContext).pop(),
-                      child: Text(
-                        l10n.close,
-                        style: const TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            final progress = valueNotifier.value;
-            return Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Colors.white24,
-                  valueColor: const AlwaysStoppedAnimation<Color>(Colors.blueAccent),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '${(progress * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    ),
-  );
-
-  try {
-    final tempDir = await getTemporaryDirectory();
-    final file = File('${tempDir.path}${Platform.pathSeparator}moonfin_updater.exe');
-    if (await file.exists()) {
-      await file.delete();
-    }
-
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 15);
-
-    try {
-      final request = await client.getUrl(update.downloadUri);
-      final response = await request.close();
-
-      if (response.statusCode != 200) {
-        throw Exception('Server returned status code ${response.statusCode}');
-      }
-
-      final contentLength = response.contentLength;
-      var downloaded = 0;
-      final sink = file.openWrite();
-
-      await for (final chunk in response.timeout(_quiet)) {
-        sink.add(chunk);
-        downloaded += chunk.length;
-        if (contentLength > 0) {
-          valueNotifier.value = downloaded / contentLength;
-        }
-      }
-      await sink.flush();
-      await sink.close();
-    } finally {
-      client.close();
-    }
-
-    await Process.start(
-      file.path,
-      [],
-      mode: ProcessStartMode.detached,
-    );
-    exit(0);
-  } catch (e) {
-    debugPrint('Windows in-app update failed: $e');
-    errorNotifier.value = l10n.updateDownloadFailed;
-  }
 }
 
 /// Kos TV: downloads the APK, makes sure the app may install packages (asking
@@ -263,14 +144,27 @@ Future<void> _downloadAndInstallAndroidUpdate(
   );
 
   String? path;
+  _downloadingUpdate = true;
   try {
     path = await _platformChannel.invokeMethod<String>('updateDownloadPath');
     if (path == null) throw StateError('no download path');
-    await _downloadTo(update.downloadUri, File(path), progress);
+    await _downloadTo(
+      update.downloadUri,
+      File(path),
+      progress,
+      expectedSize: update.size,
+      expectedSha256: update.sha256,
+    );
   } catch (e) {
     debugPrint('Android in-app update download failed: $e');
-    failed.value = l10n.updateDownloadFailed;
+    // Kos TV: what came of it is no use, and an APK weighs over 100 MB.
+    if (path != null) await _deleteQuietly(File(path));
+    failed.value = e is _UpdateMismatch
+        ? l10n.updateDownloadCorrupt
+        : l10n.updateDownloadFailed;
     return;
+  } finally {
+    _downloadingUpdate = false;
   }
   final route = progressRoute;
   if (progressOpen && route != null && route.isActive) {
@@ -355,8 +249,10 @@ Future<void> _downloadAndInstallAndroidUpdate(
 Future<void> _downloadTo(
   Uri uri,
   File file,
-  ValueNotifier<double?> progress,
-) async {
+  ValueNotifier<double?> progress, {
+  int? expectedSize,
+  String? expectedSha256,
+}) async {
   if (await file.exists()) await file.delete();
   final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
   try {
@@ -364,25 +260,81 @@ Future<void> _downloadTo(
     if (response.statusCode != 200) {
       throw HttpException('status ${response.statusCode}', uri: uri);
     }
-    final total = response.contentLength;
+    final total = response.contentLength > 0
+        ? response.contentLength
+        : (expectedSize ?? 0);
     var received = 0;
+    // Kos TV: hashed as it comes, so a 100 MB file isn't read a second time.
+    Digest? digest;
+    final hasher = sha256.startChunkedConversion(
+      ChunkedConversionSink<Digest>.withCallback((d) => digest = d.single),
+    );
     final sink = file.openWrite();
     try {
       await for (final chunk in response.timeout(_quiet)) {
         sink.add(chunk);
+        hasher.add(chunk);
         received += chunk.length;
         if (total > 0) progress.value = received / total;
       }
       await sink.flush();
     } finally {
       await sink.close();
+      hasher.close();
     }
-    if (total > 0 && received != total) {
+    if (response.contentLength > 0 && received != response.contentLength) {
       throw HttpException('incomplete download', uri: uri);
+    }
+    // Kos TV: what GitHub says the file is, when it says: anything else
+    // isn't installed.
+    if (expectedSize != null && received != expectedSize) {
+      throw _UpdateMismatch('size $received, expected $expectedSize');
+    }
+    if (expectedSha256 != null && digest.toString() != expectedSha256) {
+      throw _UpdateMismatch('sha256 $digest, expected $expectedSha256');
     }
   } finally {
     client.close(force: true);
   }
+}
+
+/// Kos TV: the download isn't the file the release lists.
+class _UpdateMismatch implements Exception {
+  _UpdateMismatch(this.detail);
+
+  final String detail;
+
+  @override
+  String toString() => 'Update download mismatch: $detail';
+}
+
+/// Kos TV: whether an update is downloading now, so the cleanup at start
+/// can't take its file away.
+bool _downloadingUpdate = false;
+bool _leftoverDiscarded = false;
+
+Future<void> _deleteQuietly(File file) async {
+  try {
+    if (await file.exists()) await file.delete();
+  } catch (_) {}
+}
+
+/// Kos TV: deletes the update APK an earlier run downloaded (over 100 MB in
+/// the app's cache). Once it has been installed the app starts at its
+/// version, so it's of no further use; if it wasn't, the next offer
+/// downloads it again anyway. Once per run, never during a download, and
+/// only on Android.
+Future<void> discardLeftoverUpdateDownload() async {
+  if (kIsWeb || !Platform.isAndroid) return;
+  if (_leftoverDiscarded || _downloadingUpdate) return;
+  _leftoverDiscarded = true;
+  try {
+    final path = await _platformChannel.invokeMethod<String>(
+      'updateDownloadPath',
+    );
+    if (path == null || _downloadingUpdate) return;
+    await _deleteQuietly(File(path));
+  } catch (_) {}
 }
 
 /// Kos TV: a download that goes quiet this long (the router without

@@ -81,6 +81,90 @@ class BlockedContentGate {
     return _stickyBlocked.contains(seriesId);
   }
 
+  /// Kos TV: [items] without the episodes and seasons whose series carries a
+  /// rating blocked on this device, judged as [isBlocked] judges one about to
+  /// play: their own rating first, then the series'. For the lists that mix
+  /// titles of many series (Continue Watching, Next Up, the search, a person's
+  /// titles), whose episodes rarely carry a rating of their own.
+  ///
+  /// The series not known yet are asked for in one request, and only while a
+  /// rating is blocked. One that can't be found out stays listed unless this
+  /// device already refused it, as [isBlocked] does.
+  Future<List<AggregatedItem>> withoutBlockedSeriesItems(
+    List<AggregatedItem> items,
+  ) async {
+    if (!activeParentalFilter.isActive || items.isEmpty) return items;
+
+    final unknown = <String>{
+      for (final item in items)
+        if (_unratedSeriesId(item) case final seriesId?)
+          if (!_seriesRating.containsKey(seriesId) &&
+              _offlineSeriesRating(seriesId) == null)
+            seriesId,
+    };
+    if (unknown.isNotEmpty) await _lookUpSeries(unknown);
+
+    final sticky = _stickyBlocked;
+    final kept = items.where((item) {
+      final own = item.officialRating?.trim();
+      if (own != null && own.isNotEmpty) return !isRatingBlocked(own);
+      final seriesId = _unratedSeriesId(item);
+      if (seriesId == null) return true;
+      final rating = _seriesRating.containsKey(seriesId)
+          ? _seriesRating[seriesId]
+          : _offlineSeriesRating(seriesId);
+      if (rating != null) return !isRatingBlocked(rating);
+      // Known to have no rating, so nothing to block it by.
+      if (_seriesRating.containsKey(seriesId)) return true;
+      return !sticky.contains(seriesId);
+    }).toList();
+    return kept.length == items.length ? items : kept;
+  }
+
+  /// The series [item] has to be judged by: an episode's or season's, when it
+  /// carries no rating of its own.
+  static String? _unratedSeriesId(AggregatedItem item) {
+    final own = item.officialRating?.trim();
+    if (own != null && own.isNotEmpty) return null;
+    final seriesId = item.seriesId;
+    return seriesId == null || seriesId.isEmpty ? null : seriesId;
+  }
+
+  /// Asks for the ratings of [seriesIds] at once and remembers them, also on
+  /// this device's list of refused series, as [isBlocked] does. A failed
+  /// request leaves them unknown.
+  Future<void> _lookUpSeries(Set<String> seriesIds) async {
+    final Map<String, dynamic> data;
+    try {
+      data = await _client.itemsApi
+          .getItems(
+            ids: seriesIds.toList(),
+            fields: 'OfficialRating',
+            enableTotalRecordCount: false,
+          )
+          .timeout(_lookupTimeout);
+    } catch (_) {
+      return;
+    }
+    final sticky = _stickyBlocked;
+    final next = sticky.toSet();
+    for (final raw in (data['Items'] as List? ?? const []).whereType<Map>()) {
+      final id = raw['Id']?.toString();
+      if (id == null || !seriesIds.contains(id)) continue;
+      final rating = raw['OfficialRating']?.toString().trim();
+      final known = rating != null && rating.isNotEmpty ? rating : null;
+      _seriesRating[id] = known;
+      if (known != null && isRatingBlocked(known)) {
+        next.add(id);
+      } else {
+        next.remove(id);
+      }
+    }
+    if (next.length != sticky.length || !next.containsAll(sticky)) {
+      await _prefs.set(UserPreferences.blockedSeriesIds, next.join(','));
+    }
+  }
+
   String? _offlineSeriesRating(String seriesId) {
     if (!GetIt.instance.isRegistered<OfflineCatalog>()) return null;
     final entry = GetIt.instance<OfflineCatalog>().byId(seriesId);
@@ -132,5 +216,21 @@ class BlockedContentGate {
       next.remove(seriesId);
     }
     await _prefs.set(UserPreferences.blockedSeriesIds, next.join(','));
+  }
+}
+
+/// Kos TV: [items] without what [BlockedContentGate.withoutBlockedSeriesItems]
+/// leaves out, or [items] as they are when there is no gate (a test, or a
+/// boot ordering this knows nothing about) or it can't answer.
+Future<List<AggregatedItem>> withoutBlockedSeriesItems(
+  List<AggregatedItem> items,
+) async {
+  if (!activeParentalFilter.isActive || items.isEmpty) return items;
+  final getIt = GetIt.instance;
+  if (!getIt.isRegistered<BlockedContentGate>()) return items;
+  try {
+    return await getIt<BlockedContentGate>().withoutBlockedSeriesItems(items);
+  } catch (_) {
+    return items;
   }
 }

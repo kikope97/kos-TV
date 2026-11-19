@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 
 /// Utility for PIN code hashing and verification.
@@ -24,6 +25,7 @@ class PinCodeUtil {
   String get _pinEnabledKey => '${_namespace}_pin_enabled_$_userId';
   String get _failedAttemptsKey => '${_namespace}_pin_failed_$_userId';
   String get _lockedUntilKey => '${_namespace}_pin_locked_until_$_userId';
+  String get _lockedAtKey => '${_namespace}_pin_locked_at_$_userId';
   String get _serverBackedKey => '${_namespace}_pin_server_$_userId';
 
   /// Wrong guesses allowed before each further one costs a wait.
@@ -34,6 +36,22 @@ class PinCodeUtil {
   /// evening's work for a determined child if guessing is free.
   static const _lockoutStep = Duration(seconds: 30);
   static const _maxLockout = Duration(minutes: 15);
+
+  /// Kos TV: the device's clock, which a lockout is written against so it
+  /// outlasts the app being closed. For a test.
+  @visibleForTesting
+  static DateTime Function() clock = DateTime.now;
+
+  /// Kos TV: time that only moves forward while the app runs, whatever the
+  /// device's clock is set to. For a test.
+  @visibleForTesting
+  static Duration Function() elapsed = () => _uptime.elapsed;
+  static final Stopwatch _uptime = Stopwatch()..start();
+
+  /// Kos TV: the lockouts started while the app has been running, by key:
+  /// the end stored for them and when they end on [elapsed]. Measured that
+  /// way, moving the device's clock ahead doesn't cut the wait short.
+  static final Map<String, ({int until, Duration endsAt})> _runLockouts = {};
 
   /// Whether the user has a PIN enabled, here or on the server.
   bool get isPinEnabled =>
@@ -67,7 +85,21 @@ class PinCodeUtil {
   Duration get lockoutRemaining {
     final until = _store.getInt(_lockedUntilKey) ?? 0;
     if (until == 0) return Duration.zero;
-    final remaining = until - DateTime.now().toUtc().millisecondsSinceEpoch;
+    // Kos TV: started while the app has been running, the wait runs on time
+    // the device's clock can't move.
+    final run = _runLockouts[_lockedUntilKey];
+    if (run != null && run.until == until) {
+      final left = run.endsAt - elapsed();
+      return left <= Duration.zero ? Duration.zero : left;
+    }
+    var remaining = until - clock().toUtc().millisecondsSinceEpoch;
+    // Kos TV: a clock set back to before the wrong guess can't make the wait
+    // longer than it was.
+    final lockedAt = _store.getInt(_lockedAtKey) ?? 0;
+    final length = lockedAt > 0 && lockedAt < until
+        ? until - lockedAt
+        : _maxLockout.inMilliseconds;
+    if (remaining > length) remaining = length;
     return remaining <= 0 ? Duration.zero : Duration(milliseconds: remaining);
   }
 
@@ -93,16 +125,22 @@ class PinCodeUtil {
     final steps = failed - _freeAttempts;
     var lockout = _lockoutStep * steps;
     if (lockout > _maxLockout) lockout = _maxLockout;
-    await _store.setInt(
-      _lockedUntilKey,
-      DateTime.now().toUtc().add(lockout).millisecondsSinceEpoch,
+    final now = clock().toUtc();
+    final until = now.add(lockout).millisecondsSinceEpoch;
+    await _store.setInt(_lockedAtKey, now.millisecondsSinceEpoch);
+    await _store.setInt(_lockedUntilKey, until);
+    _runLockouts[_lockedUntilKey] = (
+      until: until,
+      endsAt: elapsed() + lockout,
     );
     return lockout;
   }
 
   Future<void> clearFailedAttempts() async {
+    _runLockouts.remove(_lockedUntilKey);
     await _store.remove(_failedAttemptsKey);
     await _store.remove(_lockedUntilKey);
+    await _store.remove(_lockedAtKey);
   }
 
   /// Set a new PIN (hashes and stores it).

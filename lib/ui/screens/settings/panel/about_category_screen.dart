@@ -35,8 +35,18 @@ class _AboutCategoryScreen extends StatelessWidget {
                 trailing: const SizedBox.shrink(),
                 onTap: () => AfterHoursTrigger.press(context),
               ),
-              if (AppDistribution.supportsInAppUpdates)
+              if (AppDistribution.supportsInAppUpdates) ...[
                 const _CheckForUpdatesTile(),
+                // Kos TV: synced with the server plugin, whose panel can set
+                // it off for everyone; here it can be turned back on.
+                SwitchPreferenceTile(
+                  preference: UserPreferences.updateNotificationsEnabled,
+                  title: l10n.updateNotifications,
+                  subtitle: l10n.showWhenUpdatesAvailable,
+                  icon: Icons.notifications_active_outlined,
+                  onChanged: _pushPersonalizationSync,
+                ),
+              ],
             ],
           ),
           _SectionHeader(l10n.settingsLegal),
