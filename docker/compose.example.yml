@@ -30,6 +30,26 @@ services:
       # servicio de peticiones tal como lo alcanza el contenedor, que lo pasa en
       # /stremfin. Sin él, la web usa la dirección que da el complemento.
       KOSTV_REQUESTS_URL: ${KOSTV_REQUESTS_URL:-}
+      # Solo con KOSTV_REQUESTS_URL: off si ese servicio tiene un certificado
+      # propio de la red de casa. Por defecto se comprueba.
+      KOSTV_REQUESTS_VERIFY: ${KOSTV_REQUESTS_VERIFY:-on}
       # Usuario y contraseña del panel de administración (/admin).
       KOSTV_ADMIN_USER: ${KOSTV_ADMIN_USER:-admin}
       KOSTV_ADMIN_PASSWORD: ${KOSTV_ADMIN_PASSWORD:-}
+      # O, en vez de la contraseña, la ruta de un archivo que la contenga (un
+      # secret de Docker, ver el bloque "secrets" de abajo):
+      # KOSTV_ADMIN_PASSWORD_FILE=/run/secrets/kostv_admin_password en el .env.
+      KOSTV_ADMIN_PASSWORD_FILE: ${KOSTV_ADMIN_PASSWORD_FILE:-}
+      # Opcional: la IP del proxy inverso tal como llega al contenedor (o un
+      # rango). Solo entonces se cree la dirección del visitante que pasa el
+      # proxy, y /admin cuenta su límite por cada visitante. Ver docs/web.md.
+      KOSTV_TRUSTED_PROXY: ${KOSTV_TRUSTED_PROXY:-}
+    # Para KOSTV_ADMIN_PASSWORD_FILE: quita el # de estas dos líneas y de las
+    # del final, y guarda la contraseña en el archivo admin_password.txt, junto
+    # a este compose.yml.
+    # secrets:
+    #   - kostv_admin_password
+
+# secrets:
+#   kostv_admin_password:
+#     file: ./admin_password.txt
