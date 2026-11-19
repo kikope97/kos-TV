@@ -257,6 +257,57 @@ public sealed class KostvHomeEngineTests
         Assert.DoesNotContain(rows.SelectMany(r => r.ItemIds), id => id == "item4");
     }
 
+    // Kos TV: a favourite (or a title of their list) they haven't watched doesn't make a
+    // "because you watched" row.
+    [Fact]
+    public void AFavouriteNotWatchedHasARowOfItsOwnKind()
+    {
+        var library = Enumerable.Range(1, 80).Select(n => Film(n)).ToList();
+        // Enough of each for the mixed row and a row of its own.
+        var facts = new Dictionary<string, KostvSeedFacts>
+        {
+            ["movie:100"] = Recs(Enumerable.Range(1, 30).ToArray()),
+            ["movie:101"] = Recs(Enumerable.Range(31, 30).ToArray()),
+        };
+
+        var rows = KostvHomeEngine.Build(
+            [Seed(100, 1, KostvSeedKind.Liked), Seed(101, 0.9, KostvSeedKind.Liked) with { Seen = true }],
+            facts,
+            NoCredits,
+            library,
+            day: 1);
+
+        Assert.Equal(KostvHomeEngine.BecauseLiked, Assert.Single(rows, r => r.SeedItemId == "item100").Kind);
+        // One they did watch still says so.
+        Assert.Equal(KostvHomeEngine.BecauseWatched, Assert.Single(rows, r => r.SeedItemId == "item101").Kind);
+    }
+
+    // Kos TV: «Episodios nuevos» doesn't offer a new season to someone behind on the series.
+    [Fact]
+    public void ANewEpisodeIsNotNewsToSomeoneBehind()
+    {
+        var s6e1 = KostvHomeService.StoryOrder(6, 1);
+
+        // Watching season 2: behind.
+        Assert.True(KostvHomeService.IsBehind(s6e1, [KostvHomeService.StoryOrder(2, 4), KostvHomeService.StoryOrder(6, 2)]));
+        // Up to date, only the rest of the new season and a special left: news.
+        Assert.False(KostvHomeService.IsBehind(s6e1, [KostvHomeService.StoryOrder(6, 2), KostvHomeService.StoryOrder(0, 1)]));
+        // A special is news only to whoever is up to date with the rest.
+        var special = KostvHomeService.StoryOrder(0, 3);
+        Assert.False(KostvHomeService.IsBehind(special, [KostvHomeService.StoryOrder(0, 4)]));
+        Assert.True(KostvHomeService.IsBehind(special, [KostvHomeService.StoryOrder(5, 10)]));
+        Assert.True(KostvHomeService.IsBehind(special, [KostvHomeService.StoryOrder(0, 1)]));
+    }
+
+    // Kos TV: of the new ones, the regular episodes go before a special.
+    [Fact]
+    public void ASpecialIsTheFirstNewOneOnlyWhenNothingElseIs()
+    {
+        Assert.True(KostvHomeService.StoryOrder(6, 1).CompareTo(KostvHomeService.StoryOrder(0, 1)) < 0);
+        Assert.True(KostvHomeService.StoryOrder(1, 2).CompareTo(KostvHomeService.StoryOrder(2, 1)) < 0);
+        Assert.True(KostvHomeService.StoryOrder(0, 1).CompareTo(KostvHomeService.StoryOrder(0, 2)) < 0);
+    }
+
     [Fact]
     public void PingTellsTheAppsThisPluginWorksOutTheHomePage()
     {

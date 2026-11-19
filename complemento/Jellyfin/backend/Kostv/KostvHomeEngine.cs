@@ -14,13 +14,16 @@ public enum KostvSeedKind
 }
 
 /// <summary>A title the person watched, which what they are offered grows from.</summary>
+/// <remarks>Kos TV: <c>Seen</c> tells a favourite (or a title of their list) they have watched
+/// from one they haven't, so its row doesn't say they watched it.</remarks>
 public sealed record KostvSeed(
     string Key,
     string ItemId,
     string Name,
     bool IsSeries,
     KostvSeedKind Kind,
-    double Weight);
+    double Weight,
+    bool Seen = false);
 
 /// <summary>Someone who made or acted in a seed.</summary>
 public sealed record KostvPerson(string Id, string Name, bool IsDirector);
@@ -56,6 +59,12 @@ public static class KostvHomeEngine
 {
     public const string BecauseWatched = "because_watched";
     public const string BecauseWatching = "because_watching";
+
+    /// <summary>
+    /// Kos TV: a favourite, or a title of their list, they haven't watched. Apps older than this
+    /// kind show it as «Recomendado para ti».
+    /// </summary>
+    public const string BecauseLiked = "because_liked";
     public const string ForYou = "for_you";
     public const string WithPerson = "with_person";
     public const string Genre = "genre";
@@ -225,7 +234,13 @@ public static class KostvHomeEngine
         KostvHomeRow? SeedRow(KostvSeed seed) =>
             facts.TryGetValue(seed.Key, out var seedFacts)
                 ? Row(
-                    seed.Kind == KostvSeedKind.Watching ? BecauseWatching : BecauseWatched,
+                    seed.Kind switch
+                    {
+                        KostvSeedKind.Watching => BecauseWatching,
+                        // Kos TV: "because you watched" only of what they did watch.
+                        KostvSeedKind.Liked when !seed.Seen => BecauseLiked,
+                        _ => BecauseWatched
+                    },
                     seed.Name,
                     seed.ItemId,
                     seedFacts.Recommendations)

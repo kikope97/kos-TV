@@ -19459,5 +19459,14 @@
   "updateDownloadCorrupt": "The downloaded update is incomplete or doesn't match the published one, so it wasn't installed. Please try again.",
   "@updateDownloadCorrupt": {
     "description": "Kos TV: the downloaded update APK doesn't match the size or SHA-256 the release lists, so it was deleted and not installed"
+    },
+  "kostvHomeBecauseLiked": "Because you like {title}",
+  "@kostvHomeBecauseLiked": {
+    "description": "Kos TV Home: row of titles liked by people who liked a favourite, or a title of their list, the person hasn't watched yet.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
   }
 }

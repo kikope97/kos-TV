@@ -43,9 +43,12 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   Jellyfin lo que cada persona ha visto (lo reciente pesa más) y sus favoritos, pregunta a TMDB
   qué gustó a quien le gustaron esos títulos (se guarda un mes en `kostv-home-tmdb.json`), se
   queda con lo que está en el servidor, la persona no ha visto y puede ver, y devuelve las
-  filas por páginas: «Porque viste…», «Porque estás viendo…», «Recomendado para ti», «Con
-  [alguien]», por género y las mejor valoradas, sin repetir títulos entre filas. Una fila
-  necesita 6 títulos. Usa la clave de TMDB del complemento; sin ella solo salen las de género
+  filas por páginas: «Porque viste…», «Porque estás viendo…», «Porque te gusta…» (un favorito
+  o algo de «Mi lista» que aún no ha visto; tipo `because_liked`, que las apps anteriores
+  enseñan como «Recomendado para ti»), «Recomendado para ti», «Con [alguien]», por género y
+  las mejor valoradas, sin repetir títulos entre filas ni con «Volver a ver». Una fila
+  necesita 6 títulos. Con `refresh` la página se rehace si la persona ha visto algo, si ha
+  llegado algo nuevo que pueda ver o si han cambiado sus favoritos. Usa la clave de TMDB del complemento; sin ella solo salen las de género
   y las mejor valoradas. En la pestaña «Direcciones» hay un botón que dice cuántas filas le
   salen a cada persona. A las apps se les avisa en `/Moonfin/Ping` (`kostvHome`).
 - **«Mi lista»** (`Jellyfin/backend/Kostv/KostvMyList.cs`): la lista de cada persona de lo que
@@ -65,7 +68,8 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   filas, resta peso a lo que TMDB encuentra parecido y un poco a sus géneros, y rehace su página.
   Con las primeras filas, `/Moonfin/Kostv/Home` devuelve además `NewEpisodes` (episodios sin ver
   añadidos en las dos últimas semanas de las series que la persona ha visto, uno por serie,
-  leídos en cada petición) y `Hidden` (los elementos de lo descartado, para las filas que monta
+  el primero de ellos y los especiales detrás; nada de una serie en la que va atrasada; leídos
+  en cada petición) y `Hidden` (los elementos de lo descartado, para las filas que monta
   la app).
 - **Favoritos** (`Jellyfin/backend/Kostv/KostvFavorites*.cs`): apunta el momento en que cada
   persona marca o quita un favorito, desde cualquier app o desde la web de Jellyfin

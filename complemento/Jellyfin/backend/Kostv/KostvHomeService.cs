@@ -168,8 +168,50 @@ public sealed class KostvHomeService
     private static readonly TimeSpan RewatchKeptFor = TimeSpan.FromMinutes(10);
     private readonly ConcurrentDictionary<Guid, (DateTime At, KostvMyListSections List)> _lists = new();
     private readonly ConcurrentDictionary<(Guid, int), (DateTime At, IReadOnlyList<BaseItem> Items)> _rewatch = new();
-    private readonly ConcurrentDictionary<Guid, Lazy<Task<KostvHomePage>>> _building = new();
+    private readonly ConcurrentDictionary<Guid, Building> _building = new();
     private readonly SemaphoreSlim _tmdbGate = new(4, 4);
+
+    // Kos TV: goes up whenever what a page is worked out from changes under it (what they turn
+    // down, their list), so a build that started before isn't kept or joined.
+    private readonly ConcurrentDictionary<Guid, int> _versions = new();
+
+    // A page is kept, or its version moved on, one at a time, so neither slips between the other.
+    private readonly object _keepLock = new();
+
+    // Kos TV: the TMDB titles Lookup asked the library for and didn't find, per person, so the
+    // same ones aren't asked again on every load. Short, so what just arrived still shows soon;
+    // forgotten when the page is worked out again.
+    private static readonly TimeSpan NotFoundKeptFor = TimeSpan.FromMinutes(3);
+    private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<string, DateTime>> _notFound = new();
+
+    // Kos TV: whether the person is behind a series whose new episode «Episodios nuevos» would
+    // offer, read for each Home: kept a little while.
+    private static readonly TimeSpan BehindKeptFor = TimeSpan.FromMinutes(5);
+    private readonly ConcurrentDictionary<(Guid User, Guid Episode), (DateTime At, bool Behind)> _behind = new();
+
+    // The longest a list of episodes of many series is read in one query. When a query comes
+    // back this full, what it may have cut off is asked one series at a time.
+    private const int BulkLimit = 5000;
+
+    // Kos TV: ILibraryManager.GetItemIds, bound by reflection so a server without it reads the
+    // items instead.
+    private static readonly MethodInfo? GetItemIdsMethod = typeof(ILibraryManager)
+        .GetMethods()
+        .FirstOrDefault(m =>
+            m.Name == "GetItemIds" &&
+            m.GetParameters() is [{ ParameterType: var type }] &&
+            type == typeof(InternalItemsQuery) &&
+            typeof(IEnumerable<Guid>).IsAssignableFrom(m.ReturnType));
+
+    /// <summary>A build of a person's page under way, and the version it was started on.</summary>
+    private sealed class Building
+    {
+        public Building(int version) => Version = version;
+
+        public int Version { get; }
+
+        public Lazy<Task<KostvHomePage>> Page { get; set; } = null!;
+    }
 
     public KostvHomeService(
         ILibraryManager libraryManager,
@@ -208,48 +250,99 @@ public sealed class KostvHomeService
         {
             var age = DateTimeOffset.UtcNow - page.BuiltAt;
             // Asked to work it out again: only when the person has watched something since,
-            // which one small query tells. The apps ask every time Home comes back up.
-            if (refresh ? age < StaleLife && HistoryStamp(user) == page.Stamp : age < PageLife)
+            // something arrived or their favourites changed, which a few small queries tell.
+            // The apps ask every time Home comes back up.
+            if (refresh ? age < StaleLife && FreshnessStamp(user) == page.Stamp : age < PageLife)
             {
                 return Task.FromResult(page);
             }
         }
 
         // Two apps asking at once share the one build. Lazy, and run off this thread, so the
-        // entry is in the map before the build can finish and take it out.
-        return _building.GetOrAdd(
+        // entry is in the map before the build can finish and take it out. Kos TV: not one
+        // started before what it is worked out from changed (see _versions).
+        var version = VersionOf(userId);
+        return _building.AddOrUpdate(
             userId,
-            _ => new Lazy<Task<KostvHomePage>>(() => Task.Run(() => BuildAndKeepAsync(userId, user)))).Value;
+            _ => NewBuilding(userId, user, version),
+            (_, had) => had.Version == version ? had : NewBuilding(userId, user, version)).Page.Value;
     }
 
-    /// <summary>The last thing the person played and when: changes when they watch something.</summary>
-    private string HistoryStamp(object user)
+    private int VersionOf(Guid userId) => _versions.GetValueOrDefault(userId);
+
+    /// <summary>
+    /// Kos TV: what the person's page was worked out from has changed (they turned something
+    /// down, or their list changed): the page kept goes, and a build under way isn't kept.
+    /// </summary>
+    private void Invalidate(Guid userId)
+    {
+        lock (_keepLock)
+        {
+            _versions.AddOrUpdate(userId, 1, (_, had) => unchecked(had + 1));
+            _pages.TryRemove(userId, out _);
+        }
+    }
+
+    private Building NewBuilding(Guid userId, object user, int version)
+    {
+        var building = new Building(version);
+        building.Page = new Lazy<Task<KostvHomePage>>(() => Task.Run(() => BuildAndKeepAsync(userId, user, building)));
+        return building;
+    }
+
+    /// <summary>
+    /// The last thing the person played and when, the latest arrival they can see and their
+    /// favourites: changes when they watch something, something arrives or they mark or unmark
+    /// a favourite.
+    /// </summary>
+    private string FreshnessStamp(object user)
     {
         var last = Query(user, [BaseItemKind.Movie, BaseItemKind.Episode], q => q.IsPlayed = true, 1, ItemSortBy.DatePlayed).FirstOrDefault();
-        return last == null ? "none" : $"{last.Id:N}:{LastPlayed(user, last)?.Ticks}";
+        var history = last == null ? "none" : $"{last.Id:N}:{LastPlayed(user, last)?.Ticks}";
+        var newest = Query(user, [BaseItemKind.Movie, BaseItemKind.Series], null, 1, ItemSortBy.DateCreated).FirstOrDefault();
+        var favorites = QueryIds(user, [BaseItemKind.Movie, BaseItemKind.Series], q => q.IsFavorite = true, 5000);
+        // Which ones, not only how many: the same in any order.
+        var sum = 0L;
+        foreach (var id in favorites)
+        {
+            sum += id.GetHashCode();
+        }
+
+        return $"{history}|{newest?.Id:N}:{newest?.DateCreated.Ticks}|{favorites.Count}:{sum:X}";
     }
 
-    private async Task<KostvHomePage> BuildAndKeepAsync(Guid userId, object user)
+    private async Task<KostvHomePage> BuildAndKeepAsync(Guid userId, object user, Building building)
     {
         try
         {
             var page = await BuildAsync(userId, user).ConfigureAwait(false);
-            _pages[userId] = page;
+            // Kos TV: not when what it was worked out from changed meanwhile; the next ask
+            // works it out again.
+            lock (_keepLock)
+            {
+                if (VersionOf(userId) == building.Version)
+                {
+                    _pages[userId] = page;
+                    _notFound.TryRemove(userId, out _);
+                }
+            }
+
             return page;
         }
         finally
         {
-            _building.TryRemove(userId, out _);
+            // Only this build's entry: a newer one may have taken its place.
+            _building.TryRemove(new KeyValuePair<Guid, Building>(userId, building));
         }
     }
 
     private async Task<KostvHomePage> BuildAsync(Guid userId, object user)
     {
         var now = DateTimeOffset.UtcNow;
-        var stamp = HistoryStamp(user);
-        var (library, items) = ReadLibrary(user);
+        var stamp = FreshnessStamp(user);
+        var (library, items, seen) = ReadLibrary(user);
         var listed = _myList.For(userId);
-        var (seeds, followed) = ReadSeeds(user, items, now, listed);
+        var (seeds, followed) = ReadSeeds(user, items, seen, now, listed);
         var dismissed = _dismissals.For(userId);
         var avoid = new List<KostvSeedFacts>();
 
@@ -295,8 +388,10 @@ public sealed class KostvHomeService
 
         // The day, and the person, so two people at home don't get the same shuffle.
         var day = (int)(now.ToUnixTimeSeconds() / 86400) + (userId.GetHashCode() & 0xFFFF);
-        // What is on their list they know about already: not offered again.
-        var onList = listed.Select(e => e.Key).OfType<string>().ToList();
+        // What is on their list they know about already: not offered again. Kos TV: nor the
+        // favourites «Volver a ver» offers, or may offer while this page stands, so a title isn't
+        // in both.
+        var onList = listed.Select(e => e.Key).OfType<string>().Concat(RewatchKeys(userId, user, items, seen, now)).ToList();
         var rows = KostvHomeEngine.Build(seeds, facts, credits, library, day, dismissed, avoid, onList);
         var index = new Dictionary<string, Guid>(StringComparer.Ordinal);
         foreach (var (id, item) in items)
@@ -327,7 +422,7 @@ public sealed class KostvHomeService
         if (undo ? _dismissals.Remove(userId, key) : _dismissals.Add(userId, key))
         {
             await _dismissals.FlushAsync().ConfigureAwait(false);
-            _pages.TryRemove(userId, out _);
+            Invalidate(userId);
         }
 
         return key;
@@ -350,7 +445,10 @@ public sealed class KostvHomeService
     /// favourites first, then the rest, each the latest arrival first. Read each time, so an
     /// episode shows as it lands. Also says which of those series are favourites.
     /// </summary>
-    public (IReadOnlyList<BaseItem> Episodes, IReadOnlySet<Guid> Favorites) NewEpisodes(object user, KostvHomePage page, int max = 20)
+    /// <remarks>Kos TV: of the regular episodes before the specials, and none of a series the
+    /// person is behind on (an episode before it unseen, not new): that isn't news to them, and
+    /// it would skip seasons.</remarks>
+    public (IReadOnlyList<BaseItem> Episodes, IReadOnlySet<Guid> Favorites) NewEpisodes(Guid userId, object user, KostvHomePage page, int max = 20)
     {
         var followed = page.Followed ?? new HashSet<Guid>();
         var favorites = FavoriteSeries(user);
@@ -390,18 +488,74 @@ public sealed class KostvHomeService
                 continue;
             }
 
-            var earlier = (episode.ParentIndexNumber ?? 0, episode.IndexNumber ?? 0).CompareTo(
-                (had.First.ParentIndexNumber ?? 0, had.First.IndexNumber ?? 0)) < 0;
+            var earlier = StoryOrder(episode).CompareTo(StoryOrder(had.First)) < 0;
             bySeries[seriesId] = (earlier ? episode : had.First, had.Latest > episode.DateCreated ? had.Latest : episode.DateCreated);
+        }
+
+        foreach (var (key, at) in _behind)
+        {
+            if (now - at.At >= BehindKeptFor)
+            {
+                _behind.TryRemove(key, out _);
+            }
         }
 
         var episodes = bySeries
             .OrderByDescending(kv => favorites.Contains(kv.Key))
             .ThenByDescending(kv => kv.Value.Latest)
+            .Select(kv => kv.Value.First)
+            .Where(episode => !IsBehind(userId, user, episode, now))
             .Take(max)
-            .Select(kv => (BaseItem)kv.Value.First)
+            .Select(episode => (BaseItem)episode)
             .ToList();
         return (episodes, favorites);
+    }
+
+    /// <summary>
+    /// Kos TV: where an episode stands in its series, the specials (season 0) after the rest, so
+    /// a special is only the first new one when nothing else is new.
+    /// </summary>
+    internal static (int Special, int Season, int Number) StoryOrder(int? season, int? number) =>
+        (season == 0 ? 1 : 0, season ?? 0, number ?? 0);
+
+    private static (int Special, int Season, int Number) StoryOrder(Episode episode) =>
+        StoryOrder(episode.ParentIndexNumber, episode.IndexNumber);
+
+    /// <summary>
+    /// Kos TV: whether, of the series of <paramref name="first"/>, the person hasn't seen an
+    /// episode before it (for a special, any regular one): then they are behind, and the new
+    /// one isn't news to them.
+    /// </summary>
+    internal static bool IsBehind((int Special, int Season, int Number) first, IEnumerable<(int Special, int Season, int Number)> unseen) =>
+        unseen.Any(other => first.Special == 1 ? other.Special == 0 || other.CompareTo(first) < 0 : other.Special == 0 && other.CompareTo(first) < 0);
+
+    private bool IsBehind(Guid userId, object user, Episode first, DateTime now)
+    {
+        var order = StoryOrder(first);
+        // Nothing comes before the first episode of the first season.
+        if (order is { Special: 0, Season: 1, Number: <= 1 })
+        {
+            return false;
+        }
+
+        if (_behind.TryGetValue((userId, first.Id), out var kept) && now - kept.At < BehindKeptFor)
+        {
+            return kept.Behind;
+        }
+
+        // The unseen ones in the order of the story: the earliest is all that is needed, with
+        // room for the specials, which come first.
+        var unseen = Query(user, [BaseItemKind.Episode], q =>
+            {
+                q.IsPlayed = false;
+                q.AncestorIds = [first.SeriesId];
+            }, 300, ascendingBy: [ItemSortBy.ParentIndexNumber, ItemSortBy.IndexNumber])
+            .OfType<Episode>()
+            .Where(e => e.Id != first.Id)
+            .Select(StoryOrder);
+        var behind = IsBehind(order, unseen);
+        _behind[(userId, first.Id)] = (now, behind);
+        return behind;
     }
 
     /// <summary>
@@ -430,7 +584,20 @@ public sealed class KostvHomeService
     /// </summary>
     public async Task<IReadOnlyList<(string Key, BaseItem Item)>> FindAsync(Guid userId, object user, IReadOnlyList<string> keys)
     {
-        var page = await GetAsync(userId, user, refresh: false).ConfigureAwait(false);
+        // Kos TV: the page kept, however old. Only its index is read here, and what isn't in it
+        // is asked of the library below; working the page out again is for Home's own rows,
+        // which decide when it's due.
+        var page = await GetAsync(userId, user, refresh: false, keep: true).ConfigureAwait(false);
+        var now = DateTime.UtcNow;
+        var missing = _notFound.GetOrAdd(userId, _ => new ConcurrentDictionary<string, DateTime>(StringComparer.Ordinal));
+        foreach (var (key, at) in missing)
+        {
+            if (now - at >= NotFoundKeptFor)
+            {
+                missing.TryRemove(key, out _);
+            }
+        }
+
         var found = new List<(string, BaseItem)>();
         foreach (var key in keys.Distinct())
         {
@@ -440,11 +607,19 @@ public sealed class KostvHomeService
             {
                 found.Add((key, item));
             }
+            else if (missing.ContainsKey(key))
+            {
+                // Kos TV: asked a moment ago and not there (or not for them).
+            }
             else if (FindByKey(key, user) is { } fresh)
             {
-                // Kos TV: arrived (or got a new id) since the index was made, up to 20
-                // minutes ago: the library itself is asked.
+                // Kos TV: arrived (or got a new id) since the index was made: the library
+                // itself is asked.
                 found.Add((key, fresh));
+            }
+            else
+            {
+                missing[key] = now;
             }
         }
 
@@ -454,7 +629,7 @@ public sealed class KostvHomeService
     // ---------------------------------------------------------------- the server
 
     /// <summary>Every film and series the person may see, and which of them they have seen.</summary>
-    private (List<KostvCandidate> Library, Dictionary<Guid, BaseItem> Items) ReadLibrary(object user)
+    private (List<KostvCandidate> Library, Dictionary<Guid, BaseItem> Items, HashSet<Guid> Seen) ReadLibrary(object user)
     {
         var items = new Dictionary<Guid, BaseItem>();
         var library = new List<KostvCandidate>();
@@ -493,28 +668,38 @@ public sealed class KostvHomeService
                 item.Genres ?? []));
         }
 
-        return (library, items);
+        return (library, items, seen);
     }
 
     /// <summary>What the person watched lately and what they marked as favourite, weighed.</summary>
-    private (List<KostvSeed> Seeds, HashSet<Guid> Followed) ReadSeeds(object user, Dictionary<Guid, BaseItem> items, DateTimeOffset now, IReadOnlyList<KostvMyListEntry> listed)
+    /// <remarks>Kos TV: <paramref name="seen"/> tells the favourites and titles of their list they
+    /// have watched, so only those make a "because you watched" row.</remarks>
+    private (List<KostvSeed> Seeds, HashSet<Guid> Followed) ReadSeeds(object user, Dictionary<Guid, BaseItem> items, HashSet<Guid> seen, DateTimeOffset now, IReadOnlyList<KostvMyListEntry> listed)
     {
         var seeds = new Dictionary<string, KostvSeed>(StringComparer.Ordinal);
 
-        void Add(BaseItem item, KostvSeedKind kind, double weight)
+        void Add(BaseItem item, KostvSeedKind kind, double weight, bool watched)
         {
             var key = KeyOf(item);
-            if (key == null || (seeds.TryGetValue(key, out var had) && had.Weight >= weight))
+            if (key == null)
             {
                 return;
             }
 
-            seeds[key] = new KostvSeed(key, item.Id.ToString("N"), item.Name, item is Series, kind, weight);
+            seeds.TryGetValue(key, out var had);
+            if (had != null && had.Weight >= weight)
+            {
+                return;
+            }
+
+            // A favourite that weighs more than its watch was still watched.
+            watched |= had is { Seen: true } or { Kind: not KostvSeedKind.Liked };
+            seeds[key] = new KostvSeed(key, item.Id.ToString("N"), item.Name, item is Series, kind, weight, watched);
         }
 
         foreach (var movie in Query(user, [BaseItemKind.Movie], q => q.IsPlayed = true, 40, ItemSortBy.DatePlayed))
         {
-            Add(movie, KostvSeedKind.Finished, KostvHomeEngine.Recency(DaysSince(LastPlayed(user, movie), now)));
+            Add(movie, KostvSeedKind.Finished, KostvHomeEngine.Recency(DaysSince(LastPlayed(user, movie), now)), true);
         }
 
         // Episodes come newest first, so the first of each series is its latest.
@@ -545,12 +730,12 @@ public sealed class KostvHomeService
                 q.IsPlayed = false;
                 q.AncestorIds = [seriesId];
             }, 1).Any();
-            Add(show, unwatched ? KostvSeedKind.Watching : KostvSeedKind.Finished, weight);
+            Add(show, unwatched ? KostvSeedKind.Watching : KostvSeedKind.Finished, weight, true);
         }
 
         foreach (var liked in Query(user, [BaseItemKind.Movie, BaseItemKind.Series], q => q.IsFavorite = true, 30))
         {
-            Add(liked, KostvSeedKind.Liked, 0.35);
+            Add(liked, KostvSeedKind.Liked, 0.35, seen.Contains(liked.Id));
         }
 
         // What they put on their list says as much of their taste as a favourite.
@@ -558,7 +743,7 @@ public sealed class KostvHomeService
         {
             if (Guid.TryParse(entry.ItemId, out var id) && items.TryGetValue(id, out var wanted))
             {
-                Add(wanted, KostvSeedKind.Liked, 0.35);
+                Add(wanted, KostvSeedKind.Liked, 0.35, seen.Contains(wanted.Id));
             }
         }
 
@@ -570,24 +755,10 @@ public sealed class KostvHomeService
         BaseItemKind[] kinds,
         Action<InternalItemsQuery>? filter,
         int? limit = null,
-        ItemSortBy? newestBy = null)
+        ItemSortBy? newestBy = null,
+        ItemSortBy[]? ascendingBy = null)
     {
-        var query = new InternalItemsQuery
-        {
-            IncludeItemTypes = kinds,
-            IsVirtualItem = false,
-            Recursive = true,
-            Limit = limit,
-            EnableTotalRecordCount = false
-        };
-        filter?.Invoke(query);
-        if (newestBy.HasValue)
-        {
-            OrderDescending(query, newestBy.Value);
-        }
-
-        // Without the person's limits applied nothing is read, rather than everything.
-        if (!UserReflection.ApplyUser(query, user))
+        if (MakeQuery(user, kinds, filter, limit, newestBy, ascendingBy) is not { } query)
         {
             return [];
         }
@@ -603,8 +774,63 @@ public sealed class KostvHomeService
         }
     }
 
+    /// <summary>
+    /// Kos TV: the ids of what <see cref="Query"/> would read, without reading the items when the
+    /// server can say just the ids.
+    /// </summary>
+    private IReadOnlyList<Guid> QueryIds(object user, BaseItemKind[] kinds, Action<InternalItemsQuery>? filter, int? limit = null)
+    {
+        if (GetItemIdsMethod != null && MakeQuery(user, kinds, filter, limit, null, null) is { } query)
+        {
+            try
+            {
+                if (GetItemIdsMethod.Invoke(_libraryManager, [query]) is IEnumerable<Guid> ids)
+                {
+                    return ids.ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "kOS TV home: the ids could not be read alone");
+            }
+        }
+
+        return Query(user, kinds, filter, limit).Select(i => i.Id).ToList();
+    }
+
+    /// <summary>The query for the person, or null when their limits can't be applied.</summary>
+    private static InternalItemsQuery? MakeQuery(
+        object user,
+        BaseItemKind[] kinds,
+        Action<InternalItemsQuery>? filter,
+        int? limit,
+        ItemSortBy? newestBy,
+        ItemSortBy[]? ascendingBy)
+    {
+        var query = new InternalItemsQuery
+        {
+            IncludeItemTypes = kinds,
+            IsVirtualItem = false,
+            Recursive = true,
+            Limit = limit,
+            EnableTotalRecordCount = false
+        };
+        filter?.Invoke(query);
+        if (newestBy.HasValue)
+        {
+            Order(query, "Descending", newestBy.Value);
+        }
+        else if (ascendingBy is { Length: > 0 })
+        {
+            Order(query, "Ascending", ascendingBy);
+        }
+
+        // Without the person's limits applied nothing is read, rather than everything.
+        return UserReflection.ApplyUser(query, user) ? query : null;
+    }
+
     // The tuple type of OrderBy changed between server versions, so it is built by reflection.
-    private static void OrderDescending(InternalItemsQuery query, ItemSortBy sortBy)
+    private static void Order(InternalItemsQuery query, string sortOrder, params ItemSortBy[] sortBy)
     {
         if (OrderByProperty == null)
         {
@@ -615,8 +841,13 @@ public sealed class KostvHomeService
         {
             var elementType = OrderByProperty.PropertyType.GetGenericArguments()[0];
             var sortOrderType = elementType.GetGenericArguments()[1];
-            var array = Array.CreateInstance(elementType, 1);
-            array.SetValue(Activator.CreateInstance(elementType, sortBy, Enum.Parse(sortOrderType, "Descending")), 0);
+            var order = Enum.Parse(sortOrderType, sortOrder);
+            var array = Array.CreateInstance(elementType, sortBy.Length);
+            for (var i = 0; i < sortBy.Length; i++)
+            {
+                array.SetValue(Activator.CreateInstance(elementType, sortBy[i], order), i);
+            }
+
             OrderByProperty.SetValue(query, array);
         }
         catch
@@ -766,6 +997,34 @@ public sealed class KostvHomeService
         return items;
     }
 
+    /// <summary>
+    /// Kos TV: the TMDB titles of the favourites not started that «Volver a ver» offers, or will
+    /// while a page worked out now stands (<see cref="StaleLife"/>), so the recommendations leave
+    /// them out. Those watched long ago it offers are seen, out of them already.
+    /// </summary>
+    private List<string> RewatchKeys(Guid userId, object user, Dictionary<Guid, BaseItem> items, HashSet<Guid> seen, DateTimeOffset now)
+    {
+        var since = _favorites.Since(userId);
+        var remindBy = now - KostvFavoritesEngine.RemindAfter + StaleLife;
+        var keys = new List<string>();
+        foreach (var favorite in Query(user, [BaseItemKind.Movie, BaseItemKind.Series], q => q.IsFavorite = true, 2000))
+        {
+            // Started, as «Volver a ver» tells it: an episode watched, or the film begun.
+            if (!items.ContainsKey(favorite.Id) ||
+                seen.Contains(favorite.Id) ||
+                (favorite is not Series && UserDataOf(user, favorite) is { Played: true } or { PlaybackPositionTicks: > 0 }) ||
+                (since.TryGetValue(favorite.Id.ToString("N"), out var at) && at >= remindBy) ||
+                KeyOf(favorite) is not { } key)
+            {
+                continue;
+            }
+
+            keys.Add(key);
+        }
+
+        return keys;
+    }
+
     private IReadOnlyList<BaseItem> RewatchUncached(Guid userId, object user, int max)
     {
         var since = _favorites.Since(userId);
@@ -837,7 +1096,7 @@ public sealed class KostvHomeService
         {
             await _myList.FlushAsync().ConfigureAwait(false);
             // What is on the list leaves the recommendations, and the other way round.
-            _pages.TryRemove(userId, out _);
+            Invalidate(userId);
             _lists.TryRemove(userId, out _);
         }
 
@@ -867,6 +1126,7 @@ public sealed class KostvHomeService
         var watched = new List<(BaseItem Item, DateTime When)>();
         var gone = new List<string>();
         var moved = false;
+        var visible = new List<(KostvMyListEntry Entry, BaseItem Item)>();
         foreach (var entry in _myList.For(userId))
         {
             if (!Guid.TryParse(entry.ItemId, out var id) || _libraryManager.GetItemById(id) is not { } item)
@@ -886,12 +1146,17 @@ public sealed class KostvHomeService
                 }
             }
 
-            if (!UserReflection.IsVisibleStandaloneTo(item, user))
+            if (UserReflection.IsVisibleStandaloneTo(item, user))
             {
-                continue;
+                visible.Add((entry, item));
             }
+        }
 
-            var (state, when) = Progress(user, item);
+        // Kos TV: how far they are with all of them at once, not a few queries per series.
+        var progress = ProgressOf(user, visible.Select(v => v.Item).ToList());
+        foreach (var (entry, item) in visible)
+        {
+            var (state, when) = progress[item.Id];
             switch (state)
             {
                 case KostvListState.Watching:
@@ -931,7 +1196,7 @@ public sealed class KostvHomeService
         if (removed > 0)
         {
             await _myList.FlushAsync().ConfigureAwait(false);
-            _pages.TryRemove(userId, out _);
+            Invalidate(userId);
             _lists.TryRemove(userId, out _);
         }
 
@@ -942,15 +1207,18 @@ public sealed class KostvHomeService
     public IReadOnlyList<string> MyListIds(Guid userId) => _myList.For(userId).Select(e => e.ItemId).ToList();
 
     /// <summary>
-    /// How far the person is with a film or series of their list, and when they last watched it.
-    /// A series is watched when nothing of it is left unseen, so a new season brings it back.
+    /// How far the person is with each film or series of their list, and when they last watched
+    /// it. A series is watched when nothing of it is left unseen, so a new season brings it back.
     /// </summary>
-    private (KostvListState State, DateTime? When) Progress(object user, BaseItem item)
+    /// <remarks>Kos TV: the episodes of all the series are read in three queries, not three per
+    /// series.</remarks>
+    private Dictionary<Guid, (KostvListState State, DateTime? When)> ProgressOf(object user, IReadOnlyList<BaseItem> items)
     {
-        if (item is not Series)
+        var progress = new Dictionary<Guid, (KostvListState, DateTime?)>();
+        foreach (var item in items.Where(i => i is not Series))
         {
             var data = UserDataOf(user, item);
-            return data switch
+            progress[item.Id] = data switch
             {
                 { Played: true } => (KostvListState.Watched, data.LastPlayedDate),
                 { PlaybackPositionTicks: > 0 } => (KostvListState.Watching, data.LastPlayedDate),
@@ -958,31 +1226,76 @@ public sealed class KostvHomeService
             };
         }
 
-        var lastPlayed = Query(user, [BaseItemKind.Episode], q =>
+        var series = items.OfType<Series>().Select(s => s.Id).Distinct().ToArray();
+        if (series.Length == 0)
         {
-            q.IsPlayed = true;
-            q.AncestorIds = [item.Id];
-        }, 1, ItemSortBy.DatePlayed).FirstOrDefault();
-        var partway = Query(user, [BaseItemKind.Episode], q =>
-        {
-            q.IsResumable = true;
-            q.AncestorIds = [item.Id];
-        }, 1, ItemSortBy.DatePlayed).FirstOrDefault();
-        if (lastPlayed == null && partway == null)
-        {
-            return (KostvListState.ToStart, null);
+            return progress;
         }
 
-        var when = new[] { lastPlayed, partway }
-            .Where(e => e != null)
-            .Select(e => LastPlayed(user, e!))
-            .Max();
-        var left = Query(user, [BaseItemKind.Episode], q =>
+        // The last watched and the last part way of each, newest first: the first of each series.
+        var lastPlayed = FirstOfEachSeries(user, series, q => q.IsPlayed = true, ItemSortBy.DatePlayed);
+        var partway = FirstOfEachSeries(user, series, q => q.IsResumable = true, ItemSortBy.DatePlayed);
+        var started = series.Where(id => lastPlayed[id] != null || partway[id] != null).ToArray();
+        var left = FirstOfEachSeries(user, started, q => q.IsPlayed = false, null);
+        foreach (var id in series)
         {
-            q.IsPlayed = false;
-            q.AncestorIds = [item.Id];
-        }, 1).Any();
-        return (left ? KostvListState.Watching : KostvListState.Watched, when);
+            if (lastPlayed[id] == null && partway[id] == null)
+            {
+                progress[id] = (KostvListState.ToStart, null);
+                continue;
+            }
+
+            var when = new[] { lastPlayed[id], partway[id] }
+                .Where(e => e != null)
+                .Select(e => LastPlayed(user, e!))
+                .Max();
+            progress[id] = (left[id] != null ? KostvListState.Watching : KostvListState.Watched, when);
+        }
+
+        return progress;
+    }
+
+    /// <summary>
+    /// Kos TV: for each of <paramref name="series"/>, the first of its episodes that
+    /// <paramref name="filter"/> keeps (newest by <paramref name="newestBy"/>), or null when it
+    /// has none. One query for all; if that comes back full, the series it may have cut off are
+    /// asked alone.
+    /// </summary>
+    private Dictionary<Guid, BaseItem?> FirstOfEachSeries(object user, Guid[] series, Action<InternalItemsQuery> filter, ItemSortBy? newestBy)
+    {
+        var first = series.ToDictionary(id => id, _ => (BaseItem?)null);
+        if (series.Length == 0)
+        {
+            return first;
+        }
+
+        var read = 0;
+        foreach (var item in Query(user, [BaseItemKind.Episode], q =>
+            {
+                filter(q);
+                q.AncestorIds = series;
+            }, BulkLimit, newestBy))
+        {
+            read++;
+            if (item is Episode { SeriesId: var seriesId } && first.TryGetValue(seriesId, out var had) && had == null)
+            {
+                first[seriesId] = item;
+            }
+        }
+
+        if (read >= BulkLimit)
+        {
+            foreach (var id in series.Where(id => first[id] == null))
+            {
+                first[id] = Query(user, [BaseItemKind.Episode], q =>
+                {
+                    filter(q);
+                    q.AncestorIds = [id];
+                }, 1, newestBy).FirstOrDefault();
+            }
+        }
+
+        return first;
     }
 
     // Played with no date known: taken as a couple of months ago.

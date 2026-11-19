@@ -20059,4 +20059,9 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get updateDownloadCorrupt =>
       'La actualización descargada está incompleta o no coincide con la publicada, así que no se ha instalado. Inténtalo de nuevo.';
+
+  @override
+  String kostvHomeBecauseLiked(String title) {
+    return 'Porque te gusta $title';
+  }
 }
