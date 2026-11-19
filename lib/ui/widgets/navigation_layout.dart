@@ -157,6 +157,18 @@ class _NavigationLayoutState extends State<NavigationLayout>
   late BottomNavbarStyle _bottomStyle;
   bool _keyboardVisible = false;
 
+  // Kos TV: off the TV the top bar stays put, so a page scrolled under it
+  // runs its cards right behind the avatar and the buttons. A soft shade
+  // behind the bar comes in once the page leaves its top, and goes back at
+  // the top, where the banners and backdrops look as they always did. The
+  // vertical scrollables of the page that are past their top, by context.
+  final _scrolledScrollables = <BuildContext>{};
+  final _contentScrolled = ValueNotifier<bool>(false);
+  late final Listenable _scrollShadeListenable = Listenable.merge([
+    _contentScrolled,
+    NavigationLayout.trailerChromeListenable,
+  ]);
+
   // Split shrinks while the user scrolls down and comes back on the way up.
   // The flag only flips at the thresholds, so scrolling rebuilds nothing.
   final _bottomMinimized = ValueNotifier<bool>(false);
@@ -207,7 +219,29 @@ class _NavigationLayoutState extends State<NavigationLayout>
   @override
   void didUpdateWidget(NavigationLayout oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.activeRoute != widget.activeRoute) _expandBottomBar();
+    if (oldWidget.activeRoute != widget.activeRoute) {
+      _expandBottomBar();
+      _scrolledScrollables.clear();
+      _contentScrolled.value = false;
+    }
+  }
+
+  bool _onToolbarContentScroll(ScrollNotification n) {
+    // Rows of cards scroll sideways, and a box scrolling inside a card isn't
+    // the page.
+    if (n.metrics.axis != Axis.vertical || n.depth > 1) return false;
+    final scrollable = n.context;
+    if (scrollable == null) return false;
+    if (n.metrics.pixels > n.metrics.minScrollExtent + 0.5) {
+      _scrolledScrollables.add(scrollable);
+    } else {
+      _scrolledScrollables.remove(scrollable);
+    }
+    // A list that was swapped out (a page done loading) says no more.
+    _scrolledScrollables.removeWhere((c) => !c.mounted);
+    final scrolled = _scrolledScrollables.isNotEmpty;
+    if (scrolled != _contentScrolled.value) _contentScrolled.value = scrolled;
+    return false;
   }
 
   // Home stays mounted under whatever it pushes, so coming back to it, or
@@ -260,6 +294,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
   void dispose() {
     if (_observedRoute != null) routeLifecycleObserver.unsubscribe(this);
     _bottomMinimized.dispose();
+    _contentScrolled.dispose();
     _prefs.removeListener(_onPrefsChanged);
     if (GetIt.instance.isRegistered<PluginSyncService>()) {
       GetIt.instance<PluginSyncService>().removeListener(_onPrefsChanged);
@@ -426,6 +461,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
 
   Widget _buildToolbar() {
     final translateWithScroll = PlatformDetection.isTV && !widget.pinTopToolbar;
+    final shadeOnScroll = !PlatformDetection.isTV;
     final content = _content;
     final toolbar = ListenableBuilder(
       listenable: NavigationLayout.trailerChromeListenable,
@@ -465,6 +501,11 @@ class _NavigationLayoutState extends State<NavigationLayout>
             },
             child: content,
           )
+        : shadeOnScroll
+        ? NotificationListener<ScrollNotification>(
+            onNotification: _onToolbarContentScroll,
+            child: content,
+          )
         : content;
     final musicExtra = TopToolbar.musicBarExtraHeight();
     final insetBody = (widget.pinTopToolbar && musicExtra > 0)
@@ -479,6 +520,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
           child: Stack(
             children: [
               Positioned.fill(child: insetBody),
+              if (shadeOnScroll) _buildScrollShade(maxTranslate),
               if (translateWithScroll)
                 ValueListenableBuilder<bool>(
                   valueListenable: TopToolbar.isFocusedNotifier,
@@ -529,6 +571,56 @@ class _NavigationLayoutState extends State<NavigationLayout>
         ),
         const DownloadProgressBar(),
       ],
+    );
+  }
+
+  /// Kos TV: the shade behind the top bar while the page is scrolled under
+  /// it: a plain gradient (no blur), on its own layer so fading it in
+  /// doesn't repaint the page.
+  Widget _buildScrollShade(double toolbarHeight) {
+    final barBottom = MediaQuery.paddingOf(context).top + toolbarHeight;
+    const fade = 40.0;
+    return Positioned(
+      left: 0,
+      right: 0,
+      top: 0,
+      height: barBottom + fade,
+      child: IgnorePointer(
+        child: RepaintBoundary(
+          child: ListenableBuilder(
+            listenable: _scrollShadeListenable,
+            builder: (context, _) {
+              final on =
+                  _contentScrolled.value &&
+                  widget.showNavigationChrome &&
+                  !NavigationLayout.trailerHidesChrome;
+              return TweenAnimationBuilder<double>(
+                tween: Tween<double>(end: on ? 1.0 : 0.0),
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOut,
+                builder: (context, t, _) {
+                  if (t <= 0) return const SizedBox.expand();
+                  return DecoratedBox(
+                    key: const ValueKey('kostvToolbarScrollShade'),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withValues(alpha: 0.82 * t),
+                          Colors.black.withValues(alpha: 0.6 * t),
+                          Colors.black.withValues(alpha: 0),
+                        ],
+                        stops: [0.0, barBottom / (barBottom + fade), 1.0],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ),
     );
   }
 

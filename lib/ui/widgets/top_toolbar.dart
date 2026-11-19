@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../screens/music/kostv_music_widgets.dart' show kostvMusicColor;
@@ -1310,8 +1311,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
       ].join(','),
       _wrapPill(
         isNeon: isNeon,
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        child: ToolbarPillScroll(
           child: _withCapsule(Row(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2145,6 +2145,128 @@ class _TopMusicBarState extends State<TopMusicBar> {
         ),
       ),
     );
+  }
+}
+
+/// Kos TV: the menu's buttons, scrolling sideways when they don't fit (a
+/// phone). The side with buttons out of sight fades out, so a button cut in
+/// half reads as "there is more"; with everything in view nothing changes.
+/// A mouse can drag it and its wheel scrolls it, as a finger does.
+@visibleForTesting
+class ToolbarPillScroll extends StatefulWidget {
+  const ToolbarPillScroll({super.key, required this.child});
+
+  final Widget child;
+
+  /// How far the fade reaches in from an edge with buttons beyond it.
+  static const fadeWidth = 28.0;
+
+  @override
+  State<ToolbarPillScroll> createState() => ToolbarPillScrollState();
+}
+
+@visibleForTesting
+class ToolbarPillScrollState extends State<ToolbarPillScroll> {
+  final _controller = ScrollController();
+
+  // Keeps the scroll view (and where it was scrolled to) when the fade
+  // comes or goes around it.
+  final _scrollKey = GlobalKey(debugLabel: 'toolbarPillScroll');
+
+  /// Whether there are buttons hidden before the start and past the end.
+  bool hiddenBefore = false;
+  bool hiddenAfter = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_update);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _update());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _update() {
+    if (!mounted || !_controller.hasClients) return;
+    final position = _controller.position;
+    if (!position.hasContentDimensions) return;
+    final before = position.pixels > position.minScrollExtent + 0.5;
+    final after = position.pixels < position.maxScrollExtent - 0.5;
+    if (before == hiddenBefore && after == hiddenAfter) return;
+    setState(() {
+      hiddenBefore = before;
+      hiddenAfter = after;
+    });
+  }
+
+  // A wheel that only turns up and down (most mice) scrolls the buttons
+  // sideways; nothing else under the bar listens to it.
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent) return;
+    if (event.scrollDelta.dx != 0 || event.scrollDelta.dy == 0) return;
+    if (!_controller.hasClients) return;
+    final position = _controller.position;
+    if (position.maxScrollExtent <= position.minScrollExtent) return;
+    GestureBinding.instance.pointerSignalResolver.register(event, (event) {
+      final delta = (event as PointerScrollEvent).scrollDelta.dy;
+      final target = (position.pixels + delta)
+          .clamp(position.minScrollExtent, position.maxScrollExtent)
+          .toDouble();
+      if (target != position.pixels) position.jumpTo(target);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget scroll = NotificationListener<ScrollMetricsNotification>(
+      onNotification: (_) {
+        _update();
+        return false;
+      },
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            ...ScrollConfiguration.of(context).dragDevices,
+            PointerDeviceKind.mouse,
+          },
+        ),
+        child: SingleChildScrollView(
+          key: _scrollKey,
+          controller: _controller,
+          scrollDirection: Axis.horizontal,
+          child: widget.child,
+        ),
+      ),
+    );
+    if (hiddenBefore || hiddenAfter) {
+      final rtl = Directionality.of(context) == TextDirection.rtl;
+      final fadeLeft = rtl ? hiddenAfter : hiddenBefore;
+      final fadeRight = rtl ? hiddenBefore : hiddenAfter;
+      scroll = ShaderMask(
+        key: const ValueKey('toolbarPillFade'),
+        blendMode: BlendMode.dstIn,
+        shaderCallback: (bounds) {
+          final f = bounds.width <= 0
+              ? 0.0
+              : (ToolbarPillScroll.fadeWidth / bounds.width).clamp(0.0, 0.5);
+          return LinearGradient(
+            colors: [
+              fadeLeft ? Colors.transparent : Colors.black,
+              Colors.black,
+              Colors.black,
+              fadeRight ? Colors.transparent : Colors.black,
+            ],
+            stops: [0.0, f, 1.0 - f, 1.0],
+          ).createShader(bounds);
+        },
+        child: scroll,
+      );
+    }
+    return Listener(onPointerSignal: _onPointerSignal, child: scroll);
   }
 }
 
