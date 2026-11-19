@@ -27,3 +27,24 @@ usuario. Norma de siempre: ninguna función se pierde ni va a peor.
 |---|---|---|
 | 1 | revisada (43 hallazgos comprobados), esperando visto bueno | — |
 | 2–10 | — | — |
+
+## Cómo se trabaja
+
+Lo obvio (fallos claros, sin perder funciones ni cambiar ajustes) se arregla
+directamente. Solo lo que de verdad es una elección del usuario se apunta abajo
+y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
+
+## Decisiones para el final
+
+### Bloque 1
+- **PIN propio del control parental.** Hoy «Control parental» se protege con
+  el PIN de entrar al perfil, que quien usa el perfil conoce: un adolescente
+  puede quitar el filtro del aparato (el límite de su cuenta de Jellyfin sigue).
+  Recomendación: un PIN aparte solo para el control parental.
+- **Tokens de sesión sin cifrar** en el almacenamiento normal (el seguro está
+  preparado pero no se escribe). Riesgo bajo: Android no copia esos datos.
+  Recomendación: dejarlo; moverlos puede cerrar la sesión a toda la familia si
+  la migración falla.
+- (Para saber, no hay nada que decidir) En la web el modo infantil y su PIN
+  viven en el navegador y se pueden borrar con sus herramientas: en la web es
+  más débil que en la tele.
