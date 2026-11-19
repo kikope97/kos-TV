@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -14,6 +15,7 @@ import 'package:moonfin/ui/screens/livetv/epg/widgets/epg_hero_preview.dart';
 import 'package:moonfin/ui/screens/livetv/guide/guide_window.dart';
 import 'package:moonfin/ui/screens/livetv/guide/guide_layout_profile.dart';
 import 'package:moonfin/ui/screens/livetv/live_tv_guide_screen.dart';
+import 'package:moonfin/util/platform_detection.dart';
 import 'package:server_core/server_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -391,5 +393,36 @@ void main() {
     final chip = tester.getRect(find.text(l10n.favorites));
     expect(chip.left, greaterThanOrEqualTo(rail.left - 1));
     expect(chip.right, lessThanOrEqualTo(rail.right + 1));
+  });
+
+  group('the phone guide header', () {
+    setUp(() => PlatformDetection.setInterfaceLayout(InterfaceLayout.phone));
+    tearDown(
+      () => PlatformDetection.setInterfaceLayout(InterfaceLayout.automatic),
+    );
+
+    testWidgets('on a narrow phone the buttons go under the whole title', (
+      tester,
+    ) async {
+      final l10n = await pumpGuide(tester, surface: const Size(393, 852));
+
+      final title = find.text(l10n.liveTv);
+      final paragraph = tester.renderObject<RenderParagraph>(title);
+      expect(paragraph.didExceedMaxLines, isFalse);
+      expect(
+        tester.getRect(find.byIcon(Icons.sort)).top,
+        greaterThanOrEqualTo(tester.getRect(title).bottom),
+      );
+      expect(find.byIcon(Icons.fiber_dvr), findsOneWidget);
+    });
+
+    testWidgets('where everything fits it stays on one line', (tester) async {
+      final l10n = await pumpGuide(tester, surface: const Size(700, 900));
+
+      final title = tester.getRect(find.text(l10n.liveTv));
+      final sort = tester.getRect(find.byIcon(Icons.sort));
+      expect(sort.top, lessThan(title.bottom));
+      expect(sort.left, greaterThan(title.right));
+    });
   });
 }

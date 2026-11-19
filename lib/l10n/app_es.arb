@@ -15572,5 +15572,26 @@
                 "type": "int"
             }
         }
+    },
+    "kostvRecordingsCount": "{count, plural, =1{1 grabación} other{{count} grabaciones}}",
+    "@kostvRecordingsCount": {
+        "description": "Kos TV recordings page: how many recordings there are, under the title.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvRecordingsEmptyHint": "Elige un programa en la guía de TV y pulsa «Grabar».",
+    "@kostvRecordingsEmptyHint": {
+        "description": "Kos TV recordings page: the line under 'no recordings', saying how to record."
+    },
+    "kostvScheduledEmptyHint": "Lo que vayas a grabar sale aquí, ordenado por días.",
+    "@kostvScheduledEmptyHint": {
+        "description": "Kos TV recordings page: the line under 'no scheduled recordings'."
+    },
+    "kostvSeriesRecordingsEmptyHint": "Elige un programa en la guía de TV y pulsa «Grabar serie» para grabar todos sus episodios.",
+    "@kostvSeriesRecordingsEmptyHint": {
+        "description": "Kos TV recordings page: the line under 'no series recordings', saying how to record a series."
     }
 }

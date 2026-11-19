@@ -36038,6 +36038,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{hours}h'**
   String kostvRuntimeHours(int hours);
+
+  /// Kos TV recordings page: how many recordings there are, under the title.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 recording} other{{count} recordings}}'**
+  String kostvRecordingsCount(int count);
+
+  /// Kos TV recordings page: the line under 'no recordings', saying how to record.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a programme in the TV guide and choose Record.'**
+  String get kostvRecordingsEmptyHint;
+
+  /// Kos TV recordings page: the line under 'no scheduled recordings'.
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s set to record shows up here, day by day.'**
+  String get kostvScheduledEmptyHint;
+
+  /// Kos TV recordings page: the line under 'no series recordings', saying how to record a series.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a programme in the TV guide and choose Record Series to record every episode.'**
+  String get kostvSeriesRecordingsEmptyHint;
 }
 
 class _AppLocalizationsDelegate

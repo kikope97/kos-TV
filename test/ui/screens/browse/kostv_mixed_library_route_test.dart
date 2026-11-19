@@ -83,4 +83,58 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('catalogue'), findsOneWidget);
   });
+
+  group('an address without the library type or name', () {
+    Widget lookup(
+      Future<KostvLibraryFacts?> Function() lookUp, {
+      void Function(BuildContext, String)? openElsewhere,
+    }) => MaterialApp(
+      home: KostvLibraryLookupRoute(
+        libraryId: 'lib1',
+        serverId: null,
+        lookUp: lookUp,
+        openElsewhere: openElsewhere,
+        found: (_, kind, title) => Text('catalogue $kind $title'),
+        oldPage: (_) => const Text('old page'),
+      ),
+    );
+
+    testWidgets('a library of films opens as its button opens it', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        lookup(() async => (collectionType: 'Movies', name: 'Películas')),
+      );
+      expect(find.text('old page'), findsNothing);
+      await tester.pumpAndSettle();
+      expect(find.text('catalogue movies Películas'), findsOneWidget);
+    });
+
+    testWidgets('a music library opens its own page instead', (tester) async {
+      String? opened;
+      await tester.pumpWidget(
+        lookup(
+          () async => (collectionType: 'music', name: 'Música'),
+          openElsewhere: (_, route) => opened = route,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(opened, '/music/lib1');
+      expect(find.text('old page'), findsNothing);
+    });
+
+    testWidgets('a library that is not found keeps the old page', (
+      tester,
+    ) async {
+      await tester.pumpWidget(lookup(() async => null));
+      await tester.pumpAndSettle();
+      expect(find.text('old page'), findsOneWidget);
+    });
+
+    testWidgets('a failed lookup keeps the old page', (tester) async {
+      await tester.pumpWidget(lookup(() async => throw Exception('offline')));
+      await tester.pumpAndSettle();
+      expect(find.text('old page'), findsOneWidget);
+    });
+  });
 }

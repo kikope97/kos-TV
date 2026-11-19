@@ -113,6 +113,8 @@ import '../../widgets/watch_party/watch_party_home_card.dart';
 import '../watch_party/silo_watch_party_screen.dart';
 import '../watch_party/watch_together_route.dart';
 import '../syncplay/syncplay_screen.dart';
+import '../../widgets/horizontal_scroll_section.dart'
+    show RowHeaderArrows, RowMetricsSignal;
 import '../../widgets/skeleton/skeleton_home_row.dart';
 import '../../widgets/skeleton/skeleton_shimmer.dart';
 import '../../../util/episode_code.dart';
@@ -927,6 +929,8 @@ class _ContentRowsState extends State<_ContentRows>
   final Map<String, GlobalKey> _rowKeys = {};
   final Map<String, GlobalKey> _rowContainerKeys = {};
   final Map<String, ScrollController> _rowHorizontalControllers = {};
+  // Kos TV: tells the rows' header arrows a row's sizes changed.
+  final _rowMetricsChanged = RowMetricsSignal();
   final Map<String, RowGlide> _rowGlides = {};
   final Map<String, double> _rowHorizontalOffsetsById = {};
   List<HomeRow>? _cachedExtentRows;
@@ -1769,6 +1773,7 @@ class _ContentRowsState extends State<_ContentRows>
       controller.dispose();
     }
     _rowHorizontalControllers.clear();
+    _rowMetricsChanged.dispose();
     for (final glide in _rowGlides.values) {
       glide.dispose();
     }
@@ -6876,32 +6881,27 @@ class _ContentRowsState extends State<_ContentRows>
                     ],
                   ),
                 ),
-                if (showHeaderControls) ...[
-                  Focus(
-                    canRequestFocus: false,
-                    skipTraversal: true,
-                    descendantsAreFocusable: false,
-                    child: IconButton(
-                      icon: const Icon(Icons.chevron_left),
-                      onPressed: () => _scrollHomeRowHorizontal(rowIndex, -480),
-                      visualDensity: VisualDensity.compact,
-                    ),
+                // Kos TV: only while the row has more than fits, and the
+                // one at the end it's at greyed out.
+                if (showHeaderControls)
+                  RowHeaderArrows(
+                    controller: _rowHorizontalController(rowIndex),
+                    metricsChanged: _rowMetricsChanged,
+                    onBack: () => _scrollHomeRowHorizontal(rowIndex, -480),
+                    onForward: () => _scrollHomeRowHorizontal(rowIndex, 480),
                   ),
-                  Focus(
-                    canRequestFocus: false,
-                    skipTraversal: true,
-                    descendantsAreFocusable: false,
-                    child: IconButton(
-                      icon: const Icon(Icons.chevron_right),
-                      onPressed: () => _scrollHomeRowHorizontal(rowIndex, 480),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ),
-                ],
               ],
             ),
           ),
-          child,
+          NotificationListener<ScrollMetricsNotification>(
+            onNotification: (notification) {
+              if (notification.metrics.axis == Axis.horizontal) {
+                _rowMetricsChanged.notify();
+              }
+              return false;
+            },
+            child: child,
+          ),
         ],
       ),
       ),

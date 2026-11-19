@@ -14,13 +14,16 @@ import '../../../preference/user_preferences.dart';
 import '../../../ui/mixins/focus_state_mixin.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/focus_scroll.dart';
+import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/adaptive/adaptive_dialog.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../../widgets/live_tv/incomplete_recording.dart';
 import '../../widgets/live_tv/series_recording_dialog.dart';
+import '../../widgets/navigation_layout.dart';
 import '../../widgets/overlay_sheet.dart';
 import '../../widgets/offline_aware_image.dart';
+import '../calendar/calendar_common.dart';
 import '../detail/kostv/kostv_detail_buttons.dart'
     show kostvLight, kostvOnLight;
 
@@ -38,6 +41,8 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
   late final ScheduleViewModel _scheduleVm;
   late final SeriesRecordingsViewModel _seriesVm;
   _RecordingsTab _activeTab = _RecordingsTab.recordings;
+  // Kos TV: where the remote starts, the first tab under the title.
+  final _firstTabFocus = FocusNode(debugLabel: 'recordingsFirstTab');
 
   @override
   void initState() {
@@ -77,24 +82,43 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
     _vm.dispose();
     _scheduleVm.dispose();
     _seriesVm.dispose();
+    _firstTabFocus.dispose();
     super.dispose();
   }
 
+  // Kos TV: dressed as the other kOS TV pages (the catalogue): the app's
+  // background and menu, a big title with its count and the tabs under it.
+  // Back is the menu's back arrow (the remote's Back on the TV).
   @override
-  Widget build(BuildContext context) =>
-      RequestInitialFocus(child: _buildScreenContent(context));
-
-  Widget _buildScreenContent(BuildContext context) {
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
-      body: SafeArea(
-        child: _buildContent(),
+      backgroundColor: AppColorScheme.background,
+      body: NavigationLayout(
+        activeRoute: Destinations.liveTvGuide,
+        showBackButton: true,
+        // The tabs stay put and the rows scroll under them: the menu too.
+        pinTopToolbar: true,
+        child: RequestInitialFocus(
+          targetNode: _firstTabFocus,
+          child: _buildContent(),
+        ),
       ),
     );
   }
 
+  /// The page's side margins, as the catalogue's.
+  EdgeInsets get _insets => calendarChromeInsets(context);
+
+  /// Room under the last row for the phone's own bar at the bottom.
+  double get _bottomInset =>
+      MediaQuery.paddingOf(context).bottom +
+      (PlatformDetection.useMobileUi && NavigationLayout.usesBottomNavbar
+          ? 110
+          : 48);
+
   Widget _buildContent() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _buildHeader(),
         Expanded(child: _buildBody()),
@@ -114,58 +138,146 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
 
   Widget _buildHeader() {
     final l10n = AppLocalizations.of(context);
+    final phone = PlatformDetection.useMobileUi;
+    final insets = _insets;
+    final count = _vm.state == RecordingsState.loading ? 0 : _recordingsCount;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
-      child: Row(
+      padding: EdgeInsets.fromLTRB(
+        insets.left,
+        insets.top + (phone ? 8 : 40),
+        insets.right,
+        phone ? 12 : 20,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            l10n.recordings,
-            style: const TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
+            l10n.liveTv.toUpperCase(),
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.7),
+              fontSize: phone ? 12 : 14,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 2,
             ),
           ),
-          const SizedBox(width: 16),
-          // A phone is too narrow for every pill beside the title, so there
-          // they wrap onto another line instead of running off the edge.
-          Expanded(
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _RecordingsPillButton(
-                  label: '${l10n.recordings} ($_recordingsCount)',
-                  isActive: _activeTab == _RecordingsTab.recordings,
-                  onPressed: () =>
-                      setState(() => _activeTab = _RecordingsTab.recordings),
-                ),
-                _RecordingsPillButton(
-                  label: '${l10n.schedule} ($_scheduledCount)',
-                  isActive: _activeTab == _RecordingsTab.scheduled,
-                  onPressed: () =>
-                      setState(() => _activeTab = _RecordingsTab.scheduled),
-                ),
-                _RecordingsPillButton(
-                  label:
-                      '${l10n.seriesRecordings} (${_seriesVm.seriesTimers.length})',
-                  isActive: _activeTab == _RecordingsTab.series,
-                  onPressed: () =>
-                      setState(() => _activeTab = _RecordingsTab.series),
-                ),
-                Padding(
-                  padding: const EdgeInsetsDirectional.only(start: 4),
-                  child: _RecordingsPillButton(
-                    icon: Icons.arrow_back,
-                    onPressed: () => Navigator.of(context).maybePop(),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 4),
+          Text(
+            l10n.recordings,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: phone ? 36 : 52,
+              height: 1.05,
+              letterSpacing: -1,
             ),
+          ),
+          if (count > 0) ...[
+            const SizedBox(height: 6),
+            Text(
+              l10n.kostvRecordingsCount(count),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.75),
+                fontSize: phone ? 14 : 17,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+          SizedBox(height: phone ? 14 : 22),
+          // A phone is too narrow for every tab on one line, so there they
+          // wrap onto another line instead of running off the edge.
+          Wrap(
+            spacing: phone ? 8 : 12,
+            runSpacing: 8,
+            children: [
+              _RecordingsPillButton(
+                focusNode: _firstTabFocus,
+                label: '${l10n.recordings} ($_recordingsCount)',
+                isActive: _activeTab == _RecordingsTab.recordings,
+                onPressed: () =>
+                    setState(() => _activeTab = _RecordingsTab.recordings),
+              ),
+              _RecordingsPillButton(
+                label: '${l10n.schedule} ($_scheduledCount)',
+                isActive: _activeTab == _RecordingsTab.scheduled,
+                onPressed: () =>
+                    setState(() => _activeTab = _RecordingsTab.scheduled),
+              ),
+              _RecordingsPillButton(
+                label:
+                    '${l10n.seriesRecordings} (${_seriesVm.seriesTimers.length})',
+                isActive: _activeTab == _RecordingsTab.series,
+                onPressed: () =>
+                    setState(() => _activeTab = _RecordingsTab.series),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+
+  /// Kos TV: an empty tab says so with an icon and a line on how to fill
+  /// it, rather than a bare grey sentence in the middle of the page.
+  Widget _emptyState({
+    required IconData icon,
+    required String title,
+    required String hint,
+  }) {
+    final phone = PlatformDetection.useMobileUi;
+    final insets = _insets;
+    return Align(
+      alignment: const Alignment(0, -0.35),
+      child: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(
+          insets.left,
+          24,
+          insets.right,
+          _bottomInset,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: phone ? 72 : 96,
+              height: phone ? 72 : 96,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.08),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: phone ? 34 : 46,
+                color: Colors.white.withValues(alpha: 0.75),
+              ),
+            ),
+            SizedBox(height: phone ? 16 : 22),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: phone ? 18 : 22,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: Text(
+                hint,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColorScheme.onSurface.withValues(alpha: 0.6),
+                  fontSize: phone ? 14 : 17,
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -196,6 +308,7 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
       }
       rows.add(
         _RecordingRow(
+          insets: _insets,
           title: title,
           items: items,
           imageApi: _vm.imageApi,
@@ -212,14 +325,16 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
     addRow(l10n.sports, _vm.sportsRecordings);
     addRow(l10n.kids, _vm.kidsRecordings);
     if (rows.isEmpty) {
-      return Center(
-        child: Text(
-          l10n.noRecordingsFound,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-        ),
+      return _emptyState(
+        icon: Icons.fiber_dvr_outlined,
+        title: l10n.noRecordingsFound,
+        hint: l10n.kostvRecordingsEmptyHint,
       );
     }
-    return ListView(padding: const EdgeInsets.only(bottom: 24), children: rows);
+    return ListView(
+      padding: EdgeInsets.only(bottom: _bottomInset),
+      children: rows,
+    );
   }
 
   Widget _buildScheduledTab() {
@@ -233,18 +348,18 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
       );
     }
     if (_scheduleVm.groups.isEmpty) {
-      return Center(
-        child: Text(
-          AppLocalizations.of(context).noScheduledRecordings,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-        ),
+      return _emptyState(
+        icon: Icons.event_outlined,
+        title: AppLocalizations.of(context).noScheduledRecordings,
+        hint: AppLocalizations.of(context).kostvScheduledEmptyHint,
       );
     }
     return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: EdgeInsets.only(bottom: _bottomInset),
       children: [
         for (final group in _scheduleVm.groups)
           _RecordingRow(
+            insets: _insets,
             title: kostvScheduleDayLabel(AppLocalizations.of(context), group),
             items: group.items,
             imageApi: _scheduleVm.imageApi,
@@ -266,17 +381,17 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
       );
     }
     if (_seriesVm.seriesTimers.isEmpty) {
-      return Center(
-        child: Text(
-          AppLocalizations.of(context).noSeriesRecordings,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.5)),
-        ),
+      return _emptyState(
+        icon: Icons.fiber_smart_record_outlined,
+        title: AppLocalizations.of(context).noSeriesRecordings,
+        hint: AppLocalizations.of(context).kostvSeriesRecordingsEmptyHint,
       );
     }
     return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: EdgeInsets.only(bottom: _bottomInset),
       children: [
         _SeriesTimerRow(
+          insets: _insets,
           timers: _seriesVm.seriesTimers,
           onItemFocused: _seriesVm.setFocusedTimer,
           onItemTap: (timer) => _showSeriesTimerOptions(timer),
@@ -426,11 +541,13 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
 }
 
 class _SeriesTimerRow extends StatelessWidget {
+  final EdgeInsets insets;
   final List<SeriesTimerItem> timers;
   final ValueChanged<SeriesTimerItem> onItemFocused;
   final ValueChanged<SeriesTimerItem> onItemTap;
 
   const _SeriesTimerRow({
+    required this.insets,
     required this.timers,
     required this.onItemFocused,
     required this.onItemTap,
@@ -444,7 +561,7 @@ class _SeriesTimerRow extends StatelessWidget {
         height: 160,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 60),
+          padding: EdgeInsets.only(left: insets.left, right: insets.right),
           itemCount: timers.length,
           separatorBuilder: (_, _) => const SizedBox(width: 12),
           itemBuilder: (context, index) {
@@ -572,71 +689,91 @@ class _SeriesTimerCardState extends State<_SeriesTimerCard> with FocusStateMixin
 }
 
 class _RecordingsPillButton extends StatefulWidget {
-  final String? label;
-  final IconData? icon;
+  final String label;
   final bool isActive;
   final VoidCallback? onPressed;
+  final FocusNode? focusNode;
 
   const _RecordingsPillButton({
-    this.label,
-    this.icon,
+    required this.label,
     this.isActive = false,
     this.onPressed,
+    this.focusNode,
   });
 
   @override
   State<_RecordingsPillButton> createState() => _RecordingsPillButtonState();
 }
 
+/// Kos TV: the catalogue's pills: grey, the chosen one a lighter grey and
+/// bold, white with dark text while focused or under the mouse.
 class _RecordingsPillButtonState extends State<_RecordingsPillButton> {
   bool _focused = false;
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final active = _focused || widget.isActive;
-    return Material(
-      color: Colors.transparent,
-      borderRadius: AppRadius.circular(20),
-      child: InkWell(
+    final phone = PlatformDetection.useMobileUi;
+    final lit = _focused || _hovered;
+    final Color background;
+    final Color ink;
+    if (lit) {
+      background = kostvLight;
+      ink = kostvOnLight;
+    } else if (widget.isActive) {
+      background = Colors.white.withValues(alpha: 0.28);
+      ink = Colors.white;
+    } else {
+      background = Colors.white.withValues(alpha: 0.10);
+      ink = Colors.white.withValues(alpha: 0.8);
+    }
+    return FocusableActionDetector(
+      focusNode: widget.focusNode,
+      mouseCursor: SystemMouseCursors.click,
+      onShowFocusHighlight: (v) => setState(() => _focused = v),
+      onShowHoverHighlight: (v) => setState(() => _hovered = v),
+      actions: {
+        ActivateIntent: CallbackAction<ActivateIntent>(
+          onInvoke: (_) {
+            widget.onPressed?.call();
+            return null;
+          },
+        ),
+      },
+      child: GestureDetector(
         onTap: widget.onPressed,
-        borderRadius: AppRadius.circular(20),
-        focusColor: Colors.transparent,
-        hoverColor: Colors.white.withValues(alpha: 0.05),
-        splashColor: Colors.white24,
-        highlightColor: Colors.transparent,
-        onFocusChange: (f) {
-          if (_focused != f) setState(() => _focused = f);
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-          decoration: BoxDecoration(
-            // Kos TV: white while focused, a lighter grey when chosen.
-            color: _focused
-                ? kostvLight
-                : widget.isActive
-                ? Colors.white.withValues(alpha: 0.28)
-                : Colors.white.withValues(alpha: 0.10),
-            borderRadius: AppRadius.circular(20),
-          ),
-          child: widget.icon != null
-              ? Icon(
-                  widget.icon,
-                  color: _focused
-                      ? kostvOnLight
-                      : Colors.white.withValues(alpha: active ? 1.0 : 0.8),
-                  size: 18,
-                )
-              : Text(
-                  widget.label ?? '',
-                  style: TextStyle(
-                    color: _focused
-                        ? kostvOnLight
-                        : Colors.white.withValues(alpha: active ? 1.0 : 0.8),
-                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                    fontSize: 13,
+        child: AnimatedScale(
+          scale: _focused ? 1.08 : 1,
+          duration: const Duration(milliseconds: 140),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            padding: EdgeInsets.symmetric(
+              horizontal: phone ? 14 : 18,
+              vertical: phone ? 7 : 9,
+            ),
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: [
+                if (_focused)
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.45),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
                   ),
-                ),
+              ],
+            ),
+            child: Text(
+              widget.label,
+              style: TextStyle(
+                color: ink,
+                fontSize: phone ? 14 : 16,
+                fontWeight: widget.isActive || lit
+                    ? FontWeight.w700
+                    : FontWeight.w500,
+              ),
+            ),
+          ),
         ),
       ),
     );
@@ -644,6 +781,7 @@ class _RecordingsPillButtonState extends State<_RecordingsPillButton> {
 }
 
 class _RecordingRow extends StatelessWidget {
+  final EdgeInsets insets;
   final String title;
   final List<RecordingItem> items;
   final ImageApi imageApi;
@@ -651,6 +789,7 @@ class _RecordingRow extends StatelessWidget {
   final ValueChanged<RecordingItem> onItemTap;
 
   const _RecordingRow({
+    required this.insets,
     required this.title,
     required this.items,
     required this.imageApi,
@@ -667,7 +806,7 @@ class _RecordingRow extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: 60, bottom: 8),
+              padding: EdgeInsets.only(left: insets.left, bottom: 8),
               child: Text(
                 title,
                 style: const TextStyle(
@@ -681,7 +820,10 @@ class _RecordingRow extends StatelessWidget {
               height: 160,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 60),
+                padding: EdgeInsets.only(
+                  left: insets.left,
+                  right: insets.right,
+                ),
                 itemCount: items.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 12),
                 itemBuilder: (context, index) {

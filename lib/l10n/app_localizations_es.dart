@@ -21281,4 +21281,27 @@ class AppLocalizationsEs extends AppLocalizations {
   String kostvRuntimeHours(int hours) {
     return '$hours h';
   }
+
+  @override
+  String kostvRecordingsCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count grabaciones',
+      one: '1 grabación',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvRecordingsEmptyHint =>
+      'Elige un programa en la guía de TV y pulsa «Grabar».';
+
+  @override
+  String get kostvScheduledEmptyHint =>
+      'Lo que vayas a grabar sale aquí, ordenado por días.';
+
+  @override
+  String get kostvSeriesRecordingsEmptyHint =>
+      'Elige un programa en la guía de TV y pulsa «Grabar serie» para grabar todos sus episodios.';
 }
