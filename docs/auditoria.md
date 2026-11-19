@@ -126,3 +126,17 @@ y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
   Recomendación: dejarlo así y apuntarlo como excepción a la norma de las tres
   versiones (administrar con el mando es incómodo y se hace mejor desde el
   móvil).
+
+### Bloque 10
+- **Pasar las pruebas antes de publicar.** Hoy publicar una versión no pasa el
+  analizador ni las pruebas automáticas. Recomendación: pasarlas (la
+  publicación tardaría unos minutos más, pero no saldría nada roto a las teles).
+- **Política de seguridad de la web (CSP).** No hay ninguna vía de ataque a la
+  vista. Recomendación: añadirla más adelante, con calma, porque una mal puesta
+  deja la web en blanco.
+- **El contenedor de la web arranca como administrador del sistema.**
+  Recomendación: cambiarlo; obliga a cambiar el puerto interno del compose.
+- (Para saber) Por `http://IP:25670` la contraseña de `/admin` viaja sin cifrar;
+  desde fuera de casa se entra siempre por el proxy con https.
+- (Para saber) Hay borradas en local 17 etiquetas de la app original que no
+  estaban en GitHub, para que nunca se suban por error.
