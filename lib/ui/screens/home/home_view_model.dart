@@ -2326,7 +2326,19 @@ class HomeViewModel extends ChangeNotifier {
       for (final row in page.rows) ...row.items,
     ]);
     List<AggregatedItem> visibleOf(List<AggregatedItem> items) {
-      final rated = withoutBlockedItems(items);
+      // Kos TV: an episode card from the server plugin also carries its
+      // series' rating, which judges it when it has none of its own.
+      final rated = [
+        for (final item in items)
+          if (withoutBlockedItems(
+            [item],
+            fallbackRating: switch (item.rawData['SeriesOfficialRating']) {
+              final String rating when rating.isNotEmpty => rating,
+              _ => null,
+            },
+          ).isNotEmpty)
+            item,
+      ];
       if (seriesBlocked.isEmpty) return rated;
       return [
         for (final item in rated)

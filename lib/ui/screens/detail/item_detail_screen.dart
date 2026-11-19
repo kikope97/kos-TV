@@ -2591,11 +2591,9 @@ class _DetailContentState extends State<_DetailContent> {
             child: DetailEpisodeCard(
               episode: ep,
               imageApi: viewModel.imageApi,
-              // Kos TV: the view model already applies what the menu
-              // changed; a full load would swap the page for its skeleton.
-              onChanged: () {
-                if (mounted) setState(() {});
-              },
+              // Kos TV: read again in place (no skeleton), so what the menu
+              // changed shows, a new image included.
+              onChanged: () => viewModel.load(),
               isActive: viewModel.nextUp?.id == ep.id,
               contextSeasonId: item.id,
             ),
@@ -2648,10 +2646,8 @@ class _DetailContentState extends State<_DetailContent> {
               episodes: viewModel.episodes,
               currentEpisodeId: item.id,
               imageApi: viewModel.imageApi,
-              // Kos TV: as above, no full load after the episode menu.
-              onChanged: () {
-                if (mounted) setState(() {});
-              },
+              // Kos TV: as above, read again in place.
+              onChanged: () => viewModel.load(),
               contextSeasonId: viewModel.effectiveSeasonId,
               scrollController: _trackSectionScrollController(
                 episodesFocusNode,

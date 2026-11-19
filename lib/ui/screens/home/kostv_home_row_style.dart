@@ -170,6 +170,14 @@ class KostvHomeRowStyle {
         l10n.kostvHomeWhyBecause,
       );
     }
+    if (rest.startsWith('because_liked')) {
+      return about(
+        Icons.favorite_border,
+        accent,
+        l10n.kostvHomeBecauseLiked,
+        l10n.kostvHomeWhyBecause,
+      );
+    }
     if (rest.startsWith('because_watching')) {
       return about(
         Icons.play_circle_outline,

@@ -595,11 +595,11 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     }
   }
 
-  // Kos TV: after an episode's long-press menu. The view model already
-  // applies what it changed to its lists, and a full load would swap the page
-  // for its skeleton, closing the Episodes tab and the open seasons.
+  // Kos TV: after an episode's long-press menu. The page is read again in
+  // place (no skeleton, the Episodes tab and the open seasons stay), so a new
+  // image or identity from the menu shows too.
   void _onEpisodeChanged() {
-    if (mounted) setState(() {});
+    if (mounted) unawaited(widget.viewModel.load());
   }
 
   @override
