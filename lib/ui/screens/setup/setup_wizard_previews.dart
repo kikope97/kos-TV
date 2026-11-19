@@ -17,7 +17,11 @@ import '../../../data/repositories/multi_server_repository.dart';
 import '../../../data/repositories/poster_badge_repository.dart';
 import '../../../data/repositories/user_views_repository.dart';
 import '../../../data/services/library_scope_service.dart';
+import '../../../data/services/installed_apps_service.dart'
+    show kostvAppsAvailable;
 import '../../../data/services/plugin_sync_service.dart';
+import '../../../data/services/stremfin/stremfin_service.dart'
+    show StremfinService;
 import '../../../data/viewmodels/media_bar_view_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/bottom_nav_tabs.dart';
@@ -2016,6 +2020,12 @@ bool get _calendarAvailable =>
     GetIt.instance.isRegistered<PluginSyncService>() &&
     GetIt.instance<PluginSyncService>().calendarAvailable;
 
+/// Kos TV: whether the requests service lets this person into Discover, as
+/// the real button checks (showKostvDiscoverButton).
+bool get _discoverAllowed =>
+    GetIt.instance.isRegistered<StremfinService>() &&
+    GetIt.instance<StremfinService>().isAllowed;
+
 /// The real bar waits for something saved, so it never offers a way into an
 /// empty screen.
 bool get _downloadsAvailable =>
@@ -2081,8 +2091,17 @@ List<_NavButton> _navButtons(
   return [
     icon(Icons.home_rounded, l10n.home),
     icon(Icons.search_rounded, l10n.search),
+    // Kos TV: the buttons kOS TV adds to the bar, behind the same gates as
+    // the real ones (showKostvDiscoverButton, the plugin's list, Music and
+    // showKostvAppsButton), read through the preview so a tried switch shows.
+    if (!kids && _discoverAllowed && on(UserPreferences.showDiscoverButton))
+      icon(Icons.explore_rounded, l10n.kostvDiscover),
     if (on(UserPreferences.showGenresButton))
       asset('assets/icons/genres.png', l10n.genres),
+    if (on(UserPreferences.kostvMyListAvailable))
+      icon(Icons.bookmark_rounded, l10n.kostvMyList),
+    if (!kids && on(UserPreferences.kostvShowMusicButton))
+      icon(Icons.music_note_rounded, l10n.kostvMusic),
     if (liveTv) icon(Icons.live_tv_rounded, l10n.liveTv),
     if (!kids &&
         on(UserPreferences.syncPlayEnabled) &&
@@ -2090,6 +2109,8 @@ List<_NavButton> _navButtons(
       icon(Icons.groups_rounded, l10n.watchParties),
     if (!kids && on(UserPreferences.showCalendarButton) && _calendarAvailable)
       icon(Icons.calendar_month_rounded, l10n.calendar),
+    if (kostvAppsAvailable() && on(UserPreferences.showAppsButton))
+      icon(Icons.apps_rounded, l10n.kostvAppsRow),
     if (libraries && on(UserPreferences.showLibrariesIndividually))
       for (final (glyph, label) in _navLibraries(
         l10n,

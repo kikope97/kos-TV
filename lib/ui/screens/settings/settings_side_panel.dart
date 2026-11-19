@@ -675,6 +675,8 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
         onChanged: _selectCategory,
         focusNode: _pillFocus,
         alignment: _phone ? Alignment.centerLeft : Alignment.center,
+        // Kos TV: a phone cuts the categories at the edge.
+        fadeEdges: true,
         onVerticalNavigation: (isUp) {
           if (isUp || _phone) return false;
           _enterList();

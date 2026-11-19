@@ -61,6 +61,14 @@ class SlidingPillTabs extends StatefulWidget {
   /// under the field on the left, a panel centres it over its list.
   final Alignment alignment;
 
+  /// Kos TV: fades the end with segments scrolled out of sight, so a strip
+  /// cut at the edge reads as "there is more". With everything in view
+  /// nothing changes.
+  final bool fadeEdges;
+
+  /// How far the fade reaches in from an edge with segments beyond it.
+  static const fadeWidth = 28.0;
+
   const SlidingPillTabs({
     super.key,
     required this.labels,
@@ -71,6 +79,7 @@ class SlidingPillTabs extends StatefulWidget {
     this.onExitLeft,
     this.onExitRight,
     this.alignment = Alignment.centerLeft,
+    this.fadeEdges = false,
   });
 
   @override
@@ -88,6 +97,17 @@ class _SlidingPillTabsState extends State<SlidingPillTabs> {
   bool _focused = false;
   final _scroll = ScrollController();
 
+  /// Whether segments are scrolled out of sight before the start and past
+  /// the end, for [SlidingPillTabs.fadeEdges].
+  bool _hiddenBefore = false;
+  bool _hiddenAfter = false;
+
+  @visibleForTesting
+  bool get hiddenBefore => _hiddenBefore;
+
+  @visibleForTesting
+  bool get hiddenAfter => _hiddenAfter;
+
   /// Where the pill rests. Follows selectedIndex, but a drag release moves it
   /// first so the pill lands on the segment the finger chose instead of
   /// springing back to the old one until the parent catches up.
@@ -103,6 +123,55 @@ class _SlidingPillTabsState extends State<SlidingPillTabs> {
     _restIndex = widget.selectedIndex;
     _rebuildKeys();
     _scheduleMeasure();
+    _scroll.addListener(_updateHidden);
+  }
+
+  void _updateHidden() {
+    if (!mounted || !widget.fadeEdges || !_scroll.hasClients) return;
+    final position = _scroll.position;
+    if (!position.hasContentDimensions) return;
+    final before = position.pixels > position.minScrollExtent + 0.5;
+    final after = position.pixels < position.maxScrollExtent - 0.5;
+    if (before == _hiddenBefore && after == _hiddenAfter) return;
+    setState(() {
+      _hiddenBefore = before;
+      _hiddenAfter = after;
+    });
+  }
+
+  /// [scroll] with its hidden ends faded out, as the menu's ToolbarPillScroll
+  /// does. Always wrapped once [SlidingPillTabs.fadeEdges] is on, so the
+  /// scroll view keeps its place when a fade comes or goes.
+  Widget _withEdgeFade(Widget scroll) {
+    if (!widget.fadeEdges) return scroll;
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final fadeLeft = rtl ? _hiddenAfter : _hiddenBefore;
+    final fadeRight = rtl ? _hiddenBefore : _hiddenAfter;
+    return NotificationListener<ScrollMetricsNotification>(
+      onNotification: (_) {
+        _updateHidden();
+        return false;
+      },
+      child: ShaderMask(
+        key: const ValueKey('slidingPillTabsFade'),
+        blendMode: BlendMode.dstIn,
+        shaderCallback: (bounds) {
+          final f = bounds.width <= 0
+              ? 0.0
+              : (SlidingPillTabs.fadeWidth / bounds.width).clamp(0.0, 0.5);
+          return LinearGradient(
+            colors: [
+              fadeLeft ? Colors.transparent : Colors.black,
+              Colors.black,
+              Colors.black,
+              fadeRight ? Colors.transparent : Colors.black,
+            ],
+            stops: [0.0, f, 1.0 - f, 1.0],
+          ).createShader(bounds);
+        },
+        child: scroll,
+      ),
+    );
   }
 
   @override
@@ -483,13 +552,16 @@ class _SlidingPillTabsState extends State<SlidingPillTabs> {
               child: ScrollEdgeArrows(
                 controller: _scroll,
                 size: _kSegmentHeight,
-                child: SingleChildScrollView(
-                  controller: _scroll,
-                  scrollDirection: Axis.horizontal,
-                  // Only clip when there is something scrolled out of view to
-                  // clip. Otherwise it would cut the swell off at the segments.
-                  clipBehavior: fits ? Clip.none : Clip.hardEdge,
-                  child: stack,
+                child: _withEdgeFade(
+                  SingleChildScrollView(
+                    controller: _scroll,
+                    scrollDirection: Axis.horizontal,
+                    // Only clip when there is something scrolled out of view
+                    // to clip. Otherwise it would cut the swell off at the
+                    // segments.
+                    clipBehavior: fits ? Clip.none : Clip.hardEdge,
+                    child: stack,
+                  ),
                 ),
               ),
             ),

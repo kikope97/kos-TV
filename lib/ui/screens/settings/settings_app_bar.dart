@@ -25,7 +25,9 @@ AppBar? buildSettingsAppBar(
     title: title,
     actions: actions,
     automaticallyImplyLeading: !PlatformDetection.isTV,
-    leading: PlatformDetection.isTV ? const SizedBox.shrink() : leading,
+    // Kos TV: a TV goes back with its remote, so it has no leading at all.
+    // An empty widget there still kept the slot and pushed the title in.
+    leading: PlatformDetection.isTV ? null : leading,
     scrolledUnderElevation: 0,
   );
 }

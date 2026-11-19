@@ -28,6 +28,7 @@ import 'package:moonfin/data/services/media_server_client_factory.dart';
 import 'package:moonfin/data/services/row_data_source.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/data/services/saved_media_presence.dart';
+import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/playback/subtitle_fonts.dart';
 import 'package:moonfin/preference/home_section_config.dart';
@@ -85,6 +86,8 @@ class _Client extends Mock implements MediaServerClient {}
 class _Images extends Mock implements ImageApi {}
 
 class _Sync extends Mock implements PluginSyncService {}
+
+class _Stremfin extends Mock implements StremfinService {}
 
 class _Calendar extends Mock implements CalendarRepository {}
 
@@ -1197,11 +1200,25 @@ void main() {
       await pumpPreview(tester, controller);
       expect(asset('assets/icons/genres.png'), findsNothing);
       expect(asset('assets/icons/clapperboard.png'), findsNothing);
+      // Kos TV: Music is on out of the box. Discover waits for the requests
+      // service to let the person in, and My list for the plugin to keep it.
+      expect(find.byIcon(Icons.music_note_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.explore_rounded), findsNothing);
+      expect(find.byIcon(Icons.bookmark_rounded), findsNothing);
+
+      final stremfin = _Stremfin();
+      when(() => stremfin.isAllowed).thenReturn(true);
+      GetIt.instance.registerSingleton<StremfinService>(stremfin);
+      controller.tryValue('kostv_my_list_available', true);
+      await pumpPreview(tester, controller);
 
       // Laid out in the real navbar's order.
       final order = [
         Icons.home_rounded,
         Icons.search_rounded,
+        Icons.explore_rounded,
+        Icons.bookmark_rounded,
+        Icons.music_note_rounded,
         Icons.live_tv_rounded,
         Icons.groups_rounded,
         Icons.movie_rounded,
@@ -1638,7 +1655,9 @@ void main() {
         ..tryValue('pref_navbar_position', NavbarPosition.top)
         ..tryValue('pref_clock_behavior', ClockBehavior.always)
         ..tryValue('pref_show_libraries_individually', true)
-        ..tryValue('pref_navbar_always_expanded', true);
+        ..tryValue('pref_navbar_always_expanded', true)
+        // Kos TV: Music's own button shares the music library's note.
+        ..tryValue('kostv_show_music_button', false);
       await pumpPreview(tester, controller);
 
       // Every library, not one stand-in per kind of title.
