@@ -110,6 +110,8 @@ void main() {
   late StremfinService requests;
   late List<Map<String, String>> searches;
   late String? nextCursor;
+  // Kos TV: what reading on gives: the next page, nothing, or a failure.
+  late String more;
 
   Map<String, Object?> title(int id, String name, {String type = 'movie'}) => {
     'type': type,
@@ -128,6 +130,7 @@ void main() {
     itemsApi = _FakeItemsApi();
     searches = [];
     nextCursor = null;
+    more = 'page';
 
     final client = _MockClient();
     when(() => client.itemsApi).thenReturn(itemsApi);
@@ -151,17 +154,26 @@ void main() {
       if (path == '/search') {
         final query = adapter.lastQuery;
         searches.add(query);
-        final more = query['cursor'] != null;
+        final readingOn = query['cursor'] != null;
+        if (readingOn && more == 'fail') {
+          return (
+            status: 503,
+            body: {
+              'error': {'code': 'source_unavailable', 'message': 'Ahora no.'},
+            },
+            headers: const {},
+          );
+        }
         return (
           status: 200,
           body: {
-            'items': more
-                ? [title(3, 'Cumbres de hielo')]
+            'items': readingOn
+                ? [if (more == 'page') title(3, 'Cumbres de hielo')]
                 : [
                     title(1, 'Cumbres'),
                     title(2, 'Cumbres borrascosas', type: 'series'),
                   ],
-            'next_cursor': more ? null : nextCursor,
+            'next_cursor': readingOn ? null : nextCursor,
           },
           headers: const {},
         );
@@ -299,6 +311,45 @@ void main() {
     expect(searches.last['cursor'], '2.19');
     expect(find.text('Cumbres de hielo'), findsWidgets);
     expect(find.text('More results'), findsNothing);
+    await finish(tester);
+  });
+
+  testWidgets('reading more failing: the card stays, says so, and tries '
+      'again when pressed', (tester) async {
+    itemsApi.items = const [];
+    nextCursor = '2.19';
+    more = 'fail';
+    await search(tester, 'cumbres');
+    await tester.tap(find.text('More results'));
+    await settle(tester);
+    expect(find.text("Couldn't load. Try again"), findsOneWidget);
+    expect(find.text('Cumbres de hielo'), findsNothing);
+
+    more = 'page';
+    await tester.tap(find.text("Couldn't load. Try again"));
+    await settle(tester);
+    expect(find.text('Cumbres de hielo'), findsWidgets);
+    expect(find.text('More results'), findsNothing);
+    await finish(tester);
+  });
+
+  testWidgets('TV: nothing more after all: the focus goes to the card before', (
+    tester,
+  ) async {
+    PlatformDetection.setInterfaceLayout(InterfaceLayout.tv);
+    itemsApi.items = const [];
+    nextCursor = '2.19';
+    more = 'none';
+    await search(tester, 'cumbres');
+    FocusNode nodeOf(String text) =>
+        Focus.of(tester.element(find.text(text).first));
+    final before = nodeOf('Cumbres borrascosas');
+    // Reaching it reads more.
+    nodeOf('More results').requestFocus();
+    await settle(tester);
+    expect(searches.last['cursor'], '2.19');
+    expect(find.text('More results'), findsNothing);
+    expect(FocusManager.instance.primaryFocus, before);
     await finish(tester);
   });
 

@@ -135,7 +135,36 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
       _news.addAll(fresh);
       unawaited(_inbox.markAllSeen());
     }
+    final focused = _focusedRow();
+    final before = List.of(_order);
     setState(() {});
+    // Kos TV: the row with the focus went (taken back with its button): the
+    // focus goes to the row after it, or the one before, rather than
+    // nowhere.
+    if (focused != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _order.contains(focused)) return;
+        final at = before.indexOf(focused);
+        final next = [
+          ...before.skip(at + 1),
+          ...before.take(at).toList().reversed,
+        ].where(_order.contains).firstOrNull;
+        if (next != null) _node(next).requestFocus();
+      });
+    }
+  }
+
+  /// The rows as last shown, top to bottom, by their keys.
+  List<String> _order = const [];
+
+  /// The row that has the focus, on itself or on one of its buttons.
+  String? _focusedRow() {
+    for (final key in _order) {
+      if (_nodes[key]?.hasFocus ?? false) return key;
+      if (_nodes['$key-w']?.hasFocus ?? false) return key;
+      if (_nodes['$key-l']?.hasFocus ?? false) return key;
+    }
+    return null;
   }
 
   FocusNode _node(String key) =>
@@ -335,6 +364,7 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
           for (final r in finished)
             (key: '${r.id}', request: r, isNew: false, part: 'f'),
         ];
+    _order = inbox.isLoaded ? [for (final r in rows) r.key] : const [];
 
     final Widget body;
     if (!inbox.isLoaded) {

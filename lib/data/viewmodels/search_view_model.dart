@@ -169,13 +169,15 @@ class SearchViewModel extends ChangeNotifier {
 
   bool get requestableLoading => _requestableLoading;
 
+  /// Kos TV: the last «Ver más» couldn't be read; the cursor stays, so it can
+  /// be tried again from the same card.
+  bool get requestableMoreFailed => _requestableMoreFailed;
+  bool _requestableMoreFailed = false;
+
   /// The service's search is one of its costly calls (thirty a minute): it
   /// is asked once the person stops typing a while, or presses Search.
   static const requestableDelay = Duration(seconds: 1);
   static const requestableMinLength = 2;
-
-  /// Pages read on when they only had what is at home and more after them.
-  static const _requestableReadOn = 3;
 
   Timer? _debounceTimer;
 
@@ -302,6 +304,7 @@ class SearchViewModel extends ChangeNotifier {
     _requestableCursor = null;
     _requestableQuery = '';
     _requestableLoading = false;
+    _requestableMoreFailed = false;
     _requestableWaiting = _wantsRequestable(query);
     if (!_requestableWaiting) return;
     if (now) {
@@ -315,11 +318,16 @@ class SearchViewModel extends ChangeNotifier {
   }
 
   /// The next page of «Para solicitar», when there is one.
-  void loadMoreRequestable() {
+  ///
+  /// Kos TV: after a failed read, only when the person asks for it again
+  /// ([retry]: «Ver más» pressed), not each time the focus nears the end.
+  void loadMoreRequestable({bool retry = false}) {
     final cursor = _requestableCursor;
     if (_requestableLoading || cursor == null || _requestableQuery.isEmpty) {
       return;
     }
+    if (_requestableMoreFailed && !retry) return;
+    _requestableMoreFailed = false;
     unawaited(_readRequestable(_requestableQuery, cursor: cursor));
   }
 
@@ -341,18 +349,22 @@ class SearchViewModel extends ChangeNotifier {
     _requestableLoading = true;
     notifyListeners();
     final found = <StremfinTitle>[];
-    var next = cursor;
+    String? next;
+    // Kos TV: one read of the service; it already reads on, a couple of
+    // pages at most, past pages with nothing to show (all at home, or left
+    // out by the age limit). Reading on here as well made up to nine of its
+    // costly searches for one query.
     try {
-      for (var read = 0; read < _requestableReadOn; read++) {
-        final page = await requests.search(query, cursor: next);
-        if (run != _requestableRun) return;
-        found.addAll(page.items);
-        next = page.nextCursor;
-        if (found.isNotEmpty || next == null) break;
-      }
+      final page = await requests.search(query, cursor: cursor);
+      if (run != _requestableRun) return;
+      found.addAll(page.items);
+      next = page.nextCursor;
     } on StremfinException {
-      // Busy or unreachable: the section stays out of the way.
-      next = null;
+      if (run != _requestableRun) return;
+      // Busy or unreachable: a first read leaves the section out of the
+      // way; a «Ver más» keeps its cursor and says it failed, to try again.
+      next = cursor;
+      _requestableMoreFailed = cursor != null;
     }
     if (run != _requestableRun) return;
     final seen = {for (final title in _requestable) _titleKey(title)};

@@ -216,7 +216,9 @@ class _SearchScreenState extends State<SearchScreen>
     if (focused == null || !_allRowNodes.containsValue(focused)) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final cardContext = focused.context;
-      if (!mounted || cardContext == null) return;
+      // Kos TV: a card gone meanwhile («Ver más» with nothing more) leaves
+      // its node with a context no longer in the tree.
+      if (!mounted || cardContext == null || !cardContext.mounted) return;
       unawaited(
         Scrollable.ensureVisible(
           cardContext,
@@ -1464,6 +1466,7 @@ class _SearchScreenState extends State<SearchScreen>
                 focusColor: focusColor,
                 cardFocusExpansion: cardFocusExpansion,
                 focusNode: _allCardNode(row, c),
+                previousNode: c > 0 ? _allCardNode(row, c - 1) : null,
                 onNavKey: (node, event) =>
                     _onAllCardKey(row, c, rowLens, event),
               ),
@@ -1535,16 +1538,20 @@ class _SearchScreenState extends State<SearchScreen>
     required bool cardFocusExpansion,
     required FocusNode focusNode,
     required KeyEventResult Function(FocusNode, KeyEvent) onNavKey,
+    FocusNode? previousNode,
   }) {
     final titles = _vm.requestable;
     if (index >= titles.length) {
       return _RequestableMoreTile(
         width: width,
         loading: _vm.requestableLoading,
+        failed: _vm.requestableMoreFailed,
         focusColor: focusColor,
         focusNode: focusNode,
         onKeyEvent: onNavKey,
         onMore: _vm.loadMoreRequestable,
+        onRetry: () => _vm.loadMoreRequestable(retry: true),
+        previousNode: previousNode,
       );
     }
     final title = titles[index];
@@ -1746,6 +1753,9 @@ class _SearchScreenState extends State<SearchScreen>
                   focusColor: focusColor,
                   cardFocusExpansion: cardFocusExpansion,
                   focusNode: getGridItemFocusNode(index),
+                  previousNode: index > 0
+                      ? getGridItemFocusNode(index - 1)
+                      : null,
                   onNavKey: (node, event) => _onGridKey(
                     index: index,
                     columns: columns,
@@ -1854,23 +1864,31 @@ class _SearchScreenState extends State<SearchScreen>
 }
 
 /// Kos TV: the last card of «Para solicitar» while there are more: it reads
-/// them when the focus reaches it, or when it is pressed.
+/// them when the focus reaches it, or when it is pressed. When a read fails
+/// it says so and reads again only when pressed. Gone with the focus on it
+/// (nothing more to read), the focus goes to the card before it.
 class _RequestableMoreTile extends StatefulWidget {
   const _RequestableMoreTile({
     required this.width,
     required this.loading,
+    required this.failed,
     required this.focusColor,
     required this.focusNode,
     required this.onKeyEvent,
     required this.onMore,
+    required this.onRetry,
+    this.previousNode,
   });
 
   final double width;
   final bool loading;
+  final bool failed;
   final Color focusColor;
   final FocusNode focusNode;
   final KeyEventResult Function(FocusNode, KeyEvent) onKeyEvent;
   final VoidCallback onMore;
+  final VoidCallback onRetry;
+  final FocusNode? previousNode;
 
   @override
   State<_RequestableMoreTile> createState() => _RequestableMoreTileState();
@@ -1879,15 +1897,32 @@ class _RequestableMoreTile extends StatefulWidget {
 class _RequestableMoreTileState extends State<_RequestableMoreTile> {
   bool _focused = false;
 
+  void _press() => widget.failed ? widget.onRetry() : widget.onMore();
+
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is KeyDownEvent &&
         (event.logicalKey == LogicalKeyboardKey.select ||
             event.logicalKey == LogicalKeyboardKey.enter ||
             event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
-      widget.onMore();
+      _press();
       return KeyEventResult.handled;
     }
     return widget.onKeyEvent(node, event);
+  }
+
+  @override
+  void dispose() {
+    // Gone with the focus: unless a card took its place (more came in, on
+    // the same node), the focus goes to the card before.
+    final node = widget.focusNode;
+    final previous = widget.previousNode;
+    if (_focused && previous != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (node.hasFocus || !(previous.context?.mounted ?? false)) return;
+        previous.requestFocus();
+      });
+    }
+    super.dispose();
   }
 
   @override
@@ -1900,11 +1935,11 @@ class _RequestableMoreTileState extends State<_RequestableMoreTile> {
       onKeyEvent: _onKey,
       onFocusChange: (focused) {
         setState(() => _focused = focused);
-        if (focused) widget.onMore();
+        if (focused && !widget.failed) widget.onMore();
       },
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: widget.onMore,
+        onTap: _press,
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           child: SizedBox(
@@ -1937,17 +1972,29 @@ class _RequestableMoreTileState extends State<_RequestableMoreTile> {
                           child: CircularProgressIndicator(strokeWidth: 2.5),
                         )
                       else
-                        Icon(Icons.add_rounded, size: 34, color: ink),
+                        Icon(
+                          widget.failed
+                              ? Icons.refresh_rounded
+                              : Icons.add_rounded,
+                          size: 34,
+                          color: ink,
+                        ),
                       const SizedBox(height: 10),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        child: Text(
-                          l10n.kostvSearchMore,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: ink,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                      Flexible(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Text(
+                            widget.failed && !widget.loading
+                                ? l10n.kostvSearchMoreFailed
+                                : l10n.kostvSearchMore,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: ink,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         ),
                       ),

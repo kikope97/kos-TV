@@ -14439,5 +14439,13 @@
     "kostvMusicTracksFailed": "No se han podido cargar las canciones",
     "@kostvMusicTracksFailed": {
         "description": "Kos TV Music: a home server album's page, its songs failed to load"
+    },
+    "kostvDiscoverNothingShown": "No hay nada que enseñarte aquí ahora mismo.",
+    "@kostvDiscoverNothingShown": {
+        "description": "Kos TV: Discover read its rows and none has anything to show"
+    },
+    "kostvSearchMoreFailed": "No se ha podido cargar. Reintentar",
+    "@kostvSearchMoreFailed": {
+        "description": "Kos TV: the search «Para solicitar» More card, after reading more failed"
     }
 }

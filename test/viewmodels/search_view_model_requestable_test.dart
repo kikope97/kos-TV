@@ -27,6 +27,7 @@ void main() {
   late List<Map<String, String>> searches;
   late List<Map<String, Object?>> found;
   late String? nextCursor;
+  late bool searchFails;
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
@@ -62,6 +63,7 @@ void main() {
       },
     ];
     nextCursor = null;
+    searchFails = false;
   });
 
   tearDown(() => GetIt.instance.reset());
@@ -104,9 +106,24 @@ void main() {
       }
       if (path == '/search') {
         searches.add(adapter.lastQuery);
+        if (searchFails) {
+          return (
+            status: 503,
+            body: {
+              'error': {'code': 'source_unavailable', 'message': 'Ahora no.'},
+            },
+            headers: const {},
+          );
+        }
         return (
           status: 200,
-          body: {'items': found, 'next_cursor': nextCursor},
+          body: {
+            'items': found,
+            // «more»: a page further on each time.
+            'next_cursor': nextCursor == 'more'
+                ? 'p${searches.length}'
+                : nextCursor,
+          },
           headers: const {},
         );
       }
@@ -224,6 +241,81 @@ void main() {
       vm.loadMoreRequestable();
       settle(async);
       expect(searches.last['cursor'], '2.19');
+      expect([for (final t in vm.requestable) t.tmdbId], [1, 2, 3]);
+      expect(vm.requestableHasMore, isFalse);
+
+      vm.dispose();
+      service.dispose();
+    });
+  });
+
+  test('pages with nothing to show: the service\'s own couple read on, '
+      'no more', () {
+    fakeAsync((async) {
+      homeHas([]);
+      found = [];
+      nextCursor = 'more';
+      final service = requests();
+      settle(async);
+      final vm = SearchViewModel(
+        SearchRepository(client),
+        client,
+        requests: service,
+      );
+      vm.searchImmediate('cumbres');
+      settle(async);
+      // Before, three rounds of the service's three: nine costly searches.
+      expect(searches, hasLength(3));
+      expect(vm.requestable, isEmpty);
+
+      vm.dispose();
+      service.dispose();
+    });
+  });
+
+  test('«Ver más» failing keeps it, says so, and tries again when pressed', () {
+    fakeAsync((async) {
+      homeHas([]);
+      nextCursor = '2.19';
+      final service = requests();
+      settle(async);
+      final vm = SearchViewModel(
+        SearchRepository(client),
+        client,
+        requests: service,
+      );
+      vm.searchImmediate('cumbres');
+      settle(async);
+      expect(vm.requestableHasMore, isTrue);
+      expect(vm.requestableMoreFailed, isFalse);
+
+      searchFails = true;
+      vm.loadMoreRequestable();
+      settle(async);
+      expect(vm.requestableHasMore, isTrue);
+      expect(vm.requestableMoreFailed, isTrue);
+      expect(vm.requestable, hasLength(2));
+
+      // Not again as the focus moves about the last cards: only when asked.
+      final asked = searches.length;
+      vm.loadMoreRequestable();
+      settle(async);
+      expect(searches, hasLength(asked));
+
+      searchFails = false;
+      found = [
+        {
+          'type': 'movie',
+          'tmdb_id': 3,
+          'title': 'Cumbres de hielo',
+          'library': {'status': 'missing', 'in_jellyfin': false},
+        },
+      ];
+      nextCursor = null;
+      vm.loadMoreRequestable(retry: true);
+      settle(async);
+      expect(searches.last['cursor'], '2.19');
+      expect(vm.requestableMoreFailed, isFalse);
       expect([for (final t in vm.requestable) t.tmdbId], [1, 2, 3]);
       expect(vm.requestableHasMore, isFalse);
 

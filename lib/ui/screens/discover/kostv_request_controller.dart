@@ -216,6 +216,10 @@ abstract class KostvRequestController extends ChangeNotifier {
       _backoff = null;
     } on StremfinException catch (e) {
       _backoff = e.retryAfter ?? backoffInterval;
+    } catch (_) {
+      // Kos TV: anything else (an answer read wrong) mustn't stop the asking
+      // for good: it waits a while and asks again.
+      _backoff = backoffInterval;
     } finally {
       _ticking = false;
       _tickRun = null;
@@ -554,14 +558,18 @@ class KostvSeriesRequestController extends KostvRequestController {
       for (final season in read.seasons) ?season.request?.id,
     };
     requests.removeWhere((id, _) => !ids.contains(id));
-    for (final id in ids) {
-      if (requests.containsKey(id) && !initial) continue;
-      try {
-        requests[id] = await service.request(id);
-      } on StremfinException catch (e) {
-        if (e.status != 404) rethrow;
-      }
-    }
+    // Kos TV: read side by side, not one after another.
+    await Future.wait([
+      for (final id in ids)
+        if (!requests.containsKey(id) || initial)
+          () async {
+            try {
+              requests[id] = await service.request(id);
+            } on StremfinException catch (e) {
+              if (e.status != 404) rethrow;
+            }
+          }(),
+    ]);
     _checkArrival(initial: initial);
   }
 
@@ -588,12 +596,11 @@ class KostvSeriesRequestController extends KostvRequestController {
       return;
     }
     var changed = false;
-    for (final entry in requests.entries.toList()) {
-      final before = entry.value;
-      if (!before.status.isOpen) continue;
+    // Kos TV: the open ones read side by side, not one after another.
+    Future<void> readOne(int id, StremfinRequest before) async {
       try {
-        final now = await service.request(entry.key);
-        requests[entry.key] = now;
+        final now = await service.request(id);
+        requests[id] = now;
         if (now.status != before.status ||
             now.progress?.episodesDone != before.progress?.episodesDone) {
           changed = true;
@@ -603,10 +610,15 @@ class KostvSeriesRequestController extends KostvRequestController {
         }
       } on StremfinException catch (e) {
         if (e.status != 404) rethrow;
-        requests.remove(entry.key);
+        requests.remove(id);
         changed = true;
       }
     }
+
+    await Future.wait([
+      for (final entry in requests.entries.toList())
+        if (entry.value.status.isOpen) readOne(entry.key, entry.value),
+    ]);
     final readAt = _pageReadAt;
     final stale =
         readAt == null || clock.now().difference(readAt) >= pageInterval;
@@ -614,26 +626,35 @@ class KostvSeriesRequestController extends KostvRequestController {
   }
 
   /// Asks for [season], or for all that is missing when null.
-  Future<void> ask({int? season}) {
-    if (sending) return Future.value();
+  Future<void> ask({int? season}) async {
+    if (sending) return;
     sendingSeason = season ?? 0;
-    return sendWith(() async {
-      try {
-        final result = await service.createRequest(
-          type: StremfinTitleType.series,
-          tmdbId: tmdbId,
-          season: season,
-        );
-        onNotice?.call(KostvRequestNotice.outcome(result));
-        final made = result.request;
-        if (made != null) requests[made.id] = made;
-        if (result.outcome != StremfinOutcome.limit) {
-          await readQuietly(_readSeries);
+    try {
+      await sendWith(() async {
+        try {
+          final result = await service.createRequest(
+            type: StremfinTitleType.series,
+            tmdbId: tmdbId,
+            season: season,
+          );
+          onNotice?.call(KostvRequestNotice.outcome(result));
+          final made = result.request;
+          if (made != null) requests[made.id] = made;
+          if (result.outcome != StremfinOutcome.limit) {
+            await readQuietly(_readSeries);
+          }
+        } finally {
+          sendingSeason = null;
         }
-      } finally {
+      });
+    } finally {
+      // Kos TV: not sent at all (not for this person by age): the season
+      // isn't left showing as being sent.
+      if (sendingSeason != null) {
         sendingSeason = null;
+        _notify();
       }
-    });
+    }
   }
 
   /// Takes back one of their requests while it waits for an answer.

@@ -288,7 +288,10 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
     _setPlatformMemory();
   }
 
-  void _loadLists({bool refresh = false}) {
+  /// Kos TV: [keepShown] keeps what a row shows, filtered again with what
+  /// the person may see, while a list not kept yet is read (the age limit
+  /// came or went with the page open).
+  void _loadLists({bool refresh = false, bool keepShown = false}) {
     final generation = ++_generation;
     final platform = _platformId;
     for (final spec in _rowSpecs) {
@@ -299,7 +302,11 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
         list: spec.list,
       );
       row
-        ..items = kept ?? const []
+        ..items =
+            kept ??
+            (keepShown
+                ? row.items.where(_service.allows).toList()
+                : const <StremfinTitle>[])
         ..loading = true
         ..failed = false;
       unawaited(
@@ -422,8 +429,13 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
 
   /// A title changed on the lists kept (asked for, arrived…): the cards
   /// show it as it stands.
+  ///
+  /// Kos TV: a list not kept under its current key means the person's age
+  /// limit came or went with the page open (the key carries it), so the rows
+  /// are read again rather than left showing what was filtered before.
   void _onListsChanged() {
     if (!mounted) return;
+    var missing = false;
     setState(() {
       for (final spec in _rowSpecs) {
         final kept = _service.keptList(
@@ -431,10 +443,20 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
           type: spec.type,
           list: spec.list,
         );
-        if (kept != null) _rows[spec]!.items = kept;
+        final row = _rows[spec]!;
+        if (kept != null) {
+          row.items = kept;
+        } else if (!row.loading && !row.failed) {
+          // A failed row isn't kept either; it waits for «Reintentar».
+          missing = true;
+        }
       }
     });
-    _followSpotlight();
+    if (missing) {
+      _loadLists(keepShown: true);
+    } else {
+      _followSpotlight();
+    }
   }
 
   /// The rows were scrolled: once they rest, the nearer row comes up whole
@@ -622,11 +644,26 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
   bool get _allFailed =>
       _rowSpecs.every((s) => _rows[s]!.failed && _rows[s]!.items.isEmpty);
 
-  Widget _unavailable(AppLocalizations l10n) => Column(
+  /// Kos TV: every row read and none with anything to show (all left out by
+  /// the age limit, or a platform with nothing yet).
+  bool get _nothingShown =>
+      _rowSpecs.every((s) => !_rows[s]!.loading && _rows[s]!.items.isEmpty);
+
+  /// What the rows' room says when there are no rows: Discover not answering,
+  /// or nothing to show; both with a way to ask again.
+  Widget? _noRows(AppLocalizations l10n) {
+    if (_allFailed) return _unavailable(l10n);
+    if (_nothingShown) {
+      return _unavailable(l10n, message: l10n.kostvDiscoverNothingShown);
+    }
+    return null;
+  }
+
+  Widget _unavailable(AppLocalizations l10n, {String? message}) => Column(
     mainAxisSize: MainAxisSize.min,
     children: [
       Text(
-        l10n.kostvDiscoverUnavailable,
+        message ?? l10n.kostvDiscoverUnavailable,
         textAlign: TextAlign.center,
         style: TextStyle(
           color: AppColorScheme.onSurface.withValues(alpha: 0.8),
@@ -819,9 +856,10 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
                 ),
                 SizedBox(
                   height: m.rowsRoom,
-                  child: _allFailed
-                      ? Center(child: _unavailable(l10n))
-                      : _wideRows(m, insets, l10n),
+                  child: switch (_noRows(l10n)) {
+                    final notice? => Center(child: notice),
+                    null => _wideRows(m, insets, l10n),
+                  },
                 ),
               ],
             ),
@@ -978,10 +1016,10 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
             spacing: 8,
             padding: EdgeInsets.fromLTRB(insets.left, 4, insets.right, 8),
           ),
-          if (_allFailed)
+          if (_noRows(l10n) case final notice?)
             Padding(
               padding: EdgeInsets.fromLTRB(insets.left, 48, insets.right, 0),
-              child: _unavailable(l10n),
+              child: notice,
             )
           else ...[
             if (highlights.isNotEmpty)

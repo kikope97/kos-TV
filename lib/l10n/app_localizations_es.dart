@@ -20446,4 +20446,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMusicTracksFailed => 'No se han podido cargar las canciones';
+
+  @override
+  String get kostvDiscoverNothingShown =>
+      'No hay nada que enseñarte aquí ahora mismo.';
+
+  @override
+  String get kostvSearchMoreFailed => 'No se ha podido cargar. Reintentar';
 }

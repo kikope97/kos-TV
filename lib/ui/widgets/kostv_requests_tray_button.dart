@@ -44,7 +44,13 @@ class KostvRequestsTraySlot extends StatelessWidget {
     if (!getIt.isRegistered<StremfinService>()) return const SizedBox.shrink();
     final service = getIt<StremfinService>();
     return ListenableBuilder(
-      listenable: Listenable.merge([service, service.inbox]),
+      // Kos TV: the settings too, so turning kids mode on or off shows or
+      // hides it at once.
+      listenable: Listenable.merge([
+        service,
+        service.inbox,
+        if (getIt.isRegistered<UserPreferences>()) getIt<UserPreferences>(),
+      ]),
       builder: (context, _) {
         final inbox = service.inbox;
         final show =
@@ -257,25 +263,4 @@ class _Badge extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// Kos TV: the number of news for a menu row or a tab: a small red pill,
-/// or nothing.
-class KostvRequestsNewsBadge extends StatelessWidget {
-  const KostvRequestsNewsBadge({super.key, this.size = 20});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    final getIt = GetIt.instance;
-    if (!getIt.isRegistered<StremfinService>()) return const SizedBox.shrink();
-    final inbox = getIt<StremfinService>().inbox;
-    return ListenableBuilder(
-      listenable: inbox,
-      builder: (context, _) => inbox.newsCount > 0
-          ? _Badge(count: inbox.newsCount, size: size)
-          : const SizedBox.shrink(),
-    );
-  }
 }

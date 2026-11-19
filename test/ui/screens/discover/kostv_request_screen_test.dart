@@ -180,6 +180,29 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('TV: taken back from its button, the focus goes back to the '
+      'main one', (tester) async {
+    fake.mode = 'review';
+    await open(
+      tester,
+      layout: InterfaceLayout.tv,
+      location: Destinations.kostvRequestOf('movie', 920),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await settle(tester);
+    expect(find.text('Pendiente de aprobación'), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await settle(tester);
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'kostvRequestExtra');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await settle(tester);
+    expect(find.text('Solicitar'), findsOneWidget);
+    expect(find.text('Retirar petición'), findsNothing);
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'kostvRequestMain');
+    await finish(tester);
+  });
+
   testWidgets('computer: a series, season by season', (tester) async {
     await open(
       tester,
