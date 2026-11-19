@@ -20740,5 +20740,18 @@
                 "type": "String"
             }
         }
+    },
+    "kostvPluginSyncDeviceWide": "Turns on or off for everyone who uses this device.",
+    "@kostvPluginSyncDeviceWide": {
+        "description": "Kos TV: under the settings sync switch: it is the device's, not the person's"
+    },
+    "kostvFailedToSyncSettingsToProfile": "Couldn't sync local settings to {profile} profile.",
+    "@kostvFailedToSyncSettingsToProfile": {
+        "description": "Kos TV: «Sincronizar ahora» couldn't reach the server",
+        "placeholders": {
+            "profile": {
+                "type": "String"
+            }
+        }
     }
 }

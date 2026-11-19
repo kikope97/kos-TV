@@ -21035,4 +21035,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String adminImageChangedRefreshFailed(String error) {
     return 'La imagen se ha cambiado, pero no se ha podido actualizar la vista: $error';
   }
+
+  @override
+  String get kostvPluginSyncDeviceWide =>
+      'Se enciende o se apaga para todas las personas que usan este dispositivo.';
+
+  @override
+  String kostvFailedToSyncSettingsToProfile(String profile) {
+    return 'No se han podido subir los ajustes al perfil $profile.';
+  }
 }

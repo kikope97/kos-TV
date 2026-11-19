@@ -67,6 +67,10 @@ class _StreamAdapter implements HttpClientAdapter {
 
 const _settingsUpdatedEvent = {'type': 'settingsUpdated'};
 
+class _ConnectionLost implements Exception {
+  const _ConnectionLost();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -138,6 +142,31 @@ void main() {
         async.elapse(const Duration(seconds: 90));
 
         expect(adapter.streams, hasLength(2));
+        service.dispose();
+      });
+    });
+
+    // Kos TV: the plugin only sends what happens while the stream is open,
+    // so what another device changed meanwhile is read once it opens again.
+    test('a stream that opens again reads what changed while it was down', () {
+      fakeAsync((async) {
+        int profileReads() => adapter.paths
+            .where((p) => p.contains('/Moonfin/Settings/Resolved/'))
+            .length;
+        service.syncOnLogin(client, serverId: 'srv1');
+        async.elapse(const Duration(seconds: 5));
+        adapter.send(':connected\n\n');
+        async.elapse(const Duration(seconds: 1));
+        final readsBefore = profileReads();
+
+        // The connection drops.
+        adapter.streams.last
+          ..addError(const _ConnectionLost())
+          ..close();
+        async.elapse(const Duration(seconds: 3));
+
+        expect(adapter.streams, hasLength(2));
+        expect(profileReads(), readsBefore + 1);
         service.dispose();
       });
     });

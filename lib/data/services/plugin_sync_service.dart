@@ -2,9 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
@@ -41,7 +42,7 @@ BaseOptions pluginRequestOptions() => BaseOptions(
   receiveTimeout: const Duration(seconds: 30),
 );
 
-class PluginSyncService extends ChangeNotifier {
+class PluginSyncService extends ChangeNotifier with WidgetsBindingObserver {
   static const List<String> supportedProfiles = <String>[
     'global',
     'desktop',
@@ -143,6 +144,14 @@ class PluginSyncService extends ChangeNotifier {
   /// Set while sign-in is still working out what the server holds.
   bool _readingProfileOnSignIn = false;
 
+  /// Kos TV: moves on each time the session is torn down (a switch of person,
+  /// sign-out). Work still on its way for the session before (its sign-in
+  /// read, a server update) sees it and drops what it brought, rather than
+  /// writing one person's settings over the next one's.
+  int _sessionEpoch = 0;
+
+  bool _observingLifecycle = false;
+
   PluginSyncService(this._prefs, this._store, {@visibleForTesting Dio? dio})
     : _dio = dio ?? Dio(pluginRequestOptions()) {
     // An injected Dio brings its own adapter, so only the one built here needs
@@ -176,6 +185,20 @@ class PluginSyncService extends ChangeNotifier {
       );
     }
     _prefs.addListener(_onPrefsChanged);
+    // Kos TV: a change still waiting out the push delay goes up when the app
+    // leaves the screen. Tests that never start the binding go without.
+    try {
+      WidgetsBinding.instance.addObserver(this);
+      _observingLifecycle = true;
+    } catch (_) {}
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused) {
+      _flushPendingPush();
+    }
   }
 
   String _serverSyncKey(MediaServerClient client, {String? serverId}) {
@@ -219,7 +242,31 @@ class PluginSyncService extends ChangeNotifier {
     return value is num && value >= 0 ? value.toInt() : null;
   }
 
+  /// Ends the session's sync: a switch of person or a sign-out.
   void resetState({
+    bool notify = true,
+    bool stopStream = true,
+    bool keepIncompleteRecordings = false,
+    bool keepSignInRead = false,
+  }) {
+    // Kos TV: a change still waiting out the push delay is sent now, while
+    // the preferences are still this person's, and anything on its way for
+    // this session is told it is over.
+    _flushPendingPush();
+    _pushDebounceTimer?.cancel();
+    _sessionEpoch++;
+    _readingProfileOnSignIn = false;
+    _resetState(
+      notify: notify,
+      stopStream: stopStream,
+      keepIncompleteRecordings: keepIncompleteRecordings,
+      keepSignInRead: keepSignInRead,
+    );
+  }
+
+  /// Clears what this service knows about the plugin without ending the
+  /// session, ahead of a re-ping or after a failed one.
+  void _resetState({
     bool notify = true,
     bool stopStream = true,
     bool keepIncompleteRecordings = false,
@@ -262,9 +309,10 @@ class PluginSyncService extends ChangeNotifier {
   Future<_PluginAvailabilityStatus> _refreshAvailabilityStatus(
     MediaServerClient client,
   ) async {
+    final epoch = _sessionEpoch;
     // A re-ping of the same session keeps the incomplete recordings it has
     // unless the answer says the plugin no longer offers them.
-    resetState(
+    _resetState(
       notify: false,
       stopStream: false,
       keepIncompleteRecordings: true,
@@ -285,6 +333,8 @@ class PluginSyncService extends ChangeNotifier {
 
     try {
       final pingResult = await _ping(client);
+      // Kos TV: the session this answer belongs to is over.
+      if (epoch != _sessionEpoch) return _PluginAvailabilityStatus.unknown;
       if (pingResult == null && moonbaseKnownMissing(client)) {
         _incompleteRecordings?.setSupported(false);
         _stopSettingsStream();
@@ -349,6 +399,7 @@ class PluginSyncService extends ChangeNotifier {
         return _PluginAvailabilityStatus.unavailable;
       }
 
+      if (epoch != _sessionEpoch) return _PluginAvailabilityStatus.unknown;
       _pluginAvailable = true;
       _pluginVersion = _readString(pingResult, 'version');
       _mdblistAvailable = _readBool(pingResult, 'mdblistAvailable') ?? false;
@@ -383,7 +434,7 @@ class PluginSyncService extends ChangeNotifier {
       notifyListeners();
       return _PluginAvailabilityStatus.available;
     } catch (_) {
-      resetState(notify: false);
+      if (epoch == _sessionEpoch) _resetState(notify: false);
       return _PluginAvailabilityStatus.unknown;
     }
   }
@@ -499,6 +550,10 @@ class PluginSyncService extends ChangeNotifier {
   }
 
   Future<void> syncOnLogin(MediaServerClient client, {String? serverId}) async {
+    // Kos TV: a switch to someone else while this runs (a slow server) makes
+    // every step below stop where it is, so nothing it brings lands on them.
+    final epoch = _sessionEpoch;
+    bool left() => epoch != _sessionEpoch;
     _readingProfileOnSignIn = true;
     final userKey = _userSyncKey(client, serverId: serverId);
     _signInSettingsRead.remove(userKey);
@@ -506,14 +561,17 @@ class PluginSyncService extends ChangeNotifier {
     try {
       _activeThemeCacheServerId = serverId;
       await _hydrateCachedThemes(client, serverId: serverId);
+      if (left()) return;
 
       final availability = await _refreshAvailabilityStatus(client);
+      if (left()) return;
       if (availability == _PluginAvailabilityStatus.available) {
         _syncRetryCount = 0;
       }
 
       // Reads the cache first, so messages are there even with no connection.
       await _messages?.refresh(client, serverId: serverId);
+      if (left()) return;
 
       final syncInitializedPref =
           UserPreferences.pluginSyncInitializedForServer(
@@ -523,12 +581,22 @@ class PluginSyncService extends ChangeNotifier {
         if (_prefs.get(UserPreferences.pluginSyncEnabled) &&
             availability == _PluginAvailabilityStatus.available) {
           await _refreshCustomThemes(client, serverId: serverId);
+          if (left()) return;
 
           final profile = syncProfile;
-          final resolved = await _fetchResolvedProfile(client, profile);
-          if (resolved != null) {
-            await _applyServerSettings(client, profile, resolved);
+          // Kos TV: what was changed here and never reached the server (no
+          // connection, the app closed right after) is newer than the
+          // server's copy, so it goes up first and the read brings it back.
+          final sent = await _sendUnsentChanges(client, profile);
+          if (left()) return;
+          if (sent) {
+            final resolved = await _fetchResolvedProfile(client, profile);
+            if (left()) return;
+            if (resolved != null) {
+              await _applyServerSettings(client, profile, resolved);
+            }
           }
+          if (left()) return;
 
           unawaited(_startSettingsStream(client));
         }
@@ -551,10 +619,22 @@ class PluginSyncService extends ChangeNotifier {
       }
 
       await _refreshCustomThemes(client, serverId: serverId);
+      if (left()) return;
 
       final profile = syncProfile;
-      final resolved = await _fetchResolvedProfile(client, profile);
+      final result = await _fetchResolved(client, profile);
+      if (left()) return;
+      final resolved = result.profile;
       if (resolved == null) {
+        // Kos TV: the plugin answers 404 when sync is on but nothing has been
+        // saved yet, neither by this person nor as the admin's defaults.
+        // Sync starts with nothing to read, and the first push creates the
+        // profile. Any other failure is tried again at the next sign-in.
+        if (!result.notFound) return;
+        await _prefs.set(UserPreferences.pluginSyncEnabled, true);
+        await _prefs.set(syncInitializedPref, true);
+        if (left()) return;
+        unawaited(_startSettingsStream(client));
         return;
       }
 
@@ -562,13 +642,17 @@ class PluginSyncService extends ChangeNotifier {
 
       await _applyServerSettings(client, profile, resolved);
       await _prefs.set(syncInitializedPref, true);
+      if (left()) return;
       unawaited(_startSettingsStream(client));
     } catch (_) {
-      resetState();
+      if (!left()) _resetState();
     } finally {
-      _readingProfileOnSignIn = false;
-      // A retry reads them later, so the wait isn't over yet.
-      if (!retrying) _signInSettingsRead.add(userKey);
+      // A session that is over has handed both to the next one.
+      if (!left()) {
+        _readingProfileOnSignIn = false;
+        // A retry reads them later, so the wait isn't over yet.
+        if (!retrying) _signInSettingsRead.add(userKey);
+      }
     }
   }
 
@@ -618,7 +702,8 @@ class PluginSyncService extends ChangeNotifier {
           return;
         }
 
-        await _startSettingsStream(client);
+        // Kos TV: what changed elsewhere while it was closed is read once.
+        await _startSettingsStream(client, catchUp: true);
       }),
     );
   }
@@ -680,6 +765,10 @@ class PluginSyncService extends ChangeNotifier {
       return;
     }
 
+    // Kos TV: an update read for a session that is over by the time it
+    // answers is the previous person's, so it is dropped.
+    final epoch = _sessionEpoch;
+
     // A change made here that hasn't reached the server yet goes first: the
     // server's copy is older than it, and applying it now would undo the
     // change (and mark it as sent). The update is read once the push is done.
@@ -689,8 +778,13 @@ class PluginSyncService extends ChangeNotifier {
     }
 
     final profile = syncProfile;
+    // Kos TV: the same for a change that never reached the server at all
+    // (made with no connection to it): sent first, kept if it still can't be.
+    if (!await _sendUnsentChanges(client, profile)) return;
+    if (epoch != _sessionEpoch) return;
+
     final resolved = await _fetchResolvedProfile(client, profile);
-    if (resolved == null) {
+    if (resolved == null || epoch != _sessionEpoch) {
       return;
     }
     // Changed while the server's copy was on its way.
@@ -726,10 +820,156 @@ class PluginSyncService extends ChangeNotifier {
     await _pushWhenProfileRead();
   }
 
+  /// Kos TV: sends a change still waiting out the push delay now, because
+  /// the session is ending or the app is leaving the screen. It is built
+  /// straight away, while the preferences are still this person's, and
+  /// marked as unsent first so the next sign-in sends it if this push never
+  /// lands (the app killed, the token gone with the sign-out).
+  void _flushPendingPush() {
+    final timer = _pushDebounceTimer;
+    if (timer == null || !timer.isActive) return;
+    // Sign-in hasn't read the server yet, so this device's copy is older than
+    // it everywhere but the one change: sending it would undo the rest. The
+    // push waits for the read as before (and a session ending drops it).
+    if (_readingProfileOnSignIn) return;
+    timer.cancel();
+    if (!_pluginAvailable || !_prefs.get(UserPreferences.pluginSyncEnabled)) {
+      return;
+    }
+    final client = _activeClient;
+    if (client == null) return;
+    final profile = syncProfile;
+    if (!supportedProfiles.contains(profile)) return;
+    try {
+      final payload = _buildProfileFromLocal();
+      _markUnsent(client, profile);
+      unawaited(_postProfile(client, profile, payload).catchError((_) => false));
+    } catch (_) {}
+  }
+
+  /// The signed-in client with a token, or null.
+  MediaServerClient? get _activeClient {
+    if (!GetIt.instance.isRegistered<MediaServerClient>()) return null;
+    final client = GetIt.instance<MediaServerClient>();
+    final token = client.accessToken;
+    if (token == null || token.isEmpty) return null;
+    return client;
+  }
+
+  // Kos TV: the persisted record of a change this device couldn't send. Kept
+  // per server, person and profile, next to a fingerprint of what was last in
+  // step with the server, so a mark left by a write that changed nothing
+  // synced (a playback position, say) sends nothing.
+
+  /// Whose record it is. Read before any wait: the client is shared by
+  /// everyone on the server, and a switch of person changes its user.
+  String _syncRecordKey(MediaServerClient client, String profile) =>
+      '${_serverSyncKey(client)}_${client.userId ?? ''}_$profile';
+
+  Preference<bool> _unsentPref(String record) =>
+      Preference(key: 'pref_kostv_sync_unsent_$record', defaultValue: false);
+
+  Preference<String> _syncedHashPref(String record) =>
+      Preference(key: 'pref_kostv_sync_hash_$record', defaultValue: '');
+
+  static String _profileHash(String payloadJson) =>
+      sha1.convert(utf8.encode(payloadJson)).toString();
+
+  bool _hasUnsentMark(MediaServerClient client, String profile) =>
+      _store.get(_unsentPref(_syncRecordKey(client, profile)));
+
+  void _markUnsent(MediaServerClient client, String profile) =>
+      _markRecordUnsent(_syncRecordKey(client, profile));
+
+  void _markRecordUnsent(String record) {
+    final pref = _unsentPref(record);
+    if (_store.get(pref)) return;
+    unawaited(_store.set(pref, true).catchError((_) {}));
+  }
+
+  void _recordInStep(
+    MediaServerClient client,
+    String profile,
+    String payloadJson,
+  ) => _recordInStepFor(_syncRecordKey(client, profile), payloadJson);
+
+  /// Records that the server now holds [payloadJson] for this person and
+  /// profile, which clears any unsent mark.
+  void _recordInStepFor(String record, String payloadJson) {
+    final hash = _syncedHashPref(record);
+    final value = _profileHash(payloadJson);
+    if (_store.get(hash) != value) {
+      unawaited(_store.set(hash, value).catchError((_) {}));
+    }
+    final unsent = _unsentPref(record);
+    if (_store.get(unsent)) {
+      unawaited(_store.delete(unsent).catchError((_) {}));
+    }
+  }
+
+  /// Sends what this device changed and couldn't send, ahead of reading the
+  /// server's copy. False when there was something to send and it didn't go,
+  /// so the caller keeps the local settings rather than reading over them.
+  Future<bool> _sendUnsentChanges(
+    MediaServerClient client,
+    String profile,
+  ) async {
+    if (!supportedProfiles.contains(profile)) return true;
+    if (!_hasUnsentMark(client, profile)) return true;
+    final payloadJson = jsonEncode(_buildProfileFromLocal());
+    final inStep = _store.get(
+      _syncedHashPref(_syncRecordKey(client, profile)),
+    );
+    if (inStep.isNotEmpty && inStep == _profileHash(payloadJson)) {
+      _recordInStep(client, profile, payloadJson);
+      return true;
+    }
+    return pushSettingsForProfile(client, profile: profile, force: true);
+  }
+
+  /// Kos TV: turns settings sync on or off for this device. Turning it on
+  /// reads the server's copy first, so this device's settings from while it
+  /// was off don't overwrite what the other devices changed meanwhile, and
+  /// opens the live updates. With nothing on the server yet, this device's
+  /// settings become the profile.
+  Future<void> setSyncEnabled(bool enabled) async {
+    await _prefs.set(UserPreferences.pluginSyncEnabled, enabled);
+    // Turning it on reads as a local edit, which would push this device's
+    // settings before the read below.
+    _pushDebounceTimer?.cancel();
+    if (!enabled) {
+      _stopSettingsStream();
+      return;
+    }
+    final client = _activeClient;
+    if (client == null || !_pluginAvailable) return;
+    final epoch = _sessionEpoch;
+    final profile = syncProfile;
+    try {
+      final result = await _fetchResolved(client, profile);
+      if (epoch != _sessionEpoch ||
+          !_prefs.get(UserPreferences.pluginSyncEnabled)) {
+        return;
+      }
+      final resolved = result.profile;
+      if (resolved != null) {
+        await _applyServerSettings(client, profile, resolved);
+        notifyListeners();
+      } else if (result.notFound) {
+        await pushSettingsForProfile(client, profile: profile, force: true);
+      }
+      if (epoch != _sessionEpoch) return;
+      unawaited(_startSettingsStream(client));
+    } catch (_) {}
+  }
+
   /// Sign-in leaves this running rather than waiting on it. The server can
   /// hold the first reply back until its heartbeat, and the stream reconnects
   /// on its own.
-  Future<void> _startSettingsStream(MediaServerClient client) async {
+  Future<void> _startSettingsStream(
+    MediaServerClient client, {
+    bool catchUp = false,
+  }) async {
     // Emby servers have no SSE endpoint, so plugin events arrive over the
     // session websocket instead. Moonbase for Silo and Plex can't stream, so
     // settings arrive at sign-in and on a manual sync. Don't loop on 501
@@ -740,8 +980,9 @@ class PluginSyncService extends ChangeNotifier {
       return;
     }
 
+    final epoch = _sessionEpoch;
     final ep = await moonbaseEndpoint(client, _dio);
-    if (ep == null) {
+    if (ep == null || epoch != _sessionEpoch) {
       return;
     }
     final headers = ep.headers;
@@ -766,6 +1007,14 @@ class PluginSyncService extends ChangeNotifier {
       }
 
       _settingsStreamReconnectAttempt = 0;
+
+      // The plugin only sends what happens from now on, so an update made
+      // while the stream was down is read here once. Applying the profile
+      // the server holds then keeps a later push from writing this device's
+      // stale copy over it.
+      if (catchUp) {
+        unawaited(handleServerEvent(client, const {'type': 'settingsUpdated'}));
+      }
 
       // A timeout arrives as an error, which reconnects straight away rather
       // than waiting on a dead connection to finish closing.
@@ -805,10 +1054,18 @@ class PluginSyncService extends ChangeNotifier {
     }
   }
 
+  /// Kos TV: a plain push waits out the same delay as any local edit and
+  /// goes through the same checks (the sign-in read first, the server's
+  /// updates after). A screen calling this on every change of a slider would
+  /// otherwise send the whole profile once per press. [force] sends now.
   Future<void> pushSettings(
     MediaServerClient client, {
     bool force = false,
   }) async {
+    if (!force) {
+      _schedulePush();
+      return;
+    }
     await pushSettingsForProfile(
       client,
       profile: syncProfile,
@@ -819,21 +1076,25 @@ class PluginSyncService extends ChangeNotifier {
   /// [force] skips the identity check, since an explicit push means overwrite
   /// whatever the server holds. The snapshot only proves what this device sent
   /// last, not what another device has written since.
-  Future<void> pushSettingsForProfile(
+  ///
+  /// Kos TV: true once the server holds this device's settings (sent now, or
+  /// already the same), false when nothing could be sent.
+  Future<bool> pushSettingsForProfile(
     MediaServerClient client, {
     required String profile,
     bool force = false,
   }) async {
-    if (!_pluginAvailable) return;
-    if (!_prefs.get(UserPreferences.pluginSyncEnabled)) return;
-
-    if (!supportedProfiles.contains(profile)) return;
+    if (!_prefs.get(UserPreferences.pluginSyncEnabled)) return false;
+    if (!supportedProfiles.contains(profile)) return false;
+    if (!_pluginAvailable) {
+      // Kos TV: a pending change whose push finds the plugin gone (a re-ping
+      // that failed) is sent at the next sign-in or retry.
+      _markUnsent(client, profile);
+      return false;
+    }
 
     try {
       final payloadProfile = _buildProfileFromLocal();
-      final ep = await moonbaseEndpoint(client, _dio);
-      if (ep == null) return;
-      final headers = ep.headers;
 
       // Pushing a payload the server already has makes the plugin broadcast a
       // settingsUpdated event straight back at this device, and the resulting
@@ -841,24 +1102,59 @@ class PluginSyncService extends ChangeNotifier {
       final snapshotKey = _snapshotKey(client, profile);
       final payloadJson = jsonEncode(payloadProfile);
       if (!force && _lastSyncedProfileJson[snapshotKey] == payloadJson) {
-        return;
+        _recordInStep(client, profile, payloadJson);
+        return true;
       }
 
+      final epoch = _sessionEpoch;
       _pushesInFlight++;
+      final bool sent;
       try {
-        await _dio.post(
-          '${ep.base}/Moonfin/Settings/Profile/$profile',
-          data: {'profile': payloadProfile, 'clientId': 'moonfin-flutter'},
-          options: Options(
-            headers: {...headers, 'Content-Type': 'application/json'},
-          ),
-        );
+        sent = await _postProfile(client, profile, payloadProfile);
       } finally {
         _pushesInFlight--;
       }
       // Only after the POST lands, so a failed push retries on the next change.
-      _lastSyncedProfileJson[snapshotKey] = payloadJson;
-    } catch (_) {}
+      // Not for a session that ended meanwhile: the snapshot is the next one's.
+      if (sent && epoch == _sessionEpoch) {
+        _lastSyncedProfileJson[snapshotKey] = payloadJson;
+      }
+      return sent;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Posts [payloadProfile] as [profile]. A failure leaves the change marked
+  /// as unsent, so the next sign-in or reconnect sends it before reading.
+  Future<bool> _postProfile(
+    MediaServerClient client,
+    String profile,
+    Map<String, dynamic> payloadProfile,
+  ) async {
+    // Kos TV: both taken now, before any wait, so a switch of person while
+    // this is on its way (the client is shared) can't send it or file it
+    // as the next person's. The Jellyfin headers are built synchronously.
+    final record = _syncRecordKey(client, profile);
+    try {
+      final ep = await moonbaseEndpoint(client, _dio);
+      if (ep == null) {
+        _markRecordUnsent(record);
+        return false;
+      }
+      await _dio.post(
+        '${ep.base}/Moonfin/Settings/Profile/$profile',
+        data: {'profile': payloadProfile, 'clientId': 'moonfin-flutter'},
+        options: Options(
+          headers: {...ep.headers, 'Content-Type': 'application/json'},
+        ),
+      );
+      _recordInStepFor(record, jsonEncode(payloadProfile));
+      return true;
+    } catch (_) {
+      _markRecordUnsent(record);
+      return false;
+    }
   }
 
   /// Returns true when the registration POST succeeded and false when it was
@@ -1165,9 +1461,16 @@ class PluginSyncService extends ChangeNotifier {
   Future<Map<String, dynamic>?> _fetchResolvedProfile(
     MediaServerClient client,
     String profile,
+  ) async => (await _fetchResolved(client, profile)).profile;
+
+  /// Kos TV: [notFound] is the plugin's 404, which it gives with sync on when
+  /// neither this person nor the admin's defaults have saved anything yet.
+  Future<({Map<String, dynamic>? profile, bool notFound})> _fetchResolved(
+    MediaServerClient client,
+    String profile,
   ) async {
     final ep = await moonbaseEndpoint(client, _dio);
-    if (ep == null) return null;
+    if (ep == null) return (profile: null, notFound: false);
     final headers = ep.headers;
 
     try {
@@ -1176,10 +1479,17 @@ class PluginSyncService extends ChangeNotifier {
         options: Options(headers: headers),
       );
       if (response.data is Map<String, dynamic>) {
-        return response.data as Map<String, dynamic>;
+        return (
+          profile: response.data as Map<String, dynamic>,
+          notFound: false,
+        );
+      }
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) {
+        return (profile: null, notFound: true);
       }
     } catch (_) {}
-    return null;
+    return (profile: null, notFound: false);
   }
 
   Future<Map<String, dynamic>?> fetchSimilarItems(
@@ -1500,9 +1810,9 @@ class PluginSyncService extends ChangeNotifier {
     // Local now matches the server for every synced field, so a later push of
     // this same payload is the echo of this apply and gets skipped.
     try {
-      _lastSyncedProfileJson[_snapshotKey(client, profile)] = jsonEncode(
-        _buildProfileFromLocal(),
-      );
+      final payloadJson = jsonEncode(_buildProfileFromLocal());
+      _lastSyncedProfileJson[_snapshotKey(client, profile)] = payloadJson;
+      _recordInStep(client, profile, payloadJson);
     } catch (_) {}
   }
 
@@ -2156,6 +2466,21 @@ class PluginSyncService extends ChangeNotifier {
 
   void _onPrefsChanged() {
     if (_isSyncingFromServer) return;
+    if (!_prefs.get(UserPreferences.pluginSyncEnabled)) return;
+    if (!_pluginAvailable) {
+      // Kos TV: a change made while the plugin can't be reached (no network
+      // yet after a power cut) is remembered, so the next sign-in or retry
+      // sends it instead of reading the server's older copy over it. Not
+      // during sign-in, whose own writes aren't the person's changes.
+      if (_readingProfileOnSignIn) return;
+      final client = _activeClient;
+      if (client != null) _markUnsent(client, syncProfile);
+      return;
+    }
+    _schedulePush();
+  }
+
+  void _schedulePush() {
     if (!_pluginAvailable || !_prefs.get(UserPreferences.pluginSyncEnabled)) {
       return;
     }
@@ -2179,7 +2504,7 @@ class PluginSyncService extends ChangeNotifier {
     if (client != null &&
         client.accessToken != null &&
         client.accessToken!.isNotEmpty) {
-      await pushSettings(client);
+      await pushSettingsForProfile(client, profile: syncProfile);
       await _readWaitingServerUpdate(client);
     }
   }
@@ -2232,6 +2557,7 @@ class PluginSyncService extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_observingLifecycle) WidgetsBinding.instance.removeObserver(this);
     _prefs.removeListener(_onPrefsChanged);
     _pushDebounceTimer?.cancel();
     _syncRetryTimer?.cancel();

@@ -20691,4 +20691,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String adminImageChangedRefreshFailed(String error) {
     return 'The image was changed, but the view couldn\'t be refreshed: $error';
   }
+
+  @override
+  String get kostvPluginSyncDeviceWide =>
+      'Turns on or off for everyone who uses this device.';
+
+  @override
+  String kostvFailedToSyncSettingsToProfile(String profile) {
+    return 'Couldn\'t sync local settings to $profile profile.';
+  }
 }

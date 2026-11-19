@@ -240,12 +240,15 @@ class SubtitleSettingsScreen extends StatelessWidget {
                       SettingsSectionHeader(l10n.subtitleRendering),
                       adaptiveListSection(
                         children: [
-                          SwitchPreferenceTile(
-                            preference: UserPreferences.pgsDirectPlay,
-                            title: l10n.pgsDirectPlay,
-                            subtitle: l10n.directPlayPgsSubtitles,
-                            icon: Icons.image,
-                          ),
+                          // Kos TV: the browser can't play PGS directly, so
+                          // the switch would do nothing there.
+                          if (!PlatformDetection.isWeb)
+                            SwitchPreferenceTile(
+                              preference: UserPreferences.pgsDirectPlay,
+                              title: l10n.pgsDirectPlay,
+                              subtitle: l10n.directPlayPgsSubtitles,
+                              icon: Icons.image,
+                            ),
                           SwitchPreferenceTile(
                             preference: UserPreferences.assDirectPlay,
                             title: l10n.assSsaDirectPlay,

@@ -35612,6 +35612,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The image was changed, but the view couldn\'t be refreshed: {error}'**
   String adminImageChangedRefreshFailed(String error);
+
+  /// Kos TV: under the settings sync switch: it is the device's, not the person's
+  ///
+  /// In en, this message translates to:
+  /// **'Turns on or off for everyone who uses this device.'**
+  String get kostvPluginSyncDeviceWide;
+
+  /// Kos TV: «Sincronizar ahora» couldn't reach the server
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t sync local settings to {profile} profile.'**
+  String kostvFailedToSyncSettingsToProfile(String profile);
 }
 
 class _AppLocalizationsDelegate

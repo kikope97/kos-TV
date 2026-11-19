@@ -5,6 +5,7 @@ import 'music/kostv_now_playing.dart';
 import 'package:flutter/rendering.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../data/services/plugin_sync_service.dart';
 import '../../preference/preference_constants.dart';
 import '../../preference/user_preferences.dart';
 import '../../util/platform_detection.dart';
@@ -173,8 +174,24 @@ class _NavigationLayoutState extends State<NavigationLayout>
     }
     _bottomStyle = _prefs.get(UserPreferences.bottomNavbarStyle);
     _prefs.addListener(_onPrefsChanged);
+    // Kos TV: a switch of person changes whose preferences are read without
+    // writing any of them. The plugin sync announces each sign-in, reached
+    // or not, so the bar follows the new person's position from there.
+    if (GetIt.instance.isRegistered<PluginSyncService>()) {
+      GetIt.instance<PluginSyncService>().addListener(_onPrefsChanged);
+    }
     WidgetsBinding.instance.addObserver(this);
     NavigationLayout.positionNotifier.addListener(_onPositionNotified);
+    // Kos TV: the details page reads the shared notifier, which may still
+    // hold the previous person's position.
+    if (NavigationLayout.positionNotifier.value != _position) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (NavigationLayout.positionNotifier.value != _position) {
+          NavigationLayout.positionNotifier.value = _position;
+        }
+      });
+    }
   }
 
   @override
@@ -244,6 +261,9 @@ class _NavigationLayoutState extends State<NavigationLayout>
     if (_observedRoute != null) routeLifecycleObserver.unsubscribe(this);
     _bottomMinimized.dispose();
     _prefs.removeListener(_onPrefsChanged);
+    if (GetIt.instance.isRegistered<PluginSyncService>()) {
+      GetIt.instance<PluginSyncService>().removeListener(_onPrefsChanged);
+    }
     NavigationLayout.positionNotifier.removeListener(_onPositionNotified);
     WidgetsBinding.instance.removeObserver(this);
     _contentFocusNode.dispose();
@@ -269,8 +289,22 @@ class _NavigationLayoutState extends State<NavigationLayout>
 
   // The bar's height, and with it the content inset, depends on the style.
   void _onPrefsChanged() {
+    if (!mounted) return;
+    // Kos TV: a switch of person brings their own bar position, which no
+    // settings screen or server apply announces when the plugin can't be
+    // reached, so the bar (and the details page, which follows the notifier)
+    // would keep the previous person's.
+    final pos = NavigationLayout.sanitizeNavbarPosition(
+      _prefs.get(UserPreferences.navbarPosition),
+    );
+    if (pos != _position) {
+      setState(() => _position = pos);
+      if (NavigationLayout.positionNotifier.value != pos) {
+        NavigationLayout.positionNotifier.value = pos;
+      }
+    }
     final style = _prefs.get(UserPreferences.bottomNavbarStyle);
-    if (style == _bottomStyle || !mounted) return;
+    if (style == _bottomStyle) return;
     _expandBottomBar();
     setState(() => _bottomStyle = style);
   }

@@ -1947,11 +1947,13 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       subtitle: l10n.preferExternalSubtitlesSubtitle,
       keywords: ['external', 'sidecar', 'download'],
     ),
-    subtitles.leaf(
-      'pgs_enabled',
-      l10n.pgsDirectPlay,
-      subtitle: l10n.directPlayPgsSubtitles,
-    ),
+    // Kos TV: the switch isn't in the browser, which can't play PGS directly.
+    if (!PlatformDetection.isWeb)
+      subtitles.leaf(
+        'pgs_enabled',
+        l10n.pgsDirectPlay,
+        subtitle: l10n.directPlayPgsSubtitles,
+      ),
     subtitles.leaf(
       'ass_enabled',
       l10n.assSsaDirectPlay,

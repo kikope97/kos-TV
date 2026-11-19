@@ -6,7 +6,6 @@ class _EditableStringPreferenceTile extends StatefulWidget {
   final IconData icon;
   final String hintText;
   final Future<String?> Function()? pickPath;
-  final void Function(String)? onChanged;
 
   const _EditableStringPreferenceTile({
     required this.preference,
@@ -14,7 +13,6 @@ class _EditableStringPreferenceTile extends StatefulWidget {
     required this.icon,
     required this.hintText,
     this.pickPath,
-    this.onChanged,
   });
 
   @override
@@ -108,7 +106,6 @@ class _EditableStringPreferenceTileState
 
     if (next == null) return;
     _binding.value = next;
-    widget.onChanged?.call(next);
   }
 }
 

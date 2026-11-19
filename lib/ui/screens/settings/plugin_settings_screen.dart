@@ -52,18 +52,13 @@ class _PluginSettingsSectionState extends State<PluginSettingsSection> {
   }
 
   Future<void> _toggleSync() async {
-    await _prefs.set(
-      UserPreferences.pluginSyncEnabled,
-      !_prefs.get(UserPreferences.pluginSyncEnabled),
-    );
-    if (!mounted) return;
-    setState(() {});
-    if (_syncService.pluginAvailable) {
-      _syncService.pushSettings(
-        GetIt.instance<MediaServerClient>(),
-        force: true,
-      );
-    }
+    // Kos TV: turning it back on reads the server first and opens the live
+    // updates, rather than pushing this device's settings over the others.
+    final enabling = !_prefs.get(UserPreferences.pluginSyncEnabled);
+    final done = _syncService.setSyncEnabled(enabling);
+    if (mounted) setState(() {});
+    await done;
+    if (mounted) setState(() {});
   }
 
   Future<void> _selectProfile(String profile) async {
@@ -132,7 +127,7 @@ class _PluginSettingsSectionState extends State<PluginSettingsSection> {
     setState(() => _profileSyncBusy = true);
     final client = GetIt.instance<MediaServerClient>();
     final profile = _syncService.syncProfile;
-    await _syncService.pushSettingsForProfile(
+    final ok = await _syncService.pushSettingsForProfile(
       client,
       profile: profile,
       force: true,
@@ -144,7 +139,11 @@ class _PluginSettingsSectionState extends State<PluginSettingsSection> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          l10n.syncedSettingsToProfile(_profileLabel(profile, l10n)),
+          ok
+              ? l10n.syncedSettingsToProfile(_profileLabel(profile, l10n))
+              : l10n.kostvFailedToSyncSettingsToProfile(
+                  _profileLabel(profile, l10n),
+                ),
         ),
       ),
     );
@@ -308,6 +307,16 @@ class _PluginSettingsSectionState extends State<PluginSettingsSection> {
                             color: _subtleColor(inverted),
                           ),
                         ),
+                      // Kos TV: the switch is this device's, not this
+                      // person's: turning it off here turns it off for
+                      // everyone who uses this device.
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.kostvPluginSyncDeviceWide,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: _subtleColor(inverted),
+                        ),
+                      ),
                     ],
                   ),
                 ),
