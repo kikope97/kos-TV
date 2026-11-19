@@ -25,5 +25,5 @@ usuario. Norma de siempre: ninguna función se pierde ni va a peor.
 
 | # | Técnica | Interfaz |
 |---|---|---|
-| 1 | en curso | — |
+| 1 | revisada (43 hallazgos comprobados), esperando visto bueno | — |
 | 2–10 | — | — |
