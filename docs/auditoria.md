@@ -94,3 +94,11 @@ y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
   persona, la música sigue. Recomendación: pararla.
 - **Tráiler a pantalla completa con música sonando.** Hoy la para.
   Recomendación: ponerla en pausa y que siga al cerrar el tráiler.
+
+### Bloque 7
+- **Bibliotecas mixtas** (películas y series juntas) abren todavía la página
+  antigua. Se pueden llevar al catálogo de kOS TV, pero los vídeos sueltos que
+  tengan no saldrían. Recomendación: llevarlas al catálogo solo si en casa no
+  hay vídeos sueltos en ellas.
+- **Música de casa en el modo infantil** se puede abrir desde «Mis medios».
+  Recomendación: dejarlo (la música respeta el límite de edad de la cuenta).
