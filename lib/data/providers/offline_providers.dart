@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 
 import '../database/offline_database.dart';
+import '../offline/download_people.dart';
 import '../repositories/offline_repository.dart';
 
 OfflineRepository get _repo => GetIt.instance<OfflineRepository>();
@@ -16,10 +17,13 @@ const downloadableItemTypes = <String>{
   'MusicVideo',
   'Video',
 };
-
 /// What the saved media list needs from one read of the table.
 class DownloadCatalog {
-  const DownloadCatalog({required this.items, required this.containerArtwork});
+  const DownloadCatalog({
+    required this.items,
+    required this.containerArtwork,
+    this.containerRatings = const {},
+  });
 
   /// Completed downloads that are a real file on disk.
   final List<DownloadedItem> items;
@@ -28,7 +32,19 @@ class DownloadCatalog {
   /// keyed by item id, so a show's row can show the show's own artwork.
   final Map<String, String> containerArtwork;
 
+  /// Kos TV: the rating of each saved series, keyed by item id, for its
+  /// episodes, which usually carry none of their own.
+  final Map<String, String> containerRatings;
+
   static const empty = DownloadCatalog(items: [], containerArtwork: {});
+
+  /// Kos TV: the rating [item] is judged by: its own, else its series'.
+  String? ratingOf(DownloadedItem item) {
+    final own = item.parsedMetadata['OfficialRating'];
+    if (own is String && own.trim().isNotEmpty) return own;
+    final seriesId = item.seriesId;
+    return seriesId == null ? null : containerRatings[seriesId];
+  }
 }
 
 /// Splits a read of the downloads table into the files worth listing and the
@@ -40,14 +56,27 @@ class DownloadCatalog {
 DownloadCatalog partitionDownloadCatalog(List<DownloadedItem> rows) {
   final items = <DownloadedItem>[];
   final artwork = <String, String>{};
+  final ratings = <String, String>{};
   for (final row in rows) {
     if (row.fileSizeBytes > 0 && downloadableItemTypes.contains(row.type)) {
       items.add(row);
-    } else if (row.posterPath?.isNotEmpty ?? false) {
+      continue;
+    }
+    if (row.posterPath?.isNotEmpty ?? false) {
       artwork[row.itemId] = row.posterPath!;
     }
+    if (row.type == 'Series') {
+      final rating = row.parsedMetadata['OfficialRating'];
+      if (rating is String && rating.trim().isNotEmpty) {
+        ratings[row.itemId] = rating;
+      }
+    }
   }
-  return DownloadCatalog(items: items, containerArtwork: artwork);
+  return DownloadCatalog(
+    items: items,
+    containerArtwork: artwork,
+    containerRatings: ratings,
+  );
 }
 
 /// Watching the table rather than reading it once is what lets the list drop a
@@ -93,4 +122,9 @@ final storageUsedProvider = StreamProvider<int>((ref) {
 final downloadedItemProvider =
     StreamProvider.family<DownloadedItem?, String>((ref, itemId) {
   return _repo.watchItem(itemId);
+});
+
+/// Kos TV: who downloaded what, and each person's progress in it.
+final downloadPeopleProvider = StreamProvider<DownloadPeople>((ref) {
+  return _repo.watchPeople();
 });

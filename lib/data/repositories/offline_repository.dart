@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import '../database/offline_database.dart';
+import '../offline/download_people.dart';
 
 /// A download row without its metadata. Status: 1 in progress, 2 complete,
 /// 3 failed.
@@ -83,13 +84,47 @@ class OfflineRepository {
     ));
   }
 
-  /// Kos TV: [userId] is whose watching this is, so the sync sends it only
-  /// as that person. Null leaves it to whoever is signed in when it syncs.
+  /// Kos TV: [userId] is whose watching this is. It is kept as that person's
+  /// own progress (see [DownloadedItemUsers]), so someone else watching the
+  /// same download neither sees it nor writes over it, and the sync sends it
+  /// only as them. Null leaves it on the download, for whoever is signed in
+  /// when it syncs.
   Future<void> updatePlaybackPosition(
     String itemId,
     int positionTicks, {
     String? userId,
   }) async {
+    final person = normalizeDownloadUserId(userId);
+    if (person.isNotEmpty) {
+      final rows = await getItemsWithId(itemId);
+      await _db.batch((batch) {
+        for (final row in rows) {
+          batch.insert(
+            _db.downloadedItemUsers,
+            DownloadedItemUsersCompanion.insert(
+              itemId: itemId,
+              serverId: row.serverId,
+              userId: person,
+              hasProgress: const Value(true),
+              positionTicks: Value(positionTicks),
+              played: const Value(false),
+              progressSynced: const Value(false),
+              updatedAt: Value(DateTime.now()),
+            ),
+            onConflict: DoUpdate(
+              (_) => DownloadedItemUsersCompanion(
+                hasProgress: const Value(true),
+                positionTicks: Value(positionTicks),
+                played: const Value(false),
+                progressSynced: const Value(false),
+                updatedAt: Value(DateTime.now()),
+              ),
+            ),
+          );
+        }
+      });
+      return;
+    }
     await (_db.update(_db.downloadedItems)
           ..where((t) => t.itemId.equals(itemId)))
         .write(DownloadedItemsCompanion(
@@ -99,7 +134,17 @@ class OfflineRepository {
     ));
   }
 
-  Future<void> markProgressSynced(String itemId) async {
+  /// Kos TV: with [userId], marks that person's own progress synced (where
+  /// [updatePlaybackPosition] put it); without, the download's.
+  Future<void> markProgressSynced(String itemId, {String? userId}) async {
+    final person = normalizeDownloadUserId(userId);
+    if (person.isNotEmpty) {
+      await (_db.update(_db.downloadedItemUsers)..where(
+            (t) => t.itemId.equals(itemId) & t.userId.equals(person),
+          ))
+          .write(const DownloadedItemUsersCompanion(progressSynced: Value(true)));
+      return;
+    }
     await (_db.update(_db.downloadedItems)
           ..where((t) => t.itemId.equals(itemId)))
         .write(const DownloadedItemsCompanion(progressSynced: Value(true)));
@@ -393,6 +438,7 @@ class OfflineRepository {
     await (_db.delete(_db.downloadedItems)
           ..where((t) => t.itemId.equals(itemId)))
         .go();
+    await _forgetPeopleOfDeleted();
   }
 
   Future<void> deleteSeriesItems(String seriesId) async {
@@ -400,6 +446,7 @@ class OfflineRepository {
           ..where((t) =>
               t.itemId.equals(seriesId) | t.seriesId.equals(seriesId)))
         .go();
+    await _forgetPeopleOfDeleted();
   }
 
   Future<void> deleteSeasonItems(String seasonId) async {
@@ -407,11 +454,125 @@ class OfflineRepository {
           ..where((t) =>
               t.itemId.equals(seasonId) | t.seasonId.equals(seasonId)))
         .go();
+    await _forgetPeopleOfDeleted();
   }
 
   Future<void> deleteAllItems() async {
     await _db.delete(_db.downloadedItems).go();
+    await _db.delete(_db.downloadedItemUsers).go();
   }
+
+  // ---------------------------------------------------------------------
+  // Kos TV: who downloaded what, and each person's progress in it
+
+  /// Drops the people of downloads that are gone, so a download made again
+  /// later starts with nobody's progress.
+  Future<void> _forgetPeopleOfDeleted() => _db.customUpdate(
+    'DELETE FROM downloaded_item_users WHERE NOT EXISTS ('
+    'SELECT 1 FROM downloaded_items d '
+    'WHERE d.item_id = downloaded_item_users.item_id '
+    'AND d.server_id = downloaded_item_users.server_id)',
+    updates: {_db.downloadedItemUsers},
+    updateKind: UpdateKind.delete,
+  );
+
+  /// Records that [userId] downloaded [itemId], on every server row the item
+  /// has. Leaves their progress as it is.
+  Future<void> addOwner(String itemId, String? userId) async {
+    final person = normalizeDownloadUserId(userId);
+    if (person.isEmpty) return;
+    final rows = await getItemsWithId(itemId);
+    await _db.batch((batch) {
+      for (final row in rows) {
+        batch.insert(
+          _db.downloadedItemUsers,
+          DownloadedItemUsersCompanion.insert(
+            itemId: itemId,
+            serverId: row.serverId,
+            userId: person,
+            isOwner: const Value(true),
+          ),
+          onConflict: DoUpdate(
+            (_) => const DownloadedItemUsersCompanion(isOwner: Value(true)),
+          ),
+        );
+      }
+    });
+  }
+
+  /// Stores the server's progress for [userId] on [serverId]'s [itemId] as
+  /// synced. Unless [force], progress of theirs still waiting to be sent is
+  /// kept, so the sync can decide which one goes further.
+  Future<void> setUserSyncedProgress(
+    String itemId, {
+    required String serverId,
+    required String? userId,
+    required int positionTicks,
+    required bool played,
+    bool force = false,
+  }) async {
+    final person = normalizeDownloadUserId(userId);
+    if (person.isEmpty) return;
+    await _db.transaction(() async {
+      final existing =
+          await (_db.select(_db.downloadedItemUsers)..where(
+                (t) =>
+                    t.itemId.equals(itemId) &
+                    t.serverId.equals(serverId) &
+                    t.userId.equals(person),
+              ))
+              .getSingleOrNull();
+      if (!force &&
+          existing != null &&
+          existing.hasProgress &&
+          !existing.progressSynced) {
+        return;
+      }
+      await _db
+          .into(_db.downloadedItemUsers)
+          .insert(
+            DownloadedItemUsersCompanion.insert(
+              itemId: itemId,
+              serverId: serverId,
+              userId: person,
+              hasProgress: const Value(true),
+              positionTicks: Value(played ? 0 : positionTicks),
+              played: Value(played),
+              progressSynced: const Value(true),
+              updatedAt: Value(DateTime.now()),
+            ),
+            onConflict: DoUpdate(
+              (_) => DownloadedItemUsersCompanion(
+                hasProgress: const Value(true),
+                positionTicks: Value(played ? 0 : positionTicks),
+                played: Value(played),
+                progressSynced: const Value(true),
+                updatedAt: Value(DateTime.now()),
+              ),
+            ),
+          );
+    });
+  }
+
+  /// [userId]'s progress still waiting to reach the server.
+  Future<List<DownloadedItemUser>> getUnsyncedUserProgress(String? userId) {
+    final person = normalizeDownloadUserId(userId);
+    return (_db.select(_db.downloadedItemUsers)..where(
+          (t) =>
+              t.userId.equals(person) &
+              t.hasProgress.equals(true) &
+              t.progressSynced.equals(false),
+        ))
+        .get();
+  }
+
+  /// Everyone tied to every download.
+  Future<DownloadPeople> getPeople() async =>
+      DownloadPeople(await _db.select(_db.downloadedItemUsers).get());
+
+  /// Everyone tied to every download, read again on every change.
+  Stream<DownloadPeople> watchPeople() =>
+      _db.select(_db.downloadedItemUsers).watch().map(DownloadPeople.new);
 
   Future<List<DownloadedItem>> getItems({
     String? type,
@@ -524,7 +685,11 @@ class OfflineRepository {
   /// Kos TV: fires on every write to the downloads table, without reading
   /// it, for a listener that reads what it needs itself.
   Stream<void> watchChanges() => _db.tableUpdates(
-    TableUpdateQuery.onTable(_db.downloadedItems),
+    TableUpdateQuery.onAllTables([
+      _db.downloadedItems,
+      // Kos TV: each person's progress shows through the downloads too.
+      _db.downloadedItemUsers,
+    ]),
   );
 
   /// Kos TV: whether any completed download of [types] holds a file, counted

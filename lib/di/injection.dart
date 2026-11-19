@@ -8,6 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart' as pkg;
 import 'package:server_core/server_core.dart';
 import 'package:uuid/uuid.dart';
 
+import '../auth/repositories/session_repository.dart';
 import '../auth/store/authentication_store.dart';
 import '../auth/store/client_certificate_store.dart';
 import '../data/database/database_connection.dart';
@@ -372,7 +373,19 @@ void registerOfflineStorage() {
   getIt.registerSingleton<OfflineDatabase>(OfflineDatabase(openConnection()));
   final offlineRepo = OfflineRepository(getIt<OfflineDatabase>());
   getIt.registerSingleton<OfflineRepository>(offlineRepo);
-  getIt.registerSingleton<OfflineCatalog>(OfflineCatalog(offlineRepo));
+  getIt.registerSingleton<OfflineCatalog>(
+    OfflineCatalog(
+      offlineRepo,
+      // Kos TV: downloads show each person's own progress, and Kids Mode
+      // leaves out what other people downloaded.
+      userId: () => getIt.isRegistered<SessionRepository>()
+          ? getIt<SessionRepository>().activeUserId
+          : null,
+      kidsMode: () =>
+          getIt.isRegistered<UserPreferences>() &&
+          getIt<UserPreferences>().get(UserPreferences.kidsModeEnabled),
+    ),
+  );
   getIt.registerLazySingleton<PendingRatingStore>(
     () => PendingRatingStore(getIt<PreferenceStore>()),
   );

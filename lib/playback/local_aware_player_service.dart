@@ -163,6 +163,7 @@ class LocalAwarePlayerService implements PlayerService {
         try {
           await _offlineRepo.markProgressSynced(
             MediaStreamResolver.extractItemId(mediaItem),
+            userId: _userId(),
           );
         } catch (_) {}
       }

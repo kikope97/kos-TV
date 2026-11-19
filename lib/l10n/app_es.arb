@@ -15534,5 +15534,25 @@
     "kostvContinueWatchingUndoFailed": "No se pudo recuperar por dónde ibas",
     "@kostvContinueWatchingUndoFailed": {
         "description": "Kos TV: undoing a Continue Watching hide couldn't put the resume point back."
+    },
+    "kostvDownloadsByOthers": "Descargado por otras personas",
+    "@kostvDownloadsByOthers": {
+        "description": "Kos TV: heading of the saved media section with what other people on the device downloaded"
+    },
+    "kostvDownloadsByOthersDetail": "Lo descargaron otras personas de casa. Puedes verlo igual; tu progreso es solo tuyo.",
+    "@kostvDownloadsByOthersDetail": {
+        "description": "Kos TV: line under the heading of downloads by other people"
+    },
+    "kostvDeleteOthersDownloadWarning": "Esta descarga también es de otra persona de casa. Si la borras, dejará de tenerla en este dispositivo.",
+    "@kostvDeleteOthersDownloadWarning": {
+        "description": "Kos TV: added to the delete confirmation when the download is also someone else's"
+    },
+    "kostvWebDownloadLinkNotice": "El enlace de la descarga lleva tu sesión y el navegador lo guarda en su historial de descargas: no lo compartas.",
+    "@kostvWebDownloadLinkNotice": {
+        "description": "Kos TV: notice shown once, after the first download from the browser"
+    },
+    "kostvWebDownloadLinkNote": "En el navegador, el enlace de la descarga lleva tu sesión y queda en el historial de descargas: no lo compartas.",
+    "@kostvWebDownloadLinkNote": {
+        "description": "Kos TV: note under the title of the download quality sheet in the browser"
     }
 }

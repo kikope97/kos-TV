@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/database/offline_database.dart';
+import '../../../data/offline/download_people.dart';
 import '../../../data/providers/offline_providers.dart';
+import '../../../di/providers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/download_grouping.dart';
 import '../../../util/download_utils.dart';
@@ -36,10 +38,15 @@ class SavedShowScreen extends ConsumerStatefulWidget {
     super.key,
     required this.seriesId,
     required this.title,
+    this.downloadedByOthers = false,
   });
 
   final String seriesId;
   final String title;
+
+  /// Kos TV: shows the episodes other people downloaded instead of the
+  /// person's own.
+  final bool downloadedByOthers;
 
   @override
   ConsumerState<SavedShowScreen> createState() => _SavedShowScreenState();
@@ -93,15 +100,25 @@ class _SavedShowScreenState extends ConsumerState<SavedShowScreen> {
     final episodesAsync = ref.watch(
       downloadedEpisodesProvider(widget.seriesId),
     );
-    final episodes = episodesAsync.maybeWhen(
-      data: (value) => value,
-      orElse: () => const <DownloadedItem>[],
+    // Kos TV: the episodes of the section the show was opened from (the
+    // person's own, or other people's), each with this person's progress.
+    final peopleAsync = ref.watch(downloadPeopleProvider);
+    final split = splitDownloadsFor(
+      episodesAsync.maybeWhen(
+        data: (value) => value,
+        orElse: () => const <DownloadedItem>[],
+      ),
+      peopleAsync.valueOrNull ?? DownloadPeople.empty,
+      ref.watch(currentUserProvider).valueOrNull?.id,
+      kidsMode: ref.watch(kidsModeProvider),
     );
+    final episodes = widget.downloadedByOthers ? split.others : split.mine;
     final seasons = _seasons(l10n, episodes);
 
     // Kos TV: the first read is still on its way when the screen opens, so
     // the empty shell waits for it rather than closing.
-    if (episodesAsync.isLoading && !episodesAsync.hasValue) {
+    if ((episodesAsync.isLoading && !episodesAsync.hasValue) ||
+        (peopleAsync.isLoading && !peopleAsync.hasValue)) {
       return const Scaffold(backgroundColor: Colors.transparent);
     }
 
@@ -284,6 +301,7 @@ class _SavedShowScreenState extends ConsumerState<SavedShowScreen> {
               episode.name,
             ].join(' • '),
             itemIds: [episode.itemId],
+            userId: ref.read(currentUserProvider).valueOrNull?.id,
           ),
         ),
       ],
@@ -308,6 +326,7 @@ class _SavedShowScreenState extends ConsumerState<SavedShowScreen> {
             message:
                 '${l10n.episodeCount(season.episodes.length)} • ${formatBytes(season.totalBytes)}',
             itemIds: [for (final e in season.episodes) e.itemId],
+            userId: ref.read(currentUserProvider).valueOrNull?.id,
           ),
         ),
       ],

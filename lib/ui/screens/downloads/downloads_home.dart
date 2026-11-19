@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/database/offline_database.dart';
+import '../../../data/offline/download_people.dart';
 import '../../../data/providers/offline_providers.dart';
+import '../../../data/utils/blocked_ratings.dart';
 import '../../../di/providers.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/user_preferences.dart';
@@ -34,7 +36,10 @@ class _SavedTab {
   const _SavedTab(this.label, this.rows, {this.isActiveDownloads = false});
 
   final String label;
-  final List<DownloadGroup> Function() rows;
+
+  /// Kos TV: the tab's rows out of [items], so the person's own downloads
+  /// and other people's are each grouped on their own.
+  final List<DownloadGroup> Function(List<DownloadedItem> items) rows;
   final bool isActiveDownloads;
 }
 
@@ -112,7 +117,9 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
   /// Each tab builds its rows on demand, because only the open one is ever
   /// shown and sorting the rest on every rebuild buys nothing.
   List<_SavedTab> _buildTabs(AppLocalizations l10n, List<DownloadedItem> items) {
-    List<DownloadGroup> standalone(bool Function(DownloadedItem) test) => _sorted([
+    List<DownloadGroup> Function(List<DownloadedItem>) standalone(
+      bool Function(DownloadedItem) test,
+    ) => (items) => _sorted([
       for (final item in items)
         if (test(item))
           DownloadGroup(
@@ -133,25 +140,29 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
     );
 
     return [
-      _SavedTab(l10n.all, () => _sorted(groupDownloads(items))),
+      _SavedTab(l10n.all, (items) => _sorted(groupDownloads(items))),
       if (types.contains('Movie'))
-        _SavedTab(l10n.movies, () => standalone((item) => item.type == 'Movie')),
+        _SavedTab(l10n.movies, standalone((item) => item.type == 'Movie')),
       if (hasShows)
         _SavedTab(
           l10n.tvShows,
-          () => _sorted(
+          (items) => _sorted(
             groupDownloads(items.where(isEpisode).toList())
                 .where((group) => group.isSeries)
                 .toList(),
           ),
         ),
       if (types.contains('Episode'))
-        _SavedTab(l10n.episodes, () => standalone(isEpisode)),
+        _SavedTab(l10n.episodes, standalone(isEpisode)),
       if (types.contains('Audio') || types.contains('AudioBook'))
-        _SavedTab(l10n.music, () => standalone(isMusic)),
+        _SavedTab(l10n.music, standalone(isMusic)),
       if (types.contains('Book'))
-        _SavedTab(l10n.books, () => standalone((item) => item.type == 'Book')),
-      _SavedTab(l10n.activeDownloads, () => const [], isActiveDownloads: true),
+        _SavedTab(l10n.books, standalone((item) => item.type == 'Book')),
+      _SavedTab(
+        l10n.activeDownloads,
+        (_) => const [],
+        isActiveDownloads: true,
+      ),
     ];
   }
 
@@ -211,14 +222,32 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
         .watch(userPreferencesProvider)
         .get(UserPreferences.downloadStorageLimitMb);
 
-    final tabs = _buildTabs(l10n, catalog.items);
+    // Kos TV: the person's own downloads first, then what other people on
+    // this device downloaded, each row with this person's own progress.
+    final people =
+        ref.watch(downloadPeopleProvider).valueOrNull ?? DownloadPeople.empty;
+    final userId = ref.watch(currentUserProvider).valueOrNull?.id;
+    final split = splitDownloadsFor(
+      catalog.items,
+      people,
+      userId,
+      kidsMode: ref.watch(kidsModeProvider),
+      isBlocked: (item) =>
+          activeParentalFilter.isBlockedRating(catalog.ratingOf(item)),
+    );
+    final visible = [...split.mine, ...split.others];
+
+    final tabs = _buildTabs(l10n, visible);
     final tabIndex = tabs
         .indexWhere((tab) => tab.label == _tabLabel)
         .clamp(0, tabs.length - 1);
     final current = tabs[tabIndex];
     final groups = current.isActiveDownloads
         ? const <DownloadGroup>[]
-        : _filtered(current.rows());
+        : _filtered(current.rows(split.mine));
+    final otherGroups = current.isActiveDownloads
+        ? const <DownloadGroup>[]
+        : _filtered(current.rows(split.others));
 
     return RequestInitialFocus(
       targetNode: PlatformDetection.isTV ? _initialFocusNode : null,
@@ -227,7 +256,7 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
         body: SafeArea(
           child: Column(
             children: [
-              _header(l10n, catalog.items, storage),
+              _header(l10n, visible, storage),
               if (_searchOpen)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -276,7 +305,12 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
                             ? _initialFocusNode
                             : null,
                       )
-                    : _list(l10n, groups, catalog.containerArtwork),
+                    : _list(
+                        l10n,
+                        groups,
+                        otherGroups,
+                        catalog.containerArtwork,
+                      ),
               ),
               if (_selectMode && _selected.isNotEmpty) _selectionBar(l10n),
             ],
@@ -353,39 +387,88 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
     );
   }
 
+  /// Kos TV: [groups] are the person's own downloads; [otherGroups], what
+  /// other people downloaded, follow under their own heading. The rows of
+  /// both walk with the remote as one list.
   Widget _list(
     AppLocalizations l10n,
     List<DownloadGroup> groups,
+    List<DownloadGroup> otherGroups,
     Map<String, String> containerArtwork,
   ) {
-    if (groups.isEmpty) {
+    if (groups.isEmpty && otherGroups.isEmpty) {
       return _emptyState(
         _query.trim().isEmpty ? l10n.savedMediaNoDownloads : l10n.savedMediaNoResults,
         _query.trim().isEmpty ? l10n.savedMediaNoDownloadsDetail : null,
       );
     }
+    final total = groups.length + otherGroups.length;
+    final hasHeading = otherGroups.isNotEmpty;
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 24),
-      itemCount: groups.length,
-      itemBuilder: (context, index) =>
-          _row(l10n, groups[index], index, groups.length, containerArtwork),
+      itemCount: total + (hasHeading ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index < groups.length) {
+          return _row(l10n, groups[index], index, total, containerArtwork);
+        }
+        if (index == groups.length) {
+          return _othersHeading(l10n, first: groups.isEmpty);
+        }
+        final rowIndex = index - 1;
+        return _row(
+          l10n,
+          otherGroups[rowIndex - groups.length],
+          rowIndex,
+          total,
+          containerArtwork,
+          fromOthers: true,
+        );
+      },
     );
   }
+
+  Widget _othersHeading(AppLocalizations l10n, {required bool first}) =>
+      Padding(
+        key: const ValueKey('kostv-downloads-by-others'),
+        padding: EdgeInsets.fromLTRB(12, first ? 4 : 18, 12, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.kostvDownloadsByOthers,
+              style: TextStyle(
+                color: AppColorScheme.onSurface.withValues(alpha: 0.85),
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              l10n.kostvDownloadsByOthersDetail,
+              style: TextStyle(
+                color: AppColorScheme.onSurface.withValues(alpha: 0.5),
+                fontSize: 12.5,
+              ),
+            ),
+          ],
+        ),
+      );
 
   Widget _row(
     AppLocalizations l10n,
     DownloadGroup group,
     int index,
     int total,
-    Map<String, String> containerArtwork,
-  ) {
+    Map<String, String> containerArtwork, {
+    bool fromOthers = false,
+  }) {
     final first = group.first;
     final isShow = group.isSeries;
     final ids = group.itemIds;
     final selectedCount = ids.where(_selected.contains).length;
 
     return SavedMediaRow(
-      key: ValueKey(group.key),
+      key: ValueKey(fromOthers ? 'others:${group.key}' : group.key),
       rowFocusNode: _rowNodes[index],
       title: group.title,
       subtitle: isShow
@@ -399,11 +482,13 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
           ? Icons.video_library_outlined
           : savedMediaFallbackIcon(first.type),
       badge: _badge(isShow, group),
-      onActivate: () => isShow ? _openShow(group) : openSavedItem(context, first),
+      onActivate: () => isShow
+          ? _openShow(group, fromOthers: fromOthers)
+          : openSavedItem(context, first),
       onPlay: isShow || !savedMediaIsPlayable(first)
           ? null
           : () => openSavedItem(context, first),
-      onMenu: () => _openRowMenu(l10n, group),
+      onMenu: () => _openRowMenu(l10n, group, fromOthers: fromOthers),
       selectMode: _selectMode,
       // A partly selected show fills up first, so select always means all.
       selected: selectedCount == ids.length,
@@ -486,16 +571,26 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
   /// Pushes onto the panel's own navigator, which keeps the backdrop and hands
   /// focus back to this row when the show screen pops. The show screen focuses
   /// its first episode on TV, and off TV nothing should start out focused.
-  void _openShow(DownloadGroup group) {
+  /// Kos TV: [fromOthers] opens the episodes other people downloaded, from
+  /// their section of the list, rather than the person's own.
+  void _openShow(DownloadGroup group, {bool fromOthers = false}) {
     final seriesId = group.seriesId;
     if (seriesId == null) return;
     context.pushSettingsScreen(
-      SavedShowScreen(seriesId: seriesId, title: group.title),
+      SavedShowScreen(
+        seriesId: seriesId,
+        title: group.title,
+        downloadedByOthers: fromOthers,
+      ),
       autofocus: false,
     );
   }
 
-  Future<void> _openRowMenu(AppLocalizations l10n, DownloadGroup group) async {
+  Future<void> _openRowMenu(
+    AppLocalizations l10n,
+    DownloadGroup group, {
+    bool fromOthers = false,
+  }) async {
     final first = group.first;
     final actions = <SavedMediaAction>[];
 
@@ -504,7 +599,7 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
         SavedMediaAction(
           icon: Icons.video_library_outlined,
           label: l10n.savedMediaOpenShow,
-          onSelect: () async => _openShow(group),
+          onSelect: () async => _openShow(group, fromOthers: fromOthers),
         ),
       );
       actions.add(
@@ -566,6 +661,7 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
                 : l10n.savedMediaDeleteDownload,
             message: group.title,
             itemIds: group.itemIds,
+            userId: ref.read(currentUserProvider).valueOrNull?.id,
           );
         },
       ),
@@ -640,6 +736,7 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
       title: l10n.deleteSelected,
       message: l10n.deleteSelectedCount(_selected.length),
       itemIds: _selected.toList(),
+      userId: ref.read(currentUserProvider).valueOrNull?.id,
     );
     if (!deleted || !mounted) return;
     setState(() {

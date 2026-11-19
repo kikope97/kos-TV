@@ -12128,6 +12128,10 @@ class _DownloadButtonState extends State<_DownloadButton> {
           ? AppLocalizations.of(context).downloadAllQuality
           : AppLocalizations.of(context).downloadQuality,
       items: items ?? const [],
+      // Kos TV: in the browser the download link carries the session.
+      note: PlatformDetection.isWeb
+          ? AppLocalizations.of(context).kostvWebDownloadLinkNote
+          : null,
       header: keepRow,
     );
     if (quality == null || !context.mounted) return;

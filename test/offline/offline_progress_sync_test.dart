@@ -478,6 +478,11 @@ void main() {
       await repo.updatePlaybackPosition('m', 40 * _min, userId: userId);
     }
 
+    // Kos TV: a person's progress is kept as theirs, apart from the
+    // download's own (see DownloadedItemUsers).
+    Future<DownloadedItemUser?> progressOf(String userId) async =>
+        (await repo.getPeople()).personOf((await repo.getItem('m'))!, userId);
+
     test('someone else\'s progress waits until they are back', () async {
       await watchedBy('person-a');
       when(() => server.client.userId).thenReturn('person-b');
@@ -485,13 +490,13 @@ void main() {
       await sync.syncPlaybackProgress(server.client, serverId: 'server-a');
 
       expect(server.stopReports, isEmpty);
-      expect(await localSynced('m'), isFalse);
+      expect((await progressOf('person-a'))!.progressSynced, isFalse);
 
       when(() => server.client.userId).thenReturn('PERSON-A');
       await sync.syncPlaybackProgress(server.client, serverId: 'server-a');
 
       expect(server.ticks('m'), 40 * _min);
-      expect(await localSynced('m'), isTrue);
+      expect((await progressOf('person-a'))!.progressSynced, isTrue);
     });
 
     test('refreshing the metadata keeps whose progress it is', () async {
@@ -501,16 +506,47 @@ void main() {
       await sync.syncPlaybackProgress(server.client, serverId: 'server-a');
       await sync.refreshMetadata(server.client, serverId: 'server-a');
 
-      final row = (await repo.getItem('m'))!;
-      expect(row.progressUserId, 'person-a');
-      expect(row.progressSynced, isFalse);
-      expect(row.playbackPositionTicks, 40 * _min);
+      final a = (await progressOf('person-a'))!;
+      expect(a.progressSynced, isFalse);
+      expect(a.positionTicks, 40 * _min);
+      // B's own server progress came down as B's.
+      final b = (await progressOf('person-b'))!;
+      expect(b.progressSynced, isTrue);
+      expect(b.positionTicks, 10 * _min);
 
       // A later sync as B still leaves A's position alone.
       await sync.syncPlaybackProgress(server.client, serverId: 'server-a');
       expect(server.stopReports, isEmpty);
       expect(server.ticks('m'), 10 * _min);
     });
+
+    test('one person watching no longer moves another\'s place', () async {
+      await watchedBy('person-a');
+      await repo.updatePlaybackPosition('m', 70 * _min, userId: 'person-b');
+
+      final row = (await repo.getItem('m'))!;
+      final people = await repo.getPeople();
+      expect(people.progressOf(row, 'person-a').positionTicks, 40 * _min);
+      expect(people.progressOf(row, 'person-b').positionTicks, 70 * _min);
+      // The download's own position is untouched by either.
+      expect(row.playbackPositionTicks, 10 * _min);
+    });
+
+    test(
+      'a completion on the server is adopted as the person\'s own',
+      () async {
+        await watchedBy('person-a');
+        server.set('m', played: true);
+        when(() => server.client.userId).thenReturn('person-a');
+
+        await sync.syncPlaybackProgress(server.client, serverId: 'server-a');
+
+        final a = (await progressOf('person-a'))!;
+        expect(a.played, isTrue);
+        expect(a.progressSynced, isTrue);
+        expect(server.stopReports, isEmpty);
+      },
+    );
 
     test('a row from before the person was kept syncs as before', () async {
       await watchedBy(null);

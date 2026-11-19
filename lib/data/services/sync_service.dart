@@ -115,14 +115,29 @@ class SyncService extends ChangeNotifier {
 
     // Kos TV: a row someone else watched waits until they are signed in
     // again, so it never lands in this person's watch data.
-    final unsynced = (await _offlineRepo.getUnsyncedProgress())
-        .where(
-          (row) =>
-              _isFromServer(row, client, serverId) &&
-              (row.progressUserId == null ||
-                  isProgressOf(row.progressUserId, client.userId)),
-        )
-        .toList();
+    final unsynced = <_PendingProgress>[
+      for (final row in await _offlineRepo.getUnsyncedProgress())
+        if (_isFromServer(row, client, serverId) &&
+            (row.progressUserId == null ||
+                isProgressOf(row.progressUserId, client.userId)))
+          _PendingProgress(row, row.playbackPositionTicks, null),
+    ];
+    // Kos TV: and the signed-in person's own progress on downloads.
+    final userId = client.userId;
+    if (userId != null && userId.isNotEmpty) {
+      final own = await _offlineRepo.getUnsyncedUserProgress(userId);
+      if (own.isNotEmpty) {
+        final rows = {
+          for (final row in await _offlineRepo.getItems())
+            '${row.serverId}\u0000${row.itemId}': row,
+        };
+        for (final progress in own) {
+          final row = rows['${progress.serverId}\u0000${progress.itemId}'];
+          if (row == null || !_isFromServer(row, client, serverId)) continue;
+          unsynced.add(_PendingProgress(row, progress.positionTicks, userId));
+        }
+      }
+    }
     if (unsynced.isEmpty) {
       _setState(SyncState.done);
       _scheduleDoneReset();
@@ -137,66 +152,63 @@ class SyncService extends ChangeNotifier {
     final bulk = userLibrary is OfflineProgressSyncApi
         ? userLibrary as OfflineProgressSyncApi
         : null;
-    final bulkPushes = <(DownloadedItem, OfflineProgressEntry)>[];
+    final bulkPushes = <(_PendingProgress, OfflineProgressEntry)>[];
 
     // Batch-fetch server progress for every unsynced item in one request
     // instead of a round-trip per item on reconnect.
-    final serverUserData = await _fetchServerUserData(
-      client,
-      unsynced.map((i) => i.itemId).toList(),
-    );
+    final serverUserData = await _fetchServerUserData(client, [
+      for (final pending in unsynced) pending.row.itemId,
+    ]);
 
-    for (final item in unsynced) {
+    for (final pending in unsynced) {
+      final item = pending.row;
       try {
         final userData = serverUserData[item.itemId];
         if (userData != null) {
           final serverPlayed = userData['Played'] as bool? ?? false;
           final serverTicks = userData['PlaybackPositionTicks'] as int? ?? 0;
-          final localPlayed = item.playbackPositionTicks == 0;
+          final localPlayed = pending.ticks == 0;
 
           if (serverPlayed) {
             // A played item is the furthest possible progress, so a server
             // completion wins even over a newer partial offline position.
             // Adopt the played state locally.
-            await _offlineRepo.setSyncedPlaybackPosition(
-              item.itemId,
-              0,
-              metadataJson: mergeServerUserData(item.metadataJson, userData),
-            );
+            await _adopt(pending, 0, played: true, userData: userData);
             synced++;
             continue;
           }
 
           // Otherwise furthest progress wins, but a local completion outranks
           // any partial server position, so leave it to be pushed below.
-          if (!localPlayed && serverTicks > item.playbackPositionTicks) {
-            await _offlineRepo.setSyncedPlaybackPosition(
-              item.itemId,
+          if (!localPlayed && serverTicks > pending.ticks) {
+            await _adopt(
+              pending,
               serverTicks,
-              metadataJson: mergeServerUserData(item.metadataJson, userData),
+              played: false,
+              userData: userData,
             );
             synced++;
             continue;
           }
         }
 
-        final entry = bulk == null ? null : _offlineProgressEntry(item);
+        final entry = bulk == null ? null : _offlineProgressEntry(pending);
         if (entry != null) {
-          bulkPushes.add((item, entry));
+          bulkPushes.add((pending, entry));
           continue;
         }
-        if (item.playbackPositionTicks == 0) {
+        if (pending.ticks == 0) {
           await client.userLibraryApi.markPlayed(item.itemId);
         } else {
           final report = PlaybackStopReport(
             itemId: item.itemId,
             mediaSourceId: item.itemId,
-            positionTicks: item.playbackPositionTicks,
+            positionTicks: pending.ticks,
             runTimeTicks: _runTimeTicks(item.metadataJson),
           );
           await client.playbackApi.reportPlaybackStopped(report.toJson());
         }
-        await _offlineRepo.markProgressSynced(item.itemId);
+        await _markSynced(pending);
         synced++;
       } catch (e) {
         debugPrint('[Sync] Failed to sync progress for ${item.itemId}: $e');
@@ -215,12 +227,14 @@ class SyncService extends ChangeNotifier {
           final taken = await bulk.syncOfflineProgress([
             for (final (_, entry) in batch) entry,
           ]);
-          for (final (i, (item, _)) in batch.indexed) {
+          for (final (i, (pending, _)) in batch.indexed) {
             if (i < taken.length && taken[i]) {
-              await _offlineRepo.markProgressSynced(item.itemId);
+              await _markSynced(pending);
               synced++;
             } else {
-              debugPrint('[Sync] Server refused progress for ${item.itemId}');
+              debugPrint(
+                '[Sync] Server refused progress for ${pending.row.itemId}',
+              );
               failed++;
             }
           }
@@ -236,6 +250,39 @@ class SyncService extends ChangeNotifier {
     return SyncResult(synced: synced, failed: failed);
   }
 
+  /// Kos TV: takes the server's progress for [pending], on the download for
+  /// progress that knows nobody (with the metadata the UI reads, as always)
+  /// and as the person's own otherwise.
+  Future<void> _adopt(
+    _PendingProgress pending,
+    int ticks, {
+    required bool played,
+    required Map<String, dynamic> userData,
+  }) {
+    final row = pending.row;
+    if (pending.userId == null) {
+      return _offlineRepo.setSyncedPlaybackPosition(
+        row.itemId,
+        ticks,
+        metadataJson: mergeServerUserData(row.metadataJson, userData),
+      );
+    }
+    return _offlineRepo.setUserSyncedProgress(
+      row.itemId,
+      serverId: row.serverId,
+      userId: pending.userId,
+      positionTicks: ticks,
+      played: played,
+      force: true,
+    );
+  }
+
+  Future<void> _markSynced(_PendingProgress pending) =>
+      _offlineRepo.markProgressSynced(
+        pending.row.itemId,
+        userId: pending.userId,
+      );
+
   static int? _runTimeTicks(String metadataJson) {
     try {
       return (jsonDecode(metadataJson) as Map)['RunTimeTicks'] as int?;
@@ -244,23 +291,24 @@ class SyncService extends ChangeNotifier {
     }
   }
 
-  /// [item]'s offline progress for a bulk sync, or null when it can't be
+  /// [pending]'s offline progress for a bulk sync, or null when it can't be
   /// expressed there: a played item needs its runtime (it is sent as having
   /// reached the end), so one without falls back to marking it played.
   ///
   /// The store keeps no time for offline progress, so it is stamped now. The
   /// server's own newer progress was already preferred above.
-  OfflineProgressEntry? _offlineProgressEntry(DownloadedItem item) {
+  OfflineProgressEntry? _offlineProgressEntry(_PendingProgress pending) {
+    final item = pending.row;
     var runtimeTicks = 0;
     try {
       final metadata = jsonDecode(item.metadataJson) as Map<String, dynamic>;
       runtimeTicks = (metadata['RunTimeTicks'] as num?)?.toInt() ?? 0;
     } catch (_) {}
-    final played = item.playbackPositionTicks == 0;
+    final played = pending.ticks == 0;
     if (played && runtimeTicks <= 0) return null;
     return OfflineProgressEntry(
       itemId: item.itemId,
-      position: Duration(microseconds: item.playbackPositionTicks ~/ 10),
+      position: Duration(microseconds: pending.ticks ~/ 10),
       runtime: Duration(microseconds: runtimeTicks ~/ 10),
       played: played,
       recordedAt: DateTime.now(),
@@ -350,6 +398,18 @@ class SyncService extends ChangeNotifier {
           metadataJson: jsonEncode(serverData),
           syncedPositionTicks: shouldUpdateTicks ? serverTicks : null,
         );
+        // Kos TV: the server's answer is the signed-in person's own
+        // progress, kept as theirs so whoever is signed in next doesn't see
+        // it (unless they still have some of their own to send).
+        if (userData != null) {
+          await _offlineRepo.setUserSyncedProgress(
+            localItem.itemId,
+            serverId: localItem.serverId,
+            userId: client.userId,
+            positionTicks: serverTicks ?? 0,
+            played: userData['Played'] as bool? ?? false,
+          );
+        }
         // Silo's item doesn't list the subtitles saved beside its download,
         // so their streams are carried over.
         final stored = jsonDecode(localItem.metadataJson) as Map<String, dynamic>;
@@ -382,4 +442,14 @@ class SyncService extends ChangeNotifier {
     _doneResetTimer?.cancel();
     super.dispose();
   }
+}
+
+/// Kos TV: progress waiting to be sent: [ticks] on [row]'s download, either
+/// the download's own ([userId] null) or [userId]'s.
+class _PendingProgress {
+  const _PendingProgress(this.row, this.ticks, this.userId);
+
+  final DownloadedItem row;
+  final int ticks;
+  final String? userId;
 }

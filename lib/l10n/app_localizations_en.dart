@@ -20909,4 +20909,23 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvContinueWatchingUndoFailed =>
       'Couldn\'t bring back where you were';
+
+  @override
+  String get kostvDownloadsByOthers => 'Downloaded by other people';
+
+  @override
+  String get kostvDownloadsByOthersDetail =>
+      'Other people at home downloaded these. You can still watch them; your progress is yours alone.';
+
+  @override
+  String get kostvDeleteOthersDownloadWarning =>
+      'This download also belongs to someone else at home. If you delete it, they will no longer have it on this device.';
+
+  @override
+  String get kostvWebDownloadLinkNotice =>
+      'The download link carries your session and the browser keeps it in its download history: do not share it.';
+
+  @override
+  String get kostvWebDownloadLinkNote =>
+      'In the browser, the download link carries your session and stays in the download history: do not share it.';
 }
