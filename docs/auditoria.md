@@ -26,7 +26,8 @@ usuario. Norma de siempre: ninguna función se pierde ni va a peor.
 | # | Técnica | Interfaz |
 |---|---|---|
 | 1 | revisada (43 hallazgos comprobados), esperando visto bueno | — |
-| 2–10 | — | — |
+| 2 | revisada, arreglando | — |
+| 3–10 | — | — |
 
 ## Cómo se trabaja
 
@@ -48,3 +49,14 @@ y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
 - (Para saber, no hay nada que decidir) En la web el modo infantil y su PIN
   viven en el navegador y se pueden borrar con sus herramientas: en la web es
   más débil que en la tele.
+
+### Bloque 2
+- **Fila «Aleatorio» en el modo infantil.** El Inicio del modo infantil solo
+  enseña las secciones permitidas, pero «Aleatorio» sale igual (lo que saca
+  respeta el límite de edad de la cuenta). Recomendación: quitarla del modo
+  infantil para que sea de verdad una lista cerrada.
+- **Publicar una versión nueva del complemento** con los arreglos del Inicio que
+  calcula el servidor (filas «Porque viste» de lo no visto, Top y «Ya está aquí»
+  que llegaban tarde, lo recién llegado que no salía al actualizar, consultas
+  de más). Se instala en el servidor de casa y hay que reiniciarlo.
+  Recomendación: publicarla junto con la versión de la app.
