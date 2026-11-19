@@ -218,6 +218,46 @@ void _keepWebOpeningAddress(Uri uri) {
   navigateWhenReady(uri.toString());
 }
 
+/// Kos TV: a library of films, series, collections or both opens the page
+/// of its own; home videos, photos and the rest keep theirs (null).
+Widget? _kostvLibraryPage({
+  required String libraryId,
+  required String? serverId,
+  required String? kind,
+  required String title,
+}) {
+  final (onlyType, types) = switch (kind) {
+    'movies' => ('Movie', null),
+    'tvshows' => ('Series', null),
+    'boxsets' => (null, const ['BoxSet']),
+    // Kos TV: films and series together (Jellyfin sends no type for
+    // them) are checked first; see below.
+    'mixed' || null || '' => (null, null),
+    _ => ('', null),
+  };
+  if (onlyType == '') return null;
+  Widget catalog(BuildContext context) => KostvCatalogScreen(
+    title: title,
+    kicker: AppLocalizations.of(context).kostvLibraryKicker,
+    activeRoute: Destinations.kostvLibraries,
+    parentId: libraryId,
+    onlyType: onlyType,
+    types: types,
+    serverId: serverId,
+  );
+  if (onlyType != null || types != null) return Builder(builder: catalog);
+  // Kos TV: a mixed library opens the catalogue only when it holds
+  // nothing the catalogue can't show, such as home videos.
+  return KostvMixedLibraryRoute(
+    libraryId: libraryId,
+    serverId: serverId,
+    fallbackToCatalog: kind == 'mixed',
+    catalog: catalog,
+    oldPage: (_) =>
+        LibraryBrowseScreen(libraryId: libraryId, serverId: serverId),
+  );
+}
+
 final appRouter = GoRouter(
   initialLocation: Destinations.startup,
   // Kos TV: an address with no page, in kOS TV's own words and look.
@@ -384,52 +424,45 @@ final appRouter = GoRouter(
             ?.split(',')
             .map(Uri.decodeComponent)
             .toList();
-        // Kos TV: a library of films, series, collections or both opens
-        // the page of its own; home videos, photos and the rest keep theirs.
         final kind = state.uri.queryParameters['kind']?.toLowerCase();
         final title = state.uri.queryParameters['title'];
         final favorites = state.uri.queryParameters['favorites'] == '1';
-        if (includeItemTypes == null && !favorites && title != null) {
-          final (onlyType, types) = switch (kind) {
-            'movies' => ('Movie', null),
-            'tvshows' => ('Series', null),
-            'boxsets' => (null, const ['BoxSet']),
-            // Kos TV: films and series together (Jellyfin sends no type for
-            // them) are checked first; see below.
-            'mixed' || null || '' => (null, null),
-            _ => ('', null),
-          };
-          if (onlyType != '') {
-            Widget catalog(BuildContext context) => KostvCatalogScreen(
-              title: title,
-              kicker: AppLocalizations.of(context).kostvLibraryKicker,
-              activeRoute: Destinations.kostvLibraries,
-              parentId: libraryId,
-              onlyType: onlyType,
-              types: types,
-              serverId: state.uri.queryParameters['serverId'],
-            );
-            if (onlyType != null || types != null) return catalog(context);
-            // Kos TV: a mixed library opens the catalogue only when it holds
-            // nothing the catalogue can't show, such as home videos.
-            return KostvMixedLibraryRoute(
+        final serverId = state.uri.queryParameters['serverId'];
+        Widget oldPage(BuildContext context) => LibraryBrowseScreen(
+          libraryId: libraryId,
+          serverId: serverId,
+          includeItemTypes: includeItemTypes,
+          favoritesOnly: favorites,
+        );
+        if (includeItemTypes == null && !favorites) {
+          if (title != null) {
+            final page = _kostvLibraryPage(
               libraryId: libraryId,
-              serverId: state.uri.queryParameters['serverId'],
-              fallbackToCatalog: kind == 'mixed',
-              catalog: catalog,
-              oldPage: (_) => LibraryBrowseScreen(
-                libraryId: libraryId,
-                serverId: state.uri.queryParameters['serverId'],
-              ),
+              serverId: serverId,
+              kind: kind,
+              title: title,
+            );
+            if (page != null) return page;
+          } else {
+            // Kos TV: an address without the library's name (typed or
+            // bookmarked on the web, or a link that leaves it out) looks the
+            // library up and opens it as its button does.
+            return KostvLibraryLookupRoute(
+              libraryId: libraryId,
+              serverId: serverId,
+              found: (context, kind, title) =>
+                  _kostvLibraryPage(
+                    libraryId: libraryId,
+                    serverId: serverId,
+                    kind: kind,
+                    title: title,
+                  ) ??
+                  oldPage(context),
+              oldPage: oldPage,
             );
           }
         }
-        return LibraryBrowseScreen(
-          libraryId: libraryId,
-          serverId: state.uri.queryParameters['serverId'],
-          includeItemTypes: includeItemTypes,
-          favoritesOnly: state.uri.queryParameters['favorites'] == '1',
-        );
+        return oldPage(context);
       },
     ),
     GoRoute(

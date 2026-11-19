@@ -1389,41 +1389,88 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
 
   Widget _buildMobileHeader() {
     final l10n = AppLocalizations.of(context);
+    const titleStyle = TextStyle(
+      color: Colors.white,
+      fontSize: AppTypography.fontSizeLg,
+      fontWeight: FontWeight.w700,
+    );
+    final title = Text(
+      l10n.liveTv,
+      style: titleStyle,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+    final actions = [
+      _GuidePillButton(icon: Icons.sort, onPressed: _openSortDialog),
+      _GuidePillButton(icon: Icons.calendar_today, onPressed: _openDatePicker),
+      _GuidePillButton(
+        icon: _mobileView == EpgMobileView.grid
+            ? Icons.view_agenda
+            : Icons.grid_view,
+        onPressed: _toggleMobileView,
+      ),
+      // Kos TV: Recordings, as the wide guide has.
+      _GuidePillButton(icon: Icons.fiber_dvr, onPressed: _openRecordings),
+    ];
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
-      child: Row(
-        children: [
-          _GuidePillButton(icon: Icons.arrow_back, onPressed: _leave),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              l10n.liveTv,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: AppTypography.fontSizeLg,
-                fontWeight: FontWeight.w700,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Kos TV: on a narrow phone the four buttons beside the title cut
+          // it short ("TV en direc..."), so there they go on a line of their
+          // own under it; where all of it fits it stays on one line.
+          final painter = TextPainter(
+            text: TextSpan(text: l10n.liveTv, style: titleStyle),
+            textDirection: Directionality.of(context),
+            textScaler: MediaQuery.textScalerOf(context),
+            maxLines: 1,
+          )..layout();
+          final titleWidth = painter.width;
+          painter.dispose();
+          final buttonWidth = MediaQuery.textScalerOf(context).scale(18) + 28;
+          final needed =
+              buttonWidth * (actions.length + 1) +
+              8 +
+              _kGuideMobileHeaderGap * actions.length +
+              titleWidth;
+          final oneLine = needed <= constraints.maxWidth;
+          final back = _GuidePillButton(
+            icon: Icons.arrow_back,
+            onPressed: _leave,
+          );
+          if (oneLine) {
+            return Row(
+              children: [
+                back,
+                const SizedBox(width: 8),
+                Expanded(child: title),
+                for (final (i, action) in actions.indexed) ...[
+                  if (i > 0) const SizedBox(width: _kGuideMobileHeaderGap),
+                  action,
+                ],
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  back,
+                  const SizedBox(width: 8),
+                  Expanded(child: title),
+                ],
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          _GuidePillButton(icon: Icons.sort, onPressed: _openSortDialog),
-          const SizedBox(width: 6),
-          _GuidePillButton(
-            icon: Icons.calendar_today,
-            onPressed: _openDatePicker,
-          ),
-          const SizedBox(width: 6),
-          _GuidePillButton(
-            icon: _mobileView == EpgMobileView.grid
-                ? Icons.view_agenda
-                : Icons.grid_view,
-            onPressed: _toggleMobileView,
-          ),
-          // Kos TV: Recordings, as the wide guide has.
-          const SizedBox(width: 6),
-          _GuidePillButton(icon: Icons.fiber_dvr, onPressed: _openRecordings),
-        ],
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: _kGuideMobileHeaderGap,
+                runSpacing: _kGuideMobileHeaderGap,
+                children: actions,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -3028,6 +3075,9 @@ class _GuideGridView extends StatelessWidget {
     );
   }
 }
+
+/// Kos TV: the gap between the buttons at the top of the phone's guide.
+const _kGuideMobileHeaderGap = 6.0;
 
 class _GuidePillButton extends StatefulWidget {
   final String? label;

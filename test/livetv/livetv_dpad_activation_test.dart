@@ -5,17 +5,17 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:moonfin/data/models/live_tv_recording_state.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/navigation/destinations.dart';
 import 'package:moonfin/ui/screens/livetv/live_tv_recordings_screen.dart';
 import 'package:moonfin/ui/screens/livetv/live_tv_schedule_screen.dart';
 import 'package:moonfin/ui/screens/livetv/live_tv_series_recordings_screen.dart';
+import 'package:moonfin/util/platform_detection.dart';
 import 'package:server_core/server_core.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../ui/screens/browse/book_category_test_harness.dart';
 
 class _MockMediaServerClient extends Mock implements MediaServerClient {}
 
@@ -35,11 +35,11 @@ void main() {
   late _MockLiveTvApi liveTvApi;
 
   setUp(() async {
-    SharedPreferences.setMockInitialValues(const {});
-    final store = PreferenceStore();
-    await store.init();
-    GetIt.instance.registerSingleton<PreferenceStore>(store);
-    GetIt.instance.registerSingleton<UserPreferences>(UserPreferences(store));
+    // Kos TV: the Recordings page sits in the app's menu, which needs the
+    // services the library screens' tests set up.
+    await setUpBookScreens(FakeBookLibrary());
+    PlatformDetection.setInterfaceLayout(InterfaceLayout.automatic);
+    GetIt.instance.unregister<MediaServerClient>();
 
     client = _MockMediaServerClient();
     liveTvApi = _MockLiveTvApi();
@@ -95,9 +95,7 @@ void main() {
     GetIt.instance.registerSingleton<MediaServerClient>(client);
   });
 
-  tearDown(() async {
-    await GetIt.instance.reset();
-  });
+  tearDown(tearDownBookScreens);
 
   Future<AppLocalizations> l10n() =>
       AppLocalizations.delegate.load(const Locale('en'));
@@ -224,6 +222,102 @@ void main() {
       await pumpScreen(tester, const LiveTvRecordingsScreen());
 
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an empty tab says so with a line on how to fill it', (
+      tester,
+    ) async {
+      when(
+        () => liveTvApi.getRecordings(
+          limit: any(named: 'limit'),
+          fields: any(named: 'fields'),
+          enableImages: any(named: 'enableImages'),
+          isSeries: any(named: 'isSeries'),
+          isMovie: any(named: 'isMovie'),
+          isSports: any(named: 'isSports'),
+          isKids: any(named: 'isKids'),
+        ),
+      ).thenAnswer((_) async => <String, dynamic>{'Items': <dynamic>[]});
+      when(() => liveTvApi.getSeriesTimers()).thenAnswer(
+        (_) async => <String, dynamic>{'Items': <dynamic>[]},
+      );
+      final strings = await l10n();
+
+      await pumpScreen(tester, const LiveTvRecordingsScreen());
+      expect(find.text(strings.noRecordingsFound), findsOneWidget);
+      expect(find.text(strings.kostvRecordingsEmptyHint), findsOneWidget);
+
+      await tester.tap(find.textContaining(strings.seriesRecordings));
+      await tester.pumpAndSettle();
+      expect(find.text(strings.noSeriesRecordings), findsOneWidget);
+      expect(find.text(strings.kostvSeriesRecordingsEmptyHint), findsOneWidget);
+    });
+
+    testWidgets('Right moves between the tabs, under the Live TV page', (
+      tester,
+    ) async {
+      final strings = await l10n();
+      // As the app opens it: a page of the Live TV route, which sits under
+      // it with something that asks for the focus itself.
+      final router = GoRouter(
+        initialLocation: '/live-tv/recordings',
+        routes: [
+          GoRoute(
+            path: '/live-tv',
+            builder: (_, _) => Scaffold(
+              body: TextButton(
+                autofocus: true,
+                onPressed: () {},
+                child: const Text('below'),
+              ),
+            ),
+            routes: [
+              GoRoute(
+                path: 'recordings',
+                builder: (_, _) => const LiveTvRecordingsScreen(),
+              ),
+            ],
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        MaterialApp.router(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          routerConfig: router,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      String? focusedText() {
+        final context = FocusManager.instance.primaryFocus?.context;
+        if (context == null) return null;
+        final texts = find.descendant(
+          of: find.byWidget(context.widget),
+          matching: find.byType(Text),
+        );
+        return texts.evaluate().isEmpty
+            ? null
+            : (texts.evaluate().first.widget as Text).data;
+      }
+
+      expect(focusedText(), startsWith(strings.recordings));
+      await pressKey(tester, LogicalKeyboardKey.arrowRight);
+      expect(focusedText(), startsWith(strings.schedule));
+    });
+
+    testWidgets('the tabs answer the remote', (tester) async {
+      final strings = await l10n();
+      await pumpScreen(tester, const LiveTvRecordingsScreen());
+
+      Focus.of(
+        tester.element(find.textContaining(strings.schedule).first),
+      ).requestFocus();
+      await tester.pumpAndSettle();
+      await pressKey(tester, LogicalKeyboardKey.enter);
+
+      expect(find.text(_scheduledName), findsOneWidget);
     });
   });
 

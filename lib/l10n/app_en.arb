@@ -21069,5 +21069,26 @@
                 "type": "int"
             }
         }
+    },
+    "kostvRecordingsCount": "{count, plural, =1{1 recording} other{{count} recordings}}",
+    "@kostvRecordingsCount": {
+        "description": "Kos TV recordings page: how many recordings there are, under the title.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvRecordingsEmptyHint": "Pick a programme in the TV guide and choose Record.",
+    "@kostvRecordingsEmptyHint": {
+        "description": "Kos TV recordings page: the line under 'no recordings', saying how to record."
+    },
+    "kostvScheduledEmptyHint": "What's set to record shows up here, day by day.",
+    "@kostvScheduledEmptyHint": {
+        "description": "Kos TV recordings page: the line under 'no scheduled recordings'."
+    },
+    "kostvSeriesRecordingsEmptyHint": "Pick a programme in the TV guide and choose Record Series to record every episode.",
+    "@kostvSeriesRecordingsEmptyHint": {
+        "description": "Kos TV recordings page: the line under 'no series recordings', saying how to record a series."
     }
 }

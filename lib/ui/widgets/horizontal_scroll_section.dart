@@ -37,6 +37,7 @@ class HorizontalScrollSection extends StatefulWidget {
 class _HorizontalScrollSectionState extends State<HorizontalScrollSection> {
   late ScrollController _controller;
   late bool _ownsController;
+  final _metricsChanged = RowMetricsSignal();
 
   static const _scrollStep = 480.0;
   static const _scrollDuration = Duration(milliseconds: 380);
@@ -68,6 +69,7 @@ class _HorizontalScrollSectionState extends State<HorizontalScrollSection> {
     if (_ownsController) {
       _controller.dispose();
     }
+    _metricsChanged.dispose();
     super.dispose();
   }
 
@@ -139,30 +141,17 @@ class _HorizontalScrollSectionState extends State<HorizontalScrollSection> {
                     maintainSize: true,
                     maintainAnimation: true,
                     maintainState: true,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Focus(
-                          canRequestFocus: false,
-                          skipTraversal: true,
-                          descendantsAreFocusable: false,
-                          child: IconButton(
-                            icon: const Icon(Icons.chevron_left),
-                            onPressed: () => _scrollBy(-_scrollStep),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                        Focus(
-                          canRequestFocus: false,
-                          skipTraversal: true,
-                          descendantsAreFocusable: false,
-                          child: IconButton(
-                            icon: const Icon(Icons.chevron_right),
-                            onPressed: () => _scrollBy(_scrollStep),
-                            visualDensity: VisualDensity.compact,
-                          ),
-                        ),
-                      ],
+                    // Kos TV: only while the row has more than fits, and
+                    // the one at the end it's at greyed out.
+                    child: RowHeaderArrows(
+                      controller: _controller,
+                      metricsChanged: _metricsChanged,
+                      onBack: () => _scrollBy(-_scrollStep),
+                      onForward: () => _scrollBy(_scrollStep),
+                      // Rows that do something past their ends keep that
+                      // arrow working there.
+                      keepBack: widget.onScrollPastStart != null,
+                      keepForward: widget.onScrollPastEnd != null,
                     ),
                   ),
               ],
@@ -170,8 +159,139 @@ class _HorizontalScrollSectionState extends State<HorizontalScrollSection> {
           ),
         if (hasHeader && widget.contentSpacing > 0)
           SizedBox(height: widget.contentSpacing),
-        widget.builder(context, _controller),
+        NotificationListener<ScrollMetricsNotification>(
+          onNotification: (notification) {
+            if (notification.depth == 0) _metricsChanged.notify();
+            return false;
+          },
+          child: widget.builder(context, _controller),
+        ),
       ],
+    );
+  }
+}
+
+/// Kos TV: rings when a row's size or the size of what it holds changes
+/// (cards loading, the window resized), which its scroll controller doesn't
+/// report. Fed from a [ScrollMetricsNotification] listener around the row.
+class RowMetricsSignal extends ChangeNotifier {
+  void notify() => notifyListeners();
+}
+
+/// Kos TV: the ‹ › pair in a row's header on desktop. Neither shows while
+/// every card fits and there is nothing to scroll; once the row can scroll,
+/// the arrow pointing past the end it's at is greyed out. Hidden rather than
+/// left out, so the header keeps its height either way.
+class RowHeaderArrows extends StatefulWidget {
+  const RowHeaderArrows({
+    super.key,
+    required this.controller,
+    required this.onBack,
+    required this.onForward,
+    this.metricsChanged,
+    this.keepBack = false,
+    this.keepForward = false,
+  });
+
+  final ScrollController? controller;
+  final VoidCallback onBack;
+  final VoidCallback onForward;
+
+  /// Rings when the row's sizes change; see [RowMetricsSignal].
+  final Listenable? metricsChanged;
+
+  /// Keep that arrow pressable at the row's end, for rows that do something
+  /// there (the guide moves its time window).
+  final bool keepBack;
+  final bool keepForward;
+
+  @override
+  State<RowHeaderArrows> createState() => _RowHeaderArrowsState();
+}
+
+class _RowHeaderArrowsState extends State<RowHeaderArrows> {
+  bool _back = false;
+  bool _forward = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller?.addListener(_refresh);
+    widget.metricsChanged?.addListener(_refresh);
+    _refreshAfterLayout();
+  }
+
+  @override
+  void didUpdateWidget(covariant RowHeaderArrows oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller?.removeListener(_refresh);
+      widget.controller?.addListener(_refresh);
+    }
+    if (oldWidget.metricsChanged != widget.metricsChanged) {
+      oldWidget.metricsChanged?.removeListener(_refresh);
+      widget.metricsChanged?.addListener(_refresh);
+    }
+    // The row was rebuilt too: what it holds may have changed.
+    _refreshAfterLayout();
+  }
+
+  @override
+  void dispose() {
+    widget.controller?.removeListener(_refresh);
+    widget.metricsChanged?.removeListener(_refresh);
+    super.dispose();
+  }
+
+  void _refreshAfterLayout() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _refresh());
+  }
+
+  void _refresh() {
+    if (!mounted) return;
+    final position = widget.controller?.positions.singleOrNull;
+    final measured = position != null && position.hasContentDimensions;
+    final back = measured && position.extentBefore > 0.5;
+    final forward = measured && position.extentAfter > 0.5;
+    if (back == _back && forward == _forward) return;
+    setState(() {
+      _back = back;
+      _forward = forward;
+    });
+  }
+
+  Widget _arrow(IconData icon, VoidCallback? onPressed) => Focus(
+    canRequestFocus: false,
+    skipTraversal: true,
+    descendantsAreFocusable: false,
+    child: IconButton(
+      icon: Icon(icon),
+      onPressed: onPressed,
+      visualDensity: VisualDensity.compact,
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final scrolls = _back || _forward;
+    return Visibility(
+      visible: scrolls || widget.keepBack || widget.keepForward,
+      maintainSize: true,
+      maintainAnimation: true,
+      maintainState: true,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _arrow(
+            Icons.chevron_left,
+            _back || widget.keepBack ? widget.onBack : null,
+          ),
+          _arrow(
+            Icons.chevron_right,
+            _forward || widget.keepForward ? widget.onForward : null,
+          ),
+        ],
+      ),
     );
   }
 }
