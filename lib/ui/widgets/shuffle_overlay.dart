@@ -16,6 +16,7 @@ import '../../data/services/media_server_client_factory.dart';
 import '../../l10n/app_localizations.dart';
 import '../../preference/user_preferences.dart';
 import '../../util/platform_detection.dart';
+import '../../util/playback_time_label.dart';
 import '../navigation/destinations.dart';
 import 'focusable_dialog_row.dart';
 import 'media_card.dart';
@@ -603,12 +604,7 @@ class _ShuffleOverlayState extends State<_ShuffleOverlay> {
     if (runtime == null) {
       return null;
     }
-    final hours = runtime.inHours;
-    final minutes = runtime.inMinutes.remainder(60);
-    if (hours > 0) {
-      return '${hours}h ${minutes}m';
-    }
-    return '${minutes}m';
+    return formatRuntimeShort(runtime);
   }
 
   MediaServerClient _resolveClientFor(AggregatedItem item) {

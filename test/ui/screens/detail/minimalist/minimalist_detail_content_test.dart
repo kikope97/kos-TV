@@ -210,7 +210,7 @@ void main() {
     await pumpContent(tester, vm);
 
     expect(find.byType(RatingsRow), findsOneWidget);
-    expect(find.text('7.8'), findsOneWidget);
+    expect(find.text('7,8'), findsOneWidget);
   });
 
   testWidgets('the ratings run wider than the title measure', (tester) async {

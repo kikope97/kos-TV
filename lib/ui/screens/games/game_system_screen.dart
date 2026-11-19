@@ -28,6 +28,7 @@ import '../../../util/game_library.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/grid_focus_node_mixin.dart';
 import '../../../util/platform_detection.dart';
+import '../../../util/rating_format.dart';
 import '../../../util/tv_image_cache_stub.dart'
     if (dart.library.io) '../../../util/tv_image_cache_io.dart';
 import '../../navigation/destinations.dart';
@@ -1421,7 +1422,7 @@ class _GameMetadataRow extends StatelessWidget {
       if (game.players != null)
         _iconMetadata(Icons.group_outlined, '${game.players}'),
       if (game.rating != null)
-        _iconMetadata(Icons.star, game.rating!.toStringAsFixed(1)),
+        _iconMetadata(Icons.star, formatRatingValue(game.rating!)),
     ];
 
     return Wrap(

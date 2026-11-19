@@ -20928,4 +20928,14 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvWebDownloadLinkNote =>
       'In the browser, the download link carries your session and stays in the download history: do not share it.';
+
+  @override
+  String kostvRuntimeMinutes(int minutes) {
+    return '${minutes}m';
+  }
+
+  @override
+  String kostvRuntimeHours(int hours) {
+    return '${hours}h';
+  }
 }

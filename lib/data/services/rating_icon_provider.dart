@@ -1,4 +1,5 @@
 import '../../l10n/current_app_localizations.dart';
+import '../../util/rating_format.dart';
 
 class RatingIconProvider {
   const RatingIconProvider._();
@@ -37,9 +38,10 @@ class RatingIconProvider {
       'tomatoes' || 'popcorn' || 'tomatoes_audience' ||
       'tmdb' || 'metacritic' || 'metacriticuser' || 'trakt' =>
         '${value.toInt()}%',
-      'letterboxd' => '${value.toStringAsFixed(1)}/5',
-      'rogerebert' => '${value.toStringAsFixed(1)}/4',
-      _ => value.toStringAsFixed(1),
+      // Kos TV: with the app language's decimal separator, «7,1» in Spanish.
+      'letterboxd' => '${formatRatingValue(value)}/5',
+      'rogerebert' => '${formatRatingValue(value)}/4',
+      _ => formatRatingValue(value),
     };
   }
 

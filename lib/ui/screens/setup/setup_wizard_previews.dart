@@ -30,6 +30,7 @@ import '../../../util/live_tv_library.dart'
     show isLiveTvLibrary, librariesForNav;
 import '../../../util/overlay_color_palette.dart';
 import '../../../util/platform_detection.dart';
+import '../../../util/playback_time_label.dart';
 import '../../../util/tv_ui_scale.dart';
 import '../../widgets/bottom_nav/bottom_nav_destinations.dart';
 import '../../widgets/bottom_nav/bottom_nav_metrics.dart';
@@ -305,9 +306,7 @@ const List<Shadow> _textShadows = [
 
 String _runtimeText(Duration? runtime) {
   if (runtime == null) return '';
-  final hours = runtime.inHours;
-  final minutes = runtime.inMinutes % 60;
-  return hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m';
+  return formatRuntimeShort(runtime);
 }
 
 List<String> _metaParts(MediaBarSlideItem item) => [

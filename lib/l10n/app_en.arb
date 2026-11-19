@@ -21051,5 +21051,23 @@
     "kostvWebDownloadLinkNote": "In the browser, the download link carries your session and stays in the download history: do not share it.",
     "@kostvWebDownloadLinkNote": {
         "description": "Kos TV: note under the title of the download quality sheet in the browser"
+    },
+    "kostvRuntimeMinutes": "{minutes}m",
+    "@kostvRuntimeMinutes": {
+        "description": "Kos TV: a runtime or time left under an hour, short form (detail pages, cards, play button).",
+        "placeholders": {
+            "minutes": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvRuntimeHours": "{hours}h",
+    "@kostvRuntimeHours": {
+        "description": "Kos TV: a runtime of whole hours, short form (detail pages, cards, play button).",
+        "placeholders": {
+            "hours": {
+                "type": "int"
+            }
+        }
     }
 }

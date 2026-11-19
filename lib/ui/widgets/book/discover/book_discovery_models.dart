@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../l10n/app_localizations.dart';
 import '../../../../l10n/current_app_localizations.dart';
+import '../../../../util/playback_time_label.dart';
 
 const bookDiscoverPageSize = 24;
 
@@ -458,10 +459,7 @@ class LibrivoxBook {
 
   String get formattedDuration {
     if (totalTimeSecs <= 0) return '';
-    final hours = totalTimeSecs ~/ 3600;
-    final minutes = (totalTimeSecs % 3600) ~/ 60;
-    if (hours > 0) return '${hours}h ${minutes}m';
-    if (minutes > 0) return '${minutes}m';
-    return '${totalTimeSecs}s';
+    if (totalTimeSecs < 60) return '${totalTimeSecs}s';
+    return formatRuntimeShort(Duration(seconds: totalTimeSecs));
   }
 }

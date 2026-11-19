@@ -21272,4 +21272,14 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvWebDownloadLinkNote =>
       'En el navegador, el enlace de la descarga lleva tu sesión y queda en el historial de descargas: no lo compartas.';
+
+  @override
+  String kostvRuntimeMinutes(int minutes) {
+    return '$minutes min';
+  }
+
+  @override
+  String kostvRuntimeHours(int hours) {
+    return '$hours h';
+  }
 }

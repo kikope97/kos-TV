@@ -4,6 +4,7 @@ import 'package:server_core/server_core.dart';
 
 import '../l10n/app_localizations.dart';
 import '../preference/user_preferences.dart';
+import 'rating_format.dart';
 
 /// The flags the provider sets on an upload - machine or AI translated,
 /// hearing impaired, forced, a hash match against this exact file.
@@ -65,7 +66,7 @@ String remoteSubtitleDetails(
 
   final rating = subtitle['CommunityRating'] as num?;
   if (rating != null) {
-    details.add('${rating.toStringAsFixed(1)}★');
+    details.add('${formatRatingValue(rating)}★');
   }
 
   final downloadCount = subtitle['DownloadCount'] as num?;

@@ -36026,6 +36026,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'In the browser, the download link carries your session and stays in the download history: do not share it.'**
   String get kostvWebDownloadLinkNote;
+
+  /// Kos TV: a runtime or time left under an hour, short form (detail pages, cards, play button).
+  ///
+  /// In en, this message translates to:
+  /// **'{minutes}m'**
+  String kostvRuntimeMinutes(int minutes);
+
+  /// Kos TV: a runtime of whole hours, short form (detail pages, cards, play button).
+  ///
+  /// In en, this message translates to:
+  /// **'{hours}h'**
+  String kostvRuntimeHours(int hours);
 }
 
 class _AppLocalizationsDelegate
