@@ -14,6 +14,7 @@ import '../../../../util/focus/dpad_keys.dart';
 import '../../../widgets/detail_reviews.dart';
 import '../../../widgets/focus/focusable_toolbar_button.dart';
 import '../collection_sort_dialog.dart';
+import '../person_filmography_failed.dart';
 import '../item_detail_screen.dart'
     show DetailTrackList, selectedMediaSourceForItem;
 import '../modern/modern_detail_content.dart'
@@ -811,7 +812,7 @@ class _SpotlightCardsBuilder {
     final other = _sortJellyfin(vm.filmography);
     final hasLibrary = movies.isNotEmpty || series.isNotEmpty;
     if (!hasLibrary && other.isEmpty) {
-      return null;
+      return showsFilmographyFailure(vm) ? _filmographyFailedCard() : null;
     }
     final subtitle = [
       if (movies.isNotEmpty) l10n.spotlightMoviesCount(movies.length),
@@ -837,6 +838,33 @@ class _SpotlightCardsBuilder {
         if (series.isNotEmpty) _mediaSection(l10n.series, series),
         if (!hasLibrary && other.isNotEmpty)
           _mediaSection(l10n.spotlightFilmography, other),
+      ],
+    );
+  }
+
+  /// Kos TV: the person's titles couldn't be read. The card says so and
+  /// opens on «Reintentar»; the open card fills in once they're in, and the
+  /// focus goes on to the first title.
+  SpotlightCardSpec _filmographyFailedCard() {
+    return SpotlightCardSpec(
+      id: 'filmography',
+      title: l10n.spotlightFilmography,
+      subtitle: l10n.failedToLoad,
+      imageUrl: _personCardBackdrops['filmography'] ?? fallbackImageUrl,
+      icon: Icons.movie_outlined,
+      sections: [
+        SpotlightModalSection(
+          id: 'filmography_failed',
+          builder: (context, firstFocusNode) => PersonFilmographyFailed(
+            viewModel: vm,
+            focusNode: firstFocusNode,
+            onRecovered: () {
+              if (firstFocusNode?.context?.mounted ?? false) {
+                firstFocusNode!.requestFocus();
+              }
+            },
+          ),
+        ),
       ],
     );
   }

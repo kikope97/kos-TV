@@ -162,6 +162,38 @@ double classicHomeRowOverlayClipTop({
   return (overlayBottom - rowViewportTop).clamp(0.0, rowExtent);
 }
 
+/// Kos TV: where the remote goes when the row it was on leaves Home, as
+/// «Quiero verlo» does once its last title is watched or taken off. The index
+/// in [rows] of the nearest row with cards from where it was downwards (the
+/// one that took its place), else upwards. Null when none is left, for the
+/// banner or the navbar to take it. [before] is the rows' order with it.
+@visibleForTesting
+int? homeRowAfterFocusedRowLeft({
+  required String goneId,
+  required List<String> before,
+  required List<HomeRow> rows,
+  required bool Function(HomeRow row) focusable,
+}) {
+  final at = before.indexOf(goneId);
+  // Where it stood in the new list: just under the nearest row above it
+  // that is still there (the top when none is, or when it's not known).
+  var boundary = 0;
+  for (var i = at - 1; i >= 0; i--) {
+    final index = rows.indexWhere((row) => row.id == before[i]);
+    if (index >= 0) {
+      boundary = index + 1;
+      break;
+    }
+  }
+  for (var i = boundary; i < rows.length; i++) {
+    if (rows[i].id != goneId && focusable(rows[i])) return i;
+  }
+  for (var i = boundary - 1; i >= 0; i--) {
+    if (rows[i].id != goneId && focusable(rows[i])) return i;
+  }
+  return null;
+}
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -1403,6 +1435,7 @@ class _ContentRowsState extends State<_ContentRows>
       (_) => _updateIsScrolledToTop(),
     );
     widget.viewModel.addListener(_onViewModelChanged);
+    _shownRowIds = [for (final row in widget.viewModel.rows) row.id];
     widget.mediaBarViewModel.addListener(_onMediaBarStateChanged);
     _lastMediaBarStateRuntime = widget.mediaBarViewModel.state.runtimeType;
     _lastMediaBarItemCount = widget.mediaBarViewModel.state is MediaBarReady
@@ -1427,7 +1460,66 @@ class _ContentRowsState extends State<_ContentRows>
     _wasEmpty = empty;
   }
 
+  /// Kos TV: the rows' order at the last change, to tell where a row that
+  /// leaves Home stood.
+  List<String> _shownRowIds = const [];
+
+  /// Kos TV: [_shownRowIds] when a page covered Home, for the return.
+  List<String> _rowIdsWhenLeft = const [];
+
+  /// Kos TV: the row holding the remote's focus, if one does.
+  String? _rowIdWithFocus() {
+    for (final entry in _rowKeys.entries) {
+      final state = entry.value.currentState;
+      if (state is LockedFocusRowState && state.hasFocusedItem) {
+        return entry.key;
+      }
+    }
+    return null;
+  }
+
+  /// Kos TV: the row the remote was on left Home or was emptied (as
+  /// «Quiero verlo» is once its last title is watched or taken off), and its
+  /// focus went with it: it goes to the row that took its place, else the one
+  /// above, else the banner, rather than nowhere.
+  void _keepFocusWhenRowLeaves(List<String> before) {
+    if (PlatformDetection.useMobileUi) return;
+    if (!PlatformDetection.isTV &&
+        FocusManager.instance.highlightMode != FocusHighlightMode.traditional) {
+      return;
+    }
+    final goneId = _rowIdWithFocus();
+    if (goneId == null) return;
+    // Still there with cards, or reloading: it keeps the focus.
+    final row = widget.viewModel.rows
+        .where((row) => row.id == goneId)
+        .firstOrNull;
+    if (row != null && (row.isLoading || _rowHasFocusableItems(row))) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_mayRestoreHomeFocus()) return;
+      final state = _rowKeys[goneId]?.currentState;
+      final stillOnIt = state is LockedFocusRowState && state.hasFocusedItem;
+      if (!stillOnIt && !_focusIsGenuinelyLost()) return;
+      final rows = widget.viewModel.rows;
+      final target = homeRowAfterFocusedRowLeft(
+        goneId: goneId,
+        before: before,
+        rows: rows,
+        focusable: _rowHasFocusableItems,
+      );
+      // Up from above the first row: the banner, or else the navbar.
+      unawaited(
+        target == null
+            ? _focusAdjacentRowItem(rows, 0, -1)
+            : _focusAdjacentRowItem(rows, target - 1, 1),
+      );
+    });
+  }
+
   void _onViewModelChanged() {
+    final before = _shownRowIds;
+    _shownRowIds = [for (final row in widget.viewModel.rows) row.id];
+    _keepFocusWhenRowLeaves(before);
     _invalidateStaticRowHeightCache();
     _updateOffsets();
     _clearSelectionOnceEmpty();
@@ -3627,13 +3719,26 @@ class _ContentRowsState extends State<_ContentRows>
     } else {
       // The remembered row is gone, likely removed by the return refresh.
       // Land somewhere focusable instead of leaving focus stranded.
-      _focusFirstAvailableHomeTarget();
+      // Kos TV: on the row that took its place, or the one above, as when
+      // it leaves with Home on screen.
+      final target = homeRowAfterFocusedRowLeft(
+        goneId: rowId,
+        before: _rowIdsWhenLeft,
+        rows: rows,
+        focusable: _rowHasFocusableItems,
+      );
+      if (target != null && _rowStateOf(target) != null) {
+        unawaited(_focusAdjacentRowItem(rows, target - 1, 1));
+      } else {
+        _focusFirstAvailableHomeTarget();
+      }
     }
   }
 
   /// Runs before the pushed route's focus change lands, so the outgoing focus
   /// still reads true here.
   void noteLeavingHome() {
+    _rowIdsWhenLeft = _shownRowIds;
     _returnFocusToMediaBar = _mediaBarFocusNode.hasFocus;
     _returnScrollRowId = null;
     _returnScrollRowShift = null;

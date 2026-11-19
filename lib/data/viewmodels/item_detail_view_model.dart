@@ -76,6 +76,10 @@ class _PlaylistItemIndexEntry {
 
 enum ItemDetailState { loading, ready, blocked, error }
 
+/// Kos TV: a change the person asked for on the page that the server didn't
+/// take (it refused or couldn't be reached), for the page to say so.
+enum DetailActionFailure { markPlayed, markUnplayed, favorite }
+
 /// Why a delete request failed.
 ///
 /// [detail] is a short status line safe to show the user. The raw response
@@ -523,6 +527,16 @@ class ItemDetailViewModel extends ChangeNotifier {
 
   bool _isRatingMutationInProgress = false;
   bool get isRatingMutationInProgress => _isRatingMutationInProgress;
+
+  /// Kos TV: called when [toggleFavorite] or [togglePlayed] didn't reach the
+  /// server, once the page shows again what the server holds. It still runs
+  /// after the page has closed, so a quick Back doesn't swallow the notice.
+  void Function(DetailActionFailure failure)? onActionFailed;
+
+  /// Kos TV: a watched toggle on its way to the server. Another tap meanwhile
+  /// is ignored: two requests racing could leave the page on one state and
+  /// the server on the other.
+  bool _playedInFlight = false;
 
   bool get canManagePlaylistTracks =>
       _item?.type == 'Playlist' &&
@@ -2290,9 +2304,9 @@ class ItemDetailViewModel extends ChangeNotifier {
   bool get filmographyFailed => _filmographyFailed;
 
   /// Kos TV: reads the person's titles again after [filmographyFailed].
+  /// The error stays up until the answer is in, so the retry button keeps
+  /// the remote's focus while it waits and gets it back if it fails again.
   Future<void> retryFilmography() async {
-    _filmographyFailed = false;
-    notifyListeners();
     await _loadFilmography();
   }
 
@@ -2569,28 +2583,47 @@ class ItemDetailViewModel extends ChangeNotifier {
     _applyOptimisticUpdate({'IsFavorite': newState});
     try {
       await _mutations.setFavorite(_mutationId, isFavorite: newState);
-      await _reload();
     } catch (_) {
-      _applyOptimisticUpdate({'IsFavorite': !newState});
+      // Kos TV: only a toggle the server's answer contradicts throws, so the
+      // heart goes back to what the server holds, and the person is told.
+      if (!_isDisposed) _applyOptimisticUpdate({'IsFavorite': !newState});
+      onActionFailed?.call(DetailActionFailure.favorite);
+      return;
     }
+    await _reload();
   }
 
   Future<void> togglePlayed() async {
     final item = seriesFeaturedBook ?? _item;
-    if (item == null) return;
+    if (item == null || _playedInFlight) return;
     final newState = !item.isPlayed;
-    _applyOptimisticUpdate({'Played': newState});
+    _playedInFlight = true;
     try {
-      await _mutations.setPlayed(_mutationId, isPlayed: newState);
+      _applyOptimisticUpdate({'Played': newState});
+      try {
+        await _mutations.setPlayed(_mutationId, isPlayed: newState);
+      } catch (_) {
+        // Kos TV: back to what the server holds, and the person is told. A
+        // reload failing after the change went through isn't a failure.
+        if (!_isDisposed) _applyOptimisticUpdate({'Played': !newState});
+        onActionFailed?.call(
+          newState
+              ? DetailActionFailure.markPlayed
+              : DetailActionFailure.markUnplayed,
+        );
+        return;
+      }
       await _reload();
       // Kos TV: marking a series or a season marks its episodes, which the
       // page lists and the server doesn't report one by one.
-      if (item.type == 'Series' || item.type == 'Season') {
+      if (!_isDisposed && (item.type == 'Series' || item.type == 'Season')) {
         _userDataStale = true;
-        await syncUserDataIfStale();
+        try {
+          await syncUserDataIfStale();
+        } catch (_) {}
       }
-    } catch (_) {
-      _applyOptimisticUpdate({'Played': !newState});
+    } finally {
+      _playedInFlight = false;
     }
   }
 
