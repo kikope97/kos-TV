@@ -730,7 +730,7 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
                   devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
                 ),
               ),
-              kicker: _kickerOf(l10n, entry.episode!),
+              kicker: _kickerOf(l10n, entry.episode!, sayWatched: false),
               title: entry.episode!.name,
               text: entry.episode!.overview,
               onTap: () => _openEpisode(context, entry.episode!),
@@ -1140,10 +1140,16 @@ double? _progressOf(AggregatedItem episode) {
 }
 
 /// «EPISODIO 6 · QUEDAN 22 MIN», or «EPISODIO 5 · 51 MIN · VISTO».
-List<String> _kickerOf(AppLocalizations l10n, AggregatedItem episode) => [
+/// Kos TV: without [sayWatched] (the phone's narrow list, where the
+/// picture's tick already says it) the line ends at the length, so it fits.
+List<String> _kickerOf(
+  AppLocalizations l10n,
+  AggregatedItem episode, {
+  bool sayWatched = true,
+}) => [
   if (episode.indexNumber case final n?) l10n.episodeNumber(n),
   ?_lengthOf(l10n, episode),
-  if (episode.isPlayed) l10n.watched,
+  if (sayWatched && episode.isPlayed) l10n.watched,
 ];
 
 /// A picture, or a quiet tile while there's none. Kos TV: [colorFilter] is
