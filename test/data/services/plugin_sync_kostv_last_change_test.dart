@@ -136,14 +136,20 @@ void main() {
     'a server answer that lands after a switch of person is dropped',
     () async {
       adapter.stored = {'use24HourClock': false};
-      adapter.resolveDelay = const Duration(milliseconds: 300);
+      adapter.resolveDelay = const Duration(seconds: 1);
 
       unawaited(service.syncOnLogin(client, serverId: 'srv1'));
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+      // Waits for the read to go out rather than a fixed time, so a busy
+      // machine doesn't make the switch land after the answer.
+      final asked = DateTime.now();
+      while (firstIndex('/Settings/Resolved/') < 0 &&
+          DateTime.now().difference(asked) < const Duration(seconds: 10)) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
       expect(firstIndex('/Settings/Resolved/'), isNonNegative);
 
       service.resetState();
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
 
       expect(
         prefs.get(UserPreferences.use24HourClock),
