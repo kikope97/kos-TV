@@ -970,8 +970,10 @@ jobs:
 
   # Kos TV: a test build to install by hand. Published as a pre-release, so
   # GitHub never returns it as the latest release and the apps' update check
-  # (releases/latest) never offers it. Its APKs keep the base version
-  # (0.1.0, code 1000), so any real release installs over them.
+  # (releases/latest) never offers it. Its APKs carry the latest release's
+  # version plus "-prueba.N" (code of that release plus N, see
+  # scripts/kostv_set_version.sh), so they install over that release and the
+  # next real release installs over them.
   test-release:
     if: needs.plan.outputs.test_apk == 'true'
     needs: [plan, android]

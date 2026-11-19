@@ -1,6 +1,7 @@
 import 'package:server_core/server_core.dart';
 
 import '../models/aggregated_item.dart';
+import '../services/blocked_content_gate.dart';
 import '../utils/blocked_ratings.dart';
 
 /// Kos TV: music isn't searched (it will have its own place): these types
@@ -124,7 +125,7 @@ class SearchRepository {
     List<String>? includeItemTypes,
     String? parentId,
     int? limit,
-  }) async => withoutBlockedItems(
+  }) async => _withoutBlocked(
     await _search(
       query,
       includeItemTypes: includeItemTypes,
@@ -132,6 +133,12 @@ class SearchRepository {
       limit: limit,
     ),
   );
+
+  /// The blocked ratings out, and (Kos TV) the episodes of a series blocked on
+  /// this device, which rarely carry a rating of their own.
+  static Future<List<AggregatedItem>> _withoutBlocked(
+    List<AggregatedItem> items,
+  ) => withoutBlockedSeriesItems(withoutBlockedItems(items));
 
   // Types a search across every library turns up that have no group, since
   // people and channels come from their own requests.
@@ -167,7 +174,7 @@ class SearchRepository {
       excludeItemTypes: _ungroupedTypes,
       limit: limit,
     );
-    if (page.length < limit) return withoutBlockedItems(page);
+    if (page.length < limit) return _withoutBlocked(page);
     final refills = await Future.wait([
       for (final group in groups)
         if (page.where((item) => group.contains(item.type)).length < perGroup)
@@ -178,7 +185,7 @@ class SearchRepository {
           ).catchError((Object _) => <AggregatedItem>[]),
     ]);
     final seen = {for (final item in page) item.id};
-    return withoutBlockedItems([
+    return _withoutBlocked([
       ...page,
       for (final item in refills.expand((items) => items))
         if (seen.add(item.id)) item,

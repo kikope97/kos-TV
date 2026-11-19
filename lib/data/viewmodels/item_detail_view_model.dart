@@ -2051,8 +2051,11 @@ class ItemDetailViewModel extends ChangeNotifier {
       final items = (data['Items'] as List?) ?? [];
       // The cards don't know whose page they're on, so each title carries
       // the role for its subtitle and lets go of the rest of the cast.
+      // Kos TV: an episode is judged by its series too, as on opening it.
+      final visible = await withoutBlockedSeriesItems(_mapItems(items));
+      if (_isDisposed) return;
       _filmography = [
-        for (final item in _mapItems(items))
+        for (final item in visible)
           AggregatedItem(
             id: item.id,
             serverId: item.serverId,

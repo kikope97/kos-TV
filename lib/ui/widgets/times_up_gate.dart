@@ -24,6 +24,12 @@ import '../navigation/destinations.dart';
 /// picker without signing anyone out, so a saved profile stays on it. The
 /// screen steps aside while the picker is showing and comes back if the same
 /// user is picked again.
+///
+/// Kos TV: in Kids Mode the picker asks for the mode's PIN before anyone but
+/// the child (or a sign-in, or another server) is taken, so this isn't a way
+/// out of the mode. It is asked there rather than here: this screen sits over
+/// the app's navigator and holds the focus, so a PIN dialog opened from it
+/// would show and take keys underneath it.
 class TimesUpGate extends StatelessWidget {
   const TimesUpGate({
     super.key,

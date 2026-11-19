@@ -2274,6 +2274,13 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         l10n.settingsCheckForUpdates,
         subtitle: l10n.settingsCheckForUpdatesSubtitle,
       ),
+    if (AppDistribution.supportsInAppUpdates)
+      about.leaf(
+        'update_notifications_enabled',
+        l10n.updateNotifications,
+        subtitle: l10n.showWhenUpdatesAvailable,
+        keywords: ['update', 'actualización', 'aviso', 'notification'],
+      ),
     style.leaf(
       'customize_look',
       l10n.kostvCustomizeLook,

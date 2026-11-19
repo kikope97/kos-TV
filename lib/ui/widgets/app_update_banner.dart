@@ -2,86 +2,105 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import 'package:moonfin_design/moonfin_design.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/services/app_update_service.dart';
-import '../../l10n/app_localizations.dart';
-import '../../util/platform_detection.dart';
 import '../navigation/app_router.dart';
 import '../navigation/destinations.dart';
 import 'app_update_dialog.dart';
-import 'status_banner_pill.dart';
 
-/// Floating glass pill announcing a newer GitHub release. Mirrors the offline
-/// banner: slides in, auto-dismisses on a countdown, and stays non-focusable
-/// on TV so it never steals d-pad focus from the content underneath.
+/// Offers a newer GitHub release when the app starts and whenever it comes
+/// back to the foreground, in the update dialog. Draws nothing itself.
+///
+/// Kos TV: the floating pill Moonfin showed on desktop is gone, since only the
+/// Android builds update themselves here and they always ask in the dialog,
+/// which the remote can answer.
 class AppUpdateBanner extends StatefulWidget {
   /// Overrides the update lookup in tests. Defaults to the registered
   /// [AppUpdateService]'s cooldown-respecting check.
-  final Future<DesktopUpdateInfo?> Function()? checkForUpdate;
+  final Future<DesktopUpdateCheckResult> Function()? checkForUpdate;
 
-  const AppUpdateBanner({super.key, this.checkForUpdate});
+  /// Offers the update, for a test. Defaults to the update dialog.
+  final Future<void> Function(DesktopUpdateInfo update)? showUpdate;
+
+  /// Whether something plays full screen and whether the app is still
+  /// opening, and what tells either changed, for a test. Default to the
+  /// app's router and player.
+  final bool Function()? isWatching;
+  final bool Function()? isOpening;
+  final Listenable? routeChanges;
+
+  /// How soon a check that got no answer is tried again, for a test.
+  final Duration? retryAfterFailure;
+
+  const AppUpdateBanner({
+    super.key,
+    this.checkForUpdate,
+    this.showUpdate,
+    this.isWatching,
+    this.isOpening,
+    this.routeChanges,
+    this.retryAfterFailure,
+  });
 
   @override
   State<AppUpdateBanner> createState() => _AppUpdateBannerState();
 }
 
-class _AppUpdateBannerState extends State<AppUpdateBanner>
-    with SingleTickerProviderStateMixin {
-  static const _autoDismissDuration = Duration(seconds: 7);
-
-  // Built in initState, not as field initializers: a banner that never becomes
-  // visible would otherwise run them from dispose, and creating a ticker on a
-  // deactivated element throws.
-  late final AnimationController _entrance;
-  late final CurvedAnimation _entranceCurve;
-
-  DesktopUpdateInfo? _update;
-  bool _dismissed = false;
-  Timer? _autoDismissTimer;
-
+class _AppUpdateBannerState extends State<AppUpdateBanner> {
   /// Kos TV: TVs keep the app open for days, so the check also runs whenever
   /// it comes back to the foreground (the service's cooldown still applies).
   AppLifecycleListener? _lifecycle;
   bool _checking = false;
 
+  /// Kos TV: an update found while something was playing, offered once the
+  /// player closes.
+  DesktopUpdateInfo? _held;
+
+  /// Kos TV: what the check waits on (the opening to end, the player to
+  /// close), while it waits.
+  Listenable? _waitingOn;
+  VoidCallback? _onWaitOver;
+
+  Timer? _retry;
+  Timer? _settle;
+
+  bool get _real => widget.checkForUpdate == null;
+
   @override
   void initState() {
     super.initState();
-    _entrance = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 260),
-      reverseDuration: const Duration(milliseconds: 180),
-    );
-    _entranceCurve = CurvedAnimation(
-      parent: _entrance,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_check());
     });
-    if (widget.checkForUpdate == null) {
+    if (_real) {
       _lifecycle = AppLifecycleListener(onResume: () => unawaited(_check()));
+      // Kos TV: the APK of the update this run started with is done with.
+      unawaited(discardLeftoverUpdateDownload());
     }
   }
 
   @override
   void dispose() {
-    if (_waitingForHome) {
-      appRouter.routerDelegate.removeListener(_onRouteWhileOpening);
-    }
+    _stopWaiting();
     _lifecycle?.dispose();
-    _autoDismissTimer?.cancel();
-    _entranceCurve.dispose();
-    _entrance.dispose();
+    _retry?.cancel();
+    _settle?.cancel();
     super.dispose();
   }
 
+  Listenable get _routeChanges =>
+      widget.routeChanges ??
+      Listenable.merge([
+        appRouter.routerDelegate,
+        PlayerRouteObserver.instance.isPlayerActive,
+      ]);
+
+  bool _watching() => (widget.isWatching ?? _isWatching)();
+  bool _opening() => (widget.isOpening ?? _isOpening)();
+
   /// Kos TV: whether something is playing full screen right now, which an
-  /// update prompt shouldn't interrupt. Checked before asking the service,
-  /// since the service records a version as shown once it returns it.
+  /// update prompt shouldn't interrupt. Checked before asking the service and
+  /// again before offering what it found, since the answer can take a while.
   static bool _isWatching() {
     try {
       // The player is pushed over the page it was opened from, which the
@@ -112,127 +131,94 @@ class _AppUpdateBannerState extends State<AppUpdateBanner>
     }
   }
 
-  bool _waitingForHome = false;
+  /// Kos TV: waits for the app to be on a page an update can be offered over
+  /// (not opening, nothing playing), then gives it a moment to settle and
+  /// goes on: offering what it holds, or checking.
+  void _waitForCalm() {
+    if (_waitingOn != null) return;
+    final changes = _routeChanges;
+    void onChange() {
+      if (_opening() || _watching()) return;
+      _stopWaiting();
+      _settle?.cancel();
+      _settle = Timer(const Duration(seconds: 2), () {
+        if (!mounted) return;
+        if (_held != null) {
+          unawaited(_offerHeld());
+        } else {
+          unawaited(_check());
+        }
+      });
+    }
 
-  void _onRouteWhileOpening() {
-    if (_isOpening()) return;
-    appRouter.routerDelegate.removeListener(_onRouteWhileOpening);
-    _waitingForHome = false;
-    // A moment for Home to settle before the dialog comes up.
-    Future<void>.delayed(const Duration(seconds: 2), () {
-      if (mounted) unawaited(_check());
-    });
+    _waitingOn = changes;
+    _onWaitOver = onChange;
+    changes.addListener(onChange);
+  }
+
+  void _stopWaiting() {
+    final changes = _waitingOn;
+    final listener = _onWaitOver;
+    if (changes != null && listener != null) changes.removeListener(listener);
+    _waitingOn = null;
+    _onWaitOver = null;
   }
 
   Future<void> _check() async {
-    if (_checking || _update != null) return;
-    if (widget.checkForUpdate == null && _isWatching()) return;
-    if (widget.checkForUpdate == null && _isOpening()) {
-      if (!_waitingForHome) {
-        _waitingForHome = true;
-        appRouter.routerDelegate.addListener(_onRouteWhileOpening);
-      }
+    if (_checking || _held != null) return;
+    if (_opening() || _watching()) {
+      _waitForCalm();
       return;
     }
     _checking = true;
     try {
       final check =
           widget.checkForUpdate ??
-          GetIt.instance<AppUpdateService>().checkForUpdateIfDue;
-      final update = await check();
-      if (!mounted || update == null) return;
-      // Kos TV: on Android the update installs from the app, so it is offered
-      // in a dialog the remote can answer, not in a pill that times out.
-      if (widget.checkForUpdate == null && canInstallUpdateInApp(update)) {
-        final navContext =
-            appRouter.routerDelegate.navigatorKey.currentContext;
-        if (navContext != null && navContext.mounted) {
-          await showAppUpdateDialog(navContext, update);
-          return;
-        }
+          GetIt.instance<AppUpdateService>().checkForUpdateIfDueDetailed;
+      final result = await check();
+      if (!mounted) return;
+      // Kos TV: no answer (the wifi still coming back as the TV wakes up):
+      // tried again in a few minutes rather than at the next resume, which on
+      // a TV can be hours away.
+      if (result.status == DesktopUpdateCheckStatus.checkFailed) {
+        _retry?.cancel();
+        _retry = Timer(
+          widget.retryAfterFailure ?? AppUpdateService.retryAfterFailure,
+          () {
+            if (mounted) unawaited(_check());
+          },
+        );
       }
-      setState(() => _update = update);
-      _entrance.forward();
-      _autoDismissTimer = Timer(_autoDismissDuration, _dismiss);
+      final update = result.update;
+      if (update == null) return;
+      _held = update;
+      await _offerHeld();
     } catch (_) {
     } finally {
       _checking = false;
     }
   }
 
-  Future<void> _dismiss() async {
-    _autoDismissTimer?.cancel();
-    _autoDismissTimer = null;
-    await _entrance.reverse();
-    if (mounted) setState(() => _dismissed = true);
+  /// Kos TV: offers the update held, unless something started playing in the
+  /// meantime: then it waits for the player to close.
+  Future<void> _offerHeld() async {
+    final update = _held;
+    if (update == null || !mounted) return;
+    if (_opening() || _watching()) {
+      _waitForCalm();
+      return;
+    }
+    _held = null;
+    final show = widget.showUpdate ?? _showDialog;
+    await show(update);
+  }
+
+  static Future<void> _showDialog(DesktopUpdateInfo update) async {
+    final navContext = appRouter.routerDelegate.navigatorKey.currentContext;
+    if (navContext == null || !navContext.mounted) return;
+    await showAppUpdateDialog(navContext, update);
   }
 
   @override
-  Widget build(BuildContext context) {
-    final update = _update;
-    if (update == null || _dismissed) {
-      return const SizedBox.shrink();
-    }
-
-    final l10n = AppLocalizations.of(context);
-    final isTv = PlatformDetection.useLeanbackUi;
-    final tint = AppColorScheme.statusAvailable;
-
-    final pill = StatusBannerPill(
-      icon: Icons.system_update_alt_rounded,
-      tint: tint,
-      title: l10n.updateAvailableVersion(update.version),
-      trailing: [
-        if (isTv)
-          BannerCountdownBar(duration: _autoDismissDuration, color: tint)
-        else ...[
-          BannerActionCapsule(
-            label: l10n.download,
-            tint: tint,
-            onTap: () {
-              unawaited(
-                launchUrl(
-                  update.downloadUri,
-                  mode: LaunchMode.externalApplication,
-                ),
-              );
-              unawaited(_dismiss());
-            },
-          ),
-          const SizedBox(width: 2),
-          IconButton(
-            onPressed: _dismiss,
-            icon: Icon(
-              Icons.close_rounded,
-              size: 16,
-              color: AppColorScheme.onSurface.withValues(alpha: 0.45),
-            ),
-            visualDensity: VisualDensity.compact,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-          ),
-        ],
-      ],
-    );
-
-    return SlideTransition(
-      position: Tween<Offset>(
-        begin: const Offset(0, -0.4),
-        end: Offset.zero,
-      ).animate(_entranceCurve),
-      child: FadeTransition(
-        opacity: _entranceCurve,
-        child: SafeArea(
-          bottom: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: pill,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }

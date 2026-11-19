@@ -28,7 +28,11 @@ enum LatestReleaseAnswer {
   /// pre-releases (the test builds) don't count: there is nothing to update to.
   noRelease,
 
-  /// No usable answer: no network, a GitHub error or a rate limit.
+  /// GitHub answered, but turned the request down for its rate limit (403 or
+  /// 429). It did answer: asking again soon would only be turned down again.
+  rateLimited,
+
+  /// No usable answer: no network, a GitHub error.
   failed,
 }
 
@@ -50,10 +54,17 @@ class DesktopUpdateInfo {
   final Uri downloadUri;
   final String releaseNotesUrl;
 
+  /// Kos TV: what GitHub says the download weighs and its SHA-256 (in hex),
+  /// when it says, so a download that doesn't match isn't installed.
+  final int? size;
+  final String? sha256;
+
   const DesktopUpdateInfo({
     required this.version,
     required this.downloadUri,
     required this.releaseNotesUrl,
+    this.size,
+    this.sha256,
   });
 }
 
@@ -75,7 +86,16 @@ class AppUpdateService {
   /// unauthenticated requests an hour for a household on one address.
   static const _checkCooldown = Duration(hours: 6);
 
+  /// Kos TV: after a check that got no answer (no network yet as the TV wakes
+  /// up, a GitHub error), the next one may go this soon, instead of waiting
+  /// the whole [_checkCooldown]. Long enough never to hammer GitHub.
+  static const _retryAfterFailure = Duration(minutes: 5);
+
+  /// When GitHub last answered a check.
   static const _lastCheckMsKey = 'app_update_last_check_ms';
+
+  /// Kos TV: when a check last got no answer.
+  static const _lastFailedCheckMsKey = 'kostv_update_last_failed_check_ms';
   static const _lastNotifiedVersionKey = 'app_update_last_notified_version';
   static const _lastNotifiedAtKey = 'kostv_update_last_offered_at';
   static const _offerAgainAfter = Duration(hours: 24);
@@ -103,13 +123,23 @@ class AppUpdateService {
   final UserPreferences _userPreferences;
 
   Future<DesktopUpdateInfo?> checkForUpdateIfDue() async {
-    final result = await _checkForUpdate(
+    final result = await checkForUpdateIfDueDetailed();
+    return result.update;
+  }
+
+  /// Kos TV: [checkForUpdateIfDue] saying how it went, so a check that got no
+  /// answer can be tried again soon.
+  Future<DesktopUpdateCheckResult> checkForUpdateIfDueDetailed() {
+    return _checkForUpdate(
       enforceCooldown: true,
       respectNotificationPreference: true,
       suppressIfAlreadyNotified: true,
     );
-    return result.update;
   }
+
+  /// Kos TV: how long after a check that got no answer the automatic one may
+  /// go again.
+  static Duration get retryAfterFailure => _retryAfterFailure;
 
   Future<DesktopUpdateInfo?> checkForUpdateNow() async {
     final result = await checkForUpdateNowDetailed();
@@ -151,20 +181,30 @@ class AppUpdateService {
     }
 
     final now = DateTime.now().toUtc();
-    final lastCheckMs = _store.getInt(_lastCheckMsKey);
-    if (enforceCooldown && lastCheckMs != null && lastCheckMs > 0) {
-      final lastCheckAt = DateTime.fromMillisecondsSinceEpoch(lastCheckMs, isUtc: true);
-      if (now.difference(lastCheckAt) < _checkCooldown) {
-        return const DesktopUpdateCheckResult(
-          status: DesktopUpdateCheckStatus.rateLimited,
-        );
-      }
+    if (enforceCooldown &&
+        !isCheckDue(
+          now: now,
+          lastAnsweredMs: _store.getInt(_lastCheckMsKey),
+          lastFailedMs: _store.getInt(_lastFailedCheckMsKey),
+        )) {
+      return const DesktopUpdateCheckResult(
+        status: DesktopUpdateCheckStatus.rateLimited,
+      );
     }
 
-    await _store.setInt(_lastCheckMsKey, now.millisecondsSinceEpoch);
-
     final fetched = await _fetchLatestRelease();
+    // Kos TV: the long wait starts once GitHub has answered. A check that got
+    // no answer (the wifi still coming back as the TV wakes up) only holds the
+    // next one back a few minutes.
     if (fetched.answer == LatestReleaseAnswer.failed) {
+      await _store.setInt(_lastFailedCheckMsKey, now.millisecondsSinceEpoch);
+      return const DesktopUpdateCheckResult(
+        status: DesktopUpdateCheckStatus.checkFailed,
+      );
+    }
+    await _store.setInt(_lastCheckMsKey, now.millisecondsSinceEpoch);
+    await _store.remove(_lastFailedCheckMsKey);
+    if (fetched.answer == LatestReleaseAnswer.rateLimited) {
       return const DesktopUpdateCheckResult(
         status: DesktopUpdateCheckStatus.checkFailed,
       );
@@ -226,8 +266,31 @@ class AppUpdateService {
             ? Uri.parse(asset.downloadUrl)
             : Uri.parse(release.releaseNotesUrl),
         releaseNotesUrl: release.releaseNotesUrl,
+        size: asset?.size,
+        sha256: asset?.sha256,
       ),
     );
+  }
+
+  /// Kos TV: whether the automatic check may ask GitHub at [now]: once
+  /// [_checkCooldown] has gone by since it last answered, and
+  /// [_retryAfterFailure] since a check last got no answer.
+  @visibleForTesting
+  static bool isCheckDue({
+    required DateTime now,
+    int? lastAnsweredMs,
+    int? lastFailedMs,
+  }) {
+    bool within(int? ms, Duration wait) {
+      if (ms == null || ms <= 0) return false;
+      final at = DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
+      final since = now.difference(at);
+      // A time ahead of the clock (the clock set back) doesn't hold it back.
+      return !since.isNegative && since < wait;
+    }
+
+    return !within(lastAnsweredMs, _checkCooldown) &&
+        !within(lastFailedMs, _retryAfterFailure);
   }
 
   static bool get _isAndroidApkChannel =>
@@ -268,6 +331,7 @@ class AppUpdateService {
       switch (statusCode) {
         >= 200 && < 300 => LatestReleaseAnswer.release,
         404 => LatestReleaseAnswer.noRelease,
+        403 || 429 => LatestReleaseAnswer.rateLimited,
         _ => LatestReleaseAnswer.failed,
       };
 
@@ -319,7 +383,15 @@ class AppUpdateService {
           if (name == null || name.isEmpty || downloadUrl == null || downloadUrl.isEmpty) {
             continue;
           }
-          assets.add(_ReleaseAsset(name: name, downloadUrl: downloadUrl));
+          final size = asset['size'];
+          assets.add(
+            _ReleaseAsset(
+              name: name,
+              downloadUrl: downloadUrl,
+              size: size is int && size > 0 ? size : null,
+              sha256: sha256FromDigest(asset['digest']?.toString()),
+            ),
+          );
         }
       }
 
@@ -338,35 +410,28 @@ class AppUpdateService {
     }
   }
 
-  /// Asset to download for this build's channel, or null when there is no
-  /// single asset to pick (Linux) or none matched.
+  /// Asset to download for this build's channel, or null when none matched.
+  /// Kos TV: only the Android builds download their update; no desktop build
+  /// is made.
   _ReleaseAsset? _selectAsset(List<_ReleaseAsset> assets) {
     if (assets.isEmpty) return null;
+    final name = androidApkFor(
+      AppDistribution.channel,
+      [for (final asset in assets) asset.name],
+    );
+    return name == null
+        ? null
+        : assets.firstWhere((asset) => asset.name == name);
+  }
 
-    switch (AppDistribution.channel) {
-      case DistributionChannel.apk:
-      case DistributionChannel.androidTvApk:
-        final name = androidApkFor(
-          AppDistribution.channel,
-          [for (final asset in assets) asset.name],
-        );
-        return name == null
-            ? null
-            : assets.firstWhere((asset) => asset.name == name);
-      case DistributionChannel.macosDmg:
-        return _firstByExtension(assets, const ['.dmg']);
-      case DistributionChannel.windows:
-        final isArm64 = Platform.version.toLowerCase().contains('windows_arm64');
-        if (isArm64) {
-          return _firstWhere(assets, '.exe', requireSubstring: 'arm64') ??
-              _firstByExtension(assets, const ['.exe']);
-        } else {
-          return _firstWhere(assets, '.exe', excludeSubstring: 'arm64') ??
-              _firstByExtension(assets, const ['.exe']);
-        }
-      default:
-        return null;
-    }
+  /// Kos TV: the hex SHA-256 in an asset's `digest` as GitHub gives it
+  /// (`sha256:…`), or null when it gives none or another kind.
+  @visibleForTesting
+  static String? sha256FromDigest(String? digest) {
+    final value = digest?.trim().toLowerCase() ?? '';
+    if (!value.startsWith('sha256:')) return null;
+    final hex = value.substring('sha256:'.length);
+    return RegExp(r'^[0-9a-f]{64}$').hasMatch(hex) ? hex : null;
   }
 
   /// Kos TV: the release file the Android build on [channel] installs, or
@@ -385,33 +450,6 @@ class AppUpdateService {
       DistributionChannel.apk => apks.where((n) => !isTv(n)).firstOrNull,
       _ => null,
     };
-  }
-
-  _ReleaseAsset? _firstWhere(
-    List<_ReleaseAsset> assets,
-    String extension, {
-    String? requireSubstring,
-    String? excludeSubstring,
-  }) {
-    for (final asset in assets) {
-      final lower = asset.name.toLowerCase();
-      if (!lower.endsWith(extension)) continue;
-      if (requireSubstring != null && !lower.contains(requireSubstring)) continue;
-      if (excludeSubstring != null && lower.contains(excludeSubstring)) continue;
-      return asset;
-    }
-    return null;
-  }
-
-  _ReleaseAsset? _firstByExtension(List<_ReleaseAsset> assets, List<String> preferredExtensions) {
-    for (final extension in preferredExtensions) {
-      for (final asset in assets) {
-        if (asset.name.toLowerCase().endsWith(extension)) {
-          return asset;
-        }
-      }
-    }
-    return null;
   }
 
   bool _isNewerVersion(String candidate, String current) {
@@ -483,6 +521,13 @@ class _LatestRelease {
 class _ReleaseAsset {
   final String name;
   final String downloadUrl;
+  final int? size;
+  final String? sha256;
 
-  const _ReleaseAsset({required this.name, required this.downloadUrl});
+  const _ReleaseAsset({
+    required this.name,
+    required this.downloadUrl,
+    this.size,
+    this.sha256,
+  });
 }

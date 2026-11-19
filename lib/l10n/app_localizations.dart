@@ -33914,6 +33914,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to open channel'**
   String get kostvChannelOpenFailed;
+
+  /// Kos TV: the downloaded update APK doesn't match the size or SHA-256 the release lists, so it was deleted and not installed
+  ///
+  /// In en, this message translates to:
+  /// **'The downloaded update is incomplete or doesn\'t match the published one, so it wasn\'t installed. Please try again.'**
+  String get updateDownloadCorrupt;
 }
 
 class _AppLocalizationsDelegate

@@ -275,7 +275,9 @@ void main() {
       expect(prefs.containsPreference(UserPreferences.homeRowsStyle), isFalse);
     });
 
-    testWidgets('the last step offers Moonbase when the server lacks it', (
+    // Kos TV: the server plugin is our own, installed from its own catalog.
+    // The wizard used to offer Moonfin's, which would have sat next to ours.
+    testWidgets('the last step never offers to install a server plugin', (
       tester,
     ) async {
       GetIt.instance.registerSingleton<PluginSyncService>(
@@ -283,28 +285,11 @@ void main() {
       );
       await pumpWizard(tester);
       await toLastStep(tester);
-
-      // Down the themes, past the playback languages, onto the Moonbase row.
-      for (var i = 0; i < 5; i++) {
-        await press(tester, LogicalKeyboardKey.arrowDown);
-      }
-      await press(tester, LogicalKeyboardKey.enter);
-      expect(find.text('Server plugin'), findsOneWidget);
       expect(
-        find.text('Only a server admin can install it. Send them this link.'),
-        findsOneWidget,
+        find.text('Add the kOS TV server plugin to your server'),
+        findsNothing,
       );
-    });
-
-    testWidgets('the last step leaves Moonbase out once it is installed', (
-      tester,
-    ) async {
-      GetIt.instance.registerSingleton<PluginSyncService>(
-        _FakeSync(pluginAvailable: true),
-      );
-      await pumpWizard(tester);
-      await toLastStep(tester);
-      expect(find.text('Add the kOS TV server plugin to your server'), findsNothing);
+      expect(find.byIcon(Icons.dns_rounded), findsNothing);
     });
 
     testWidgets('BACK moves to Skip first and leaves on the second press', (

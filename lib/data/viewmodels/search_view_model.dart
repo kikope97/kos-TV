@@ -15,6 +15,7 @@ import '../services/plugin_sync_service.dart';
 import '../services/stremfin/stremfin_client.dart';
 import '../services/stremfin/stremfin_models.dart';
 import '../services/stremfin/stremfin_service.dart';
+import '../services/blocked_content_gate.dart';
 import '../utils/blocked_ratings.dart';
 
 class SearchResultGroup {
@@ -588,7 +589,14 @@ class SearchViewModel extends ChangeNotifier {
           .fetchSmartSearch(_client, query)
           .timeout(_smartTimeout);
       if (data == null) return SmartSearchResults.empty;
-      return SmartSearchResults.fromJson(data, serverId: _client.baseUrl);
+      final results = SmartSearchResults.fromJson(
+        data,
+        serverId: _client.baseUrl,
+      );
+      // Kos TV: nor the episodes of a series blocked on this device.
+      return SmartSearchResults(
+        items: await withoutBlockedSeriesItems(results.items),
+      );
     } catch (_) {
       return SmartSearchResults.empty;
     }

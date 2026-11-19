@@ -18,6 +18,7 @@ import '../models/aggregated_library.dart';
 import '../models/home_row.dart';
 import '../services/media_server_client_factory.dart';
 import '../utils/blocked_ratings.dart';
+import '../services/blocked_content_gate.dart';
 import '../utils/bounded_concurrency.dart';
 import '../utils/genre_browse_utils.dart';
 import '../utils/latest_media_row_normalizer.dart';
@@ -250,11 +251,13 @@ class MultiServerRepository {
     );
 
     final all = results.expand((e) => e).toList()..sort(_compareByLastPlayed);
+    // Kos TV: nor the episodes of a series blocked on this device.
+    final visible = await withoutBlockedSeriesItems(all);
 
     return HomeRow(
       id: 'resume',
       title: _l10n.continueWatching,
-      items: all.take(limit).toList(),
+      items: visible.take(limit).toList(),
       rowType: HomeRowType.resume,
     );
   }
@@ -316,11 +319,13 @@ class MultiServerRepository {
     );
 
     final all = results.expand((e) => e).toList()..sort(_compareByLastPlayed);
+    // Kos TV: nor the episodes of a series blocked on this device.
+    final visible = await withoutBlockedSeriesItems(all);
 
     return HomeRow(
       id: 'nextUp',
       title: _l10n.nextUp,
-      items: all.take(limit).toList(),
+      items: visible.take(limit).toList(),
       rowType: HomeRowType.nextUp,
     );
   }
