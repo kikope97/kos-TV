@@ -102,3 +102,16 @@ y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
   hay vídeos sueltos en ellas.
 - **Música de casa en el modo infantil** se puede abrir desde «Mis medios».
   Recomendación: dejarlo (la música respeta el límite de edad de la cuenta).
+- **Descargas compartidas en el aparato.** Las descargas son del aparato, no de
+  cada persona: todos ven las de todos, y lo visto o la posición de una persona
+  pisan los de otra en esa descarga. Recomendación: que cada persona vea solo lo
+  suyo y su progreso (lo descargado por otro, en una sección aparte).
+- **Descubrir libros en el modo infantil** (Open Library, cualquier libro).
+  Recomendación: quitarlo del modo infantil.
+- **Juegos y «Cuenta de RomM» en el modo infantil.** Recomendación: dejar jugar
+  pero esconder la cuenta de RomM.
+- **Descargas desde el navegador en la web** llevan la clave de la sesión en la
+  dirección y quedan en el historial de descargas del navegador.
+  Recomendación: dejarlo (el navegador no deja otra forma sencilla) y avisarlo.
+- (Para saber) El calendario no se puede usar: el complemento del servidor ya no
+  lo da. Sigue en el código; se puede quitar más adelante.
