@@ -928,6 +928,9 @@ class _SeasonTitlesState extends State<_SeasonTitles> {
         child: AnimatedScale(
           scale: pill ? 1.06 : 1,
           duration: _fast,
+          // The first pill already reaches the page's clipped edge, so it
+          // grows away from it rather than losing its rounded corners.
+          alignment: index == 0 ? Alignment.centerLeft : Alignment.center,
           child: AnimatedContainer(
             duration: _fast,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
