@@ -115,3 +115,14 @@ y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
   Recomendación: dejarlo (el navegador no deja otra forma sencilla) y avisarlo.
 - (Para saber) El calendario no se puede usar: el complemento del servidor ya no
   lo da. Sigue en el código; se puede quitar más adelante.
+
+### Bloque 8
+- (Para saber) El menú «Tú» del móvil enseña el nombre del servidor de casa.
+  Se deja como está.
+
+### Bloque 9
+- **Panel de administración en la tele.** El panel, y editar los datos de un
+  título desde su ficha, no existen en la tele, solo en el móvil y la web.
+  Recomendación: dejarlo así y apuntarlo como excepción a la norma de las tres
+  versiones (administrar con el mando es incómodo y se hace mejor desde el
+  móvil).
