@@ -62,6 +62,7 @@ import 'nouveau/hero/nouveau_action_buttons.dart';
 import 'modern/modern_detail_content.dart';
 import 'spotlight/spotlight_detail_content.dart';
 import 'frost/frost_detail_content.dart';
+import 'person_filmography_failed.dart';
 import 'premiere/premiere_detail_content.dart';
 import 'quick_look/quick_look_detail_content.dart';
 import 'stage/stage_detail_content.dart';
@@ -326,6 +327,11 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
   FocusNode? _initialContentFocusNode;
   ModalRoute<dynamic>? _observedRoute;
   late DetailSectionVisibility _sectionVisibility;
+
+  /// Kos TV: the app's messenger, kept so a change the server turns down can
+  /// still be told once the page has closed.
+  ScaffoldMessengerState? _messenger;
+  AppLocalizations? _l10n;
   Timer? _collapseGuardTimer;
 
   FocusNode _ensureInitialFocusNode() => _initialContentFocusNode ??= FocusNode(
@@ -353,6 +359,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
       libraryId: widget.libraryId,
     );
     _viewModel.addListener(_onChanged);
+    _viewModel.onActionFailed = _showActionFailed;
     _sectionVisibility = DetailSectionVisibility.of(_prefs);
     _prefs.addListener(_onPrefsChanged);
     GetIt.instance<PluginSyncService>().addListener(_onPrefsChanged);
@@ -374,6 +381,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _messenger = ScaffoldMessenger.maybeOf(context);
+    _l10n = AppLocalizations.of(context);
     final route = ModalRoute.of(context);
     if (route == null || route == _observedRoute) return;
     if (_observedRoute != null) {
@@ -478,6 +487,22 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
     _viewModel.dispose();
     _initialContentFocusNode?.dispose();
     super.dispose();
+  }
+
+  /// Kos TV: the same notice the cards' menu gives for the same failures.
+  void _showActionFailed(DetailActionFailure failure) {
+    final messenger = _messenger;
+    final l10n = _l10n;
+    if (messenger == null || !messenger.mounted || l10n == null) return;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(switch (failure) {
+          DetailActionFailure.markPlayed => l10n.kostvMarkPlayedFailed,
+          DetailActionFailure.markUnplayed => l10n.kostvMarkUnplayedFailed,
+          DetailActionFailure.favorite => l10n.kostvFavoriteChangeFailed,
+        }),
+      ),
+    );
   }
 
   void _onChanged() {
@@ -2849,7 +2874,43 @@ class _DetailContentState extends State<_DetailContent> {
       );
     }
 
+    // Kos TV: the person's titles couldn't be read, so «Reintentar» takes
+    // the rows' place. Once they're in, the focus goes on to the first row.
+    const rowLabels = [
+      'detailPersonMovies',
+      'detailPersonSeries',
+      'detailPersonGuestAppearances',
+      'detailPersonMusicVideos',
+    ];
+    void focusFirstRowOnceIn() {
+      if (!mounted) return;
+      for (final label in rowLabels) {
+        final node = _sectionFocusNodes[label];
+        if (node?.context?.mounted ?? false) {
+          _requestSectionFocus(node);
+          return;
+        }
+      }
+      _requestSectionFocus(favoriteFocusNode);
+    }
+
+    final retryFocusNode = _sectionFocusNode('detailPersonFilmographyRetry');
+
     final specs = <_SectionSpec>[
+      if (showsFilmographyFailure(viewModel))
+        _SectionSpec(
+          focusNode: retryFocusNode,
+          build: (links) => PersonFilmographyFailed(
+            viewModel: viewModel,
+            focusNode: retryFocusNode,
+            large: useSplit,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            onUp: () => _requestSectionFocus(links.up),
+            onDown: () {},
+            onLeft: _tryFocusSidebar,
+            onRecovered: focusFirstRowOnceIn,
+          ),
+        ),
       if (movies.isNotEmpty)
         filmographyRow('detailPersonMovies', l10n.movies, movies),
       if (series.isNotEmpty)

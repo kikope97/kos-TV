@@ -6,6 +6,7 @@ import '../../../../../l10n/app_localizations.dart';
 import '../../../../../preference/detail_section_layout.dart';
 import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/platform_detection.dart';
+import '../../person_filmography_failed.dart';
 import '../shared/nouveau_segmented_selector.dart';
 import 'nouveau_filmography_section.dart';
 
@@ -72,6 +73,16 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
 
   int _revealRequest = 0;
 
+  /// Kos TV: «Reintentar» where the person's titles couldn't be read.
+  final FocusNode _retryFocusNode = FocusNode(
+    debugLabel: 'nouveauFilmographyRetry',
+  );
+  final GlobalKey _failedKey = GlobalKey();
+
+  /// Kos TV: the titles couldn't be read, so the error and its retry stand
+  /// where the tabs and their rail go.
+  bool get _failed => showsFilmographyFailure(_vm) && _availableTabs.isEmpty;
+
   ItemDetailViewModel get _vm => widget.viewModel;
 
   bool _isCompact(BuildContext context) {
@@ -92,6 +103,13 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
     super.didUpdateWidget(oldWidget);
 
     _syncSelectedTab();
+  }
+
+  @override
+  void dispose() {
+    _retryFocusNode.dispose();
+
+    super.dispose();
   }
 
   List<AggregatedItem> get _movies => _sortJellyfinItems(_vm.filmographyMovies);
@@ -184,9 +202,19 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
     };
   }
 
-  bool get canFocusTop => mounted && _availableTabs.isNotEmpty;
+  bool get canFocusTop => mounted && (_availableTabs.isNotEmpty || _failed);
+
+  bool _focusRetry() {
+    _retryFocusNode.requestFocus();
+
+    _scheduleReveal(_failedKey, alignment: 0.5);
+
+    return true;
+  }
 
   bool focusTop() {
+    if (mounted && _failed) return _focusRetry();
+
     final selected = _selectedTab;
 
     if (!canFocusTop || selected == null) {
@@ -205,6 +233,8 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
   }
 
   bool focusBottom() {
+    if (mounted && _failed) return _focusRetry();
+
     if (!mounted || _selectedTab == null) {
       return false;
     }
@@ -219,6 +249,8 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
   }
 
   GlobalKey? get activeRailRevealKey {
+    if (_failed) return _failedKey;
+
     switch (_selectedTab) {
       case _PersonTab.movies:
         return _moviesSectionKey.currentState?.revealKey;
@@ -240,7 +272,7 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
     }
   }
 
-  GlobalKey get tabsRevealKey => _tabsKey;
+  GlobalKey get tabsRevealKey => _failed ? _failedKey : _tabsKey;
 
   void _scheduleReveal(GlobalKey key, {double alignment = 0.5}) {
     final request = ++_revealRequest;
@@ -430,11 +462,27 @@ class NouveauPersonContentState extends State<NouveauPersonContent> {
   Widget build(BuildContext context) {
     final available = _availableTabs;
 
-    if (available.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
     final compact = _isCompact(context);
+
+    if (available.isEmpty) {
+      if (!_failed) return const SizedBox.shrink();
+
+      // Once the titles are in, the focus goes on to their tabs.
+      return PersonFilmographyFailed(
+        key: _failedKey,
+        viewModel: _vm,
+        focusNode: _retryFocusNode,
+        large: !compact,
+        padding: EdgeInsets.only(
+          bottom: compact ? _compactBottomSpacing : _bottomSpacing,
+        ),
+        onUp: () => widget.onNavigateUp?.call(),
+        onDown: () {},
+        onRecovered: () {
+          if (mounted) focusTop();
+        },
+      );
+    }
 
     return Column(
       mainAxisSize: MainAxisSize.min,

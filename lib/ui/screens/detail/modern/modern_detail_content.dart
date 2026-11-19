@@ -58,6 +58,7 @@ import '../../../../data/services/plugin_sync_service.dart';
 import '../../../../data/services/book_reader_service.dart';
 import '../collection_sort_dialog.dart';
 import '../detail_layout_metrics.dart';
+import '../person_filmography_failed.dart';
 import '../playlist_sort_filter_bar.dart';
 import '../item_detail_screen.dart'
     show
@@ -265,6 +266,8 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
   final FocusNode _booksFirstFocusNode = FocusNode(debugLabel: 'booksFirst');
   final FocusNode _personMoviesFirstFocusNode = FocusNode(debugLabel: 'personMoviesFirst');
   final FocusNode _personSeriesFirstFocusNode = FocusNode(debugLabel: 'personSeriesFirst');
+  /// Kos TV: «Reintentar» where the person's filmography couldn't be read.
+  final FocusNode _filmographyRetryFocusNode = FocusNode(debugLabel: 'filmographyRetry');
   final Map<String, FocusNode> _boxSetHeadingFocusNodes = {};
   final Map<String, FocusNode> _boxSetRowFirstFocusNodes = {};
   final Map<String, FocusNode> _collectionRowFocusNodes = {};
@@ -647,6 +650,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     _booksFirstFocusNode.dispose();
     _personMoviesFirstFocusNode.dispose();
     _personSeriesFirstFocusNode.dispose();
+    _filmographyRetryFocusNode.dispose();
     for (final node in _boxSetHeadingFocusNodes.values) {
       node.dispose();
     }
@@ -756,8 +760,40 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
   /// Where Down from the action buttons goes. Null when every tab is hidden or
   /// empty, since the tab bar isn't built then and a node it never attached
   /// would send Down up to the navbar instead.
-  FocusNode? _tabBarDownTarget(List<_ModernTab> tabs) =>
-      tabs.isEmpty ? null : _tabNode(_selectedTab >= 0 ? _selectedTab : 0);
+  ///
+  /// Kos TV: a person whose titles couldn't be read has «Reintentar» there.
+  FocusNode? _tabBarDownTarget(List<_ModernTab> tabs) => tabs.isEmpty
+      ? (showsFilmographyFailure(_vm) ? _filmographyRetryFocusNode : null)
+      : _tabNode(_selectedTab >= 0 ? _selectedTab : 0);
+
+  /// Kos TV: «Error al cargar» and «Reintentar» in place of a person's tabs.
+  /// Once the titles are in, the focus goes on to the first tab.
+  Widget _filmographyFailed() {
+    return PersonFilmographyFailed(
+      viewModel: _vm,
+      focusNode: _filmographyRetryFocusNode,
+      large: _landscape,
+      onUp: () => widget.initialFocusNode?.requestFocus(),
+      onDown: () {},
+      onLeft: () {
+        final navbarPosition = widget.prefs.get(UserPreferences.navbarPosition);
+        final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
+        if (navbarPosition == NavbarPosition.left && focusNavbar != null) {
+          focusNavbar();
+        }
+      },
+      onRecovered: () {
+        final item = _vm.item;
+        if (!mounted || item == null) return;
+        final tabs = _tabsFor(item, AppLocalizations.of(context));
+        if (tabs.isNotEmpty) {
+          _tabNode(_selectedTab >= 0 ? _selectedTab : 0).requestFocus();
+        } else {
+          widget.initialFocusNode?.requestFocus();
+        }
+      },
+    );
+  }
 
   // Moves D-pad focus into the first track of the track list, using the same
   // focus node the DetailTrackList attaches to that row. Returns false when
@@ -5223,6 +5259,8 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
           ),
         ),
       );
+    } else if (tabBar == null && showsFilmographyFailure(_vm)) {
+      tabBarWidget = _filmographyFailed();
     } else {
       tabBarWidget = tabBar;
     }
