@@ -73,6 +73,14 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
   int? _selectedSeason;
   bool _loadStarted = false;
 
+  /// Kos TV: the series' episodes couldn't be read, so the section offers to
+  /// try again instead of going missing from the page.
+  bool _seriesEpisodesFailed = false;
+  bool _retrying = false;
+
+  /// Whether the ask button was there, with the focus, in the last build.
+  bool _askWasFocusable = false;
+
   /// The row's hub that was last put on its episode to watch.
   String? _placedHub;
 
@@ -113,8 +121,63 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
     unawaited(
       viewModel.loadAllSeriesEpisodes().whenComplete(() {
         if (!mounted || !identical(_vm, viewModel)) return;
-        setState(() {});
+        setState(() => _seriesEpisodesFailed = !viewModel.seriesEpisodesLoaded);
       }),
+    );
+  }
+
+  /// Reads the episodes again after a failure. The focus, on the retry
+  /// button, goes on to the section that takes its place.
+  Future<void> _retry() async {
+    if (_retrying) return;
+    final hadFocus = widget.episodesFocusNode?.hasFocus ?? false;
+    setState(() => _retrying = true);
+    final viewModel = _vm;
+    if (_isSeason) {
+      await viewModel.retryEpisodes();
+    } else {
+      await viewModel.loadAllSeriesEpisodes();
+    }
+    if (!mounted || !identical(_vm, viewModel)) return;
+    setState(() {
+      _retrying = false;
+      if (!_isSeason) _seriesEpisodesFailed = !viewModel.seriesEpisodesLoaded;
+    });
+    if (!hadFocus) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final node = widget.episodesFocusNode;
+      if (mounted && node?.context?.mounted == true && !node!.hasFocus) {
+        node.requestFocus();
+      }
+    });
+  }
+
+  /// «Error al cargar los episodios», with the button that tries again.
+  Widget _loadFailed(AppLocalizations l10n) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          l10n.errorLoadingEpisodes,
+          style: TextStyle(
+            color: _muted,
+            fontSize: widget.landscape ? 16 : 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 12),
+        _Button(
+          label: l10n.retry,
+          icon: Icons.refresh_rounded,
+          enabled: !_retrying,
+          expand: !widget.landscape,
+          focusNode: widget.landscape ? widget.episodesFocusNode : null,
+          onSelect: _retrying ? null : () => unawaited(_retry()),
+          onUp: () => widget.onVerticalNavigation?.call(true),
+          onDown: () => widget.onVerticalNavigation?.call(false),
+        ),
+      ],
     );
   }
 
@@ -262,6 +325,8 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
         ? const <int>{}
         : {for (final season in gaps.seasonsNotAtHome) season.number};
     final seasons = {...atHome, ...notAtHome}.toList()..sort();
+    final failed = _isSeason ? _vm.episodesFailed : _seriesEpisodesFailed;
+    if (all.isEmpty && failed) return _loadFailed(l10n);
     if (seasons.isEmpty && all.isEmpty) return const SizedBox.shrink();
 
     final arrivedIn = _isEpisode
@@ -390,8 +455,15 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
     }
 
     // The ask went away (asked, or now a status) while it had the focus:
-    // the focus goes on to the episodes, or the season names.
-    if (!askFocus && askNode.hasFocus) {
+    // the focus goes on to the episodes, or the season names. Kos TV: with
+    // one season the row takes the same node, so it's only the build where
+    // the ask goes, not every build while the row has the focus.
+    final askWent =
+        !askFocus &&
+        askNode.hasFocus &&
+        (showTabs || !identical(askNode, topNode) || _askWasFocusable);
+    _askWasFocusable = askFocus;
+    if (askWent) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (hasRail) {
@@ -1071,8 +1143,9 @@ List<String> _kickerOf(AppLocalizations l10n, AggregatedItem episode) => [
   if (episode.isPlayed) l10n.watched,
 ];
 
-/// A picture, or a quiet tile while there's none.
-Widget _picture(String? url) {
+/// A picture, or a quiet tile while there's none. Kos TV: [colorFilter] is
+/// painted with the picture itself, not as a layer of its own per card.
+Widget _picture(String? url, {ColorFilter? colorFilter}) {
   final placeholder = ColoredBox(
     color: Colors.white.withValues(alpha: 0.06),
     child: Center(
@@ -1087,6 +1160,17 @@ Widget _picture(String? url) {
   return OfflineAwareImage(
     imageUrl: url,
     fit: BoxFit.cover,
+    imageBuilder: colorFilter == null
+        ? null
+        : (_, image) => DecoratedBox(
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: image,
+                fit: BoxFit.cover,
+                colorFilter: colorFilter,
+              ),
+            ),
+          ),
     placeholder: (_, _) => placeholder,
     errorWidget: (_, _, _) => placeholder,
   );
@@ -1218,7 +1302,7 @@ class _GhostStill extends StatelessWidget {
           if (imageUrl == null)
             ColoredBox(color: Colors.white.withValues(alpha: 0.08))
           else
-            ColorFiltered(colorFilter: _grey, child: _picture(imageUrl)),
+            _picture(imageUrl, colorFilter: _grey),
           ColoredBox(color: Colors.black.withValues(alpha: 0.55)),
           Center(
             child: Container(

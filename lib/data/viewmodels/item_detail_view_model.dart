@@ -15,6 +15,7 @@ import '../models/lyrics.dart';
 import '../services/blocked_content_gate.dart';
 import '../services/row_data_source.dart';
 import '../services/series_track_sync.dart';
+import '../services/socket_handler.dart';
 import '../repositories/item_mutation_repository.dart';
 import '../repositories/mdblist_repository.dart';
 import '../repositories/tmdb_repository.dart';
@@ -305,9 +306,19 @@ class ItemDetailViewModel extends ChangeNotifier {
   /// The [seasonsLoaded] contract, for [episodes].
   bool get episodesLoaded => _episodesLoaded;
 
+  bool _episodesFailed = false;
+
+  /// Kos TV: whether the last fetch of [episodes] failed, so a page can offer
+  /// to try again rather than show a season with nothing in it.
+  bool get episodesFailed => _episodesFailed;
+
   List<AggregatedItem> _seriesEpisodes = const [];
   bool _seriesEpisodesRequested = false;
   bool _seriesEpisodesLoaded = false;
+
+  /// The fetch [loadAllSeriesEpisodes] has going, so a caller that waits on
+  /// it while it's under way is told when it really ends.
+  Future<void>? _seriesEpisodesInFlight;
 
   /// Whether [seriesEpisodes] has arrived. Unlike [seasonsLoaded] this only
   /// turns true on a fetch that worked, because a failed one is tried again.
@@ -555,7 +566,16 @@ class ItemDetailViewModel extends ChangeNotifier {
        _mdbListRepository = mdbListRepository,
        _tmdbRepository = tmdbRepository {
     userDataSync.addListener(_onUserDataChanged);
+    // Kos TV: the server doesn't send again what changed while the socket
+    // was down, so a reconnect means this page may be behind.
+    if (GetIt.instance.isRegistered<SocketHandler>()) {
+      _socketConnections = GetIt.instance<SocketHandler>().connections.listen(
+        (_) => _userDataStale = true,
+      );
+    }
   }
+
+  StreamSubscription<void>? _socketConnections;
 
   /// Whether anything this page shows has been watched, favourited or rated
   /// since it was loaded. [syncUserDataIfStale] clears it, which is what
@@ -613,7 +633,35 @@ class ItemDetailViewModel extends ChangeNotifier {
     if (collectionsChanged) _parentCollections = collections;
 
     if (changed) notifyListeners();
-    if (!_syncingUserData) _userDataStale = true;
+    // Kos TV: only a change this page shows, or one under a series or a
+    // collection it shows, whose own counts the socket never reports. A
+    // favourite marked on some other screen doesn't cost a refresh here.
+    if (!_syncingUserData && (changed || _holdsContainers())) {
+      _userDataStale = true;
+    }
+  }
+
+  /// Whether the page is, or lists, a series, a season or a collection: what
+  /// a change to something not loaded here (one of its episodes) can move.
+  bool _holdsContainers() {
+    bool container(AggregatedItem item) =>
+        item.type == 'Series' || item.type == 'Season' || item.type == 'BoxSet';
+    final item = _item;
+    if (item != null && container(item)) return true;
+    for (final list in [
+      _seasons,
+      _similar,
+      _filmography,
+      _collectionItems,
+      _playlistItems,
+      _features,
+    ]) {
+      if (list.any(container)) return true;
+    }
+    for (final collection in _parentCollections) {
+      if (collection.items.any(container)) return true;
+    }
+    return false;
   }
 
   /// Does nothing until a change has actually been recorded, so coming back to
@@ -636,23 +684,128 @@ class ItemDetailViewModel extends ChangeNotifier {
         _features,
         _seriesBooks,
       ])
-        for (final item in list) item.id,
+        for (final item in list)
+          if (!_outsideLibrary(item)) item.id,
       for (final collection in _parentCollections)
-        for (final item in collection.items) item.id,
+        for (final item in collection.items)
+          if (!_outsideLibrary(item)) item.id,
     };
     _syncingUserData = true;
+    var refreshed = false;
     try {
-      await userDataSync.refreshFromServer(_client, ids);
+      refreshed = await userDataSync.refreshFromServer(_client, ids);
     } finally {
       _syncingUserData = false;
-      _userDataStale = false;
+      // Kos TV: a refresh that got nowhere (the network gone) is tried again
+      // the next time, rather than taken as done.
+      _userDataStale = !refreshed;
     }
     // A change to an episode's watched state can move the series on, and
     // only the server knows which episode comes next.
     if (!_isDisposed && _item?.type == 'Series') await _loadNextUp();
   }
 
-  Future<void> load({String? mediaSourceId}) async {
+  /// Kos TV: a title from TMDb in More Like This (not in the library), which
+  /// the server knows nothing of.
+  static bool _outsideLibrary(AggregatedItem item) => item.serverId == 'seerr';
+
+  /// Kos TV: what coming back from the player can have changed, brought up
+  /// to date in place: the title's own progress and watched mark (what Play
+  /// says), the episodes' and seasons', and the episode up next. No loading
+  /// page, and nothing playing can't change (more like this, the
+  /// collections, the reviews, the ratings) is asked for again.
+  Future<void> refreshAfterPlayback() async {
+    if (_isDisposed || _state != ItemDetailState.ready || _item == null) {
+      return;
+    }
+    // Played from here: the progress moved whether or not the socket said.
+    _userDataStale = true;
+    await Future.wait([
+      _reloadInPlace(++_loadGeneration),
+      syncUserDataIfStale(),
+    ]);
+    // A collection's Play moves on to the next item not watched yet.
+    if (!_isDisposed && _item?.type == 'BoxSet' && _playlistItems.isNotEmpty) {
+      _resolveNextUp();
+      notifyListeners();
+    }
+  }
+
+  /// Counts the reads of the title, so an answer that arrives after a newer
+  /// one was asked for (two versions picked in a row) is dropped.
+  int _loadGeneration = 0;
+
+  /// The version the last read of the title asked for.
+  String? _mediaSourceId;
+
+  /// Reads the title. Once it's on screen, reading it again (another
+  /// version, new artwork, a subtitle downloaded, back from reading) is done
+  /// in place: no loading page, and none of the loads that don't depend on
+  /// it. [reloadAll] starts over.
+  Future<void> load({String? mediaSourceId}) {
+    final generation = ++_loadGeneration;
+    if (_state == ItemDetailState.ready && _item != null) {
+      // Without a version it's the same page again, in the version it shows.
+      if (mediaSourceId != null) _mediaSourceId = mediaSourceId;
+      return _reloadInPlace(generation);
+    }
+    _mediaSourceId = mediaSourceId;
+    return _loadFromScratch(generation, mediaSourceId);
+  }
+
+  /// Everything again, from the loading page: for a title that may now be
+  /// another one (identified again).
+  Future<void> reloadAll() =>
+      _loadFromScratch(++_loadGeneration, _mediaSourceId);
+
+  /// The title read again in place. Taken off the screen, as a first load
+  /// would, if parental controls now block it.
+  Future<void> _reloadInPlace(int generation) async {
+    try {
+      if (_isBookSeries) {
+        final libraryId = _libraryId;
+        if (libraryId == null) return;
+        final series = await BookBrowseViewModel(
+          libraryId: libraryId,
+          dataSource: GetIt.instance<RowDataSource>(),
+          client: _client,
+        ).loadSeries(itemId.substring('bookSeries:'.length));
+        if (_isDisposed || generation != _loadGeneration || series == null) {
+          return;
+        }
+        _seriesBooks = series.books;
+        _item = series.series;
+        notifyListeners();
+        return;
+      }
+      final data = await _client.itemsApi.getItem(
+        itemId,
+        mediaSourceId: _mediaSourceId,
+      );
+      if (_isDisposed || generation != _loadGeneration) return;
+      final candidate = AggregatedItem(
+        id: itemId,
+        serverId: _serverId ?? _client.baseUrl,
+        rawData: _withProbedSources(data),
+      );
+      final gate = GetIt.instance.isRegistered<BlockedContentGate>()
+          ? GetIt.instance<BlockedContentGate>()
+          : null;
+      if (gate != null && gate.isBlockedNow(candidate)) {
+        _item = null;
+        _state = ItemDetailState.blocked;
+        notifyListeners();
+        return;
+      }
+      gate?.observe(candidate);
+      _item = candidate;
+      notifyListeners();
+    } catch (_) {
+      // A failed read keeps the title already shown.
+    }
+  }
+
+  Future<void> _loadFromScratch(int generation, String? mediaSourceId) async {
     _similarInitialLoadComplete = false;
     _state = ItemDetailState.loading;
     _castLoadGeneration++;
@@ -682,6 +835,7 @@ class ItemDetailViewModel extends ChangeNotifier {
           dataSource: GetIt.instance<RowDataSource>(),
           client: _client,
         ).loadSeries(itemId.substring('bookSeries:'.length));
+        if (_isDisposed || generation != _loadGeneration) return;
         if (series == null) {
           throw Exception(currentAppLocalizations().seriesNotFound);
         }
@@ -689,6 +843,7 @@ class ItemDetailViewModel extends ChangeNotifier {
         _item = series.series;
       } else {
         final data = await _client.itemsApi.getItem(itemId, mediaSourceId: mediaSourceId);
+        if (_isDisposed || generation != _loadGeneration) return;
         final candidate = AggregatedItem(
           id: itemId,
           serverId: _serverId ?? _client.baseUrl,
@@ -702,7 +857,9 @@ class ItemDetailViewModel extends ChangeNotifier {
         final gate = GetIt.instance.isRegistered<BlockedContentGate>()
             ? GetIt.instance<BlockedContentGate>()
             : null;
-        if (gate != null && await gate.isBlocked(candidate)) {
+        final blocked = gate != null && await gate.isBlocked(candidate);
+        if (_isDisposed || generation != _loadGeneration) return;
+        if (blocked) {
           _item = null;
           _state = ItemDetailState.blocked;
           notifyListeners();
@@ -722,6 +879,7 @@ class ItemDetailViewModel extends ChangeNotifier {
 
       _loadSecondary();
     } catch (e) {
+      if (generation != _loadGeneration) return;
       _error = e;
       _state = ItemDetailState.error;
       notifyListeners();
@@ -947,10 +1105,25 @@ class ItemDetailViewModel extends ChangeNotifier {
 
       _resolvedEpisodesSeasonId = seasonId;
       _episodes = episodes;
+      _episodesFailed = false;
     } catch (_) {
+      _episodesFailed = true;
     } finally {
       _episodesLoaded = true;
       notifyListeners();
+    }
+  }
+
+  bool _episodesRetrying = false;
+
+  /// Kos TV: [episodes] asked for again after [episodesFailed].
+  Future<void> retryEpisodes() async {
+    if (_episodesRetrying || _isDisposed) return;
+    _episodesRetrying = true;
+    try {
+      await _loadEpisodes();
+    } finally {
+      _episodesRetrying = false;
     }
   }
 
@@ -962,8 +1135,16 @@ class ItemDetailViewModel extends ChangeNotifier {
     if (item == null) return;
     final seriesId = item.type == 'Series' ? itemId : item.seriesId;
     if (seriesId == null || seriesId.isEmpty) return;
-    if (_seriesEpisodesRequested) return;
+    if (_seriesEpisodesRequested) {
+      // Kos TV: one still under way is waited for, so whoever asked knows
+      // how it went.
+      final inFlight = _seriesEpisodesInFlight;
+      if (inFlight != null) await inFlight;
+      return;
+    }
     _seriesEpisodesRequested = true;
+    final done = Completer<void>();
+    _seriesEpisodesInFlight = done.future;
     try {
       final data = await _client.itemsApi.getEpisodes(
         seriesId,
@@ -981,6 +1162,11 @@ class ItemDetailViewModel extends ChangeNotifier {
       // build, so the next rebuild gets another go, and notifying here would
       // turn that into a loop against a server that is down.
       _seriesEpisodesRequested = false;
+    } finally {
+      if (identical(_seriesEpisodesInFlight, done.future)) {
+        _seriesEpisodesInFlight = null;
+      }
+      done.complete();
     }
   }
 
@@ -1242,6 +1428,7 @@ class ItemDetailViewModel extends ChangeNotifier {
   Future<void> setCollectionSort(CollectionSortOption option) async {
     if (_collectionSort == option) return;
     _collectionSort = option;
+    _collectionSortChosen = true;
     _playlistSortRefreshing = true;
     notifyListeners();
     try {
@@ -1467,6 +1654,10 @@ class ItemDetailViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Kos TV: whether the person picked an order on this page, which the saved
+  /// one arriving late mustn't undo.
+  bool _collectionSortChosen = false;
+
   /// Puts [_flattenedIds] in place, either from a saved order or by scanning
   /// the collection, then starts the first page.
   Future<void> _buildPlaylistIndex() async {
@@ -1497,12 +1688,18 @@ class ItemDetailViewModel extends ChangeNotifier {
                 if (seenIds.add(id)) id,
             ];
             _customOrderIds = _flattenedIds;
-            _collectionSort = CollectionSortOption.custom;
+            if (!_collectionSortChosen) {
+              _collectionSort = CollectionSortOption.custom;
+            }
           }
         } catch (_) {}
       }
 
-      if (_flattenedIds == null) {
+      if (_collectionSortChosen) {
+        // Kos TV: an order picked while this ran stands, now with every key.
+        await _ensurePlaylistIndexEntries();
+        _rebuildFlattenedIds();
+      } else if (_flattenedIds == null) {
         await _ensurePlaylistIndexEntries();
         _collectionSort = CollectionSortOption.server;
         _rebuildFlattenedIds();
@@ -1524,6 +1721,19 @@ class ItemDetailViewModel extends ChangeNotifier {
   /// [_fetchPlaylistPage], so a collection of any size settles at a few KB.
   Future<void> _ensurePlaylistIndexEntries() async {
     if (_playlistIndexEntries != null) return;
+    // Kos TV: an order picked while the scan runs waits for it rather than
+    // starting a second one.
+    final scan = _playlistIndexScan ??= _scanPlaylistIndexEntries();
+    try {
+      await scan;
+    } finally {
+      if (identical(_playlistIndexScan, scan)) _playlistIndexScan = null;
+    }
+  }
+
+  Future<void>? _playlistIndexScan;
+
+  Future<void> _scanPlaylistIndexEntries() async {
     try {
       // Deliberately not recursive. The scan reads the collection's own members
       // and then asks each series for its episodes below, so walking the tree
@@ -2290,6 +2500,12 @@ class ItemDetailViewModel extends ChangeNotifier {
     try {
       await _mutations.setPlayed(_mutationId, isPlayed: newState);
       await _reload();
+      // Kos TV: marking a series or a season marks its episodes, which the
+      // page lists and the server doesn't report one by one.
+      if (item.type == 'Series' || item.type == 'Season') {
+        _userDataStale = true;
+        await syncUserDataIfStale();
+      }
     } catch (_) {
       _applyOptimisticUpdate({'Played': !newState});
     }
@@ -2382,9 +2598,16 @@ class ItemDetailViewModel extends ChangeNotifier {
   }
 
   Future<void> _reload() async {
-    if (_isBookSeries) return;
+    if (_isBookSeries || _state != ItemDetailState.ready) return;
+    // Kos TV: the version on screen, and counted with the other reads, so
+    // it can't put back an older answer or another version's.
+    final generation = ++_loadGeneration;
     try {
-      final data = await _client.itemsApi.getItem(itemId);
+      final data = await _client.itemsApi.getItem(
+        itemId,
+        mediaSourceId: _mediaSourceId,
+      );
+      if (_isDisposed || generation != _loadGeneration) return;
       _item = AggregatedItem(
         id: itemId,
         serverId: _serverId ?? _client.baseUrl,
@@ -2502,6 +2725,7 @@ class ItemDetailViewModel extends ChangeNotifier {
   void dispose() {
     _isDisposed = true;
     userDataSync.removeListener(_onUserDataChanged);
+    _socketConnections?.cancel();
     super.dispose();
   }
 }

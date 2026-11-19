@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
@@ -340,6 +343,48 @@ void main() {
       );
     });
 
+    test('a read from before asking for an episode that ends after the one '
+        "since doesn't put the older page back", () async {
+      final gated = _GatedAdapter(adapter);
+      final stremfin = StremfinService(
+        StremfinClient(
+          dio: Dio()..httpClientAdapter = gated,
+          baseUrl: 'https://requests.example.org/api/v1',
+          token: () => 'abc123token',
+        ),
+        ageLimit: () async => KostvAgeLimit.none,
+        parental: () => ParentalFilter.none,
+        watchLifecycle: false,
+      );
+      addTearDown(stremfin.dispose);
+      stremfin.onUserChanged('someone');
+
+      final asker = KostvSeriesGapsController(service: stremfin);
+      final player = KostvSeriesGapsController(service: stremfin);
+      final later = KostvSeriesGapsController(service: stremfin);
+      addTearDown(asker.dispose);
+      addTearDown(player.dispose);
+      addTearDown(later.dispose);
+      await asker.loadFor(series);
+
+      // The kept page runs out, and another screen of the series reads it
+      // again, slowly: its answer is from before the request.
+      KostvSeriesGapsController.clearKept();
+      final hold = gated.holdNextSeriesRead();
+      final slowRead = player.loadFor(series);
+      await pumpEventQueue();
+
+      await asker.ask(season: 1, episode: 2);
+      hold.complete();
+      await slowRead;
+
+      await later.loadFor(series);
+      expect(
+        later.gapsFor([atHome(1, 1)]).season(1)!.missing.single.state,
+        KostvGhostState.requested,
+      );
+    });
+
     test('a page opened before the service lets the person in is read '
         'once it does', () async {
       letIn = false;
@@ -382,4 +427,33 @@ void main() {
       expect(seriesReads, 0);
     });
   });
+}
+
+/// Answers as [inner] does, at the moment it's asked, but can hold one read
+/// of the series back before handing it over.
+class _GatedAdapter implements HttpClientAdapter {
+  _GatedAdapter(this.inner);
+
+  final HttpClientAdapter inner;
+  Completer<void>? _hold;
+
+  Completer<void> holdNextSeriesRead() => _hold = Completer<void>();
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    final response = await inner.fetch(options, requestStream, cancelFuture);
+    final hold = _hold;
+    if (hold != null && options.uri.path.endsWith('/series/456')) {
+      _hold = null;
+      await hold.future;
+    }
+    return response;
+  }
+
+  @override
+  void close({bool force = false}) {}
 }

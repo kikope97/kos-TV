@@ -32,6 +32,11 @@ class WebYouTubeTrailer extends StatefulWidget {
   /// Exists for API parity with the io implementation. The web widget is
   /// recreated per video, so suspension never applies here.
   final bool suspended;
+
+  /// Kos TV: holds the video where it is while it's out of sight for a
+  /// moment (scrolled off), and plays on from there when it goes back to
+  /// false.
+  final bool paused;
   final VoidCallback? onPlaybackStarted;
   final VoidCallback? onCompleted;
   final VoidCallback? onAutoplayFailed;
@@ -47,6 +52,7 @@ class WebYouTubeTrailer extends StatefulWidget {
     this.loop = true,
     this.ignorePointer = false,
     this.suspended = false,
+    this.paused = false,
     this.onPlaybackStarted,
     this.onCompleted,
     this.onAutoplayFailed,
@@ -147,6 +153,18 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
       try {
         widget.muted ? _player!.mute() : _player!.unMute();
       } catch (_) {}
+    }
+    if (oldWidget.paused != widget.paused) {
+      try {
+        widget.paused ? _player?.pauseVideo() : _player?.playVideo();
+      } catch (_) {}
+      // Held before it started: its autoplay wait starts over on resuming.
+      if (!_playbackStarted) {
+        _autoplayTimer?.cancel();
+        if (!widget.paused) {
+          _autoplayTimer = Timer(widget.autoplayTimeout, _reportAutoplayFailed);
+        }
+      }
     }
   }
 
@@ -337,7 +355,7 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
     if (_disposed) return;
     try {
       _player?.mute();
-      _player?.playVideo();
+      if (!widget.paused) _player?.playVideo();
       _applyIframeStyle();
     } catch (_) {}
   }
@@ -379,7 +397,7 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
     switch (eventName) {
       case 'onReady':
         try {
-          _player?.playVideo();
+          if (!widget.paused) _player?.playVideo();
         } catch (_) {}
         _applyIframeStyle();
         return;
