@@ -28,10 +28,10 @@ usuario. Norma de siempre: ninguna función se pierde ni va a peor.
 | 1 | arreglada y probada | revisada y arreglada |
 | 2 | arreglada y probada | revisada y arreglada |
 | 3 | arreglada y probada | revisada y arreglada |
-| 4 | arreglada y probada | — |
-| 5 | arreglada y probada | — |
-| 6 | arreglada y probada | — |
-| 7 | arreglada y probada | — |
+| 4 | arreglada y probada | revisada y arreglada |
+| 5 | arreglada y probada | revisada y arreglada |
+| 6 | arreglada y probada | revisada y arreglada |
+| 7 | arreglada y probada | revisada y arreglada |
 | 8 | arreglada y probada | — |
 | 9 | arreglada y probada | — |
 | 10 | arreglada y probada | — |
@@ -180,3 +180,19 @@ Fotos de tele (web con la tele forzada), móvil (393×852) y ordenador
 Para más adelante (bloque 8): la barra de arriba no marca en qué página
 estás; el orden de los botones del menú del perfil cambia entre tele, móvil y
 ordenador.
+
+### Bloques 4, 5, 6 y 7 (reproductor, Descubrir, Música y biblioteca)
+Arreglado:
+- Reproductor: «Termina a las…» entero en el móvil; en el ordenador los
+  botones van juntos a la derecha, como en la tele; en la tele la etiqueta del
+  botón enfocado ya no tapa la duración.
+- Ficha de solicitar que no carga: aviso y «Reintentar» centrados y en el
+  mismo orden en las tres; en la tele «Reintentar» se ve enfocado.
+- Fichas de álbum en la tele: abren arriba, con la portada entera. La ficha de
+  un álbum de casa tiene la barra de arriba, como las demás.
+- «Reproduciendo» (móvil y web): sin el recuadro claro bajo la portada.
+- Bandeja de peticiones en el móvil: los títulos ya no se cortan.
+- TV en directo en el móvil: el título se lee entero. «Grabaciones» con el
+  aspecto de kOS TV y un aviso útil cuando está vacía.
+- Una dirección de biblioteca guardada abre el catálogo nuevo.
+- En el ordenador, las flechas de las filas solo salen si hay más que ver.
