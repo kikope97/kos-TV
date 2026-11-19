@@ -29,9 +29,12 @@ usuario. Norma de siempre: ninguna función se pierde ni va a peor.
 | 2 | arreglada y probada | — |
 | 3 | arreglada y probada | — |
 | 4 | arreglada y probada | — |
-| 5 | revisada, arreglando | — |
-| 6 | revisando | — |
-| 7–10 | — | — |
+| 5 | arreglada y probada | — |
+| 6 | arreglada y probada | — |
+| 7 | arreglada y probada | — |
+| 8 | arreglada y probada | — |
+| 9 | arreglada y probada | — |
+| 10 | arreglada y probada | — |
 
 ## Cómo se trabaja
 
@@ -62,7 +65,10 @@ y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
 - **Publicar una versión nueva del complemento** con los arreglos del Inicio que
   calcula el servidor (filas «Porque viste» de lo no visto, Top y «Ya está aquí»
   que llegaban tarde, lo recién llegado que no salía al actualizar, consultas
-  de más). Se instala en el servidor de casa y hay que reiniciarlo.
+  de más), más los de los bloques 3 y 10 (colecciones, consultas mucho más
+  ligeras en bibliotecas grandes, Inicio que se rehace si TMDB falla, textos del
+  panel en español, «No me interesa» en títulos sin TMDB, títulos de episodios
+  en español). Se instala en el servidor de casa y hay que reiniciarlo.
   Recomendación: publicarla junto con la versión de la app.
 
 ### Bloque 3
@@ -136,6 +142,9 @@ y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
   deja la web en blanco.
 - **El contenedor de la web arranca como administrador del sistema.**
   Recomendación: cambiarlo; obliga a cambiar el puerto interno del compose.
+- **Los AAB** (el formato de la tienda de Google) se compilan en cada
+  publicación y no se usan, pero son lo único que comprueba un requisito de
+  Android 15 (páginas de 16 KB). Recomendación: dejarlos.
 - (Para saber) Por `http://IP:25670` la contraseña de `/admin` viaja sin cifrar;
   desde fuera de casa se entra siempre por el proxy con https.
 - (Para saber) Hay borradas en local 17 etiquetas de la app original que no
