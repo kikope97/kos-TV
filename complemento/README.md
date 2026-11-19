@@ -74,7 +74,8 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   una a una, como antes.
 - **«No me interesa» y episodios nuevos** (también en `Jellyfin/backend/Kostv/`): `POST
   /Moonfin/Kostv/Home/NotInterested?itemId=…` (con `undo=true` para deshacerlo) guarda por persona
-  el título de TMDB que no le interesa (`kostv-home-dismissed.json`, hasta 500), lo saca de sus
+  el título de TMDB que no le interesa (`kostv-home-dismissed.json`, hasta 500; si el título no
+  tiene identificador de TMDB, por su id del servidor, que no aguanta que se sustituya el archivo), lo saca de sus
   filas, resta peso a lo que TMDB encuentra parecido y un poco a sus géneros, y rehace su página.
   Con las primeras filas, `/Moonfin/Kostv/Home` devuelve además `NewEpisodes` (episodios sin ver
   añadidos en las dos últimas semanas de las series que la persona ha visto, uno por serie,

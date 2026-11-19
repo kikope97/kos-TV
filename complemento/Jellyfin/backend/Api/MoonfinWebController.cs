@@ -117,7 +117,8 @@ public class MoonfinWebController : ControllerBase
             defaultServerUrl = ResolveDefaultServerUrl(config?.WebDefaultServerUrl, runtimeBaseUrl),
             discoveryProxyUrl = ResolveDiscoveryProxyUrl(runtimeBaseUrl),
             enableWebRtcScan = config?.WebEnableWebRtcScan ?? true,
-            brandingName = "Moonfin",
+            // Kos TV: the name shown by a web served from here.
+            brandingName = "kOS TV",
             pluginMode = true,
             forcedServerUrl = NormalizeConfiguredServerUrl(config?.WebForcedServerUrl)
         };
@@ -142,7 +143,7 @@ public class MoonfinWebController : ControllerBase
         if (string.IsNullOrWhiteSpace(webRoot) || !Directory.Exists(webRoot))
         {
             WarnAboutMissingWebRoot(webRoot);
-            return NotFound(new { Error = "Moonfin web root not found", Path = webRoot });
+            return NotFound(new { Error = "kOS TV web not found", Path = webRoot });
         }
 
         var requestedPath = string.IsNullOrWhiteSpace(path) ? "index.html" : path;
@@ -374,10 +375,10 @@ public class MoonfinWebController : ControllerBase
 
         var assemblyDir = Path.GetDirectoryName(_assembly.Location);
         _logger.LogWarning(
-            "The Moonfin web app is not on disk, so /Moonfin/Web/ has nothing to serve. Looked "
-            + "beside the assembly at {AssemblyDir} for a frontend or web folder, then at "
-            + "{Resolved}. Reinstall the plugin, or copy the release zip's frontend contents "
-            + "into that second path.",
+            // Kos TV: the plugin's package doesn't carry a web app, so this is the usual case.
+            "kOS TV: no web app is on disk, so /Moonfin/Web/ has nothing to serve (the plugin's "
+            + "package doesn't carry one). Looked beside the assembly at {AssemblyDir} for a "
+            + "frontend or web folder, then at {Resolved}.",
             assemblyDir,
             resolved);
     }

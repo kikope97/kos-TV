@@ -49,6 +49,9 @@ public sealed class KostvMyList : FileBackedCacheService<KostvMyListData>
     /// <summary>The most kept per person.</summary>
     public const int MaxPerPerson = 1000;
 
+    /// <summary>Kos TV: the most marks kept per person of what went on by itself.</summary>
+    public const int MaxArrived = 2000;
+
     /// <summary>
     /// Kos TV: how long a title with a TMDB title can be missing from the server before it
     /// leaves the list. A replaced file comes back with a new id within minutes, and is found
@@ -130,6 +133,11 @@ public sealed class KostvMyList : FileBackedCacheService<KostvMyListData>
                 }
 
                 data.Arrived.Add(mark);
+                // Kos TV: the latest ones only, so it doesn't grow with everything ever asked for.
+                if (data.Arrived.Count > MaxArrived)
+                {
+                    data.Arrived.RemoveRange(0, data.Arrived.Count - MaxArrived);
+                }
             }
 
             if (data.Items.Any(e => e.ItemId == itemId))

@@ -670,6 +670,12 @@ class HomeViewModel extends ChangeNotifier {
       final showSeasonal = _prefs.get(UserPreferences.seasonalRowEnabled) &&
           (GetIt.instance<PluginSyncService>().pluginAvailable ||
               _client.itemsApi is ServerHomeSectionsApi);
+      // Kos TV: the server plugin has no Sonarr or Radarr calendar (it says so
+      // in its Ping), so those rows aren't asked for even when a setting
+      // brought over from elsewhere turns them on. Read only for those rows.
+      bool? calendarKnown;
+      bool calendarAvailable() => calendarKnown ??=
+          GetIt.instance<PluginSyncService>().calendarAvailable;
 
       final offline = _isOffline;
       final visibleConfigsRaw = configs
@@ -699,8 +705,8 @@ class HomeViewModel extends ChangeNotifier {
                 (showAudioRows || !_isAudioSectionType(c.type)) &&
                 (!_isImdbSectionType(c.type) || (showImdbRows && _isImdbSectionEnabled(c.type))) &&
                 (!_isTmdbSectionType(c.type) || (showTmdbRows && _isTmdbSectionEnabled(c.type))) &&
-                (c.type != HomeSectionType.radarrCalendar || _prefs.get(UserPreferences.enableRadarrCalendar)) &&
-                (c.type != HomeSectionType.sonarrCalendar || _prefs.get(UserPreferences.enableSonarrCalendar)) &&
+                (c.type != HomeSectionType.radarrCalendar || (_prefs.get(UserPreferences.enableRadarrCalendar) && calendarAvailable())) &&
+                (c.type != HomeSectionType.sonarrCalendar || (_prefs.get(UserPreferences.enableSonarrCalendar) && calendarAvailable())) &&
                 (c.type.sinceYouWatchedRow == 0 || (showSinceYouWatched && c.type.sinceYouWatchedRow <= sinceYouWatchedNum)) &&
                 (c.type != HomeSectionType.rewatch || showRewatch) &&
                 (c.type != HomeSectionType.seasonal || showSeasonal),

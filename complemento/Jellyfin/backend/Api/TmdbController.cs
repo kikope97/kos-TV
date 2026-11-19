@@ -277,6 +277,8 @@ public class TmdbController : ControllerBase
     /// Uses the authenticated user's TMDB API key from their settings or server default.
     /// </summary>
     /// <param name="tmdbId">TMDB series ID.</param>
+    /// <param name="language">Kos TV: the language of the episode's title, as the app asks for it
+    /// ("es-ES"); Spanish when it doesn't say (older apps) or says something TMDB won't take.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     [HttpGet("NextEpisode")]
     [Authorize]
@@ -284,6 +286,7 @@ public class TmdbController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<TmdbNextEpisodeResponse>> GetNextEpisode(
         [FromQuery] string tmdbId,
+        [FromQuery] string? language,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(tmdbId))
@@ -291,6 +294,7 @@ public class TmdbController : ControllerBase
             return BadRequest(new { Error = "Missing required parameter: tmdbId" });
         }
 
+        var lang = NextEpisodeLanguage(language);
         var apiKey = await GetUserApiKey();
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -301,7 +305,9 @@ public class TmdbController : ControllerBase
             });
         }
 
-        var cacheKey = tmdbId.Trim();
+        var seriesId = tmdbId.Trim();
+        // Kos TV: kept per language, since the title comes in the one asked for.
+        var cacheKey = $"{seriesId}|{lang}";
         if (_nextEpisodeCache.TryGetValue(cacheKey, out var cached) && DateTimeOffset.UtcNow - cached.CachedAt < NextEpisodeCacheTtl)
         {
             return Ok(cached.Response);
@@ -309,7 +315,7 @@ public class TmdbController : ControllerBase
 
         try
         {
-            var url = $"https://api.themoviedb.org/3/tv/{Uri.EscapeDataString(cacheKey)}";
+            var url = $"https://api.themoviedb.org/3/tv/{Uri.EscapeDataString(seriesId)}?language={Uri.EscapeDataString(lang)}";
             var client = CreateClient();
 
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -364,6 +370,13 @@ public class TmdbController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// Kos TV: the language the next episode's title is asked for in: the app's ("es-ES",
+    /// "en"), or Spanish, the apps' own, when it gives none or one TMDB won't take.
+    /// </summary>
+    internal static string NextEpisodeLanguage(string? asked) =>
+        asked?.Trim() is { Length: > 0 } code && TmdbReview.RequestLanguage(code) == code ? code : "es-ES";
 
     /// <summary>
     /// A person's IMDb id, official site and social accounts as TMDB lists them, for the links

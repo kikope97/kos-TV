@@ -2064,7 +2064,10 @@
                                 Las apps de kOS TV la reciben de aquí al iniciar sesión, así que si cambia solo hay que cambiarla
                                 en este campo: las apps la recogen la próxima vez que se abran o, como mucho, en 6 horas.
                                 Déjala vacía y la pestaña Descubrir no saldrá en las apps.
+                                Las apps solo hablan <code>https</code>: si escribes <code>http://</code>, se cambia por
+                                <code>https://</code>, así que el servicio tiene que contestar por <code>https</code>.
                             </div>
+                            <div class="fieldDescription" id="KostvRequestsUrlStatus" style="display:none;"></div>
                         </div>
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused">Inicio con recomendaciones</label>
@@ -11341,13 +11344,20 @@
                     document.querySelector('#SeerrDisplayName').value = config.SeerrDisplayName || '';
                     document.querySelector('#PublicServerUrl').value = config.PublicServerUrl || '';
                     document.querySelector('#KostvRequestsUrl').value = config.KostvRequestsUrl || '';
+                    // kOS TV: says how the apps will get the address, or that it isn't valid.
+                    var kostvRequestsInput = document.querySelector('#KostvRequestsUrl');
+                    if (!kostvRequestsInput.dataset.kostvStatus) {
+                        kostvRequestsInput.dataset.kostvStatus = '1';
+                        kostvRequestsInput.addEventListener('input', kostvShowRequestsUrlStatus);
+                    }
+                    kostvShowRequestsUrlStatus();
                     // kOS TV: how full each person's home page comes out.
                     var kostvHomeCheck = document.querySelector('#KostvHomeCheck');
                     if (kostvHomeCheck && !kostvHomeCheck.dataset.ready) {
                         kostvHomeCheck.dataset.ready = '1';
                         var kostvHomeKinds = {
                             because_watched: 'Porque viste', because_watching: 'Porque estás viendo', for_you: 'Recomendado para ti',
-                            with_person: 'Con', genre: 'Género', hidden_gems: 'Joyas que no has visto'
+                            because_liked: 'Porque te gusta', with_person: 'Con', genre: 'Género', hidden_gems: 'Joyas que no has visto'
                         };
                         kostvHomeCheck.addEventListener('click', function() {
                             var out = document.querySelector('#KostvHomeResult');
@@ -12290,6 +12300,51 @@
                     });
                 }
 
+                // kOS TV: the requests service address as the server hands it to the apps (the
+                // same steps as KostvRequests.Normalize): '' when empty, null when not valid.
+                function kostvNormalizeRequestsUrl(raw) {
+                    var url = (raw || '').trim();
+                    if (!url) return '';
+                    if (/^http:\/\//i.test(url)) {
+                        url = 'https://' + url.substring(7);
+                    } else if (!/^https:\/\//i.test(url)) {
+                        url = 'https://' + url;
+                    }
+                    url = url.replace(/\/+$/, '');
+                    if (/\/api\/v1$/i.test(url)) {
+                        url = url.substring(0, url.length - '/api/v1'.length).replace(/\/+$/, '');
+                    }
+                    if (url.indexOf('?') >= 0 || url.indexOf('#') >= 0) return null;
+                    try {
+                        var parsed = new URL(url);
+                        if (!parsed.hostname || parsed.username || parsed.password) return null;
+                    } catch (e) {
+                        return null;
+                    }
+                    return url;
+                }
+
+                // kOS TV: under the field, how the apps will get the address, or that it isn't valid.
+                function kostvShowRequestsUrlStatus() {
+                    var status = document.querySelector('#KostvRequestsUrlStatus');
+                    if (!status) return true;
+                    var url = kostvNormalizeRequestsUrl(document.querySelector('#KostvRequestsUrl').value);
+                    if (url === '') {
+                        status.style.display = 'none';
+                        status.textContent = '';
+                        return true;
+                    }
+                    status.style.display = '';
+                    if (url === null) {
+                        status.style.color = '#ff6b6b';
+                        status.textContent = 'Esta dirección no vale (no puede llevar usuario, «?» ni «#»): las apps no la recibirán y la pestaña Descubrir no saldrá hasta que la corrijas.';
+                        return false;
+                    }
+                    status.style.color = '';
+                    status.textContent = 'Las apps usarán: ' + url;
+                    return true;
+                }
+
                 // A blank or broken number falls back, and 0 stays 0.
                 function wholeNumberIn(raw, min, max, fallback) {
                     var value = parseInt(raw, 10);
@@ -12787,6 +12842,11 @@
                 document.querySelector('#MoonfinConfigForm')
                     .addEventListener('submit', function(ev) {
                         ev.preventDefault();
+                        // kOS TV: a requests service address that won't do is saved as typed, so
+                        // it can be fixed, but not without saying so.
+                        if (!kostvShowRequestsUrlStatus()) {
+                            window.alert('La dirección del servicio de peticiones no vale, así que las apps no la recibirán y la pestaña Descubrir no saldrá. Se guarda tal cual para que puedas corregirla.');
+                        }
                         Dashboard.showLoadingMsg();
                         submit();
                         return false;

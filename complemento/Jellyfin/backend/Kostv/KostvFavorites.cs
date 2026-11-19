@@ -31,6 +31,14 @@ public sealed class KostvFavoriteData
     /// <summary>Kos TV: whether <see cref="Undated"/> was filled from the server's favourites.</summary>
     [JsonPropertyName("seeded")]
     public bool Seeded { get; set; }
+
+    /// <summary>
+    /// Kos TV: since when each item of <see cref="Since"/> or <see cref="Undated"/> hasn't been on
+    /// the server, so it is let go of only once it has been gone a while (see
+    /// <see cref="KostvFavoriteDates.GoneGrace"/>).
+    /// </summary>
+    [JsonPropertyName("goneSince")]
+    public Dictionary<string, DateTimeOffset> GoneSince { get; set; } = new(StringComparer.Ordinal);
 }
 
 /// <summary>
@@ -127,6 +135,71 @@ public sealed class KostvFavoriteDates : FileBackedCacheService<KostvFavoriteDat
         }
     }
 
+    /// <summary>
+    /// Kos TV: how long an item noted here can be gone from the server before it is forgotten.
+    /// A disk away during a scan, or a file being replaced, comes back well within it.
+    /// </summary>
+    public static readonly TimeSpan GoneGrace = TimeSpan.FromDays(30);
+
+    /// <summary>Kos TV: every item noted for <paramref name="userId"/>, dated or from before.</summary>
+    public IReadOnlyList<string> Noted(Guid userId)
+    {
+        lock (_lock)
+        {
+            return EnsureLoaded().TryGetValue(KeyOf(userId), out var data)
+                ? data.Since.Keys.Concat(data.Undated).Distinct(StringComparer.Ordinal).ToList()
+                : [];
+        }
+    }
+
+    /// <summary>
+    /// Kos TV: what a look at the server found of what is noted for <paramref name="userId"/>:
+    /// <paramref name="gone"/> isn't there now (marked gone from <paramref name="now"/>, and
+    /// forgotten once gone for <see cref="GoneGrace"/>); the rest of what is noted is there.
+    /// Whether anything changed, so the caller writes it out.
+    /// </summary>
+    public bool Sweep(Guid userId, IReadOnlyCollection<string> gone, DateTimeOffset now)
+    {
+        lock (_lock)
+        {
+            if (!EnsureLoaded().TryGetValue(KeyOf(userId), out var data))
+            {
+                return false;
+            }
+
+            var changed = false;
+            foreach (var id in data.GoneSince.Keys.Where(id => !gone.Contains(id)).ToList())
+            {
+                // Back, or no longer noted.
+                data.GoneSince.Remove(id);
+                changed = true;
+            }
+
+            foreach (var id in gone)
+            {
+                if (!data.Since.ContainsKey(id) && !data.Undated.Contains(id))
+                {
+                    continue;
+                }
+
+                if (!data.GoneSince.TryGetValue(id, out var since))
+                {
+                    data.GoneSince[id] = now;
+                    changed = true;
+                }
+                else if (now - since >= GoneGrace)
+                {
+                    data.Since.Remove(id);
+                    data.Undated.Remove(id);
+                    data.GoneSince.Remove(id);
+                    changed = true;
+                }
+            }
+
+            return changed;
+        }
+    }
+
     /// <summary>When <paramref name="userId"/> last saw the news of their favourite series.</summary>
     public DateTimeOffset? NewsSeenAt(Guid userId)
     {
@@ -154,7 +227,9 @@ public sealed class KostvFavoritesWatcher : IHostedService
 {
     // Kos TV: the library is read for the favourites from before once the server is up.
     private static readonly TimeSpan SeedAfter = TimeSpan.FromMinutes(2);
-    private const int SeedTries = 5;
+    // Kos TV: every SeedAfter for up to an hour while a library doesn't answer, and again at the
+    // next start.
+    private const int SeedTries = 30;
 
     private readonly IUserDataManager _userDataManager;
     private readonly KostvFavoriteDates _dates;
@@ -202,9 +277,16 @@ public sealed class KostvFavoritesWatcher : IHostedService
             try
             {
                 await Task.Delay(SeedAfter, token).ConfigureAwait(false);
-                if (SeedAll())
+                var (any, waiting) = SeedAll();
+                if (any)
                 {
                     await _dates.FlushAsync().ConfigureAwait(false);
+                }
+
+                // Kos TV: someone's library didn't answer yet: tried again in a while.
+                if (waiting)
+                {
+                    continue;
                 }
 
                 return;
@@ -220,10 +302,11 @@ public sealed class KostvFavoritesWatcher : IHostedService
         }
     }
 
-    // Whether anyone's were noted.
-    private bool SeedAll()
+    // Whether anyone's were noted, and whether someone's library didn't answer yet.
+    private (bool Any, bool Waiting) SeedAll()
     {
         var any = false;
+        var waiting = false;
         foreach (var user in UserReflection.AllUsers(_services) ?? Array.Empty<object>())
         {
             if (user.GetType().GetProperty("Id")?.GetValue(user) is not Guid id || _dates.IsSeeded(id))
@@ -238,11 +321,26 @@ public sealed class KostvFavoritesWatcher : IHostedService
                 continue;
             }
 
-            var favorites = _libraryManager.GetItemList(query).Select(i => i.Id.ToString("N"));
+            var favorites = _libraryManager.GetItemList(query).Select(i => i.Id.ToString("N")).ToList();
+            // Kos TV: no favourites and nothing at all to see is a library not loaded yet, not a
+            // person without favourites: not noted as done, so it is tried again.
+            if (favorites.Count == 0 && !SeesAnything(user))
+            {
+                waiting = true;
+                continue;
+            }
+
             any |= _dates.Seed(id, favorites);
         }
 
-        return any;
+        return (any, waiting);
+    }
+
+    // Kos TV: whether the library gives the person anything at all.
+    private bool SeesAnything(object user)
+    {
+        var query = new InternalItemsQuery { Recursive = true, Limit = 1, EnableTotalRecordCount = false };
+        return UserReflection.ApplyUser(query, user) && _libraryManager.GetItemList(query).Count > 0;
     }
 
     private void OnUserDataSaved(object? sender, UserDataSaveEventArgs e)
