@@ -34190,6 +34190,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t add it to the collection'**
   String get kostvCollectionAddFailed;
+
+  /// Kos TV: name of the Android notification channel for music and audio playback, shown in the system notification settings
+  ///
+  /// In en, this message translates to:
+  /// **'Music playback'**
+  String get kostvMusicNotificationChannel;
 }
 
 class _AppLocalizationsDelegate

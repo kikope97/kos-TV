@@ -46,6 +46,21 @@ class HtmlVideoBackend extends PlayerBackend
       'error',
       ((web.Event _) => _onVideoElementError()).toJS,
     );
+    // Kos TV: a resume point set while the source has no data yet is
+    // dropped by Safari's own HLS, so it is put back once the element can
+    // take it (see [_reapplyStartPosition]).
+    for (final type in const [
+      'loadedmetadata',
+      'durationchange',
+      'loadeddata',
+      'canplay',
+      'playing',
+    ]) {
+      _videoElement.addEventListener(
+        type,
+        ((web.Event _) => _reapplyStartPosition()).toJS,
+      );
+    }
     _videoElement.addEventListener(
       'seeked',
       ((web.Event _) {
@@ -192,6 +207,26 @@ class HtmlVideoBackend extends PlayerBackend
   int _playbackGeneration = 0;
   bool _tracksKnown = false;
 
+  /// Kos TV: whether the open source is a server transcode, from the
+  /// manager's payload. A failed transcode has nothing left to fall back to,
+  /// while direct play and remux can still be transcoded.
+  bool _isTranscodeSource = false;
+
+  /// Kos TV: one failure report per source, so hls.js and the element (or
+  /// the start watch) never send the same failure twice.
+  bool _sourceFailureReported = false;
+
+  /// Kos TV: set once the open source has shown a frame.
+  bool _sourceStarted = false;
+  Timer? _startupWatch;
+  static const _directStartTimeout = Duration(seconds: 30);
+  static const _transcodeStartTimeout = Duration(seconds: 60);
+
+  /// Kos TV: the resume point still to be confirmed on the open source.
+  Duration? _pendingStartPosition;
+  int _startSeekAttempts = 0;
+  static const _maxStartSeekAttempts = 5;
+
   bool _isCurrentSource(int generation) =>
       !_disposed && generation == _sourceGeneration;
 
@@ -276,6 +311,12 @@ class HtmlVideoBackend extends PlayerBackend
 
     final buffered = _readBufferedDuration();
     _setBuffer(buffered);
+
+    if (!_sourceStarted &&
+        _videoElement.readyState >= web.HTMLMediaElement.HAVE_CURRENT_DATA) {
+      _sourceStarted = true;
+      _cancelStartupWatch();
+    }
 
     final ended = _videoElement.ended;
     if (ended != _completed) {
@@ -429,36 +470,131 @@ class HtmlVideoBackend extends PlayerBackend
 
   /// A fatal hls.js failure a reconnect can fix is reported for the manager
   /// to reconnect: no response at all, a refused token, or a gateway or
-  /// overload status that clears up on its own. The rest aren't reported.
+  /// overload status that clears up on its own.
+  ///
+  /// Kos TV: a segment the server lost or failed to encode (404, 500) is a
+  /// reconnect too, which asks for the stream again at the same point.
+  /// Every other fatal error stopped hls.js and used to leave the spinner
+  /// up for good; it is now reported as the source failing.
   void _onHlsFatalError(String type, String details, int status) {
-    if (_disposed || type != 'networkError') return;
-    final kind = switch (status) {
-      401 || 403 => 'source_refused',
-      0 || 408 || 429 || 502 || 503 || 504 => 'network',
-      _ => null,
-    };
-    if (kind == null) return;
-    _errorStream.add(<String, dynamic>{
-      'event': 'playerError',
-      'kind': kind,
-      'recoverable': true,
-      'message': 'HLS $details${status > 0 ? ' (HTTP $status)' : ''}',
-    });
+    if (_disposed) return;
+    final httpStatus = status > 0 ? ' (HTTP $status)' : '';
+    if (type == 'networkError') {
+      final kind = switch (status) {
+        401 || 403 => 'source_refused',
+        0 || 404 || 408 || 429 || 500 || 502 || 503 || 504 => 'network',
+        _ => null,
+      };
+      if (kind != null) {
+        _errorStream.add(<String, dynamic>{
+          'event': 'playerError',
+          'kind': kind,
+          'recoverable': true,
+          'message': 'HLS $details$httpStatus',
+        });
+        return;
+      }
+    }
+    _reportSourceFailure('HLS $type $details$httpStatus');
   }
 
-  /// The browser's own player lost its connection to the source. Other
-  /// media errors stay as they were, unreported.
+  /// The browser's own player lost its connection to the source, or could
+  /// not open or decode it. With hls.js attached its own fatal report is the
+  /// one that counts, since it may still be recovering.
   void _onVideoElementError() {
     if (_disposed || _hlsController != null) return;
     if (!_videoElement.hasAttribute('src')) return;
     final error = _videoElement.error;
-    if (error == null || error.code != web.MediaError.MEDIA_ERR_NETWORK) return;
+    if (error == null) return;
+    if (error.code == web.MediaError.MEDIA_ERR_NETWORK) {
+      _errorStream.add(<String, dynamic>{
+        'event': 'playerError',
+        'kind': 'network',
+        'recoverable': true,
+        'message': error.message.isEmpty
+            ? 'Media network error'
+            : error.message,
+      });
+      return;
+    }
+    // Kos TV: a codec or container the browser can't take, or a source URL
+    // that answered with an HTTP error (Safari reports both as these).
+    if (error.code == web.MediaError.MEDIA_ERR_DECODE ||
+        error.code == web.MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+      _reportSourceFailure(
+        error.message.isEmpty ? 'Media error ${error.code}' : error.message,
+      );
+    }
+  }
+
+  /// Kos TV: the open source failed for good. Direct play and remux go to
+  /// the manager as an unsupported video, which re-resolves as a transcode;
+  /// a transcode that fails is final, so the failure notice shows instead
+  /// of an endless spinner.
+  void _reportSourceFailure(String message) {
+    if (_disposed || _sourceFailureReported) return;
+    _sourceFailureReported = true;
+    _cancelStartupWatch();
     _errorStream.add(<String, dynamic>{
       'event': 'playerError',
-      'kind': 'network',
-      'recoverable': true,
-      'message': error.message.isEmpty ? 'Media network error' : error.message,
+      'kind': _isTranscodeSource ? 'transcode_failed' : 'unsupported_video',
+      'recoverable': !_isTranscodeSource,
+      'message': message,
     });
+  }
+
+  /// Kos TV: the web has no startup readiness wait in the manager, so a
+  /// source that never shows a frame (a transcode that never produced a
+  /// segment, a stalled native HLS) is ended here the same way as a failed
+  /// one.
+  void _armStartupWatch(int source) {
+    _cancelStartupWatch();
+    if (_sourceStarted || _sourceFailureReported) return;
+    _startupWatch = Timer(
+      _isTranscodeSource ? _transcodeStartTimeout : _directStartTimeout,
+      () {
+        _startupWatch = null;
+        if (!_isCurrentSource(source) || _sourceStarted) return;
+        if (_videoElement.readyState >=
+            web.HTMLMediaElement.HAVE_CURRENT_DATA) {
+          return;
+        }
+        _reportSourceFailure('Playback did not start in time');
+      },
+    );
+  }
+
+  void _cancelStartupWatch() {
+    _startupWatch?.cancel();
+    _startupWatch = null;
+  }
+
+  /// Kos TV: puts the resume point back once the element has metadata, as
+  /// jellyfin-web does for Safari's HLS, and checks it again as data
+  /// arrives. Done once the element can play at (or past) the point.
+  void _reapplyStartPosition() {
+    final target = _pendingStartPosition;
+    if (_disposed || target == null) return;
+    if (_videoElement.readyState < web.HTMLMediaElement.HAVE_METADATA) return;
+    final targetSeconds = target.inMilliseconds / 1000;
+    final current = _videoElement.currentTime;
+    if (current + 2 < targetSeconds) {
+      final duration = _videoElement.duration;
+      // Not reachable yet: a later durationchange tries again.
+      if (duration.isFinite && duration > 0 && duration < targetSeconds) {
+        return;
+      }
+      if (_startSeekAttempts >= _maxStartSeekAttempts) {
+        _pendingStartPosition = null;
+        return;
+      }
+      _startSeekAttempts++;
+      _videoElement.currentTime = targetSeconds;
+      return;
+    }
+    if (_videoElement.readyState >= web.HTMLMediaElement.HAVE_FUTURE_DATA) {
+      _pendingStartPosition = null;
+    }
   }
 
   // hls.js puts the token into every request it makes, so a renewed one
@@ -541,6 +677,10 @@ class HtmlVideoBackend extends PlayerBackend
       _applyNativeSource(url);
     }
 
+    _startSeekAttempts = 0;
+    _pendingStartPosition = startPosition > Duration.zero
+        ? startPosition
+        : null;
     if (startPosition > Duration.zero) {
       _videoElement.currentTime = startPosition.inMilliseconds / 1000;
     }
@@ -577,6 +717,10 @@ class HtmlVideoBackend extends PlayerBackend
     final source = ++_sourceGeneration;
     final generation = ++_playbackGeneration;
     updateSubtitleDelaySession(payload['subtitleDelaySessionId'] as int?);
+    _isTranscodeSource = payload['playMethod'] == 'transcode';
+    _sourceFailureReported = false;
+    _sourceStarted = false;
+    _cancelStartupWatch();
 
     _tracksKnown = false;
     _tracksReadyCompleter = null;
@@ -612,11 +756,15 @@ class HtmlVideoBackend extends PlayerBackend
     if (_isCurrentPlaybackRequest(generation)) {
       if (autoPlay) {
         _setBuffering(true);
+        _armStartupWatch(source);
         try {
           await _videoElement.play().toDart;
           if (_isCurrentPlaybackRequest(generation)) _setPlaying(true);
         } catch (error) {
           if (_isCurrentPlaybackRequest(generation)) {
+            // The refusal is reported below; the start watch would only
+            // report it a second time.
+            _cancelStartupWatch();
             _setPlaying(false);
             _errorStream.add(<String, dynamic>{
               'event': 'playerError',
@@ -639,12 +787,20 @@ class HtmlVideoBackend extends PlayerBackend
   Future<void> resume() async {
     if (_disposed) return;
     final generation = ++_playbackGeneration;
+    // Kos TV: a source opened paused starts its start watch when it is
+    // first played.
+    if (!_sourceStarted &&
+        _startupWatch == null &&
+        _videoElement.hasAttribute('src')) {
+      _armStartupWatch(_sourceGeneration);
+    }
     try {
       await _videoElement.play().toDart;
       if (!_isCurrentPlaybackRequest(generation)) return;
       _setPlaying(true);
     } catch (error) {
       if (!_isCurrentPlaybackRequest(generation)) return;
+      _cancelStartupWatch();
       _errorStream.add(<String, dynamic>{
         'event': 'playerError',
         'message': error.toString(),
@@ -668,6 +824,8 @@ class HtmlVideoBackend extends PlayerBackend
     if (_disposed) return;
     ++_sourceGeneration;
     ++_playbackGeneration;
+    _cancelStartupWatch();
+    _pendingStartPosition = null;
     _videoElement.pause();
     _detachHlsJsSource();
     _videoElement.removeAttribute('src');
@@ -692,6 +850,16 @@ class HtmlVideoBackend extends PlayerBackend
   Future<void> seekTo(Duration position) async {
     if (_disposed) return;
     final seconds = position.inMilliseconds / 1000;
+    // Kos TV: a seek before the source has metadata is lost like the resume
+    // point, so it takes the resume point's place; after that it replaces
+    // whatever was still pending.
+    if (_videoElement.readyState < web.HTMLMediaElement.HAVE_METADATA &&
+        _videoElement.hasAttribute('src')) {
+      _pendingStartPosition = position > Duration.zero ? position : null;
+      _startSeekAttempts = 0;
+    } else {
+      _pendingStartPosition = null;
+    }
     _videoElement.currentTime = seconds;
     _setPosition(position);
   }
@@ -1739,6 +1907,7 @@ class HtmlVideoBackend extends PlayerBackend
     if (_disposed) return;
     _disposed = true;
     _stopStatePolling();
+    _cancelStartupWatch();
     _clearExternalTracks();
     _subtitleOverlay?.dispose();
     _subtitleOverlay = null;

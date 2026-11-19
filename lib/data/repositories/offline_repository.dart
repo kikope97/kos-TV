@@ -83,12 +83,19 @@ class OfflineRepository {
     ));
   }
 
-  Future<void> updatePlaybackPosition(String itemId, int positionTicks) async {
+  /// Kos TV: [userId] is whose watching this is, so the sync sends it only
+  /// as that person. Null leaves it to whoever is signed in when it syncs.
+  Future<void> updatePlaybackPosition(
+    String itemId,
+    int positionTicks, {
+    String? userId,
+  }) async {
     await (_db.update(_db.downloadedItems)
           ..where((t) => t.itemId.equals(itemId)))
         .write(DownloadedItemsCompanion(
       playbackPositionTicks: Value(positionTicks),
       progressSynced: const Value(false),
+      progressUserId: Value(userId),
     ));
   }
 

@@ -286,6 +286,17 @@ class $DownloadedItemsTable extends DownloadedItems
     requiredDuringInsert: false,
     defaultValue: const Constant('manual'),
   );
+  static const VerificationMeta _progressUserIdMeta = const VerificationMeta(
+    'progressUserId',
+  );
+  @override
+  late final GeneratedColumn<String> progressUserId = GeneratedColumn<String>(
+    'progress_user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     itemId,
@@ -313,6 +324,7 @@ class $DownloadedItemsTable extends DownloadedItems
     indexNumber,
     parentIndexNumber,
     downloadSource,
+    progressUserId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -530,6 +542,15 @@ class $DownloadedItemsTable extends DownloadedItems
         ),
       );
     }
+    if (data.containsKey('progress_user_id')) {
+      context.handle(
+        _progressUserIdMeta,
+        progressUserId.isAcceptableOrUnknown(
+          data['progress_user_id']!,
+          _progressUserIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -639,6 +660,10 @@ class $DownloadedItemsTable extends DownloadedItems
         DriftSqlType.string,
         data['${effectivePrefix}download_source'],
       )!,
+      progressUserId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}progress_user_id'],
+      ),
     );
   }
 
@@ -678,6 +703,11 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
   /// auto-download subscription. Only auto rows are ever removed by the
   /// subscription's delete-after-watched rule.
   final String downloadSource;
+
+  /// Kos TV: whose watching left [playbackPositionTicks] unsynced, so the
+  /// sync only sends it as that person. Null on rows from before it was
+  /// kept, which sync with whoever is signed in, as they always did.
+  final String? progressUserId;
   const DownloadedItem({
     required this.itemId,
     required this.serverId,
@@ -704,6 +734,7 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
     this.indexNumber,
     this.parentIndexNumber,
     required this.downloadSource,
+    this.progressUserId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -759,6 +790,9 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
       map['parent_index_number'] = Variable<int>(parentIndexNumber);
     }
     map['download_source'] = Variable<String>(downloadSource);
+    if (!nullToAbsent || progressUserId != null) {
+      map['progress_user_id'] = Variable<String>(progressUserId);
+    }
     return map;
   }
 
@@ -815,6 +849,9 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
           ? const Value.absent()
           : Value(parentIndexNumber),
       downloadSource: Value(downloadSource),
+      progressUserId: progressUserId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(progressUserId),
     );
   }
 
@@ -851,6 +888,7 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
       indexNumber: serializer.fromJson<int?>(json['indexNumber']),
       parentIndexNumber: serializer.fromJson<int?>(json['parentIndexNumber']),
       downloadSource: serializer.fromJson<String>(json['downloadSource']),
+      progressUserId: serializer.fromJson<String?>(json['progressUserId']),
     );
   }
   @override
@@ -882,6 +920,7 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
       'indexNumber': serializer.toJson<int?>(indexNumber),
       'parentIndexNumber': serializer.toJson<int?>(parentIndexNumber),
       'downloadSource': serializer.toJson<String>(downloadSource),
+      'progressUserId': serializer.toJson<String?>(progressUserId),
     };
   }
 
@@ -911,6 +950,7 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
     Value<int?> indexNumber = const Value.absent(),
     Value<int?> parentIndexNumber = const Value.absent(),
     String? downloadSource,
+    Value<String?> progressUserId = const Value.absent(),
   }) => DownloadedItem(
     itemId: itemId ?? this.itemId,
     serverId: serverId ?? this.serverId,
@@ -941,6 +981,9 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
         ? parentIndexNumber.value
         : this.parentIndexNumber,
     downloadSource: downloadSource ?? this.downloadSource,
+    progressUserId: progressUserId.present
+        ? progressUserId.value
+        : this.progressUserId,
   );
   DownloadedItem copyWithCompanion(DownloadedItemsCompanion data) {
     return DownloadedItem(
@@ -1003,6 +1046,9 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
       downloadSource: data.downloadSource.present
           ? data.downloadSource.value
           : this.downloadSource,
+      progressUserId: data.progressUserId.present
+          ? data.progressUserId.value
+          : this.progressUserId,
     );
   }
 
@@ -1033,7 +1079,8 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
           ..write('seasonName: $seasonName, ')
           ..write('indexNumber: $indexNumber, ')
           ..write('parentIndexNumber: $parentIndexNumber, ')
-          ..write('downloadSource: $downloadSource')
+          ..write('downloadSource: $downloadSource, ')
+          ..write('progressUserId: $progressUserId')
           ..write(')'))
         .toString();
   }
@@ -1065,6 +1112,7 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
     indexNumber,
     parentIndexNumber,
     downloadSource,
+    progressUserId,
   ]);
   @override
   bool operator ==(Object other) =>
@@ -1094,7 +1142,8 @@ class DownloadedItem extends DataClass implements Insertable<DownloadedItem> {
           other.seasonName == this.seasonName &&
           other.indexNumber == this.indexNumber &&
           other.parentIndexNumber == this.parentIndexNumber &&
-          other.downloadSource == this.downloadSource);
+          other.downloadSource == this.downloadSource &&
+          other.progressUserId == this.progressUserId);
 }
 
 class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
@@ -1123,6 +1172,7 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
   final Value<int?> indexNumber;
   final Value<int?> parentIndexNumber;
   final Value<String> downloadSource;
+  final Value<String?> progressUserId;
   final Value<int> rowid;
   const DownloadedItemsCompanion({
     this.itemId = const Value.absent(),
@@ -1150,6 +1200,7 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
     this.indexNumber = const Value.absent(),
     this.parentIndexNumber = const Value.absent(),
     this.downloadSource = const Value.absent(),
+    this.progressUserId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   DownloadedItemsCompanion.insert({
@@ -1178,6 +1229,7 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
     this.indexNumber = const Value.absent(),
     this.parentIndexNumber = const Value.absent(),
     this.downloadSource = const Value.absent(),
+    this.progressUserId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : itemId = Value(itemId),
        serverId = Value(serverId),
@@ -1211,6 +1263,7 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
     Expression<int>? indexNumber,
     Expression<int>? parentIndexNumber,
     Expression<String>? downloadSource,
+    Expression<String>? progressUserId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1240,6 +1293,7 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
       if (indexNumber != null) 'index_number': indexNumber,
       if (parentIndexNumber != null) 'parent_index_number': parentIndexNumber,
       if (downloadSource != null) 'download_source': downloadSource,
+      if (progressUserId != null) 'progress_user_id': progressUserId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1270,6 +1324,7 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
     Value<int?>? indexNumber,
     Value<int?>? parentIndexNumber,
     Value<String>? downloadSource,
+    Value<String?>? progressUserId,
     Value<int>? rowid,
   }) {
     return DownloadedItemsCompanion(
@@ -1299,6 +1354,7 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
       indexNumber: indexNumber ?? this.indexNumber,
       parentIndexNumber: parentIndexNumber ?? this.parentIndexNumber,
       downloadSource: downloadSource ?? this.downloadSource,
+      progressUserId: progressUserId ?? this.progressUserId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1383,6 +1439,9 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
     if (downloadSource.present) {
       map['download_source'] = Variable<String>(downloadSource.value);
     }
+    if (progressUserId.present) {
+      map['progress_user_id'] = Variable<String>(progressUserId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1417,6 +1476,7 @@ class DownloadedItemsCompanion extends UpdateCompanion<DownloadedItem> {
           ..write('indexNumber: $indexNumber, ')
           ..write('parentIndexNumber: $parentIndexNumber, ')
           ..write('downloadSource: $downloadSource, ')
+          ..write('progressUserId: $progressUserId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2058,6 +2118,7 @@ typedef $$DownloadedItemsTableCreateCompanionBuilder =
       Value<int?> indexNumber,
       Value<int?> parentIndexNumber,
       Value<String> downloadSource,
+      Value<String?> progressUserId,
       Value<int> rowid,
     });
 typedef $$DownloadedItemsTableUpdateCompanionBuilder =
@@ -2087,6 +2148,7 @@ typedef $$DownloadedItemsTableUpdateCompanionBuilder =
       Value<int?> indexNumber,
       Value<int?> parentIndexNumber,
       Value<String> downloadSource,
+      Value<String?> progressUserId,
       Value<int> rowid,
     });
 
@@ -2221,6 +2283,11 @@ class $$DownloadedItemsTableFilterComposer
 
   ColumnFilters<String> get downloadSource => $composableBuilder(
     column: $table.downloadSource,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get progressUserId => $composableBuilder(
+    column: $table.progressUserId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -2358,6 +2425,11 @@ class $$DownloadedItemsTableOrderingComposer
     column: $table.downloadSource,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get progressUserId => $composableBuilder(
+    column: $table.progressUserId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$DownloadedItemsTableAnnotationComposer
@@ -2477,6 +2549,11 @@ class $$DownloadedItemsTableAnnotationComposer
     column: $table.downloadSource,
     builder: (column) => column,
   );
+
+  GeneratedColumn<String> get progressUserId => $composableBuilder(
+    column: $table.progressUserId,
+    builder: (column) => column,
+  );
 }
 
 class $$DownloadedItemsTableTableManager
@@ -2541,6 +2618,7 @@ class $$DownloadedItemsTableTableManager
                 Value<int?> indexNumber = const Value.absent(),
                 Value<int?> parentIndexNumber = const Value.absent(),
                 Value<String> downloadSource = const Value.absent(),
+                Value<String?> progressUserId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DownloadedItemsCompanion(
                 itemId: itemId,
@@ -2568,6 +2646,7 @@ class $$DownloadedItemsTableTableManager
                 indexNumber: indexNumber,
                 parentIndexNumber: parentIndexNumber,
                 downloadSource: downloadSource,
+                progressUserId: progressUserId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -2597,6 +2676,7 @@ class $$DownloadedItemsTableTableManager
                 Value<int?> indexNumber = const Value.absent(),
                 Value<int?> parentIndexNumber = const Value.absent(),
                 Value<String> downloadSource = const Value.absent(),
+                Value<String?> progressUserId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => DownloadedItemsCompanion.insert(
                 itemId: itemId,
@@ -2624,6 +2704,7 @@ class $$DownloadedItemsTableTableManager
                 indexNumber: indexNumber,
                 parentIndexNumber: parentIndexNumber,
                 downloadSource: downloadSource,
+                progressUserId: progressUserId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -19681,5 +19681,9 @@
     "kostvCollectionAddFailed": "Couldn't add it to the collection",
     "@kostvCollectionAddFailed": {
         "description": "Kos TV: adding an item to a collection, or creating one for it, failed"
+    },
+    "kostvMusicNotificationChannel": "Music playback",
+    "@kostvMusicNotificationChannel": {
+        "description": "Kos TV: name of the Android notification channel for music and audio playback, shown in the system notification settings"
     }
 }

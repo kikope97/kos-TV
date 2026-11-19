@@ -893,6 +893,9 @@ void setActiveStreamResolver(MediaServerClient client) {
     canReachServer: () =>
         !_getIt.isRegistered<ConnectivityService>() ||
         _getIt<ConnectivityService>().canReachServer,
+    // Kos TV: the client's person changes in place on a switch, so it is
+    // read at each report.
+    userId: () => client.userId,
     onStopped: _onItemStopped,
   );
 

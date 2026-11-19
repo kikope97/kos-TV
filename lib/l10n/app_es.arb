@@ -14184,5 +14184,9 @@
     "kostvCollectionAddFailed": "No se ha podido añadir a la colección",
     "@kostvCollectionAddFailed": {
         "description": "Kos TV: adding an item to a collection, or creating one for it, failed"
+    },
+    "kostvMusicNotificationChannel": "Reproducción de música",
+    "@kostvMusicNotificationChannel": {
+        "description": "Kos TV: name of the Android notification channel for music and audio playback, shown in the system notification settings"
     }
 }

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show visibleForTesting;
+
 import 'audio_capability_profile.dart';
 import '../preference/preference_constants.dart';
 import '../util/platform_detection.dart';
@@ -772,6 +774,19 @@ class DeviceProfileBuilder {
     return profiles;
   }
 
+  /// Kos TV: an iPhone or iPad plays HLS with Safari's own player, which
+  /// has no VP9, whatever canPlayType says about a file. Only an iOS
+  /// browser without that player goes through hls.js, and then only if
+  /// MediaSource itself takes VP9.
+  @visibleForTesting
+  static bool offersVp9InWebHls({
+    required bool supportsVp9,
+    required bool isIOS,
+    required bool canPlayNativeHls,
+    required bool supportsVp9InMse,
+  }) =>
+      supportsVp9 && (!isIOS || (!canPlayNativeHls && supportsVp9InMse));
+
   static _WebCodecSets _buildWebCodecSets({
     required WebPlaybackCapabilities capabilities,
     required List<String> audioCodecs,
@@ -813,11 +828,18 @@ class DeviceProfileBuilder {
 
     final hlsInTsVideoCodecs = <String>[if (capabilities.supportsAvc) 'h264'];
 
+    final canUseVp9InHls = offersVp9InWebHls(
+      supportsVp9: capabilities.supportsVp9,
+      isIOS: capabilities.isIOS,
+      canPlayNativeHls: capabilities.canPlayNativeHls,
+      supportsVp9InMse: capabilities.supportsVp9InMse,
+    );
+
     final hlsInFmp4VideoCodecs = <String>[
       if (capabilities.supportsAvc) 'h264',
       if (capabilities.supportsHevc) 'hevc',
       if (capabilities.supportsAv1) 'av1',
-      if (capabilities.supportsVp9) 'vp9',
+      if (canUseVp9InHls) 'vp9',
     ];
 
     final hlsInTsAudioCodecs = <String>['aac'];

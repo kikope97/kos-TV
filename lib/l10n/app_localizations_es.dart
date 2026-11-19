@@ -20222,4 +20222,7 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvCollectionAddFailed =>
       'No se ha podido añadir a la colección';
+
+  @override
+  String get kostvMusicNotificationChannel => 'Reproducción de música';
 }
