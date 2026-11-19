@@ -75,7 +75,7 @@ const _kBackdropEdgeBlendWidthTV =
 
 /// Kos TV: the dark base under the open rail's colour, so the page beneath
 /// barely shows (see _buildTvLayout).
-const _kExpandedPanelBase = Color(0xD90B0C10);
+const _kExpandedPanelBase = Color(0xF50B0C10);
 
 class LeftSidebar extends StatefulWidget {
   final String? activeRoute;

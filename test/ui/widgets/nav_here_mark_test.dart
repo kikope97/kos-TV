@@ -200,7 +200,7 @@ void main() {
         .single;
     // The default menu colour is grey at half opacity; the open panel lays
     // it over a dark base.
-    expect((panel.decoration! as BoxDecoration).color!.a, greaterThan(0.9));
+    expect((panel.decoration! as BoxDecoration).color!.a, greaterThan(0.97));
   });
 
   group('entering the TV rail from the page', () {

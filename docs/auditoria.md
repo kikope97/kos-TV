@@ -32,9 +32,9 @@ usuario. Norma de siempre: ninguna función se pierde ni va a peor.
 | 5 | arreglada y probada | revisada y arreglada |
 | 6 | arreglada y probada | revisada y arreglada |
 | 7 | arreglada y probada | revisada y arreglada |
-| 8 | arreglada y probada | — |
-| 9 | arreglada y probada | — |
-| 10 | arreglada y probada | — |
+| 8 | arreglada y probada | revisada y arreglada |
+| 9 | arreglada y probada | revisada y arreglada |
+| 10 | arreglada y probada | revisada y arreglada |
 
 ## Cómo se trabaja
 
@@ -196,3 +196,32 @@ Arreglado:
   aspecto de kOS TV y un aviso útil cuando está vacía.
 - Una dirección de biblioteca guardada abre el catálogo nuevo.
 - En el ordenador, las flechas de las filas solo salen si hay más que ver.
+
+### Bloques 8, 9 y 10 (menús, Ajustes y administración, servidor y web)
+Arreglado:
+- El menú marca la página en la que estás (icono en blanco con una rayita),
+  en la barra de arriba y en la lateral, en la tele, el móvil y el ordenador.
+- La barra lateral desplegada va sobre un fondo casi opaco: los textos de la
+  página ya no se pisan con los del menú.
+- En la tele, al entrar en la barra lateral se cae en el botón de la página en
+  la que estás, como en la barra de arriba.
+- El menú del perfil tiene el mismo orden en todos los aparatos: primero lo de
+  la app (Peticiones, Mis favoritos, Ajustes…) y al final lo de la cuenta, con
+  «Cerrar sesión» lo último.
+- La vista previa de Ajustes enseña los mismos botones que el menú de verdad
+  (faltaban Descubrir, Quiero verlo y Música).
+- En la tele, el título de cada sección de Ajustes ya no lleva un hueco vacío
+  delante; las pestañas de Ajustes y de la vista previa avisan con un
+  difuminado cuando hay más a un lado.
+- Administración: los nombres de las secciones caben siempre en una línea
+  («Reproducción» se partía en el móvil y se cortaba en el lateral).
+- Página de ajustes del complemento en el móvil: las pestañas son una tira de
+  una línea que se desliza, sin ensanchar la página.
+
+Revisado sin cambios: lo que se ve de la página del complemento está en
+español (lo que queda en inglés es de Seerr y está oculto) y la página /admin
+de la web en Docker se ve bien en el ordenador y el móvil.
+
+Para decidir: en el móvil, la foto de perfil y la bandeja solo salen en Inicio
+(así viene del proyecto original, para dejar el ancho a los botones del menú).
+Recomendado: dejarlo así.
