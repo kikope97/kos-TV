@@ -91,4 +91,21 @@ void main() {
     })!;
     expect(film.isMusic, isFalse);
   });
+
+  test('past its size, the oldest answers go and the rest is still kept', () {
+    fakeAsync((async) {
+      final memory = StremfinMusicMemory(maxChars: 200);
+      memory.write('a', '/old', {'text': 'x' * 120});
+      memory.write('a', '/new', {'text': 'y' * 40});
+      async.elapse(const Duration(seconds: 3));
+      Object? old = 'x';
+      Object? fresh;
+      final again = StremfinMusicMemory(maxChars: 200);
+      again.read('a', '/old').then((v) => old = v);
+      again.read('a', '/new').then((v) => fresh = v);
+      async.flushMicrotasks();
+      expect(old, isNull);
+      expect(fresh, {'text': 'y' * 40});
+    });
+  });
 }

@@ -119,19 +119,9 @@ void openMusicItem(
 Future<void> playMusicTrack(BuildContext context, AggregatedItem item) async {
   final navigator = Navigator.of(context, rootNavigator: true);
   final manager = GetIt.instance<PlaybackManager>();
-  var loadingVisible = true;
-  void dismissLoading() {
-    if (loadingVisible) {
-      loadingVisible = false;
-      navigator.pop();
-    }
-  }
-
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => const Center(child: CircularProgressIndicator()),
-  );
+  final l10n = AppLocalizations.of(context);
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final closeLoading = showMusicLoading(context, navigator: navigator);
 
   final albumId = item.albumId?.isNotEmpty == true
       ? item.albumId
@@ -181,33 +171,78 @@ Future<void> playMusicTrack(BuildContext context, AggregatedItem item) async {
 
     KostvNowPlaying.instance.noteChosen();
     await manager.playItems(tracks, startIndex: startIndex);
-    dismissLoading();
+    closeLoading();
     if (context.mounted) {
       context.push(Destinations.audioPlayer);
     }
   } catch (_) {
-    dismissLoading();
-    KostvNowPlaying.instance.noteChosen();
-    await manager.playItems([item]);
-    if (context.mounted) {
-      context.push(Destinations.audioPlayer);
+    closeLoading();
+    // Kos TV: the song on its own; if that fails too, the person is told
+    // (nothing happening looks like the remote not working).
+    try {
+      KostvNowPlaying.instance.noteChosen();
+      await manager.playItems([item]);
+      if (context.mounted) {
+        context.push(Destinations.audioPlayer);
+      }
+    } catch (e) {
+      debugPrint('[Music] Could not play it: $e');
+      _sayCantPlay(messenger, l10n);
     }
   }
 }
 
+/// Kos TV: the short wait shown while music is being got ready. Returns
+/// what takes it away, which only ever takes away this wait: Back may have
+/// closed it already, and then nothing else is closed in its place (the
+/// page under it).
+VoidCallback showMusicLoading(
+  BuildContext context, {
+  NavigatorState? navigator,
+}) {
+  final nav = navigator ?? Navigator.of(context, rootNavigator: true);
+  var showing = true;
+  late final Route<void> route;
+  route = DialogRoute<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => const Center(child: CircularProgressIndicator()),
+  );
+  unawaited(nav.push(route).whenComplete(() => showing = false));
+  return () {
+    if (!showing) return;
+    showing = false;
+    if (route.isActive) nav.removeRoute(route);
+  };
+}
+
+void _sayCantPlay(ScaffoldMessengerState? messenger, AppLocalizations l10n) {
+  messenger
+    ?..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(l10n.kostvMusicCantPlay)));
+}
+
 /// Plays [tracks] from [startIndex] and opens the player. Nothing happens
-/// when there's nothing to play.
+/// when there's nothing to play; if it can't be played, the person is told.
 Future<void> playMusicTracks(
   BuildContext context,
   List<AggregatedItem> tracks, {
   int startIndex = 0,
 }) async {
   if (tracks.isEmpty) return;
+  final l10n = AppLocalizations.of(context);
+  final messenger = ScaffoldMessenger.maybeOf(context);
   KostvNowPlaying.instance.noteChosen();
-  await GetIt.instance<PlaybackManager>().playItems(
-    tracks,
-    startIndex: startIndex,
-  );
+  try {
+    await GetIt.instance<PlaybackManager>().playItems(
+      tracks,
+      startIndex: startIndex,
+    );
+  } catch (e) {
+    debugPrint('[Music] Could not play it: $e');
+    _sayCantPlay(messenger, l10n);
+    return;
+  }
   if (context.mounted) context.push(Destinations.audioPlayer);
 }
 
@@ -220,6 +255,8 @@ Future<void> shuffleMusic(
 }) async {
   final client = GetIt.instance<MediaServerClientFactory>()
       .clientForServerOrActive(serverId);
+  final l10n = AppLocalizations.of(context);
+  final messenger = ScaffoldMessenger.maybeOf(context);
   try {
     final response = await client.itemsApi.getItems(
       parentId: parentId,
@@ -243,5 +280,6 @@ Future<void> shuffleMusic(
     if (context.mounted) await playMusicTracks(context, tracks);
   } catch (e) {
     debugPrint('Failed to shuffle music: $e');
+    _sayCantPlay(messenger, l10n);
   }
 }

@@ -34436,6 +34436,108 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The other device couldn\'t play it.'**
   String get kostvCastReceiverFailed;
+
+  /// Kos TV: requests service error: the session is no longer valid (401)
+  ///
+  /// In en, this message translates to:
+  /// **'Your session is no longer valid: sign in to the app again.'**
+  String get kostvStremfinErrorSession;
+
+  /// Kos TV: requests service error: the person is not set up in the requests service (403 not_linked)
+  ///
+  /// In en, this message translates to:
+  /// **'Your user isn\'t set up for requests yet. Ask whoever runs the server.'**
+  String get kostvStremfinErrorNotLinked;
+
+  /// Kos TV: requests service error: the person has no access right now (403 no_access)
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t make requests right now.'**
+  String get kostvStremfinErrorNoAccess;
+
+  /// Kos TV: requests service error: withdrawing someone else's request (403 not_yours)
+  ///
+  /// In en, this message translates to:
+  /// **'That request isn\'t yours.'**
+  String get kostvStremfinErrorNotYours;
+
+  /// Kos TV: requests service error: the title or request no longer exists (404)
+  ///
+  /// In en, this message translates to:
+  /// **'It no longer exists: it may have been withdrawn or merged with another.'**
+  String get kostvStremfinErrorNotFound;
+
+  /// Kos TV: requests service error: withdrawing a request that already has an answer (409)
+  ///
+  /// In en, this message translates to:
+  /// **'That request has already been answered.'**
+  String get kostvStremfinErrorAlreadyAnswered;
+
+  /// Kos TV: requests service error: the requests service is switched off (503 api_disabled)
+  ///
+  /// In en, this message translates to:
+  /// **'Requests are switched off right now. Try again later.'**
+  String get kostvStremfinErrorDisabled;
+
+  /// Kos TV: requests service error: the requests service is not connected to the home server yet (503 jellyfin_not_configured)
+  ///
+  /// In en, this message translates to:
+  /// **'The requests service isn\'t connected to the server yet.'**
+  String get kostvStremfinErrorNotConnected;
+
+  /// Kos TV: requests service error: the requests service cannot check the session with the home server (503 jellyfin_unavailable)
+  ///
+  /// In en, this message translates to:
+  /// **'Your session can\'t be checked right now. Try again in a moment.'**
+  String get kostvStremfinErrorServerUnavailable;
+
+  /// Kos TV: requests service error: an outside source of the requests service does not answer (503 source_unavailable)
+  ///
+  /// In en, this message translates to:
+  /// **'It can\'t be looked up right now. Try again later.'**
+  String get kostvStremfinErrorSourceUnavailable;
+
+  /// Kos TV: requests service error: another request is being saved at that instant (503 busy)
+  ///
+  /// In en, this message translates to:
+  /// **'Another request is being saved right now. Try again.'**
+  String get kostvStremfinErrorBusy;
+
+  /// Kos TV: requests service error: unexpected failure of the requests service (500)
+  ///
+  /// In en, this message translates to:
+  /// **'The requests service failed. Try again later.'**
+  String get kostvStremfinErrorServerError;
+
+  /// Kos TV: requests service error: the requests service could not be reached (no network)
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t reach the requests service. Check the connection.'**
+  String get kostvStremfinErrorUnreachable;
+
+  /// Kos TV Music: playing a song, an album or a mix failed (the home server didn't answer)
+  ///
+  /// In en, this message translates to:
+  /// **'It couldn\'t be played. Try again in a moment.'**
+  String get kostvMusicCantPlay;
+
+  /// Kos TV Music: listening to an album that arrived, looking for it failed (not the same as it not being there yet)
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t check whether it\'s at home yet. Try again in a moment.'**
+  String get kostvMusicCantLookNow;
+
+  /// Kos TV Music: short pill on an album's cover whose download failed
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get kostvMusicDownloadFailedBadge;
+
+  /// Kos TV Music: a home server album's page, its songs failed to load
+  ///
+  /// In en, this message translates to:
+  /// **'The songs couldn\'t be loaded'**
+  String get kostvMusicTracksFailed;
 }
 
 class _AppLocalizationsDelegate

@@ -128,6 +128,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     _debounce?.cancel();
     _refreshing?.cancel();
     kostvMusicFavoritesChanged.removeListener(_reloadFavorites);
+    _listening?.musicRequestsRevision.removeListener(_onMusicRequested);
     kostvReleaseBrowserMenu();
     _scroll.dispose();
     _search.dispose();
@@ -153,9 +154,10 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         return (service: null, denied: false);
       }
     }
-    return stremfin.isAllowed
-        ? (service: stremfin, denied: false)
-        : (service: null, denied: true);
+    if (stremfin.isAllowed) return (service: stremfin, denied: false);
+    // Kos TV: held back only because the service didn't answer (no network,
+    // switched off): it didn't say no, so what it said last time stays.
+    return (service: null, denied: !stremfin.accessUnanswered);
   }
 
   /// Whether the service lets the person in, for a search typed before the
@@ -207,6 +209,15 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     if (access.denied && mounted) {
       // Not allowed any more: nothing of what it said last time stays.
       setState(_forgetStremfin);
+    } else if (stremfin == null) {
+      // Kos TV: it couldn't be asked: that is a failure, not an empty page.
+      _failed = true;
+    }
+    if (stremfin != null && mounted) {
+      // Kos TV: an album asked for from a page over this one: the service's
+      // parts are read again, so it shows as asked for here too.
+      stremfin.musicRequestsRevision.addListener(_onMusicRequested);
+      _listening = stremfin;
     }
     unawaited(() async {
       await Future.wait([
@@ -216,6 +227,14 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       if (mounted) setState(() => _loading = false);
     }());
     return stremfin;
+  }
+
+  StremfinService? _listening;
+
+  void _onMusicRequested() {
+    final stremfin = _stremfin;
+    if (!mounted || stremfin == null) return;
+    unawaited(_loadStremfin(stremfin, remembered: false));
   }
 
   void _forgetStremfin() {
@@ -289,16 +308,24 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       () async {
         // What was asked last time, so the rows that go with the person's
         // taste don't wait for it to be worked out again; now, the real one.
-        final taste = remembered
-            ? KostvMusicTaste.fromJson(
-                await stremfin.rememberedMusicNote('taste'),
-              )
-            : await _tasteLoad.catchError(
-                (Object _) => const KostvMusicTaste(),
-              );
+        KostvMusicTaste? taste;
+        // Kos TV: whether the taste now is really known (it didn't fail).
+        var known = true;
+        if (remembered) {
+          taste = KostvMusicTaste.fromJson(
+            await stremfin.rememberedMusicNote('taste'),
+          );
+        } else {
+          try {
+            taste = await _tasteLoad;
+          } catch (_) {
+            taste = const KostvMusicTaste();
+            known = false;
+          }
+        }
         if (taste == null) return;
         if (!remembered) stremfin.keepMusicNote('taste', taste.toJson());
-        await _loadForTaste(stremfin, taste, part, remembered);
+        await _loadForTaste(stremfin, taste, part, remembered, known: known);
       }(),
     ]);
   }
@@ -309,11 +336,34 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     StremfinService stremfin,
     KostvMusicTaste taste,
     Future<void> Function(String, Future<void Function()> Function()) part,
-    bool remembered,
-  ) async {
+    bool remembered, {
+    bool known = true,
+  }) async {
     final genre = taste.chartGenre;
     final artist = taste.artists.firstOrNull;
     final artists = [for (final a in taste.artists.take(6)) a.name];
+    // Kos TV: with the person's taste now really known, a part that no
+    // longer goes with it goes, rather than what was kept last time
+    // staying for good (another genre, no artist any more). If it couldn't
+    // be read, what was kept stays.
+    final settle = !remembered && known;
+    void drop(String name, void Function() clear) {
+      _fresh.add(name);
+      if (!mounted) return;
+      clear();
+      _refresh();
+    }
+
+    if (settle) {
+      if (genre == null || genre == 'latino') {
+        drop('genre', () => _genreChart = null);
+      }
+      if (artist == null) drop('more-of', () => _moreOf = null);
+      if (artists.isEmpty) {
+        drop('for-you', () => _forYou = null);
+        drop('your-news', () => _yourNews = const []);
+      }
+    }
     await Future.wait([
       if (genre != null && genre != 'latino')
         part('genre', () async {
@@ -363,7 +413,13 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                 in found?.seeds ?? const <({String name, String? deezerId})>[])
               ?seed.deezerId,
           ];
-          if (ids.isEmpty) return;
+          if (ids.isEmpty) {
+            // «Para ti» answered with none of their artists: no news.
+            if (settle && found != null) {
+              drop('your-news', () => _yourNews = const []);
+            }
+            return;
+          }
           await part('your-news', () async {
             final news = await stremfin.musicArtistReleases(
               ids,
@@ -395,28 +451,31 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       _searching = query.isNotEmpty;
     });
     if (query.isEmpty) return;
-    // Typed before the page knew whether the service lets the person in.
-    final stremfin = _stremfin ?? await _stremfinReady;
-    if (!mounted || _query != query) return;
-    await Future.wait([
-      _music
-          .search(query)
+    // Kos TV: what is at home is searched at once; only «Para pedir» waits
+    // for the page to know whether the service lets the person in.
+    final atHome = _music
+        .search(query)
+        .then((found) {
+          if (mounted && _query == query) setState(() => _atHome = found);
+        })
+        .catchError((Object _) {
+          if (mounted && _query == query) {
+            setState(() => _atHome = const KostvMusicAtHome());
+          }
+        });
+    Future<void> toAsk() async {
+      // Typed before the page knew whether the service lets the person in.
+      final stremfin = _stremfin ?? await _stremfinReady;
+      if (stremfin == null || !mounted || _query != query) return;
+      await stremfin
+          .musicSearch(query)
           .then((found) {
-            if (mounted && _query == query) setState(() => _atHome = found);
+            if (mounted && _query == query) setState(() => _toAsk = found);
           })
-          .catchError((Object _) {
-            if (mounted && _query == query) {
-              setState(() => _atHome = const KostvMusicAtHome());
-            }
-          }),
-      if (stremfin != null)
-        stremfin
-            .musicSearch(query)
-            .then((found) {
-              if (mounted && _query == query) setState(() => _toAsk = found);
-            })
-            .catchError((Object _) {}),
-    ]);
+          .catchError((Object _) {});
+    }
+
+    await Future.wait([atHome, toAsk()]);
     if (mounted && _query == query) setState(() => _searching = false);
   }
 

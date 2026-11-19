@@ -14,8 +14,11 @@ class PlatformPreviewEngine implements PreviewEngine {
   @override
   Future<void> play(String url, {required void Function() onEnd}) async {
     final audio = _audio ??= web.HTMLAudioElement();
-    await _ended?.cancel();
-    await _failed?.cancel();
+    // Kos TV: nothing awaited before play(): Safari on the iPhone only lets
+    // audio start within the tap itself. The old listeners go without
+    // waiting for them.
+    unawaited(_ended?.cancel());
+    unawaited(_failed?.cancel());
     _ended = web.EventStreamProvider<web.Event>('ended')
         .forTarget(audio)
         .listen((_) => onEnd());

@@ -214,6 +214,10 @@ void registerAppModule() {
           final user = await client.usersApi.getCurrentUser();
           return KostvAgeLimit.fromPolicy(user.policy);
         },
+        // Kos TV: the requests tray rests while kids mode is on.
+        kidsMode: () =>
+            _getIt<UserPreferences>().get(UserPreferences.kidsModeEnabled),
+        kidsModeChanges: _getIt<UserPreferences>(),
       );
       final users = _getIt<UserRepository>();
       service.onUserChanged(users.currentUser?.id);

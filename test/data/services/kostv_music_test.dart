@@ -215,4 +215,33 @@ void main() {
       expect(found.songs.single.reason, 'Porque escuchas a Bad Bunny');
     });
   });
+
+  group('the song an album\'s page was opened from', () {
+    test('the same title, never one that only has it in its name', () {
+      expect(kostvMusicSameTitle('Mía', 'mia'), isTrue);
+      expect(kostvMusicSameTitle('Mía (Remix)', 'Mía'), isFalse);
+      expect(kostvMusicSameTitle('Comía', 'Mía'), isFalse);
+    });
+
+    test('loosely, without what is in brackets', () {
+      expect(
+        kostvMusicSameTitle('Canción', 'Canción (feat. X)', loose: true),
+        isTrue,
+      );
+      expect(kostvMusicSameTitle('Canción', 'Canción (feat. X)'), isFalse);
+    });
+  });
+
+  test('a download that failed says so', () {
+    final failed = StremfinAlbum.fromJson({
+      'title': 'Brisa',
+      'download': {'phase': 'failed', 'label': 'Falló la descarga'},
+    })!;
+    final coming = StremfinAlbum.fromJson({
+      'title': 'Brisa',
+      'download': {'phase': 'downloading'},
+    })!;
+    expect(failed.download!.failed, isTrue);
+    expect(coming.download!.failed, isFalse);
+  });
 }

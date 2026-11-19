@@ -26,16 +26,41 @@ class StremfinService extends ChangeNotifier {
     @visibleForTesting ParentalFilter Function()? parental,
     @visibleForTesting DateTime Function()? clock,
     @visibleForTesting bool watchLifecycle = true,
+    bool Function()? kidsMode,
+    Listenable? kidsModeChanges,
   }) : _readAgeLimit = ageLimit,
        _parental = parental ?? (() => activeParentalFilter),
-       _clock = clock ?? DateTime.now {
+       _clock = clock ?? DateTime.now,
+       _kidsMode = kidsMode,
+       _kidsModeChanges = kidsModeChanges {
     if (watchLifecycle) {
       _lifecycle = AppLifecycleListener(
         onResume: () => unawaited(refreshAccess()),
         onShow: () => inbox.setForeground(true),
-        onHide: () => inbox.setForeground(false),
+        onHide: () {
+          inbox.setForeground(false);
+          // Kos TV: not asked again from behind another app (coming back
+          // to the front asks anyway).
+          _retry?.cancel();
+        },
       );
     }
+    // Kos TV: in kids mode the tray isn't shown, so it isn't kept up to
+    // date either; leaving it, it is asked again.
+    if (kidsMode != null) {
+      inbox.setKidsMode(kidsMode());
+      kidsModeChanges?.addListener(_onKidsModeChanged);
+    }
+  }
+
+  /// Kos TV: whether the device is in kids mode, and what tells when it
+  /// changes.
+  final bool Function()? _kidsMode;
+  final Listenable? _kidsModeChanges;
+
+  void _onKidsModeChanged() {
+    final kidsMode = _kidsMode;
+    if (kidsMode != null && !_disposed) inbox.setKidsMode(kidsMode());
   }
 
   final StremfinClient _client;
@@ -65,9 +90,20 @@ class StremfinService extends ChangeNotifier {
   Timer? _retry;
   String? _checkedFor;
 
+  /// Kos TV: the session (its fingerprint) the service last turned down as
+  /// signed out (401): signing in again as the same person brings another,
+  /// which is asked about then (the same one is never asked again in a
+  /// loop, as the service asks).
+  String? _signedOutSession;
+
   /// Bumped when the person changes, so a list asked for before doesn't land
   /// in the next person's memory.
   int _generation = 0;
+
+  /// Kos TV: bumped whenever what was known of the person is forgotten
+  /// (another person, or the service moved), for what keeps the service's
+  /// answers elsewhere (see KostvSeriesGaps).
+  int get generation => _generation;
   List<StremfinPlatform>? _platforms;
   final Map<String, ({DateTime at, List<StremfinTitle> items})> _lists = {};
   final Map<String, Future<List<StremfinTitle>>> _loading = {};
@@ -106,6 +142,13 @@ class StremfinService extends ChangeNotifier {
   static const listShown = 20;
   StremfinAccess get access => _access;
   bool get isAllowed => _access == StremfinAccess.allowed;
+
+  /// Kos TV: the person is held back only because the service hasn't
+  /// answered yet (no network, switched off, their age limit unread), not
+  /// because it said no: what it said last time may still be shown.
+  bool get accessUnanswered =>
+      _access == StremfinAccess.denied && _deniedUnanswered;
+  bool _deniedUnanswered = false;
 
   /// What the service last said of the signed-in person: whether what they
   /// ask for waits for an answer, and whether they are at their limit.
@@ -156,6 +199,7 @@ class StremfinService extends ChangeNotifier {
         if (stale()) return;
         if (_ageLimit == null) {
           if (_access == StremfinAccess.unknown) {
+            _deniedUnanswered = true;
             _setAccess(StremfinAccess.denied);
           }
           _retry = Timer(_retryDelay, () => unawaited(refreshAccess()));
@@ -166,11 +210,13 @@ class StremfinService extends ChangeNotifier {
     try {
       final me = await _client.me();
       if (stale()) return;
+      _signedOutSession = null;
       final before = _me;
       _me = me;
       final access = me.canDiscover
           ? StremfinAccess.allowed
           : StremfinAccess.denied;
+      _deniedUnanswered = false;
       if (access == _access &&
           (before?.atLimit != me.atLimit || before?.mode != me.mode)) {
         // The same access, but reaching or leaving their limit changes what
@@ -181,11 +227,14 @@ class StremfinService extends ChangeNotifier {
     } on StremfinException catch (e) {
       if (stale()) return;
       if (e.isNoAccess) {
+        _signedOutSession = e.status == 401 ? _client.sessionScope : null;
+        _deniedUnanswered = false;
         _setAccess(StremfinAccess.denied);
       } else {
         // Switched off, home server not answering, no network: hidden until
         // it answers, if it never has.
         if (_access == StremfinAccess.unknown) {
+          _deniedUnanswered = true;
           _setAccess(StremfinAccess.denied);
         }
         if (_disposed) return;
@@ -208,7 +257,18 @@ class StremfinService extends ChangeNotifier {
 
   /// Someone else signed in, or nobody is: forget what was known.
   void onUserChanged(String? userId) {
-    if (userId == _checkedFor) return;
+    if (userId == _checkedFor) {
+      // Kos TV: the same person signed in again after the service said
+      // their session was no good: the new one is asked about.
+      final signedOut = _signedOutSession;
+      if (userId != null &&
+          signedOut != null &&
+          signedOut != _client.sessionScope) {
+        _signedOutSession = null;
+        unawaited(refreshAccess());
+      }
+      return;
+    }
     _checkedFor = userId;
     _forget();
   }
@@ -233,15 +293,25 @@ class StremfinService extends ChangeNotifier {
     _searches.clear();
     _searching.clear();
     _latest.clear();
+    _signedOutSession = null;
+    // Kos TV: a trailer read under way, or a refusal just checked, was the
+    // last person's: the next one is asked afresh (the trailers found stay:
+    // they are the same for everyone).
+    _trailersLoading.clear();
+    _trailersAccessCheckedAt = null;
+    _availability.clear();
+    _recommending.clear();
     // Kos TV: what Music kept is the last person's (their requests, their
     // «Para ti»): none of it is shown to the next one.
-    _charts = null;
     _chartPages.clear();
     _recommended.clear();
+    _musicKept.clear();
+    _musicLoading.clear();
     // On the device it is kept for one person only (see
     // StremfinMusicMemory); signed out, it goes.
     if (userId == null) unawaited(_client.musicMemory?.clear());
     _me = null;
+    _deniedUnanswered = false;
     inbox.setUser(userId);
     _setAccess(StremfinAccess.unknown);
     if (userId != null) unawaited(refreshAccess());
@@ -427,21 +497,15 @@ class StremfinService extends ChangeNotifier {
 
   // ------------------------------------------------------------ Kos TV: music
 
-  List<StremfinChart>? _charts;
   final Map<String, ({DateTime at, StremfinChartPage page})> _chartPages = {};
 
   /// How long a chart is kept here: the service refreshes them every few
   /// hours.
   static const _chartFor = Duration(minutes: 30);
 
-  /// The charts there are; their list doesn't change, so it is kept.
-  Future<List<StremfinChart>> musicCharts() async =>
-      _charts ??= await _client.musicCharts();
-
   /// One chart's places, kept for half an hour.
   Future<StremfinChartPage> musicChart(
     String id, {
-    bool fresh = false,
     String? country,
     bool remembered = false,
   }) async {
@@ -450,18 +514,24 @@ class StremfinService extends ChangeNotifier {
     }
     final key = country == null ? id : '$country:$id';
     final kept = _chartPages[key];
-    if (!fresh &&
-        kept != null &&
-        DateTime.now().difference(kept.at) < _chartFor) {
+    if (kept != null && DateTime.now().difference(kept.at) < _chartFor) {
       return kept.page;
     }
+    // Kos TV: kept only for the person it was read for: another one signed
+    // in meanwhile doesn't get it as theirs.
+    final generation = _generation;
     final page = await _client.musicChart(id, country: country);
-    _chartPages[key] = (at: DateTime.now(), page: page);
+    if (generation == _generation) {
+      _chartPages[key] = (at: DateTime.now(), page: page);
+    }
     return page;
   }
 
   final Map<String, ({DateTime at, StremfinRecommendations found})>
   _recommended = {};
+
+  /// Kos TV: «Para ti» being read, shared: the service allows few a minute.
+  final Map<String, Future<StremfinRecommendations>> _recommending = {};
 
   /// «Para ti» for [artists]: the service keeps it an hour and allows few
   /// calls, so it is kept here as long.
@@ -470,9 +540,11 @@ class StremfinService extends ChangeNotifier {
     List<String> genres = const [],
     bool remembered = false,
   }) async {
+    final artistIds = await _artistIdsOf(artists, remembered: remembered);
     if (remembered) {
       return _client.musicRecommendations(
         artists,
+        artistIds: artistIds,
         genres: genres,
         remembered: true,
       );
@@ -483,36 +555,156 @@ class StremfinService extends ChangeNotifier {
         DateTime.now().difference(kept.at) < const Duration(hours: 1)) {
       return kept.found;
     }
-    final found = await _client.musicRecommendations(artists, genres: genres);
-    _recommended[key] = (at: DateTime.now(), found: found);
-    return found;
+    final pending = _recommending[key];
+    if (pending != null) return pending;
+    // Kos TV: kept only for the person it was read for.
+    final generation = _generation;
+    late final Future<StremfinRecommendations> future;
+    future = _client
+        .musicRecommendations(artists, artistIds: artistIds, genres: genres)
+        .then((found) {
+          if (generation == _generation) {
+            _recommended[key] = (at: DateTime.now(), found: found);
+          }
+          return found;
+        })
+        .whenComplete(() {
+          if (identical(_recommending[key], future)) _recommending.remove(key);
+        });
+    return _recommending[key] = future;
+  }
+
+  /// Kos TV: Deezer's id of each artist whose name has a comma in it («Tyler,
+  /// The Creator»), which can't go among the names (see
+  /// [StremfinClient.musicRecommendations]). Found by their name once and
+  /// kept on the device with the Music page's answers; with [remembered],
+  /// only what was kept (no call).
+  final Map<String, String?> _artistIds = {};
+  Future<void>? _artistIdsLoaded;
+  static const _artistIdsNote = 'artist-ids';
+
+  Future<List<String>> _artistIdsOf(
+    List<String> artists, {
+    bool remembered = false,
+  }) async {
+    final named = [
+      for (final name in artists.take(10))
+        if (name.contains(',')) name,
+    ];
+    if (named.isEmpty) return const [];
+    await (_artistIdsLoaded ??= () async {
+      try {
+        final kept = await _client.rememberedMusicNote(_artistIdsNote);
+        if (kept is Map) {
+          for (final entry in kept.entries) {
+            _artistIds.putIfAbsent(
+              '${entry.key}',
+              () => entry.value?.toString(),
+            );
+          }
+        }
+      } catch (_) {}
+    }());
+    var found = false;
+    for (final name in named) {
+      final key = name.toLowerCase();
+      if (_artistIds.containsKey(key) || remembered) continue;
+      try {
+        final search = await _client.musicSearch(name, limit: 5);
+        _artistIds[key] = search.artists
+            .where((a) => a.name.toLowerCase() == key)
+            .firstOrNull
+            ?.deezerId;
+        found = true;
+      } on StremfinException {
+        // Left out this time; asked again next time.
+      }
+    }
+    if (found) _client.keepMusicNote(_artistIdsNote, Map.of(_artistIds));
+    return [for (final name in named) ?_artistIds[name.toLowerCase()]];
+  }
+
+  /// Kos TV: the Music page's other answers (what the house asked for, the
+  /// releases, more of the person's artist and their artists' news), kept
+  /// a few minutes: the page is made anew each time it opens, and some of
+  /// them are among the calls the service allows few of a minute.
+  final Map<String, ({DateTime at, Object found})> _musicKept = {};
+  final Map<String, Future<Object>> _musicLoading = {};
+  static const _musicKeptFor = Duration(minutes: 10);
+
+  /// [read] kept as [key] for [_musicKeptFor], only for the person it was
+  /// read for, and shared while it is being read.
+  Future<T> _musicKeep<T extends Object>(
+    String key,
+    Future<T> Function() read,
+  ) {
+    final kept = _musicKept[key];
+    if (kept != null && _clock().difference(kept.at) < _musicKeptFor) {
+      return Future.value(kept.found as T);
+    }
+    final pending = _musicLoading[key];
+    if (pending != null) return pending.then((found) => found as T);
+    final generation = _generation;
+    late final Future<T> future;
+    future = read()
+        .then((found) {
+          if (generation == _generation) {
+            _musicKept[key] = (at: _clock(), found: found);
+          }
+          return found;
+        })
+        .whenComplete(() {
+          if (identical(_musicLoading[key], future)) _musicLoading.remove(key);
+        });
+    _musicLoading[key] = future;
+    return future;
   }
 
   /// The latest records of the artists [deezerIds].
   Future<List<StremfinAlbum>> musicArtistReleases(
     List<String> deezerIds, {
     bool remembered = false,
-  }) => _client.musicArtistReleases(deezerIds, remembered: remembered);
+  }) => remembered
+      ? _client.musicArtistReleases(deezerIds, remembered: true)
+      : _musicKeep(
+          'artist-releases:${deezerIds.join(',')}',
+          () => _client.musicArtistReleases(deezerIds),
+        );
 
   /// Music matching [query]: what the home server has and what it hasn't.
+  /// What the Music page asks itself ([keep]) is kept a few minutes; what
+  /// the person types is asked each time.
   Future<StremfinMusicSearch> musicSearch(
     String query, {
     bool keep = false,
     bool remembered = false,
-  }) =>
-      _client.musicSearch(query, limit: 30, keep: keep, remembered: remembered);
+  }) => keep && !remembered
+      ? _musicKeep(
+          'search:${query.toLowerCase()}',
+          () => _client.musicSearch(query, limit: 30, keep: true),
+        )
+      : _client.musicSearch(
+          query,
+          limit: 30,
+          keep: keep,
+          remembered: remembered,
+        );
 
   Future<StremfinAlbumDetail> musicAlbum(String deezerId) =>
       _client.musicAlbum(deezerId);
 
-  Future<StremfinSongDetail> musicSong(String deezerId) =>
-      _client.musicSong(deezerId);
-
+  /// An artist's page. What the Music page asks itself ([keep]) is kept a
+  /// few minutes; the artist's own page asks each time.
   Future<StremfinArtistDetail> musicArtist(
     String deezerId, {
     bool keep = false,
     bool remembered = false,
-  }) => _client.musicArtist(deezerId, keep: keep, remembered: remembered);
+  }) => keep && !remembered
+      ? _musicKeep(
+          'artist:$deezerId',
+          () => _client.musicArtist(deezerId, keep: true),
+        )
+      : _client.musicArtist(deezerId, keep: keep, remembered: remembered);
 
   /// The Music page's own notes, kept with its answers on the device.
   void keepMusicNote(String name, Object value) =>
@@ -523,11 +715,19 @@ class StremfinService extends ChangeNotifier {
 
   /// What the house asked for most lately.
   Future<List<StremfinAlbum>> musicRequested({bool remembered = false}) =>
-      _client.musicRequested(limit: 20, remembered: remembered);
+      remembered
+      ? _client.musicRequested(limit: 20, remembered: true)
+      : _musicKeep('requested', () => _client.musicRequested(limit: 20));
 
   /// The latest records of the artists the house follows.
   Future<List<StremfinAlbum>> musicReleases({bool remembered = false}) =>
-      _client.musicReleases(remembered: remembered);
+      remembered
+      ? _client.musicReleases(remembered: true)
+      : _musicKeep('releases', _client.musicReleases);
+
+  /// Kos TV: bumped when the person asked for an album, so the Music page
+  /// under the album's page shows it as asked for.
+  final ValueNotifier<int> musicRequestsRevision = ValueNotifier(0);
 
   /// Asks for an album (a single's whole album, when it has one). The
   /// charts kept here are forgotten, since what they say of it changes.
@@ -535,19 +735,47 @@ class StremfinService extends ChangeNotifier {
     try {
       final result = await _client.createMusicRequest(deezerId);
       final made = result.request;
-      if (made != null) inbox.note(made, seen: true);
+      // Kos TV: what they asked for (or joined) is theirs.
+      if (made != null) inbox.note(made, seen: true, own: true);
       // What the lists said of it changed («Pedir» → «Pedido»).
       _chartPages.clear();
       _recommended.clear();
+      _musicKept.clear();
+      _musicLoading.clear();
+      musicRequestsRevision.value++;
       return result;
     } finally {
       unawaited(refreshAccess());
     }
   }
 
-  /// Whether a film can be downloaded now and how fast.
-  Future<StremfinAvailability> movieAvailability(int tmdbId) =>
-      _client.movieAvailability(tmdbId);
+  /// Kos TV: films' availability, as long as the service keeps it, and
+  /// the ones being asked, shared.
+  final Map<int, ({DateTime at, Future<StremfinAvailability> found})>
+  _availability = {};
+  static const availabilityLifetime = Duration(minutes: 10);
+
+  /// Whether a film can be downloaded now and how fast. Kos TV: the service
+  /// takes seconds to answer, so a film's page may ask for it along with
+  /// the page itself and again once it knows it needs it: both get the same
+  /// answer, asked once. A failed one isn't kept.
+  Future<StremfinAvailability> movieAvailability(int tmdbId) {
+    final kept = _availability[tmdbId];
+    if (kept != null && _clock().difference(kept.at) < availabilityLifetime) {
+      return kept.found;
+    }
+    final found = _client.movieAvailability(tmdbId);
+    _availability[tmdbId] = (at: _clock(), found: found);
+    found.then<void>(
+      (_) {},
+      onError: (Object _) {
+        if (identical(_availability[tmdbId]?.found, found)) {
+          _availability.remove(tmdbId);
+        }
+      },
+    );
+    return found;
+  }
 
   /// A series' page, season by season.
   Future<StremfinSeriesDetail> series(int tmdbId) async {
@@ -584,48 +812,68 @@ class StremfinService extends ChangeNotifier {
         DateTime.now().difference(failed) < trailersRetryAfter) {
       return Future.value(const <StremfinTrailer>[]);
     }
-    // Before the loading is kept: answered at once, its clean-up would run
-    // before it was kept, and the empty answer would stay for good.
     if (!isConfigured) return Future.value(const <StremfinTrailer>[]);
-    return _trailersLoading[key] ??= () async {
-      try {
-        if (!isAllowed) {
-          // Kos TV: not known yet, it is asked now, so the first trailers
-          // don't miss out; known to be refused, at most every so often.
-          final checked = _trailersAccessCheckedAt;
-          if (_access == StremfinAccess.denied &&
-              checked != null &&
-              DateTime.now().difference(checked) < trailersRetryAfter) {
-            return const <StremfinTrailer>[];
-          }
-          _trailersAccessCheckedAt = DateTime.now();
-          await refreshAccess();
-          if (!isAllowed) return const <StremfinTrailer>[];
-        }
-        final read = await _client
-            .trailers(type, tmdbId)
-            .timeout(trailersTimeout);
-        _trailersFailedAt = null;
-        return _trailers[key] = read;
-      } on StremfinException catch (e) {
-        // A title it doesn't know is an answer, not a failure. Kos TV: kept
-        // for the session as any other answer, so it isn't asked again on
-        // every turn of the banner.
-        if (e.status == 404) return _trailers[key] = const <StremfinTrailer>[];
-        _trailersFailedAt = DateTime.now();
-        return const <StremfinTrailer>[];
-      } catch (_) {
-        _trailersFailedAt = DateTime.now();
-        return const <StremfinTrailer>[];
-      } finally {
-        unawaited(_trailersLoading.remove(key));
+    // Kos TV: known to be refused and checked lately: answered at once,
+    // before anything is kept as under way (see below).
+    final checked = _trailersAccessCheckedAt;
+    if (!isAllowed &&
+        _access == StremfinAccess.denied &&
+        checked != null &&
+        DateTime.now().difference(checked) < trailersRetryAfter) {
+      return Future.value(const <StremfinTrailer>[]);
+    }
+    final pending = _trailersLoading[key];
+    if (pending != null) return pending;
+    // Kos TV: kept before it can finish and let go only by itself, so one
+    // that finished at once never stays behind with its answer.
+    late final Future<List<StremfinTrailer>> future;
+    future = _readTrailers(key, type, tmdbId).whenComplete(() {
+      if (identical(_trailersLoading[key], future)) {
+        _trailersLoading.remove(key);
       }
-    }();
+    });
+    return _trailersLoading[key] = future;
   }
 
-  /// One request as it stands now.
+  Future<List<StremfinTrailer>> _readTrailers(
+    String key,
+    StremfinTitleType type,
+    int tmdbId,
+  ) async {
+    try {
+      if (!isAllowed) {
+        // Kos TV: not known yet, it is asked now, so the first trailers
+        // don't miss out; known to be refused, at most every so often (see
+        // [trailers]).
+        _trailersAccessCheckedAt = DateTime.now();
+        // Kos TV: no longer than the trailers themselves may take, so a
+        // service that doesn't answer doesn't hold up the trailer button.
+        // The check carries on by itself.
+        await refreshAccess().timeout(trailersTimeout);
+        if (!isAllowed) return const <StremfinTrailer>[];
+      }
+      final read = await _client
+          .trailers(type, tmdbId)
+          .timeout(trailersTimeout);
+      _trailersFailedAt = null;
+      return _trailers[key] = read;
+    } on StremfinException catch (e) {
+      // A title it doesn't know is an answer, not a failure. Kos TV: kept
+      // for the session as any other answer, so it isn't asked again on
+      // every turn of the banner.
+      if (e.status == 404) return _trailers[key] = const <StremfinTrailer>[];
+      _trailersFailedAt = DateTime.now();
+      return const <StremfinTrailer>[];
+    } catch (_) {
+      _trailersFailedAt = DateTime.now();
+      return const <StremfinTrailer>[];
+    }
+  }
+
   /// One request as its page shows it, so the tray doesn't count what the
-  /// person has just seen there as news.
+  /// person has just seen there as news. Kos TV: a page may show someone
+  /// else's request; the tray only takes the person's own (see
+  /// [StremfinInbox.note]).
   Future<StremfinRequest> request(int id) async {
     final read = await _client.request(id);
     inbox.note(read, seen: true);
@@ -649,7 +897,8 @@ class StremfinService extends ChangeNotifier {
         episode: episode,
       );
       final made = result.request;
-      if (made != null) inbox.note(made, seen: true);
+      // Kos TV: what they asked for (or joined) is theirs.
+      if (made != null) inbox.note(made, seen: true, own: true);
       return result;
     } finally {
       unawaited(refreshAccess());
@@ -748,8 +997,10 @@ class StremfinService extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _retry?.cancel();
+    _kidsModeChanges?.removeListener(_onKidsModeChanged);
     _lifecycle?.dispose();
     listsRevision.dispose();
+    musicRequestsRevision.dispose();
     inbox.dispose();
     super.dispose();
   }

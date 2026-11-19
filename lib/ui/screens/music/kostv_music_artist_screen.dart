@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
@@ -11,6 +12,7 @@ import '../../navigation/destinations.dart';
 import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
+import 'kostv_music_album_screen.dart' show KostvMusicButton;
 import 'kostv_music_widgets.dart';
 import '../../../util/kostv_browser_menu.dart';
 
@@ -30,6 +32,9 @@ class KostvMusicArtistScreen extends StatefulWidget {
 class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
   StremfinArtistDetail? _detail;
   bool _loading = true;
+
+  /// Why it couldn't be read, for what the page says.
+  Object? _error;
 
   @override
   void initState() {
@@ -51,13 +56,20 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
       setState(() => _loading = false);
       return;
     }
+    if (!_loading) setState(() => _loading = true);
     try {
       final detail = await getIt<StremfinService>().musicArtist(
         widget.deezerId,
       );
-      if (mounted) setState(() => _detail = detail);
+      if (mounted) {
+        setState(() {
+          _detail = detail;
+          _error = null;
+        });
+      }
     } catch (e) {
       debugPrint('[Music] Artist failed: $e');
+      if (mounted) setState(() => _error = e);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -137,11 +149,32 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                 child: CircularProgressIndicator(color: kostvMusicColor),
               )
             else if (detail == null)
+              // Kos TV: why, and a button to read it again, which the
+              // remote can reach (with neither picture nor name, the page
+              // has nothing else to go to).
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: insets.left),
-                child: Text(
-                  l10n.kostvMusicUnavailable,
-                  style: const TextStyle(color: kostvMusicGrey),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _error == null
+                          ? l10n.kostvMusicUnavailable
+                          : kostvStremfinErrorText(
+                              l10n,
+                              _error!,
+                              fallback: l10n.kostvMusicUnavailable,
+                            ),
+                      style: const TextStyle(color: kostvMusicGrey),
+                    ),
+                    const SizedBox(height: 14),
+                    KostvMusicButton(
+                      icon: Icons.refresh_rounded,
+                      label: l10n.retry,
+                      autofocus: PlatformDetection.isTV,
+                      onTap: () => unawaited(_load()),
+                    ),
+                  ],
                 ),
               ),
             if (detail != null && detail.topSongs.isNotEmpty) ...[

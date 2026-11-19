@@ -68,6 +68,13 @@ class StremfinClient {
   /// Whether the app knows where the service is.
   bool get isConfigured => _baseUrl() != null;
 
+  /// Kos TV: a fingerprint of the session the calls go with (never the
+  /// token itself), to tell when it changes; null when signed out.
+  String? get sessionScope {
+    final token = _token();
+    return token == null ? null : StremfinMusicMemory.scopeOf(token);
+  }
+
   /// The API's base from the build's address: with or without a trailing
   /// slash or `/api/v1`, and always over https, since every call carries the
   /// person's token. A path (`/stremfin`, the web container's way in to the
@@ -82,8 +89,15 @@ class StremfinClient {
       if (!origin.hasAuthority) return null;
       url = origin.resolve(url).toString();
     } else {
-      if (url.startsWith('http://')) url = 'https://${url.substring(7)}';
-      if (!url.startsWith('https://')) url = 'https://$url';
+      // Kos TV: the scheme in any case («HTTPS://…»).
+      final lower = url.toLowerCase();
+      if (lower.startsWith('http://')) {
+        url = 'https://${url.substring(7)}';
+      } else if (lower.startsWith('https://')) {
+        url = 'https://${url.substring(8)}';
+      } else {
+        url = 'https://$url';
+      }
     }
     while (url.endsWith('/')) {
       url = url.substring(0, url.length - 1);
@@ -323,17 +337,31 @@ class StremfinClient {
   }
 
   /// «Para ti»: records and songs of artists like [artists] (names, as the
-  /// home server has them; up to ten), those of [genres] first.
+  /// home server has them) and [artistIds] (Deezer's ids), up to ten in
+  /// all, those of [genres] first.
+  ///
+  /// Kos TV: names go separated by commas, so one with a comma in it («Tyler,
+  /// The Creator») can only go by its id: without one, it is left out rather
+  /// than sent as two other artists.
   Future<StremfinRecommendations> musicRecommendations(
     List<String> artists, {
+    List<String> artistIds = const [],
     List<String> genres = const [],
     bool remembered = false,
-  }) async => StremfinRecommendations.fromJson(
-    await _music('/music/recommendations', {
-      'artists': artists.take(10).join(','),
-      if (genres.isNotEmpty) 'genres': genres.join(','),
-    }, remembered),
-  );
+  }) async {
+    final ids = artistIds.take(10).toList();
+    final names = artists
+        .where((name) => !name.contains(','))
+        .take(10 - ids.length)
+        .toList();
+    return StremfinRecommendations.fromJson(
+      await _music('/music/recommendations', {
+        if (names.isNotEmpty) 'artists': names.join(','),
+        if (ids.isNotEmpty) 'artist_ids': ids.join(','),
+        if (genres.isNotEmpty) 'genres': genres.join(','),
+      }, remembered),
+    );
+  }
 
   /// The latest and announced records of the artists [deezerIds] (up to
   /// twenty).

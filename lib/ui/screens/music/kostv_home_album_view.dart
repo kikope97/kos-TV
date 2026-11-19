@@ -320,7 +320,7 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
               primary: true,
               autofocus: PlatformDetection.isTV,
               onTap: tracks.isEmpty
-                  ? () {}
+                  ? () => _nothingToPlay(context)
                   : () => unawaited(
                       kostvMusicOnce(() => playMusicTracks(context, tracks)),
                     ),
@@ -385,15 +385,46 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
     );
   }
 
+  /// Kos TV: Play with no songs says why, rather than doing nothing.
+  void _nothingToPlay(BuildContext context) {
+    if (_vm.state == ItemDetailState.loading) return;
+    final l10n = AppLocalizations.of(context);
+    kostvMusicSay(
+      context,
+      _vm.tracksFailed ? l10n.kostvMusicTracksFailed : l10n.kostvMusicCantPlay,
+    );
+  }
+
   List<Widget> _tracks(BuildContext context, AggregatedItem album) {
     final tracks = _vm.tracks;
     if (tracks.isEmpty) {
+      final l10n = AppLocalizations.of(context);
       return [
         if (_vm.state == ItemDetailState.loading)
           const Padding(
             padding: EdgeInsets.all(30),
             child: Center(
               child: CircularProgressIndicator(color: kostvMusicColor),
+            ),
+          )
+        // Kos TV: the songs failed to load: said, with a way to try again.
+        else if (_vm.tracksFailed)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.kostvMusicTracksFailed,
+                  style: const TextStyle(color: kostvMusicGrey),
+                ),
+                const SizedBox(height: 14),
+                KostvMusicButton(
+                  icon: Icons.refresh_rounded,
+                  label: l10n.retry,
+                  onTap: () => unawaited(_vm.retryTracks()),
+                ),
+              ],
             ),
           ),
       ];
@@ -418,7 +449,10 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
               () => playMusicTracks(context, tracks, startIndex: i),
             ),
           ),
-          onMenu: () => unawaited(showKostvMusicSongMenu(context, item: track)),
+          // Kos TV: «Ir al álbum» would be this same page.
+          onMenu: () => unawaited(
+            showKostvMusicSongMenu(context, item: track, fromAlbumId: album.id),
+          ),
         ),
     ];
   }

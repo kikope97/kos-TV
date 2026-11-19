@@ -62,10 +62,6 @@ class KostvMusicService {
   Future<AggregatedItem?> item(String id) async =>
       (await _get(types: const ['Audio', 'MusicAlbum'], ids: [id])).firstOrNull;
 
-  /// Whether the home server has any music the person can play.
-  Future<bool> hasMusic() async =>
-      (await _get(types: const ['Audio'], limit: 1)).isNotEmpty;
-
   /// The albums of what the person played lately, the latest first.
   Future<List<AggregatedItem>> recentAlbums({int max = 12}) async {
     final songs = await _get(
@@ -149,25 +145,6 @@ class KostvMusicService {
     descending: true,
     limit: limit,
   );
-
-  /// The home server's albums of [genre], in a different order each time.
-  Future<List<AggregatedItem>> albumsOfGenre(String genre, {int limit = 16}) =>
-      _get(
-        types: const ['MusicAlbum'],
-        sortBy: 'Random',
-        genres: [genre],
-        limit: limit,
-      );
-
-  /// The home server's albums of the artist [artistId].
-  Future<List<AggregatedItem>> albumsOf(String artistId, {int limit = 16}) =>
-      _get(
-        types: const ['MusicAlbum'],
-        sortBy: 'ProductionYear,SortName',
-        descending: true,
-        artistIds: [artistId],
-        limit: limit,
-      );
 
   /// A mix around [itemId] (an artist, an album or a song): songs that go
   /// with it, from the home server.
@@ -344,6 +321,13 @@ String kostvMusicSearchable(String title) {
   if (dash > 0) t = t.substring(0, dash);
   return t.trim().isEmpty ? title : t.trim();
 }
+
+/// Kos TV: whether [a] and [b] are the same song's title: the same once
+/// folded, or, with [loose], also without what is in brackets or after a
+/// dash («Canción (feat. X)» and «Canción»).
+bool kostvMusicSameTitle(String a, String b, {bool loose = false}) => loose
+    ? _fold(kostvMusicSearchable(a)) == _fold(kostvMusicSearchable(b))
+    : _fold(a) == _fold(b);
 
 String _fold(String text) => text
     .toLowerCase()

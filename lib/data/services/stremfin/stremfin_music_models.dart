@@ -60,8 +60,6 @@ class StremfinAlbum {
     this.contains,
     this.request,
     this.canRequest = false,
-    this.upcoming = false,
-    this.people,
     this.jellyfinId,
     this.reason,
   });
@@ -92,12 +90,6 @@ class StremfinAlbum {
   /// It can be asked for, and the person hasn't yet.
   final bool canRequest;
 
-  /// Announced, not out yet (the house's artists' releases).
-  final bool upcoming;
-
-  /// How many in the house asked for it (most requested).
-  final int? people;
-
   /// Its id on the home server, to open it there (since 1.91.0). Null for a
   /// single that is only at home inside an album: play its song instead.
   final String? jellyfinId;
@@ -127,8 +119,6 @@ class StremfinAlbum {
       contains: _text(raw['contains']),
       request: StremfinRequestRef.fromJson(raw['request']),
       canRequest: raw['can_request'] == true,
-      upcoming: raw['upcoming'] == true,
-      people: _int(raw['people']),
       jellyfinId: library is Map
           ? _text(library['jellyfin_id']?.toString())
           : null,
@@ -154,7 +144,6 @@ class StremfinSong {
     this.albumDeezerId,
     this.album,
     this.inJellyfin = false,
-    this.inAlbum,
     this.rank,
     this.jellyfinId,
     this.albumJellyfinId,
@@ -181,9 +170,8 @@ class StremfinSong {
   /// says which album to ask for instead).
   final StremfinAlbum? album;
 
-  /// The home server has it, and in which album.
+  /// The home server has it.
   final bool inJellyfin;
-  final String? inAlbum;
 
   /// Its place in a chart.
   final int? rank;
@@ -223,7 +211,6 @@ class StremfinSong {
           : null,
       album: album,
       inJellyfin: raw['in_jellyfin'] == true,
-      inAlbum: _text(raw['in_album']),
       rank: _int(raw['rank']),
       jellyfinId: _text(raw['jellyfin_id']?.toString()),
       albumJellyfinId: _text(raw['album_jellyfin_id']?.toString()),
