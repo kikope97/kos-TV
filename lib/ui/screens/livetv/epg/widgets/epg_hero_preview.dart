@@ -3,6 +3,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../../../l10n/app_localizations.dart';
 
+import '../../../../../util/rating_format.dart';
 import '../../../../widgets/adaptive/adaptive_glass.dart';
 import '../../../../widgets/bounded_network_image.dart';
 import '../../../../widgets/live_tv/live_tv_recording_icon.dart';
@@ -124,7 +125,7 @@ class EpgHeroPreview extends StatelessWidget {
       if (timeLabel != null) timeLabel,
       if (genreLabel != null && genreLabel!.isNotEmpty) genreLabel,
       if (officialRating != null && officialRating!.isNotEmpty) officialRating,
-      if (communityRating != null) communityRating!.toStringAsFixed(1),
+      if (communityRating != null) formatRatingValue(communityRating!),
     ].whereType<String>().join('  ·  ');
 
     final hasChannelPreview = channelLogoUrl != null || programTitle != null;

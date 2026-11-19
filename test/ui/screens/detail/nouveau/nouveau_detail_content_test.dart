@@ -254,7 +254,7 @@ void main() {
     await pumpContent(tester, vm);
 
     expect(find.byType(RatingsRow), findsOneWidget);
-    expect(find.text('7.8'), findsOneWidget);
+    expect(find.text('7,8'), findsOneWidget);
     expect(find.text('91%'), findsOneWidget);
   });
 
@@ -272,7 +272,7 @@ void main() {
 
     // Community rides in as 'stars', which the picker left out.
     expect(find.text('91%'), findsOneWidget);
-    expect(find.text('7.8'), findsNothing);
+    expect(find.text('7,8'), findsNothing);
   });
 
   testWidgets('the label and badge switches reach the hero', (tester) async {

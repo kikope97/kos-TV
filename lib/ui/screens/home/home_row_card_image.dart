@@ -7,6 +7,7 @@ import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/artwork_request_size.dart';
 import '../../../util/platform_detection.dart';
+import '../../../util/playback_time_label.dart';
 import '../../../util/tmdb_thumb.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/modern_row.dart';
@@ -668,8 +669,6 @@ String homeRowModernMetadataLine(AggregatedItem item) {
 String _formatRuntime(Duration? runtime) {
   final totalMinutes = runtime?.inMinutes ?? 0;
   if (totalMinutes <= 0) return '';
-  final hours = totalMinutes ~/ 60;
-  final minutes = totalMinutes % 60;
-  if (hours == 0) return '${minutes}m';
-  return minutes == 0 ? '${hours}h' : '${hours}h ${minutes}m';
+  // Kos TV: in the app's language, the same as the banner and the detail page.
+  return formatRuntimeShort(Duration(minutes: totalMinutes));
 }

@@ -34,6 +34,7 @@ import '../../../util/game_core_licenses.dart';
 import '../../../util/game_cores.dart';
 import '../../../util/game_library.dart';
 import '../../../util/platform_detection.dart';
+import '../../../util/rating_format.dart';
 import '../../../util/tv_image_cache_stub.dart'
     if (dart.library.io) '../../../util/tv_image_cache_io.dart';
 
@@ -1972,7 +1973,7 @@ class _Facts extends StatelessWidget {
         (l10n.kostvGameFranchise, v),
       if (game.region case final v? when v.isNotEmpty) (l10n.kostvGameRegion, v),
       if (game.rating case final v?)
-        (l10n.kostvGameRating, '${v.toStringAsFixed(1)} / 5'),
+        (l10n.kostvGameRating, '${formatRatingValue(v, l10n.localeName)} / 5'),
       if (game.sizeBytes > 0) (l10n.kostvGameSize, _formatBytes(game.sizeBytes)),
       if (game.bios.isNotEmpty)
         ('BIOS', game.bios.map((b) => b.fileName).join(', ')),

@@ -8,6 +8,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 import '../../data/repositories/tmdb_repository.dart';
 import '../../l10n/app_localizations.dart';
 import '../../util/platform_detection.dart';
+import '../../util/rating_format.dart';
 import 'adaptive/sf_symbol.dart';
 import 'bounded_network_image.dart';
 import 'focus/focusable_wrapper.dart';
@@ -21,7 +22,7 @@ double get _cardWidth => PlatformDetection.useMobileUi ? 260 : 320;
 
 String _ratingText(double rating) => rating == rating.roundToDouble()
     ? rating.toInt().toString()
-    : rating.toStringAsFixed(1);
+    : formatRatingValue(rating);
 
 /// The score and date under a reviewer's name, like "8 / 10 · Jun 9, 2018".
 String reviewMeta(BuildContext context, TmdbReview review) => [

@@ -13,6 +13,7 @@ import '../../util/focus/key_event_utils.dart';
 import '../../util/home_refresh_helper.dart';
 import '../../util/image_mime.dart';
 import '../../util/platform_detection.dart';
+import '../../util/rating_format.dart';
 import '../../auth/repositories/user_repository.dart';
 import '../../auth/repositories/session_repository.dart';
 import 'package:dio/dio.dart';
@@ -2697,7 +2698,7 @@ class _ChangeArtworkDialogState extends State<ChangeArtworkDialog> {
                     ),
                     const SizedBox(width: 2),
                     Text(
-                      votes != null ? '$votes' : rating.toStringAsFixed(1),
+                      votes != null ? '$votes' : formatRatingValue(rating),
                       style: const TextStyle(
                         fontSize: 10,
                         color: Colors.white38,

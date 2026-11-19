@@ -1065,10 +1065,10 @@ void main() {
       await pumpPreview(tester, controller);
 
       expect(find.byType(RatingsRow), findsOneWidget);
-      expect(find.text('3.9/5'), findsOneWidget);
+      expect(find.text('3,9/5'), findsOneWidget);
       expect(find.text('87%'), findsNothing);
       // The media bar never shows the viewer's own rating.
-      expect(find.text('8.0'), findsNothing);
+      expect(find.text('8,0'), findsNothing);
       expect(
         tester.getTopLeft(find.text(l10n.letterboxd)).dx,
         lessThan(tester.getTopLeft(find.text(l10n.imdb)).dx),
@@ -1082,7 +1082,7 @@ void main() {
       controller.clearTry('mediaBarEnableAdditionalRatings');
       await pumpPreview(tester, controller);
       expect(find.text('87%'), findsOneWidget);
-      expect(find.text('3.9/5'), findsNothing);
+      expect(find.text('3,9/5'), findsNothing);
 
       controller
         ..focus(
@@ -1094,7 +1094,7 @@ void main() {
         ..tryValue('pref_home_rows_style', HomeRowsStyle.v2);
       await pumpPreview(tester, controller);
       expect(find.byType(RatingsRow), findsOneWidget);
-      expect(find.text('8.0'), findsOneWidget);
+      expect(find.text('8,0'), findsOneWidget);
 
       controller
         ..focus(

@@ -27,6 +27,8 @@ import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/grid_focus_node_mixin.dart';
 import '../../../util/focus/grid_section_target.dart';
 import '../../../util/platform_detection.dart';
+import '../../../util/playback_time_label.dart';
+import '../../../util/rating_format.dart';
 import '../../navigation/destinations.dart';
 import '../../navigation/route_lifecycle_observer.dart';
 import '../../widgets/alphabet_scrub_rail.dart';
@@ -2228,19 +2230,11 @@ class _LibraryBrowseScreenState extends State<LibraryBrowseScreen>
     if (item.productionYear != null) parts.add('${item.productionYear}');
     if (item.officialRating != null) parts.add(item.officialRating!);
     final rt = item.runtime;
-    if (rt != null) {
-      final h = rt.inHours;
-      final m = rt.inMinutes % 60;
-      if (h > 0) {
-        parts.add('${h}h ${m}m');
-      } else {
-        parts.add('${m}m');
-      }
-    }
+    if (rt != null) parts.add(formatRuntimeShort(rt));
     final resolution = item.videoResolution;
     if (resolution != null) parts.add('• $resolution');
     if (item.communityRating != null) {
-      parts.add('★ ${item.communityRating!.toStringAsFixed(1)}');
+      parts.add('★ ${formatRatingValue(item.communityRating!)}');
     }
     return parts.isEmpty ? null : parts.join('  ');
   }
@@ -2607,10 +2601,7 @@ class _MetadataRow extends StatelessWidget {
     if (item.type != 'Series') {
       final rt = item.runtime;
       if (rt != null) {
-        final h = rt.inHours;
-        final m = rt.inMinutes % 60;
-        final timeStr = h > 0 ? '${h}h ${m}m' : '${m}m';
-        children.add(_infoText(timeStr));
+        children.add(_infoText(formatRuntimeShort(rt)));
       }
     }
 

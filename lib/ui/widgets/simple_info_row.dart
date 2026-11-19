@@ -3,6 +3,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../data/models/aggregated_item.dart';
 import '../../util/tv_ui_scale.dart';
+import '../../util/playback_time_label.dart';
 import '../../util/episode_code.dart';
 
 final _textShadows = [
@@ -47,9 +48,7 @@ class SimpleInfoRow extends StatelessWidget {
 
       final runtime = item.runtime;
       if (runtime != null && runtime.inMinutes > 0 && item.type != 'Series') {
-        final hours = runtime.inHours;
-        final minutes = runtime.inMinutes.remainder(60);
-        children.add(_text(hours > 0 ? '${hours}h ${minutes}m' : '${minutes}m'));
+        children.add(_text(formatRuntimeShort(runtime)));
       }
 
       final resolution = item.videoResolution;

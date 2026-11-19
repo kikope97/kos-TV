@@ -10,6 +10,7 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../../preference/detail_section_layout.dart';
 import '../../../../preference/user_preferences.dart';
 import '../../../../util/media_source_summary.dart';
+import '../../../../util/playback_time_label.dart';
 import '../../../../util/focus/dpad_keys.dart';
 import '../../../widgets/detail_reviews.dart';
 import '../../../widgets/focus/focusable_toolbar_button.dart';
@@ -80,13 +81,8 @@ class SpotlightCardSpec {
 }
 
 /// A runtime for a card subtitle or the hero's metadata row: "1h 32m", "2h",
-/// or "48m".
-String spotlightRuntimeLabel(Duration d) {
-  final h = d.inHours;
-  final m = d.inMinutes % 60;
-  if (h > 0) return m > 0 ? '${h}h ${m}m' : '${h}h';
-  return '${m}m';
-}
+/// or "48m". Kos TV: in the app's language («1 h 32 min» in Spanish).
+String spotlightRuntimeLabel(Duration d) => formatRuntimeShort(d);
 
 /// Builds the Spotlight summary cards for [item] from the view model's
 /// current state. Sections the viewer switched off in the detail sections

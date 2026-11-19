@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../l10n/app_localizations.dart';
+import '../l10n/current_app_localizations.dart';
 import '../preference/preference_constants.dart';
 import 'clock_format.dart';
 
@@ -17,16 +18,23 @@ String formatPlaybackDuration(Duration value) {
 }
 
 /// Formats a runtime the way a detail screen shows it, e.g. `1h 23m` or `45m`.
-String formatRuntimeShort(Duration value) {
+///
+/// Kos TV: in the app's language («1 h 23 min», «45 min», «2 h» in Spanish),
+/// so every page, card and button reads a length the same way as the banner.
+/// [l10n] defaults to the language the app is shown in.
+String formatRuntimeShort(Duration value, [AppLocalizations? l10n]) {
   final total = value.isNegative ? Duration.zero : value;
   final hours = total.inHours;
   final minutes = total.inMinutes.remainder(60);
+  final strings = l10n ?? currentAppLocalizations();
 
   if (hours == 0) {
-    return '${minutes}m';
+    return strings.kostvRuntimeMinutes(minutes);
   }
 
-  return minutes > 0 ? '${hours}h ${minutes}m' : '${hours}h';
+  return minutes > 0
+      ? strings.kostvHeroRuntime(hours, minutes)
+      : strings.kostvRuntimeHours(hours);
 }
 
 /// Wall-clock time the item finishes at, e.g. `Ends at 21:45`.

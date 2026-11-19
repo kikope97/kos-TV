@@ -77,6 +77,8 @@ import '../../widgets/detail_reviews.dart';
 import '../../widgets/trailer_picker.dart';
 import '../../widgets/progress_snack_bar.dart';
 import '../../../util/remote_subtitle_labels.dart';
+import '../../../util/playback_time_label.dart';
+import '../../../util/rating_format.dart';
 import '../../../util/subtitle_appearance_schedule.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
@@ -4427,9 +4429,7 @@ class DetailMetadataRow extends StatelessWidget {
                 parts.add(_text(theme, l10n.seasonCount(count)));
               }
             } else if (runtime != null) {
-              final h = runtime.inHours;
-              final m = runtime.inMinutes.remainder(60);
-              parts.add(_text(theme, h > 0 ? '${h}h ${m}m' : '${m}m'));
+              parts.add(_text(theme, formatRuntimeShort(runtime, l10n)));
               final use24 = prefs.get(UserPreferences.use24HourClock);
               final endsAt = _endsAt(item, runtime, use24Hour: use24);
               if (endsAt != null) {
@@ -7373,18 +7373,10 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
         final remainingMinutes =
         (remaining.inSeconds / 60).ceil();
 
-        if (remainingMinutes >= 60) {
-          final hours = remainingMinutes ~/ 60;
-          final minutes = remainingMinutes % 60;
-
-          final formatted = minutes > 0
-              ? '${hours}h ${minutes}m'
-              : '${hours}h';
-
-          remainingLabel = l10n.timeRemaining(formatted);
-        } else if (remainingMinutes > 0) {
-          remainingLabel =
-              l10n.timeRemaining('${remainingMinutes}m');
+        if (remainingMinutes > 0) {
+          remainingLabel = l10n.timeRemaining(
+            formatRuntimeShort(Duration(minutes: remainingMinutes), l10n),
+          );
         }
       }
 
@@ -7937,10 +7929,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
 
   String _formatResumePosition(Duration? position) {
     if (position == null) return '0:00';
-    final h = position.inHours;
-    final m = position.inMinutes.remainder(60);
-    if (h > 0) return '${h}h ${m}m';
-    return '${m}m';
+    return formatRuntimeShort(position);
   }
 
   Set<DetailAdminAction> _adminActionsFor(AggregatedItem item) =>
@@ -12527,7 +12516,7 @@ class _PersonalRatingActionIcon extends StatelessWidget {
                 ? '–'
                 : rating == rating!.roundToDouble()
                 ? rating!.toInt().toString()
-                : rating!.toString(),
+                : formatRatingValue(rating!),
             style: TextStyle(
               color: color,
               fontWeight: FontWeight.w800,
@@ -15225,11 +15214,7 @@ class _EpisodeListCardState extends State<_EpisodeListCard>
     final desktopScale = _desktopUiScale();
     final epNum = ep.indexNumber;
     final runtime = ep.runtime;
-    final runtimeText = runtime != null
-        ? (runtime.inHours > 0
-              ? '${runtime.inHours}h ${runtime.inMinutes.remainder(60)}m'
-              : '${runtime.inMinutes}m')
-        : null;
+    final runtimeText = runtime != null ? formatRuntimeShort(runtime) : null;
     final prefs = GetIt.instance<UserPreferences>();
     final focusColor = Color(prefs.get(UserPreferences.focusColor).colorValue);
     final maxH = widget.isMobile ? 250 : (250 * desktopScale).round();
@@ -15766,11 +15751,7 @@ class DetailEpisodeCardState extends State<DetailEpisodeCard>
     final desktopScale = _desktopUiScale();
     final epNum = episode.indexNumber;
     final runtime = episode.runtime;
-    final runtimeText = runtime != null
-        ? (runtime.inHours > 0
-              ? '${runtime.inHours}h ${runtime.inMinutes.remainder(60)}m'
-              : '${runtime.inMinutes}m')
-        : null;
+    final runtimeText = runtime != null ? formatRuntimeShort(runtime) : null;
 
     final prefs = GetIt.instance<UserPreferences>();
     final focusColor = Color(prefs.get(UserPreferences.focusColor).colorValue);
@@ -17469,9 +17450,7 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
     final runtimeText = runtime != null
         ? (isAudio
               ? '${runtime.inMinutes}:${(runtime.inSeconds % 60).toString().padLeft(2, '0')}'
-              : (runtime.inHours > 0
-                    ? '${runtime.inHours}h ${runtime.inMinutes.remainder(60)}m'
-                    : '${runtime.inMinutes}m'))
+              : formatRuntimeShort(runtime))
         : null;
 
     final trackNumber = widget.isPlaylist

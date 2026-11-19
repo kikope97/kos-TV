@@ -6,6 +6,7 @@ import '../../data/models/aggregated_item.dart';
 import '../../data/services/rating_icon_provider.dart';
 import '../../preference/preference_constants.dart';
 import '../../preference/user_preferences.dart';
+import '../../util/rating_format.dart';
 import '../../util/tv_ui_scale.dart';
 
 final _textShadows = [
@@ -132,9 +133,9 @@ class RatingsRow extends StatelessWidget {
       );
     }
     if (style == PersonalRatingStyle.stars) {
-      return '${(value / 2).toStringAsFixed(1)}/5';
+      return '${formatRatingValue(value / 2)}/5';
     }
-    return value.toStringAsFixed(1);
+    return formatRatingValue(value);
   }
 
   @override

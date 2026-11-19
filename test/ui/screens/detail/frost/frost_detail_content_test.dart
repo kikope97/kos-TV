@@ -402,6 +402,6 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('IMDB'), findsNWidgets(2));
-    expect(find.text('7.9'), findsNWidgets(2));
+    expect(find.text('7,9'), findsNWidgets(2));
   });
 }
