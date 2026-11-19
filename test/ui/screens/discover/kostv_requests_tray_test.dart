@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -134,6 +135,55 @@ void main() {
     await settle(tester);
     expect(fake.requests, isEmpty);
     expect(find.text('Aún no has solicitado nada'), findsOneWidget);
+    await finish(tester);
+  });
+
+  // Kos TV: on a narrow phone the time goes under a title that wouldn't fit
+  // beside it, so the title isn't cut for it; a short one keeps it beside.
+  testWidgets('phone: a long title gets the line, the time goes under it', (
+    tester,
+  ) async {
+    // Accepted at once: no «Retirar» at the end of the rows.
+    fake = FakeStremfinLife();
+    fake.answer('POST', '/requests', {'type': 'movie', 'tmdb_id': 920});
+    fake.answer('POST', '/requests', {'type': 'movie', 'tmdb_id': 921});
+    final ago = DateTime.now()
+        .subtract(const Duration(minutes: 33))
+        .toUtc()
+        .toIso8601String();
+    final ids = fake.requests.keys.toList();
+    fake.requests[ids.first]!
+      ..['display_title'] = 'Estrenos'
+      ..['updated_at'] = ago;
+    fake.requests[ids.last]!
+      ..['display_title'] = 'Cars'
+      ..['updated_at'] = ago;
+    await start(tester, phone: true);
+    await settle(tester);
+    await openTray(tester);
+
+    final long = find.text('Estrenos');
+    final short = find.text('Cars');
+    final times = find.text('hace 33 min');
+    expect(long, findsOneWidget);
+    expect(short, findsOneWidget);
+    expect(times, findsNWidgets(2));
+    // The long title in full, with its time under it.
+    expect(
+      tester.renderObject<RenderParagraph>(long).didExceedMaxLines,
+      isFalse,
+    );
+    final rows = [
+      for (final element in times.evaluate())
+        tester.getTopLeft(find.byWidget(element.widget)),
+    ];
+    final longAt = tester.getTopLeft(long);
+    final shortAt = tester.getTopLeft(short);
+    Offset near(Offset title) => rows.reduce(
+      (a, b) => (a.dy - title.dy).abs() < (b.dy - title.dy).abs() ? a : b,
+    );
+    expect(near(longAt).dy, greaterThan(longAt.dy + 10));
+    expect((near(shortAt).dy - shortAt.dy).abs(), lessThan(10));
     await finish(tester);
   });
 

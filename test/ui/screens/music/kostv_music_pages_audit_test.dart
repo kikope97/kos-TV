@@ -74,4 +74,57 @@ void main() {
       KostvMusicBadge.onItsWay,
     );
   });
+
+  // Kos TV: an album's page opened on a TV: the focus on its main button
+  // (in the header) keeps the page at its top, with the menu and the cover
+  // in sight; a song further down still comes to the middle.
+  for (final fromTop in [true, false]) {
+    testWidgets(
+      'a header button with the focus ${fromTop ? 'keeps the page at its top' : 'comes to the middle'}',
+      (tester) async {
+        tester.view.physicalSize = const Size(1280, 720);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final controller = ScrollController();
+        addTearDown(controller.dispose);
+        final song = FocusNode();
+        addTearDown(song.dispose);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: ListView(
+                controller: controller,
+                children: [
+                  const SizedBox(height: 420),
+                  KostvMusicPressable(
+                    autofocus: true,
+                    revealFromTop: fromTop,
+                    onTap: () {},
+                    builder: (_, _) => const SizedBox(height: 60),
+                  ),
+                  for (var i = 0; i < 20; i++)
+                    KostvMusicPressable(
+                      focusNode: i == 4 ? song : null,
+                      onTap: () {},
+                      builder: (_, _) => const SizedBox(height: 60),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        if (fromTop) {
+          expect(controller.offset, 0);
+        } else {
+          expect(controller.offset, greaterThan(0));
+        }
+
+        // A song further down comes to the middle either way.
+        song.requestFocus();
+        await tester.pumpAndSettle();
+        expect(controller.offset, greaterThan(200));
+      },
+    );
+  }
 }
