@@ -25,11 +25,6 @@ class GlassSettings {
 
   static GlassTier tier = GlassTier.solid;
 
-  /// Whether the root GlassBackdrop may animate. The app leaves it off on
-  /// every tier because the drift redraws the full-screen bloom stack each
-  /// frame, which was a major thermal cost.
-  static bool animatedBackdrop = false;
-
   /// When true, blur tiers delegate the frosted layer of every pane to the
   /// liquid_glass_widgets renderer instead of a raw BackdropFilter, with
   /// quality governed by the app's GlassAdaptiveScope. Pushed by

@@ -71,10 +71,5 @@ class GlassCapability {
     // weak TV boxes, web, and the reduced preference.
     GlassSettings.usePackageRenderer = !useLegacyGlass &&
         (tier == GlassTier.liquid || tier == GlassTier.frost);
-    // The 16s backdrop drift redrew the full-screen bloom stack every frame
-    // and was the single largest continuous GPU draw on the liquid tier, a
-    // major contributor to iPhones running hot on the glass theme. The
-    // backdrop stays static on every tier now.
-    GlassSettings.animatedBackdrop = false;
   }
 }

@@ -281,9 +281,11 @@ class _SpeedSheetState extends State<_SpeedSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    String statusText = '';
+    var fineTuneText = l10n.kostvAudiobookFineTune;
     if (_sliderFocusNode.hasFocus) {
-      statusText = _sliderEditing ? ' (Adjusting)' : ' (Press OK to Adjust)';
+      fineTuneText = _sliderEditing
+          ? l10n.kostvAudiobookFineTuneAdjusting
+          : l10n.kostvAudiobookFineTunePressOk;
     }
 
     return Padding(
@@ -400,7 +402,7 @@ class _SpeedSheetState extends State<_SpeedSheet> {
               Row(
                 children: [
                   Text(
-                    'Fine Tune$statusText',
+                    fineTuneText,
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -513,8 +515,10 @@ class _SleepSheet extends StatelessWidget {
       builder: (context, _) {
         final titleText = controller.isActive
             ? (controller.isPaused
-                ? 'Sleep Timer Paused — Time Remaining: ${formatAudiobookCountdown(controller.remaining)}'
-                : 'Sleep Mode Activated — Time Remaining: ${formatAudiobookCountdown(controller.remaining)}')
+                ? l10n.kostvAudiobookSleepPausedTitle(
+                    formatAudiobookCountdown(controller.remaining))
+                : l10n.kostvAudiobookSleepActiveTitle(
+                    formatAudiobookCountdown(controller.remaining)))
             : l10n.audiobookSleepTimer;
 
         return Padding(
@@ -561,7 +565,9 @@ class _SleepSheet extends StatelessWidget {
                               ),
                               const SizedBox(width: 6),
                               Text(
-                                controller.isPaused ? 'Resume Timer' : 'Pause Timer',
+                                controller.isPaused
+                                    ? l10n.kostvAudiobookResumeTimer
+                                    : l10n.kostvAudiobookPauseTimer,
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
@@ -598,9 +604,9 @@ class _SleepSheet extends StatelessWidget {
                                 color: Colors.red.withValues(alpha: 0.85),
                               ),
                               const SizedBox(width: 6),
-                              const Text(
-                                'Stop Timer',
-                                style: TextStyle(
+                              Text(
+                                l10n.kostvAudiobookStopTimer,
+                                style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.redAccent,

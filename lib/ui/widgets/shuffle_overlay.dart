@@ -150,11 +150,7 @@ class _ShuffleOverlayState extends State<_ShuffleOverlay> {
     Object? error,
     StackTrace? stackTrace,
   }) {
-    final _ = message;
-    final __ = level;
-    final ___ = context;
-    final ____ = error;
-    final _____ = stackTrace;
+    // Kos TV: left as a no-op on purpose; the shuffle trace is not logged.
   }
 
   String _describeError(Object error) {
@@ -586,7 +582,7 @@ class _ShuffleOverlayState extends State<_ShuffleOverlay> {
 
   String _heroTagline(AggregatedItem? item) {
     if (item == null) {
-      return 'Shuffle something new.';
+      return AppLocalizations.of(context).kostvShuffleTaglineEmpty;
     }
 
     final overview = (item.overview ?? '').trim();

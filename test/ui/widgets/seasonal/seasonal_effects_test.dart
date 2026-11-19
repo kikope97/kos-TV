@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -167,6 +168,48 @@ void main() {
 
       await tester.pumpWidget(_host('snow', reducedFrameRate: true));
       expect(await _timerAsksForFrames(tester), isTrue);
+    });
+  });
+
+  group('pointer follower', () {
+    Widget pointerHost() => const MediaQuery(
+      data: MediaQueryData(size: Size(800, 600), devicePixelRatio: 2),
+      child: Directionality(
+        textDirection: TextDirection.ltr,
+        child: SeasonalPointer(
+          effect: 'halloween',
+          enabled: true,
+          child: SizedBox.expand(),
+        ),
+      ),
+    );
+
+    testWidgets('asks for frames only while there is a follower to draw', (
+      tester,
+    ) async {
+      await tester.pumpWidget(pointerHost());
+      expect(
+        await _keepsDrawing(tester),
+        isFalse,
+        reason: 'no mouse over Home yet',
+      );
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: const Offset(100, 100));
+      await mouse.moveTo(const Offset(200, 200));
+      expect(await _keepsDrawing(tester), isTrue);
+
+      // The mouse leaves: the follower fades out and the clock stops.
+      await mouse.moveTo(const Offset(900, 900));
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(await _keepsDrawing(tester), isFalse);
+
+      // And it comes back with the mouse.
+      await mouse.moveTo(const Offset(300, 300));
+      expect(await _keepsDrawing(tester), isTrue);
     });
   });
 }

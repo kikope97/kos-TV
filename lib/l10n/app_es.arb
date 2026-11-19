@@ -15112,5 +15112,72 @@
     "kostvBookGenreWesterns": "Del Oeste",
     "@kostvBookGenreWesterns": {
         "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvArtworkPreviewTitle": "Vista previa: {provider}",
+    "@kostvArtworkPreviewTitle": {
+        "description": "Kos TV: change artwork dialog: title of the full-size preview of an image, with the source it comes from",
+        "placeholders": {
+            "provider": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvShuffleTaglineEmpty": "Algo nuevo, al azar.",
+    "@kostvShuffleTaglineEmpty": {
+        "description": "Kos TV: shuffle overlay: the line under the title when there is no item to describe yet"
+    },
+    "kostvAudiobookFineTune": "Ajuste fino",
+    "@kostvAudiobookFineTune": {
+        "description": "Kos TV: audiobook speed sheet: label of the fine speed slider"
+    },
+    "kostvAudiobookFineTuneAdjusting": "Ajuste fino (ajustando)",
+    "@kostvAudiobookFineTuneAdjusting": {
+        "description": "Kos TV: audiobook speed sheet: the fine speed slider while the remote is changing it"
+    },
+    "kostvAudiobookFineTunePressOk": "Ajuste fino (pulsa OK para ajustar)",
+    "@kostvAudiobookFineTunePressOk": {
+        "description": "Kos TV: audiobook speed sheet: the fine speed slider when it has the remote's focus"
+    },
+    "kostvAudiobookSleepPausedTitle": "Temporizador en pausa · Tiempo restante: {remaining}",
+    "@kostvAudiobookSleepPausedTitle": {
+        "description": "Kos TV: audiobook sleep timer sheet title while the timer is paused",
+        "placeholders": {
+            "remaining": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvAudiobookSleepActiveTitle": "Temporizador activado · Tiempo restante: {remaining}",
+    "@kostvAudiobookSleepActiveTitle": {
+        "description": "Kos TV: audiobook sleep timer sheet title while the timer runs",
+        "placeholders": {
+            "remaining": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvAudiobookResumeTimer": "Reanudar temporizador",
+    "@kostvAudiobookResumeTimer": {
+        "description": "Kos TV: audiobook sleep timer sheet button"
+    },
+    "kostvAudiobookPauseTimer": "Pausar temporizador",
+    "@kostvAudiobookPauseTimer": {
+        "description": "Kos TV: audiobook sleep timer sheet button"
+    },
+    "kostvAudiobookStopTimer": "Detener temporizador",
+    "@kostvAudiobookStopTimer": {
+        "description": "Kos TV: audiobook sleep timer sheet button"
+    },
+    "kostvAudiobookBookmarkTitle": "Marcador {number}: {label}",
+    "@kostvAudiobookBookmarkTitle": {
+        "description": "Kos TV: audiobook drawer: a bookmark in the list, its number and its label",
+        "placeholders": {
+            "number": {
+                "type": "int"
+            },
+            "label": {
+                "type": "String"
+            }
+        }
     }
 }

@@ -1190,10 +1190,18 @@ class _IdentifyDialogState extends State<IdentifyDialog> {
                             borderRadius: AppRadius.circular(6),
                             child: imageUrl != null && imageUrl.isNotEmpty
                                 ? Image.network(
-                                    imageUrl,
+                                    identifyResultImageUrl(imageUrl),
                                     headers: serverImageHeaders,
                                     width: 50,
                                     height: 75,
+                                    // Decoded at the painted size: the
+                                    // results can be full-size posters.
+                                    cacheWidth:
+                                        (50 *
+                                                MediaQuery.devicePixelRatioOf(
+                                                  context,
+                                                ))
+                                            .round(),
                                     fit: BoxFit.cover,
                                     errorBuilder: (_, _, _) => Container(
                                       width: 50,
@@ -1293,4 +1301,14 @@ class _IdField {
   final String name;
   final String? type;
   final controller = TextEditingController();
+}
+
+/// TMDB hands its result posters over at their original size, a couple of
+/// thousand pixels wide, for a thumbnail 50 wide. Asks for its smallest
+/// poster size that still covers that at 3x, as the change artwork dialog
+/// does for its previews.
+@visibleForTesting
+String identifyResultImageUrl(String url) {
+  if (!url.contains('image.tmdb.org/t/p/original/')) return url;
+  return url.replaceFirst('/t/p/original/', '/t/p/w154/');
 }

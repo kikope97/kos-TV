@@ -36,7 +36,8 @@ void main() {
       matching: find.byType(FadeTransition),
     );
 
-    final fade = tester.widget<FadeTransition>(fadeFinder);
+    // The incoming layer is the last one; the one under it stays opaque.
+    final fade = tester.widget<FadeTransition>(fadeFinder.last);
 
     expect(
       fade.opacity.value,
@@ -89,6 +90,93 @@ void main() {
     expect(find.text('b'), findsOneWidget);
     expect(find.text('a'), findsNothing);
   });
+
+  testWidgets('keeps the incoming backdrop when its fade ends', (tester) async {
+    var created = 0;
+    Widget counted(String? url) => MaterialApp(
+      home: FullscreenBackdropSwitcher(
+        imageUrl: url,
+        duration: const Duration(milliseconds: 300),
+        imageBuilder: (url) =>
+            _CountedLayer(label: url, onCreate: () => created++),
+      ),
+    );
+
+    await tester.pumpWidget(counted('a'));
+    expect(created, 1);
+
+    await tester.pumpWidget(counted('b'));
+    await tester.pump();
+    expect(created, 2);
+
+    await tester.pumpAndSettle();
+    expect(find.text('a'), findsNothing);
+    expect(find.text('b'), findsOneWidget);
+    expect(
+      created,
+      2,
+      reason: 'the finished fade must not build the new backdrop again',
+    );
+  });
+
+  testWidgets('holds the old backdrop until the new one has painted', (
+    tester,
+  ) async {
+    final image = await tester.runAsync(() => createTestImage());
+    final loaded = <String>{'a'};
+    Widget layered(String? url) => MaterialApp(
+      home: FullscreenBackdropSwitcher(
+        imageUrl: url,
+        duration: const Duration(milliseconds: 300),
+        imageBuilder: (url) => Stack(
+          children: [
+            Text(url),
+            RawImage(image: loaded.contains(url) ? image : null),
+          ],
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(layered('a'));
+    await tester.pumpWidget(layered('b'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('a'),
+      findsOneWidget,
+      reason: 'b has not loaded, so a stays underneath it',
+    );
+    expect(find.text('b'), findsOneWidget);
+
+    loaded.add('b');
+    await tester.pumpWidget(layered('b'));
+    await tester.pump(const Duration(milliseconds: 150));
+
+    expect(find.text('a'), findsNothing);
+    expect(find.text('b'), findsOneWidget);
+    image?.dispose();
+  });
+}
+
+class _CountedLayer extends StatefulWidget {
+  final String label;
+  final VoidCallback onCreate;
+
+  const _CountedLayer({required this.label, required this.onCreate});
+
+  @override
+  State<_CountedLayer> createState() => _CountedLayerState();
+}
+
+class _CountedLayerState extends State<_CountedLayer> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onCreate();
+  }
+
+  @override
+  Widget build(BuildContext context) => Text(widget.label);
 }
 
 void _decodeTests() {

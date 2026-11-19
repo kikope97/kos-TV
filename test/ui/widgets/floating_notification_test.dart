@@ -33,4 +33,43 @@ void main() {
     await tester.pump(const Duration(seconds: 8));
     await tester.pumpAndSettle();
   });
+
+  testWidgets('a second notice goes below the first instead of over it', (
+    tester,
+  ) async {
+    late BuildContext context;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (c) {
+            context = c;
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+
+    FloatingNotification.show(context, 'First', 'One', null);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
+    FloatingNotification.show(context, 'Second', 'Two', null);
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    final first = tester.getRect(find.text('First'));
+    final second = tester.getRect(find.text('Second'));
+    expect(second.top, greaterThan(tester.getRect(find.text('One')).bottom));
+    expect(first.top, lessThan(second.top));
+
+    // The first times out; the second stays and moves up into its place.
+    await tester.pump(const Duration(seconds: 4, milliseconds: 500));
+    await tester.pumpAndSettle();
+    expect(find.text('First'), findsNothing);
+    expect(find.text('Second'), findsOneWidget);
+    expect(tester.getRect(find.text('Second')).top, first.top);
+
+    await tester.pump(const Duration(seconds: 8));
+    await tester.pumpAndSettle();
+    expect(find.text('Second'), findsNothing);
+  });
 }

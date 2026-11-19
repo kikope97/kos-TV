@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
 import '../../../data/services/retro_artwork/retro_artwork_activity_gate.dart';
 import '../../../data/services/retro_artwork/retro_artwork_transport.dart';
+import '../baked_blur_image.dart';
 
 /// Protocol-2 artwork rendered from transport-owned compressed bytes.
 ///
@@ -286,19 +286,13 @@ class _RetroArtworkImageState extends State<RetroArtworkImage> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        ClipRect(
-          child: ImageFiltered(
-            imageFilter: ImageFilter.blur(
-              sigmaX: _fillBlurSigma,
-              sigmaY: _fillBlurSigma,
-              tileMode: TileMode.decal,
-            ),
-            child: Image(
-              image: provider,
-              fit: BoxFit.cover,
-              filterQuality: FilterQuality.low,
-            ),
-          ),
+        // Kos TV: blurred once when it loads, not on every frame of a
+        // scrolling row. Cropped to the box first, as the live blur was.
+        BakedBlurImage(
+          image: provider,
+          sigma: _fillBlurSigma,
+          tileMode: TileMode.decal,
+          cropToBox: true,
         ),
         const ColoredBox(color: Color(0x73000000)),
         image,

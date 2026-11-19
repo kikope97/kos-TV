@@ -35480,6 +35480,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Westerns'**
   String get kostvBookGenreWesterns;
+
+  /// Kos TV: change artwork dialog: title of the full-size preview of an image, with the source it comes from
+  ///
+  /// In en, this message translates to:
+  /// **'Preview: {provider}'**
+  String kostvArtworkPreviewTitle(String provider);
+
+  /// Kos TV: shuffle overlay: the line under the title when there is no item to describe yet
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle something new.'**
+  String get kostvShuffleTaglineEmpty;
+
+  /// Kos TV: audiobook speed sheet: label of the fine speed slider
+  ///
+  /// In en, this message translates to:
+  /// **'Fine Tune'**
+  String get kostvAudiobookFineTune;
+
+  /// Kos TV: audiobook speed sheet: the fine speed slider while the remote is changing it
+  ///
+  /// In en, this message translates to:
+  /// **'Fine Tune (Adjusting)'**
+  String get kostvAudiobookFineTuneAdjusting;
+
+  /// Kos TV: audiobook speed sheet: the fine speed slider when it has the remote's focus
+  ///
+  /// In en, this message translates to:
+  /// **'Fine Tune (Press OK to Adjust)'**
+  String get kostvAudiobookFineTunePressOk;
+
+  /// Kos TV: audiobook sleep timer sheet title while the timer is paused
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep Timer Paused — Time Remaining: {remaining}'**
+  String kostvAudiobookSleepPausedTitle(String remaining);
+
+  /// Kos TV: audiobook sleep timer sheet title while the timer runs
+  ///
+  /// In en, this message translates to:
+  /// **'Sleep Mode Activated — Time Remaining: {remaining}'**
+  String kostvAudiobookSleepActiveTitle(String remaining);
+
+  /// Kos TV: audiobook sleep timer sheet button
+  ///
+  /// In en, this message translates to:
+  /// **'Resume Timer'**
+  String get kostvAudiobookResumeTimer;
+
+  /// Kos TV: audiobook sleep timer sheet button
+  ///
+  /// In en, this message translates to:
+  /// **'Pause Timer'**
+  String get kostvAudiobookPauseTimer;
+
+  /// Kos TV: audiobook sleep timer sheet button
+  ///
+  /// In en, this message translates to:
+  /// **'Stop Timer'**
+  String get kostvAudiobookStopTimer;
+
+  /// Kos TV: audiobook drawer: a bookmark in the list, its number and its label
+  ///
+  /// In en, this message translates to:
+  /// **'Bookmark {number}: {label}'**
+  String kostvAudiobookBookmarkTitle(int number, String label);
 }
 
 class _AppLocalizationsDelegate
