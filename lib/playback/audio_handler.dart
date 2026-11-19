@@ -7,7 +7,6 @@ import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:get_it/get_it.dart';
 import 'package:playback_core/playback_core.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:server_core/server_core.dart';
 
 import '../data/models/aggregated_item.dart';
 import '../data/services/audiobook_resume_service.dart';
@@ -17,6 +16,7 @@ import '../util/audio_artwork_url.dart';
 import '../platform/pip_service.dart';
 import '../util/platform_detection.dart';
 import '../preference/user_preferences.dart';
+import '../ui/widgets/music/kostv_now_playing.dart';
 import 'aether_backend.dart';
 import 'car_artwork.dart';
 import 'headless_session_bootstrap.dart';
@@ -340,7 +340,9 @@ class MoonfinAudioHandler extends BaseAudioHandler
             MediaControl.custom(
               androidIcon:
                   s.isShuffled ? 'drawable/ic_shuffle_on' : 'drawable/ic_shuffle',
-              label: s.isShuffled ? 'Shuffle on' : 'Shuffle',
+              label: s.isShuffled
+                  ? currentAppLocalizations().kostvMediaSessionShuffleOn
+                  : currentAppLocalizations().shuffle,
               name: 'toggle_shuffle',
             ),
             MediaControl.custom(
@@ -350,9 +352,12 @@ class MoonfinAudioHandler extends BaseAudioHandler
                 RepeatMode.repeatOne => 'drawable/ic_repeat_one',
               },
               label: switch (q.repeatMode) {
-                RepeatMode.none => 'Repeat off',
-                RepeatMode.repeatAll => 'Repeat all',
-                RepeatMode.repeatOne => 'Repeat one',
+                RepeatMode.none =>
+                  currentAppLocalizations().kostvMediaSessionRepeatOff,
+                RepeatMode.repeatAll =>
+                  currentAppLocalizations().kostvMediaSessionRepeatAll,
+                RepeatMode.repeatOne =>
+                  currentAppLocalizations().kostvMediaSessionRepeatOne,
               },
               name: 'toggle_repeat',
             ),
@@ -432,7 +437,6 @@ class MoonfinAudioHandler extends BaseAudioHandler
   }
 
   MediaItem _mediaItemFor(AggregatedItem item) {
-    final client = _clientFor(item);
     final artUri = audioArtUrl(
       item,
       clientFactory: _clientFactory,
@@ -443,7 +447,7 @@ class MoonfinAudioHandler extends BaseAudioHandler
     if (item.type == 'Episode') {
       artistName = (item.seriesName != null && item.seriesName!.isNotEmpty)
           ? item.seriesName
-          : 'TV Show';
+          : currentAppLocalizations().kostvMediaSessionTvShow;
     } else if (item.type == 'Movie') {
       final directors = item.people
           .where((p) => p['Type'] == 'Director')
@@ -457,7 +461,9 @@ class MoonfinAudioHandler extends BaseAudioHandler
             .map((s) => s['Name'] as String?)
             .whereType<String>()
             .toList();
-        artistName = studios.isNotEmpty ? studios.first : 'Movie';
+        artistName = studios.isNotEmpty
+            ? studios.first
+            : currentAppLocalizations().kostvMediaSessionMovie;
       }
     } else {
       artistName = item.artists.isNotEmpty
@@ -465,22 +471,21 @@ class MoonfinAudioHandler extends BaseAudioHandler
           : item.albumArtist;
     }
 
-    // Wrapped and self-authenticating like the browse art: the car host (and
-    // notification loaders) fetch this without the app's Authorization header.
+    // Wrapped like the browse art, for the car host (and notification
+    // loaders) that can't reach the server themselves. Kos TV: without the
+    // person's token in it, though: the media session is readable by any app
+    // with notification access (and the URI is kept for the resumption
+    // card), and Jellyfin serves item images without signing in (Silo's
+    // come signed already), so the token only ever gave it away.
     return MediaItem(
       id: item.id,
       title: item.name,
       artist: artistName,
       album: item.album,
       duration: item.runtime,
-      artUri: CarArtwork.instance.wrap(carAuthedImageUrl(client, artUri)),
+      artUri: CarArtwork.instance.wrap(artUri),
       extras: {'serverId': item.serverId},
     );
-  }
-
-  MediaServerClient _clientFor(AggregatedItem item) {
-    return _clientFactory.getClientIfExists(item.serverId) ??
-        GetIt.instance<MediaServerClient>();
   }
 
   @override
@@ -491,6 +496,11 @@ class MoonfinAudioHandler extends BaseAudioHandler
     }
     // Empty queue: a car head unit, steering wheel, or Bluetooth device sent
     // play with nothing loaded, so restore the last audio session.
+    //
+    // Kos TV: not on the TV, which has no car. There Android hands the remote's
+    // ⏯ to this session whenever the app lets it pass (nothing sounding), and
+    // the music closed with ✕ came back by itself from ⏯ on Home.
+    if (PlatformDetection.isTV) return;
     final prefs = GetIt.instance<UserPreferences>();
     if (!prefs.get(UserPreferences.resumeLastQueueOnPlay)) return;
     final last = await _lastSessionStore.load();
@@ -622,7 +632,8 @@ class MoonfinAudioHandler extends BaseAudioHandler
     await _playForCar(request);
   }
 
-  static const _unavailableMessage = 'This item is unavailable right now';
+  String get _unavailableMessage =>
+      currentAppLocalizations().kostvCarItemUnavailable;
 
   // A throw here would leave the car on a silent "playing" with nothing to say
   // why. Only a request that got no answer blames the server.
@@ -660,7 +671,7 @@ class MoonfinAudioHandler extends BaseAudioHandler
     _ensureBound();
     final request = await _browse.resolveSearchPlay(query);
     if (request == null) {
-      _pushErrorState('Nothing found for "$query"');
+      _pushErrorState(currentAppLocalizations().kostvCarNothingFound(query));
       return;
     }
     await _playForCar(request);
@@ -698,15 +709,25 @@ class MoonfinAudioHandler extends BaseAudioHandler
   @override
   Future<void> seek(Duration position) async => _manager.seekTo(position);
 
+  // Kos TV: a skip from the notification, the lock screen, headphones or the
+  // car is the person's choice, which «Al acabar la canción» mustn't pause.
   @override
-  Future<void> skipToNext() async => _manager.next();
+  Future<void> skipToNext() async {
+    KostvNowPlaying.instance.noteChosen();
+    await _manager.next();
+  }
 
   @override
-  Future<void> skipToPrevious() async => _manager.previous();
+  Future<void> skipToPrevious() async {
+    KostvNowPlaying.instance.noteChosen();
+    await _manager.previous();
+  }
 
   @override
-  Future<void> skipToQueueItem(int index) async =>
-      _manager.playFromQueue(index);
+  Future<void> skipToQueueItem(int index) async {
+    KostvNowPlaying.instance.noteChosen();
+    await _manager.playFromQueue(index);
+  }
 
   @override
   Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {

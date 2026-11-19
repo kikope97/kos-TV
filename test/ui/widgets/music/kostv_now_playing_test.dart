@@ -31,6 +31,37 @@ class _Manager extends Fake implements PlaybackManager {
 
   @override
   Future<void> pause() async => pauses++;
+
+  final repeated = StreamController<void>.broadcast(sync: true);
+
+  @override
+  Stream<void> get repeatedStream => repeated.stream;
+
+  final bringup = StreamController<PlaybackBringupState>.broadcast(sync: true);
+  PlaybackBringupState current = const PlaybackBringupState.idle();
+
+  void setBringup(PlaybackBringupState state) {
+    current = state;
+    bringup.add(state);
+  }
+
+  @override
+  Stream<PlaybackBringupState> get bringupStateStream => bringup.stream;
+
+  @override
+  PlaybackBringupState get bringupState => current;
+
+  @override
+  Stream<void> get playBlockedStream => const Stream<void>.empty();
+
+  final picked = <int>[];
+  int resumes = 0;
+
+  @override
+  Future<void> playFromQueue(int index) async => picked.add(index);
+
+  @override
+  Future<void> resume() async => resumes++;
 }
 
 AggregatedItem _item(String id, String type) => AggregatedItem(
@@ -114,6 +145,36 @@ void main() {
       });
     });
 
+    // Kos TV: with repeat-one the song starts over with the same id.
+    test('«at the end of this song» pauses a song on repeat-one', () {
+      fakeAsync((async) {
+        final music = KostvNowPlaying.instance..ensureStarted();
+        manager.queueService.setQueue([_item('s1', 'Audio')]);
+        async.flushMicrotasks();
+        music.sleepAfterSong();
+        manager.repeated.add(null);
+        async.flushMicrotasks();
+        expect(manager.pauses, 1);
+        expect(music.sleepsAfterSong, isFalse);
+      });
+    });
+
+    test('a song the person skips to is not paused', () {
+      fakeAsync((async) {
+        final music = KostvNowPlaying.instance..ensureStarted();
+        manager.queueService.setQueue([_item('s1', 'Audio')]);
+        async.flushMicrotasks();
+        music.sleepAfterSong();
+        // What the notification's, the headphones' and the bottom bar's ⏭
+        // now say before moving on.
+        music.noteChosen();
+        manager.queueService.setQueue([_item('s2', 'Audio')]);
+        async.flushMicrotasks();
+        expect(manager.pauses, 0);
+        expect(music.sleepsAfterSong, isTrue);
+      });
+    });
+
     test('a timer taken off never pauses it', () {
       fakeAsync((async) {
         final music = KostvNowPlaying.instance;
@@ -121,6 +182,70 @@ void main() {
         music.setSleep(null);
         async.elapse(const Duration(hours: 1));
         expect(manager.pauses, 0);
+      });
+    });
+  });
+
+  // Kos TV: a song that couldn't start used to leave a paused player whose
+  // ⏯ resumed nothing.
+  group('a song that cannot start', () {
+    test('is marked failed, and ⏯ tries it again', () {
+      fakeAsync((async) {
+        final music = KostvNowPlaying.instance..ensureStarted();
+        manager.queueService.setQueue([
+          _item('s1', 'Audio'),
+          _item('s2', 'Audio'),
+        ], startIndex: 1);
+        async.flushMicrotasks();
+        manager.setBringup(
+          const PlaybackBringupState(
+            phase: PlaybackBringupPhase.failed,
+            itemId: 's2',
+          ),
+        );
+        expect(music.failed, isFalse, reason: 'it may still recover');
+        async.elapse(const Duration(seconds: 2));
+        expect(music.failed, isTrue);
+
+        music.playPause();
+        expect(manager.picked, [1]);
+        expect(manager.resumes, 0);
+        expect(music.failed, isFalse);
+      });
+    });
+
+    test('a recovery in time is not told', () {
+      fakeAsync((async) {
+        final music = KostvNowPlaying.instance..ensureStarted();
+        manager.queueService.setQueue([_item('s1', 'Audio')]);
+        async.flushMicrotasks();
+        manager.setBringup(
+          const PlaybackBringupState(
+            phase: PlaybackBringupPhase.failed,
+            itemId: 's1',
+          ),
+        );
+        manager.setBringup(
+          const PlaybackBringupState(phase: PlaybackBringupPhase.ready),
+        );
+        async.elapse(const Duration(seconds: 2));
+        expect(music.failed, isFalse);
+      });
+    });
+
+    test('a film failing is the video player\'s to tell', () {
+      fakeAsync((async) {
+        final music = KostvNowPlaying.instance..ensureStarted();
+        manager.queueService.setQueue([_item('m1', 'Movie')]);
+        async.flushMicrotasks();
+        manager.setBringup(
+          const PlaybackBringupState(
+            phase: PlaybackBringupPhase.failed,
+            itemId: 'm1',
+          ),
+        );
+        async.elapse(const Duration(seconds: 2));
+        expect(music.failed, isFalse);
       });
     });
   });

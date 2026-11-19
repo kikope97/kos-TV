@@ -7,8 +7,13 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/media_server_client_factory.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/audio_artwork_url.dart';
+import '../../../util/platform_detection.dart';
+import '../../navigation/app_router.dart';
+import '../floating_notification.dart';
+import 'kostv_now_playing_web_session.dart';
 
 /// Kos TV: the music sounding in the app, for the floating player and the
 /// «Reproduciendo» page: which song, whether it plays, and the colours of
@@ -52,6 +57,23 @@ class KostvNowPlaying extends ChangeNotifier {
     } catch (_) {
       // A stand-in player (the tests') without it.
     }
+    try {
+      // Kos TV: a song that couldn't start is told, with a way to try again.
+      _subs.add(manager.bringupStateStream.listen(_bringupChanged));
+      // The browser (Safari on the iPhone) wants a tap to start it.
+      _subs.add(manager.playBlockedStream.listen((_) => _tellBlocked()));
+    } catch (_) {
+      // A stand-in player (the tests') without it.
+    }
+    try {
+      // Kos TV: with repeat-one the song starts over with the same id, which
+      // [_changed] can't tell from it going on.
+      _subs.add(manager.repeatedStream.listen((_) => _songRepeated()));
+    } catch (_) {
+      // A stand-in player (the tests') without it.
+    }
+    // Kos TV: on the web, the browser's lock screen and media keys.
+    attachKostvWebMediaSession(this);
     // Often started while a menu is being built: what it finds is told
     // after that, not in the middle of the build.
     scheduleMicrotask(_changed);
@@ -69,6 +91,9 @@ class KostvNowPlaying extends ChangeNotifier {
     _playing = false;
     setSleep(null);
     _sleepAfterSong = false;
+    _failedId = null;
+    _failureCheck?.cancel();
+    _failureCheck = null;
   }
 
   void _changed() {
@@ -96,6 +121,15 @@ class KostvNowPlaying extends ChangeNotifier {
       _choseAt = null;
     }
     _playing = playing;
+    notifyListeners();
+  }
+
+  /// The song ended by itself and started over (repeat-one): for «Al acabar
+  /// la canción» that is the end of it.
+  void _songRepeated() {
+    if (!_sleepAfterSong || item == null) return;
+    _sleepAfterSong = false;
+    unawaited(_manager?.pause());
     notifyListeners();
   }
 
@@ -136,7 +170,97 @@ class KostvNowPlaying extends ChangeNotifier {
   void playPause() {
     final manager = _manager;
     if (manager == null) return;
+    // Kos TV: a song that couldn't start has nothing to resume: ⏯ tries it
+    // again (the TV's way to, where the notice has no button).
+    if (failed) {
+      retry();
+      return;
+    }
     unawaited(manager.state.isPlaying ? manager.pause() : manager.resume());
+  }
+
+  // --- A song that couldn't start ---
+
+  String? _failedId;
+  Timer? _failureCheck;
+
+  /// The song sounding couldn't start (the server didn't answer, a format
+  /// that won't play…).
+  bool get failed => _failedId != null && _failedId == item?.id;
+
+  void _bringupChanged(PlaybackBringupState state) {
+    if (state.phase != PlaybackBringupPhase.failed) {
+      // Another go at it (a retry, the next song) clears it.
+      if (state.phase.isInProgress ||
+          state.phase == PlaybackBringupPhase.ready) {
+        _failureCheck?.cancel();
+        _failureCheck = null;
+        if (_failedId != null) {
+          _failedId = null;
+          notifyListeners();
+        }
+      }
+      return;
+    }
+    final song = item;
+    if (song == null || song.type != 'Audio') return;
+    if (state.itemId != null && state.itemId != song.id) return;
+    // The player may still get there another way (the server converting
+    // it): only told if it is still failed a moment later.
+    _failureCheck?.cancel();
+    _failureCheck = Timer(const Duration(milliseconds: 1500), () {
+      _failureCheck = null;
+      final manager = _manager;
+      if (manager == null || item?.id != song.id) return;
+      if (manager.bringupState.phase != PlaybackBringupPhase.failed) return;
+      if (manager.state.isPlaying) return;
+      _failedId = song.id;
+      notifyListeners();
+      _tellFailure(song);
+    });
+  }
+
+  void _tellFailure(AggregatedItem song) {
+    final context = appRouter.routerDelegate.navigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+    final l10n = AppLocalizations.of(context);
+    final tv = PlatformDetection.useLeanbackUi;
+    FloatingNotification.show(
+      context,
+      l10n.kostvMusicPlayFailed(song.name),
+      tv ? l10n.kostvMusicPlayFailedTvHint : l10n.kostvMusicPlayFailedHint,
+      null,
+      icon: Icons.music_off_rounded,
+      actions: tv ? const [] : [(l10n.retry, retry)],
+    );
+  }
+
+  void _tellBlocked() {
+    final song = item;
+    if (song == null) return;
+    final context = appRouter.routerDelegate.navigatorKey.currentContext;
+    if (context == null || !context.mounted) return;
+    final l10n = AppLocalizations.of(context);
+    FloatingNotification.show(
+      context,
+      l10n.kostvMusicTapToPlay,
+      l10n.kostvMusicTapToPlayHint,
+      null,
+      icon: Icons.play_circle_outline_rounded,
+      actions: [(l10n.play, () => unawaited(_manager?.resume()))],
+    );
+  }
+
+  /// Tries the song that couldn't start again.
+  void retry() {
+    final manager = _manager;
+    if (manager == null) return;
+    _failedId = null;
+    notifyListeners();
+    noteChosen();
+    final index = manager.queueService.currentIndex;
+    if (index < 0) return;
+    unawaited(manager.playFromQueue(index).catchError((_) {}));
   }
 
   void next() {

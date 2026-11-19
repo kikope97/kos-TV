@@ -20381,4 +20381,49 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvCastReceiverFailed =>
       'El otro aparato no ha podido reproducirlo.';
+
+  @override
+  String get kostvMediaSessionTvShow => 'Serie';
+
+  @override
+  String get kostvMediaSessionMovie => 'Película';
+
+  @override
+  String get kostvMediaSessionShuffleOn => 'Aleatorio activado';
+
+  @override
+  String get kostvMediaSessionRepeatOff => 'Repetir desactivado';
+
+  @override
+  String get kostvMediaSessionRepeatAll => 'Repetir todo';
+
+  @override
+  String get kostvMediaSessionRepeatOne => 'Repetir una';
+
+  @override
+  String get kostvCarItemUnavailable => 'Ahora mismo no está disponible';
+
+  @override
+  String kostvCarNothingFound(String query) {
+    return 'No se ha encontrado nada para «$query»';
+  }
+
+  @override
+  String kostvMusicPlayFailed(String title) {
+    return 'No se ha podido reproducir «$title»';
+  }
+
+  @override
+  String get kostvMusicPlayFailedHint =>
+      'Vuelve a intentarlo con Reintentar o con ⏯.';
+
+  @override
+  String get kostvMusicPlayFailedTvHint => 'Pulsa ⏯ para volver a intentarlo.';
+
+  @override
+  String get kostvMusicTapToPlay => 'Pulsa ⏯ para que empiece a sonar';
+
+  @override
+  String get kostvMusicTapToPlayHint =>
+      'El navegador no deja que la música empiece sola.';
 }
