@@ -26,7 +26,9 @@ En el repositorio hay un ejemplo listo para copiar:
 
 1. Copia `compose.example.yml` como `compose.yml` y `.env.example` como `.env`.
 2. Rellena el `.env` con tus direcciones y la contraseña del panel de
-   administración. El `compose.yml` no hace falta tocarlo: lee todo del `.env`.
+   administración. El `compose.yml` no hace falta tocarlo: lee todo del `.env`
+   (solo si guardas la contraseña en un archivo, con
+   `KOSTV_ADMIN_PASSWORD_FILE`, hay que quitar los `#` de su bloque `secrets`).
 3. Arráncalo:
 
    ```bash
@@ -59,7 +61,9 @@ en la tele. El panel de administración está en `/admin` (por ejemplo
    ```
 
    Mejor una contraseña sin `$`: Portainer y Docker Compose lo toman por el
-   principio de una variable.
+   principio de una variable. En un `.env`, si la lleva, ponla entre comillas
+   simples (`KOSTV_ADMIN_PASSWORD='mi$clave'`): sin ellas, Docker Compose toma
+   `$clave` por una variable y la contraseña cambia.
 4. **Deploy the stack**.
 5. En **Containers → kostv-web → Logs** deben salir las líneas `kostv:` con lo
    configurado (servidor, servicio de peticiones y panel en `/admin`).
@@ -97,7 +101,9 @@ Ya está: `https://kostv.example.com` abre kOS TV para la familia y
 | `KOSTV_REQUESTS_URL` | **Ya no hace falta.** Solo para pasar por el contenedor (en `/stremfin`) mientras Stremfin no acepte llamadas de la web (CORS): el servicio de peticiones tal como lo alcanza el contenedor | La web habla directamente con la dirección que da el complemento |
 | `KOSTV_REQUESTS_VERIFY` | Solo con `KOSTV_REQUESTS_URL`: `off` si el servicio de peticiones usa un certificado propio de la red de casa. Por defecto (`on`) el contenedor comprueba su certificado, como hacen las apps | Se comprueba |
 | `KOSTV_ADMIN_USER` | El usuario del panel de administración | `admin` |
-| `KOSTV_ADMIN_PASSWORD` | Su contraseña, **de al menos 10 caracteres** (con una más corta el contenedor no arranca y lo dice en `docker compose logs`). Mejor aún, `KOSTV_ADMIN_PASSWORD_FILE`: la ruta de un archivo que la contenga (los *secrets* de Docker), así no queda en las variables del contenedor | `/admin` queda cerrado |
+| `KOSTV_ADMIN_PASSWORD` | Su contraseña, **de al menos 10 caracteres** (con una más corta el contenedor no arranca y lo dice en `docker compose logs`). Si lleva `$`, entre comillas simples en el `.env` (ver arriba) | `/admin` queda cerrado |
+| `KOSTV_ADMIN_PASSWORD_FILE` | En vez de la anterior, la ruta de un archivo que contenga la contraseña (los *secrets* de Docker), así no queda en las variables del contenedor. En el `compose.yml` de ejemplo: quita los `#` del bloque `secrets`, guarda la contraseña en `admin_password.txt` junto al `compose.yml` y pon `KOSTV_ADMIN_PASSWORD_FILE=/run/secrets/kostv_admin_password` en el `.env`. En el editor web de Portainer no sirve un archivo junto al compose: ahí, mejor `KOSTV_ADMIN_PASSWORD` | Se usa `KOSTV_ADMIN_PASSWORD` |
+| `KOSTV_TRUSTED_PROXY` | La IP del proxy inverso (Nginx Proxy Manager…) **tal como llega al contenedor**, o un rango, o varias separadas por comas. Si el proxy está en Docker en el mismo servidor, suele bastar `172.16.0.0/12` (las redes de Docker); si está en otro aparato de casa, su IP. Solo entonces se cree la dirección del visitante que manda el proxy (y solo a él), y `/admin` cuenta su límite por cada visitante | `/admin` cuenta su límite por la dirección que llega al contenedor: detrás de un proxy, uno para todos |
 
 Da igual que lleven o no la barra final o `/api/v1`. Una dirección mal escrita
 detiene el contenedor con un mensaje en `docker compose logs`.
@@ -128,7 +134,13 @@ servicios de casa). Al entrar, el navegador pide el usuario y la contraseña de
   `KOSTV_ADMIN_PASSWORD_FILE` no.
 - Admite unas 30 peticiones por minuto; pasado eso responde "demasiadas
   peticiones" hasta que baja el ritmo, para frenar a quien intente adivinarla.
-  Detrás de un proxy, el límite es para todos los que entran por él.
+  Detrás de un proxy, el límite es para todos los que entran por él (y
+  alguien de fuera podría dejar el panel bloqueado un rato a la familia),
+  salvo que el contenedor tenga `KOSTV_TRUSTED_PROXY`: entonces cuenta por
+  cada visitante. La dirección que dice traer una petición solo se cree si
+  viene de ese proxy, así que cambiarla en cada intento no salta el límite.
+- Por `http://IP-del-servidor:25670` el usuario y la contraseña viajan sin
+  cifrar por la red de casa: para el panel, mejor la dirección con https.
 - Sin contraseña, `/admin` queda cerrado.
 - Para salir, cierra el navegador (con este tipo de acceso no hay botón de
   cerrar sesión; llegará con el admin de verdad).
@@ -139,9 +151,6 @@ La web recuerda la sesión, como las apps: al volver a abrirla sigues dentro.
 En un aparato compartido (el ordenador de otra persona, la tele de un hotel),
 **cierra la sesión al terminar** desde el menú de tu perfil >
 «Cerrar sesión», o abre la web en una ventana privada.
-- **Si la contraseña lleva `$`**, ponla entre comillas simples en el `.env`
-  (`KOSTV_ADMIN_PASSWORD='mi$clave'`): sin ellas, Docker Compose toma `$clave`
-  por una variable y la contraseña cambia.
 
 ## Actualizar
 
@@ -149,7 +158,7 @@ Cada versión publicada de kOS TV, y cada prueba, sube también la imagen web:
 
 | Etiqueta | Qué es |
 |---|---|
-| `latest` | Siempre la última imagen compilada, sea una versión publicada o una prueba. Es la que usa el `compose.yml` de arriba |
+| `latest` | Siempre la última imagen compilada, sea una versión publicada o una prueba. Es la que usa el `compose.yml` de arriba. La imagen (y con ella `latest`) solo se sube cuando la publicación de esa versión o prueba ha salido bien |
 | `X.Y.Z` | Una versión publicada concreta, por ejemplo `1.1.0` |
 | `prueba` / `prueba-N` | Las compilaciones de prueba (como los APK de prueba) |
 
@@ -190,7 +199,7 @@ pasará las peticiones igual que hace ahora `/stremfin` con Stremfin.
 Desde la raíz del repositorio:
 
 ```bash
-flutter build web --wasm --release
+flutter build web --wasm --release --no-web-resources-cdn
 docker build -f docker/web/Dockerfile -t kostv-web .
 docker run --rm -p 25670:80 \
   -e KOSTV_SERVER_URL=https://jellyfin.example.com \
@@ -202,6 +211,31 @@ en JavaScript. Los navegadores que aún no lo admiten (Safari antiguo, el
 navegador de algunas teles) cargan solos la versión en JavaScript, que viene
 en la misma imagen. No hace falta configurar nada en el proxy.
 
+El motor de dibujo de la web (la carpeta `canvaskit/`) va en la imagen y se
+carga desde el propio servidor (`--no-web-resources-cdn`), no desde los
+servidores de Google: así la web abre en casa aunque se caiga internet. Solo
+las fuentes de reserva para letras poco comunes siguen viniendo de
+`fonts.gstatic.com`. Un archivo que no existe (`.js`, `.wasm`, `.json`,
+imágenes…) da un 404; solo las rutas de la app vuelven a su página.
+
 Los archivos están en [`docker/web/`](../docker/web/): el `Dockerfile`, la
 configuración de nginx y `40-kostv-config.sh`, que escribe el `config.json` y la
 pasarela a Stremfin al arrancar.
+
+## Al publicar: la firma de los APK
+
+Cada versión y cada prueba comprueban, antes de publicar, que los APK van
+firmados con la clave de kOS TV: si faltan los secretos `ANDROID_KEYSTORE_BASE64`
+o `ANDROID_KEY_ALIAS`, o el APK sale firmado con la clave de depuración de
+Android, la compilación falla en lugar de publicar algo que no se instalaría
+encima de la app de la familia.
+
+Para que además compruebe que es **exactamente** nuestra clave, se puede crear
+la variable del repositorio `KOSTV_SIGNING_SHA256` (en GitHub: **Settings →
+Secrets and variables → Actions → Variables → New repository variable**; no es
+un secreto) con la huella SHA-256 del certificado, con o sin los dos puntos.
+Sale de `keytool -list -v -keystore kostv-release.jks -alias <alias>` (la línea
+`SHA256:`) o de un APK ya publicado, con
+`apksigner verify --print-certs KosTV_AndroidTV.apk` (la línea
+`certificate SHA-256 digest`). Sin la variable, solo se comprueba que no sea la
+clave de depuración.

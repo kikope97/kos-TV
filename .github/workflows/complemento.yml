@@ -38,20 +38,62 @@ jobs:
       DOTNET_NOLOGO: '1'
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
 
+      # Kos TV: reads the catalogue as it is now and decides whether this
+      # version still has to be published. A run that failed after creating
+      # the version's release but before the catalogue listed it can be run
+      # again: the zip is uploaded to that release again and the catalogue
+      # gets it. Only "it doesn't exist" (404) counts as no catalogue: any
+      # other error stops here, or the catalogue would start empty and the
+      # versions already published would drop out of it.
       - name: Comprobar la versión
+        id: check
         run: |
           if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::La versión tiene que ser X.Y.Z.N (por ejemplo 3.1.0.1): $VERSION"
             exit 1
           fi
-          if gh release view "complemento-$VERSION" >/dev/null 2>&1; then
-            echo "::error::Ya hay una publicación complemento-$VERSION."
-            exit 1
+
+          # Prints the release with that tag, or nothing if there is none;
+          # fails on any other error.
+          release_json() {
+            local out
+            if out=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$1" 2>&1); then
+              printf '%s' "$out"
+            elif grep -q 'HTTP 404' <<<"$out"; then
+              return 0
+            else
+              echo "::error::No se ha podido consultar la publicación $1: $out" >&2
+              return 1
+            fi
+          }
+
+          mkdir -p "$RUNNER_TEMP/antes"
+          catalog=$(release_json complemento)
+          if [ -z "$catalog" ]; then
+            echo "Aún no hay catálogo: se empieza uno nuevo."
+          elif jq -e '.assets | any(.name == "manifest.json")' <<<"$catalog" >/dev/null; then
+            gh release download complemento -p manifest.json -D "$RUNNER_TEMP/antes"
+            if jq -e --arg v "$VERSION" 'any(.[].versions[]?; .version == $v)' "$RUNNER_TEMP/antes/manifest.json" >/dev/null; then
+              echo "::error::La versión $VERSION ya está publicada y en el catálogo."
+              exit 1
+            fi
+          else
+            echo "La publicación del catálogo no tiene manifest.json: se empieza uno nuevo."
+          fi
+
+          published=$(release_json "complemento-$VERSION")
+          if [ -n "$published" ]; then
+            echo "::warning::Ya hay una publicación complemento-$VERSION, pero no está en el catálogo (una ejecución anterior falló): se vuelve a subir su zip."
+            echo "existing=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "existing=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Pruebas del complemento
@@ -67,21 +109,20 @@ jobs:
           ZIP="kOS-TV-complemento-$VERSION.zip"
           URL="https://github.com/${GITHUB_REPOSITORY}/releases/download/complemento-$VERSION/$ZIP"
           MD5="$(cat "$RUNNER_TEMP/salida/$ZIP.md5")"
-          mkdir -p "$RUNNER_TEMP/antes"
-          # Starts from an empty catalogue only when there is none yet: if
-          # the download fails otherwise, stop, or the versions already
-          # published would drop out of it.
-          if gh release view complemento >/dev/null 2>&1; then
-            gh release download complemento -p manifest.json -D "$RUNNER_TEMP/antes"
-          else
-            echo "Aún no hay catálogo: se empieza uno nuevo."
-          fi
+          # The catalogue as it was, downloaded by "Comprobar la versión"
+          # (none if there was none yet).
           python3 complemento/catalogo.py "$RUNNER_TEMP/antes/manifest.json" "$VERSION" "$URL" "$MD5" \
             "$CHANGELOG" "$RUNNER_TEMP/salida/manifest.json"
 
       - name: Publicar la versión
+        env:
+          EXISTING: ${{ steps.check.outputs.existing }}
         run: |
           ZIP="$RUNNER_TEMP/salida/kOS-TV-complemento-$VERSION.zip"
+          if [ "$EXISTING" = true ]; then
+            gh release upload "complemento-$VERSION" "$ZIP" --clobber
+            exit 0
+          fi
           gh release create "complemento-$VERSION" "$ZIP" \
             --target "$GITHUB_SHA" \
             --prerelease --latest=false \

@@ -28,17 +28,11 @@ fun loadAndroidTvVersionName(rootDir: File, fallback: String): String {
 plugins {
     id("com.android.application")
     // START: FlutterFire Configuration
-    // Applied only for a normal build. google-services.json lists clients for
-    // the real application ids, so a test build under MOONFIN_TEST_ID_SUFFIX
-    // (see productFlavors) would fail with "No matching client found". Skipping
-    // it there is safe because push messaging bails immediately on TV anyway -
-    // push_messaging_service.dart:38 returns unless PlatformDetection.isMobile,
-    // and the initializeApp call is try/caught regardless.
-    //
-    // Kos TV: disabled. google-services.json belongs to Moonfin's Firebase
-    // project and has no client for com.kikope.kostv, so applying the plugin
-    // would fail the build. Push messaging is also switched off in
-    // push_messaging_service.dart until Kos TV has its own Firebase project.
+    // Kos TV: disabled, and Moonfin's google-services.json (its Firebase
+    // project, with no client for com.kikope.kostv) is gone. Push messaging
+    // is also switched off in push_messaging_service.dart until Kos TV has
+    // its own Firebase project; applying this plugin again needs that
+    // project's google-services.json in android/app.
     id("com.google.gms.google-services").apply(false)
     // END: FlutterFire Configuration
     id("kotlin-android")
@@ -57,6 +51,18 @@ val keystoreStoreType = keystoreProperties
 
 val hasReleaseKeystore = rootProject.file("app/release.keystore").exists() &&
     (keystoreProperties.getProperty("keyAlias")?.isNotBlank() == true)
+
+// Kos TV: a build that gets published (a release or a test APK, see
+// build.yml) must be signed with the release key, or the APKs won't install
+// over the ones already on the family's devices. The workflow sets this, so
+// such a build stops here instead of falling back to the debug key; every
+// other build (local, pull requests from forks) keeps the fallback.
+if (System.getenv("KOSTV_REQUIRE_RELEASE_SIGNING") == "true" && !hasReleaseKeystore) {
+    throw GradleException(
+        "KOSTV_REQUIRE_RELEASE_SIGNING is set but there is no release keystore " +
+            "(android/app/release.keystore) or no keyAlias in android/keystore.properties.",
+    )
+}
 
 android {
     namespace = "org.moonfin.androidtv"

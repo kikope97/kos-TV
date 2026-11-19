@@ -23,12 +23,24 @@
 #   KOSTV_ADMIN_PASSWORD  its password (or KOSTV_ADMIN_PASSWORD_FILE, a file
 #                         holding it, for Docker secrets). Without one, /admin
 #                         stays closed.
+#
+#   KOSTV_TRUSTED_PROXY   optional: the address (or addresses, or CIDR
+#                         ranges, separated by commas or spaces) of the
+#                         reverse proxy in front, as it reaches this
+#                         container. Only then is X-Forwarded-For believed,
+#                         and only from it, and /admin counts its limit per
+#                         visitor instead of one for everyone coming through
+#                         the proxy. Without it, as before: the visitor's
+#                         address in the logs comes from X-Forwarded-For sent
+#                         by any address on the home network, and /admin
+#                         counts by the address that reached the container.
 set -eu
 
 html=/usr/share/nginx/html
 includes=/etc/nginx/kostv
-mkdir -p "$includes"
-rm -f "$includes"/*.conf
+http_includes=/etc/nginx/kostv-http
+mkdir -p "$includes" "$http_includes"
+rm -f "$includes"/*.conf "$http_includes"/*.conf
 
 log() { echo "kostv: $*"; }
 
@@ -125,6 +137,47 @@ NGINX
 else
   log "sin KOSTV_REQUESTS_URL: la web usará la dirección de Stremfin que da el complemento"
 fi
+
+# Who X-Forwarded-For is believed from, and what the admin panel's limit
+# counts by. $realip_remote_addr is the address that reached the container,
+# whatever a request says; $remote_addr is the visitor's address, taken from
+# X-Forwarded-For when the request came from a trusted address.
+trusted=$(printf '%s' "${KOSTV_TRUSTED_PROXY:-}" | tr ',\t\r\n' '    ' | tr -s ' ' | sed 's/^ //; s/ $//')
+if [ -n "$trusted" ]; then
+  realip_from=""
+  for address in $trusted; do
+    if ! printf '%s' "$address" | grep -Eq '^[0-9A-Fa-f:.]+(/[0-9]{1,3})?$'; then
+      log "KOSTV_TRUSTED_PROXY tiene que ser la IP del proxy (o un rango como 172.16.0.0/12): $address" >&2
+      exit 1
+    fi
+    realip_from="${realip_from}set_real_ip_from $address;
+"
+  done
+  # shellcheck disable=SC2016 # nginx's variable, written as it is
+  admin_key='$remote_addr'
+  log "proxy de confianza: $trusted (/admin cuenta su límite por cada visitante)"
+else
+  realip_from="set_real_ip_from 10.0.0.0/8;
+set_real_ip_from 172.16.0.0/12;
+set_real_ip_from 192.168.0.0/16;
+set_real_ip_from 127.0.0.0/8;
+"
+  # shellcheck disable=SC2016
+  admin_key='$realip_remote_addr'
+fi
+cat > "$includes/realip.conf" <<NGINX
+# Written by 40-kostv-config.sh (KOSTV_TRUSTED_PROXY): where the visitor's
+# address is taken from X-Forwarded-For, for the logs and the limits.
+${realip_from}real_ip_header X-Forwarded-For;
+real_ip_recursive on;
+NGINX
+cat > "$http_includes/admin-limit.conf" <<NGINX
+# Written by 40-kostv-config.sh: slows down guessing the admin password, 30
+# requests a minute per address, with room for a page's own files. Never
+# by an address a request merely claims: X-Forwarded-For counts only from
+# KOSTV_TRUSTED_PROXY, so changing it on each try doesn't get past the limit.
+limit_req_zone $admin_key zone=kostv_admin:1m rate=30r/m;
+NGINX
 
 # The admin panel at /admin, behind a user and password. The password is
 # kept only as a SHA-512 hash, readable by nginx alone.
