@@ -23,21 +23,106 @@ class FloatingNotification {
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) return;
 
-    late OverlayEntry entry;
-    entry = OverlayEntry(
-      builder: (entryContext) => _FloatingNotificationCard(
+    // Kos TV: notices that arrive while others are still up go below them,
+    // instead of each one covering the last in the same corner.
+    final stack = _stacks[overlay] ??= _NotificationStack(overlay);
+    stack.add(
+      _Notice(
         title: title,
         body: body,
         icon: icon,
         onTap: onTap,
         duration: duration,
         actions: actions,
-        onDismissed: () {
-          if (entry.mounted) entry.remove();
-        },
       ),
     );
-    overlay.insert(entry);
+  }
+
+  // One per overlay, dropped with it.
+  static final Expando<_NotificationStack> _stacks = Expando();
+}
+
+class _Notice {
+  final String title;
+  final String body;
+  final IconData icon;
+  final VoidCallback? onTap;
+  final Duration duration;
+  final List<(String, VoidCallback)> actions;
+
+  _Notice({
+    required this.title,
+    required this.body,
+    required this.icon,
+    required this.onTap,
+    required this.duration,
+    required this.actions,
+  });
+}
+
+/// The notices showing in one overlay, in the order they arrived, in a
+/// single entry in its top right corner.
+class _NotificationStack {
+  _NotificationStack(this.overlay);
+
+  final OverlayState overlay;
+  final ValueNotifier<List<_Notice>> notices = ValueNotifier(const []);
+  OverlayEntry? _entry;
+
+  void add(_Notice notice) {
+    final entry = _entry;
+    if (entry != null && !entry.mounted) {
+      // The overlay let go of it; start over with this notice.
+      _entry = null;
+      notices.value = const [];
+    }
+    notices.value = [...notices.value, notice];
+    if (_entry != null) return;
+    final created = OverlayEntry(
+      builder: (_) => ValueListenableBuilder<List<_Notice>>(
+        valueListenable: notices,
+        builder: (_, shown, _) => Positioned(
+          top: 0,
+          right: 0,
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (var i = 0; i < shown.length; i++)
+                    Padding(
+                      key: ObjectKey(shown[i]),
+                      padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
+                      child: _FloatingNotificationCard(
+                        title: shown[i].title,
+                        body: shown[i].body,
+                        icon: shown[i].icon,
+                        onTap: shown[i].onTap,
+                        duration: shown[i].duration,
+                        actions: shown[i].actions,
+                        onDismissed: () => _remove(shown[i]),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    _entry = created;
+    overlay.insert(created);
+  }
+
+  void _remove(_Notice notice) {
+    final remaining = [...notices.value]..remove(notice);
+    notices.value = remaining;
+    if (remaining.isNotEmpty) return;
+    final entry = _entry;
+    _entry = null;
+    if (entry != null && entry.mounted) entry.remove();
   }
 }
 
@@ -189,31 +274,22 @@ class _FloatingNotificationCardState extends State<_FloatingNotificationCard>
       ),
     );
 
-    return Positioned(
-      top: 0,
-      right: 0,
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: FadeTransition(
-            opacity: _fade,
-            child: SlideTransition(
-              position: _slide,
-              // The Material is there even when the card can't be tapped, as on
-              // TV. Without it the text has no theme and draws in the debug
-              // style, underlined in yellow.
-              child: Material(
-                type: MaterialType.transparency,
-                child: tappable
-                    ? InkWell(
-                        borderRadius: AppRadius.circular(14),
-                        onTap: _handleTap,
-                        child: card,
-                      )
-                    : card,
-              ),
-            ),
-          ),
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        // The Material is there even when the card can't be tapped, as on
+        // TV. Without it the text has no theme and draws in the debug
+        // style, underlined in yellow.
+        child: Material(
+          type: MaterialType.transparency,
+          child: tappable
+              ? InkWell(
+                  borderRadius: AppRadius.circular(14),
+                  onTap: _handleTap,
+                  child: card,
+                )
+              : card,
         ),
       ),
     );

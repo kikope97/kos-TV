@@ -185,11 +185,23 @@ class _SeasonalPointerLayerState extends State<_SeasonalPointerLayer>
     for (final follower in _followers) {
       follower.stepPointer(dt, _pointer);
     }
-    if (showing) _frame.tick();
+    if (showing) {
+      _frame.tick();
+    } else {
+      // Kos TV: nothing to draw until the mouse comes back, so stop asking
+      // for a frame on every refresh; [_track] starts it again.
+      _ticker.stop();
+    }
   }
 
   void _track(PointerEvent event) {
-    if (event.kind == PointerDeviceKind.mouse) _pointer = event.localPosition;
+    if (event.kind != PointerDeviceKind.mouse) return;
+    _pointer = event.localPosition;
+    if (!_ticker.isActive) {
+      // A restarted ticker counts from zero again.
+      _lastTick = Duration.zero;
+      _ticker.start();
+    }
   }
 
   @override

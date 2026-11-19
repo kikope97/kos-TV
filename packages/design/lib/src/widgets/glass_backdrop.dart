@@ -2,74 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../theme/glass_settings.dart';
 
-class GlassBackdrop extends StatefulWidget {
-  const GlassBackdrop({super.key, this.animated = true});
-
-  final bool animated;
-
-  @override
-  State<GlassBackdrop> createState() => _GlassBackdropState();
-}
-
-class _GlassBackdropState extends State<GlassBackdrop>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
-  AnimationController? _controller;
-  Animation<double>? _t;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    if (widget.animated) {
-      _startAnimation();
-    }
-  }
-
-  void _startAnimation() {
-    final controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 16),
-    )..repeat(reverse: true);
-    _controller = controller;
-    _t = CurvedAnimation(parent: controller, curve: Curves.easeInOut);
-  }
-
-  void _stopAnimation() {
-    _controller?.dispose();
-    _controller = null;
-    _t = null;
-  }
-
-  @override
-  void didUpdateWidget(GlassBackdrop oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.animated == oldWidget.animated) return;
-    if (widget.animated) {
-      _startAnimation();
-    } else {
-      _stopAnimation();
-    }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final controller = _controller;
-    if (controller == null) return;
-    // The drift is decorative; producing frames while backgrounded or hidden
-    // just burns GPU, so park the controller until the app is visible again.
-    if (state == AppLifecycleState.resumed) {
-      if (!controller.isAnimating) controller.repeat(reverse: true);
-    } else {
-      controller.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    _controller?.dispose();
-    super.dispose();
-  }
+/// Kos TV: the bloom field behind the glass theme. It used to drift on a 16
+/// second loop, which redrew the whole stack every frame; it stays still on
+/// every tier now, so the animation is gone.
+class GlassBackdrop extends StatelessWidget {
+  // Not const on purpose: it reads GlassSettings in build, and a const
+  // instance would be skipped when the shell rebuilds after a quality step.
+  // ignore: prefer_const_constructors_in_immutables
+  GlassBackdrop({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +45,6 @@ class _GlassBackdropState extends State<GlassBackdrop>
           final r1 = shortest > 0 ? 1100 / shortest : 1.0;
           final r2 = shortest > 0 ? 1000 / shortest : 1.0;
           final r3 = shortest > 0 ? 900 / shortest : 1.0;
-          final drift = constraints.maxWidth * 0.06;
 
           final bloomField = RepaintBoundary(
             child: Stack(
@@ -143,25 +82,10 @@ class _GlassBackdropState extends State<GlassBackdrop>
             ),
           );
 
-          final animation = _t;
-          final Widget blooms = animation == null
-              ? bloomField
-              : AnimatedBuilder(
-                  animation: animation,
-                  child: Transform.scale(scale: 1.12, child: bloomField),
-                  builder: (context, child) {
-                    final dx = drift * (animation.value - 0.5);
-                    return Transform.translate(
-                      offset: Offset(dx, 0),
-                      child: child,
-                    );
-                  },
-                );
-
           return Stack(
             fit: StackFit.expand,
             children: [
-              blooms,
+              bloomField,
               const Positioned.fill(
                 child: ColoredBox(color: Color(0x33FFFFFF)),
               ),

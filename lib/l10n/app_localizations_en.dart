@@ -20158,4 +20158,45 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvMusicTapToPlayHint =>
       'The browser won\'t let the music start by itself.';
+
+  @override
+  String kostvArtworkPreviewTitle(String provider) {
+    return 'Preview: $provider';
+  }
+
+  @override
+  String get kostvShuffleTaglineEmpty => 'Shuffle something new.';
+
+  @override
+  String get kostvAudiobookFineTune => 'Fine Tune';
+
+  @override
+  String get kostvAudiobookFineTuneAdjusting => 'Fine Tune (Adjusting)';
+
+  @override
+  String get kostvAudiobookFineTunePressOk => 'Fine Tune (Press OK to Adjust)';
+
+  @override
+  String kostvAudiobookSleepPausedTitle(String remaining) {
+    return 'Sleep Timer Paused — Time Remaining: $remaining';
+  }
+
+  @override
+  String kostvAudiobookSleepActiveTitle(String remaining) {
+    return 'Sleep Mode Activated — Time Remaining: $remaining';
+  }
+
+  @override
+  String get kostvAudiobookResumeTimer => 'Resume Timer';
+
+  @override
+  String get kostvAudiobookPauseTimer => 'Pause Timer';
+
+  @override
+  String get kostvAudiobookStopTimer => 'Stop Timer';
+
+  @override
+  String kostvAudiobookBookmarkTitle(int number, String label) {
+    return 'Bookmark $number: $label';
+  }
 }

@@ -90,8 +90,15 @@ class _AnimeMarkerBadgeState extends State<AnimeMarkerBadge> {
       return;
     }
 
+    final episodeId = widget.episodeId;
     await repository.getForSeries(seriesId);
-    if (!mounted) return;
+    // A recycled card may show another episode by now; its own load sets
+    // its pill.
+    if (!mounted ||
+        seriesId != widget.seriesId ||
+        episodeId != widget.episodeId) {
+      return;
+    }
 
     // Read back through peek so id normalisation stays in the repository.
     final resolved = repository.peek(
@@ -282,8 +289,14 @@ class _AnimeSeasonAudioBadgeState extends State<AnimeSeasonAudioBadge> {
 
     if (repository.isResolved(seriesId)) return;
 
+    final seasonId = widget.seasonId;
     await repository.getForSeries(seriesId);
-    if (!mounted) return;
+    // The card may show another season by now; its own load sets its pill.
+    if (!mounted ||
+        seriesId != widget.seriesId ||
+        seasonId != widget.seasonId) {
+      return;
+    }
 
     final resolved = repository.peekSeason(
       seriesId: seriesId,
@@ -358,8 +371,11 @@ class _AnimeItemAudioBadgeState extends State<AnimeItemAudioBadge> {
       return;
     }
 
-    final resolved = await repository.getForItem(widget.itemId);
-    if (!mounted || resolved == null) return;
+    final itemId = widget.itemId;
+    final resolved = await repository.getForItem(itemId);
+    // Grid cards carry no key, so after a sort or filter change this card may
+    // show another title by now; its own load sets its pill.
+    if (!mounted || itemId != widget.itemId || resolved == null) return;
 
     setState(() => _audio = resolved);
   }

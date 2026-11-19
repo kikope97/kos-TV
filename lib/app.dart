@@ -343,10 +343,7 @@ class _MoonfinAppState extends State<MoonfinApp> {
                               child: _HiddenUnderScreensaver(
                                 child: VideoMiniPlayerHoleClip(
                                   child: glass
-                                      ? GlassBackdrop(
-                                          animated:
-                                              GlassSettings.animatedBackdrop,
-                                        )
+                                      ? GlassBackdrop()
                                       : const SizedBox.shrink(),
                                 ),
                               ),

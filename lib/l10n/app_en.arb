@@ -20006,5 +20006,72 @@
     "kostvMusicTapToPlayHint": "The browser won't let the music start by itself.",
     "@kostvMusicTapToPlayHint": {
         "description": "Kos TV: Music on the web: why it waits for a tap"
+    },
+    "kostvArtworkPreviewTitle": "Preview: {provider}",
+    "@kostvArtworkPreviewTitle": {
+        "description": "Kos TV: change artwork dialog: title of the full-size preview of an image, with the source it comes from",
+        "placeholders": {
+            "provider": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvShuffleTaglineEmpty": "Shuffle something new.",
+    "@kostvShuffleTaglineEmpty": {
+        "description": "Kos TV: shuffle overlay: the line under the title when there is no item to describe yet"
+    },
+    "kostvAudiobookFineTune": "Fine Tune",
+    "@kostvAudiobookFineTune": {
+        "description": "Kos TV: audiobook speed sheet: label of the fine speed slider"
+    },
+    "kostvAudiobookFineTuneAdjusting": "Fine Tune (Adjusting)",
+    "@kostvAudiobookFineTuneAdjusting": {
+        "description": "Kos TV: audiobook speed sheet: the fine speed slider while the remote is changing it"
+    },
+    "kostvAudiobookFineTunePressOk": "Fine Tune (Press OK to Adjust)",
+    "@kostvAudiobookFineTunePressOk": {
+        "description": "Kos TV: audiobook speed sheet: the fine speed slider when it has the remote's focus"
+    },
+    "kostvAudiobookSleepPausedTitle": "Sleep Timer Paused — Time Remaining: {remaining}",
+    "@kostvAudiobookSleepPausedTitle": {
+        "description": "Kos TV: audiobook sleep timer sheet title while the timer is paused",
+        "placeholders": {
+            "remaining": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvAudiobookSleepActiveTitle": "Sleep Mode Activated — Time Remaining: {remaining}",
+    "@kostvAudiobookSleepActiveTitle": {
+        "description": "Kos TV: audiobook sleep timer sheet title while the timer runs",
+        "placeholders": {
+            "remaining": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvAudiobookResumeTimer": "Resume Timer",
+    "@kostvAudiobookResumeTimer": {
+        "description": "Kos TV: audiobook sleep timer sheet button"
+    },
+    "kostvAudiobookPauseTimer": "Pause Timer",
+    "@kostvAudiobookPauseTimer": {
+        "description": "Kos TV: audiobook sleep timer sheet button"
+    },
+    "kostvAudiobookStopTimer": "Stop Timer",
+    "@kostvAudiobookStopTimer": {
+        "description": "Kos TV: audiobook sleep timer sheet button"
+    },
+    "kostvAudiobookBookmarkTitle": "Bookmark {number}: {label}",
+    "@kostvAudiobookBookmarkTitle": {
+        "description": "Kos TV: audiobook drawer: a bookmark in the list, its number and its label",
+        "placeholders": {
+            "number": {
+                "type": "int"
+            },
+            "label": {
+                "type": "String"
+            }
+        }
     }
 }

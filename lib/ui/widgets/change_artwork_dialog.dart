@@ -1410,9 +1410,9 @@ class _ChangeArtworkDialogState extends State<ChangeArtworkDialog> {
           children: [
             const Icon(Icons.filter_list, color: Colors.white, size: 18),
             const SizedBox(width: 6),
-            const Text(
-              'Sources',
-              style: TextStyle(
+            Text(
+              AppLocalizations.of(context).sources,
+              style: const TextStyle(
                 fontSize: 13,
                 color: Colors.white,
                 fontWeight: FontWeight.w500,
@@ -2417,7 +2417,9 @@ class _ChangeArtworkDialogState extends State<ChangeArtworkDialog> {
                         children: [
                           Expanded(
                             child: Text(
-                              'Preview: $provider',
+                              AppLocalizations.of(
+                                context,
+                              ).kostvArtworkPreviewTitle(provider),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
