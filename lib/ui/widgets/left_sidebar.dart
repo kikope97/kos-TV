@@ -73,6 +73,10 @@ const _kExpandedBackdropWidthTV = _kExpandedWidthTV - 16.0;
 const _kBackdropEdgeBlendWidthTV =
     _kExpandedWidthTV - _kExpandedBackdropWidthTV;
 
+/// Kos TV: the dark base under the open rail's colour, so the page beneath
+/// barely shows (see _buildTvLayout).
+const _kExpandedPanelBase = Color(0xD90B0C10);
+
 class LeftSidebar extends StatefulWidget {
   final String? activeRoute;
   final FocusNode? contentFocusNode;
@@ -379,6 +383,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
       if (music.item == null) return const SizedBox.shrink();
       return _SidebarItem(
         focusNode: _menuNode(Destinations.audioPlayer),
+        selected: _isActive(Destinations.audioPlayer),
         iconBuilder: (size, _) => KostvEqualizerBars(
           playing: music.playing,
           size: size * 0.8,
@@ -622,6 +627,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
           _exitSidebarToContent();
         });
       } else if (_canExpandViaFocus) {
+        _landOnOwnItem();
         _expand();
         _focusHomeTimer?.cancel();
         _focusHomeTimer = Timer(Duration.zero, () {
@@ -648,6 +654,24 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     }
     _sidebarHadFocus = hasFocus;
     LeftSidebar.isFocusedNotifier.value = hasFocus;
+  }
+
+  /// Kos TV: coming into the rail from the page (Left lands on whichever
+  /// item is nearest), the focus goes to the page's own item, as going up
+  /// into the top bar does, so resting there shows nothing new. Only from
+  /// one menu item to another: a handoff to the profile or Settings, or a
+  /// page the menu is bringing in, keeps its target.
+  void _landOnOwnItem() {
+    if (MenuPreview.arriving.value != null) return;
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary == null) return;
+    final onMenuItem =
+        identical(primary, _homeFocusNode) ||
+        _menuFocus.values.any((node) => identical(node, primary));
+    if (!onMenuItem) return;
+    final own = _ownMenuNode();
+    if (own == null || identical(own, primary)) return;
+    own.requestFocus();
   }
 
   void _openLibrary(AggregatedLibrary lib) {
@@ -1049,7 +1073,14 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
   }
 
   Widget _buildTvLayout() {
-    final backdropColor = _overlayColor().withValues(alpha: _overlayOpacity());
+    // Kos TV: the open rail lies over the page, whose titles showed through
+    // the menu's colour and ran into the item labels. The colour (and its
+    // opacity setting) still tints it, over a dark base that keeps the page
+    // out of the way.
+    final backdropColor = Color.alphaBlend(
+      _overlayColor().withValues(alpha: _overlayOpacity()),
+      _kExpandedPanelBase,
+    );
     final isNeon = ThemeRegistry.active.id == ThemeRegistry.neonPulseId;
     final desktopHoverRail =
         (PlatformDetection.isDesktop || (PlatformDetection.isWeb && !PlatformDetection.useMobileUi)) && !PlatformDetection.isTV;
@@ -1075,8 +1106,11 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                         if (AppColorScheme.isGlass)
                           SizedBox(
                             width: _kExpandedBackdropWidthTV,
+                            // Kos TV: reinforced, as on phones, so the page
+                            // under the frost doesn't read through it.
                             child: const GlassSurface(
                               cornerRadius: 18,
+                              reinforced: true,
                               fallbackColor: Colors.transparent,
                             ),
                           )
@@ -1293,6 +1327,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   label: l10n.home,
                   baseColor: nextMainSidebarColor(),
                   focusNode: _homeFocusNode,
+                  selected: _isActive(Destinations.home),
                   showLabel: _showLabels,
                   onPressed: () {
                     _onNavigate();
@@ -1310,6 +1345,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                 _SidebarItem(
                   key: const ValueKey('sidebar-search'),
                   focusNode: _menuNode(Destinations.search),
+                  selected: _isActive(Destinations.search),
                   icon: Icons.search_rounded,
                   label: l10n.search,
                   baseColor: nextMainSidebarColor(),
@@ -1325,6 +1361,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   _SidebarItem(
                     key: const ValueKey('sidebar-kostv-discover'),
                     focusNode: _menuNode(Destinations.kostvDiscover),
+                    selected: _isActive(Destinations.kostvDiscover),
                     icon: Icons.explore_rounded,
                     label: l10n.kostvDiscover,
                     baseColor: nextMainSidebarColor(),
@@ -1339,6 +1376,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   _SidebarItem(
                     key: const ValueKey('sidebar-genres'),
                     focusNode: _menuNode(Destinations.allGenres),
+                    selected: _isActive(Destinations.allGenres),
                     baseColor: nextMainSidebarColor(),
                     iconBuilder: (size, color) => Image.asset(
                       'assets/icons/genres.png',
@@ -1358,6 +1396,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   _SidebarItem(
                     key: const ValueKey('sidebar-my-list'),
                     focusNode: _menuNode(Destinations.myList),
+                    selected: _isActive(Destinations.myList),
                     icon: Icons.bookmark_rounded,
                     label: l10n.kostvMyList,
                     baseColor: nextMainSidebarColor(),
@@ -1375,6 +1414,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   _SidebarItem(
                     key: const ValueKey('sidebar-music'),
                     focusNode: _menuNode(Destinations.kostvMusic),
+                    selected: _isActive(Destinations.kostvMusic),
                     icon: Icons.music_note_rounded,
                     label: l10n.kostvMusic,
                     baseColor: nextMainSidebarColor(),
@@ -1391,6 +1431,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   _SidebarItem(
                     key: const ValueKey('sidebar-livetv'),
                     focusNode: _menuNode(Destinations.liveTvGuide),
+                    selected: _isActive(Destinations.liveTvGuide),
                     icon: Icons.live_tv_rounded,
                     label: l10n.liveTv,
                     baseColor: nextMainSidebarColor(),
@@ -1423,6 +1464,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   _SidebarItem(
                     key: const ValueKey('sidebar-calendar'),
                     focusNode: _menuNode(Destinations.calendar),
+                    selected: _isActive(Destinations.calendar),
                     baseColor: nextMainSidebarColor(),
                     icon: Icons.calendar_month_rounded,
                     label: l10n.calendar,
@@ -1438,6 +1480,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   _SidebarItem(
                     key: const ValueKey('sidebar-apps'),
                     focusNode: _menuNode(Destinations.apps),
+                    selected: _isActive(Destinations.apps),
                     baseColor: nextMainSidebarColor(),
                     icon: Icons.apps_rounded,
                     label: l10n.kostvAppsRow,
@@ -1466,6 +1509,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                   _SidebarItem(
                     key: const ValueKey('sidebar-libraries'),
                     focusNode: _menuNode(Destinations.kostvLibraries),
+                    selected: _isActive(Destinations.kostvLibraries),
                     baseColor: nextMainSidebarColor(),
                     iconBuilder: (size, color) => Image.asset(
                       'assets/icons/clapperboard.png',
@@ -1828,6 +1872,11 @@ class _SidebarItem extends StatefulWidget {
   /// Unread count drawn as a small red circle on the icon. Zero draws nothing.
   final int badgeCount;
 
+  /// Kos TV: the item of the page on screen. At rest its icon is drawn in
+  /// full with a short bar beside it, as the top bar marks it under the
+  /// icon; the menu's capsule, when it is on the item, takes the bar's place.
+  final bool selected;
+
   const _SidebarItem({
     super.key,
     this.icon,
@@ -1838,6 +1887,7 @@ class _SidebarItem extends StatefulWidget {
     this.focusNode,
     this.baseColor,
     this.badgeCount = 0,
+    this.selected = false,
   });
 
   @override
@@ -1894,7 +1944,9 @@ class _SidebarItemState extends State<_SidebarItem> {
         InputModeTracker.showFocusVisuals(context, _isFocused);
     final focusColor = Color(_prefs.get(UserPreferences.focusColor).colorValue);
     final tvFocused = PlatformDetection.isTV && _isFocused;
-    final baseColor = widget.baseColor ?? Colors.white.withValues(alpha: 0.6);
+    final baseColor = widget.selected
+        ? (widget.baseColor ?? Colors.white)
+        : (widget.baseColor ?? Colors.white.withValues(alpha: 0.6));
     final fgColor = tvFocused
         ? Colors.black
         : highlighted
@@ -1929,7 +1981,9 @@ class _SidebarItemState extends State<_SidebarItem> {
                         Colors.black,
                         cover,
                       )!;
-                      return AnimatedContainer(
+                      return _withHereMark(
+                        baseColor.withValues(alpha: baseColor.a * (1 - cover)),
+                        AnimatedContainer(
                         duration: const Duration(milliseconds: 220),
                         curve: Curves.easeOutCubic,
                         height: desktopSidebar ? 44 : 40,
@@ -1972,10 +2026,14 @@ class _SidebarItemState extends State<_SidebarItem> {
                             ],
                           ],
                         ),
-                      );
+                      ));
                     },
                   )
-                : AnimatedContainer(
+                : _withHereMark(
+                    // Touch screens have no capsule: the bar goes while the
+                    // item is lit, as its own look already says it.
+                    highlighted || tvFocused ? null : fgColor,
+                    AnimatedContainer(
               duration: const Duration(milliseconds: 150),
               height: desktopSidebar ? 44 : 40,
               padding: EdgeInsets.only(
@@ -2027,10 +2085,37 @@ class _SidebarItemState extends State<_SidebarItem> {
                   ],
                 ],
               ),
-            ),
+            )),
           ),
         ),
       ),
+    );
+  }
+
+  /// Kos TV: the short bar beside the item of the page on screen (see
+  /// [_SidebarItem.selected]), at the rail's edge, over the item without
+  /// changing its size. No [color], or not selected, no bar.
+  Widget _withHereMark(Color? color, Widget item) {
+    if (!widget.selected || color == null || color.a == 0) return item;
+    return Stack(
+      alignment: AlignmentDirectional.centerStart,
+      children: [
+        item,
+        PositionedDirectional(
+          start: 3,
+          child: IgnorePointer(
+            child: Container(
+              key: const ValueKey('nav_here_mark'),
+              width: 3,
+              height: 16,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -24,6 +25,10 @@ const _kOpenDuration = Duration(milliseconds: 300);
 const _kCloseDuration = Duration(milliseconds: 300);
 const _kSpacing = 10.0;
 
+// Kos TV: the bar under the icon of the page on screen.
+const _kHereMarkWidth = 14.0;
+const _kHereMarkHeight = 3.0;
+
 class ExpandableIconButton extends StatefulWidget {
   final IconData? icon;
   final Widget Function(double size, Color color)? iconBuilder;
@@ -43,6 +48,11 @@ class ExpandableIconButton extends StatefulWidget {
   /// labels" preference.
   final bool forceExpanded;
 
+  /// Kos TV: the button of the page on screen. At rest its icon is drawn in
+  /// full with a short bar under it, so the menu says where you are; the
+  /// menu's capsule, when it is on the button, takes the bar's place.
+  final bool selected;
+
   const ExpandableIconButton({
     super.key,
     this.icon,
@@ -56,6 +66,7 @@ class ExpandableIconButton extends StatefulWidget {
     this.baseColor,
     this.badgeCount = 0,
     this.forceExpanded = false,
+    this.selected = false,
   });
 
   @override
@@ -226,7 +237,9 @@ class _ExpandableIconButtonState extends State<ExpandableIconButton>
     final leanbackFocused = focusVisible && !isMobile;
     final isExpanded = widget.forceExpanded || focusVisible || hoverActive;
     final effectiveBorderRadius = !isMobile ? 36.0 : (btnSize / 2);
-    final baseColor = widget.baseColor ?? AppColorScheme.onSurface.withValues(alpha: 0.6);
+    final baseColor = widget.selected
+        ? (widget.baseColor ?? AppColorScheme.onSurface)
+        : (widget.baseColor ?? AppColorScheme.onSurface.withValues(alpha: 0.6));
     final useBaseForFocus = widget.baseColor != null;
 
     final bgColor = leanbackFocused
@@ -273,6 +286,9 @@ class _ExpandableIconButtonState extends State<ExpandableIconButton>
                     iconSize: iconSize,
                     color: Color.lerp(baseColor, AppColors.black, cover)!,
                     fontSize: isTV ? 14 : 16,
+                    markColor: baseColor.withValues(
+                      alpha: baseColor.a * (1 - cover),
+                    ),
                   ),
                 ),
               ),
@@ -318,11 +334,18 @@ class _ExpandableIconButtonState extends State<ExpandableIconButton>
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  UnreadBadge(
-                    count: widget.badgeCount,
-                    child:
-                        widget.iconBuilder?.call(iconSize, fgColor) ??
-                        Icon(widget.icon, size: iconSize, color: fgColor),
+                  _withHereMark(
+                    iconSize: iconSize,
+                    btnSize: btnSize,
+                    // Touch screens have no capsule: the bar goes while the
+                    // button is lit, as its own look already says it.
+                    color: (focusVisible || hoverActive) ? null : fgColor,
+                    child: UnreadBadge(
+                      count: widget.badgeCount,
+                      child:
+                          widget.iconBuilder?.call(iconSize, fgColor) ??
+                          Icon(widget.icon, size: iconSize, color: fgColor),
+                    ),
                   ),
                   if (isExpanded) ...[
                     const SizedBox(width: _kSpacing),
@@ -354,6 +377,7 @@ class _ExpandableIconButtonState extends State<ExpandableIconButton>
     required double iconSize,
     required Color color,
     required double fontSize,
+    required Color markColor,
   }) {
     final t = _width.value;
     final shown = _labelOpacity.value;
@@ -364,11 +388,16 @@ class _ExpandableIconButtonState extends State<ExpandableIconButton>
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          UnreadBadge(
-            count: widget.badgeCount,
-            child:
-                widget.iconBuilder?.call(iconSize, color) ??
-                Icon(widget.icon, size: iconSize, color: color),
+          _withHereMark(
+            iconSize: iconSize,
+            btnSize: btnSize,
+            color: markColor,
+            child: UnreadBadge(
+              count: widget.badgeCount,
+              child:
+                  widget.iconBuilder?.call(iconSize, color) ??
+                  Icon(widget.icon, size: iconSize, color: color),
+            ),
           ),
           // In from the frame it starts opening, so the label is there at once.
           if (t > 0 || _openTarget == true)
@@ -403,6 +432,40 @@ class _ExpandableIconButtonState extends State<ExpandableIconButton>
             ),
         ],
       ),
+    );
+  }
+
+  /// Kos TV: the short bar under the icon of the page on screen (see
+  /// [ExpandableIconButton.selected]), in the free room under the icon so
+  /// the button keeps its size. No [color], or not [selected], no bar.
+  Widget _withHereMark({
+    required double iconSize,
+    required double btnSize,
+    required Color? color,
+    required Widget child,
+  }) {
+    if (!widget.selected || color == null || color.a == 0) return child;
+    final gap = math.min(3.0, ((btnSize - iconSize) / 2 - _kHereMarkHeight) / 2);
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        child,
+        Positioned(
+          bottom: -(gap + _kHereMarkHeight),
+          child: IgnorePointer(
+            child: Container(
+              key: const ValueKey('nav_here_mark'),
+              width: _kHereMarkWidth,
+              height: _kHereMarkHeight,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(_kHereMarkHeight),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
