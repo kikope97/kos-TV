@@ -42,9 +42,13 @@ for apk in "$@"; do
     echo "::error::$apk is signed with the Android debug key, not the release key."
     exit 1
   fi
-  digests=$(sed -n 's/^Signer #[0-9]* certificate SHA-256 digest: *//p' <<<"$certs" \
-    | tr -d ': ' | tr '[:upper:]' '[:lower:]')
+  # apksigner names the signer "Signer #1", or by SDK range
+  # ("Signer (minSdkVersion=..., maxSdkVersion=...)") with key rotation or
+  # newer build-tools; any of them counts.
+  digests=$(sed -n 's/^.*[Ss]igner.*certificate SHA-256 digest: *//p' <<<"$certs" \
+    | tr -d ': ' | tr '[:upper:]' '[:lower:]' | sort -u)
   if [ -z "$digests" ]; then
+    echo "$certs"
     echo "::error::$apk: no signing certificate found."
     exit 1
   fi
