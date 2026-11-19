@@ -691,10 +691,14 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
     // Albums/playlists hide the chrome on TV/desktop (their split hero owns the
     // top area); on mobile they need the back arrow like every other screen.
     final isAlbumOrPlaylist = type == 'MusicAlbum' || type == 'Playlist';
+    // Kos TV: the kOS TV album page leaves room for the chrome, as the page
+    // of an album to ask for does, so it keeps the menu everywhere.
+    final kostvAlbum =
+        type == 'MusicAlbum' && _style == DetailScreenStyle.kostv;
     final showNavigationChrome =
         _viewModel.state == ItemDetailState.ready &&
         _showNavbar &&
-        (!isAlbumOrPlaylist || _isCompact(context));
+        (!isAlbumOrPlaylist || kostvAlbum || _isCompact(context));
     // Follows the scroll flag rather than the chrome. Albums and playlists
     // switch the chrome off at every scroll position on TV and desktop, so
     // gating on it leaves those pages with no way back at all.

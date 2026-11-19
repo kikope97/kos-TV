@@ -23,7 +23,9 @@ import '../../navigation/destinations.dart';
 import '../../widgets/baked_blur_image.dart';
 import '../../widgets/bottom_nav/bottom_navbar.dart';
 import '../../widgets/image_source.dart';
+import '../../widgets/left_sidebar.dart';
 import '../../widgets/navigation_layout.dart';
+import '../../widgets/top_toolbar.dart';
 import '../detail/detail_layout_metrics.dart';
 import '../detail/frost/frost_detail_content.dart' show FrostStage;
 import '../detail/kostv/kostv_detail_buttons.dart'
@@ -181,6 +183,9 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
   /// The page has been on screen with what the service said of it.
   bool _sawPage = false;
 
+  /// Whether the page showed that it couldn't be opened, last time.
+  bool _wasFailed = false;
+
   KostvMovieRequestController? get _movie =>
       _c is KostvMovieRequestController ? _c : null;
   KostvSeriesRequestController? get _series =>
@@ -240,6 +245,23 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
       }
     }
     if (_c.title != null && !_c.loading) _sawPage = true;
+    // Kos TV: the page swapped for the one saying it couldn't be opened, or
+    // back: the main button («Reintentar» then) is built again, so with a
+    // remote the focus goes to it rather than nowhere.
+    final failed = _failedToOpen;
+    if (failed != _wasFailed) {
+      _wasFailed = failed;
+      if (!PlatformDetection.useMobileUi) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _mainNode.hasFocus) return;
+          if (TopToolbar.isFocusedNotifier.value ||
+              LeftSidebar.isFocusedNotifier.value) {
+            return;
+          }
+          _mainNode.requestFocus();
+        });
+      }
+    }
     // Kos TV: a button beside the main one gone with the focus on it (the
     // request taken back with «Retirar petición»): the focus goes to the main
     // button rather than nowhere.
@@ -978,7 +1000,9 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final wide = detailUsesLandscapeLayout(context);
-    final page = wide ? _wide(l10n) : _narrow(l10n);
+    final page = _failedToOpen
+        ? _failed(l10n, wide: wide)
+        : (wide ? _wide(l10n) : _narrow(l10n));
     return Scaffold(
       backgroundColor: AppColorScheme.background,
       body: NavigationLayout(
@@ -986,6 +1010,70 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         showBackButton: true,
         child: page,
       ),
+    );
+  }
+
+  /// Kos TV: nothing of the title could be read, so there is nothing to
+  /// show but why and a way to try again.
+  bool get _failedToOpen =>
+      _c.loadError != null && _c.title == null && !_c.loading;
+
+  /// Kos TV: the title couldn't be opened. The same on a TV, a phone and a
+  /// computer: what happened, with its icon, then «Reintentar», in the
+  /// middle of the page (the focus on the button with a remote). Before, a
+  /// TV had them at the foot of an empty page and a phone had the button
+  /// before the message.
+  Widget _failed(AppLocalizations l10n, {required bool wide}) {
+    final main = _mainFor(l10n);
+    final message = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.cloud_off_rounded, size: wide ? 64 : 52, color: _alertColor),
+        SizedBox(height: wide ? 20 : 16),
+        Text(
+          l10n.kostvRequestLoadFailed,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: _ink(),
+            fontSize: wide ? 24 : 19,
+            fontWeight: FontWeight.w700,
+            height: 1.3,
+          ),
+        ),
+        SizedBox(height: wide ? 32 : 26),
+        _mainButton(
+          main,
+          height: wide ? 60 : 54,
+          fontSize: wide ? 20 : 18,
+          minWidth: wide ? 240 : 220,
+          onUp: () => _fromBottomUp(const []),
+        ),
+      ],
+    );
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ColoredBox(color: AppColorScheme.background),
+        Padding(
+          padding: EdgeInsets.only(
+            top: _navbarTop ? TopToolbar.heightFor(context) : 0,
+            left: wide && !_navbarTop ? 72 : 0,
+            bottom: BottomNavInsetScope.maybeOf(context) ?? 0,
+          ),
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: MediaQuery.withClampedTextScaling(
+                  maxScaleFactor: 1.3,
+                  child: message,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -2409,7 +2497,10 @@ class _PageFocus extends StatefulWidget {
 }
 
 class _PageFocusState extends State<_PageFocus> {
-  bool _focused = false;
+  // Kos TV: a node that already has the focus when built again elsewhere
+  // (the page swapped for the one saying it couldn't be opened) gets no
+  // change of focus to say so: it starts lit.
+  late bool _focused = widget.focusNode.hasFocus;
   bool _hovered = false;
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {

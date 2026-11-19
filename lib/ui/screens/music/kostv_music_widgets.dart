@@ -45,10 +45,14 @@ class KostvMusicSizes {
 /// screen: asking the page to reveal something inside a sideways row sent
 /// it back to the top. With [onlyIfHidden], it moves only when [item] is not
 /// fully in sight. [page] is the page's scrollable, when already known.
+/// Kos TV: with [preferTop], the page goes back to its top instead when
+/// [item] is in sight there (a page's header: its buttons don't take the
+/// header and the menu off the top of the screen).
 void kostvMusicRevealVertically(
   BuildContext item, [
   ScrollableState? page,
   bool onlyIfHidden = false,
+  bool preferTop = false,
 ]) {
   if (!item.mounted) return;
   var scrollable = page ?? Scrollable.maybeOf(item);
@@ -68,10 +72,16 @@ void kostvMusicRevealVertically(
   }
   final position = scrollable.position;
   final wanted = (view.size.height - box.size.height) * 0.4;
-  final target = (position.pixels + top - wanted).clamp(
-    position.minScrollExtent,
-    position.maxScrollExtent,
-  );
+  final atTop =
+      preferTop &&
+      position.pixels + top - position.minScrollExtent + box.size.height <=
+          view.size.height;
+  final target = atTop
+      ? position.minScrollExtent
+      : (position.pixels + top - wanted).clamp(
+          position.minScrollExtent,
+          position.maxScrollExtent,
+        );
   if ((target - position.pixels).abs() < 1) return;
   unawaited(
     position.animateTo(
@@ -95,7 +105,13 @@ class KostvMusicPressable extends StatefulWidget {
     this.onLongPress,
     this.onKey,
     this.centerVertically = true,
+    this.revealFromTop = false,
   });
+
+  /// Kos TV: a stop of a page's header (an album's buttons): with the focus,
+  /// the page goes back to its top rather than bringing it to the middle,
+  /// so the header and the menu stay in sight. Only when it fits there.
+  final bool revealFromTop;
 
   /// Whether the focus brings its line to the middle of the page. A grid
   /// whose page keeps its own place (Genres) says no: its top row stays
@@ -172,7 +188,14 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
     if (scrollable != null && widget.centerVertically) {
       final page = scrollable;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) kostvMusicRevealVertically(context, page);
+        if (mounted) {
+          kostvMusicRevealVertically(
+            context,
+            page,
+            false,
+            widget.revealFromTop,
+          );
+        }
       });
     }
   }

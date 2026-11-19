@@ -615,6 +615,9 @@ class KostvMusicButton extends StatelessWidget {
     return KostvMusicPressable(
       focusNode: focusNode,
       autofocus: autofocus,
+      // Kos TV: the buttons sit in a page's header: the focus on them (the
+      // first one, as the page opens) keeps the page at its top.
+      revealFromTop: true,
       onTap: busy ? () {} : onTap,
       builder: (context, lit) {
         final background = lit

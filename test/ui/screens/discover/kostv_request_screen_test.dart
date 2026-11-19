@@ -10,6 +10,8 @@ import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/preference_constants.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/navigation/destinations.dart';
+import 'package:moonfin/ui/screens/detail/kostv/kostv_detail_buttons.dart'
+    show kostvLight;
 import 'package:moonfin/ui/screens/discover/kostv_request_controller.dart';
 import 'package:moonfin/ui/screens/discover/kostv_request_screen.dart';
 import 'package:moonfin/ui/widgets/navigation_layout.dart';
@@ -286,6 +288,57 @@ void main() {
     expect(fake.requests, isEmpty);
     await finish(tester);
   });
+
+  // Kos TV: a title that can't be opened shows why, then «Reintentar», in
+  // the middle of the page, the same on a TV and a phone.
+  for (final layout in [InterfaceLayout.tv, InterfaceLayout.phone]) {
+    testWidgets('${layout.name}: a title that can\'t be opened, centred', (
+      tester,
+    ) async {
+      await open(
+        tester,
+        layout: layout,
+        location: Destinations.kostvRequestOf('movie', 597),
+      );
+
+      final message = find.text('No se ha podido abrir esta ficha');
+      final retry = find.text('Reintentar');
+      expect(message, findsOneWidget);
+      expect(retry, findsOneWidget);
+      // The message first, then the button.
+      final messageAt = tester.getCenter(message);
+      final retryAt = tester.getCenter(retry);
+      expect(messageAt.dy, lessThan(retryAt.dy));
+      // In the middle of the page, across and down.
+      final screen = tester.view.physicalSize / tester.view.devicePixelRatio;
+      expect((retryAt.dx - screen.width / 2).abs(), lessThan(30));
+      expect((messageAt.dx - screen.width / 2).abs(), lessThan(20));
+      expect(messageAt.dy, greaterThan(screen.height * 0.3));
+      expect(retryAt.dy, lessThan(screen.height * 0.7));
+      if (layout == InterfaceLayout.tv) {
+        expect(
+          FocusManager.instance.primaryFocus?.debugLabel,
+          'kostvRequestMain',
+        );
+        // And drawn with it: light, as the button with the focus is.
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await settle(tester);
+        final plate = tester.widget<AnimatedContainer>(
+          find
+              .ancestor(of: retry, matching: find.byType(AnimatedContainer))
+              .first,
+        );
+        expect((plate.decoration! as BoxDecoration).color, kostvLight);
+      }
+
+      // Trying again opens it once it can be read.
+      fake.calls.clear();
+      await tester.tap(retry);
+      await settle(tester);
+      expect(fake.calls, contains('GET /movies/597'));
+      await finish(tester);
+    });
+  }
 }
 
 /// Lets the calls in flight finish, after [wait].

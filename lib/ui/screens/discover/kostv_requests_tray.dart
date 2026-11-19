@@ -677,26 +677,15 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: _ink(),
-                              fontSize: panel ? 17 : 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _ago(l10n, request.lastChange),
-                          style: TextStyle(color: _ink(0.45), fontSize: 12.5),
-                        ),
-                      ],
+                    _titleLine(
+                      title,
+                      _ago(l10n, request.lastChange),
+                      titleStyle: TextStyle(
+                        color: _ink(),
+                        fontSize: panel ? 17 : 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      agoStyle: TextStyle(color: _ink(0.45), fontSize: 12.5),
                     ),
                     const SizedBox(height: 5),
                     Row(
@@ -764,6 +753,59 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
     );
     return row;
   }
+
+  /// The title with how long ago it changed at its end. Kos TV: when both
+  /// don't fit on the line (a narrow phone, a button at the row's end), the
+  /// time goes under the title so the title isn't cut for it.
+  Widget _titleLine(
+    String title,
+    String ago, {
+    required TextStyle titleStyle,
+    required TextStyle agoStyle,
+  }) => LayoutBuilder(
+    builder: (context, constraints) {
+      final scaler = MediaQuery.textScalerOf(context);
+      final direction = Directionality.of(context);
+      // Measured in the font the line is drawn in (the theme's, under them).
+      final base = DefaultTextStyle.of(context).style;
+      double widthOf(String text, TextStyle style) {
+        final painter = TextPainter(
+          text: TextSpan(text: text, style: base.merge(style)),
+          maxLines: 1,
+          textDirection: direction,
+          textScaler: scaler,
+        )..layout();
+        final width = painter.width;
+        painter.dispose();
+        return width;
+      }
+
+      final titleText = Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: titleStyle,
+      );
+      final agoText = Text(ago, maxLines: 1, style: agoStyle);
+      final fits =
+          widthOf(title, titleStyle) + 8 + widthOf(ago, agoStyle) + 2 <=
+          constraints.maxWidth;
+      if (fits) {
+        return Row(
+          children: [
+            Expanded(child: titleText),
+            const SizedBox(width: 8),
+            agoText,
+          ],
+        );
+      }
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [titleText, const SizedBox(height: 2), agoText],
+      );
+    },
+  );
 
   Widget _withdrawButton(
     AppLocalizations l10n,

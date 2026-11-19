@@ -956,10 +956,16 @@ class _Backdrop extends StatelessWidget {
                           scale: 1.5,
                           // Blurred once when the cover loads, not again on
                           // every frame of the progress bar or the lyrics.
-                          child: BakedBlurImage(
-                            image: image,
-                            sigma: 70,
-                            opacity: 0.38,
+                          // Kos TV: across the whole screen. The switcher
+                          // lays it out loose, so on its own the blurred copy
+                          // painted at its own small size: a lighter square
+                          // under the cover on the web and the phone.
+                          child: SizedBox.expand(
+                            child: BakedBlurImage(
+                              image: image,
+                              sigma: 70,
+                              opacity: 0.38,
+                            ),
                           ),
                         ),
                 ),
