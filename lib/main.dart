@@ -3,15 +3,11 @@ import 'dart:async';
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:moonfin_design/moonfin_design.dart' show LiquidGlassWidgets;
-import 'package:path_provider/path_provider.dart';
 import 'package:playback_core/playback_core.dart';
-import 'package:screen_retriever/screen_retriever.dart';
-import 'package:window_manager/window_manager.dart';
 
 import 'app.dart';
 import 'data/models/aggregated_item.dart';
@@ -33,10 +29,8 @@ import 'data/services/log_service.dart';
 import 'data/services/storage_path_service.dart';
 import 'util/kostv_intro_policy.dart';
 import 'util/kostv_server.dart';
-import 'util/macos_touch_input.dart';
 import 'util/scroll_sensitivity_binding.dart';
 import 'util/silo_image_hooks.dart';
-import 'util/webview_environment.dart';
 import 'data/services/theme_store_service.dart';
 import 'di/injection.dart';
 import 'playback/appletv_audio_now_playing_feeder.dart';
@@ -47,7 +41,6 @@ import 'playback/codec_caps_repair.dart';
 import 'playback/device_capability_cache.dart';
 import 'playback/display_hdr_probe.dart';
 import 'playback/media_browse_service.dart';
-import 'playback/mpris_service.dart';
 import 'playback/playback_lifecycle_handler.dart';
 import 'playback/subtitle_fonts.dart';
 import 'platform/background_refresh.dart';
@@ -55,13 +48,12 @@ import 'platform/web_runtime_config.dart';
 import 'preference/preference_constants.dart';
 import 'preference/user_preferences.dart';
 import 'util/idiom/glass_capability.dart';
-import 'util/fullscreen_helper.dart';
-import 'util/window_geometry.dart';
 import 'util/http_overrides_stub.dart'
     if (dart.library.io) 'util/http_overrides_io.dart';
 import 'util/game_core_licenses.dart';
 import 'util/device_performance.dart';
 import 'ui/navigation/app_router.dart';
+import 'ui/screens/auth/startup_failure_screen.dart';
 import 'ui/screensaver/screensaver_controller.dart';
 import 'ui/widgets/reader/epub_js_view.dart';
 import 'util/platform_detection.dart';
@@ -164,17 +156,40 @@ Timer? _crashFlushDebounce;
 
 /// Routes uncaught Dart errors into the diagnostic buffer and the pending
 /// crash store. Both handlers keep the console output they replace.
+///
+/// Kos TV: what they print goes without credentials. A URL in an error can
+/// carry the session's token (`api_key=`, `ApiKey=`), and these lines reach
+/// logcat or the browser console in release builds too.
 void _installCrashHandlers() {
   FlutterError.onError = (details) {
-    FlutterError.presentError(details);
+    _presentErrorRedacted(details);
     _captureCrash(details.exception, details.stack);
   };
   WidgetsBinding.instance.platformDispatcher.onError = (error, stack) {
     // Returning true marks the error handled, which drops the engine's print.
-    debugPrint('Uncaught: $error\n$stack');
+    debugPrint(redactCrashText('Uncaught: $error\n$stack'));
     _captureCrash(error, stack);
     return true;
   };
+}
+
+/// Credentials out of a line the crash handlers print.
+String redactCrashText(String text) => LogService.redactCredentials(text);
+
+/// [FlutterError.presentError], with what it prints passed through
+/// [redactCrashText]. It prints through [debugPrint], which is swapped only
+/// for the call.
+void _presentErrorRedacted(FlutterErrorDetails details) {
+  final print = debugPrint;
+  debugPrint = (String? message, {int? wrapWidth}) => print(
+    message == null ? null : redactCrashText(message),
+    wrapWidth: wrapWidth,
+  );
+  try {
+    FlutterError.presentError(details);
+  } finally {
+    debugPrint = print;
+  }
 }
 
 void _captureCrash(Object error, StackTrace? stack) {
@@ -222,68 +237,6 @@ void _startProcessExitReporter() {
         ? GetIt.instance<ScreensaverController>().visible
         : null,
   );
-}
-
-Future<void> _restoreWindowGeometry() async {
-  final prefs = GetIt.instance<UserPreferences>();
-  final w = prefs.get(UserPreferences.windowWidth);
-  final h = prefs.get(UserPreferences.windowHeight);
-  final x = prefs.get(UserPreferences.windowX);
-  final y = prefs.get(UserPreferences.windowY);
-  final startFullscreen = prefs.get(UserPreferences.windowFullscreen);
-  final startMaximized =
-      prefs.get(UserPreferences.windowMaximized) && !startFullscreen;
-
-  const minW = 800.0;
-  const minH = 500.0;
-  final hasSavedGeometry = w >= minW && h >= minH;
-  final bounds = hasSavedGeometry
-      ? fitBoundsToWorkAreas(Rect.fromLTWH(x, y, w, h), await _workAreas())
-      : null;
-
-  final options = WindowOptions(
-    size: bounds?.size ?? const Size(1280, 720),
-    minimumSize: const Size(minW, minH),
-    center: !hasSavedGeometry && !startMaximized,
-    skipTaskbar: false,
-  );
-
-  await windowManager.waitUntilReadyToShow(options, () async {
-    if (bounds != null) {
-      await windowManager.setPosition(bounds.topLeft);
-    }
-    // Before show, so platforms that apply it right away never draw the
-    // windowed size first.
-    if (startMaximized) {
-      await windowManager.maximize();
-    }
-    await windowManager.show();
-    await windowManager.focus();
-  });
-
-  // Fullscreen resizes the window, and doing that before the engine has drawn
-  // leaves it laid out at the old size with the rest of the window black. The
-  // timer this replaces was standing in for the first frame, which is a race
-  // on a cold start.
-  if (startFullscreen) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(FullscreenHelper.setFullscreen(true));
-    });
-  }
-}
-
-/// Usable areas of the attached displays, or an empty list when they cannot be
-/// read, which leaves saved bounds alone rather than guessing at a screen.
-Future<List<Rect>> _workAreas() async {
-  try {
-    return [
-      for (final display in await screenRetriever.getAllDisplays())
-        (display.visiblePosition ?? Offset.zero) &
-            (display.visibleSize ?? display.size),
-    ];
-  } catch (_) {
-    return const [];
-  }
 }
 
 /// Applies the stored layout override before anything reads the platform
@@ -854,7 +807,10 @@ Future<void> autoDownloadBackgroundMain() =>
 void main() async {
   configureHttpOverrides();
   ScrollSensitivityBinding.ensureInitialized();
-  MacosTouchInput.install();
+  // Kos TV: first, so a failure anywhere in startup is caught and printed
+  // (without its credentials). It is recorded once the services that keep
+  // reports exist; until then capturing it does nothing.
+  _installCrashHandlers();
 
   // Pre-warms the liquid_glass_widgets shader programs so the first glass
   // pane doesn't white-flash. Started now and awaited before runApp only
@@ -871,26 +827,12 @@ void main() async {
   final Future<void>? webConfig = PlatformDetection.isWeb
       ? loadWebRuntimeConfig()
       : null;
+  // Kos TV: and, alongside it, the two files the app version is read from,
+  // which are two more trips to the server there.
+  final appInfo = PlatformDetection.isWeb ? startAppInfoLoad() : null;
 
   registerGameCoreLicenses();
   registerEpubJsLicenses();
-
-  if (!PlatformDetection.isWeb && PlatformDetection.isWindows) {
-    try {
-      final appDataDir = await getApplicationSupportDirectory();
-      final customPath = '${appDataDir.path}\\WebView2Data';
-      gWebViewEnvironment = await WebViewEnvironment.create(
-        settings: WebViewEnvironmentSettings(
-          userDataFolder: customPath,
-          // mediaPlaybackRequiresUserGesture doesn't lift WebView2's audio
-          // block, so N64 in EmulatorJS sits on a black screen until a click,
-          // which a controller never sends.
-          additionalBrowserArguments:
-              '--autoplay-policy=no-user-gesture-required',
-        ),
-      );
-    } catch (_) {}
-  }
 
   if (PlatformDetection.isAppleTV) {
     ErrorWidget.builder = (FlutterErrorDetails details) {
@@ -911,125 +853,84 @@ void main() async {
     };
   }
 
-  if (webConfig != null) {
-    await webConfig;
+  await _startApp(
+    glassWarmUp: glassWarmUp,
+    webConfig: webConfig,
+    appInfo: appInfo,
+  );
+}
+
+/// Kos TV: how far a launch got, so Retry after a startup failure picks up
+/// where it stopped instead of hooking everything up a second time.
+bool _platformPrepared = false;
+bool _dependenciesAttempted = false;
+bool _dependenciesReady = false;
+
+/// Kos TV: runs startup, and if any of it throws, says so on screen with a
+/// Retry button. It used to leave the native splash up on every launch, with
+/// nothing recorded anywhere (a full disk, a damaged downloads database), and
+/// the only way out was clearing the app's data.
+Future<void> _startApp({
+  required Future<void> glassWarmUp,
+  required Future<void>? webConfig,
+  required Future<(void, String)>? appInfo,
+}) async {
+  try {
+    await _bootstrap(
+      glassWarmUp: glassWarmUp,
+      webConfig: webConfig,
+      appInfo: appInfo,
+    );
+  } catch (error, stack) {
+    _reportStartupFailure(error, stack);
+    runApp(
+      StartupFailureApp(
+        onRetry: () => _startApp(
+          glassWarmUp: glassWarmUp,
+          webConfig: webConfig,
+          appInfo: appInfo,
+        ),
+      ),
+    );
+  }
+}
+
+void _reportStartupFailure(Object error, StackTrace stack) {
+  debugPrint(redactCrashText('Startup failed: $error\n$stack'));
+  _captureCrash(error, stack);
+}
+
+Future<void> _bootstrap({
+  required Future<void> glassWarmUp,
+  required Future<void>? webConfig,
+  required Future<(void, String)>? appInfo,
+}) async {
+  if (!_platformPrepared) {
+    await _preparePlatform(webConfig);
+    _platformPrepared = true;
   }
 
-  if (PlatformDetection.isDesktop) {
-    await windowManager.ensureInitialized();
-  }
-
-  // Apple runs entirely on AetherEngine, so media_kit isn't initialized there
-  // and its native libs are out of those builds.
-  if (!PlatformDetection.isAppleTV &&
-      !PlatformDetection.isIOS &&
-      !PlatformDetection.isMacOS) {
-    MediaKit.ensureInitialized();
-  }
-
-  await _applyInterfaceLayoutOverride();
-  await _readPerformanceModeOverride();
-  await _detectAndSetTvMode();
-  await _seedCapabilitiesFromCache();
-  await Future.wait([
-    _detectAndSetDisplayCapabilities(),
-    _detectAndSetCodecCapabilities(),
-    _detectAndSetDeviceMemory(),
-    _detectAndSetSystemUptime(),
-    _detectAndSetRenderer(),
-  ]);
-
-  if (PlatformDetection.isAppleTV) {
-    await _detectAndSetAppleTvCapabilities();
-  }
-  if (PlatformDetection.isIOS || PlatformDetection.isMacOS) {
-    await _detectAndSetAetherCapabilities();
-  }
-
-  _configureImageCache();
-  installSiloImageHooks();
-  _capSkiaCache();
-  await configureImageDiskCache(tier: _resolvedTier());
-
-  // On Linux the GTK font pipeline loads fonts asynchronously. The first frame
-  // can render before MaterialIcons and other fonts are ready, causing icons to
-  // appear blank. Pumping a warm-up frame gives the font loader time to finish.
-  // The issue is intermittent and goes away on re-run once the OS font cache
-  // is warm, which confirms the timing root cause.
-  if (PlatformDetection.isLinux ||
-      PlatformDetection.isAppleTV) {
-    WidgetsBinding.instance.scheduleWarmUpFrame();
-  }
-
-  if (PlatformDetection.isMobile) {
-    SystemUi.install();
-
-    // Registered before runApp so a background/terminated push can be handled.
-    // The handler itself is a no-op; the OS draws these notifications.
-    try {
-      FirebaseMessaging.onBackgroundMessage(pushBackgroundHandler);
-    } catch (_) {}
-  }
-
-  await configureDependencies();
-  _installCrashHandlers();
-  if (PlatformDetection.isAndroid) _startProcessExitReporter();
-  // When the system runs the auto-download refresh task against this
-  // engine, the native side retries its call until this handler is bound.
-  if (AutoDownloadService.isSupportedPlatform) {
-    BackgroundRefresh.instance.bind(runAutoDownloadBackgroundRefresh);
-  }
-
-  // Registered before runApp so a CarPlay-only launch (no window scene, no
-  // widgets) can browse and start playback.
-  if (PlatformDetection.isIOS && !GetIt.instance.isRegistered<CarPlayService>()) {
-    try {
-      final carPlayService = CarPlayService(
-        browse: GetIt.instance<MediaBrowseService>(),
-        manager: GetIt.instance<PlaybackManager>(),
-      )..start();
-      GetIt.instance.registerSingleton<CarPlayService>(carPlayService);
-    } catch (_) {}
+  if (!_dependenciesReady) {
+    // A Retry after a failure halfway through: start the container over.
+    if (_dependenciesAttempted) await GetIt.instance.reset();
+    _dependenciesAttempted = true;
+    await configureDependencies(appInfo: appInfo);
+    _dependenciesReady = true;
+    // Kos TV: what startup got past (a downloads database that could not be
+    // opened), recorded now that there is somewhere to record it.
+    for (final (error, stack) in takeDeferredStartupErrors()) {
+      _reportStartupFailure(error, stack);
+    }
+    _bindAppServices();
   }
 
   final prefs = GetIt.instance<UserPreferences>();
-  _bindScrollSensitivity(prefs);
-  WidgetsBinding.instance.addObserver(_PreferenceWriteFlushObserver(prefs));
-  WidgetsBinding.instance.addObserver(_ImageCacheSweepObserver(prefs));
-  WidgetsBinding.instance.addObserver(_CapabilityRefreshObserver());
-  WidgetsBinding.instance.addObserver(_AutoDownloadResumeObserver());
-  // Not on the first frame: the first screens are busy decoding artwork, and
-  // a cache over budget a little longer costs nothing.
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    Timer(const Duration(seconds: 20), () => _sweepImageCache(prefs));
-  });
-
-  GetIt.instance<PlaybackManager>().queueService.queueChangedStream.listen((_) {
-    final activeItem = GetIt.instance<PlaybackManager>().queueService.currentItem;
-    if (activeItem is AggregatedItem) {
-      prefs.unhideFromContinueWatching(activeItem.id);
-      if (activeItem.seriesId != null && activeItem.seriesId!.isNotEmpty) {
-        prefs.unhideFromContinueWatching(activeItem.seriesId!);
-        prefs.unhideFromNextUp(activeItem.seriesId!);
-      }
-    }
-  });
 
   // Register Theme Store themes before the active theme is resolved so a
   // store-saved theme applies on launch.
   await ThemeStoreService(
     GetIt.instance<StoragePathService>(),
   ).loadAndRegister();
-
-  if (PlatformDetection.isDesktop) {
-    await _restoreWindowGeometry();
-  }
-
-  // Audio and notification services are only needed once playback or a
-  // download can happen, so they initialize after the first frame.
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    unawaited(_initDeferredStartupServices(prefs));
-  });
 
   // tvOS: keep the system Now Playing card fed for music (the native
   // NowPlayingController handles video; audio has no view controller to feed it).
@@ -1076,11 +977,120 @@ void main() async {
   runApp(const MoonfinApp());
 }
 
+/// What the device is and what it can do, read before the container is
+/// built, and the caches sized from it.
+Future<void> _preparePlatform(Future<void>? webConfig) async {
+  if (webConfig != null) {
+    await webConfig;
+  }
+
+  // Apple runs entirely on AetherEngine, so media_kit isn't initialized there
+  // and its native libs are out of those builds.
+  if (!PlatformDetection.isAppleTV && !PlatformDetection.isIOS) {
+    MediaKit.ensureInitialized();
+  }
+
+  await _applyInterfaceLayoutOverride();
+  await _readPerformanceModeOverride();
+  await _detectAndSetTvMode();
+  await _seedCapabilitiesFromCache();
+  await Future.wait([
+    _detectAndSetDisplayCapabilities(),
+    _detectAndSetCodecCapabilities(),
+    _detectAndSetDeviceMemory(),
+    _detectAndSetSystemUptime(),
+    _detectAndSetRenderer(),
+  ]);
+
+  if (PlatformDetection.isAppleTV) {
+    await _detectAndSetAppleTvCapabilities();
+  }
+  if (PlatformDetection.isIOS) {
+    await _detectAndSetAetherCapabilities();
+  }
+
+  _configureImageCache();
+  installSiloImageHooks();
+  _capSkiaCache();
+  await configureImageDiskCache(tier: _resolvedTier());
+
+  // tvOS loads its fonts asynchronously, and the first frame can render
+  // before MaterialIcons and the rest are ready, leaving icons blank. Pumping
+  // a warm-up frame gives the font loader time to finish.
+  if (PlatformDetection.isAppleTV) {
+    WidgetsBinding.instance.scheduleWarmUpFrame();
+  }
+
+  if (PlatformDetection.isMobile) {
+    SystemUi.install();
+
+    // Registered before runApp so a background/terminated push can be handled.
+    // The handler itself is a no-op; the OS draws these notifications.
+    // Kos TV: only while push is on, which it isn't yet.
+    if (PushMessagingService.enabled) {
+      try {
+        FirebaseMessaging.onBackgroundMessage(pushBackgroundHandler);
+      } catch (_) {}
+    }
+  }
+}
+
+/// The listeners and observers that follow the container's services for the
+/// life of the app, bound once it is built.
+void _bindAppServices() {
+  if (PlatformDetection.isAndroid) _startProcessExitReporter();
+  // When the system runs the auto-download refresh task against this
+  // engine, the native side retries its call until this handler is bound.
+  if (AutoDownloadService.isSupportedPlatform) {
+    BackgroundRefresh.instance.bind(runAutoDownloadBackgroundRefresh);
+  }
+
+  // Registered before runApp so a CarPlay-only launch (no window scene, no
+  // widgets) can browse and start playback.
+  if (PlatformDetection.isIOS && !GetIt.instance.isRegistered<CarPlayService>()) {
+    try {
+      final carPlayService = CarPlayService(
+        browse: GetIt.instance<MediaBrowseService>(),
+        manager: GetIt.instance<PlaybackManager>(),
+      )..start();
+      GetIt.instance.registerSingleton<CarPlayService>(carPlayService);
+    } catch (_) {}
+  }
+
+  final prefs = GetIt.instance<UserPreferences>();
+  _bindScrollSensitivity(prefs);
+  WidgetsBinding.instance.addObserver(_PreferenceWriteFlushObserver(prefs));
+  WidgetsBinding.instance.addObserver(_ImageCacheSweepObserver(prefs));
+  WidgetsBinding.instance.addObserver(_CapabilityRefreshObserver());
+  WidgetsBinding.instance.addObserver(_AutoDownloadResumeObserver());
+  // Not on the first frame: the first screens are busy decoding artwork, and
+  // a cache over budget a little longer costs nothing.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    Timer(const Duration(seconds: 20), () => _sweepImageCache(prefs));
+  });
+
+  GetIt.instance<PlaybackManager>().queueService.queueChangedStream.listen((_) {
+    final activeItem = GetIt.instance<PlaybackManager>().queueService.currentItem;
+    if (activeItem is AggregatedItem) {
+      prefs.unhideFromContinueWatching(activeItem.id);
+      if (activeItem.seriesId != null && activeItem.seriesId!.isNotEmpty) {
+        prefs.unhideFromContinueWatching(activeItem.seriesId!);
+        prefs.unhideFromNextUp(activeItem.seriesId!);
+      }
+    }
+  });
+
+  // Audio and notification services are only needed once playback or a
+  // download can happen, so they initialize after the first frame.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_initDeferredStartupServices(prefs));
+  });
+}
+
 /// Startup work that runs after the first frame. The internal order matters:
 /// the Android audio session configuration must follow initAudioService.
 Future<void> _initDeferredStartupServices(UserPreferences prefs) async {
   if (PlatformDetection.isMobile ||
-      PlatformDetection.isMacOS ||
       (PlatformDetection.isAndroid && PlatformDetection.isTV)) {
     try {
       await initAudioService(
@@ -1092,18 +1102,11 @@ Future<void> _initDeferredStartupServices(UserPreferences prefs) async {
     }
   }
 
-  if (PlatformDetection.isLinux) {
-    try {
-      await initMprisService(
-        manager: GetIt.instance<PlaybackManager>(),
-        clientFactory: GetIt.instance<MediaServerClientFactory>(),
-      );
-    } catch (e, st) {
-      debugPrint('initMprisService failed (MPRIS controls disabled): $e\n$st');
-    }
-  }
-
-  await _detectAndApplyAudioCapabilities(prefs);
+  // Kos TV: not waited for. Its retries ride out an HDMI handshake (several
+  // seconds on a TV), and nothing below needs what it finds: reattaching the
+  // downloads that ran while the app was closed and the headphones-out pause
+  // used to wait on it.
+  unawaited(_detectAndApplyAudioCapabilities(prefs));
 
   unawaited(SubtitleFonts.instance.follow(prefs));
 

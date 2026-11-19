@@ -13971,5 +13971,88 @@
                 "type": "String"
             }
         }
+    },
+    "kostvStartupFailedTitle": "No se ha podido abrir kOS TV",
+    "@kostvStartupFailedTitle": {
+        "description": "Kos TV: title of the screen shown when the app fails while starting, before anything else loads"
+    },
+    "kostvStartupFailedMessage": "Algo ha fallado al arrancar. Vuelve a intentarlo y, si sigue pasando, reinicia el aparato o comprueba que le queda espacio libre.",
+    "@kostvStartupFailedMessage": {
+        "description": "Kos TV: body of the screen shown when the app fails while starting"
+    },
+    "kostvStartupStepFailed": "Algo ha fallado al abrir kOS TV. Vuelve a intentarlo.",
+    "@kostvStartupStepFailed": {
+        "description": "Kos TV: note with a Retry button on the start screen when a step of opening the app failed"
+    },
+    "kostvPageNotFoundTitle": "Esta página no existe",
+    "@kostvPageNotFoundTitle": {
+        "description": "Kos TV: title of the page shown for an address the app has no page for"
+    },
+    "kostvPageNotFoundMessage": "Puede que la dirección esté mal escrita o que la página ya no esté.",
+    "@kostvPageNotFoundMessage": {
+        "description": "Kos TV: body of the page shown for an address the app has no page for"
+    },
+    "kostvGoToHome": "Ir a Inicio",
+    "@kostvGoToHome": {
+        "description": "Kos TV: button that goes to the Home screen"
+    },
+    "kostvDownloadFailed": "No se ha podido descargar",
+    "@kostvDownloadFailed": {
+        "description": "Kos TV: a download failed, with no more detail"
+    },
+    "kostvDownloadFailedNamed": "No se ha podido descargar {name} ({error})",
+    "@kostvDownloadFailedNamed": {
+        "description": "Kos TV: a download in the browser failed",
+        "placeholders": {
+            "name": {
+                "type": "String"
+            },
+            "error": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvDownloadDiskFull": "El disco de las descargas está lleno. Libera espacio donde se guardan y vuelve a intentarlo.",
+    "@kostvDownloadDiskFull": {
+        "description": "Kos TV: a download failed because the disk is full"
+    },
+    "kostvDownloadWifiOnly": "Solo se descarga con wifi. Conéctate a una wifi para descargar.",
+    "@kostvDownloadWifiOnly": {
+        "description": "Kos TV: a download was refused because downloads are set to WiFi only"
+    },
+    "kostvDownloadNotEnoughSpace": "No hay espacio libre suficiente en {path}. Hacen falta unos {needed} y quedan {free}.",
+    "@kostvDownloadNotEnoughSpace": {
+        "description": "Kos TV: a download was refused for lack of free space in the download folder",
+        "placeholders": {
+            "path": {
+                "type": "String"
+            },
+            "needed": {
+                "type": "String"
+            },
+            "free": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvDownloadFolderNotWritable": "No se puede guardar en la carpeta de las descargas. Vuelve a elegirla en Ajustes > Descargas o da permiso de almacenamiento.",
+    "@kostvDownloadFolderNotWritable": {
+        "description": "Kos TV: a download failed because its folder cannot be written to"
+    },
+    "kostvDownloadForbidden": "El servidor no deja descargar esto (403). Se ha probado de otras formas y tampoco.",
+    "@kostvDownloadForbidden": {
+        "description": "Kos TV: a download was refused by the server (HTTP 403)"
+    },
+    "kostvDownloadUnauthorized": "El servidor no acepta la sesión para descargar (401). Vuelve a entrar y prueba otra vez.",
+    "@kostvDownloadUnauthorized": {
+        "description": "Kos TV: a download was refused because the session is not accepted (HTTP 401)"
+    },
+    "kostvDownloadSourceNotFound": "No se encuentra el archivo en el servidor (404). Puede que ya no esté.",
+    "@kostvDownloadSourceNotFound": {
+        "description": "Kos TV: a download failed because the file is not on the server (HTTP 404)"
+    },
+    "kostvDownloadTimedOut": "La descarga ha tardado demasiado en terminar.",
+    "@kostvDownloadTimedOut": {
+        "description": "Kos TV: a download took too long to finish"
     }
 }

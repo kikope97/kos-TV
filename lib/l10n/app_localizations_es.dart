@@ -20064,4 +20064,66 @@ class AppLocalizationsEs extends AppLocalizations {
   String kostvHomeBecauseLiked(String title) {
     return 'Porque te gusta $title';
   }
+
+  @override
+  String get kostvStartupFailedTitle => 'No se ha podido abrir kOS TV';
+
+  @override
+  String get kostvStartupFailedMessage =>
+      'Algo ha fallado al arrancar. Vuelve a intentarlo y, si sigue pasando, reinicia el aparato o comprueba que le queda espacio libre.';
+
+  @override
+  String get kostvStartupStepFailed =>
+      'Algo ha fallado al abrir kOS TV. Vuelve a intentarlo.';
+
+  @override
+  String get kostvPageNotFoundTitle => 'Esta página no existe';
+
+  @override
+  String get kostvPageNotFoundMessage =>
+      'Puede que la dirección esté mal escrita o que la página ya no esté.';
+
+  @override
+  String get kostvGoToHome => 'Ir a Inicio';
+
+  @override
+  String get kostvDownloadFailed => 'No se ha podido descargar';
+
+  @override
+  String kostvDownloadFailedNamed(String name, String error) {
+    return 'No se ha podido descargar $name ($error)';
+  }
+
+  @override
+  String get kostvDownloadDiskFull =>
+      'El disco de las descargas está lleno. Libera espacio donde se guardan y vuelve a intentarlo.';
+
+  @override
+  String get kostvDownloadWifiOnly =>
+      'Solo se descarga con wifi. Conéctate a una wifi para descargar.';
+
+  @override
+  String kostvDownloadNotEnoughSpace(String path, String needed, String free) {
+    return 'No hay espacio libre suficiente en $path. Hacen falta unos $needed y quedan $free.';
+  }
+
+  @override
+  String get kostvDownloadFolderNotWritable =>
+      'No se puede guardar en la carpeta de las descargas. Vuelve a elegirla en Ajustes > Descargas o da permiso de almacenamiento.';
+
+  @override
+  String get kostvDownloadForbidden =>
+      'El servidor no deja descargar esto (403). Se ha probado de otras formas y tampoco.';
+
+  @override
+  String get kostvDownloadUnauthorized =>
+      'El servidor no acepta la sesión para descargar (401). Vuelve a entrar y prueba otra vez.';
+
+  @override
+  String get kostvDownloadSourceNotFound =>
+      'No se encuentra el archivo en el servidor (404). Puede que ya no esté.';
+
+  @override
+  String get kostvDownloadTimedOut =>
+      'La descarga ha tardado demasiado en terminar.';
 }

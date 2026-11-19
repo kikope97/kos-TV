@@ -329,4 +329,31 @@ void main() {
       expect(logs.canUploadToServer, isTrue);
     });
   });
+
+  // Kos TV: what the crash handlers print, outside the log.
+  group('redactCredentials', () {
+    test('drops the token from the URLs an error can carry', () {
+      final text = LogService.redactCredentials(
+        'Uncaught: SocketException: '
+        'wss://jf.example/socket?ApiKey=abc123&deviceId=dev '
+        'GET https://jf.example/Items/1/Images/Primary?api_key=s3cr3t '
+        'X-Emby-Token: tok-9 access_token=tok-10',
+      );
+      expect(text, isNot(contains('abc123')));
+      expect(text, isNot(contains('s3cr3t')));
+      expect(text, isNot(contains('tok-9')));
+      expect(text, isNot(contains('tok-10')));
+      expect(text, contains('ApiKey=[REDACTED]'));
+      expect(text, contains('api_key=[REDACTED]'));
+      // The rest stays readable: which call it was and on what.
+      expect(text, contains('wss://jf.example/socket?'));
+      expect(text, contains('deviceId=dev'));
+      expect(text, contains('/Items/1/Images/Primary'));
+    });
+
+    test('leaves a line with no credentials as it is', () {
+      const line = 'Uncaught: RangeError (index): Invalid value: 3';
+      expect(LogService.redactCredentials(line), line);
+    });
+  });
 }

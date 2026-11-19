@@ -108,6 +108,22 @@ class LogService extends ChangeNotifier {
     caseSensitive: false,
   );
 
+  /// Kos TV: [text] with the value of every credential in it replaced, the
+  /// way the diagnostic log does (`api_key=`, `ApiKey=`, `X-Emby-Token:`…),
+  /// for lines printed outside it, such as the crash handlers'. Hosts are
+  /// left as they are, so the line still says which call failed.
+  static String redactCredentials(String text) {
+    final lower = text.toLowerCase();
+    if (!lower.contains('key') &&
+        !lower.contains('token') &&
+        !lower.contains('auth')) {
+      return text;
+    }
+    return text.replaceAllMapped(_credentialRegex, (match) {
+      return '${match.group(1)}${match.group(2)}[REDACTED]';
+    });
+  }
+
   static final _ipv4Regex = RegExp(
     r'\b(?:\d{1,3}\.){3}\d{1,3}\b',
   );

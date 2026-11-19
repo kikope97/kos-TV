@@ -216,15 +216,16 @@ final RegExp _diskFullErrno = RegExp(r'errno = (28|69|112|122)\b');
 /// is a full disk, and returns it unchanged otherwise.
 @visibleForTesting
 String friendlyDownloadFailure(String? description) {
-  final raw = description ?? 'Download failed';
+  // Kos TV: the words are the user's language's, not hand-written English.
+  final l10n = currentAppLocalizations();
+  final raw = description ?? l10n.kostvDownloadFailed;
   final lower = raw.toLowerCase();
   final looksFull =
       lower.contains('no space left on device') ||
       lower.contains('disk quota exceeded') ||
       _diskFullErrno.hasMatch(raw);
   if (looksFull) {
-    return 'The download disk is full. '
-        'Free up space in the download location and retry.';
+    return l10n.kostvDownloadDiskFull;
   }
   return raw;
 }
@@ -1982,14 +1983,15 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
 
   String _friendlyDioError(DioException e) {
     final status = e.response?.statusCode;
+    final l10n = currentAppLocalizations();
     if (status == 403) {
-      return 'Download forbidden (403). Retried alternate endpoints but access was denied.';
+      return l10n.kostvDownloadForbidden;
     }
     if (status == 401) {
-      return 'Download unauthorized (401). Please re-login and try again.';
+      return l10n.kostvDownloadUnauthorized;
     }
     if (status == 404) {
-      return 'Download source not found (404). The file may no longer be available.';
+      return l10n.kostvDownloadSourceNotFound;
     }
     if (e.error is FileSystemException) {
       return friendlyDownloadFailure(e.error.toString());
@@ -1999,7 +2001,7 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
 
   String _friendlyGenericError(Object e) {
     if (e is TimeoutException) {
-      return 'Download timed out while waiting for transfer completion.';
+      return currentAppLocalizations().kostvDownloadTimedOut;
     }
     if (e is FileSystemException) {
       return friendlyDownloadFailure(e.toString());
@@ -2396,7 +2398,12 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
         final fileName = _buildFileName(fullItem, quality);
         triggerBrowserDownload(url, fileName);
       } catch (e) {
-        _emitError('Download failed: ${item.name} (${e.toString()})');
+        _emitError(
+          currentAppLocalizations().kostvDownloadFailedNamed(
+            item.name,
+            e.toString(),
+          ),
+        );
       }
       return;
     }
@@ -2467,15 +2474,14 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
     var activityResumeTicks = 0;
 
     if (!await _checkWifiPolicy()) {
+      final wifiOnly = currentAppLocalizations().kostvDownloadWifiOnly;
       _activeDownloads[item.id] = DownloadProgress(
         itemId: item.id,
         fileName: item.name,
-        error: 'WiFi-only mode enabled. Connect to WiFi to download.',
+        error: wifiOnly,
         quality: quality,
       );
-      _emitError(
-        '${item.name}: WiFi-only mode enabled. Connect to WiFi to download.',
-      );
+      _emitError('${item.name}: $wifiOnly');
       notifyListeners();
       return;
     }
@@ -2509,10 +2515,11 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
         // Staging and destination share the root's volume, so one check
         // covers both. An unknown size still requires the headroom.
         if (free != null && free < estimatedSize + _freeSpaceHeadroomBytes) {
-          final message =
-              'Not enough free space in ${downloadsDir.path}. '
-              'Needs about ${formatBytes(estimatedSize + _freeSpaceHeadroomBytes)}, '
-              '${formatBytes(free)} available.';
+          final message = currentAppLocalizations().kostvDownloadNotEnoughSpace(
+            downloadsDir.path,
+            formatBytes(estimatedSize + _freeSpaceHeadroomBytes),
+            formatBytes(free),
+          );
           _activeDownloads[item.id] = DownloadProgress(
             itemId: item.id,
             fileName: item.name,
@@ -2973,9 +2980,7 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
       _emitError('${item.name}: $friendlyError');
     } catch (e) {
       final friendlyError = e is PathAccessException
-          ? 'Cannot write to download folder. '
-                'Please reset the download location in Settings → Downloads, '
-                'or grant storage permissions.'
+          ? currentAppLocalizations().kostvDownloadFolderNotWritable
           : e.toString();
       if (savePath != null) {
         await _deleteFileArtifacts(savePath);

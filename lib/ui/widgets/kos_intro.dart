@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 
 import '../../util/platform_detection.dart';
 import 'kos_logo.dart';
+import 'overlay_sheet.dart';
 
 /// Kos TV: the opening, the "Power 4K" intro drawn by the app itself, frame
 /// by frame, from the page it was designed on (docs/marca/intro-power-4k.html):
@@ -29,14 +30,17 @@ import 'kos_logo.dart';
 ///
 /// Sound: on a TV always; on a phone only while its ringer is on; on the web
 /// never, since browsers refuse sound before the page is touched. Any key or
-/// a tap skips it. With the system's animations turned off it is skipped
-/// (unless [evenWithoutAnimations]).
+/// a tap skips it, Back too (the remote's, the phone's gesture, Escape),
+/// which then does nothing else. With the system's animations turned off it
+/// is skipped (unless [evenWithoutAnimations]). The sound stops if the app
+/// goes to the background.
 ///
 /// [show] plays it on its own over everything, from Settings.
 class KosIntro extends StatefulWidget {
   const KosIntro({
     super.key,
     this.onFinished,
+    this.onFadedOut,
     this.footer,
     this.evenWithoutAnimations = false,
   });
@@ -48,8 +52,14 @@ class KosIntro extends StatefulWidget {
   /// Called once, when the animation has finished (or was skipped).
   final VoidCallback? onFinished;
 
+  /// Called once the picture has faded to black at its end, when there is
+  /// nothing left of it on screen. Not while a [footer] holds the logo up.
+  final VoidCallback? onFadedOut;
+
   /// Shown over the bottom, such as a message with a Retry button. While
-  /// there is one the logo stays up instead of fading to black.
+  /// there is one the logo stays up instead of fading to black, and once
+  /// the animation is over it stays after the footer goes (Retry pressed),
+  /// rather than leaving a black screen while it retries.
   final Widget? footer;
 
   /// Plays it now, over everything, and comes back when it ends (or on any
@@ -94,16 +104,36 @@ class _KosIntroState extends State<KosIntro>
   late final Ticker _ticker = createTicker(_onTick);
   bool _finished = false;
 
+  /// Where the clock was when the ticker last stopped: a ticker started
+  /// again counts from zero, and the picture carries on from here instead
+  /// of playing the power button all over again.
+  double _offset = 0;
+
+  /// A footer was up when the animation ended, or came after: the logo
+  /// stays from then on, footer or not.
+  bool _held = false;
+
+  bool _fadedOut = false;
+
+  late final AppLifecycleListener _lifecycle;
+
   @override
   void initState() {
     super.initState();
     _fades.value = widget.footer == null;
+    _lifecycle = AppLifecycleListener(
+      // The TV's Home button mid-intro: the sound would play on over
+      // whatever comes up next.
+      onHide: () => unawaited(KosIntroSound.stop()),
+    );
+    InlineBackInterceptor.push(_onBack);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (!widget.evenWithoutAnimations &&
           (MediaQuery.maybeDisableAnimationsOf(context) ?? false)) {
         _seconds.value = KosIntro.duration.inMilliseconds / 1000;
         _finish();
+        if (_fades.value) _fadeOut();
         return;
       }
       unawaited(_begin());
@@ -117,24 +147,49 @@ class _KosIntroState extends State<KosIntro>
       KosIntro.soundWait,
       onTimeout: () => false,
     );
-    if (!mounted || _finished) return;
+    if (!mounted) return;
+    if (_finished) {
+      // Skipped before it began: nothing of it was ever drawn.
+      if (_fades.value) _fadeOut();
+      return;
+    }
     unawaited(_ticker.start());
   }
 
   void _onTick(Duration elapsed) {
-    final t = elapsed.inMicroseconds / 1e6;
+    final t = _offset + elapsed.inMicroseconds / 1e6;
     _seconds.value = t;
     if (t * 1000 >= KosIntro.duration.inMilliseconds) {
       _finish();
       // Faded to black, there is nothing left to draw.
-      if (_fades.value) _ticker.stop();
+      if (_fades.value) {
+        _ticker.stop();
+        _offset = t;
+        _fadeOut();
+      }
     }
+  }
+
+  void _fadeOut() {
+    if (_fadedOut) return;
+    _fadedOut = true;
+    widget.onFadedOut?.call();
   }
 
   void _finish() {
     if (_finished) return;
     _finished = true;
+    if (widget.footer != null) _held = true;
+    InlineBackInterceptor.remove(_onBack);
     widget.onFinished?.call();
+  }
+
+  /// Back while it plays skips it, and is taken: on its own it would reach
+  /// the app's exit prompt (or close the app) with nothing to go back to.
+  bool _onBack() {
+    if (_finished) return false;
+    _skip();
+    return true;
   }
 
   void _skip() {
@@ -146,15 +201,20 @@ class _KosIntroState extends State<KosIntro>
   @override
   void didUpdateWidget(KosIntro oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _fades.value = widget.footer == null;
-    // A message arrived after the fade: bring the logo back for it.
+    if (widget.footer != null && _finished) _held = true;
+    _fades.value = widget.footer == null && !_held;
+    // A message arrived after the fade: bring the logo back for it, the
+    // comet going on from where it was.
     if (!_fades.value && !_ticker.isActive && _seconds.value > 0) {
+      _offset = _seconds.value;
       unawaited(_ticker.start());
     }
   }
 
   @override
   void dispose() {
+    InlineBackInterceptor.remove(_onBack);
+    _lifecycle.dispose();
     _ticker.dispose();
     _focusNode.dispose();
     _seconds.dispose();

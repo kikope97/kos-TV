@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:server_core/server_core.dart';
 
 import '../data/services/socket_handler.dart';
@@ -11,35 +10,22 @@ class SyncPlayRuntimeCoordinator {
   final SocketHandler _socketHandler;
 
   StreamSubscription<ServerWebSocketMessage>? _wsSub;
-  ProviderSubscription<MediaServerClient?>? _serverSub;
 
   SyncPlayRuntimeCoordinator(this._manager, this._socketHandler);
 
-  void start(Ref ref, ProviderListenable<MediaServerClient?> serverProvider) {
+  // Kos TV: it also followed a provider of the active server, which nothing
+  // ever set: the manager finds the signed-in client itself.
+  void start() {
     _wsSub = _socketHandler.events.listen(_route);
-    _serverSub = ref.listen<MediaServerClient?>(
-      serverProvider,
-      (prev, next) => _onServerChanged(next),
-      fireImmediately: true,
-    );
   }
 
   void stop() {
     _wsSub?.cancel();
     _wsSub = null;
-    _serverSub?.close();
-    _serverSub = null;
   }
 
   void appDidEnterBackground() => _manager.appDidEnterBackground();
   void appDidBecomeActive() => _manager.appDidBecomeActive();
-
-  void _onServerChanged(MediaServerClient? client) {
-    _manager.setActiveClient(client);
-    if (client != null && _manager.state.enabled) {
-      _manager.handleRealtimeConnected();
-    }
-  }
 
   void _route(ServerWebSocketMessage message) {
     switch (message) {

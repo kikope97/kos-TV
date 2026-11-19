@@ -16,19 +16,33 @@ const _media3Control = MethodChannel('moonfin/media3_video_control');
 
 final _compatPkcs12 = Expando<({Uint8List der, String password})>();
 
+/// Kos TV: whether media3 may hold certificates this isolate sent it. It
+/// starts with none, so an empty list is only worth sending after that.
+bool _media3MayHoldCertificates = false;
+
 /// Loads the stored certificates into every stack that presents them. Pass
-/// [syncNative] false from isolates that have no plugins.
+/// [syncNative] false from isolates that have no plugins. [stored] is the
+/// store's [ClientCertificateStore.getAll] already under way, if it is.
 Future<void> installClientCertificates(
   ClientCertificateStore store, {
   bool syncNative = true,
+  Future<List<StoredClientCertificate>>? stored,
 }) async {
-  setClientCertificates([for (final c in await store.getAll()) c.material]);
+  setClientCertificates([
+    for (final c in await (stored ?? store.getAll())) c.material,
+  ]);
   if (!syncNative) return;
-  if (PlatformDetection.isAndroid) {
+  final media3Certificates = nativeClientCertificates(pkcs12: false);
+  // Kos TV: an empty list to a media3 that has none (every launch, before
+  // the first frame) is a trip over the channel for nothing.
+  if (PlatformDetection.isAndroid &&
+      (media3Certificates.isNotEmpty || _media3MayHoldCertificates)) {
+    if (media3Certificates.isNotEmpty) _media3MayHoldCertificates = true;
     try {
       await _media3Control.invokeMethod<void>('setClientCertificates', {
-        'certificates': nativeClientCertificates(pkcs12: false),
+        'certificates': media3Certificates,
       });
+      if (media3Certificates.isEmpty) _media3MayHoldCertificates = false;
     } on Exception {
       // Playback sends them again on the next open.
     }

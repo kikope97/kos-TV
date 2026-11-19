@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/ui/widgets/kos_intro.dart';
+import 'package:moonfin/ui/widgets/overlay_sheet.dart';
 
 void main() {
   const channel = MethodChannel('org.moonfin.androidtv/platform');
@@ -134,6 +135,93 @@ void main() {
     await tester.pump();
     expect(finished, 1);
     expect(calls.last, 'introSoundStop');
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  KosIntroPainter painterOf(WidgetTester tester) =>
+      tester
+              .widget<CustomPaint>(
+                find.descendant(
+                  of: find.byType(KosIntro),
+                  matching: find.byType(CustomPaint),
+                ),
+              )
+              .painter!
+          as KosIntroPainter;
+
+  testWidgets('Back skips it and goes no further, only while it plays', (
+    tester,
+  ) async {
+    var finished = 0;
+    await tester.pumpWidget(
+      MaterialApp(home: KosIntro(onFinished: () => finished++)),
+    );
+    await started(tester);
+    // The remote's Back, the phone's back gesture and Escape all ask the
+    // app's back handlers first, before its exit prompt.
+    expect(InlineBackInterceptor.handleBack(), isTrue);
+    expect(finished, 1);
+    // Over, it no longer takes Back.
+    expect(InlineBackInterceptor.handleBack(), isFalse);
+    await tester.pump(KosIntro.duration);
+  });
+
+  testWidgets('it says when it has faded to black, once', (tester) async {
+    var fadedOut = 0;
+    await tester.pumpWidget(
+      MaterialApp(home: KosIntro(onFadedOut: () => fadedOut++)),
+    );
+    await started(tester);
+    await tester.pump(const Duration(seconds: 3));
+    expect(fadedOut, 0);
+    await tester.pump(KosIntro.duration);
+    await tester.pump(const Duration(seconds: 1));
+    expect(fadedOut, 1);
+    expect(tester.binding.hasScheduledFrame, isFalse);
+  });
+
+  testWidgets('a message after the end brings the logo back where it was, '
+      'and it stays once the message goes', (tester) async {
+    var fadedOut = 0;
+    Widget intro({Widget? footer}) => MaterialApp(
+      home: KosIntro(onFadedOut: () => fadedOut++, footer: footer),
+    );
+    await tester.pumpWidget(intro());
+    await started(tester);
+    await tester.pump(KosIntro.duration);
+    await tester.pump(const Duration(seconds: 1));
+    expect(fadedOut, 1);
+    final end = painterOf(tester).seconds.value;
+    expect(end, greaterThanOrEqualTo(KosIntro.duration.inMilliseconds / 1000));
+
+    await tester.pumpWidget(intro(footer: const Text('Sin conexión')));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    // It carries on from the end instead of pressing the power button again.
+    expect(painterOf(tester).seconds.value, greaterThan(end));
+    expect(painterOf(tester).fades!.value, isFalse);
+
+    // Retry pressed: the message goes, the logo stays while it retries.
+    await tester.pumpWidget(intro());
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(painterOf(tester).fades!.value, isFalse);
+    expect(fadedOut, 1);
+  });
+
+  testWidgets('the sound stops when the app leaves the screen', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    device(allowed: true);
+    await tester.pumpWidget(const MaterialApp(home: KosIntro()));
+    await started(tester);
+    expect(calls, ['introSoundAllowed', 'introSoundPlay']);
+    // The TV's Home button.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.hidden);
+    await tester.pump();
+    expect(calls.last, 'introSoundStop');
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump(KosIntro.duration);
     debugDefaultTargetPlatformOverride = null;
   });
 

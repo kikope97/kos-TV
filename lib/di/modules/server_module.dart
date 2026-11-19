@@ -31,6 +31,17 @@ final _getIt = GetIt.instance;
 // account's auto-download service; null between accounts.
 AutoDownloadBackgroundBinding? _autoDownloadBinding;
 
+/// Kos TV: the download errors of whichever [DownloadService] is the current
+/// one. A service is made per session (on restoring it or switching user),
+/// so a listener of one service's own stream heard nothing once it was
+/// replaced, and one that came before the first heard nothing at all.
+final StreamController<String> _downloadErrors =
+    StreamController<String>.broadcast();
+StreamSubscription<String>? _downloadErrorsForward;
+
+/// The download errors to tell the user about, for the life of the app.
+Stream<String> get downloadServiceErrors => _downloadErrors.stream;
+
 void registerServerModule() {
   _getIt.registerLazySingleton<MediaServerClientFactory>(
     () => MediaServerClientFactory(
@@ -109,6 +120,8 @@ void setActiveServerClient(
     _getIt<DownloadNotificationService>(),
   );
   _getIt.registerSingleton<DownloadService>(downloadService);
+  unawaited(_downloadErrorsForward?.cancel());
+  _downloadErrorsForward = downloadService.errors.listen(_downloadErrors.add);
 
   // Absent on the background isolates, which never draw a nav bar.
   if (_getIt.isRegistered<OfflineRepository>()) {
