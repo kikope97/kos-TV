@@ -119,8 +119,24 @@ class _AdminApiKeysScreenState extends State<AdminApiKeysScreen> {
     setState(() => _creating = true);
     try {
       await _api.createApiKey(appName);
-      final fresh = await _api.getApiKeys();
-      final items = _extractKeyList(fresh);
+      // Kos TV: the key exists from here on, so a failed reload says so
+      // rather than inviting a second key.
+      final List<Map<String, dynamic>> items;
+      try {
+        items = _extractKeyList(await _api.getApiKeys());
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _creating = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n.adminApiKeyCreatedReloadFailed(describeError(e, l10n)),
+            ),
+            action: SnackBarAction(label: l10n.retry, onPressed: _loadKeys),
+          ),
+        );
+        return;
+      }
       if (!mounted) return;
       setState(() {
         _keys = items;

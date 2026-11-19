@@ -20646,4 +20646,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String kostvAudiobookBookmarkTitle(int number, String label) {
     return 'Bookmark $number: $label';
   }
+
+  @override
+  String get adminCannotDisableAdministrator =>
+      'Jellyfin doesn\'t allow disabling an administrator. Remove their administrator permission on their page first.';
+
+  @override
+  String get errorSessionRejected =>
+      'The server didn\'t accept your session. Sign in again.';
+
+  @override
+  String get errorPermissionDenied =>
+      'You don\'t have permission to do this on the server.';
+
+  @override
+  String get adminDisablePluginTitle => 'Disable plugin';
+
+  @override
+  String adminDisablePluginConfirm(String name) {
+    return 'Are you sure you want to disable \"$name\"? It stops working once the server restarts.';
+  }
+
+  @override
+  String get adminKosTvPluginWarning =>
+      'Every kOS TV app in the house (TVs, phones and the web) depends on this plugin. Without it they lose My list, PINs, messages, the home rows and requests.';
+
+  @override
+  String get adminLibraryNotFound => 'This library is no longer on the server.';
+
+  @override
+  String adminInvalidPath(String error) {
+    return 'Invalid path: $error';
+  }
+
+  @override
+  String get adminDownmixNightmodeDialogue => 'Nightmode dialogue';
+
+  @override
+  String adminApiKeyCreatedReloadFailed(String error) {
+    return 'The key was created, but the list couldn\'t be loaded: $error';
+  }
+
+  @override
+  String adminImageChangedRefreshFailed(String error) {
+    return 'The image was changed, but the view couldn\'t be refreshed: $error';
+  }
 }

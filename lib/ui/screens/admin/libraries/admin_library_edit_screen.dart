@@ -80,7 +80,10 @@ class _AdminLibraryEditScreenState
     final folders = await _client.adminLibraryApi.getVirtualFolders();
     return folders.firstWhere(
       (f) => f.itemId == widget.libraryId,
-      orElse: () => throw Exception('Library not found'),
+      // Kos TV: the reason in the app's words. Only shown while on screen.
+      orElse: () => throw mounted
+          ? Exception(AppLocalizations.of(context).adminLibraryNotFound)
+          : StateError('Library ${widget.libraryId} not found'),
     );
   }
 
@@ -93,17 +96,20 @@ class _AdminLibraryEditScreenState
       _error = null;
     });
     try {
-      final lib = await _fetchLibrary();
-      // Without the language and country lists the dropdowns just stay empty.
-      final cultures = await _client.adminSystemApi
+      // Without the language and country lists the dropdowns just stay
+      // empty. They load alongside the library.
+      final culturesLoad = _client.adminSystemApi
           .getCultures()
           .catchError((_) => <Map<String, dynamic>>[]);
-      final countries = await _client.adminSystemApi
+      final countriesLoad = _client.adminSystemApi
           .getCountries()
           .catchError((_) => <Map<String, dynamic>>[]);
+      final lib = await _fetchLibrary();
       final available = await _client.adminLibraryApi
           .getAvailableLibraryOptions(lib.collectionType)
           .catchError((_) => <String, dynamic>{});
+      final cultures = await culturesLoad;
+      final countries = await countriesLoad;
       if (!mounted) return;
       _available = available;
       _cultures = cultures;

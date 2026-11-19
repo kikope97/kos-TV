@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -31,6 +32,9 @@ class _FakeUsersApi extends Fake implements AdminUsersApi {
   final postedPolicies = <Map<String, dynamic>>[];
   final passwords = <Map<String, Object?>>[];
 
+  /// Answers the next policy post with this status.
+  int? refuseWith;
+
   Map<String, dynamic> get policy => user['Policy'] as Map<String, dynamic>;
 
   @override
@@ -46,6 +50,15 @@ class _FakeUsersApi extends Fake implements AdminUsersApi {
   @override
   Future<void> updateUserPolicy(String userId, Map<String, dynamic> p) async {
     expect(userId, _userId);
+    final status = refuseWith;
+    if (status != null) {
+      final request = RequestOptions(path: '/Users/$userId/Policy');
+      throw DioException(
+        requestOptions: request,
+        type: DioExceptionType.badResponse,
+        response: Response(requestOptions: request, statusCode: status),
+      );
+    }
     postedPolicies.add(_copy(p));
     user = {...user, 'Policy': _copy(p)};
   }
@@ -98,7 +111,6 @@ class _FakeSystemApi extends Fake implements AdminSystemApi {
   Future<Map<String, dynamic>> getNamedConfiguration(String key) async =>
       {'EnableRemoteAccess': remoteAccess};
 
-  /// Where Emby keeps the remote access switch.
   @override
   Future<Map<String, dynamic>> getServerConfiguration() async =>
       {'EnableRemoteAccess': remoteAccess};
@@ -411,6 +423,71 @@ void main() {
 
     expect(await AdminDraft.active.value!.save(), isFalse);
     expect(users.postedPolicies, isEmpty);
+  });
+
+  // Kos TV: a tag typed without pressing add still counts, and goes in.
+  testWidgets('a blocked tag typed but not added is saved', (tester) async {
+    await pump(tester);
+    await openTab(tester, l10n.adminParentalControl);
+    final blocked = find.widgetWithText(TextField, l10n.adminAddTag).last;
+    await tester.scrollUntilVisible(blocked, 100,
+        scrollable: find.byType(Scrollable).last);
+
+    await tester.enterText(blocked, ' terror ');
+    await tester.pump();
+    expect(AdminDraft.active.value!.isDirty, isTrue);
+
+    await save();
+    await tester.pumpAndSettle();
+    expect(users.postedPolicies.single['BlockedTags'], ['terror']);
+    expect(AdminDraft.active.value!.isDirty, isFalse);
+    expect(find.widgetWithText(Chip, 'terror'), findsOneWidget);
+  });
+
+  testWidgets('discarding drops a typed tag', (tester) async {
+    await pump(tester);
+    await openTab(tester, l10n.adminParentalControl);
+    final blocked = find.widgetWithText(TextField, l10n.adminAddTag).last;
+    await tester.scrollUntilVisible(blocked, 100,
+        scrollable: find.byType(Scrollable).last);
+    await tester.enterText(blocked, 'terror');
+    await tester.pump();
+
+    AdminDraft.active.value!.discard();
+    await tester.pumpAndSettle();
+    expect(AdminDraft.active.value!.isDirty, isFalse);
+    expect(find.text('terror'), findsNothing);
+  });
+
+  testWidgets('the signed-in admin can neither disable nor delete themself', (
+    tester,
+  ) async {
+    when(() => client.userId).thenReturn(_userId);
+    await pump(tester);
+    expect(find.text(l10n.adminDeleteUser), findsNothing);
+    await openTab(tester, l10n.permissions);
+    expect(find.widgetWithText(SwitchListTile, l10n.disabled), findsNothing);
+    expect(
+      find.widgetWithText(SwitchListTile, l10n.adminHiddenUser),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets("the server's refusal to disable an admin is explained", (
+    tester,
+  ) async {
+    users.policy['IsAdministrator'] = true;
+    users.refuseWith = 403;
+    await pump(tester);
+    expect(find.text(l10n.adminDeleteUser), findsOneWidget);
+    await openTab(tester, l10n.permissions);
+    await toggle(tester, l10n.disabled);
+
+    expect(await AdminDraft.active.value!.save(), isFalse);
+    expect(
+      AdminDraft.active.value!.error.toString(),
+      contains(l10n.adminCannotDisableAdministrator),
+    );
   });
 
   testWidgets('remote access is hidden while the server turns it off', (

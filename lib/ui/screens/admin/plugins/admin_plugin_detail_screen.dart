@@ -7,7 +7,6 @@ import 'package:dio/dio.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../admin_plugin_version_utils.dart';
-import '../../../widgets/adaptive/adaptive_dialog.dart';
 import '../providers/admin_user_providers.dart';
 import '../widgets/admin_form_styles.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -64,21 +63,12 @@ String? configurationPageFor(
   return name.isEmpty ? null : name;
 }
 
-/// Emby sends no CanUninstall since any plugin can be removed, and none can
-/// be turned off.
+/// Bundled plugins can be neither removed nor turned off.
 bool canUninstallPlugin(BuildContext context, PluginInfo plugin) =>
     plugin.canUninstall;
 
 bool canTogglePlugin(BuildContext context, PluginInfo plugin) =>
     plugin.canUninstall;
-
-/// Emby's image for a plugin, keyed by its tag, or null without one.
-String? pluginThumbUrl(String baseUrl, PluginInfo plugin) {
-  final tag = plugin.imageTag;
-  if (tag == null) return null;
-  return '$baseUrl/Plugins/${Uri.encodeComponent(plugin.id)}/Thumb'
-      '?tag=${Uri.encodeQueryComponent(tag)}';
-}
 
 /// A plugin's settings page is the server's own web client, written for a
 /// desktop browser and signed in by its own session, so it opens in the
@@ -131,6 +121,11 @@ class _AdminPluginDetailScreenState
   }
 
   Future<void> _togglePlugin(PluginInfo plugin) async {
+    if (plugin.status != PluginStatus.disabled &&
+        (!await confirmPluginRemoval(context, plugin, uninstall: false) ||
+            !mounted)) {
+      return;
+    }
     setState(() => _toggling = true);
     try {
       if (plugin.status == PluginStatus.disabled) {
@@ -159,29 +154,10 @@ class _AdminPluginDetailScreenState
   }
 
   Future<void> _uninstallPlugin(PluginInfo plugin) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog.adaptive(
-        title: Text(AppLocalizations.of(context).adminUninstallPlugin),
-        content: Text(
-          AppLocalizations.of(context).adminUninstallPluginConfirm(plugin.name),
-        ),
-        actions: [
-          adaptiveDialogAction(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(AppLocalizations.of(context).cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: Text(AppLocalizations.of(context).uninstall),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+    if (!await confirmPluginRemoval(context, plugin, uninstall: true) ||
+        !mounted) {
+      return;
+    }
 
     try {
       await _api.uninstallPlugin(plugin.id, plugin.version);
@@ -250,8 +226,7 @@ class _AdminPluginDetailScreenState
 
   String _pluginImageUrl(PluginInfo plugin) {
     final client = GetIt.instance<MediaServerClient>();
-    return pluginThumbUrl(client.baseUrl, plugin) ??
-        '${client.baseUrl}/Plugins/${plugin.id}/${plugin.version}/Image';
+    return '${client.baseUrl}/Plugins/${plugin.id}/${plugin.version}/Image';
   }
 
   @override

@@ -20676,5 +20676,69 @@
                 "type": "String"
             }
         }
+    },
+    "adminCannotDisableAdministrator": "Jellyfin doesn't allow disabling an administrator. Remove their administrator permission on their page first.",
+    "@adminCannotDisableAdministrator": {
+        "description": "Kos TV: admin panel: why disabling an administrator failed (the server answers a bare 403)"
+    },
+    "errorSessionRejected": "The server didn't accept your session. Sign in again.",
+    "@errorSessionRejected": {
+        "description": "Kos TV: error text for an HTTP 401 answer"
+    },
+    "errorPermissionDenied": "You don't have permission to do this on the server.",
+    "@errorPermissionDenied": {
+        "description": "Kos TV: error text for an HTTP 403 answer"
+    },
+    "adminDisablePluginTitle": "Disable plugin",
+    "@adminDisablePluginTitle": {
+        "description": "Kos TV: admin panel: title of the dialog before turning a plugin off"
+    },
+    "adminDisablePluginConfirm": "Are you sure you want to disable \"{name}\"? It stops working once the server restarts.",
+    "@adminDisablePluginConfirm": {
+        "description": "Kos TV: admin panel: asks before turning a plugin off",
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
+    "adminKosTvPluginWarning": "Every kOS TV app in the house (TVs, phones and the web) depends on this plugin. Without it they lose My list, PINs, messages, the home rows and requests.",
+    "@adminKosTvPluginWarning": {
+        "description": "Kos TV: admin panel: added when disabling or uninstalling the kOS TV server plugin"
+    },
+    "adminLibraryNotFound": "This library is no longer on the server.",
+    "@adminLibraryNotFound": {
+        "description": "Kos TV: admin panel: the library being edited was not found"
+    },
+    "adminInvalidPath": "Invalid path: {error}",
+    "@adminInvalidPath": {
+        "description": "Kos TV: admin panel: folder browser, the typed path was refused",
+        "placeholders": {
+            "error": {
+                "type": "String"
+            }
+        }
+    },
+    "adminDownmixNightmodeDialogue": "Nightmode dialogue",
+    "@adminDownmixNightmodeDialogue": {
+        "description": "Kos TV: admin panel: playback, stereo downmix algorithm NightmodeDialogue"
+    },
+    "adminApiKeyCreatedReloadFailed": "The key was created, but the list couldn't be loaded: {error}",
+    "@adminApiKeyCreatedReloadFailed": {
+        "description": "Kos TV: admin panel: API keys, created but the reload failed",
+        "placeholders": {
+            "error": {
+                "type": "String"
+            }
+        }
+    },
+    "adminImageChangedRefreshFailed": "The image was changed, but the view couldn't be refreshed: {error}",
+    "@adminImageChangedRefreshFailed": {
+        "description": "Kos TV: admin panel: metadata images, the change worked but reading the item again failed",
+        "placeholders": {
+            "error": {
+                "type": "String"
+            }
+        }
     }
 }

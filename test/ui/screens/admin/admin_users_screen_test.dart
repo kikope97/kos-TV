@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,12 +23,32 @@ class _FakeUsersApi extends Fake implements AdminUsersApi {
   Map<String, dynamic> user = _fixture();
   final postedPolicies = <Map<String, dynamic>>[];
 
+  /// What the server holds now, when it differs from the listed user.
+  Map<String, dynamic>? serverUser;
+
+  /// Answers the next policy post with this status.
+  int? refuseWith;
+
+  @override
+  Future<ServerUser> getUserById(String userId) async => ServerUser.fromJson(
+    jsonDecode(jsonEncode(serverUser ?? user)) as Map<String, dynamic>,
+  );
+
   @override
   Future<List<ServerUser>> getUsers({bool? isDisabled, bool? isHidden}) async =>
       [ServerUser.fromJson(jsonDecode(jsonEncode(user)) as Map<String, dynamic>)];
 
   @override
   Future<void> updateUserPolicy(String userId, Map<String, dynamic> p) async {
+    final status = refuseWith;
+    if (status != null) {
+      final request = RequestOptions(path: '/Users/$userId/Policy');
+      throw DioException(
+        requestOptions: request,
+        type: DioExceptionType.badResponse,
+        response: Response(requestOptions: request, statusCode: status),
+      );
+    }
     postedPolicies.add(p);
   }
 }
@@ -40,11 +61,12 @@ class _FakeImageApi extends Fake implements ImageApi {
 
 void main() {
   late _FakeUsersApi users;
+  late _MockMediaServerClient client;
   late AppLocalizations l10n;
 
   setUp(() async {
     users = _FakeUsersApi();
-    final client = _MockMediaServerClient();
+    client = _MockMediaServerClient();
     when(() => client.adminUsersApi).thenReturn(users);
     when(() => client.imageApi).thenReturn(_FakeImageApi());
     await GetIt.instance.reset();
@@ -111,5 +133,58 @@ void main() {
     final avatar = tester.widget<CircleAvatar>(find.byType(CircleAvatar));
     final url = Uri.parse((avatar.backgroundImage! as NetworkImage).url);
     expect(url.queryParameters['tag'], 'abc');
+  });
+
+  // Kos TV: the list may be hours old, and the server replaces the whole
+  // policy, so what another admin changed meanwhile must survive.
+  testWidgets('disabling a user posts the policy the server has now', (
+    tester,
+  ) async {
+    await pump(tester);
+    final fresh = Map<String, dynamic>.from(users.user['Policy'] as Map)
+      ..['MaxParentalRating'] = 10
+      ..['BlockedTags'] = ['terror'];
+    users.serverUser = {...users.user, 'Policy': fresh};
+
+    await tester.tap(find.widgetWithText(OutlinedButton, l10n.disable));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, l10n.disable));
+    await tester.pumpAndSettle();
+
+    expect(users.postedPolicies.single, {...fresh, 'IsDisabled': true});
+  });
+
+  testWidgets('the signed-in admin can neither disable nor delete themself', (
+    tester,
+  ) async {
+    when(() => client.userId).thenReturn(users.user['Id'] as String);
+    await pump(tester);
+
+    expect(find.widgetWithText(OutlinedButton, l10n.disable), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, l10n.delete), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, l10n.manage), findsOneWidget);
+  });
+
+  testWidgets("the server's refusal to disable an admin is explained", (
+    tester,
+  ) async {
+    users.user['Policy'] = {
+      ...users.user['Policy'] as Map<String, dynamic>,
+      'IsAdministrator': true,
+    };
+    users.refuseWith = 403;
+    await pump(tester);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, l10n.disable));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, l10n.disable));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(
+        l10n.adminUserPolicyUpdateFailed(l10n.adminCannotDisableAdministrator),
+      ),
+      findsOneWidget,
+    );
   });
 }

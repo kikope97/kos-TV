@@ -43,10 +43,15 @@ String _describeDioError(DioException error, AppLocalizations l10n) {
       break;
   }
 
+  final status = error.response?.statusCode;
+  // Kos TV: a refused session or permission gets its own words rather than
+  // the server's English reason or a bare status.
+  if (status == 401) return l10n.errorSessionRejected;
+  if (status == 403) return l10n.errorPermissionDenied;
+
   final detail = _serverDetail(error.response?.data);
   if (detail != null) return detail;
 
-  final status = error.response?.statusCode;
   if (status != null && (status < 200 || status > 299)) {
     return l10n.adminServerReturnedHttp(status);
   }

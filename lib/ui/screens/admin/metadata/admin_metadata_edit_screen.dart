@@ -119,18 +119,6 @@ class _AdminMetadataEditScreenState extends State<AdminMetadataEditScreen>
     super.dispose();
   }
 
-  /// Emby lists tags only as TagItems. Its items API writes Tags back there.
-  static Map<String, dynamic> _withTags(Map<String, dynamic> item) {
-    final tagItems = item['TagItems'];
-    if (item['Tags'] == null && tagItems is List) {
-      item['Tags'] = [
-        for (final tag in tagItems)
-          if (tag is Map) tag['Name'],
-      ];
-    }
-    return item;
-  }
-
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -139,7 +127,7 @@ class _AdminMetadataEditScreenState extends State<AdminMetadataEditScreen>
 
     try {
       final result = await Future.wait<dynamic>([
-        _itemsApi.getItem(widget.itemId).then(_withTags),
+        _itemsApi.getItem(widget.itemId),
         _api.getMetadataEditor(widget.itemId),
       ]);
       final item = result[0] as Map<String, dynamic>;
@@ -156,7 +144,7 @@ class _AdminMetadataEditScreenState extends State<AdminMetadataEditScreen>
       hostDraft(
         AdminDraft.single(
           working: item,
-          reload: () => _itemsApi.getItem(widget.itemId).then(_withTags),
+          reload: () => _itemsApi.getItem(widget.itemId),
           post: (merged) => _api.updateItem(widget.itemId, {
             for (final key in _itemFields)
               if (merged.containsKey(key)) key: merged[key],
@@ -338,12 +326,31 @@ class _AdminMetadataEditScreenState extends State<AdminMetadataEditScreen>
     setState(() => _busyImageType = type);
     try {
       await action();
-      final fresh = await _itemsApi.getItem(widget.itemId);
-      if (mounted) setState(() => _stored = fresh);
+      // Kos TV: the change is made by now, so a failed refetch says so
+      // instead of reporting the change as failed.
+      await _refreshImages();
     } finally {
       if (mounted) {
         setState(() => _busyImageType = null);
       }
+    }
+  }
+
+  Future<void> _refreshImages() async {
+    try {
+      final fresh = await _itemsApi.getItem(widget.itemId);
+      if (mounted) setState(() => _stored = fresh);
+    } catch (e) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            l10n.adminImageChangedRefreshFailed(describeError(e, l10n)),
+          ),
+          action: SnackBarAction(label: l10n.retry, onPressed: _refreshImages),
+        ),
+      );
     }
   }
 
@@ -1493,7 +1500,7 @@ class _AdminMetadataEditScreenState extends State<AdminMetadataEditScreen>
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.adminMetadataImageUpdated(imageType.toServerString())),
+            content: Text(l10n.adminMetadataImageUpdated(adminImageTypeLabel(l10n, imageType))),
           ),
         );
       });
@@ -1550,7 +1557,7 @@ class _AdminMetadataEditScreenState extends State<AdminMetadataEditScreen>
         if (!mounted) return;
         messenger.showSnackBar(
           SnackBar(
-            content: Text(l10n.adminMetadataImageUploaded(imageType.toServerString())),
+            content: Text(l10n.adminMetadataImageUploaded(adminImageTypeLabel(l10n, imageType))),
           ),
         );
       });
@@ -1568,7 +1575,7 @@ class _AdminMetadataEditScreenState extends State<AdminMetadataEditScreen>
       context: context,
       builder:
           (ctx) => AlertDialog.adaptive(
-            title: Text(l10n.adminMetadataDeleteImageTitle(imageType.toServerString())),
+            title: Text(l10n.adminMetadataDeleteImageTitle(adminImageTypeLabel(l10n, imageType))),
             content: Text(
               l10n.adminMetadataDeleteImageContent,
             ),
@@ -1593,7 +1600,7 @@ class _AdminMetadataEditScreenState extends State<AdminMetadataEditScreen>
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.adminMetadataImageDeleted(imageType.toServerString())),
+            content: Text(l10n.adminMetadataImageDeleted(adminImageTypeLabel(l10n, imageType))),
           ),
         );
       });
@@ -1775,7 +1782,7 @@ class _RemoteImagePickerDialogState extends State<_RemoteImagePickerDialog> {
                 children: [
                   Expanded(
                     child: Text(
-                      l10n.adminMetadataChooseImage(widget.imageType.toServerString()),
+                      l10n.adminMetadataChooseImage(adminImageTypeLabel(l10n, widget.imageType)),
                       style: Theme.of(context).textTheme.headlineSmall,
                     ),
                   ),
@@ -2029,3 +2036,14 @@ class _RemoteImagePickerDialogState extends State<_RemoteImagePickerDialog> {
     );
   }
 }
+
+/// Kos TV: the image type in the app's words, for the notices and dialogs.
+String adminImageTypeLabel(AppLocalizations l10n, ImageType type) =>
+    switch (type) {
+      ImageType.primary => l10n.adminMetadataImagePrimary,
+      ImageType.backdrop => l10n.adminMetadataImageBackdrop,
+      ImageType.logo => l10n.adminMetadataImageLogo,
+      ImageType.banner => l10n.adminMetadataImageBanner,
+      ImageType.thumb => l10n.adminMetadataImageThumb,
+      _ => type.toServerString(),
+    };

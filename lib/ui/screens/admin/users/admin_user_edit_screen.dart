@@ -1,9 +1,12 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:server_core/server_core.dart';
 
+import '../../../../auth/models/user.dart';
+import '../../../../auth/repositories/user_repository.dart';
 import '../../../navigation/destinations.dart';
 import '../../../widgets/adaptive/adaptive_dialog.dart';
 import '../../detail/modern/widgets/details_tab_bar.dart';
@@ -166,11 +169,32 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
             if (_badSchedule(value) != null) {
               throw Exception(_l10n.adminScheduleStartBeforeEnd);
             }
-            await _users.updateUserPolicy(widget.userId, value);
+            try {
+              await _users.updateUserPolicy(widget.userId, value);
+            } on DioException catch (e) {
+              // Kos TV: Jellyfin answers a bare 403 when asked to disable an
+              // administrator, so the reason is spelled out.
+              if (e.response?.statusCode == 403 &&
+                  value['IsDisabled'] == true &&
+                  value['IsAdministrator'] == true) {
+                throw Exception(_l10n.adminCannotDisableAdministrator);
+              }
+              rethrow;
+            }
             if (mounted) ref.invalidate(adminUsersListProvider);
+            if (_isSelf && value['IsAdministrator'] != true) _leftAdmins();
           },
         ),
-      }));
+      }, pending: AdminDraftPending(
+        isPending: () =>
+            _tagControllers.values.any((c) => c.text.trim().isNotEmpty),
+        commit: _commitTypedTags,
+        clear: () {
+          for (final c in _tagControllers.values) {
+            c.clear();
+          }
+        },
+      )));
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -275,14 +299,21 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
     }
   }
 
-  /// Kos TV has no Emby, so the Emby-only rows below never show. Kept as a
-  /// flag for now so the Moonfin layout stays easy to compare.
-  bool get _emby => false;
-
-  /// A policy key only Emby has, shown when the server sent it.
-  bool _embyHas(String key) => _emby && _policy.containsKey(key);
-
   bool get _isSelf => _client.userId == widget.userId;
+
+  /// Kos TV: the signed-in admin took their own administrator permission
+  /// away. The app's copy of the user follows, and the panel, which would only
+  /// fail from now on, closes once the save has finished.
+  void _leftAdmins() {
+    final users = GetIt.instance<UserRepository>();
+    final current = users.currentUser;
+    if (current is PrivateUser && current.id == widget.userId) {
+      users.setCurrentUser(current.copyWith(isAdministrator: false));
+    }
+    Future<void>.delayed(Duration.zero, () {
+      if (mounted) context.go(Destinations.home);
+    });
+  }
   bool get _isAdmin => _policy['IsAdministrator'] == true;
 
   @override
@@ -393,23 +424,25 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
         ],
       ),
       const SizedBox(height: 16),
-      Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton.icon(
-          onPressed: () => showAdminUserDeleteDialog(
-            context,
-            user: ServerUser(id: widget.userId, name: '${_profile['Name']}'),
-            onDeleted: () {
-              ref.invalidate(adminUsersListProvider);
-              draft?.discard();
-              context.go(Destinations.adminUsers);
-            },
+      // Kos TV: the signed-in admin can't delete themself from here.
+      if (!_isSelf)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => showAdminUserDeleteDialog(
+              context,
+              user: ServerUser(id: widget.userId, name: '${_profile['Name']}'),
+              onDeleted: () {
+                ref.invalidate(adminUsersListProvider);
+                draft?.discard();
+                context.go(Destinations.adminUsers);
+              },
+            ),
+            icon: const Icon(Icons.delete),
+            label: Text(l10n.adminDeleteUser),
+            style: TextButton.styleFrom(foregroundColor: scheme.error),
           ),
-          icon: const Icon(Icons.delete),
-          label: Text(l10n.adminDeleteUser),
-          style: TextButton.styleFrom(foregroundColor: scheme.error),
         ),
-      ),
     ];
   }
 
@@ -432,12 +465,8 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
             ),
           _policySwitch('IsAdministrator', l10n.administrator),
           _policySwitch('IsHidden', l10n.adminHiddenUser),
-          if (_embyHas('IsHiddenRemotely'))
-            _policySwitch('IsHiddenRemotely', l10n.adminHiddenRemotely),
-          if (_embyHas('IsHiddenFromUnusedDevices'))
-            _policySwitch(
-                'IsHiddenFromUnusedDevices', l10n.adminHiddenFromUnusedDevices),
-          _policySwitch('IsDisabled', l10n.disabled),
+          // Kos TV: nor disable themself.
+          if (!_isSelf) _policySwitch('IsDisabled', l10n.disabled),
         ],
       ),
       adminSection(
@@ -451,15 +480,10 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
           _policySwitch(
               'EnableVideoPlaybackTranscoding', l10n.adminAllowVideoTranscoding),
           _policySwitch('EnablePlaybackRemuxing', l10n.adminAllowRemuxing),
-          if (!_emby)
-            _policySwitch('ForceRemoteSourceTranscoding',
-                l10n.adminForceRemoteTranscoding),
+          _policySwitch('ForceRemoteSourceTranscoding',
+              l10n.adminForceRemoteTranscoding),
           _mbpsField('RemoteClientBitrateLimit', l10n.adminRemoteBitrateLimitMbps,
               l10n.adminLeaveEmptyNoLimit),
-          if (_embyHas('AutoRemoteQuality'))
-            _mbpsField('AutoRemoteQuality', l10n.adminAutoRemoteQuality,
-                l10n.adminAutoRemoteQualityHelp),
-          if (_embyHas('SimultaneousStreamLimit')) _streamLimitRow(l10n),
         ],
       ),
       adminSection(
@@ -470,13 +494,6 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
           _policySwitch(
               'EnableContentDownloading', l10n.adminAllowContentDownloading),
           _policySwitch('EnablePublicSharing', l10n.adminAllowPublicSharing),
-          for (final (key, label) in [
-            ('EnableSyncTranscoding', l10n.adminAllowSyncTranscoding),
-            ('EnableMediaConversion', l10n.adminAllowMediaConversion),
-            ('AllowCameraUpload', l10n.adminAllowCameraUpload),
-            ('AllowSharingPersonalItems', l10n.adminAllowSharingPersonalItems),
-          ])
-            if (_embyHas(key)) _policySwitch(key, label),
         ],
       ),
       adminSection(
@@ -490,9 +507,8 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
               'EnableSharedDeviceControl', l10n.adminAllowSharedDeviceControl),
           if (_serverRemoteAccess)
             _policySwitch('EnableRemoteAccess', l10n.adminAllowRemoteAccess),
-          if (!_emby)
-            _intField('MaxActiveSessions', l10n.adminMaxActiveSessions,
-                l10n.adminLeaveEmptyNoLimit),
+          _intField('MaxActiveSessions', l10n.adminMaxActiveSessions,
+              l10n.adminLeaveEmptyNoLimit),
         ],
       ),
       adminSection(
@@ -503,20 +519,12 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
           _policySwitch('EnableLiveTvAccess', l10n.adminAllowLiveTvAccess),
           _policySwitch(
               'EnableLiveTvManagement', l10n.adminAllowLiveTvManagement),
-          if (!_emby)
-            _policySwitch('EnableCollectionManagement',
-                l10n.adminAllowCollectionManagement),
+          _policySwitch('EnableCollectionManagement',
+              l10n.adminAllowCollectionManagement),
           _policySwitch(
               'EnableSubtitleManagement', l10n.adminAllowSubtitleManagement),
-          if (_embyHas('EnableSubtitleDownloading'))
-            _policySwitch(
-                'EnableSubtitleDownloading', l10n.adminAllowSubtitleDownloading),
-          if (!_emby)
-            _policySwitch(
-                'EnableLyricManagement', l10n.adminAllowLyricManagement),
-          if (_embyHas('EnableUserPreferenceAccess'))
-            _policySwitch(
-                'EnableUserPreferenceAccess', l10n.adminAllowPreferenceAccess),
+          _policySwitch(
+              'EnableLyricManagement', l10n.adminAllowLyricManagement),
         ],
       ),
       if (auth.isNotEmpty)
@@ -527,34 +535,6 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
           children: auth,
         ),
     ];
-  }
-
-  /// Emby counts 0 as unlimited. The stored value joins the list in case
-  /// it's past 50.
-  Widget _streamLimitRow(AppLocalizations l10n) {
-    final current = (_policy['SimultaneousStreamLimit'] as num?)?.toInt() ?? 0;
-    return adminFieldRow(
-      label: l10n.adminStreamingStreamLimit,
-      helper: l10n.adminSimultaneousStreamLimitHelp,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          DropdownButtonFormField<int>(
-            initialValue: current,
-            isExpanded: true,
-            decoration: adminInputDecoration(),
-            items: [
-              for (final n in {for (var i = 0; i <= 50; i++) i, current})
-                DropdownMenuItem(
-                  value: n,
-                  child: Text(n == 0 ? l10n.adminUnlimited : '$n'),
-                ),
-            ],
-            onChanged: (v) => _setPolicy('SimultaneousStreamLimit', v ?? 0),
-          ),
-        ],
-      ),
-    );
   }
 
   List<Widget> _authRows(AppLocalizations l10n) => [
@@ -570,7 +550,7 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
             policyKey: 'PasswordResetProviderId',
             providers: _resetProviders,
           ),
-        if (!_emby) ...[
+        ...[
           _intField('LoginAttemptsBeforeLockout',
               l10n.adminLoginAttemptsBeforeLockout, l10n.adminLoginAttemptsHint),
           adminFieldRow(
@@ -701,7 +681,7 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
             'EnableAllDevices',
             'EnabledDevices',
             l10n.adminEnableAllDevices,
-            // Emby's policy holds the id the client reported.
+            // The policy holds the id the client reported.
             [
               for (final d in _devices)
                 (d.reportedDeviceId ?? d.id, _deviceLabel(d)),
@@ -814,8 +794,6 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
       ('Series', l10n.adminUnratedSeries),
     ];
     final blocked = _listOf('BlockUnratedItems');
-    // Emby has one tag list, which allows rather than blocks in this mode.
-    final inclusive = _policy['IsTagBlockingModeInclusive'] == true;
 
     return [
       adminSection(
@@ -865,42 +843,20 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
             ),
         ],
       ),
-      if (!_emby)
-        adminSection(
-          context,
-          title: l10n.adminAllowedTags,
-          icon: Icons.label_outline,
-          children: [
-            _buildTagEditor('AllowedTags', l10n.adminAllowedTagsHint, l10n),
-          ],
-        ),
       adminSection(
         context,
-        title: inclusive ? l10n.adminAllowedTags : l10n.adminBlockedTags,
-        icon: inclusive ? Icons.label_outline : Icons.label_off_outlined,
+        title: l10n.adminAllowedTags,
+        icon: Icons.label_outline,
         children: [
-          if (_embyHas('IsTagBlockingModeInclusive'))
-            adminFieldRow(
-              label: l10n.adminTagMode,
-              child: DropdownButtonFormField<bool>(
-                initialValue: inclusive,
-                isExpanded: true,
-                decoration: adminInputDecoration(),
-                items: [
-                  DropdownMenuItem(
-                      value: false, child: Text(l10n.adminBlockedTags)),
-                  DropdownMenuItem(
-                      value: true, child: Text(l10n.adminAllowedTags)),
-                ],
-                onChanged: (v) =>
-                    _setPolicy('IsTagBlockingModeInclusive', v ?? false),
-              ),
-            ),
-          _buildTagEditor(
-            'BlockedTags',
-            inclusive ? l10n.adminAllowedTagsHint : l10n.adminBlockedTagsHint,
-            l10n,
-          ),
+          _buildTagEditor('AllowedTags', l10n.adminAllowedTagsHint, l10n),
+        ],
+      ),
+      adminSection(
+        context,
+        title: l10n.adminBlockedTags,
+        icon: Icons.label_off_outlined,
+        children: [
+          _buildTagEditor('BlockedTags', l10n.adminBlockedTagsHint, l10n),
         ],
       ),
       if (!_isAdmin)
@@ -1073,6 +1029,19 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
     _setPolicy('AccessSchedules', schedules);
   }
 
+  /// Kos TV: a tag typed but not added still goes in when saving, so the
+  /// admin never believes a tag is blocked when it isn't.
+  void _commitTypedTags() {
+    for (final MapEntry(:key, value: controller) in _tagControllers.entries) {
+      final t = controller.text.trim();
+      if (t.isEmpty) continue;
+      final tags = _listOf(key);
+      if (!tags.contains(t)) _policy[key] = [...tags, t];
+      controller.clear();
+    }
+    if (mounted) setState(() {});
+  }
+
   Widget _buildTagEditor(String key, String hint, AppLocalizations l10n) {
     final tags = _listOf(key);
     final controller =
@@ -1080,8 +1049,12 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
     void addTag() {
       final t = controller.text.trim();
       if (t.isEmpty) return;
-      if (!tags.contains(t)) _setPolicy(key, [...tags, t]);
       controller.clear();
+      if (!tags.contains(t)) {
+        _setPolicy(key, [...tags, t]);
+      } else {
+        edited();
+      }
     }
 
     return Padding(
@@ -1111,6 +1084,8 @@ class _AdminUserEditScreenState extends ConsumerState<AdminUserEditScreen>
                 child: TextField(
                   controller: controller,
                   decoration: adminInputDecoration(hint: l10n.adminAddTag),
+                  // Typed text counts as an edit until it is added.
+                  onChanged: (_) => edited(),
                   onSubmitted: (_) => addTag(),
                 ),
               ),

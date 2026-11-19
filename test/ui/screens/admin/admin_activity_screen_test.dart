@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -14,6 +16,9 @@ class _MockMediaServerClient extends Mock implements MediaServerClient {}
 /// filters of every request.
 class _FakeAdminSystemApi extends Fake implements AdminSystemApi {
   final calls = <Map<String, Object?>>[];
+
+  /// When set, the next request waits for it before answering.
+  Completer<void>? hold;
 
   @override
   Future<ActivityLogResult> getActivityLog({
@@ -34,7 +39,12 @@ class _FakeAdminSystemApi extends Fake implements AdminSystemApi {
       'severity': severity,
       'username': username,
     });
-    const total = 30;
+    final gate = hold;
+    hold = null;
+    if (gate != null) await gate.future;
+    // The old view's rows are named apart, so a mix-up shows.
+    final prefix = hasUserId == false ? 'System' : 'Entry';
+    final total = hasUserId == false ? 3 : 30;
     final start = startIndex ?? 0;
     final count = (total - start).clamp(0, limit ?? total);
     return ActivityLogResult(
@@ -42,7 +52,7 @@ class _FakeAdminSystemApi extends Fake implements AdminSystemApi {
         for (var i = start; i < start + count; i++)
           ActivityLogEntry(
             id: '$i',
-            name: 'Entry $i',
+            name: '$prefix $i',
             type: 'SessionStarted',
             date: DateTime.now().subtract(Duration(minutes: i)),
             userId: 'u1',
@@ -202,5 +212,33 @@ void main() {
     await tester.tap(find.text('Entry 1'));
     await tester.pumpAndSettle();
     expect(find.text(l10n.adminActivityMediaDetails), findsNothing);
+  });
+
+  testWidgets('a filter picked while a page loads drops that page', (
+    tester,
+  ) async {
+    final gate = api.hold = Completer<void>();
+    tester.view.physicalSize = const Size(1000, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const Scaffold(body: AdminActivityScreen()),
+      ),
+    );
+    await tester.pump();
+
+    await tester.tap(find.text(l10n.systemEvents));
+    await tester.pump();
+    gate.complete();
+    await tester.pumpAndSettle();
+
+    expect(api.calls.last, containsPair('hasUserId', false));
+    expect(api.calls.last, containsPair('startIndex', 0));
+    expect(find.text('System 0'), findsOneWidget);
+    expect(find.text('Entry 0'), findsNothing);
+    expect(find.text(l10n.adminActivityCount('3', '3')), findsOneWidget);
   });
 }

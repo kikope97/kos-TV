@@ -41,6 +41,10 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
   String? _userFilter;
   Map<String, String> _userNames = const {};
   bool _isLoading = false;
+
+  /// Bumped when the list starts over, so a page still on its way for the
+  /// previous filter is dropped instead of landing in the new list.
+  int _loadGen = 0;
   bool _hasMore = true;
   int _totalCount = 0;
   String? _error;
@@ -62,7 +66,7 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
     // The server only pushes ActivityLogEntry to sockets that asked for it.
     socket.subscribe('ActivityLogEntry');
     // Jellyfin's first push repeats what _loadPage fetches, so only later ones
-    // reload. Every Emby push is a new entry.
+    // reload.
     var primed = false;
     _socketSubscription = socket.events.listen((event) {
       switch (event) {
@@ -113,6 +117,7 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
 
   Future<void> _loadPage() async {
     if (_isLoading) return;
+    final gen = _loadGen;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -136,7 +141,7 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
         severity: _severityFilter,
         username: _filter == _ActivityFilter.system ? null : _userFilter,
       );
-      if (!mounted) return;
+      if (!mounted || gen != _loadGen) return;
       setState(() {
         _entries.addAll(result.items);
         _totalCount = result.totalRecordCount;
@@ -144,7 +149,7 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || gen != _loadGen) return;
       setState(() {
         _error = describeError(e, AppLocalizations.of(context));
         _isLoading = false;
@@ -152,13 +157,21 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
     }
   }
 
+  /// Empties the list and drops any page still loading, so the next load
+  /// starts from the first row of the current filter.
+  void _startOver() {
+    _loadGen++;
+    _entries.clear();
+    _hasMore = true;
+    _totalCount = 0;
+    _isLoading = false;
+  }
+
   /// Applies a filter change and loads again from the first row.
   void _reload(VoidCallback change) {
     setState(() {
       change();
-      _entries.clear();
-      _hasMore = true;
-      _totalCount = 0;
+      _startOver();
     });
     _loadPage();
   }
@@ -169,11 +182,7 @@ class _AdminActivityScreenState extends State<AdminActivityScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() {
-      _entries.clear();
-      _hasMore = true;
-      _totalCount = 0;
-    });
+    setState(_startOver);
     await _loadPage();
   }
 

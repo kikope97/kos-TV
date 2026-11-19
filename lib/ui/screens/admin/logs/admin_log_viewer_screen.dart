@@ -25,6 +25,20 @@ class AdminLogViewerScreen extends StatefulWidget {
   State<AdminLogViewerScreen> createState() => _AdminLogViewerScreenState();
 }
 
+/// Kos TV: one line of the log, split and classified once per download so
+/// typing in the search box only filters.
+class _LogLine {
+  _LogLine(this.number, this.text)
+    : lower = text.toLowerCase(),
+      level = _AdminLogViewerScreenState._levelOf(text);
+
+  /// The line's number in the file, whatever the filter.
+  final int number;
+  final String text;
+  final String lower;
+  final String? level;
+}
+
 class _AdminLogViewerScreenState extends State<AdminLogViewerScreen> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -33,11 +47,28 @@ class _AdminLogViewerScreenState extends State<AdminLogViewerScreen> {
   /// view is already at the bottom.
   Timer? _watchTimer;
 
+  /// A watch read on its way. A slow one is never joined by the next tick's.
+  bool _fetching = false;
+
   bool _loading = true;
   String? _error;
   String _content = '';
+  List<_LogLine> _allLines = const [];
   String _query = '';
   String? _levelFilter;
+
+  /// The filtered lines and the filter they were made for.
+  List<_LogLine>? _filtered;
+  (String, String?)? _filteredFor;
+
+  void _setContent(String text) {
+    _content = text;
+    final split = text.replaceAll('\r\n', '\n').split('\n');
+    _allLines = [
+      for (var i = 0; i < split.length; i++) _LogLine(i + 1, split[i]),
+    ];
+    _filtered = null;
+  }
 
   AdminSystemApi get _api => GetIt.instance<MediaServerClient>().adminSystemApi;
 
@@ -84,13 +115,18 @@ class _AdminLogViewerScreenState extends State<AdminLogViewerScreen> {
   /// A watch refetch keeps the current text on screen and drops a failed
   /// read. The next tick tries again.
   Future<void> _refetch() async {
+    if (_fetching) return;
+    _fetching = true;
     try {
       final text = await _api.getLogFileContent(widget.fileName);
       if (!mounted || _watchTimer == null || text == _content) return;
       final follow = _atBottom;
-      setState(() => _content = text);
+      setState(() => _setContent(text));
       if (follow) _scrollToBottom();
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      _fetching = false;
+    }
   }
 
   Future<void> _loadLog() async {
@@ -103,7 +139,7 @@ class _AdminLogViewerScreenState extends State<AdminLogViewerScreen> {
       final text = await _api.getLogFileContent(widget.fileName);
       if (!mounted) return;
       setState(() {
-        _content = text;
+        _setContent(text);
         _loading = false;
       });
     } catch (e) {
@@ -115,35 +151,31 @@ class _AdminLogViewerScreenState extends State<AdminLogViewerScreen> {
     }
   }
 
-  List<String> get _lines {
-    final all = _content.replaceAll('\r\n', '\n').split('\n');
+  List<_LogLine> get _lines {
     final q = _query.trim().toLowerCase();
-    return all.where((line) {
-      if (q.isNotEmpty && !line.toLowerCase().contains(q)) return false;
-      if (_levelFilter != null && _levelOf(line) != _levelFilter) {
-        return false;
-      }
-      return true;
-    }).toList();
+    final key = (q, _levelFilter);
+    final cached = _filtered;
+    if (cached != null && _filteredFor == key) return cached;
+    _filteredFor = key;
+    return _filtered = q.isEmpty && _levelFilter == null
+        ? _allLines
+        : _allLines.where((line) {
+            if (q.isNotEmpty && !line.lower.contains(q)) return false;
+            if (_levelFilter != null && line.level != _levelFilter) {
+              return false;
+            }
+            return true;
+          }).toList();
   }
 
-  /// Emby writes the level as a word after the time, where Jellyfin tags
-  /// the line with `[ERR]` and the like.
-  static final _embyLevel = RegExp(r'^\S+ \S+ (Error|Fatal|Warn|Info|Debug) ');
-
-  /// ERR, WRN, INF or DBG, or null for a line without a level.
+  /// ERR, WRN, INF or DBG as Jellyfin tags the line (`[ERR]` and the like),
+  /// or null for a line without a level.
   static String? _levelOf(String line) {
     final upper = line.toUpperCase();
     for (final level in const ['ERR', 'WRN', 'INF', 'DBG']) {
       if (upper.contains('[$level]')) return level;
     }
-    return switch (_embyLevel.firstMatch(line)?.group(1)) {
-      'Error' || 'Fatal' => 'ERR',
-      'Warn' => 'WRN',
-      'Info' => 'INF',
-      'Debug' => 'DBG',
-      _ => null,
-    };
+    return null;
   }
 
   Future<void> _copyAll() async {
@@ -200,7 +232,7 @@ class _AdminLogViewerScreenState extends State<AdminLogViewerScreen> {
     }
   }
 
-  Color _lineColor(ThemeData theme, String line) => switch (_levelOf(line)) {
+  Color _lineColor(ThemeData theme, _LogLine line) => switch (line.level) {
     'ERR' => AppColorScheme.statusRequested,
     'WRN' => AppColorScheme.statusPending,
     'INF' => AppColorScheme.statusAvailable,
@@ -388,7 +420,7 @@ class _AdminLogViewerScreenState extends State<AdminLogViewerScreen> {
                           SizedBox(
                             width: 48,
                             child: Text(
-                              '${index + 1}',
+                              '${line.number}',
                               textAlign: TextAlign.right,
                               style: TextStyle(
                                 fontSize: 11,
@@ -402,7 +434,7 @@ class _AdminLogViewerScreenState extends State<AdminLogViewerScreen> {
                           Expanded(
                             child: SelectableText.rich(
                               _buildLineSpan(
-                                line: line,
+                                line: line.text,
                                 baseStyle: base,
                                 highlightStyle: highlight,
                               ),

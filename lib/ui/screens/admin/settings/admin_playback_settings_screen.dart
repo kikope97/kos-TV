@@ -94,10 +94,10 @@ class _AdminPlaybackSettingsScreenState
     ('yadif', 'YADIF'),
     ('bwdif', 'BWDIF'),
   ];
-  static const _downmixAlgorithms = [
-    ('None', 'None'),
+  static List<(String, String)> _downmixAlgorithms(AppLocalizations l10n) => [
+    ('None', l10n.none),
     ('Dave750', 'Dave750'),
-    ('NightmodeDialogue', 'Nightmode Dialogue'),
+    ('NightmodeDialogue', l10n.adminDownmixNightmodeDialogue),
     ('Rfc7845', 'RFC 7845'),
     ('Ac4', 'AC-4'),
   ];
@@ -333,7 +333,7 @@ class _AdminPlaybackSettingsScreenState
                   _number('DownMixAudioBoost', l10n.adminPlaybackDownmixBoost,
                       fallback: 2, min: 0.5, max: 3, decimal: true),
                   _dropdown('DownMixStereoAlgorithm',
-                      l10n.adminPlaybackDownmixAlgorithm, _downmixAlgorithms),
+                      l10n.adminPlaybackDownmixAlgorithm, _downmixAlgorithms(l10n)),
                   _dropdown(
                     'HlsAudioSeekStrategy',
                     l10n.adminTranscodingAudioSeek,

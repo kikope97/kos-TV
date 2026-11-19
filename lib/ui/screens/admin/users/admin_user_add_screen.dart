@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../navigation/destinations.dart';
+import '../admin_draft.dart';
 import '../providers/admin_user_providers.dart';
 import '../widgets/admin_form_styles.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -36,16 +37,33 @@ class _AdminUserAddScreenState extends ConsumerState<AdminUserAddScreen> {
     super.initState();
     _client = GetIt.instance<MediaServerClient>();
     _lists = _load();
+    // Kos TV: leaving with something typed asks first.
+    AdminUnsavedForms.register(Destinations.adminUsersAdd, _hasInput);
   }
 
-  Future<(List<VirtualFolderInfo>, List<Map<String, dynamic>>)> _load() async =>
-      (
-        await _client.adminLibraryApi.getMediaFolders(isHidden: false),
-        await _client.adminUsersApi.getChannels(),
-      );
+  bool _hasInput() =>
+      _nameController.text.trim().isNotEmpty ||
+      _passwordController.text.isNotEmpty ||
+      _allFolders ||
+      _allChannels ||
+      _folders.isNotEmpty ||
+      _channels.isNotEmpty;
+
+  // Both lists load at once.
+  Future<(List<VirtualFolderInfo>, List<Map<String, dynamic>>)> _load() async {
+    final results = await Future.wait<Object>([
+      _client.adminLibraryApi.getMediaFolders(isHidden: false),
+      _client.adminUsersApi.getChannels(),
+    ]);
+    return (
+      results[0] as List<VirtualFolderInfo>,
+      results[1] as List<Map<String, dynamic>>,
+    );
+  }
 
   @override
   void dispose() {
+    AdminUnsavedForms.unregister(Destinations.adminUsersAdd);
     _nameController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -62,13 +80,20 @@ class _AdminUserAddScreenState extends ConsumerState<AdminUserAddScreen> {
         _passwordController.text.isEmpty ? null : _passwordController.text,
       );
       ref.invalidate(adminUsersListProvider);
+      AdminUnsavedForms.unregister(Destinations.adminUsersAdd);
       // The user exists from here on, so a failed access save still opens
       // their page rather than inviting a second create with the same name.
       try {
         // The new user's own policy with only the access keys set, so nothing
         // else is reset.
+        // Kos TV: read fresh if the create answer left the policy out, so a
+        // partial policy is never posted.
+        final policy = user.policy?.toJson() ??
+            Map<String, dynamic>.from(
+              (await api.getUserById(user.id)).raw['Policy'] as Map,
+            );
         await api.updateUserPolicy(user.id, {
-          ...user.policy!.toJson(),
+          ...policy,
           'EnableAllFolders': _allFolders,
           'EnabledFolders': _allFolders ? <String>[] : _folders.toList(),
           'EnableAllChannels': _allChannels,

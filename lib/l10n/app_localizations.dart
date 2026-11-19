@@ -35546,6 +35546,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Bookmark {number}: {label}'**
   String kostvAudiobookBookmarkTitle(int number, String label);
+
+  /// Kos TV: admin panel: why disabling an administrator failed (the server answers a bare 403)
+  ///
+  /// In en, this message translates to:
+  /// **'Jellyfin doesn\'t allow disabling an administrator. Remove their administrator permission on their page first.'**
+  String get adminCannotDisableAdministrator;
+
+  /// Kos TV: error text for an HTTP 401 answer
+  ///
+  /// In en, this message translates to:
+  /// **'The server didn\'t accept your session. Sign in again.'**
+  String get errorSessionRejected;
+
+  /// Kos TV: error text for an HTTP 403 answer
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to do this on the server.'**
+  String get errorPermissionDenied;
+
+  /// Kos TV: admin panel: title of the dialog before turning a plugin off
+  ///
+  /// In en, this message translates to:
+  /// **'Disable plugin'**
+  String get adminDisablePluginTitle;
+
+  /// Kos TV: admin panel: asks before turning a plugin off
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to disable \"{name}\"? It stops working once the server restarts.'**
+  String adminDisablePluginConfirm(String name);
+
+  /// Kos TV: admin panel: added when disabling or uninstalling the kOS TV server plugin
+  ///
+  /// In en, this message translates to:
+  /// **'Every kOS TV app in the house (TVs, phones and the web) depends on this plugin. Without it they lose My list, PINs, messages, the home rows and requests.'**
+  String get adminKosTvPluginWarning;
+
+  /// Kos TV: admin panel: the library being edited was not found
+  ///
+  /// In en, this message translates to:
+  /// **'This library is no longer on the server.'**
+  String get adminLibraryNotFound;
+
+  /// Kos TV: admin panel: folder browser, the typed path was refused
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid path: {error}'**
+  String adminInvalidPath(String error);
+
+  /// Kos TV: admin panel: playback, stereo downmix algorithm NightmodeDialogue
+  ///
+  /// In en, this message translates to:
+  /// **'Nightmode dialogue'**
+  String get adminDownmixNightmodeDialogue;
+
+  /// Kos TV: admin panel: API keys, created but the reload failed
+  ///
+  /// In en, this message translates to:
+  /// **'The key was created, but the list couldn\'t be loaded: {error}'**
+  String adminApiKeyCreatedReloadFailed(String error);
+
+  /// Kos TV: admin panel: metadata images, the change worked but reading the item again failed
+  ///
+  /// In en, this message translates to:
+  /// **'The image was changed, but the view couldn\'t be refreshed: {error}'**
+  String adminImageChangedRefreshFailed(String error);
 }
 
 class _AppLocalizationsDelegate

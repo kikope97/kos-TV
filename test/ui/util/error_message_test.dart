@@ -46,17 +46,26 @@ void main() {
       expect(describeError(error, _l10n), _unableToConnect);
     });
 
-    test("reads plex.tv's list of errors", () {
-      final refused = _badResponse(401, {
+    test("reads a list of errors", () {
+      final refused = _badResponse(400, {
         'errors': [
-          {
-            'code': 1001,
-            'message': 'User could not be authenticated',
-            'status': 401,
-          },
+          {'code': 1001, 'message': 'Name is taken', 'status': 400},
         ],
       });
-      expect(describeError(refused, _l10n), 'User could not be authenticated');
+      expect(describeError(refused, _l10n), 'Name is taken');
+    });
+
+    // Kos TV: a refused session or permission in the app's words, never the
+    // server's English reason.
+    test('a 401 or 403 gets its own text', () {
+      expect(
+        describeError(_badResponse(401, {'title': 'Unauthorized'}), _l10n),
+        "The server didn't accept your session. Sign in again.",
+      );
+      expect(
+        describeError(_badResponse(403), _l10n),
+        "You don't have permission to do this on the server.",
+      );
     });
 
     test('prefers the reason the server sent', () {
@@ -78,8 +87,8 @@ void main() {
         'Server returned HTTP 502',
       );
       expect(
-        describeError(_badResponse(403, {'code': 7}), _l10n),
-        'Server returned HTTP 403',
+        describeError(_badResponse(404, {'code': 7}), _l10n),
+        'Server returned HTTP 404',
       );
     });
 

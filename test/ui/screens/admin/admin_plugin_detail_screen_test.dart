@@ -24,6 +24,16 @@ class _FakePluginsApi extends Fake implements AdminPluginsApi {
   List<PackageInfo> packages = const [];
   int pageLookups = 0;
   final installs = <String?>[];
+  final disabled = <String>[];
+  final uninstalled = <String>[];
+
+  @override
+  Future<void> disablePlugin(String pluginId, String version) async =>
+      disabled.add(pluginId);
+
+  @override
+  Future<void> uninstallPlugin(String pluginId, String version) async =>
+      uninstalled.add(pluginId);
 
   @override
   Future<List<Map<String, dynamic>>> getConfigurationPages() async {
@@ -59,13 +69,21 @@ const _moonbase = PluginInfo(
   canUninstall: true,
 );
 
-/// As Emby's GET /Plugins sends it, with no CanUninstall or Status.
+/// With no CanUninstall or Status.
 const _embyBackup = PluginInfo(
   name: 'Backup & Restore',
   id: 'e711475e-efad-431b-8527-033ba9873a34',
   version: '1.8.7.0',
   hasImage: true,
   imageTag: '1',
+);
+
+/// The kOS TV server plugin, as Jellyfin sends its id (no dashes).
+const _kosTv = PluginInfo(
+  name: 'kOS TV',
+  id: '561f86dffa004fcaaa4d2fed0e332670',
+  version: '3.1.0.2',
+  canUninstall: true,
 );
 
 void main() {
@@ -93,7 +111,7 @@ void main() {
       ProviderScope(
         overrides: [
           adminInstalledPluginsProvider.overrideWith(
-            (ref) async => const [_tmdb, _moonbase, _embyBackup],
+            (ref) async => const [_tmdb, _moonbase, _embyBackup, _kosTv],
           ),
         ],
         child: MaterialApp(
@@ -150,6 +168,60 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, l10n.install));
     await tester.pumpAndSettle();
     expect(api.installs, ['2.5.0.0']);
+  });
+
+  // Kos TV: turning a plugin off asks first, and for kOS TV's own it says the
+  // apps depend on it.
+  testWidgets('disabling a plugin asks first', (tester) async {
+    await pump(tester, _moonbase.id);
+
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(l10n.adminDisablePluginConfirm('Moonbase')),
+      findsOneWidget,
+    );
+    await tester.tap(find.text(l10n.cancel));
+    await tester.pumpAndSettle();
+    expect(api.disabled, isEmpty);
+
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, l10n.disable));
+    await tester.pumpAndSettle();
+    expect(api.disabled, [_moonbase.id]);
+  });
+
+  testWidgets('disabling or uninstalling kOS TV warns about the apps', (
+    tester,
+  ) async {
+    await pump(tester, _kosTv.id);
+
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        '${l10n.adminDisablePluginConfirm('kOS TV')}\n\n'
+        '${l10n.adminKosTvPluginWarning}',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.text(l10n.cancel));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text(l10n.uninstall));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(
+        '${l10n.adminUninstallPluginConfirm('kOS TV')}\n\n'
+        '${l10n.adminKosTvPluginWarning}',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(FilledButton, l10n.uninstall));
+    await tester.pumpAndSettle();
+    expect(api.uninstalled, [_kosTv.id]);
+    expect(api.disabled, isEmpty);
   });
 
   test('the main-menu page wins, else the first one', () {

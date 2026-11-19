@@ -9,6 +9,8 @@ import 'package:server_core/server_core.dart';
 
 import '../../../../l10n/app_localizations.dart';
 import '../../../util/error_message.dart';
+import '../../../navigation/destinations.dart';
+import '../admin_draft.dart';
 import '../providers/admin_user_providers.dart';
 import '../widgets/admin_form_styles.dart';
 import '../widgets/filesystem_browser.dart';
@@ -74,7 +76,21 @@ class _AdminLibraryAddScreenState
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Kos TV: leaving with something chosen or typed asks first.
+    AdminUnsavedForms.register(
+      Destinations.adminLibrariesAdd,
+      () =>
+          _collectionType != null ||
+          _nameController.text.trim().isNotEmpty ||
+          _paths.isNotEmpty,
+    );
+  }
+
+  @override
   void dispose() {
+    AdminUnsavedForms.unregister(Destinations.adminLibrariesAdd);
     _nameController.dispose();
     super.dispose();
   }
@@ -101,19 +117,23 @@ class _AdminLibraryAddScreenState
     setState(() => _options = null);
     final client = GetIt.instance<MediaServerClient>();
     // A failed lookup still creates the library, only without provider lists.
-    final available = await client.adminLibraryApi
+    // The three lists load at once.
+    final availableLoad = client.adminLibraryApi
         .getAvailableLibraryOptions(type == 'mixed' ? null : type)
         .catchError((_) => <String, dynamic>{});
-    if (_cultures.isEmpty) {
-      _cultures = await client.adminSystemApi
-          .getCultures()
-          .catchError((_) => <Map<String, dynamic>>[]);
-    }
-    if (_countries.isEmpty) {
-      _countries = await client.adminSystemApi
-          .getCountries()
-          .catchError((_) => <Map<String, dynamic>>[]);
-    }
+    final culturesLoad = _cultures.isEmpty
+        ? client.adminSystemApi
+            .getCultures()
+            .catchError((_) => <Map<String, dynamic>>[])
+        : null;
+    final countriesLoad = _countries.isEmpty
+        ? client.adminSystemApi
+            .getCountries()
+            .catchError((_) => <Map<String, dynamic>>[])
+        : null;
+    final available = await availableLoad;
+    if (culturesLoad != null) _cultures = await culturesLoad;
+    if (countriesLoad != null) _countries = await countriesLoad;
     if (!mounted || load != _optionsLoad) return;
     setState(() {
       _available = available;
@@ -159,6 +179,7 @@ class _AdminLibraryAddScreenState
         refreshLibrary: true,
       );
       ref.invalidate(adminLibrariesProvider);
+      AdminUnsavedForms.unregister(Destinations.adminLibrariesAdd);
       if (mounted) context.pop();
     } catch (e) {
       if (mounted) {
