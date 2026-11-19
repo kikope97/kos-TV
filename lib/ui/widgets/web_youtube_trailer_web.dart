@@ -99,6 +99,8 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
   late final JSFunction _onApiChangeJs;
   late final JSFunction _onErrorJs;
   late final JSFunction _messageListener;
+  late final JSFunction _blurListener;
+  FocusNode? _lastAppFocus;
 
   bool _created = false;
   bool _disposed = false;
@@ -123,6 +125,15 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
     _onErrorJs = ((JSObject event) => _onError(event)).toJS;
     _messageListener = ((web.Event event) => _handleWindowMessage(event)).toJS;
     web.window.addEventListener('message', _messageListener);
+    // Kos TV: the page loses the keyboard ("blur") when the trailer's frame
+    // takes it, whenever YouTube does it (on load, on playing, on its own
+    // later); a trailer behind a page hands it straight back.
+    _blurListener = ((web.Event _) => _reclaimFocus()).toJS;
+    if (widget.ignorePointer) {
+      web.window.addEventListener('blur', _blurListener);
+      _lastAppFocus = FocusManager.instance.primaryFocus;
+      FocusManager.instance.addListener(_noteAppFocus);
+    }
 
     if (_registeredViewTypes.add(_viewType)) {
       // Kos TV: the factory stays registered for good (the registry can't
@@ -175,6 +186,8 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
     _resizeObserver?.disconnect();
     _resizeObserver = null;
     web.window.removeEventListener('message', _messageListener);
+    web.window.removeEventListener('blur', _blurListener);
+    FocusManager.instance.removeListener(_noteAppFocus);
     final player = _player;
     _player = null;
     if (player != null) {
@@ -361,20 +374,48 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
   /// Kos TV: puts the keyboard back on the app when [frame] (or nothing,
   /// after the frame let go of it) holds it.
   void _giveFocusBack(web.HTMLIFrameElement frame) {
-    for (final delay in const [0, 300, 1000, 2500]) {
-      Future<void>.delayed(Duration(milliseconds: delay), () {
-        if (_disposed) return;
-        final active = web.document.activeElement;
-        if (active != null &&
-            active != frame &&
-            active != web.document.body) {
-          return;
-        }
-        final view = web.document.querySelector('flutter-view');
-        if (view != null && view.isA<web.HTMLElement>()) {
-          (view as web.HTMLElement).focus();
-        }
-      });
+    _reclaimFocus();
+  }
+
+  /// Kos TV: the keyboard back on the app, right after the browser moved it
+  /// to this trailer's frame or dropped it on the page body.
+  void _reclaimFocus() {
+    Future<void>.delayed(Duration.zero, () {
+      if (_disposed || !widget.ignorePointer) return;
+      final active = web.document.activeElement;
+      final frame = _player?.getIframe();
+      final ours = active != null &&
+          frame != null &&
+          identical(active as Object, frame as Object);
+      if (!ours && active != null && active != web.document.body) return;
+      final view = web.document.querySelector('flutter-view');
+      if (view != null && view.isA<web.HTMLElement>()) {
+        (view as web.HTMLElement).focus();
+      }
+      // The engine also took the focus off the app's own widgets when the
+      // frame got it; the one that had it gets it again.
+      final last = _lastAppFocus;
+      final now = FocusManager.instance.primaryFocus;
+      if (last != null &&
+          last.context != null &&
+          last.canRequestFocus &&
+          (now == null || now.context == null || now != last)) {
+        last.requestFocus();
+      }
+    });
+  }
+
+  /// Kos TV: the app's focused widget, kept while it is one of the app's.
+  void _noteAppFocus() {
+    // Only while the app holds the keyboard: what the engine does to the
+    // focus as the frame takes it is not the person's choice.
+    final active = web.document.activeElement;
+    if (active == null || active.tagName.toLowerCase() != 'flutter-view') {
+      return;
+    }
+    final now = FocusManager.instance.primaryFocus;
+    if (now != null && now.context != null && now is! FocusScopeNode) {
+      _lastAppFocus = now;
     }
   }
 
@@ -557,6 +598,9 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
 
   @override
   Widget build(BuildContext context) {
-    return HtmlElementView(viewType: _viewType);
+    final view = HtmlElementView(viewType: _viewType);
+    // Kos TV: a platform view takes the app's focus too; a trailer behind
+    // a page must never hold it, or the remote/keyboard stops moving it.
+    return widget.ignorePointer ? ExcludeFocus(child: view) : view;
   }
 }
