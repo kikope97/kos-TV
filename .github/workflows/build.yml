@@ -222,10 +222,136 @@ jobs:
                   f.write(f'{k}={v}\n')
           EOF
 
-  # Android APK + AAB, with mobile and TV on their own runners
-  android:
+  # Kos TV: a release or a test APK reaches the family's devices, so before
+  # anything is built for it the analyzer and the app's tests run, as in
+  # checks.yml's tests job (same commands, same three shards of test files).
+  # android waits for this and stops if it fails, and so nothing is published.
+  # Other runs (pull requests, plain manual builds) skip it: checks.yml covers
+  # them.
+  release-checks:
     needs: plan
-    if: needs.plan.outputs.android == 'true'
+    if: needs.plan.outputs.release_version != '' || needs.plan.outputs.test_apk == 'true'
+    name: release-checks (${{ matrix.suite }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep in step with the % 3 below, as in checks.yml.
+        suite: [analyze, app-0, app-1, app-2]
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Get packages
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: |
+          flutter pub get
+          # The analyzer reads the packages too (their own pub get), with the
+          # package list of checks.yml's tests job, read from that file.
+          if [ "$SUITE" = analyze ]; then
+            packages=$(grep -m1 -oP '^\s*packages="\K[^"]+' .github/workflows/checks.yml)
+            if [ -z "$packages" ]; then
+              echo "::error file=.github/workflows/checks.yml::Couldn't find the package list in checks.yml"
+              exit 1
+            fi
+            for pkg in $packages; do
+              (cd "packages/$pkg" && flutter pub get >/dev/null)
+            done
+          fi
+
+      # The command checks.yml runs. The tree carries longstanding infos (and
+      # warnings in the tests), so only errors anywhere and warnings in lib/
+      # stop the release. The exit code still counts, as there: an analyzer
+      # that crashes (exit 4) or gets killed prints no diagnostics at all.
+      - name: Analyzer
+        if: matrix.suite == 'analyze'
+        run: |
+          rc=0
+          dart analyze --no-fatal-warnings > "$RUNNER_TEMP/analyzer-output.txt" 2>&1 || rc=$?
+          bad=$(grep -E '^ *error - |^ *warning - lib/' "$RUNNER_TEMP/analyzer-output.txt" || true)
+          if [ -n "$bad" ]; then
+            echo "$bad"
+            echo "::error::The analyzer found errors, or warnings in lib/, so this build isn't published."
+            exit 1
+          fi
+          # With --no-fatal-warnings, infos and warnings exit 0, so anything
+          # else is the analyzer itself failing.
+          if [ "$rc" -ne 0 ]; then
+            cat "$RUNNER_TEMP/analyzer-output.txt"
+            echo "::error::dart analyze exited with $rc."
+            exit 1
+          fi
+          echo "Analyzer: no errors, and no warnings in lib/."
+
+      # Some tests depend on timing and fail now and then on a busy runner.
+      # So a file that fails gets one more run on its own; it has to pass
+      # then. If the results don't say which files failed (the run died),
+      # the whole shard runs again.
+      - name: Tests
+        if: startsWith(matrix.suite, 'app-')
+        env:
+          SUITE: ${{ matrix.suite }}
+        run: |
+          mapfile -t files < <(find test -name '*_test.dart' | LC_ALL=C sort | awk -v shard="${SUITE#app-}" '(NR - 1) % 3 == shard')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No test files for $SUITE."
+            exit 1
+          fi
+          if flutter test "${files[@]}" --file-reporter "json:$RUNNER_TEMP/test-results.jsonl"; then
+            exit 0
+          fi
+
+          mapfile -t failed < <(python3 - "$RUNNER_TEMP/test-results.jsonl" <<'EOF'
+          import json, os, sys
+          suites, test_suite, bad = {}, {}, set()
+          try:
+              lines = open(sys.argv[1])
+          except OSError:
+              sys.exit(0)
+          for line in lines:
+              line = line.strip()
+              if not line.startswith('{'):
+                  continue
+              try:
+                  event = json.loads(line)
+              except ValueError:
+                  continue
+              kind = event.get('type')
+              if kind == 'suite':
+                  suites[event['suite']['id']] = event['suite'].get('path')
+              elif kind == 'testStart':
+                  test_suite[event['test']['id']] = event['test'].get('suiteID')
+              elif kind == 'error' or (kind == 'testDone' and event.get('result') != 'success'):
+                  bad.add(test_suite.get(event.get('testID')))
+          paths = {suites.get(s) for s in bad}
+          if None in paths or not paths:
+              sys.exit(0)  # not sure which: the caller runs them all again
+          for path in sorted(paths):
+              print(os.path.relpath(path))
+          EOF
+          )
+          if [ "${#failed[@]}" -eq 0 ]; then
+            failed=("${files[@]}")
+          fi
+          echo "::warning::Tests failed in $SUITE; running them once more: ${failed[*]}"
+          flutter test "${failed[@]}"
+
+  # Android APK + AAB, with mobile and TV on their own runners
+  # Kos TV: after release-checks when publishing, which other runs skip.
+  # !cancelled() lets it run past that skip, so the plan's success and
+  # release-checks' result are checked here by hand.
+  android:
+    needs: [plan, release-checks]
+    if: >-
+      !cancelled() && needs.plan.result == 'success' &&
+      needs.plan.outputs.android == 'true' &&
+      (needs.release-checks.result == 'success' || needs.release-checks.result == 'skipped')
     name: android (${{ matrix.target }})
     strategy:
       fail-fast: false
@@ -979,7 +1105,7 @@ jobs:
   # release, so running the workflow again for the same version works.
   release:
     if: needs.plan.outputs.release_version != ''
-    needs: [plan, android]
+    needs: [plan, release-checks, android]
     runs-on: ubuntu-26.04
     permissions:
       contents: write
@@ -1048,7 +1174,7 @@ jobs:
   # next real release installs over them.
   test-release:
     if: needs.plan.outputs.test_apk == 'true'
-    needs: [plan, android]
+    needs: [plan, release-checks, android]
     runs-on: ubuntu-26.04
     permissions:
       contents: write

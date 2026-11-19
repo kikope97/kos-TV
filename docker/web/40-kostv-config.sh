@@ -180,7 +180,8 @@ limit_req_zone $admin_key zone=kostv_admin:1m rate=30r/m;
 NGINX
 
 # The admin panel at /admin, behind a user and password. The password is
-# kept only as a SHA-512 hash, readable by nginx alone.
+# kept only as a SHA-512 hash, readable by nginx alone: this runs as nginx's
+# user (see the Dockerfile), so the file is its own and no one else's.
 admin_user=$(printf '%s' "${KOSTV_ADMIN_USER:-admin}" | tr -d '\r\n')
 admin_password=${KOSTV_ADMIN_PASSWORD:-}
 if [ -z "$admin_password" ] && [ -n "${KOSTV_ADMIN_PASSWORD_FILE:-}" ]; then
@@ -190,7 +191,7 @@ if [ -z "$admin_password" ] && [ -n "${KOSTV_ADMIN_PASSWORD_FILE:-}" ]; then
   fi
   admin_password=$(head -n 1 "$KOSTV_ADMIN_PASSWORD_FILE" | tr -d '\r')
 fi
-admin_htpasswd=/etc/nginx/kostv-admin.htpasswd
+admin_htpasswd=/etc/nginx/kostv-auth/admin.htpasswd
 rm -f "$admin_htpasswd"
 if [ -n "$admin_password" ]; then
   if [ -z "$admin_user" ] || printf '%s' "$admin_user" | grep -q '[[:space:]:]'; then
@@ -202,9 +203,7 @@ if [ -n "$admin_password" ]; then
     exit 1
   fi
   hash=$(printf '%s' "$admin_password" | mkpasswd -m sha512 -s)
-  printf '%s:%s\n' "$admin_user" "$hash" > "$admin_htpasswd"
-  chown root:nginx "$admin_htpasswd"
-  chmod 640 "$admin_htpasswd"
+  (umask 077 && printf '%s:%s\n' "$admin_user" "$hash" > "$admin_htpasswd")
   cat > "$includes/admin.conf" <<NGINX
 # Written by 40-kostv-config.sh from KOSTV_ADMIN_USER and KOSTV_ADMIN_PASSWORD.
 location = /admin {

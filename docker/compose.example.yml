@@ -20,9 +20,11 @@ services:
     container_name: kostv-web
     restart: unless-stopped
     ports:
-      # 25670 en el servidor (poco habitual, para no chocar con nada); 80
-      # dentro del contenedor. Cambia el primero si lo tienes ocupado.
-      - "25670:80"
+      # 25670 en el servidor (poco habitual, para no chocar con nada); 8080
+      # dentro del contenedor, que no se ejecuta como root. Cambia el primero
+      # si lo tienes ocupado; el segundo es siempre 8080 (antes era 80: si tu
+      # compose.yml aún dice "25670:80", cámbialo a "25670:8080").
+      - "25670:8080"
     environment:
       # Jellyfin tal como lo abre el navegador: la dirección pública, con https.
       KOSTV_SERVER_URL: ${KOSTV_SERVER_URL:-}
@@ -46,7 +48,8 @@ services:
       KOSTV_TRUSTED_PROXY: ${KOSTV_TRUSTED_PROXY:-}
     # Para KOSTV_ADMIN_PASSWORD_FILE: quita el # de estas dos líneas y de las
     # del final, y guarda la contraseña en el archivo admin_password.txt, junto
-    # a este compose.yml.
+    # a este compose.yml. El contenedor tiene que poder leerlo: es el usuario
+    # 101 (sudo chown 101 admin_password.txt && chmod 600 admin_password.txt).
     # secrets:
     #   - kostv_admin_password
 
