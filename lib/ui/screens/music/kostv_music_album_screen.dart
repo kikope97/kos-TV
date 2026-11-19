@@ -164,21 +164,30 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
                 // scrolling over it doesn't blur it again on every frame.
                 child: RepaintBoundary(
                   child: ClipRect(
-                    child: ShaderMask(
-                      blendMode: BlendMode.dstIn,
-                      shaderCallback: (rect) => const LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0x66FFFFFF), Color(0x00FFFFFF)],
-                      ).createShader(rect),
-                      child: BoundedNetworkImage(
-                        imageUrl: album!.cover!,
-                        fit: BoxFit.cover,
-                        maxWidth: 300,
-                        blurSigma: 50,
-                        errorBuilder: (context, _, _) =>
-                            const SizedBox.shrink(),
-                      ),
+                    // Kos TV: faded into the page's colour by a gradient of that
+                    // colour over it, the same picture the mask gave, without
+                    // the mask's layer on every frame.
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        BoundedNetworkImage(
+                          imageUrl: album!.cover!,
+                          fit: BoxFit.cover,
+                          maxWidth: 300,
+                          blurSigma: 50,
+                          errorBuilder: (context, _, _) =>
+                              const SizedBox.shrink(),
+                        ),
+                        const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Color(0x990B0B0D), Color(0xFF0B0B0D)],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

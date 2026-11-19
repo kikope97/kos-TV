@@ -39,6 +39,8 @@ class KostvMusicService {
     List<String>? ids,
     List<String>? artistIds,
     List<String>? genres,
+    String fields = _fields,
+    bool artwork = true,
   }) async => _items(
     await _client.itemsApi.getItems(
       includeItemTypes: types,
@@ -51,7 +53,8 @@ class KostvMusicService {
       ids: ids,
       artistIds: artistIds,
       genres: genres,
-      fields: _fields,
+      fields: fields,
+      imageTypeLimit: artwork ? null : 0,
     ),
   );
 
@@ -71,6 +74,9 @@ class KostvMusicService {
       descending: true,
       filters: const ['IsPlayed'],
       limit: 120,
+      // Kos TV: only each song's album is read here.
+      fields: 'AlbumId',
+      artwork: false,
     );
     final ids = <String>[];
     for (final song in songs) {
@@ -93,6 +99,9 @@ class KostvMusicService {
       descending: true,
       filters: const ['IsPlayed'],
       limit: 300,
+      // Kos TV: only the artists, the genres and the plays are read.
+      fields: 'AlbumArtists,ArtistItems,Genres,UserData',
+      artwork: false,
     );
     return KostvMusicTaste.of(songs);
   }

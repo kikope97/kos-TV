@@ -405,6 +405,9 @@ class KostvSpotlightArt extends StatelessWidget {
     final url = backdrop;
     final poster = current?.poster;
     final grey = current != null && !current.isInLibrary;
+    // Kos TV: the grey of a title not at home is painted with the picture,
+    // not as a full-screen layer over it.
+    final filter = grey ? kostvMissingFilter : null;
     Widget art;
     if (url != null) {
       art = BoundedNetworkImage(
@@ -414,12 +417,12 @@ class KostvSpotlightArt extends StatelessWidget {
         maxWidth: 1600,
         sourceAspectRatio: 16 / 9,
         fadeInDuration: const Duration(milliseconds: 250),
+        colorFilter: filter,
         errorBuilder: (_, _, _) => _wash(poster),
       );
     } else {
-      art = _wash(poster);
+      art = _wash(poster, filter: filter);
     }
-    if (grey) art = ColorFiltered(colorFilter: kostvMissingFilter, child: art);
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 450),
       switchInCurve: Curves.easeOut,
@@ -436,7 +439,7 @@ class KostvSpotlightArt extends StatelessWidget {
   }
 
   /// The poster, blurred into its colours, for a title with no wide image.
-  static Widget _wash(String? poster) {
+  static Widget _wash(String? poster, {ColorFilter? filter}) {
     if (poster == null) return const SizedBox.shrink();
     return Stack(
       fit: StackFit.expand,
@@ -448,6 +451,7 @@ class KostvSpotlightArt extends StatelessWidget {
           minWidth: 32,
           maxWidth: 160,
           blurSigma: 28,
+          colorFilter: filter,
         ),
         ColoredBox(color: Colors.black.withValues(alpha: 0.28)),
       ],

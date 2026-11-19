@@ -1,5 +1,4 @@
-import 'dart:ui' as ui;
-
+import 'baked_logo_shadow.dart';
 import 'offline_aware_image.dart';
 import 'package:flutter/material.dart';
 import 'package:moonfin_design/moonfin_design.dart';
@@ -46,18 +45,12 @@ class LogoView extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          ImageFiltered(
-            imageFilter: ui.ImageFilter.blur(
-              sigmaX: 3,
-              sigmaY: 3,
-              tileMode: TileMode.decal,
-            ),
-            child: Image(
+          // Kos TV: blurred once when the logo loads, over the same box as
+          // the logo, rather than by a live blur on every frame.
+          Positioned.fill(
+            child: BakedLogoShadow(
               image: provider,
-              fit: BoxFit.contain,
               color: AppColorScheme.scrim.withValues(alpha: 0.6),
-              colorBlendMode: BlendMode.srcATop,
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
             ),
           ),
           image,

@@ -981,15 +981,37 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
   }
 
   /// Grey until it arrives, then the colour comes in.
-  Widget _tinted(Widget child) => AnimatedBuilder(
-    animation: _colour,
-    builder: (context, child) => ColorFiltered(
-      colorFilter: _saturation(Curves.easeInOut.transform(_colour.value)),
-      child: child,
-    ),
-    // The art keeps its own picture while the colour comes in over it.
-    child: RepaintBoundary(child: child),
-  );
+  ///
+  /// Kos TV: [build] gets the filter to paint the art with while the colour
+  /// stands still (grey, or none once it is in colour), so the art paints
+  /// it itself. Only while the colour is coming in does a layer over the
+  /// art do it; before, that full-screen layer was there all the time.
+  Widget _tinted(GlobalKey key, Widget Function(ColorFilter? filter) build) =>
+      AnimatedBuilder(
+        animation: _colour,
+        builder: (context, _) {
+          final value = _colour.value;
+          final moving = value > 0 && value < 1;
+          final art = KeyedSubtree(
+            key: key,
+            child: RepaintBoundary(
+              child: build(
+                moving || value >= 1
+                    ? null
+                    : _saturation(Curves.easeInOut.transform(value)),
+              ),
+            ),
+          );
+          if (!moving) return art;
+          return ColorFiltered(
+            colorFilter: _saturation(Curves.easeInOut.transform(value)),
+            child: art,
+          );
+        },
+      );
+
+  final _environmentKey = GlobalKey();
+  final _imageKey = GlobalKey();
 
   /// The art, blurred and dimmed, behind everything.
   Widget _environment() {
@@ -1000,9 +1022,10 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         ColoredBox(color: AppColorScheme.background),
         if (url != null)
           _tinted(
+            _environmentKey,
             // Blurred once when it loads, not by the GPU on every frame.
             // Clamped at the edges, as the live blur it replaces was.
-            BakedBlurImage(
+            (filter) => BakedBlurImage(
               image: ArtworkDecode.provider(
                 url,
                 width: 96,
@@ -1010,6 +1033,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
               ),
               sigma: 14,
               tileMode: TileMode.clamp,
+              colorFilter: filter,
             ),
           ),
         ColoredBox(color: AppColorScheme.background.withValues(alpha: 0.6)),
@@ -1021,21 +1045,40 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     final url = _art;
     if (url == null) return const SizedBox.shrink();
     return _tinted(
+      _imageKey,
       // Decoded at the size it paints, from the disk cache when it can.
-      ArtworkBound(
+      (filter) => ArtworkBound(
         // A cover fit paints wider than a box of another shape.
         sourceAspectRatio: _c.title?.backdrop != null ? 16 / 9 : 2 / 3,
-        builder: (context, width, height) => Image(
-          image: ArtworkDecode.provider(
+        builder: (context, width, height) {
+          final provider = ArtworkDecode.provider(
             url,
             width: width,
             height: height,
             headers: artworkFetchHeaders(url, ImageFetchPriority.high),
-          ),
-          fit: BoxFit.cover,
-          alignment: alignment,
-          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-        ),
+          );
+          return Image(
+            image: provider,
+            fit: BoxFit.cover,
+            alignment: alignment,
+            // Grey, drawn grey with the picture.
+            frameBuilder: filter == null
+                ? null
+                : (context, child, frame, sync) => frame == null && !sync
+                      ? child
+                      : DecoratedBox(
+                          decoration: BoxDecoration(
+                            image: DecorationImage(
+                              image: provider,
+                              fit: BoxFit.cover,
+                              alignment: alignment,
+                              colorFilter: filter,
+                            ),
+                          ),
+                        ),
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          );
+        },
       ),
     );
   }

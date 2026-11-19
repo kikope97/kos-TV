@@ -786,11 +786,6 @@ class _CardImage extends StatelessWidget {
     this.recordingItemId,
   });
 
-  Widget _filtered(Widget image) {
-    final filter = imageColorFilter;
-    return filter == null ? image : ColorFiltered(colorFilter: filter, child: image);
-  }
-
   /// How far the focus ring sits outside the artwork. The ring is 3px thick
   /// and drawn inside its own box, so this also decides the gap between the
   /// two. Too small a gap and an antialiased poster corner bleeds over the
@@ -857,9 +852,11 @@ class _CardImage extends StatelessWidget {
                       ? Stack(
                           fit: StackFit.expand,
                           children: [
-                            _filtered(
-                              BoundedNetworkImage(
+                            // Kos TV: the filter goes with the picture's
+                            // own paint, not as a layer over it.
+                            BoundedNetworkImage(
                                 imageUrl: imageUrl!,
+                                colorFilter: imageColorFilter,
                                 fit:
                                     (itemType == 'Network' ||
                                         itemType == 'Studio')
@@ -875,7 +872,6 @@ class _CardImage extends StatelessWidget {
                                   title: title,
                                 ),
                               ),
-                            ),
                             ...imageUnderlays,
                             if (isGenreFallback) ...[
                               Container(

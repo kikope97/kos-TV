@@ -387,6 +387,7 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
   void _onSearchChanged() {
     final query = _searchController.text.trim();
     if (query == _query) return;
+    if (query.isEmpty) _searchIndex = null;
     setState(() => _query = query);
     if (_phone) return;
     // If the focused result just filtered away, fall back to the field so the
@@ -935,10 +936,33 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
     AppLocalizations l10n,
     bool showAdmin,
   ) {
-    // Set by the result being opened, so its screen keeps its real place in
-    // Settings rather than the category it was searched from.
-    List<String>? openingPath;
-    final index = _buildSettingsSearchIndex(
+    // Kos TV: built once per search and kept while it is typed, rather than
+    // again at every key (hundreds of entries, each with its texts).
+    final key = (l10n, showAdmin, _showThemeEditorEntry);
+    if (_searchIndex == null || _searchIndexKey != key) {
+      _searchIndexKey = key;
+      _searchIndex = _buildSearchIndex(context, l10n, showAdmin);
+    }
+    final results = _filterSettingsIndex(_searchIndex!, _query);
+    return _buildSearchList(l10n, results);
+  }
+
+  /// The search's entries, for [_buildSearchResults]; dropped when the
+  /// search field is emptied, so each search starts from Settings as they
+  /// are then.
+  List<_SettingsSearchEntry>? _searchIndex;
+  Object? _searchIndexKey;
+
+  /// Set by the result being opened, so its screen keeps its real place in
+  /// Settings rather than the category it was searched from.
+  List<String>? _openingPath;
+
+  List<_SettingsSearchEntry> _buildSearchIndex(
+    BuildContext context,
+    AppLocalizations l10n,
+    bool showAdmin,
+  ) {
+    return _buildSettingsSearchIndex(
       l10n: l10n,
       showAdmin: showAdmin,
       showThemeEditor: _showThemeEditorEntry,
@@ -949,7 +973,7 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
         _more.openAll();
         if (navigatorContext == null) return;
         final before = _searchedCategory;
-        final title = openingPath?.firstOrNull;
+        final title = _openingPath?.firstOrNull;
         setState(() {
           _searchedCategory = _categories
               .where((c) => c.title == title)
@@ -961,7 +985,7 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
               .pushSettingsScreen(
                 screen,
                 returnFocus: _phone ? null : _pillFocus,
-                previewPath: openingPath,
+                previewPath: _openingPath,
               )
               .then((_) {
                 if (mounted) setState(() => _searchedCategory = before);
@@ -975,7 +999,12 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
       openThemeEditor: () => unawaited(_openThemeEditor(context)),
       context: context,
     );
-    final results = _filterSettingsIndex(index, _query);
+  }
+
+  Widget _buildSearchList(
+    AppLocalizations l10n,
+    List<_SettingsSearchEntry> results,
+  ) {
     if (results.isEmpty) {
       return Center(
         child: Padding(
@@ -1000,7 +1029,7 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
                   if (_phone) {
                     _searchFieldFocus.unfocus();
                   }
-                  openingPath = result.path;
+                  _openingPath = result.path;
                   result.onOpen();
                 },
               ),

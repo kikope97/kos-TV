@@ -106,8 +106,12 @@ void main() {
       expect(find.text('9,0 GB'), findsOneWidget);
       expect(find.text('TODAVÍA NO ESTÁ EN CASA'), findsOneWidget);
       expect(find.text('En casa'), findsOneWidget);
-      // The art is grey.
-      expect(find.byType(ColorFiltered), findsWidgets);
+      // The art is grey: painted through the grey filter once it loads
+      // (the only image on the page drawn through one).
+      expect(
+        find.byWidgetPredicate((w) => w is Image && w.frameBuilder != null),
+        findsOneWidget,
+      );
 
       // OK on the remote: the button has the focus.
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -131,6 +135,11 @@ void main() {
       // The colour comes in, then its page on the home server.
       await settle(tester, const Duration(milliseconds: 1500));
       expect(find.text('item cars-item'), findsNothing);
+      // In colour now: no filter left on the art, nor a layer over it.
+      expect(
+        find.byWidgetPredicate((w) => w is Image && w.frameBuilder != null),
+        findsNothing,
+      );
       await settle(tester, const Duration(seconds: 1));
       expect(find.text('item cars-item'), findsOneWidget);
       await finish(tester);

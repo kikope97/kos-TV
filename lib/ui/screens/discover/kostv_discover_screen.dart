@@ -480,7 +480,17 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
     return null;
   }
 
-  void _followSpotlight() => _follower.show(_spotlit?.title);
+  /// Kos TV: the spotlight's extra (a better backdrop, the line under the
+  /// title) only shows on the wide page; on a phone it was asked for each
+  /// time the spotlight moved and never shown.
+  void _followSpotlight() {
+    if (PlatformDetection.useMobileUi) return;
+    _follower.show(_spotlit?.title);
+  }
+
+  /// Whether the last build was the phone's, so a page that turns wide (a
+  /// window made wider) catches up with the spotlight it shows.
+  bool _builtForPhone = false;
 
   void _onExtra() {
     if (mounted) _spotRevision.value++;
@@ -565,6 +575,12 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final phone = PlatformDetection.useMobileUi;
+    if (_builtForPhone && !phone) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _followSpotlight();
+      });
+    }
+    _builtForPhone = phone;
     return Scaffold(
       backgroundColor: AppColorScheme.background,
       body: NavigationLayout(

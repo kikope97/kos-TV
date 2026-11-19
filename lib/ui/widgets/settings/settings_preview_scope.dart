@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
@@ -228,6 +229,19 @@ class SettingsPreviewController extends ChangeNotifier {
   int? tryingIndex(String key) => _tryingIndex[key];
 
   void focus(SettingsPreviewEntry entry, {List<String>? path}) {
+    // Kos TV: the same setting focused again (a rebuild, the focus coming
+    // back to it) changes nothing on the preview; no new frame for it.
+    final previous = _focused;
+    if (previous != null &&
+        _manualScene == null &&
+        previous.prefKey == entry.prefKey &&
+        previous.title == entry.title &&
+        previous.description == entry.description &&
+        listEquals(previous.options, entry.options) &&
+        listEquals(_focusedPath, path)) {
+      _focused = entry;
+      return;
+    }
     _focused = entry;
     _focusedPath = path;
     _manualScene = null;

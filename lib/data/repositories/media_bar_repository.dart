@@ -546,6 +546,8 @@ class MediaBarRepository {
           minPremiereDate: DateTime.now().subtract(Duration(days: days)),
           limit: limit,
           enableTotalRecordCount: false,
+          // Kos TV: only dates and numbers are read, not the artwork.
+          imageTypeLimit: 0,
         )
         .timeout(const Duration(seconds: 15));
     final now = DateTime.now();
@@ -567,6 +569,8 @@ class MediaBarRepository {
           recursive: true,
           limit: 200,
           enableTotalRecordCount: false,
+          // Kos TV: only dates and numbers are read, not the artwork.
+          imageTypeLimit: 0,
         )
         .timeout(const Duration(seconds: 15));
     return (response['Items'] as List? ?? []).cast<Map<String, dynamic>>();

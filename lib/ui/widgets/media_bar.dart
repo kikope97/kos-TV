@@ -47,6 +47,8 @@ import '../../playback/media3_player_backend.dart';
 import '../../playback/mpv_client_certificate.dart';
 import '../../playback/mpv_player_registry.dart';
 import '../../playback/silo_plugin_for.dart';
+import 'baked_logo_shadow.dart';
+import 'image_source.dart' show ArtworkBound;
 import 'bounded_network_image.dart';
 import 'fullscreen_backdrop_switcher.dart';
 import 'navigation_layout.dart';
@@ -3428,14 +3430,30 @@ class _MediaBarState extends State<MediaBar>
           right: 0,
           top: 2,
           bottom: -2,
-          child: ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-            child: ColorFiltered(
-              colorFilter: ColorFilter.mode(
-                AppColorScheme.scrim.withValues(alpha: 0.4),
-                BlendMode.srcATop,
+          // Kos TV: blurred once when the logo loads, from the same decode
+          // the logo paints, rather than by a live blur on every frame of
+          // the backdrop's zoom or a trailer.
+          child: ArtworkBound(
+            builder: (context, width, height) => BakedLogoShadow(
+              image: ArtworkDecode.provider(
+                url,
+                width: width,
+                height: height,
+                headers: artworkFetchHeaders(url, ImageFetchPriority.high),
               ),
-              child: image(),
+              color: AppColorScheme.scrim.withValues(alpha: 0.4),
+              alignment: alignment,
+              // The title in its place: blurred live, as it always was.
+              fallback: ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+                child: ColorFiltered(
+                  colorFilter: ColorFilter.mode(
+                    AppColorScheme.scrim.withValues(alpha: 0.4),
+                    BlendMode.srcATop,
+                  ),
+                  child: _buildLogoFallback(title, alignment: alignment),
+                ),
+              ),
             ),
           ),
         ),

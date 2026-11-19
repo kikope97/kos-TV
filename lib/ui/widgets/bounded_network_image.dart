@@ -53,6 +53,12 @@ class BoundedNetworkImage extends StatelessWidget {
   /// [fadeInDuration] and [onLoadFinished].
   final double blurSigma;
 
+  /// Kos TV: a filter for the picture (the grey of a title not at home),
+  /// painted with the image itself. A ColorFiltered around this widget is
+  /// a layer of its own for every card on every frame; on the web, each one
+  /// is a picture drawn again off screen.
+  final ColorFilter? colorFilter;
+
   const BoundedNetworkImage({
     super.key,
     required this.imageUrl,
@@ -69,6 +75,7 @@ class BoundedNetworkImage extends StatelessWidget {
     this.memCacheWidth,
     this.priority = ImageFetchPriority.normal,
     this.blurSigma = 0,
+    this.colorFilter,
   });
 
   /// The decoded pixel width upstream uses for every bounded image: the painted
@@ -146,6 +153,17 @@ class BoundedNetworkImage extends StatelessWidget {
         sigma: blurSigma,
         fit: fit,
         alignment: alignment,
+        colorFilter: colorFilter,
+      );
+    }
+    final filter = colorFilter;
+    if (filter != null) {
+      return _buildFiltered(
+        bounded,
+        headers,
+        filter,
+        decodeWidth: decodeWidth,
+        decodeHeight: decodeHeight,
       );
     }
     if (local) {
@@ -201,6 +219,70 @@ class BoundedNetworkImage extends StatelessWidget {
               return errorBuilder?.call(context, url, error) ??
                   const SizedBox.shrink();
             },
+    );
+  }
+
+  /// The picture drawn through [filter] as part of its own paint (a
+  /// [DecorationImage]), with the same fallbacks and notice as the others.
+  Widget _buildFiltered(
+    ImageProvider bounded,
+    Map<String, String>? headers,
+    ColorFilter filter, {
+    int? decodeWidth,
+    int? decodeHeight,
+  }) {
+    Widget painted() => DecoratedBox(
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image: bounded,
+          fit: fit,
+          alignment: alignment,
+          colorFilter: filter,
+        ),
+      ),
+    );
+    Widget failed(BuildContext context, String url, Object error) {
+      _notifyLoadFinished();
+      final fallback = errorBuilder?.call(context, url, error);
+      return fallback == null
+          ? const SizedBox.shrink()
+          : ColorFiltered(colorFilter: filter, child: fallback);
+    }
+
+    if (isLocalImagePath(imageUrl)) {
+      // A downloaded file: shown once it reads, as the plain Image does.
+      return Image(
+        image: bounded,
+        fit: fit,
+        alignment: alignment,
+        frameBuilder: (context, child, frame, sync) {
+          if (frame == null && !sync) return child;
+          if (onLoadFinished != null) _notifyLoadFinished();
+          return painted();
+        },
+        errorBuilder: (context, error, _) => failed(context, imageUrl, error),
+      );
+    }
+    return CachedNetworkImage(
+      imageUrl: webSizedArtworkUrl(
+        imageUrl,
+        width: decodeWidth,
+        height: decodeHeight,
+      ),
+      httpHeaders: headers,
+      cacheManager: cacheManager,
+      fit: fit,
+      alignment: alignment,
+      fadeInDuration: fadeInDuration,
+      memCacheWidth: decodeWidth,
+      memCacheHeight: decodeHeight,
+      imageBuilder: (context, _) {
+        if (onLoadFinished != null) _notifyLoadFinished();
+        return painted();
+      },
+      errorWidget: errorBuilder == null && onLoadFinished == null
+          ? null
+          : failed,
     );
   }
 

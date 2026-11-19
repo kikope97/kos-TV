@@ -802,21 +802,43 @@ class _KostvRequestsTrayState extends State<KostvRequestsTray> {
         size: 22,
       ),
     );
-    final image = url == null
-        ? placeholder
-        : Image.network(
-            url,
-            fit: BoxFit.cover,
-            cacheWidth: 120,
-            errorBuilder: (_, _, _) => placeholder,
-          );
+    // Kos TV: a grey cover is painted grey with the picture itself, not
+    // under a layer of its own (one per line of the list, every frame).
+    final Widget image;
+    if (url == null) {
+      image = grey
+          ? ColorFiltered(colorFilter: _grey, child: placeholder)
+          : placeholder;
+    } else {
+      final provider = ResizeImage.resizeIfNeeded(120, null, NetworkImage(url));
+      image = Image(
+        image: provider,
+        fit: BoxFit.cover,
+        frameBuilder: !grey
+            ? null
+            : (context, child, frame, sync) => frame == null && !sync
+                  ? child
+                  : DecoratedBox(
+                      decoration: BoxDecoration(
+                        image: DecorationImage(
+                          image: provider,
+                          fit: BoxFit.cover,
+                          colorFilter: _grey,
+                        ),
+                      ),
+                    ),
+        errorBuilder: (_, _, _) => grey
+            ? ColorFiltered(colorFilter: _grey, child: placeholder)
+            : placeholder,
+      );
+    }
     return ClipRRect(
       borderRadius: BorderRadius.circular(8),
       child: SizedBox(
         width: width,
         // A record's cover is square.
         height: request.isMusic ? width : width * 1.5,
-        child: grey ? ColorFiltered(colorFilter: _grey, child: image) : image,
+        child: image,
       ),
     );
   }

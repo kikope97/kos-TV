@@ -354,8 +354,27 @@ class KostvSeriesGapsController extends ChangeNotifier {
     if (detail == null || !enabled || episodes.isEmpty) {
       return KostvSeriesGaps.none;
     }
-    return KostvSeriesGaps.compute(detail: detail, episodes: episodes);
+    // Kos TV: the pages ask on every build; worked out again only when the
+    // service's page or the episodes at home (and what they are) change.
+    final key = [
+      for (final e in episodes)
+        '${e.id}|${e.parentIndexNumber}|${e.indexNumber}|'
+            '${e.rawData['IndexNumberEnd']}|${e.rawData['LocationType']}|'
+            '${e.rawData['PremiereDate']}',
+    ];
+    final memo = _gapsMemo;
+    if (memo != null &&
+        identical(memo.detail, detail) &&
+        listEquals(memo.key, key)) {
+      return memo.gaps;
+    }
+    final gaps = KostvSeriesGaps.compute(detail: detail, episodes: episodes);
+    _gapsMemo = (detail: detail, key: key, gaps: gaps);
+    return gaps;
   }
+
+  ({StremfinSeriesDetail detail, List<String> key, KostvSeriesGaps gaps})?
+  _gapsMemo;
 
   void _onService() {
     if (_disposed) return;

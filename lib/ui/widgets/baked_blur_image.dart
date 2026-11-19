@@ -20,7 +20,12 @@ class BakedBlurImage extends StatefulWidget {
     this.tileMode = TileMode.decal,
     this.cropToBox = false,
     this.opacity = 1.0,
+    this.colorFilter,
   });
+
+  /// Kos TV: a filter (the grey of a title not at home) baked into the
+  /// blurred copy, instead of a ColorFiltered layer over it every frame.
+  final ColorFilter? colorFilter;
 
   /// Kos TV: drawn this see-through, straight on the image, which is what an
   /// Opacity around it gives without a layer of its own on every frame.
@@ -71,6 +76,7 @@ class _BakedBlurImageState extends State<BakedBlurImage> {
         widget.fit != oldWidget.fit ||
         widget.tileMode != oldWidget.tileMode ||
         widget.cropToBox != oldWidget.cropToBox ||
+        widget.colorFilter != oldWidget.colorFilter ||
         (widget.cropToBox && widget.alignment != oldWidget.alignment)) {
       _bakedSize = null;
     }
@@ -155,7 +161,8 @@ class _BakedBlurImageState extends State<BakedBlurImage> {
     // Smoothed when drawn smaller, so the copy the blur reads is not
     // aliased.
     final draw = Paint()
-      ..filterQuality = reduce < 1 ? FilterQuality.medium : FilterQuality.none;
+      ..filterQuality = reduce < 1 ? FilterQuality.medium : FilterQuality.none
+      ..colorFilter = widget.colorFilter;
     if (widget.cropToBox) {
       // The shown part, in source pixels, blurred as a layer of its own so
       // nothing past its edges reaches the blur.
@@ -181,7 +188,13 @@ class _BakedBlurImageState extends State<BakedBlurImage> {
     } else {
       width = source.width;
       height = source.height;
-      canvas.drawImage(source, Offset.zero, Paint()..imageFilter = filter);
+      canvas.drawImage(
+        source,
+        Offset.zero,
+        Paint()
+          ..imageFilter = filter
+          ..colorFilter = widget.colorFilter,
+      );
     }
     final picture = recorder.endRecording();
     final baked = picture.toImageSync(width, height);

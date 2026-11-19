@@ -133,10 +133,10 @@ que es el historial de lo que se ha mirado, traído o descartado.
 
 ## Pendiente
 
-- **Rendimiento web (iPhone), ronda de noviembre de 2026 — a medias.**
-  Hecho y subido: gzip precomprimido en nginx y precarga en `index.html`;
-  arranque con menos esperas; imágenes en la web pedidas al servidor al tamaño
-  pintado (`webSizedArtworkUrl` en `image_source.dart`, también fondos TMDB
+- **Rendimiento web (iPhone), ronda de noviembre de 2026 — hecha.**
+  Gzip precomprimido en nginx y precarga en `index.html`; arranque con menos
+  esperas; imágenes en la web pedidas al servidor al tamaño pintado
+  (`webSizedArtworkUrl` en `image_source.dart`, también fondos TMDB
   w1280→w780) y desenfoque horneado más ligero; indicadores ocultos quietos;
   barras de música con un solo reloj; Favoritos sin carga en cascada; ficha con
   búsqueda de colecciones ligera; reproductor que pide fecha/huecos al sonar;
@@ -144,15 +144,19 @@ que es el historial de lo que se ha mirado, traído o descartado.
   coverflow que precarga carteles, precarga de 3 en 3 y sin recarga al
   recuperar el foco; YouTube sin decodificar mensajes inútiles; buscador sin
   redibujar por el cursor; Bibliotecas de 3 en 3; Géneros con menos
-  redibujados; Reproduciendo con la opacidad en la propia imagen.
-  **Falta:** compilar la web y sacar fotos de tele, móvil y web para comprobar
-  que todo se ve igual (no se llegó a hacer); sombra del logotipo del banner
-  horneada; capas fijas (gris con `ColorFiltered`, `ShaderMask` de música,
-  fondo del catálogo con `Opacity`); `_followSpotlight` de Descubrir en móvil;
-  campos de `loadNewReleases` y de música; caché del índice de Ajustes;
-  memo de huecos en episodios. Los informes completos de los auditores (con
-  archivo y línea) estaban en el scratchpad de la sesión y se pierden; esta
-  lista es lo que queda de ellos.
+  redibujados; Reproduciendo con la opacidad en la propia imagen. Segunda
+  tanda: sombra del logotipo horneada (`BakedLogoShadow`, ficha y banner); el
+  gris de lo que no está en casa pintado con la imagen
+  (`BoundedNetworkImage.colorFilter`, `BakedBlurImage.colorFilter`) en vez de
+  una capa `ColorFiltered`; fondo de la ficha de solicitar sin capa salvo
+  mientras entra el color; degradado en vez de `ShaderMask` en Música; fondo
+  del catálogo sin `Opacity`; Descubrir en el móvil sin pedir el extra del
+  destacado (no se ve); Novedades del banner y gustos de Música con solo los
+  campos que usan; índice del buscador de Ajustes guardado mientras se
+  escribe; vista previa de Ajustes sin avisar si no cambia; huecos de
+  episodios recordados mientras no cambian. Probado: suite completa y fotos
+  de tele, móvil y web. Se dejó el aviso de la ficha de solicitar en cada
+  sondeo: enseña el progreso en directo.
   **Decisiones del usuario pendientes:** HLS nativo en iOS en vez de hls.js
   (recupera AirPlay, hay que probarlo); caché de filas de Inicio en la web;
   activar skwasm en Safari; el anillo de la bandeja gira a 60 fps mientras

@@ -769,13 +769,14 @@ class _Art extends StatelessWidget {
                   key: ValueKey(url),
                   fit: StackFit.expand,
                   children: [
-                    Opacity(
-                      opacity: 0.55,
-                      child: OfflineAwareImage(
-                        imageUrl: url!,
-                        fit: BoxFit.cover,
-                        alignment: Alignment.topCenter,
-                      ),
+                    // Kos TV: drawn at 0.55 by the image itself (white
+                    // modulated), not under an Opacity layer.
+                    OfflineAwareImage(
+                      imageUrl: url!,
+                      fit: BoxFit.cover,
+                      alignment: Alignment.topCenter,
+                      color: const Color(0x8CFFFFFF),
+                      colorBlendMode: BlendMode.modulate,
                     ),
                     DecoratedBox(
                       decoration: BoxDecoration(

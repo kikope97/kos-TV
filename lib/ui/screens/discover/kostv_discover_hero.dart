@@ -279,16 +279,15 @@ class _Poster extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final poster = title.poster;
-    Widget image = poster == null
+    final Widget image = poster == null
         ? ColoredBox(color: Colors.white.withValues(alpha: 0.06))
         : BoundedNetworkImage(
             imageUrl: poster,
             fit: BoxFit.cover,
             fadeInDuration: const Duration(milliseconds: 200),
+            // Kos TV: grey painted with the picture, not as a layer.
+            colorFilter: title.isInLibrary ? null : kostvMissingFilter,
           );
-    if (!title.isInLibrary) {
-      image = ColorFiltered(colorFilter: kostvMissingFilter, child: image);
-    }
     return GestureDetector(
       onTap: onTap,
       child: Container(
