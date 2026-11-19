@@ -15468,5 +15468,21 @@
     "kostvParentalPinRemoved": "PIN del control parental quitado",
     "@kostvParentalPinRemoved": {
         "description": "Kos TV: the Parental controls PIN was removed"
+    },
+    "kostvQueuePlayNow": "Reproducir ahora",
+    "@kostvQueuePlayNow": {
+        "description": "Kos TV music player: menu of a song in «A continuación», play it now"
+    },
+    "kostvQueueMoveUp": "Subir",
+    "@kostvQueueMoveUp": {
+        "description": "Kos TV music player: menu of a song in «A continuación», move it one place up"
+    },
+    "kostvQueueMoveDown": "Bajar",
+    "@kostvQueueMoveDown": {
+        "description": "Kos TV music player: menu of a song in «A continuación», move it one place down"
+    },
+    "kostvPlayerVolume": "Volumen de la música",
+    "@kostvPlayerVolume": {
+        "description": "Kos TV music player on the web: the music's own volume slider"
     }
 }

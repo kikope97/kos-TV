@@ -35912,6 +35912,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Parental controls PIN removed'**
   String get kostvParentalPinRemoved;
+
+  /// Kos TV music player: menu of a song in «A continuación», play it now
+  ///
+  /// In en, this message translates to:
+  /// **'Play now'**
+  String get kostvQueuePlayNow;
+
+  /// Kos TV music player: menu of a song in «A continuación», move it one place up
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get kostvQueueMoveUp;
+
+  /// Kos TV music player: menu of a song in «A continuación», move it one place down
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get kostvQueueMoveDown;
+
+  /// Kos TV music player on the web: the music's own volume slider
+  ///
+  /// In en, this message translates to:
+  /// **'Music volume'**
+  String get kostvPlayerVolume;
 }
 
 class _AppLocalizationsDelegate

@@ -21201,4 +21201,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvParentalPinRemoved => 'PIN del control parental quitado';
+
+  @override
+  String get kostvQueuePlayNow => 'Reproducir ahora';
+
+  @override
+  String get kostvQueueMoveUp => 'Subir';
+
+  @override
+  String get kostvQueueMoveDown => 'Bajar';
+
+  @override
+  String get kostvPlayerVolume => 'Volumen de la música';
 }
