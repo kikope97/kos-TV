@@ -21240,4 +21240,17 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvPinRecoveryNeedsServer =>
       'Para recuperar el PIN hace falta conectar con el servidor. Inténtalo cuando haya conexión.';
+
+  @override
+  String get kostvHideFromContinueWatchingForgets =>
+      'Quitar de Seguir viendo (se olvida por dónde ibas)';
+
+  @override
+  String kostvHiddenFromContinueWatching(String title) {
+    return '«$title» ya no está en Seguir viendo';
+  }
+
+  @override
+  String get kostvContinueWatchingUndoFailed =>
+      'No se pudo recuperar por dónde ibas';
 }

@@ -7461,7 +7461,10 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
     final bool isTvSeason = item.type == 'Season';
     final bool isModernMobile = widget.modernStyle && _isCompact(context);
     final prefLimit = prefs.get(UserPreferences.detailButtonsMaxVisible);
-    final bool isTwoColumnLayout = usesTwoColumnLayout(
+    // Kos TV: Kids Mode's few buttons always go on the row, wrapping if they
+    // must. Folding one behind More or an ellipsis would hide it from a child.
+    final kidsMode = prefs.get(UserPreferences.kidsModeEnabled);
+    final bool isTwoColumnLayout = !kidsMode && usesTwoColumnLayout(
       itemType: item.type,
       isModernMobile: isModernMobile,
       overflowAsMenu: widget.overflowAsMenu,
@@ -7535,7 +7538,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
                     widget.maxVisibleButtonsOverride != null)),
       );
       final int visibleCount = split.visibleCount;
-      needsOverflow = split.needsOverflow;
+      needsOverflow = split.needsOverflow && !kidsMode;
       if (needsOverflow) {
         primaryButtons = allButtons.take(visibleCount).toList();
         extraButtons = allButtons.skip(visibleCount).toList();

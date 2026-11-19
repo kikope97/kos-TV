@@ -75,6 +75,8 @@ enum DetailButton {
     DetailButton.restart,
     DetailButton.shuffle,
     DetailButton.favorite,
+    // Kos TV: the card menu and the list page offer it there too.
+    DetailButton.myList,
   };
 
   /// The order Kids Mode puts them in. The saved arrangement belongs to the

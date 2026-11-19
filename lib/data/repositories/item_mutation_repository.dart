@@ -84,6 +84,27 @@ class ItemMutationRepository {
     });
   }
 
+  /// Kos TV: puts back the resume point a hide from Continue Watching cleared
+  /// (Jellyfin forgets it on unmarking), so its undo brings the title back
+  /// where it was left.
+  Future<void> restorePlaybackPosition(
+    String itemId, {
+    required int positionTicks,
+    double? playedPercentage,
+  }) async {
+    final session = userDataSync.session;
+    await _client.userLibraryApi.updatePlayedPosition(
+      itemId,
+      positionTicks: positionTicks,
+    );
+    if (userDataSync.session != session) return;
+    userDataSync.publish(itemId, {
+      'Played': false,
+      'PlayedPercentage': playedPercentage,
+      'PlaybackPositionTicks': positionTicks,
+    });
+  }
+
   /// Asks the server to drop [itemId] from its resume list, leaving the played
   /// state and resume position alone. Returns false when the server has no
   /// way to do that (Jellyfin), so the caller can fall back to a local hide.

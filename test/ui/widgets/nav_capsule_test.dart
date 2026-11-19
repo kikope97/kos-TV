@@ -202,5 +202,17 @@ void main() {
     test('nothing to add without it', () {
       expect(HomeViewModel.withShuffleRow([a], null, hasRows: true), [a]);
     });
+
+    test('left out of Kids Mode Home', () {
+      expect(
+        HomeViewModel.withShuffleRow(
+          [a],
+          shuffle,
+          hasRows: true,
+          kidsMode: true,
+        ),
+        [a],
+      );
+    });
   });
 }

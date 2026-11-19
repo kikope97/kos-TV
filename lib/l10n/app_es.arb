@@ -15517,5 +15517,22 @@
     "kostvPinRecoveryNeedsServer": "Para recuperar el PIN hace falta conectar con el servidor. Inténtalo cuando haya conexión.",
     "@kostvPinRecoveryNeedsServer": {
         "description": "Kos TV: a forgotten PIN can't be recovered without reaching the server"
+    },
+    "kostvHideFromContinueWatchingForgets": "Quitar de Seguir viendo (se olvida por dónde ibas)",
+    "@kostvHideFromContinueWatchingForgets": {
+        "description": "Kos TV card menu: takes a title off Continue Watching; on Jellyfin this also forgets where playback was."
+    },
+    "kostvHiddenFromContinueWatching": "«{title}» ya no está en Seguir viendo",
+    "@kostvHiddenFromContinueWatching": {
+        "description": "Kos TV: message after taking a title off Continue Watching, with an undo button that brings back where it was.",
+        "placeholders": {
+            "title": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvContinueWatchingUndoFailed": "No se pudo recuperar por dónde ibas",
+    "@kostvContinueWatchingUndoFailed": {
+        "description": "Kos TV: undoing a Continue Watching hide couldn't put the resume point back."
     }
 }

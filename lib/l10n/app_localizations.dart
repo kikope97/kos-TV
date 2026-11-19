@@ -35978,6 +35978,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recovering the PIN needs the server. Try again when you\'re connected.'**
   String get kostvPinRecoveryNeedsServer;
+
+  /// Kos TV card menu: takes a title off Continue Watching; on Jellyfin this also forgets where playback was.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from Continue Watching (forgets where you were)'**
+  String get kostvHideFromContinueWatchingForgets;
+
+  /// Kos TV: message after taking a title off Continue Watching, with an undo button that brings back where it was.
+  ///
+  /// In en, this message translates to:
+  /// **'“{title}” removed from Continue Watching'**
+  String kostvHiddenFromContinueWatching(String title);
+
+  /// Kos TV: undoing a Continue Watching hide couldn't put the resume point back.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t bring back where you were'**
+  String get kostvContinueWatchingUndoFailed;
 }
 
 class _AppLocalizationsDelegate

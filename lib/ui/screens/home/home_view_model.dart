@@ -96,6 +96,7 @@ class HomeViewModel extends ChangeNotifier {
       _watchPartyRow,
       _prefs.kostvHomeActive ? _kostvRewatchRow : null,
       _shuffleRow,
+      _prefs.get(UserPreferences.kidsModeEnabled) ? 1 : 0,
     ];
     final memo = _rowsMemo;
     if (memo != null && _sameInputs(memo.from, from)) return memo.out;
@@ -132,6 +133,7 @@ class HomeViewModel extends ChangeNotifier {
       withRewatchRow(withParty, rewatch),
       _shuffleRow,
       hasRows: base.isNotEmpty,
+      kidsMode: _prefs.get(UserPreferences.kidsModeEnabled),
     );
   }
 
@@ -144,13 +146,15 @@ class HomeViewModel extends ChangeNotifier {
   /// with the first rows. Like Shuffle, kept out of the layout's sections.
   HomeRow? _kostvRewatchRow;
 
-  /// Kos TV: Shuffle closes Home, once there is something above it.
+  /// Kos TV: Shuffle closes Home, once there is something above it. Kids
+  /// Mode's Home shows only its allowed sections, so no Shuffle there.
   @visibleForTesting
   static List<HomeRow> withShuffleRow(
     List<HomeRow> rows,
     HomeRow? shuffle, {
     required bool hasRows,
-  }) => shuffle == null || !hasRows ? rows : [...rows, shuffle];
+    bool kidsMode = false,
+  }) => shuffle == null || !hasRows || kidsMode ? rows : [...rows, shuffle];
 
   /// Kos TV: the Shuffle row at the very end of Home. Like the Apps row it
   /// isn't one of the layout's sections, so it never reaches the row cache.

@@ -20896,4 +20896,17 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvPinRecoveryNeedsServer =>
       'Recovering the PIN needs the server. Try again when you\'re connected.';
+
+  @override
+  String get kostvHideFromContinueWatchingForgets =>
+      'Remove from Continue Watching (forgets where you were)';
+
+  @override
+  String kostvHiddenFromContinueWatching(String title) {
+    return '“$title” removed from Continue Watching';
+  }
+
+  @override
+  String get kostvContinueWatchingUndoFailed =>
+      'Couldn\'t bring back where you were';
 }
