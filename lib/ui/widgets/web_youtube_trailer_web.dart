@@ -347,8 +347,35 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
           ..height = '100%'
           ..border = '0'
           ..pointerEvents = widget.ignorePointer ? 'none' : 'auto';
+        // Kos TV: a trailer behind a page is only to look at. Started, the
+        // YouTube frame took the keyboard focus from the app, and the arrows
+        // and Enter went to it: the page could no longer be moved through.
+        if (widget.ignorePointer) {
+          el.tabIndex = -1;
+          _giveFocusBack(el);
+        }
       }
     } catch (_) {}
+  }
+
+  /// Kos TV: puts the keyboard back on the app when [frame] (or nothing,
+  /// after the frame let go of it) holds it.
+  void _giveFocusBack(web.HTMLIFrameElement frame) {
+    for (final delay in const [0, 300, 1000, 2500]) {
+      Future<void>.delayed(Duration(milliseconds: delay), () {
+        if (_disposed) return;
+        final active = web.document.activeElement;
+        if (active != null &&
+            active != frame &&
+            active != web.document.body) {
+          return;
+        }
+        final view = web.document.querySelector('flutter-view');
+        if (view != null && view.isA<web.HTMLElement>()) {
+          (view as web.HTMLElement).focus();
+        }
+      });
+    }
   }
 
   void _onReady() {
@@ -420,6 +447,8 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
 
   void _handleState(int? state) {
     if (state == _statePlaying) {
+      // Kos TV: playing is when the frame takes the focus; given back.
+      _applyIframeStyle();
       _applyCaptions();
       _reportPlaybackStarted();
     } else if (state == _stateEnded) {
