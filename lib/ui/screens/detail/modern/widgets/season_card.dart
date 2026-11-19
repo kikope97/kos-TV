@@ -40,6 +40,10 @@ class SeasonCard extends StatelessWidget {
   /// Count of unplayed episodes in this season, if partially watched or unwatched.
   final int? unplayedCount;
 
+  /// Kos TV: a season the home server has nothing of. The poster turns grey
+  /// and the card dims, while the focus frame keeps its colour.
+  final bool greyed;
+
   const SeasonCard({
     super.key,
     required this.title,
@@ -58,6 +62,7 @@ class SeasonCard extends StatelessWidget {
     this.badge,
     this.isPlayed = false,
     this.unplayedCount,
+    this.greyed = false,
   });
 
   @override
@@ -67,6 +72,7 @@ class SeasonCard extends StatelessWidget {
     final cardWidth = width ?? (landscape ? 130.0 : 90.0);
     final cardHeight = height ?? (landscape ? 195.0 : 135.0);
     final isNeon = ThemeRegistry.active.id == ThemeRegistry.neonPulseId;
+    final textAlpha = greyed ? 0.55 : 1.0;
 
     return FocusableWrapper(
       focusNode: focusNode,
@@ -93,8 +99,17 @@ class SeasonCard extends StatelessWidget {
                 OfflineAwareImage(
                   imageUrl: imageUrl!,
                   fit: BoxFit.cover,
+                  // Painted with the image, so greying adds no layer.
+                  color: greyed ? Colors.grey : null,
+                  colorBlendMode: greyed ? BlendMode.saturation : null,
                   errorWidget: (context, url, error) =>
                       const SizedBox.shrink(),
+                ),
+              if (greyed)
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: Colors.black.withValues(alpha: 0.45),
+                  ),
                 ),
               Positioned.fill(
                 child: DecoratedBox(
@@ -136,7 +151,7 @@ class SeasonCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.labelLarge?.copyWith(
-                          color: Colors.white,
+                          color: Colors.white.withValues(alpha: textAlpha),
                           fontWeight: FontWeight.bold,
                           fontSize: 11,
                         ),
@@ -150,7 +165,9 @@ class SeasonCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.85),
+                          color: Colors.white.withValues(
+                            alpha: 0.85 * textAlpha,
+                          ),
                           fontWeight: FontWeight.w500,
                           fontSize: 9,
                         ),

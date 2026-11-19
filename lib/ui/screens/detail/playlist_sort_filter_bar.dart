@@ -75,6 +75,25 @@ String playlistPlayedStatusLabel(
   };
 }
 
+/// Kos TV: a playlist item's type as the filter shows it. The server sends
+/// it in English ("Video", "Audio"), so the known ones get the app's words.
+String playlistMediaTypeLabel(String type, AppLocalizations l10n) {
+  return switch (type) {
+    'Movie' => l10n.movies,
+    'Episode' => l10n.episodes,
+    'Series' => l10n.series,
+    'Season' => l10n.seasons,
+    'Video' => l10n.videos,
+    'MusicVideo' => l10n.musicVideos,
+    'Trailer' => l10n.trailers,
+    'Audio' => l10n.audio,
+    'AudioBook' => l10n.audiobooks,
+    'Book' => l10n.books,
+    'Photo' => l10n.photos,
+    _ => type,
+  };
+}
+
 /// Filters and sorts a playlist's tracks client-side without altering the
 /// underlying server playlist ordering.
 List<AggregatedItem> sortAndFilterPlaylistTracks({
@@ -269,7 +288,7 @@ class PlaylistSortFilterBar extends StatelessWidget {
     if (mediaTypeFilter != null &&
         mediaTypeFilter!.isNotEmpty &&
         mediaTypeFilter != 'all') {
-      parts.add(mediaTypeFilter!);
+      parts.add(playlistMediaTypeLabel(mediaTypeFilter!, l10n));
     }
     if (parts.isEmpty) {
       return l10n.all;
@@ -333,7 +352,7 @@ class PlaylistSortFilterBar extends StatelessWidget {
           _PlaylistPillButton(
             focusNode: sortFocusNode,
             icon: Icons.sort_rounded,
-            label: 'Sort: ${librarySortLabel(sortBy, l10n)}',
+            label: l10n.kostvPlaylistSortLabel(librarySortLabel(sortBy, l10n)),
             trailing: sortBy != LibrarySortBy.random &&
                     (sortBy != LibrarySortBy.playlistOrder ||
                         sortDirection == SortDirection.descending)
@@ -356,7 +375,7 @@ class PlaylistSortFilterBar extends StatelessWidget {
           _PlaylistPillButton(
             focusNode: filterFocusNode,
             icon: Icons.filter_list_rounded,
-            label: 'Filter: ${_filterSummary(l10n)}',
+            label: l10n.kostvPlaylistFilterLabel(_filterSummary(l10n)),
             trailing: const Icon(
               Icons.arrow_drop_down_rounded,
               size: 16,
@@ -384,7 +403,7 @@ class PlaylistSortFilterBar extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: 4.0),
               child: Text(
-                '$filteredCount of $totalCount',
+                l10n.kostvPlaylistFilteredCount(filteredCount, totalCount),
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.white54,
                     ),
@@ -769,7 +788,7 @@ class _PlaylistFilterDialogState extends State<PlaylistFilterDialog> {
                 ),
                 for (final type in widget.availableMediaTypes)
                   _DialogRadioRow(
-                    label: type,
+                    label: playlistMediaTypeLabel(type, l10n),
                     selected: _mediaTypeFilter == type,
                     accent: accent,
                     onSurface: onSurface,

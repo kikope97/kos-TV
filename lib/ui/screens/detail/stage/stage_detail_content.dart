@@ -401,11 +401,9 @@ class _StageDetailContentState extends State<StageDetailContent>
   Widget _buildActions(bool landscape, double columnWidth) {
     // Play, three circles and the ellipsis are what fit under the poster, so
     // that's the most this style shows whatever the button limit says.
-    final kidsMode = widget.prefs.get(UserPreferences.kidsModeEnabled);
+    // Kids Mode never gets here: it always builds the Minimalist page.
     final prefLimit = widget.prefs.get(UserPreferences.detailButtonsMaxVisible);
-    final maxVisible = kidsMode
-        ? 4
-        : (prefLimit > 0 ? math.min(prefLimit + 1, 5) : 5);
+    final maxVisible = prefLimit > 0 ? math.min(prefLimit + 1, 5) : 5;
 
     // Down from the buttons skips the column beside them on a TV, since that
     // column is reached by going right.
@@ -446,7 +444,7 @@ class _StageDetailContentState extends State<StageDetailContent>
       modernStyle: true,
       fullWidthPrimary: true,
       rowMaxWidth: landscape ? columnWidth : null,
-      overflowAsMenu: !kidsMode,
+      overflowAsMenu: true,
       maxVisibleButtonsOverride: maxVisible,
       actionsExpanded: widget.actionsExpanded,
       onActionsExpandedChanged: widget.onActionsExpandedChanged,

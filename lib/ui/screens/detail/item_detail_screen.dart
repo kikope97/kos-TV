@@ -909,6 +909,13 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
                     setState(() => _actionsExpanded = val),
               ),
 
+        // Kos TV: what Minimalist doesn't draw goes straight to the page that
+        // does, with every callback, rather than through Minimalist.
+        DetailScreenStyle.minimalist
+            when !minimalistDraws(_viewModel.item?.type) =>
+          detailFallsBackToModern(_viewModel.item?.type)
+              ? _buildModernContent()
+              : _buildSpotlightContent(),
         DetailScreenStyle.minimalist => MinimalistDetailContent(
           viewModel: _viewModel,
           prefs: _prefs,
@@ -2571,7 +2578,11 @@ class _DetailContentState extends State<_DetailContent> {
             child: DetailEpisodeCard(
               episode: ep,
               imageApi: viewModel.imageApi,
-              onChanged: () => viewModel.load(),
+              // Kos TV: the view model already applies what the menu
+              // changed; a full load would swap the page for its skeleton.
+              onChanged: () {
+                if (mounted) setState(() {});
+              },
               isActive: viewModel.nextUp?.id == ep.id,
               contextSeasonId: item.id,
             ),
@@ -2624,7 +2635,10 @@ class _DetailContentState extends State<_DetailContent> {
               episodes: viewModel.episodes,
               currentEpisodeId: item.id,
               imageApi: viewModel.imageApi,
-              onChanged: () => viewModel.load(),
+              // Kos TV: as above, no full load after the episode menu.
+              onChanged: () {
+                if (mounted) setState(() {});
+              },
               contextSeasonId: viewModel.effectiveSeasonId,
               scrollController: _trackSectionScrollController(
                 episodesFocusNode,
@@ -8394,7 +8408,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
               .trim()
               .isNotEmpty)
         _AdvancedPlaybackOption(
-          label: 'Open in External Player',
+          label: l10n.kostvOpenInExternalPlayer,
           icon: Icons.open_in_new,
           onTap: () {
             _play(context, item, resume: resume, openInExternalPlayer: true);
@@ -8410,7 +8424,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
           },
         ),
       _AdvancedPlaybackOption(
-        label: 'Transcode Stream: High Quality (1080p)',
+        label: l10n.kostvTranscodeHigh,
         icon: Icons.high_quality,
         onTap: () {
           _play(
@@ -8423,7 +8437,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
         },
       ),
       _AdvancedPlaybackOption(
-        label: 'Transcode Stream: Medium Quality (720p)',
+        label: l10n.kostvTranscodeMedium,
         icon: Icons.video_settings,
         onTap: () {
           _play(
@@ -8436,7 +8450,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
         },
       ),
       _AdvancedPlaybackOption(
-        label: 'Transcode Stream: Low Quality (480p)',
+        label: l10n.kostvTranscodeLow,
         icon: Icons.sd,
         onTap: () {
           _play(
@@ -8455,7 +8469,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
       context: context,
       useRootNavigator: false,
       builder: (dialogContext) => SimpleDialog(
-        title: const Text('Advanced Playback'),
+        title: Text(l10n.kostvAdvancedPlayback),
         // Lines the row icons up under the title.
         contentPadding: const EdgeInsets.fromLTRB(4, 12, 4, 16),
         children: options.asMap().entries.map((entry) {

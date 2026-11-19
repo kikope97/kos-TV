@@ -20059,4 +20059,46 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get updateDownloadCorrupt =>
       'La actualización descargada está incompleta o no coincide con la publicada, así que no se ha instalado. Inténtalo de nuevo.';
+
+  @override
+  String kostvPlaylistSortLabel(String sort) {
+    return 'Orden: $sort';
+  }
+
+  @override
+  String kostvPlaylistFilterLabel(String filter) {
+    return 'Filtro: $filter';
+  }
+
+  @override
+  String kostvPlaylistFilteredCount(int shown, int total) {
+    return '$shown de $total';
+  }
+
+  @override
+  String get kostvUnknownSize => 'Tamaño desconocido';
+
+  @override
+  String get kostvUnknownCodec => 'Códec desconocido';
+
+  @override
+  String get kostvVersionDefault => 'Predeterminada';
+
+  @override
+  String get kostvAdvancedPlayback => 'Reproducción avanzada';
+
+  @override
+  String get kostvOpenInExternalPlayer => 'Abrir en el reproductor externo';
+
+  @override
+  String get kostvTranscodeHigh => 'Transcodificar: calidad alta (1080p)';
+
+  @override
+  String get kostvTranscodeMedium => 'Transcodificar: calidad media (720p)';
+
+  @override
+  String get kostvTranscodeLow => 'Transcodificar: calidad baja (480p)';
+
+  @override
+  String get kostvEpisodesLoadFailed => 'No se han podido cargar los episodios';
 }

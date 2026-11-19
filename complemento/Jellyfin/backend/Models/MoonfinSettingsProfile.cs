@@ -121,6 +121,11 @@ public class MoonfinSettingsProfile
     [JsonPropertyName("detailScreenStyle")]
     public string? DetailScreenStyle { get; set; }
 
+    // Kos TV: the app's mark that this profile's detail style is past the one-time move to the
+    // kOS TV page, so a style picked by hand isn't moved again on a new device.
+    [JsonPropertyName("kostvDetailAdopted")]
+    public bool? KostvDetailAdopted { get; set; }
+
     [JsonPropertyName("libraryStyle")]
     public string? LibraryStyle { get; set; }
 

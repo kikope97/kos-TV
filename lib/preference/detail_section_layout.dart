@@ -206,8 +206,15 @@ enum DetailSection {
 
   /// Whether this device and server can show it at all. A TV has no browser
   /// to open a person's links in, and reviews need a plugin that serves them.
+  /// Kos TV: Kids Mode drops the links too, as they leave the app for IMDb,
+  /// TikTok and the like.
   bool get isOffered => switch (this) {
-    DetailSection.personLinks => !PlatformDetection.isTV,
+    DetailSection.personLinks =>
+      !PlatformDetection.isTV &&
+          !(GetIt.instance.isRegistered<UserPreferences>() &&
+              GetIt.instance<UserPreferences>().get(
+                UserPreferences.kidsModeEnabled,
+              )),
     DetailSection.reviews =>
       GetIt.instance.isRegistered<PluginSyncService>() &&
           GetIt.instance<PluginSyncService>().tmdbReviewsAvailable,

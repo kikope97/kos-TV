@@ -200,12 +200,26 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     super.initState();
     FocusManager.instance.addListener(_trackHome);
     _watchGaps();
+    _loadSeriesEpisodes();
+  }
+
+  /// A Series, or one of its episodes, asks for every season's worth. Kos TV:
+  /// also each time the Episodes tab is picked while they haven't come, so a
+  /// server that failed once gets another go without leaving the page.
+  void _loadSeriesEpisodes() {
     final type = _vm.item?.type;
     if ((type == 'Series' || type == 'Episode') && _vm.seriesEpisodes.isEmpty) {
       final vm = _vm;
       vm.loadAllSeriesEpisodes().whenComplete(() {
         if (mounted && identical(vm, _vm)) setState(() {});
       });
+    }
+  }
+
+  void _pickTab(_Tab tab) {
+    setState(() => _tab = tab);
+    if (tab == _Tab.episodes && !_vm.seriesEpisodesLoaded) {
+      _loadSeriesEpisodes();
     }
   }
 
@@ -1008,7 +1022,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
     return _FrostFocus(
       focusNode: _tabNode(tab),
       onFocusChange: (focused) {
-        if (focused && _tab != tab) setState(() => _tab = tab);
+        if (focused && _tab != tab) _pickTab(tab);
         _trackHome();
       },
       // Focus picks the tab, but a click doesn't move focus, so it has to.
@@ -2575,7 +2589,7 @@ class _FrostDetailContentState extends State<FrostDetailContent>
           Expanded(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() => _tab = tab),
+              onTap: () => _pickTab(tab),
               child: AnimatedContainer(
                 duration: _duration,
                 height: 32,

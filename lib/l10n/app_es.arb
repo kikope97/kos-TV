@@ -13962,5 +13962,71 @@
     "updateDownloadCorrupt": "La actualización descargada está incompleta o no coincide con la publicada, así que no se ha instalado. Inténtalo de nuevo.",
     "@updateDownloadCorrupt": {
         "description": "Kos TV: the downloaded update APK doesn't match the size or SHA-256 the release lists, so it was deleted and not installed"
+    },
+    "kostvPlaylistSortLabel": "Orden: {sort}",
+    "@kostvPlaylistSortLabel": {
+        "description": "Kos TV: playlist sort pill, with the chosen order",
+        "placeholders": {
+            "sort": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvPlaylistFilterLabel": "Filtro: {filter}",
+    "@kostvPlaylistFilterLabel": {
+        "description": "Kos TV: playlist filter pill, with the active filter",
+        "placeholders": {
+            "filter": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvPlaylistFilteredCount": "{shown} de {total}",
+    "@kostvPlaylistFilteredCount": {
+        "description": "Kos TV: how many playlist items the filter leaves out of all of them",
+        "placeholders": {
+            "shown": {
+                "type": "int"
+            },
+            "total": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvUnknownSize": "Tamaño desconocido",
+    "@kostvUnknownSize": {
+        "description": "Kos TV: file size shown when the server doesn't give one"
+    },
+    "kostvUnknownCodec": "Códec desconocido",
+    "@kostvUnknownCodec": {
+        "description": "Kos TV: video codec shown when the server doesn't give one"
+    },
+    "kostvVersionDefault": "Predeterminada",
+    "@kostvVersionDefault": {
+        "description": "Kos TV: name of a media version that has none"
+    },
+    "kostvAdvancedPlayback": "Reproducción avanzada",
+    "@kostvAdvancedPlayback": {
+        "description": "Kos TV: title of the menu a long press on Play opens"
+    },
+    "kostvOpenInExternalPlayer": "Abrir en el reproductor externo",
+    "@kostvOpenInExternalPlayer": {
+        "description": "Kos TV: advanced playback option that hands the video to the external player app"
+    },
+    "kostvTranscodeHigh": "Transcodificar: calidad alta (1080p)",
+    "@kostvTranscodeHigh": {
+        "description": "Kos TV: advanced playback option, the server converts the video to 1080p"
+    },
+    "kostvTranscodeMedium": "Transcodificar: calidad media (720p)",
+    "@kostvTranscodeMedium": {
+        "description": "Kos TV: advanced playback option, the server converts the video to 720p"
+    },
+    "kostvTranscodeLow": "Transcodificar: calidad baja (480p)",
+    "@kostvTranscodeLow": {
+        "description": "Kos TV: advanced playback option, the server converts the video to 480p"
+    },
+    "kostvEpisodesLoadFailed": "No se han podido cargar los episodios",
+    "@kostvEpisodesLoadFailed": {
+        "description": "Kos TV: a series page whose episode list failed to load, with a Retry button"
     }
 }

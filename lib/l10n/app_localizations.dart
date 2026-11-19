@@ -33920,6 +33920,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The downloaded update is incomplete or doesn\'t match the published one, so it wasn\'t installed. Please try again.'**
   String get updateDownloadCorrupt;
+
+  /// Kos TV: playlist sort pill, with the chosen order
+  ///
+  /// In en, this message translates to:
+  /// **'Sort: {sort}'**
+  String kostvPlaylistSortLabel(String sort);
+
+  /// Kos TV: playlist filter pill, with the active filter
+  ///
+  /// In en, this message translates to:
+  /// **'Filter: {filter}'**
+  String kostvPlaylistFilterLabel(String filter);
+
+  /// Kos TV: how many playlist items the filter leaves out of all of them
+  ///
+  /// In en, this message translates to:
+  /// **'{shown} of {total}'**
+  String kostvPlaylistFilteredCount(int shown, int total);
+
+  /// Kos TV: file size shown when the server doesn't give one
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown size'**
+  String get kostvUnknownSize;
+
+  /// Kos TV: video codec shown when the server doesn't give one
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown codec'**
+  String get kostvUnknownCodec;
+
+  /// Kos TV: name of a media version that has none
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get kostvVersionDefault;
+
+  /// Kos TV: title of the menu a long press on Play opens
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced playback'**
+  String get kostvAdvancedPlayback;
+
+  /// Kos TV: advanced playback option that hands the video to the external player app
+  ///
+  /// In en, this message translates to:
+  /// **'Open in external player'**
+  String get kostvOpenInExternalPlayer;
+
+  /// Kos TV: advanced playback option, the server converts the video to 1080p
+  ///
+  /// In en, this message translates to:
+  /// **'Transcode stream: high quality (1080p)'**
+  String get kostvTranscodeHigh;
+
+  /// Kos TV: advanced playback option, the server converts the video to 720p
+  ///
+  /// In en, this message translates to:
+  /// **'Transcode stream: medium quality (720p)'**
+  String get kostvTranscodeMedium;
+
+  /// Kos TV: advanced playback option, the server converts the video to 480p
+  ///
+  /// In en, this message translates to:
+  /// **'Transcode stream: low quality (480p)'**
+  String get kostvTranscodeLow;
+
+  /// Kos TV: a series page whose episode list failed to load, with a Retry button
+  ///
+  /// In en, this message translates to:
+  /// **'The episodes couldn\'t be loaded'**
+  String get kostvEpisodesLoadFailed;
 }
 
 class _AppLocalizationsDelegate

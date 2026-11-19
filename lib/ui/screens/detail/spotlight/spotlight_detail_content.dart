@@ -232,7 +232,11 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
     if (item == null || _tmdbStudiosItemId == item.id) return;
     _tmdbStudiosItemId = item.id;
 
-    final tmdbId = item.tmdbId;
+    // Kos TV: only a film or a series has production companies to ask for.
+    // A person's, a collection's or an episode's TMDB id isn't a film's.
+    final tmdbId = const {'Movie', 'Series', 'Trailer'}.contains(item.type)
+        ? item.tmdbId
+        : null;
     final pluginAvailable = GetIt.instance<PluginSyncService>().pluginAvailable;
     if (tmdbId == null || !pluginAvailable) {
       if (_tmdbStudios.isNotEmpty && mounted) {
@@ -793,7 +797,12 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
                   borderRadius: JellyfinTokens.shapes.smallRadius,
                 ),
                 child: Text(
-                  status,
+                  // Kos TV: the server says it in English.
+                  switch (status.toLowerCase()) {
+                    'continuing' => l10n.continuing,
+                    'ended' => l10n.ended,
+                    _ => status,
+                  },
                   style: textTheme.labelSmall?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,

@@ -158,6 +158,7 @@ void main() {
     'imdbRowsSortOrder',
     'interfaceStyle',
     'keyboardStyle',
+    'kostvDetailAdopted',
     'languageOverride',
     'libraryCardTitles',
     'libraryPosterSize',
