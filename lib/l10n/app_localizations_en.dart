@@ -19733,6 +19733,107 @@ class AppLocalizationsEn extends AppLocalizations {
       'The downloaded update is incomplete or doesn\'t match the published one, so it wasn\'t installed. Please try again.';
 
   @override
+  String kostvHomeBecauseLiked(String title) {
+    return 'Because you like $title';
+  }
+
+  @override
+  String get kostvStartupFailedTitle => 'kOS TV couldn\'t open';
+
+  @override
+  String get kostvStartupFailedMessage =>
+      'Something went wrong while starting. Try again, and if it keeps happening, restart the device or check it has free space left.';
+
+  @override
+  String get kostvStartupStepFailed =>
+      'Something went wrong while opening kOS TV. Try again.';
+
+  @override
+  String get kostvPageNotFoundTitle => 'This page doesn\'t exist';
+
+  @override
+  String get kostvPageNotFoundMessage =>
+      'The address may be mistyped, or the page may no longer be here.';
+
+  @override
+  String get kostvGoToHome => 'Go to Home';
+
+  @override
+  String get kostvDownloadFailed => 'Download failed';
+
+  @override
+  String kostvDownloadFailedNamed(String name, String error) {
+    return 'Download failed: $name ($error)';
+  }
+
+  @override
+  String get kostvDownloadDiskFull =>
+      'The download disk is full. Free up space in the download location and retry.';
+
+  @override
+  String get kostvDownloadWifiOnly =>
+      'WiFi-only mode enabled. Connect to WiFi to download.';
+
+  @override
+  String kostvDownloadNotEnoughSpace(String path, String needed, String free) {
+    return 'Not enough free space in $path. Needs about $needed, $free available.';
+  }
+
+  @override
+  String get kostvDownloadFolderNotWritable =>
+      'Cannot write to download folder. Please reset the download location in Settings → Downloads, or grant storage permissions.';
+
+  @override
+  String get kostvDownloadForbidden =>
+      'Download forbidden (403). Retried alternate endpoints but access was denied.';
+
+  @override
+  String get kostvDownloadUnauthorized =>
+      'Download unauthorized (401). Please re-login and try again.';
+
+  @override
+  String get kostvDownloadSourceNotFound =>
+      'Download source not found (404). The file may no longer be available.';
+
+  @override
+  String get kostvDownloadTimedOut =>
+      'Download timed out while waiting for transfer completion.';
+
+  @override
+  String get loginWrongCredentials => 'Wrong username or password';
+
+  @override
+  String get loginServerError =>
+      'The server ran into a problem. Try again later.';
+
+  @override
+  String get quickConnectCodeExpired =>
+      'This code has expired. Get a new one to sign in.';
+
+  @override
+  String get kostvUntrustedServerCertificate =>
+      'The server\'s certificate isn\'t valid, so the connection isn\'t safe. You may be on a network that intercepts connections (a hotel\'s, for example). Try another network or try again later.';
+
+  @override
+  String get mediaBarNoBackdrops => 'No items with backdrop images found';
+
+  @override
+  String get mediaBarGalleryDirector => 'DIRECTOR';
+
+  @override
+  String get mediaBarGalleryCast => 'STARRING';
+
+  @override
+  String get mediaBarTheaterBuffering => 'BUFFERING';
+
+  @override
+  String get mediaBarTheaterPreparing => 'OPTIMIZING FOR YOU';
+
+  @override
+  String get kostvHomeForYouFailed =>
+      'Your recommendations couldn\'t be loaded';
+
+  @override
   String kostvPlaylistSortLabel(String sort) {
     return 'Sort: $sort';
   }
