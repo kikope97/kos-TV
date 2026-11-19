@@ -25,9 +25,9 @@ usuario. Norma de siempre: ninguna función se pierde ni va a peor.
 
 | # | Técnica | Interfaz |
 |---|---|---|
-| 1 | arreglada y probada | — |
-| 2 | arreglada y probada | — |
-| 3 | arreglada y probada | — |
+| 1 | arreglada y probada | revisada y arreglada |
+| 2 | arreglada y probada | revisada y arreglada |
+| 3 | arreglada y probada | revisada y arreglada |
 | 4 | arreglada y probada | — |
 | 5 | arreglada y probada | — |
 | 6 | arreglada y probada | — |
@@ -158,3 +158,25 @@ Se quedan como están: 2, 8, 15, 22 (más adelante) y 24. «Tus listas» con la
 ficha de Música (9), más adelante como novedad. El complemento (4) se publica
 junto con la próxima versión de la app. El panel de administración (20) queda
 como excepción: solo móvil y web.
+
+## Ronda de interfaz
+
+### Bloques 1, 2 y 3 (arranque, Inicio y fichas)
+Fotos de tele (web con la tele forzada), móvil (393×852) y ordenador
+(1440×900) contra el servidor falso. Arreglado:
+- En la web, el tráiler de fondo de las fichas se quedaba el teclado: las
+  flechas y OK dejaban de funcionar (ordenador y tele simulada).
+- Notas y duraciones en español en toda la app («7,1», «1 h 35 min»,
+  «44 min»); antes la mitad salía como en inglés («7.1», «1h 35m»).
+- Filas de la ficha con el mando: en la web, izquierda y derecha movían la
+  fila en vez del foco y la tarjeta enfocada quedaba cortada. La pestaña
+  «Temporada 1» enfocada perdía las esquinas.
+- Barra de arriba en el móvil: los iconos ocultos se difuminan en el borde
+  (antes el último salía cortado sin aviso). En el ordenador y el móvil, al
+  bajar aparece una sombra suave detrás de la barra.
+- «Seguir viendo» en todos los textos (algunos decían «Continuar viendo»).
+- Lista de episodios del móvil: la línea «EPISODIO 2 · 44 MIN» ya no se corta.
+
+Para más adelante (bloque 8): la barra de arriba no marca en qué página
+estás; el orden de los botones del menú del perfil cambia entre tele, móvil y
+ordenador.
