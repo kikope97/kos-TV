@@ -5727,7 +5727,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
               mainAxisSize: MainAxisSize.min,
               children: [
                 _buildSeekbar(),
-                const SizedBox(height: AppSpacing.spaceXs),
+                // Kos TV: room for the focused button's label between the
+                // times and the buttons, so it never lands on the duration.
+                const SizedBox(height: _tvOsdTooltipRoom),
                 _buildTvBottomControlsRow(),
               ],
             ),
@@ -9015,6 +9017,14 @@ class _OsdMoreEntry {
   final VoidCallback action;
 }
 
+/// How far a focused TV button's label floats above the button.
+const double _tvOsdTooltipLift = 2;
+
+/// Kos TV: the gap between the seek bar's times and the TV button row. The
+/// buttons sit 8 px down their row, so this plus those 8 px clears the label
+/// (about 26 px tall, lifted [_tvOsdTooltipLift]) and the times stay in sight.
+const double _tvOsdTooltipRoom = 22;
+
 class _TvFocusButton extends StatefulWidget {
   const _TvFocusButton({
     required this.extent,
@@ -9166,7 +9176,7 @@ class _TvFocusButtonState extends State<_TvFocusButton> {
       children: [
         button,
         Positioned(
-          bottom: widget.extent + 8,
+          bottom: widget.extent + _tvOsdTooltipLift,
           child: IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(

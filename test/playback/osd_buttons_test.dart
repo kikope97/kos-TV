@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin/preference/user_preferences.dart';
@@ -86,4 +87,61 @@ void main() {
       ]);
     },
   );
+
+  group('osdButtonRow', () {
+    Future<List<double>> lefts(WidgetTester tester, {bool? grouped}) async {
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: SizedBox(
+              width: 700,
+              child: osdButtonRow(
+                buttons: [
+                  for (var i = 0; i < 3; i++)
+                    SizedBox(key: ValueKey(i), width: 56, height: 56),
+                ],
+                extent: 56,
+                landscape: true,
+                grouped: grouped,
+              ),
+            ),
+          ),
+        ),
+      );
+      final row = tester.getRect(find.byType(Row)).left;
+      return [
+        for (var i = 0; i < 3; i++)
+          tester.getRect(find.byKey(ValueKey(i))).left - row,
+      ];
+    }
+
+    tearDown(
+      () => PlatformDetection.setInterfaceLayout(InterfaceLayout.automatic),
+    );
+
+    testWidgets('packs the buttons together at the end on a wide screen '
+        '(Kos TV: not spread over a whole computer window)', (tester) async {
+      PlatformDetection.setTvMode(false);
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
+      expect(await lefts(tester), [700 - 168, 700 - 112, 700 - 56]);
+    });
+
+    testWidgets('packs them at the end on a TV', (tester) async {
+      expect(await lefts(tester), [700 - 168, 700 - 112, 700 - 56]);
+    });
+
+    testWidgets('keeps them spread on a phone', (tester) async {
+      PlatformDetection.setTvMode(false);
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.phone);
+      final spread = await lefts(tester);
+      expect(spread.first, greaterThan(100));
+      expect(spread[1] - spread[0], greaterThan(150));
+      expect(await lefts(tester, grouped: true), [
+        700 - 168,
+        700 - 112,
+        700 - 56,
+      ]);
+    });
+  });
 }

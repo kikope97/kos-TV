@@ -195,22 +195,29 @@ Widget osdDockedTransport({
 }
 
 /// The extra buttons spread along the row when they all fit in landscape,
-/// packed to the end on a TV, and scrolling sideways when they don't.
+/// packed to the end on a TV or a wide screen, and scrolling sideways when
+/// they don't.
+///
+/// [grouped] defaults to the device: packed everywhere but on a phone or
+/// tablet, where spreading them keeps them apart for the thumb.
 Widget osdButtonRow({
   required List<Widget> buttons,
   required double extent,
   required bool landscape,
+  bool? grouped,
 }) {
   final estimatedWidth = buttons.length * (extent + 8);
+  // Kos TV: on a TV and on a computer, at the right end, apart from back,
+  // play and forward, as the streaming apps do. Spread over a 1440 px
+  // window they ended up far apart.
+  final packed = grouped ?? !PlatformDetection.useMobileUi;
   return LayoutBuilder(
     builder: (context, constraints) {
       if (landscape && estimatedWidth <= constraints.maxWidth) {
         return SizedBox(
           height: extent,
           child: Row(
-            // Kos TV: on a TV, at the right end, apart from back, play and
-            // forward on the left, as the streaming apps do.
-            mainAxisAlignment: PlatformDetection.isTV
+            mainAxisAlignment: packed
                 ? MainAxisAlignment.end
                 : MainAxisAlignment.spaceEvenly,
             children: buttons,
