@@ -10,6 +10,7 @@ import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
+import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:path/path.dart' as p;
 import 'package:playback_core/playback_core.dart' show MediaStreamResolver;
 import 'package:server_core/server_core.dart';
@@ -2332,11 +2333,19 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
       }
     }
 
+    // Kos TV: asking for a download already on its way makes it this
+    // person's too.
     final pending = _pendingDownloadByItemId[item.id];
-    if (pending != null) return pending.completer.future;
+    if (pending != null) {
+      unawaited(_recordOwner(item.id));
+      return pending.completer.future;
+    }
 
     final active = _activeDownloads[item.id];
-    if (active != null && active.error == null) return Future.value();
+    if (active != null && active.error == null) {
+      unawaited(_recordOwner(item.id));
+      return Future.value();
+    }
 
     final queued = _QueuedDownload(
       item,
@@ -2360,6 +2369,51 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
     notifyListeners();
     _drainDownloadQueue();
     return queued.completer.future;
+  }
+
+  /// Kos TV: preference key remembering that the browser download notice was
+  /// shown.
+  static const _browserLinkNoticeKey = 'kostv_web_download_link_notice_shown';
+
+  /// Kos TV: a browser download goes through a link that carries the session
+  /// (the browser keeps it in its download history), so the first one says
+  /// so, once, in the same floating notice download messages use.
+  void _noteBrowserDownloadLinkOnce() {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<PreferenceStore>()) return;
+    final store = getIt<PreferenceStore>();
+    if (store.getBool(_browserLinkNoticeKey) == true) return;
+    unawaited(store.setBool(_browserLinkNoticeKey, true));
+    _emitError(currentAppLocalizations().kostvWebDownloadLinkNotice);
+  }
+
+  /// Kos TV: records that the signed-in person downloaded [itemId], and, with
+  /// [serverItem], the progress the server had for them, as theirs. Once a
+  /// download has owners, everyone else sees it apart, as someone else's.
+  Future<void> _recordOwner(
+    String itemId, [
+    Map<String, dynamic>? serverItem,
+  ]) async {
+    try {
+      final userId = _client.userId;
+      if (userId == null || userId.isEmpty) return;
+      await _offlineRepo.addOwner(itemId, userId);
+      final userData = (serverItem?['UserData'] as Map?)
+          ?.cast<String, dynamic>();
+      if (userData == null) return;
+      for (final row in await _offlineRepo.getItemsWithId(itemId)) {
+        await _offlineRepo.setUserSyncedProgress(
+          itemId,
+          serverId: row.serverId,
+          userId: userId,
+          positionTicks:
+              (userData['PlaybackPositionTicks'] as num?)?.toInt() ?? 0,
+          played: userData['Played'] == true,
+        );
+      }
+    } catch (e) {
+      debugPrint('[DownloadService] Could not record who downloaded $itemId: $e');
+    }
   }
 
   Future<void> _downloadItemNow(
@@ -2412,6 +2466,7 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
         );
         final fileName = _buildFileName(fullItem, quality);
         triggerBrowserDownload(url, fileName);
+        _noteBrowserDownloadLinkOnce();
       } catch (e) {
         _emitError(
           currentAppLocalizations().kostvDownloadFailedNamed(
@@ -2631,6 +2686,9 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
           playbackPositionTicks: Value(fullItem.playbackPositionTicks ?? 0),
         ),
       );
+      // Kos TV: the download is the signed-in person's, and so is the
+      // progress it came with.
+      await _recordOwner(item.id, fullItem.rawData);
 
       _downloadStartTimes[item.id] = DateTime.now();
 
@@ -3126,6 +3184,12 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
       items,
       skipCompleted: source != DownloadSource.manual,
     );
+    // Kos TV: what is already here (say, someone else's auto-download of the
+    // same show) is not fetched again, but it is this person's too now.
+    final queuedNow = {for (final item in toQueue) item.id};
+    for (final item in items) {
+      if (!queuedNow.contains(item.id)) await _recordOwner(item.id);
+    }
     if (toQueue.isEmpty) {
       return DownloadBatch(queued: const [], done: Future.value());
     }

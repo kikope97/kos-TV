@@ -20937,5 +20937,25 @@
     "kostvUntitled": "Untitled",
     "@kostvUntitled": {
         "description": "Kos TV: title of a TMDB recommendation that came without one"
+    },
+    "kostvDownloadsByOthers": "Downloaded by other people",
+    "@kostvDownloadsByOthers": {
+        "description": "Kos TV: heading of the saved media section with what other people on the device downloaded"
+    },
+    "kostvDownloadsByOthersDetail": "Other people at home downloaded these. You can still watch them; your progress is yours alone.",
+    "@kostvDownloadsByOthersDetail": {
+        "description": "Kos TV: line under the heading of downloads by other people"
+    },
+    "kostvDeleteOthersDownloadWarning": "This download also belongs to someone else at home. If you delete it, they will no longer have it on this device.",
+    "@kostvDeleteOthersDownloadWarning": {
+        "description": "Kos TV: added to the delete confirmation when the download is also someone else's"
+    },
+    "kostvWebDownloadLinkNotice": "The download link carries your session and the browser keeps it in its download history: do not share it.",
+    "@kostvWebDownloadLinkNotice": {
+        "description": "Kos TV: notice shown once, after the first download from the browser"
+    },
+    "kostvWebDownloadLinkNote": "In the browser, the download link carries your session and stays in the download history: do not share it.",
+    "@kostvWebDownloadLinkNote": {
+        "description": "Kos TV: note under the title of the download quality sheet in the browser"
     }
 }

@@ -39,6 +39,7 @@ import '../screens/route_not_found_screen.dart';
 import '../screens/web_diagnostics_screen.dart';
 import '../../l10n/app_localizations.dart';
 import '../screens/browse/kostv_catalog_screen.dart';
+import '../screens/browse/kostv_mixed_library_route.dart';
 import '../screens/browse/kostv_libraries_screen.dart';
 import '../screens/browse/kostv_genres_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
@@ -393,11 +394,13 @@ final appRouter = GoRouter(
             'movies' => ('Movie', null),
             'tvshows' => ('Series', null),
             'boxsets' => (null, const ['BoxSet']),
-            'mixed' => (null, null),
+            // Kos TV: films and series together (Jellyfin sends no type for
+            // them) are checked first; see below.
+            'mixed' || null || '' => (null, null),
             _ => ('', null),
           };
           if (onlyType != '') {
-            return KostvCatalogScreen(
+            Widget catalog(BuildContext context) => KostvCatalogScreen(
               title: title,
               kicker: AppLocalizations.of(context).kostvLibraryKicker,
               activeRoute: Destinations.kostvLibraries,
@@ -405,6 +408,19 @@ final appRouter = GoRouter(
               onlyType: onlyType,
               types: types,
               serverId: state.uri.queryParameters['serverId'],
+            );
+            if (onlyType != null || types != null) return catalog(context);
+            // Kos TV: a mixed library opens the catalogue only when it holds
+            // nothing the catalogue can't show, such as home videos.
+            return KostvMixedLibraryRoute(
+              libraryId: libraryId,
+              serverId: state.uri.queryParameters['serverId'],
+              fallbackToCatalog: kind == 'mixed',
+              catalog: catalog,
+              oldPage: (_) => LibraryBrowseScreen(
+                libraryId: libraryId,
+                serverId: state.uri.queryParameters['serverId'],
+              ),
             );
           }
         }

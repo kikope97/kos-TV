@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import '../database/offline_database.dart';
 import '../repositories/offline_repository.dart';
+import 'download_people.dart';
 
 /// One completed download with its parsed (and live-position-merged) server
 /// metadata.
@@ -45,9 +46,22 @@ class OfflineEntry {
 class OfflineCatalog {
   final OfflineRepository _repo;
 
+  /// Kos TV: who is signed in, whose progress the entries carry.
+  final String? Function() _userId;
+
+  /// Kos TV: whether Kids Mode is on, which leaves out what other people
+  /// downloaded.
+  final bool Function() _kidsMode;
+
   List<OfflineEntry> _entries = const [];
   Map<String, OfflineEntry> _byId = const {};
   StreamSubscription<void>? _sub;
+
+  /// Kos TV: the rows and people of the last read, and who the entries were
+  /// built for, so a switch of person rebuilds them without reading again.
+  List<DownloadedItem> _rows = const [];
+  DownloadPeople _people = DownloadPeople.empty;
+  ({String user, bool kids})? _builtFor;
 
   /// Kos TV: each row's stored metadata as last decoded, keyed by item id.
   /// A rebuild decodes again only what changed: offline playback writes a
@@ -58,13 +72,24 @@ class OfflineCatalog {
   Timer? _debounce;
   final _changes = StreamController<void>.broadcast();
 
-  OfflineCatalog(this._repo);
+  OfflineCatalog(
+    this._repo, {
+    String? Function()? userId,
+    bool Function()? kidsMode,
+  }) : _userId = userId ?? (() => null),
+       _kidsMode = kidsMode ?? (() => false);
 
-  List<OfflineEntry> get entries => _entries;
+  List<OfflineEntry> get entries {
+    _ensureBuiltForViewer();
+    return _entries;
+  }
 
   Stream<void> get changes => _changes.stream;
 
-  OfflineEntry? byId(String itemId) => _byId[itemId];
+  OfflineEntry? byId(String itemId) {
+    _ensureBuiltForViewer();
+    return _byId[itemId];
+  }
 
   Future<void> warm() async {
     await _rebuild();
@@ -80,32 +105,65 @@ class OfflineCatalog {
 
   Future<void> _rebuild() async {
     final rows = await _repo.getItems(onlyCompleted: true);
-    final entries = <OfflineEntry>[];
-    final byId = <String, OfflineEntry>{};
+    final people = await _repo.getPeople();
     final decodedById =
         <String, ({String json, Map<String, dynamic> decoded})>{};
     for (final row in rows) {
       final cached = _decoded[row.itemId];
-      final Map<String, dynamic> stored;
       if (cached != null && cached.json == row.metadataJson) {
-        stored = cached.decoded;
+        decodedById[row.itemId] = cached;
       } else {
-        stored = _decode(row.metadataJson);
+        decodedById[row.itemId] = (
+          json: row.metadataJson,
+          decoded: _decode(row.metadataJson),
+        );
       }
-      decodedById[row.itemId] = (json: row.metadataJson, decoded: stored);
+    }
+    _rows = rows;
+    _people = people;
+    _decoded = decodedById;
+    _build(_viewer());
+  }
+
+  ({String user, bool kids}) _viewer() =>
+      (user: normalizeDownloadUserId(_userId()), kids: _kidsMode());
+
+  void _ensureBuiltForViewer() {
+    final viewer = _viewer();
+    if (_builtFor != null && _builtFor != viewer) _build(viewer);
+  }
+
+  void _build(({String user, bool kids}) viewer) {
+    final entries = <OfflineEntry>[];
+    final byId = <String, OfflineEntry>{};
+    final userId = viewer.user.isEmpty ? null : viewer.user;
+    for (final row in _rows) {
+      // Kos TV: in Kids Mode, what someone else downloaded stays out.
+      if (viewer.kids &&
+          _people.ownershipOf(row, userId) == DownloadOwnership.others) {
+        continue;
+      }
+      final stored = _decoded[row.itemId]?.decoded ?? const {};
       // A copy per entry, as the position merge replaces its UserData.
       var metadata = Map<String, dynamic>.from(stored);
       if (metadata.isEmpty) {
         metadata = {'Id': row.itemId, 'Name': row.name, 'Type': row.type};
       }
-      _mergeLivePosition(metadata, row);
+      // Kos TV: the person's own progress where they have some, so one
+      // person's watching never shows as another's.
+      final personal = _people.personalUserData(row, metadata, userId);
+      if (personal != null) {
+        metadata['UserData'] = personal;
+      } else {
+        _mergeLivePosition(metadata, row);
+      }
       final entry = OfflineEntry(row, metadata);
       entries.add(entry);
       byId[row.itemId] = entry;
     }
     _entries = entries;
     _byId = byId;
-    _decoded = decodedById;
+    _builtFor = viewer;
   }
 
   Map<String, dynamic> _decode(String json) {

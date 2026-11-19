@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
+import 'package:moonfin/auth/models/user.dart';
 import 'package:moonfin/data/database/offline_database.dart';
+import 'package:moonfin/data/offline/download_people.dart';
 import 'package:moonfin/data/providers/offline_providers.dart';
 import 'package:moonfin/data/services/sync_service.dart';
 import 'package:moonfin/di/providers.dart';
@@ -72,6 +74,7 @@ void main() {
     WidgetTester tester, {
     required List<DownloadedItem> items,
     Map<String, String> containerArtwork = const {},
+    List<Override> overrides = const [],
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -88,6 +91,7 @@ void main() {
           // The header's sync dot would otherwise reach for the whole sync
           // service, which this screen never touches itself.
           syncStateProvider.overrideWithValue(SyncState.idle),
+          ...overrides,
         ],
         child: MaterialApp(
           localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -337,5 +341,91 @@ void main() {
 
     expect(find.byType(PinEntryDialog), findsOneWidget);
     expect(find.byType(DownloadSettingsScreen), findsNothing);
+  });
+
+  // Kos TV: each person's downloads come first; what other people downloaded
+  // follows under its own heading, and old downloads stay everyone's.
+  group('downloads by person', () {
+    DownloadedItemUser owner(String itemId, String userId) =>
+        DownloadedItemUser(
+          itemId: itemId,
+          serverId: 's1',
+          userId: userId,
+          isOwner: true,
+          hasProgress: false,
+          positionTicks: 0,
+          played: false,
+          progressSynced: true,
+        );
+
+    final me = PrivateUser(
+      id: 'ME-1',
+      name: 'Me',
+      serverId: 's1',
+      accessToken: 't',
+      lastUsed: DateTime(2026),
+    );
+
+    List<Override> as(PrivateUser user, List<DownloadedItemUser> people) => [
+      downloadPeopleProvider.overrideWith(
+        (_) => Stream.value(DownloadPeople(people)),
+      ),
+      currentUserProvider.overrideWith((_) => Stream.value(user)),
+    ];
+
+    final items = [
+      _saved('mine', name: 'My Film'),
+      _saved('theirs', name: 'Their Film'),
+      _saved('old', name: 'Old Film'),
+    ];
+    final people = [owner('mine', 'me1'), owner('theirs', 'other')];
+
+    testWidgets('someone else\'s downloads go under their own heading', (
+      tester,
+    ) async {
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      await pumpHome(tester, items: items, overrides: as(me, people));
+
+      final heading = find.text(l10n.kostvDownloadsByOthers);
+      expect(heading, findsOneWidget);
+      final headingY = tester.getTopLeft(heading).dy;
+      expect(tester.getTopLeft(find.text('My Film')).dy, lessThan(headingY));
+      expect(tester.getTopLeft(find.text('Old Film')).dy, lessThan(headingY));
+      expect(
+        tester.getTopLeft(find.text('Their Film')).dy,
+        greaterThan(headingY),
+      );
+    });
+
+    testWidgets('in Kids Mode other people\'s downloads stay out', (
+      tester,
+    ) async {
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      await GetIt.instance<UserPreferences>().set(
+        UserPreferences.kidsModeEnabled,
+        true,
+      );
+      await pumpHome(tester, items: items, overrides: as(me, people));
+
+      expect(find.text('My Film'), findsOneWidget);
+      expect(find.text('Old Film'), findsOneWidget);
+      expect(find.text('Their Film'), findsNothing);
+      expect(find.text(l10n.kostvDownloadsByOthers), findsNothing);
+    });
+
+    testWidgets('with nothing of one\'s own, only the others\' section shows', (
+      tester,
+    ) async {
+      final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+      await pumpHome(
+        tester,
+        items: [_saved('theirs', name: 'Their Film')],
+        overrides: as(me, people),
+      );
+
+      expect(find.text(l10n.savedMediaNoDownloads), findsNothing);
+      expect(find.text(l10n.kostvDownloadsByOthers), findsOneWidget);
+      expect(find.text('Their Film'), findsOneWidget);
+    });
   });
 }

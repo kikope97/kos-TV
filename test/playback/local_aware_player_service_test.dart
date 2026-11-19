@@ -37,7 +37,7 @@ class _Offline extends Fake implements OfflineRepository {
   }
 
   @override
-  Future<void> markProgressSynced(String itemId) async {
+  Future<void> markProgressSynced(String itemId, {String? userId}) async {
     events.add('synced $itemId');
   }
 }

@@ -102,18 +102,29 @@ void openSavedItem(
 
 /// Asks before removing files, then deletes them through the download service
 /// so staging files and empty season folders are cleaned up too.
+///
+/// Kos TV: [userId] is who is deleting. The files are shared, so when any of
+/// them is also somebody else's download, the question says it goes for them
+/// too.
 Future<bool> deleteSavedItems(
   BuildContext context, {
   required String title,
   required String message,
   required List<String> itemIds,
+  String? userId,
 }) async {
   final l10n = AppLocalizations.of(context);
+  final othersToo = await _includesOthersDownloads(itemIds, userId);
+  if (!context.mounted) return false;
   final confirmed = await showFocusRestoringDialog<bool>(
     context: context,
     builder: (dialogContext) => AlertDialog.adaptive(
       title: Text(title),
-      content: Text(message),
+      content: Text(
+        othersToo
+            ? '$message\n\n${l10n.kostvDeleteOthersDownloadWarning}'
+            : message,
+      ),
       actions: [
         adaptiveDialogAction(
           onPressed: () => Navigator.pop(dialogContext, false),
@@ -150,4 +161,23 @@ Future<bool> deleteSavedItems(
     )?.showSnackBar(SnackBar(content: Text(l10n.failedToDeleteFiles)));
   }
   return true;
+}
+
+/// Kos TV: whether any of [itemIds] was also downloaded by somebody other
+/// than [userId]. A store that can't say counts as no.
+Future<bool> _includesOthersDownloads(
+  List<String> itemIds,
+  String? userId,
+) async {
+  final getIt = GetIt.instance;
+  if (!getIt.isRegistered<OfflineRepository>()) return false;
+  final repo = getIt<OfflineRepository>();
+  try {
+    final people = await repo.getPeople();
+    for (final itemId in itemIds) {
+      final row = await repo.getItem(itemId);
+      if (row != null && people.hasOtherOwners(row, userId)) return true;
+    }
+  } catch (_) {}
+  return false;
 }

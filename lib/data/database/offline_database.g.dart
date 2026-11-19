@@ -2073,6 +2073,594 @@ class AutoDownloadSubscriptionsCompanion
   }
 }
 
+class $DownloadedItemUsersTable extends DownloadedItemUsers
+    with TableInfo<$DownloadedItemUsersTable, DownloadedItemUser> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DownloadedItemUsersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _itemIdMeta = const VerificationMeta('itemId');
+  @override
+  late final GeneratedColumn<String> itemId = GeneratedColumn<String>(
+    'item_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isOwnerMeta = const VerificationMeta(
+    'isOwner',
+  );
+  @override
+  late final GeneratedColumn<bool> isOwner = GeneratedColumn<bool>(
+    'is_owner',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_owner" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _hasProgressMeta = const VerificationMeta(
+    'hasProgress',
+  );
+  @override
+  late final GeneratedColumn<bool> hasProgress = GeneratedColumn<bool>(
+    'has_progress',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("has_progress" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _positionTicksMeta = const VerificationMeta(
+    'positionTicks',
+  );
+  @override
+  late final GeneratedColumn<int> positionTicks = GeneratedColumn<int>(
+    'position_ticks',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _playedMeta = const VerificationMeta('played');
+  @override
+  late final GeneratedColumn<bool> played = GeneratedColumn<bool>(
+    'played',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("played" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _progressSyncedMeta = const VerificationMeta(
+    'progressSynced',
+  );
+  @override
+  late final GeneratedColumn<bool> progressSynced = GeneratedColumn<bool>(
+    'progress_synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("progress_synced" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    itemId,
+    serverId,
+    userId,
+    isOwner,
+    hasProgress,
+    positionTicks,
+    played,
+    progressSynced,
+    updatedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'downloaded_item_users';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DownloadedItemUser> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('item_id')) {
+      context.handle(
+        _itemIdMeta,
+        itemId.isAcceptableOrUnknown(data['item_id']!, _itemIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_itemIdMeta);
+    }
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('is_owner')) {
+      context.handle(
+        _isOwnerMeta,
+        isOwner.isAcceptableOrUnknown(data['is_owner']!, _isOwnerMeta),
+      );
+    }
+    if (data.containsKey('has_progress')) {
+      context.handle(
+        _hasProgressMeta,
+        hasProgress.isAcceptableOrUnknown(
+          data['has_progress']!,
+          _hasProgressMeta,
+        ),
+      );
+    }
+    if (data.containsKey('position_ticks')) {
+      context.handle(
+        _positionTicksMeta,
+        positionTicks.isAcceptableOrUnknown(
+          data['position_ticks']!,
+          _positionTicksMeta,
+        ),
+      );
+    }
+    if (data.containsKey('played')) {
+      context.handle(
+        _playedMeta,
+        played.isAcceptableOrUnknown(data['played']!, _playedMeta),
+      );
+    }
+    if (data.containsKey('progress_synced')) {
+      context.handle(
+        _progressSyncedMeta,
+        progressSynced.isAcceptableOrUnknown(
+          data['progress_synced']!,
+          _progressSyncedMeta,
+        ),
+      );
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {itemId, serverId, userId};
+  @override
+  DownloadedItemUser map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DownloadedItemUser(
+      itemId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}item_id'],
+      )!,
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      isOwner: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_owner'],
+      )!,
+      hasProgress: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}has_progress'],
+      )!,
+      positionTicks: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position_ticks'],
+      )!,
+      played: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}played'],
+      )!,
+      progressSynced: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}progress_synced'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      ),
+    );
+  }
+
+  @override
+  $DownloadedItemUsersTable createAlias(String alias) {
+    return $DownloadedItemUsersTable(attachedDatabase, alias);
+  }
+}
+
+class DownloadedItemUser extends DataClass
+    implements Insertable<DownloadedItemUser> {
+  final String itemId;
+  final String serverId;
+  final String userId;
+
+  /// Whether this person downloaded it (by hand or through one of their
+  /// auto-downloads). A download nobody owns predates owners and is
+  /// everyone's.
+  final bool isOwner;
+
+  /// Whether [positionTicks] and [played] hold this person's progress. A row
+  /// kept only for ownership leaves the download's own progress in place.
+  final bool hasProgress;
+  final int positionTicks;
+  final bool played;
+
+  /// Whether the server already has [positionTicks]. Unsynced progress is
+  /// only sent while this person is signed in.
+  final bool progressSynced;
+  final DateTime? updatedAt;
+  const DownloadedItemUser({
+    required this.itemId,
+    required this.serverId,
+    required this.userId,
+    required this.isOwner,
+    required this.hasProgress,
+    required this.positionTicks,
+    required this.played,
+    required this.progressSynced,
+    this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['item_id'] = Variable<String>(itemId);
+    map['server_id'] = Variable<String>(serverId);
+    map['user_id'] = Variable<String>(userId);
+    map['is_owner'] = Variable<bool>(isOwner);
+    map['has_progress'] = Variable<bool>(hasProgress);
+    map['position_ticks'] = Variable<int>(positionTicks);
+    map['played'] = Variable<bool>(played);
+    map['progress_synced'] = Variable<bool>(progressSynced);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    return map;
+  }
+
+  DownloadedItemUsersCompanion toCompanion(bool nullToAbsent) {
+    return DownloadedItemUsersCompanion(
+      itemId: Value(itemId),
+      serverId: Value(serverId),
+      userId: Value(userId),
+      isOwner: Value(isOwner),
+      hasProgress: Value(hasProgress),
+      positionTicks: Value(positionTicks),
+      played: Value(played),
+      progressSynced: Value(progressSynced),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+    );
+  }
+
+  factory DownloadedItemUser.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DownloadedItemUser(
+      itemId: serializer.fromJson<String>(json['itemId']),
+      serverId: serializer.fromJson<String>(json['serverId']),
+      userId: serializer.fromJson<String>(json['userId']),
+      isOwner: serializer.fromJson<bool>(json['isOwner']),
+      hasProgress: serializer.fromJson<bool>(json['hasProgress']),
+      positionTicks: serializer.fromJson<int>(json['positionTicks']),
+      played: serializer.fromJson<bool>(json['played']),
+      progressSynced: serializer.fromJson<bool>(json['progressSynced']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'itemId': serializer.toJson<String>(itemId),
+      'serverId': serializer.toJson<String>(serverId),
+      'userId': serializer.toJson<String>(userId),
+      'isOwner': serializer.toJson<bool>(isOwner),
+      'hasProgress': serializer.toJson<bool>(hasProgress),
+      'positionTicks': serializer.toJson<int>(positionTicks),
+      'played': serializer.toJson<bool>(played),
+      'progressSynced': serializer.toJson<bool>(progressSynced),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+    };
+  }
+
+  DownloadedItemUser copyWith({
+    String? itemId,
+    String? serverId,
+    String? userId,
+    bool? isOwner,
+    bool? hasProgress,
+    int? positionTicks,
+    bool? played,
+    bool? progressSynced,
+    Value<DateTime?> updatedAt = const Value.absent(),
+  }) => DownloadedItemUser(
+    itemId: itemId ?? this.itemId,
+    serverId: serverId ?? this.serverId,
+    userId: userId ?? this.userId,
+    isOwner: isOwner ?? this.isOwner,
+    hasProgress: hasProgress ?? this.hasProgress,
+    positionTicks: positionTicks ?? this.positionTicks,
+    played: played ?? this.played,
+    progressSynced: progressSynced ?? this.progressSynced,
+    updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+  );
+  DownloadedItemUser copyWithCompanion(DownloadedItemUsersCompanion data) {
+    return DownloadedItemUser(
+      itemId: data.itemId.present ? data.itemId.value : this.itemId,
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      isOwner: data.isOwner.present ? data.isOwner.value : this.isOwner,
+      hasProgress: data.hasProgress.present
+          ? data.hasProgress.value
+          : this.hasProgress,
+      positionTicks: data.positionTicks.present
+          ? data.positionTicks.value
+          : this.positionTicks,
+      played: data.played.present ? data.played.value : this.played,
+      progressSynced: data.progressSynced.present
+          ? data.progressSynced.value
+          : this.progressSynced,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DownloadedItemUser(')
+          ..write('itemId: $itemId, ')
+          ..write('serverId: $serverId, ')
+          ..write('userId: $userId, ')
+          ..write('isOwner: $isOwner, ')
+          ..write('hasProgress: $hasProgress, ')
+          ..write('positionTicks: $positionTicks, ')
+          ..write('played: $played, ')
+          ..write('progressSynced: $progressSynced, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    itemId,
+    serverId,
+    userId,
+    isOwner,
+    hasProgress,
+    positionTicks,
+    played,
+    progressSynced,
+    updatedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DownloadedItemUser &&
+          other.itemId == this.itemId &&
+          other.serverId == this.serverId &&
+          other.userId == this.userId &&
+          other.isOwner == this.isOwner &&
+          other.hasProgress == this.hasProgress &&
+          other.positionTicks == this.positionTicks &&
+          other.played == this.played &&
+          other.progressSynced == this.progressSynced &&
+          other.updatedAt == this.updatedAt);
+}
+
+class DownloadedItemUsersCompanion extends UpdateCompanion<DownloadedItemUser> {
+  final Value<String> itemId;
+  final Value<String> serverId;
+  final Value<String> userId;
+  final Value<bool> isOwner;
+  final Value<bool> hasProgress;
+  final Value<int> positionTicks;
+  final Value<bool> played;
+  final Value<bool> progressSynced;
+  final Value<DateTime?> updatedAt;
+  final Value<int> rowid;
+  const DownloadedItemUsersCompanion({
+    this.itemId = const Value.absent(),
+    this.serverId = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.isOwner = const Value.absent(),
+    this.hasProgress = const Value.absent(),
+    this.positionTicks = const Value.absent(),
+    this.played = const Value.absent(),
+    this.progressSynced = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DownloadedItemUsersCompanion.insert({
+    required String itemId,
+    required String serverId,
+    required String userId,
+    this.isOwner = const Value.absent(),
+    this.hasProgress = const Value.absent(),
+    this.positionTicks = const Value.absent(),
+    this.played = const Value.absent(),
+    this.progressSynced = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : itemId = Value(itemId),
+       serverId = Value(serverId),
+       userId = Value(userId);
+  static Insertable<DownloadedItemUser> custom({
+    Expression<String>? itemId,
+    Expression<String>? serverId,
+    Expression<String>? userId,
+    Expression<bool>? isOwner,
+    Expression<bool>? hasProgress,
+    Expression<int>? positionTicks,
+    Expression<bool>? played,
+    Expression<bool>? progressSynced,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (itemId != null) 'item_id': itemId,
+      if (serverId != null) 'server_id': serverId,
+      if (userId != null) 'user_id': userId,
+      if (isOwner != null) 'is_owner': isOwner,
+      if (hasProgress != null) 'has_progress': hasProgress,
+      if (positionTicks != null) 'position_ticks': positionTicks,
+      if (played != null) 'played': played,
+      if (progressSynced != null) 'progress_synced': progressSynced,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DownloadedItemUsersCompanion copyWith({
+    Value<String>? itemId,
+    Value<String>? serverId,
+    Value<String>? userId,
+    Value<bool>? isOwner,
+    Value<bool>? hasProgress,
+    Value<int>? positionTicks,
+    Value<bool>? played,
+    Value<bool>? progressSynced,
+    Value<DateTime?>? updatedAt,
+    Value<int>? rowid,
+  }) {
+    return DownloadedItemUsersCompanion(
+      itemId: itemId ?? this.itemId,
+      serverId: serverId ?? this.serverId,
+      userId: userId ?? this.userId,
+      isOwner: isOwner ?? this.isOwner,
+      hasProgress: hasProgress ?? this.hasProgress,
+      positionTicks: positionTicks ?? this.positionTicks,
+      played: played ?? this.played,
+      progressSynced: progressSynced ?? this.progressSynced,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (itemId.present) {
+      map['item_id'] = Variable<String>(itemId.value);
+    }
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (isOwner.present) {
+      map['is_owner'] = Variable<bool>(isOwner.value);
+    }
+    if (hasProgress.present) {
+      map['has_progress'] = Variable<bool>(hasProgress.value);
+    }
+    if (positionTicks.present) {
+      map['position_ticks'] = Variable<int>(positionTicks.value);
+    }
+    if (played.present) {
+      map['played'] = Variable<bool>(played.value);
+    }
+    if (progressSynced.present) {
+      map['progress_synced'] = Variable<bool>(progressSynced.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DownloadedItemUsersCompanion(')
+          ..write('itemId: $itemId, ')
+          ..write('serverId: $serverId, ')
+          ..write('userId: $userId, ')
+          ..write('isOwner: $isOwner, ')
+          ..write('hasProgress: $hasProgress, ')
+          ..write('positionTicks: $positionTicks, ')
+          ..write('played: $played, ')
+          ..write('progressSynced: $progressSynced, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$OfflineDatabase extends GeneratedDatabase {
   _$OfflineDatabase(QueryExecutor e) : super(e);
   $OfflineDatabaseManager get managers => $OfflineDatabaseManager(this);
@@ -2081,6 +2669,8 @@ abstract class _$OfflineDatabase extends GeneratedDatabase {
   );
   late final $AutoDownloadSubscriptionsTable autoDownloadSubscriptions =
       $AutoDownloadSubscriptionsTable(this);
+  late final $DownloadedItemUsersTable downloadedItemUsers =
+      $DownloadedItemUsersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2088,6 +2678,7 @@ abstract class _$OfflineDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     downloadedItems,
     autoDownloadSubscriptions,
+    downloadedItemUsers,
   ];
 }
 
@@ -3039,6 +3630,304 @@ typedef $$AutoDownloadSubscriptionsTableProcessedTableManager =
       AutoDownloadSubscription,
       PrefetchHooks Function()
     >;
+typedef $$DownloadedItemUsersTableCreateCompanionBuilder =
+    DownloadedItemUsersCompanion Function({
+      required String itemId,
+      required String serverId,
+      required String userId,
+      Value<bool> isOwner,
+      Value<bool> hasProgress,
+      Value<int> positionTicks,
+      Value<bool> played,
+      Value<bool> progressSynced,
+      Value<DateTime?> updatedAt,
+      Value<int> rowid,
+    });
+typedef $$DownloadedItemUsersTableUpdateCompanionBuilder =
+    DownloadedItemUsersCompanion Function({
+      Value<String> itemId,
+      Value<String> serverId,
+      Value<String> userId,
+      Value<bool> isOwner,
+      Value<bool> hasProgress,
+      Value<int> positionTicks,
+      Value<bool> played,
+      Value<bool> progressSynced,
+      Value<DateTime?> updatedAt,
+      Value<int> rowid,
+    });
+
+class $$DownloadedItemUsersTableFilterComposer
+    extends Composer<_$OfflineDatabase, $DownloadedItemUsersTable> {
+  $$DownloadedItemUsersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isOwner => $composableBuilder(
+    column: $table.isOwner,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get hasProgress => $composableBuilder(
+    column: $table.hasProgress,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get positionTicks => $composableBuilder(
+    column: $table.positionTicks,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get played => $composableBuilder(
+    column: $table.played,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get progressSynced => $composableBuilder(
+    column: $table.progressSynced,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DownloadedItemUsersTableOrderingComposer
+    extends Composer<_$OfflineDatabase, $DownloadedItemUsersTable> {
+  $$DownloadedItemUsersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get itemId => $composableBuilder(
+    column: $table.itemId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isOwner => $composableBuilder(
+    column: $table.isOwner,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get hasProgress => $composableBuilder(
+    column: $table.hasProgress,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get positionTicks => $composableBuilder(
+    column: $table.positionTicks,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get played => $composableBuilder(
+    column: $table.played,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get progressSynced => $composableBuilder(
+    column: $table.progressSynced,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DownloadedItemUsersTableAnnotationComposer
+    extends Composer<_$OfflineDatabase, $DownloadedItemUsersTable> {
+  $$DownloadedItemUsersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get itemId =>
+      $composableBuilder(column: $table.itemId, builder: (column) => column);
+
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<bool> get isOwner =>
+      $composableBuilder(column: $table.isOwner, builder: (column) => column);
+
+  GeneratedColumn<bool> get hasProgress => $composableBuilder(
+    column: $table.hasProgress,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get positionTicks => $composableBuilder(
+    column: $table.positionTicks,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get played =>
+      $composableBuilder(column: $table.played, builder: (column) => column);
+
+  GeneratedColumn<bool> get progressSynced => $composableBuilder(
+    column: $table.progressSynced,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+}
+
+class $$DownloadedItemUsersTableTableManager
+    extends
+        RootTableManager<
+          _$OfflineDatabase,
+          $DownloadedItemUsersTable,
+          DownloadedItemUser,
+          $$DownloadedItemUsersTableFilterComposer,
+          $$DownloadedItemUsersTableOrderingComposer,
+          $$DownloadedItemUsersTableAnnotationComposer,
+          $$DownloadedItemUsersTableCreateCompanionBuilder,
+          $$DownloadedItemUsersTableUpdateCompanionBuilder,
+          (
+            DownloadedItemUser,
+            BaseReferences<
+              _$OfflineDatabase,
+              $DownloadedItemUsersTable,
+              DownloadedItemUser
+            >,
+          ),
+          DownloadedItemUser,
+          PrefetchHooks Function()
+        > {
+  $$DownloadedItemUsersTableTableManager(
+    _$OfflineDatabase db,
+    $DownloadedItemUsersTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DownloadedItemUsersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DownloadedItemUsersTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$DownloadedItemUsersTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> itemId = const Value.absent(),
+                Value<String> serverId = const Value.absent(),
+                Value<String> userId = const Value.absent(),
+                Value<bool> isOwner = const Value.absent(),
+                Value<bool> hasProgress = const Value.absent(),
+                Value<int> positionTicks = const Value.absent(),
+                Value<bool> played = const Value.absent(),
+                Value<bool> progressSynced = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DownloadedItemUsersCompanion(
+                itemId: itemId,
+                serverId: serverId,
+                userId: userId,
+                isOwner: isOwner,
+                hasProgress: hasProgress,
+                positionTicks: positionTicks,
+                played: played,
+                progressSynced: progressSynced,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String itemId,
+                required String serverId,
+                required String userId,
+                Value<bool> isOwner = const Value.absent(),
+                Value<bool> hasProgress = const Value.absent(),
+                Value<int> positionTicks = const Value.absent(),
+                Value<bool> played = const Value.absent(),
+                Value<bool> progressSynced = const Value.absent(),
+                Value<DateTime?> updatedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DownloadedItemUsersCompanion.insert(
+                itemId: itemId,
+                serverId: serverId,
+                userId: userId,
+                isOwner: isOwner,
+                hasProgress: hasProgress,
+                positionTicks: positionTicks,
+                played: played,
+                progressSynced: progressSynced,
+                updatedAt: updatedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DownloadedItemUsersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$OfflineDatabase,
+      $DownloadedItemUsersTable,
+      DownloadedItemUser,
+      $$DownloadedItemUsersTableFilterComposer,
+      $$DownloadedItemUsersTableOrderingComposer,
+      $$DownloadedItemUsersTableAnnotationComposer,
+      $$DownloadedItemUsersTableCreateCompanionBuilder,
+      $$DownloadedItemUsersTableUpdateCompanionBuilder,
+      (
+        DownloadedItemUser,
+        BaseReferences<
+          _$OfflineDatabase,
+          $DownloadedItemUsersTable,
+          DownloadedItemUser
+        >,
+      ),
+      DownloadedItemUser,
+      PrefetchHooks Function()
+    >;
 
 class $OfflineDatabaseManager {
   final _$OfflineDatabase _db;
@@ -3050,4 +3939,6 @@ class $OfflineDatabaseManager {
         _db,
         _db.autoDownloadSubscriptions,
       );
+  $$DownloadedItemUsersTableTableManager get downloadedItemUsers =>
+      $$DownloadedItemUsersTableTableManager(_db, _db.downloadedItemUsers);
 }

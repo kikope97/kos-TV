@@ -21178,4 +21178,23 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvUntitled => 'Sin título';
+
+  @override
+  String get kostvDownloadsByOthers => 'Descargado por otras personas';
+
+  @override
+  String get kostvDownloadsByOthersDetail =>
+      'Lo descargaron otras personas de casa. Puedes verlo igual; tu progreso es solo tuyo.';
+
+  @override
+  String get kostvDeleteOthersDownloadWarning =>
+      'Esta descarga también es de otra persona de casa. Si la borras, dejará de tenerla en este dispositivo.';
+
+  @override
+  String get kostvWebDownloadLinkNotice =>
+      'El enlace de la descarga lleva tu sesión y el navegador lo guarda en su historial de descargas: no lo compartas.';
+
+  @override
+  String get kostvWebDownloadLinkNote =>
+      'En el navegador, el enlace de la descarga lleva tu sesión y queda en el historial de descargas: no lo compartas.';
 }

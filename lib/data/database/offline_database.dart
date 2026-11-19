@@ -55,6 +55,37 @@ class DownloadedItems extends Table {
   Set<Column> get primaryKey => {itemId, serverId};
 }
 
+/// Kos TV: one person's tie to one download: whether they downloaded it, and
+/// where they are in it. Files are shared by everyone on the device, so who
+/// downloaded something and how far each person watched it live here rather
+/// than on the download's own row. [userId] is stored the way
+/// `normalizeDownloadUserId` writes it (lower case, without dashes).
+class DownloadedItemUsers extends Table {
+  TextColumn get itemId => text()();
+  TextColumn get serverId => text()();
+  TextColumn get userId => text()();
+
+  /// Whether this person downloaded it (by hand or through one of their
+  /// auto-downloads). A download nobody owns predates owners and is
+  /// everyone's.
+  BoolColumn get isOwner => boolean().withDefault(const Constant(false))();
+
+  /// Whether [positionTicks] and [played] hold this person's progress. A row
+  /// kept only for ownership leaves the download's own progress in place.
+  BoolColumn get hasProgress => boolean().withDefault(const Constant(false))();
+  IntColumn get positionTicks => integer().withDefault(const Constant(0))();
+  BoolColumn get played => boolean().withDefault(const Constant(false))();
+
+  /// Whether the server already has [positionTicks]. Unsynced progress is
+  /// only sent while this person is signed in.
+  BoolColumn get progressSynced =>
+      boolean().withDefault(const Constant(true))();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {itemId, serverId, userId};
+}
+
 /// A series the user asked to keep downloading new episodes for. One row per
 /// series per server account; the keep/delete rules are global preferences.
 class AutoDownloadSubscriptions extends Table {
@@ -72,12 +103,14 @@ class AutoDownloadSubscriptions extends Table {
   Set<Column> get primaryKey => {seriesId, serverId, userId};
 }
 
-@DriftDatabase(tables: [DownloadedItems, AutoDownloadSubscriptions])
+@DriftDatabase(
+  tables: [DownloadedItems, AutoDownloadSubscriptions, DownloadedItemUsers],
+)
 class OfflineDatabase extends _$OfflineDatabase {
   OfflineDatabase(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -93,6 +126,29 @@ class OfflineDatabase extends _$OfflineDatabase {
         await _tolerateExisting(
           () => m.addColumn(downloadedItems, downloadedItems.progressUserId),
         );
+      }
+      if (from < 4) {
+        await _tolerateExisting(() => m.createTable(downloadedItemUsers));
+        // Kos TV: progress still waiting for the server that knows whose it
+        // is becomes that person's own, so the next person to watch the
+        // download no longer writes over it. Progress that knows nobody stays
+        // on the download and syncs with whoever is signed in, as before.
+        await customStatement('''
+          INSERT OR IGNORE INTO downloaded_item_users
+            (item_id, server_id, user_id, is_owner, has_progress,
+             position_ticks, played, progress_synced)
+          SELECT item_id, server_id,
+                 lower(replace(progress_user_id, '-', '')),
+                 0, 1, playback_position_ticks, 0, 0
+          FROM downloaded_items
+          WHERE progress_synced = 0
+            AND progress_user_id IS NOT NULL AND progress_user_id != ''
+        ''');
+        await customStatement('''
+          UPDATE downloaded_items SET progress_synced = 1
+          WHERE progress_synced = 0
+            AND progress_user_id IS NOT NULL AND progress_user_id != ''
+        ''');
       }
     },
   );

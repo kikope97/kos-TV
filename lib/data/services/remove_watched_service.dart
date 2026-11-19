@@ -277,6 +277,15 @@ class RemoveWatchedService {
         ),
         serverId: row.serverId,
       );
+      // Kos TV: it is also the signed-in person's own progress.
+      await _repository.setUserSyncedProgress(
+        itemId,
+        serverId: row.serverId,
+        userId: server.client.userId,
+        positionTicks: 0,
+        played: true,
+        force: true,
+      );
       return true;
     } catch (e) {
       // Unreachable or gone: the next reconnect sync picks it up.

@@ -35870,6 +35870,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Untitled'**
   String get kostvUntitled;
+
+  /// Kos TV: heading of the saved media section with what other people on the device downloaded
+  ///
+  /// In en, this message translates to:
+  /// **'Downloaded by other people'**
+  String get kostvDownloadsByOthers;
+
+  /// Kos TV: line under the heading of downloads by other people
+  ///
+  /// In en, this message translates to:
+  /// **'Other people at home downloaded these. You can still watch them; your progress is yours alone.'**
+  String get kostvDownloadsByOthersDetail;
+
+  /// Kos TV: added to the delete confirmation when the download is also someone else's
+  ///
+  /// In en, this message translates to:
+  /// **'This download also belongs to someone else at home. If you delete it, they will no longer have it on this device.'**
+  String get kostvDeleteOthersDownloadWarning;
+
+  /// Kos TV: notice shown once, after the first download from the browser
+  ///
+  /// In en, this message translates to:
+  /// **'The download link carries your session and the browser keeps it in its download history: do not share it.'**
+  String get kostvWebDownloadLinkNotice;
+
+  /// Kos TV: note under the title of the download quality sheet in the browser
+  ///
+  /// In en, this message translates to:
+  /// **'In the browser, the download link carries your session and stays in the download history: do not share it.'**
+  String get kostvWebDownloadLinkNote;
 }
 
 class _AppLocalizationsDelegate
