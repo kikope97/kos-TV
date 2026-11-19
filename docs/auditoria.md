@@ -27,9 +27,11 @@ usuario. Norma de siempre: ninguna función se pierde ni va a peor.
 |---|---|---|
 | 1 | arreglada y probada | — |
 | 2 | arreglada y probada | — |
-| 3 | arreglada (flecos en curso) | — |
-| 4 | revisada, arreglando | — |
-| 5–10 | — | — |
+| 3 | arreglada y probada | — |
+| 4 | arreglada y probada | — |
+| 5 | revisada, arreglando | — |
+| 6 | revisando | — |
+| 7–10 | — | — |
 
 ## Cómo se trabaja
 
@@ -71,3 +73,8 @@ y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
 - **Ocultar de «Seguir viendo».** En Jellyfin ocultar algo de esa fila borra
   también por dónde ibas. Recomendación: avisarlo en la propia opción («Quitar
   de Seguir viendo (se olvida por dónde ibas)») y dejar deshacerlo 5 s.
+
+### Bloque 4
+- (Para saber) Con «¿Sigues viendo?» y la tarjeta del siguiente episodio
+  desactivada, el reproductor pasa solo al siguiente sin preguntar. Arreglarlo
+  toca el motor de reproducción; queda apuntado para la ronda de interfaz.
