@@ -19813,4 +19813,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvUntrustedServerCertificate =>
       'The server\'s certificate isn\'t valid, so the connection isn\'t safe. You may be on a network that intercepts connections (a hotel\'s, for example). Try another network or try again later.';
+
+  @override
+  String get mediaBarNoBackdrops => 'No items with backdrop images found';
+
+  @override
+  String get mediaBarGalleryDirector => 'DIRECTOR';
+
+  @override
+  String get mediaBarGalleryCast => 'STARRING';
+
+  @override
+  String get mediaBarTheaterBuffering => 'BUFFERING';
+
+  @override
+  String get mediaBarTheaterPreparing => 'OPTIMIZING FOR YOU';
 }

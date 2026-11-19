@@ -16,10 +16,11 @@ import '../../../l10n/app_localizations.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/platform_detection.dart';
+import '../../util/outside_library_title.dart';
 import '../bounded_network_image.dart';
 import '../rating_display.dart';
-import '../../util/error_message.dart';
 import 'media_bar_status_focus.dart';
+import 'media_bar_text.dart';
 
 class BannerMediaBar extends StatefulWidget {
   final MediaBarViewModel viewModel;
@@ -53,10 +54,13 @@ class BannerMediaBar extends StatefulWidget {
 
 class _BannerMediaBarState extends State<BannerMediaBar> {
   static const _keyLongPressThreshold = Duration(milliseconds: 500);
+  // Kos TV: as long as the other bar's, for the same reason.
+  static const _focusActivationGuardDuration = Duration(milliseconds: 350);
   Timer? _autoAdvance;
   int _index = 0;
   bool _focused = false;
   DateTime? _keyDownTime;
+  DateTime? _lastFocusReceivedAt;
 
   @override
   void initState() {
@@ -151,14 +155,24 @@ class _BannerMediaBarState extends State<BannerMediaBar> {
         return KeyEventResult.handled;
       }
       if (event is KeyUpEvent) {
+        final now = DateTime.now();
         final downTime = _keyDownTime;
         _keyDownTime = null;
+        // Kos TV: the release of an OK pressed on a dialog or menu that has
+        // just closed and handed the focus back here. Its press acted
+        // there; it isn't a press on the banner.
+        final focusedAt = _lastFocusReceivedAt;
+        if (downTime == null &&
+            focusedAt != null &&
+            now.difference(focusedAt) < _focusActivationGuardDuration) {
+          return KeyEventResult.handled;
+        }
         final longPress = downTime != null &&
-            DateTime.now().difference(downTime) >= _keyLongPressThreshold;
+            now.difference(downTime) >= _keyLongPressThreshold;
         if (longPress) {
-          widget.onPlay(item);
+          _play(item);
         } else {
-          widget.onOpen(item);
+          _open(item);
         }
         return KeyEventResult.handled;
       }
@@ -195,6 +209,32 @@ class _BannerMediaBarState extends State<BannerMediaBar> {
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
+  }
+
+  /// Kos TV: a title from an outside list opens the server's own copy, if
+  /// it has one (else a note says it isn't there yet), as the other layouts
+  /// of the bar do. Its id is TMDB's, which has no page on the server.
+  void _open(MediaBarSlideItem item) {
+    if (item.isExternal) {
+      openOutsideLibraryTitle(
+        context,
+        title: item.title,
+        tmdbId: item.tmdbId,
+        imdbId: item.imdbId,
+        series: item.itemType == 'Series',
+      );
+      return;
+    }
+    widget.onOpen(item);
+  }
+
+  /// Nothing to play of an outside title: it is opened instead.
+  void _play(MediaBarSlideItem item) {
+    if (item.isExternal) {
+      _open(item);
+      return;
+    }
+    widget.onPlay(item);
   }
 
   Widget _wrapStatusFocus(Widget child, {VoidCallback? onSelect}) {
@@ -238,7 +278,7 @@ class _BannerMediaBarState extends State<BannerMediaBar> {
           ),
         );
       }
-      final message = describeError(
+      final message = describeMediaBarError(
         (state as MediaBarError).error,
         AppLocalizations.of(context),
       );
@@ -297,6 +337,7 @@ class _BannerMediaBarState extends State<BannerMediaBar> {
         focusNode: widget.focusNode,
         autofocus: widget.focusNode == null && PlatformDetection.useLeanbackUi,
         onFocusChange: (f) {
+          if (f) _lastFocusReceivedAt = DateTime.now();
           if (mounted) setState(() => _focused = f);
         },
         onKeyEvent: (node, event) => _handleKey(event, item),
@@ -324,7 +365,7 @@ class _BannerMediaBarState extends State<BannerMediaBar> {
             child: SizedBox(
               height: widget.height,
               child: GestureDetector(
-                onTap: () => widget.onOpen(item),
+                onTap: () => _open(item),
                 onHorizontalDragEnd: items.length > 1
                     ? (details) {
                         final v = details.primaryVelocity ?? 0;
@@ -434,7 +475,7 @@ class _BannerMediaBarState extends State<BannerMediaBar> {
     final meta = <String>[
       if (item.year != null) '${item.year}',
       if (item.itemType != 'Series' && item.runtime != null)
-        _formatRuntime(item.runtime!),
+        mediaBarRuntime(item.runtime!, AppLocalizations.of(context)),
       if (item.officialRating != null) item.officialRating!,
     ].join('  ·  ');
 
@@ -505,13 +546,6 @@ class _BannerMediaBarState extends State<BannerMediaBar> {
         ],
       ],
     );
-  }
-
-
-  String _formatRuntime(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes.remainder(60);
-    return h > 0 ? '${h}h ${m}m' : '${m}m';
   }
 }
 

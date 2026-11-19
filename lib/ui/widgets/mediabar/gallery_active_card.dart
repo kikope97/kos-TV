@@ -3,9 +3,11 @@ import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/gallery_detail.dart';
 import '../../../data/models/media_bar_slide_item.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../util/overview_text.dart';
 import '../../../util/platform_detection.dart';
 import 'media_bar_new_release_label.dart';
+import 'media_bar_text.dart';
 
 class GalleryActiveCard extends StatelessWidget {
   final MediaBarSlideItem item;
@@ -52,6 +54,9 @@ class GalleryActiveCard extends StatelessWidget {
         final wide =
             !PlatformDetection.useMobileUi || constraints.maxWidth > 720;
         final left = _LeftColumn(item: item, accent: accent, ratings: ratings);
+        // Kos TV: nothing to say (an outside title, or its page couldn't be
+        // read): no card, rather than one shimmering for good.
+        final hasRight = detail?.isEmpty != true;
         final right = _RightCard(detail: detail, accent: accent);
 
         if (!wide) {
@@ -61,8 +66,7 @@ class GalleryActiveCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 left,
-                const SizedBox(height: 16),
-                right,
+                if (hasRight) ...[const SizedBox(height: 16), right],
               ],
             ),
           );
@@ -73,7 +77,7 @@ class GalleryActiveCard extends StatelessWidget {
           children: [
             Expanded(flex: 3, child: left),
             const SizedBox(width: 28),
-            Expanded(flex: 2, child: right),
+            Expanded(flex: 2, child: hasRight ? right : const SizedBox()),
           ],
         );
       },
@@ -160,9 +164,12 @@ class _BadgeRow extends StatelessWidget {
     final badges = <Widget>[];
 
     if (item.itemType != 'Series' && item.runtime != null) {
-      final h = item.runtime!.inHours;
-      final m = item.runtime!.inMinutes.remainder(60);
-      badges.add(_pill(context, label: h > 0 ? '${h}h ${m}m' : '${m}m'));
+      badges.add(
+        _pill(
+          context,
+          label: mediaBarRuntime(item.runtime!, AppLocalizations.of(context)),
+        ),
+      );
     }
     if (item.officialRating != null) {
       badges.add(_pill(context, label: item.officialRating!, outlined: true));
@@ -244,10 +251,18 @@ class _RightCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (d.director != null)
-                  _labelValue(theme, 'DIRECTOR', d.director!),
+                  _labelValue(
+                    theme,
+                    AppLocalizations.of(context).mediaBarGalleryDirector,
+                    d.director!,
+                  ),
                 if (d.cast.isNotEmpty) ...[
                   if (d.director != null) const SizedBox(height: 12),
-                  _labelValue(theme, 'STARRING', d.cast.join(', ')),
+                  _labelValue(
+                    theme,
+                    AppLocalizations.of(context).mediaBarGalleryCast,
+                    d.cast.join(', '),
+                  ),
                 ],
               ],
             ),

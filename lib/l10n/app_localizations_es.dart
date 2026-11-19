@@ -20141,4 +20141,20 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvUntrustedServerCertificate =>
       'El certificado del servidor no es válido, así que la conexión no es segura. Puede que estés en una red que intercepta las conexiones (la de un hotel, por ejemplo). Prueba con otra red o inténtalo más tarde.';
+
+  @override
+  String get mediaBarNoBackdrops =>
+      'Ninguno de los títulos tiene imagen de fondo';
+
+  @override
+  String get mediaBarGalleryDirector => 'DIRECCIÓN';
+
+  @override
+  String get mediaBarGalleryCast => 'REPARTO';
+
+  @override
+  String get mediaBarTheaterBuffering => 'CARGANDO';
+
+  @override
+  String get mediaBarTheaterPreparing => 'PREPARÁNDOLO PARA TI';
 }

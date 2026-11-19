@@ -27,10 +27,12 @@ class MediaBarRepository {
   final UserPreferences _prefs;
   final _random = math.Random();
 
+  // Kos TV: with the trailer links, which the banner used to read from the
+  // full item of every slide.
   static const _fields =
       'Type,Genres,OfficialRating,CommunityRating,CriticRating,'
       'RunTimeTicks,ProductionYear,ImageTags,BackdropImageTags,'
-      'Overview,ProviderIds';
+      'Overview,ProviderIds,RemoteTrailers';
 
   MediaBarRepository(this._client, this._prefs);
 
@@ -235,7 +237,7 @@ class MediaBarRepository {
         excludedGenres,
       );
       if (items.isEmpty) {
-        return const MediaBarError('No items with backdrop images found');
+        return const MediaBarError(MediaBarNoBackdrops());
       }
       return MediaBarReady(items);
     } catch (e) {
@@ -795,6 +797,7 @@ class MediaBarRepository {
       remoteTrailers: [
         if (trailerUrl != null) {'Url': trailerUrl},
       ],
+      remoteTrailersKnown: true,
     );
   }
 
@@ -886,7 +889,11 @@ class MediaBarRepository {
   }) {
     final itemId = data['Id']?.toString() ?? '';
     final serverId = data['ServerId']?.toString() ?? '';
-    final providerIds = data['ProviderIds'] as Map<String, dynamic>?;
+    // Kos TV: read loosely: the server plugin's cards carry them too since
+    // it was taught to, and an older one leaves them out.
+    final providerIds = data['ProviderIds'] is Map
+        ? data['ProviderIds'] as Map
+        : null;
 
     final backdropTags = data['BackdropImageTags'] as List?;
     final backdropUrl = (backdropTags != null && backdropTags.isNotEmpty)
@@ -942,13 +949,27 @@ class MediaBarRepository {
       tmdbId: (providerIds?['Tmdb'] ?? providerIds?['tmdb'])?.toString(),
       imdbId: (providerIds?['Imdb'] ?? providerIds?['imdb'])?.toString(),
       itemType: data['Type'] as String? ?? 'Movie',
-      remoteTrailers:
-          (data['RemoteTrailers'] as List?)?.cast<Map<String, dynamic>>() ??
-          const [],
+      remoteTrailers: remoteTrailersOf(data),
+      remoteTrailersKnown: data['RemoteTrailers'] is List,
       kostvKind: kostvRow?.kind,
       kostvLabel: kostvRow?.label,
     );
   }
+}
+
+/// Kos TV: an item's trailer links, as the banner reads them (`Url`, and
+/// `Name` when there is one). Empty when it has none or they were left out.
+@visibleForTesting
+List<Map<String, dynamic>> remoteTrailersOf(Map<String, dynamic> data) {
+  final raw = data['RemoteTrailers'];
+  if (raw is! List) return const [];
+  return [
+    for (final trailer in raw)
+      if (trailer is Map)
+        if ((trailer['Url'] ?? trailer['url']) case final String url
+            when url.isNotEmpty)
+          {...trailer.cast<String, dynamic>(), 'Url': url},
+  ];
 }
 
 /// The fewest episodes a season released at once has. A two episode premiere is

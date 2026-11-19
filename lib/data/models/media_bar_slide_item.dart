@@ -40,6 +40,11 @@ class MediaBarSlideItem {
   final String itemType;
   final List<Map<String, dynamic>> remoteTrailers;
 
+  /// Kos TV: whether [remoteTrailers] is the server's whole list, even when
+  /// empty, so the banner needn't read the full item to find out. False for
+  /// the cards of an older server plugin, which leave them out.
+  final bool remoteTrailersKnown;
+
   /// Set on a series whose episodes aired within the chosen window.
   final MediaBarNewReleaseInfo? newRelease;
 
@@ -71,6 +76,7 @@ class MediaBarSlideItem {
     this.imdbId,
     this.itemType = 'Movie',
     this.remoteTrailers = const [],
+    this.remoteTrailersKnown = false,
     this.newRelease,
     this.kostvKind,
     this.kostvLabel,
@@ -100,6 +106,7 @@ class MediaBarSlideItem {
         imdbId: imdbId,
         itemType: itemType,
         remoteTrailers: remoteTrailers,
+        remoteTrailersKnown: remoteTrailersKnown,
         kostvKind: kostvKind,
         kostvLabel: kostvLabel,
         overview: overview,
@@ -126,6 +133,7 @@ class MediaBarSlideItem {
     imdbId: imdbId,
     itemType: itemType,
     remoteTrailers: remoteTrailers,
+    remoteTrailersKnown: remoteTrailersKnown,
     kostvKind: kostvKind,
     kostvLabel: kostvLabel,
     newRelease: newRelease,

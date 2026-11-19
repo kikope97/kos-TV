@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin/data/models/media_bar_slide_item.dart';
 import 'package:moonfin/data/models/media_bar_state.dart';
@@ -124,5 +126,95 @@ void main() {
 
     expect(imageUrls(tester), ['http://server/backdrop']);
     expect(find.text('The Show'), findsOneWidget);
+  });
+
+  group('Kos TV', () {
+    Future<List<String>> pumpWithFocus(
+      WidgetTester tester,
+      MediaBarSlideItem item,
+      FocusNode focus,
+    ) async {
+      final opened = <String>[];
+      tester.view.physicalSize = const Size(1920, 1080);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final router = GoRouter(
+        routes: [
+          GoRoute(
+            path: '/',
+            builder: (_, _) => Scaffold(
+              body: BannerMediaBar(
+                viewModel: _ViewModel(item),
+                prefs: prefs,
+                height: 240,
+                focusNode: focus,
+                onOpen: (item) => opened.add('open ${item.itemId}'),
+                onPlay: (item) => opened.add('play ${item.itemId}'),
+              ),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(
+        MaterialApp.router(
+          routerConfig: router,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: const [Locale('en')],
+        ),
+      );
+      await tester.pump();
+      return opened;
+    }
+
+    const film = MediaBarSlideItem(
+      itemId: 'film',
+      serverId: 'server',
+      title: 'The Film',
+      backdropUrl: 'http://server/backdrop',
+    );
+
+    testWidgets('the release of an OK pressed on a dialog that just closed '
+        'doesn\'t open the title', (tester) async {
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.tv);
+      final focus = FocusNode();
+      addTearDown(focus.dispose);
+      final opened = await pumpWithFocus(tester, film, focus);
+
+      focus.requestFocus();
+      await tester.pump();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.select);
+      expect(opened, isEmpty);
+
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.sendKeyEvent(LogicalKeyboardKey.select);
+      expect(opened, ['open film']);
+    });
+
+    testWidgets(
+      'a title from an outside list isn\'t opened by its outside id',
+      (tester) async {
+        PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
+        final focus = FocusNode();
+        addTearDown(focus.dispose);
+        final opened = await pumpWithFocus(
+          tester,
+          const MediaBarSlideItem(
+            itemId: '603',
+            serverId: MediaBarSlideItem.externalServerId,
+            title: 'Outside',
+            tmdbId: '603',
+            backdropUrl: 'http://tmdb/backdrop',
+          ),
+          focus,
+        );
+
+        await tester.tap(find.byType(BannerMediaBar));
+        await tester.pumpAndSettle();
+        expect(opened, isEmpty);
+        // Not in the library here: a note says so, as on its Home card.
+        expect(find.byType(SnackBar), findsOneWidget);
+      },
+    );
   });
 }

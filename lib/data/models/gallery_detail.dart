@@ -11,6 +11,10 @@ class GalleryDetail {
     this.cast = const [],
   });
 
+  /// Kos TV: nothing to show: an outside title, or one whose page couldn't
+  /// be read.
+  bool get isEmpty => director == null && cast.isEmpty;
+
   factory GalleryDetail.fromItem(String itemId, AggregatedItem item) {
     String? director;
     final cast = <String>[];

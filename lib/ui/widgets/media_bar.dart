@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:clock/clock.dart';
+
 import 'package:moonfin/ui/widgets/top_toolbar.dart';
 
 import '../../util/image_fetch_priority.dart';
@@ -14,7 +16,6 @@ import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
-import 'package:moonfin_native_video/moonfin_native_video.dart';
 import 'package:logger/logger.dart';
 import 'package:playback_core/playback_core.dart';
 import 'package:playback_jellyfin/playback_jellyfin.dart';
@@ -39,11 +40,8 @@ import '../../util/overlay_color_palette.dart';
 import '../../util/overview_text.dart';
 import '../../util/platform_detection.dart';
 import '../../l10n/app_localizations.dart';
-import '../util/error_message.dart';
 import '../../playback/appletv_preview_player.dart';
 import '../../playback/html_video_backend_profile.dart';
-import '../../playback/inline_preview_engine.dart';
-import '../../playback/media3_player_backend.dart';
 import '../../playback/mpv_client_certificate.dart';
 import '../../playback/mpv_player_registry.dart';
 import '../../playback/silo_plugin_for.dart';
@@ -60,6 +58,7 @@ import 'mediabar/kostv_hero_info.dart';
 import 'mediabar/media_bar_nav_arrow.dart';
 import 'mediabar/media_bar_status_focus.dart';
 import 'mediabar/media_bar_new_release_label.dart';
+import 'mediabar/media_bar_text.dart';
 import 'mediabar/media_bar_title.dart';
 import 'rating_display.dart';
 import 'web_local_trailer.dart';
@@ -141,7 +140,6 @@ class _MediaBarState extends State<MediaBar>
   static const _previewRevealDelay = Duration(seconds: 3);
   static const _trailerPrepareDebounce = Duration(milliseconds: 500);
   static const _trailerResolveTimeout = Duration(seconds: 10);
-  static const _trailerReadyTimeout = Duration(seconds: 5);
   static const _mediaKitTrailerReadyTimeout = Duration(seconds: 15);
   static const _youtubeRevealBufferDelay = Duration(milliseconds: 900);
   static const _trailerFailureRetryDelay = Duration(minutes: 5);
@@ -157,12 +155,6 @@ class _MediaBarState extends State<MediaBar>
   final _playbackManager = GetIt.instance<PlaybackManager>();
   final _audioArbiter = GetIt.instance<PlaybackArbiter>();
   final _screensaverController = GetIt.instance<ScreensaverController>();
-  // The playback module only registers a Media3 backend on some platforms, so
-  // ask the container instead of repeating its platform list here.
-  final Media3PlayerBackend? _media3TrailerBackend =
-      GetIt.instance.isRegistered<Media3PlayerBackend>()
-      ? GetIt.instance<Media3PlayerBackend>()
-      : null;
   final _sponsorBlockService = SponsorBlockService();
   final _sponsorBlockSession = SponsorBlockSkipSession();
   bool _isHomeRouteActive = true;
@@ -172,7 +164,9 @@ class _MediaBarState extends State<MediaBar>
   bool _isPaused = false;
   int _currentIndex = 0;
 
-  bool _readyHooksAppliedForCurrentLoad = false;
+  /// Kos TV: the slides the bar last showed, to keep the one on screen when
+  /// a new list comes.
+  List<MediaBarSlideItem>? _lastSlides;
 
   DateTime? _keyDownTime;
   DateTime? _lastFocusReceivedAt;
@@ -186,8 +180,6 @@ class _MediaBarState extends State<MediaBar>
   bool _trailerUsingAppleTv = false;
   StreamSubscription<bool>? _mainPlaybackSub;
   StreamSubscription<bool>? _trailerCompletedSub;
-  StreamSubscription<bool>? _media3TrailerCompletedSub;
-  StreamSubscription<Map<String, dynamic>>? _media3EventSub;
   StreamSubscription<Duration>? _trailerPositionSub;
   Timer? _trailerRevealTimer;
   Timer? _trailerPrepareTimer;
@@ -228,7 +220,6 @@ class _MediaBarState extends State<MediaBar>
     }
   }
   bool _mainPlaybackActive = false;
-  bool _trailerUsingMedia3 = false;
   String? _activeYouTubeVideoId;
   String? _pendingYouTubeVideoId;
   String? _retainedYouTubeVideoId;
@@ -239,15 +230,28 @@ class _MediaBarState extends State<MediaBar>
   bool _sponsorBlockSeekInFlight = false;
   int _sponsorBlockToken = 0;
   String? _lastSyncedMakdBackdropUrl;
-  int? _media3PlatformViewId;
   bool _bookshelfLoadingOverlay = false;
   bool _galleryLoadingOverlay = false;
-  // Failure times per item. Mobile gets another try after
-  // _trailerFailureRetryDelay because timeouts there are usually transient.
-  // Other platforms stay blocked for the rest of the session.
-  final Map<String, DateTime> _failedTrailerAt = <String, DateTime>{};
+  // Failure times per item. Kos TV: every platform gets another try after
+  // _trailerFailureRetryDelay (it used to be the phone only, the TV and the
+  // web blocking a title for the whole session), since a failure is often a
+  // slow network, or a trailer cut short that never failed at all.
+  final _failedTrailers = MediaBarTrailerFailures(
+    retryAfter: _trailerFailureRetryDelay,
+  );
   late bool _lastHardwareDecodingEnabled;
-  late bool _lastUseMedia3TrailerEngine;
+
+  /// Kos TV: completed by [_cancelTrailerPreview], so a trailer still being
+  /// waited on stops waiting at once when another slide takes over.
+  Completer<void> _trailerCancelSignal = Completer<void>();
+
+  /// Kos TV: the ids of the slides the images were last warmed for, to warm
+  /// them again when a reload brings others.
+  String? _prefetchedSlideIds;
+
+  /// Kos TV: whether the app went to the background (or the tab was hidden)
+  /// and took the trailer with it, so coming back brings it back.
+  bool _trailerStoppedByBackground = false;
 
   // The left sidebar is drawn over the media bar, so content starts past it.
   double get _sidebarInset =>
@@ -299,14 +303,9 @@ class _MediaBarState extends State<MediaBar>
     _lastHardwareDecodingEnabled = widget.prefs.get(
       UserPreferences.hardwareDecoding,
     );
-    _lastUseMedia3TrailerEngine = _useMedia3TrailerEngine();
     _mainPlaybackActive = _playbackManager.state.isPlaying;
     _mainPlaybackSub = _playbackManager.state.playingStream.listen(
       _onMainPlaybackChanged,
-    );
-    _media3EventSub = _media3TrailerBackend?.errorStream.listen(
-      _onMedia3BackendEvent,
-      onError: (_) {},
     );
     _isHomeRouteActive = _isHomeRouteCurrent();
     appRouter.routerDelegate.addListener(_syncHomeRouteActive);
@@ -367,9 +366,6 @@ class _MediaBarState extends State<MediaBar>
     try {
       await _appleTvTrailerPlayer?.stop();
     } catch (_) {}
-    // _cancelTrailerPreview released Media3 if the trailer owned it. The
-    // backend is shared with main playback, which is what revokes the
-    // trailer, so releasing it again here would stop that playback.
   }
 
   @override
@@ -391,7 +387,6 @@ class _MediaBarState extends State<MediaBar>
     _youTubeRevealTimer?.cancel();
     _trailerRevealWatchdog?.cancel();
     _mainPlaybackSub?.cancel();
-    _media3EventSub?.cancel();
     unawaited(_disposeTrailerPlayer());
     widget.viewModel.removeListener(_onStateChanged);
     widget.prefs.removeListener(_onPrefsChanged);
@@ -403,10 +398,9 @@ class _MediaBarState extends State<MediaBar>
     super.dispose();
   }
 
-  // Re-evaluate the persistent Media3 view's mount condition, and stop any
-  // trailer the new route now covers. Main playback already cancels through
-  // the audio arbiter, but a player route with no audio of its own, like the
-  // photo viewer, does not.
+  // Stop any trailer the new route now covers. Main playback already cancels
+  // through the audio arbiter, but a player route with no audio of its own,
+  // like the photo viewer, does not.
   //
   // The trailer player is freed outright rather than just stopped. A stopped
   // mpv instance keeps its render texture resident behind the full screen
@@ -449,32 +443,10 @@ class _MediaBarState extends State<MediaBar>
         !_mainPlaybackActive;
   }
 
-  bool _useMedia3TrailerEngine() {
-    return usesMedia3ForInlinePreview();
-  }
-
-  /// Whether the Media3 platform view stays mounted between trailers so each
-  /// trailer reuses the same native view via setSource. It is not gated on the home
-  /// route because an unpainted view under an opaque route costs nothing and skips
-  /// the expensive teardown/create cycle on every detail push. It MUST stay
-  /// unmounted while a player route is up, though: a freshly mounted view's
-  /// native init takes over Media3Bridge.activeView and force-releases the
-  /// fullscreen player's surface. Auto-advance between queue items emits a
-  /// brief isPlaying=false, so gating on playback state alone lets the preview
-  /// view mount mid-session and black-screen the next item.
-  bool get _shouldMountPersistentMedia3View =>
-      _useMedia3TrailerEngine() &&
-      widget.prefs.resolveMediaBarTrailerPreview() &&
-      !_mainPlaybackActive &&
-      !PlayerRouteObserver.instance.isPlayerActive.value;
+  // Kos TV: inline previews always play through mpv
+  // (usesMedia3ForInlinePreview is false), so the bar's Media3 path is gone.
 
   void _onMainPlaybackChanged(bool isPlaying) {
-    if (isPlaying &&
-        _trailerUsingMedia3 &&
-        _activeTrailerItemId != null &&
-        _isHomeRouteCurrent()) {
-      return;
-    }
     if (isPlaying) {
       _mainPlaybackInactiveTimer?.cancel();
       _mainPlaybackInactiveTimer = null;
@@ -482,9 +454,9 @@ class _MediaBarState extends State<MediaBar>
       return;
     }
     // Debounce the drop to false: buffering, a scrub, and queue auto-advance all
-    // report a brief isPlaying=false, and remounting the preview during that
-    // window would steal the shared Media3 slot from the live player. A real
-    // stop stays false past the timer.
+    // report a brief isPlaying=false, and a trailer starting in that window
+    // would sound over the live player. A real stop stays false past the
+    // timer.
     if (!_mainPlaybackActive || _mainPlaybackInactiveTimer != null) return;
     _mainPlaybackInactiveTimer = Timer(const Duration(seconds: 1), () {
       _mainPlaybackInactiveTimer = null;
@@ -498,7 +470,6 @@ class _MediaBarState extends State<MediaBar>
     if (active) {
       _cancelTrailerPreview();
     }
-    // Re-evaluate the persistent Media3 view's mount condition.
     if (mounted) setState(() {});
   }
 
@@ -524,6 +495,12 @@ class _MediaBarState extends State<MediaBar>
         if (_isHomeRouteActive && _currentIndex < items.length) {
           _scheduleTrailerPreview(items[_currentIndex]);
         }
+        // Kos TV: the bar is in front again. Whatever another part of Home
+        // put behind it meanwhile (a card picked in the rows, on a phone)
+        // gives way to the slide again in MakD, which on a phone paints no
+        // backdrop of its own.
+        _lastSyncedMakdBackdropUrl = null;
+        _syncMakdBackdropWithCurrentSlide();
       }
     }
     if (widget.trailerPaused != oldWidget.trailerPaused) {
@@ -546,13 +523,17 @@ class _MediaBarState extends State<MediaBar>
             !PlatformDetection.isWeb);
 
     if (isBackground) {
+      _trailerStoppedByBackground = true;
       _cancelTrailerPreview();
       _autoAdvanceTimer?.cancel();
     } else if (state == AppLifecycleState.resumed) {
       _startAutoAdvance();
       // Backgrounding cancelled the trailer, so bring it back rather than
-      // leaving a frozen slide behind.
-      if (PlatformDetection.isMobile) {
+      // leaving a frozen slide behind. Kos TV: on the TV and the web too
+      // (back from the TV's Home button, or to the browser tab), not only
+      // the phone.
+      if (_trailerStoppedByBackground) {
+        _trailerStoppedByBackground = false;
         _scheduleTrailerForCurrentSlide();
       }
     }
@@ -562,6 +543,17 @@ class _MediaBarState extends State<MediaBar>
     if (!mounted) return;
     final state = widget.viewModel.state;
     if (state is MediaBarReady) {
+      // Kos TV: a new list (a reload, a title turned down or back) keeps the
+      // slide shown on screen, wherever it now is in the list.
+      final previous = _lastSlides;
+      _lastSlides = state.items;
+      if (!identical(previous, state.items)) {
+        final shownId = previous?.elementAtOrNull(_currentIndex)?.itemId;
+        final at = shownId == null
+            ? -1
+            : state.items.indexWhere((item) => item.itemId == shownId);
+        if (at >= 0) _currentIndex = at;
+      }
       // Kos TV: a title turned down goes off at once: the slide shown stays
       // within the list, and its trailer stops.
       if (state.items.isNotEmpty && _currentIndex >= state.items.length) {
@@ -575,20 +567,25 @@ class _MediaBarState extends State<MediaBar>
     }
     setState(() {});
     if (state is MediaBarLoading) {
-      _readyHooksAppliedForCurrentLoad = false;
+      _prefetchedSlideIds = null;
     }
 
-    if (state is MediaBarReady && !_readyHooksAppliedForCurrentLoad) {
-      _readyHooksAppliedForCurrentLoad = true;
+    // Kos TV: warmed again whenever the slides are others, not only after a
+    // load from scratch: a forced reload keeps the old slides on screen
+    // until the new ones are in, with no loading in between.
+    final slideIds = state is MediaBarReady
+        ? state.items.map((item) => item.itemId).join('\u0000')
+        : null;
+    if (state is MediaBarReady && slideIds != _prefetchedSlideIds) {
+      _prefetchedSlideIds = slideIds;
       _prefetchAround(state.items, _currentIndex);
       _prefetchAllInBackground(state.items, _currentIndex);
       if (_isGalleryMode()) {
         _prefetchGalleryWindow(state.items, _currentIndex);
       }
     }
-    if (state is MediaBarReady && _failedTrailerAt.isNotEmpty) {
-      final knownItemIds = state.items.map((item) => item.itemId).toSet();
-      _failedTrailerAt.removeWhere((id, _) => !knownItemIds.contains(id));
+    if (state is MediaBarReady) {
+      _failedTrailers.retainOnly(state.items.map((item) => item.itemId));
     }
     if (_isHomeRouteActive &&
         state is MediaBarReady &&
@@ -601,31 +598,10 @@ class _MediaBarState extends State<MediaBar>
     }
   }
 
-  void _markTrailerFailed(String? itemId) {
-    if (itemId == null || itemId.isEmpty) return;
-    _failedTrailerAt[itemId] = DateTime.now();
-    if (_failedTrailerAt.length <= 256) return;
-    _failedTrailerAt.remove(_failedTrailerAt.keys.first);
-  }
+  void _markTrailerFailed(String? itemId) => _failedTrailers.mark(itemId);
 
-  bool _isTrailerBlockedByFailure(String itemId) {
-    final failedAt = _failedTrailerAt[itemId];
-    if (failedAt == null) return false;
-    if (!PlatformDetection.isMobile) return true;
-    return DateTime.now().difference(failedAt) < _trailerFailureRetryDelay;
-  }
-
-  void _onMedia3BackendEvent(Map<String, dynamic> _) {
-    if (!_trailerUsingMedia3 || !_isHomeRouteActive) return;
-    if (_activeTrailerItemId == null) return;
-
-    _markTrailerFailed(_activeTrailerItemId);
-    if (mounted) {
-      // The bar keeps cycling; a media3 failure does not implicate the
-      // dormant WebView.
-      _cancelTrailerPreview(retainYouTubePlayer: true);
-    }
-  }
+  bool _isTrailerBlockedByFailure(String itemId) =>
+      _failedTrailers.isBlocked(itemId);
 
   void _syncMakdBackdropWithCurrentSlide() {
     if (!_isHomeRouteActive) return;
@@ -767,15 +743,6 @@ class _MediaBarState extends State<MediaBar>
       return;
     }
 
-    final useMedia3Trailer = _useMedia3TrailerEngine();
-    final trailerEngineChanged =
-        useMedia3Trailer != _lastUseMedia3TrailerEngine;
-    if (trailerEngineChanged) {
-      _lastUseMedia3TrailerEngine = useMedia3Trailer;
-      _cancelTrailerPreview();
-      unawaited(_disposeTrailerPlayer());
-    }
-
     final trailerPreviewEnabled = widget.prefs.resolveMediaBarTrailerPreview();
 
     final hardwareDecodingEnabled = widget.prefs.get(
@@ -794,8 +761,6 @@ class _MediaBarState extends State<MediaBar>
       if (!hardwareDecodingChanged) {
         _cancelTrailerPreview();
       }
-    } else if (_trailerUsingMedia3) {
-      _media3TrailerBackend!.setVolume(_trailerVolume);
     } else if (_trailerUsingAppleTv) {
       unawaited(_appleTvTrailerPlayer?.setVolume(_trailerVolume));
     } else if (_trailerPlayer != null) {
@@ -1035,7 +1000,12 @@ class _MediaBarState extends State<MediaBar>
     if (!widget.prefs.resolveMediaBarTrailerPreview()) {
       return;
     }
-    if (!_isHomeRouteActive || widget.trailerPaused) {
+    // Kos TV: a paused bar doesn't start one either. Its prepare would only
+    // abort, and the slide would be left without a trailer once the pause
+    // ends (the unpause schedules it again).
+    if (!_isHomeRouteActive ||
+        widget.trailerPaused ||
+        widget.externallyPaused) {
       return;
     }
     if (_mainPlaybackActive) {
@@ -1055,6 +1025,13 @@ class _MediaBarState extends State<MediaBar>
     }
     if (_pendingTrailerItemId == item.itemId) {
       return;
+    }
+    // Kos TV: whatever is still on its way for another slide is let go
+    // here, so it can't later stop this one or leave the bar waiting on it.
+    if (_pendingTrailerItemId != null ||
+        _activeTrailerItemId != null ||
+        _isTrailerPlaying) {
+      _cancelTrailerPreview(retainYouTubePlayer: true);
     }
 
     _trailerRevealTimer?.cancel();
@@ -1085,26 +1062,21 @@ class _MediaBarState extends State<MediaBar>
     bool retainYouTubePlayer = false,
   }) {
     final wasTrailerPlaying = _isTrailerPlaying;
-    final wasUsingMedia3 = _trailerUsingMedia3;
     final wasUsingAppleTv = _trailerUsingAppleTv;
     _trailerRevealTimer?.cancel();
     _trailerPrepareTimer?.cancel();
     _youTubeRevealTimer?.cancel();
     _trailerRevealWatchdog?.cancel();
     _trailerResolveId++;
+    if (!_trailerCancelSignal.isCompleted) _trailerCancelSignal.complete();
+    _trailerCancelSignal = Completer<void>();
     _trailerRevealArmed = false;
     _isTrailerPlaying = false;
-    _trailerUsingMedia3 = false;
     _trailerUsingAppleTv = false;
     // Stop both media-bar-owned players unconditionally: the flags can desync
     // from what is actually playing.
     _trailerPlayer?.stop();
     unawaited(_appleTvTrailerPlayer?.stop());
-    // Media3 is a shared singleton (also drives row previews); only release it
-    // when the trailer owned it.
-    if (wasUsingMedia3) {
-      unawaited(_media3TrailerBackend?.release(previewOnly: true));
-    }
     _activeTrailerItemId = null;
     _pendingTrailerItemId = null;
     _pendingYouTubeVideoId = null;
@@ -1116,7 +1088,6 @@ class _MediaBarState extends State<MediaBar>
         _activeWebTrailerUrl != null ||
         releaseRetainedYouTube ||
         _trailerVideoOpacity != 0.0 ||
-        wasUsingMedia3 ||
         wasUsingAppleTv) {
       _activeYouTubeVideoId = null;
       _activeWebTrailerUrl = null;
@@ -1132,14 +1103,65 @@ class _MediaBarState extends State<MediaBar>
     }
   }
 
+  /// Kos TV: which prepare last opened a stream in the bar's player, so one
+  /// that finishes opening after its slide was left only stops the player if
+  /// the next slide hasn't opened its own in it meanwhile.
+  int? _trailerPlayerOpenedFor;
+
+  /// Kos TV: the server's trailer links of [item], with the Spanish ones
+  /// from the requests service first. The slides carry the links and the
+  /// TMDB id the service is asked by; only those of an older server plugin,
+  /// which sends neither, still read the full item for them.
+  Future<List<Map<String, dynamic>>> _serverAndSpanishTrailers(
+    MediaBarSlideItem item,
+    MediaServerClient client,
+    int resolveId,
+  ) async {
+    var remoteTrailers = item.remoteTrailers;
+    var tmdbId = item.tmdbId;
+    if (!item.isExternal &&
+        (tmdbId == null ||
+            (remoteTrailers.isEmpty && !item.remoteTrailersKnown))) {
+      try {
+        final fullItem = await client.itemsApi.getItem(item.itemId);
+        if (!mounted || resolveId != _trailerResolveId) return remoteTrailers;
+        if (remoteTrailers.isEmpty) {
+          remoteTrailers =
+              (fullItem['RemoteTrailers'] as List?)
+                  ?.whereType<Map>()
+                  .map((trailer) => trailer.cast<String, dynamic>())
+                  .toList() ??
+              const [];
+        }
+        if (tmdbId == null && fullItem['ProviderIds'] is Map) {
+          final ids = fullItem['ProviderIds'] as Map;
+          tmdbId = (ids['Tmdb'] ?? ids['tmdb'])?.toString();
+        }
+      } catch (_) {}
+    }
+    if (!mounted || resolveId != _trailerResolveId) return remoteTrailers;
+    // Kos TV: the Spanish trailers first, also for the titles of an outside
+    // list, which have a TMDB id too.
+    try {
+      return await KostvTrailers.sorted(
+        itemType: item.itemType,
+        tmdbId: tmdbId,
+        server: remoteTrailers,
+      );
+    } catch (_) {
+      return remoteTrailers;
+    }
+  }
+
   Future<void> _prepareTrailerPreview(
     MediaBarSlideItem item,
     int resolveId,
   ) async {
     if (!_trailerShouldBeActive()) {
       // An aborted prepare must not keep claiming the pending slot, or the
-      // reschedule on unpause early-returns forever.
-      if (PlatformDetection.isMobile && _pendingTrailerItemId == item.itemId) {
+      // reschedule on unpause early-returns forever. Kos TV: on every
+      // platform, not only the phone.
+      if (_pendingTrailerItemId == item.itemId) {
         _pendingTrailerItemId = null;
       }
       return;
@@ -1153,6 +1175,11 @@ class _MediaBarState extends State<MediaBar>
     StreamResolutionResult? localRes;
     final webOnly = PlatformDetection.isWeb;
     final supportsEmbeddedYouTube = _supportsEmbeddedYouTubePreview();
+
+    // Kos TV: asked for alongside the local trailer rather than after it.
+    final remoteLookup = client.features.supportsRemoteTrailers
+        ? _serverAndSpanishTrailers(item, client, resolveId)
+        : null;
 
     // Negotiate local trailers through the shared PlaybackInfo path (direct-play
     // when compatible, transcode otherwise) instead of a hand-built URL.
@@ -1186,14 +1213,12 @@ class _MediaBarState extends State<MediaBar>
     }
 
     List<Map<String, dynamic>> remoteTrailers = item.remoteTrailers;
-    // Kos TV: the requests service is asked for a title's trailers by its
-    // TMDB id. The slides the server plugin recommends come without it (or
-    // the server's trailer links), so it is read from the full item below.
-    var tmdbId = item.tmdbId;
-    // Plex items never carry trailer links, so there's nothing to fetch and
-    // one is searched for instead.
-    if (!client.features.supportsRemoteTrailers) {
-      if (streamUrl == null) {
+    if (streamUrl == null) {
+      if (remoteLookup != null) {
+        remoteTrailers = await remoteLookup;
+      } else {
+        // Plex items never carry trailer links, so one is searched for
+        // instead.
         final url = await YouTubeStreamResolver.searchTrailer(
           item.title,
           year: item.year,
@@ -1204,32 +1229,12 @@ class _MediaBarState extends State<MediaBar>
             {'Url': url},
           ];
         }
+        remoteTrailers = await KostvTrailers.sorted(
+          itemType: item.itemType,
+          tmdbId: item.tmdbId,
+          server: remoteTrailers,
+        );
       }
-    } else if ((remoteTrailers.isEmpty || tmdbId == null) &&
-        !item.isExternal) {
-      try {
-        final fullItem = await client.itemsApi.getItem(item.itemId);
-        if (!mounted || resolveId != _trailerResolveId) return;
-        if (remoteTrailers.isEmpty) {
-          remoteTrailers =
-              (fullItem['RemoteTrailers'] as List?)
-                  ?.cast<Map<String, dynamic>>() ??
-              const [];
-        }
-        if (tmdbId == null && fullItem['ProviderIds'] is Map) {
-          final ids = fullItem['ProviderIds'] as Map;
-          tmdbId = (ids['Tmdb'] ?? ids['tmdb'])?.toString();
-        }
-      } catch (_) {}
-    }
-
-    // Kos TV: the Spanish trailers first, from the requests service.
-    if (streamUrl == null && !item.isExternal) {
-      remoteTrailers = await KostvTrailers.sorted(
-        itemType: item.itemType,
-        tmdbId: tmdbId,
-        server: remoteTrailers,
-      );
       if (!mounted || resolveId != _trailerResolveId) return;
     }
 
@@ -1303,40 +1308,10 @@ class _MediaBarState extends State<MediaBar>
         : (localRes?.requestHeaders ?? const <String, String>{});
 
     try {
-      final useMedia3 = _useMedia3TrailerEngine() && !webOnly;
-      if (useMedia3) {
-        _media3TrailerCompletedSub ??= _media3TrailerBackend!.completedStream
-            .listen(_onTrailerCompleted);
-        _trailerUsingMedia3 = true;
-        // Another view (a row preview or a player screen) may have attached
-        // since the last trailer, so reclaim control routing first.
-        final persistentViewId = _media3PlatformViewId;
-        if (persistentViewId != null) {
-          await _media3TrailerBackend!.activateView(persistentViewId);
-          if (!mounted || resolveId != _trailerResolveId) return;
-        }
-        await _media3TrailerBackend!.setVolume(0);
-        await _media3TrailerBackend.configureSubtitleStyle(verticalOffset: 0.15);
-        if (!mounted || resolveId != _trailerResolveId) return;
-
-        final payload = <String, dynamic>{
-          'url': streamUrl,
-          'mediaType': localRes?.mediaType ?? 'video',
-          'preview': true,
-          'preferredAudioLanguage': ?youTubeAudioLanguage,
-          if (localHeaders.isNotEmpty) 'headers': localHeaders,
-          if (localRes?.container != null) 'container': localRes!.container,
-          if (localRes?.videoRangeType != null)
-            'videoRangeType': localRes!.videoRangeType,
-        };
-        await _media3TrailerBackend.play(payload).timeout(_openTimeout);
-        if (resolveId != _trailerResolveId || !_trailerShouldBeActive()) {
-          await _media3TrailerBackend.stop();
-          return;
-        }
-      } else if (PlatformDetection.useApplePreviewPlayer) {
+      if (PlatformDetection.useApplePreviewPlayer) {
         _trailerUsingAppleTv = true;
         final player = _ensureAppleTvTrailerPlayer();
+        _trailerPlayerOpenedFor = resolveId;
         await player
             .open(
               streamUrl,
@@ -1345,13 +1320,18 @@ class _MediaBarState extends State<MediaBar>
               audioLanguage: youTubeAudioLanguage,
             )
             .timeout(_openTimeout);
-        if (resolveId != _trailerResolveId || !_trailerShouldBeActive()) {
-          await player.stop();
+        if (!mounted || resolveId != _trailerResolveId) {
+          // Kos TV: left meanwhile. The player is stopped only if no other
+          // slide has opened its own trailer in it since.
+          if (_trailerPlayerOpenedFor == resolveId) await player.stop();
+          return;
+        }
+        if (!_trailerShouldBeActive()) {
+          _cancelTrailerPreview();
           return;
         }
         if (mounted) setState(() {});
       } else {
-        _trailerUsingMedia3 = false;
         final player = _ensureTrailerPlayer();
         await player.setVolume(0);
         if (!mounted || resolveId != _trailerResolveId) return;
@@ -1369,9 +1349,14 @@ class _MediaBarState extends State<MediaBar>
         );
         if (!mounted || resolveId != _trailerResolveId) return;
         await applyMpvClientCertificate(player, streamUrl);
+        _trailerPlayerOpenedFor = resolveId;
         await player.open(media).timeout(_openTimeout);
-        if (resolveId != _trailerResolveId || !_trailerShouldBeActive()) {
-          await player.stop();
+        if (!mounted || resolveId != _trailerResolveId) {
+          if (_trailerPlayerOpenedFor == resolveId) await player.stop();
+          return;
+        }
+        if (!_trailerShouldBeActive()) {
+          _cancelTrailerPreview();
           return;
         }
       }
@@ -1390,6 +1375,9 @@ class _MediaBarState extends State<MediaBar>
 
       await _tryRevealPreparedTrailer(item, resolveId);
     } catch (error, stack) {
+      // Kos TV: a slide left meanwhile hasn't failed: its open was cut short
+      // by the next slide or by the player being freed.
+      if (!mounted || resolveId != _trailerResolveId) return;
       _trailerLog.w(
         'Trailer preview playback failed for ${item.itemId}',
         error: error,
@@ -1397,10 +1385,14 @@ class _MediaBarState extends State<MediaBar>
       );
       _markTrailerFailed(item.itemId);
       // This item's stream failed; the bar keeps cycling.
-      if (mounted) _cancelTrailerPreview(retainYouTubePlayer: true);
+      _cancelTrailerPreview(retainYouTubePlayer: true);
     }
   }
 
+  // Kos TV: after each wait, a different resolve id means another slide has
+  // taken over, and whoever changed it already cancelled this one; stopping
+  // anything then would stop the new slide's trailer. Only a slide still
+  // current that should no longer play is cancelled here.
   Future<void> _tryRevealPreparedTrailer(
     MediaBarSlideItem item,
     int resolveId,
@@ -1411,7 +1403,8 @@ class _MediaBarState extends State<MediaBar>
     if (!_trailerShouldBeActive()) return;
 
     await _audioArbiter.acquire(AudioProducer.mediaBarTrailer);
-    if (resolveId != _trailerResolveId || !_trailerShouldBeActive()) {
+    if (resolveId != _trailerResolveId) return;
+    if (!_trailerShouldBeActive()) {
       _cancelTrailerPreview();
       return;
     }
@@ -1469,44 +1462,6 @@ class _MediaBarState extends State<MediaBar>
       return;
     }
 
-    if (_trailerUsingMedia3) {
-      try {
-        await _media3TrailerBackend!.setVolume(_trailerVolume);
-        if (!mounted || resolveId != _trailerResolveId) return;
-
-        await _media3TrailerBackend.resume();
-        if (resolveId != _trailerResolveId || !_trailerShouldBeActive()) {
-          _cancelTrailerPreview();
-          return;
-        }
-      } catch (_) {
-        _markTrailerFailed(item.itemId);
-        _cancelTrailerPreview();
-        return;
-      }
-
-      _isTrailerPlaying = true;
-      _autoAdvanceTimer?.cancel();
-      final ready = await _waitForMedia3TrailerReady(resolveId);
-      if (resolveId != _trailerResolveId || !_trailerShouldBeActive()) {
-        _cancelTrailerPreview();
-        return;
-      }
-      // The advance timer is already cancelled by this point, so a trailer that
-      // never reaches playing has to be treated like any other start failure.
-      // Revealing it instead parks the bar on this slide for good.
-      if (!ready) {
-        _markTrailerFailed(item.itemId);
-        _cancelTrailerPreview();
-        return;
-      }
-
-      if (_trailerVideoOpacity != 1) {
-        setState(() => _trailerVideoOpacity = 1);
-      }
-      return;
-    }
-
     if (_trailerUsingAppleTv) {
       final player = _appleTvTrailerPlayer;
       if (player == null) return;
@@ -1514,11 +1469,13 @@ class _MediaBarState extends State<MediaBar>
         await player.setVolume(_trailerVolume);
         if (!mounted || resolveId != _trailerResolveId) return;
         await player.resume();
-        if (resolveId != _trailerResolveId || !_trailerShouldBeActive()) {
+        if (resolveId != _trailerResolveId) return;
+        if (!_trailerShouldBeActive()) {
           _cancelTrailerPreview();
           return;
         }
       } catch (_) {
+        if (resolveId != _trailerResolveId) return;
         _markTrailerFailed(item.itemId);
         _cancelTrailerPreview();
         return;
@@ -1539,11 +1496,13 @@ class _MediaBarState extends State<MediaBar>
       if (!mounted || resolveId != _trailerResolveId) return;
 
       await player.play();
-      if (resolveId != _trailerResolveId || !_trailerShouldBeActive()) {
+      if (resolveId != _trailerResolveId) return;
+      if (!_trailerShouldBeActive()) {
         _cancelTrailerPreview();
         return;
       }
     } catch (_) {
+      if (resolveId != _trailerResolveId) return;
       _markTrailerFailed(item.itemId);
       _cancelTrailerPreview();
       return;
@@ -1552,7 +1511,8 @@ class _MediaBarState extends State<MediaBar>
     _isTrailerPlaying = true;
     _autoAdvanceTimer?.cancel();
     final ready = await _waitForMediaKitTrailerReady(player, resolveId);
-    if (resolveId != _trailerResolveId || !_trailerShouldBeActive()) {
+    if (resolveId != _trailerResolveId) return;
+    if (!_trailerShouldBeActive()) {
       _cancelTrailerPreview();
       return;
     }
@@ -1567,81 +1527,38 @@ class _MediaBarState extends State<MediaBar>
     }
   }
 
-  Future<bool> _waitForMedia3TrailerReady(int resolveId) async {
-    if (!mounted || resolveId != _trailerResolveId) return false;
-
-    var isPlaying = _media3TrailerBackend!.isPlaying;
-    var isBuffering = _media3TrailerBackend.isBuffering;
-    var buffered = _media3TrailerBackend.buffer;
-    var position = _media3TrailerBackend.position;
-    if (isPlaying &&
-        (!isBuffering ||
-            buffered > Duration.zero ||
-            position > Duration.zero)) {
-      return true;
-    }
-
-    final completer = Completer<bool>();
-    late StreamSubscription<bool> playingSub;
-    late StreamSubscription<bool> bufferingSub;
-    late StreamSubscription<Duration> bufferSub;
-    late StreamSubscription<Duration> positionSub;
-
-    void checkReady() {
-      if (!completer.isCompleted &&
-          isPlaying &&
-          (!isBuffering ||
-              buffered > Duration.zero ||
-              position > Duration.zero)) {
-        completer.complete(true);
-      }
-    }
-
-    playingSub = _media3TrailerBackend.playingStream.listen((value) {
-      isPlaying = value;
-      checkReady();
-    });
-    bufferingSub = _media3TrailerBackend.bufferingStream.listen((value) {
-      isBuffering = value;
-      checkReady();
-    });
-    bufferSub = _media3TrailerBackend.bufferStream.listen((value) {
-      buffered = value;
-      checkReady();
-    });
-    positionSub = _media3TrailerBackend.positionStream.listen((value) {
-      position = value;
-      checkReady();
-    });
-
-    try {
-      return await completer.future.timeout(
-        _trailerReadyTimeout,
-        onTimeout: () => false,
-      );
-    } finally {
-      await playingSub.cancel();
-      await bufferingSub.cancel();
-      await bufferSub.cancel();
-      await positionSub.cancel();
-    }
-  }
-
   /// mpv reports a stream as playing before any of it has arrived, so a
   /// trailer only counts as ready once its position moves. YouTube's HLS takes
   /// several seconds to get there, which the backdrop covers.
+  ///
+  /// Kos TV: the wait ends as soon as the slide is left. The next slide plays
+  /// in the same player, and its own position moving used to end this wait
+  /// as if this trailer were ready.
   Future<bool> _waitForMediaKitTrailerReady(
     Player player,
     int resolveId,
   ) async {
     if (!mounted || resolveId != _trailerResolveId) return false;
+    final ready = Completer<bool>();
+    void finish(bool value) {
+      if (!ready.isCompleted) ready.complete(value);
+    }
+
+    final positions = player.stream.position.listen(
+      (position) {
+        if (position > Duration.zero) finish(true);
+      },
+      onError: (Object _) => finish(false),
+      onDone: () => finish(false),
+    );
+    unawaited(_trailerCancelSignal.future.then((_) => finish(false)));
     try {
-      await player.stream.position
-          .firstWhere((position) => position > Duration.zero)
-          .timeout(_mediaKitTrailerReadyTimeout);
-      return true;
-    } catch (_) {
-      return false;
+      return await ready.future.timeout(
+        _mediaKitTrailerReadyTimeout,
+        onTimeout: () => false,
+      );
+    } finally {
+      await positions.cancel();
     }
   }
 
@@ -1698,14 +1615,8 @@ class _MediaBarState extends State<MediaBar>
     _clearSponsorBlockTracking();
     _trailerCompletedSub?.cancel();
     _trailerCompletedSub = null;
-    _media3TrailerCompletedSub?.cancel();
-    _media3TrailerCompletedSub = null;
     _appleTvTrailerCompletedSub?.cancel();
     _appleTvTrailerCompletedSub = null;
-    if (_trailerUsingMedia3) {
-      _trailerUsingMedia3 = false;
-      unawaited(_media3TrailerBackend!.stop());
-    }
     if (_trailerUsingAppleTv) {
       _trailerUsingAppleTv = false;
     }
@@ -1737,21 +1648,13 @@ class _MediaBarState extends State<MediaBar>
     _clearSponsorBlockTracking();
     final token = ++_sponsorBlockToken;
 
-    if (_trailerUsingMedia3) {
-      _trailerPositionSub = _media3TrailerBackend!.positionStream.listen((
-        position,
-      ) {
-        _handleSponsorBlockPosition(position);
-      });
-    } else {
-      final player = _trailerPlayer;
-      if (player == null) {
-        return;
-      }
-      _trailerPositionSub = player.stream.position.listen((position) {
-        _handleSponsorBlockPosition(position);
-      });
+    final player = _trailerPlayer;
+    if (player == null) {
+      return;
     }
+    _trailerPositionSub = player.stream.position.listen((position) {
+      _handleSponsorBlockPosition(position);
+    });
 
     unawaited(() async {
       final segments = await _sponsorBlockService.fetchSegments(
@@ -1785,11 +1688,7 @@ class _MediaBarState extends State<MediaBar>
     _sponsorBlockSeekInFlight = true;
     unawaited(() async {
       try {
-        if (_trailerUsingMedia3) {
-          await _media3TrailerBackend!.seekTo(skipTo);
-        } else {
-          await _trailerPlayer?.seek(skipTo);
-        }
+        await _trailerPlayer?.seek(skipTo);
       } catch (_) {
       } finally {
         _sponsorBlockSeekInFlight = false;
@@ -1822,7 +1721,8 @@ class _MediaBarState extends State<MediaBar>
 
   bool _supportsEmbeddedYouTubePreview() {
     // Prefer the iframe on every WebView platform (Android incl. TV); when no
-    // WebView is available it reports unavailable and Media3 is the fallback.
+    // WebView is available it reports unavailable and the stream through mpv
+    // is the fallback.
     return _embeddedYouTubeAvailable &&
         (PlatformDetection.isWeb ||
             PlatformDetection.isAndroid ||
@@ -2022,7 +1922,7 @@ class _MediaBarState extends State<MediaBar>
           _buildStatusPanel(
             context,
             title: l10n.mediaBarError,
-            detail: describeError(error, l10n),
+            detail: describeMediaBarError(error, l10n),
             showRetry: true,
           ),
           onSelect: () => widget.viewModel.load(context: context, force: true),
@@ -2146,7 +2046,6 @@ class _MediaBarState extends State<MediaBar>
     final hasVisibleTrailerVideo =
         (_activeYouTubeVideoId != null ||
             _activeWebTrailerUrl != null ||
-            _trailerUsingMedia3 ||
             _trailerController != null) &&
         _trailerVideoOpacity > 0;
 
@@ -2184,7 +2083,7 @@ class _MediaBarState extends State<MediaBar>
                       _BackdropLayer(items: items, currentIndex: _currentIndex),
                     ),
                   ),
-                  ..._buildVideoOverlays(allowPersistentMedia3: true),
+                  ..._buildVideoOverlays(),
                   if (items.length > 1 && !_isTrailerPlaying)
                     Positioned(
                       bottom: 8 + widget.rowPeek,
@@ -2352,7 +2251,7 @@ class _MediaBarState extends State<MediaBar>
         duration: const Duration(milliseconds: 250),
         child: _BackdropLayer(items: items, currentIndex: _currentIndex),
       ),
-      ..._buildVideoOverlays(allowPersistentMedia3: true),
+      ..._buildVideoOverlays(),
       // Plain gradients, not a mask: nothing to redraw as the picture moves.
       Positioned.fill(
         child: IgnorePointer(
@@ -2482,7 +2381,6 @@ class _MediaBarState extends State<MediaBar>
     final hasVisibleTrailerVideo =
         (_activeYouTubeVideoId != null ||
             _activeWebTrailerUrl != null ||
-            _trailerUsingMedia3 ||
             _trailerController != null) &&
         _trailerVideoOpacity > 0;
 
@@ -2533,7 +2431,7 @@ class _MediaBarState extends State<MediaBar>
                       ),
                     ),
                   if (!isMobile)
-                    ..._buildVideoOverlays(allowPersistentMedia3: true),
+                    ..._buildVideoOverlays(),
                   // Both gradients give way to a playing trailer together, and
                   // they fade for the same reason the other layout's does.
                   if (!isMobile)
@@ -2804,11 +2702,6 @@ class _MediaBarState extends State<MediaBar>
       _currentIndex = clampedIndex;
     }
 
-    final activeItem = items[clampedIndex];
-    if (widget.viewModel.bookshelfDetailFor(activeItem.itemId) == null) {
-      unawaited(widget.viewModel.ensureBookshelfDetail(activeItem.itemId));
-    }
-
     return MouseRegion(
       onEnter: (_) => _setPaused(true),
       onExit: (_) => _setPaused(false),
@@ -2830,7 +2723,6 @@ class _MediaBarState extends State<MediaBar>
                 onSelect: _selectBookshelfIndex,
                 onInfo: () => _navigateToItem(context, items),
                 onPlay: () => _playFromBookshelf(context, items),
-                detailFor: widget.viewModel.bookshelfDetailFor,
               ),
               if (_bookshelfLoadingOverlay)
                 const Positioned.fill(child: _TheaterLoadingOverlay()),
@@ -2846,7 +2738,6 @@ class _MediaBarState extends State<MediaBar>
     if (index < 0 || index >= items.length) return;
     if (index == _currentIndex) return;
     _goToPage(index);
-    unawaited(widget.viewModel.ensureBookshelfDetail(items[index].itemId));
   }
 
   void _playFromBookshelf(BuildContext context, List<MediaBarSlideItem> items) {
@@ -2911,7 +2802,6 @@ class _MediaBarState extends State<MediaBar>
     final trailerVisible =
         (_activeYouTubeVideoId != null ||
             _activeWebTrailerUrl != null ||
-            _trailerUsingMedia3 ||
             _trailerController != null) &&
         _trailerVideoOpacity > 0;
     final activeTrailer = trailerOverlays.isEmpty
@@ -3029,7 +2919,7 @@ class _MediaBarState extends State<MediaBar>
       _currentIndex = clampedIndex;
     }
 
-    final trailerOverlays = _buildVideoOverlays(allowPersistentMedia3: true);
+    final trailerOverlays = _buildVideoOverlays();
 
     return MouseRegion(
       onEnter: (_) => _setPaused(true),
@@ -3270,31 +3160,16 @@ class _MediaBarState extends State<MediaBar>
     );
   }
 
-  List<Widget> _buildVideoOverlays({bool allowPersistentMedia3 = false}) {
-    final mountPersistentMedia3 =
-        allowPersistentMedia3 && _shouldMountPersistentMedia3View;
+  List<Widget> _buildVideoOverlays() {
     return [
-      if (_trailerUsingMedia3 ||
-          mountPersistentMedia3 ||
-          _trailerController != null ||
+      if (_trailerController != null ||
           (_trailerUsingAppleTv && _appleTvTrailerPlayer?.textureId != null))
         Positioned.fill(
           child: IgnorePointer(
             child: AnimatedOpacity(
-              // The idle persistent view stays fully hidden; the native side
-              // shows an opaque black cover when stopped.
-              opacity: _trailerUsingMedia3 || !mountPersistentMedia3
-                  ? _trailerVideoOpacity
-                  : 0.0,
+              opacity: _trailerVideoOpacity,
               duration: const Duration(milliseconds: 800),
-              child: _trailerUsingMedia3 || mountPersistentMedia3
-                  ? Media3VideoView(
-                      fill: Colors.transparent,
-                      role: 'preview',
-                      onPlatformViewCreated: (id) =>
-                          _media3PlatformViewId = id,
-                    )
-                  : _trailerUsingAppleTv
+              child: _trailerUsingAppleTv
                   ? FittedBox(
                       fit: BoxFit.cover,
                       clipBehavior: Clip.hardEdge,
@@ -3321,7 +3196,7 @@ class _MediaBarState extends State<MediaBar>
           child: IgnorePointer(
             child: AnimatedOpacity(
               // The retained (dormant) WebView must stay hidden even while a
-              // Media3/local trailer reveals underneath at shared opacity.
+              // local trailer reveals underneath at shared opacity.
               opacity: _activeYouTubeVideoId != null
                   ? _trailerVideoOpacity
                   : 0.0,
@@ -3707,9 +3582,12 @@ class _MetadataRow extends StatelessWidget {
     }
 
     if (item.itemType != 'Series' && item.runtime != null) {
-      final h = item.runtime!.inHours;
-      final m = item.runtime!.inMinutes.remainder(60);
-      parts.add(_infoText(theme, h > 0 ? '${h}h ${m}m' : '${m}m'));
+      parts.add(
+        _infoText(
+          theme,
+          mediaBarRuntime(item.runtime!, AppLocalizations.of(context)),
+        ),
+      );
     }
 
     if (item.genres.isNotEmpty) {
@@ -4027,7 +3905,7 @@ class _TheaterLoadingOverlay extends StatelessWidget {
             ),
             const SizedBox(height: 22),
             Text(
-              'BUFFERING',
+              AppLocalizations.of(context).mediaBarTheaterBuffering,
               style: theme.textTheme.titleLarge?.copyWith(
                 color: AppColorScheme.onSurface,
                 fontWeight: FontWeight.w900,
@@ -4036,7 +3914,7 @@ class _TheaterLoadingOverlay extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'OPTIMIZING FOR YOU',
+              AppLocalizations.of(context).mediaBarTheaterPreparing,
               style: theme.textTheme.labelMedium?.copyWith(
                 color: AppColorScheme.onSurface.withValues(alpha: 0.7),
                 fontWeight: FontWeight.w600,
@@ -4047,5 +3925,40 @@ class _TheaterLoadingOverlay extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// Kos TV: the titles whose trailer failed lately, so the banner doesn't try
+/// them again on every turn. Each gets another try after [retryAfter], on
+/// every platform.
+@visibleForTesting
+class MediaBarTrailerFailures {
+  MediaBarTrailerFailures({required this.retryAfter});
+
+  final Duration retryAfter;
+  static const _limit = 256;
+  final Map<String, DateTime> _failedAt = <String, DateTime>{};
+
+  void mark(String? itemId) {
+    if (itemId == null || itemId.isEmpty) return;
+    _failedAt
+      ..remove(itemId)
+      ..[itemId] = clock.now();
+    if (_failedAt.length > _limit) _failedAt.remove(_failedAt.keys.first);
+  }
+
+  bool isBlocked(String itemId) {
+    final failedAt = _failedAt[itemId];
+    if (failedAt == null) return false;
+    if (clock.now().difference(failedAt) < retryAfter) return true;
+    _failedAt.remove(itemId);
+    return false;
+  }
+
+  /// Forgets the titles no longer on the banner.
+  void retainOnly(Iterable<String> itemIds) {
+    if (_failedAt.isEmpty) return;
+    final known = itemIds.toSet();
+    _failedAt.removeWhere((id, _) => !known.contains(id));
   }
 }

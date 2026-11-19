@@ -569,8 +569,21 @@ class _AyaSlideTransitionState extends State<_AyaSlideTransition>
     final artworkUrl = slide.artworkUrl;
 
     if (artworkUrl != null && artworkUrl.isNotEmpty) {
+      // Kos TV: warmed at the decode the backdrop paints (it fills this
+      // box), not at the full size of the source, a second copy of every
+      // slide in the image cache that was never painted.
+      final box = context.findRenderObject();
+      final size = box is RenderBox && box.hasSize
+          ? box.size
+          : MediaQuery.sizeOf(context);
       try {
-        await precacheImage(offlineAwareImageProvider(artworkUrl), context);
+        await ArtworkDecode.precache(
+          context,
+          artworkUrl,
+          layoutWidth: size.width,
+          layoutHeight: size.height,
+          priority: ImageFetchPriority.normal,
+        );
       } catch (_) {}
     }
 

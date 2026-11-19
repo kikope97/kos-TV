@@ -19567,5 +19567,25 @@
   "kostvUntrustedServerCertificate": "The server's certificate isn't valid, so the connection isn't safe. You may be on a network that intercepts connections (a hotel's, for example). Try another network or try again later.",
   "@kostvUntrustedServerCertificate": {
     "description": "Kos TV: sign-in to the built-in household server found a certificate that is not valid"
+    },
+  "mediaBarNoBackdrops": "No items with backdrop images found",
+  "@mediaBarNoBackdrops": {
+    "description": "Kos TV: the home banner found no titles with a background picture"
+  },
+  "mediaBarGalleryDirector": "DIRECTOR",
+  "@mediaBarGalleryDirector": {
+    "description": "Kos TV: label over the director in the gallery banner (upper case)"
+  },
+  "mediaBarGalleryCast": "STARRING",
+  "@mediaBarGalleryCast": {
+    "description": "Kos TV: label over the cast in the gallery banner (upper case)"
+  },
+  "mediaBarTheaterBuffering": "BUFFERING",
+  "@mediaBarTheaterBuffering": {
+    "description": "Kos TV: big upper-case line while the bookshelf or gallery banner opens a title to play"
+  },
+  "mediaBarTheaterPreparing": "OPTIMIZING FOR YOU",
+  "@mediaBarTheaterPreparing": {
+    "description": "Kos TV: small upper-case line under it"
   }
 }

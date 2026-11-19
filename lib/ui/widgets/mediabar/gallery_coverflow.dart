@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/media_bar_slide_item.dart';
+import '../../../l10n/app_localizations.dart';
 import '../bounded_network_image.dart';
 import 'gallery_glow.dart';
 import 'media_bar_new_release_label.dart';
+import 'media_bar_text.dart';
 
 class GalleryCoverflow extends StatefulWidget {
   static const int kCoverDecodeWidth = 600;
@@ -59,14 +61,23 @@ class _GalleryCoverflowState extends State<GalleryCoverflow> {
   @override
   void didUpdateWidget(GalleryCoverflow oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final page = _controller.hasClients ? _controller.page?.round() : null;
     if (widget.activeIndex != oldWidget.activeIndex &&
-        _controller.hasClients &&
-        _controller.page?.round() != widget.activeIndex) {
-      _controller.animateToPage(
-        widget.activeIndex,
-        duration: const Duration(milliseconds: 450),
-        curve: Curves.easeOutCubic,
-      );
+        page != null &&
+        page != widget.activeIndex) {
+      // Kos TV: a jump of more than one card (from the last back to the
+      // first) goes there at once. Animated, it would pass every card in
+      // between, and each would be picked on its way (title, colour and
+      // trailer flickering through all of them).
+      if ((widget.activeIndex - page).abs() > 1) {
+        _controller.jumpToPage(widget.activeIndex);
+      } else {
+        _controller.animateToPage(
+          widget.activeIndex,
+          duration: const Duration(milliseconds: 450),
+          curve: Curves.easeOutCubic,
+        );
+      }
     }
   }
 
@@ -304,7 +315,7 @@ class _Info extends StatelessWidget {
     final meta = <String>[
       if (item.year != null) '${item.year}',
       if (item.itemType != 'Series' && item.runtime != null)
-        _formatRuntime(item.runtime!),
+        mediaBarRuntime(item.runtime!, AppLocalizations.of(context)),
       if (item.officialRating != null) item.officialRating!,
     ].join('  ·  ');
     final metaStyle = theme.textTheme.labelMedium?.copyWith(
@@ -366,14 +377,7 @@ class _Info extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatRuntime(Duration d) {
-    final h = d.inHours;
-    final m = d.inMinutes.remainder(60);
-    return h > 0 ? '${h}h ${m}m' : '${m}m';
-  }
-}
+  }}
 
 class _Dots extends StatelessWidget {
   final int count;

@@ -34046,6 +34046,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The server\'s certificate isn\'t valid, so the connection isn\'t safe. You may be on a network that intercepts connections (a hotel\'s, for example). Try another network or try again later.'**
   String get kostvUntrustedServerCertificate;
+
+  /// Kos TV: the home banner found no titles with a background picture
+  ///
+  /// In en, this message translates to:
+  /// **'No items with backdrop images found'**
+  String get mediaBarNoBackdrops;
+
+  /// Kos TV: label over the director in the gallery banner (upper case)
+  ///
+  /// In en, this message translates to:
+  /// **'DIRECTOR'**
+  String get mediaBarGalleryDirector;
+
+  /// Kos TV: label over the cast in the gallery banner (upper case)
+  ///
+  /// In en, this message translates to:
+  /// **'STARRING'**
+  String get mediaBarGalleryCast;
+
+  /// Kos TV: big upper-case line while the bookshelf or gallery banner opens a title to play
+  ///
+  /// In en, this message translates to:
+  /// **'BUFFERING'**
+  String get mediaBarTheaterBuffering;
+
+  /// Kos TV: small upper-case line under it
+  ///
+  /// In en, this message translates to:
+  /// **'OPTIMIZING FOR YOU'**
+  String get mediaBarTheaterPreparing;
 }
 
 class _AppLocalizationsDelegate

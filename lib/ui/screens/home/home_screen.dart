@@ -599,12 +599,17 @@ class _HomeShellState extends State<_HomeShell>
     _selectionDebounce = Timer(_selectionDelay, () {
       if (!mounted) return;
       _selectedItemNotifier.value = item;
-      _isHoverPausedNotifier.value = true;
+      // Kos TV: nothing picked (the focus went up to the banner, or the rows
+      // emptied) holds the banner back no longer; it used to stay still
+      // for 15 s after reaching it.
+      _isHoverPausedNotifier.value = item != null;
 
       _hoverPauseTimer?.cancel();
-      _hoverPauseTimer = Timer(const Duration(seconds: 15), () {
-        if (mounted) _isHoverPausedNotifier.value = false;
-      });
+      if (item != null) {
+        _hoverPauseTimer = Timer(const Duration(seconds: 15), () {
+          if (mounted) _isHoverPausedNotifier.value = false;
+        });
+      }
 
       _backdropDebounce?.cancel();
 
