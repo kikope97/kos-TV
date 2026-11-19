@@ -351,6 +351,38 @@ void main() {
       );
     });
 
+    // Kos TV: a server that fails reads as a failure, not as no recordings.
+    test('a failed recordings read is an error, and Retry reads again', () async {
+      when(
+        () => liveTv.getRecordings(
+          limit: any(named: 'limit'),
+          fields: any(named: 'fields'),
+          enableImages: any(named: 'enableImages'),
+          isSeries: any(named: 'isSeries'),
+          isMovie: any(named: 'isMovie'),
+          isSports: any(named: 'isSports'),
+          isKids: any(named: 'isKids'),
+        ),
+      ).thenThrow(Exception('500'));
+      final vm = RecordingsViewModel(client);
+      await vm.load();
+      expect(vm.state, RecordingsState.error);
+
+      when(
+        () => liveTv.getRecordings(
+          limit: any(named: 'limit'),
+          fields: any(named: 'fields'),
+          enableImages: any(named: 'enableImages'),
+          isSeries: any(named: 'isSeries'),
+          isMovie: any(named: 'isMovie'),
+          isSports: any(named: 'isSports'),
+          isKids: any(named: 'isKids'),
+        ),
+      ).thenAnswer((_) async => {'Items': <dynamic>[]});
+      await vm.load();
+      expect(vm.state, RecordingsState.ready);
+    });
+
     test('refreshing the scheduled row applies the same filter', () async {
       final vm = RecordingsViewModel(client);
       await vm.refreshScheduled();

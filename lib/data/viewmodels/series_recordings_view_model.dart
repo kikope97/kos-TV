@@ -30,16 +30,6 @@ class SeriesTimerItem {
       rawData: json,
     );
   }
-
-  String get subtitle {
-    final parts = <String>[];
-    final channelText = (recordAnyChannel == true)
-        ? 'All Channels'
-        : channelName;
-    if (channelText != null && channelText.isNotEmpty) parts.add(channelText);
-    if (dayPattern != null && dayPattern!.isNotEmpty) parts.add(dayPattern!);
-    return parts.join(' \u2022 ');
-  }
 }
 
 enum SeriesRecordingsState { loading, ready, error }

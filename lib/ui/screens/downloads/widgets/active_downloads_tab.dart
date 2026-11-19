@@ -7,7 +7,9 @@ import '../../../../data/services/download_service.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../util/download_utils.dart';
 import '../../../../util/platform_detection.dart';
+import '../../../widgets/adaptive/adaptive_dialog.dart';
 import '../../../widgets/focus/dpad_list_tile.dart';
+import '../../../widgets/overlay_sheet.dart';
 
 /// Transfers that are running or waiting, with their speed, ETA and a way to
 /// stop them.
@@ -92,7 +94,17 @@ class ActiveDownloadsTab extends StatelessWidget {
                     ),
                   ),
                   TextButton(
-                    onPressed: service.cancelAll,
+                    // Kos TV: stopping every transfer at once asks first.
+                    onPressed: () async {
+                      if (await _confirmCancel(
+                        context,
+                        title: l10n.kostvCancelAllDownloadsTitle,
+                        message: l10n.kostvCancelAllDownloadsMessage,
+                        confirmLabel: l10n.kostvCancelAllDownloadsConfirm,
+                      )) {
+                        service.cancelAll();
+                      }
+                    },
                     child: Text(
                       l10n.cancel,
                       style: TextStyle(color: AppColorScheme.statusRequested),
@@ -183,8 +195,20 @@ class ActiveDownloadsTab extends StatelessWidget {
                         onPressed: () =>
                             service.cancelDownload(active[index].itemId),
                       ),
+                // Kos TV: OK on a remote lands here just to look at the
+                // transfer, so it asks before cancelling.
                 onTap: PlatformDetection.isTV
-                    ? () => service.cancelDownload(active[index].itemId)
+                    ? () async {
+                        final download = active[index];
+                        if (await _confirmCancel(
+                          context,
+                          title: l10n.kostvCancelDownloadTitle,
+                          message: download.fileName,
+                          confirmLabel: l10n.savedMediaCancelDownload,
+                        )) {
+                          service.cancelDownload(download.itemId);
+                        }
+                      }
                     : null,
               ),
             if (hiddenQueued > 0)
@@ -202,6 +226,39 @@ class ActiveDownloadsTab extends StatelessWidget {
         );
       },
     );
+  }
+
+  /// Kos TV: asks before stopping a transfer; keeping it is the default.
+  Future<bool> _confirmCancel(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String confirmLabel,
+  }) async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showFocusRestoringDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog.adaptive(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          adaptiveDialogAction(
+            autofocus: true,
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(l10n.kostvKeepDownloading),
+          ),
+          adaptiveDialogAction(
+            isDestructive: true,
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              confirmLabel,
+              style: TextStyle(color: AppColorScheme.statusRequested),
+            ),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
   }
 
   Widget _empty(BuildContext context, AppLocalizations l10n) => Center(

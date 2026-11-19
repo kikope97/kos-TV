@@ -90,13 +90,20 @@ class _SavedShowScreenState extends ConsumerState<SavedShowScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final episodes = ref
-        .watch(downloadedEpisodesProvider(widget.seriesId))
-        .maybeWhen(
-          data: (value) => value,
-          orElse: () => const <DownloadedItem>[],
-        );
+    final episodesAsync = ref.watch(
+      downloadedEpisodesProvider(widget.seriesId),
+    );
+    final episodes = episodesAsync.maybeWhen(
+      data: (value) => value,
+      orElse: () => const <DownloadedItem>[],
+    );
     final seasons = _seasons(l10n, episodes);
+
+    // Kos TV: the first read is still on its way when the screen opens, so
+    // the empty shell waits for it rather than closing.
+    if (episodesAsync.isLoading && !episodesAsync.hasValue) {
+      return const Scaffold(backgroundColor: Colors.transparent);
+    }
 
     // Deleting the last episode from here empties the screen, so go back
     // rather than leave an empty shell behind.
@@ -215,7 +222,7 @@ class _SavedShowScreenState extends ConsumerState<SavedShowScreen> {
         key: ValueKey(episode.itemId),
         rowFocusNode: _rowNodes[index],
         title: episode.name,
-        subtitle: savedMediaSubtitle(episode, insideShow: true),
+        subtitle: savedMediaSubtitle(l10n, episode, insideShow: true),
         sizeLabel: formatBytes(episode.fileSizeBytes),
         posterPath: episode.thumbPath ?? episode.posterPath,
         fallbackIcon: Icons.live_tv_outlined,

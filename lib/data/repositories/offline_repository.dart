@@ -129,6 +129,36 @@ class OfflineRepository {
     ));
   }
 
+  /// Kos TV: replaces the stored metadata of [serverId]'s [itemId] in place,
+  /// leaving every other column as it is. [syncedPositionTicks], when given,
+  /// is only adopted while the row has nothing left to push, so a position
+  /// recorded meanwhile is not overwritten.
+  Future<void> refreshItemMetadata(
+    String itemId, {
+    required String serverId,
+    required String metadataJson,
+    int? syncedPositionTicks,
+  }) async {
+    await _db.transaction(() async {
+      await (_db.update(_db.downloadedItems)..where(
+            (t) => t.itemId.equals(itemId) & t.serverId.equals(serverId),
+          ))
+          .write(DownloadedItemsCompanion(metadataJson: Value(metadataJson)));
+      if (syncedPositionTicks == null) return;
+      await (_db.update(_db.downloadedItems)..where(
+            (t) =>
+                t.itemId.equals(itemId) &
+                t.serverId.equals(serverId) &
+                t.progressSynced.equals(true),
+          ))
+          .write(
+            DownloadedItemsCompanion(
+              playbackPositionTicks: Value(syncedPositionTicks),
+            ),
+          );
+    });
+  }
+
   /// Merges [patch] into the stored item's UserData, with a null value
   /// removing the key, so the offline UI shows a queued rating right away.
   Future<void> patchUserData(String itemId, Map<String, dynamic> patch) async {
@@ -489,6 +519,27 @@ class OfflineRepository {
       query.where((t) => t.downloadStatus.equals(2));
     }
     return query.watch();
+  }
+
+  /// Kos TV: fires on every write to the downloads table, without reading
+  /// it, for a listener that reads what it needs itself.
+  Stream<void> watchChanges() => _db.tableUpdates(
+    TableUpdateQuery.onTable(_db.downloadedItems),
+  );
+
+  /// Kos TV: whether any completed download of [types] holds a file, counted
+  /// in the database rather than by reading every row and its metadata.
+  Stream<bool> watchHasSavedFiles(Set<String> types) {
+    final t = _db.downloadedItems;
+    final count = t.itemId.count();
+    final query = _db.selectOnly(t)
+      ..addColumns([count])
+      ..where(
+        t.downloadStatus.equals(2) &
+            t.fileSizeBytes.isBiggerThanValue(0) &
+            t.type.isIn(types),
+      );
+    return query.map((row) => (row.read(count) ?? 0) > 0).watchSingle();
   }
 
   Stream<DownloadedItem?> watchItem(String itemId) {

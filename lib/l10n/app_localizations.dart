@@ -34652,6 +34652,834 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t load more titles'**
   String get kostvCatalogMoreFailed;
+
+  /// Kos TV Downloads: a saved song, under its title
+  ///
+  /// In en, this message translates to:
+  /// **'Song'**
+  String get kostvSavedTypeSong;
+
+  /// Kos TV Downloads: a saved audiobook, under its title
+  ///
+  /// In en, this message translates to:
+  /// **'Audiobook'**
+  String get kostvSavedTypeAudiobook;
+
+  /// Kos TV Downloads: a saved book, under its title
+  ///
+  /// In en, this message translates to:
+  /// **'Book'**
+  String get kostvSavedTypeBook;
+
+  /// Kos TV Downloads: a saved music video, under its title
+  ///
+  /// In en, this message translates to:
+  /// **'Music video'**
+  String get kostvSavedTypeMusicVideo;
+
+  /// Kos TV Downloads: asked before cancelling a transfer from the remote
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel this download?'**
+  String get kostvCancelDownloadTitle;
+
+  /// Kos TV Downloads: asked before cancelling every transfer
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel all downloads?'**
+  String get kostvCancelAllDownloadsTitle;
+
+  /// Kos TV Downloads: what cancelling every transfer does
+  ///
+  /// In en, this message translates to:
+  /// **'The downloads in progress and the ones waiting in the queue will stop.'**
+  String get kostvCancelAllDownloadsMessage;
+
+  /// Kos TV Downloads: confirms cancelling every transfer
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel all'**
+  String get kostvCancelAllDownloadsConfirm;
+
+  /// Kos TV Downloads: keeps the transfers going
+  ///
+  /// In en, this message translates to:
+  /// **'Keep downloading'**
+  String get kostvKeepDownloading;
+
+  /// Kos TV Games: the server has no games API
+  ///
+  /// In en, this message translates to:
+  /// **'This server does not support games.'**
+  String get kostvGameNoGamesSupport;
+
+  /// Kos TV Games: the game is not on the server
+  ///
+  /// In en, this message translates to:
+  /// **'Game not found.'**
+  String get kostvGameNotFound;
+
+  /// Kos TV Games: loading the game failed
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load game: {detail}'**
+  String kostvGameLoadFailed(String detail);
+
+  /// Kos TV Games: saving the hardware rendering switch failed
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save hardware rendering setting.'**
+  String get kostvGameHardwareRenderingSaveFailed;
+
+  /// Kos TV Games: changing the player failed
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change player: {detail}'**
+  String kostvGameChangePlayerFailed(String detail);
+
+  /// Kos TV Games: row of other games for the same system
+  ///
+  /// In en, this message translates to:
+  /// **'More in {system}'**
+  String kostvGameMoreIn(String system);
+
+  /// Kos TV Games: main button while the save is checked
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for save…'**
+  String get kostvGameCheckingSave;
+
+  /// Kos TV Games: main button after the save check failed
+  ///
+  /// In en, this message translates to:
+  /// **'Retry save check'**
+  String get kostvGameRetrySaveCheck;
+
+  /// Kos TV Games: main button with a save
+  ///
+  /// In en, this message translates to:
+  /// **'Continue'**
+  String get kostvGameContinue;
+
+  /// Kos TV Games: main button without a save
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get kostvGamePlay;
+
+  /// Kos TV Games: starts the game without the save
+  ///
+  /// In en, this message translates to:
+  /// **'Start fresh'**
+  String get kostvGameStartFresh;
+
+  /// Kos TV Games: the player that runs on the device
+  ///
+  /// In en, this message translates to:
+  /// **'Native core'**
+  String get kostvGameNativeCore;
+
+  /// Kos TV Games: the native player and where it runs
+  ///
+  /// In en, this message translates to:
+  /// **'Native core · runs on this device'**
+  String get kostvGameNativeCoreDetail;
+
+  /// Kos TV Games: the EmulatorJS player and where it runs
+  ///
+  /// In en, this message translates to:
+  /// **'EmulatorJS · runs in a web view'**
+  String get kostvGameEmulatorJsDetail;
+
+  /// Kos TV Games: the EmulatorJS player in the picker
+  ///
+  /// In en, this message translates to:
+  /// **'EmulatorJS (WebView)'**
+  String get kostvGameEmulatorJsWebView;
+
+  /// Kos TV Games: opens the player picker
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get kostvGameChange;
+
+  /// Kos TV Games: screen reader label of the player button
+  ///
+  /// In en, this message translates to:
+  /// **'Player, {name}. Change'**
+  String kostvGamePlayerSemantics(String name);
+
+  /// Kos TV Games: the server has a save
+  ///
+  /// In en, this message translates to:
+  /// **'Save found. Continue picks up from it.'**
+  String get kostvGameSaveFound;
+
+  /// Kos TV Games: the server has no save
+  ///
+  /// In en, this message translates to:
+  /// **'No save on this server yet'**
+  String get kostvGameNoSave;
+
+  /// Kos TV Games: hardware rendering switched on
+  ///
+  /// In en, this message translates to:
+  /// **'ON'**
+  String get kostvGameOn;
+
+  /// Kos TV Games: hardware rendering switched off
+  ///
+  /// In en, this message translates to:
+  /// **'OFF'**
+  String get kostvGameOff;
+
+  /// Kos TV Games: hardware rendering switch
+  ///
+  /// In en, this message translates to:
+  /// **'Hardware rendering'**
+  String get kostvGameHardwareRendering;
+
+  /// Kos TV Games: screen reader label of the hardware rendering switch
+  ///
+  /// In en, this message translates to:
+  /// **'Experimental hardware rendering: {status}'**
+  String kostvGameHardwareRenderingSemantics(String status);
+
+  /// Kos TV Games: what the hardware rendering switch does
+  ///
+  /// In en, this message translates to:
+  /// **'EXPERIMENTAL · OFF disables the EGL hardware path. Hardware-only cores may not start.'**
+  String get kostvGameHardwareRenderingNote;
+
+  /// Kos TV Games: heading of the description
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get kostvGameAbout;
+
+  /// Kos TV Games: shows the whole description
+  ///
+  /// In en, this message translates to:
+  /// **'Read more'**
+  String get kostvGameReadMore;
+
+  /// Kos TV Games: shortens the description
+  ///
+  /// In en, this message translates to:
+  /// **'Show less'**
+  String get kostvGameShowLess;
+
+  /// Kos TV Games: fact label
+  ///
+  /// In en, this message translates to:
+  /// **'Developer'**
+  String get kostvGameDeveloper;
+
+  /// Kos TV Games: fact label
+  ///
+  /// In en, this message translates to:
+  /// **'Publisher'**
+  String get kostvGamePublisher;
+
+  /// Kos TV Games: fact label
+  ///
+  /// In en, this message translates to:
+  /// **'Franchise'**
+  String get kostvGameFranchise;
+
+  /// Kos TV Games: fact label
+  ///
+  /// In en, this message translates to:
+  /// **'Region'**
+  String get kostvGameRegion;
+
+  /// Kos TV Games: fact label
+  ///
+  /// In en, this message translates to:
+  /// **'Rating'**
+  String get kostvGameRating;
+
+  /// Kos TV Games: fact label
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get kostvGameSize;
+
+  /// Kos TV Games: a core the server did not check the game with
+  ///
+  /// In en, this message translates to:
+  /// **'This archive is not validated for {core} and may not launch correctly.'**
+  String kostvGameNotValidated(String core);
+
+  /// Kos TV Games: title of the player picker
+  ///
+  /// In en, this message translates to:
+  /// **'Choose player'**
+  String get kostvGameChoosePlayer;
+
+  /// Kos TV Games: the recommended core in the picker
+  ///
+  /// In en, this message translates to:
+  /// **'{core} (Recommended)'**
+  String kostvGameRecommended(String core);
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Architecture'**
+  String get kostvBookGenreArchitecture;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Art Instruction'**
+  String get kostvBookGenreArtInstruction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Art History'**
+  String get kostvBookGenreArtHistory;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Dance'**
+  String get kostvBookGenreDance;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Design'**
+  String get kostvBookGenreDesign;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Fashion'**
+  String get kostvBookGenreFashion;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Film'**
+  String get kostvBookGenreFilm;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Graphic Design'**
+  String get kostvBookGenreGraphicDesign;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Music'**
+  String get kostvBookGenreMusic;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Music Theory'**
+  String get kostvBookGenreMusicTheory;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Painting'**
+  String get kostvBookGenrePainting;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Photography'**
+  String get kostvBookGenrePhotography;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Bears'**
+  String get kostvBookGenreBears;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Cats'**
+  String get kostvBookGenreCats;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Kittens'**
+  String get kostvBookGenreKittens;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Dogs'**
+  String get kostvBookGenreDogs;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Puppies'**
+  String get kostvBookGenrePuppies;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Fiction'**
+  String get kostvBookGenreFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Romance'**
+  String get kostvBookGenreRomance;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Fantasy'**
+  String get kostvBookGenreFantasy;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Mystery and Detective Stories'**
+  String get kostvBookGenreMysteryAndDetectiveStories;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Magic'**
+  String get kostvBookGenreMagic;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Literature'**
+  String get kostvBookGenreLiterature;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Plays'**
+  String get kostvBookGenrePlays;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Short Stories'**
+  String get kostvBookGenreShortStories;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Young Adult'**
+  String get kostvBookGenreYoungAdult;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Science & Mathematics'**
+  String get kostvBookGenreScienceMathematics;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Biology'**
+  String get kostvBookGenreBiology;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Chemistry'**
+  String get kostvBookGenreChemistry;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Mathematics'**
+  String get kostvBookGenreMathematics;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Physics'**
+  String get kostvBookGenrePhysics;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Programming'**
+  String get kostvBookGenreProgramming;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Business'**
+  String get kostvBookGenreBusiness;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Management'**
+  String get kostvBookGenreManagement;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Entrepreneurship'**
+  String get kostvBookGenreEntrepreneurship;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Business Economics'**
+  String get kostvBookGenreBusinessEconomics;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Business Success'**
+  String get kostvBookGenreBusinessSuccess;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Finance'**
+  String get kostvBookGenreFinance;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Mystery'**
+  String get kostvBookGenreMystery;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Science Fiction'**
+  String get kostvBookGenreScienceFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Children\'s'**
+  String get kostvBookGenreChildrens;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Kids Books'**
+  String get kostvBookGenreKidsBooks;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Stories in Rhyme'**
+  String get kostvBookGenreStoriesInRhyme;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Infancy'**
+  String get kostvBookGenreInfancy;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Bedtime'**
+  String get kostvBookGenreBedtime;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Picture Books'**
+  String get kostvBookGenrePictureBooks;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'History'**
+  String get kostvBookGenreHistory;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Ancient Civilization'**
+  String get kostvBookGenreAncientCivilization;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Archaeology'**
+  String get kostvBookGenreArchaeology;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Anthropology'**
+  String get kostvBookGenreAnthropology;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Cooking'**
+  String get kostvBookGenreCooking;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Cookbooks'**
+  String get kostvBookGenreCookbooks;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Mental Health'**
+  String get kostvBookGenreMentalHealth;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Exercise'**
+  String get kostvBookGenreExercise;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Nutrition'**
+  String get kostvBookGenreNutrition;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Self-help'**
+  String get kostvBookGenreSelfHelp;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Biography'**
+  String get kostvBookGenreBiography;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Autobiography'**
+  String get kostvBookGenreAutobiography;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Religion'**
+  String get kostvBookGenreReligion;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Political Science'**
+  String get kostvBookGenrePoliticalScience;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Psychology'**
+  String get kostvBookGenrePsychology;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Brazil'**
+  String get kostvBookGenreBrazil;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'India'**
+  String get kostvBookGenreIndia;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Indonesia'**
+  String get kostvBookGenreIndonesia;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'United States'**
+  String get kostvBookGenreUnitedStates;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Textbooks'**
+  String get kostvBookGenreTextbooks;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Historical Fiction'**
+  String get kostvBookGenreHistoricalFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Thriller'**
+  String get kostvBookGenreThriller;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Horror'**
+  String get kostvBookGenreHorror;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Poetry'**
+  String get kostvBookGenrePoetry;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Action & Adventure'**
+  String get kostvBookGenreActionAdventure;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Adventure Fiction'**
+  String get kostvBookGenreAdventureFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Biography & Autobiography'**
+  String get kostvBookGenreBiographyAutobiography;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Children\'s Fiction'**
+  String get kostvBookGenreChildrensFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Classical'**
+  String get kostvBookGenreClassical;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Detective Fiction'**
+  String get kostvBookGenreDetectiveFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Drama'**
+  String get kostvBookGenreDrama;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Fantasy Fiction'**
+  String get kostvBookGenreFantasyFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'General Fiction'**
+  String get kostvBookGenreGeneralFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'General Non-fiction'**
+  String get kostvBookGenreGeneralNonFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Horror & Supernatural Fiction'**
+  String get kostvBookGenreHorrorSupernaturalFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Humor'**
+  String get kostvBookGenreHumor;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Humorous Fiction'**
+  String get kostvBookGenreHumorousFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Mystery & Detective Stories'**
+  String get kostvBookGenreMysteryDetectiveStories;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Mythology'**
+  String get kostvBookGenreMythology;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Nature'**
+  String get kostvBookGenreNature;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Naval Fiction'**
+  String get kostvBookGenreNavalFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Philosophy'**
+  String get kostvBookGenrePhilosophy;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Satire'**
+  String get kostvBookGenreSatire;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Travel & Geography'**
+  String get kostvBookGenreTravelGeography;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Tragedy'**
+  String get kostvBookGenreTragedy;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'War & Military Fiction'**
+  String get kostvBookGenreWarMilitaryFiction;
+
+  /// Kos TV Books Discover: a subject or genre label
+  ///
+  /// In en, this message translates to:
+  /// **'Westerns'**
+  String get kostvBookGenreWesterns;
 }
 
 class _AppLocalizationsDelegate

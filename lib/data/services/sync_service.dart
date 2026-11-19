@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' show min;
 
-import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:server_core/server_core.dart';
 
@@ -342,34 +341,14 @@ class SyncService extends ChangeNotifier {
         if (localItem == null) continue;
         final shouldUpdateTicks = localItem.progressSynced && serverTicks != null;
 
-        await _offlineRepo.upsertItem(
-          DownloadedItemsCompanion(
-            itemId: Value(localItem.itemId),
-            serverId: Value(localItem.serverId),
-            type: Value(localItem.type),
-            name: Value(localItem.name),
-            metadataJson: Value(jsonEncode(serverData)),
-            downloadStatus: Value(localItem.downloadStatus),
-            localFilePath: Value(localItem.localFilePath),
-            posterPath: Value(localItem.posterPath),
-            backdropPath: Value(localItem.backdropPath),
-            logoPath: Value(localItem.logoPath),
-            thumbPath: Value(localItem.thumbPath),
-            downloadProgress: Value(localItem.downloadProgress),
-            errorMessage: Value(localItem.errorMessage),
-            fileSizeBytes: Value(localItem.fileSizeBytes),
-            downloadedAt: Value(localItem.downloadedAt),
-            qualityPreset: Value(localItem.qualityPreset),
-            downloadSource: Value(localItem.downloadSource),
-            seriesId: Value(localItem.seriesId),
-            seasonId: Value(localItem.seasonId),
-            seriesName: Value(localItem.seriesName),
-            seasonName: Value(localItem.seasonName),
-            indexNumber: Value(localItem.indexNumber),
-            parentIndexNumber: Value(localItem.parentIndexNumber),
-            progressSynced: Value(localItem.progressSynced),
-            playbackPositionTicks: shouldUpdateTicks ? Value(serverTicks) : Value(localItem.playbackPositionTicks),
-          ),
+        // Kos TV: written in place rather than deleted and reinserted, so
+        // the columns not refreshed here (whose progress it is, above all)
+        // keep their value.
+        await _offlineRepo.refreshItemMetadata(
+          localItem.itemId,
+          serverId: localItem.serverId,
+          metadataJson: jsonEncode(serverData),
+          syncedPositionTicks: shouldUpdateTicks ? serverTicks : null,
         );
         // Silo's item doesn't list the subtitles saved beside its download,
         // so their streams are carried over.

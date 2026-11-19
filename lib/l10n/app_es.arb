@@ -14525,5 +14525,592 @@
     "kostvCatalogMoreFailed": "No se han podido cargar más títulos",
     "@kostvCatalogMoreFailed": {
         "description": "Kos TV: library or genre page: the next page of titles failed to load; a Retry button follows"
+    },
+    "kostvSavedTypeSong": "Canción",
+    "@kostvSavedTypeSong": {
+        "description": "Kos TV Downloads: a saved song, under its title"
+    },
+    "kostvSavedTypeAudiobook": "Audiolibro",
+    "@kostvSavedTypeAudiobook": {
+        "description": "Kos TV Downloads: a saved audiobook, under its title"
+    },
+    "kostvSavedTypeBook": "Libro",
+    "@kostvSavedTypeBook": {
+        "description": "Kos TV Downloads: a saved book, under its title"
+    },
+    "kostvSavedTypeMusicVideo": "Videoclip",
+    "@kostvSavedTypeMusicVideo": {
+        "description": "Kos TV Downloads: a saved music video, under its title"
+    },
+    "kostvCancelDownloadTitle": "¿Cancelar esta descarga?",
+    "@kostvCancelDownloadTitle": {
+        "description": "Kos TV Downloads: asked before cancelling a transfer from the remote"
+    },
+    "kostvCancelAllDownloadsTitle": "¿Cancelar todas las descargas?",
+    "@kostvCancelAllDownloadsTitle": {
+        "description": "Kos TV Downloads: asked before cancelling every transfer"
+    },
+    "kostvCancelAllDownloadsMessage": "Se pararán las descargas en curso y las que esperan en la cola.",
+    "@kostvCancelAllDownloadsMessage": {
+        "description": "Kos TV Downloads: what cancelling every transfer does"
+    },
+    "kostvCancelAllDownloadsConfirm": "Cancelar todas",
+    "@kostvCancelAllDownloadsConfirm": {
+        "description": "Kos TV Downloads: confirms cancelling every transfer"
+    },
+    "kostvKeepDownloading": "Seguir descargando",
+    "@kostvKeepDownloading": {
+        "description": "Kos TV Downloads: keeps the transfers going"
+    },
+    "kostvGameNoGamesSupport": "Este servidor no admite juegos.",
+    "@kostvGameNoGamesSupport": {
+        "description": "Kos TV Games: the server has no games API"
+    },
+    "kostvGameNotFound": "No se ha encontrado el juego.",
+    "@kostvGameNotFound": {
+        "description": "Kos TV Games: the game is not on the server"
+    },
+    "kostvGameLoadFailed": "No se ha podido cargar el juego: {detail}",
+    "@kostvGameLoadFailed": {
+        "description": "Kos TV Games: loading the game failed",
+        "placeholders": {
+            "detail": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvGameHardwareRenderingSaveFailed": "No se ha podido guardar el ajuste de renderizado por hardware.",
+    "@kostvGameHardwareRenderingSaveFailed": {
+        "description": "Kos TV Games: saving the hardware rendering switch failed"
+    },
+    "kostvGameChangePlayerFailed": "No se ha podido cambiar el reproductor: {detail}",
+    "@kostvGameChangePlayerFailed": {
+        "description": "Kos TV Games: changing the player failed",
+        "placeholders": {
+            "detail": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvGameMoreIn": "Más de {system}",
+    "@kostvGameMoreIn": {
+        "description": "Kos TV Games: row of other games for the same system",
+        "placeholders": {
+            "system": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvGameCheckingSave": "Buscando partida guardada…",
+    "@kostvGameCheckingSave": {
+        "description": "Kos TV Games: main button while the save is checked"
+    },
+    "kostvGameRetrySaveCheck": "Volver a buscar la partida",
+    "@kostvGameRetrySaveCheck": {
+        "description": "Kos TV Games: main button after the save check failed"
+    },
+    "kostvGameContinue": "Continuar",
+    "@kostvGameContinue": {
+        "description": "Kos TV Games: main button with a save"
+    },
+    "kostvGamePlay": "Jugar",
+    "@kostvGamePlay": {
+        "description": "Kos TV Games: main button without a save"
+    },
+    "kostvGameStartFresh": "Empezar de cero",
+    "@kostvGameStartFresh": {
+        "description": "Kos TV Games: starts the game without the save"
+    },
+    "kostvGameNativeCore": "Núcleo nativo",
+    "@kostvGameNativeCore": {
+        "description": "Kos TV Games: the player that runs on the device"
+    },
+    "kostvGameNativeCoreDetail": "Núcleo nativo · funciona en este aparato",
+    "@kostvGameNativeCoreDetail": {
+        "description": "Kos TV Games: the native player and where it runs"
+    },
+    "kostvGameEmulatorJsDetail": "EmulatorJS · funciona en una vista web",
+    "@kostvGameEmulatorJsDetail": {
+        "description": "Kos TV Games: the EmulatorJS player and where it runs"
+    },
+    "kostvGameEmulatorJsWebView": "EmulatorJS (vista web)",
+    "@kostvGameEmulatorJsWebView": {
+        "description": "Kos TV Games: the EmulatorJS player in the picker"
+    },
+    "kostvGameChange": "Cambiar",
+    "@kostvGameChange": {
+        "description": "Kos TV Games: opens the player picker"
+    },
+    "kostvGamePlayerSemantics": "Reproductor, {name}. Cambiar",
+    "@kostvGamePlayerSemantics": {
+        "description": "Kos TV Games: screen reader label of the player button",
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvGameSaveFound": "Hay una partida guardada. Con Continuar sigues desde ahí.",
+    "@kostvGameSaveFound": {
+        "description": "Kos TV Games: the server has a save"
+    },
+    "kostvGameNoSave": "Aún no hay ninguna partida guardada en este servidor",
+    "@kostvGameNoSave": {
+        "description": "Kos TV Games: the server has no save"
+    },
+    "kostvGameOn": "SÍ",
+    "@kostvGameOn": {
+        "description": "Kos TV Games: hardware rendering switched on"
+    },
+    "kostvGameOff": "NO",
+    "@kostvGameOff": {
+        "description": "Kos TV Games: hardware rendering switched off"
+    },
+    "kostvGameHardwareRendering": "Renderizado por hardware",
+    "@kostvGameHardwareRendering": {
+        "description": "Kos TV Games: hardware rendering switch"
+    },
+    "kostvGameHardwareRenderingSemantics": "Renderizado por hardware experimental: {status}",
+    "@kostvGameHardwareRenderingSemantics": {
+        "description": "Kos TV Games: screen reader label of the hardware rendering switch",
+        "placeholders": {
+            "status": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvGameHardwareRenderingNote": "EXPERIMENTAL · Con NO se desactiva la vía de hardware EGL. Los núcleos que solo funcionan con hardware pueden no arrancar.",
+    "@kostvGameHardwareRenderingNote": {
+        "description": "Kos TV Games: what the hardware rendering switch does"
+    },
+    "kostvGameAbout": "Acerca de",
+    "@kostvGameAbout": {
+        "description": "Kos TV Games: heading of the description"
+    },
+    "kostvGameReadMore": "Leer más",
+    "@kostvGameReadMore": {
+        "description": "Kos TV Games: shows the whole description"
+    },
+    "kostvGameShowLess": "Ver menos",
+    "@kostvGameShowLess": {
+        "description": "Kos TV Games: shortens the description"
+    },
+    "kostvGameDeveloper": "Desarrollador",
+    "@kostvGameDeveloper": {
+        "description": "Kos TV Games: fact label"
+    },
+    "kostvGamePublisher": "Editor",
+    "@kostvGamePublisher": {
+        "description": "Kos TV Games: fact label"
+    },
+    "kostvGameFranchise": "Saga",
+    "@kostvGameFranchise": {
+        "description": "Kos TV Games: fact label"
+    },
+    "kostvGameRegion": "Región",
+    "@kostvGameRegion": {
+        "description": "Kos TV Games: fact label"
+    },
+    "kostvGameRating": "Valoración",
+    "@kostvGameRating": {
+        "description": "Kos TV Games: fact label"
+    },
+    "kostvGameSize": "Tamaño",
+    "@kostvGameSize": {
+        "description": "Kos TV Games: fact label"
+    },
+    "kostvGameNotValidated": "Este archivo no está comprobado con {core} y puede que no arranque bien.",
+    "@kostvGameNotValidated": {
+        "description": "Kos TV Games: a core the server did not check the game with",
+        "placeholders": {
+            "core": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvGameChoosePlayer": "Elegir reproductor",
+    "@kostvGameChoosePlayer": {
+        "description": "Kos TV Games: title of the player picker"
+    },
+    "kostvGameRecommended": "{core} (recomendado)",
+    "@kostvGameRecommended": {
+        "description": "Kos TV Games: the recommended core in the picker",
+        "placeholders": {
+            "core": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvBookGenreArchitecture": "Arquitectura",
+    "@kostvBookGenreArchitecture": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreArtInstruction": "Técnicas artísticas",
+    "@kostvBookGenreArtInstruction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreArtHistory": "Historia del arte",
+    "@kostvBookGenreArtHistory": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreDance": "Danza",
+    "@kostvBookGenreDance": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreDesign": "Diseño",
+    "@kostvBookGenreDesign": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreFashion": "Moda",
+    "@kostvBookGenreFashion": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreFilm": "Cine",
+    "@kostvBookGenreFilm": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreGraphicDesign": "Diseño gráfico",
+    "@kostvBookGenreGraphicDesign": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreMusic": "Música",
+    "@kostvBookGenreMusic": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreMusicTheory": "Teoría musical",
+    "@kostvBookGenreMusicTheory": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenrePainting": "Pintura",
+    "@kostvBookGenrePainting": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenrePhotography": "Fotografía",
+    "@kostvBookGenrePhotography": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreBears": "Osos",
+    "@kostvBookGenreBears": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreCats": "Gatos",
+    "@kostvBookGenreCats": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreKittens": "Gatitos",
+    "@kostvBookGenreKittens": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreDogs": "Perros",
+    "@kostvBookGenreDogs": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenrePuppies": "Cachorros",
+    "@kostvBookGenrePuppies": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreFiction": "Ficción",
+    "@kostvBookGenreFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreRomance": "Romántica",
+    "@kostvBookGenreRomance": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreFantasy": "Fantasía",
+    "@kostvBookGenreFantasy": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreMysteryAndDetectiveStories": "Misterio y detectives",
+    "@kostvBookGenreMysteryAndDetectiveStories": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreMagic": "Magia",
+    "@kostvBookGenreMagic": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreLiterature": "Literatura",
+    "@kostvBookGenreLiterature": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenrePlays": "Teatro",
+    "@kostvBookGenrePlays": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreShortStories": "Relatos",
+    "@kostvBookGenreShortStories": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreYoungAdult": "Juvenil",
+    "@kostvBookGenreYoungAdult": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreScienceMathematics": "Ciencia y matemáticas",
+    "@kostvBookGenreScienceMathematics": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreBiology": "Biología",
+    "@kostvBookGenreBiology": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreChemistry": "Química",
+    "@kostvBookGenreChemistry": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreMathematics": "Matemáticas",
+    "@kostvBookGenreMathematics": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenrePhysics": "Física",
+    "@kostvBookGenrePhysics": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreProgramming": "Programación",
+    "@kostvBookGenreProgramming": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreBusiness": "Empresa",
+    "@kostvBookGenreBusiness": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreManagement": "Gestión",
+    "@kostvBookGenreManagement": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreEntrepreneurship": "Emprendimiento",
+    "@kostvBookGenreEntrepreneurship": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreBusinessEconomics": "Economía de la empresa",
+    "@kostvBookGenreBusinessEconomics": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreBusinessSuccess": "Éxito empresarial",
+    "@kostvBookGenreBusinessSuccess": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreFinance": "Finanzas",
+    "@kostvBookGenreFinance": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreMystery": "Misterio",
+    "@kostvBookGenreMystery": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreScienceFiction": "Ciencia ficción",
+    "@kostvBookGenreScienceFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreChildrens": "Infantil",
+    "@kostvBookGenreChildrens": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreKidsBooks": "Libros para niños",
+    "@kostvBookGenreKidsBooks": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreStoriesInRhyme": "Cuentos en verso",
+    "@kostvBookGenreStoriesInRhyme": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreInfancy": "Primera infancia",
+    "@kostvBookGenreInfancy": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreBedtime": "Para dormir",
+    "@kostvBookGenreBedtime": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenrePictureBooks": "Libros ilustrados",
+    "@kostvBookGenrePictureBooks": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreHistory": "Historia",
+    "@kostvBookGenreHistory": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreAncientCivilization": "Civilizaciones antiguas",
+    "@kostvBookGenreAncientCivilization": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreArchaeology": "Arqueología",
+    "@kostvBookGenreArchaeology": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreAnthropology": "Antropología",
+    "@kostvBookGenreAnthropology": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreCooking": "Cocina",
+    "@kostvBookGenreCooking": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreCookbooks": "Libros de recetas",
+    "@kostvBookGenreCookbooks": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreMentalHealth": "Salud mental",
+    "@kostvBookGenreMentalHealth": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreExercise": "Ejercicio",
+    "@kostvBookGenreExercise": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreNutrition": "Nutrición",
+    "@kostvBookGenreNutrition": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreSelfHelp": "Autoayuda",
+    "@kostvBookGenreSelfHelp": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreBiography": "Biografía",
+    "@kostvBookGenreBiography": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreAutobiography": "Autobiografía",
+    "@kostvBookGenreAutobiography": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreReligion": "Religión",
+    "@kostvBookGenreReligion": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenrePoliticalScience": "Ciencias políticas",
+    "@kostvBookGenrePoliticalScience": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenrePsychology": "Psicología",
+    "@kostvBookGenrePsychology": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreBrazil": "Brasil",
+    "@kostvBookGenreBrazil": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreIndia": "India",
+    "@kostvBookGenreIndia": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreIndonesia": "Indonesia",
+    "@kostvBookGenreIndonesia": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreUnitedStates": "Estados Unidos",
+    "@kostvBookGenreUnitedStates": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreTextbooks": "Libros de texto",
+    "@kostvBookGenreTextbooks": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreHistoricalFiction": "Novela histórica",
+    "@kostvBookGenreHistoricalFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreThriller": "Suspense",
+    "@kostvBookGenreThriller": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreHorror": "Terror",
+    "@kostvBookGenreHorror": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenrePoetry": "Poesía",
+    "@kostvBookGenrePoetry": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreActionAdventure": "Acción y aventura",
+    "@kostvBookGenreActionAdventure": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreAdventureFiction": "Novela de aventuras",
+    "@kostvBookGenreAdventureFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreBiographyAutobiography": "Biografía y autobiografía",
+    "@kostvBookGenreBiographyAutobiography": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreChildrensFiction": "Ficción infantil",
+    "@kostvBookGenreChildrensFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreClassical": "Clásicos",
+    "@kostvBookGenreClassical": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreDetectiveFiction": "Novela policiaca",
+    "@kostvBookGenreDetectiveFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreDrama": "Drama",
+    "@kostvBookGenreDrama": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreFantasyFiction": "Fantasía",
+    "@kostvBookGenreFantasyFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreGeneralFiction": "Ficción general",
+    "@kostvBookGenreGeneralFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreGeneralNonFiction": "No ficción general",
+    "@kostvBookGenreGeneralNonFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreHorrorSupernaturalFiction": "Terror y sobrenatural",
+    "@kostvBookGenreHorrorSupernaturalFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreHumor": "Humor",
+    "@kostvBookGenreHumor": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreHumorousFiction": "Ficción humorística",
+    "@kostvBookGenreHumorousFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreMysteryDetectiveStories": "Misterio y detectives",
+    "@kostvBookGenreMysteryDetectiveStories": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreMythology": "Mitología",
+    "@kostvBookGenreMythology": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreNature": "Naturaleza",
+    "@kostvBookGenreNature": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreNavalFiction": "Novela naval",
+    "@kostvBookGenreNavalFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenrePhilosophy": "Filosofía",
+    "@kostvBookGenrePhilosophy": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreSatire": "Sátira",
+    "@kostvBookGenreSatire": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreTravelGeography": "Viajes y geografía",
+    "@kostvBookGenreTravelGeography": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreTragedy": "Tragedia",
+    "@kostvBookGenreTragedy": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreWarMilitaryFiction": "Novela bélica",
+    "@kostvBookGenreWarMilitaryFiction": {
+        "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvBookGenreWesterns": "Del Oeste",
+    "@kostvBookGenreWesterns": {
+        "description": "Kos TV Books Discover: a subject or genre label"
     }
 }

@@ -5,6 +5,7 @@ import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin/auth/models/user.dart';
 import 'package:moonfin/auth/repositories/user_repository.dart';
 import 'package:moonfin/data/database/offline_database.dart';
+import 'package:moonfin/data/providers/offline_providers.dart';
 import 'package:moonfin/data/repositories/offline_repository.dart';
 import 'package:moonfin/data/models/aggregated_library.dart';
 import 'package:moonfin/data/repositories/user_views_repository.dart';
@@ -66,10 +67,11 @@ class _FakeOfflineRepository extends Fake implements OfflineRepository {
   final List<DownloadedItem> rows;
 
   @override
-  Stream<List<DownloadedItem>> watchItems({
-    String? type,
-    bool onlyCompleted = false,
-  }) => Stream.value(rows);
+  Stream<bool> watchHasSavedFiles(Set<String> types) => Stream.value(
+    partitionDownloadCatalog(
+      rows.where((row) => row.downloadStatus == 2).toList(),
+    ).items.any((row) => types.contains(row.type)),
+  );
 }
 
 class _FakeDownloadService extends ChangeNotifier implements DownloadService {

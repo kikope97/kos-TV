@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../../l10n/app_localizations.dart';
+import '../../../../l10n/current_app_localizations.dart';
 import 'book_discovery_models.dart';
 
 /// Makes the client Discover fetches with. Tests swap it for one that answers
@@ -52,11 +54,16 @@ class BookDiscoverFeed extends ChangeNotifier {
   List<String> get pool =>
       isAudiobook ? librivoxGenrePool : bookDiscoverGenrePool;
 
-  String labelOf(String subject) =>
-      isAudiobook ? subject : displayBookGenre(subject);
+  /// Kos TV: in the app's language; the services still get [subject].
+  String labelOf(String subject, [AppLocalizations? l10n]) => isAudiobook
+      ? displayAudiobookGenre(subject, l10n)
+      : displayBookGenre(subject, l10n);
 
-  List<String> _sorted(Iterable<String> picked) =>
-      picked.toSet().toList()..sort((a, b) => labelOf(a).compareTo(labelOf(b)));
+  List<String> _sorted(Iterable<String> picked) {
+    final l10n = currentAppLocalizations();
+    return picked.toSet().toList()
+      ..sort((a, b) => labelOf(a, l10n).compareTo(labelOf(b, l10n)));
+  }
 
   ({String title, String author, String? cover, int? year}) describe(
     Object item,

@@ -9,6 +9,7 @@ import '../../../data/repositories/calendar_repository.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
+import '../../../util/calendar_days.dart';
 import '../../../util/date_format_util.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
@@ -57,7 +58,9 @@ String calendarTime(BuildContext context, CalendarEntry e) {
 
 String calendarDayName(BuildContext context, DateTime day, DateTime today) {
   final l10n = AppLocalizations.of(context);
-  final diff = DateTime(day.year, day.month, day.day).difference(today).inDays;
+  // Kos TV: counted in calendar days, so a daylight saving change does not
+  // make tomorrow read as today.
+  final diff = calendarDaysBetween(today, day);
   if (diff == 0) return l10n.upcomingEpisodeToday;
   if (diff == 1) return l10n.upcomingEpisodeTomorrow;
   if (diff == -1) return l10n.adminActivityYesterday;

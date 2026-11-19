@@ -19,10 +19,11 @@ import 'download_service.dart';
 class SavedMediaPresence extends ChangeNotifier {
   SavedMediaPresence(OfflineRepository repository, this._downloads) {
     _running = _hasRunningDownload;
+    // Kos TV: a count in the database, asking what partitionDownloadCatalog
+    // does, rather than every row and its metadata on each write.
     _sub = repository
-        .watchItems(onlyCompleted: true)
-        .map(partitionDownloadCatalog)
-        .listen((catalog) => _update(saved: catalog.items.isNotEmpty));
+        .watchHasSavedFiles(downloadableItemTypes)
+        .listen((saved) => _update(saved: saved));
     _downloads.addListener(_onDownloadsChanged);
   }
 

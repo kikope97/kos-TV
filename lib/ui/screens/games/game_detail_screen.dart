@@ -78,7 +78,9 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
   );
 
   bool _loading = true;
-  String? _error;
+  // Kos TV: built in the app's language when shown, as the load can fail
+  // before the screen has its localizations.
+  String Function(AppLocalizations l10n)? _error;
   GameDetail? _game;
   _SaveReadiness _saveReadiness = _SaveReadiness.checking;
   int _saveCheckGeneration = 0;
@@ -261,7 +263,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
     if (games == null) {
       setState(() {
         _loading = false;
-        _error = 'This server does not support games.';
+        _error = (l10n) => l10n.kostvGameNoGamesSupport;
       });
       return;
     }
@@ -272,7 +274,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
       if (game == null) {
         setState(() {
           _loading = false;
-          _error = 'Game not found.';
+          _error = (l10n) => l10n.kostvGameNotFound;
         });
         return;
       }
@@ -305,7 +307,7 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
       final detail = describeError(e, AppLocalizations.of(context));
       setState(() {
         _loading = false;
-        _error = 'Failed to load game: $detail';
+        _error = (l10n) => l10n.kostvGameLoadFailed(detail);
       });
     }
   }
@@ -404,8 +406,10 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
     } catch (_) {
       if (!mounted) return;
       setState(() => _hardwareRenderingEnabled = !next);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Could not save hardware rendering setting.'),
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(
+          AppLocalizations.of(context).kostvGameHardwareRenderingSaveFailed,
+        ),
       ));
     }
   }
@@ -463,7 +467,13 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
       final detail = describeError(e, AppLocalizations.of(context));
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Could not change player: $detail')));
+      ).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context).kostvGameChangePlayerFailed(detail),
+          ),
+        ),
+      );
     } finally {
       if (didUpdate && mounted) unawaited(_loadSave(games, updated));
     }
@@ -511,7 +521,10 @@ class _GameDetailScreenState extends State<GameDetailScreen> with RouteAware {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(_error!, textAlign: TextAlign.center),
+          child: Text(
+            _error!(AppLocalizations.of(context)),
+            textAlign: TextAlign.center,
+          ),
         ),
       );
     }
@@ -706,7 +719,7 @@ class _PortraitBody extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 30, bottom: 24),
               child: GamePosterRail(
-                title: 'More in ${game.system}',
+                title: AppLocalizations.of(context).kostvGameMoreIn(game.system),
                 games: related,
                 artworkScope: artworkScope,
                 artworkDataSource: artworkDataSource,
@@ -849,7 +862,7 @@ class _LandscapeBody extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 32),
                     child: GamePosterRail(
-                      title: 'More in ${game.system}',
+                      title: AppLocalizations.of(context).kostvGameMoreIn(game.system),
                       games: related,
                       artworkScope: artworkScope,
                       artworkDataSource: artworkDataSource,
@@ -1336,11 +1349,12 @@ class _ActionRow extends StatelessWidget {
     final hasSave = saveReadiness == _SaveReadiness.available;
     final checking = saveReadiness == _SaveReadiness.checking;
     final failed = saveReadiness == _SaveReadiness.failed;
+    final l10n = AppLocalizations.of(context);
     final primaryLabel = switch (saveReadiness) {
-      _SaveReadiness.checking => 'Checking for save…',
-      _SaveReadiness.failed => 'Retry save check',
-      _SaveReadiness.available => 'Continue',
-      _SaveReadiness.absent => 'Play',
+      _SaveReadiness.checking => l10n.kostvGameCheckingSave,
+      _SaveReadiness.failed => l10n.kostvGameRetrySaveCheck,
+      _SaveReadiness.available => l10n.kostvGameContinue,
+      _SaveReadiness.absent => l10n.kostvGamePlay,
     };
     final primaryIcon = checking
         ? Icons.hourglass_top
@@ -1398,9 +1412,9 @@ class _ActionRow extends StatelessWidget {
                   vertical: 16,
                 ),
                 onPressed: onRestart,
-                child: const _ActionLabel(
+                child: _ActionLabel(
                   icon: Icons.refresh,
-                  label: 'Start fresh',
+                  label: l10n.kostvGameStartFresh,
                   color: Colors.white,
                 ),
               ),
@@ -1439,7 +1453,7 @@ class _ActionRow extends StatelessWidget {
         textStyle: textStyle.copyWith(fontWeight: FontWeight.w500),
       ).copyWith(side: _focusRing),
       icon: const Icon(Icons.refresh),
-      label: const Text('Start fresh'),
+      label: Text(l10n.kostvGameStartFresh),
     );
 
     if (!landscape) {
@@ -1484,6 +1498,7 @@ class _PlayerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final native = _usesNativeBackend(game);
     final name = _playerName(game);
     final content = Row(
@@ -1496,7 +1511,7 @@ class _PlayerButton extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              native ? 'Native core' : 'EmulatorJS',
+              native ? l10n.kostvGameNativeCore : 'EmulatorJS',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 12,
@@ -1531,7 +1546,7 @@ class _PlayerButton extends StatelessWidget {
           key: const ValueKey('gameDetailPlayer'),
           autoScroll: true,
           padding: padding,
-          semanticLabel: 'Player, $name. Change',
+          semanticLabel: l10n.kostvGamePlayerSemantics(name),
           onPressed: onPressed,
           child: content,
         ),
@@ -1616,8 +1631,8 @@ class _SaveStatus extends StatelessWidget {
         Flexible(
           child: Text(
             found
-                ? 'Save found. Continue picks up from it.'
-                : 'No save on this server yet',
+                ? AppLocalizations.of(context).kostvGameSaveFound
+                : AppLocalizations.of(context).kostvGameNoSave,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.65),
               fontSize: large ? 15 : 13,
@@ -1646,6 +1661,7 @@ class _PlayerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final native = _usesNativeBackend(game);
     final name = _playerName(game);
     final canSelect = _canSelectCore(game);
@@ -1671,8 +1687,8 @@ class _PlayerCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   native
-                      ? 'Native core · runs on this device'
-                      : 'EmulatorJS · runs in a web view',
+                      ? l10n.kostvGameNativeCoreDetail
+                      : l10n.kostvGameEmulatorJsDetail,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.62),
                     fontSize: 12.5,
@@ -1683,7 +1699,7 @@ class _PlayerCard extends StatelessWidget {
           ),
           if (canSelect) ...[
             Text(
-              'Change',
+              l10n.kostvGameChange,
               style: TextStyle(
                 color: accent,
                 fontSize: 14,
@@ -1708,7 +1724,7 @@ class _PlayerCard extends StatelessWidget {
               padding: EdgeInsets.zero,
               borderRadius: 16,
               autoScroll: true,
-              semanticLabel: 'Player, $name. Change',
+              semanticLabel: l10n.kostvGamePlayerSemantics(name),
               onPressed: onSelectCore,
               child: summary,
             )
@@ -1741,12 +1757,13 @@ class _HardwareRenderingToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final status = enabled ? 'ON' : 'OFF';
+    final l10n = AppLocalizations.of(context);
+    final status = enabled ? l10n.kostvGameOn : l10n.kostvGameOff;
     final statusColor = enabled
         ? const Color(0xFFA9F0CC)
         : const Color(0xFFFFC47A);
     return FocusableButton(
-      semanticLabel: 'Experimental hardware rendering: $status',
+      semanticLabel: l10n.kostvGameHardwareRenderingSemantics(status),
       autoScroll: true,
       onPressed: onToggle,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1757,10 +1774,10 @@ class _HardwareRenderingToggle extends StatelessWidget {
             children: [
               Icon(Icons.memory_rounded, color: statusColor, size: 20),
               const SizedBox(width: 9),
-              const Flexible(
+              Flexible(
                 child: Text(
-                  'Hardware rendering',
-                  style: TextStyle(
+                  l10n.kostvGameHardwareRendering,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -1793,9 +1810,13 @@ class _HardwareRenderingToggle extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          const Text(
-            'EXPERIMENTAL · OFF disables the EGL hardware path. Hardware-only cores may not start.',
-            style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.25),
+          Text(
+            l10n.kostvGameHardwareRenderingNote,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 12,
+              height: 1.25,
+            ),
           ),
         ],
       ),
@@ -1880,11 +1901,11 @@ class _OverviewBlockState extends State<_OverviewBlock> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!widget.large)
-              const Padding(
-                padding: EdgeInsets.only(bottom: 8),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  'About',
-                  style: TextStyle(
+                  AppLocalizations.of(context).kostvGameAbout,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
@@ -1908,7 +1929,9 @@ class _OverviewBlockState extends State<_OverviewBlock> {
                   autoScroll: true,
                   onPressed: () => setState(() => _expanded = !_expanded),
                   child: Text(
-                    _expanded ? 'Show less' : 'Read more',
+                    _expanded
+                        ? AppLocalizations.of(context).kostvGameShowLess
+                        : AppLocalizations.of(context).kostvGameReadMore,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.primary,
                       fontSize: widget.large ? 15 : 14,
@@ -1939,13 +1962,18 @@ class _Facts extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final facts = <(String, String)>[
-      if (game.developer case final v? when v.isNotEmpty) ('Developer', v),
-      if (game.publisher case final v? when v.isNotEmpty) ('Publisher', v),
-      if (game.franchise case final v? when v.isNotEmpty) ('Franchise', v),
-      if (game.region case final v? when v.isNotEmpty) ('Region', v),
-      if (game.rating case final v?) ('Rating', '${v.toStringAsFixed(1)} / 5'),
-      if (game.sizeBytes > 0) ('Size', _formatBytes(game.sizeBytes)),
+      if (game.developer case final v? when v.isNotEmpty)
+        (l10n.kostvGameDeveloper, v),
+      if (game.publisher case final v? when v.isNotEmpty)
+        (l10n.kostvGamePublisher, v),
+      if (game.franchise case final v? when v.isNotEmpty)
+        (l10n.kostvGameFranchise, v),
+      if (game.region case final v? when v.isNotEmpty) (l10n.kostvGameRegion, v),
+      if (game.rating case final v?)
+        (l10n.kostvGameRating, '${v.toStringAsFixed(1)} / 5'),
+      if (game.sizeBytes > 0) (l10n.kostvGameSize, _formatBytes(game.sizeBytes)),
       if (game.bios.isNotEmpty)
         ('BIOS', game.bios.map((b) => b.fileName).join(', ')),
     ];
@@ -2038,7 +2066,6 @@ class _CoreSelection {
 /// down both halves of what "Play" will actually do.
 class _CoreRow {
   const _CoreRow({
-    required this.label,
     required this.core,
     required this.isEmulatorJs,
     required this.recommended,
@@ -2047,13 +2074,19 @@ class _CoreRow {
     this.detail,
   });
 
-  final String label;
   final String core;
   final bool isEmulatorJs;
   final bool recommended;
   final bool setBackend;
   final bool setCore;
-  final String? detail;
+
+  /// The server's own reason for the recommendation, or for a core it did
+  /// not validate the archive against, a warning built in the app's language.
+  final String? Function(AppLocalizations l10n)? detail;
+
+  String label(AppLocalizations l10n) => isEmulatorJs
+      ? l10n.kostvGameEmulatorJsWebView
+      : l10n.kostvGameNativeCore;
 
   _CoreSelection get selection => _CoreSelection(
     core: setCore ? core : null,
@@ -2110,15 +2143,14 @@ List<_CoreRow> _buildCoreRows(GameDetail game) {
     required bool isRecommended,
   }) {
     return _CoreRow(
-      label: isEmulatorJs ? 'EmulatorJS (WebView)' : 'Native core',
       core: core,
       isEmulatorJs: isEmulatorJs,
       recommended: isRecommended,
       setBackend: isEmulatorJs ? true : setBackend,
       setCore: setCore,
       detail: isRecommended
-          ? game.coreCompatibilityReason
-          : _notValidatedWarning(game, core),
+          ? (_) => game.coreCompatibilityReason
+          : (l10n) => _notValidatedWarning(l10n, game, core),
     );
   }
 
@@ -2156,11 +2188,15 @@ List<_CoreRow> _buildCoreRows(GameDetail game) {
 
 /// A warning for offering [core] when the server has compatibility data but
 /// didn't validate this ROM against it.
-String? _notValidatedWarning(GameDetail game, String core) {
+String? _notValidatedWarning(
+  AppLocalizations l10n,
+  GameDetail game,
+  String core,
+) {
   if (game.availableCores.isEmpty || game.availableCores.contains(core)) {
     return null;
   }
-  return 'This archive is not validated for ${_coreLabel(core)} and may not launch correctly.';
+  return l10n.kostvGameNotValidated(_coreLabel(core));
 }
 
 class _CorePickerDialog extends StatelessWidget {
@@ -2171,9 +2207,10 @@ class _CorePickerDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final effectiveNative = _usesNativeBackend(game);
+    final l10n = AppLocalizations.of(context);
     final rows = _buildCoreRows(game);
     return AlertDialog(
-      title: const Text('Choose player'),
+      title: Text(l10n.kostvGameChoosePlayer),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 360),
         child: SingleChildScrollView(
@@ -2182,11 +2219,11 @@ class _CorePickerDialog extends StatelessWidget {
             children: [
               for (final row in rows)
                 _CorePickerOption(
-                  label: row.label,
+                  label: row.label(l10n),
                   subtitle: row.recommended
-                      ? '${_coreLabel(row.core)} (Recommended)'
+                      ? l10n.kostvGameRecommended(_coreLabel(row.core))
                       : _coreLabel(row.core),
-                  detail: row.detail,
+                  detail: row.detail?.call(l10n),
                   selected:
                       row.isEmulatorJs == !effectiveNative &&
                       row.core == game.core,

@@ -183,11 +183,9 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
       return Center(child: const CircularProgressIndicator(color: Colors.white70));
     }
     if (_vm.state == RecordingsState.error) {
-      return Center(
-        child: Text(
-          AppLocalizations.of(context).failedToLoadRecordings,
-          style: const TextStyle(color: Colors.white54),
-        ),
+      return _errorState(
+        AppLocalizations.of(context).failedToLoadRecordings,
+        _vm.load,
       );
     }
     final l10n = AppLocalizations.of(context);
@@ -229,11 +227,9 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
       return Center(child: const CircularProgressIndicator(color: Colors.white70));
     }
     if (_scheduleVm.state == ScheduleState.error) {
-      return Center(
-        child: Text(
-          AppLocalizations.of(context).failedToLoadSchedule,
-          style: const TextStyle(color: Colors.white54),
-        ),
+      return _errorState(
+        AppLocalizations.of(context).failedToLoadSchedule,
+        _scheduleVm.load,
       );
     }
     if (_scheduleVm.groups.isEmpty) {
@@ -264,11 +260,9 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
       return Center(child: const CircularProgressIndicator(color: Colors.white70));
     }
     if (_seriesVm.state == SeriesRecordingsState.error) {
-      return Center(
-        child: Text(
-          AppLocalizations.of(context).failedToLoadSeriesRecordings,
-          style: const TextStyle(color: Colors.white54),
-        ),
+      return _errorState(
+        AppLocalizations.of(context).failedToLoadSeriesRecordings,
+        _seriesVm.load,
       );
     }
     if (_seriesVm.seriesTimers.isEmpty) {
@@ -288,6 +282,28 @@ class _LiveTvRecordingsScreenState extends State<LiveTvRecordingsScreen> {
           onItemTap: (timer) => _showSeriesTimerOptions(timer),
         ),
       ],
+    );
+  }
+
+  /// Kos TV: a failed read says so with a Retry a remote can reach, rather
+  /// than leaving only a way out.
+  Widget _errorState(String message, Future<void> Function() onRetry) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white54),
+          ),
+          const SizedBox(height: 16),
+          _RecordingsPillButton(
+            label: AppLocalizations.of(context).retry,
+            onPressed: () => onRetry(),
+          ),
+        ],
+      ),
     );
   }
 

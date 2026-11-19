@@ -14,6 +14,7 @@ import '../../../util/focus/indexed_focus_nodes.dart';
 import '../../../util/platform_detection.dart';
 import '../../widgets/focus/focusable_toolbar_button.dart';
 import '../../widgets/focus/request_initial_focus.dart';
+import '../../widgets/kostv_kids_mode_gate.dart';
 import '../../widgets/local_search_field.dart';
 import '../../widgets/sliding_pill_tabs.dart';
 import '../../widgets/settings/settings_panel.dart';
@@ -47,7 +48,9 @@ class DownloadsHome extends ConsumerStatefulWidget {
 }
 
 class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
-  int _tab = 0;
+  // Kos TV: the open tab by its label, as the tabs follow what is saved and
+  // an index would land on another tab once one before it goes.
+  String? _tabLabel;
   SavedMediaSort _sort = SavedMediaSort.size;
   bool _searchOpen = false;
   String _query = '';
@@ -68,6 +71,15 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
   void initState() {
     super.initState();
     _loadBreakdown();
+    // Kos TV: the breakdown follows the total, wherever the delete or the
+    // new download came from.
+    ref.listenManual(storageUsedProvider, (previous, next) {
+      if (previous?.hasValue == true &&
+          next.hasValue &&
+          previous!.value != next.value) {
+        _loadBreakdown();
+      }
+    });
   }
 
   @override
@@ -200,7 +212,9 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
         .get(UserPreferences.downloadStorageLimitMb);
 
     final tabs = _buildTabs(l10n, catalog.items);
-    final tabIndex = _tab.clamp(0, tabs.length - 1);
+    final tabIndex = tabs
+        .indexWhere((tab) => tab.label == _tabLabel)
+        .clamp(0, tabs.length - 1);
     final current = tabs[tabIndex];
     final groups = current.isActiveDownloads
         ? const <DownloadGroup>[]
@@ -245,7 +259,7 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
                   alignment: Alignment.center,
                   selectedIndex: tabIndex,
                   onChanged: (index) => setState(() {
-                    _tab = index;
+                    _tabLabel = tabs[index].label;
                     _selected.clear();
                   }),
                   focusNode: _tabsFocusNode,
@@ -294,7 +308,7 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
       FocusableToolbarButton(
         icon: Icons.settings_outlined,
         tooltip: l10n.settings,
-        onTap: () => context.pushSettingsScreen(const DownloadSettingsScreen()),
+        onTap: _openDownloadSettings,
       ),
       FocusableToolbarButton(
         icon: Icons.more_vert,
@@ -376,7 +390,7 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
       title: group.title,
       subtitle: isShow
           ? savedShowSubtitle(l10n, group)
-          : savedMediaSubtitle(first),
+          : savedMediaSubtitle(l10n, first),
       sizeLabel: formatBytes(group.totalBytes),
       posterPath: isShow
           ? containerArtwork[group.seriesId] ?? first.posterPath
@@ -544,7 +558,8 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
             ? l10n.savedMediaDeleteEpisodes(group.items.length)
             : l10n.savedMediaDeleteDownload,
         onSelect: () async {
-          final deleted = await deleteSavedItems(
+          // The breakdown follows the storage total (see initState).
+          await deleteSavedItems(
             context,
             title: group.isSeries
                 ? l10n.savedMediaDeleteEpisodes(group.items.length)
@@ -552,7 +567,6 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
             message: group.title,
             itemIds: group.itemIds,
           );
-          if (deleted) await _loadBreakdown();
         },
       ),
     );
@@ -632,6 +646,12 @@ class _DownloadsHomeState extends ConsumerState<DownloadsHome> {
       _selected.clear();
       _selectMode = false;
     });
-    await _loadBreakdown();
+  }
+
+  /// Kos TV: in Kids Mode the download settings (where everything can be
+  /// deleted) take the PIN, as the rest of Settings does.
+  Future<void> _openDownloadSettings() async {
+    if (!await kostvKidsModeLetsOut(context) || !mounted) return;
+    context.pushSettingsScreen(const DownloadSettingsScreen());
   }
 }

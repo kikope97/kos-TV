@@ -451,6 +451,106 @@ void main() {
     });
   });
 
+  // Kos TV: a season or series is deleted file by file from its episodes'
+  // rows, and its folder can be shared with a series of the same name.
+  group('season and series delete', () {
+    late Directory seasonDir;
+
+    setUp(() async {
+      GetIt.instance.unregister<OfflineRepository>();
+      GetIt.instance.registerSingleton<OfflineRepository>(
+        OfflineRepository(db),
+      );
+      seasonDir = Directory('${tempDir.path}/TV/Show/Season 01');
+      await seasonDir.create(recursive: true);
+    });
+
+    Future<File> episode(
+      String id, {
+      required String seriesId,
+      required String seasonId,
+      required String fileName,
+    }) async {
+      final file = File('${seasonDir.path}/$fileName');
+      await file.writeAsString('x');
+      await db
+          .into(db.downloadedItems)
+          .insert(
+            DownloadedItemsCompanion.insert(
+              itemId: id,
+              serverId: 'http://127.0.0.1:1',
+              type: 'Episode',
+              name: id,
+              metadataJson:
+                  '{"Id":"$id","Type":"Episode","Name":"$id",'
+                  '"SeriesName":"Show","ParentIndexNumber":1}',
+              downloadStatus: 2,
+              localFilePath: Value(file.path),
+              seriesId: Value(seriesId),
+              seasonId: Value(seasonId),
+            ),
+          );
+      return file;
+    }
+
+    AggregatedItem container(String id, String type) => AggregatedItem(
+      id: id,
+      serverId: 'http://127.0.0.1:1',
+      rawData: {'Id': id, 'Type': type, 'Name': 'Season 1'},
+    );
+
+    test('deleting a season deletes its episodes\' files', () async {
+      final first = await episode(
+        'e1',
+        seriesId: 'show',
+        seasonId: 'season-1',
+        fileName: 'S01E01 - One.mkv',
+      );
+      final second = await episode(
+        'e2',
+        seriesId: 'show',
+        seasonId: 'season-1',
+        fileName: 'S01E02 - Two.mkv',
+      );
+      await File('${seasonDir.path}/S01E01 - One_sub_es.srt').writeAsString('x');
+
+      expect(
+        await service.deleteDownloadedFiles(container('season-1', 'Season')),
+        isTrue,
+      );
+
+      expect(first.existsSync(), isFalse);
+      expect(second.existsSync(), isFalse);
+      expect(seasonDir.existsSync(), isFalse, reason: 'left empty');
+      expect(await db.select(db.downloadedItems).get(), isEmpty);
+    });
+
+    test('deleting a series keeps a same-named series\' files', () async {
+      final own = await episode(
+        'e1',
+        seriesId: 'show-1980',
+        seasonId: 'season-1980',
+        fileName: 'S01E01 - Old.mkv',
+      );
+      final other = await episode(
+        'x1',
+        seriesId: 'show-2024',
+        seasonId: 'season-2024',
+        fileName: 'S01E01 - New.mkv',
+      );
+
+      expect(
+        await service.deleteDownloadedFiles(container('show-1980', 'Series')),
+        isTrue,
+      );
+
+      expect(own.existsSync(), isFalse);
+      expect(other.existsSync(), isTrue);
+      final rows = await db.select(db.downloadedItems).get();
+      expect(rows.map((r) => r.itemId), ['x1']);
+    });
+  });
+
   test('limits queued downloads to the configured concurrency', () async {
     await prefs.set(UserPreferences.downloadConcurrentCount, 2);
     final itemsApi = _BlockingItemsApi();

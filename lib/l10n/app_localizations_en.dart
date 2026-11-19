@@ -20170,4 +20170,439 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvCatalogMoreFailed => 'Couldn\'t load more titles';
+
+  @override
+  String get kostvSavedTypeSong => 'Song';
+
+  @override
+  String get kostvSavedTypeAudiobook => 'Audiobook';
+
+  @override
+  String get kostvSavedTypeBook => 'Book';
+
+  @override
+  String get kostvSavedTypeMusicVideo => 'Music video';
+
+  @override
+  String get kostvCancelDownloadTitle => 'Cancel this download?';
+
+  @override
+  String get kostvCancelAllDownloadsTitle => 'Cancel all downloads?';
+
+  @override
+  String get kostvCancelAllDownloadsMessage =>
+      'The downloads in progress and the ones waiting in the queue will stop.';
+
+  @override
+  String get kostvCancelAllDownloadsConfirm => 'Cancel all';
+
+  @override
+  String get kostvKeepDownloading => 'Keep downloading';
+
+  @override
+  String get kostvGameNoGamesSupport => 'This server does not support games.';
+
+  @override
+  String get kostvGameNotFound => 'Game not found.';
+
+  @override
+  String kostvGameLoadFailed(String detail) {
+    return 'Failed to load game: $detail';
+  }
+
+  @override
+  String get kostvGameHardwareRenderingSaveFailed =>
+      'Could not save hardware rendering setting.';
+
+  @override
+  String kostvGameChangePlayerFailed(String detail) {
+    return 'Could not change player: $detail';
+  }
+
+  @override
+  String kostvGameMoreIn(String system) {
+    return 'More in $system';
+  }
+
+  @override
+  String get kostvGameCheckingSave => 'Checking for save…';
+
+  @override
+  String get kostvGameRetrySaveCheck => 'Retry save check';
+
+  @override
+  String get kostvGameContinue => 'Continue';
+
+  @override
+  String get kostvGamePlay => 'Play';
+
+  @override
+  String get kostvGameStartFresh => 'Start fresh';
+
+  @override
+  String get kostvGameNativeCore => 'Native core';
+
+  @override
+  String get kostvGameNativeCoreDetail => 'Native core · runs on this device';
+
+  @override
+  String get kostvGameEmulatorJsDetail => 'EmulatorJS · runs in a web view';
+
+  @override
+  String get kostvGameEmulatorJsWebView => 'EmulatorJS (WebView)';
+
+  @override
+  String get kostvGameChange => 'Change';
+
+  @override
+  String kostvGamePlayerSemantics(String name) {
+    return 'Player, $name. Change';
+  }
+
+  @override
+  String get kostvGameSaveFound => 'Save found. Continue picks up from it.';
+
+  @override
+  String get kostvGameNoSave => 'No save on this server yet';
+
+  @override
+  String get kostvGameOn => 'ON';
+
+  @override
+  String get kostvGameOff => 'OFF';
+
+  @override
+  String get kostvGameHardwareRendering => 'Hardware rendering';
+
+  @override
+  String kostvGameHardwareRenderingSemantics(String status) {
+    return 'Experimental hardware rendering: $status';
+  }
+
+  @override
+  String get kostvGameHardwareRenderingNote =>
+      'EXPERIMENTAL · OFF disables the EGL hardware path. Hardware-only cores may not start.';
+
+  @override
+  String get kostvGameAbout => 'About';
+
+  @override
+  String get kostvGameReadMore => 'Read more';
+
+  @override
+  String get kostvGameShowLess => 'Show less';
+
+  @override
+  String get kostvGameDeveloper => 'Developer';
+
+  @override
+  String get kostvGamePublisher => 'Publisher';
+
+  @override
+  String get kostvGameFranchise => 'Franchise';
+
+  @override
+  String get kostvGameRegion => 'Region';
+
+  @override
+  String get kostvGameRating => 'Rating';
+
+  @override
+  String get kostvGameSize => 'Size';
+
+  @override
+  String kostvGameNotValidated(String core) {
+    return 'This archive is not validated for $core and may not launch correctly.';
+  }
+
+  @override
+  String get kostvGameChoosePlayer => 'Choose player';
+
+  @override
+  String kostvGameRecommended(String core) {
+    return '$core (Recommended)';
+  }
+
+  @override
+  String get kostvBookGenreArchitecture => 'Architecture';
+
+  @override
+  String get kostvBookGenreArtInstruction => 'Art Instruction';
+
+  @override
+  String get kostvBookGenreArtHistory => 'Art History';
+
+  @override
+  String get kostvBookGenreDance => 'Dance';
+
+  @override
+  String get kostvBookGenreDesign => 'Design';
+
+  @override
+  String get kostvBookGenreFashion => 'Fashion';
+
+  @override
+  String get kostvBookGenreFilm => 'Film';
+
+  @override
+  String get kostvBookGenreGraphicDesign => 'Graphic Design';
+
+  @override
+  String get kostvBookGenreMusic => 'Music';
+
+  @override
+  String get kostvBookGenreMusicTheory => 'Music Theory';
+
+  @override
+  String get kostvBookGenrePainting => 'Painting';
+
+  @override
+  String get kostvBookGenrePhotography => 'Photography';
+
+  @override
+  String get kostvBookGenreBears => 'Bears';
+
+  @override
+  String get kostvBookGenreCats => 'Cats';
+
+  @override
+  String get kostvBookGenreKittens => 'Kittens';
+
+  @override
+  String get kostvBookGenreDogs => 'Dogs';
+
+  @override
+  String get kostvBookGenrePuppies => 'Puppies';
+
+  @override
+  String get kostvBookGenreFiction => 'Fiction';
+
+  @override
+  String get kostvBookGenreRomance => 'Romance';
+
+  @override
+  String get kostvBookGenreFantasy => 'Fantasy';
+
+  @override
+  String get kostvBookGenreMysteryAndDetectiveStories =>
+      'Mystery and Detective Stories';
+
+  @override
+  String get kostvBookGenreMagic => 'Magic';
+
+  @override
+  String get kostvBookGenreLiterature => 'Literature';
+
+  @override
+  String get kostvBookGenrePlays => 'Plays';
+
+  @override
+  String get kostvBookGenreShortStories => 'Short Stories';
+
+  @override
+  String get kostvBookGenreYoungAdult => 'Young Adult';
+
+  @override
+  String get kostvBookGenreScienceMathematics => 'Science & Mathematics';
+
+  @override
+  String get kostvBookGenreBiology => 'Biology';
+
+  @override
+  String get kostvBookGenreChemistry => 'Chemistry';
+
+  @override
+  String get kostvBookGenreMathematics => 'Mathematics';
+
+  @override
+  String get kostvBookGenrePhysics => 'Physics';
+
+  @override
+  String get kostvBookGenreProgramming => 'Programming';
+
+  @override
+  String get kostvBookGenreBusiness => 'Business';
+
+  @override
+  String get kostvBookGenreManagement => 'Management';
+
+  @override
+  String get kostvBookGenreEntrepreneurship => 'Entrepreneurship';
+
+  @override
+  String get kostvBookGenreBusinessEconomics => 'Business Economics';
+
+  @override
+  String get kostvBookGenreBusinessSuccess => 'Business Success';
+
+  @override
+  String get kostvBookGenreFinance => 'Finance';
+
+  @override
+  String get kostvBookGenreMystery => 'Mystery';
+
+  @override
+  String get kostvBookGenreScienceFiction => 'Science Fiction';
+
+  @override
+  String get kostvBookGenreChildrens => 'Children\'s';
+
+  @override
+  String get kostvBookGenreKidsBooks => 'Kids Books';
+
+  @override
+  String get kostvBookGenreStoriesInRhyme => 'Stories in Rhyme';
+
+  @override
+  String get kostvBookGenreInfancy => 'Infancy';
+
+  @override
+  String get kostvBookGenreBedtime => 'Bedtime';
+
+  @override
+  String get kostvBookGenrePictureBooks => 'Picture Books';
+
+  @override
+  String get kostvBookGenreHistory => 'History';
+
+  @override
+  String get kostvBookGenreAncientCivilization => 'Ancient Civilization';
+
+  @override
+  String get kostvBookGenreArchaeology => 'Archaeology';
+
+  @override
+  String get kostvBookGenreAnthropology => 'Anthropology';
+
+  @override
+  String get kostvBookGenreCooking => 'Cooking';
+
+  @override
+  String get kostvBookGenreCookbooks => 'Cookbooks';
+
+  @override
+  String get kostvBookGenreMentalHealth => 'Mental Health';
+
+  @override
+  String get kostvBookGenreExercise => 'Exercise';
+
+  @override
+  String get kostvBookGenreNutrition => 'Nutrition';
+
+  @override
+  String get kostvBookGenreSelfHelp => 'Self-help';
+
+  @override
+  String get kostvBookGenreBiography => 'Biography';
+
+  @override
+  String get kostvBookGenreAutobiography => 'Autobiography';
+
+  @override
+  String get kostvBookGenreReligion => 'Religion';
+
+  @override
+  String get kostvBookGenrePoliticalScience => 'Political Science';
+
+  @override
+  String get kostvBookGenrePsychology => 'Psychology';
+
+  @override
+  String get kostvBookGenreBrazil => 'Brazil';
+
+  @override
+  String get kostvBookGenreIndia => 'India';
+
+  @override
+  String get kostvBookGenreIndonesia => 'Indonesia';
+
+  @override
+  String get kostvBookGenreUnitedStates => 'United States';
+
+  @override
+  String get kostvBookGenreTextbooks => 'Textbooks';
+
+  @override
+  String get kostvBookGenreHistoricalFiction => 'Historical Fiction';
+
+  @override
+  String get kostvBookGenreThriller => 'Thriller';
+
+  @override
+  String get kostvBookGenreHorror => 'Horror';
+
+  @override
+  String get kostvBookGenrePoetry => 'Poetry';
+
+  @override
+  String get kostvBookGenreActionAdventure => 'Action & Adventure';
+
+  @override
+  String get kostvBookGenreAdventureFiction => 'Adventure Fiction';
+
+  @override
+  String get kostvBookGenreBiographyAutobiography =>
+      'Biography & Autobiography';
+
+  @override
+  String get kostvBookGenreChildrensFiction => 'Children\'s Fiction';
+
+  @override
+  String get kostvBookGenreClassical => 'Classical';
+
+  @override
+  String get kostvBookGenreDetectiveFiction => 'Detective Fiction';
+
+  @override
+  String get kostvBookGenreDrama => 'Drama';
+
+  @override
+  String get kostvBookGenreFantasyFiction => 'Fantasy Fiction';
+
+  @override
+  String get kostvBookGenreGeneralFiction => 'General Fiction';
+
+  @override
+  String get kostvBookGenreGeneralNonFiction => 'General Non-fiction';
+
+  @override
+  String get kostvBookGenreHorrorSupernaturalFiction =>
+      'Horror & Supernatural Fiction';
+
+  @override
+  String get kostvBookGenreHumor => 'Humor';
+
+  @override
+  String get kostvBookGenreHumorousFiction => 'Humorous Fiction';
+
+  @override
+  String get kostvBookGenreMysteryDetectiveStories =>
+      'Mystery & Detective Stories';
+
+  @override
+  String get kostvBookGenreMythology => 'Mythology';
+
+  @override
+  String get kostvBookGenreNature => 'Nature';
+
+  @override
+  String get kostvBookGenreNavalFiction => 'Naval Fiction';
+
+  @override
+  String get kostvBookGenrePhilosophy => 'Philosophy';
+
+  @override
+  String get kostvBookGenreSatire => 'Satire';
+
+  @override
+  String get kostvBookGenreTravelGeography => 'Travel & Geography';
+
+  @override
+  String get kostvBookGenreTragedy => 'Tragedy';
+
+  @override
+  String get kostvBookGenreWarMilitaryFiction => 'War & Military Fiction';
+
+  @override
+  String get kostvBookGenreWesterns => 'Westerns';
 }

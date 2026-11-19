@@ -4,6 +4,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../../data/database/offline_database.dart';
 import '../../../../data/models/aggregated_item.dart';
+import '../../../../data/models/download_quality.dart';
 import '../../../../data/repositories/offline_repository.dart';
 import '../../../../data/services/download_service.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -17,11 +18,19 @@ import '../../../widgets/overlay_sheet.dart';
 /// Outside a show an episode has to say which show it belongs to, because the
 /// list mixes every library together. Inside one that is already the heading,
 /// so the line gives the numbering and the quality instead.
-String savedMediaSubtitle(DownloadedItem item, {bool insideShow = false}) {
+String savedMediaSubtitle(
+  AppLocalizations l10n,
+  DownloadedItem item, {
+  bool insideShow = false,
+}) {
   final numberLabel = episodeNumberLabel(item);
   if (item.type == 'Episode') {
     if (insideShow) {
-      return [?numberLabel, item.qualityPreset].join(' • ');
+      // Kos TV: the preset's label, not its stored name.
+      return [
+        ?numberLabel,
+        DownloadQuality.fromName(item.qualityPreset).label(l10n),
+      ].join(' • ');
     }
     return [
       if (item.seriesName?.isNotEmpty ?? false) item.seriesName!,
@@ -33,9 +42,23 @@ String savedMediaSubtitle(DownloadedItem item, {bool insideShow = false}) {
   return [
     if (metadata.productionYear != null) '${metadata.productionYear}',
     if (metadata.officialRating?.isNotEmpty ?? false) metadata.officialRating!,
-    item.type,
+    ?savedMediaTypeLabel(l10n, item.type),
   ].join(' • ');
 }
+
+/// Kos TV: a saved item's type in the app's language, rather than the
+/// server's type name; null for a type with no label.
+String? savedMediaTypeLabel(AppLocalizations l10n, String type) =>
+    switch (type) {
+      'Movie' => l10n.movie,
+      'Episode' => l10n.episode,
+      'Audio' => l10n.kostvSavedTypeSong,
+      'AudioBook' => l10n.kostvSavedTypeAudiobook,
+      'Book' => l10n.kostvSavedTypeBook,
+      'MusicVideo' => l10n.kostvSavedTypeMusicVideo,
+      'Video' => l10n.video,
+      _ => null,
+    };
 
 /// The line under a saved show's title: how much of it is actually here, which
 /// a list of episode names never answered.
@@ -110,10 +133,21 @@ Future<bool> deleteSavedItems(
 
   final repo = GetIt.instance<OfflineRepository>();
   final downloadService = GetIt.instance<DownloadService>();
+  var allDeleted = true;
   for (final itemId in itemIds) {
     final row = await repo.getItem(itemId);
     if (row == null) continue;
-    await downloadService.deleteDownloadedFiles(AggregatedItem.fromOffline(row));
+    final deleted = await downloadService.deleteDownloadedFiles(
+      AggregatedItem.fromOffline(row),
+    );
+    if (!deleted) allDeleted = false;
+  }
+  // Kos TV: a file that could not go keeps its row, so say so rather than
+  // leave it in the list without a word.
+  if (!allDeleted && context.mounted) {
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(l10n.failedToDeleteFiles)));
   }
   return true;
 }
