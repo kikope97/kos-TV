@@ -428,6 +428,9 @@ class SettingsPreviewScenes extends StatelessWidget {
         alignment: leading == null
             ? Alignment.centerRight
             : Alignment.centerLeft,
+        // Kos TV: a TV's panel cuts the scenes at its edge, so the end with
+        // more fades rather than stopping mid-word.
+        fadeEdges: true,
       ),
     );
     if (PlatformDetection.useLeanbackUi && focusNode == null) {

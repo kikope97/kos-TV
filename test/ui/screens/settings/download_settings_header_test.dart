@@ -45,7 +45,8 @@ void main() {
 
     final appBar = tester.widget<AppBar>(find.byType(AppBar));
     expect(appBar.automaticallyImplyLeading, isFalse);
-    expect(appBar.leading, isA<SizedBox>());
+    // Kos TV: no leading at all, so no empty slot pushes the title in.
+    expect(appBar.leading, isNull);
     expect(appBar.scrolledUnderElevation, 0);
     expect(
       find.descendant(of: find.byType(AppBar), matching: find.text('Storage')),

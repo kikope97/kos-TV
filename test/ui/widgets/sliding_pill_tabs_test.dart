@@ -242,6 +242,60 @@ void main() {
       expect(stripRect(tester).width, lessThanOrEqualTo(120));
     });
   });
+
+  // Kos TV: a strip cut at the edge fades the end with more, and follows
+  // the D-pad there.
+  group('edge fade', () {
+    Future<void> pumpFading(
+      WidgetTester tester, {
+      required double width,
+      required int selected,
+      bool fadeEdges = true,
+    }) async {
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: width,
+              child: SlidingPillTabs(
+                labels: const ['Home', 'Details', 'Player', 'Search', 'Library'],
+                selectedIndex: selected,
+                onChanged: _ignore,
+                fadeEdges: fadeEdges,
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    dynamic state(WidgetTester tester) =>
+        tester.state(find.byType(SlidingPillTabs));
+
+    testWidgets('fades only the end with segments past it', (tester) async {
+      await pumpFading(tester, width: 180, selected: 0);
+      expect(find.byKey(const ValueKey('slidingPillTabsFade')), findsOneWidget);
+      expect(state(tester).hiddenBefore, isFalse);
+      expect(state(tester).hiddenAfter, isTrue);
+
+      // Picking the last segment scrolls it into view, and the fade follows.
+      await pumpFading(tester, width: 180, selected: 4);
+      expect(state(tester).hiddenBefore, isTrue);
+      expect(state(tester).hiddenAfter, isFalse);
+    });
+
+    testWidgets('fades nothing when every segment fits', (tester) async {
+      await pumpFading(tester, width: 800, selected: 0);
+      expect(state(tester).hiddenBefore, isFalse);
+      expect(state(tester).hiddenAfter, isFalse);
+    });
+
+    testWidgets('is off unless asked for', (tester) async {
+      await pumpFading(tester, width: 180, selected: 0, fadeEdges: false);
+      expect(find.byKey(const ValueKey('slidingPillTabsFade')), findsNothing);
+    });
+  });
 }
 
 void _ignore(int _) {}

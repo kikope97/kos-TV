@@ -386,18 +386,11 @@ class _AccountDialogState extends State<_AccountDialog> {
       icon: Icons.favorite_rounded,
     );
 
+    // Kos TV: one order on every device: first what you do in the app, then
+    // the account, and signing out (the danger) last.
     return [
       // Kos TV: on a TV the other app actions are on the bar, this one isn't.
       if (PlatformDetection.isTV) favorites(),
-      // Phones add a user from the + at the end of the avatar row.
-      if (!compact) action(l10n.addUser, _addUser, icon: Icons.person),
-      // Kos TV: with the household server built in there is none to pick.
-      if (!PlatformDetection.isWeb && !hasKostvServer)
-        action(l10n.selectServer, _changeServer, icon: Icons.home),
-      action(l10n.signOut, _signOutCurrent),
-      // A lone Silo household is already all signed out by "Sign out".
-      if (_accounts.length > 1 + _sessionRepo.activeSiloSiblingCount)
-        action(l10n.signOutAllUsers, _signOutAll, danger: true),
       if (showAppActions) ...[
         // Kos TV: the requests tray, always here (beside the avatar it only
         // shows when there is news or something under way).
@@ -423,6 +416,15 @@ class _AccountDialogState extends State<_AccountDialog> {
             showRemoteControlDialog(context);
           }),
       ],
+      // Phones add a user from the + at the end of the avatar row.
+      if (!compact) action(l10n.addUser, _addUser, icon: Icons.person),
+      // Kos TV: with the household server built in there is none to pick.
+      if (!PlatformDetection.isWeb && !hasKostvServer)
+        action(l10n.selectServer, _changeServer, icon: Icons.home),
+      action(l10n.signOut, _signOutCurrent),
+      // A lone Silo household is already all signed out by "Sign out".
+      if (_accounts.length > 1 + _sessionRepo.activeSiloSiblingCount)
+        action(l10n.signOutAllUsers, _signOutAll, danger: true),
     ];
   }
 
