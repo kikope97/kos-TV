@@ -19455,5 +19455,25 @@
   "kostvChannelOpenFailed": "Unable to open channel",
   "@kostvChannelOpenFailed": {
     "description": "Kos TV: a TV channel could not be opened"
+  },
+  "mediaBarNoBackdrops": "No items with backdrop images found",
+  "@mediaBarNoBackdrops": {
+    "description": "Kos TV: the home banner found no titles with a background picture"
+  },
+  "mediaBarGalleryDirector": "DIRECTOR",
+  "@mediaBarGalleryDirector": {
+    "description": "Kos TV: label over the director in the gallery banner (upper case)"
+  },
+  "mediaBarGalleryCast": "STARRING",
+  "@mediaBarGalleryCast": {
+    "description": "Kos TV: label over the cast in the gallery banner (upper case)"
+  },
+  "mediaBarTheaterBuffering": "BUFFERING",
+  "@mediaBarTheaterBuffering": {
+    "description": "Kos TV: big upper-case line while the bookshelf or gallery banner opens a title to play"
+  },
+  "mediaBarTheaterPreparing": "OPTIMIZING FOR YOU",
+  "@mediaBarTheaterPreparing": {
+    "description": "Kos TV: small upper-case line under it"
   }
 }

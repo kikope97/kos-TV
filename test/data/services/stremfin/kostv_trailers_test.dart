@@ -211,6 +211,28 @@ void main() {
     },
   );
 
+  // Kos TV: the banner asks for the trailers of every slide it shows.
+  test('someone not let in isn\'t checked again for every title', () async {
+    role = 'none';
+    final stremfin = service();
+    await stremfin.trailers(StremfinTitleType.movie, 597);
+    final meCalls = adapter.calls.where((c) => c.uri.path.endsWith('/me'));
+    final afterFirst = meCalls.length;
+    await stremfin.trailers(StremfinTitleType.series, 1399);
+    await stremfin.trailers(StremfinTitleType.movie, 598);
+    expect(meCalls.length, afterFirst);
+    expect(trailerCalls(), 0);
+  });
+
+  test('a title it doesn\'t know isn\'t asked for again', () async {
+    trailersStatus = 404;
+    final stremfin = service();
+    await stremfin.trailers(StremfinTitleType.movie, 597);
+    trailersStatus = 200;
+    expect(await stremfin.trailers(StremfinTitleType.movie, 597), isEmpty);
+    expect(trailerCalls(), 1);
+  });
+
   test('a trailer without a video is left out', () {
     expect(StremfinTrailer.fromJson({'name': 'x'}), isNull);
     expect(StremfinTrailer.fromJson('x'), isNull);

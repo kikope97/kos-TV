@@ -7,6 +7,7 @@ import '../../../data/services/kostv_home.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/overview_text.dart';
 import 'media_bar_new_release_label.dart';
+import 'media_bar_text.dart';
 
 /// Kos TV: what the banner of the recommended Home says of a pick. A small
 /// block low on the left of a picture that fills the screen: its logo, why it
@@ -31,19 +32,14 @@ class KostvHeroInfo extends StatelessWidget {
 
   static const logoHeight = 92.0;
 
-  /// The line of facts: «2024 · 16 · 1h 45m · Thriller · Drama».
+  /// The line of facts: «2024 · 16 · 1 h 45 min · Thriller · Drama».
   static String facts(MediaBarSlideItem item, AppLocalizations l10n) {
     final runtime = item.runtime;
     return [
       if (item.year != null) '${item.year}',
       if (item.officialRating?.isNotEmpty == true) item.officialRating!,
       if (item.itemType != 'Series' && runtime != null)
-        runtime.inHours > 0
-            ? l10n.kostvHeroRuntime(
-                runtime.inHours,
-                runtime.inMinutes.remainder(60),
-              )
-            : l10n.durationMinutes(runtime.inMinutes),
+        mediaBarRuntime(runtime, l10n),
       ...item.genres.take(2),
     ].join('  •  ');
   }

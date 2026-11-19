@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
-import '../../../data/models/bookshelf_detail.dart';
 import '../../../data/models/media_bar_slide_item.dart';
 import 'bookshelf_glow.dart';
 
@@ -20,7 +19,6 @@ class BookshelfLayout extends StatelessWidget {
   final VoidCallback? onPlay;
 
   final VoidCallback? onHoverOff;
-  final BookshelfDetail? Function(String itemId) detailFor;
 
   const BookshelfLayout({
     super.key,
@@ -29,7 +27,6 @@ class BookshelfLayout extends StatelessWidget {
     required this.onSelect,
     required this.onInfo,
     this.onPlay,
-    required this.detailFor,
     this.onHoverOff,
   });
 
@@ -70,7 +67,6 @@ class BookshelfLayout extends StatelessWidget {
         final rightCount = (rightEnd - (activeIndex + 1)).clamp(0, totalCount);
 
         final activeItem = items[activeIndex];
-        final activeDetail = detailFor(activeItem.itemId);
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -191,7 +187,6 @@ class BookshelfLayout extends StatelessWidget {
                         child: _buildActiveBook(
                           context: context,
                           item: activeItem,
-                          detail: activeDetail,
                           width: activeBookWidth,
                           height: activeBookHeight,
                           isMobile: isMobile,
@@ -271,7 +266,6 @@ class BookshelfLayout extends StatelessWidget {
   Widget _buildActiveBook({
     required BuildContext context,
     required MediaBarSlideItem item,
-    required BookshelfDetail? detail,
     required double width,
     required double height,
     required bool isMobile,

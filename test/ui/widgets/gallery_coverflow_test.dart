@@ -92,4 +92,52 @@ void main() {
     expect(size.width, 400);
     expect(size.height, moreOrLessEquals(400 * 9 / 16, epsilon: 0.1));
   });
+
+  // Kos TV: the bar goes round from its last slide back to the first.
+  testWidgets('going back from the last card to the first picks no card in '
+      'between', (tester) async {
+    final picked = <int>[];
+    Widget at(int index) => MaterialApp(
+      home: Scaffold(
+        body: GalleryCoverflow(
+          items: _items(5),
+          activeIndex: index,
+          onSelect: picked.add,
+          onInfo: () {},
+          onPlay: () {},
+        ),
+      ),
+    );
+    await tester.pumpWidget(at(4));
+    await tester.pumpAndSettle();
+    picked.clear();
+
+    await tester.pumpWidget(at(0));
+    await tester.pumpAndSettle();
+    expect(picked.where((index) => index != 0), isEmpty);
+  });
+
+  testWidgets('the next card still slides in', (tester) async {
+    final picked = <int>[];
+    Widget at(int index) => MaterialApp(
+      home: Scaffold(
+        body: GalleryCoverflow(
+          items: _items(5),
+          activeIndex: index,
+          onSelect: picked.add,
+          onInfo: () {},
+          onPlay: () {},
+        ),
+      ),
+    );
+    await tester.pumpWidget(at(1));
+    await tester.pumpAndSettle();
+
+    await tester.pumpWidget(at(2));
+    await tester.pump(const Duration(milliseconds: 100));
+    // Mid-way through the slide, not there at once.
+    expect(tester.binding.hasScheduledFrame, isTrue);
+    await tester.pumpAndSettle();
+    expect(picked.where((index) => index != 2), isEmpty);
+  });
 }

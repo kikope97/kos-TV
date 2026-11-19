@@ -61,6 +61,11 @@ class WebYouTubeTrailer extends StatefulWidget {
 class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
   static const int _stateEnded = 0;
   static const int _statePlaying = 1;
+  static const int _statePaused = 2;
+
+  /// Kos TV: how soon after the sound is turned on a pause counts as the
+  /// browser refusing sound without a tap (Safari on the iPhone).
+  static const Duration _unmuteRefusalWindow = Duration(seconds: 3);
 
   // Rendered at this fixed size and CSS-scaled to the box; YouTube picks quality
   // from the player's pixel size, so a 1080p stage yields 1080p trailers.
@@ -73,6 +78,7 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
   static int _instanceCounter = 0;
 
   static Future<void>? _ytApiReady;
+  static web.HTMLScriptElement? _ytApiScript;
 
   late final String _viewType;
 
@@ -94,6 +100,8 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
   bool _completedReported = false;
   bool _failureReported = false;
   bool _unavailableReported = false;
+  DateTime? _unmutedAt;
+  bool _keptMuted = false;
 
   @override
   void initState() {
@@ -111,9 +119,13 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
     web.window.addEventListener('message', _messageListener);
 
     if (_registeredViewTypes.add(_viewType)) {
+      // Kos TV: the factory stays registered for good (the registry can't
+      // be emptied), so it holds the id only, never this state: it would
+      // keep every trailer's state and its JS callbacks alive.
+      final viewType = _viewType;
       ui_web.platformViewRegistry.registerViewFactory(
-        _viewType,
-        (int _) => (_owners[_viewType] ?? this)._buildContainer(),
+        viewType,
+        (int _) => _owners[viewType]?._buildContainer() ?? web.HTMLDivElement(),
       );
     }
 
@@ -223,9 +235,14 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
       return completer.future;
     }
 
-    final script = web.HTMLScriptElement()
-      ..src = 'https://www.youtube.com/iframe_api';
-    (web.document.head ?? web.document.documentElement)?.appendChild(script);
+    // Kos TV: one script at a time; a later try after a timeout finds it
+    // still there if it is only slow.
+    if (_ytApiScript == null) {
+      final script = web.HTMLScriptElement()
+        ..src = 'https://www.youtube.com/iframe_api';
+      _ytApiScript = script;
+      (web.document.head ?? web.document.documentElement)?.appendChild(script);
+    }
 
     var elapsedMs = 0;
     Timer.periodic(const Duration(milliseconds: 100), (timer) {
@@ -237,6 +254,14 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
       elapsedMs += 100;
       if (elapsedMs >= 10000) {
         timer.cancel();
+        // Kos TV: the failure isn't kept: the next trailer asks again (it
+        // used to hold for the whole session, so one slow load on a poor
+        // connection meant no YouTube trailers until the page reloaded).
+        // A script that never loaded is put in again then.
+        if (identical(_ytApiReady, completer.future)) _ytApiReady = null;
+        final script = _ytApiScript;
+        _ytApiScript = null;
+        script?.remove();
         if (!completer.isCompleted) {
           completer.completeError(StateError('YouTube IFrame API timeout'));
         }
@@ -381,7 +406,29 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
       _reportPlaybackStarted();
     } else if (state == _stateEnded) {
       _reportCompleted();
+    } else if (state == _statePaused) {
+      _resumeMutedIfSoundRefused();
     }
+  }
+
+  /// Kos TV: a browser that won't play sound before a tap (Safari) pauses
+  /// the video as its sound comes on. With nobody able to press play (no
+  /// controls), it goes on without sound instead of standing still, which
+  /// also held the banner on that slide.
+  void _resumeMutedIfSoundRefused() {
+    final unmutedAt = _unmutedAt;
+    if (_disposed ||
+        _keptMuted ||
+        widget.showControls ||
+        unmutedAt == null ||
+        DateTime.now().difference(unmutedAt) > _unmuteRefusalWindow) {
+      return;
+    }
+    _keptMuted = true;
+    try {
+      _player?.mute();
+      _player?.playVideo();
+    } catch (_) {}
   }
 
   // cc_load_policy only decides whether captions are forced on. It cannot turn
@@ -421,6 +468,7 @@ class _WebYouTubeTrailerState extends State<WebYouTubeTrailer> {
     _playbackStarted = true;
     _autoplayTimer?.cancel();
     if (!widget.muted) {
+      _unmutedAt = DateTime.now();
       try {
         _player?.unMute();
       } catch (_) {}

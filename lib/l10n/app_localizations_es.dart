@@ -20055,4 +20055,20 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvChannelOpenFailed => 'No se ha podido abrir el canal';
+
+  @override
+  String get mediaBarNoBackdrops =>
+      'Ninguno de los títulos tiene imagen de fondo';
+
+  @override
+  String get mediaBarGalleryDirector => 'DIRECCIÓN';
+
+  @override
+  String get mediaBarGalleryCast => 'REPARTO';
+
+  @override
+  String get mediaBarTheaterBuffering => 'CARGANDO';
+
+  @override
+  String get mediaBarTheaterPreparing => 'PREPARÁNDOLO PARA TI';
 }

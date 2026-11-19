@@ -19727,4 +19727,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvChannelOpenFailed => 'Unable to open channel';
+
+  @override
+  String get mediaBarNoBackdrops => 'No items with backdrop images found';
+
+  @override
+  String get mediaBarGalleryDirector => 'DIRECTOR';
+
+  @override
+  String get mediaBarGalleryCast => 'STARRING';
+
+  @override
+  String get mediaBarTheaterBuffering => 'BUFFERING';
+
+  @override
+  String get mediaBarTheaterPreparing => 'OPTIMIZING FOR YOU';
 }

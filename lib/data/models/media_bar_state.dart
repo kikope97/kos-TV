@@ -21,3 +21,12 @@ class MediaBarError extends MediaBarState {
 class MediaBarDisabled extends MediaBarState {
   const MediaBarDisabled();
 }
+
+/// Kos TV: none of the titles the bar could show has a backdrop. The widget
+/// says so in the person's language.
+class MediaBarNoBackdrops implements Exception {
+  const MediaBarNoBackdrops();
+
+  @override
+  String toString() => 'No items with backdrop images found';
+}

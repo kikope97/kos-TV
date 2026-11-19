@@ -1,10 +1,10 @@
+import 'package:clock/clock.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../preference/user_preferences.dart';
 import '../models/aggregated_item.dart';
-import '../models/bookshelf_detail.dart';
 import '../models/gallery_detail.dart';
 import '../models/media_bar_slide_item.dart';
 import '../models/media_bar_state.dart';
@@ -22,10 +22,13 @@ class MediaBarViewModel extends ChangeNotifier {
   MediaBarState get state => _state;
 
   final _ratings = <String, Map<String, double>>{};
-  final _bookshelfDetails = <String, BookshelfDetail>{};
-  final _bookshelfDetailInFlight = <String>{};
   final _galleryDetails = <String, GalleryDetail>{};
   final _galleryDetailInFlight = <String>{};
+
+  /// Kos TV: when a title's page last failed to load for the gallery, so
+  /// its card stays empty for a while instead of asking on every redraw.
+  final _galleryDetailFailedAt = <String, DateTime>{};
+  static const galleryDetailRetryAfter = Duration(minutes: 1);
   final _ratingsInFlight = <String>{};
   bool _isLoading = false;
   bool _reloadAfterLoad = false;
@@ -51,6 +54,10 @@ class MediaBarViewModel extends ChangeNotifier {
   /// What the last load gave, before taking those off.
   List<MediaBarSlideItem>? _kostvLoaded;
 
+  /// Kos TV: the new release labels of the last load, kept apart so taking a
+  /// title off or back doesn't lose them.
+  Map<String, MediaBarNewReleaseInfo> _newReleases = const {};
+
   void kostvHide(String itemId) {
     if (_kostvHidden.add(itemId)) _kostvShowLoaded();
   }
@@ -63,9 +70,20 @@ class MediaBarViewModel extends ChangeNotifier {
   void _kostvShowLoaded() {
     final loaded = _kostvLoaded;
     if (loaded == null || _state is! MediaBarReady) return;
-    _state = MediaBarReady(_kostvWithoutHidden(loaded));
+    _state = MediaBarReady(_kostvWithoutHidden(_withNewReleases(loaded)));
     notifyListeners();
   }
+
+  List<MediaBarSlideItem> _withNewReleases(List<MediaBarSlideItem> all) =>
+      _newReleases.isEmpty
+      ? all
+      : [
+          for (final item in all)
+            if (_newReleases[item.itemId] case final release?)
+              item.withNewRelease(release)
+            else
+              item,
+        ];
 
   List<MediaBarSlideItem> _kostvWithoutHidden(List<MediaBarSlideItem> all) =>
       _kostvHidden.isEmpty
@@ -98,51 +116,42 @@ class MediaBarViewModel extends ChangeNotifier {
     }
   }
 
-  BookshelfDetail? bookshelfDetailFor(String itemId) =>
-      _bookshelfDetails[itemId];
-
-  Future<void> ensureBookshelfDetail(String itemId) async {
-    if (itemId.isEmpty) return;
-    if (_bookshelfDetails.containsKey(itemId)) return;
-    if (_isExternal(itemId)) return;
-    if (!_bookshelfDetailInFlight.add(itemId)) return;
-
-    try {
-      final raw = await _client.itemsApi.getItem(itemId);
-      if (raw.isEmpty) return;
-      final aggregated = AggregatedItem(
-        id: itemId,
-        serverId: raw['ServerId']?.toString() ?? '',
-        rawData: raw,
-      );
-      _bookshelfDetails[itemId] = BookshelfDetail.fromItem(itemId, aggregated);
-      notifyListeners();
-    } catch (_) {
-      // Leave uncached so a later selection can retry.
-    } finally {
-      _bookshelfDetailInFlight.remove(itemId);
-    }
-  }
-
   GalleryDetail? galleryDetailFor(String itemId) => _galleryDetails[itemId];
 
   Future<void> ensureGalleryDetail(String itemId) async {
     if (itemId.isEmpty) return;
-    if (_galleryDetails.containsKey(itemId)) return;
-    if (_isExternal(itemId)) return;
+    final failedAt = _galleryDetailFailedAt[itemId];
+    if (failedAt != null) {
+      if (clock.now().difference(failedAt) < galleryDetailRetryAfter) return;
+    } else if (_galleryDetails.containsKey(itemId)) {
+      return;
+    }
+    // Kos TV: an outside title has no page on the server: its card is left
+    // empty rather than waiting for one. Asked from a build, which then
+    // reads it, so there is nobody to tell.
+    if (_isExternal(itemId)) {
+      _galleryDetails[itemId] = GalleryDetail(itemId: itemId);
+      return;
+    }
     if (!_galleryDetailInFlight.add(itemId)) return;
 
     try {
       final raw = await _client.itemsApi.getItem(itemId);
-      if (raw.isEmpty) return;
       final aggregated = AggregatedItem(
         id: itemId,
         serverId: raw['ServerId']?.toString() ?? '',
         rawData: raw,
       );
-      _galleryDetails[itemId] = GalleryDetail.fromItem(itemId, aggregated);
+      _galleryDetailFailedAt.remove(itemId);
+      _galleryDetails[itemId] = raw.isEmpty
+          ? GalleryDetail(itemId: itemId)
+          : GalleryDetail.fromItem(itemId, aggregated);
       notifyListeners();
     } catch (_) {
+      // Kos TV: an empty card for now, tried again after a while.
+      _galleryDetailFailedAt[itemId] = clock.now();
+      _galleryDetails[itemId] = GalleryDetail(itemId: itemId);
+      notifyListeners();
     } finally {
       _galleryDetailInFlight.remove(itemId);
     }
@@ -249,10 +258,9 @@ class MediaBarViewModel extends ChangeNotifier {
         ? _state as MediaBarReady
         : null;
     _ratings.clear();
-    _bookshelfDetails.clear();
-    _bookshelfDetailInFlight.clear();
     _galleryDetails.clear();
     _galleryDetailInFlight.clear();
+    _galleryDetailFailedAt.clear();
     _ratingsInFlight.clear();
     if (!preserveCurrent || previousReady == null) {
       _state = const MediaBarLoading();
@@ -269,6 +277,7 @@ class MediaBarViewModel extends ChangeNotifier {
         _state = previousReady;
       } else if (nextState is MediaBarReady) {
         _kostvLoaded = nextState.items;
+        _newReleases = const {};
         _state = _kostvHidden.isEmpty
             ? nextState
             : MediaBarReady(_kostvWithoutHidden(nextState.items));
@@ -280,7 +289,10 @@ class MediaBarViewModel extends ChangeNotifier {
 
       if (_state is MediaBarReady) {
         _loadRatings((_state as MediaBarReady).items);
-        _loadNewReleases((_state as MediaBarReady).items);
+        final loaded = _kostvLoaded;
+        if (nextState is MediaBarReady && loaded != null) {
+          _loadNewReleases(loaded);
+        }
       }
     } finally {
       _isLoading = false;
@@ -291,22 +303,18 @@ class MediaBarViewModel extends ChangeNotifier {
     }
   }
 
+  /// Kos TV: the labels go on whatever the banner shows by the time they
+  /// come, with titles taken off or back meanwhile, and stay on through
+  /// later changes like those. Only a newer load drops them.
   Future<void> _loadNewReleases(List<MediaBarSlideItem> items) async {
     final releases = await _repository.loadNewReleases(items);
-    final state = _state;
     if (releases.isEmpty ||
-        state is! MediaBarReady ||
-        !identical(state.items, items)) {
+        !identical(_kostvLoaded, items) ||
+        _state is! MediaBarReady) {
       return;
     }
-    _state = MediaBarReady([
-      for (final item in items)
-        if (releases[item.itemId] case final release?)
-          item.withNewRelease(release)
-        else
-          item,
-    ]);
-    notifyListeners();
+    _newReleases = releases;
+    _kostvShowLoaded();
   }
 
   Future<void> _loadRatings(List<MediaBarSlideItem> items) async {

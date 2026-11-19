@@ -565,6 +565,11 @@ class StremfinService extends ChangeNotifier {
   static const trailersRetryAfter = Duration(minutes: 2);
   DateTime? _trailersFailedAt;
 
+  /// Kos TV: when a title's trailers last made the service be asked again
+  /// whether the person is let in. Not let in, the banner would otherwise
+  /// ask twice more for every slide it shows.
+  DateTime? _trailersAccessCheckedAt;
+
   /// A title's trailers, the best first (dubbed into Spain's Spanish before
   /// any other). Empty when it has none, the person isn't let in, or the
   /// service doesn't answer in time: never an error, since whoever asks has
@@ -585,6 +590,15 @@ class StremfinService extends ChangeNotifier {
     return _trailersLoading[key] ??= () async {
       try {
         if (!isAllowed) {
+          // Kos TV: not known yet, it is asked now, so the first trailers
+          // don't miss out; known to be refused, at most every so often.
+          final checked = _trailersAccessCheckedAt;
+          if (_access == StremfinAccess.denied &&
+              checked != null &&
+              DateTime.now().difference(checked) < trailersRetryAfter) {
+            return const <StremfinTrailer>[];
+          }
+          _trailersAccessCheckedAt = DateTime.now();
           await refreshAccess();
           if (!isAllowed) return const <StremfinTrailer>[];
         }
@@ -594,8 +608,11 @@ class StremfinService extends ChangeNotifier {
         _trailersFailedAt = null;
         return _trailers[key] = read;
       } on StremfinException catch (e) {
-        // A title it doesn't know is an answer, not a failure.
-        if (e.status != 404) _trailersFailedAt = DateTime.now();
+        // A title it doesn't know is an answer, not a failure. Kos TV: kept
+        // for the session as any other answer, so it isn't asked again on
+        // every turn of the banner.
+        if (e.status == 404) return _trailers[key] = const <StremfinTrailer>[];
+        _trailersFailedAt = DateTime.now();
         return const <StremfinTrailer>[];
       } catch (_) {
         _trailersFailedAt = DateTime.now();

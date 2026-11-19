@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:clock/clock.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:playback_core/playback_core.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -13,6 +15,9 @@ import '../../util/platform_detection.dart';
 
 class ScreensaverController {
   ScreensaverController(this._prefs, this._playbackManager) {
+    _idleSince = clock.now();
+    _lastInputAt = _idleSince;
+    _listenForInput();
     if (PlatformDetection.isTV) {
       _enabledCache = _prefs.get(UserPreferences.screensaverEnabled);
       _timeoutCache = _prefs.get(UserPreferences.screensaverTimeout);
@@ -62,6 +67,25 @@ class ScreensaverController {
   bool _nativePlayerPresented = false;
   bool _wakeLockEnabled = false;
 
+  /// Kos TV: what the screensaver's wait counts from: the last press of the
+  /// remote, or the last change that isn't a preview (main playback, the app
+  /// coming back…). A preview starting or ending doesn't count, or the
+  /// banner, putting on one trailer after another, would keep a TV nobody is
+  /// watching from ever showing the screensaver or going to sleep.
+  late DateTime _idleSince;
+
+  /// Kos TV: the last real input (remote, keys, touch or pointer), on every
+  /// platform, for how long a banner trailer may hold the screen on.
+  late DateTime _lastInputAt;
+  Timer? _trailerHoldTimer;
+  bool _listeningForInput = false;
+
+  /// Kos TV: how long after the last input a banner trailer, which starts on
+  /// its own, still keeps the screen on. Past it the system's own screen
+  /// timeout applies, so a banner cycling trailers all night lets the screen
+  /// go. A card preview, started by the person, holds it as before.
+  static const bannerTrailerHoldsScreenFor = Duration(minutes: 15);
+
   bool get activityPaused => _activityPaused;
 
   set activityPaused(bool value) {
@@ -93,7 +117,7 @@ class ScreensaverController {
     if (_trailerActive == value) return;
     _trailerActive = value;
     _refreshWakeLock();
-    _onStateChanged();
+    _onStateChanged(preview: true);
   }
 
   /// A home card's preview, which can be a full trailer.
@@ -101,7 +125,7 @@ class ScreensaverController {
     if (_homePreviewActive == value) return;
     _homePreviewActive = value;
     _refreshWakeLock();
-    _onStateChanged();
+    _onStateChanged(preview: true);
   }
 
   bool get _armed =>
@@ -120,7 +144,9 @@ class ScreensaverController {
   }
 
   void notifyInteraction() {
+    _noteInput();
     if (!PlatformDetection.isTV || visible.value) return;
+    _idleSince = clock.now();
     _restartSleepTimer();
     if (_armed) {
       _restartIdleTimer();
@@ -130,11 +156,55 @@ class ScreensaverController {
   }
 
   void dismiss() {
+    _noteInput();
     if (visible.value) {
       visible.value = false;
     }
     _restartIdleTimer();
     _restartSleepTimer();
+  }
+
+  /// Kos TV: every input reaches here, on top of what the app reports
+  /// through [notifyInteraction], so a phone or the web know it too.
+  void _listenForInput() {
+    try {
+      GestureBinding.instance.pointerRouter.addGlobalRoute(_onPointer);
+      HardwareKeyboard.instance.addHandler(_onKey);
+      _listeningForInput = true;
+    } catch (_) {
+      // No binding (a bare unit test): nothing to hear.
+    }
+  }
+
+  void _onPointer(PointerEvent event) => _noteInput();
+
+  bool _onKey(KeyEvent event) {
+    _noteInput();
+    return false;
+  }
+
+  void _noteInput() {
+    _lastInputAt = clock.now();
+    // A trailer that had let the screen go holds it again.
+    if (_trailerActive && _trailerHoldTimer == null) _refreshWakeLock();
+  }
+
+  bool get _bannerTrailerHoldsScreen =>
+      _trailerActive &&
+      clock.now().difference(_lastInputAt) < bannerTrailerHoldsScreenFor;
+
+  /// Looks again when a banner trailer's hold on the screen runs out.
+  void _scheduleTrailerHoldCheck() {
+    _trailerHoldTimer?.cancel();
+    _trailerHoldTimer = null;
+    if (!_trailerActive) return;
+    final left =
+        bannerTrailerHoldsScreenFor - clock.now().difference(_lastInputAt);
+    if (left <= Duration.zero) return;
+    _trailerHoldTimer = Timer(left, () {
+      _trailerHoldTimer = null;
+      _refreshWakeLock();
+    });
   }
 
   bool dismissIfVisible() {
@@ -184,9 +254,16 @@ class ScreensaverController {
     _onStateChanged();
   }
 
-  void _onStateChanged() {
+  /// [preview] marks a trailer or card preview starting or ending, which
+  /// neither starts the waits over nor gives the screensaver a full wait
+  /// again: once the preview is over, it comes after what is left of it, or
+  /// at once if that has run out meanwhile.
+  void _onStateChanged({bool preview = false}) {
     if (!PlatformDetection.isTV) return;
-    _restartSleepTimer();
+    if (!preview) {
+      _idleSince = clock.now();
+      _restartSleepTimer();
+    }
     if (!_armed) {
       _idleTimer?.cancel();
       if (visible.value) {
@@ -195,14 +272,22 @@ class ScreensaverController {
       return;
     }
     if (!visible.value) {
-      _restartIdleTimer();
+      _scheduleIdleTimer();
     }
   }
 
   void _restartIdleTimer() {
+    _idleSince = clock.now();
+    _scheduleIdleTimer();
+  }
+
+  void _scheduleIdleTimer() {
     _idleTimer?.cancel();
     if (!_armed) return;
-    _idleTimer = Timer(Duration(minutes: _timeoutCache.minutes), () {
+    final left =
+        Duration(minutes: _timeoutCache.minutes) -
+        clock.now().difference(_idleSince);
+    _idleTimer = Timer(left.isNegative ? Duration.zero : left, () {
       if (_armed && !visible.value) {
         visible.value = true;
       }
@@ -291,12 +376,13 @@ class ScreensaverController {
           activityPaused: _activityPaused,
           playbackActive: _playbackActive,
           streamPlaying: _streamPlaying,
-          trailerActive: _trailerActive || _homePreviewActive,
+          trailerActive: _bannerTrailerHoldsScreen || _homePreviewActive,
           screensaverVisible: visible.value,
           isTv: PlatformDetection.isTV,
           screensaverEnabled: _enabledCache,
           nativePlayerPresented: _nativePlayerPresented,
         );
+    _scheduleTrailerHoldCheck();
     if (_wakeLockEnabled == shouldEnable && !force) {
       return;
     }
@@ -313,6 +399,13 @@ class ScreensaverController {
     _playingSub?.cancel();
     _idleTimer?.cancel();
     _sleepTimer?.cancel();
+    _trailerHoldTimer?.cancel();
+    _trailerHoldTimer = null;
+    if (_listeningForInput) {
+      _listeningForInput = false;
+      GestureBinding.instance.pointerRouter.removeGlobalRoute(_onPointer);
+      HardwareKeyboard.instance.removeHandler(_onKey);
+    }
     _prefs.removeListener(_onPrefsChanged);
     _wakeLockEnabled = false;
     unawaited(_setWakeLockEnabled(false));

@@ -21,6 +21,8 @@ class _MdbList extends Mock implements MdbListRepository {}
 
 class _Client extends Mock implements MediaServerClient {}
 
+class _Items extends Mock implements ItemsApi {}
+
 class _Sync extends ChangeNotifier implements PluginSyncService {
   bool available = false;
 
@@ -60,8 +62,8 @@ void main() {
 
   tearDown(() => GetIt.instance.reset());
 
-  MediaBarViewModel create() =>
-      MediaBarViewModel(repository, _MdbList(), prefs, _Client());
+  MediaBarViewModel create({MediaServerClient? client}) =>
+      MediaBarViewModel(repository, _MdbList(), prefs, client ?? _Client());
 
   test('a source change made during a load runs once that load ends', () async {
     final viewModel = create();
@@ -150,5 +152,126 @@ void main() {
 
     expect(loads, hasLength(2));
     viewModel.dispose();
+  });
+
+  // Kos TV: taking a title off the banner (or back) rebuilds it from the
+  // loaded list, which didn't carry the labels.
+  test('the new release labels stay when a title is turned down', () async {
+    const series = MediaBarSlideItem(
+      itemId: 'series',
+      serverId: 'server',
+      title: 'Show',
+      itemType: 'Series',
+    );
+    const movie = MediaBarSlideItem(
+      itemId: 'movie',
+      serverId: 'server',
+      title: 'Film',
+    );
+    when(() => repository.loadNewReleases(any())).thenAnswer(
+      (_) async => {
+        'series': const MediaBarNewReleaseInfo(
+          kind: MediaBarNewRelease.newEpisodes,
+          season: 1,
+          episode: 4,
+        ),
+      },
+    );
+    final viewModel = create();
+    unawaited(viewModel.load());
+    loads.first.complete(const MediaBarReady([series, movie]));
+    await pumpEventQueue();
+    expect(viewModel.items.first.newRelease, isNotNull);
+
+    viewModel.kostvHide('movie');
+    expect(viewModel.items.single.newRelease?.kind, MediaBarNewRelease.newEpisodes);
+
+    viewModel.kostvUnhide('movie');
+    expect(viewModel.items.first.newRelease, isNotNull);
+    expect(viewModel.items.last.newRelease, isNull);
+    viewModel.dispose();
+  });
+
+  test('labels that come after a title was turned down still go on', () async {
+    const series = MediaBarSlideItem(
+      itemId: 'series',
+      serverId: 'server',
+      title: 'Show',
+      itemType: 'Series',
+    );
+    const movie = MediaBarSlideItem(
+      itemId: 'movie',
+      serverId: 'server',
+      title: 'Film',
+    );
+    final labels = Completer<Map<String, MediaBarNewReleaseInfo>>();
+    when(
+      () => repository.loadNewReleases(any()),
+    ).thenAnswer((_) => labels.future);
+    final viewModel = create();
+    unawaited(viewModel.load());
+    loads.first.complete(const MediaBarReady([series, movie]));
+    await pumpEventQueue();
+
+    viewModel.kostvHide('movie');
+    labels.complete({
+      'series': const MediaBarNewReleaseInfo(
+        kind: MediaBarNewRelease.newSeason,
+        season: 2,
+      ),
+    });
+    await pumpEventQueue();
+
+    expect(viewModel.items.map((item) => item.itemId), ['series']);
+    expect(viewModel.items.single.newRelease?.kind, MediaBarNewRelease.newSeason);
+    viewModel.dispose();
+  });
+
+  group('the gallery card', () {
+    late _Client client;
+    late _Items itemsApi;
+
+    setUp(() {
+      client = _Client();
+      itemsApi = _Items();
+      when(() => client.itemsApi).thenReturn(itemsApi);
+    });
+
+    test('of an outside title is empty at once, with nothing asked', () async {
+      const outside = MediaBarSlideItem(
+        itemId: '603',
+        serverId: MediaBarSlideItem.externalServerId,
+        title: 'Outside',
+      );
+      final viewModel = create(client: client);
+      unawaited(viewModel.load());
+      loads.first.complete(const MediaBarReady([outside]));
+      await pumpEventQueue();
+
+      await viewModel.ensureGalleryDetail('603');
+      expect(viewModel.galleryDetailFor('603')?.isEmpty, isTrue);
+      verifyNever(() => itemsApi.getItem(any()));
+      viewModel.dispose();
+    });
+
+    test('whose page can\'t be read is empty, and not asked again on every '
+        'redraw', () async {
+      const film = MediaBarSlideItem(
+        itemId: 'film',
+        serverId: 'server',
+        title: 'Film',
+      );
+      when(() => itemsApi.getItem(any())).thenThrow(Exception('offline'));
+      final viewModel = create(client: client);
+      unawaited(viewModel.load());
+      loads.first.complete(const MediaBarReady([film]));
+      await pumpEventQueue();
+
+      await viewModel.ensureGalleryDetail('film');
+      await viewModel.ensureGalleryDetail('film');
+      expect(viewModel.galleryDetailFor('film')?.isEmpty, isTrue);
+      verify(() => itemsApi.getItem('film')).called(1);
+      viewModel.dispose();
+    });
   });
 }

@@ -13958,5 +13958,25 @@
     "kostvChannelOpenFailed": "No se ha podido abrir el canal",
     "@kostvChannelOpenFailed": {
         "description": "Kos TV: a TV channel could not be opened"
+    },
+    "mediaBarNoBackdrops": "Ninguno de los títulos tiene imagen de fondo",
+    "@mediaBarNoBackdrops": {
+        "description": "Kos TV: the home banner found no titles with a background picture"
+    },
+    "mediaBarGalleryDirector": "DIRECCIÓN",
+    "@mediaBarGalleryDirector": {
+        "description": "Kos TV: label over the director in the gallery banner (upper case)"
+    },
+    "mediaBarGalleryCast": "REPARTO",
+    "@mediaBarGalleryCast": {
+        "description": "Kos TV: label over the cast in the gallery banner (upper case)"
+    },
+    "mediaBarTheaterBuffering": "CARGANDO",
+    "@mediaBarTheaterBuffering": {
+        "description": "Kos TV: big upper-case line while the bookshelf or gallery banner opens a title to play"
+    },
+    "mediaBarTheaterPreparing": "PREPARÁNDOLO PARA TI",
+    "@mediaBarTheaterPreparing": {
+        "description": "Kos TV: small upper-case line under it"
     }
 }

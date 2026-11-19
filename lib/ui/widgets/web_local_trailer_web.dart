@@ -76,9 +76,13 @@ class _WebLocalTrailerState extends State<WebLocalTrailer> {
     _video.addEventListener('error', _onErrorJs);
 
     if (_registeredViewTypes.add(_viewType)) {
+      // Kos TV: the factory stays registered for good (the registry can't
+      // be emptied), so it holds the id only, never this state: it would
+      // keep every trailer's state and its video element alive.
+      final viewType = _viewType;
       ui_web.platformViewRegistry.registerViewFactory(
-        _viewType,
-        (int _) => (_owners[_viewType] ?? this)._video,
+        viewType,
+        (int _) => _owners[viewType]?._video ?? web.HTMLDivElement(),
       );
     }
 
@@ -133,7 +137,18 @@ class _WebLocalTrailerState extends State<WebLocalTrailer> {
     // Autoplay is only permitted while muted, and play() may still reject.
     _video.muted = widget.muted;
     _video.play().toDart.catchError((Object _) {
-      if (!_disposed) _reportError();
+      if (_disposed) return null;
+      // Kos TV: refused with sound (no tap yet, or an iPhone): it plays on
+      // without, rather than counting as a trailer that failed.
+      if (!_video.muted) {
+        _video.muted = true;
+        _video.play().toDart.catchError((Object _) {
+          if (!_disposed) _reportError();
+          return null;
+        });
+        return null;
+      }
+      _reportError();
       return null;
     });
   }
