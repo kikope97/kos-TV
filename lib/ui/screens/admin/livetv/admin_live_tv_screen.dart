@@ -224,11 +224,10 @@ class _AdminLiveTvScreenState extends State<AdminLiveTvScreen>
       switch (type.toLowerCase()) {
         'xmltv' => l10n.adminProviderXmltv,
         'schedulesdirect' => l10n.adminProviderSchedulesDirect,
-        'embygn' => l10n.adminProviderEmbyGuide,
         _ => null,
       };
 
-  /// [type] is 'xmltv', 'SchedulesDirect' or Emby's 'embygn'. A new XMLTV
+  /// [type] is 'xmltv' or 'SchedulesDirect'. A new XMLTV
   /// provider starts from the server's default.
   Future<void> _editProvider(
     String type, [
@@ -254,7 +253,6 @@ class _AdminLiveTvScreenState extends State<AdminLiveTvScreen>
               api: _api,
               seed: seed,
               tuners: _tuners,
-              embyGuide: type.toLowerCase() == 'embygn',
             ),
     );
     if (saved != true || !mounted) return;
@@ -593,7 +591,6 @@ class _AdminLiveTvScreenState extends State<AdminLiveTvScreen>
               ),
             ],
           ),
-          // Emby has neither.
           if (_config!.containsKey('SaveRecordingNFO'))
             adminSection(
               context,

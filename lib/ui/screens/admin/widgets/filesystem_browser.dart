@@ -154,8 +154,9 @@ class _FilesystemBrowserState extends State<FilesystemBrowser> {
       widget.onPathSelected(path);
     } catch (e) {
       if (!mounted) return;
+      final l10n = AppLocalizations.of(context);
       setState(() => _validationError =
-          'Invalid path: ${describeError(e, AppLocalizations.of(context))}');
+          l10n.adminInvalidPath(describeError(e, l10n)));
     }
   }
 

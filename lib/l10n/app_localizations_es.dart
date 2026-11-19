@@ -9742,17 +9742,17 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String adminMetadataImageUpdated(String imageType) {
-    return 'Imagen $imageType actualizada';
+    return 'Imagen «$imageType» actualizada';
   }
 
   @override
   String adminMetadataImageUploaded(String imageType) {
-    return 'Imagen $imageType subida';
+    return 'Imagen «$imageType» subida';
   }
 
   @override
   String adminMetadataImageDeleted(String imageType) {
-    return 'Imagen $imageType eliminada';
+    return 'Imagen «$imageType» eliminada';
   }
 
   @override
@@ -9771,7 +9771,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String adminMetadataDeleteImageTitle(String imageType) {
-    return 'Eliminar imagen $imageType';
+    return '¿Eliminar la imagen «$imageType»?';
   }
 
   @override
@@ -9785,7 +9785,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String adminMetadataChooseImage(String imageType) {
-    return 'Elige la imagen $imageType';
+    return 'Elige la imagen «$imageType»';
   }
 
   @override
@@ -20498,4 +20498,50 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvMusicTapToPlayHint =>
       'El navegador no deja que la música empiece sola.';
+
+  @override
+  String get adminCannotDisableAdministrator =>
+      'Jellyfin no deja desactivar a un administrador. Quítale antes el permiso de administrador en su ficha.';
+
+  @override
+  String get errorSessionRejected =>
+      'El servidor no ha aceptado tu sesión. Vuelve a iniciar sesión.';
+
+  @override
+  String get errorPermissionDenied =>
+      'No tienes permiso para esto en el servidor.';
+
+  @override
+  String get adminDisablePluginTitle => 'Desactivar complemento';
+
+  @override
+  String adminDisablePluginConfirm(String name) {
+    return '¿Seguro que quieres desactivar «$name»? Dejará de funcionar al reiniciar el servidor.';
+  }
+
+  @override
+  String get adminKosTvPluginWarning =>
+      'Todas las apps de kOS TV de casa (teles, móviles y la web) dependen de este complemento. Sin él se quedan sin Mi lista, los PIN, los mensajes, las filas del inicio y las peticiones.';
+
+  @override
+  String get adminLibraryNotFound =>
+      'Esta biblioteca ya no está en el servidor.';
+
+  @override
+  String adminInvalidPath(String error) {
+    return 'Ruta no válida: $error';
+  }
+
+  @override
+  String get adminDownmixNightmodeDialogue => 'Diálogos en modo nocturno';
+
+  @override
+  String adminApiKeyCreatedReloadFailed(String error) {
+    return 'La clave se ha creado, pero no se ha podido cargar la lista: $error';
+  }
+
+  @override
+  String adminImageChangedRefreshFailed(String error) {
+    return 'La imagen se ha cambiado, pero no se ha podido actualizar la vista: $error';
+  }
 }

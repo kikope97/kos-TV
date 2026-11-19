@@ -8,7 +8,6 @@ import 'package:server_core/server_core.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../util/error_message.dart';
 import '../../../navigation/destinations.dart';
-import '../../../widgets/adaptive/adaptive_dialog.dart';
 import '../admin_plugin_version_utils.dart';
 import '../providers/admin_user_providers.dart';
 import '../widgets/admin_form_styles.dart';
@@ -118,6 +117,11 @@ class _AdminPluginsScreenState extends ConsumerState<AdminPluginsScreen>
   }
 
   Future<void> _togglePlugin(PluginInfo plugin) async {
+    if (plugin.status != PluginStatus.disabled &&
+        (!await confirmPluginRemoval(context, plugin, uninstall: false) ||
+            !mounted)) {
+      return;
+    }
     try {
       if (plugin.status == PluginStatus.disabled) {
         await _api.enablePlugin(plugin.id, plugin.version);
@@ -135,24 +139,10 @@ class _AdminPluginsScreenState extends ConsumerState<AdminPluginsScreen>
   }
 
   Future<void> _uninstallPlugin(PluginInfo plugin) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog.adaptive(
-        title: Text(AppLocalizations.of(context).adminUninstallPlugin),
-        content: Text(AppLocalizations.of(context).adminUninstallPluginConfirm(plugin.name)),
-        actions: [
-          adaptiveDialogAction(
-            onPressed: () => Navigator.pop(context, false),
-            child: Text(AppLocalizations.of(context).cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: Text(AppLocalizations.of(context).uninstall),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+    if (!await confirmPluginRemoval(context, plugin, uninstall: true) ||
+        !mounted) {
+      return;
+    }
 
     try {
       await _api.uninstallPlugin(plugin.id, plugin.version);
@@ -405,17 +395,12 @@ class _InstalledTab extends ConsumerWidget {
     );
   }
 
+  // Kos TV: Jellyfin serves plugin images without signing in, so the
+  // session token stays out of the address (and the server's logs).
   String _pluginImageUrl(MediaServerClient client, PluginInfo plugin) {
-    final base = client.baseUrl;
-    final thumb = pluginThumbUrl(base, plugin);
-    if (thumb != null) return thumb;
-    final token = client.accessToken;
     final pluginId = Uri.encodeComponent(plugin.id);
     final version = Uri.encodeComponent(plugin.version);
-    final apiKeySuffix = token == null || token.isEmpty
-        ? ''
-        : '?${client.serverType.tokenQueryParam}=${Uri.encodeQueryComponent(token)}';
-    return '$base/Plugins/$pluginId/$version/Image$apiKeySuffix';
+    return '${client.baseUrl}/Plugins/$pluginId/$version/Image';
   }
 }
 
@@ -859,15 +844,6 @@ class _CatalogPackageTile extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                    if (package.isPremium) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        AppLocalizations.of(context).adminPluginNeedsPremiere,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.tertiary,
-                        ),
                       ),
                     ],
                     const SizedBox(height: 4),

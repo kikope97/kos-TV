@@ -23,16 +23,14 @@ class _AdminLibraryMetadataScreenState
     extends State<AdminLibraryMetadataScreen> with AdminDraftHost {
   late final AdminSystemApi _api;
   Map<String, dynamic>? _config;
-
-  /// The named `metadata` configuration, loaded on Emby only.
-  Map<String, dynamic>? _metadata;
   List<Map<String, dynamic>> _cultures = const [];
   List<Map<String, dynamic>> _countries = const [];
   bool _loading = true;
   String? _error;
 
+  /// MatchSource takes its label from the arb files.
   static const _resolutions = [
-    ('MatchSource', 'Match source'),
+    ('MatchSource', ''),
     ('P144', '144p'),
     ('P240', '240p'),
     ('P360', '360p'),
@@ -56,17 +54,19 @@ class _AdminLibraryMetadataScreenState
       _error = null;
     });
     try {
-      final config = await _api.getServerConfiguration();
-      // No fallback, because saving a blank metadata config would flip the
-      // date added behavior to the server default.
-      const Map<String, dynamic>? metadata = null;
-      // Either list failing shows the error instead of the form.
-      final cultures = await _api.getCultures();
-      final countries = await _api.getCountries();
+      // Either list failing shows the error instead of the form. All three
+      // load at once.
+      final results = await Future.wait<Object>([
+        _api.getServerConfiguration(),
+        _api.getCultures(),
+        _api.getCountries(),
+      ]);
+      final config = results[0] as Map<String, dynamic>;
+      final cultures = results[1] as List<Map<String, dynamic>>;
+      final countries = results[2] as List<Map<String, dynamic>>;
       if (!mounted) return;
       setState(() {
         _config = config;
-        _metadata = metadata;
         _cultures = cultures;
         _countries = countries;
         _loading = false;
@@ -77,12 +77,6 @@ class _AdminLibraryMetadataScreenState
           reload: _api.getServerConfiguration,
           post: _api.updateServerConfiguration,
         ),
-        if (metadata != null)
-          'metadata': AdminDraftTarget(
-            working: metadata,
-            reload: () => _api.getNamedConfiguration('metadata'),
-            post: (value) => _api.updateNamedConfiguration('metadata', value),
-          ),
       }));
     } catch (e) {
       if (!mounted) return;
@@ -96,47 +90,6 @@ class _AdminLibraryMetadataScreenState
   void _set(String key, Object? value) {
     setState(() => _config![key] = value);
     edited();
-  }
-
-  /// The date added and suggestion settings Emby keeps in its metadata and
-  /// base configurations.
-  Widget _buildEmbyDisplay(AppLocalizations l10n) {
-    // The server default is true when the key is missing.
-    final useFileTime =
-        _metadata!['UseFileCreationTimeForDateAdded'] as bool? ?? true;
-    return adminSection(
-      context,
-      title: l10n.adminLibDisplaySection,
-      icon: Icons.event_outlined,
-      children: [
-        adminFieldRow(
-          label: l10n.adminLibDateAddedLabel,
-          anchor: 'metadata.UseFileCreationTimeForDateAdded',
-          child: DropdownButtonFormField<bool>(
-            initialValue: useFileTime,
-            isExpanded: true,
-            decoration: adminInputDecoration(),
-            items: [
-              DropdownMenuItem(
-                  value: false, child: Text(l10n.adminLibDateAddedImport)),
-              DropdownMenuItem(
-                  value: true, child: Text(l10n.adminLibDateAddedFile)),
-            ],
-            onChanged: (v) {
-              setState(
-                  () => _metadata!['UseFileCreationTimeForDateAdded'] = v ?? true);
-              edited();
-            },
-          ),
-        ),
-        adminSwitchRow(
-          title: l10n.adminLibExternalSuggestions,
-          anchor: 'metadata.EnableExternalContentInSuggestions',
-          value: _config!['EnableExternalContentInSuggestions'] as bool? ?? true,
-          onChanged: (v) => _set('EnableExternalContentInSuggestions', v),
-        ),
-      ],
-    );
   }
 
   @override
@@ -207,10 +160,7 @@ class _AdminLibraryMetadataScreenState
                   ),
                 ],
               ),
-              if (_metadata != null)
-                _buildEmbyDisplay(l10n)
-              else
-                adminSection(
+              adminSection(
                   context,
                   title: l10n.adminLibChaptersSection,
                   icon: Icons.bookmark_outline,

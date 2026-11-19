@@ -8296,7 +8296,7 @@
     "adminMetadataImageBanner": "Banner",
     "adminMetadataImageThumb": "Miniatura",
     "adminMetadataProvider": "Proveedor",
-    "adminMetadataImageUpdated": "Imagen {imageType} actualizada",
+    "adminMetadataImageUpdated": "Imagen «{imageType}» actualizada",
     "@adminMetadataImageUpdated": {
         "placeholders": {
             "imageType": {
@@ -8304,7 +8304,7 @@
             }
         }
     },
-    "adminMetadataImageUploaded": "Imagen {imageType} subida",
+    "adminMetadataImageUploaded": "Imagen «{imageType}» subida",
     "@adminMetadataImageUploaded": {
         "placeholders": {
             "imageType": {
@@ -8312,7 +8312,7 @@
             }
         }
     },
-    "adminMetadataImageDeleted": "Imagen {imageType} eliminada",
+    "adminMetadataImageDeleted": "Imagen «{imageType}» eliminada",
     "@adminMetadataImageDeleted": {
         "placeholders": {
             "imageType": {
@@ -8337,7 +8337,7 @@
             }
         }
     },
-    "adminMetadataDeleteImageTitle": "Eliminar imagen {imageType}",
+    "adminMetadataDeleteImageTitle": "¿Eliminar la imagen «{imageType}»?",
     "@adminMetadataDeleteImageTitle": {
         "placeholders": {
             "imageType": {
@@ -8354,7 +8354,7 @@
             }
         }
     },
-    "adminMetadataChooseImage": "Elige la imagen {imageType}",
+    "adminMetadataChooseImage": "Elige la imagen «{imageType}»",
     "@adminMetadataChooseImage": {
         "placeholders": {
             "imageType": {
@@ -14509,5 +14509,69 @@
     "kostvMusicTapToPlayHint": "El navegador no deja que la música empiece sola.",
     "@kostvMusicTapToPlayHint": {
         "description": "Kos TV: Music on the web: why it waits for a tap"
+    },
+    "adminCannotDisableAdministrator": "Jellyfin no deja desactivar a un administrador. Quítale antes el permiso de administrador en su ficha.",
+    "@adminCannotDisableAdministrator": {
+        "description": "Kos TV: admin panel: why disabling an administrator failed (the server answers a bare 403)"
+    },
+    "errorSessionRejected": "El servidor no ha aceptado tu sesión. Vuelve a iniciar sesión.",
+    "@errorSessionRejected": {
+        "description": "Kos TV: error text for an HTTP 401 answer"
+    },
+    "errorPermissionDenied": "No tienes permiso para esto en el servidor.",
+    "@errorPermissionDenied": {
+        "description": "Kos TV: error text for an HTTP 403 answer"
+    },
+    "adminDisablePluginTitle": "Desactivar complemento",
+    "@adminDisablePluginTitle": {
+        "description": "Kos TV: admin panel: title of the dialog before turning a plugin off"
+    },
+    "adminDisablePluginConfirm": "¿Seguro que quieres desactivar «{name}»? Dejará de funcionar al reiniciar el servidor.",
+    "@adminDisablePluginConfirm": {
+        "description": "Kos TV: admin panel: asks before turning a plugin off",
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
+    "adminKosTvPluginWarning": "Todas las apps de kOS TV de casa (teles, móviles y la web) dependen de este complemento. Sin él se quedan sin Mi lista, los PIN, los mensajes, las filas del inicio y las peticiones.",
+    "@adminKosTvPluginWarning": {
+        "description": "Kos TV: admin panel: added when disabling or uninstalling the kOS TV server plugin"
+    },
+    "adminLibraryNotFound": "Esta biblioteca ya no está en el servidor.",
+    "@adminLibraryNotFound": {
+        "description": "Kos TV: admin panel: the library being edited was not found"
+    },
+    "adminInvalidPath": "Ruta no válida: {error}",
+    "@adminInvalidPath": {
+        "description": "Kos TV: admin panel: folder browser, the typed path was refused",
+        "placeholders": {
+            "error": {
+                "type": "String"
+            }
+        }
+    },
+    "adminDownmixNightmodeDialogue": "Diálogos en modo nocturno",
+    "@adminDownmixNightmodeDialogue": {
+        "description": "Kos TV: admin panel: playback, stereo downmix algorithm NightmodeDialogue"
+    },
+    "adminApiKeyCreatedReloadFailed": "La clave se ha creado, pero no se ha podido cargar la lista: {error}",
+    "@adminApiKeyCreatedReloadFailed": {
+        "description": "Kos TV: admin panel: API keys, created but the reload failed",
+        "placeholders": {
+            "error": {
+                "type": "String"
+            }
+        }
+    },
+    "adminImageChangedRefreshFailed": "La imagen se ha cambiado, pero no se ha podido actualizar la vista: {error}",
+    "@adminImageChangedRefreshFailed": {
+        "description": "Kos TV: admin panel: metadata images, the change worked but reading the item again failed",
+        "placeholders": {
+            "error": {
+                "type": "String"
+            }
+        }
     }
 }

@@ -77,14 +77,15 @@ class _SessionDetailSheetState extends ConsumerState<SessionDetailSheet> {
   }
 
   void _showSendMessageDialog() {
-    final controller = TextEditingController();
+    // Kos TV: the field keeps its own controller, so none is left undisposed.
+    var message = '';
     final l10n = AppLocalizations.of(context);
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog.adaptive(
         title: Text(l10n.adminSendMessage),
-        content: TextField(
-          controller: controller,
+        content: TextFormField(
+          onChanged: (v) => message = v,
           autofocus: true,
           maxLines: 3,
           decoration: InputDecoration(hintText: l10n.adminMessageTextHint),
@@ -96,7 +97,7 @@ class _SessionDetailSheetState extends ConsumerState<SessionDetailSheet> {
           ),
           FilledButton(
             onPressed: () {
-              final text = controller.text.trim();
+              final text = message.trim();
               Navigator.pop(ctx);
               if (text.isNotEmpty) {
                 _run(

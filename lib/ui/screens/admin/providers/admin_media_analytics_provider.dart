@@ -325,12 +325,25 @@ AdminMediaAnalyticsDetail _detailOf(
   );
 }
 
+/// Kos TV: how many insight reads are on their way. The kept item lists are
+/// only let go while none is, since dropping one mid-read would leave the
+/// charts (and their saved copy) without that library.
+int _insightReadsInFlight = 0;
+
+/// Lets go of every library's kept items, unless a chart read still needs
+/// them. The admin shell calls this when the panel closes, so huge lists don't
+/// stay in memory for the rest of the session.
+void releaseAdminLibraryItems(ProviderContainer container) {
+  if (_insightReadsInFlight == 0) container.invalidate(adminLibraryItemsProvider);
+}
+
 /// A failed read leaves the library without insights rather than failing the
 /// whole page.
 Future<AdminLibraryInsights> _loadInsights(
   Ref ref,
   AdminLibraryMediaAnalytics library,
 ) async {
+  _insightReadsInFlight++;
   try {
     final items = await ref.read(
       adminLibraryItemsProvider((
@@ -341,6 +354,8 @@ Future<AdminLibraryInsights> _loadInsights(
     return _insightsOf(items);
   } catch (_) {
     return const AdminLibraryInsights();
+  } finally {
+    _insightReadsInFlight--;
   }
 }
 
@@ -526,8 +541,8 @@ List<AdminMediaMetricDefinition> _metricsForKeys(List<String> keys) {
 
 typedef AdminAnalyticsLibraryRef = ({String itemId, String? collectionType});
 
-/// Every item of a library that has insights, kept for the session so tapping
-/// a category lists its items without reading the library again.
+/// Every item of a library that has insights, kept while the panel is open so
+/// tapping a category lists its items without reading the library again.
 final adminLibraryItemsProvider =
     FutureProvider.family<List<AdminAnalyticsItem>, AdminAnalyticsLibraryRef>(
   (ref, library) => _loadLibraryItems(

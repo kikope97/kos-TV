@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -14,9 +16,14 @@ class _FakeSystemApi extends Fake implements AdminSystemApi {
   final names = <String>[];
   String? content;
 
+  /// When set, reads wait for it, like a slow download.
+  Completer<void>? hold;
+
   @override
   Future<String> getLogFileContent(String name) async {
     names.add(name);
+    final gate = hold;
+    if (gate != null) await gate.future;
     return content ??
         List.generate(
           80 + names.length,
@@ -79,10 +86,10 @@ void main() {
     expect(api.names, hasLength(3));
   });
 
-  testWidgets('the level filters read Emby\'s level words', (tester) async {
-    const info = '2026-10-17 15:08:12.183 Info Main: Application path';
-    const warn = '2026-10-17 15:08:13.000 Warn App: Slow start';
-    const error = '2026-10-17 15:13:20.164 Error PackageService: Failed';
+  testWidgets('the level filters read Jellyfin\'s level tags', (tester) async {
+    const info = '[15:08:12] [INF] [1] Main: Application path';
+    const warn = '[15:08:13] [WRN] [1] App: Slow start';
+    const error = '[15:13:20] [ERR] [7] PackageService: Failed';
     const trace = '\t*** Error Report ***';
     api.content = [info, warn, error, trace].join('\n');
     await pump(tester);
@@ -92,10 +99,37 @@ void main() {
     expect(find.text(error, findRichText: true), findsOneWidget);
     expect(find.text(info, findRichText: true), findsNothing);
     expect(find.text(trace, findRichText: true), findsNothing);
+    // Kos TV: the number is the line's in the file, not in the filtered list.
+    expect(find.text('3'), findsOneWidget);
+    expect(find.text('1'), findsNothing);
 
     await tester.tap(find.widgetWithText(FilterChip, 'WRN'));
     await tester.pumpAndSettle();
     expect(find.text(warn, findRichText: true), findsOneWidget);
     expect(find.text(error, findRichText: true), findsNothing);
+  });
+
+  // Kos TV: a read slower than the tick isn't joined by another one.
+  testWidgets('watch never asks again while a read is on its way', (
+    tester,
+  ) async {
+    await pump(tester);
+    final gate = api.hold = Completer<void>();
+
+    await tester.tap(find.byTooltip(l10n.adminLogWatch));
+    await tester.pump();
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(seconds: 2));
+    }
+    expect(api.names, hasLength(2));
+
+    api.hold = null;
+    gate.complete();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 2));
+    expect(api.names, hasLength(3));
+
+    await tester.tap(find.byTooltip(l10n.adminLogStopWatching));
+    await tester.pump();
   });
 }

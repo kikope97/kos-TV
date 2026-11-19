@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,12 +57,17 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
       return;
     }
 
+    final users = GetIt.instance<MediaServerClient>().adminUsersApi;
     try {
-      final updatedPolicy = currentPolicy.toJson()
+      // Kos TV: the server replaces the whole policy, so it is read fresh
+      // and only IsDisabled changes. The list may be hours old, and posting
+      // its copy would undo parental controls set elsewhere meanwhile.
+      final fresh = await users.getUserById(user.id);
+      final policy = fresh.raw['Policy'];
+      if (policy is! Map) throw StateError('User has no policy');
+      final updatedPolicy = Map<String, dynamic>.from(policy)
         ..['IsDisabled'] = willDisable;
-      await GetIt.instance<MediaServerClient>()
-          .adminUsersApi
-          .updateUserPolicy(user.id, updatedPolicy);
+      await users.updateUserPolicy(user.id, updatedPolicy);
 
       ref.invalidate(adminUsersListProvider);
       if (!mounted) {
@@ -81,8 +87,16 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
       if (!mounted) {
         return;
       }
+      // Kos TV: Jellyfin answers a bare 403 when asked to disable an
+      // administrator, so the reason is spelled out here.
+      final reason = willDisable &&
+              currentPolicy.isAdministrator &&
+              e is DioException &&
+              e.response?.statusCode == 403
+          ? l10n.adminCannotDisableAdministrator
+          : describeError(e, l10n);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.adminUserPolicyUpdateFailed(describeError(e, l10n)))),
+        SnackBar(content: Text(l10n.adminUserPolicyUpdateFailed(reason))),
       );
     }
   }
@@ -203,6 +217,8 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
     final isAdmin = policy?.isAdministrator ?? false;
     final isDisabled = policy?.isDisabled ?? false;
     final hasRemoteAccess = policy?.enableRemoteAccess ?? false;
+    // Kos TV: the signed-in admin can't disable or delete themself from here.
+    final isSelf = client.userId == user.id;
     final isHidden = policy?.isHidden ?? false;
     final displayName = (user.name ?? l10n.unknown).trim();
     final initials =
@@ -311,26 +327,28 @@ class _AdminUsersScreenState extends ConsumerState<AdminUsersScreen> {
                       icon: const Icon(Icons.manage_accounts_outlined, size: 18),
                       label: Text(l10n.manage),
                     ),
-                    OutlinedButton.icon(
-                      onPressed: () => _toggleUserDisabled(user),
-                      icon: Icon(
-                        isDisabled ? Icons.check_circle_outline : Icons.block,
-                        size: 18,
+                    if (!isSelf) ...[
+                      OutlinedButton.icon(
+                        onPressed: () => _toggleUserDisabled(user),
+                        icon: Icon(
+                          isDisabled ? Icons.check_circle_outline : Icons.block,
+                          size: 18,
+                        ),
+                        label: Text(isDisabled ? l10n.enable : l10n.disable),
                       ),
-                      label: Text(isDisabled ? l10n.enable : l10n.disable),
-                    ),
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: theme.colorScheme.error,
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: theme.colorScheme.error,
+                        ),
+                        onPressed: () => showAdminUserDeleteDialog(
+                          context,
+                          user: user,
+                          onDeleted: () => ref.invalidate(adminUsersListProvider),
+                        ),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        label: Text(l10n.delete),
                       ),
-                      onPressed: () => showAdminUserDeleteDialog(
-                        context,
-                        user: user,
-                        onDeleted: () => ref.invalidate(adminUsersListProvider),
-                      ),
-                      icon: const Icon(Icons.delete_outline, size: 18),
-                      label: Text(l10n.delete),
-                    ),
+                    ],
                   ],
                 ),
               ],

@@ -14,19 +14,22 @@ Future<void> showRenameLibraryDialog(
   required VoidCallback onRenamed,
 }) async {
   final l10n = AppLocalizations.of(context);
-  final controller = TextEditingController(text: currentName);
+  // Kos TV: a field with its own controller, which outlives the dialog's
+  // closing animation (a controller disposed here would not).
+  var text = currentName;
   final newName = await showDialog<String>(
     context: context,
     builder: (ctx) => AlertDialog.adaptive(
       title: Text(l10n.adminRenameLibrary),
-      content: TextField(
-        controller: controller,
+      content: TextFormField(
+        initialValue: currentName,
+        onChanged: (v) => text = v,
         decoration: adminInputDecoration(
           label: l10n.adminNewName,
           helper: l10n.adminRenameLibraryWarning,
         ),
         autofocus: true,
-        onSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
+        onFieldSubmitted: (v) => Navigator.of(ctx).pop(v.trim()),
       ),
       actions: [
         adaptiveDialogAction(
@@ -34,13 +37,12 @@ Future<void> showRenameLibraryDialog(
           child: Text(l10n.cancel),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+          onPressed: () => Navigator.of(ctx).pop(text.trim()),
           child: Text(l10n.rename),
         ),
       ],
     ),
   );
-  controller.dispose();
 
   if (newName == null ||
       newName.isEmpty ||

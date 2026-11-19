@@ -52,10 +52,28 @@ class AdminDraftTarget {
   void _discard() => _reset(working, _original);
 }
 
+/// Kos TV: what a page has typed but not yet put into its maps, like a tag
+/// written in its field without pressing add. It counts as an edit, goes in
+/// before a save and is cleared on discard, so it is never lost unnoticed.
+class AdminDraftPending {
+  const AdminDraftPending({
+    required this.isPending,
+    required this.commit,
+    required this.clear,
+  });
+
+  final bool Function() isPending;
+
+  /// Puts the typed input into the working maps.
+  final VoidCallback commit;
+
+  final VoidCallback clear;
+}
+
 /// The unsaved edits of the admin page on screen. The shell shows the
 /// Discard/Save bar from it and every admin route asks before leaving it dirty.
 class AdminDraft extends ChangeNotifier {
-  AdminDraft(this.targets);
+  AdminDraft(this.targets, {this.pending});
 
   AdminDraft.single({
     required Map<String, dynamic> working,
@@ -70,6 +88,10 @@ class AdminDraft extends ChangeNotifier {
 
   final Map<String, AdminDraftTarget> targets;
 
+  final AdminDraftPending? pending;
+
+  bool get _hasPending => pending?.isPending() ?? false;
+
   /// Bumped when the working maps are replaced, so pages re-key their fields
   /// (uncontrolled fields only read their initial value).
   int revision = 0;
@@ -81,7 +103,7 @@ class AdminDraft extends ChangeNotifier {
 
   /// Call after any edit to a working map.
   void touch() {
-    final dirty = targets.values.any((t) => t.isDirty);
+    final dirty = targets.values.any((t) => t.isDirty) || _hasPending;
     if (dirty == _dirty && error == null) return;
     _dirty = dirty;
     error = null;
@@ -96,6 +118,7 @@ class AdminDraft extends ChangeNotifier {
     error = null;
     notifyListeners();
     try {
+      pending?.commit();
       for (final target in targets.values) {
         if (target.isDirty) await target._save();
       }
@@ -106,12 +129,13 @@ class AdminDraft extends ChangeNotifier {
     } finally {
       saving = false;
       revision++;
-      _dirty = targets.values.any((t) => t.isDirty);
+      _dirty = targets.values.any((t) => t.isDirty) || _hasPending;
       notifyListeners();
     }
   }
 
   void discard() {
+    pending?.clear();
     for (final target in targets.values) {
       target._discard();
     }
@@ -141,12 +165,42 @@ class AdminDraft extends ChangeNotifier {
   }
 }
 
+/// Kos TV: the create forms (a new user, a new library) don't use a draft.
+/// While one has something typed it registers here under its route, and
+/// leaving that route asks first.
+class AdminUnsavedForms {
+  AdminUnsavedForms._();
+
+  static final _forms = <String, bool Function()>{};
+
+  /// [hasInput] answers whether the form at [route] holds unsaved input.
+  static void register(String route, bool Function() hasInput) =>
+      _forms[route] = hasInput;
+
+  static void unregister(String route) => _forms.remove(route);
+
+  static bool hasInput(String route) => _forms[route]?.call() ?? false;
+}
+
 /// `GoRoute.onExit` for every admin page: asks once before leaving unsaved
 /// edits. go_router calls it for each exiting match, and the second call finds
 /// the draft already discarded.
 Future<bool> confirmAdminLeave(BuildContext context, GoRouterState state) async {
+  final route = state.matchedLocation;
+  if (AdminUnsavedForms.hasInput(route)) {
+    if (!await _askDiscard(context)) return false;
+    AdminUnsavedForms.unregister(route);
+    return true;
+  }
   final draft = AdminDraft.active.value;
   if (draft == null || !draft.isDirty) return true;
+  if (!await _askDiscard(context)) return false;
+  draft.discard();
+  draft.release();
+  return true;
+}
+
+Future<bool> _askDiscard(BuildContext context) async {
   final l10n = AppLocalizations.of(context);
   final discard = await showDialog<bool>(
     context: context,
@@ -166,10 +220,7 @@ Future<bool> confirmAdminLeave(BuildContext context, GoRouterState state) async 
       ],
     ),
   );
-  if (discard != true) return false;
-  draft.discard();
-  draft.release();
-  return true;
+  return discard == true;
 }
 
 const _eq = DeepCollectionEquality();

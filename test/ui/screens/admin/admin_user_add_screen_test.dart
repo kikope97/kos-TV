@@ -28,15 +28,25 @@ class _FakeUsersApi extends Fake implements AdminUsersApi {
   final postedPolicies = <(String, Map<String, dynamic>)>[];
   bool failPolicy = false;
 
+  /// Leaves the policy out of the create answer.
+  bool bareCreate = false;
+
   @override
   Future<ServerUser> createUser(String name, String? password) async {
     created.add((name, password));
     return ServerUser.fromJson({
       'Id': 'new-id',
       'Name': name,
-      'Policy': Map<String, dynamic>.from(_newPolicy),
+      if (!bareCreate) 'Policy': Map<String, dynamic>.from(_newPolicy),
     });
   }
+
+  @override
+  Future<ServerUser> getUserById(String userId) async => ServerUser.fromJson({
+    'Id': userId,
+    'Name': 'kid',
+    'Policy': Map<String, dynamic>.from(_newPolicy),
+  });
 
   @override
   Future<void> updateUserPolicy(String userId, Map<String, dynamic> p) async {
@@ -79,15 +89,22 @@ void main() {
     await GetIt.instance.reset();
   });
 
-  Future<void> pump(WidgetTester tester) async {
+  /// With [fromList] the form is pushed over a list page and asks before
+  /// leaving, as in the admin area.
+  Future<void> pump(WidgetTester tester, {bool fromList = false}) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final router = GoRouter(
-      initialLocation: '/admin/users/add',
+      initialLocation: fromList ? '/admin/users' : '/admin/users/add',
       routes: [
         GoRoute(
+          path: '/admin/users',
+          builder: (_, _) => const Scaffold(body: Text('users list')),
+        ),
+        GoRoute(
           path: '/admin/users/add',
+          onExit: confirmAdminLeave,
           builder: (_, _) => const Scaffold(body: AdminUserAddScreen()),
         ),
         GoRoute(
@@ -108,7 +125,48 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    if (fromList) {
+      router.push('/admin/users/add');
+      await tester.pumpAndSettle();
+    }
   }
+
+  // Kos TV: the form isn't a draft, but it still asks before dropping what
+  // was typed.
+  testWidgets('leaving with a typed name asks first', (tester) async {
+    await pump(tester, fromList: true);
+    await tester.enterText(find.byType(TextFormField).first, 'kid');
+
+    await tester.tap(find.text(l10n.cancel));
+    await tester.pumpAndSettle();
+    expect(find.text(l10n.adminLeaveMessage), findsOneWidget);
+    await tester.tap(find.text(l10n.adminKeepEditing));
+    await tester.pumpAndSettle();
+    expect(find.text('users list'), findsNothing);
+
+    await tester.tap(find.text(l10n.cancel));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l10n.adminDiscard));
+    await tester.pumpAndSettle();
+    expect(find.text('users list'), findsOneWidget);
+  });
+
+  testWidgets('an empty form leaves without asking', (tester) async {
+    await pump(tester, fromList: true);
+    await tester.tap(find.text(l10n.cancel));
+    await tester.pumpAndSettle();
+    expect(find.text(l10n.adminLeaveMessage), findsNothing);
+    expect(find.text('users list'), findsOneWidget);
+  });
+
+  testWidgets('creating the user leaves without asking', (tester) async {
+    await pump(tester, fromList: true);
+    await tester.enterText(find.byType(TextFormField).first, 'kid');
+    await tester.tap(find.text(l10n.create));
+    await tester.pumpAndSettle();
+    expect(find.text(l10n.adminLeaveMessage), findsNothing);
+    expect(find.text('edit new-id'), findsOneWidget);
+  });
 
   testWidgets('create grants only the picked access and opens the user', (
     tester,
@@ -155,6 +213,22 @@ void main() {
       find.textContaining(l10n.adminUserPolicyUpdateFailed('').trim()),
       findsOneWidget,
     );
+  });
+
+  // Kos TV: the policy is read when the create answer leaves it out, rather
+  // than failing on a missing one.
+  testWidgets('a create answer without a policy reads it first', (
+    tester,
+  ) async {
+    users.bareCreate = true;
+    await pump(tester);
+    await tester.enterText(find.byType(TextFormField).first, 'kid');
+    await tester.tap(find.text(l10n.create));
+    await tester.pumpAndSettle();
+
+    final (_, policy) = users.postedPolicies.single;
+    expect(policy['SyncPlayAccess'], 'CreateAndJoinGroups');
+    expect(policy['EnableAllFolders'], isFalse);
   });
 
   testWidgets('channel access is hidden when the server has none', (

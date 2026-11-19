@@ -11,12 +11,6 @@ final adminUsersListProvider = FutureProvider<List<ServerUser>>((ref) async {
   return client.adminUsersApi.getUsers();
 });
 
-final adminUserProvider =
-    FutureProvider.family<ServerUser, String>((ref, userId) async {
-  final client = GetIt.instance<MediaServerClient>();
-  return client.adminUsersApi.getUserById(userId);
-});
-
 final adminLibrariesProvider =
     FutureProvider<List<VirtualFolderInfo>>((ref) async {
   final client = GetIt.instance<MediaServerClient>();

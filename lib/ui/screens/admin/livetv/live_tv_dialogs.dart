@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../../l10n/app_localizations.dart';
@@ -231,7 +230,6 @@ class LiveTvTunerDialog extends StatefulWidget {
     required this.api,
     required this.types,
     this.seed = const {},
-    this.emby = false,
   });
 
   final AdminLiveTvApi api;
@@ -241,10 +239,6 @@ class LiveTvTunerDialog extends StatefulWidget {
 
   /// The stored tuner, a detected device, or empty for a new one.
   final Map<String, dynamic> seed;
-
-  /// Emby only has the favorites and hardware transcoding switches, for every
-  /// tuner type.
-  final bool emby;
 
   @override
   State<LiveTvTunerDialog> createState() => _LiveTvTunerDialogState();
@@ -330,7 +324,6 @@ class _LiveTvTunerDialogState extends State<LiveTvTunerDialog> {
     final l10n = AppLocalizations.of(context);
     final isHd = _type == 'hdhomerun';
     final isM3u = _type == 'm3u';
-    final emby = widget.emby;
     Widget flag(String key, String title) => adminSwitchRow(
           title: title,
           value: _flags[key]!,
@@ -405,7 +398,7 @@ class _LiveTvTunerDialogState extends State<LiveTvTunerDialog> {
             ),
           ),
         ],
-        if ((isM3u || isHd) && !emby) ...[
+        if (isM3u || isHd) ...[
           _gap,
           TextField(
             controller: _bitrate,
@@ -417,7 +410,7 @@ class _LiveTvTunerDialogState extends State<LiveTvTunerDialog> {
           ),
         ],
         const SizedBox(height: 4),
-        if (isHd || emby) ...[
+        if (isHd) ...[
           flag('ImportFavoritesOnly', l10n.adminTunerImportFavoritesOnly),
           flag('AllowHWTranscoding', l10n.adminTunerAllowHwTranscoding),
         ],
@@ -429,7 +422,7 @@ class _LiveTvTunerDialogState extends State<LiveTvTunerDialog> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-        if (isM3u && !emby) ...[
+        if (isM3u) ...[
           flag('AllowFmp4TranscodingContainer', l10n.adminTunerAllowFmp4),
           flag('AllowStreamSharing', l10n.adminTunerAllowStreamSharing),
           flag('EnableStreamLooping', l10n.adminTunerEnableStreamLooping),
@@ -598,7 +591,6 @@ class LiveTvSchedulesDirectDialog extends StatefulWidget {
     required this.api,
     required this.seed,
     required this.tuners,
-    this.embyGuide = false,
   });
 
   final AdminLiveTvApi api;
@@ -606,10 +598,6 @@ class LiveTvSchedulesDirectDialog extends StatefulWidget {
   /// The stored provider, or empty for a new one.
   final Map<String, dynamic> seed;
   final List<Map<String, dynamic>> tuners;
-
-  /// Emby Guide Data instead: the same country, postal code and lineup with
-  /// no sign in, and three letter country codes.
-  final bool embyGuide;
 
   @override
   State<LiveTvSchedulesDirectDialog> createState() =>
@@ -626,9 +614,8 @@ class _LiveTvSchedulesDirectDialogState
   late String _country = _text(widget.seed, 'Country');
   late String _listingsId = _text(widget.seed, 'ListingsId');
   // A stored login lists lineups without a new sign in.
-  late bool _signedIn = widget.embyGuide ||
-      _text(widget.seed, 'Username').isNotEmpty &&
-          _text(widget.seed, 'Password').isNotEmpty;
+  late bool _signedIn = _text(widget.seed, 'Username').isNotEmpty &&
+      _text(widget.seed, 'Password').isNotEmpty;
   List<Map<String, dynamic>> _countries = const [];
   List<Map<String, dynamic>> _lineups = const [];
   String? _lineupQuery;
@@ -657,17 +644,7 @@ class _LiveTvSchedulesDirectDialogState
 
   Future<void> _loadCountries() async {
     try {
-      final countries = widget.embyGuide
-          ? [
-              for (final c in await GetIt.instance<MediaServerClient>()
-                  .adminSystemApi
-                  .getCountries())
-                {
-                  'shortName': c['ThreeLetterISORegionName'],
-                  'fullName': c['DisplayName'],
-                },
-            ]
-          : await widget.api.getSchedulesDirectCountries();
+      final countries = await widget.api.getSchedulesDirectCountries();
       if (!mounted) return;
       setState(() => _countries = countries);
     } catch (e) {
@@ -754,9 +731,7 @@ class _LiveTvSchedulesDirectDialogState
   Future<void> _save() async {
     final l10n = AppLocalizations.of(context);
     if (_listingsId.isEmpty) {
-      setState(() => _error = widget.embyGuide
-          ? l10n.adminLiveTvEmbyGuideSelectLineup
-          : l10n.adminLiveTvSdSelectLineup);
+      setState(() => _error = l10n.adminLiveTvSdSelectLineup);
       return;
     }
     setState(() {
@@ -765,7 +740,7 @@ class _LiveTvSchedulesDirectDialogState
     });
     try {
       final info = await _storedProvider(widget.api, _id, widget.seed)
-        ..['Type'] = widget.embyGuide ? 'embygn' : 'SchedulesDirect'
+        ..['Type'] = 'SchedulesDirect'
         ..['ZipCode'] = _zip.text.trim()
         ..['Country'] = _country
         ..['ListingsId'] = _listingsId;
@@ -796,9 +771,7 @@ class _LiveTvSchedulesDirectDialogState
     final countryKnown =
         _country.isEmpty || _countries.any((c) => c['shortName'] == _country);
     return _FormFrame(
-      title: widget.embyGuide
-          ? l10n.adminProviderEmbyGuide
-          : l10n.adminProviderSchedulesDirect,
+      title: l10n.adminProviderSchedulesDirect,
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, _saved),
@@ -811,7 +784,7 @@ class _LiveTvSchedulesDirectDialogState
           ),
       ],
       children: [
-        if (!widget.embyGuide) ...[
+        ...[
           Text(
             l10n.adminLiveTvSdCreateAccount('https://www.schedulesdirect.org'),
             style: Theme.of(context).textTheme.bodySmall,
@@ -840,7 +813,7 @@ class _LiveTvSchedulesDirectDialogState
           ),
         ],
         if (_signedIn) ...[
-          if (!widget.embyGuide) const Divider(height: 32),
+          const Divider(height: 32),
           DropdownButtonFormField<String>(
             key: ValueKey(_countries.length),
             initialValue: _country,
@@ -1001,7 +974,7 @@ class _LiveTvChannelMapperDialogState
         picked,
       );
       if (!mounted) return;
-      // Emby's answer leaves out the guide channel.
+      // The answer may leave out the guide channel.
       final option = _providerChannels
           .where((o) => _text(o, 'Id') == picked)
           .firstOrNull;

@@ -79,12 +79,7 @@ class _LibraryOptionsFormState extends State<LibraryOptionsForm> {
   bool get _hasEmbeddedTitles =>
       !const ['books', 'boxsets', 'playlists', 'music'].contains(_type);
 
-  /// Rows only Jellyfin has hide on Emby, and each Emby row shows when the
-  /// options carry its key.
-  /// Kos TV has no Emby, so the Emby-only options below never show. Kept as
-  /// a flag for now so the Moonfin layout stays easy to compare.
-  bool get _emby => false;
-
+  /// Rows the server may lack show only when the options carry their key.
   bool _has(String key) => _options.containsKey(key);
 
   bool get _hasResumeOptions =>
@@ -358,14 +353,14 @@ class _LibraryOptionsFormState extends State<LibraryOptionsForm> {
     final embedded = [
       if (_hasEmbeddedTitles) ...[
         _optionSwitch('EnableEmbeddedTitles', l10n.adminLibEmbeddedTitles),
-        if (embeddedTitles && !_emby)
+        if (embeddedTitles)
           _optionSwitch(
               'EnableEmbeddedExtrasTitles', l10n.adminLibEmbeddedExtrasTitles),
       ],
-      if (type == 'tvshows' && !_emby)
+      if (type == 'tvshows')
         _optionSwitch(
             'EnableEmbeddedEpisodeInfos', l10n.adminLibEmbeddedEpisodeInfos),
-      if (_hasSubtitleOptions && !_emby) _buildEmbeddedSubtitles(l10n),
+      if (_hasSubtitleOptions) _buildEmbeddedSubtitles(l10n),
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -375,9 +370,8 @@ class _LibraryOptionsFormState extends State<LibraryOptionsForm> {
           title: l10n.adminLibrarySectionGeneral,
           icon: Icons.tune,
           children: [
-            if (!_emby)
-              _optionSwitch('Enabled', l10n.adminLibEnableLibrary,
-                  subtitle: l10n.adminLibEnableLibraryHelp, fallback: true),
+            _optionSwitch('Enabled', l10n.adminLibEnableLibrary,
+                subtitle: l10n.adminLibEnableLibraryHelp, fallback: true),
             if (type == 'homevideos' || type == 'photos')
               _optionSwitch('EnablePhotos', l10n.adminLibEnablePhotos),
             _optionSwitch('EnableRealtimeMonitor', l10n.adminLibRealtimeMonitor,
@@ -503,7 +497,7 @@ class _LibraryOptionsFormState extends State<LibraryOptionsForm> {
                 _optionSwitch('EnableLUFSScan', l10n.adminLibLufsScan),
               _optionSwitch(
                   'SaveLyricsWithMedia', l10n.adminLibSaveLyricsWithMedia),
-              if (!_emby) ...[
+              ...[
                 _optionSwitch('PreferNonstandardArtistsTag',
                     l10n.adminLibPreferNonstandardArtist),
                 _optionSwitch(
@@ -549,11 +543,8 @@ class _LibraryOptionsFormState extends State<LibraryOptionsForm> {
             title: l10n.adminLibrarySectionMovies,
             icon: Icons.movie_outlined,
             children: [
-              if (_emby)
-                _optionSwitch('ImportCollections', l10n.adminLibImportCollections)
-              else
-                _optionSwitch('AutomaticallyAddToCollection',
-                    l10n.adminLibAutoAddToCollection),
+              _optionSwitch('AutomaticallyAddToCollection',
+                  l10n.adminLibAutoAddToCollection),
             ],
           ),
       ],
@@ -589,7 +580,7 @@ class _LibraryOptionsFormState extends State<LibraryOptionsForm> {
     );
   }
 
-  /// Emby takes seconds between thumbnails, or -1 for one per chapter.
+  /// Seconds between thumbnails, or -1 for one per chapter.
   Widget _buildThumbnailInterval(AppLocalizations l10n) {
     final current =
         (_options['ThumbnailImagesIntervalSeconds'] as num?)?.toInt() ?? -1;
