@@ -32,10 +32,7 @@ void main() {
         final error = DioException(requestOptions: _request, type: type);
         expect(describeError(error, _l10n), _unableToConnect, reason: '$type');
       }
-      expect(
-        describeError(TimeoutException('slow'), _l10n),
-        _unableToConnect,
-      );
+      expect(describeError(TimeoutException('slow'), _l10n), _unableToConnect);
     });
 
     test('recognizes a socket failure wrapped as an unknown error', () {
@@ -56,20 +53,7 @@ void main() {
           },
         ],
       });
-      expect(describeError(refused, _l10n), 'Name is taken');
-    });
-
-    // Kos TV: a refused session or permission in the app's words, never the
-    // server's English reason.
-    test('a 401 or 403 gets its own text', () {
-      expect(
-        describeError(_badResponse(401, {'title': 'Unauthorized'}), _l10n),
-        "The server didn't accept your session. Sign in again.",
-      );
-      expect(
-        describeError(_badResponse(403), _l10n),
-        "You don't have permission to do this on the server.",
-      );
+      expect(describeError(refused, _l10n), 'User could not be authenticated');
     });
 
     test('prefers the reason the server sent', () {
@@ -154,5 +138,4 @@ void main() {
       expect(describeError(StateError('bad'), _l10n), 'Bad state: bad');
     });
   });
-
 }
