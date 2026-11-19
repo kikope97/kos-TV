@@ -15440,5 +15440,21 @@
     "kostvUntitled": "Sin título",
     "@kostvUntitled": {
         "description": "Kos TV: title of a TMDB recommendation that came without one"
+    },
+    "kostvQueuePlayNow": "Reproducir ahora",
+    "@kostvQueuePlayNow": {
+        "description": "Kos TV music player: menu of a song in «A continuación», play it now"
+    },
+    "kostvQueueMoveUp": "Subir",
+    "@kostvQueueMoveUp": {
+        "description": "Kos TV music player: menu of a song in «A continuación», move it one place up"
+    },
+    "kostvQueueMoveDown": "Bajar",
+    "@kostvQueueMoveDown": {
+        "description": "Kos TV music player: menu of a song in «A continuación», move it one place down"
+    },
+    "kostvPlayerVolume": "Volumen de la música",
+    "@kostvPlayerVolume": {
+        "description": "Kos TV music player on the web: the music's own volume slider"
     }
 }

@@ -5,9 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
-import 'package:playback_core/playback_core.dart';
 
-import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/sponsorblock_service.dart';
 import '../../../data/services/youtube_stream_resolver.dart';
 import '../../../l10n/app_localizations.dart';
@@ -18,6 +16,7 @@ import '../../../preference/user_preferences.dart';
 import '../../../util/platform_detection.dart';
 import '../../screensaver/screensaver_controller.dart';
 import '../../widgets/adaptive/sf_symbol.dart';
+import '../../widgets/music/kostv_music_hold.dart';
 import '../../widgets/web_youtube_trailer.dart';
 
 class TrailerPlayerScreen extends StatefulWidget {
@@ -66,11 +65,8 @@ class _TrailerPlayerScreenState extends State<TrailerPlayerScreen> {
     // matching the other full-screen players.
     _screensaverController.setPlaybackActive(true);
     // Background music would otherwise keep playing under the trailer.
-    final manager = GetIt.instance<PlaybackManager>();
-    final current = manager.queueService.currentItem;
-    if (current is AggregatedItem && current.isAudioLike) {
-      unawaited(manager.stop(userInitiated: false));
-    }
+    // Kos TV: paused rather than stopped, and back on as the trailer closes.
+    _musicHold.pause();
     final resolvedVideoId = _resolvedVideoId();
 
     if (kIsWeb) {
@@ -144,8 +140,13 @@ class _TrailerPlayerScreenState extends State<TrailerPlayerScreen> {
     _startStreamPlaybackPath();
   }
 
+  /// Kos TV: the music sounding, paused under the trailer and back on
+  /// as it closes.
+  final _musicHold = KostvMusicHold();
+
   @override
   void dispose() {
+    _musicHold.resume();
     _screensaverController.setPlaybackActive(false);
     _sponsorBlockPositionSub?.cancel();
     _appleTvCompletedSub?.cancel();

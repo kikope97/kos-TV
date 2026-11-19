@@ -27,7 +27,9 @@ import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/kostv_now_playing.dart';
 import '../../widgets/music/kostv_now_playing_capsule.dart'
     show KostvEqualizerBars;
+import '../../widgets/music/kostv_queue_moves.dart';
 import '../../widgets/offline_aware_image.dart';
+import '../../widgets/player_volume_control.dart' show volumeIconFor;
 import '../playback/audiobook_player_view.dart';
 import 'kostv_music_widgets.dart' show kostvMusicColor;
 import 'kostv_music_actions.dart' show kostvMusicFavoritesChanged;
@@ -46,6 +48,8 @@ class KostvNowPlayingScreen extends StatefulWidget {
 }
 
 enum _View { cover, lyrics, queue }
+
+enum _QueueAction { playNow, up, down, remove }
 
 class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   final _manager = GetIt.instance<PlaybackManager>();
@@ -68,6 +72,11 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     canRequestFocus: false,
     skipTraversal: true,
   );
+  // Kos TV: the stops of those rows, by place (see [_QueuePanel.rowFocus]).
+  final _queueRowNodes = <FocusNode>[];
+  // Kos TV: the place the remote goes to once a song picked from its menu
+  // has moved, gone or started.
+  int? _queueFocusAt;
 
   _View _view = _View.cover;
   LyricsData? _lyrics;
@@ -130,6 +139,9 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     _lyricsButtonFocus.dispose();
     _panelFocus.dispose();
     _queueRowsFocus.dispose();
+    for (final node in _queueRowNodes) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -143,7 +155,22 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   /// to play/pause with nothing left.
   void _queueChanged() {
     final had = _tv && _queueRowsFocus.hasFocus;
+    final target = _queueFocusAt;
+    _queueFocusAt = null;
     _rebuild();
+    if (_tv && target != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _view != _View.queue) return;
+        final count = kostvUpcoming(_queue).length;
+        if (count == 0) {
+          _playFocus.requestFocus();
+          return;
+        }
+        final node = _queueRowFocus(target.clamp(0, count - 1));
+        (node.context != null ? node : _playFocus).requestFocus();
+      });
+      return;
+    }
     if (!had) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _queueRowsFocus.hasFocus || _view != _View.queue) return;
@@ -153,6 +180,78 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       (rows.isEmpty ? _playFocus : rows.first).requestFocus();
     });
   }
+
+  FocusNode _queueRowFocus(int position) {
+    while (_queueRowNodes.length <= position) {
+      _queueRowNodes.add(
+        FocusNode(debugLabel: 'NowPlayingQueueRow${_queueRowNodes.length}'),
+      );
+    }
+    return _queueRowNodes[position];
+  }
+
+  /// Kos TV: OK on a song of «A continuación» with the remote: play it now,
+  /// move it a place up or down, or take it out of the queue. The remote
+  /// follows it when it moves, stays on its place when it goes (on the one
+  /// after it, or the one before when it was the last) and goes to the top
+  /// when it starts.
+  Future<void> _queueMenu(AggregatedItem song) async {
+    final l10n = AppLocalizations.of(context);
+    final at = kostvUpcomingPosition(_queue, song);
+    if (at == null) return;
+    final count = kostvUpcoming(_queue).length;
+    final choice = await showKostvMusicMenu<_QueueAction>(
+      context,
+      title: song.name,
+      subtitle: _music.artistOf(song),
+      entries: [
+        KostvMenuEntry(
+          _QueueAction.playNow,
+          Icons.play_arrow_rounded,
+          l10n.kostvQueuePlayNow,
+        ),
+        if (at > 0)
+          KostvMenuEntry(
+            _QueueAction.up,
+            Icons.arrow_upward_rounded,
+            l10n.kostvQueueMoveUp,
+          ),
+        if (at < count - 1)
+          KostvMenuEntry(
+            _QueueAction.down,
+            Icons.arrow_downward_rounded,
+            l10n.kostvQueueMoveDown,
+          ),
+        KostvMenuEntry(
+          _QueueAction.remove,
+          Icons.remove_circle_outline_rounded,
+          l10n.kostvPlayerRemove,
+        ),
+      ],
+    );
+    if (!mounted || choice == null) return;
+    // Found again: the songs may have moved on while the menu was open.
+    final now = kostvUpcomingPosition(_queue, song);
+    if (now == null) return;
+    switch (choice) {
+      case _QueueAction.playNow:
+        _queueFocusAt = 0;
+        _music.noteChosen();
+        unawaited(_manager.playFromQueue(_upcomingIndex(now)));
+      case _QueueAction.up:
+      case _QueueAction.down:
+        _queueFocusAt = now + (choice == _QueueAction.up ? -1 : 1);
+        if (kostvMoveUpcoming(_queue, song, up: choice == _QueueAction.up) ==
+            null) {
+          _queueFocusAt = null;
+        }
+      case _QueueAction.remove:
+        _queueFocusAt = now;
+        if (kostvRemoveUpcoming(_queue, song) == null) _queueFocusAt = null;
+    }
+  }
+
+  int _upcomingIndex(int position) => kostvUpcoming(_queue)[position].index;
 
   Timer? _gone;
 
@@ -535,12 +634,18 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   Widget _wide(AggregatedItem item, Size size) {
     final panel = switch (_view) {
       _View.lyrics when _hasLyrics => _lyricsPanel(big: _tv),
-      _View.queue => _QueuePanel(big: _tv, rowsFocus: _queueRowsFocus),
+      _View.queue => _QueuePanel(
+        big: _tv,
+        rowsFocus: _queueRowsFocus,
+        rowFocus: _queueRowFocus,
+        onRemote: _queueMenu,
+      ),
       _ => null,
     };
     final height = size.height;
     // The cover takes what the titles and the controls leave.
-    final room = height * 0.9 - (_tv ? 360 : 320);
+    final ownVolume = KostvNowPlaying.hasOwnVolume;
+    final room = height * 0.9 - (_tv ? 360 : 320) - (ownVolume ? 48 : 0);
     final coverSize = room.clamp(150.0, panel == null ? 560.0 : 460.0);
     final controls = SizedBox(
       width: (coverSize * 1.25).clamp(320.0, 620.0),
@@ -586,6 +691,11 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
             onQueue: () => _show(_View.queue),
             onMore: () => _showMore(item),
           ),
+          // Kos TV: on the web on a computer, the music's own volume.
+          if (ownVolume) ...[
+            SizedBox(height: height * 0.015),
+            _MusicVolume(volume: _music.volume, onChanged: _music.setVolume),
+          ],
         ],
       ),
     );
@@ -1794,15 +1904,95 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   }
 }
 
+// --- The music's own volume ---
+
+/// Kos TV: the music's own volume on the web on a computer: the speaker
+/// mutes and brings back the level it had, and the slider sets it.
+class _MusicVolume extends StatefulWidget {
+  const _MusicVolume({required this.volume, required this.onChanged});
+
+  /// From 0 to 100.
+  final double volume;
+  final ValueChanged<double> onChanged;
+
+  @override
+  State<_MusicVolume> createState() => _MusicVolumeState();
+}
+
+class _MusicVolumeState extends State<_MusicVolume> {
+  double _beforeMute = 100;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final volume = widget.volume;
+    final muted = volume <= 0;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: muted ? l10n.unmute : l10n.mute,
+          icon: Icon(
+            volumeIconFor(volume / 100),
+            color: Colors.white.withValues(alpha: 0.8),
+          ),
+          onPressed: () {
+            if (muted) {
+              widget.onChanged(_beforeMute > 0 ? _beforeMute : 100);
+            } else {
+              _beforeMute = volume;
+              widget.onChanged(0);
+            }
+          },
+        ),
+        SizedBox(
+          width: 220,
+          child: SliderTheme(
+            data: SliderThemeData(
+              trackHeight: 4,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+              activeTrackColor: Colors.white,
+              inactiveTrackColor: Colors.white.withValues(alpha: 0.25),
+              thumbColor: Colors.white,
+              overlayColor: Colors.white.withValues(alpha: 0.15),
+            ),
+            child: Slider(
+              value: volume.clamp(0.0, 100.0),
+              max: 100,
+              semanticFormatterCallback: (value) =>
+                  '${l10n.kostvPlayerVolume}: ${value.round()} %',
+              onChanged: widget.onChanged,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // --- What comes next ---
 
 /// What comes next: the songs left, to play, move and take away; and
 /// autoplay, to go on with similar songs from home when they run out.
 class _QueuePanel extends StatelessWidget {
-  const _QueuePanel({this.big = false, this.rowsFocus});
+  const _QueuePanel({
+    this.big = false,
+    this.rowsFocus,
+    this.rowFocus,
+    this.onRemote,
+  });
 
   final bool big;
   final FocusNode? rowsFocus;
+
+  /// Kos TV: on the TV, each row's stop by its place in the list, so the
+  /// remote stays on a place (and lights it) while the songs move under it.
+  final FocusNode Function(int position)? rowFocus;
+
+  /// Kos TV: OK on a row with the remote opens its menu (play it now, move
+  /// it up or down, take it away) instead of playing it straight away.
+  final void Function(AggregatedItem song)? onRemote;
 
   @override
   Widget build(BuildContext context) {
@@ -1810,13 +2000,7 @@ class _QueuePanel extends StatelessWidget {
     final manager = GetIt.instance<PlaybackManager>();
     final music = KostvNowPlaying.instance;
     final queue = manager.queueService;
-    final items = queue.items;
-    final start = queue.currentIndex + 1;
-    final upcoming = [
-      for (var i = start; i < items.length; i++)
-        if (items[i] is AggregatedItem)
-          (index: i, item: items[i] as AggregatedItem),
-    ];
+    final upcoming = kostvUpcoming(queue);
     final touch = !PlatformDetection.isTV;
 
     final header = Padding(
@@ -1896,12 +2080,16 @@ class _QueuePanel extends StatelessWidget {
     Widget row(({int index, AggregatedItem item}) entry, int position) {
       final item = entry.item;
       final fromAutoplay = music.autoplayIds.contains(item.id);
+      final remote = onRemote;
       final tile = _Stop(
-        key: ValueKey('queue-${item.id}-${entry.index}'),
-        onTap: () {
-          KostvNowPlaying.instance.noteChosen();
-          unawaited(manager.playFromQueue(entry.index));
-        },
+        key: touch ? ValueKey('queue-${item.id}-${entry.index}') : null,
+        focusNode: touch ? null : rowFocus?.call(position),
+        onTap: !touch && remote != null
+            ? () => remote(item)
+            : () {
+                KostvNowPlaying.instance.noteChosen();
+                unawaited(manager.playFromQueue(entry.index));
+              },
         builder: (context, lit) => AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1977,7 +2165,11 @@ class _QueuePanel extends StatelessWidget {
         ),
       );
       return KeyedSubtree(
-        key: ValueKey('q-${item.id}-${entry.index}'),
+        // Kos TV: on the TV by place, so the row the remote is on keeps its
+        // stop (and its light) while a song moves through it.
+        key: touch
+            ? ValueKey('q-${item.id}-${entry.index}')
+            : ValueKey('q-at-$position'),
         child: tile,
       );
     }

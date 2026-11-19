@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:get_it/get_it.dart';
 import 'package:playback_core/playback_core.dart';
@@ -12,6 +13,8 @@ import '../../../preference/user_preferences.dart';
 import '../../../util/audio_artwork_url.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/app_router.dart';
+import '../../screens/playback/osd_buttons.dart'
+    show playerVolumeIgnoredByBrowser;
 import '../floating_notification.dart';
 import 'kostv_now_playing_web_session.dart';
 
@@ -72,6 +75,12 @@ class KostvNowPlaying extends ChangeNotifier {
     } catch (_) {
       // A stand-in player (the tests') without it.
     }
+    try {
+      // Kos TV: the music's own volume goes to a new player too.
+      _subs.add(manager.backendChangedStream.listen((_) => _applyVolume()));
+    } catch (_) {
+      // A stand-in player (the tests') without it.
+    }
     // Kos TV: on the web, the browser's lock screen and media keys.
     attachKostvWebMediaSession(this);
     // Often started while a menu is being built: what it finds is told
@@ -94,10 +103,18 @@ class KostvNowPlaying extends ChangeNotifier {
     _failedId = null;
     _failureCheck?.cancel();
     _failureCheck = null;
+    _volume = null;
+    _volumeOn = null;
+    _volumeAt = null;
+    _persistVolume?.cancel();
+    _persistVolume = null;
   }
 
   void _changed() {
     unawaited(_maybeAutoplay());
+    // Kos TV: set again for each new song, whatever the player did before.
+    if (this.item?.id != _itemId) _volumeOn = null;
+    _applyVolume();
     final item = this.item;
     final playing = _manager?.state.isPlaying ?? false;
     if (item?.id == _itemId && playing == _playing) return;
@@ -305,6 +322,81 @@ class KostvNowPlaying extends ChangeNotifier {
     setSleep(null);
     _sleepAfterSong = false;
     unawaited(_manager?.stop());
+  }
+
+  // --- The music's own volume (the web on a computer) ---
+
+  /// Kos TV: whether the music has its own volume, apart from the videos':
+  /// only on the web on a computer. Safari on an iPhone or an iPad ignores
+  /// it, and the TV and the phone use the device's own volume.
+  static bool get hasOwnVolume =>
+      debugHasOwnVolume ??
+      (kIsWeb &&
+          !playerVolumeIgnoredByBrowser &&
+          PlatformDetection.useDesktopUi);
+
+  @visibleForTesting
+  static bool? debugHasOwnVolume;
+
+  UserPreferences? get _prefs => GetIt.instance.isRegistered<UserPreferences>()
+      ? GetIt.instance<UserPreferences>()
+      : null;
+
+  double? _volume;
+
+  /// The music's volume, in percent, kept between visits.
+  double get volume =>
+      _volume ??= (_prefs?.get(UserPreferences.kostvMusicVolume) ?? 100.0)
+          .clamp(0.0, 100.0)
+          .toDouble();
+
+  // The level last left in which player, so it is set again only when
+  // either changes (a video in between leaves its own level in the player).
+  PlayerBackend? _volumeOn;
+  double? _volumeAt;
+  Timer? _persistVolume;
+
+  /// Kos TV: sets the music's volume (from the slider of «Reproduciendo»)
+  /// and keeps it, a moment after the last change.
+  void setVolume(double level) {
+    if (!hasOwnVolume) return;
+    final clamped = level.clamp(0.0, 100.0).toDouble();
+    if (clamped == volume) return;
+    _volume = clamped;
+    _applyVolume();
+    _persistVolume?.cancel();
+    _persistVolume = Timer(const Duration(milliseconds: 400), () {
+      _persistVolume = null;
+      unawaited(_prefs?.set(UserPreferences.kostvMusicVolume, clamped));
+    });
+    notifyListeners();
+  }
+
+  /// Puts the music's volume on the player while a song sounds; with no
+  /// song (a video, or nothing) it is left alone and set again on the next.
+  void _applyVolume() {
+    if (!hasOwnVolume) return;
+    final song = item;
+    if (song == null || song.isAudiobook) {
+      _volumeOn = null;
+      _volumeAt = null;
+      return;
+    }
+    final backend = _manager?.backend;
+    if (backend == null) return;
+    final level = volume;
+    if (identical(backend, _volumeOn) && _volumeAt == level) return;
+    _volumeOn = backend;
+    _volumeAt = level;
+    unawaited(backend.setVolume(level));
+  }
+
+  /// Kos TV: Kids Mode went on: a song sounding stops and the floating
+  /// player and «Reproduciendo» go with it. An audiobook goes on.
+  void stopForKidsMode() {
+    final song = item;
+    if (song == null || song.isAudiobook) return;
+    close();
   }
 
   // --- The sleep timer ---

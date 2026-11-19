@@ -62,6 +62,29 @@ class _Manager extends Fake implements PlaybackManager {
 
   @override
   Future<void> resume() async => resumes++;
+
+  int stops = 0;
+
+  @override
+  Future<void> stop({bool userInitiated = true}) async {
+    stops++;
+    queueService.clear();
+  }
+
+  @override
+  PlayerBackend? backend = _Backend();
+
+  final backends = StreamController<PlayerBackend>.broadcast(sync: true);
+
+  @override
+  Stream<PlayerBackend> get backendChangedStream => backends.stream;
+}
+
+class _Backend extends Fake implements PlayerBackend {
+  final volumes = <double>[];
+
+  @override
+  Future<void> setVolume(double volume) async => volumes.add(volume);
 }
 
 AggregatedItem _item(String id, String type) => AggregatedItem(
@@ -86,6 +109,7 @@ void main() {
   });
 
   tearDown(() {
+    KostvNowPlaying.debugHasOwnVolume = null;
     KostvNowPlaying.instance.debugReset();
     return GetIt.instance.reset();
   });
@@ -247,6 +271,94 @@ void main() {
         async.elapse(const Duration(seconds: 2));
         expect(music.failed, isFalse);
       });
+    });
+  });
+
+  // Kos TV: on the web on a computer the music sounded at the last video's
+  // level (the browser's players are shared).
+  group('the music\'s own volume', () {
+    test('a song gets the music\'s level; a film is left alone', () {
+      fakeAsync((async) {
+        KostvNowPlaying.debugHasOwnVolume = true;
+        final backend = manager.backend! as _Backend;
+        KostvNowPlaying.instance.ensureStarted();
+        manager.queueService.setQueue([_item('m1', 'Movie')]);
+        async.flushMicrotasks();
+        expect(backend.volumes, isEmpty);
+
+        manager.queueService.setQueue([_item('s1', 'Audio')]);
+        async.flushMicrotasks();
+        expect(backend.volumes, [100]);
+        // Pausing and going on doesn't set it again for nothing.
+        manager.state.setPlaying(true);
+        async.flushMicrotasks();
+        expect(backend.volumes, [100]);
+      });
+    });
+
+    test('the slider sets it, and a song after a film gets it back', () {
+      fakeAsync((async) {
+        KostvNowPlaying.debugHasOwnVolume = true;
+        final backend = manager.backend! as _Backend;
+        final music = KostvNowPlaying.instance..ensureStarted();
+        manager.queueService.setQueue([_item('s1', 'Audio')]);
+        async.flushMicrotasks();
+        music.setVolume(40);
+        expect(music.volume, 40);
+        expect(backend.volumes.last, 40);
+
+        // A film in between leaves its own level in the player.
+        manager.queueService.setQueue([_item('m1', 'Movie')]);
+        async.flushMicrotasks();
+        backend.volumes.add(90);
+        manager.queueService.setQueue([_item('s2', 'Audio')]);
+        async.flushMicrotasks();
+        expect(backend.volumes.last, 40);
+
+        // A new player gets it too.
+        final other = _Backend();
+        manager.backend = other;
+        manager.backends.add(other);
+        expect(other.volumes, [40]);
+        async.elapse(const Duration(seconds: 1));
+      });
+    });
+
+    test('nowhere else does it touch the player', () {
+      fakeAsync((async) {
+        KostvNowPlaying.debugHasOwnVolume = false;
+        final backend = manager.backend! as _Backend;
+        final music = KostvNowPlaying.instance..ensureStarted();
+        manager.queueService.setQueue([_item('s1', 'Audio')]);
+        async.flushMicrotasks();
+        music.setVolume(40);
+        expect(backend.volumes, isEmpty);
+        expect(music.volume, 100);
+      });
+    });
+  });
+
+  // Kos TV: Kids Mode going on for the person stops the music.
+  group('Kids Mode', () {
+    test('stops a song', () {
+      fakeAsync((async) {
+        final music = KostvNowPlaying.instance..ensureStarted();
+        manager.queueService.setQueue([_item('s1', 'Audio')]);
+        async.flushMicrotasks();
+        music.stopForKidsMode();
+        async.flushMicrotasks();
+        expect(manager.stops, 1);
+        expect(music.item, isNull);
+      });
+    });
+
+    test('leaves an audiobook and a film alone', () {
+      final music = KostvNowPlaying.instance;
+      manager.queueService.setQueue([_item('b1', 'AudioBook')]);
+      music.stopForKidsMode();
+      manager.queueService.setQueue([_item('m1', 'Movie')]);
+      music.stopForKidsMode();
+      expect(manager.stops, 0);
     });
   });
 

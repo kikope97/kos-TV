@@ -14,13 +14,18 @@ import 'route_gates.dart';
 /// menu pages are pushed over Home and the address stays on /home. While
 /// Settings is open (the mode is turned on from there) it waits for the
 /// panel to close, so the panel isn't torn away mid PIN.
+///
+/// Music is closed to Kids Mode too, so turning it on for the person
+/// signed in also stops the music sounding ([stopMusic]), straight away.
 class KidsModePageGuard {
   KidsModePageGuard({
     required this.prefs,
     required this.router,
     required this.settingsOpen,
+    this.stopMusic,
   }) {
     _wasOn = _kidsMode;
+    _wasScope = prefs.activeProfileScope;
     prefs.addListener(_onPrefsChanged);
   }
 
@@ -29,15 +34,25 @@ class KidsModePageGuard {
 
   /// Whether Settings is open over the page.
   final ValueListenable<bool> settingsOpen;
+
+  /// Kos TV: stops the music (not an audiobook) and closes its player.
+  final VoidCallback? stopMusic;
   late bool _wasOn;
+  // Whose the mode read last was: switching to someone in Kids Mode isn't
+  // turning it on (switching people stops what was sounding by itself).
+  String? _wasScope;
   bool _waitingForSettings = false;
 
   bool get _kidsMode => prefs.get(UserPreferences.kidsModeEnabled);
 
   void _onPrefsChanged() {
     final on = _kidsMode;
+    final scope = prefs.activeProfileScope;
+    final samePerson = scope == _wasScope;
+    _wasScope = scope;
     if (on == _wasOn) return;
     _wasOn = on;
+    if (on && samePerson) stopMusic?.call();
     if (on) _leaveBlockedPages();
   }
 

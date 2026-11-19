@@ -365,6 +365,11 @@ class UserPreferences extends ChangeNotifier {
     }
   }
 
+  /// Kos TV: who the scoped preferences are read for now (server and
+  /// person), or null with nobody signed in. Tells a setting changed by the
+  /// same person from one read for another after switching.
+  String? get activeProfileScope => _activeProfileScopeSuffix();
+
   String? _activeProfileScopeSuffix() {
     final serverId = (_store.getString(_lastServerIdPreferenceKey) ?? '')
         .trim();
@@ -4045,6 +4050,14 @@ class UserPreferences extends ChangeNotifier {
   // of jumping to max.
   static final playerVolume = Preference(
     key: 'player_volume',
+    defaultValue: 100.0,
+  );
+
+  // Kos TV: the music's own volume on the web on a computer, in percent,
+  // apart from the videos' (the browser's players are shared, so music
+  // would otherwise sound at the last video's level).
+  static final kostvMusicVolume = Preference(
+    key: 'kostv_music_volume',
     defaultValue: 100.0,
   );
 

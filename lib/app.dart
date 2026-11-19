@@ -34,6 +34,7 @@ import 'preference/user_preferences.dart';
 import 'syncplay/syncplay_manager.dart';
 import 'ui/navigation/app_router.dart';
 import 'ui/widgets/music/kostv_now_playing_capsule.dart';
+import 'ui/widgets/music/kostv_now_playing.dart';
 import 'ui/navigation/deferred_route_pop.dart';
 import 'ui/navigation/deep_link_navigator.dart';
 import 'ui/navigation/destinations.dart';
@@ -138,6 +139,7 @@ class _MoonfinAppState extends State<MoonfinApp> {
       prefs: _prefs,
       router: appRouter,
       settingsOpen: SettingsPanel.isOpenNotifier,
+      stopMusic: KostvNowPlaying.instance.stopForKidsMode,
     );
     if (PlatformDetection.isAppleTV) {
       TopShelfService().startDeepLinkListener(navigateWhenReady);

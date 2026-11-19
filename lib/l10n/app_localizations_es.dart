@@ -21178,4 +21178,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvUntitled => 'Sin título';
+
+  @override
+  String get kostvQueuePlayNow => 'Reproducir ahora';
+
+  @override
+  String get kostvQueueMoveUp => 'Subir';
+
+  @override
+  String get kostvQueueMoveDown => 'Bajar';
+
+  @override
+  String get kostvPlayerVolume => 'Volumen de la música';
 }

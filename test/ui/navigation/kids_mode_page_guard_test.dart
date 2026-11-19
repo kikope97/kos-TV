@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Kos TV: turning Kids Mode on over a page it blocks, and menu pages the
 /// router would send to Home.
 void main() {
+  late PreferenceStore store;
   late UserPreferences prefs;
   late GoRouter router;
   late ValueNotifier<bool> settingsOpen;
@@ -22,7 +23,7 @@ void main() {
 
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
-    final store = PreferenceStore();
+    store = PreferenceStore();
     await store.init();
     prefs = UserPreferences(store);
     GetIt.instance.registerSingleton<UserPreferences>(prefs);
@@ -113,6 +114,51 @@ void main() {
     // No second Home stacked over the first.
     expect(router.canPop(), isFalse);
     expect(shown(), Destinations.home);
+  });
+
+  // Kos TV: Music is closed to the mode, so what sounds stops with it.
+  group('the music', () {
+    final server = Preference(key: 'pref_last_server_id', defaultValue: '');
+    final user = Preference(key: 'pref_last_user_id', defaultValue: '');
+    late int stops;
+    late KidsModePageGuard withMusic;
+
+    setUp(() async {
+      await store.set(server, 'casa');
+      await store.set(user, 'mama');
+      stops = 0;
+      withMusic = KidsModePageGuard(
+        prefs: prefs,
+        router: router,
+        settingsOpen: settingsOpen,
+        stopMusic: () => stops++,
+      );
+    });
+
+    tearDown(() => withMusic.dispose());
+
+    testWidgets('stops as the mode goes on for the same person', (
+      tester,
+    ) async {
+      await pumpApp(tester);
+      // Even with Settings still open over the page.
+      settingsOpen.value = true;
+      await prefs.set(UserPreferences.kidsModeEnabled, true);
+      expect(stops, 1);
+      await prefs.set(UserPreferences.kidsModeEnabled, false);
+      expect(stops, 1);
+      settingsOpen.value = false;
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('switching to someone in Kids Mode is not turning it on', (
+      tester,
+    ) async {
+      await pumpApp(tester);
+      await store.set(user, 'nino');
+      await prefs.set(UserPreferences.kidsModeEnabled, true);
+      expect(stops, 0);
+    });
   });
 
   testWidgets('a page no menu takes in is not waited for for ever', (
