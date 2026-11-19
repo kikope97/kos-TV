@@ -28,8 +28,6 @@ void main() {
         Destinations.trailerPlayer,
         '/player/book/item1',
         '/player/photo/item1',
-        '/player/next-up/item1',
-        '/player/still-watching/item1',
         '/game-player/lib1/game1',
       ]) {
         expect(Destinations.isPlayerRoute(path), isTrue, reason: path);
@@ -122,8 +120,6 @@ void main() {
         Destinations.trailerPlayer,
         '/player/book/item1',
         '/player/photo/item1',
-        '/player/next-up/item1',
-        '/player/still-watching/item1',
       ]) {
         expect(Destinations.routeReadsBackKey(path), isFalse, reason: path);
         expect(Destinations.isPlayerRoute(path), isTrue, reason: path);

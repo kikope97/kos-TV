@@ -235,15 +235,14 @@ enum VideoRenderer {
 }
 
 enum StillWatchingBehavior {
-  short_(episodes: 2, hours: 1.0),
-  medium(episodes: 3, hours: 1.5),
-  long_(episodes: 5, hours: 2.5),
-  veryLong(episodes: 8, hours: 4.0),
-  disabled(episodes: 0, hours: 0);
+  short_(episodes: 2),
+  medium(episodes: 3),
+  long_(episodes: 5),
+  veryLong(episodes: 8),
+  disabled(episodes: 0);
 
-  const StillWatchingBehavior({required this.episodes, required this.hours});
+  const StillWatchingBehavior({required this.episodes});
   final int episodes;
-  final double hours;
 }
 
 enum WatchedIndicatorBehavior {

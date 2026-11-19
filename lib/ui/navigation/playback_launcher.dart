@@ -32,6 +32,12 @@ void ensureLaunchStillWanted(PlaybackLaunchSession? session) {
 
 PlaybackLaunchSession? _activeVideoLaunch;
 
+/// Kos TV: set by the open video player screen. Stops its playback (saving
+/// where it was) and leaves it ready to go, without closing anything opened
+/// over it, so a start made from a page on top of it (a person opened from
+/// its cast, then one of their films) can take over.
+Future<void> Function()? videoPlayerHandover;
+
 /// Opens the appropriate player around [startPlayback]. Video routes paint
 /// before the start callback runs; audio keeps its existing start-then-open
 /// behavior because its compact player remains visible on the current page.
@@ -56,14 +62,84 @@ Future<bool> launchPlayerWhilePreparing(
     // hold the slot for the rest of the process and swallow every later play
     // press. A live launch always has its route on the stack, so a holder
     // without one is dead and its slot can be taken over.
-    if (_videoPlayerRoutePresent(context)) {
+    if (_videoPlayerRoutePresent(context) &&
+        !await _handOverCoveredPlayer(context)) {
       return false;
     }
-    final stale = _activeVideoLaunch!;
-    _activeVideoLaunch = null;
-    stale._cancelled = true;
+    if (!context.mounted) return false;
+    // A handed over player usually finished its own launch on the way out.
+    final stale = _activeVideoLaunch;
+    if (stale != null) {
+      _activeVideoLaunch = null;
+      stale._cancelled = true;
+    }
   }
 
+  return _launchVideo(context, manager: manager, startPlayback: startPlayback);
+}
+
+/// Kos TV: a player that finished starting and sits under the page this
+/// start comes from is stopped and taken out of the stack, as if it had been
+/// closed first, so the new start goes ahead instead of being swallowed.
+/// False when there is none to hand over: the player is still starting (a
+/// second press) or is the page on top.
+Future<bool> _handOverCoveredPlayer(BuildContext context) async {
+  final handover = videoPlayerHandover;
+  final holder = _activeVideoLaunch;
+  if (handover == null || holder == null || !holder._startupFinished) {
+    return false;
+  }
+  final GoRouter router;
+  try {
+    router = GoRouter.of(context);
+  } catch (_) {
+    return false;
+  }
+  final matches = router.routerDelegate.currentConfiguration.matches;
+  final index = matches.lastIndexWhere(
+    (match) => match.matchedLocation == Destinations.videoPlayer,
+  );
+  if (index < 0 || index == matches.length - 1) return false;
+  final playerMatch = matches[index];
+
+  await handover();
+  if (!context.mounted) return false;
+  final now = router.routerDelegate.currentConfiguration;
+  final kept = [
+    for (final match in now.matches)
+      if (!identical(match, playerMatch)) match,
+  ];
+  if (kept.length != now.matches.length) {
+    // Same location (the page on top), only the player taken out from under
+    // it: the pages above keep their state.
+    router.restore(
+      RouteMatchList(
+        matches: kept,
+        uri: now.uri,
+        extra: now.extra,
+        error: now.error,
+        pathParameters: now.pathParameters,
+      ),
+    );
+  }
+  if (playerMatch is ImperativeRouteMatch &&
+      !playerMatch.completer.isCompleted) {
+    // Its push never returns otherwise, and its launch would hold on.
+    playerMatch.complete();
+  }
+  for (var frame = 0; frame < 30; frame++) {
+    if (!context.mounted) return false;
+    if (!_videoPlayerRoutePresent(context)) return true;
+    await WidgetsBinding.instance.endOfFrame;
+  }
+  return context.mounted && !_videoPlayerRoutePresent(context);
+}
+
+Future<bool> _launchVideo(
+  BuildContext context, {
+  required PlaybackManager manager,
+  required PlaybackStarter startPlayback,
+}) async {
   final session = PlaybackLaunchSession._();
   _activeVideoLaunch = session;
 

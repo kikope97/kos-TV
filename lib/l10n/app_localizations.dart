@@ -34190,6 +34190,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t add it to the collection'**
   String get kostvCollectionAddFailed;
+
+  /// Kos TV: state of the device the video is sent to (Google Cast, DLNA), playing
+  ///
+  /// In en, this message translates to:
+  /// **'Playing'**
+  String get kostvCastStatePlaying;
+
+  /// Kos TV: state of the device the video is sent to (Google Cast, DLNA), buffering
+  ///
+  /// In en, this message translates to:
+  /// **'Buffering'**
+  String get kostvCastStateBuffering;
+
+  /// Kos TV: player volume indicator once the volume is raised past 100 % (the extra boost level)
+  ///
+  /// In en, this message translates to:
+  /// **'Volume +{level}'**
+  String kostvVolumeBoost(int level);
 }
 
 class _AppLocalizationsDelegate

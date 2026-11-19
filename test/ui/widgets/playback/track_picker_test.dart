@@ -98,6 +98,20 @@ class _Manager extends PlaybackManager {
       false;
 }
 
+/// Kos TV: records the subtitle tracks put on, to see whose they were.
+class _RecordingManager extends _Manager {
+  _RecordingManager(super.backend, {super.resolution, super.primaryIndex});
+
+  final changed = <int>[];
+
+  @override
+  Future<void> changeSubtitleTrack(
+    int streamIndex, {
+    bool userInitiated = true,
+    bool refreshStreams = false,
+  }) async => changed.add(streamIndex);
+}
+
 void main() {
   late AppLocalizations l10n;
 
@@ -315,6 +329,43 @@ void main() {
     expect(find.text(l10n.subtitleDelay), findsNothing);
     expect(find.textContaining(l10n.streamTypeFallback('Subtitle', 1)), findsOneWidget);
   });
+
+  // Kos TV: the list opened on one episode isn't put on the next one, which
+  // may have started (on its own) while it was open.
+  for (final itemChanged in [false, true]) {
+    testWidgets(
+      itemChanged
+          ? 'a pick made after another item started is dropped'
+          : 'a pick on the item it was opened for is put on',
+      (tester) async {
+        final manager = _RecordingManager(
+          _Backend(),
+          primaryIndex: 2,
+          resolution: StreamResolutionResult(
+            streamUrl: 'https://host/stream',
+            mediaSourceId: 'source',
+            playMethod: StreamPlayMethod.directPlay,
+            mediaStreams: [
+              {'Type': 'Subtitle', 'Index': 2, 'Codec': 'subrip'},
+              {'Type': 'Subtitle', 'Index': 3, 'Codec': 'subrip'},
+            ],
+          ),
+        );
+        addTearDown(manager.dispose);
+        manager.queueService.setQueue([
+          <String, dynamic>{'Id': 'a'},
+          <String, dynamic>{'Id': 'b'},
+        ]);
+        await openPicker(tester, manager, audio: false);
+        if (itemChanged) manager.queueService.next();
+        await tester.tap(
+          find.textContaining(l10n.streamTypeFallback('Subtitle', 2)),
+        );
+        await tester.pumpAndSettle();
+        expect(manager.changed, itemChanged ? isEmpty : [3]);
+      },
+    );
+  }
 
   testWidgets('the primary and secondary step waits for the setting', (tester) async {
     final manager = _Manager(

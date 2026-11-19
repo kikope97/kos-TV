@@ -501,6 +501,117 @@ void main() {
     router.dispose();
   });
 
+  testWidgets('a start from a page over a playing player takes it over', (
+    tester,
+  ) async {
+    // Kos TV: a person opened from the player's cast, then one of their
+    // films: its play press used to be swallowed by the player underneath.
+    final manager = PlaybackManager();
+    final starts = <int>[];
+    var launches = 0;
+    var handedOver = 0;
+    videoPlayerHandover = () async => handedOver++;
+    addTearDown(() => videoPlayerHandover = null);
+
+    final router = _router(
+      onLaunch: (context) {
+        launches++;
+        final launch = launches;
+        unawaited(
+          launchPlayerWhilePreparing(
+            context,
+            manager: manager,
+            destination: Destinations.videoPlayer,
+            startPlayback: (session) async {
+              starts.add(launch);
+              await runPlaybackStart(
+                session,
+                () => manager.playItems([
+                  <String, dynamic>{'Id': '$launch'},
+                ]),
+              );
+              return true;
+            },
+          ),
+        );
+      },
+    );
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+
+    await tester.tap(find.byKey(const ValueKey('launch')));
+    await tester.pumpAndSettle();
+    expect(find.text('video'), findsOneWidget);
+
+    unawaited(router.push('/over'));
+    await tester.pumpAndSettle();
+    expect(find.text('over'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('launch-over')));
+    await tester.pumpAndSettle();
+
+    expect(handedOver, 1);
+    expect(starts, [1, 2]);
+    expect(find.text('video'), findsOneWidget);
+    expect(
+      router.routerDelegate.currentConfiguration.matches
+          .where((m) => m.matchedLocation == Destinations.videoPlayer)
+          .length,
+      1,
+    );
+
+    // Back from the new player lands on the page it was started from.
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.text('over'), findsOneWidget);
+
+    manager.dispose();
+    router.dispose();
+  });
+
+  testWidgets('a second press while the player is starting is still ignored', (
+    tester,
+  ) async {
+    final manager = PlaybackManager();
+    final startGate = Completer<bool>();
+    late BuildContext sourceContext;
+    var handedOver = 0;
+    videoPlayerHandover = () async => handedOver++;
+    addTearDown(() => videoPlayerHandover = null);
+
+    final router = _router(
+      onLaunch: (context) {
+        sourceContext = context;
+        unawaited(
+          launchPlayerWhilePreparing(
+            context,
+            manager: manager,
+            destination: Destinations.videoPlayer,
+            startPlayback: (_) => startGate.future,
+          ),
+        );
+      },
+    );
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+
+    await tester.tap(find.byKey(const ValueKey('launch')));
+    await tester.pump();
+
+    final second = await launchPlayerWhilePreparing(
+      sourceContext,
+      manager: manager,
+      destination: Destinations.videoPlayer,
+      startPlayback: (_) async => true,
+    );
+    expect(second, isFalse);
+    expect(handedOver, 0);
+
+    startGate.complete(false);
+    await tester.pumpAndSettle();
+
+    manager.dispose();
+    router.dispose();
+  });
+
   test('bring-up phases identify preparation and playback work', () {
     expect(PlaybackBringupPhase.preparing.isInProgress, isTrue);
     expect(PlaybackBringupPhase.resolving.isInProgress, isTrue);
@@ -516,6 +627,22 @@ GoRouter _router({
 }) {
   return GoRouter(
     routes: [
+      // A page opened over the player, as a person from its cast is.
+      GoRoute(
+        path: '/over',
+        builder: (context, _) => Scaffold(
+          body: Column(
+            children: [
+              const Text('over'),
+              FilledButton(
+                key: const ValueKey('launch-over'),
+                onPressed: () => onLaunch(context),
+                child: const Text('launch'),
+              ),
+            ],
+          ),
+        ),
+      ),
       GoRoute(
         path: '/',
         builder: (context, _) => Scaffold(
