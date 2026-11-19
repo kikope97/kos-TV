@@ -171,13 +171,21 @@ List<AggregatedItem> sortJellyfinFilmography(
 /// Silo's apps show and what the profile's access already shapes, so Moonfin
 /// Recommends means Silo's engine there. TMDb Similarity stays TMDb, and kids
 /// mode keeps the local algorithm and its parental-rating cap.
+///
+/// Kos TV: TMDb's titles come without a rating, so with the device's parental
+/// filter on ([parentalFilterActive]) TMDb Similarity gives way to the local
+/// algorithm too.
 @visibleForTesting
 RecommendationSystemSource similarItemsSource({
   required RecommendationSystemSource setting,
   required bool kidsMode,
   required ServerType serverType,
+  bool parentalFilterActive = false,
 }) {
   if (kidsMode) return RecommendationSystemSource.local;
+  if (parentalFilterActive && setting == RecommendationSystemSource.online) {
+    return RecommendationSystemSource.local;
+  }
   if (serverType == ServerType.silo &&
       setting == RecommendationSystemSource.local) {
     return RecommendationSystemSource.server;
@@ -2440,6 +2448,7 @@ class ItemDetailViewModel extends ChangeNotifier {
             setting: prefs.get(UserPreferences.recommendationSystemSource),
             kidsMode: prefs.get(UserPreferences.kidsModeEnabled),
             serverType: _client.serverType,
+            parentalFilterActive: activeParentalFilter.isActive,
           );
 
           if (sourceSetting == RecommendationSystemSource.server) {

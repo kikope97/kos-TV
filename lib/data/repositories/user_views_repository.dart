@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
 import '../models/aggregated_library.dart';
+import '../services/socket_handler.dart';
 
 /// The user's own views. Anything hidden from My Media is left out unless
 /// [includeHidden] is set, which callers that apply their own exclude
@@ -78,6 +82,19 @@ class UserViewsRepository extends ChangeNotifier {
   final MediaServerClient _client;
   UserConfiguration? _cachedConfig;
 
+  /// Kos TV: how long a run of library changes (a scan) is let settle before
+  /// the views are read again.
+  @visibleForTesting
+  static Duration changeSettle = const Duration(seconds: 5);
+
+  StreamSubscription<ServerWebSocketMessage>? _eventsSub;
+  StreamSubscription<void>? _connectionsSub;
+  Timer? _checkTimer;
+  bool _stopped = false;
+
+  /// Set when following the session socket rather than streams handed in.
+  bool _followsSessionSocket = false;
+
   // Concurrent callers share one in-flight request, so home mounting with
   // several rows and the nav chrome all asking at once costs one round trip
   // instead of a socket each.
@@ -85,7 +102,114 @@ class UserViewsRepository extends ChangeNotifier {
   Future<Map<String, dynamic>>? _inFlightHiddenResponse;
   Future<UserConfiguration>? _inFlightConfig;
 
-  UserViewsRepository(this._client);
+  /// [serverEvents] and [reconnections] default to the session socket's.
+  UserViewsRepository(
+    this._client, {
+    Stream<ServerWebSocketMessage>? serverEvents,
+    Stream<void>? reconnections,
+  }) {
+    final socket =
+        serverEvents == null && GetIt.instance.isRegistered<SocketHandler>()
+        ? GetIt.instance<SocketHandler>()
+        : null;
+    _followsSessionSocket = socket != null;
+    _eventsSub = (serverEvents ?? socket?.events)?.listen(_onServerEvent);
+    _connectionsSub = (reconnections ?? socket?.connections)?.listen(
+      (_) {
+        if (!_replaced()) _scheduleCheck();
+      },
+    );
+  }
+
+  /// The session socket outlives this repository, which is replaced on a
+  /// sign-out or user switch, so one left behind stops following it.
+  bool _replaced() {
+    if (_stopped) return true;
+    if (!_followsSessionSocket) return false;
+    if (GetIt.instance.isRegistered<UserViewsRepository>(instance: this)) {
+      return false;
+    }
+    stopFollowingServer();
+    return true;
+  }
+
+  /// Kos TV: the views and the configuration are kept for the session, so a
+  /// change made on the server (a library the admin gave or took away, one
+  /// the person hid or moved on another device) is picked up from the socket.
+  void _onServerEvent(ServerWebSocketMessage event) {
+    if (_replaced()) return;
+    if (event is ServerEventMessage && event.type == 'UserUpdated') {
+      final id = _normalizeId(event.data['Id']?.toString());
+      final mine = _normalizeId(_client.userId);
+      if (id == null || mine == null || id != mine) return;
+      invalidateConfigCache();
+      invalidateViews();
+      return;
+    }
+    if (event is LibraryChangedMessage &&
+        (event.itemsAdded.isNotEmpty || event.itemsRemoved.isNotEmpty)) {
+      _scheduleCheck();
+    }
+  }
+
+  static String? _normalizeId(String? id) {
+    final normalized = id?.replaceAll('-', '').toLowerCase();
+    return normalized == null || normalized.isEmpty ? null : normalized;
+  }
+
+  /// Reads the views again once things settle, and tells the nav chrome only
+  /// when the list changed. Nothing cached means the next read asks anyway.
+  void _scheduleCheck() {
+    if (_stopped) return;
+    _checkTimer?.cancel();
+    _checkTimer = Timer(changeSettle, () => unawaited(_checkForChanges()));
+  }
+
+  Future<void> _checkForChanges() async {
+    final cachedViews = _hiddenResponseCache;
+    final cachedConfig = _cachedConfig;
+    if (cachedViews == null && cachedConfig == null) return;
+    try {
+      final results = await Future.wait<Object>([
+        _client.userViewsApi.getUserViews(includeHidden: true),
+        _client.usersApi.getUserConfiguration(),
+      ]);
+      if (_stopped) return;
+      final views = results[0] as Map<String, dynamic>;
+      final config = results[1] as UserConfiguration;
+      final viewsChanged =
+          cachedViews != null && !_sameViews(cachedViews, views);
+      final excludesChanged =
+          cachedConfig != null &&
+          !listEquals(cachedConfig.myMediaExcludes, config.myMediaExcludes);
+      // Only replace what is still the copy this check started from.
+      if (identical(_cachedConfig, cachedConfig)) _cachedConfig = config;
+      if (!viewsChanged && !excludesChanged) return;
+      if (identical(_hiddenResponseCache, cachedViews)) {
+        _hiddenResponseCache = views;
+      }
+      notifyListeners();
+    } catch (_) {
+      // Unreachable now; the next change or reconnect asks again.
+    }
+  }
+
+  static bool _sameViews(Map<String, dynamic> a, Map<String, dynamic> b) {
+    List<String> shape(Map<String, dynamic> response) => [
+      for (final item in (response['Items'] as List? ?? const []))
+        if (item is Map) '${item['Id']}|${item['Name']}|${item['CollectionType']}',
+    ];
+    return listEquals(shape(a), shape(b));
+  }
+
+  /// Stops following the server's changes. The repository stays usable,
+  /// since nav chrome still mounted may hold it and remove its listener later.
+  void stopFollowingServer() {
+    _stopped = true;
+    _checkTimer?.cancel();
+    _eventsSub?.cancel();
+    _connectionsSub?.cancel();
+  }
 
   Future<List<AggregatedLibrary>> getAllViews() =>
       _inFlightViews ??= loadUserViews(

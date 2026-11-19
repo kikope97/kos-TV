@@ -62,14 +62,19 @@ class ItemMutationRepository {
   }
 
   Future<void> setPlayed(String itemId, {required bool isPlayed}) async {
+    // Kos TV: a reply that lands after a user switch belongs to the previous
+    // person, so it must not be painted onto the new one's library.
+    final session = userDataSync.session;
     if (isPlayed) {
       await _client.userLibraryApi.markPlayed(itemId);
+      if (userDataSync.session != session) return;
       final prefs = GetIt.instance<UserPreferences>();
       await prefs.setItemSubtitleStreamIndex(itemId, null);
       await prefs.setItemAudioStreamIndex(itemId, null);
     } else {
       await _client.userLibraryApi.unmarkPlayed(itemId);
     }
+    if (userDataSync.session != session) return;
     // Either way the server drops the resume point, so say so here too rather
     // than leave a progress bar under a watched tick.
     userDataSync.publish(itemId, {
@@ -91,20 +96,26 @@ class ItemMutationRepository {
   }
 
   Future<void> setRating(String itemId, {required bool likes}) async {
+    final session = userDataSync.session;
     await _client.userLibraryApi.updateUserRating(itemId, likes: likes);
+    if (userDataSync.session != session) return;
     userDataSync.publish(itemId, {'Likes': likes});
   }
 
   Future<void> setNumericRating(String itemId, {required double rating}) async {
+    final session = userDataSync.session;
     await _client.userLibraryApi.updateNumericUserRating(
       itemId,
       rating: rating,
     );
+    if (userDataSync.session != session) return;
     userDataSync.publish(itemId, {'Rating': rating});
   }
 
   Future<void> clearRating(String itemId) async {
+    final session = userDataSync.session;
     await _client.userLibraryApi.deleteUserRating(itemId);
+    if (userDataSync.session != session) return;
     userDataSync.publish(itemId, {'Rating': null, 'Likes': null});
   }
 

@@ -85,7 +85,15 @@ class TmdbRepository {
 
   final MediaServerClient _client;
 
-  final _dio = Dio();
+  // Kos TV: bounded like the plugin's other clients, so a server that takes
+  // the connection and never answers can't hold a shared pending lookup (and
+  // every details screen waiting on it) for the whole session.
+  final _dio = moonbaseDio(
+    BaseOptions(
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 30),
+    ),
+  );
 
   final _episodeCache = <String, double>{};
   final _seasonCache = <String, Map<int, double>>{};
@@ -99,7 +107,7 @@ class TmdbRepository {
   TmdbRepository(this._client);
 
   /// The plugin's image URLs carry the token in the query, which only the
-  /// Jellyfin and Emby plugins take. Silo's plugin routes need its headers.
+  /// Jellyfin plugin takes. Silo's plugin routes need its headers.
   bool get _hasPlugin => serverHasMoonfinPlugin(_client);
 
   /// Fetches the item's studios (TMDB production companies) from the Moonfin

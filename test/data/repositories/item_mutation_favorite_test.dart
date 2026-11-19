@@ -145,4 +145,22 @@ void main() {
     expect(userDataSync.favoriteFor('ch'), isFalse);
     expect(userDataSync.favoriteChangePending('ch'), isFalse);
   });
+
+  test('a watched or rating reply after a user switch is dropped', () async {
+    final unmark = Completer<void>();
+    final rate = Completer<void>();
+    when(() => api.unmarkPlayed(any())).thenAnswer((_) => unmark.future);
+    when(() => api.updateUserRating(any(), likes: any(named: 'likes')))
+        .thenAnswer((_) => rate.future);
+
+    final played = repository.setPlayed('ep', isPlayed: false);
+    final rating = repository.setRating('ep', likes: true);
+    await settle();
+    userDataSync.reset();
+    unmark.complete();
+    rate.complete();
+    await Future.wait([played, rating]);
+
+    expect(userDataSync.revisionFor('ep'), 0);
+  });
 }

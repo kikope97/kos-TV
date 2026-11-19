@@ -9,6 +9,7 @@ import 'package:server_core/server_core.dart';
 
 import '../../../auth/repositories/user_repository.dart';
 import '../../../data/models/aggregated_library.dart';
+import '../../../data/utils/user_avatar_url.dart';
 import '../../../data/models/media_bar_slide_item.dart';
 import '../../../data/models/media_bar_state.dart';
 import '../../../data/repositories/media_bar_repository.dart';
@@ -2155,8 +2156,10 @@ String? _userImageUrl() {
   final user = GetIt.instance<UserRepository>().currentUser;
   if (user == null) return null;
   try {
-    return GetIt.instance<MediaServerClient>().imageApi.getUserImageUrl(
-      user.id,
+    return userAvatarUrl(
+      GetIt.instance<MediaServerClient>(),
+      userId: user.id,
+      imageTag: user.imageTag,
     );
   } catch (_) {
     return null;

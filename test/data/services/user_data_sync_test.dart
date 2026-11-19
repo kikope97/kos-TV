@@ -337,6 +337,73 @@ void main() {
 
       expect(sync.apply(_episode()).isPlayed, isTrue);
     });
+
+    test('an answer that lands after a user switch is dropped', () async {
+      final reply = Completer<Map<String, dynamic>>();
+      final itemsApi = _MockItemsApi();
+      when(
+        () => itemsApi.getItems(
+          ids: any(named: 'ids'),
+          fields: any(named: 'fields'),
+          recursive: any(named: 'recursive'),
+          limit: any(named: 'limit'),
+          enableTotalRecordCount: any(named: 'enableTotalRecordCount'),
+        ),
+      ).thenAnswer((_) => reply.future);
+      final client = _MockClient();
+      when(() => client.itemsApi).thenReturn(itemsApi);
+
+      final refresh = sync.refreshFromServer(client, ['ep1']);
+      await Future<void>.delayed(Duration.zero);
+      sync.reset();
+      reply.complete({
+        'Items': [
+          {
+            'Id': 'ep1',
+            'UserData': {'Played': true},
+          },
+        ],
+      });
+      await refresh;
+
+      final item = _episode();
+      expect(identical(sync.apply(item), item), isTrue);
+    });
+
+    test('a large refresh sends a few batches at once', () async {
+      final replies = <Completer<Map<String, dynamic>>>[];
+      final itemsApi = _MockItemsApi();
+      when(
+        () => itemsApi.getItems(
+          ids: any(named: 'ids'),
+          fields: any(named: 'fields'),
+          recursive: any(named: 'recursive'),
+          limit: any(named: 'limit'),
+          enableTotalRecordCount: any(named: 'enableTotalRecordCount'),
+        ),
+      ).thenAnswer((_) {
+        final reply = Completer<Map<String, dynamic>>();
+        replies.add(reply);
+        return reply.future;
+      });
+      final client = _MockClient();
+      when(() => client.itemsApi).thenReturn(itemsApi);
+
+      final refresh = sync.refreshFromServer(client, [
+        for (var i = 0; i < 450; i++) 'id$i',
+      ]);
+      await Future<void>.delayed(Duration.zero);
+      expect(replies, hasLength(3));
+
+      while (replies.any((r) => !r.isCompleted)) {
+        for (final reply in replies.where((r) => !r.isCompleted).toList()) {
+          reply.complete({'Items': const []});
+        }
+        await Future<void>.delayed(Duration.zero);
+      }
+      expect(await refresh, isTrue);
+      expect(replies, hasLength(5));
+    });
   });
 
   test('reset drops everything so the next account starts clean', () {

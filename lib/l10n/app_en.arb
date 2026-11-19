@@ -20609,5 +20609,25 @@
     "kostvBookGenreWesterns": "Westerns",
     "@kostvBookGenreWesterns": {
         "description": "Kos TV Books Discover: a subject or genre label"
+    },
+    "kostvErrorSessionExpired": "Your session has expired. Sign in again.",
+    "@kostvErrorSessionExpired": {
+        "description": "Kos TV: error shown when the server answers 401"
+    },
+    "kostvErrorNoPermission": "You don't have permission to do this.",
+    "@kostvErrorNoPermission": {
+        "description": "Kos TV: error shown when the server answers 403"
+    },
+    "kostvErrorNotOnServer": "It's no longer on the server.",
+    "@kostvErrorNotOnServer": {
+        "description": "Kos TV: error shown when the server answers 404 (the item was removed)"
+    },
+    "kostvErrorServerFailed": "The server ran into a problem. Try again.",
+    "@kostvErrorServerFailed": {
+        "description": "Kos TV: error shown when the server answers 5xx"
+    },
+    "kostvUntitled": "Untitled",
+    "@kostvUntitled": {
+        "description": "Kos TV: title of a TMDB recommendation that came without one"
     }
 }

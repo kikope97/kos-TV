@@ -10,6 +10,7 @@ import '../../util/server_url.dart';
 import '../offline/connectivity_aware_media_server_client.dart';
 import '../offline/offline_catalog.dart';
 import '../repositories/offline_repository.dart';
+import 'connectivity_service.dart';
 import 'pending_rating_store.dart';
 import 'storage_path_service.dart';
 
@@ -96,8 +97,19 @@ class MediaServerClientFactory {
     return getClientIfExists(serverId) ?? active;
   }
 
+  /// Kos TV: the loaded client of the server in use, which is not always the
+  /// last one loaded (another server's client may have been built after it).
+  /// Falls back to the last one when no client is registered yet, as in a
+  /// headless engine.
   MediaServerClient getActiveClient() {
     if (_clients.isEmpty) throw StateError('No active server clients');
+    final getIt = GetIt.instance;
+    if (getIt.isRegistered<MediaServerClient>()) {
+      final active = _unwrapped(getIt<MediaServerClient>());
+      for (final client in _clients.values) {
+        if (identical(_unwrapped(client), active)) return client;
+      }
+    }
     return _clients.values.last;
   }
 
@@ -140,6 +152,18 @@ class MediaServerClientFactory {
           baseUrl: baseUrl,
           deviceInfo: deviceInfo,
           interceptors: [
+            // Kos TV: a request that could not reach the server has the
+            // connectivity check ask now, so the "no server" notice and the
+            // downloads fallback don't wait for the network to change.
+            InterceptorsWrapper(
+              onError: (error, handler) {
+                if (error.type == DioExceptionType.connectionError ||
+                    error.type == DioExceptionType.connectionTimeout) {
+                  _noteServerUnreachable();
+                }
+                handler.next(error);
+              },
+            ),
             if (onForbidden != null)
               InterceptorsWrapper(
                 onError: (error, handler) {
@@ -182,6 +206,12 @@ class MediaServerClientFactory {
     }
     _clients.clear();
   }
+}
+
+void _noteServerUnreachable() {
+  final getIt = GetIt.instance;
+  if (!getIt.isRegistered<ConnectivityService>()) return;
+  getIt<ConnectivityService>().noteServerUnreachable();
 }
 
 /// Kos TV: the token in a `MediaBrowser ... Token="..."` header, or null

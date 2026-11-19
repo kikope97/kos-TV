@@ -8,10 +8,12 @@ void main() {
     RecommendationSystemSource setting, {
     ServerType serverType = ServerType.silo,
     bool kidsMode = false,
+    bool parentalFilterActive = false,
   }) => similarItemsSource(
     setting: setting,
     kidsMode: kidsMode,
     serverType: serverType,
+    parentalFilterActive: parentalFilterActive,
   );
 
   group('similarItemsSource', () {
@@ -34,6 +36,26 @@ void main() {
       expect(
         source(RecommendationSystemSource.online),
         RecommendationSystemSource.online,
+      );
+    });
+
+    test('a device parental filter keeps TMDb out', () {
+      expect(
+        source(
+          RecommendationSystemSource.online,
+          serverType: ServerType.jellyfin,
+          parentalFilterActive: true,
+        ),
+        RecommendationSystemSource.local,
+      );
+      // The server's own engine already honours the account's limits.
+      expect(
+        source(
+          RecommendationSystemSource.server,
+          serverType: ServerType.jellyfin,
+          parentalFilterActive: true,
+        ),
+        RecommendationSystemSource.server,
       );
     });
 

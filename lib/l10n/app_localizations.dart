@@ -35480,6 +35480,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Westerns'**
   String get kostvBookGenreWesterns;
+
+  /// Kos TV: error shown when the server answers 401
+  ///
+  /// In en, this message translates to:
+  /// **'Your session has expired. Sign in again.'**
+  String get kostvErrorSessionExpired;
+
+  /// Kos TV: error shown when the server answers 403
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission to do this.'**
+  String get kostvErrorNoPermission;
+
+  /// Kos TV: error shown when the server answers 404 (the item was removed)
+  ///
+  /// In en, this message translates to:
+  /// **'It\'s no longer on the server.'**
+  String get kostvErrorNotOnServer;
+
+  /// Kos TV: error shown when the server answers 5xx
+  ///
+  /// In en, this message translates to:
+  /// **'The server ran into a problem. Try again.'**
+  String get kostvErrorServerFailed;
+
+  /// Kos TV: title of a TMDB recommendation that came without one
+  ///
+  /// In en, this message translates to:
+  /// **'Untitled'**
+  String get kostvUntitled;
 }
 
 class _AppLocalizationsDelegate

@@ -74,7 +74,7 @@ class KostvHomeRepository {
   })
     : _dio =
           dio ??
-          Dio(
+          moonbaseDio(
             BaseOptions(
               connectTimeout: const Duration(seconds: 10),
               // The first build of a person's page asks TMDB, so it can take a

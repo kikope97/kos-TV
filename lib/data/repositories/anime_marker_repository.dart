@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../util/signed_in_server_features.dart';
+import '../services/moonbase_endpoint.dart';
 
 /// The kind of an episode, for the purpose of drawing a badge on its card.
 enum AnimeEpisodeKind { mangaCanon, animeCanon, mixed, filler }
@@ -82,7 +83,7 @@ class AnimeMarkerRepository {
   static const _unavailableRetryWindow = Duration(minutes: 10);
 
   final MediaServerClient _client;
-  final _dio = Dio(
+  final _dio = moonbaseDio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 60),

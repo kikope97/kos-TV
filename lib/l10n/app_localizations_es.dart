@@ -20947,4 +20947,21 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvBookGenreWesterns => 'Del Oeste';
+
+  @override
+  String get kostvErrorSessionExpired =>
+      'Tu sesión ha caducado. Vuelve a entrar.';
+
+  @override
+  String get kostvErrorNoPermission => 'No tienes permiso para hacer esto.';
+
+  @override
+  String get kostvErrorNotOnServer => 'Ya no está en el servidor.';
+
+  @override
+  String get kostvErrorServerFailed =>
+      'El servidor ha fallado. Prueba otra vez.';
+
+  @override
+  String get kostvUntitled => 'Sin título';
 }

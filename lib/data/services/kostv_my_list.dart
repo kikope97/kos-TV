@@ -63,7 +63,7 @@ class KostvMyListService extends ChangeNotifier {
        _prefs = prefs ?? GetIt.instance<UserPreferences>(),
        _dio =
            dio ??
-           Dio(
+           moonbaseDio(
              BaseOptions(
                connectTimeout: const Duration(seconds: 10),
                receiveTimeout: const Duration(seconds: 30),

@@ -17,6 +17,7 @@ import '../../auth/repositories/user_repository.dart';
 import '../../data/services/installed_apps_service.dart';
 import '../../data/services/stremfin/stremfin_service.dart';
 import '../../data/models/aggregated_library.dart';
+import '../../data/utils/user_avatar_url.dart';
 import '../../data/repositories/multi_server_repository.dart';
 import '../../data/repositories/user_views_repository.dart';
 import '../../data/services/achievements_service.dart';
@@ -513,7 +514,13 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     }
     try {
       final client = GetIt.instance<MediaServerClient>();
-      setState(() => _userImageUrl = client.imageApi.getUserImageUrl(user.id));
+      setState(
+        () => _userImageUrl = userAvatarUrl(
+          client,
+          userId: user.id,
+          imageTag: user.imageTag,
+        ),
+      );
     } catch (_) {
       setState(() => _userImageUrl = null);
     }
