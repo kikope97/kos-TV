@@ -3034,7 +3034,9 @@ class _DetailContentState extends State<_DetailContent> {
     final isPlaylist = item.type == 'Playlist';
     final canManagePlaylistTracks =
         isPlaylist && viewModel.canManagePlaylistTracks;
-    final canDeleteItem = item.canDelete;
+    // Kos TV: not in Kids Mode, whose detail buttons leave out the delete.
+    final canDeleteItem = item.canDelete &&
+        !GetIt.instance<UserPreferences>().get(UserPreferences.kidsModeEnabled);
     final canDeleteDownloaded =
         !PlatformDetection.isTV &&
         (item.type == 'MusicAlbum' || item.type == 'AudioBook');
@@ -9994,12 +9996,43 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
     );
   }
 
+  /// Kos TV: what Play starts when there is no next episode to go on with
+  /// (a series watched to the end): its first episode, so casting it does
+  /// the same instead of failing. Null when there is none.
+  Future<AggregatedItem?> _castFallbackEpisode(AggregatedItem item) async {
+    switch (item.type) {
+      case 'Series':
+        try {
+          final data = await _clientForItem(item).itemsApi.getEpisodes(
+            item.id,
+            fields: 'Overview,RunTimeTicks,UserData',
+          );
+          final episodes = _mapRawItemsForServer(
+            data['Items'],
+            item.serverId,
+          ).where(isEligibleNextEpisodeCandidate).toList();
+          return episodes
+                  .where((e) => e.parentIndexNumber == 1 && e.indexNumber == 1)
+                  .firstOrNull ??
+              episodes.firstOrNull;
+        } catch (_) {
+          return null;
+        }
+      case 'Season':
+        return widget.viewModel.episodes.firstOrNull;
+      default:
+        return null;
+    }
+  }
+
   Future<void> _castToDevice(BuildContext context, AggregatedItem item) async {
     // A series, season or box set carries no media sources of its own, and
     // asking the server for PlaybackInfo on one fails with a 500. Cast
     // whatever the play button would play instead.
     if (item.mediaSources.isEmpty) {
-      final nextUp = widget.viewModel.nextUp;
+      final nextUp =
+          widget.viewModel.nextUp ?? await _castFallbackEpisode(item);
+      if (!context.mounted) return;
       if (nextUp == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(AppLocalizations.of(context).failedToLoad)),

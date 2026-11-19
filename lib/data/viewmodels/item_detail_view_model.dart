@@ -13,6 +13,7 @@ import '../../preference/user_preferences.dart';
 import '../models/aggregated_item.dart';
 import '../models/lyrics.dart';
 import '../services/blocked_content_gate.dart';
+import '../services/kostv_collections.dart';
 import '../services/row_data_source.dart';
 import '../services/series_track_sync.dart';
 import '../repositories/item_mutation_repository.dart';
@@ -1448,15 +1449,23 @@ class ItemDetailViewModel extends ChangeNotifier {
       limit: _collectionPageSize,
       fields: 'PrimaryImageAspectRatio,BasicSyncInfo,People',
     );
-    final newItems = _mapItems((data['Items'] as List?) ?? []);
+    final rawItems = (data['Items'] as List?) ?? const [];
+    final newItems = _mapItems(rawItems);
     final total = data['TotalRecordCount'] as int?;
     if (total != null) _collectionTotalCount = total;
-    _collectionFetchedCount += newItems.length;
+    // Kos TV: the cursor is the server's index, so it moves by what the
+    // server returned, not by what the device's parental filter left. Moving
+    // by the filtered count re-read the page's tail (repeated cards) and never
+    // reached the total when the last members were blocked.
+    _collectionFetchedCount += rawItems.length;
     // A server that leaves the total out would otherwise strand the grid on its
     // first page, so a full page is taken to mean there is more behind it.
-    _collectionHasMore = total != null
+    // An empty page means the end whatever the total says.
+    _collectionHasMore = rawItems.isEmpty
+        ? false
+        : total != null
         ? _collectionFetchedCount < _collectionTotalCount
-        : newItems.length == _collectionPageSize;
+        : rawItems.length == _collectionPageSize;
     _collectionItems = [..._collectionItems, ...newItems];
     if ((_playlistIndexEntries == null || _playlistIndexEntries!.isEmpty) &&
         !_playlistIndexBuilding &&
@@ -1794,28 +1803,54 @@ class ItemDetailViewModel extends ChangeNotifier {
 
     try {
       final Map<String, ({String name, Map<String, dynamic> rawData})> boxSetInfo = {};
-      final ancestors = await _client.itemsApi.getAncestors(item.id);
-      for (final ancestor in ancestors) {
-        if (ancestor['Type'] == 'BoxSet') {
-          final boxSetId = ancestor['Id']?.toString();
-          final name = ancestor['Name']?.toString();
-          if (boxSetId != null && boxSetId.isNotEmpty && name != null) {
-            final isMember = await _boxSetContainsItem(boxSetId, item.id);
-            if (isMember && !boxSetInfo.containsKey(boxSetId)) {
-              boxSetInfo[boxSetId] = (
-                name: name,
-                rawData: Map<String, dynamic>.from(ancestor),
-              );
+      // Kos TV: the server plugin says which collections hold the item in
+      // one request. Without it (an older plugin, or none), the ancestors
+      // and then every collection's members are read, as before.
+      final fromPlugin = await KostvCollectionsLookup.instance.containing(
+        _client,
+        item.id,
+      );
+      if (_isDisposed) return;
+      if (fromPlugin != null) {
+        for (final raw in fromPlugin) {
+          final boxSetId = raw['Id']?.toString();
+          final name = raw['Name']?.toString();
+          if (boxSetId == null || boxSetId.isEmpty || name == null) continue;
+          boxSetInfo[boxSetId] = (name: name, rawData: raw);
+        }
+      } else {
+        // Kos TV: the ancestors failing still leaves the scan to find them.
+        List<Map<String, dynamic>> ancestors;
+        try {
+          ancestors = await _client.itemsApi.getAncestors(item.id);
+        } catch (_) {
+          ancestors = const [];
+        }
+        for (final ancestor in ancestors) {
+          if (_isDisposed) return;
+          if (ancestor['Type'] == 'BoxSet') {
+            final boxSetId = ancestor['Id']?.toString();
+            final name = ancestor['Name']?.toString();
+            if (boxSetId != null && boxSetId.isNotEmpty && name != null) {
+              final isMember = await _boxSetContainsItem(boxSetId, item.id);
+              if (isMember && !boxSetInfo.containsKey(boxSetId)) {
+                boxSetInfo[boxSetId] = (
+                  name: name,
+                  rawData: Map<String, dynamic>.from(ancestor),
+                );
+              }
             }
           }
         }
-      }
 
-      final scannedCollections = await _findParentCollectionsByScanningBoxSets(
-        item.id,
-        known: boxSetInfo.keys.toSet(),
-      );
-      boxSetInfo.addAll(scannedCollections);
+        final scannedCollections =
+            await _findParentCollectionsByScanningBoxSets(
+              item.id,
+              known: boxSetInfo.keys.toSet(),
+            );
+        boxSetInfo.addAll(scannedCollections);
+      }
+      if (_isDisposed) return;
 
       if (boxSetInfo.isEmpty) {
         _parentCollections = const [];
@@ -1837,12 +1872,18 @@ class ItemDetailViewModel extends ChangeNotifier {
         fetchFutures.add(() async {
           // Not recursive and not filtered, same as the collection grid, so a
           // collection made of episodes still shows its members here.
-          final data = await _client.itemsApi.getItems(
-            parentId: boxSetId,
-            sortBy: 'PremiereDate,SortName',
-            sortOrder: 'Ascending',
-            fields: 'PrimaryImageAspectRatio,BasicSyncInfo,ProviderIds',
-          );
+          // Kos TV: one that fails leaves the others showing.
+          final Map<String, dynamic> data;
+          try {
+            data = await _client.itemsApi.getItems(
+              parentId: boxSetId,
+              sortBy: 'PremiereDate,SortName',
+              sortOrder: 'Ascending',
+              fields: 'PrimaryImageAspectRatio,BasicSyncInfo,ProviderIds',
+            );
+          } catch (_) {
+            return;
+          }
 
           final items = (data['Items'] as List?) ?? [];
           ordered[index] = ParentCollection(
@@ -1858,6 +1899,7 @@ class ItemDetailViewModel extends ChangeNotifier {
         }());
       }
       await Future.wait(fetchFutures);
+      if (_isDisposed) return;
 
       final collections = ordered.whereType<ParentCollection>().toList();
 
@@ -1899,6 +1941,9 @@ class ItemDetailViewModel extends ChangeNotifier {
       var startIndex = 0;
 
       while (true) {
+        // Kos TV: the page closed (on to the next film, say): the rest of
+        // the scan is for nobody.
+        if (_isDisposed) break;
         final data = await _client.itemsApi.getItems(
           includeItemTypes: ['BoxSet'],
           recursive: true,
@@ -1937,20 +1982,12 @@ class ItemDetailViewModel extends ChangeNotifier {
         // them.
         final maxConcurrent = kIsWeb ? 4 : 12;
         for (var i = 0; i < candidates.length; i += maxConcurrent) {
+          if (_isDisposed) break;
           final batch = candidates.skip(i).take(maxConcurrent);
           await Future.wait(batch.map((candidate) async {
-            final membership = await _client.itemsApi.getItems(
-              parentId: candidate.id,
-              fields: 'BasicSyncInfo',
-              // Kos TV: only the ids are read, not the artwork or the count.
-              imageTypeLimit: 0,
-              enableTotalRecordCount: false,
-            );
-            final members = (membership['Items'] as List?) ?? const [];
-            final hasItem = members.whereType<Map>().any((entry) {
-              final map = entry.cast<String, dynamic>();
-              return map['Id'] == itemId;
-            });
+            // Kos TV: one collection that fails (a timeout, one this person
+            // can't read) is skipped, rather than dropping every one left.
+            final hasItem = await _boxSetContainsItem(candidate.id, itemId);
             if (hasItem) {
               result[candidate.id] = (
                 name: candidate.name,
@@ -2037,25 +2074,71 @@ class ItemDetailViewModel extends ChangeNotifier {
     }
   }
 
+  /// Kos TV: whether the person's titles couldn't be read at all, for the
+  /// page to offer [retryFilmography].
+  bool _filmographyFailed = false;
+  bool get filmographyFailed => _filmographyFailed;
+
+  /// Kos TV: reads the person's titles again after [filmographyFailed].
+  Future<void> retryFilmography() async {
+    _filmographyFailed = false;
+    notifyListeners();
+    await _loadFilmography();
+  }
+
   Future<void> _loadFilmography() async {
+    // Kos TV: films, series and music videos apart from the episodes. Read
+    // together under one cap of 100, a voice actor's or a director's many
+    // recent episodes filled it and pushed their older films off the page.
+    Future<List?> read(List<String> types, int limit) async {
+      try {
+        final data = await _client.itemsApi.getItems(
+          personIds: [itemId],
+          includeItemTypes: types,
+          sortBy: 'PremiereDate',
+          sortOrder: 'Descending',
+          recursive: true,
+          limit: limit,
+          fields: 'PrimaryImageAspectRatio,BasicSyncInfo,People',
+        );
+        return (data['Items'] as List?) ?? const [];
+      } catch (_) {
+        return null;
+      }
+    }
+
     try {
-      final data = await _client.itemsApi.getItems(
-        personIds: [itemId],
-        includeItemTypes: ['Movie', 'Series', 'MusicVideo', 'Episode'],
-        sortBy: 'PremiereDate',
-        sortOrder: 'Descending',
-        recursive: true,
-        limit: 100,
-        fields: 'PrimaryImageAspectRatio,BasicSyncInfo,People',
-      );
-      final items = (data['Items'] as List?) ?? [];
+      final parts = await Future.wait([
+        read(const ['Movie', 'Series', 'MusicVideo'], 1000),
+        read(const ['Episode'], 100),
+      ]);
+      if (_isDisposed) return;
+      // One of the two failing still shows the other.
+      if (parts.every((part) => part == null)) {
+        _filmographyFailed = true;
+        notifyListeners();
+        return;
+      }
+      _filmographyFailed = false;
+      final items = [for (final part in parts) ...?part];
       // The cards don't know whose page they're on, so each title carries
       // the role for its subtitle and lets go of the rest of the cast.
       // Kos TV: an episode is judged by its series too, as on opening it.
       final visible = await withoutBlockedSeriesItems(_mapItems(items));
       if (_isDisposed) return;
+      // The newest first across both reads, as the single read gave them;
+      // undated last, and ties in the order the server sent them.
+      final ordered = visible.indexed.toList()
+        ..sort((a, b) {
+          final aDate = a.$2.premiereDate;
+          final bDate = b.$2.premiereDate;
+          final byDate = aDate == null || bDate == null
+              ? (aDate == null ? (bDate == null ? 0 : 1) : -1)
+              : bDate.compareTo(aDate);
+          return byDate != 0 ? byDate : a.$1.compareTo(b.$1);
+        });
       _filmography = [
-        for (final item in visible)
+        for (final (_, item) in ordered)
           AggregatedItem(
             id: item.id,
             serverId: item.serverId,

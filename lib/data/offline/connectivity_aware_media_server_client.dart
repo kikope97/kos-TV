@@ -56,6 +56,8 @@ class ConnectivityAwareMediaServerClient
          catalog,
          pendingRatings: pendingRatings,
          offlineRepo: offlineRepo,
+         // Kos TV: a rating queued offline remembers who set it.
+         userId: () => _online.userId,
        );
 
   /// The wrapped online client, for callers that must never be routed

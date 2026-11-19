@@ -214,6 +214,42 @@ void main() {
       expect(store.all, hasLength(1));
     });
 
+    // Kos TV: rated offline by one person, sent once back online with the
+    // session of whoever is signed in then.
+    test('a rating waits for the person who set it', () async {
+      await store.put(
+        const PendingRating(
+          serverId: 's1',
+          itemId: 'a',
+          userId: 'papa',
+          rating: 9,
+        ),
+      );
+      await store.put(
+        const PendingRating(
+          serverId: 's1',
+          itemId: 'a',
+          userId: 'lucia',
+          rating: 3,
+        ),
+      );
+      when(() => client.userId).thenReturn('lucia');
+      when(() => userLibrary.updateNumericUserRating('a', rating: 3))
+          .thenAnswer((_) async {});
+
+      final result = await sync.syncPendingRatings(client, serverId: 's1');
+
+      expect(result.synced, 1);
+      verifyNever(() => userLibrary.updateNumericUserRating('a', rating: 9));
+      expect(store.all.single.userId, 'papa');
+
+      when(() => client.userId).thenReturn('papa');
+      when(() => userLibrary.updateNumericUserRating('a', rating: 9))
+          .thenAnswer((_) async {});
+      expect((await sync.syncPendingRatings(client, serverId: 's1')).synced, 1);
+      expect(store.all, isEmpty);
+    });
+
     test('no known active server replays nothing', () async {
       await store.put(
         const PendingRating(serverId: 's1', itemId: 'a', rating: 7),

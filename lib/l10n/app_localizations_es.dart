@@ -20059,4 +20059,23 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get updateDownloadCorrupt =>
       'La actualización descargada está incompleta o no coincide con la publicada, así que no se ha instalado. Inténtalo de nuevo.';
+
+  @override
+  String get kostvMarkPlayedFailed => 'No se ha podido marcar como visto';
+
+  @override
+  String get kostvMarkUnplayedFailed => 'No se ha podido marcar como no visto';
+
+  @override
+  String get kostvFavoriteChangeFailed => 'No se ha podido cambiar el favorito';
+
+  @override
+  String get kostvItemNotFoundOnServer => 'el servidor no lo encuentra';
+
+  @override
+  String get kostvServerRequestFailed => 'el servidor no ha podido hacerlo';
+
+  @override
+  String get kostvCollectionAddFailed =>
+      'No se ha podido añadir a la colección';
 }

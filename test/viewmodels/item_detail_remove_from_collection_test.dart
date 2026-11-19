@@ -8,6 +8,7 @@ import 'package:moonfin/data/repositories/item_mutation_repository.dart';
 import 'package:moonfin/data/repositories/mdblist_repository.dart';
 import 'package:moonfin/data/repositories/tmdb_repository.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
+import 'package:moonfin/data/utils/blocked_ratings.dart';
 import 'package:moonfin/data/viewmodels/item_detail_view_model.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:server_core/server_core.dart';
@@ -200,16 +201,21 @@ void main() {
 
     late List<Map<String, dynamic>> members;
 
+    /// How many grid pages were asked of the server.
+    var gridReads = 0;
+
     /// The grid reads the collection in server order, m00 first. The years run
     /// the other way, so switching the playlist tab to the release sort starts
     /// it at m59. One card can then sit inside the loaded grid page and outside
     /// the loaded playlist page at the same time.
-    Future<ItemDetailViewModel> pagedVm() async {
+    Future<ItemDetailViewModel> pagedVm({Set<int> rated = const {}}) async {
+      gridReads = 0;
       members = [
         for (var i = 0; i < memberCount; i++)
           {
             ...member('m${i.toString().padLeft(2, '0')}', 'Title $i'),
             'ProductionYear': 2100 - i,
+            if (rated.contains(i)) 'OfficialRating': 'R',
           },
       ];
 
@@ -241,6 +247,7 @@ void main() {
           return {'Items': members, 'TotalRecordCount': members.length};
         }
 
+        gridReads++;
         final from = ((named[#startIndex] as int?) ?? 0).clamp(
           0,
           members.length,
@@ -273,8 +280,8 @@ void main() {
       );
       await vm.load();
       for (var i = 0; i < 200; i++) {
-        if (vm.collectionItems.length >= pageSize &&
-            vm.playlistItems.length >= pageSize) {
+        if (vm.collectionItems.length >= pageSize - rated.length &&
+            vm.playlistItems.length >= pageSize - rated.length) {
           break;
         }
         await Future<void>.delayed(const Duration(milliseconds: 5));
@@ -326,6 +333,31 @@ void main() {
       expect(ids, isNot(contains('m55')));
       expect(ids.toSet().length, ids.length, reason: 'no id served twice');
       expect(ids.length, memberCount - 1);
+    });
+
+    // Kos TV: the grid's cursor is the server's index. Counting only the
+    // cards the device's parental control let through re-read the end of a
+    // page (repeated cards) and, with the last ones blocked, never reached
+    // the end, asking again at every scroll to the bottom.
+    test('blocked cards still move the grid on by what the server sent', () async {
+      await GetIt.instance<UserPreferences>().set(
+        UserPreferences.blockedParentalRatings,
+        'R',
+      );
+      resetParentalFilterCache();
+      addTearDown(resetParentalFilterCache);
+      const rated = {3, 10, 55, 56, 57, 58, 59};
+      final vm = await pagedVm(rated: rated);
+      await vm.loadMoreCollectionItems();
+
+      final ids = vm.collectionItems.map((i) => i.id).toList();
+      expect(ids.toSet().length, ids.length, reason: 'no card twice');
+      expect(ids.length, memberCount - rated.length);
+
+      // At the end: nothing more is asked.
+      final reads = gridReads;
+      await vm.loadMoreCollectionItems();
+      expect(gridReads, reads);
     });
   });
 }

@@ -21,6 +21,7 @@ import '../../../util/home_refresh_helper.dart';
 import '../../../util/item_watch_state.dart';
 import '../../../data/services/item_membership_service.dart';
 import '../../../data/services/kostv_my_list.dart';
+import '../../../data/services/user_data_sync.dart';
 import '../../navigation/destinations.dart';
 import '../add_to_collection_dialog.dart';
 import '../add_to_playlist_dialog.dart';
@@ -101,6 +102,25 @@ Future<void> _hideFromResumeOrReset(
   } catch (_) {}
 }
 
+/// Kos TV: whether Kids Mode is on. Defensive, like the detail buttons,
+/// because a menu can be built before the preferences are registered.
+bool kidsModeMenuOn() {
+  try {
+    if (!GetIt.instance.isRegistered<UserPreferences>()) return false;
+    return GetIt.instance<UserPreferences>().get(
+      UserPreferences.kidsModeEnabled,
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Kos TV: says a card menu action didn't reach the server, rather than
+/// letting the failure vanish (the heart lit and went out with no word).
+void _showActionFailed(ScaffoldMessengerState? messenger, String message) {
+  messenger?.showSnackBar(SnackBar(content: Text(message)));
+}
+
 /// The types that get the play, watched, playlist and collection actions.
 bool isContextMediaType(String? type) =>
     type == 'Movie' ||
@@ -124,17 +144,31 @@ List<ItemContextAction> contextActionsFor(
   List<ItemCollectionMembership>? collectionMemberships,
 }) {
   final l10n = AppLocalizations.of(context);
+  // Kos TV: the menu starts from the newest watched and favourite state this
+  // client knows, not from the card as its screen loaded it, so it never
+  // offers to do again what was just done.
+  item = userDataSync.apply(item);
   final mutations = GetIt.instance<ItemMutationRepository>();
   final client = GetIt.instance<MediaServerClient>();
   final currentUser = GetIt.instance<UserRepository>().currentUser;
-  final isAdminUser = currentUser?.isAdministrator ?? false;
-  final isSameServerItem = currentUser?.serverId == item.serverId;
-  final requiresCollectionPermission =
-      client.features.collectionsNeedPermission && isSameServerItem;
+  // Kos TV: Kids Mode offers here only what it offers on the detail page:
+  // playing, the details, the favourite and the series (and «Want to
+  // watch», whose place in the mode is still to be decided). Nothing that
+  // changes what was watched, the collections, the playlists, the server's
+  // metadata or its images.
+  final kidsMode = kidsModeMenuOn();
+  final isAdminUser = (currentUser?.isAdministrator ?? false) && !kidsMode;
+  // Kos TV: the cards name their server by its address, never by the user's
+  // server id, so comparing the two made everyone a collection manager.
   final canManageCollections =
-      !requiresCollectionPermission ||
-      currentUser?.canManageCollections == true ||
-      isAdminUser;
+      !kidsMode &&
+      canManageCollectionsFor(
+        item,
+        client: client,
+        userServerId: currentUser?.serverId,
+        userCanManageCollections: currentUser?.canManageCollections == true,
+        isAdministrator: isAdminUser,
+      );
   // A server that hides Home cards itself (Silo) does it for this item's
   // server only. Read when a hide is picked, not for every menu.
   // Cards name their server by its address (Home rows, grids, detail pages)
@@ -240,23 +274,40 @@ List<ItemContextAction> contextActionsFor(
       ));
     }
 
-    actions.add(ItemContextAction(
-      icon: item.isPlayed
-          ? Icons.visibility_off_outlined
-          : Icons.visibility_outlined,
-      label: item.isPlayed
-          ? l10n.contextMenuMarkUnwatched
-          : l10n.contextMenuMarkWatched,
-      onSelect: () async {
-        await mutations.setPlayed(item.id, isPlayed: !item.isPlayed);
-        onChanged?.call();
-      },
-    ));
+    if (!kidsMode) {
+      actions.add(ItemContextAction(
+        icon: item.isPlayed
+            ? Icons.visibility_off_outlined
+            : Icons.visibility_outlined,
+        label: item.isPlayed
+            ? l10n.contextMenuMarkUnwatched
+            : l10n.contextMenuMarkWatched,
+        onSelect: () async {
+          final messenger = ScaffoldMessenger.maybeOf(context);
+          final played = !item.isPlayed;
+          try {
+            await mutations.setPlayed(item.id, isPlayed: played);
+          } catch (_) {
+            _showActionFailed(
+              messenger,
+              played
+                  ? l10n.kostvMarkPlayedFailed
+                  : l10n.kostvMarkUnplayedFailed,
+            );
+            return;
+          }
+          // Kos TV: a card of Continue Watching or Next Up leaves its row
+          // once watched, so Home reads its rows again, as a hide does.
+          if (isContinueWatchingOrNextUp) refreshHomeRows();
+          onChanged?.call();
+        },
+      ));
+    }
 
     final hasProgress = item.playbackPositionTicks != null &&
         item.playbackPositionTicks! > 0 &&
         !item.isPlayed;
-    if (hasProgress) {
+    if (hasProgress && !kidsMode) {
       actions.add(ItemContextAction(
         icon: Icons.visibility_off_outlined,
         label: l10n.contextMenuHideFromContinueWatching,
@@ -284,7 +335,7 @@ List<ItemContextAction> contextActionsFor(
 
     final isEpisode = type == 'Episode';
     final hasSeries = item.seriesId != null && item.seriesId!.isNotEmpty;
-    if (isEpisode && hasSeries) {
+    if (isEpisode && hasSeries && !kidsMode) {
       actions.add(ItemContextAction(
         icon: Icons.visibility_off_outlined,
         label: l10n.contextMenuHideFromNextUp,
@@ -311,7 +362,13 @@ List<ItemContextAction> contextActionsFor(
           ? l10n.contextMenuRemoveFromFavorites
           : l10n.contextMenuAddToFavorites,
       onSelect: () async {
-        await mutations.setFavorite(item.id, isFavorite: !item.isFavorite);
+        final messenger = ScaffoldMessenger.maybeOf(context);
+        try {
+          await mutations.setFavorite(item.id, isFavorite: !item.isFavorite);
+        } catch (_) {
+          _showActionFailed(messenger, l10n.kostvFavoriteChangeFailed);
+          return;
+        }
         onChanged?.call();
       },
     ));
@@ -369,7 +426,8 @@ List<ItemContextAction> contextActionsFor(
     }
 
     // Not for an item from a server without playlists (Silo).
-    if (itemServerSupports(item.serverId, (f) => f.supportsPlaylists)) {
+    if (!kidsMode &&
+        itemServerSupports(item.serverId, (f) => f.supportsPlaylists)) {
       actions.add(ItemContextAction(
         icon: Icons.playlist_add,
         label: l10n.addToPlaylist,
@@ -421,28 +479,22 @@ List<ItemContextAction> contextActionsFor(
             onChanged?.call();
           } on DioException catch (e) {
             final status = e.response?.statusCode;
-            final data = e.response?.data;
-            final serverMessage = data is String
-                ? data
-                : (data is Map<String, dynamic>
-                      ? (data['message'] ?? data['Message'])?.toString()
-                      : null);
-            final fallback = switch (status) {
-              401 => 'Unauthorized',
-              403 => 'Forbidden',
-              404 => 'Not found',
-              _ => 'HTTP ${status ?? 'error'}',
+            // Kos TV: the server's own words can be English or a whole HTML
+            // page, so they go to the log and the notice says it in the
+            // app's language.
+            debugPrint(
+              '[ContextMenu] Metadata refresh failed ($status): '
+              '${e.response?.data}',
+            );
+            final reason = switch (status) {
+              401 || 403 => l10n.requestErrorPermission,
+              404 => l10n.kostvItemNotFoundOnServer,
+              _ => l10n.kostvServerRequestFailed,
             };
             if (!context.mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                  l10n.adminMetadataRefreshFailed(
-                    (serverMessage != null && serverMessage.isNotEmpty)
-                        ? serverMessage
-                        : fallback,
-                  ),
-                ),
+                content: Text(l10n.adminMetadataRefreshFailed(reason)),
               ),
             );
           } catch (e) {

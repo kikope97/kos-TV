@@ -47,6 +47,7 @@ void main() {
 
     final client = _MockClient();
     when(() => client.serverType).thenReturn(ServerType.jellyfin);
+    when(() => client.baseUrl).thenReturn('https://media.example');
 
     final users = UserRepository();
     users.setCurrentUser(

@@ -33,6 +33,7 @@ void main() {
     itemsApi = _MockItemsApi();
     when(() => client.itemsApi).thenReturn(itemsApi);
     when(() => client.serverType).thenReturn(ServerType.jellyfin);
+    when(() => client.baseUrl).thenReturn('https://media.example');
 
     users = UserRepository();
     users.setCurrentUser(

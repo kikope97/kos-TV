@@ -1,12 +1,54 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../auth/repositories/user_repository.dart';
 import '../../data/models/aggregated_item.dart';
 import '../../data/services/media_server_client_factory.dart';
+import '../../util/server_url.dart';
 import '../../util/signed_in_server_features.dart';
+import 'kostv_collections.dart';
+import 'socket_handler.dart';
+
+/// Kos TV: whether [item] belongs to the server the person is signed in to.
+/// Cards name their server by its address (Home rows, grids, detail pages)
+/// or by the app's server id, so either counts. An item that names none is
+/// taken as this server's.
+bool isSignedInServerItem(
+  AggregatedItem item, {
+  required String? userServerId,
+  required String baseUrl,
+}) =>
+    item.serverId.isEmpty ||
+    isStoredServer(
+      item.serverId,
+      serverId: userServerId ?? '',
+      baseUrl: baseUrl,
+    );
+
+/// Kos TV: whether the signed-in person may add [item] to a collection or
+/// take it out of one. Jellyfin only lets those with «Manage collections»
+/// (or an administrator) do it on their own server. Comparing the card's
+/// server with the user's server id made everyone a manager, because the
+/// cards name their server by its address.
+bool canManageCollectionsFor(
+  AggregatedItem item, {
+  required MediaServerClient client,
+  required String? userServerId,
+  required bool userCanManageCollections,
+  required bool isAdministrator,
+}) {
+  final requiresPermission =
+      client.features.collectionsNeedPermission &&
+      isSignedInServerItem(
+        item,
+        userServerId: userServerId,
+        baseUrl: client.baseUrl,
+      );
+  return !requiresPermission || userCanManageCollections || isAdministrator;
+}
 
 class ItemPlaylistMembership {
   final String playlistId;
@@ -66,7 +108,18 @@ class ItemMembershipService {
   ItemMembershipService._();
   factory ItemMembershipService() => instance;
 
+  /// How long a scan holds without the server's change notices to say when
+  /// it went stale. Kos TV: with them it holds for the session.
   static const Duration _cacheTtl = Duration(minutes: 5);
+
+  /// Kos TV: the session socket, whose library notices say when a scan went
+  /// stale, so a menu doesn't scan every collection again every 5 minutes.
+  StreamSubscription<ServerWebSocketMessage>? _libraryEvents;
+
+  /// Kos TV: what the server plugin said about single items, by server and
+  /// item: the collections holding each.
+  final Map<String, Map<String, List<ItemCollectionMembership>>>
+  _pluginCollections = {};
 
   int _sessionGeneration = 0;
 
@@ -125,17 +178,64 @@ class ItemMembershipService {
 
   bool _canManageCollections(AggregatedItem item) {
     if (!GetIt.instance.isRegistered<UserRepository>()) return false;
-    final serverId = item.serverId;
-    final client = _getClient(serverId);
+    final client = _getClient(item.serverId);
     final currentUser = GetIt.instance<UserRepository>().currentUser;
-    final isAdminUser = currentUser?.isAdministrator ?? false;
-    final isSameServerItem =
-        serverId.isEmpty || currentUser?.serverId == serverId;
-    final requiresCollectionPermission =
-        client.features.collectionsNeedPermission && isSameServerItem;
-    return !requiresCollectionPermission ||
-        currentUser?.canManageCollections == true ||
-        isAdminUser;
+    return canManageCollectionsFor(
+      item,
+      client: client,
+      userServerId: currentUser?.serverId,
+      userCanManageCollections: currentUser?.canManageCollections == true,
+      isAdministrator: currentUser?.isAdministrator ?? false,
+    );
+  }
+
+  /// Kos TV: follows the session socket once, so the scans hold until the
+  /// library changes instead of for a fixed time.
+  void _followLibraryChanges() {
+    if (_libraryEvents != null ||
+        !GetIt.instance.isRegistered<SocketHandler>()) {
+      return;
+    }
+    final socket = GetIt.instance<SocketHandler>();
+    _libraryEvents = socket.events.listen((event) {
+      if (event is LibraryChangedMessage) onLibraryChanged(event);
+    });
+    // Notices sent while the socket was down are lost: start again.
+    socket.connections.listen((_) => _invalidateAll());
+  }
+
+  bool get _followsLibrary => _libraryEvents != null;
+
+  bool _isFresh(DateTime? fetched) =>
+      fetched != null &&
+      (_followsLibrary || DateTime.now().difference(fetched) < _cacheTtl);
+
+  /// Kos TV: the server says something changed. A new or removed item can be
+  /// a new or removed collection or playlist; an updated one that is a known
+  /// collection or playlist had its members changed.
+  @visibleForTesting
+  void onLibraryChanged(LibraryChangedMessage event) {
+    if (event.itemsAdded.isNotEmpty || event.itemsRemoved.isNotEmpty) {
+      _invalidateAll();
+      return;
+    }
+    final updated = {
+      for (final id in event.itemsUpdated) id.replaceAll('-', ''),
+    };
+    if (updated.isEmpty) return;
+    bool touches(Map<String, Map<String, String>> byServer) => byServer.values
+        .any((names) => names.keys.any(updated.contains));
+    if (touches(_collectionNames)) {
+      _collectionLastFetched.clear();
+      _pluginCollections.clear();
+    }
+    if (touches(_playlistNames)) _playlistLastFetched.clear();
+  }
+
+  void _invalidateAll() {
+    _collectionLastFetched.clear();
+    _playlistLastFetched.clear();
+    _pluginCollections.clear();
   }
 
   /// Immediately returns whatever playlist memberships are currently cached.
@@ -169,6 +269,9 @@ class ItemMembershipService {
       AggregatedItem item) {
     if (_isExternal(item)) return const [];
     final serverKey = _canonicalServerKey(item.serverId);
+    // Kos TV: what the plugin said of this item, when it was asked.
+    final fromPlugin = _pluginCollections[serverKey]?[item.id];
+    if (fromPlugin != null) return List.of(fromPlugin);
     final cMembers = _collectionMembers[serverKey] ?? const {};
     final cNames = _collectionNames[serverKey] ?? const {};
     final result = <ItemCollectionMembership>[];
@@ -197,9 +300,9 @@ class ItemMembershipService {
       return const [];
     }
 
+    _followLibraryChanges();
     final generation = _sessionGeneration;
-    final isCached = _playlistLastFetched.containsKey(serverKey) &&
-        DateTime.now().difference(_playlistLastFetched[serverKey]!) < _cacheTtl;
+    final isCached = _isFresh(_playlistLastFetched[serverKey]);
 
     if (forceRefresh || !isCached) {
       await _syncPlaylists(serverKey);
@@ -214,7 +317,9 @@ class ItemMembershipService {
   }
 
   // Scanning a large library at once would flood the server and the device.
-  static const _maxConcurrent = 8;
+  // Kos TV: fewer on the web, where a browser keeps only a few connections
+  // to the server and the page's artwork waits behind them.
+  static const _maxConcurrent = kIsWeb ? 4 : 8;
 
   static Future<void> _inBatches<T>(
     List<T> items,
@@ -307,29 +412,63 @@ class ItemMembershipService {
       return const [];
     }
 
+    _followLibraryChanges();
     final generation = _sessionGeneration;
     final serverKey = _canonicalServerKey(item.serverId);
     final client = _getClient(serverKey);
 
-    final isCached = _collectionLastFetched.containsKey(serverKey) &&
-        DateTime.now().difference(_collectionLastFetched[serverKey]!) <
-            _cacheTtl;
+    // Kos TV: the server plugin answers for this one item in one request,
+    // where the scan below reads every collection's members.
+    final cachedFromPlugin = _pluginCollections[serverKey]?[item.id];
+    if (cachedFromPlugin != null && !forceRefresh) {
+      return List.of(cachedFromPlugin);
+    }
+    final mutationGeneration = _collectionMutationGenerations[serverKey] ?? 0;
+    final fromPlugin = await KostvCollectionsLookup.instance.containing(
+      client,
+      item.id,
+    );
+    if (generation != _sessionGeneration) return const [];
+    if (fromPlugin != null) {
+      final found = [
+        for (final raw in fromPlugin)
+          if (raw['Id'] case final String id when id.isNotEmpty)
+            ItemCollectionMembership(
+              collectionId: id,
+              collectionName: raw['Name']?.toString() ?? '',
+            ),
+      ];
+      // A change made while asking would be overwritten by the old answer.
+      if (mutationGeneration ==
+          (_collectionMutationGenerations[serverKey] ?? 0)) {
+        (_pluginCollections[serverKey] ??= {})[item.id] = found;
+      }
+      return found;
+    }
+
+    final isCached = _isFresh(_collectionLastFetched[serverKey]);
 
     // Check ancestors fast-path (Emby / older Jellyfin versions report BoxSets in Ancestors)
+    // Kos TV: only when the scan runs; a fresh scan already knows.
     final ancestorBoxSets = <String, String>{};
-    try {
-      final ancestors = await client.itemsApi.getAncestors(item.id);
-      if (generation != _sessionGeneration) return const [];
-      for (final ancestor in ancestors) {
-        if (ancestor['Type'] == 'BoxSet') {
-          final id = ancestor['Id']?.toString();
-          final name = ancestor['Name']?.toString();
-          if (id != null && id.isNotEmpty && name != null && name.isNotEmpty) {
-            ancestorBoxSets[id] = name;
+    if (forceRefresh || !isCached) {
+      try {
+        final ancestors = await client.itemsApi.getAncestors(item.id);
+        if (generation != _sessionGeneration) return const [];
+        for (final ancestor in ancestors) {
+          if (ancestor['Type'] == 'BoxSet') {
+            final id = ancestor['Id']?.toString();
+            final name = ancestor['Name']?.toString();
+            if (id != null &&
+                id.isNotEmpty &&
+                name != null &&
+                name.isNotEmpty) {
+              ancestorBoxSets[id] = name;
+            }
           }
         }
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
 
     if (forceRefresh || !isCached) {
       await _syncCollections(serverKey);
@@ -494,6 +633,10 @@ class ItemMembershipService {
       serverCollections[collectionId]?.addAll(itemIds);
     }
     _collectionLastFetched.remove(serverKey);
+    // Kos TV: the plugin is asked again for these.
+    _pluginCollections[serverKey]?.removeWhere(
+      (id, _) => itemIds.contains(id),
+    );
   }
 
   /// Updates cache when an item is removed from a collection.
@@ -511,6 +654,8 @@ class ItemMembershipService {
       serverCollections[collectionId]?.remove(itemId);
     }
     _collectionLastFetched.remove(serverKey);
+    // Kos TV: the plugin is asked again for it.
+    _pluginCollections[serverKey]?.remove(itemId);
   }
 
   /// Clears in-memory caches and invalidates any in-flight syncs (e.g. on account or server switch).
@@ -532,5 +677,6 @@ class ItemMembershipService {
       if (!c.isCompleted) c.complete();
     }
     _collectionInFlight.clear();
+    _pluginCollections.clear();
   }
 }

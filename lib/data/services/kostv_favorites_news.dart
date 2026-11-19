@@ -152,14 +152,24 @@ class KostvFavoritesNewsService extends ChangeNotifier {
     if (!available) return Future.value();
     // A read already under way is waited for, not skipped: whoever asked
     // (Favourites, about to mark the news seen) gets its answer first.
+    // Kos TV: only a read for this same person: one for the last person is
+    // thrown away when it lands, and this one would be left without news.
     final inFlight = _inFlight;
-    if (_reading && inFlight != null) return inFlight;
-    return _inFlight = _read(force: force);
+    if (_reading && inFlight != null && _inFlightOwner == _owner) {
+      return inFlight;
+    }
+    _inFlightOwner = _owner;
+    return _inFlight = _read(force: force, turn: ++_readTurn);
   }
 
   Future<void>? _inFlight;
+  String? _inFlightOwner;
 
-  Future<void> _read({required bool force}) async {
+  /// Kos TV: which read is the newest, so an older one finishing doesn't say
+  /// nothing is being read while the newest still is.
+  int _readTurn = 0;
+
+  Future<void> _read({required bool force, required int turn}) async {
     final readAt = _readAt;
     if (!force &&
         readAt != null &&
@@ -206,7 +216,7 @@ class KostvFavoritesNewsService extends ChangeNotifier {
     } catch (e) {
       debugPrint('[FavoritesNews] Reading the news failed: $e');
     } finally {
-      _reading = false;
+      if (turn == _readTurn) _reading = false;
     }
   }
 
