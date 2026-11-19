@@ -1326,6 +1326,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   baseColor: nextNavColor(),
                   focusNode: _homeFocus,
                   onFocusChanged: (f) => _restOn(Destinations.home, f),
+                  selected: _isActive(Destinations.home),
                   onPressed: () {
                     if (_enterShownPage(Destinations.home)) return;
                     if (_isActive(Destinations.home)) {
@@ -1343,6 +1344,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                 child: ExpandableIconButton(
                   key: const ValueKey('toolbar_search'),
                   focusNode: _menuNode(Destinations.search),
+                  selected: _isActive(Destinations.search),
                   onFocusChanged: (f) => _restOn(Destinations.search, f),
                   forceExpanded: alwaysExpanded,
                   icon: Icons.search_rounded,
@@ -1362,6 +1364,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_kostv_discover'),
                     focusNode: _menuNode(Destinations.kostvDiscover),
+                    selected: _isActive(Destinations.kostvDiscover),
                     onFocusChanged: (f) => _restOn(Destinations.kostvDiscover, f),
                     forceExpanded: alwaysExpanded,
                     icon: Icons.explore_rounded,
@@ -1381,6 +1384,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_genres'),
                     focusNode: _menuNode(Destinations.allGenres),
+                    selected: _isActive(Destinations.allGenres),
                     onFocusChanged: (f) => _restOn(Destinations.allGenres, f),
                     forceExpanded: alwaysExpanded,
                     baseColor: nextNavColor(),
@@ -1406,6 +1410,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_my_list'),
                     focusNode: _menuNode(Destinations.myList),
+                    selected: _isActive(Destinations.myList),
                     onFocusChanged: (f) => _restOn(Destinations.myList, f),
                     forceExpanded: alwaysExpanded,
                     icon: Icons.bookmark_rounded,
@@ -1428,6 +1433,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_music'),
                     focusNode: _menuNode(Destinations.kostvMusic),
+                    selected: _isActive(Destinations.kostvMusic),
                     onFocusChanged: (f) => _restOn(Destinations.kostvMusic, f),
                     forceExpanded: alwaysExpanded,
                     icon: Icons.music_note_rounded,
@@ -1453,6 +1459,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_livetv'),
                     focusNode: _menuNode(Destinations.liveTvGuide),
+                    selected: _isActive(Destinations.liveTvGuide),
                     onFocusChanged: (f) => _restOn(Destinations.liveTvGuide, f),
                     forceExpanded: alwaysExpanded,
                     icon: Icons.live_tv_rounded,
@@ -1489,6 +1496,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_calendar'),
                     focusNode: _menuNode(Destinations.calendar),
+                    selected: _isActive(Destinations.calendar),
                     onFocusChanged: (f) => _restOn(Destinations.calendar, f),
                     forceExpanded: alwaysExpanded,
                     baseColor: nextNavColor(),
@@ -1508,6 +1516,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_apps'),
                     focusNode: _menuNode(Destinations.apps),
+                    selected: _isActive(Destinations.apps),
                     onFocusChanged: (f) => _restOn(Destinations.apps, f),
                     forceExpanded: alwaysExpanded,
                     baseColor: nextNavColor(),
@@ -1546,6 +1555,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   child: ExpandableIconButton(
                     key: const ValueKey('toolbar_libraries'),
                     focusNode: _menuNode(Destinations.kostvLibraries),
+                    selected: _isActive(Destinations.kostvLibraries),
                     onFocusChanged: (f) =>
                         _restOn(Destinations.kostvLibraries, f),
                     forceExpanded: alwaysExpanded,
@@ -1836,6 +1846,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
             child: ExpandableIconButton(
               key: const ValueKey('toolbar_now_playing'),
               focusNode: _menuNode(Destinations.audioPlayer),
+              selected: _isActive(Destinations.audioPlayer),
               forceExpanded: alwaysExpanded,
               iconBuilder: (size, color) => KostvEqualizerBars(
                 playing: music.playing,
