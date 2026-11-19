@@ -15,8 +15,9 @@ Future<Server?> kostvHouseholdServer(ServerRepository repo) async {
   final known = repo.servers.where(isKostvHouseholdServer).firstOrNull;
   if (known != null) return known;
   await repo.loadStoredServers();
+  // Only the address configured, as it is: never plain http or other ports.
   return repo.servers.where(isKostvHouseholdServer).firstOrNull ??
-      await repo.addServer(kostvServerUrl);
+      await repo.addServer(kostvServerUrl, exactAddressOnly: true);
 }
 
 /// Whether [server] is the household server built in.

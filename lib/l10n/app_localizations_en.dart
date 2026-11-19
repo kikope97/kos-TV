@@ -19798,4 +19798,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvDownloadTimedOut =>
       'Download timed out while waiting for transfer completion.';
+
+  @override
+  String get loginWrongCredentials => 'Wrong username or password';
+
+  @override
+  String get loginServerError =>
+      'The server ran into a problem. Try again later.';
+
+  @override
+  String get quickConnectCodeExpired =>
+      'This code has expired. Get a new one to sign in.';
+
+  @override
+  String get kostvUntrustedServerCertificate =>
+      'The server\'s certificate isn\'t valid, so the connection isn\'t safe. You may be on a network that intercepts connections (a hotel\'s, for example). Try another network or try again later.';
 }

@@ -55,7 +55,19 @@ if ($request_method = OPTIONS) { return 204; }''';
         insecureConfiguredTargets.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.webDiagnosticsTitle)),
+      // Kos TV: reached in place of the sign-in (the web replaces the page
+      // in the browser's history), so with nothing below it Back still has
+      // to lead somewhere: the server's sign-in again.
+      appBar: AppBar(
+        title: Text(l10n.webDiagnosticsTitle),
+        leading: IconButton(
+          icon: const BackButtonIcon(),
+          tooltip: l10n.back,
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.go(Destinations.serverSelect),
+        ),
+      ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),

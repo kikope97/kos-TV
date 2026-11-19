@@ -13,13 +13,11 @@ import '../services/silo_token_storage.dart';
 import '../store/authentication_store.dart';
 import '../store/authentication_preferences.dart';
 import '../../util/silo_failure_message.dart';
-import 'session_repository.dart';
 import 'user_repository.dart';
 
 class AuthRepository {
   final AuthenticationStore _authStore;
   final AuthenticationPreferences _authPrefs;
-  final SessionRepository _sessionRepository;
   final UserRepository _userRepository;
   final _logger = Logger();
 
@@ -30,12 +28,7 @@ class AuthRepository {
   /// A Silo login waiting for its temporary password to be replaced.
   _PendingSiloPasswordChange? _pendingPasswordChange;
 
-  AuthRepository(
-    this._authStore,
-    this._authPrefs,
-    this._sessionRepository,
-    this._userRepository,
-  );
+  AuthRepository(this._authStore, this._authPrefs, this._userRepository);
 
   Stream<LoginState> get stateStream => _stateController.stream;
 
@@ -63,9 +56,10 @@ class AuthRepository {
           password: password,
         );
       }
-      return _handleAuthResult(
+      // Kos TV: awaited, so a failure storing the user lands in the catch
+      // below instead of escaping it.
+      return await _handleAuthResult(
         result: result,
-        client: client,
         serverId: serverId,
         fallbackName: username,
       );
@@ -98,9 +92,8 @@ class AuthRepository {
           serverId: serverId,
         );
       }
-      return _handleAuthResult(
+      return await _handleAuthResult(
         result: result,
-        client: client,
         serverId: serverId,
         fallbackName: '',
       );
@@ -114,9 +107,12 @@ class AuthRepository {
     }
   }
 
+  /// Stores the user a Jellyfin sign-in returned. Kos TV: the shared client
+  /// and the current user are left as they are: the caller switches to the
+  /// new session next, and that switch stops what the person before was
+  /// playing with that person's token before it puts this one in.
   Future<LoginState> _handleAuthResult({
     required Map<String, dynamic> result,
-    required MediaServerClient client,
     required String serverId,
     required String fallbackName,
   }) async {
@@ -142,9 +138,6 @@ class AuthRepository {
       return state;
     }
 
-    client.accessToken = accessToken;
-    client.userId = userId;
-
     final user = PrivateUser(
       id: userId,
       name: userName,
@@ -162,7 +155,6 @@ class AuthRepository {
     await _authStore.putUser(user);
     await _authPrefs.setLastServerId(serverId);
     await _authPrefs.setLastUserId(userId);
-    _userRepository.setCurrentUser(user);
 
     final state = Authenticated(userId: userId, serverId: serverId);
     _stateController.add(state);
@@ -505,21 +497,6 @@ class AuthRepository {
     );
     _stateController.add(state);
     return state;
-  }
-
-  Future<void> logout(MediaServerClient client) async {
-    try {
-      await client.authApi.logout();
-    } catch (_) {}
-
-    final user = _userRepository.currentUser;
-    if (user != null) {
-      await _authStore.removeUser(user.serverId, user.id);
-    }
-
-    _userRepository.setCurrentUser(null);
-    await _sessionRepository.destroyCurrentSession();
-    _stateController.add(const RequireSignIn());
   }
 
   String? getUserImageUrl(MediaServerClient client, User user) {

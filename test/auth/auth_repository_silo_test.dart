@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/auth/models/login_state.dart';
 import 'package:moonfin/auth/models/user.dart';
 import 'package:moonfin/auth/repositories/auth_repository.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
 import 'package:moonfin/auth/repositories/user_repository.dart';
 import 'package:moonfin/auth/services/silo_household.dart';
 import 'package:moonfin/auth/services/silo_token_storage.dart';
@@ -234,7 +233,6 @@ class _Users extends Fake implements UserRepository {
   void setCurrentUser(User? user) => current = user;
 }
 
-class _Sessions extends Fake implements SessionRepository {}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -260,7 +258,7 @@ void main() {
     );
     // An account with one profile, no PIN: it signs straight in.
     // Households with more, or a PIN, are tested below.
-    repo = AuthRepository(store, prefs, _Sessions(), users);
+    repo = AuthRepository(store, prefs, users);
   });
 
   Future<LoginState> signIn() => repo.authenticate(

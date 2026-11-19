@@ -84,7 +84,9 @@ class JellyfinMediaServerClient extends MediaServerClient {
   }
 
   void _setupInterceptors() {
-    _dio.interceptors.add(redirectInterceptor(_dio));
+    // Kos TV: a redirect elsewhere would carry the token, and the password
+    // of a sign-in, to another site.
+    _dio.interceptors.add(redirectInterceptor(_dio, sameOriginOnly: true));
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
         options.headers['Authorization'] = buildServerAuthorizationHeader(

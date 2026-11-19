@@ -243,6 +243,11 @@ class SessionRepository {
     required String userId,
     bool validateToken = false,
   }) async {
+    // Kos TV: whatever is still on its way for the session being left (its
+    // sign-in sync, a token check) sees the change and stops, and the
+    // person coming in gets their own token check.
+    final generation = ++_sessionGeneration;
+    _tokenCheckedAt = null;
     if (serverId != _activeServerId || userId != _activeUserId) {
       await _stopPlaybackForSessionChange();
     }
@@ -284,10 +289,12 @@ class SessionRepository {
       return false;
     }
 
-    final token = await _credentialStore.getToken(serverId);
-    final accessToken = user.accessToken.isNotEmpty ? user.accessToken : token;
+    // Kos TV: the token is the one stored with the user. Nothing in this
+    // app writes tokens to the secure store, so it was never read back from
+    // there either.
+    final accessToken = user.accessToken;
 
-    if (accessToken == null || accessToken.isEmpty) {
+    if (accessToken.isEmpty) {
       _logger.w(
         'No access token available for user $userId on server $serverId',
       );
@@ -321,6 +328,9 @@ class SessionRepository {
       try {
         validatedUser = await client.usersApi.getCurrentUser();
       } on DioException catch (e) {
+        // Kos TV: another switch began while this one waited; that one
+        // decides now.
+        if (generation != _sessionGeneration) return false;
         if (e.response?.statusCode == 401) {
           _logger.w('Stored access token was rejected. Logging out.');
           // Point the teardown at this session so it removes the right
@@ -405,7 +415,14 @@ class SessionRepository {
     String serverId, {
     ServerUser? preFetchedServerUser,
   }) async {
+    // Kos TV: a switch to someone else while this runs (a slow server)
+    // leaves the rest to that person's own sync, so nothing of this one
+    // lands on them.
+    final generation = _sessionGeneration;
+    bool left() => generation != _sessionGeneration;
+
     await _reportRemoteCapabilities(client);
+    if (left()) return;
 
     // A server is signed in now, so crash reports from earlier runs can go.
     try {
@@ -417,9 +434,11 @@ class SessionRepository {
       user,
       serverId,
       preFetched: preFetchedServerUser,
+      generation: generation,
     )) {
       return;
     }
+    if (left()) return;
     unawaited(_syncSiloHousehold(client, user, serverId));
 
     // The settings entry and the friends button stay hidden until this
@@ -434,7 +453,9 @@ class SessionRepository {
       );
     }
 
+    if (left()) return;
     await _pluginSyncService.syncOnLogin(client, serverId: serverId);
+    if (left()) return;
 
     // Register the FCM token now that a session exists. Startup registration
     // bails before login, so this is where closed-app push actually enrolls.
@@ -450,15 +471,21 @@ class SessionRepository {
 
   /// Reads the signed-in user from the server and keeps the stored user's
   /// permissions and the language preferences in step with it. Answers false
-  /// when the server turned the login down and the session was ended.
+  /// when the server turned the login down and the session was ended, or
+  /// (Kos TV) when the session of [generation] was left meanwhile: the
+  /// answer is about someone who is no longer the current user.
   Future<bool> _refreshServerUser(
     MediaServerClient client,
     PrivateUser user,
     String serverId, {
     ServerUser? preFetched,
+    int? generation,
   }) async {
+    final asked = generation ?? _sessionGeneration;
+    bool left() => asked != _sessionGeneration;
     try {
       final serverUser = preFetched ?? await client.usersApi.getCurrentUser();
+      if (left()) return false;
       final isAdmin = serverUser.policy?.isAdministrator ?? false;
       final canDownload = serverUser.policy?.enableContentDownloading ?? false;
       final canManageSubtitles =
@@ -481,6 +508,7 @@ class SessionRepository {
           canManageLiveTv: canManageLiveTv,
         );
         await _authStore.putUser(updatedUser);
+        if (left()) return false;
         _userRepository.setCurrentUser(updatedUser);
       }
 
@@ -491,6 +519,7 @@ class SessionRepository {
         );
       }
     } on DioException catch (e) {
+      if (left()) return false;
       if (e.response?.statusCode == 401) {
         _logger.w('Access token expired or unauthorized. Logging out.');
         await destroyCurrentSession(tokenKnownInvalid: true);
@@ -557,7 +586,8 @@ class SessionRepository {
   }
 
   /// Called when the app returns to the foreground. Reconnects the websocket
-  /// if it was dropped while backgrounded.
+  /// if it was dropped while backgrounded, and (Kos TV) checks that the
+  /// server still takes the session's token, on every platform.
   void onAppResumed() {
     unawaited(_checkTokenStillValid());
     _cancelSocketIdleTimer();
@@ -577,36 +607,132 @@ class SessionRepository {
   }
 
   DateTime? _tokenCheckedAt;
+  bool _tokenCheckRunning = false;
+
+  /// Kos TV: bumped on every switch and sign-out, so work started for one
+  /// session can tell, after waiting on the server, that it was left.
+  int _sessionGeneration = 0;
+
+  static const _tokenCheckInterval = Duration(minutes: 10);
+
+  /// How soon after a check a 401 from an ordinary request checks again.
+  static const _unauthorizedCheckInterval = Duration(seconds: 30);
 
   /// Kos TV: back in front (a TV left on for days), whether the server still
   /// takes this session's token: a password changed or the device removed
   /// in Jellyfin revokes it, and the app would otherwise stay «in» loading
   /// nothing. Turned down for sure (401), it goes to the sign-in with the
-  /// name filled in, as at start-up. At most every 10 minutes.
-  Future<void> _checkTokenStillValid() async {
+  /// name filled in, as at start-up. At most every [minInterval], and one
+  /// check at a time, so the 401 of the check itself starts no other.
+  Future<void> _checkTokenStillValid({
+    Duration minInterval = _tokenCheckInterval,
+  }) async {
     final serverId = _activeServerId;
     final userId = _activeUserId;
-    if (serverId == null || userId == null) return;
+    if (serverId == null || userId == null || _tokenCheckRunning) return;
     final last = _tokenCheckedAt;
-    if (last != null &&
-        DateTime.now().difference(last) < const Duration(minutes: 10)) {
+    if (last != null && DateTime.now().difference(last) < minInterval) {
       return;
     }
     _tokenCheckedAt = DateTime.now();
     final client = _clientFactory.getClientIfExists(serverId);
     if (client == null) return;
+    final generation = _sessionGeneration;
+    _tokenCheckRunning = true;
     try {
       await client.usersApi.getCurrentUser();
     } on DioException catch (e) {
       if (e.response?.statusCode != 401) return;
-      if (_activeServerId != serverId || _activeUserId != userId) return;
+      if (generation != _sessionGeneration ||
+          _activeServerId != serverId ||
+          _activeUserId != userId) {
+        return;
+      }
       final name = _userRepository.currentUser?.name ?? '';
       _logger.w('The session token was revoked. Signing out.');
       await destroyCurrentSession(tokenKnownInvalid: true);
       appRouter.go(
         '${Destinations.login}?serverId=$serverId&username=${Uri.encodeComponent(name)}',
       );
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      _tokenCheckRunning = false;
+    }
+  }
+
+  /// Kos TV: a request to [serverId] was answered with 401 (see
+  /// `MediaServerClientFactory.onUnauthorized`). A TV rarely goes to the
+  /// background, so this is how it learns that the person's token was
+  /// revoked: when the request carried the active session's [token], the
+  /// token is checked ([_checkTokenStillValid]) and, if the server really
+  /// turns it down, the person goes to sign in again instead of staying on
+  /// empty rows. Left alone: sign-in requests (a wrong password is a 401
+  /// too), a session being switched or restored (which checks its own
+  /// token), and requests that carried another token, such as one still on
+  /// its way for the person before.
+  void noteUnauthorized(String serverId, String? token, String path) {
+    if (_state != SessionState.ready) return;
+    if (serverId != _activeServerId || _activeUserId == null) return;
+    if (token == null || isSignInRequestPath(path)) return;
+    final client = _clientFactory.getClientIfExists(serverId);
+    if (client == null || client.accessToken != token) return;
+    unawaited(_checkTokenStillValid(minInterval: _unauthorizedCheckInterval));
+  }
+
+  /// Kos TV: "sign everyone out" also ends on the server the sessions of
+  /// the people stored on this device other than the active one (whose
+  /// sign-out ends its own), so their tokens stop working there and the
+  /// device leaves their list in Jellyfin. The tokens are read when this is
+  /// called, before the people are removed from the device; the requests
+  /// then go out with a short timeout, and a server that doesn't answer
+  /// changes nothing. Jellyfin servers only.
+  Future<void> endOtherStoredSessionsOnServers() async {
+    final sessions = <(String, String)>[
+      for (final server in _serverRepository.servers)
+        if (server.serverType == ServerType.jellyfin)
+          for (final user in _authStore.getUsers(server.id))
+            if (user.accessToken.isNotEmpty &&
+                !(server.id == _activeServerId && user.id == _activeUserId))
+              (server.address, user.accessToken),
+    ];
+    if (sessions.isEmpty) return;
+    final deviceInfo = _clientFactory.deviceInfo;
+    await Future.wait([
+      for (final (address, token) in sessions)
+        _endSessionOnServer(address, token, deviceInfo),
+    ]);
+  }
+
+  static Future<void> _endSessionOnServer(
+    String address,
+    String token,
+    DeviceInfo deviceInfo,
+  ) async {
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 5),
+        receiveTimeout: const Duration(seconds: 5),
+        followRedirects: false,
+      ),
+    );
+    configureServerDio(dio);
+    try {
+      await dio.post(
+        '${address.replaceAll(RegExp(r'/+$'), '')}/Sessions/Logout',
+        options: Options(
+          headers: {
+            'Authorization': buildServerAuthorizationHeader(
+              scheme: 'MediaBrowser',
+              deviceInfo: deviceInfo,
+              accessToken: token,
+            ),
+          },
+        ),
+      );
+    } catch (_) {
+    } finally {
+      dio.close();
+    }
   }
 
   /// Called when the device regains a network, so a socket part way through
@@ -775,6 +901,7 @@ class SessionRepository {
   }
 
   Future<void> destroyCurrentSession({bool tokenKnownInvalid = false}) async {
+    _sessionGeneration++;
     _forgetUnrememberedPinOfActive();
     await _stopPlaybackForSessionChange();
     _remoteVolumeGeneration++;
@@ -1475,4 +1602,16 @@ class SessionRepository {
     _accessChangedSubscription?.cancel();
     _stateController.close();
   }
+}
+
+/// Kos TV: whether [path] is a sign-in request, whose 401 means a wrong
+/// password or an unapproved code rather than a revoked session, or the
+/// sign-out itself.
+@visibleForTesting
+bool isSignInRequestPath(String path) {
+  final lower = path.toLowerCase();
+  return lower.endsWith('/users/authenticatebyname') ||
+      lower.endsWith('/users/authenticatewithquickconnect') ||
+      lower.contains('/quickconnect/') ||
+      lower.endsWith('/sessions/logout');
 }

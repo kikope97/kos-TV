@@ -81,7 +81,8 @@ class ServerPinService {
       ),
     );
     configureServerDio(dio);
-    dio.interceptors.add(redirectInterceptor(dio));
+    // Kos TV: the PIN goes with these requests: never to another host.
+    dio.interceptors.add(redirectInterceptor(dio, sameOriginOnly: true));
     return dio;
   }
 

@@ -41,7 +41,7 @@ class AchievementsService extends ChangeNotifier {
     // the server interceptors.
     if (dio == null) {
       configureServerDio(_dio);
-      _dio.interceptors.add(redirectInterceptor(_dio));
+      _dio.interceptors.add(redirectInterceptor(_dio, sameOriginOnly: true));
     }
   }
 

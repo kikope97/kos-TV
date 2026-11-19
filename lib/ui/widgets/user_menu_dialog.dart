@@ -261,6 +261,10 @@ class _AccountDialogState extends State<_AccountDialog> {
     if (!await kostvKidsModeLetsOut(context) || !mounted) return;
     setState(() => _busy = true);
 
+    // Kos TV: everyone else's session ends on the server too. Their tokens
+    // are read now, before they are removed below, and the requests go on
+    // their own: a server that doesn't answer holds nothing up.
+    unawaited(_sessionRepo.endOtherStoredSessionsOnServers());
     // A Silo household's login ends on Silo too, not only on this device.
     await _sessionRepo.signOutSiloAccount();
     await _serverRepo.loadStoredServers();

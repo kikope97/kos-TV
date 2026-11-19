@@ -7,7 +7,6 @@ import '../auth/repositories/server_repository.dart';
 import '../auth/store/authentication_preferences.dart';
 import '../auth/services/silo_token_storage.dart';
 import '../auth/store/authentication_store.dart';
-import '../auth/store/credential_store.dart';
 import '../data/services/media_server_client_factory.dart';
 import '../di/modules/playback_module.dart';
 import '../di/modules/server_module.dart';
@@ -118,11 +117,10 @@ class HeadlessSessionBootstrap {
     if (userIndex < 0) throw StateError('saved user not found');
     final user = users[userIndex];
 
-    final storedToken =
-        await GetIt.instance<CredentialStore>().getToken(serverId);
-    final accessToken =
-        user.accessToken.isNotEmpty ? user.accessToken : storedToken;
-    if (accessToken == null || accessToken.isEmpty) {
+    // Kos TV: the token stored with the user. Nothing writes tokens to the
+    // secure store, so there was never one to read back from it.
+    final accessToken = user.accessToken;
+    if (accessToken.isEmpty) {
       throw StateError('no stored access token');
     }
 

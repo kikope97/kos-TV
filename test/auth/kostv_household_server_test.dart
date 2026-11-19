@@ -44,7 +44,12 @@ void main() {
   test('without a household server there is nothing to open', () async {
     householdAt(null);
     expect(await kostvHouseholdServer(repo), isNull);
-    verifyNever(() => repo.addServer(any()));
+    verifyNever(
+      () => repo.addServer(
+        any(),
+        exactAddressOnly: any(named: 'exactAddressOnly'),
+      ),
+    );
   });
 
   test('the stored household server is the one opened', () async {
@@ -54,15 +59,21 @@ void main() {
         .thenReturn([_server('other', 'https://other.example.org'), household]);
 
     expect(await kostvHouseholdServer(repo), same(household));
-    verifyNever(() => repo.addServer(any()));
+    verifyNever(
+      () => repo.addServer(
+        any(),
+        exactAddressOnly: any(named: 'exactAddressOnly'),
+      ),
+    );
   });
 
   test('after everyone signed out it is added again', () async {
     householdAt('https://media.example.org');
     final added = _server('home', 'https://media.example.org');
     when(() => repo.servers).thenReturn(const []);
-    when(() => repo.addServer('https://media.example.org'))
-        .thenAnswer((_) async => added);
+    when(
+      () => repo.addServer('https://media.example.org', exactAddressOnly: true),
+    ).thenAnswer((_) async => added);
 
     expect(await kostvHouseholdServer(repo), same(added));
   });
@@ -70,7 +81,12 @@ void main() {
   test('out of reach, nothing is opened', () async {
     householdAt('https://media.example.org');
     when(() => repo.servers).thenReturn(const []);
-    when(() => repo.addServer(any())).thenAnswer((_) async => null);
+    when(
+      () => repo.addServer(
+        any(),
+        exactAddressOnly: any(named: 'exactAddressOnly'),
+      ),
+    ).thenAnswer((_) async => null);
 
     expect(await kostvHouseholdServer(repo), isNull);
   });

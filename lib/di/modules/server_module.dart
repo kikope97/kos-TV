@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
+import '../../auth/repositories/session_repository.dart';
 import '../../data/offline/connectivity_aware_media_server_client.dart';
 import '../../data/offline/offline_catalog.dart';
 import '../../data/repositories/offline_repository.dart';
@@ -48,6 +49,13 @@ void registerServerModule() {
       deviceInfo: _getIt<DeviceInfo>(),
       // A user whose access schedule just ended is turned away from every request.
       onForbidden: () => _getIt<AccessScheduleService>().noteRefused(),
+      // Kos TV: a token revoked mid-session (password changed, device
+      // removed in Jellyfin) sends the person to sign in again.
+      onUnauthorized: (serverId, token, path) {
+        if (_getIt.isRegistered<SessionRepository>()) {
+          _getIt<SessionRepository>().noteUnauthorized(serverId, token, path);
+        }
+      },
     ),
   );
 

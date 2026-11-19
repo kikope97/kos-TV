@@ -9,7 +9,8 @@ import 'package:dio/dio.dart';
 /// origin, or upgrades `http` to `https` on the same host (see
 /// [isSameOriginRedirect]). Anything else is returned to the caller as the
 /// original error, so a bearer token or a password in the body never reaches
-/// another site. Off by default, which keeps the Jellyfin and Emby behavior.
+/// another site. Off by default; Kos TV turns it on for the Jellyfin client
+/// and the server plugin's services.
 Interceptor redirectInterceptor(Dio dio, {bool sameOriginOnly = false}) {
   return InterceptorsWrapper(
     onError: (error, handler) async {
