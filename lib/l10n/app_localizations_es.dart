@@ -21201,4 +21201,31 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvParentalPinRemoved => 'PIN del control parental quitado';
+
+  @override
+  String get kostvPinRecoveryMessage =>
+      'Escribe la contraseña de Jellyfin de esta cuenta para quitar el PIN.';
+
+  @override
+  String get kostvPinRecoveryKidsMessage =>
+      'Escribe la contraseña de Jellyfin de esta cuenta para quitar el PIN y salir del modo infantil.';
+
+  @override
+  String kostvPinRecoveryUser(String name) {
+    return 'Usuario: $name';
+  }
+
+  @override
+  String get kostvPinRecoveryEmptyHint =>
+      'Si la cuenta no tiene contraseña, déjala en blanco.';
+
+  @override
+  String get kostvPinRecoveryConfirm => 'Quitar el PIN';
+
+  @override
+  String get kostvPinRecoveryWrong => 'Contraseña incorrecta';
+
+  @override
+  String get kostvPinRecoveryNeedsServer =>
+      'Para recuperar el PIN hace falta conectar con el servidor. Inténtalo cuando haya conexión.';
 }

@@ -20965,5 +20965,38 @@
     "kostvParentalPinRemoved": "Parental controls PIN removed",
     "@kostvParentalPinRemoved": {
         "description": "Kos TV: the Parental controls PIN was removed"
+    },
+    "kostvPinRecoveryMessage": "Type this account's Jellyfin password to remove the PIN.",
+    "@kostvPinRecoveryMessage": {
+        "description": "Kos TV: forgot a PIN kept on the device; the account's password removes it"
+    },
+    "kostvPinRecoveryKidsMessage": "Type this account's Jellyfin password to remove the PIN and leave Kids Mode.",
+    "@kostvPinRecoveryKidsMessage": {
+        "description": "Kos TV: forgot the Kids Mode PIN; the account's password removes it and leaves the mode"
+    },
+    "kostvPinRecoveryUser": "User: {name}",
+    "@kostvPinRecoveryUser": {
+        "description": "Kos TV: the account whose password is asked to recover a PIN",
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvPinRecoveryEmptyHint": "If the account has no password, leave it blank.",
+    "@kostvPinRecoveryEmptyHint": {
+        "description": "Kos TV: recovering a PIN, for an account without a password"
+    },
+    "kostvPinRecoveryConfirm": "Remove PIN",
+    "@kostvPinRecoveryConfirm": {
+        "description": "Kos TV: button that checks the password and removes the forgotten PIN"
+    },
+    "kostvPinRecoveryWrong": "Incorrect password",
+    "@kostvPinRecoveryWrong": {
+        "description": "Kos TV: the server turned down the password typed to recover a PIN"
+    },
+    "kostvPinRecoveryNeedsServer": "Recovering the PIN needs the server. Try again when you're connected.",
+    "@kostvPinRecoveryNeedsServer": {
+        "description": "Kos TV: a forgotten PIN can't be recovered without reaching the server"
     }
 }

@@ -20857,4 +20857,31 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvParentalPinRemoved => 'Parental controls PIN removed';
+
+  @override
+  String get kostvPinRecoveryMessage =>
+      'Type this account\'s Jellyfin password to remove the PIN.';
+
+  @override
+  String get kostvPinRecoveryKidsMessage =>
+      'Type this account\'s Jellyfin password to remove the PIN and leave Kids Mode.';
+
+  @override
+  String kostvPinRecoveryUser(String name) {
+    return 'User: $name';
+  }
+
+  @override
+  String get kostvPinRecoveryEmptyHint =>
+      'If the account has no password, leave it blank.';
+
+  @override
+  String get kostvPinRecoveryConfirm => 'Remove PIN';
+
+  @override
+  String get kostvPinRecoveryWrong => 'Incorrect password';
+
+  @override
+  String get kostvPinRecoveryNeedsServer =>
+      'Recovering the PIN needs the server. Try again when you\'re connected.';
 }

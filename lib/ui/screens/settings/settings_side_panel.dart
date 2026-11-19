@@ -308,13 +308,8 @@ class _SettingsSidePanelState extends ConsumerState<SettingsSidePanel> {
     final pin = PinCodeUtil.kidsMode(GetIt.instance<PreferenceStore>(), userId);
 
     if (pin.isPinEnabled) {
-      final verified = await PinEntryDialog.show(
-        context,
-        mode: PinEntryMode.verify,
-        onVerify: pin.verifyPin,
-        onFailedAttempt: pin.registerFailedAttempt,
-        lockoutRemaining: () => pin.lockoutRemaining,
-      );
+      // Kos TV: with the way out of a forgotten PIN (the account's password).
+      final verified = await kostvAskKidsModePin(context, pin, userId: userId);
       if (!verified) return;
     }
 
