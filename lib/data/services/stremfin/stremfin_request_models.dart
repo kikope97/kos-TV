@@ -642,6 +642,7 @@ class StremfinRequest {
     this.title,
     this.displayTitle,
     this.season,
+    this.episode,
     this.wholeSeries = false,
     this.statusLabel,
     this.reason,
@@ -678,6 +679,9 @@ class StremfinRequest {
   /// Of a series: the season asked for, or [wholeSeries] for all that's
   /// missing.
   final int? season;
+
+  /// Kos TV: one episode of [season] asked for on its own, or null.
+  final int? episode;
   final bool wholeSeries;
   final String? statusLabel;
 
@@ -721,6 +725,7 @@ class StremfinRequest {
       title: _text(raw['title']),
       displayTitle: _text(raw['display_title']),
       season: _int(raw['season']),
+      episode: _int(raw['episode']),
       wholeSeries: raw['whole_series'] == true,
       statusLabel: _text(raw['status_label']),
       reason: _text(raw['reason']),
@@ -756,6 +761,7 @@ class StremfinRequest {
           statusLabel: statusLabel,
           mine: mine,
           season: season,
+          episode: episode,
           direct: direct,
           requesters: requesters,
         )

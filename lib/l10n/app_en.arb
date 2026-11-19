@@ -19681,5 +19681,57 @@
     "kostvCollectionAddFailed": "Couldn't add it to the collection",
     "@kostvCollectionAddFailed": {
         "description": "Kos TV: adding an item to a collection, or creating one for it, failed"
+    },
+    "kostvStremfinErrorSession": "Your session is no longer valid: sign in to the app again.",
+    "@kostvStremfinErrorSession": {
+        "description": "Kos TV: requests service error: the session is no longer valid (401)"
+    },
+    "kostvStremfinErrorNotLinked": "Your user isn't set up for requests yet. Ask whoever runs the server.",
+    "@kostvStremfinErrorNotLinked": {
+        "description": "Kos TV: requests service error: the person is not set up in the requests service (403 not_linked)"
+    },
+    "kostvStremfinErrorNoAccess": "You can't make requests right now.",
+    "@kostvStremfinErrorNoAccess": {
+        "description": "Kos TV: requests service error: the person has no access right now (403 no_access)"
+    },
+    "kostvStremfinErrorNotYours": "That request isn't yours.",
+    "@kostvStremfinErrorNotYours": {
+        "description": "Kos TV: requests service error: withdrawing someone else's request (403 not_yours)"
+    },
+    "kostvStremfinErrorNotFound": "It no longer exists: it may have been withdrawn or merged with another.",
+    "@kostvStremfinErrorNotFound": {
+        "description": "Kos TV: requests service error: the title or request no longer exists (404)"
+    },
+    "kostvStremfinErrorAlreadyAnswered": "That request has already been answered.",
+    "@kostvStremfinErrorAlreadyAnswered": {
+        "description": "Kos TV: requests service error: withdrawing a request that already has an answer (409)"
+    },
+    "kostvStremfinErrorDisabled": "Requests are switched off right now. Try again later.",
+    "@kostvStremfinErrorDisabled": {
+        "description": "Kos TV: requests service error: the requests service is switched off (503 api_disabled)"
+    },
+    "kostvStremfinErrorNotConnected": "The requests service isn't connected to the server yet.",
+    "@kostvStremfinErrorNotConnected": {
+        "description": "Kos TV: requests service error: the requests service is not connected to the home server yet (503 jellyfin_not_configured)"
+    },
+    "kostvStremfinErrorServerUnavailable": "Your session can't be checked right now. Try again in a moment.",
+    "@kostvStremfinErrorServerUnavailable": {
+        "description": "Kos TV: requests service error: the requests service cannot check the session with the home server (503 jellyfin_unavailable)"
+    },
+    "kostvStremfinErrorSourceUnavailable": "It can't be looked up right now. Try again later.",
+    "@kostvStremfinErrorSourceUnavailable": {
+        "description": "Kos TV: requests service error: an outside source of the requests service does not answer (503 source_unavailable)"
+    },
+    "kostvStremfinErrorBusy": "Another request is being saved right now. Try again.",
+    "@kostvStremfinErrorBusy": {
+        "description": "Kos TV: requests service error: another request is being saved at that instant (503 busy)"
+    },
+    "kostvStremfinErrorServerError": "The requests service failed. Try again later.",
+    "@kostvStremfinErrorServerError": {
+        "description": "Kos TV: requests service error: unexpected failure of the requests service (500)"
+    },
+    "kostvStremfinErrorUnreachable": "Can't reach the requests service. Check the connection.",
+    "@kostvStremfinErrorUnreachable": {
+        "description": "Kos TV: requests service error: the requests service could not be reached (no network)"
     }
 }
