@@ -21,7 +21,10 @@ class _AuthStore extends Fake implements AuthenticationStore {
 class _ClientFactory extends Fake implements MediaServerClientFactory {}
 
 // Sends every connection to the fake server, a plain HTTP one: an https
-// address reaches it too, and fails there.
+// address reaches it too, and fails there. With a connection factory dart:io
+// leaves TLS to the factory for a direct https connection, so https gets a
+// real TLS handshake here (which the plain server can't answer), and no proxy
+// from the environment is used, so the result doesn't depend on the machine.
 class _LoopbackOverrides extends HttpOverrides {
   _LoopbackOverrides(this.port);
 
@@ -30,8 +33,15 @@ class _LoopbackOverrides extends HttpOverrides {
   @override
   HttpClient createHttpClient(SecurityContext? context) =>
       super.createHttpClient(context)
+        ..findProxy = ((_) => 'DIRECT')
         ..connectionFactory = (uri, proxyHost, proxyPort) =>
-            Socket.startConnect(InternetAddress.loopbackIPv4, port);
+            uri.isScheme('https')
+            ? SecureSocket.startConnect(
+                InternetAddress.loopbackIPv4,
+                port,
+                onBadCertificate: (_) => true,
+              )
+            : Socket.startConnect(InternetAddress.loopbackIPv4, port);
 }
 
 void main() {
