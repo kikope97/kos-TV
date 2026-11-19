@@ -17,6 +17,13 @@ public sealed class KostvMyListEntry
 
     [JsonPropertyName("addedAt")]
     public DateTimeOffset AddedAt { get; set; }
+
+    /// <summary>
+    /// Kos TV: since when the server hasn't had it, nor anything with its TMDB title (a file
+    /// being replaced by a better one, a disk away during a scan). Null while it is there.
+    /// </summary>
+    [JsonPropertyName("missingSince")]
+    public DateTimeOffset? MissingSince { get; set; }
 }
 
 /// <summary>One person's list, the newest last, and what was put on it for them.</summary>
@@ -41,6 +48,13 @@ public sealed class KostvMyList : FileBackedCacheService<KostvMyListData>
 {
     /// <summary>The most kept per person.</summary>
     public const int MaxPerPerson = 1000;
+
+    /// <summary>
+    /// Kos TV: how long a title with a TMDB title can be missing from the server before it
+    /// leaves the list. A replaced file comes back with a new id within minutes, and is found
+    /// again by its TMDB title; this only lets go of what really went.
+    /// </summary>
+    public static readonly TimeSpan MissingGrace = TimeSpan.FromDays(7);
 
     private readonly object _lock = new();
 
@@ -82,6 +96,7 @@ public sealed class KostvMyList : FileBackedCacheService<KostvMyListData>
             }
 
             entry.ItemId = newId;
+            entry.MissingSince = null;
             return true;
         }
     }
@@ -92,7 +107,7 @@ public sealed class KostvMyList : FileBackedCacheService<KostvMyListData>
         lock (_lock)
         {
             return EnsureLoaded().TryGetValue(KeyOf(userId), out var data)
-                ? data.Items.AsEnumerable().Reverse().Select(e => new KostvMyListEntry { ItemId = e.ItemId, Key = e.Key, AddedAt = e.AddedAt }).ToList()
+                ? data.Items.AsEnumerable().Reverse().Select(e => new KostvMyListEntry { ItemId = e.ItemId, Key = e.Key, AddedAt = e.AddedAt, MissingSince = e.MissingSince }).ToList()
                 : [];
         }
     }
@@ -129,6 +144,45 @@ public sealed class KostvMyList : FileBackedCacheService<KostvMyListData>
             }
 
             return true;
+        }
+    }
+
+    /// <summary>
+    /// Kos TV: what reading the list found. <paramref name="missing"/> the server doesn't have now:
+    /// marked as missing from <paramref name="now"/>, and taken off once missing for
+    /// <see cref="MissingGrace"/>. <paramref name="present"/> it has: no longer missing. Whether
+    /// anything changed, so the caller writes it out.
+    /// </summary>
+    public bool Sweep(Guid userId, IReadOnlyCollection<string> missing, IReadOnlyCollection<string> present, DateTimeOffset now)
+    {
+        lock (_lock)
+        {
+            if (!EnsureLoaded().TryGetValue(KeyOf(userId), out var data))
+            {
+                return false;
+            }
+
+            var changed = false;
+            foreach (var entry in data.Items)
+            {
+                if (missing.Contains(entry.ItemId))
+                {
+                    if (entry.MissingSince == null)
+                    {
+                        entry.MissingSince = now;
+                        changed = true;
+                    }
+                }
+                else if (entry.MissingSince != null && present.Contains(entry.ItemId))
+                {
+                    entry.MissingSince = null;
+                    changed = true;
+                }
+            }
+
+            var gone = data.Items.RemoveAll(e =>
+                e.MissingSince is { } since && missing.Contains(e.ItemId) && now - since >= MissingGrace);
+            return changed || gone > 0;
         }
     }
 

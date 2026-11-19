@@ -866,6 +866,9 @@ public sealed class KostvHomeService
         var toStart = new List<BaseItem>();
         var watched = new List<(BaseItem Item, DateTime When)>();
         var gone = new List<string>();
+        // Kos TV: what has a TMDB title and isn't on the server now is only missing for a while.
+        var missing = new List<string>();
+        var present = new List<string>();
         var moved = false;
         foreach (var entry in _myList.For(userId))
         {
@@ -881,10 +884,12 @@ public sealed class KostvHomeService
                 }
                 else
                 {
-                    gone.Add(entry.ItemId);
+                    (entry.Key == null ? gone : missing).Add(entry.ItemId);
                     continue;
                 }
             }
+
+            present.Add(item.Id.ToString("N"));
 
             if (!UserReflection.IsVisibleStandaloneTo(item, user))
             {
@@ -906,13 +911,15 @@ public sealed class KostvHomeService
             }
         }
 
-        // What is no longer on the server leaves the list.
+        // What is no longer on the server leaves the list: at once without a TMDB title to find
+        // it again by, after a while with one (a file being replaced comes back with a new id).
         if (gone.Count > 0)
         {
             _myList.Remove(userId, gone);
         }
 
-        if (gone.Count > 0 || moved)
+        var swept = _myList.Sweep(userId, missing, present, DateTimeOffset.UtcNow);
+        if (gone.Count > 0 || moved || swept)
         {
             _ = _myList.FlushAsync();
         }
