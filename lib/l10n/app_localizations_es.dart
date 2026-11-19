@@ -9742,17 +9742,17 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String adminMetadataImageUpdated(String imageType) {
-    return 'Imagen $imageType actualizada';
+    return 'Imagen «$imageType» actualizada';
   }
 
   @override
   String adminMetadataImageUploaded(String imageType) {
-    return 'Imagen $imageType subida';
+    return 'Imagen «$imageType» subida';
   }
 
   @override
   String adminMetadataImageDeleted(String imageType) {
-    return 'Imagen $imageType eliminada';
+    return 'Imagen «$imageType» eliminada';
   }
 
   @override
@@ -9771,7 +9771,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String adminMetadataDeleteImageTitle(String imageType) {
-    return 'Eliminar imagen $imageType';
+    return '¿Eliminar la imagen «$imageType»?';
   }
 
   @override
@@ -9785,7 +9785,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String adminMetadataChooseImage(String imageType) {
-    return 'Elige la imagen $imageType';
+    return 'Elige la imagen «$imageType»';
   }
 
   @override
