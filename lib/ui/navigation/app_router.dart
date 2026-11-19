@@ -42,14 +42,12 @@ import '../screens/browse/kostv_catalog_screen.dart';
 import '../screens/browse/kostv_libraries_screen.dart';
 import '../screens/browse/kostv_genres_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
-import '../screens/browse/collection_screen.dart';
+
 import '../screens/browse/kostv_favorites_screen.dart';
 import '../screens/browse/kostv_my_list_screen.dart';
 import '../screens/browse/folder_browse_screen.dart';
 import '../screens/browse/library_browse_screen.dart';
-import '../screens/browse/library_genres_screen.dart';
-import '../screens/browse/library_letters_screen.dart';
-import '../screens/browse/library_suggestions_screen.dart';
+
 import '../screens/browse/book_category_screen.dart';
 import '../screens/browse/book_library_screen.dart';
 import '../screens/browse/music_category_screen.dart';
@@ -417,29 +415,6 @@ final appRouter = GoRouter(
           favoritesOnly: state.uri.queryParameters['favorites'] == '1',
         );
       },
-      routes: [
-        GoRoute(
-          path: 'genres',
-          builder: (context, state) {
-            final libraryId = state.pathParameters['libraryId']!;
-            return LibraryGenresScreen(libraryId: libraryId);
-          },
-        ),
-        GoRoute(
-          path: 'letters',
-          builder: (context, state) {
-            final libraryId = state.pathParameters['libraryId']!;
-            return LibraryLettersScreen(libraryId: libraryId);
-          },
-        ),
-        GoRoute(
-          path: 'suggestions',
-          builder: (context, state) {
-            final libraryId = state.pathParameters['libraryId']!;
-            return LibrarySuggestionsScreen(libraryId: libraryId);
-          },
-        ),
-      ],
     ),
     GoRoute(
       path: Destinations.allGenres,
@@ -530,12 +505,12 @@ final appRouter = GoRouter(
         return FolderBrowseScreen(folderId: folderId, serverId: serverId);
       },
     ),
+    // Kos TV: a collection opens on its details, with its titles; the old
+    // address (a placeholder page) leads there.
     GoRoute(
       path: Destinations.collectionBrowse,
-      builder: (context, state) {
-        final collectionId = state.pathParameters['collectionId']!;
-        return CollectionScreen(collectionId: collectionId);
-      },
+      redirect: (context, state) =>
+          Destinations.item(state.pathParameters['collectionId']!),
     ),
     GoRoute(
       path: Destinations.musicBrowse,

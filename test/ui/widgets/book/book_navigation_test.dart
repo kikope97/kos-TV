@@ -85,6 +85,16 @@ void main() {
     );
   });
 
+  // Kos TV: it used to open a placeholder page with nothing on it.
+  testWidgets('a collection opens its details, with its books', (
+    tester,
+  ) async {
+    await pumpRouter(tester);
+    await open(tester, _item('BoxSet', isFolder: true));
+
+    expect(find.text('/item/id-1?serverId=server'), findsOneWidget);
+  });
+
   testWidgets('a series folder opens the folder', (tester) async {
     await pumpRouter(tester);
     await open(tester, _item('BookSeries', isFolder: true));

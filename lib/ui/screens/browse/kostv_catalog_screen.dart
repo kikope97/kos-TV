@@ -10,12 +10,15 @@ import 'package:server_core/server_core.dart' hide ImageType;
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/utils/blocked_ratings.dart';
 import '../../../data/services/media_server_client_factory.dart';
+import '../../../data/services/user_data_sync.dart';
 import '../../../data/utils/genre_browse_utils.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
+import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
+import '../../navigation/route_lifecycle_observer.dart';
 import '../../widgets/focus/context_menu_sheet.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../../widgets/media_card.dart';
@@ -93,7 +96,8 @@ class KostvCatalogScreen extends StatefulWidget {
   State<KostvCatalogScreen> createState() => _KostvCatalogScreenState();
 }
 
-class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
+class _KostvCatalogScreenState extends State<KostvCatalogScreen>
+    with RouteAware {
   static const _page = 60;
 
   // The server the genre came from (a Home row may show another one's).
@@ -106,6 +110,7 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
   final _firstFocus = FocusNode(debugLabel: 'kostvCatalogFirst');
   final _pillFocus = FocusNode(debugLabel: 'kostvCatalogPills');
   final _lastPillFocus = FocusNode(debugLabel: 'kostvCatalogLastPill');
+  final _moreRetryFocus = FocusNode(debugLabel: 'kostvCatalogMoreRetry');
 
   /// The posters' focus, by place, for the remote to move along the grid.
   final Map<int, FocusNode> _nodes = {};
@@ -135,7 +140,19 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
   bool _loading = true;
   bool _more = false;
   bool _failed = false;
+
+  /// Kos TV: the last page after the first didn't come: the foot of the
+  /// grid says so and offers to try again, instead of a spinner for ever.
+  bool _moreFailed = false;
   int _token = 0;
+
+  /// Kos TV: whether a page is pushed over this one (the details, a card's
+  /// menu), and whether what the grid shows was watched or marked
+  /// meanwhile, so it asks the server once on the way back.
+  ModalRoute<dynamic>? _observedRoute;
+  bool _covered = false;
+  bool _userDataStale = false;
+  bool _syncingUserData = false;
 
   /// How many films and series the genre has, to offer the choice only when
   /// it has both.
@@ -151,22 +168,130 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
     _wasGrouped = _grouped;
     _prefs.addListener(_onPrefs);
     _scroll.addListener(_onScroll);
+    userDataSync.addListener(_onUserData);
     unawaited(_counts());
     unawaited(_load(reset: true));
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route == null || route == _observedRoute) return;
+    if (_observedRoute != null) routeLifecycleObserver.unsubscribe(this);
+    _observedRoute = route;
+    routeLifecycleObserver.subscribe(this, route);
+  }
+
+  @override
   void dispose() {
+    if (_observedRoute != null) routeLifecycleObserver.unsubscribe(this);
+    userDataSync.removeListener(_onUserData);
     _prefs.removeListener(_onPrefs);
     _token++;
     _scroll.dispose();
     _firstFocus.dispose();
     _pillFocus.dispose();
     _lastPillFocus.dispose();
+    _moreRetryFocus.dispose();
     for (final node in _nodes.values) {
       node.dispose();
     }
     super.dispose();
+  }
+
+  @override
+  void didPushNext() => _covered = true;
+
+  @override
+  void didPopNext() {
+    _covered = false;
+    // What left the list while covered (watched, or no longer a
+    // favourite) goes now, with the focus back here to move.
+    _applyUserData();
+    unawaited(_syncUserDataIfStale());
+  }
+
+  void _onUserData() {
+    if (!mounted) return;
+    if (!_syncingUserData) _userDataStale = true;
+    _applyUserData();
+  }
+
+  /// Kos TV: the cards show the newest watched and favourite state this
+  /// client knows, and with «Sin ver» or «Favoritas» on, what no longer
+  /// fits leaves the grid. Only once nothing covers the page, so the focus
+  /// is back on it and can move when its card goes.
+  void _applyUserData() {
+    if (!mounted) return;
+    final patched = userDataSync.applyAll(_items);
+    final kept = _covered
+        ? patched
+        : [
+            for (final item in patched)
+              if (_stillShown(item)) item,
+          ];
+    if (identical(patched, _items) && kept.length == _items.length) return;
+    final dropped = _items.length - kept.length;
+    final focused = dropped > 0 ? _focusedCard() : null;
+    setState(() {
+      final next = List<AggregatedItem>.of(kept);
+      _items
+        ..clear()
+        ..addAll(next);
+      if (dropped > 0) {
+        // The server's list no longer holds them either: the next page
+        // starts that much earlier, and the count goes down.
+        _fetched = (_fetched - dropped).clamp(0, 1 << 30);
+        if (_total != null) {
+          _total = (_total! - dropped).clamp(_fetched, 1 << 30);
+        }
+      }
+    });
+    if (focused == null || focused < _items.length) return;
+    // The focused card was the last one and went: the focus goes to the
+    // one before it, or up to the pills.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (InputModeTracker.of(context) != InputMode.keyboard) return;
+      if (_items.isEmpty) {
+        _pillFocus.requestFocus();
+      } else {
+        _nodeAt(_items.length - 1).requestFocus();
+      }
+    });
+  }
+
+  /// Whether [item] still fits what the pills ask for.
+  bool _stillShown(AggregatedItem item) => switch (_show) {
+    _Show.all => true,
+    _Show.unwatched => !item.isPlayed,
+    _Show.favorites => item.isFavorite,
+  };
+
+  /// The place of the card holding the focus, if one does.
+  int? _focusedCard() {
+    if (_firstFocus.hasPrimaryFocus) return 0;
+    for (final entry in _nodes.entries) {
+      if (entry.value.hasPrimaryFocus) return entry.key;
+    }
+    return null;
+  }
+
+  /// A series' watched state only changes on the server (the socket tells
+  /// of the episode and its season), so the grid asks once it is looked at
+  /// again after something changed.
+  Future<void> _syncUserDataIfStale() async {
+    if (_syncingUserData || !_userDataStale || _items.isEmpty) return;
+    _syncingUserData = true;
+    try {
+      await userDataSync.refreshFromServer(_client, [
+        for (final item in _items) item.id,
+      ]);
+    } finally {
+      _syncingUserData = false;
+      _userDataStale = false;
+    }
   }
 
   bool get _grouped => _prefs.get(UserPreferences.groupItemsIntoCollections);
@@ -234,12 +359,16 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
         _total = null;
         _loading = true;
         _failed = false;
+        _moreFailed = false;
       });
     } else {
       if (_more || _loading) return;
-      setState(() => _more = true);
+      setState(() {
+        _more = true;
+        _moreFailed = false;
+      });
     }
-    final grouped = _grouped && _choosesKind && _kind == _Kind.all;
+    final grouped = _groupsNow;
     final (sortBy, sortOrder) = _sort;
     try {
       final response = await _client.itemsApi.getItems(
@@ -296,16 +425,68 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
       });
       // A page whose titles were all blocked adds nothing to scroll down
       // to: the next one is asked for at once.
-      if (found.isEmpty && page.isNotEmpty && _hasMore) unawaited(_load());
+      if (found.isEmpty && page.isNotEmpty && _hasMore) {
+        unawaited(_load());
+      } else {
+        _fillViewport(token);
+      }
     } catch (_) {
       if (!mounted || token != _token) return;
       setState(() {
         _loading = false;
         _more = false;
         _failed = reset;
+        _moreFailed = !reset;
       });
     }
   }
+
+  /// Kos TV: a page the device's parental control thinned out can leave
+  /// the grid shorter than the screen, with nothing to scroll to ask for
+  /// more: once it is drawn, the next one is asked for while the foot of
+  /// the grid is still in sight, as scrolling down would.
+  void _fillViewport(int token) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || token != _token || !_scroll.hasClients) return;
+      if (!_hasMore || _more || _loading || _moreFailed) return;
+      final position = _scroll.position;
+      if (!position.hasContentDimensions) return;
+      if (position.extentAfter < 900) unawaited(_load());
+    });
+  }
+
+  /// Tries the first page again. The button goes while it loads, so the
+  /// focus it had (on the TV) is given to what takes its place: the first
+  /// poster, or the button again if it fails once more.
+  Future<void> _retryLoad() async {
+    final hadFocus = _firstFocus.hasFocus;
+    await _load(reset: true);
+    if (!hadFocus || !mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _firstFocus.context != null) _firstFocus.requestFocus();
+    });
+  }
+
+  /// Tries the page that didn't come again. The focus, if on the button,
+  /// goes back to the last poster before the button turns into a spinner.
+  void _retryMore() {
+    if (_moreRetryFocus.hasFocus && _items.isNotEmpty) {
+      _nodeAt(_items.length - 1).requestFocus();
+    }
+    unawaited(_load());
+  }
+
+  /// Whether the films and series are grouped into their collections.
+  ///
+  /// Kos TV: not with «Sin ver», «Favoritas» or a genre: Jellyfin doesn't
+  /// collapse a query with those (Folder.AllowBoxSetCollapsing), so the
+  /// collection would show beside its own films.
+  bool get _groupsNow =>
+      _grouped &&
+      _choosesKind &&
+      _kind == _Kind.all &&
+      _show == _Show.all &&
+      widget.genreId == null;
 
   String? _pickArt(List<AggregatedItem> items) {
     for (final item in items) {
@@ -407,16 +588,42 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
             ),
           );
         } else if (_items.isEmpty) {
+          final genre = widget.genreId != null;
           grid = SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.only(top: 80),
               child: Center(
-                child: Text(
-                  _failed ? l10n.kostvGenreUnavailable : l10n.kostvGenreEmpty,
-                  style: TextStyle(
-                    color: AppColorScheme.onSurface.withValues(alpha: 0.6),
-                    fontSize: 18,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      switch ((_failed, genre)) {
+                        (true, true) => l10n.kostvGenreUnavailable,
+                        (true, false) => l10n.kostvCatalogUnavailable,
+                        (false, true) => l10n.kostvGenreEmpty,
+                        (false, false) =>
+                          _show == _Show.all && _kind == _Kind.all
+                              ? l10n.kostvCatalogEmptyLibrary
+                              : l10n.kostvCatalogEmpty,
+                      },
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColorScheme.onSurface.withValues(alpha: 0.6),
+                        fontSize: 18,
+                      ),
+                    ),
+                    // Kos TV: a load that failed can be tried again from
+                    // here. On the TV it takes the focus the first poster
+                    // would have had.
+                    if (_failed) ...[
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        focusNode: _firstFocus,
+                        onPressed: () => unawaited(_retryLoad()),
+                        child: Text(l10n.retry),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
@@ -474,12 +681,40 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.only(bottom: bottom),
-                  child: _FooterSpinner(scroll: _scroll),
+                  child: _moreFailed
+                      ? _moreFailedFooter(context)
+                      : _FooterSpinner(scroll: _scroll),
                 ),
               ),
           ],
         );
       },
+    );
+  }
+
+  /// The foot of the grid when its next page didn't come.
+  Widget _moreFailedFooter(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            l10n.kostvCatalogMoreFailed,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: AppColorScheme.onSurface.withValues(alpha: 0.6),
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            focusNode: _moreRetryFocus,
+            onPressed: _retryMore,
+            child: Text(l10n.retry),
+          ),
+        ],
+      ),
     );
   }
 
@@ -637,8 +872,12 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen> {
         target = _items.length - 1;
       } else {
         // The last row: more to come (a page that failed to load, say)
-        // is asked for again.
-        if (_hasMore) unawaited(_load());
+        // is asked for again, or its «Reintentar» takes the focus.
+        if (_moreFailed && _moreRetryFocus.context != null) {
+          _moreRetryFocus.requestFocus();
+        } else if (_hasMore) {
+          unawaited(_load());
+        }
         return KeyEventResult.handled;
       }
     } else if (key == LogicalKeyboardKey.arrowUp) {

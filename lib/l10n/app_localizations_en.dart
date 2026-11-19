@@ -20158,4 +20158,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvMusicTapToPlayHint =>
       'The browser won\'t let the music start by itself.';
+
+  @override
+  String get kostvCatalogEmpty => 'Nothing here with these filters';
+
+  @override
+  String get kostvCatalogEmptyLibrary => 'Nothing in this library';
+
+  @override
+  String get kostvCatalogUnavailable => 'Couldn\'t load the library';
+
+  @override
+  String get kostvCatalogMoreFailed => 'Couldn\'t load more titles';
 }

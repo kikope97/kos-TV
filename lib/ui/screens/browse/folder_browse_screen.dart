@@ -40,6 +40,9 @@ class _FolderBrowseScreenState extends State<FolderBrowseScreen> {
   // from parking focus in the sidebar before the items load. Once items load
   // the first grid item automatically grabs focus at that time
   final _initialFocusNode = FocusNode(debugLabel: 'folderInitialContent');
+  // Kos TV: «Reintentar» when the folder failed to load, the page's only
+  // place for the focus then.
+  final _retryFocusNode = FocusNode(debugLabel: 'folderRetry');
   DateTime? _lastItemTapAt;
   String? _lastTappedItemId;
 
@@ -88,6 +91,7 @@ class _FolderBrowseScreenState extends State<FolderBrowseScreen> {
     }
     _gridItemFocusNodes.clear();
     _initialFocusNode.dispose();
+    _retryFocusNode.dispose();
     _vm.removeListener(_onChanged);
     _vm.dispose();
     _scrollController.dispose();
@@ -230,7 +234,11 @@ class _FolderBrowseScreenState extends State<FolderBrowseScreen> {
 
   @override
   Widget build(BuildContext context) => RequestInitialFocus(
-        targetNode: _vm.items.isNotEmpty ? _getGridItemFocusNode(0) : _initialFocusNode,
+        targetNode: _vm.items.isNotEmpty
+            ? _getGridItemFocusNode(0)
+            : _vm.state == FolderBrowseState.error
+            ? _retryFocusNode
+            : _initialFocusNode,
         child: _buildContent(context),
       );
 
@@ -288,8 +296,9 @@ class _FolderBrowseScreenState extends State<FolderBrowseScreen> {
                 return _BreadcrumbChip(
                   label: entry.name,
                   isLast: isLast,
+                  // Kos TV: pushed, so Back still goes the way it came.
                   onTap: !isLast
-                      ? () => context.go(
+                      ? () => context.push(
                           entry.isLibrary
                               ? libraryRoute(
                                   entry.id,
@@ -312,6 +321,22 @@ class _FolderBrowseScreenState extends State<FolderBrowseScreen> {
     );
   }
 
+  /// The button goes while the folder loads again, so the focus it had
+  /// (on the TV) goes to what takes its place: the first card, or the
+  /// button again.
+  Future<void> _retry() async {
+    final hadFocus = _retryFocusNode.hasFocus;
+    await _vm.loadFolder(widget.folderId);
+    if (!hadFocus || !mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final target = _vm.items.isNotEmpty
+          ? _getGridItemFocusNode(0)
+          : _retryFocusNode;
+      if (target.context != null) target.requestFocus();
+    });
+  }
+
   Widget _buildBody() {
     switch (_vm.state) {
       case FolderBrowseState.loading:
@@ -319,9 +344,24 @@ class _FolderBrowseScreenState extends State<FolderBrowseScreen> {
       case FolderBrowseState.error:
         final l10n = AppLocalizations.of(context);
         return Center(
-          child: Text(
-            l10n.failedToLoadFolderError(describeError(_vm.error!, l10n)),
-            style: TextStyle(color: AppColorScheme.onSurface.withAlpha(179)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                l10n.failedToLoadFolderError(describeError(_vm.error!, l10n)),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColorScheme.onSurface.withAlpha(179),
+                ),
+              ),
+              // Kos TV: tried again from here.
+              const SizedBox(height: 16),
+              FilledButton(
+                focusNode: _retryFocusNode,
+                onPressed: _retry,
+                child: Text(l10n.retry),
+              ),
+            ],
           ),
         );
       case FolderBrowseState.ready when _vm.items.isEmpty:

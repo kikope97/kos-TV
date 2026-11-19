@@ -72,11 +72,31 @@ class _KostvFavoritesNewsHeroState extends State<KostvFavoritesNewsHero> {
   /// ticker, and each turn decodes a big image nobody sees.
   ValueListenable<TickerModeData>? _tickerMode;
 
-  bool get _visible => _tickerMode?.value.enabled ?? true;
+  bool get _visible => (_tickerMode?.value.enabled ?? true) && _shown;
+
+  /// Kos TV: off too while the app (or the web page's tab) is out of sight,
+  /// which a covering route doesn't cover.
+  late final AppLifecycleListener _lifecycle;
+  bool _shown = switch (WidgetsBinding.instance.lifecycleState) {
+    AppLifecycleState.hidden ||
+    AppLifecycleState.paused ||
+    AppLifecycleState.detached => false,
+    _ => true,
+  };
 
   @override
   void initState() {
     super.initState();
+    _lifecycle = AppLifecycleListener(
+      onHide: () {
+        _shown = false;
+        _syncTimer();
+      },
+      onShow: () {
+        _shown = true;
+        _syncTimer();
+      },
+    );
     _restartTimer();
   }
 
@@ -111,6 +131,7 @@ class _KostvFavoritesNewsHeroState extends State<KostvFavoritesNewsHero> {
   @override
   void dispose() {
     _timer?.cancel();
+    _lifecycle.dispose();
     _tickerMode?.removeListener(_syncTimer);
     _openNode.dispose();
     super.dispose();

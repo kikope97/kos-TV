@@ -20006,5 +20006,21 @@
     "kostvMusicTapToPlayHint": "The browser won't let the music start by itself.",
     "@kostvMusicTapToPlayHint": {
         "description": "Kos TV: Music on the web: why it waits for a tap"
+    },
+    "kostvCatalogEmpty": "Nothing here with these filters",
+    "@kostvCatalogEmpty": {
+        "description": "Kos TV: a library's page (not a genre) with nothing to show for the chosen filters"
+    },
+    "kostvCatalogEmptyLibrary": "Nothing in this library",
+    "@kostvCatalogEmptyLibrary": {
+        "description": "Kos TV: a library's page (not a genre) with nothing in it and no filter on"
+    },
+    "kostvCatalogUnavailable": "Couldn't load the library",
+    "@kostvCatalogUnavailable": {
+        "description": "Kos TV: a library's page (not a genre) failed to load"
+    },
+    "kostvCatalogMoreFailed": "Couldn't load more titles",
+    "@kostvCatalogMoreFailed": {
+        "description": "Kos TV: library or genre page: the next page of titles failed to load; a Retry button follows"
     }
 }

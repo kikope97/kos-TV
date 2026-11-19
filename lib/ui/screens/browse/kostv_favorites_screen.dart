@@ -11,7 +11,6 @@ import 'package:playback_core/playback_core.dart' show PlaybackManager;
 import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
-import '../../../data/repositories/mdblist_repository.dart';
 import '../../../data/services/background_service.dart';
 import '../../../data/services/kostv_favorites_news.dart';
 import '../../../data/services/media_server_client_factory.dart';
@@ -283,19 +282,16 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     _vm = FavoritesViewModel(
       client: GetIt.instance<MediaServerClient>(),
       prefs: _prefs,
-      mdbListRepository: GetIt.instance<MdbListRepository>(),
     );
     _vm.addListener(_onChanged);
     _scroll.addListener(_checkGridMore);
     _news?.addListener(_onNews);
     unawaited(_readNews());
-    // The page is always rows, whatever the old one was left on, and in an
-    // order it offers.
+    // The page is always rows, in an order it offers.
     unawaited(_start());
   }
 
   Future<void> _start() async {
-    await _vm.setViewStyle(FavoritesViewStyle.home, reload: false);
     // With the server plugin, the last one marked comes first, unless the
     // person picked another order since.
     if (_vm.byMarked) {
@@ -1026,56 +1022,77 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     final only = _only;
     final count = kinds.fold(0, (sum, type) => sum + _countOf(type));
     final news = _newsNow;
-    return SingleChildScrollView(
+    // Kos TV: slivers, so a kind seen on its own builds only the lines near
+    // the screen (with hundreds of favourites, every card and its picture
+    // used to exist at once).
+    return CustomScrollView(
       controller: _scroll,
-      padding: EdgeInsets.only(top: insets.top, bottom: bottom),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: EdgeInsets.only(left: insets.left, right: insets.right),
-            child: _header(context, count),
-          ),
-          SizedBox(height: phone ? 12 : 16),
-          if (news.isNotEmpty) ...[
-            Padding(
-              padding: EdgeInsets.only(left: insets.left, right: insets.right),
-              child: KostvFavoritesNewsHero(
-                news: news.take(5).toList(),
-                fresh: _fresh,
-                watchNode: _heroWatch,
-                onWatch: (episode) => unawaited(_watch(episode)),
-                onOpen: _open,
-                onUp: () => NavigationLayout.focusNavbarNotifier.value?.call(),
-                onDown: _firstChip.requestFocus,
-                onLeftEdge: () =>
-                    NavigationLayout.focusNavbarNotifier.value?.call(),
-              ),
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.only(top: insets.top),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: insets.left,
+                    right: insets.right,
+                  ),
+                  child: _header(context, count),
+                ),
+                SizedBox(height: phone ? 12 : 16),
+                if (news.isNotEmpty) ...[
+                  Padding(
+                    padding: EdgeInsets.only(
+                      left: insets.left,
+                      right: insets.right,
+                    ),
+                    child: KostvFavoritesNewsHero(
+                      news: news.take(5).toList(),
+                      fresh: _fresh,
+                      watchNode: _heroWatch,
+                      onWatch: (episode) => unawaited(_watch(episode)),
+                      onOpen: _open,
+                      onUp: () =>
+                          NavigationLayout.focusNavbarNotifier.value?.call(),
+                      onDown: _firstChip.requestFocus,
+                      onLeftEdge: () =>
+                          NavigationLayout.focusNavbarNotifier.value?.call(),
+                    ),
+                  ),
+                  SizedBox(height: phone ? 14 : 20),
+                ],
+                Padding(
+                  padding: EdgeInsets.only(
+                    left: insets.left,
+                    right: insets.right,
+                  ),
+                  child: _controls(context, kinds),
+                ),
+                SizedBox(height: phone ? 8 : 12),
+              ],
             ),
-            SizedBox(height: phone ? 14 : 20),
-          ],
-          Padding(
-            padding: EdgeInsets.only(left: insets.left, right: insets.right),
-            child: _controls(context, kinds),
           ),
-          SizedBox(height: phone ? 8 : 12),
-          // The new view rises in; the old one goes at once, as its rows and
-          // the new one's must never be on screen together.
-          TweenAnimationBuilder<double>(
-            key: ValueKey(only),
-            tween: Tween(begin: 0, end: 1),
-            duration: const Duration(milliseconds: 280),
-            curve: Curves.easeOutCubic,
-            builder: (context, t, child) => Opacity(
-              opacity: t,
-              child: Transform.translate(
-                offset: Offset(0, 16 * (1 - t)),
-                child: child,
-              ),
+        ),
+        // The new view rises in; the old one goes at once, as its rows and
+        // the new one's must never be on screen together.
+        TweenAnimationBuilder<double>(
+          key: ValueKey(only),
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          builder: (context, t, child) => SliverOpacity(
+            opacity: t,
+            sliver: SliverPadding(
+              padding: EdgeInsets.only(top: 16 * (1 - t)),
+              sliver: child,
             ),
-            child: only == null
-                ? Column(
-                    key: const ValueKey('rows'),
+          ),
+          child: only == null
+              ? SliverToBoxAdapter(
+                  key: const ValueKey('rows'),
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       if (_newsRowShown) _newsSection(context, news, insets),
@@ -1087,11 +1104,12 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
                           first: type == kinds.first,
                         ),
                     ],
-                  )
-                : _grid(context, only, insets: insets),
-          ),
-        ],
-      ),
+                  ),
+                )
+              : _grid(context, only, insets: insets),
+        ),
+        SliverToBoxAdapter(child: SizedBox(height: bottom)),
+      ],
     );
   }
 
@@ -1431,9 +1449,9 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
     final m = _metrics(kind);
     const labels = 54.0;
     final items = _items(type);
-    return LayoutBuilder(
+    return SliverLayoutBuilder(
       builder: (context, constraints) {
-        final room = constraints.maxWidth - insets.left - insets.right;
+        final room = constraints.crossAxisExtent - insets.left - insets.right;
         final columns = math.max(
           1,
           ((room + m.spacing) / (m.width + m.spacing)).floor(),
@@ -1444,61 +1462,68 @@ class _KostvFavoritesScreenState extends State<KostvFavoritesScreen> {
         ];
         _gridLastLine[type] = lines.length - 1;
         _scheduleGridCheck();
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _sectionTitle(context, type, insets),
-            for (final (line, cards) in lines.indexed)
-              KeyedSubtree(
-                key: _sectionKeys.putIfAbsent((type, line), GlobalKey.new),
-                child: LockedFocusRow<AggregatedItem>(
-                  key: _rowKeys.putIfAbsent((type, line), GlobalKey.new),
-                  hubKey: 'kostv_favorites_grid_${type.name}_$line',
-                  items: cards,
-                  itemKey: (item, _) => item.id,
-                  focusNode: line == 0 ? _firstRow : null,
-                  itemExtent: m.width,
-                  itemSpacing: m.spacing,
-                  height: m.headroom + m.imageHeight + labels + 12,
-                  clipBehavior: Clip.none,
-                  padding: EdgeInsets.fromLTRB(
-                    insets.left,
-                    m.headroom,
-                    insets.right,
-                    4,
-                  ),
-                  onVerticalNavigation: (isUp) {
-                    final to = line + (isUp ? -1 : 1);
-                    if (to < 0) {
-                      _firstChip.requestFocus();
-                      return true;
-                    }
-                    if (to >= lines.length) {
-                      unawaited(_vm.loadMoreForType(type));
-                      return true;
-                    }
-                    _focusRow((
-                      type,
-                      to,
-                    ), math.min(_gridColumn, lines[to].length - 1));
-                    return true;
-                  },
-                  onLeftEdge: () =>
-                      NavigationLayout.focusNavbarNotifier.value?.call(),
-                  onIndexChanged: (index, item) {
-                    _gridColumn = index;
-                    _focusOn(item);
-                    if (line >= lines.length - 2) {
-                      unawaited(_vm.loadMoreForType(type));
-                    }
-                  },
-                  onTap: (_, item) => _open(item),
-                  onLongPress: (_, item) => showContextMenu(context, item),
-                  itemBuilder: (context, item, index, focused) =>
-                      _card(context, item, kind, focused),
+        // Only the lines near the screen are built: the next page is still
+        // asked for by where the last line is ([_checkGridMore]).
+        return SliverList(
+          delegate: SliverChildBuilderDelegate((context, i) {
+            if (i == 0) {
+              return Align(
+                alignment: Alignment.centerLeft,
+                child: _sectionTitle(context, type, insets),
+              );
+            }
+            final line = i - 1;
+            final cards = lines[line];
+            return KeyedSubtree(
+              key: _sectionKeys.putIfAbsent((type, line), GlobalKey.new),
+              child: LockedFocusRow<AggregatedItem>(
+                key: _rowKeys.putIfAbsent((type, line), GlobalKey.new),
+                hubKey: 'kostv_favorites_grid_${type.name}_$line',
+                items: cards,
+                itemKey: (item, _) => item.id,
+                focusNode: line == 0 ? _firstRow : null,
+                itemExtent: m.width,
+                itemSpacing: m.spacing,
+                height: m.headroom + m.imageHeight + labels + 12,
+                clipBehavior: Clip.none,
+                padding: EdgeInsets.fromLTRB(
+                  insets.left,
+                  m.headroom,
+                  insets.right,
+                  4,
                 ),
+                onVerticalNavigation: (isUp) {
+                  final to = line + (isUp ? -1 : 1);
+                  if (to < 0) {
+                    _firstChip.requestFocus();
+                    return true;
+                  }
+                  if (to >= lines.length) {
+                    unawaited(_vm.loadMoreForType(type));
+                    return true;
+                  }
+                  _focusRow((
+                    type,
+                    to,
+                  ), math.min(_gridColumn, lines[to].length - 1));
+                  return true;
+                },
+                onLeftEdge: () =>
+                    NavigationLayout.focusNavbarNotifier.value?.call(),
+                onIndexChanged: (index, item) {
+                  _gridColumn = index;
+                  _focusOn(item);
+                  if (line >= lines.length - 2) {
+                    unawaited(_vm.loadMoreForType(type));
+                  }
+                },
+                onTap: (_, item) => _open(item),
+                onLongPress: (_, item) => showContextMenu(context, item),
+                itemBuilder: (context, item, index, focused) =>
+                    _card(context, item, kind, focused),
               ),
-          ],
+            );
+          }, childCount: lines.length + 1),
         );
       },
     );

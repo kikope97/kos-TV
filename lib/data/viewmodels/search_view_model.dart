@@ -16,6 +16,7 @@ import '../services/stremfin/stremfin_client.dart';
 import '../services/stremfin/stremfin_models.dart';
 import '../services/stremfin/stremfin_service.dart';
 import '../services/blocked_content_gate.dart';
+import '../services/user_data_sync.dart';
 import '../utils/blocked_ratings.dart';
 
 class SearchResultGroup {
@@ -105,6 +106,35 @@ class SearchViewModel extends ChangeNotifier {
                ? scopedParentId
                : null {
     _requests?.listsRevision.addListener(_onRequestsChanged);
+    userDataSync.addListener(_onUserDataChanged);
+  }
+
+  /// Kos TV: the cards show the newest watched and favourite state this
+  /// client knows (watched in the player, marked from a card's menu or on
+  /// another device), as the library pages do.
+  void _onUserDataChanged() {
+    final results = _withUserData(_results);
+    final smart = userDataSync.applyAll(_smartResults.items);
+    final smartChanged = !identical(smart, _smartResults.items);
+    if (identical(results, _results) && !smartChanged) return;
+    _results = results;
+    if (smartChanged) _smartResults = SmartSearchResults(items: smart);
+    notifyListeners();
+  }
+
+  /// [groups] with what [userDataSync] knows, or [groups] itself when it
+  /// knows nothing newer.
+  static List<SearchResultGroup> _withUserData(
+    List<SearchResultGroup> groups,
+  ) {
+    List<SearchResultGroup>? patched;
+    for (var i = 0; i < groups.length; i++) {
+      final items = userDataSync.applyAll(groups[i].items);
+      if (identical(items, groups[i].items)) continue;
+      patched ??= List.of(groups);
+      patched[i] = groups[i].copyWith(items: items);
+    }
+    return patched ?? groups;
   }
 
   ImageApi imageApiFor(AggregatedItem item) =>
@@ -194,6 +224,91 @@ class SearchViewModel extends ChangeNotifier {
   // Counts searches, so people that answer late only fill in their own search.
   int _searchRun = 0;
 
+  /// Kos TV: the query the results on screen answer, so pressing Search
+  /// once they are in doesn't ask every question again.
+  String? _answered;
+
+  /// Kos TV: what the library the search is scoped to holds (its
+  /// collection type), read once.
+  Future<String?>? _scopeKind;
+
+  Future<String?> _scopedKind() => _scopeKind ??= () async {
+    try {
+      final data = await _client.itemsApi.getItem(_scopedParentId!);
+      return (data['CollectionType'] as String?)?.toLowerCase();
+    } catch (_) {
+      // Asked again on the next search.
+      _scopeKind = null;
+      return null;
+    }
+  }();
+
+  /// Kos TV: in a music library, its music: the search across the app
+  /// leaves music out, but «Buscar música» of a music library is for it.
+  static List<SearchResultGroup> _musicSearchGroups() {
+    final l10n = currentAppLocalizations();
+    return [
+      SearchResultGroup(title: l10n.albums, itemTypes: const ['MusicAlbum']),
+      SearchResultGroup(title: l10n.artists, itemTypes: const ['MusicArtist']),
+      SearchResultGroup(title: l10n.songs, itemTypes: const ['Audio']),
+    ];
+  }
+
+  /// The artists of the scoped music library, fetched once per search
+  /// session: Jellyfin keeps artists outside the library's folders, so a
+  /// search of the library's items never finds them, and /Artists has no
+  /// search of its own here. Matched by name on this side, as channels and
+  /// games are.
+  Future<List<AggregatedItem>>? _artistsFuture;
+
+  Future<List<AggregatedItem>> _artistMatches(String query) async {
+    final q = foldForSearch(query.trim());
+    if (q.isEmpty || q.startsWith('studio:')) return const [];
+    _artistsFuture ??= _fetchScopedArtists();
+    try {
+      final all = await _artistsFuture!;
+      return all
+          .where((artist) => foldForSearch(artist.name).contains(q))
+          .take(_resultLimit)
+          .toList();
+    } catch (_) {
+      _artistsFuture = null;
+      return const [];
+    }
+  }
+
+  Future<List<AggregatedItem>> _fetchScopedArtists() async {
+    const pageSize = 500;
+    final artists = <AggregatedItem>[];
+    for (var start = 0; ; start += pageSize) {
+      final data = await _client.itemsApi.getArtists(
+        parentId: _scopedParentId,
+        recursive: true,
+        sortBy: 'SortName',
+        sortOrder: 'Ascending',
+        startIndex: start,
+        limit: pageSize,
+        fields: 'PrimaryImageAspectRatio',
+      );
+      final page = (data['Items'] as List? ?? const []).whereType<Map>();
+      for (final raw in page) {
+        final item = <String, dynamic>{
+          ...raw.cast<String, dynamic>(),
+          'Type': raw['Type'] ?? 'MusicArtist',
+        };
+        artists.add(
+          AggregatedItem(
+            id: item['Id']?.toString() ?? '',
+            serverId: item['ServerId']?.toString() ?? '',
+            rawData: item,
+          ),
+        );
+      }
+      if (page.length < pageSize) break;
+    }
+    return artists;
+  }
+
   static List<SearchResultGroup> _bookSearchGroups() {
     final l10n = currentAppLocalizations();
     return [
@@ -272,6 +387,18 @@ class SearchViewModel extends ChangeNotifier {
   void searchImmediate(String query) {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return;
+    // Kos TV: Search pressed once the results of this same query are in
+    // (the pause after typing already searched): they stay, only the
+    // listeners hear of it (to move on to the results), and «Para
+    // solicitar» is asked now if it was still waiting.
+    if (trimmed == _query &&
+        _state == SearchState.ready &&
+        _answered == trimmed) {
+      _debounceTimer?.cancel();
+      _askRequestable(trimmed, now: true);
+      notifyListeners();
+      return;
+    }
     _query = trimmed;
     _debounceTimer?.cancel();
     _state = SearchState.loading;
@@ -391,9 +518,14 @@ class SearchViewModel extends ChangeNotifier {
     final run = ++_searchRun;
 
     try {
-        final activeGroups = _scopedParentId != null
-          ? _bookSearchGroups()
-          : _searchGroups();
+      final music =
+          _scopedParentId != null && await _scopedKind() == 'music';
+      if (query != _query) return;
+      final activeGroups = _scopedParentId == null
+          ? _searchGroups()
+          : music
+          ? _musicSearchGroups()
+          : _bookSearchGroups();
       final smartFuture = _fetchSmartResults(query);
       final gamesFuture = _scopedParentId != null
           ? Future.value(const <GameSearchResult>[])
@@ -403,12 +535,14 @@ class SearchViewModel extends ChangeNotifier {
           ? (
               await Future.wait(
                 activeGroups.map((group) async {
-                  final items = await _searchRepository.search(
-                    query,
-                    includeItemTypes: group.itemTypes,
-                    parentId: _scopedParentId,
-                    limit: _resultLimit,
-                  );
+                  final items = group.itemTypes.contains('MusicArtist')
+                      ? await _artistMatches(query)
+                      : await _searchRepository.search(
+                          query,
+                          includeItemTypes: group.itemTypes,
+                          parentId: _scopedParentId,
+                          limit: _resultLimit,
+                        );
                   return group.copyWith(items: items);
                 }),
               ),
@@ -431,7 +565,8 @@ class SearchViewModel extends ChangeNotifier {
 
       if (query != _query) return;
 
-      _results = _withPeople(groups, people ?? const []);
+      _results = _withUserData(_withPeople(groups, people ?? const []));
+      _answered = query;
       _gameResults = games;
       if (smart != null || _smartQuery != query) {
         _smartResults = smart ?? SmartSearchResults.empty;
@@ -442,7 +577,9 @@ class SearchViewModel extends ChangeNotifier {
         unawaited(
           smartFuture.then((found) {
             if (found.isEmpty || run != _searchRun || query != _query) return;
-            _smartResults = found;
+            _smartResults = SmartSearchResults(
+              items: userDataSync.applyAll(found.items),
+            );
             notifyListeners();
           }),
         );
@@ -451,7 +588,7 @@ class SearchViewModel extends ChangeNotifier {
         unawaited(
           peopleFuture.then((found) {
             if (found.isEmpty || run != _searchRun || query != _query) return;
-            _results = _withPeople(groups, found);
+            _results = _withUserData(_withPeople(groups, found));
             notifyListeners();
           }),
         );
@@ -667,6 +804,7 @@ class SearchViewModel extends ChangeNotifier {
     _requestableTimer?.cancel();
     _requestableRun++;
     _requests?.listsRevision.removeListener(_onRequestsChanged);
+    userDataSync.removeListener(_onUserDataChanged);
     // Keeps people that answer after the screen closed from landing on it.
     _searchRun++;
     super.dispose();

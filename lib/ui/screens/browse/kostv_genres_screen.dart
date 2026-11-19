@@ -70,7 +70,11 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
   static List<_Genre>? _last;
   static String? _lastKey;
 
-  String get _key => '${_client.baseUrl}|${_client.userId}|$_grouped';
+  /// Kos TV: also the ratings blocked on this device, so a picture chosen
+  /// before one was blocked isn't shown after.
+  String get _key =>
+      '${_client.baseUrl}|${_client.userId}|$_grouped|'
+      '${_prefs.get(UserPreferences.blockedParentalRatings)}';
 
   @override
   void initState() {
@@ -208,14 +212,14 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
 
   Future<void> _picture(_Genre genre, int token) async {
     try {
-      final grouped = _grouped;
+      // Kos TV: counted as the genre's page lists it, never grouped into
+      // collections: Jellyfin doesn't collapse a query by genre
+      // (Folder.AllowBoxSetCollapsing), so the collections would only add
+      // to the count.
       final response = await _client.itemsApi.getItems(
         genreIds: [genre.id],
-        includeItemTypes: grouped
-            ? const ['Movie', 'Series', 'BoxSet']
-            : _videoTypes,
+        includeItemTypes: _videoTypes,
         excludeItemTypes: kNonRootBrowseItemTypes,
-        collapseBoxSetItems: grouped,
         sortBy: 'Random',
         recursive: true,
         limit: genre.image == null ? 6 : 0,
@@ -267,6 +271,11 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
     });
   }
 
+  void _retry() {
+    setState(() => _loading = true);
+    unawaited(_load());
+  }
+
   void _open(_Genre genre) =>
       context.push(Destinations.genre(genre.name, genreId: genre.id));
 
@@ -287,12 +296,30 @@ class _KostvGenresScreenState extends State<KostvGenresScreen> {
             _title(context, null),
             Expanded(
               child: Center(
-                child: Text(
-                  _failed ? l10n.kostvGenresUnavailable : l10n.noGenresFound,
-                  style: TextStyle(
-                    color: AppColorScheme.onSurface.withValues(alpha: 0.6),
-                    fontSize: 18,
-                  ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _failed
+                          ? l10n.kostvGenresUnavailable
+                          : l10n.noGenresFound,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: AppColorScheme.onSurface.withValues(alpha: 0.6),
+                        fontSize: 18,
+                      ),
+                    ),
+                    // Kos TV: tried again from here, with the focus on it on
+                    // the TV (there's nothing else on the page to hold it).
+                    if (_failed) ...[
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        autofocus: !phone,
+                        onPressed: _retry,
+                        child: Text(l10n.retry),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
