@@ -78,3 +78,19 @@ y se le pregunta todo junto al terminar los 10 bloques, con una recomendación.
 - (Para saber) Con «¿Sigues viendo?» y la tarjeta del siguiente episodio
   desactivada, el reproductor pasa solo al siguiente sin preguntar. Arreglarlo
   toca el motor de reproducción; queda apuntado para la ronda de interfaz.
+
+### Bloque 6
+- **Textos de Stremfin en la app en inglés.** Los motivos de «Para ti», los
+  estados del botón y los mensajes al pedir llegan en español del servicio y
+  salen así también con la app en inglés. Recomendación: dejarlo (toda la
+  familia usa la app en español y traducirlos haría perder el texto exacto).
+- **«Tus listas»** abre la lista con la ficha general, no con la de los álbumes
+  de Música. Recomendación: darle la ficha de Música más adelante, como novedad.
+- **Quitar y mover canciones de «A continuación» con el mando** (hoy solo en
+  táctil y ratón). Recomendación: añadirlo en la ronda de interfaz.
+- **Volumen propio de la música en la web del ordenador** (hoy hereda el del
+  último vídeo). Recomendación: un control de volumen en «Reproduciendo».
+- **Modo infantil con música sonando.** Al activar el modo infantil en la misma
+  persona, la música sigue. Recomendación: pararla.
+- **Tráiler a pantalla completa con música sonando.** Hoy la para.
+  Recomendación: ponerla en pausa y que siga al cerrar el tráiler.
