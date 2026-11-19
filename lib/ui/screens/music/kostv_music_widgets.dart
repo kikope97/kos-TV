@@ -21,7 +21,8 @@ const kostvMusicColor = Color(0xFFFA2D55);
 const kostvMusicGrey = Color(0xFF98989F);
 
 /// How a record stands, for the badge on its cover.
-enum KostvMusicBadge { none, ask, asked, onItsWay }
+/// Kos TV: [failed] is a download that failed (not on its way any more).
+enum KostvMusicBadge { none, ask, asked, onItsWay, failed }
 
 /// Sizes that change with the screen.
 class KostvMusicSizes {
@@ -356,7 +357,7 @@ class KostvMusicHeading extends StatelessWidget {
   }
 }
 
-/// The small pill on a cover: «Pedir», «Pedido», «De camino».
+/// The small pill on a cover: «Pedir», «Pedido», «De camino», «Falló».
 class KostvMusicBadgePill extends StatelessWidget {
   const KostvMusicBadgePill({super.key, required this.badge});
 
@@ -380,6 +381,11 @@ class KostvMusicBadgePill extends StatelessWidget {
         l10n.kostvMusicOnItsWay,
         const Color(0xFF0A84FF),
         Icons.downloading_rounded,
+      ),
+      KostvMusicBadge.failed => (
+        l10n.kostvMusicDownloadFailedBadge,
+        const Color(0xFFC0392B),
+        Icons.error_outline_rounded,
       ),
       KostvMusicBadge.none => ('', Colors.transparent, Icons.circle),
     };
@@ -790,13 +796,17 @@ class KostvMusicMixArt extends StatelessWidget {
               ),
             ),
             if (picture != null)
-              Opacity(
-                opacity: 0.35,
-                child: BoundedNetworkImage(
-                  imageUrl: picture!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, _, _) => const SizedBox.shrink(),
+              // Kos TV: the 35 % painted with the picture itself, not an
+              // Opacity layer of its own for every mix (redrawn with the
+              // focus animation, and off screen on the web).
+              BoundedNetworkImage(
+                imageUrl: picture!,
+                fit: BoxFit.cover,
+                colorFilter: const ColorFilter.mode(
+                  Color(0x59FFFFFF),
+                  BlendMode.modulate,
                 ),
+                errorBuilder: (context, _, _) => const SizedBox.shrink(),
               ),
             Padding(
               padding: EdgeInsets.all(size * 0.08),

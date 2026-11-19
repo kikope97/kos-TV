@@ -34514,6 +34514,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Can\'t reach the requests service. Check the connection.'**
   String get kostvStremfinErrorUnreachable;
+
+  /// Kos TV Music: playing a song, an album or a mix failed (the home server didn't answer)
+  ///
+  /// In en, this message translates to:
+  /// **'It couldn\'t be played. Try again in a moment.'**
+  String get kostvMusicCantPlay;
+
+  /// Kos TV Music: listening to an album that arrived, looking for it failed (not the same as it not being there yet)
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t check whether it\'s at home yet. Try again in a moment.'**
+  String get kostvMusicCantLookNow;
+
+  /// Kos TV Music: short pill on an album's cover whose download failed
+  ///
+  /// In en, this message translates to:
+  /// **'Failed'**
+  String get kostvMusicDownloadFailedBadge;
+
+  /// Kos TV Music: a home server album's page, its songs failed to load
+  ///
+  /// In en, this message translates to:
+  /// **'The songs couldn\'t be loaded'**
+  String get kostvMusicTracksFailed;
 }
 
 class _AppLocalizationsDelegate

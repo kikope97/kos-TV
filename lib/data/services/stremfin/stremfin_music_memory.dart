@@ -14,13 +14,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// shows is kept, without the 30-second previews' addresses (they expire),
 /// and it goes when the person signs out.
 class StremfinMusicMemory {
-  StremfinMusicMemory({Future<SharedPreferences> Function()? prefs})
-    : _prefs = prefs ?? SharedPreferences.getInstance;
+  StremfinMusicMemory({
+    Future<SharedPreferences> Function()? prefs,
+    @visibleForTesting this.maxChars = 1000000,
+  }) : _prefs = prefs ?? SharedPreferences.getInstance;
 
   static const _key = 'kostv_music_memory';
 
   /// Too big to keep: the page's answers are a few hundred kilobytes.
-  static const _maxChars = 1000000;
+  final int maxChars;
 
   /// The page asks for about a dozen things.
   static const _maxAnswers = 30;
@@ -95,9 +97,14 @@ class StremfinMusicMemory {
 
   Future<void> _save() async {
     try {
-      final encoded = jsonEncode({'scope': _scope, 'answers': _answers});
-      // Too big: what was kept stays as it was rather than growing.
-      if (encoded.length > _maxChars) return;
+      var encoded = jsonEncode({'scope': _scope, 'answers': _answers});
+      // Kos TV: too big: the oldest answers go until it fits, rather than
+      // nothing being kept again (and the page opening with older and
+      // older answers).
+      while (encoded.length > maxChars && _answers.isNotEmpty) {
+        _answers.remove(_answers.keys.first);
+        encoded = jsonEncode({'scope': _scope, 'answers': _answers});
+      }
       await (await _prefs()).setString(_key, encoded);
     } catch (e) {
       debugPrint('[MusicMemory] Could not keep it: $e');

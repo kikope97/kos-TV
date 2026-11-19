@@ -9,6 +9,7 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/repositories/item_mutation_repository.dart';
 import '../../../data/services/kostv_music.dart';
+import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
@@ -57,7 +58,11 @@ class KostvMusicAlbumSeed {
 
 /// The badge of [album] on its cover.
 KostvMusicBadge kostvMusicBadgeOf(StremfinAlbum album) {
-  if (album.download != null) return KostvMusicBadge.onItsWay;
+  final download = album.download;
+  // Kos TV: a download that failed isn't on its way.
+  if (download != null) {
+    return download.failed ? KostvMusicBadge.failed : KostvMusicBadge.onItsWay;
+  }
   if (album.request != null) return KostvMusicBadge.asked;
   if (album.inJellyfin) return KostvMusicBadge.none;
   return album.canRequest ? KostvMusicBadge.ask : KostvMusicBadge.none;
@@ -107,10 +112,15 @@ void openKostvMusicAlbum(
 
 /// The home server's album [title] by [artist], looked for by name: the
 /// artist has to match too ("Greatest Hits" is everyone's).
-Future<AggregatedItem?> _albumAtHome(String title, String? artist) async {
-  final found = await kostvMusicService()
-      .search(title)
-      .catchError((Object _) => const KostvMusicAtHome());
+Future<AggregatedItem?> _albumAtHome(
+  String title,
+  String? artist, {
+  bool failOnError = false,
+}) async {
+  final search = kostvMusicService().search(title);
+  final found = failOnError
+      ? await search
+      : await search.catchError((Object _) => const KostvMusicAtHome());
   String norm(String? s) => (s ?? '').toLowerCase().trim();
   final wanted = norm(artist);
   for (final album in found.albums) {
@@ -128,20 +138,45 @@ Future<AggregatedItem?> _albumAtHome(String title, String? artist) async {
 
 /// An album the requests service knows: at home, its page there; otherwise
 /// its page to ask for it.
+///
+/// Kos TV: [shown] is the album's page it is pressed on («Reproducir en
+/// casa»): there, one the home server has under another name (a single
+/// only there inside an album) plays its first song at home rather than
+/// opening that same page again.
 Future<void> openKostvStremfinAlbum(
   BuildContext context,
-  StremfinAlbum album,
-) async {
+  StremfinAlbum album, {
+  StremfinAlbumDetail? shown,
+}) async {
   final atHome = album.jellyfinId;
   if (atHome != null) {
     context.push(Destinations.item(atHome));
     return;
   }
   if (album.inJellyfin) {
-    final match = await _albumAtHome(album.title, album.artist);
+    var match = await _albumAtHome(album.title, album.artist);
+    // A single the home server has inside an album: that album.
+    final inside = album.songInAlbum;
+    if (match == null && inside != null) {
+      match = await _albumAtHome(inside, album.artist);
+    }
     if (!context.mounted) return;
     if (match != null) {
       openMusicItem(context, match);
+      return;
+    }
+    if (shown != null) {
+      final song = shown.songs
+          .where((song) => song.jellyfinId != null)
+          .firstOrNull;
+      if (song != null) {
+        await playKostvMusicTrack(context, song.jellyfinId!);
+      } else {
+        kostvMusicSay(
+          context,
+          AppLocalizations.of(context).kostvMusicNotFoundAtHome,
+        );
+      }
       return;
     }
   }
@@ -222,10 +257,17 @@ void openKostvMusicArtist(BuildContext context, StremfinArtist artist) =>
 /// its album after it.
 Future<void> playKostvMusicTrack(BuildContext context, String jellyfinId) =>
     kostvMusicOnce(() async {
+      final l10n = AppLocalizations.of(context);
       final song = await kostvMusicService()
           .item(jellyfinId)
           .catchError((Object _) => null);
-      if (song != null && context.mounted) await playMusicTrack(context, song);
+      if (!context.mounted) return;
+      if (song == null) {
+        // Kos TV: said, rather than nothing happening.
+        kostvMusicSay(context, l10n.kostvMusicCantPlay);
+        return;
+      }
+      await playMusicTrack(context, song);
     });
 
 // ------------------------------------------------------------- a song's menu
@@ -248,16 +290,23 @@ enum _SongChoice { next, last, radio, love, playlist, album, artist, ask }
 /// home: play it next or at the end of the queue, a station of songs like
 /// it, ♥, add it to a playlist, its album and its artist. For one that
 /// isn't: its album, to ask for it, and its artist.
+///
+/// Kos TV: [fromAlbumId] is the home server's album page it is opened on,
+/// whose «Ir al álbum» would only open that same page again.
 Future<void> showKostvMusicSongMenu(
   BuildContext context, {
   StremfinSong? song,
   AggregatedItem? item,
-}) => kostvMusicOnce(() => _songMenu(context, song: song, item: item));
+  String? fromAlbumId,
+}) => kostvMusicOnce(
+  () => _songMenu(context, song: song, item: item, fromAlbumId: fromAlbumId),
+);
 
 Future<void> _songMenu(
   BuildContext context, {
   StremfinSong? song,
   AggregatedItem? item,
+  String? fromAlbumId,
 }) async {
   final l10n = AppLocalizations.of(context);
   var home = item;
@@ -266,11 +315,17 @@ Future<void> _songMenu(
       (song.inJellyfin || song.jellyfinId != null)) {
     final music = kostvMusicService();
     final id = song.jellyfinId;
+    // Kos TV: the home server's copy is looked for first: with a slow one,
+    // the short wait says something is happening.
+    final closeLoading = showMusicLoading(context);
     try {
       home = await (id != null
           ? music.item(id)
           : music.findSong(song.title, song.artist));
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      closeLoading();
+    }
     if (!context.mounted) return;
   }
   final title = home?.name ?? song?.title ?? '';
@@ -310,7 +365,7 @@ Future<void> _songMenu(
           Icons.playlist_add_rounded,
           l10n.kostvPlayerAddToPlaylist,
         ),
-        if (home.albumId != null)
+        if (home.albumId != null && home.albumId != fromAlbumId)
           KostvMenuEntry(
             _SongChoice.album,
             Icons.album_rounded,
@@ -423,11 +478,19 @@ Future<void> _songMenu(
 /// Plays the album the requests service knows as [deezerId] once it is at
 /// home (a request that arrived). False when the home server doesn't have
 /// it yet: Jellyfin takes a moment to find what arrives.
+///
+/// Kos TV: the short wait shows while it is looked for; when looking fails
+/// (the service or the home server not answering), it says so itself and
+/// answers true: that isn't «not there yet».
 Future<bool> playKostvArrivedAlbum(
   BuildContext context,
   String deezerId,
 ) async {
   if (!GetIt.instance.isRegistered<StremfinService>()) return false;
+  final l10n = AppLocalizations.of(context);
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final closeLoading = showMusicLoading(context);
+  final List<AggregatedItem> songs;
   try {
     final detail = await GetIt.instance<StremfinService>().musicAlbum(deezerId);
     var albumId = detail.album.jellyfinId;
@@ -437,13 +500,32 @@ Future<bool> playKostvArrivedAlbum(
     albumId ??= (await _albumAtHome(
       detail.album.title,
       detail.album.artist,
+      failOnError: true,
     ))?.id;
-    if (albumId == null) return false;
-    final songs = await music.albumSongs(albumId);
-    if (songs.isEmpty || !context.mounted) return false;
-    await playMusicTracks(context, songs);
+    if (albumId == null) {
+      closeLoading();
+      return false;
+    }
+    songs = await music.albumSongs(albumId);
+  } catch (e) {
+    closeLoading();
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            kostvStremfinErrorText(
+              l10n,
+              e,
+              fallback: l10n.kostvMusicCantLookNow,
+            ),
+          ),
+        ),
+      );
     return true;
-  } catch (_) {
-    return false;
   }
+  closeLoading();
+  if (songs.isEmpty || !context.mounted) return false;
+  await playMusicTracks(context, songs);
+  return true;
 }

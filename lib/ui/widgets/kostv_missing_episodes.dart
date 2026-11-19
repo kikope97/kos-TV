@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../data/services/stremfin/kostv_series_gaps.dart';
-import '../../data/services/stremfin/stremfin_client.dart';
+import '../../data/services/stremfin/stremfin_error_text.dart';
 import '../../data/services/stremfin/stremfin_models.dart';
 import '../../l10n/app_localizations.dart';
 import '../../util/platform_detection.dart';
@@ -179,10 +179,10 @@ Future<StremfinRequestResult?> kostvAskMissing(
       );
     }
     return result;
-  } on StremfinException catch (e) {
-    say(e.status == 429 ? l10n.kostvRequestTooFast : l10n.kostvRequestFailed);
-  } catch (_) {
-    say(l10n.kostvRequestFailed);
+  } catch (e) {
+    // Kos TV: why, by the service's error code (too many at once included),
+    // in the app's language.
+    say(kostvStremfinErrorText(l10n, e, fallback: l10n.kostvRequestFailed));
   }
   return null;
 }

@@ -371,6 +371,11 @@ class ItemDetailViewModel extends ChangeNotifier {
   List<AggregatedItem> _tracks = const [];
   List<AggregatedItem> get tracks => _tracks;
 
+  /// Kos TV: the last read of [tracks] failed (not just came back empty),
+  /// so a music album's page can say so and offer to read it again.
+  bool _tracksFailed = false;
+  bool get tracksFailed => _tracksFailed;
+
   List<AggregatedItem> _collectionItems = const [];
   List<AggregatedItem> get collectionItems => _collectionItems;
 
@@ -1295,6 +1300,11 @@ class ItemDetailViewModel extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// Kos TV: reads the songs again after they failed to load (a music
+  /// album's page offers it).
+  Future<void> retryTracks() =>
+      _loadTracks(artistId: _item?.type == 'MusicArtist' ? itemId : null);
+
   Future<void> _loadTracks({String? artistId}) async {
     try {
       final data = _item?.type == 'Playlist'
@@ -1315,8 +1325,14 @@ class ItemDetailViewModel extends ChangeNotifier {
             );
       final items = (data['Items'] as List?) ?? [];
       _tracks = _mapItems(items);
+      _tracksFailed = false;
       notifyListeners();
-    } catch (_) {}
+    } catch (_) {
+      if (!_tracksFailed) {
+        _tracksFailed = true;
+        notifyListeners();
+      }
+    }
   }
 
   Future<void> _loadLyrics() async {

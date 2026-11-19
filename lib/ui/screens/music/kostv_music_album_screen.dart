@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
+import '../../../data/services/kostv_music.dart' show kostvMusicSameTitle;
 import '../../../data/services/kostv_music_preview.dart';
-import '../../../data/services/stremfin/stremfin_client.dart'
-    show StremfinException;
+import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
@@ -77,12 +77,19 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _load() async {
+  /// The load under way, for an ask pressed while it is.
+  Future<void>? _loadingNow;
+
+  Future<void> _load() =>
+      _loadingNow ??= _read().whenComplete(() => _loadingNow = null);
+
+  Future<void> _read() async {
     final stremfin = _stremfin;
     if (stremfin == null) {
       setState(() => _loading = false);
       return;
     }
+    if (!_loading) setState(() => _loading = true);
     try {
       var detail = await stremfin.musicAlbum(widget.deezerId);
       final instead = detail.albumInstead?.deezerId;
@@ -114,11 +121,39 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
   }
 
   Future<void> _ask() async {
+    if (_asking) return;
+    final l10n = AppLocalizations.of(context);
+    // Kos TV: pressed before the album came, or after it failed to: it is
+    // read (again) first, and then asked for if it still can be.
+    if (_detail == null) {
+      setState(() => _asking = true);
+      await _load();
+      if (!mounted) return;
+      setState(() => _asking = false);
+      final loaded = _detail;
+      if (loaded == null) {
+        kostvMusicSay(
+          context,
+          kostvStremfinErrorText(
+            l10n,
+            _error ?? const Object(),
+            fallback: l10n.kostvMusicUnavailable,
+          ),
+        );
+        return;
+      }
+      // What it says now may be another thing (asked for already, at home).
+      if (!loaded.album.canRequest ||
+          loaded.album.inJellyfin ||
+          loaded.album.request != null ||
+          loaded.album.download != null) {
+        return;
+      }
+    }
     final detail = _detail;
     final stremfin = _stremfin;
     final id = detail?.album.deezerId;
-    if (detail == null || stremfin == null || id == null || _asking) return;
-    final l10n = AppLocalizations.of(context);
+    if (detail == null || stremfin == null || id == null) return;
     // Asking stops the 30 seconds (and gives the music back).
     unawaited(_preview.stop());
     setState(() => _asking = true);
@@ -129,10 +164,12 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
       await _load();
     } catch (e) {
       if (mounted) {
-        // The service's own words when it has them («hay mucha gente
-        // pidiendo…»), otherwise ours.
-        final said = e is StremfinException ? e.message : null;
-        kostvMusicSay(context, said ?? l10n.kostvMusicCantAskNow);
+        // Kos TV: why, by the service's error code, in the app's language;
+        // otherwise ours.
+        kostvMusicSay(
+          context,
+          kostvStremfinErrorText(l10n, e, fallback: l10n.kostvMusicCantAskNow),
+        );
       }
     } finally {
       if (mounted) setState(() => _asking = false);
@@ -197,12 +234,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
                 child: CircularProgressIndicator(color: kostvMusicColor),
               )
             else if (album == null)
-              Center(
-                child: Text(
-                  AppLocalizations.of(context).kostvMusicUnavailable,
-                  style: const TextStyle(color: kostvMusicGrey),
-                ),
-              )
+              Center(child: _retry(context, autofocus: PlatformDetection.isTV))
             else
               ListView(
                 padding: EdgeInsets.fromLTRB(
@@ -381,7 +413,9 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
         autofocus: PlatformDetection.isTV,
         onTap: () {
           unawaited(_preview.stop());
-          unawaited(openKostvStremfinAlbum(context, album));
+          // Kos TV: from its own page: one found at home under no name of
+          // its own plays there, rather than this page opening again.
+          unawaited(openKostvStremfinAlbum(context, album, shown: _detail));
         },
       );
     }
@@ -410,7 +444,10 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     if (download != null) {
       return withJoin(
         KostvMusicButton(
-          icon: Icons.downloading_rounded,
+          // Kos TV: a download that failed doesn't show as coming down.
+          icon: download.failed
+              ? Icons.error_outline_rounded
+              : Icons.downloading_rounded,
           label: [
             download.label ?? l10n.kostvMusicOnItsWay,
             if (download.percent != null) '${download.percent} %',
@@ -448,6 +485,36 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     );
   }
 
+  /// Kos TV: «No disponible» with what failed, as a button that reads the
+  /// album again (it can be reached with the remote).
+  Widget _retry(BuildContext context, {bool autofocus = false}) {
+    final l10n = AppLocalizations.of(context);
+    final error = _error;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          error == null
+              ? l10n.kostvMusicUnavailable
+              : kostvStremfinErrorText(
+                  l10n,
+                  error,
+                  fallback: l10n.kostvMusicUnavailable,
+                ),
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: kostvMusicGrey),
+        ),
+        const SizedBox(height: 14),
+        KostvMusicButton(
+          icon: Icons.refresh_rounded,
+          label: l10n.retry,
+          autofocus: autofocus,
+          onTap: () => unawaited(_load()),
+        ),
+      ],
+    );
+  }
+
   List<Widget> _tracks(BuildContext context) {
     final detail = _detail;
     if (detail == null) {
@@ -460,13 +527,19 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
             ),
           )
         else if (_error != null)
-          Text(
-            AppLocalizations.of(context).kostvMusicUnavailable,
-            style: const TextStyle(color: kostvMusicGrey),
-          ),
+          Align(alignment: Alignment.centerLeft, child: _retry(context)),
       ];
     }
-    final picked = (widget.seed?.song ?? _single?.contains)?.toLowerCase();
+    final picked = widget.seed?.song ?? _single?.contains;
+    // Kos TV: the song it came from is the one of the same title; only if
+    // none is, the one of that title without what is in brackets («Canción
+    // (feat. X)» in a chart, «Canción» here). Never one that only has it in
+    // its name («Mía» isn't «Mía (Remix)»).
+    final exact =
+        picked != null &&
+        detail.songs.any((song) => kostvMusicSameTitle(song.title, picked));
+    bool isPicked(String title) =>
+        picked != null && kostvMusicSameTitle(title, picked, loose: !exact);
     final multiDisc = detail.songs.map((s) => s.disc ?? 1).toSet().length > 1;
     return [
       for (final (i, song) in detail.songs.indexed)
@@ -479,7 +552,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
               : null,
           duration: song.duration,
           atHome: song.inJellyfin,
-          picked: picked != null && song.title.toLowerCase().contains(picked),
+          picked: isPicked(song.title),
           // At home (Stremfin 1.91 says which it is): it plays.
           onTap: song.jellyfinId == null
               ? null

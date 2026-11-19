@@ -220,6 +220,10 @@ class BottomNavController extends ChangeNotifier {
         _prefs.get(UserPreferences.enableMultiServerLibraries),
         _prefs.get(UserPreferences.navbarColor),
         _prefs.get(UserPreferences.navbarOpacity),
+        // Kos TV: the tabs' own switches (BottomNavTabGates reads them).
+        _prefs.get(UserPreferences.showDiscoverButton),
+        _prefs.get(UserPreferences.kostvShowMusicButton),
+        _prefs.get(UserPreferences.kostvMyListAvailable),
         _pluginSync?.calendarAvailable ?? false,
       ].join('|');
 

@@ -20432,4 +20432,18 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvStremfinErrorUnreachable =>
       'No se puede conectar con el servicio de peticiones. Mira la conexión.';
+
+  @override
+  String get kostvMusicCantPlay =>
+      'No se ha podido reproducir. Inténtalo otra vez en un momento.';
+
+  @override
+  String get kostvMusicCantLookNow =>
+      'No se ha podido comprobar si ya está en casa. Inténtalo otra vez en un momento.';
+
+  @override
+  String get kostvMusicDownloadFailedBadge => 'Falló';
+
+  @override
+  String get kostvMusicTracksFailed => 'No se han podido cargar las canciones';
 }

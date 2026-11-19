@@ -20093,4 +20093,18 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvStremfinErrorUnreachable =>
       'Can\'t reach the requests service. Check the connection.';
+
+  @override
+  String get kostvMusicCantPlay =>
+      'It couldn\'t be played. Try again in a moment.';
+
+  @override
+  String get kostvMusicCantLookNow =>
+      'Couldn\'t check whether it\'s at home yet. Try again in a moment.';
+
+  @override
+  String get kostvMusicDownloadFailedBadge => 'Failed';
+
+  @override
+  String get kostvMusicTracksFailed => 'The songs couldn\'t be loaded';
 }

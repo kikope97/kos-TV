@@ -19920,5 +19920,21 @@
     "kostvStremfinErrorUnreachable": "Can't reach the requests service. Check the connection.",
     "@kostvStremfinErrorUnreachable": {
         "description": "Kos TV: requests service error: the requests service could not be reached (no network)"
+    },
+    "kostvMusicCantPlay": "It couldn't be played. Try again in a moment.",
+    "@kostvMusicCantPlay": {
+        "description": "Kos TV Music: playing a song, an album or a mix failed (the home server didn't answer)"
+    },
+    "kostvMusicCantLookNow": "Couldn't check whether it's at home yet. Try again in a moment.",
+    "@kostvMusicCantLookNow": {
+        "description": "Kos TV Music: listening to an album that arrived, looking for it failed (not the same as it not being there yet)"
+    },
+    "kostvMusicDownloadFailedBadge": "Failed",
+    "@kostvMusicDownloadFailedBadge": {
+        "description": "Kos TV Music: short pill on an album's cover whose download failed"
+    },
+    "kostvMusicTracksFailed": "The songs couldn't be loaded",
+    "@kostvMusicTracksFailed": {
+        "description": "Kos TV Music: a home server album's page, its songs failed to load"
     }
 }
