@@ -1,4 +1,5 @@
 using System.Reflection;
+using MediaBrowser.Controller.Drawing;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Entities.TV;
@@ -36,12 +37,32 @@ public class ItemCardDtoMapper
     // to the backdrop even when the library has the real art.
     private static readonly ImageType[] CardImageTypes = [ImageType.Primary, ImageType.Thumb, ImageType.Banner, ImageType.Logo];
 
+    // Kos TV: the server's own image tag (IImageProcessor.GetImageCacheTag), bound by reflection
+    // like the user data, so a server where it differs keeps the tag made here instead.
+    private static readonly MethodInfo? _getImageCacheTag = typeof(IImageProcessor)
+        .GetMethods()
+        .FirstOrDefault(m =>
+        {
+            if (m.Name != "GetImageCacheTag")
+            {
+                return false;
+            }
+
+            var parameters = m.GetParameters();
+            return parameters.Length == 2 &&
+                parameters[0].ParameterType == typeof(BaseItem) &&
+                parameters[1].ParameterType == typeof(ItemImageInfo) &&
+                m.ReturnType == typeof(string);
+        });
+
     private readonly IUserDataManager _userDataManager;
+    private readonly IImageProcessor? _imageProcessor;
     private readonly ILogger<ItemCardDtoMapper> _logger;
 
-    public ItemCardDtoMapper(IUserDataManager userDataManager, ILogger<ItemCardDtoMapper> logger)
+    public ItemCardDtoMapper(IUserDataManager userDataManager, ILogger<ItemCardDtoMapper> logger, IImageProcessor? imageProcessor = null)
     {
         _userDataManager = userDataManager;
+        _imageProcessor = imageProcessor;
         _logger = logger;
     }
 
@@ -53,16 +74,18 @@ public class ItemCardDtoMapper
             var info = item.GetImageInfo(type, 0);
             if (info != null)
             {
-                imageTags[type.ToString()] = GetTag(info);
+                imageTags[type.ToString()] = GetTag(item, info);
             }
         }
 
-        var backdropTags = item.GetImages(ImageType.Backdrop).Select(GetTag).ToList();
+        var backdropTags = item.GetImages(ImageType.Backdrop).Select(info => GetTag(item, info)).ToList();
 
         // Kos TV: looked up once (each is a trip to the library).
         var episode = item as Episode;
         var series = Lookup(() => episode?.Series);
-        var seriesBackdrops = series?.GetImages(ImageType.Backdrop).Select(GetTag).ToList();
+        var seriesBackdrops = series?.GetImages(ImageType.Backdrop).Select(info => GetTag(series, info)).ToList();
+        var seriesThumb = TagOf(series, ImageType.Thumb);
+        var seriesLogo = TagOf(series, ImageType.Logo);
         var album = Lookup(() => (item as Audio)?.AlbumEntity);
 
         return new
@@ -90,12 +113,22 @@ public class ItemCardDtoMapper
             SeriesPrimaryImageTag = TagOf(series, ImageType.Primary),
             ParentBackdropItemId = seriesBackdrops is { Count: > 0 } ? series!.Id : (Guid?)null,
             ParentBackdropImageTags = seriesBackdrops is { Count: > 0 } ? seriesBackdrops : null,
-            ParentLogoItemId = TagOf(series, ImageType.Logo) != null ? series!.Id : (Guid?)null,
-            ParentLogoImageTag = TagOf(series, ImageType.Logo),
+            ParentLogoItemId = seriesLogo != null ? series!.Id : (Guid?)null,
+            ParentLogoImageTag = seriesLogo,
+            // Kos TV: the series' thumb, for a row set to thumbs, as a stock episode carries it.
+            ParentThumbItemId = seriesThumb != null ? series!.Id : (Guid?)null,
+            ParentThumbImageTag = seriesThumb,
+            // Kos TV: an episode seldom has a rating of its own; the series', apart, so an app
+            // can apply its own blocked ratings to it without taking it for the episode's.
+            SeriesOfficialRating = series?.OfficialRating,
             AlbumId = album?.Id,
             AlbumPrimaryImageTag = TagOf(album, ImageType.Primary),
             AlbumArtist = (item as IHasAlbumArtist)?.AlbumArtists?.FirstOrDefault(),
-            Artists = (item as IHasArtist)?.Artists
+            Artists = (item as IHasArtist)?.Artists,
+            // Kos TV: the title's ids elsewhere (TMDB for the extra ratings) and its trailers, as
+            // a stock item carries them, so a card needn't be asked for again.
+            ProviderIds = item.ProviderIds,
+            RemoteTrailers = item.RemoteTrailers?.Select(t => new { t.Url, t.Name }).ToList()
         };
     }
 
@@ -115,10 +148,10 @@ public class ItemCardDtoMapper
         }
     }
 
-    private static string? TagOf(BaseItem? owner, ImageType type)
+    private string? TagOf(BaseItem? owner, ImageType type)
     {
         var info = owner?.GetImageInfo(type, 0);
-        return info == null ? null : GetTag(info);
+        return info == null ? null : GetTag(owner!, info);
     }
 
     /// <summary>
@@ -145,6 +178,31 @@ public class ItemCardDtoMapper
         }
     }
 
+    /// <summary>
+    /// The tag for cache-busting image URLs. Kos TV: the one the server itself gives the image,
+    /// so a picture shown here and in the stock rows is one URL, fetched and kept once; when it
+    /// can't be had, a stable one from the image's date.
+    /// </summary>
+    private string GetTag(BaseItem owner, ItemImageInfo info)
+    {
+        if (_imageProcessor != null && _getImageCacheTag != null)
+        {
+            try
+            {
+                if (_getImageCacheTag.Invoke(_imageProcessor, [owner, info]) is string { Length: > 0 } tag)
+                {
+                    return tag;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Could not read the image tag of {ItemId}", owner.Id);
+            }
+        }
+
+        return FallbackTag(info);
+    }
+
     /// <summary>A stable tag string from an ItemImageInfo for cache-busting image URLs.</summary>
-    private static string GetTag(ItemImageInfo info) => info.DateModified.Ticks.ToString("X");
+    private static string FallbackTag(ItemImageInfo info) => info.DateModified.Ticks.ToString("X");
 }

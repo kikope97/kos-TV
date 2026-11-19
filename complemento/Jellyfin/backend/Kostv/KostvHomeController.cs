@@ -64,7 +64,7 @@ public class KostvHomeController : ControllerBase
         // lands, and what they turned down, for the rows the app makes itself.
         var first = start == 0;
         var (newEpisodes, favoriteSeries) = first
-            ? _home.NewEpisodes(user, page)
+            ? _home.NewEpisodes(userId.Value, user, page)
             : ([], new HashSet<Guid>());
         return Ok(new
         {
