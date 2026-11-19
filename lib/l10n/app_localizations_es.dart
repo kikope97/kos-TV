@@ -20498,4 +20498,13 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvMusicTapToPlayHint =>
       'El navegador no deja que la música empiece sola.';
+
+  @override
+  String get kostvPluginSyncDeviceWide =>
+      'Se enciende o se apaga para todas las personas que usan este dispositivo.';
+
+  @override
+  String kostvFailedToSyncSettingsToProfile(String profile) {
+    return 'No se han podido subir los ajustes al perfil $profile.';
+  }
 }

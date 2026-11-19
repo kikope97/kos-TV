@@ -20006,5 +20006,18 @@
     "kostvMusicTapToPlayHint": "The browser won't let the music start by itself.",
     "@kostvMusicTapToPlayHint": {
         "description": "Kos TV: Music on the web: why it waits for a tap"
+    },
+    "kostvPluginSyncDeviceWide": "Turns on or off for everyone who uses this device.",
+    "@kostvPluginSyncDeviceWide": {
+        "description": "Kos TV: under the settings sync switch: it is the device's, not the person's"
+    },
+    "kostvFailedToSyncSettingsToProfile": "Couldn't sync local settings to {profile} profile.",
+    "@kostvFailedToSyncSettingsToProfile": {
+        "description": "Kos TV: «Sincronizar ahora» couldn't reach the server",
+        "placeholders": {
+            "profile": {
+                "type": "String"
+            }
+        }
     }
 }

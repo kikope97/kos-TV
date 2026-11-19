@@ -160,6 +160,7 @@ class UserPreferences extends ChangeNotifier {
     _seedClockFormatFromSystem();
     _migrateScreensaverPreferences();
     _migrateSystemImePreference();
+    _dropUselessClearedTracks();
   }
 
   // Navbar colour and opacity once inherited their values from the media bar overlay
@@ -4753,12 +4754,53 @@ class UserPreferences extends ChangeNotifier {
     );
     if (index != null) {
       await _store.set(pref, index);
-    } else if (_activeProfileScopeSuffix() != null) {
+    } else if (_activeProfileScopeSuffix() != null &&
+        _store.containsKey('$base$id')) {
       await _store.set(pref, _clearedTrack);
     } else {
+      // Kos TV: with nothing kept for the whole device there is nothing to
+      // hold back, so the key goes. Writing the mark anyway left two keys
+      // behind for every video finished, for good.
       await _store.delete(pref);
     }
     notifyListeners();
+  }
+
+  static const _clearedTracksCleanedKey = 'pref_kostv_cleared_tracks_cleaned';
+
+  /// Kos TV: once, drops the cleared-track marks written before there was
+  /// anything for them to hold back. A mark stays whenever some way of
+  /// reading its key could match a choice kept for the whole device.
+  void _dropUselessClearedTracks() {
+    try {
+      if (_store.getBool(_clearedTracksCleanedKey) == true) return;
+      final keys = _store.keys;
+      for (final base in const [
+        _itemSubtitleIndexPrefix,
+        _itemAudioIndexPrefix,
+      ]) {
+        for (final key in keys.toList()) {
+          if (!key.startsWith(base)) continue;
+          int? value;
+          try {
+            value = _store.getInt(key);
+          } catch (_) {
+            continue;
+          }
+          if (value != _clearedTrack) continue;
+          final rest = key.substring(base.length);
+          var keepsSomething = false;
+          for (var i = rest.indexOf('_'); i >= 0; i = rest.indexOf('_', i + 1)) {
+            if (keys.contains('$base${rest.substring(i + 1)}')) {
+              keepsSomething = true;
+              break;
+            }
+          }
+          if (!keepsSomething) _store.remove(key);
+        }
+      }
+      _store.setBool(_clearedTracksCleanedKey, true);
+    } catch (_) {}
   }
 
   static const _seriesSubtitleLangPrefix = 'pref_series_subtitle_lang_';

@@ -76,25 +76,40 @@ class _ParentalSettingsScreenState extends State<ParentalSettingsScreen> {
   bool _ranks(String rating) =>
       isRankedRatingSeverity(parentalRatingSeverity(rating));
 
+  static const _ratedItemTypes = [
+    'Movie',
+    'Series',
+    'Episode',
+    'Video',
+    'MusicVideo',
+    'Book',
+    'AudioBook',
+  ];
+
   Future<void> _loadServerRatings() async {
     try {
       final client = GetIt.instance<MediaServerClient>();
       final discovered = <String>{};
+
+      // Kos TV: the server lists every rating in the library in one answer,
+      // which a walk through the items capped at the first 3,000 missed in a
+      // big library. The walk stays for a server that answers with none.
+      final filters = await client.itemsApi.getQueryFilters(
+        includeItemTypes: _ratedItemTypes,
+      );
+      for (final rating in filters.officialRatings) {
+        final trimmed = rating.trim();
+        if (trimmed.isNotEmpty) discovered.add(trimmed.toUpperCase());
+      }
+
+      final walk = discovered.isEmpty;
       const pageSize = 200;
       var startIndex = 0;
       var safetyPages = 0;
 
-      while (safetyPages < 15) {
+      while (walk && safetyPages < 15) {
         final response = await client.itemsApi.getItems(
-          includeItemTypes: const [
-            'Movie',
-            'Series',
-            'Episode',
-            'Video',
-            'MusicVideo',
-            'Book',
-            'AudioBook',
-          ],
+          includeItemTypes: _ratedItemTypes,
           recursive: true,
           fields: 'OfficialRating',
           startIndex: startIndex,

@@ -20158,4 +20158,13 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvMusicTapToPlayHint =>
       'The browser won\'t let the music start by itself.';
+
+  @override
+  String get kostvPluginSyncDeviceWide =>
+      'Turns on or off for everyone who uses this device.';
+
+  @override
+  String kostvFailedToSyncSettingsToProfile(String profile) {
+    return 'Couldn\'t sync local settings to $profile profile.';
+  }
 }

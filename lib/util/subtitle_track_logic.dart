@@ -1,4 +1,7 @@
 import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 import '../data/models/series_track_preference.dart';
 import '../preference/preference_constants.dart';
 import 'language_matching.dart';
@@ -211,7 +214,10 @@ int? computeEffectiveSubtitleIndex({
     final isPgs = codec == 'pgs' || codec == 'pgssub' || codec == 'hdmv_pgs_subtitle' || codec == 'dvdsub' || codec == 'vobsub';
     final isAss = codec == 'ass' || codec == 'ssa';
     
-    if (isPgs && pgsDirectPlay) return 2;
+    // Kos TV: the browser can't draw PGS, so the server burns it in and
+    // converts the whole video. There the setting can't make it direct, and
+    // a text track beats it like on any other device with the setting off.
+    if (isPgs && pgsDirectPlay && !kIsWeb) return 2;
     if (isAss && assDirectPlay) return 1;
     return 0;
   }
