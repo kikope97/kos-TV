@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -71,7 +72,11 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
-  Future<GoRouter> pumpShell(WidgetTester tester, String initial) async {
+  Future<GoRouter> pumpShell(
+    WidgetTester tester,
+    String initial, {
+    Locale? locale,
+  }) async {
     GoRoute page(String path, Widget child) =>
         GoRoute(path: path, onExit: confirmAdminLeave, builder: (_, _) => child);
     final router = GoRouter(
@@ -100,6 +105,7 @@ void main() {
         overrides: [socketHandlerProvider.overrideWithValue(SocketHandler())],
         child: MaterialApp.router(
           routerConfig: router,
+          locale: locale,
           localizationsDelegates: AppLocalizations.localizationsDelegates,
           supportedLocales: AppLocalizations.supportedLocales,
         ),
@@ -277,5 +283,47 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(l10n.adminLeaveTitle), findsNothing);
     expect(find.text('users page'), findsOneWidget);
+  });
+
+  // Kos TV: «Reproducción» broke mid-word on the phone bar and was cut on
+  // the rail.
+  group('group labels stay on one line', () {
+    List<String> labels() => [
+      l10n.adminGroupOverview,
+      l10n.adminGroupLibrary,
+      l10n.adminGroupPlayback,
+      l10n.adminGroupPeople,
+      l10n.adminGroupSystem,
+    ];
+
+    for (final locale in const [Locale('es'), Locale('en')]) {
+      testWidgets('on the phone bar ($locale)', (tester) async {
+        setWindow(tester, const Size(360, 780));
+        await pumpShell(tester, Destinations.admin, locale: locale);
+        final bar = find.byType(NavigationBar);
+        final slot = tester.getSize(bar).width / 5;
+        for (final label in labels()) {
+          final text = find.descendant(of: bar, matching: find.text(label));
+          expect(tester.getSize(text).width, lessThanOrEqualTo(slot));
+          final style = tester.widget<Text>(text).style!;
+          // One line: no taller than the line height of its own size.
+          expect(
+            tester.getSize(text).height,
+            lessThan(style.fontSize! * 1.5 * 1.3),
+          );
+        }
+      });
+
+      testWidgets('on the rail ($locale)', (tester) async {
+        setWindow(tester, const Size(1400, 900));
+        await pumpShell(tester, Destinations.admin, locale: locale);
+        for (final label in labels()) {
+          final paragraph = tester.renderObject<RenderParagraph>(
+            find.text(label).first,
+          );
+          expect(paragraph.didExceedMaxLines, isFalse, reason: label);
+        }
+      });
+    }
   });
 }

@@ -374,13 +374,23 @@
                     flex-direction: column;
                 }
 
+                /* kOS TV: a compact strip that scrolls sideways, one line per
+                   tab, instead of tall wrapped tiles wider than the screen. */
                 #MoonfinConfigPage .moonfinAdminNav {
                     flex: 0 0 auto;
                     flex-direction: row;
                     position: static;
+                    box-sizing: border-box;
                     width: 100%;
+                    max-width: 100%;
                     overflow-x: auto;
-                    gap: 6px;
+                    overflow-y: hidden;
+                    overscroll-behavior-x: contain;
+                    -webkit-overflow-scrolling: touch;
+                    scroll-snap-type: x proximity;
+                    scrollbar-width: thin;
+                    gap: 4px;
+                    padding: 6px;
                 }
 
                 #MoonfinConfigPage .moonfinNavBrand,
@@ -389,12 +399,24 @@
                 }
 
                 #MoonfinConfigPage .moonfinNavItem {
-                    flex-direction: column;
+                    flex: 0 0 auto;
+                    width: auto;
+                    flex-direction: row;
                     align-items: center;
-                    gap: 4px;
-                    min-width: 78px;
+                    gap: 7px;
+                    padding: 8px 12px;
                     box-shadow: none;
-                    text-align: center;
+                    white-space: nowrap;
+                    scroll-snap-align: start;
+                }
+
+                #MoonfinConfigPage .moonfinNavIcon {
+                    font-size: 20px;
+                }
+
+                #MoonfinConfigPage .moonfinNavLabel {
+                    font-size: 0.95em;
+                    white-space: nowrap;
                 }
 
                 #MoonfinConfigPage .moonfinNavItem.is-active {
@@ -6271,9 +6293,36 @@
                     return;
                 }
 
+                var nav = page.querySelector('.moonfinAdminNav');
+
+                // kOS TV: on narrow screens the tabs are a strip that scrolls
+                // sideways, so the chosen one is brought into view there
+                // (only the strip moves, never the page).
+                function revealActiveTab(item) {
+                    if (!nav || !item || nav.scrollWidth <= nav.clientWidth) {
+                        return;
+                    }
+                    var navBox = nav.getBoundingClientRect();
+                    var itemBox = item.getBoundingClientRect();
+                    var delta = (itemBox.left + itemBox.width / 2) - (navBox.left + navBox.width / 2);
+                    if (Math.abs(delta) < 1) {
+                        return;
+                    }
+                    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                    try {
+                        nav.scrollBy({ left: delta, behavior: reduce ? 'auto' : 'smooth' });
+                    } catch (e) {
+                        nav.scrollLeft += delta;
+                    }
+                }
+
                 function selectTab(tabId) {
                     navItems.forEach(function(item) {
-                        item.classList.toggle('is-active', item.getAttribute('data-tab') === tabId);
+                        var active = item.getAttribute('data-tab') === tabId;
+                        item.classList.toggle('is-active', active);
+                        if (active) {
+                            revealActiveTab(item);
+                        }
                     });
                     panels.forEach(function(panel) {
                         panel.classList.toggle('is-active', panel.getAttribute('data-tab') === tabId);
@@ -6299,6 +6348,12 @@
                 try { saved = window.localStorage.getItem('moonfinAdminActiveTab'); } catch (e) {}
                 var validSaved = saved && panels.some(function(p) { return p.getAttribute('data-tab') === saved; });
                 selectTab(validSaved ? saved : 'defaults');
+                // kOS TV: the strip may not be laid out yet on the first pass.
+                if (window.requestAnimationFrame) {
+                    window.requestAnimationFrame(function() {
+                        revealActiveTab(page.querySelector('.moonfinNavItem.is-active'));
+                    });
+                }
 
                 initializeSettingsSearch(page);
                 page.addEventListener('change', applyFieldDependencies);
