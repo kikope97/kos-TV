@@ -20834,4 +20834,17 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvUntitled => 'Untitled';
+
+  @override
+  String get kostvHideFromContinueWatchingForgets =>
+      'Remove from Continue Watching (forgets where you were)';
+
+  @override
+  String kostvHiddenFromContinueWatching(String title) {
+    return '“$title” removed from Continue Watching';
+  }
+
+  @override
+  String get kostvContinueWatchingUndoFailed =>
+      'Couldn\'t bring back where you were';
 }

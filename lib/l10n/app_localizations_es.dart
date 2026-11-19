@@ -21178,4 +21178,17 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvUntitled => 'Sin título';
+
+  @override
+  String get kostvHideFromContinueWatchingForgets =>
+      'Quitar de Seguir viendo (se olvida por dónde ibas)';
+
+  @override
+  String kostvHiddenFromContinueWatching(String title) {
+    return '«$title» ya no está en Seguir viendo';
+  }
+
+  @override
+  String get kostvContinueWatchingUndoFailed =>
+      'No se pudo recuperar por dónde ibas';
 }

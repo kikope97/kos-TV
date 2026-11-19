@@ -1081,6 +1081,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     });
 
     videoPlayerHandover = _handOverPlayback;
+    // Kos TV: with the next-episode card off the queue moves on by itself;
+    // that advance is the automatic one, so it asks too.
+    _manager.confirmAutoNext = _confirmAutoNext;
     _media3ActivityActionSub = Media3PlayerBackend.activityActionStream.listen(
       _onMedia3ActivityAction,
       onError: (_) {},
@@ -1162,6 +1165,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   @override
   void dispose() {
     if (videoPlayerHandover == _handOverPlayback) videoPlayerHandover = null;
+    if (identical(_manager.confirmAutoNext, _confirmAutoNext)) {
+      _manager.confirmAutoNext = null;
+    }
     kostvReleaseBrowserMenu();
     // Kos TV: left another way than the player's own (the browser's Back, a
     // mouse's back button): full screen, if it went into it, ends too.
@@ -3057,6 +3063,17 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
 
   /// A viewer reaching for the remote has answered the prompt's question.
   void _noteViewerActivity() => _consecutiveEpisodes = 0;
+
+  /// Kos TV: the queue moving on by itself (the card off) counts as an
+  /// automatic episode, as the card's own countdown does, so after enough of
+  /// them it asks whether anyone is still watching. Kept as one function so
+  /// dispose can tell it is still this screen's.
+  late final Future<bool> Function() _confirmAutoNext = _askBeforeAutoNext;
+
+  Future<bool> _askBeforeAutoNext() async {
+    if (!mounted) return true;
+    return _checkStillWatching();
+  }
 
   /// Returns false when the viewer chose to stop, so the caller can drop the
   /// queue advance it was about to make.

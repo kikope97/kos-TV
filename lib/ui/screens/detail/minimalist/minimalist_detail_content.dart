@@ -339,11 +339,11 @@ class _MinimalistDetailContentState extends State<MinimalistDetailContent> {
   }
 
   Widget _buildActions(bool landscape) {
-    // Kids Mode offers Play and three others, and they always fit, so there's
+    // Kids Mode offers Play and four others, and they always fit, so there's
     // nothing for an overflow menu to hold. Passing no limit at all would read
     // the user's own cap, which is one of the settings the mode turns off.
     if (widget.prefs.get(UserPreferences.kidsModeEnabled)) {
-      return _actionButtons(landscape, maxVisible: 4, overflowAsMenu: false);
+      return _actionButtons(landscape, maxVisible: 5, overflowAsMenu: false);
     }
 
     final prefLimit = widget.prefs.get(UserPreferences.detailButtonsMaxVisible);

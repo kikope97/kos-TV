@@ -20,6 +20,8 @@ class _MockMutations extends Mock implements ItemMutationRepository {}
 
 class _ItemsApi extends Mock implements ItemsApi {}
 
+class _UserLibraryApi extends Mock implements UserLibraryApi {}
+
 /// A server that hides Home cards itself (Silo).
 class _DismissingItemsApi extends _ItemsApi implements HomeDismissalsApi {
   final hidden = <String>[];
@@ -192,11 +194,17 @@ void main() {
     // Jellyfin has no hide-from-resume call (upstream's Emby one answers
     // true), so the progress is reset instead.
     when(() => mutations.hideFromResume(any())).thenAnswer((_) async => false);
+    when(() => client.userLibraryApi).thenReturn(_UserLibraryApi());
 
-    await select(tester, (l) => l.contextMenuHideFromContinueWatching);
+    // Kos TV: the option says the progress goes with it.
+    await select(tester, (l) => l.kostvHideFromContinueWatchingForgets);
 
     expect(prefs.getHiddenContinueWatchingItems().keys, ['series-1']);
     verify(() => mutations.hideFromResume('ep-1')).called(1);
     verify(() => mutations.setPlayed('ep-1', isPlayed: false)).called(1);
+    // Let the undo notice run out.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 6));
+    await tester.pump();
   });
 }

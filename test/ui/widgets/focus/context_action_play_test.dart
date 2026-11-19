@@ -20,6 +20,10 @@ class _MockClient extends Mock implements MediaServerClient {}
 
 class _MockMutations extends Mock implements ItemMutationRepository {}
 
+class _ItemsApi extends Mock implements ItemsApi {}
+
+class _UserLibraryApi extends Mock implements UserLibraryApi {}
+
 AggregatedItem _item(
   String type, {
   String id = 'item-1',
@@ -48,6 +52,10 @@ void main() {
     final client = _MockClient();
     when(() => client.serverType).thenReturn(ServerType.jellyfin);
     when(() => client.baseUrl).thenReturn('https://media.example');
+    // Kos TV: a part watched item's menu asks whether hiding it from
+    // Continue Watching forgets where it was left.
+    when(() => client.itemsApi).thenReturn(_ItemsApi());
+    when(() => client.userLibraryApi).thenReturn(_UserLibraryApi());
 
     final users = UserRepository();
     users.setCurrentUser(

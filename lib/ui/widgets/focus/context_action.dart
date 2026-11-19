@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
@@ -23,6 +25,8 @@ import '../../../data/services/item_membership_service.dart';
 import '../../../data/services/kostv_my_list.dart';
 import '../../../data/services/user_data_sync.dart';
 import '../../navigation/destinations.dart';
+import '../../screens/home/kostv_undo_toast.dart';
+import '../../../util/focus/input_mode_tracker.dart';
 import '../add_to_collection_dialog.dart';
 import '../add_to_playlist_dialog.dart';
 import '../remove_from_collection_dialog.dart';
@@ -85,22 +89,138 @@ bool canPlayFromServer(AggregatedItem item) =>
 /// server can do that (Emby), or clears the progress that keeps it there where
 /// it can't. Audio always resets, because an audiobook library's Continue row
 /// falls back to an IsResumable query that ignores Emby's flag. A failed
-/// server call resets nothing.
-Future<void> _hideFromResumeOrReset(
+/// server call resets nothing. Kos TV: true when the progress was cleared,
+/// so an undo knows to put it back.
+Future<bool> _hideFromResumeOrReset(
   ItemMutationRepository mutations,
   AggregatedItem item,
 ) async {
   if (!item.isAudioLike) {
     try {
-      if (await mutations.hideFromResume(item.id)) return;
+      if (await mutations.hideFromResume(item.id)) return false;
     } catch (_) {
-      return;
+      return false;
     }
   }
   try {
     await mutations.setPlayed(item.id, isPlayed: false);
-  } catch (_) {}
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
+
+/// Kos TV: whether hiding [item] from Continue Watching also forgets where
+/// it was left, so the menu can say so. On Jellyfin it does: with no way to
+/// hide a resume point there, the hide clears it.
+bool hideFromContinueWatchingForgets(
+  AggregatedItem item,
+  MediaServerClient client,
+) {
+  if (client.itemsApi is HomeDismissalsApi) return false;
+  return item.isAudioLike || client.userLibraryApi is! ResumeVisibilityApi;
+}
+
+/// Kos TV: what an undo of a Continue Watching hide puts back.
+@visibleForTesting
+class ContinueWatchingHideUndo {
+  const ContinueWatchingHideUndo({
+    required this.itemId,
+    required this.hiddenId,
+    required this.positionTicks,
+    this.playedPercentage,
+  });
+
+  final String itemId;
+
+  /// The id this device's list hid: the series for an episode.
+  final String hiddenId;
+
+  /// Where it was left, put back when the hide cleared it; null to leave the
+  /// progress alone.
+  final int? positionTicks;
+  final double? playedPercentage;
+
+  /// Brings the title back to Continue Watching where it was left.
+  Future<bool> run({
+    required UserPreferences prefs,
+    required ItemMutationRepository mutations,
+  }) async {
+    await prefs.unhideFromContinueWatching(hiddenId);
+    final ticks = positionTicks;
+    if (ticks == null || ticks <= 0) return true;
+    try {
+      await mutations.restorePlaybackPosition(
+        itemId,
+        positionTicks: ticks,
+        playedPercentage: playedPercentage,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+}
+
+/// Kos TV: the notice after a Continue Watching hide, with a few seconds to
+/// take it back, as «Not interested» offers on Home. The opener's card has
+/// usually left its row by now, so the notice goes on [overlay], taken while
+/// the card was still there.
+void _offerContinueWatchingUndo({
+  required OverlayState overlay,
+  required bool remote,
+  required AppLocalizations l10n,
+  required AggregatedItem item,
+  required ContinueWatchingHideUndo undo,
+  required ItemMutationRepository mutations,
+}) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!overlay.mounted) return;
+    final before = FocusManager.instance.primaryFocus;
+    final session = userDataSync.session;
+    // With a remote the button takes the focus; any other key gives it back
+    // to where it was.
+    void backToWhereItWas() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (before != null &&
+            before.context != null &&
+            before.canRequestFocus) {
+          before.requestFocus();
+        }
+      });
+    }
+
+    showKostvUndoToastOn(
+      overlay,
+      message: l10n.kostvHiddenFromContinueWatching(item.name),
+      undoLabel: l10n.kostvUndo,
+      duration: _continueWatchingUndoTime,
+      takeFocus: remote,
+      onUndo: () {
+        if (remote) backToWhereItWas();
+        // A user switch since the hide: the title is someone else's now.
+        if (userDataSync.session != session) return;
+        unawaited(() async {
+          final restored = await undo.run(
+            prefs: GetIt.instance<UserPreferences>(),
+            mutations: mutations,
+          );
+          if (userDataSync.session != session) return;
+          if (!restored && overlay.mounted) {
+            ScaffoldMessenger.maybeOf(overlay.context)?.showSnackBar(
+              SnackBar(content: Text(l10n.kostvContinueWatchingUndoFailed)),
+            );
+          }
+          refreshHomeRows();
+        }());
+      },
+      onLeave: backToWhereItWas,
+    );
+  });
+}
+
+/// As long as Home's «Not interested» gives.
+const _continueWatchingUndoTime = Duration(seconds: 5);
 
 /// Kos TV: whether Kids Mode is on. Defensive, like the detail buttons,
 /// because a menu can be built before the preferences are registered.
@@ -310,8 +430,19 @@ List<ItemContextAction> contextActionsFor(
     if (hasProgress && !kidsMode) {
       actions.add(ItemContextAction(
         icon: Icons.visibility_off_outlined,
-        label: l10n.contextMenuHideFromContinueWatching,
+        // Kos TV: on Jellyfin the hide forgets where it was left; say so.
+        label: hideFromContinueWatchingForgets(item, client)
+            ? l10n.kostvHideFromContinueWatchingForgets
+            : l10n.contextMenuHideFromContinueWatching,
         onSelect: () async {
+          // Kos TV: taken now, while the card is still on screen.
+          final overlay = context.mounted
+              ? Overlay.maybeOf(context, rootOverlay: true)
+              : null;
+          final remote = context.mounted &&
+              InputModeTracker.of(context) == InputMode.keyboard;
+          final positionTicks = item.playbackPositionTicks;
+          final playedPercentage = item.playedPercentage;
           // The server's own hide holds on every device and keeps the
           // resume point. This device's list is the fallback.
           final server = dismissals();
@@ -322,13 +453,27 @@ List<ItemContextAction> contextActionsFor(
             return;
           }
           final prefs = GetIt.instance<UserPreferences>();
-          if (item.seriesId != null && item.seriesId!.isNotEmpty) {
-            await prefs.hideFromContinueWatching(item.seriesId!);
-          } else {
-            await prefs.hideFromContinueWatching(item.id);
-          }
-          if (server == null) await _hideFromResumeOrReset(mutations, item);
+          final hiddenId = item.seriesId != null && item.seriesId!.isNotEmpty
+              ? item.seriesId!
+              : item.id;
+          await prefs.hideFromContinueWatching(hiddenId);
+          final forgot =
+              server == null && await _hideFromResumeOrReset(mutations, item);
           onChanged?.call();
+          if (overlay == null) return;
+          _offerContinueWatchingUndo(
+            overlay: overlay,
+            remote: remote,
+            l10n: l10n,
+            item: item,
+            undo: ContinueWatchingHideUndo(
+              itemId: item.id,
+              hiddenId: hiddenId,
+              positionTicks: forgot ? positionTicks : null,
+              playedPercentage: playedPercentage,
+            ),
+            mutations: mutations,
+          );
         },
       ));
     }

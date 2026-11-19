@@ -239,6 +239,14 @@ class PlaybackManager implements AudioOwnable {
   bool _skipRepeatOneAtEnd = false;
   bool suppressAutoNext = false;
   bool autoAdvanceEnabled = true;
+
+  /// Kos TV: asked before the queue moves on by itself to its next item at
+  /// the end of one, when nothing held it there for a card. That advance is
+  /// the automatic one, so a host can ask whether anyone is still watching,
+  /// as it does on the card; false stops there, with the host taking the
+  /// session down. Not asked for a skip, a repeat, a preroll or an end with
+  /// nothing queued after it.
+  Future<bool> Function()? confirmAutoNext;
   bool _isOfflinePlayback = false;
   bool _forceTranscodeForQueue = false;
   // What playItems was asked to allow for this queue. A recovery re-resolve
@@ -2887,6 +2895,7 @@ class PlaybackManager implements AudioOwnable {
     final skipped = _skipRepeatOneAtEnd;
     _skipRepeatOneAtEnd = false;
     if (await _maybeIntercept(TransportAction.next)) return;
+    if (!skipped && !await _confirmAutoNext()) return;
     _beginNewPlaybackSource('the queue advanced to another item');
     _mediaSourceId = null;
     if (_isOfflinePlayback) {
@@ -2920,6 +2929,20 @@ class PlaybackManager implements AudioOwnable {
     final advancedToNextSeason = await _tryAutoAdvanceToNextSeason();
     if (!advancedToNextSeason) {
       _notifySessionEnded();
+    }
+  }
+
+  /// Kos TV: whether [confirmAutoNext] lets the queue move on by itself.
+  Future<bool> _confirmAutoNext() async {
+    final confirm = confirmAutoNext;
+    if (confirm == null) return true;
+    if (queueService.repeatMode == RepeatMode.repeatOne) return true;
+    if (!queueService.hasNext) return true;
+    if (_isPreroll(queueService.currentItem)) return true;
+    try {
+      return await confirm();
+    } catch (_) {
+      return true;
     }
   }
 

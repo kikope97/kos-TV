@@ -20937,5 +20937,22 @@
     "kostvUntitled": "Untitled",
     "@kostvUntitled": {
         "description": "Kos TV: title of a TMDB recommendation that came without one"
+    },
+    "kostvHideFromContinueWatchingForgets": "Remove from Continue Watching (forgets where you were)",
+    "@kostvHideFromContinueWatchingForgets": {
+        "description": "Kos TV card menu: takes a title off Continue Watching; on Jellyfin this also forgets where playback was."
+    },
+    "kostvHiddenFromContinueWatching": "“{title}” removed from Continue Watching",
+    "@kostvHiddenFromContinueWatching": {
+        "description": "Kos TV: message after taking a title off Continue Watching, with an undo button that brings back where it was.",
+        "placeholders": {
+            "title": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvContinueWatchingUndoFailed": "Couldn't bring back where you were",
+    "@kostvContinueWatchingUndoFailed": {
+        "description": "Kos TV: undoing a Continue Watching hide couldn't put the resume point back."
     }
 }

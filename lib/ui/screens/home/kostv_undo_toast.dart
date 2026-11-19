@@ -311,8 +311,31 @@ void showKostvUndoToast(
   bool takeFocus = false,
   IconData icon = Icons.undo_rounded,
   bool countdown = true,
+}) => showKostvUndoToastOn(
+  Overlay.of(context, rootOverlay: true),
+  message: message,
+  undoLabel: undoLabel,
+  duration: duration,
+  onUndo: onUndo,
+  onLeave: onLeave,
+  takeFocus: takeFocus,
+  icon: icon,
+  countdown: countdown,
+);
+
+/// Kos TV: [showKostvUndoToast] on an overlay taken earlier, for a notice
+/// whose opener may have left the screen by the time it shows.
+void showKostvUndoToastOn(
+  OverlayState overlay, {
+  required String message,
+  required String undoLabel,
+  required Duration duration,
+  required VoidCallback onUndo,
+  VoidCallback? onLeave,
+  bool takeFocus = false,
+  IconData icon = Icons.undo_rounded,
+  bool countdown = true,
 }) {
-  final overlay = Overlay.of(context, rootOverlay: true);
   // One notice at a time: a new one takes the place of the one showing,
   // whose title stays turned down, rather than piling up over it.
   _kostvUndoToastShowing?.call();

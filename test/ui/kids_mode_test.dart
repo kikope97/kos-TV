@@ -766,6 +766,7 @@ void main() {
         DetailButton.restart,
         DetailButton.shuffle,
         DetailButton.favorite,
+        DetailButton.myList,
       };
       for (final button in DetailButton.values) {
         if (allowed.contains(button)) continue;
@@ -778,14 +779,26 @@ void main() {
       expect(DetailButton.admin.isOffered, isTrue);
     });
 
-    test('the row is Restart, Shuffle, Favourite, in that order', () async {
+    test('the row is Restart, Shuffle, Favourite, My list, in that order',
+        () async {
       // The saved arrangement belongs to the parent, so the mode lays its own
       // row out rather than reading theirs.
       expect(DetailButton.kidsModeOrder, const [
         DetailButton.restart,
         DetailButton.shuffle,
         DetailButton.favorite,
+        DetailButton.myList,
       ]);
+    });
+
+    test('My list is there in Kids Mode when the server plugin keeps lists',
+        () async {
+      await withKidsMode(on: true);
+      final prefs = GetIt.instance<UserPreferences>();
+      await prefs.set(UserPreferences.kostvMyListAvailable, false);
+      expect(DetailButton.myList.isOffered, isFalse);
+      await prefs.set(UserPreferences.kostvMyListAvailable, true);
+      expect(DetailButton.myList.isOffered, isTrue);
     });
 
     test('a button nobody thought about stays out', () async {
