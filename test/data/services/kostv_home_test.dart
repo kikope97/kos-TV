@@ -184,6 +184,11 @@ void main() {
       expect(title('with_person', 'Ana Gil'), 'Más de Ana Gil');
       expect(title('genre', 'Comedia'), 'Porque sueles ver Comedia');
       expect(title('hidden_gems'), 'Joyas que no has visto');
+      expect(title('because_liked', 'Dune'), 'Porque te gusta Dune');
+    });
+
+    test('a kind the app does not know shows as recommended for you', () {
+      expect(title('some_new_kind', 'Dune'), 'Recomendado para ti');
     });
 
     test('a row keeps its id from one load to the next', () {

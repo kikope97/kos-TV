@@ -19727,4 +19727,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvChannelOpenFailed => 'Unable to open channel';
+
+  @override
+  String kostvHomeBecauseLiked(String title) {
+    return 'Because you like $title';
+  }
 }

@@ -33914,6 +33914,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to open channel'**
   String get kostvChannelOpenFailed;
+
+  /// Kos TV Home: row of titles liked by people who liked a favourite, or a title of their list, the person hasn't watched yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Because you like {title}'**
+  String kostvHomeBecauseLiked(String title);
 }
 
 class _AppLocalizationsDelegate

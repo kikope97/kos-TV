@@ -23,8 +23,10 @@ class KostvHomeServerRow {
     this.seedId,
   });
 
-  /// `because_watched`, `because_watching`, `for_you`, `with_person`,
-  /// `genre` or `hidden_gems`.
+  /// `because_watched`, `because_watching`, `because_liked` (a favourite or
+  /// a title of their list they haven't watched), `for_you`, `with_person`,
+  /// `genre` or `hidden_gems`. Any other kind shows as "for you", so the
+  /// plugin can add kinds without breaking older apps.
   final String kind;
 
   /// What the row is about: the title watched, the person or the genre.
@@ -40,6 +42,7 @@ class KostvHomeServerRow {
   String title(AppLocalizations l10n) => switch (kind) {
     'because_watched' => l10n.kostvHomeBecauseWatched(label ?? ''),
     'because_watching' => l10n.kostvHomeBecauseWatching(label ?? ''),
+    'because_liked' => l10n.kostvHomeBecauseLiked(label ?? ''),
     'with_person' => l10n.kostvHomeMoreFrom(label ?? ''),
     'genre' => l10n.kostvHomeGenre(label ?? ''),
     'hidden_gems' => l10n.kostvHomeGems,

@@ -19455,5 +19455,14 @@
   "kostvChannelOpenFailed": "Unable to open channel",
   "@kostvChannelOpenFailed": {
     "description": "Kos TV: a TV channel could not be opened"
+  },
+  "kostvHomeBecauseLiked": "Because you like {title}",
+  "@kostvHomeBecauseLiked": {
+    "description": "Kos TV Home: row of titles liked by people who liked a favourite, or a title of their list, the person hasn't watched yet.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
   }
 }
