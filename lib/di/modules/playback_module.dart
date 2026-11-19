@@ -18,7 +18,6 @@ import '../../data/services/download_service.dart';
 import '../../data/services/log_service.dart';
 import '../../data/services/blocked_content_gate.dart';
 import '../../data/services/media_server_client_factory.dart';
-import '../../data/services/offline_playback_tracker.dart';
 import '../../data/services/remove_watched_planner.dart';
 import '../../data/services/remove_watched_service.dart';
 import '../../playback/local_aware_player_service.dart';
@@ -790,9 +789,6 @@ void registerPlaybackModule() {
 
   _getIt.registerLazySingleton<OfflineStreamResolver>(
     () => OfflineStreamResolver(_getIt<OfflineRepository>()),
-  );
-  _getIt.registerLazySingleton<OfflinePlaybackTracker>(
-    () => OfflinePlaybackTracker(_getIt<OfflineRepository>()),
   );
 
   _getIt.registerLazySingleton<SyncPlayManager>(

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../l10n/app_localizations.dart';
+import '../../../../l10n/current_app_localizations.dart';
+
 const bookDiscoverPageSize = 24;
 
 const bookDiscoverSubjectsPrefKey = 'book_discover_subjects';
@@ -80,24 +83,6 @@ const bookDiscoverGenrePool = <String>[
   'poetry',
 ];
 
-const bookDiscoverSubjectLabelOverrides = <String, String>{
-  'art__art_instruction': 'Art Instruction',
-  'history_of_art__art__design_styles': 'Art History',
-  'painting__paintings': 'Painting',
-  'mystery_and_detective_stories': 'Mystery and Detective Stories',
-  'young_adult_fiction': 'Young Adult',
-  'sciencemathematics': 'Science & Mathematics',
-  'business__economics': 'Business Economics',
-  'success_in_business': 'Business Success',
-  'juvenile_fiction': "Children's",
-  'juvenile_literature': 'Kids Books',
-  'stories_in_rhyme': 'Stories in Rhyme',
-  'place%3Abrazil': 'Brazil',
-  'place%3Aindia': 'India',
-  'place%3Aindonesia': 'Indonesia',
-  'place%3Aunited_states': 'United States',
-};
-
 const librivoxGenrePool = <String>[
   'Action & Adventure',
   'Adventure Fiction',
@@ -144,9 +129,121 @@ const audiobookPlaceholderColors = <Color>[
   Color(0xFF00838F),
 ];
 
-String displayBookGenre(String slug) {
-  final overridden = bookDiscoverSubjectLabelOverrides[slug];
-  if (overridden != null) return overridden;
+/// Kos TV: an Open Library subject's or a LibriVox genre's label in the
+/// app's language. Both services still get the English slug or genre; null
+/// for one with no label (a subject saved by an older build).
+String? bookGenreLabel(AppLocalizations l10n, String subject) =>
+    switch (subject) {
+      'architecture' => l10n.kostvBookGenreArchitecture,
+      'art__art_instruction' => l10n.kostvBookGenreArtInstruction,
+      'history_of_art__art__design_styles' => l10n.kostvBookGenreArtHistory,
+      'dance' => l10n.kostvBookGenreDance,
+      'design' => l10n.kostvBookGenreDesign,
+      'fashion' => l10n.kostvBookGenreFashion,
+      'film' => l10n.kostvBookGenreFilm,
+      'graphic_design' => l10n.kostvBookGenreGraphicDesign,
+      'music' => l10n.kostvBookGenreMusic,
+      'music_theory' => l10n.kostvBookGenreMusicTheory,
+      'painting__paintings' => l10n.kostvBookGenrePainting,
+      'photography' => l10n.kostvBookGenrePhotography,
+      'bears' => l10n.kostvBookGenreBears,
+      'cats' => l10n.kostvBookGenreCats,
+      'kittens' => l10n.kostvBookGenreKittens,
+      'dogs' => l10n.kostvBookGenreDogs,
+      'puppies' => l10n.kostvBookGenrePuppies,
+      'fiction' => l10n.kostvBookGenreFiction,
+      'romance' => l10n.kostvBookGenreRomance,
+      'fantasy' => l10n.kostvBookGenreFantasy,
+      'mystery_and_detective_stories' => l10n.kostvBookGenreMysteryAndDetectiveStories,
+      'magic' => l10n.kostvBookGenreMagic,
+      'literature' => l10n.kostvBookGenreLiterature,
+      'plays' => l10n.kostvBookGenrePlays,
+      'short_stories' => l10n.kostvBookGenreShortStories,
+      'young_adult_fiction' => l10n.kostvBookGenreYoungAdult,
+      'sciencemathematics' => l10n.kostvBookGenreScienceMathematics,
+      'biology' => l10n.kostvBookGenreBiology,
+      'chemistry' => l10n.kostvBookGenreChemistry,
+      'mathematics' => l10n.kostvBookGenreMathematics,
+      'physics' => l10n.kostvBookGenrePhysics,
+      'programming' => l10n.kostvBookGenreProgramming,
+      'business' => l10n.kostvBookGenreBusiness,
+      'management' => l10n.kostvBookGenreManagement,
+      'entrepreneurship' => l10n.kostvBookGenreEntrepreneurship,
+      'business__economics' => l10n.kostvBookGenreBusinessEconomics,
+      'success_in_business' => l10n.kostvBookGenreBusinessSuccess,
+      'finance' => l10n.kostvBookGenreFinance,
+      'mystery' => l10n.kostvBookGenreMystery,
+      'science_fiction' => l10n.kostvBookGenreScienceFiction,
+      'juvenile_fiction' => l10n.kostvBookGenreChildrens,
+      'juvenile_literature' => l10n.kostvBookGenreKidsBooks,
+      'stories_in_rhyme' => l10n.kostvBookGenreStoriesInRhyme,
+      'infancy' => l10n.kostvBookGenreInfancy,
+      'bedtime' => l10n.kostvBookGenreBedtime,
+      'picture_books' => l10n.kostvBookGenrePictureBooks,
+      'history' => l10n.kostvBookGenreHistory,
+      'ancient_civilization' => l10n.kostvBookGenreAncientCivilization,
+      'archaeology' => l10n.kostvBookGenreArchaeology,
+      'anthropology' => l10n.kostvBookGenreAnthropology,
+      'cooking' => l10n.kostvBookGenreCooking,
+      'cookbooks' => l10n.kostvBookGenreCookbooks,
+      'mental_health' => l10n.kostvBookGenreMentalHealth,
+      'exercise' => l10n.kostvBookGenreExercise,
+      'nutrition' => l10n.kostvBookGenreNutrition,
+      'self-help' => l10n.kostvBookGenreSelfHelp,
+      'biography' => l10n.kostvBookGenreBiography,
+      'autobiography' => l10n.kostvBookGenreAutobiography,
+      'religion' => l10n.kostvBookGenreReligion,
+      'political_science' => l10n.kostvBookGenrePoliticalScience,
+      'psychology' => l10n.kostvBookGenrePsychology,
+      'place%3Abrazil' => l10n.kostvBookGenreBrazil,
+      'place%3Aindia' => l10n.kostvBookGenreIndia,
+      'place%3Aindonesia' => l10n.kostvBookGenreIndonesia,
+      'place%3Aunited_states' => l10n.kostvBookGenreUnitedStates,
+      'textbooks' => l10n.kostvBookGenreTextbooks,
+      'historical_fiction' => l10n.kostvBookGenreHistoricalFiction,
+      'thriller' => l10n.kostvBookGenreThriller,
+      'horror' => l10n.kostvBookGenreHorror,
+      'poetry' => l10n.kostvBookGenrePoetry,
+      'Action & Adventure' => l10n.kostvBookGenreActionAdventure,
+      'Adventure Fiction' => l10n.kostvBookGenreAdventureFiction,
+      'Biography & Autobiography' => l10n.kostvBookGenreBiographyAutobiography,
+      'Children\'s Fiction' => l10n.kostvBookGenreChildrensFiction,
+      'Classical' => l10n.kostvBookGenreClassical,
+      'Detective Fiction' => l10n.kostvBookGenreDetectiveFiction,
+      'Drama' => l10n.kostvBookGenreDrama,
+      'Fantasy Fiction' => l10n.kostvBookGenreFantasyFiction,
+      'General Fiction' => l10n.kostvBookGenreGeneralFiction,
+      'General Non-fiction' => l10n.kostvBookGenreGeneralNonFiction,
+      'Historical Fiction' => l10n.kostvBookGenreHistoricalFiction,
+      'Horror & Supernatural Fiction' => l10n.kostvBookGenreHorrorSupernaturalFiction,
+      'Humor' => l10n.kostvBookGenreHumor,
+      'Humorous Fiction' => l10n.kostvBookGenreHumorousFiction,
+      'Mystery & Detective Stories' => l10n.kostvBookGenreMysteryDetectiveStories,
+      'Mythology' => l10n.kostvBookGenreMythology,
+      'Nature' => l10n.kostvBookGenreNature,
+      'Naval Fiction' => l10n.kostvBookGenreNavalFiction,
+      'Philosophy' => l10n.kostvBookGenrePhilosophy,
+      'Plays' => l10n.kostvBookGenrePlays,
+      'Poetry' => l10n.kostvBookGenrePoetry,
+      'Religion' => l10n.kostvBookGenreReligion,
+      'Romance' => l10n.kostvBookGenreRomance,
+      'Satire' => l10n.kostvBookGenreSatire,
+      'Science Fiction' => l10n.kostvBookGenreScienceFiction,
+      'Short Stories' => l10n.kostvBookGenreShortStories,
+      'Travel & Geography' => l10n.kostvBookGenreTravelGeography,
+      'Tragedy' => l10n.kostvBookGenreTragedy,
+      'War & Military Fiction' => l10n.kostvBookGenreWarMilitaryFiction,
+      'Westerns' => l10n.kostvBookGenreWesterns,
+      _ => null,
+    };
+
+/// A LibriVox genre's label, the genre itself when it has none.
+String displayAudiobookGenre(String genre, [AppLocalizations? l10n]) =>
+    bookGenreLabel(l10n ?? currentAppLocalizations(), genre) ?? genre;
+
+String displayBookGenre(String slug, [AppLocalizations? l10n]) {
+  final label = bookGenreLabel(l10n ?? currentAppLocalizations(), slug);
+  if (label != null) return label;
 
   final decoded = Uri.decodeComponent(slug);
   final normalized = decoded.replaceAll(RegExp(r'_+'), ' ').replaceAll(':', ' ');

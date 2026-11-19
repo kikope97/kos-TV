@@ -521,6 +521,27 @@ class OfflineRepository {
     return query.watch();
   }
 
+  /// Kos TV: fires on every write to the downloads table, without reading
+  /// it, for a listener that reads what it needs itself.
+  Stream<void> watchChanges() => _db.tableUpdates(
+    TableUpdateQuery.onTable(_db.downloadedItems),
+  );
+
+  /// Kos TV: whether any completed download of [types] holds a file, counted
+  /// in the database rather than by reading every row and its metadata.
+  Stream<bool> watchHasSavedFiles(Set<String> types) {
+    final t = _db.downloadedItems;
+    final count = t.itemId.count();
+    final query = _db.selectOnly(t)
+      ..addColumns([count])
+      ..where(
+        t.downloadStatus.equals(2) &
+            t.fileSizeBytes.isBiggerThanValue(0) &
+            t.type.isIn(types),
+      );
+    return query.map((row) => (row.read(count) ?? 0) > 0).watchSingle();
+  }
+
   Stream<DownloadedItem?> watchItem(String itemId) {
     final query = _db.select(_db.downloadedItems)
       ..where((t) => t.itemId.equals(itemId))

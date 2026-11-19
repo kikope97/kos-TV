@@ -222,7 +222,7 @@ class _SavedShowScreenState extends ConsumerState<SavedShowScreen> {
         key: ValueKey(episode.itemId),
         rowFocusNode: _rowNodes[index],
         title: episode.name,
-        subtitle: savedMediaSubtitle(episode, insideShow: true),
+        subtitle: savedMediaSubtitle(l10n, episode, insideShow: true),
         sizeLabel: formatBytes(episode.fileSizeBytes),
         posterPath: episode.thumbPath ?? episode.posterPath,
         fallbackIcon: Icons.live_tv_outlined,

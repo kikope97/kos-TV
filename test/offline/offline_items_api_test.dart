@@ -461,4 +461,60 @@ void main() {
     expect(await api.getMediaSegments('m1'), isEmpty);
     expect(await api.getMediaSegments('nope'), isEmpty);
   });
+
+  // Kos TV: a rebuild decodes again only the metadata that changed, and
+  // still picks up both the live position and new metadata.
+  test('the catalog follows writes to the table', () async {
+    await insert(
+      id: 'm1',
+      type: 'Movie',
+      name: 'Film',
+      metadata: {'RunTimeTicks': 1000},
+    );
+    await insert(id: 'm2', type: 'Movie', name: 'Other');
+    await catalog.warm();
+    final other = catalog.byId('m2')!.metadata;
+
+    final changed = catalog.changes.first;
+    await repo.updatePlaybackPosition('m1', 300);
+    await changed;
+    expect(catalog.byId('m1')!.userData?['PlaybackPositionTicks'], 300);
+
+    final renamed = catalog.changes.first;
+    await repo.refreshItemMetadata(
+      'm1',
+      serverId: 'http://server',
+      metadataJson: jsonEncode({
+        'Id': 'm1',
+        'Type': 'Movie',
+        'Name': 'Renamed',
+        'RunTimeTicks': 1000,
+      }),
+    );
+    await renamed;
+    expect(catalog.byId('m1')!.metadata['Name'], 'Renamed');
+    expect(catalog.byId('m1')!.userData?['PlaybackPositionTicks'], 300);
+    expect(catalog.byId('m2')!.metadata, other);
+  });
+
+  // Kos TV: the nav entry's question, counted in the database: a shell row
+  // (a Series saved with its episodes, no file) doesn't count.
+  test('only a completed download with a file counts as saved media', () async {
+    const types = {'Movie', 'Episode'};
+    Future<bool> saved() => repo.watchHasSavedFiles(types).first;
+
+    await insert(id: 'sh1', type: 'Series', name: 'Show');
+    await insert(id: 'm1', type: 'Movie', name: 'Film', status: 1);
+    expect(await saved(), isFalse);
+
+    await (db.update(
+      db.downloadedItems,
+    )..where((t) => t.itemId.equals('m1'))).write(
+      const DownloadedItemsCompanion(
+        downloadStatus: Value(2),
+        fileSizeBytes: Value(1000),
+      ),
+    );
+    expect(await saved(), isTrue);
+  });
 }

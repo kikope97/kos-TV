@@ -301,6 +301,14 @@ class _QueuedDownload {
   final Completer<void> completer = Completer<void>();
 }
 
+/// Kos TV: whether [results] include a connection the Wi-Fi-only setting
+/// allows. The setting is there to spare mobile data, so a wired network
+/// (a TV on Ethernet) counts as well as Wi-Fi.
+@visibleForTesting
+bool unmeteredConnection(List<ConnectivityResult> results) => results.any(
+  (r) => r == ConnectivityResult.wifi || r == ConnectivityResult.ethernet,
+);
+
 class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
   final MediaServerClient _client;
   final DownloadNotificationService _notificationService;
@@ -784,7 +792,7 @@ class DownloadService extends ChangeNotifier implements AutoDownloadDownloader {
     if (!_prefs.get(UserPreferences.downloadWifiOnly)) return true;
     if (PlatformDetection.isAppleTV) return true;
     final results = await Connectivity().checkConnectivity();
-    return results.any((r) => r == ConnectivityResult.wifi);
+    return unmeteredConnection(results);
   }
 
   Future<bool> _checkStorageLimit(int estimatedBytes) async {

@@ -197,7 +197,9 @@ class RecordingsViewModel extends ChangeNotifier {
 
     try {
       final recordingsFuture = Future.wait([
-        _fetchRecordings(limit: 40),
+        // Kos TV: the unfiltered read decides whether the server answered,
+        // so a failure shows as one rather than as no recordings.
+        _fetchRecordings(limit: 40, required: true),
         _fetchRecordings(isSeries: true),
         _fetchRecordings(isMovie: true),
         _fetchRecordings(isSports: true),
@@ -226,6 +228,7 @@ class RecordingsViewModel extends ChangeNotifier {
     bool? isMovie,
     bool? isSports,
     bool? isKids,
+    bool required = false,
   }) async {
     try {
       final response = await _client.liveTvApi.getRecordings(
@@ -239,6 +242,7 @@ class RecordingsViewModel extends ChangeNotifier {
       );
       return _parseRecordings(response);
     } catch (_) {
+      if (required) rethrow;
       return const [];
     }
   }

@@ -158,7 +158,7 @@ void main() {
     ]);
 
     // The show name is already the heading here.
-    expect(find.text('S1 E1 • original'), findsOneWidget);
+    expect(find.text('S1 E1 • Original'), findsOneWidget);
     expect(find.text('Breaking Bad • S1 E1'), findsNothing);
   });
 

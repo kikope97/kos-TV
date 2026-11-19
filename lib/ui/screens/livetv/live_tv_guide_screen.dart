@@ -229,6 +229,11 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
   Timer? _reanchorTimer;
   Timer? _displayClockTimer;
 
+  /// Kos TV: false while another screen covers the guide (the live player
+  /// over it), when the clock tick skips its rebuild. Read in build, so the
+  /// guide rebuilds, clock and all, the moment it is uncovered.
+  bool _visible = true;
+
   /// When the last d-pad event arrived, or null before the first one.
   DateTime? _lastDpadEventAt;
 
@@ -271,7 +276,7 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
     _guideHorizontalScrollController.addListener(_syncHorizontalFromGuide);
     _scheduleReanchor();
     _displayClockTimer = Timer.periodic(const Duration(seconds: 15), (_) {
-      if (mounted) setState(() {});
+      if (mounted && _visible) setState(() {});
     });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -938,6 +943,7 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
 
   @override
   Widget build(BuildContext context) {
+    _visible = TickerMode.valuesOf(context).enabled;
     final content = Focus(
       canRequestFocus: false,
       onKeyEvent: (_, event) {

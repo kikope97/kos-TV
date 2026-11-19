@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -10,7 +12,11 @@ import 'package:moonfin/di/providers.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/downloads/downloads_home.dart';
+import 'package:moonfin/ui/screens/downloads/widgets/active_downloads_tab.dart';
 import 'package:moonfin/ui/screens/downloads/widgets/saved_media_row.dart';
+import 'package:moonfin/ui/screens/settings/download_settings_screen.dart';
+import 'package:moonfin/ui/widgets/pin_entry_dialog.dart';
+import 'package:moonfin/util/pin_code_util.dart';
 import 'package:moonfin/util/platform_detection.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -265,5 +271,71 @@ void main() {
 
     expect(find.text(l10n.music), findsOneWidget);
     expect(find.text(l10n.movies), findsNothing);
+  });
+
+  // Kos TV: the open tab is kept by what it shows, so losing a tab before it
+  // doesn't move the view onto another one.
+  testWidgets('a tab that goes away falls back to All, not to the next one', (
+    tester,
+  ) async {
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    final catalog = StreamController<DownloadCatalog>();
+    addTearDown(catalog.close);
+    DownloadCatalog of(List<DownloadedItem> items) =>
+        DownloadCatalog(items: items, containerArtwork: const {});
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          downloadedCatalogProvider.overrideWith((_) => catalog.stream),
+          storageUsedProvider.overrideWith((_) => Stream.value(4000)),
+          syncStateProvider.overrideWithValue(SyncState.idle),
+        ],
+        child: MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: const DownloadsHome(),
+        ),
+      ),
+    );
+    catalog.add(
+      of([
+        _saved('m1', name: 'A Film'),
+        _saved('b1', type: 'Book', name: 'A Book'),
+      ]),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l10n.books));
+    await tester.pumpAndSettle();
+    expect(find.text('A Book'), findsOneWidget);
+    expect(find.text('A Film'), findsNothing);
+
+    catalog.add(of([_saved('m1', name: 'A Film')]));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ActiveDownloadsTab), findsNothing);
+    expect(find.text('A Film'), findsOneWidget);
+  });
+
+  // Kos TV: in Kids Mode the download settings, with Delete all downloads,
+  // take the parent's PIN.
+  testWidgets('in Kids Mode the settings gear asks for the PIN', (
+    tester,
+  ) async {
+    final l10n = await AppLocalizations.delegate.load(const Locale('en'));
+    final store = PreferenceStore();
+    await store.init();
+    GetIt.instance.registerSingleton<PreferenceStore>(store);
+    await GetIt.instance<UserPreferences>().set(
+      UserPreferences.kidsModeEnabled,
+      true,
+    );
+    await PinCodeUtil.kidsMode(store, '').setPin('2222');
+
+    await pumpHome(tester, items: [_saved('m1', name: 'A Film')]);
+    await tester.tap(find.byTooltip(l10n.settings));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PinEntryDialog), findsOneWidget);
+    expect(find.byType(DownloadSettingsScreen), findsNothing);
   });
 }

@@ -106,6 +106,9 @@ void main() {
 
     setUp(() async {
       prefs = await setUpBookScreens(FakeBookLibrary());
+      // Kos TV: the subject labels follow the app's language, which starts
+      // in Spanish; the screen here reads in English.
+      await prefs.set(UserPreferences.languageOverride, 'en');
     });
 
     tearDown(tearDownBookScreens);
