@@ -34190,6 +34190,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t add it to the collection'**
   String get kostvCollectionAddFailed;
+
+  /// Kos TV: Discover read its rows and none has anything to show
+  ///
+  /// In en, this message translates to:
+  /// **'There\'s nothing to show here right now.'**
+  String get kostvDiscoverNothingShown;
+
+  /// Kos TV: the search «Para solicitar» More card, after reading more failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load. Try again'**
+  String get kostvSearchMoreFailed;
 }
 
 class _AppLocalizationsDelegate

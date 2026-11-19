@@ -5,6 +5,33 @@ import 'package:moonfin/ui/screens/discover/kostv_request_controller.dart';
 
 import 'fake_stremfin_life.dart';
 
+/// A page whose next rounds of asking fail with something other than the
+/// service's own errors (an answer read wrong).
+class _Stumbling extends KostvMovieRequestController {
+  _Stumbling({required super.service, required super.tmdbId})
+    : super(watchLifecycle: false);
+
+  int stumbles = 0;
+
+  @override
+  Future<void> refresh() {
+    if (stumbles > 0) {
+      stumbles--;
+      throw StateError('read wrong');
+    }
+    return super.refresh();
+  }
+}
+
+/// A series page the person may not see (by age), as the page would have it.
+class _Blocked extends KostvSeriesRequestController {
+  _Blocked({required super.service, required super.tmdbId})
+    : super(watchLifecycle: false);
+
+  @override
+  bool get ageBlocked => true;
+}
+
 /// Kos TV: a title's request page asks how the request stands every few
 /// seconds while it is in sight, and gives way to the title once it
 /// arrives.
@@ -204,6 +231,29 @@ void main() {
     });
   });
 
+  test('anything else going wrong: tries again a little later, not never', () {
+    fakeAsync((async) {
+      final service = fake.service()..onUserChanged('kiko');
+      final c = _Stumbling(service: service, tmdbId: 920);
+      c.load();
+      settle(async);
+      c.ask();
+      settle(async);
+      fake.download(c.request!.id, 10);
+      async.elapse(KostvRequestController.slowInterval);
+      expect(c.isPolling, isTrue);
+
+      c.stumbles = 1;
+      final before = polls();
+      async.elapse(KostvRequestController.quickInterval);
+      expect(polls(), before);
+      expect(c.isPolling, isTrue);
+      async.elapse(KostvRequestController.backoffInterval);
+      expect(polls(), greaterThan(before));
+      c.dispose();
+    });
+  });
+
   test('already on the server when opened: straight to it', () {
     fakeAsync((async) {
       fake.movieLibrary = 'available';
@@ -377,6 +427,21 @@ void main() {
               .every((s) => c.requestFor(s)?.id == c.wholeRequest?.id),
           isTrue,
         );
+        c.dispose();
+      });
+    });
+
+    test('not sent (not for this person by age): no season left sending', () {
+      fakeAsync((async) {
+        final service = fake.service()..onUserChanged('kiko');
+        final c = _Blocked(service: service, tmdbId: 1396);
+        c.load();
+        settle(async);
+        c.ask(season: 2);
+        settle(async);
+        expect(c.sendingSeason, isNull);
+        expect(c.requests, isEmpty);
+        expect(fake.calls.where((call) => call == 'POST /requests'), isEmpty);
         c.dispose();
       });
     });

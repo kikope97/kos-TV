@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
 
+import '../../../auth/repositories/user_repository.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
@@ -50,19 +51,41 @@ class KostvSpotlightDetails {
   static final Map<String, KostvSpotlightExtra> _kept = {};
   static const _keep = 150;
 
+  /// Kos TV: who [_kept] was read for. What the home server gave is that
+  /// person's (their libraries): someone else signed in starts afresh.
+  static String? _keptFor;
+
+  static String? get _person {
+    final getIt = GetIt.instance;
+    return getIt.isRegistered<UserRepository>()
+        ? getIt<UserRepository>().currentUser?.id
+        : null;
+  }
+
+  static void _forPerson(String? person) {
+    if (person == _keptFor) return;
+    _kept.clear();
+    _keptFor = person;
+  }
+
   static String _key(StremfinTitle title) =>
       '${title.type.apiValue}:${title.tmdbId}:${title.library.itemId ?? ''}';
 
   /// Forgets everything (another person, or a test).
   static void clear() => _kept.clear();
 
-  KostvSpotlightExtra? kept(StremfinTitle title) => _kept[_key(title)];
+  KostvSpotlightExtra? kept(StremfinTitle title) {
+    _forPerson(_person);
+    return _kept[_key(title)];
+  }
 
   /// Whether there is anything to ask for this title.
   static bool worthAsking(StremfinTitle title) =>
       title.library.itemId != null || title.type == StremfinTitleType.movie;
 
   Future<KostvSpotlightExtra?> load(StremfinTitle title) async {
+    final person = _person;
+    _forPerson(person);
     final key = _key(title);
     final kept = _kept[key];
     if (kept != null) return kept;
@@ -91,6 +114,9 @@ class KostvSpotlightDetails {
       return null;
     }
     if (extra == null) return null;
+    // Read for someone who has gone meanwhile: not kept, nor shown.
+    if (person != _person) return null;
+    _forPerson(person);
     if (_kept.length >= _keep) _kept.remove(_kept.keys.first);
     return _kept[key] = extra;
   }

@@ -239,6 +239,17 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
       }
     }
     if (_c.title != null && !_c.loading) _sawPage = true;
+    // Kos TV: a button beside the main one gone with the focus on it (the
+    // request taken back with «Retirar petición»): the focus goes to the main
+    // button rather than nowhere.
+    if (_extraNodes.any((node) => node.hasFocus) &&
+        _extraNodes
+            .skip(_extrasFor(AppLocalizations.of(context)).length)
+            .any((node) => node.hasFocus)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _mainNode.requestFocus();
+      });
+    }
     final itemId = _c.arrivedItemId;
     if (itemId != null && !_leaving) {
       _leaving = true;
@@ -362,11 +373,8 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     progress: status.progress,
   );
 
-  _Main _transferMain(
-    StremfinTransfer transfer,
-    AppLocalizations l10n, {
-    int? percent,
-  }) => _status(kostvTransferStatus(l10n, transfer));
+  _Main _transferMain(StremfinTransfer transfer, AppLocalizations l10n) =>
+      _status(kostvTransferStatus(l10n, transfer));
 
   // ------------------------------------------------------ what's on show
 
@@ -418,11 +426,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     final can = detail.canRequest;
     final download = detail.download;
     if (download != null && !can.allowed) {
-      return _transferMain(
-        download.transfer,
-        l10n,
-        percent: download.transfer.percent,
-      );
+      return _transferMain(download.transfer, l10n);
     }
     if (!can.allowed) {
       return _Main(

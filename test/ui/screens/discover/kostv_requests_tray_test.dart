@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
+import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/discover/kostv_requests_tray.dart';
 import 'package:moonfin/ui/widgets/kostv_requests_tray_button.dart';
 import 'package:moonfin/util/platform_detection.dart';
@@ -132,6 +134,66 @@ void main() {
     await settle(tester);
     expect(fake.requests, isEmpty);
     expect(find.text('Aún no has solicitado nada'), findsOneWidget);
+    await finish(tester);
+  });
+
+  testWidgets('TV: taken back from its button, the focus goes to the row '
+      'beside it', (tester) async {
+    await start(tester, phone: false);
+    await settle(tester);
+    service.createRequest(type: StremfinTitleType.movie, tmdbId: 920);
+    await settle(tester);
+    service.createRequest(
+      type: StremfinTitleType.series,
+      tmdbId: 1396,
+      season: 2,
+    );
+    await settle(tester);
+
+    await openTray(tester);
+    final first = FocusManager.instance.primaryFocus!.debugLabel!;
+    expect(first, startsWith('tray-'));
+    final other = [for (final id in fake.requests.keys) 'tray-$id']
+        .singleWhere((label) => label != first);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await settle(tester);
+    expect(FocusManager.instance.primaryFocus?.debugLabel, '$first-w');
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await settle(tester);
+    // The question, with «Retirar petición» ready.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await settle(tester);
+    await settle(tester);
+    expect(fake.requests, hasLength(1));
+    expect(FocusManager.instance.primaryFocus?.debugLabel, other);
+    await finish(tester);
+  });
+
+  testWidgets('the button: hidden at once when kids mode comes on', (
+    tester,
+  ) async {
+    await start(tester, phone: false);
+    await settle(tester);
+    service.createRequest(type: StremfinTitleType.movie, tmdbId: 920);
+    await settle(tester);
+    await tester.pumpWidget(
+      app(
+        KostvRequestsTraySlot(
+          revealed: false,
+          builder: (_) => KostvRequestsTrayButton(size: 40, onPressed: () {}),
+        ),
+      ),
+    );
+    await settle(tester);
+    expect(find.byType(KostvRequestsTrayButton), findsOneWidget);
+
+    await GetIt.instance<UserPreferences>().set(
+      UserPreferences.kidsModeEnabled,
+      true,
+    );
+    await settle(tester);
+    expect(find.byType(KostvRequestsTrayButton), findsNothing);
     await finish(tester);
   });
 

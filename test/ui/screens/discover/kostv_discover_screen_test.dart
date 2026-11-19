@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
+import 'package:moonfin/auth/models/user.dart';
+import 'package:moonfin/auth/repositories/user_repository.dart';
+import 'package:moonfin/data/services/stremfin/kostv_age_gate.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_client.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
@@ -30,6 +33,8 @@ typedef _Reply = ({int status, Object? body, Map<String, String> headers});
 void main() {
   late StremfinService service;
   late List<String> calls;
+  // Kos TV: every list comes back empty.
+  var emptyLists = false;
 
   Map<String, Object?> title(
     String type,
@@ -106,6 +111,7 @@ void main() {
       });
     }
     if (path == '/top') {
+      if (emptyLists) return ok({'items': <Object>[]});
       return ok({'items': lists['${query['type']}/${query['list']}'] ?? []});
     }
     final movie = RegExp(r'^/movies/(\d+)$').firstMatch(path);
@@ -125,7 +131,11 @@ void main() {
     return (status: 404, body: null, headers: const {});
   }
 
-  Future<void> open(WidgetTester tester, {required bool phone}) async {
+  Future<void> open(
+    WidgetTester tester, {
+    required bool phone,
+    Future<KostvAgeLimit> Function()? ageLimit,
+  }) async {
     calls = [];
     KostvSpotlightDetails.clear();
     HubFocusMemory.clearAll();
@@ -154,6 +164,7 @@ void main() {
         baseUrl: 'https://requests.example.org/api/v1',
         token: () => 'token',
       ),
+      ageLimit: ageLimit,
       watchLifecycle: false,
     )..onUserChanged('kiko');
     GetIt.instance.registerSingleton<StremfinService>(service);
@@ -211,7 +222,10 @@ void main() {
     await settle(tester);
   }
 
-  tearDown(tearDownBottomNav);
+  tearDown(() async {
+    emptyLists = false;
+    await tearDownBottomNav();
+  });
 
   testWidgets('TV: the spotlight shows the first of the first row, then '
       'whatever the focus lands on', (tester) async {
@@ -293,6 +307,59 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('TV: all the rows empty: says so, with «Reintentar»', (
+    tester,
+  ) async {
+    emptyLists = true;
+    await open(tester, phone: false);
+    expect(find.text('No hay nada que enseñarte aquí ahora mismo.'), findsOne);
+    expect(find.text('Reintentar'), findsOneWidget);
+
+    emptyLists = false;
+    await tester.tap(find.text('Reintentar'));
+    await settle(tester);
+    expect(
+      find.text('No hay nada que enseñarte aquí ahora mismo.'),
+      findsNothing,
+    );
+    expect(spotlight(tester).title.title, 'Marea alta');
+    await finish(tester);
+  });
+
+  testWidgets('phone: all the rows empty: says so, with «Reintentar»', (
+    tester,
+  ) async {
+    emptyLists = true;
+    await open(tester, phone: true);
+    expect(find.text('No hay nada que enseñarte aquí ahora mismo.'), findsOne);
+    expect(find.text('Reintentar'), findsOneWidget);
+    await finish(tester);
+  });
+
+  testWidgets('an age limit set with the page open: the rows are filtered '
+      'again, and back when it goes', (tester) async {
+    var limit = KostvAgeLimit.none;
+    await open(tester, phone: false, ageLimit: () async => limit);
+    expect(spotlight(tester).title.title, 'Marea alta');
+
+    // None of these carries an age: with a limit, none may be shown.
+    limit = const KostvAgeLimit(maxAge: 12);
+    service.refreshAccess().ignore();
+    await settle(tester);
+    expect(find.byType(MediaCard), findsNothing);
+    expect(find.text('No hay nada que enseñarte aquí ahora mismo.'), findsOne);
+
+    limit = KostvAgeLimit.none;
+    service.refreshAccess().ignore();
+    await settle(tester);
+    expect(find.byType(MediaCard), findsWidgets);
+    expect(
+      find.text('No hay nada que enseñarte aquí ahora mismo.'),
+      findsNothing,
+    );
+    await finish(tester);
+  });
+
   testWidgets('phone: the carousel takes the first of each row', (
     tester,
   ) async {
@@ -360,6 +427,48 @@ void main() {
       expect(KostvTitleStatus.band(missing, l10n), isNull);
     });
   });
+
+  test(
+    'what the spotlight kept is forgotten when someone else signs in',
+    () async {
+      calls = [];
+      KostvSpotlightDetails.clear();
+      final users = UserRepository();
+      GetIt.instance.registerSingleton<UserRepository>(users);
+      addTearDown(() => GetIt.instance.unregister<UserRepository>());
+      PrivateUser person(String id) => PrivateUser(
+        id: id,
+        name: id,
+        serverId: 'casa',
+        accessToken: 't',
+        lastUsed: DateTime(2026),
+      );
+      late final FakeStremfinAdapter adapter;
+      adapter = FakeStremfinAdapter.withMethod(
+        (method, path, sent) => answer(method, path, sent, adapter.lastQuery),
+      );
+      final requests = StremfinService(
+        StremfinClient(
+          dio: Dio()..httpClientAdapter = adapter,
+          baseUrl: 'https://requests.example.org/api/v1',
+          token: () => 'token',
+        ),
+        watchLifecycle: false,
+      );
+      addTearDown(requests.dispose);
+      final details = KostvSpotlightDetails(requests);
+      final movie = StremfinTitle.fromJson(title('movie', 12, 'Tormenta'))!;
+
+      users.setCurrentUser(person('ana'));
+      await details.load(movie);
+      expect(details.kept(movie), isNotNull);
+
+      users.setCurrentUser(person('pepe'));
+      expect(details.kept(movie), isNull);
+      await details.load(movie);
+      expect(calls.where((c) => c == '/movies/12'), hasLength(2));
+    },
+  );
 
   test('the spotlight asks after films and what is at home, never after '
       'a series that isn\'t', () {

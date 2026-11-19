@@ -20222,4 +20222,11 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvCollectionAddFailed =>
       'No se ha podido añadir a la colección';
+
+  @override
+  String get kostvDiscoverNothingShown =>
+      'No hay nada que enseñarte aquí ahora mismo.';
+
+  @override
+  String get kostvSearchMoreFailed => 'No se ha podido cargar. Reintentar';
 }

@@ -19681,5 +19681,13 @@
     "kostvCollectionAddFailed": "Couldn't add it to the collection",
     "@kostvCollectionAddFailed": {
         "description": "Kos TV: adding an item to a collection, or creating one for it, failed"
+    },
+    "kostvDiscoverNothingShown": "There's nothing to show here right now.",
+    "@kostvDiscoverNothingShown": {
+        "description": "Kos TV: Discover read its rows and none has anything to show"
+    },
+    "kostvSearchMoreFailed": "Couldn't load. Try again",
+    "@kostvSearchMoreFailed": {
+        "description": "Kos TV: the search «Para solicitar» More card, after reading more failed"
     }
 }
