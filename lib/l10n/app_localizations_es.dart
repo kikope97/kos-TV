@@ -5147,7 +5147,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get myMediaSmall => 'Mi contenido (pequeño)';
 
   @override
-  String get continueWatching => 'Continuar viendo';
+  String get continueWatching => 'Seguir viendo';
 
   @override
   String get resumeAudio => 'Reanudar audio';
@@ -5179,7 +5179,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get mergeContinueWatchingAndNextUp =>
-      'Fusionar Continuar viendo y A continuación';
+      'Fusionar Seguir viendo y A continuación';
 
   @override
   String get combineBothRows =>
@@ -5190,7 +5190,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get continueWatchingDefaultActionDescription =>
-      'Qué pasa al seleccionar un elemento de Continuar viendo o de A continuación';
+      'Qué pasa al seleccionar un elemento de Seguir viendo o de A continuación';
 
   @override
   String get goToDetailsScreen => 'Ir a los detalles';
@@ -11265,8 +11265,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get contextMenuGoToSeries => 'Ir a la serie';
 
   @override
-  String get contextMenuHideFromContinueWatching =>
-      'Ocultar de Continuar viendo';
+  String get contextMenuHideFromContinueWatching => 'Ocultar de Seguir viendo';
 
   @override
   String get contextMenuHideFromNextUp => 'Ocultar de A continuación';
@@ -11743,7 +11742,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsResumeRewindDescription =>
-      'Al reanudar la reproducción (desde Continuar viendo o desde la página de un elemento), ¿cuántos segundos debe retroceder?';
+      'Al reanudar la reproducción (desde Seguir viendo o desde la página de un elemento), ¿cuántos segundos debe retroceder?';
 
   @override
   String get settingsUnpauseRewindDescription =>
@@ -15182,7 +15181,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get continueWatchingAndNextUpHeader =>
-      'Continuar viendo y A continuación';
+      'Seguir viendo y A continuación';
 
   @override
   String get setupSkip => 'Saltar la configuración';
@@ -19087,7 +19086,7 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String get kostvMyListWatching => 'Continuar viendo';
+  String get kostvMyListWatching => 'Seguir viendo';
 
   @override
   String get kostvMyListWatchingWhy =>
