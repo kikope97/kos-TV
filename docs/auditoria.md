@@ -25,9 +25,11 @@ usuario. Norma de siempre: ninguna función se pierde ni va a peor.
 
 | # | Técnica | Interfaz |
 |---|---|---|
-| 1 | revisada (43 hallazgos comprobados), esperando visto bueno | — |
-| 2 | revisada, arreglando | — |
-| 3–10 | — | — |
+| 1 | arreglada y probada | — |
+| 2 | arreglada y probada | — |
+| 3 | arreglada (flecos en curso) | — |
+| 4 | revisada, arreglando | — |
+| 5–10 | — | — |
 
 ## Cómo se trabaja
 
