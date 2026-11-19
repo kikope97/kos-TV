@@ -34550,6 +34550,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t load. Try again'**
   String get kostvSearchMoreFailed;
+
+  /// Kos TV: Media session (notification): artist line of an episode with no series name
+  ///
+  /// In en, this message translates to:
+  /// **'TV Show'**
+  String get kostvMediaSessionTvShow;
+
+  /// Kos TV: Media session (notification): artist line of a film with no director or studio
+  ///
+  /// In en, this message translates to:
+  /// **'Movie'**
+  String get kostvMediaSessionMovie;
+
+  /// Kos TV: Media session / Android Auto: label of the shuffle button while shuffle is on
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle on'**
+  String get kostvMediaSessionShuffleOn;
+
+  /// Kos TV: Media session / Android Auto: label of the repeat button with repeat off
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat off'**
+  String get kostvMediaSessionRepeatOff;
+
+  /// Kos TV: Media session / Android Auto: label of the repeat button repeating the whole queue
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat all'**
+  String get kostvMediaSessionRepeatAll;
+
+  /// Kos TV: Media session / Android Auto: label of the repeat button repeating one song
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat one'**
+  String get kostvMediaSessionRepeatOne;
+
+  /// Kos TV: Android Auto / assistant: what was asked for can't be played right now
+  ///
+  /// In en, this message translates to:
+  /// **'This item is unavailable right now'**
+  String get kostvCarItemUnavailable;
+
+  /// Kos TV: Android Auto / assistant: a voice search found nothing
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing found for “{query}”'**
+  String kostvCarNothingFound(String query);
+
+  /// Kos TV: Music: a song couldn't start (server not answering, a format that won't play)
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t play “{title}”'**
+  String kostvMusicPlayFailed(String title);
+
+  /// Kos TV: Music: under the failure notice on the phone and the web, which have a Retry button
+  ///
+  /// In en, this message translates to:
+  /// **'Try again with Retry or ⏯.'**
+  String get kostvMusicPlayFailedHint;
+
+  /// Kos TV: Music: under the failure notice on the TV, where the remote's play/pause tries again
+  ///
+  /// In en, this message translates to:
+  /// **'Press ⏯ to try again.'**
+  String get kostvMusicPlayFailedTvHint;
+
+  /// Kos TV: Music on the web: the browser (Safari on the iPhone) wouldn't start the music without a tap
+  ///
+  /// In en, this message translates to:
+  /// **'Press ⏯ to start the music'**
+  String get kostvMusicTapToPlay;
+
+  /// Kos TV: Music on the web: why it waits for a tap
+  ///
+  /// In en, this message translates to:
+  /// **'The browser won\'t let the music start by itself.'**
+  String get kostvMusicTapToPlayHint;
 }
 
 class _AppLocalizationsDelegate

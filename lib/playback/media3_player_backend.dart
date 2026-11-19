@@ -1254,13 +1254,15 @@ class Media3PlayerBackend extends PlayerBackend
     }
   }
 
-  String _repeatModeToWire(RepeatMode mode) {
-    return switch (mode) {
-      RepeatMode.none => 'off',
-      RepeatMode.repeatOne => 'one',
-      RepeatMode.repeatAll => 'all',
-    };
-  }
+  /// Kos TV: what the engine itself is told to repeat, which is never
+  /// anything. ExoPlayer only ever holds the one item playing, so its
+  /// repeat-all looped that single track and never reached the end, and the
+  /// queue (which does both repeat modes itself, [QueueService.next]) never
+  /// moved on nor reported the track as played. Its repeat-one would equally
+  /// loop without an end, hiding it from «at the end of the song» and from
+  /// the server. And a mode left set here carried over to the film or episode
+  /// opened next, which then started over instead of ending.
+  String _engineRepeatWire(RepeatMode mode) => 'off';
 
   String? _normalizeTrackLanguagePref(String? value) {
     final normalized = (value ?? '').trim().toLowerCase();
@@ -1435,7 +1437,7 @@ class Media3PlayerBackend extends PlayerBackend
       'preview': isPreview,
     });
     await _invoke<void>('setRepeatMode', {
-      'mode': _repeatModeToWire(_repeatMode),
+      'mode': _engineRepeatWire(_repeatMode),
     });
     await _invoke<void>('setSpeed', {'speed': _playbackSpeed});
     await _invoke<void>('setVolume', {'volume': _volume});
@@ -1898,7 +1900,7 @@ class Media3PlayerBackend extends PlayerBackend
 
   Future<void> setRepeatMode(RepeatMode mode) async {
     _repeatMode = mode;
-    await _invoke<void>('setRepeatMode', {'mode': _repeatModeToWire(mode)});
+    await _invoke<void>('setRepeatMode', {'mode': _engineRepeatWire(mode)});
   }
 
   Future<void> setSkipSilence(bool enabled) async {

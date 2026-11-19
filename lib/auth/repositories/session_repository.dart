@@ -20,6 +20,7 @@ import '../../ui/navigation/player_route_check.dart';
 import '../../ui/screensaver/screensaver_controller.dart';
 import '../../ui/widgets/overlay_sheet.dart';
 import '../../ui/widgets/floating_notification.dart';
+import '../../ui/widgets/music/kostv_now_playing.dart';
 
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
@@ -1447,9 +1448,13 @@ class SessionRepository {
         if (seek != null) {
           await manager.seekTo(seek);
         }
+      // Kos TV: a skip from another device is the person's choice, which
+      // «Al acabar la canción» mustn't pause.
       case 'nexttrack':
+        KostvNowPlaying.instance.noteChosen();
         await manager.next();
       case 'previoustrack':
+        KostvNowPlaying.instance.noteChosen();
         await manager.previous();
       case 'playpause':
         // The backend knows before the state does, so a track still being

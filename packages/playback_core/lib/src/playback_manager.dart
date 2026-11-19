@@ -234,6 +234,9 @@ class PlaybackManager implements AudioOwnable {
   SubtitleRendererMode _subtitleRendererMode = SubtitleRendererMode.native;
   bool _isAutoNexting = false;
   bool _isManualNexting = false;
+  /// Kos TV: the viewer skipped the last item of the queue, which runs it to
+  /// its end: that end must move on rather than repeat it with repeat-one.
+  bool _skipRepeatOneAtEnd = false;
   bool suppressAutoNext = false;
   bool autoAdvanceEnabled = true;
   bool _isOfflinePlayback = false;
@@ -647,6 +650,14 @@ class PlaybackManager implements AudioOwnable {
   /// Kos TV: the item played to its end while [suppressAutoNext] held the
   /// queue, so the screen can say what comes next (missing episodes).
   final _heldAtEndController = StreamController<void>.broadcast();
+
+  /// Kos TV: the item ended by itself and started over with repeat-one. The
+  /// queue doesn't move then, so nothing else says the song ended («pause at
+  /// the end of the song» needs it).
+  final _repeatedController = StreamController<void>.broadcast();
+
+  /// Kos TV: the browser held a start back until the person taps play.
+  final _playBlockedController = StreamController<void>.broadcast();
   final _liveRecoveryStatusController =
       StreamController<LiveRecoveryStatus?>.broadcast();
   final _volumeController = StreamController<double>.broadcast();
@@ -752,6 +763,8 @@ class PlaybackManager implements AudioOwnable {
   Stream<void> get sessionEndedStream => _sessionEndedController.stream;
 
   Stream<void> get heldAtEndStream => _heldAtEndController.stream;
+  Stream<void> get repeatedStream => _repeatedController.stream;
+  Stream<void> get playBlockedStream => _playBlockedController.stream;
   LiveRecoveryStatus? get liveRecoveryStatus => _liveRecoveryStatus;
   Stream<LiveRecoveryStatus?> get liveRecoveryStatusStream =>
       _liveRecoveryStatusController.stream;
@@ -1667,7 +1680,16 @@ class PlaybackManager implements AudioOwnable {
 
     _logCompletion('auto-next', effectiveDuration: effectiveDuration);
     _isAutoNexting = true;
-    _autoNext().whenComplete(() => _isAutoNexting = false);
+    // Kos TV: a next item that can't start says so through the bring-up
+    // state (failed), which the screens show; thrown on from here it only
+    // reached the zone.
+    _autoNext()
+        .catchError((Object e) {
+          _diagnosticLogger?.call(
+            'Auto-next failed to start the next item: $e',
+          );
+        })
+        .whenComplete(() => _isAutoNexting = false);
   }
 
   /// Which branch of [_onTrackCompleted] ran, and the state it decided on.
@@ -2073,6 +2095,13 @@ class PlaybackManager implements AudioOwnable {
     _pendingItemMediaSourceId = null;
   }
 
+  /// Tells [repeatedStream] that [item] started over, unless something else
+  /// was put on while it reopened.
+  void _notifyRepeated(dynamic item) {
+    if (item == null || !identical(queueService.currentItem, item)) return;
+    if (!_repeatedController.isClosed) _repeatedController.add(null);
+  }
+
   void _notifySessionEnded() {
     if (_sessionEndedController.isClosed) return;
     _sessionEndedController.add(null);
@@ -2470,6 +2499,15 @@ class PlaybackManager implements AudioOwnable {
   }
 
   Future<void> _handleBackendErrorEvent(Map<String, dynamic> event) async {
+    // Kos TV: the browser wouldn't start it without a tap (Safari on the
+    // iPhone, once the tap that asked for it is long gone). Nothing is wrong
+    // with the stream, so no conversion and no failure: a tap on play starts
+    // it.
+    if (event['event'] == 'playBlocked') {
+      _diagnosticLogger?.call('The browser held the start back for a tap');
+      if (!_playBlockedController.isClosed) _playBlockedController.add(null);
+      return;
+    }
     if (event['event'] == 'subtitleError') {
       // Log subtitle failures without interrupting the video.
       _diagnosticLogger?.call(event['message']?.toString() ?? 'Subtitle error');
@@ -2846,16 +2884,21 @@ class PlaybackManager implements AudioOwnable {
   }
 
   Future<void> _autoNext() async {
+    final skipped = _skipRepeatOneAtEnd;
+    _skipRepeatOneAtEnd = false;
     if (await _maybeIntercept(TransportAction.next)) return;
     _beginNewPlaybackSource('the queue advanced to another item');
     _mediaSourceId = null;
     if (_isOfflinePlayback) {
       await _stopAndReportCurrent(skipQueueChange: true);
-      final hadNext = queueService.next();
+      final repeating =
+          !skipped && queueService.repeatMode == RepeatMode.repeatOne;
+      final hadNext = queueService.next(manual: skipped);
       if (hadNext) {
         final item = queueService.currentItem as String?;
         if (item != null) {
           await _onOfflineAutoNext?.call(item);
+          if (repeating) _notifyRepeated(item);
         }
       } else {
         _notifySessionEnded();
@@ -2864,9 +2907,13 @@ class PlaybackManager implements AudioOwnable {
     }
     await _stopAndReportCurrent(skipQueueChange: true);
     _resetBackendSelectionLock();
-    final hadNext = queueService.next();
+    final repeating =
+        !skipped && queueService.repeatMode == RepeatMode.repeatOne;
+    final hadNext = queueService.next(manual: skipped);
     if (hadNext) {
+      final repeated = queueService.currentItem;
       await _playCurrentItem();
+      if (repeating) _notifyRepeated(repeated);
       return;
     }
 
@@ -3029,6 +3076,7 @@ class PlaybackManager implements AudioOwnable {
       startPosition = adjusted < Duration.zero ? Duration.zero : adjusted;
     }
     queueService.setQueue(items, startIndex: startIndex);
+    _syncQueueModes();
 
     final forceExternal = _forceExternalPlayerOnce;
     _forceExternalPlayerOnce = false;
@@ -3127,6 +3175,7 @@ class PlaybackManager implements AudioOwnable {
   }) async {
     _deferredStartPosition = Duration.zero;
     _deferPlaybackToExternalPlayer = false;
+    if (!reopening) _skipRepeatOneAtEnd = false;
     // A channel started afresh -- a tune, or Retry on the card a spent budget
     // raised -- gets the whole budget back. A re-resolve reaches here too, and
     // that one is an attempt being spent, so it must not clear the count.
@@ -3164,6 +3213,7 @@ class PlaybackManager implements AudioOwnable {
       suppressAutoNext = true;
       queueService.clear();
       state.reset();
+      _syncQueueModes();
       // Closes a player that's already open, rather than leaving it frozen on
       // the last frame.
       _notifySessionEnded();
@@ -4314,6 +4364,7 @@ class PlaybackManager implements AudioOwnable {
     if (userInitiated && await _maybeIntercept(TransportAction.stop)) return;
     _abandonLiveRecovery('the viewer stopped playback');
     _viewerPaused = false;
+    _skipRepeatOneAtEnd = false;
     await _stopAndReportCurrent();
   }
 
@@ -4447,6 +4498,7 @@ class PlaybackManager implements AudioOwnable {
     // finish handle watched state and whatever follows, rather than stopping
     // on a dead player.
     if (!queueService.hasNext && state.duration > Duration.zero) {
+      _skipRepeatOneAtEnd = true;
       await seekTo(state.duration);
       return;
     }
@@ -4457,7 +4509,8 @@ class PlaybackManager implements AudioOwnable {
     try {
       await _stopAndReportCurrent(skipQueueChange: true);
       _resetBackendSelectionLock();
-      final hadNext = queueService.next();
+      // Kos TV: repeat-one is for a song ending by itself; a skip moves on.
+      final hadNext = queueService.next(manual: true);
       if (hadNext) {
         await _playCurrentItem();
       }
@@ -4541,6 +4594,16 @@ class PlaybackManager implements AudioOwnable {
   void toggleShuffle() {
     queueService.toggleShuffle();
     state.setShuffled(queueService.isShuffled);
+  }
+
+  /// Kos TV: shows shuffle and repeat as the queue has them, and hands repeat
+  /// on to the engine. A new queue starts in order and a cleared one stops
+  /// repeating, and the buttons kept showing the old modes: one press then
+  /// shuffled what looked like being unshuffled.
+  void _syncQueueModes() {
+    state.setShuffled(queueService.isShuffled);
+    state.setRepeatMode(queueService.repeatMode);
+    unawaited(_syncBackendRepeatModeIfSupported());
   }
 
   /// Runs a track change with progress reporting paused, so a progress tick
@@ -5570,6 +5633,7 @@ class PlaybackManager implements AudioOwnable {
     } else {
       queueService.setQueue([url]);
     }
+    _syncQueueModes();
 
     if (itemDuration > Duration.zero) {
       state.setDuration(itemDuration);
@@ -5651,6 +5715,7 @@ class PlaybackManager implements AudioOwnable {
           _resetBackendSelectionLock();
           queueService.clear();
           state.reset();
+          _syncQueueModes();
           _setBringupState(const PlaybackBringupState.idle());
         }
         return true;
@@ -5672,6 +5737,7 @@ class PlaybackManager implements AudioOwnable {
           _resetBackendSelectionLock();
           queueService.clear();
           state.reset();
+          _syncQueueModes();
           _setBringupState(const PlaybackBringupState.idle());
         }
         return true;
@@ -5741,6 +5807,7 @@ class PlaybackManager implements AudioOwnable {
         _resetBackendSelectionLock();
         queueService.clear();
         state.reset();
+        _syncQueueModes();
         _setBringupState(const PlaybackBringupState.idle());
       }
       return true;
@@ -5788,6 +5855,8 @@ class PlaybackManager implements AudioOwnable {
     _bringupStateController.close();
     _sessionEndedController.close();
     _heldAtEndController.close();
+    _repeatedController.close();
+    _playBlockedController.close();
     _liveRecoveryStatusController.close();
     _reconnectRetry?.cancel();
     _reconnectProvenTimer?.cancel();

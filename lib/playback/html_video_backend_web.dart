@@ -766,10 +766,7 @@ class HtmlVideoBackend extends PlayerBackend
             // report it a second time.
             _cancelStartupWatch();
             _setPlaying(false);
-            _errorStream.add(<String, dynamic>{
-              'event': 'playerError',
-              'message': error.toString(),
-            });
+            _errorStream.add(_playRefusal(error));
           }
         } finally {
           if (_isCurrentPlaybackRequest(generation)) _setBuffering(false);
@@ -781,6 +778,18 @@ class HtmlVideoBackend extends PlayerBackend
     }
 
     if (_isCurrentSource(source)) _startStatePolling();
+  }
+
+  /// What a refused `play()` is reported as. Kos TV: the browser holding a
+  /// start back for a tap (Safari on the iPhone, when the music starts after
+  /// the requests for it) isn't a failing stream: reported as a real error,
+  /// the manager had the server convert it, which couldn't play either.
+  static Map<String, dynamic> _playRefusal(Object error) {
+    final message = error.toString();
+    if (message.contains('NotAllowedError')) {
+      return <String, dynamic>{'event': 'playBlocked', 'message': message};
+    }
+    return <String, dynamic>{'event': 'playerError', 'message': message};
   }
 
   @override
@@ -801,10 +810,7 @@ class HtmlVideoBackend extends PlayerBackend
     } catch (error) {
       if (!_isCurrentPlaybackRequest(generation)) return;
       _cancelStartupWatch();
-      _errorStream.add(<String, dynamic>{
-        'event': 'playerError',
-        'message': error.toString(),
-      });
+      _errorStream.add(_playRefusal(error));
       _setPlaying(false);
     }
     if (_isCurrentPlaybackRequest(generation)) _startStatePolling();

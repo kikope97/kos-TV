@@ -20114,4 +20114,48 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvSearchMoreFailed => 'Couldn\'t load. Try again';
+
+  @override
+  String get kostvMediaSessionTvShow => 'TV Show';
+
+  @override
+  String get kostvMediaSessionMovie => 'Movie';
+
+  @override
+  String get kostvMediaSessionShuffleOn => 'Shuffle on';
+
+  @override
+  String get kostvMediaSessionRepeatOff => 'Repeat off';
+
+  @override
+  String get kostvMediaSessionRepeatAll => 'Repeat all';
+
+  @override
+  String get kostvMediaSessionRepeatOne => 'Repeat one';
+
+  @override
+  String get kostvCarItemUnavailable => 'This item is unavailable right now';
+
+  @override
+  String kostvCarNothingFound(String query) {
+    return 'Nothing found for “$query”';
+  }
+
+  @override
+  String kostvMusicPlayFailed(String title) {
+    return 'Couldn\'t play “$title”';
+  }
+
+  @override
+  String get kostvMusicPlayFailedHint => 'Try again with Retry or ⏯.';
+
+  @override
+  String get kostvMusicPlayFailedTvHint => 'Press ⏯ to try again.';
+
+  @override
+  String get kostvMusicTapToPlay => 'Press ⏯ to start the music';
+
+  @override
+  String get kostvMusicTapToPlayHint =>
+      'The browser won\'t let the music start by itself.';
 }

@@ -73,9 +73,12 @@ class QueueService {
     _queueChangedController.add(null);
   }
 
-  bool next() {
+  /// Moves on to the next item. Repeat-one only holds the queue on the same
+  /// item when it ended by itself: a [manual] skip (Kos TV) moves on as the
+  /// person asked, wrapping round only with repeat-all.
+  bool next({bool manual = false}) {
     if (_items.isEmpty) return false;
-    if (_repeatMode == RepeatMode.repeatOne) return true;
+    if (_repeatMode == RepeatMode.repeatOne && !manual) return true;
     if (_currentIndex < _items.length - 1) {
       _currentIndex++;
       _queueChangedController.add(null);

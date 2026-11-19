@@ -14447,5 +14447,67 @@
     "kostvSearchMoreFailed": "No se ha podido cargar. Reintentar",
     "@kostvSearchMoreFailed": {
         "description": "Kos TV: the search «Para solicitar» More card, after reading more failed"
+    },
+    "kostvMediaSessionTvShow": "Serie",
+    "@kostvMediaSessionTvShow": {
+        "description": "Kos TV: Media session (notification): artist line of an episode with no series name"
+    },
+    "kostvMediaSessionMovie": "Película",
+    "@kostvMediaSessionMovie": {
+        "description": "Kos TV: Media session (notification): artist line of a film with no director or studio"
+    },
+    "kostvMediaSessionShuffleOn": "Aleatorio activado",
+    "@kostvMediaSessionShuffleOn": {
+        "description": "Kos TV: Media session / Android Auto: label of the shuffle button while shuffle is on"
+    },
+    "kostvMediaSessionRepeatOff": "Repetir desactivado",
+    "@kostvMediaSessionRepeatOff": {
+        "description": "Kos TV: Media session / Android Auto: label of the repeat button with repeat off"
+    },
+    "kostvMediaSessionRepeatAll": "Repetir todo",
+    "@kostvMediaSessionRepeatAll": {
+        "description": "Kos TV: Media session / Android Auto: label of the repeat button repeating the whole queue"
+    },
+    "kostvMediaSessionRepeatOne": "Repetir una",
+    "@kostvMediaSessionRepeatOne": {
+        "description": "Kos TV: Media session / Android Auto: label of the repeat button repeating one song"
+    },
+    "kostvCarItemUnavailable": "Ahora mismo no está disponible",
+    "@kostvCarItemUnavailable": {
+        "description": "Kos TV: Android Auto / assistant: what was asked for can't be played right now"
+    },
+    "kostvCarNothingFound": "No se ha encontrado nada para «{query}»",
+    "@kostvCarNothingFound": {
+        "description": "Kos TV: Android Auto / assistant: a voice search found nothing",
+        "placeholders": {
+            "query": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvMusicPlayFailed": "No se ha podido reproducir «{title}»",
+    "@kostvMusicPlayFailed": {
+        "description": "Kos TV: Music: a song couldn't start (server not answering, a format that won't play)",
+        "placeholders": {
+            "title": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvMusicPlayFailedHint": "Vuelve a intentarlo con Reintentar o con ⏯.",
+    "@kostvMusicPlayFailedHint": {
+        "description": "Kos TV: Music: under the failure notice on the phone and the web, which have a Retry button"
+    },
+    "kostvMusicPlayFailedTvHint": "Pulsa ⏯ para volver a intentarlo.",
+    "@kostvMusicPlayFailedTvHint": {
+        "description": "Kos TV: Music: under the failure notice on the TV, where the remote's play/pause tries again"
+    },
+    "kostvMusicTapToPlay": "Pulsa ⏯ para que empiece a sonar",
+    "@kostvMusicTapToPlay": {
+        "description": "Kos TV: Music on the web: the browser (Safari on the iPhone) wouldn't start the music without a tap"
+    },
+    "kostvMusicTapToPlayHint": "El navegador no deja que la música empiece sola.",
+    "@kostvMusicTapToPlayHint": {
+        "description": "Kos TV: Music on the web: why it waits for a tap"
     }
 }

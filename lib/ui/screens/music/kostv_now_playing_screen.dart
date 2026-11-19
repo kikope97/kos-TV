@@ -53,10 +53,28 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   final _subs = <StreamSubscription<dynamic>>[];
   final _playFocus = FocusNode(debugLabel: 'NowPlayingPlay');
   final _ambientFocus = FocusNode(debugLabel: 'NowPlayingAmbient');
+  final _lyricsButtonFocus = FocusNode(debugLabel: 'NowPlayingLyrics');
+  // Kos TV: around the lyrics or the queue at the side, to know whether the
+  // remote was in there when what it was on went away.
+  final _panelFocus = FocusNode(
+    debugLabel: 'NowPlayingPanel',
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
+  // Kos TV: around the rows of «A continuación», for the remote to land on
+  // the next row when the one it was on starts playing and leaves the list.
+  final _queueRowsFocus = FocusNode(
+    debugLabel: 'NowPlayingQueueRows',
+    canRequestFocus: false,
+    skipTraversal: true,
+  );
 
   _View _view = _View.cover;
   LyricsData? _lyrics;
   String? _lyricsFor;
+  // Kos TV: the new song's lyrics are on their way. Not the same as having
+  // none: the panel and the button stay until the answer says so.
+  bool _lyricsLoading = false;
   bool? _favorite;
   String? _favoriteFor;
   bool _leaving = false;
@@ -82,7 +100,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     _subs.addAll([
       _state.repeatModeStream.listen((_) => _rebuild()),
       _state.shuffleStream.listen((_) => _rebuild()),
-      _queue.queueChangedStream.listen((_) => _rebuild()),
+      _queue.queueChangedStream.listen((_) => _queueChanged()),
       _manager.sessionEndedStream.listen((_) => _leave()),
     ]);
     _lastId = _music.item?.id;
@@ -109,11 +127,31 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     if (_tv) HardwareKeyboard.instance.removeHandler(_onAnyKey);
     _playFocus.dispose();
     _ambientFocus.dispose();
+    _lyricsButtonFocus.dispose();
+    _panelFocus.dispose();
+    _queueRowsFocus.dispose();
     super.dispose();
   }
 
   void _rebuild() {
     if (mounted) setState(() {});
+  }
+
+  /// Kos TV: a song of «A continuación» picked with the remote (or the first
+  /// one starting by itself) leaves the list, and its row the remote was on
+  /// with it: the remote goes to the row that takes its place at the top, or
+  /// to play/pause with nothing left.
+  void _queueChanged() {
+    final had = _tv && _queueRowsFocus.hasFocus;
+    _rebuild();
+    if (!had) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _queueRowsFocus.hasFocus || _view != _View.queue) return;
+      final rows = _queueRowsFocus.traversalDescendants.where(
+        (node) => node.canRequestFocus,
+      );
+      (rows.isEmpty ? _playFocus : rows.first).requestFocus();
+    });
   }
 
   Timer? _gone;
@@ -124,6 +162,19 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       _lastId = id;
       // The last song's lyrics don't go on over the new one.
       _lyrics = null;
+      // Kos TV: asked again even for the same song back after a moment with
+      // none (a station started from the one sounding).
+      _lyricsFor = null;
+      _lyricsLoading = id != null;
+      // A line of the old lyrics had the remote: it goes back to Letra rather
+      // than to nobody.
+      if (_tv && _view == _View.lyrics && _panelFocus.hasFocus) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _lyricsButtonFocus.canRequestFocus) {
+            _lyricsButtonFocus.requestFocus();
+          }
+        });
+      }
       unawaited(_loadLyrics());
     }
     // Nothing sounds any more (stopped from the notification, the queue
@@ -140,7 +191,17 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   void _leave() {
     if (_leaving || !mounted) return;
     _leaving = true;
+    _popToHere();
     if (context.canPop()) context.pop();
+  }
+
+  /// Kos TV: closes whatever is open over the player (its «···», the timer,
+  /// «Añadir a una lista»), so the pop after it takes the player away and
+  /// not just the menu, leaving a black page behind.
+  void _popToHere() {
+    final route = ModalRoute.of(context);
+    if (route == null || route.isCurrent || !route.isActive) return;
+    Navigator.of(context).popUntil((r) => r == route);
   }
 
   // --- The TV's quiet screen ---
@@ -207,13 +268,28 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       }
     } catch (_) {}
     if (!mounted || _lyricsFor != item.id) return;
+    // Kos TV: Letra goes dark now, so the remote on it moves to play/pause
+    // rather than wherever Flutter would send it.
+    final refocus = found.isEmpty && _lyricsButtonFocus.hasFocus;
     setState(() {
       _lyrics = found;
+      _lyricsLoading = false;
       if (found.isEmpty && _view == _View.lyrics) _view = _View.cover;
     });
+    if (refocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _playFocus.requestFocus();
+      });
+    }
   }
 
-  bool get _hasLyrics => _lyrics?.isNotEmpty ?? false;
+  bool get _hasLyrics => (_lyrics?.isNotEmpty ?? false) || _lyricsLoading;
+
+  /// The lyrics panel: empty while the song's are on their way.
+  Widget _lyricsPanel({bool big = false}) => _LyricsPanel(
+    lyrics: _lyrics?.isNotEmpty == true ? _lyrics! : LyricsData.empty,
+    big: big,
+  );
 
   void _show(_View view) {
     setState(() => _view = _view == view ? _View.cover : view);
@@ -273,6 +349,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   /// Leaves the player for one of the app's pages, where the floating
   /// player takes over.
   void _goTo(String location) {
+    _popToHere();
     if (context.canPop()) context.pop();
     unawaited(appRouter.push(location));
   }
@@ -457,8 +534,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   /// controls on one side, the lyrics or the queue on the other.
   Widget _wide(AggregatedItem item, Size size) {
     final panel = switch (_view) {
-      _View.lyrics when _hasLyrics => _LyricsPanel(lyrics: _lyrics!, big: _tv),
-      _View.queue => _QueuePanel(big: _tv),
+      _View.lyrics when _hasLyrics => _lyricsPanel(big: _tv),
+      _View.queue => _QueuePanel(big: _tv, rowsFocus: _queueRowsFocus),
       _ => null,
     };
     final height = size.height;
@@ -504,6 +581,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
                 : () => _toggleFavorite(item),
             view: _view,
             hasLyrics: _hasLyrics,
+            lyricsFocus: _lyricsButtonFocus,
             onLyrics: () => _show(_View.lyrics),
             onQueue: () => _show(_View.queue),
             onMore: () => _showMore(item),
@@ -540,7 +618,10 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
                 ),
                 if (panel != null) ...[
                   SizedBox(width: size.width * 0.04),
-                  Expanded(flex: 6, child: panel),
+                  Expanded(
+                    flex: 6,
+                    child: Focus(focusNode: _panelFocus, child: panel),
+                  ),
                 ],
               ],
             ),
@@ -556,7 +637,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     final l10n = AppLocalizations.of(context);
     final padding = MediaQuery.paddingOf(context);
     final panel = switch (_view) {
-      _View.lyrics when _hasLyrics => _LyricsPanel(lyrics: _lyrics!),
+      _View.lyrics when _hasLyrics => _lyricsPanel(),
       _View.queue => const _QueuePanel(),
       _ => null,
     };
@@ -1362,6 +1443,7 @@ class _IconToggle extends StatelessWidget {
     required this.lit,
     required this.onTap,
     this.enabled = true,
+    this.focusNode,
   });
 
   final IconData icon;
@@ -1369,6 +1451,7 @@ class _IconToggle extends StatelessWidget {
   final bool lit;
   final bool enabled;
   final VoidCallback onTap;
+  final FocusNode? focusNode;
 
   @override
   Widget build(BuildContext context) => _RoundButton(
@@ -1377,6 +1460,7 @@ class _IconToggle extends StatelessWidget {
     onTap: onTap,
     lit: lit,
     enabled: enabled,
+    focusNode: focusNode,
     size: PlatformDetection.isTV ? 52 : 44,
     iconSize: PlatformDetection.isTV ? 26 : 24,
   );
@@ -1466,12 +1550,14 @@ class _ActionsRow extends StatelessWidget {
     required this.onLyrics,
     required this.onQueue,
     required this.onMore,
+    this.lyricsFocus,
   });
 
   final bool favorite;
   final VoidCallback? onFavorite;
   final _View view;
   final bool hasLyrics;
+  final FocusNode? lyricsFocus;
   final VoidCallback onLyrics;
   final VoidCallback onQueue;
   final VoidCallback onMore;
@@ -1499,6 +1585,7 @@ class _ActionsRow extends StatelessWidget {
           tooltip: l10n.kostvPlayerLyrics,
           lit: view == _View.lyrics,
           enabled: hasLyrics,
+          focusNode: lyricsFocus,
           onTap: onLyrics,
         ),
         const SizedBox(width: 18),
@@ -1712,9 +1799,10 @@ class _LyricsPanelState extends State<_LyricsPanel> {
 /// What comes next: the songs left, to play, move and take away; and
 /// autoplay, to go on with similar songs from home when they run out.
 class _QueuePanel extends StatelessWidget {
-  const _QueuePanel({this.big = false});
+  const _QueuePanel({this.big = false, this.rowsFocus});
 
   final bool big;
+  final FocusNode? rowsFocus;
 
   @override
   Widget build(BuildContext context) {
@@ -1925,10 +2013,13 @@ class _QueuePanel extends StatelessWidget {
                   },
                   itemBuilder: (context, i) => row(upcoming[i], i),
                 )
-              : ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  itemCount: upcoming.length,
-                  itemBuilder: (context, i) => row(upcoming[i], i),
+              : Focus(
+                  focusNode: rowsFocus,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    itemCount: upcoming.length,
+                    itemBuilder: (context, i) => row(upcoming[i], i),
+                  ),
                 ),
         ),
       ],

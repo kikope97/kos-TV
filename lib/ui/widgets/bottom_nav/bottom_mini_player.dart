@@ -12,6 +12,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
 import '../adaptive/sf_symbol.dart';
+import '../music/kostv_now_playing.dart';
 import '../offline_aware_image.dart';
 import 'bottom_nav_metrics.dart';
 import 'bottom_nav_theme.dart';
@@ -29,10 +30,11 @@ enum BottomMiniPlayerVariant {
 
 /// Whether the queue holds something the mini player shows. Video plays full
 /// screen and has no business in the bar.
-bool bottomMiniPlayerHasTrack() {
-  final item = GetIt.instance<PlaybackManager>().queueService.currentItem;
-  return item is AggregatedItem && item.isAudioLike;
-}
+///
+/// Kos TV: what was downloaded too, which plays from a file rather than a
+/// library item (the floating player steps aside for this bar, so it must
+/// show it, or nothing does).
+bool bottomMiniPlayerHasTrack() => KostvNowPlaying.instance.item != null;
 
 class BottomMiniPlayer extends StatefulWidget {
   final BottomMiniPlayerVariant variant;
@@ -79,10 +81,7 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
     super.dispose();
   }
 
-  AggregatedItem? get _currentItem {
-    final raw = _manager.queueService.currentItem;
-    return raw is AggregatedItem ? raw : null;
-  }
+  AggregatedItem? get _currentItem => KostvNowPlaying.instance.item;
 
   String? _artUrl(AggregatedItem item) => audioArtUrl(
     item,
@@ -159,7 +158,9 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
             icon: Icons.skip_next_rounded,
             tooltip: l10n.next,
             color: theme.onBar.withValues(alpha: 0.85),
-            onPressed: _manager.next,
+            // Kos TV: a skip the person chose, which «Al acabar la
+            // canción» mustn't pause.
+            onPressed: KostvNowPlaying.instance.next,
           ),
         // Kos TV: the ✕ stops the music and takes the player away.
         if (!compact)
@@ -169,7 +170,7 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
             color: theme.onBar.withValues(alpha: 0.6),
             onPressed: () {
               setState(() => _dismissedItemId = item.id);
-              unawaited(_manager.stop());
+              KostvNowPlaying.instance.close();
             },
           ),
       ],
@@ -233,7 +234,7 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
         direction: DismissDirection.horizontal,
         onDismissed: (_) {
           setState(() => _dismissedItemId = item.id);
-          unawaited(_manager.stop());
+          KostvNowPlaying.instance.close();
         },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
