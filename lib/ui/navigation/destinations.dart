@@ -27,6 +27,31 @@ extension NavigationX on BuildContext {
     }
     router.push(route);
   }
+
+  /// Kos TV: a library's own button in the menu ("Show libraries
+  /// separately"). It goes as the menu's pages do: over a library or a menu
+  /// page other than Home it takes that page's place, so Back still goes to
+  /// Home rather than through every library visited.
+  void openLibraryFromMenu(String route) {
+    final router = GoRouter.of(this);
+    if (!mounted) return;
+
+    if (PlatformDetection.isWeb) {
+      router.go(route);
+      return;
+    }
+    final matches = router.routerDelegate.currentConfiguration.matches;
+    final here = matches.isEmpty ? null : matches.last.matchedLocation;
+    final replaces = matches.length > 1 &&
+        here != null &&
+        here != Destinations.home &&
+        (Destinations.isLibraryPage(here) || Destinations.isMenuPage(here));
+    if (replaces) {
+      router.pushReplacement(route);
+    } else {
+      router.push(route);
+    }
+  }
 }
 
 class Destinations {
@@ -123,6 +148,11 @@ class Destinations {
   /// Whether [path] is one of the [menuPages].
   static bool isMenuPage(String? path) => menuPages.contains(path);
 
+  /// Kos TV: whether [path] is a library's own page, as its menu button
+  /// opens it (see libraryRoute): films and series, music, books or games.
+  static bool isLibraryPage(String path) =>
+      RegExp(r'^/(library|music|books|games)/[^/]+$').hasMatch(path);
+
   /// Kos TV: the page of a film or series from Discover that isn't on the
   /// home server yet, to request it. [type] is `movie` or `series`.
   static const kostvRequest = '/discover/:type/:tmdbId';
@@ -132,7 +162,6 @@ class Destinations {
 
   static const folderBrowse = '/folder/:folderId';
   static const collectionBrowse = '/collection/:collectionId';
-  static const libraryViewRoute = '/library-view/:libraryId';
   static const musicBrowse = '/music/:libraryId';
   static const musicCategoryBrowse = '/music/:libraryId/:category';
   static const bookBrowse = '/books/:libraryId';
@@ -233,7 +262,6 @@ class Destinations {
     return '$base?${params.join('&')}';
   }
 
-  static String libraryView(String libraryId) => '/library-view/$libraryId';
   static String libraryGenresOf(String libraryId) =>
       '/library/$libraryId/genres';
   static String libraryLettersOf(String libraryId) =>

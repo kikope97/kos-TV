@@ -173,14 +173,14 @@ void openBottomNavTab(BuildContext context, BottomNavTab tab) {
   }
 }
 
-/// Home refreshes when tapped where it already is, and asks for a refresh on
-/// arrival otherwise.
+/// Home refreshes when tapped where it already is. Otherwise a Home built
+/// afresh refreshes on arrival, and one kept underneath stays as it was.
 void openBottomNavHome(BuildContext context, {required bool alreadyHome}) {
   if (alreadyHome) {
     homeRefreshBus.request(newMediaBar: true);
     return;
   }
-  homeRefreshBus.requestAfterNavigation();
+  homeRefreshBus.requestOnArrival();
   context.go(Destinations.home);
 }
 

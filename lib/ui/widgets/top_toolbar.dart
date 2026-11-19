@@ -33,6 +33,7 @@ import '../../util/overlay_color_palette.dart';
 import '../../util/platform_detection.dart';
 import '../navigation/destinations.dart';
 import '../navigation/menu_preview.dart';
+import '../navigation/nav_libraries_memory.dart';
 import '../navigation/home_refresh_bus.dart';
 import '../navigation/route_lifecycle_observer.dart';
 import 'downloads_nav_slot.dart';
@@ -160,11 +161,10 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   // clears the shared isFocusedNotifier on dispose.
   bool _toolbarHadFocus = false;
   bool _friendsAvailable = FriendsNavSlot.isAvailable();
-  // Kos TV: starts from the libraries the last toolbar had, so a page the
-  // menu brings in has the same buttons as the one it covers from its first
-  // frame. The load below corrects it if they changed.
-  static List<AggregatedLibrary> _lastLibraries = const [];
-  List<AggregatedLibrary> _libraries = List.of(_lastLibraries);
+  // Kos TV: starts from the libraries the last menu had for this person, so
+  // a page the menu brings in has the same buttons as the one it covers
+  // from its first frame. The load below corrects it if they changed.
+  List<AggregatedLibrary> _libraries = NavLibrariesMemory.forActiveUser();
   Timer? _clockTimer;
   Timer? _librariesReloadDebounce;
   late final ValueNotifier<String> _currentTime;
@@ -464,6 +464,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   }
 
   Future<void> _loadLibraries() async {
+    final userId = NavLibrariesMemory.activeUserId();
     try {
       final useMultiServer = _prefs.get(
         UserPreferences.enableMultiServerLibraries,
@@ -481,7 +482,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
             )
           : libs;
 
-      _lastLibraries = filtered;
+      NavLibrariesMemory.remember(userId, filtered);
       if (mounted && !_librariesEqual(_libraries, filtered)) {
         setState(() => _libraries = filtered);
       }
@@ -1324,7 +1325,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                       homeRefreshBus.request(newMediaBar: true);
                       return;
                     }
-                    homeRefreshBus.requestAfterNavigation();
+                    homeRefreshBus.requestOnArrival();
                     MenuPreview.open(context, Destinations.home);
                   },
                 ),
@@ -1702,7 +1703,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   }
 
   void _openLibrary(AggregatedLibrary lib) {
-    context.navigateTopLevel(
+    context.openLibraryFromMenu(
       libraryRoute(
         lib.id,
         lib.collectionType,

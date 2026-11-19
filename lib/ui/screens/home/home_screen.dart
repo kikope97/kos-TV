@@ -778,6 +778,9 @@ class _HomeShellState extends State<_HomeShell>
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
+        // Kos TV: a browser tab isn't closed from the page (see app.dart's
+        // Back handling): Back on Home does nothing there.
+        if (PlatformDetection.isWeb) return;
         _showExitConfirmation(context);
       },
       child: Scaffold(

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -9,6 +11,7 @@ import '../widgets/navigation_layout.dart';
 import '../widgets/overlay_sheet.dart';
 import '../widgets/settings/settings_panel.dart';
 import 'destinations.dart';
+import 'route_gates.dart';
 
 /// Kos TV: the menu shows the page of the button the person rests on, with a
 /// remote or keys, without them pressing OK, and keeps the focus on the
@@ -29,6 +32,13 @@ class MenuPreview {
 
   /// The menu page on its way, until its menu takes the focus.
   static final arriving = ValueNotifier<String?>(null);
+
+  /// How long a page may take to come before nothing is counted as on its
+  /// way any more. The menu of a page that never came (the router sent it
+  /// elsewhere) never takes the focus, and while [arriving] stays set the
+  /// menu would hold the focus for good.
+  static const arrivalTimeout = Duration(seconds: 2);
+  static Timer? _arrivalTimer;
 
   /// Whether the focus is being kept on the menu after showing a page.
   static bool get holding => _holding;
@@ -80,6 +90,9 @@ class MenuPreview {
   /// the menu. Home is never loaded again: it waits underneath as it was.
   static void show(BuildContext context, String route) {
     if (!supported || !Destinations.isMenuPage(route)) return;
+    // A page the router would send to Home (Live TV with the server not
+    // answering, say) isn't shown: it would only stack another Home.
+    if (menuPageDivertedNow(route)) return;
     final router = GoRouter.of(context);
     final under = _menuPageUnder(router);
     if (under != null && route != Destinations.home) {
@@ -87,13 +100,13 @@ class MenuPreview {
       // out to that page first, so the stack stays Home and one menu page.
       if (under == route) return;
       _unwind(router, () => _replaceUnder(router, under, route));
-      arriving.value = route;
+      _expectArrival(route);
       _hold();
       return;
     }
     final here = shownPath(router);
     if (here == route) return;
-    arriving.value = route;
+    _expectArrival(route);
     _hold();
     if (PlatformDetection.isWeb &&
         route != Destinations.home &&
@@ -121,6 +134,9 @@ class MenuPreview {
   /// already the page on screen, for the button to go into it instead.
   static bool open(BuildContext context, String route) {
     _release();
+    // As in [show]: nothing opens where the router would only send the
+    // person to another Home.
+    if (menuPageDivertedNow(route)) return false;
     final router = GoRouter.of(context);
     final under = _menuPageUnder(router);
     if (under != null && route != Destinations.home) {
@@ -201,15 +217,28 @@ class MenuPreview {
     return matches.isEmpty ? config.uri.path : matches.last.matchedLocation;
   }
 
-  /// The menu of the page that came took the focus on [button].
+  /// [route] is on its way. Should no menu take it in [arrivalTimeout],
+  /// nothing is counted as on its way any more.
+  static void _expectArrival(String route) {
+    arriving.value = route;
+    _arrivalTimer?.cancel();
+    _arrivalTimer = Timer(arrivalTimeout, () {
+      _arrivalTimer = null;
+      gaveUp(route);
+    });
+  }
+
   /// The menu of the page that was coming gave up waiting for it (it never
   /// came, or went straight away): nothing is on its way any more.
   static void gaveUp(String route) {
     if (arriving.value == route) arriving.value = null;
   }
 
+  /// The menu of the page that came took the focus on [button].
   static void landed(FocusNode button) {
     if (arriving.value != null) arriving.value = null;
+    _arrivalTimer?.cancel();
+    _arrivalTimer = null;
     _lastMenuFocus = button;
   }
 
@@ -230,6 +259,8 @@ class MenuPreview {
   static void _release() {
     _holding = false;
     arriving.value = null;
+    _arrivalTimer?.cancel();
+    _arrivalTimer = null;
     _lastMenuFocus = null;
     if (!_listening) return;
     _listening = false;

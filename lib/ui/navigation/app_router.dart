@@ -89,6 +89,7 @@ import '../screens/setup/setup_wizard_screen.dart';
 import 'deep_link_navigator.dart';
 import 'destinations.dart';
 import 'focus_route_observer.dart';
+import 'route_gates.dart';
 import 'route_lifecycle_observer.dart';
 import '../screens/watch_party/watch_together_route.dart';
 
@@ -118,14 +119,6 @@ bool _shouldRunSetupWizard() {
 /// The admin area has no TV layout. The settings tile is hidden there and on
 /// servers it doesn't cover, and this stops deep links too.
 bool _adminAvailable() => !PlatformDetection.isTV && adminServerSupported();
-
-/// Surfaces that genuinely need the server. Everything else works offline
-/// against the downloads catalog.
-bool _isOfflineBlocked(String path) {
-  return path.startsWith('/live-tv') ||
-      path.startsWith('/admin') ||
-      path.startsWith('/games');
-}
 
 bool _shouldRedirectVideoToExternalPlayer(String path) {
   if (path != Destinations.videoPlayer) {
@@ -273,18 +266,12 @@ final appRouter = GoRouter(
     // The hard gate for Kids Mode. Hiding a nav entry is presentation, but a
     // deep link reaches these screens without one.
     if (getIt<UserPreferences>().get(UserPreferences.kidsModeEnabled) &&
-        (path.startsWith('/admin') ||
-            path.startsWith('/live-tv') ||
-            // Kos TV: Discover and asking for titles are hidden in Kids
-            // Mode; an address typed on the web mustn't reach them. Music
-            // too: it asks for albums and plays the charts' previews.
-            path.startsWith(Destinations.kostvDiscover) ||
-            path.startsWith(Destinations.kostvMusic))) {
+        kidsModeBlocksPath(path)) {
       return Destinations.home;
     }
 
     final connectivity = GetIt.instance<ConnectivityService>();
-    if (!connectivity.canReachServer && _isOfflineBlocked(path)) {
+    if (!connectivity.canReachServer && offlineBlocksPath(path)) {
       return Destinations.home;
     }
 

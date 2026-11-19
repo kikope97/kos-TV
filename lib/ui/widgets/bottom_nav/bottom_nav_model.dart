@@ -73,7 +73,6 @@ bool bottomNavTabMatchesRoute(BottomNavTab tab, String route) {
     BottomNavTab.kostvDiscover => route == Destinations.kostvDiscover,
     BottomNavTab.libraries => route == Destinations.kostvLibraries ||
         under('/library') ||
-        under('/library-view') ||
         under('/folder') ||
         under('/music') ||
         under('/books') ||

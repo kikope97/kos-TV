@@ -35,6 +35,7 @@ import '../../util/overlay_color_palette.dart';
 import '../../util/platform_detection.dart';
 import '../navigation/destinations.dart';
 import '../navigation/menu_preview.dart';
+import '../navigation/nav_libraries_memory.dart';
 import '../navigation/home_refresh_bus.dart';
 import '../navigation/route_lifecycle_observer.dart';
 import 'navigation_layout.dart';
@@ -122,7 +123,10 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
   VoidCallback? _previousFocusAvatarCallback;
   final _scrollController = ScrollController();
 
-  List<AggregatedLibrary> _libraries = [];
+  // Kos TV: the last libraries the menu had for this person, so Live TV and
+  // the buttons after it are in place from the first frame (see
+  // NavLibrariesMemory). The load corrects them if they changed.
+  List<AggregatedLibrary> _libraries = NavLibrariesMemory.forActiveUser();
   bool _isExpanded = false;
   bool _showLabels = false;
   bool _canExpandViaFocus = false;
@@ -393,6 +397,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
 
   @override
   void dispose() {
+    _focusRetry?.cancel();
     _homeFocusNode.removeListener(_onHomeNodeFocus);
     MenuPreview.arriving.removeListener(_onMenuArriving);
     _restTimer?.cancel();
@@ -515,6 +520,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
   }
 
   Future<void> _loadLibraries() async {
+    final userId = NavLibrariesMemory.activeUserId();
     try {
       final useMultiServer = _prefs.get(
         UserPreferences.enableMultiServerLibraries,
@@ -532,6 +538,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
             )
           : libs;
 
+      NavLibrariesMemory.remember(userId, filtered);
       if (mounted && !_librariesEqual(_libraries, filtered)) {
         setState(() => _libraries = filtered);
       }
@@ -639,7 +646,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
   void _openLibrary(AggregatedLibrary lib) {
     _onNavigate();
     _markNavigationAwayFromSidebar();
-    context.navigateTopLevel(
+    context.openLibraryFromMenu(
       libraryRoute(
         lib.id,
         lib.collectionType,
@@ -653,14 +660,6 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     if (PlatformDetection.isTV || (PlatformDetection.isDesktop || (PlatformDetection.isWeb && !PlatformDetection.useMobileUi))) {
       _openedRouteFromRail = true;
     }
-  }
-
-  void _onSidebarFocusChange(bool hasFocus) {
-    if (PlatformDetection.isTV || (PlatformDetection.isDesktop || (PlatformDetection.isWeb && !PlatformDetection.useMobileUi))) {
-      return;
-    }
-    // On mobile, keep sidebar opening explicit (menu tap) to avoid
-    // route-to-route focus restoration repeatedly reopening it.
   }
 
   void _armTvFocusGate() {
@@ -784,14 +783,32 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
       focusHome();
       if (!_sidebarFocus.hasFocus) return;
     }
+    _focusRetry?.cancel();
+    _focusRetryFrom = FocusManager.instance.primaryFocus;
     _focusFirstContent(0);
   }
+
+  // Kos TV: the wait for a page still loading (see _focusFirstContent), and
+  // where the focus was as it began.
+  Timer? _focusRetry;
+  FocusNode? _focusRetryFrom;
 
   /// The first thing of the page that can take the focus; a page still
   /// loading is waited for a moment. Never the page's own wrapper: it shows
   /// nothing, and the focus would sit there invisible.
   void _focusFirstContent(int attempt) {
+    _focusRetry = null;
     if (!mounted) return;
+    // Kos TV: the person moved on meanwhile (along the rail, say), or the
+    // page isn't the one on screen any more: the focus isn't taken from
+    // wherever it is now.
+    if (attempt > 0) {
+      final now = FocusManager.instance.primaryFocus;
+      final moved = now != null &&
+          !identical(now, _focusRetryFrom) &&
+          !identical(now, _sidebarFocus);
+      if (moved || !(ModalRoute.isCurrentOf(context) ?? true)) return;
+    }
     final fallback = widget.contentFocusNode;
     final firstContent = fallback != null && _isLaidOutFocusNode(fallback)
         ? _firstFocusableDescendant(fallback)
@@ -810,13 +827,16 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
     // A page still loading from the server (Libraries, say) gets a couple
     // of seconds before the focus gives up and stays on its button.
     if (attempt < 30) {
-      Timer(
+      _focusRetry = Timer(
         const Duration(milliseconds: 80),
         () => _focusFirstContent(attempt + 1),
       );
       return;
     }
-    // Nothing there to go to: the focus stays on the page's button.
+    // Nothing there to go to: the focus stays on the page's button. Kos TV:
+    // the rail opens again, as it does whenever it has the focus; the focus
+    // never left it, so nothing else would open it.
+    if (_sidebarFocus.hasFocus && _canExpandViaFocus) _expand();
     _ownMenuNode()?.requestFocus();
   }
 
@@ -898,7 +918,6 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
           width: expandedWidth,
           child: FocusScope(
             node: _sidebarFocus,
-            onFocusChange: _onSidebarFocusChange,
             onKeyEvent: _onKeyEvent,
             child: AppColorScheme.isGlass
                 ? GlassSurface(
@@ -1036,7 +1055,6 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
       child: ClipRect(
         child: FocusScope(
           node: _sidebarFocus,
-          onFocusChange: _onSidebarFocusChange,
           onKeyEvent: _onKeyEvent,
           child: Stack(
             children: [
@@ -1277,7 +1295,7 @@ class _LeftSidebarState extends State<LeftSidebar> with RouteAware {
                       _exitSidebarToContent();
                       return;
                     }
-                    homeRefreshBus.requestAfterNavigation();
+                    homeRefreshBus.requestOnArrival();
                     _markNavigationAwayFromSidebar();
                     MenuPreview.open(context, Destinations.home);
                   },
