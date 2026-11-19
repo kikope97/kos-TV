@@ -34154,6 +34154,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The episodes couldn\'t be loaded'**
   String get kostvEpisodesLoadFailed;
+
+  /// Kos TV: a card menu's mark as watched didn't reach the server
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t mark it as watched'**
+  String get kostvMarkPlayedFailed;
+
+  /// Kos TV: a card menu's mark as unwatched didn't reach the server
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t mark it as unwatched'**
+  String get kostvMarkUnplayedFailed;
+
+  /// Kos TV: a card menu's add to or remove from favourites didn't reach the server
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t change the favorite'**
+  String get kostvFavoriteChangeFailed;
+
+  /// Kos TV: why refreshing an item's metadata failed (HTTP 404); goes inside adminMetadataRefreshFailed
+  ///
+  /// In en, this message translates to:
+  /// **'the server can\'t find it'**
+  String get kostvItemNotFoundOnServer;
+
+  /// Kos TV: why refreshing an item's metadata failed (any other server error); goes inside adminMetadataRefreshFailed
+  ///
+  /// In en, this message translates to:
+  /// **'the server couldn\'t do it'**
+  String get kostvServerRequestFailed;
+
+  /// Kos TV: adding an item to a collection, or creating one for it, failed
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t add it to the collection'**
+  String get kostvCollectionAddFailed;
 }
 
 class _AppLocalizationsDelegate

@@ -67,12 +67,17 @@ class OfflineUserLibraryApi implements UserLibraryApi {
   final PendingRatingStore _pendingRatings;
   final OfflineRepository _offlineRepo;
 
+  /// Kos TV: who is signed in, so a queued rating is sent for them.
+  final String? Function() _userId;
+
   OfflineUserLibraryApi(
     this._catalog, {
     required PendingRatingStore pendingRatings,
     required OfflineRepository offlineRepo,
+    String? Function()? userId,
   }) : _pendingRatings = pendingRatings,
-       _offlineRepo = offlineRepo;
+       _offlineRepo = offlineRepo,
+       _userId = userId ?? (() => null);
 
   // Both server types take a numeric value once the queue replays, so the
   // rating dialog keeps the style the viewer chose while offline.
@@ -123,8 +128,12 @@ class OfflineUserLibraryApi implements UserLibraryApi {
   Future<void> updateUserRating(String itemId, {required bool likes}) async {
     await _queueRating(
       itemId,
-      entryOf: (serverId) =>
-          PendingRating(serverId: serverId, itemId: itemId, likes: likes),
+      entryOf: (serverId) => PendingRating(
+        serverId: serverId,
+        itemId: itemId,
+        userId: _userId(),
+        likes: likes,
+      ),
       userDataPatch: {'Likes': likes},
       unavailablePath: '/UserItems/$itemId/Rating',
     );
@@ -137,8 +146,12 @@ class OfflineUserLibraryApi implements UserLibraryApi {
   }) async {
     await _queueRating(
       itemId,
-      entryOf: (serverId) =>
-          PendingRating(serverId: serverId, itemId: itemId, rating: rating),
+      entryOf: (serverId) => PendingRating(
+        serverId: serverId,
+        itemId: itemId,
+        userId: _userId(),
+        rating: rating,
+      ),
       // A stale thumb would contradict the new score, so it goes and the
       // display falls back to reading the thumb off the numeric value.
       userDataPatch: {'Rating': rating, 'Likes': null},
@@ -150,8 +163,12 @@ class OfflineUserLibraryApi implements UserLibraryApi {
   Future<void> deleteUserRating(String itemId) async {
     await _queueRating(
       itemId,
-      entryOf: (serverId) =>
-          PendingRating(serverId: serverId, itemId: itemId, clear: true),
+      entryOf: (serverId) => PendingRating(
+        serverId: serverId,
+        itemId: itemId,
+        userId: _userId(),
+        clear: true,
+      ),
       userDataPatch: {'Rating': null, 'Likes': null},
       unavailablePath: '/UserItems/$itemId/Rating',
     );

@@ -37,6 +37,13 @@ class AddToPlaylistDialog extends StatefulWidget {
 class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
   late final MediaServerClient _client;
   List<_PlaylistEntry>? _playlists;
+
+  /// Kos TV: the list couldn't be read, which is not the same as having none.
+  bool _loadFailed = false;
+
+  /// Kos TV: a request is under way, so another press doesn't send a second
+  /// one (OK twice on «Create» made two playlists of the same name).
+  bool _busy = false;
   final _nameController = TextEditingController();
 
   // A remote has no way out of a plain text field, so on TV the name field
@@ -65,6 +72,7 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
   }
 
   Future<void> _loadPlaylists() async {
+    if (_loadFailed) setState(() => _loadFailed = false);
     try {
       final data = await _client.itemsApi.getPlaylists();
       final items = (data['Items'] as List?) ?? [];
@@ -79,11 +87,13 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _playlists = []);
+      if (mounted) setState(() => _loadFailed = true);
     }
   }
 
   Future<void> _addToPlaylist(String playlistId) async {
+    if (_busy) return;
+    _busy = true;
     try {
       await _client.itemsApi.addToPlaylist(playlistId, widget.itemIds);
       ItemMembershipService.instance.notifyItemAddedToPlaylist(
@@ -100,12 +110,22 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
           ),
         );
       }
+    } finally {
+      _busy = false;
     }
+  }
+
+  /// Closes the name dialog and creates, once.
+  void _submitCreate(BuildContext dialogContext) {
+    if (_busy) return;
+    Navigator.pop(dialogContext);
+    _createAndAdd();
   }
 
   Future<void> _createAndAdd() async {
     final name = _nameController.text.trim();
-    if (name.isEmpty) return;
+    if (name.isEmpty || _busy) return;
+    _busy = true;
     try {
       final result = await _client.itemsApi.createPlaylist(
         name: name,
@@ -128,10 +148,13 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
           ),
         );
       }
+    } finally {
+      _busy = false;
     }
   }
 
   void _showCreateNew() {
+    if (_busy) return;
     _nameController.clear();
     showFocusRestoringDialog(
       context: context,
@@ -233,10 +256,7 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                             borderSide: BorderSide.none,
                           ),
                         ),
-                        onSubmitted: (_) {
-                          Navigator.pop(ctx);
-                          _createAndAdd();
-                        },
+                        onSubmitted: (_) => _submitCreate(ctx),
                       ),
                     const SizedBox(height: 16),
                     Row(
@@ -256,10 +276,7 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                         const SizedBox(width: 8),
                         FilledButton(
                           focusNode: _createFocusNode,
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _createAndAdd();
-                          },
+                          onPressed: () => _submitCreate(ctx),
                           child: Text(AppLocalizations.of(ctx).playlistCreate),
                         ),
                       ],
@@ -318,7 +335,9 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
               onTap: _showCreateNew,
               autofocus: true,
             ),
-            if (_playlists == null)
+            if (_loadFailed)
+              _LoadFailedRows(onRetry: _loadPlaylists)
+            else if (_playlists == null)
               Padding(
                 padding: EdgeInsets.all(24),
                 child: Center(
@@ -368,6 +387,37 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Kos TV: says the list couldn't be read, with a row to try again.
+class _LoadFailedRows extends StatelessWidget {
+  const _LoadFailedRows({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+          child: Text(
+            l10n.failedToLoad,
+            style: TextStyle(
+              color: AppColorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+          ),
+        ),
+        FocusableDialogRow(
+          icon: Icons.refresh,
+          label: l10n.retry,
+          onTap: onRetry,
+        ),
+      ],
     );
   }
 }

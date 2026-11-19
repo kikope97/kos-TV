@@ -86,6 +86,11 @@ class _ContextMenuState extends State<_ContextMenu> {
   late List<ItemCollectionMembership> _collections;
   List<ItemContextAction> _actions = const [];
 
+  /// Kos TV: an action was picked. The sheet takes a moment to close and a
+  /// second press in that time (OK twice, a remote's key repeat, a double
+  /// tap) ran the action again: two dialogs, two notices, two requests.
+  bool _chosen = false;
+
   @override
   void initState() {
     super.initState();
@@ -95,7 +100,10 @@ class _ContextMenuState extends State<_ContextMenu> {
     FocusManager.instance.addListener(_onFocusChanged);
 
     // Only these types get the remove actions, so nothing else starts a scan.
-    if (isContextMediaType(_item.type)) _pollMemberships();
+    // Kos TV: nor Kids Mode, whose menu has neither.
+    if (isContextMediaType(_item.type) && !kidsModeMenuOn()) {
+      _pollMemberships();
+    }
   }
 
   @override
@@ -209,6 +217,8 @@ class _ContextMenuState extends State<_ContextMenu> {
                           label: actions[i].label,
                           autofocus: i == 0,
                           onPressed: () async {
+                            if (_chosen) return;
+                            _chosen = true;
                             await OverlaySheetController.closeAdaptive<void>(
                               context,
                             );

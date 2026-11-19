@@ -19874,4 +19874,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvEpisodesLoadFailed => 'The episodes couldn\'t be loaded';
+
+  @override
+  String get kostvMarkPlayedFailed => 'Couldn\'t mark it as watched';
+
+  @override
+  String get kostvMarkUnplayedFailed => 'Couldn\'t mark it as unwatched';
+
+  @override
+  String get kostvFavoriteChangeFailed => 'Couldn\'t change the favorite';
+
+  @override
+  String get kostvItemNotFoundOnServer => 'the server can\'t find it';
+
+  @override
+  String get kostvServerRequestFailed => 'the server couldn\'t do it';
+
+  @override
+  String get kostvCollectionAddFailed => 'Couldn\'t add it to the collection';
 }

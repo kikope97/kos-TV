@@ -14160,5 +14160,29 @@
     "kostvEpisodesLoadFailed": "No se han podido cargar los episodios",
     "@kostvEpisodesLoadFailed": {
         "description": "Kos TV: a series page whose episode list failed to load, with a Retry button"
+    },
+    "kostvMarkPlayedFailed": "No se ha podido marcar como visto",
+    "@kostvMarkPlayedFailed": {
+        "description": "Kos TV: a card menu's mark as watched didn't reach the server"
+    },
+    "kostvMarkUnplayedFailed": "No se ha podido marcar como no visto",
+    "@kostvMarkUnplayedFailed": {
+        "description": "Kos TV: a card menu's mark as unwatched didn't reach the server"
+    },
+    "kostvFavoriteChangeFailed": "No se ha podido cambiar el favorito",
+    "@kostvFavoriteChangeFailed": {
+        "description": "Kos TV: a card menu's add to or remove from favourites didn't reach the server"
+    },
+    "kostvItemNotFoundOnServer": "el servidor no lo encuentra",
+    "@kostvItemNotFoundOnServer": {
+        "description": "Kos TV: why refreshing an item's metadata failed (HTTP 404); goes inside adminMetadataRefreshFailed"
+    },
+    "kostvServerRequestFailed": "el servidor no ha podido hacerlo",
+    "@kostvServerRequestFailed": {
+        "description": "Kos TV: why refreshing an item's metadata failed (any other server error); goes inside adminMetadataRefreshFailed"
+    },
+    "kostvCollectionAddFailed": "No se ha podido añadir a la colección",
+    "@kostvCollectionAddFailed": {
+        "description": "Kos TV: adding an item to a collection, or creating one for it, failed"
     }
 }

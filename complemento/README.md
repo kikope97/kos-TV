@@ -61,7 +61,17 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   visto. Las recomendaciones no repiten lo que está en la lista y la lista cuenta como un
   favorito para «Recomendado para ti». Con las primeras filas, `/Moonfin/Kostv/Home` devuelve
   `MyList` (lo sin empezar) y `MyListIds`. A las apps se les avisa en `/Moonfin/Ping`
-  (`kostvMyList`).
+  (`kostvMyList`). Lo que tiene título de TMDB y falta un momento del servidor (un archivo
+  que se sustituye por otro mejor, un disco que no está durante un escaneo) no se quita al
+  momento: se apunta desde cuándo falta (`missingSince`), vuelve a su sitio si reaparece
+  (con el mismo id o, por su título de TMDB, con otro) y solo se quita si sigue faltando a
+  los 7 días.
+- **Colecciones de un título** (`Jellyfin/backend/Kostv/KostvCollections.cs`): `GET
+  /Moonfin/Kostv/Collections?itemId=…` da las colecciones que la persona puede ver que
+  tienen ese título directamente (no por su serie), con una sola lectura de las colecciones.
+  La app lo usa para «Parte de la colección…» de la ficha y para «Quitar de la colección» del
+  menú de las tarjetas; con un complemento anterior (contesta 404) recorre las colecciones
+  una a una, como antes.
 - **«No me interesa» y episodios nuevos** (también en `Jellyfin/backend/Kostv/`): `POST
   /Moonfin/Kostv/Home/NotInterested?itemId=…` (con `undo=true` para deshacerlo) guarda por persona
   el título de TMDB que no le interesa (`kostv-home-dismissed.json`, hasta 500), lo saca de sus
@@ -86,7 +96,9 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   sus series favoritas (de los últimos 30 días, aunque no las haya empezado), con
   `FavoriteSeriesIds`, y añade `Rewatch`: favoritos vistos hace más de 180 días o marcados hace
   más de 14 y sin empezar (hasta 20, en un orden que cambia cada día). A las apps se les avisa
-  en `/Moonfin/Ping` (`kostvFavorites`).
+  en `/Moonfin/Ping` (`kostvFavorites`). Los favoritos que ya lo eran antes de que se
+  apuntaran las fechas se anotan una vez como «de antes» (unos minutos después de arrancar el
+  servidor) y nunca se fechan, así que valorar uno no lo sube al primer puesto.
 - **El botón Descubrir se sincroniza** como los demás (`showDiscoverButton`), con
   su valor por defecto en la página.
 - **La marca del paso a la ficha de kOS TV se sincroniza** junto al estilo de la

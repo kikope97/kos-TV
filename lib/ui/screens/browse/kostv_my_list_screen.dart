@@ -8,11 +8,13 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/kostv_my_list.dart';
+import '../../../data/services/user_data_sync.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
+import '../../navigation/route_lifecycle_observer.dart';
 import '../../widgets/focus/context_menu_sheet.dart';
 import '../../widgets/focus/locked_focus_row.dart';
 import '../../widgets/media_card.dart';
@@ -21,6 +23,7 @@ import '../../../util/focus/input_mode_tracker.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../calendar/calendar_common.dart';
 import '../home/home_row_card_image.dart';
+import '../home/kostv_undo_toast.dart';
 
 /// Kos TV: the person's list («Mi lista») in three rows: what they are part
 /// way through, what they haven't started and what they have watched, with a
@@ -37,7 +40,7 @@ enum _Part { watching, toStart, watched }
 /// The card that clears the watched ones, at the end of their row.
 const _clearCard = AggregatedItem(id: 'kostv_clear', serverId: '', rawData: {});
 
-class _KostvMyListScreenState extends State<KostvMyListScreen> {
+class _KostvMyListScreenState extends State<KostvMyListScreen> with RouteAware {
   final _list = GetIt.instance<KostvMyListService>();
   final _prefs = GetIt.instance<UserPreferences>();
   final _scroll = ScrollController();
@@ -51,23 +54,138 @@ class _KostvMyListScreenState extends State<KostvMyListScreen> {
   bool _loading = true;
   bool _failed = false;
 
+  /// Kos TV: the rows shown at the last change, to tell which went away.
+  List<_Part> _lastShown = const [];
+
+  /// Kos TV: the page reads the list again when what it shows was watched
+  /// or started elsewhere (the player, a card's menu, another device), a
+  /// moment after the last change, since a title can move to another row.
+  Timer? _syncDebounce;
+  ModalRoute<dynamic>? _observedRoute;
+
+  /// Whether a page is pushed over this one, and whether something changed
+  /// meanwhile, so it reads the list once on the way back.
+  bool _covered = false;
+  bool _staleWhileCovered = false;
+
+  /// What [userDataSync] had told when the page last looked, so only what
+  /// changed since counts.
+  int _seenRevision = userDataSync.revision;
+
   @override
   void initState() {
     super.initState();
     _list.addListener(_onChanged);
+    userDataSync.addListener(_onUserData);
+    final page = _list.page;
+    if (page != null) _lastShown = _shown(page);
     unawaited(_load());
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route == null || route == _observedRoute) return;
+    if (_observedRoute != null) routeLifecycleObserver.unsubscribe(this);
+    _observedRoute = route;
+    routeLifecycleObserver.subscribe(this, route);
+  }
+
+  @override
   void dispose() {
+    if (_observedRoute != null) routeLifecycleObserver.unsubscribe(this);
+    _syncDebounce?.cancel();
     _list.removeListener(_onChanged);
+    userDataSync.removeListener(_onUserData);
     _scroll.dispose();
     _firstFocus.dispose();
     super.dispose();
   }
 
+  @override
+  void didPushNext() => _covered = true;
+
+  @override
+  void didPopNext() {
+    _covered = false;
+    if (!_staleWhileCovered) return;
+    _staleWhileCovered = false;
+    unawaited(_list.load());
+  }
+
   void _onChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final page = _list.page;
+    final shown = page == null ? const <_Part>[] : _shown(page);
+    final gone = [
+      for (final part in _lastShown)
+        if (!shown.contains(part) &&
+            (_rowKeys[part]?.currentState?.hasFocusedItem ?? false))
+          part,
+    ];
+    final before = _lastShown;
+    _lastShown = shown;
+    setState(() {});
+    // Kos TV: the row holding the focus went away (its last title left it):
+    // the focus goes to the row next to it, or up to the menu, rather than
+    // being lost with the row. Only with the remote or the keyboard: a touch
+    // leaves no focus to move, and moving it would scroll the page.
+    if (gone.isNotEmpty && InputModeTracker.of(context) == InputMode.keyboard) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusNear(before, gone.first);
+      });
+    }
+  }
+
+  /// Puts the focus on the row shown nearest to where [gone] was in
+  /// [before]: the one above, else the one below, else the menu.
+  void _focusNear(List<_Part> before, _Part gone) {
+    final page = _list.page;
+    final shown = page == null ? const <_Part>[] : _shown(page);
+    final at = before.indexOf(gone);
+    final above = [
+      for (final part in before.take(at < 0 ? 0 : at).toList().reversed)
+        if (shown.contains(part)) part,
+    ];
+    final below = [
+      for (final part in before.skip(at + 1))
+        if (shown.contains(part)) part,
+    ];
+    final target = above.firstOrNull ?? below.firstOrNull;
+    final row = target == null ? null : _rowKeys[target]?.currentState;
+    if (row != null) {
+      row.requestFocusAt(0);
+    } else {
+      NavigationLayout.focusNavbarNotifier.value?.call();
+    }
+  }
+
+  /// Kos TV: something this page shows was watched, started or marked: its
+  /// card is painted with it now, and the list is read again in a moment to
+  /// put it in its row (or once back, when a page covers this one).
+  void _onUserData() {
+    if (!mounted) return;
+    final page = _list.page;
+    final seen = _seenRevision;
+    _seenRevision = userDataSync.revision;
+    if (page == null) return;
+    final touched = _Part.values.any(
+      (part) => _raw(
+        page,
+        part,
+      ).any((item) => userDataSync.revisionFor(item.id) > seen),
+    );
+    if (!touched) return;
+    setState(() {});
+    if (_covered) {
+      _staleWhileCovered = true;
+      return;
+    }
+    _syncDebounce?.cancel();
+    _syncDebounce = Timer(const Duration(milliseconds: 500), () {
+      if (mounted) unawaited(_list.load());
+    });
   }
 
   Future<void> _load() async {
@@ -79,12 +197,17 @@ class _KostvMyListScreenState extends State<KostvMyListScreen> {
     });
   }
 
+  /// Kos TV: with the newest watched and favourite state this client knows,
+  /// so a card shows what was just done to it and its menu offers the rest.
   List<AggregatedItem> _items(KostvMyListPage page, _Part part) =>
-      switch (part) {
-        _Part.watching => page.watching,
-        _Part.toStart => page.toStart,
-        _Part.watched => page.watched,
-      };
+      userDataSync.applyAll(_raw(page, part));
+
+  /// The part as the plugin sent it.
+  List<AggregatedItem> _raw(KostvMyListPage page, _Part part) => switch (part) {
+    _Part.watching => page.watching,
+    _Part.toStart => page.toStart,
+    _Part.watched => page.watched,
+  };
 
   List<_Part> _shown(KostvMyListPage page) => [
     for (final part in _Part.values)
@@ -99,36 +222,54 @@ class _KostvMyListScreenState extends State<KostvMyListScreen> {
     context.push(Destinations.item(item.id, serverId: item.serverId));
   }
 
+  /// Kos TV: the watched ones leave at once and a notice offers a few
+  /// seconds to take it back, as «Not interested» does on Home; only then
+  /// is the server told. The row goes with the focus in it, which moves to
+  /// the row above, or up to the menu (see [_onChanged]).
   Future<void> _clearWatched() async {
     final l10n = AppLocalizations.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    // The row of watched ones goes with the focus in it: once it is gone,
-    // the focus moves to the row above, or up to the menu. Only with the
-    // remote or the keyboard: a touch leaves no focus to move, and moving
-    // it would scroll the page.
-    final withKeys = InputModeTracker.of(context) == InputMode.keyboard;
+    final remote = InputModeTracker.of(context) == InputMode.keyboard;
     final page = _list.page;
-    final shown = page == null ? const <_Part>[] : _shown(page);
-    final at = shown.indexOf(_Part.watched);
-    final done = await _list.clearWatched();
-    if (done && withKeys && mounted && page != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        if (at > 0) {
-          _rowKeys[shown[at - 1]]?.currentState?.requestFocusAt(0);
-        } else {
-          NavigationLayout.focusNavbarNotifier.value?.call();
-        }
-      });
-    }
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          done ? l10n.kostvMyListCleared : l10n.kostvMyListChangeFailed,
-        ),
-      ),
+    final before = page == null ? const <_Part>[] : _shown(page);
+    var undone = false;
+    final done = _list.clearWatchedLater();
+
+    showKostvUndoToast(
+      context,
+      message: l10n.kostvMyListCleared,
+      undoLabel: l10n.kostvUndo,
+      duration: KostvMyListService.clearUndoTime,
+      takeFocus: remote,
+      onUndo: () {
+        undone = true;
+        _list.undoClearWatched();
+        if (!remote) return;
+        // Back on the card that cleared them.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          final watched = _list.page?.watched.length ?? 0;
+          _rowKeys[_Part.watched]?.currentState?.requestFocusAt(watched);
+        });
+      },
+      onLeave: () {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _focusNear(before, _Part.watched);
+        });
+      },
     );
+
+    final cleared = await done;
+    if (!cleared && !undone) {
+      messenger.showSnackBar(
+        SnackBar(content: Text(l10n.kostvMyListChangeFailed)),
+      );
+    }
   }
+
+  /// Kos TV: a card's menu changed something (watched, its list): the list is
+  /// read again so the title moves to its row.
+  void _reloadAfterMenu() => unawaited(_list.load());
 
   /// A remote moving between rows: the next one shown, or the bar above.
   bool _onVertical(KostvMyListPage page, _Part part, bool isUp) {
@@ -454,7 +595,7 @@ class _KostvMyListScreenState extends State<KostvMyListScreen> {
           onTap: (_, item) => _open(item),
           onLongPress: (_, item) {
             if (identical(item, _clearCard)) return;
-            showContextMenu(context, item);
+            showContextMenu(context, item, onChanged: _reloadAfterMenu);
           },
           itemBuilder: (context, item, index, focused) {
             final showFocus = InputModeTracker.showFocusVisuals(
@@ -516,7 +657,8 @@ class _KostvMyListScreenState extends State<KostvMyListScreen> {
               cardFocusExpansion: expansion,
               externalIsFocused: showFocus,
               onTap: () => _open(item),
-              onLongPress: () => showContextMenu(context, item),
+              onLongPress: () =>
+                  showContextMenu(context, item, onChanged: _reloadAfterMenu),
             );
           },
         ),

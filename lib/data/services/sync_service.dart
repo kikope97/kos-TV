@@ -46,6 +46,9 @@ class SyncService extends ChangeNotifier {
     var synced = 0, failed = 0;
     for (final entry in _pendingRatings.all) {
       if (entry.serverId != serverId) continue;
+      // Kos TV: someone else's waits until they are signed in again, so it
+      // isn't set on this person's account.
+      if (!entry.isOf(client.userId)) continue;
       try {
         if (entry.clear) {
           await client.userLibraryApi.deleteUserRating(entry.itemId);
@@ -60,7 +63,11 @@ class SyncService extends ChangeNotifier {
             likes: entry.likes!,
           );
         }
-        await _pendingRatings.remove(entry.serverId, entry.itemId);
+        await _pendingRatings.remove(
+          entry.serverId,
+          entry.itemId,
+          userId: entry.userId,
+        );
         synced++;
       } catch (e) {
         debugPrint('[Sync] Failed to push rating for ${entry.itemId}: $e');

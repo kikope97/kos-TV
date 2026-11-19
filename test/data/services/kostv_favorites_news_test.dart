@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -22,6 +23,9 @@ const _device = DeviceInfo(
 class _Plugin implements HttpClientAdapter {
   bool seen = false;
   int reads = 0;
+
+  /// When set, the next read waits for it.
+  Completer<void>? holdNextRead;
 
   Map<String, Object?> _entry(String series, {required bool unseen}) => {
     'Series': {'Id': series, 'Name': series, 'Type': 'Series'},
@@ -53,6 +57,9 @@ class _Plugin implements HttpClientAdapter {
       return ResponseBody.fromString('', 404);
     }
     reads++;
+    final hold = holdNextRead;
+    holdNextRead = null;
+    if (hold != null) await hold.future;
     return ResponseBody.fromString(
       jsonEncode({
         'Series': [
@@ -140,6 +147,33 @@ void main() {
     jf = client('luis');
     expect(news.news, isEmpty);
     expect(news.unseen, 0);
+    news.dispose();
+  });
+
+  // Kos TV: a read for the last person, still under way, was handed to the
+  // new one and thrown away on landing: no news until the next half hour.
+  test('a new person gets a read of their own while the last one\'s is '
+      'under way', () async {
+    final plugin = _Plugin();
+    var jf = client('ana');
+    final news = KostvFavoritesNewsService(
+      client: () => jf,
+      prefs: await prefs(available: true),
+      dio: Dio()..httpClientAdapter = plugin,
+    );
+    final slow = Completer<void>();
+    plugin.holdNextRead = slow;
+    final anas = news.refresh();
+    await pumpEventQueue();
+
+    jf = client('luis');
+    await news.refresh();
+    expect(plugin.reads, 2);
+    expect(news.unseen, 1);
+
+    slow.complete();
+    await anas;
+    expect(news.news, hasLength(2));
     news.dispose();
   });
 

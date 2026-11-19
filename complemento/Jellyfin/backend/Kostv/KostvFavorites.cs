@@ -1,8 +1,10 @@
 using MediaBrowser.Model.Entities;
 using System.Text.Json.Serialization;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Library;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Moonfin.Server.Helpers;
 using Moonfin.Server.Services;
 
 namespace Moonfin.Server.Kostv;
@@ -17,6 +19,18 @@ public sealed class KostvFavoriteData
     /// <summary>When the person last saw the news of their favourite series.</summary>
     [JsonPropertyName("newsSeenAt")]
     public DateTimeOffset? NewsSeenAt { get; set; }
+
+    /// <summary>
+    /// Kos TV: favourites that already were before their moment was kept, by item. Never dated,
+    /// so rating one (the server saves a rating the way it saves the heart) doesn't make it the
+    /// newest favourite.
+    /// </summary>
+    [JsonPropertyName("undated")]
+    public HashSet<string> Undated { get; set; } = new(StringComparer.Ordinal);
+
+    /// <summary>Kos TV: whether <see cref="Undated"/> was filled from the server's favourites.</summary>
+    [JsonPropertyName("seeded")]
+    public bool Seeded { get; set; }
 }
 
 /// <summary>
@@ -56,10 +70,49 @@ public sealed class KostvFavoriteDates : FileBackedCacheService<KostvFavoriteDat
             var data = EnsureLoaded().GetOrAdd(KeyOf(userId), _ => new KostvFavoriteData());
             if (favorite)
             {
-                return data.Since.TryAdd(id, at);
+                // Kos TV: a favourite from before is still one, not a new one.
+                return !data.Undated.Contains(id) && data.Since.TryAdd(id, at);
             }
 
-            return data.Since.Remove(id);
+            var undated = data.Undated.Remove(id);
+            return data.Since.Remove(id) || undated;
+        }
+    }
+
+    /// <summary>Kos TV: whether <paramref name="userId"/>'s favourites from before are noted.</summary>
+    public bool IsSeeded(Guid userId)
+    {
+        lock (_lock)
+        {
+            return EnsureLoaded().TryGetValue(KeyOf(userId), out var data) && data.Seeded;
+        }
+    }
+
+    /// <summary>
+    /// Kos TV: notes <paramref name="favorites"/>, the server's favourites of
+    /// <paramref name="userId"/> now, as favourites from before, except those already dated.
+    /// Once per person; false when already done.
+    /// </summary>
+    public bool Seed(Guid userId, IEnumerable<string> favorites)
+    {
+        lock (_lock)
+        {
+            var data = EnsureLoaded().GetOrAdd(KeyOf(userId), _ => new KostvFavoriteData());
+            if (data.Seeded)
+            {
+                return false;
+            }
+
+            foreach (var id in favorites)
+            {
+                if (!data.Since.ContainsKey(id))
+                {
+                    data.Undated.Add(id);
+                }
+            }
+
+            data.Seeded = true;
+            return true;
         }
     }
 
@@ -99,30 +152,97 @@ public sealed class KostvFavoriteDates : FileBackedCacheService<KostvFavoriteDat
 /// </summary>
 public sealed class KostvFavoritesWatcher : IHostedService
 {
+    // Kos TV: the library is read for the favourites from before once the server is up.
+    private static readonly TimeSpan SeedAfter = TimeSpan.FromMinutes(2);
+    private const int SeedTries = 5;
+
     private readonly IUserDataManager _userDataManager;
     private readonly KostvFavoriteDates _dates;
+    private readonly ILibraryManager _libraryManager;
+    private readonly IServiceProvider _services;
     private readonly ILogger<KostvFavoritesWatcher> _logger;
+    private readonly CancellationTokenSource _stopping = new();
 
     public KostvFavoritesWatcher(
         IUserDataManager userDataManager,
         KostvFavoriteDates dates,
+        ILibraryManager libraryManager,
+        IServiceProvider services,
         ILogger<KostvFavoritesWatcher> logger)
     {
         _userDataManager = userDataManager;
         _dates = dates;
+        _libraryManager = libraryManager;
+        _services = services;
         _logger = logger;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
         _userDataManager.UserDataSaved += OnUserDataSaved;
+        _ = SeedLaterAsync(_stopping.Token);
         return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
+        _stopping.Cancel();
         _userDataManager.UserDataSaved -= OnUserDataSaved;
         return _dates.FlushAsync();
+    }
+
+    /// <summary>
+    /// Kos TV: notes each person's favourites from before as such, once, so rating one later
+    /// doesn't date it as just marked. Tried again a few times while the library isn't ready.
+    /// </summary>
+    private async Task SeedLaterAsync(CancellationToken token)
+    {
+        for (var attempt = 0; attempt < SeedTries; attempt++)
+        {
+            try
+            {
+                await Task.Delay(SeedAfter, token).ConfigureAwait(false);
+                if (SeedAll())
+                {
+                    await _dates.FlushAsync().ConfigureAwait(false);
+                }
+
+                return;
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "kOS TV: noting the favourites from before failed");
+            }
+        }
+    }
+
+    // Whether anyone's were noted.
+    private bool SeedAll()
+    {
+        var any = false;
+        foreach (var user in UserReflection.AllUsers(_services) ?? Array.Empty<object>())
+        {
+            if (user.GetType().GetProperty("Id")?.GetValue(user) is not Guid id || _dates.IsSeeded(id))
+            {
+                continue;
+            }
+
+            var query = new InternalItemsQuery { IsFavorite = true, Recursive = true, EnableTotalRecordCount = false };
+            // Without the person's limits applied nothing is read, rather than everything.
+            if (!UserReflection.ApplyUser(query, user))
+            {
+                continue;
+            }
+
+            var favorites = _libraryManager.GetItemList(query).Select(i => i.Id.ToString("N"));
+            any |= _dates.Seed(id, favorites);
+        }
+
+        return any;
     }
 
     private void OnUserDataSaved(object? sender, UserDataSaveEventArgs e)

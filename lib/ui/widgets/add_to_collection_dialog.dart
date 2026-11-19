@@ -42,26 +42,18 @@ class AddToCollectionDialog extends StatefulWidget {
 }
 
 class _AddToCollectionDialogState extends State<AddToCollectionDialog> {
+  /// Kos TV: what went wrong, in the app's language. The server's own words
+  /// can be English or a whole HTML page, so they only go to the log.
   String _errorMessage(Object error) {
+    final l10n = AppLocalizations.of(context);
     if (error is DioException) {
       final status = error.response?.statusCode;
-      final data = error.response?.data;
-      final serverMessage = data is String
-          ? data
-          : (data is Map<String, dynamic>
-                ? (data['message'] ?? data['Message'])?.toString()
-                : null);
-      if (serverMessage != null && serverMessage.trim().isNotEmpty) {
-        return serverMessage;
-      }
-      if (status == 403) {
-        return 'Collection management not allowed for this account.';
-      }
-      if (status != null) {
-        return 'HTTP $status';
-      }
+      debugPrint(
+        '[Collections] The server refused ($status): ${error.response?.data}',
+      );
+      if (status == 401 || status == 403) return l10n.requestErrorPermission;
     }
-    return AppLocalizations.of(context).failedToLoad;
+    return l10n.kostvCollectionAddFailed;
   }
 
   late final MediaServerClient _client;
@@ -72,6 +64,13 @@ class _AddToCollectionDialogState extends State<AddToCollectionDialog> {
   final _createCancelFocus = FocusNode(debugLabel: 'createCollectionCancel');
   final _tvFieldKey = GlobalKey<CustomTVTextFieldState>();
   List<_CollectionEntry>? _collections;
+
+  /// Kos TV: the list couldn't be read, which is not the same as having none.
+  bool _loadFailed = false;
+
+  /// Kos TV: a request is under way, so another press doesn't send a second
+  /// one (OK twice on «Create» made two collections of the same name).
+  bool _busy = false;
 
   @override
   void initState() {
@@ -95,6 +94,7 @@ class _AddToCollectionDialogState extends State<AddToCollectionDialog> {
   }
 
   Future<void> _loadCollections() async {
+    if (_loadFailed) setState(() => _loadFailed = false);
     try {
       // A server that lets the user edit only some collections lists just
       // those (Silo: the profile's own manual ones).
@@ -122,7 +122,7 @@ class _AddToCollectionDialogState extends State<AddToCollectionDialog> {
       });
     } catch (_) {
       if (mounted) {
-        setState(() => _collections = []);
+        setState(() => _loadFailed = true);
       }
     }
   }
@@ -184,6 +184,8 @@ class _AddToCollectionDialogState extends State<AddToCollectionDialog> {
   }
 
   Future<void> _addToCollection(String collectionId) async {
+    if (_busy) return;
+    _busy = true;
     try {
       await _mutations.addToCollection(collectionId, widget.itemIds);
       ItemMembershipService.instance.notifyItemAddedToCollection(
@@ -197,12 +199,22 @@ class _AddToCollectionDialogState extends State<AddToCollectionDialog> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(_errorMessage(error))));
+    } finally {
+      _busy = false;
     }
+  }
+
+  /// Closes the name dialog and creates, once.
+  void _submitCreate(BuildContext dialogContext) {
+    if (_busy) return;
+    Navigator.pop(dialogContext);
+    _createAndAdd();
   }
 
   Future<void> _createAndAdd() async {
     final name = _nameController.text.trim();
-    if (name.isEmpty) return;
+    if (name.isEmpty || _busy) return;
+    _busy = true;
     try {
       final created = await _mutations.createCollection(name: name);
       if (!mounted) return;
@@ -229,10 +241,13 @@ class _AddToCollectionDialogState extends State<AddToCollectionDialog> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(_errorMessage(error))));
+    } finally {
+      _busy = false;
     }
   }
 
   void _showCreateNew() {
+    if (_busy) return;
     _nameController.clear();
     showFocusRestoringDialog<void>(
       context: context,
@@ -296,8 +311,7 @@ class _AddToCollectionDialogState extends State<AddToCollectionDialog> {
                     }
                     if (key.isSelectKey) {
                       if (_createCreateFocus.hasFocus) {
-                        Navigator.pop(ctx);
-                        _createAndAdd();
+                        _submitCreate(ctx);
                       } else {
                         Navigator.pop(ctx);
                       }
@@ -347,10 +361,8 @@ class _AddToCollectionDialogState extends State<AddToCollectionDialog> {
                                     keyboardStyle: GetIt.instance<
                                       UserPreferences
                                     >().get(UserPreferences.keyboardStyle),
-                                    onFieldSubmitted: (_) {
-                                      Navigator.pop(ctx);
-                                      _createAndAdd();
-                                    },
+                                    onFieldSubmitted: (_) =>
+                                        _submitCreate(ctx),
                                   );
                                 },
                               ),
@@ -375,10 +387,7 @@ class _AddToCollectionDialogState extends State<AddToCollectionDialog> {
                                   borderSide: BorderSide.none,
                                 ),
                               ),
-                              onSubmitted: (_) {
-                                Navigator.pop(ctx);
-                                _createAndAdd();
-                              },
+                              onSubmitted: (_) => _submitCreate(ctx),
                             ),
                       const SizedBox(height: 16),
                       Row(
@@ -399,10 +408,7 @@ class _AddToCollectionDialogState extends State<AddToCollectionDialog> {
                           const SizedBox(width: 8),
                           FilledButton(
                             focusNode: isTV ? _createCreateFocus : null,
-                            onPressed: () {
-                              Navigator.pop(ctx);
-                              _createAndAdd();
-                            },
+                            onPressed: () => _submitCreate(ctx),
                             child: Text(l10n.create),
                           ),
                         ],
@@ -462,7 +468,27 @@ class _AddToCollectionDialogState extends State<AddToCollectionDialog> {
               onTap: _showCreateNew,
               autofocus: true,
             ),
-            if (_collections == null)
+            if (_loadFailed)
+              Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                    child: Text(
+                      l10n.failedToLoad,
+                      style: TextStyle(
+                        color: AppColorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ),
+                  FocusableDialogRow(
+                    icon: Icons.refresh,
+                    label: l10n.retry,
+                    onTap: _loadCollections,
+                  ),
+                ],
+              )
+            else if (_collections == null)
               Padding(
                 padding: const EdgeInsets.all(24),
                 child: Center(

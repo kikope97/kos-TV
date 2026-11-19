@@ -29,6 +29,33 @@ public sealed class KostvFavoritesTests
     }
 
     [Fact]
+    public void AFavouriteFromBeforeIsNeverDatedByARating()
+    {
+        var dates = new KostvFavoriteDates(NullLogger<KostvFavoriteDates>.Instance);
+        var ana = Guid.NewGuid();
+        var old = Guid.NewGuid();
+        var marked = Guid.NewGuid();
+        dates.Mark(ana, marked, true, Now);
+
+        Assert.False(dates.IsSeeded(ana));
+        Assert.True(dates.Seed(ana, [old.ToString("N"), marked.ToString("N")]));
+        Assert.True(dates.IsSeeded(ana));
+        // Once per person.
+        Assert.False(dates.Seed(ana, [Guid.NewGuid().ToString("N")]));
+
+        // Rated years later: still a favourite from before, not the newest one.
+        Assert.False(dates.Mark(ana, old, true, Now.AddDays(1)));
+        Assert.False(dates.Since(ana).ContainsKey(old.ToString("N")));
+        // The one already dated keeps its moment.
+        Assert.Equal(Now, dates.Since(ana)[marked.ToString("N")]);
+
+        // Unmarked and marked again: a real change of heart, so it is dated.
+        Assert.True(dates.Mark(ana, old, false, Now.AddDays(2)));
+        Assert.True(dates.Mark(ana, old, true, Now.AddDays(3)));
+        Assert.Equal(Now.AddDays(3), dates.Since(ana)[old.ToString("N")]);
+    }
+
+    [Fact]
     public void WhenTheNewsWasLastSeenIsKeptPerPerson()
     {
         var dates = new KostvFavoriteDates(NullLogger<KostvFavoriteDates>.Instance);
