@@ -19455,5 +19455,88 @@
   "kostvChannelOpenFailed": "Unable to open channel",
   "@kostvChannelOpenFailed": {
     "description": "Kos TV: a TV channel could not be opened"
+  },
+  "kostvStartupFailedTitle": "kOS TV couldn't open",
+  "@kostvStartupFailedTitle": {
+    "description": "Kos TV: title of the screen shown when the app fails while starting, before anything else loads"
+  },
+  "kostvStartupFailedMessage": "Something went wrong while starting. Try again, and if it keeps happening, restart the device or check it has free space left.",
+  "@kostvStartupFailedMessage": {
+    "description": "Kos TV: body of the screen shown when the app fails while starting"
+  },
+  "kostvStartupStepFailed": "Something went wrong while opening kOS TV. Try again.",
+  "@kostvStartupStepFailed": {
+    "description": "Kos TV: note with a Retry button on the start screen when a step of opening the app failed"
+  },
+  "kostvPageNotFoundTitle": "This page doesn't exist",
+  "@kostvPageNotFoundTitle": {
+    "description": "Kos TV: title of the page shown for an address the app has no page for"
+  },
+  "kostvPageNotFoundMessage": "The address may be mistyped, or the page may no longer be here.",
+  "@kostvPageNotFoundMessage": {
+    "description": "Kos TV: body of the page shown for an address the app has no page for"
+  },
+  "kostvGoToHome": "Go to Home",
+  "@kostvGoToHome": {
+    "description": "Kos TV: button that goes to the Home screen"
+  },
+  "kostvDownloadFailed": "Download failed",
+  "@kostvDownloadFailed": {
+    "description": "Kos TV: a download failed, with no more detail"
+  },
+  "kostvDownloadFailedNamed": "Download failed: {name} ({error})",
+  "@kostvDownloadFailedNamed": {
+    "description": "Kos TV: a download in the browser failed",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDownloadDiskFull": "The download disk is full. Free up space in the download location and retry.",
+  "@kostvDownloadDiskFull": {
+    "description": "Kos TV: a download failed because the disk is full"
+  },
+  "kostvDownloadWifiOnly": "WiFi-only mode enabled. Connect to WiFi to download.",
+  "@kostvDownloadWifiOnly": {
+    "description": "Kos TV: a download was refused because downloads are set to WiFi only"
+  },
+  "kostvDownloadNotEnoughSpace": "Not enough free space in {path}. Needs about {needed}, {free} available.",
+  "@kostvDownloadNotEnoughSpace": {
+    "description": "Kos TV: a download was refused for lack of free space in the download folder",
+    "placeholders": {
+      "path": {
+        "type": "String"
+      },
+      "needed": {
+        "type": "String"
+      },
+      "free": {
+        "type": "String"
+      }
+    }
+  },
+  "kostvDownloadFolderNotWritable": "Cannot write to download folder. Please reset the download location in Settings → Downloads, or grant storage permissions.",
+  "@kostvDownloadFolderNotWritable": {
+    "description": "Kos TV: a download failed because its folder cannot be written to"
+  },
+  "kostvDownloadForbidden": "Download forbidden (403). Retried alternate endpoints but access was denied.",
+  "@kostvDownloadForbidden": {
+    "description": "Kos TV: a download was refused by the server (HTTP 403)"
+  },
+  "kostvDownloadUnauthorized": "Download unauthorized (401). Please re-login and try again.",
+  "@kostvDownloadUnauthorized": {
+    "description": "Kos TV: a download was refused because the session is not accepted (HTTP 401)"
+  },
+  "kostvDownloadSourceNotFound": "Download source not found (404). The file may no longer be available.",
+  "@kostvDownloadSourceNotFound": {
+    "description": "Kos TV: a download failed because the file is not on the server (HTTP 404)"
+  },
+  "kostvDownloadTimedOut": "Download timed out while waiting for transfer completion.",
+  "@kostvDownloadTimedOut": {
+    "description": "Kos TV: a download took too long to finish"
   }
 }

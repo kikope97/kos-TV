@@ -120,30 +120,6 @@ Future<String> _resolveDeviceName() async {
       final marketingName = _joinNonEmpty([info.name, info.model], ' ');
       return _fallbackIfEmpty(marketingName, 'iPhone');
     }
-
-    if (PlatformDetection.isMacOS) {
-      final info = await deviceInfo.macOsInfo;
-      return _fallbackIfEmpty(
-        _joinNonEmpty([info.computerName, info.model], ' '),
-        'Mac',
-      );
-    }
-
-    if (PlatformDetection.isWindows) {
-      final info = await deviceInfo.windowsInfo;
-      return _fallbackIfEmpty(
-        _joinNonEmpty([info.computerName, info.productName], ' '),
-        'Windows PC',
-      );
-    }
-
-    if (PlatformDetection.isLinux) {
-      final info = await deviceInfo.linuxInfo;
-      return _fallbackIfEmpty(
-        _joinNonEmpty([info.name, info.prettyName], ' '),
-        'Linux Device',
-      );
-    }
   } catch (_) {
     // Fall through to app-based fallback below.
   }
@@ -441,12 +417,28 @@ Future<void> configureBackgroundDependencies({bool offline = false}) async {
   );
 }
 
-Future<void> configureDependencies() async {
+/// Kos TV: the beta number and the app version, which read a file of the
+/// app each (on the web, two trips to the server) and don't need each other.
+/// The web starts it with its config.json, before anything else.
+Future<(void, String)> startAppInfoLoad() =>
+    (AppBeta.load(), _resolveAppVersion()).wait;
+
+/// Kos TV: failures startup carried on past, for main to record once the log
+/// and the crash reports exist (they are built last, below).
+final List<(Object, StackTrace)> _deferredStartupErrors = [];
+
+/// Hands over, and forgets, what [_deferredStartupErrors] holds.
+List<(Object, StackTrace)> takeDeferredStartupErrors() {
+  final errors = List.of(_deferredStartupErrors);
+  _deferredStartupErrors.clear();
+  return errors;
+}
+
+/// [appInfo] is [startAppInfoLoad] already under way, if it is.
+Future<void> configureDependencies({Future<(void, String)>? appInfo}) async {
   final preferenceStore = PreferenceStore();
   await preferenceStore.init();
-  // Kos TV: both read a file of the app (on the web, two trips to the
-  // server), and neither needs the other.
-  final (_, appVersion) = await (AppBeta.load(), _resolveAppVersion()).wait;
+  final (_, appVersion) = await (appInfo ?? startAppInfoLoad());
   setServerUserAgentVersion(appVersion);
   await _migrateLegacyBitrateCap(preferenceStore);
   await _migrateAndroidMobileStereoAacFallbackDefault(preferenceStore);
@@ -497,7 +489,14 @@ Future<void> configureDependencies() async {
   if (PlatformDetection.isWeb) {
     unawaited(getIt<OfflineCatalog>().warm().catchError((Object _) {}));
   } else {
-    await getIt<OfflineCatalog>().warm();
+    // Kos TV: a downloads database that can't be opened or migrated (a full
+    // disk, a file damaged by a power cut) leaves the catalogue empty rather
+    // than stopping the app from opening at all. It is recorded as a crash.
+    try {
+      await getIt<OfflineCatalog>().warm();
+    } catch (error, stack) {
+      _deferredStartupErrors.add((error, stack));
+    }
   }
 
   final connectivityService = ConnectivityService();
@@ -507,11 +506,19 @@ Future<void> configureDependencies() async {
   registerServerModule();
   registerAuthModule();
   await getIt<AuthenticationStore>().init();
+  // Kos TV: the stored certificates are read (the whole secure store
+  // decrypted, on Android) while the modules below are built, rather than
+  // after them. Their reading starts only once the credentials are in, so
+  // it never holds those up.
+  final storedCertificates = getIt<ClientCertificateStore>().getAll();
   registerPlaybackModule();
   registerAppModule();
   // Waits on the native player, so it goes after the modules a boot-time
   // connectivity check may already be reaching for.
-  await installClientCertificates(getIt<ClientCertificateStore>());
+  await installClientCertificates(
+    getIt<ClientCertificateStore>(),
+    stored: storedCertificates,
+  );
 
   getIt.registerSingleton<LogService>(
     LogService(

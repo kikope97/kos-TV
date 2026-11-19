@@ -37,10 +37,10 @@ class PushMessagingService {
 
   /// Kos TV: push is off. The bundled Firebase config belongs to Moonfin's
   /// project; flip this once Kos TV has its own Firebase project and config.
-  static const bool _pushEnabled = false;
+  static const bool enabled = false;
 
   Future<void> _doInitialize() async {
-    if (!_pushEnabled) return;
+    if (!enabled) return;
     if (!PlatformDetection.isMobile) return;
 
     try {

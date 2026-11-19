@@ -19,10 +19,6 @@ final mediaServerClientFactoryProvider = Provider<MediaServerClientFactory>(
   (_) => getIt<MediaServerClientFactory>(),
 );
 
-final activeServerClientProvider = StateProvider<MediaServerClient?>(
-  (_) => null,
-);
-
 final playbackManagerProvider = Provider<PlaybackManager>(
   (_) => getIt<PlaybackManager>(),
 );
@@ -86,7 +82,7 @@ final syncPlayRuntimeCoordinatorProvider = Provider<SyncPlayRuntimeCoordinator>(
       ref.read(syncPlayManagerProvider),
       ref.read(socketHandlerProvider),
     );
-    coordinator.start(ref, activeServerClientProvider);
+    coordinator.start();
     ref.onDispose(coordinator.stop);
     return coordinator;
   },

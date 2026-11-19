@@ -33914,6 +33914,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to open channel'**
   String get kostvChannelOpenFailed;
+
+  /// Kos TV: title of the screen shown when the app fails while starting, before anything else loads
+  ///
+  /// In en, this message translates to:
+  /// **'kOS TV couldn\'t open'**
+  String get kostvStartupFailedTitle;
+
+  /// Kos TV: body of the screen shown when the app fails while starting
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong while starting. Try again, and if it keeps happening, restart the device or check it has free space left.'**
+  String get kostvStartupFailedMessage;
+
+  /// Kos TV: note with a Retry button on the start screen when a step of opening the app failed
+  ///
+  /// In en, this message translates to:
+  /// **'Something went wrong while opening kOS TV. Try again.'**
+  String get kostvStartupStepFailed;
+
+  /// Kos TV: title of the page shown for an address the app has no page for
+  ///
+  /// In en, this message translates to:
+  /// **'This page doesn\'t exist'**
+  String get kostvPageNotFoundTitle;
+
+  /// Kos TV: body of the page shown for an address the app has no page for
+  ///
+  /// In en, this message translates to:
+  /// **'The address may be mistyped, or the page may no longer be here.'**
+  String get kostvPageNotFoundMessage;
+
+  /// Kos TV: button that goes to the Home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Go to Home'**
+  String get kostvGoToHome;
+
+  /// Kos TV: a download failed, with no more detail
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed'**
+  String get kostvDownloadFailed;
+
+  /// Kos TV: a download in the browser failed
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed: {name} ({error})'**
+  String kostvDownloadFailedNamed(String name, String error);
+
+  /// Kos TV: a download failed because the disk is full
+  ///
+  /// In en, this message translates to:
+  /// **'The download disk is full. Free up space in the download location and retry.'**
+  String get kostvDownloadDiskFull;
+
+  /// Kos TV: a download was refused because downloads are set to WiFi only
+  ///
+  /// In en, this message translates to:
+  /// **'WiFi-only mode enabled. Connect to WiFi to download.'**
+  String get kostvDownloadWifiOnly;
+
+  /// Kos TV: a download was refused for lack of free space in the download folder
+  ///
+  /// In en, this message translates to:
+  /// **'Not enough free space in {path}. Needs about {needed}, {free} available.'**
+  String kostvDownloadNotEnoughSpace(String path, String needed, String free);
+
+  /// Kos TV: a download failed because its folder cannot be written to
+  ///
+  /// In en, this message translates to:
+  /// **'Cannot write to download folder. Please reset the download location in Settings → Downloads, or grant storage permissions.'**
+  String get kostvDownloadFolderNotWritable;
+
+  /// Kos TV: a download was refused by the server (HTTP 403)
+  ///
+  /// In en, this message translates to:
+  /// **'Download forbidden (403). Retried alternate endpoints but access was denied.'**
+  String get kostvDownloadForbidden;
+
+  /// Kos TV: a download was refused because the session is not accepted (HTTP 401)
+  ///
+  /// In en, this message translates to:
+  /// **'Download unauthorized (401). Please re-login and try again.'**
+  String get kostvDownloadUnauthorized;
+
+  /// Kos TV: a download failed because the file is not on the server (HTTP 404)
+  ///
+  /// In en, this message translates to:
+  /// **'Download source not found (404). The file may no longer be available.'**
+  String get kostvDownloadSourceNotFound;
+
+  /// Kos TV: a download took too long to finish
+  ///
+  /// In en, this message translates to:
+  /// **'Download timed out while waiting for transfer completion.'**
+  String get kostvDownloadTimedOut;
 }
 
 class _AppLocalizationsDelegate

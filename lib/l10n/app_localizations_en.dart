@@ -19727,4 +19727,66 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvChannelOpenFailed => 'Unable to open channel';
+
+  @override
+  String get kostvStartupFailedTitle => 'kOS TV couldn\'t open';
+
+  @override
+  String get kostvStartupFailedMessage =>
+      'Something went wrong while starting. Try again, and if it keeps happening, restart the device or check it has free space left.';
+
+  @override
+  String get kostvStartupStepFailed =>
+      'Something went wrong while opening kOS TV. Try again.';
+
+  @override
+  String get kostvPageNotFoundTitle => 'This page doesn\'t exist';
+
+  @override
+  String get kostvPageNotFoundMessage =>
+      'The address may be mistyped, or the page may no longer be here.';
+
+  @override
+  String get kostvGoToHome => 'Go to Home';
+
+  @override
+  String get kostvDownloadFailed => 'Download failed';
+
+  @override
+  String kostvDownloadFailedNamed(String name, String error) {
+    return 'Download failed: $name ($error)';
+  }
+
+  @override
+  String get kostvDownloadDiskFull =>
+      'The download disk is full. Free up space in the download location and retry.';
+
+  @override
+  String get kostvDownloadWifiOnly =>
+      'WiFi-only mode enabled. Connect to WiFi to download.';
+
+  @override
+  String kostvDownloadNotEnoughSpace(String path, String needed, String free) {
+    return 'Not enough free space in $path. Needs about $needed, $free available.';
+  }
+
+  @override
+  String get kostvDownloadFolderNotWritable =>
+      'Cannot write to download folder. Please reset the download location in Settings → Downloads, or grant storage permissions.';
+
+  @override
+  String get kostvDownloadForbidden =>
+      'Download forbidden (403). Retried alternate endpoints but access was denied.';
+
+  @override
+  String get kostvDownloadUnauthorized =>
+      'Download unauthorized (401). Please re-login and try again.';
+
+  @override
+  String get kostvDownloadSourceNotFound =>
+      'Download source not found (404). The file may no longer be available.';
+
+  @override
+  String get kostvDownloadTimedOut =>
+      'Download timed out while waiting for transfer completion.';
 }

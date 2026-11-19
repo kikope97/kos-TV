@@ -1,8 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/gestures.dart'
-    show kBackMouseButton, kForwardMouseButton;
 import 'package:flutter/cupertino.dart' show CupertinoTheme, CupertinoThemeData;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,9 +9,7 @@ import 'package:flutter_tvos/flutter_tvos.dart'
     show TvRemoteController, TvRemoteConfig, FlutterTvosPlatform;
 import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
-import 'package:go_router/go_router.dart';
 import 'package:playback_core/playback_core.dart';
-import 'package:window_manager/window_manager.dart';
 
 import 'auth/repositories/session_repository.dart';
 import 'data/models/achievement_models.dart';
@@ -23,13 +19,13 @@ import 'data/services/cast/cast_service.dart';
 import 'data/services/connectivity_service.dart';
 import 'data/services/plugin_sync_service.dart';
 import 'data/services/remove_watched_service.dart';
-import 'data/services/download_service.dart';
 import 'data/services/server_messages_service.dart';
 import 'data/services/retro_artwork/retro_artwork_data_source.dart';
 import 'data/services/theme_music_service.dart';
 import 'data/services/deep_link_service.dart';
 import 'data/services/topshelf_service.dart';
 import 'data/services/watch_next_service.dart';
+import 'di/modules/server_module.dart' show downloadServiceErrors;
 import 'di/providers.dart';
 import 'l10n/app_localizations.dart';
 import 'l10n/current_app_localizations.dart';
@@ -298,17 +294,6 @@ class _MoonfinAppState extends State<MoonfinApp> {
                   dockedStyle: l10n.keyboardStyleDocked,
                 );
 
-                var path =
-                    appRouter.routerDelegate.currentConfiguration.uri.path;
-                try {
-                  path = GoRouterState.of(context).uri.path;
-                } catch (_) {}
-
-                final hidePlayer =
-                    path.startsWith('/player/') ||
-                    path == '/live-tv/player' ||
-                    Destinations.isSignedOutRoute(path);
-
                 final overlay = Overlay(
                   initialEntries: [
                     OverlayEntry(
@@ -338,9 +323,11 @@ class _MoonfinAppState extends State<MoonfinApp> {
                                 ],
                               ),
                             ),
-                            if (!hidePlayer)
-                              const RepaintBoundary(child: CastMiniPlayer()),
-                            if (!hidePlayer) const VideoMiniPlayer(),
+                            const _RouteGatedCastMiniPlayer(),
+                            // Kos TV: always there. It hides itself and stops
+                            // a minimized video when the session goes, which
+                            // it can only do while it is mounted.
+                            const VideoMiniPlayer(),
                           ],
                         );
                         final glass = AppColorScheme.isGlass;
@@ -454,6 +441,43 @@ class _MoonfinAppState extends State<MoonfinApp> {
   }
 }
 
+/// Kos TV: the casting bar, kept off the sign-in screens and the full-screen
+/// players. The shell above the router is built once, so it follows the
+/// router itself to know where the app is.
+class _RouteGatedCastMiniPlayer extends StatelessWidget {
+  const _RouteGatedCastMiniPlayer();
+
+  static bool _hidden() {
+    try {
+      final config = appRouter.routerDelegate.currentConfiguration;
+      // A player is pushed over the page it was opened from, which the uri
+      // keeps naming: the last match is what is on screen.
+      final paths = [
+        config.uri.path,
+        if (config.matches.isNotEmpty) config.matches.last.matchedLocation,
+      ];
+      return paths.any(
+        (path) =>
+            path.startsWith('/player/') ||
+            path == '/live-tv/player' ||
+            Destinations.isSignedOutRoute(path),
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: appRouter.routerDelegate,
+      builder: (context, child) =>
+          _hidden() ? const SizedBox.shrink() : child!,
+      child: const RepaintBoundary(child: CastMiniPlayer()),
+    );
+  }
+}
+
 class _GlobalShortcutScope extends StatefulWidget {
   final Widget child;
 
@@ -464,27 +488,11 @@ class _GlobalShortcutScope extends StatefulWidget {
 }
 
 class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
-    with WindowListener, WidgetsBindingObserver {
-  static const _maxRouteHistoryEntries = 200;
-  static const _mouseThumbNavDebounce = Duration(milliseconds: 180);
-
+    with WidgetsBindingObserver {
   final FocusNode _focusNode = FocusNode(debugLabel: 'GlobalShortcutScope');
   final ScreensaverController _screensaverController =
       GetIt.instance<ScreensaverController>();
-  // Not on web. The browser maps the thumb buttons to its own history, which
-  // pops the router too, so handling them here as well moves back twice for a
-  // single click.
-  final bool _trackMouseThumbHistory = PlatformDetection.isDesktop;
-  final List<String> _routeHistory = [];
   late final KeyEventCallback _hardwareKeyHandler;
-  Timer? _geometrySaveTimer;
-  // Windows answers isMaximized() from an uninitialized WINDOWPLACEMENT and
-  // returns whatever was on the stack, so the state is tracked from the window
-  // events instead, seeded with the state the window was restored into.
-  bool _isMaximized = false;
-  int _routeHistoryIndex = -1;
-  DateTime? _lastMouseThumbNavAt;
-  String? _pendingRouteHistoryLocation;
   bool _exitDialogShowing = false;
   bool _checkingLiveTvShortcut = false;
 
@@ -544,87 +552,7 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _screensaverController.refreshWakeLock();
     });
-    if (_trackMouseThumbHistory) {
-      appRouter.routerDelegate.addListener(_onRouterStateChanged);
-      _onRouterStateChanged();
-    }
     WidgetsBinding.instance.addObserver(this);
-    if (PlatformDetection.isDesktop) {
-      final prefs = GetIt.instance<UserPreferences>();
-      _isMaximized =
-          prefs.get(UserPreferences.windowMaximized) &&
-          !prefs.get(UserPreferences.windowFullscreen);
-      windowManager.addListener(this);
-      unawaited(windowManager.setPreventClose(true));
-    }
-  }
-
-  String _currentRouteLocation() {
-    return appRouter.routerDelegate.currentConfiguration.uri.toString();
-  }
-
-  void _onRouterStateChanged() {
-    final location = _currentRouteLocation();
-    if (_pendingRouteHistoryLocation != null) {
-      final expected = _pendingRouteHistoryLocation!;
-      _pendingRouteHistoryLocation = null;
-      if (location == expected) {
-        return;
-      }
-    }
-
-    if (_routeHistoryIndex >= 0 &&
-        _routeHistoryIndex < _routeHistory.length &&
-        _routeHistory[_routeHistoryIndex] == location) {
-      return;
-    }
-
-    if (_routeHistory.isEmpty) {
-      _routeHistory.add(location);
-      _routeHistoryIndex = 0;
-      return;
-    }
-
-    final previousIndex = _routeHistoryIndex - 1;
-    if (previousIndex >= 0 && _routeHistory[previousIndex] == location) {
-      _routeHistoryIndex = previousIndex;
-      return;
-    }
-
-    final nextIndex = _routeHistoryIndex + 1;
-    if (nextIndex < _routeHistory.length &&
-        _routeHistory[nextIndex] == location) {
-      _routeHistoryIndex = nextIndex;
-      return;
-    }
-
-    if (_routeHistoryIndex < _routeHistory.length - 1) {
-      _routeHistory.removeRange(_routeHistoryIndex + 1, _routeHistory.length);
-    }
-
-    _routeHistory.add(location);
-    _routeHistoryIndex = _routeHistory.length - 1;
-    if (_routeHistory.length > _maxRouteHistoryEntries) {
-      final overflow = _routeHistory.length - _maxRouteHistoryEntries;
-      _routeHistory.removeRange(0, overflow);
-      _routeHistoryIndex -= overflow;
-    }
-  }
-
-  bool _canRouteHistoryForward() {
-    return _routeHistoryIndex >= 0 &&
-        _routeHistoryIndex < _routeHistory.length - 1;
-  }
-
-  void _navigateRouteHistory(int delta) {
-    final next = _routeHistoryIndex + delta;
-    if (next < 0 || next >= _routeHistory.length) {
-      return;
-    }
-    _routeHistoryIndex = next;
-    final target = _routeHistory[next];
-    _pendingRouteHistoryLocation = target;
-    appRouter.go(target);
   }
 
   bool _hasPagelessRouteOnTop(NavigatorState navigatorState) {
@@ -634,38 +562,6 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
       return true;
     });
     return hasPagelessRouteOnTop;
-  }
-
-  bool _handleMouseBackNavigation() {
-    if (TimesUpGate.isShowing()) return true;
-    if (_isPlayerRoute()) {
-      return false;
-    }
-
-    if (OverlaySheetController.closeTopSheet()) {
-      return true;
-    }
-
-    final navigatorState = appRouter.routerDelegate.navigatorKey.currentState;
-    if (navigatorState != null && _hasPagelessRouteOnTop(navigatorState)) {
-      unawaited(navigatorState.maybePop());
-      return true;
-    }
-
-    if (appRouter.canPop()) {
-      appRouter.pop();
-      return true;
-    }
-
-    if (_leaveAdminArea()) return true;
-
-    if (!_exitDialogShowing) {
-      _exitDialogShowing = true;
-      unawaited(_showExitConfirmation());
-      return true;
-    }
-
-    return false;
   }
 
   /// The admin area's group tabs replace the router's stack, so its top level
@@ -678,58 +574,9 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
     return true;
   }
 
-  bool _handleMouseForwardNavigation() {
-    if (_isPlayerRoute()) {
-      return false;
-    }
-
-    if (_canRouteHistoryForward()) {
-      _navigateRouteHistory(1);
-      return true;
-    }
-
-    return false;
-  }
-
-  bool _canHandleMouseThumbNavigation() {
-    if (_pendingRouteHistoryLocation != null) {
-      return false;
-    }
-
-    final now = DateTime.now();
-    if (_lastMouseThumbNavAt != null &&
-        now.difference(_lastMouseThumbNavAt!) < _mouseThumbNavDebounce) {
-      return false;
-    }
-
-    _lastMouseThumbNavAt = now;
-    return true;
-  }
-
   void _onPointerDown(PointerDownEvent event) {
     if (PlatformDetection.isTV) {
       _screensaverController.notifyInteraction();
-    }
-    if (!_trackMouseThumbHistory) {
-      return;
-    }
-
-    final isBackPressed = (event.buttons & kBackMouseButton) != 0;
-    final isForwardPressed = (event.buttons & kForwardMouseButton) != 0;
-    if (isBackPressed == isForwardPressed) {
-      return;
-    }
-    if (!_canHandleMouseThumbNavigation()) {
-      return;
-    }
-
-    if (isBackPressed) {
-      _handleMouseBackNavigation();
-      return;
-    }
-    if (isForwardPressed) {
-      _handleMouseForwardNavigation();
-      return;
     }
   }
 
@@ -837,10 +684,6 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
       return true;
     }
     final keys = HardwareKeyboard.instance.logicalKeysPressed;
-    final ctrlPressed =
-        keys.contains(LogicalKeyboardKey.controlLeft) ||
-        keys.contains(LogicalKeyboardKey.controlRight);
-
     final isBackspace = key == LogicalKeyboardKey.backspace;
     if (key.isBackKey) {
       // Nothing to go back to while the schedule is closed.
@@ -938,13 +781,6 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
       return true;
     }
 
-    if (PlatformDetection.isDesktop &&
-        ctrlPressed &&
-        key == LogicalKeyboardKey.keyQ) {
-      unawaited(windowManager.close());
-      return true;
-    }
-
     return false;
   }
 
@@ -1024,13 +860,6 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
 
   @override
   void dispose() {
-    _geometrySaveTimer?.cancel();
-    if (PlatformDetection.isDesktop) {
-      windowManager.removeListener(this);
-    }
-    if (_trackMouseThumbHistory) {
-      appRouter.routerDelegate.removeListener(_onRouterStateChanged);
-    }
     WidgetsBinding.instance.removeObserver(this);
     HardwareKeyboard.instance.removeHandler(_hardwareKeyHandler);
     _screensaverController.visible.removeListener(_onScreensaverVisibleChanged);
@@ -1042,77 +871,6 @@ class _GlobalShortcutScopeState extends State<_GlobalShortcutScope>
   void _onScreensaverVisibleChanged() {
     if (_screensaverController.visible.value) {
       GetIt.instance<ThemeMusicService>().forceStop();
-    }
-  }
-
-  Future<void> _saveWindowGeometry() async {
-    try {
-      final prefs = GetIt.instance<UserPreferences>();
-      final isFullScreen = await windowManager.isFullScreen();
-      await prefs.set(UserPreferences.windowFullscreen, isFullScreen);
-      await prefs.set(UserPreferences.windowMaximized, _isMaximized);
-      // Keep the last windowed bounds. Neither state reports the size the
-      // window would return to, so saving either would lose the real one.
-      if (isFullScreen || _isMaximized) return;
-      final size = await windowManager.getSize();
-      final pos = await windowManager.getPosition();
-      await prefs.set(UserPreferences.windowWidth, size.width);
-      await prefs.set(UserPreferences.windowHeight, size.height);
-      await prefs.set(UserPreferences.windowX, pos.dx);
-      await prefs.set(UserPreferences.windowY, pos.dy);
-    } catch (_) {}
-  }
-
-  void _scheduleSaveGeometry() {
-    _geometrySaveTimer?.cancel();
-    _geometrySaveTimer = Timer(const Duration(milliseconds: 500), () {
-      _saveWindowGeometry();
-    });
-  }
-
-  @override
-  void onWindowEvent(String eventName) {
-    _isMaximized = FullscreenHelper.maximizedAfterWindowEvent(
-      eventName,
-      _isMaximized,
-    );
-    if (eventName == 'move' ||
-        eventName == 'resize' ||
-        eventName == 'moved' ||
-        eventName == 'resized' ||
-        eventName == 'maximize' ||
-        eventName == 'unmaximize' ||
-        eventName == 'enter-full-screen' ||
-        eventName == 'leave-full-screen') {
-      _scheduleSaveGeometry();
-    }
-  }
-
-  @override
-  void onWindowClose() {
-    unawaited(_handleWindowClose());
-  }
-
-  Future<void> _handleWindowClose() async {
-    _geometrySaveTimer?.cancel();
-    // Read the window bounds before hiding so the saved geometry stays correct
-    // on platforms where a hidden window reports stale size or position.
-    await _saveWindowGeometry();
-    // Hide right away so the window disappears instantly while the slower
-    // database and preference teardown finishes.
-    try {
-      await windowManager.hide();
-    } catch (_) {}
-    await AppExit.prepareForExit();
-    await windowManager.destroy();
-  }
-
-  @override
-  void onWindowFocus() {
-    if (_isPlayerRoute()) return;
-    if (_isHomeRoute()) return;
-    if (FocusManager.instance.primaryFocus == null && !_focusNode.hasFocus) {
-      _focusNode.requestFocus();
     }
   }
 
@@ -1184,11 +942,9 @@ class _ConnectivityListenerState extends ConsumerState<_ConnectivityListener>
         _handleServerMessagesChanged,
       );
     }
-    if (GetIt.instance.isRegistered<DownloadService>()) {
-      _downloadErrorSub = GetIt.instance<DownloadService>().errors.listen(
-        _handleDownloadError,
-      );
-    }
+    // Kos TV: the stream outlives each session's download service, which is
+    // made only once signed in (after this) and again on each user switch.
+    _downloadErrorSub = downloadServiceErrors.listen(_handleDownloadError);
     if (GetIt.instance.isRegistered<AchievementsService>()) {
       final achievements = GetIt.instance<AchievementsService>();
       _chatMessageSub = achievements.incomingMessages.listen(
@@ -1206,6 +962,9 @@ class _ConnectivityListenerState extends ConsumerState<_ConnectivityListener>
     _chatMessageSub?.cancel();
     _unlockSub?.cancel();
     _partyAlertSub?.cancel();
+    if (_messagesWaitForHome) {
+      appRouter.routerDelegate.removeListener(_onRouteWhileOpening);
+    }
     if (GetIt.instance.isRegistered<ServerMessagesService>()) {
       GetIt.instance<ServerMessagesService>().removeListener(
         _handleServerMessagesChanged,
@@ -1224,7 +983,9 @@ class _ConnectivityListenerState extends ConsumerState<_ConnectivityListener>
     } else if (state == AppLifecycleState.resumed) {
       coordinator.appDidBecomeActive();
       RetroArtworkDataSourceFactory.notifyAppResumed();
-      _backgroundAwareSession?.onAppResumed();
+      // Kos TV: on every platform, so a session revoked while the app was
+      // away (a TV left on for days, a browser tab) is noticed on return.
+      _session?.onAppResumed();
       if (GetIt.instance.isRegistered<ConnectivityService>()) {
         GetIt.instance<ConnectivityService>().onAppResumed();
       }
@@ -1252,6 +1013,10 @@ class _ConnectivityListenerState extends ConsumerState<_ConnectivityListener>
   /// answering remote control commands.
   SessionRepository? get _backgroundAwareSession {
     if (!PlatformDetection.isMobile) return null;
+    return _session;
+  }
+
+  SessionRepository? get _session {
     if (!GetIt.instance.isRegistered<SessionRepository>()) return null;
     return GetIt.instance<SessionRepository>();
   }
@@ -1440,11 +1205,46 @@ class _ConnectivityListenerState extends ConsumerState<_ConnectivityListener>
     final service = GetIt.instance<ServerMessagesService>();
     if (service.pendingPopups.isEmpty) return;
 
+    // Kos TV: not while the app is opening (the intro, signing in). The
+    // opening ends by replacing its page with Home, which takes the window
+    // away with it, and the messages, marked read, never came back. It
+    // waits for Home, as the update prompt does.
+    if (_isOpening()) {
+      if (!_messagesWaitForHome) {
+        _messagesWaitForHome = true;
+        appRouter.routerDelegate.addListener(_onRouteWhileOpening);
+      }
+      return;
+    }
+
     final navContext = _navigatorContext();
     if (navContext == null) return;
 
     service.markPopupsRead();
     showServerMessagesDialog(navContext);
+  }
+
+  bool _messagesWaitForHome = false;
+
+  static bool _isOpening() {
+    try {
+      final path = appRouter.routerDelegate.currentConfiguration.uri.path;
+      return Destinations.isSignedOutRoute(path);
+    } catch (_) {
+      return true;
+    }
+  }
+
+  void _onRouteWhileOpening() {
+    if (_isOpening()) return;
+    appRouter.routerDelegate.removeListener(_onRouteWhileOpening);
+    _messagesWaitForHome = false;
+    // A moment for Home to settle before the window comes up.
+    Future<void>.delayed(const Duration(seconds: 2), () {
+      if (mounted && GetIt.instance.isRegistered<ServerMessagesService>()) {
+        _handleServerMessagesChanged();
+      }
+    });
   }
 
   /// Fires whenever server reachability flips (either way) so home swaps

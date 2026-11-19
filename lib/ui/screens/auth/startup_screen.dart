@@ -52,6 +52,23 @@ class _StartupScreenState extends State<StartupScreen> {
   /// Kos TV: the built-in server couldn't be reached on a first start.
   bool _kostvServerFailed = false;
 
+  /// Kos TV: the step of the start that failed, which Retry runs again, or
+  /// null when what failed was reaching the household server.
+  Future<void> Function()? _failedStep;
+
+  /// Kos TV: whether the note with Retry has been up. Over the intro it holds
+  /// the intro's own logo up, which stays.
+  bool _footerShown = false;
+
+  /// Kos TV: the intro has faded to black and this screen is still here (the
+  /// session or the network still on their way), so the logo is back.
+  bool _introFaded = false;
+  Timer? _logoAfterIntro;
+
+  /// Kos TV: [_waitForNetworkSettle] as it runs, shared by Home's preload and
+  /// the way to Home after the intro, so the second doesn't wait again.
+  Future<void>? _networkSettle;
+
   /// Kos TV: completes when the opening animation is over. The session is
   /// restored meanwhile, but nothing leaves this screen or opens a dialog
   /// over it before then.
@@ -78,7 +95,44 @@ class _StartupScreenState extends State<StartupScreen> {
   void initState() {
     super.initState();
     if (!_playIntro) _introDone.complete();
-    _initialize();
+    unawaited(_runStep(_initialize));
+  }
+
+  /// Kos TV: runs a step of the start and, should it throw, records it and
+  /// puts up the note with Retry, which runs it again. A failure used to
+  /// leave the logo up with nothing to press.
+  Future<void> _runStep(Future<void> Function() step) async {
+    try {
+      await step();
+    } catch (error, stack) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stack,
+          library: 'kOS TV startup',
+          context: ErrorDescription('while opening the app'),
+        ),
+      );
+      if (!mounted) return;
+      setState(() {
+        _failedStep = step;
+        _kostvServerFailed = true;
+        _footerShown = true;
+      });
+    }
+  }
+
+  /// [_waitForNetworkSettle], once: a second caller waits on the first one.
+  /// Only if that one ended offline does it wait again, as it used to.
+  Future<void> _settleNetwork() async {
+    final earlier = _networkSettle;
+    if (earlier != null) {
+      await earlier;
+      if (GetIt.instance<ConnectivityService>().isOnline) return;
+    }
+    final settle = _waitForNetworkSettle();
+    _networkSettle = settle;
+    await settle;
   }
 
   /// On a cold boot the app can win the race against Wi-Fi association and
@@ -127,7 +181,7 @@ class _StartupScreenState extends State<StartupScreen> {
 
     if (widget.bootstrapActiveSession && session.activeUserId != null) {
       _preloadHome();
-      await _waitForNetworkSettle();
+      await _settleNetwork();
       await _introDone.future;
       if (mounted) kostvAuthGo(context, Destinations.home);
       return;
@@ -199,7 +253,7 @@ class _StartupScreenState extends State<StartupScreen> {
         }
       }
 
-      await _waitForNetworkSettle();
+      await _settleNetwork();
       if (mounted) kostvAuthGo(context, Destinations.home);
     } else {
       if (mounted) {
@@ -253,7 +307,10 @@ class _StartupScreenState extends State<StartupScreen> {
     final server = await kostvHouseholdServer(serverRepo);
     if (!mounted) return;
     if (server == null) {
-      setState(() => _kostvServerFailed = true);
+      setState(() {
+        _kostvServerFailed = true;
+        _footerShown = true;
+      });
       return;
     }
     // Its users, if it shows any; its sign-in otherwise.
@@ -265,7 +322,7 @@ class _StartupScreenState extends State<StartupScreen> {
   void _preloadHome() {
     final getIt = GetIt.instance;
     unawaited(() async {
-      await _waitForNetworkSettle();
+      await _settleNetwork();
       if (getIt.isRegistered<HomeViewModel>()) {
         await getIt<HomeViewModel>().preload();
       }
@@ -276,8 +333,24 @@ class _StartupScreenState extends State<StartupScreen> {
   }
 
   void _retryKostvServer() {
-    setState(() => _kostvServerFailed = false);
-    _openKostvServer();
+    final step = _failedStep ?? _openKostvServer;
+    setState(() {
+      _kostvServerFailed = false;
+      _failedStep = null;
+    });
+    unawaited(_runStep(step));
+  }
+
+  /// Kos TV: the intro has faded to black. Should this screen still be the
+  /// one on show a moment later, the logo comes back, as it is without the
+  /// intro, rather than a black screen that looks hung. Going to Home takes
+  /// this screen off at once, so then nothing changes.
+  void _onIntroFadedOut() {
+    _logoAfterIntro ??= Timer(const Duration(milliseconds: 500), () {
+      if (!mounted || _footerShown) return;
+      if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
+      setState(() => _introFaded = true);
+    });
   }
 
   Future<void> _showSecureStorageWarning() async {
@@ -305,6 +378,7 @@ class _StartupScreenState extends State<StartupScreen> {
 
   @override
   void dispose() {
+    _logoAfterIntro?.cancel();
     _retryFocus.dispose();
     super.dispose();
   }
@@ -330,7 +404,9 @@ class _StartupScreenState extends State<StartupScreen> {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
                 child: Text(
-                  l10n.kostvServerUnreachable,
+                  _failedStep != null
+                      ? l10n.kostvStartupStepFailed
+                      : l10n.kostvServerUnreachable,
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: Color(0xFFC9D2E6)),
                 ),
@@ -349,31 +425,42 @@ class _StartupScreenState extends State<StartupScreen> {
         : null;
     return Scaffold(
       backgroundColor: Colors.black,
-      body: _playIntro
-          ? KosIntro(
-              onFinished: () {
-                if (!_introDone.isCompleted) _introDone.complete();
-              },
-              footer: footer,
-            )
-          : Stack(
-              fit: StackFit.expand,
-              children: [
-                Center(
-                  child: KosLogo(
-                    height: (MediaQuery.sizeOf(context).shortestSide * 0.12)
-                        .clamp(48.0, 120.0),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 400),
+        // Both take the whole screen while one fades into the other.
+        layoutBuilder: (current, previous) => Stack(
+          fit: StackFit.expand,
+          children: [...previous, ?current],
+        ),
+        child: _playIntro && !_introFaded
+            ? KosIntro(
+                key: const ValueKey('kostvIntro'),
+                onFinished: () {
+                  if (!_introDone.isCompleted) _introDone.complete();
+                },
+                onFadedOut: _onIntroFadedOut,
+                footer: footer,
+              )
+            : Stack(
+                key: const ValueKey('kostvLogo'),
+                fit: StackFit.expand,
+                children: [
+                  Center(
+                    child: KosLogo(
+                      height: (MediaQuery.sizeOf(context).shortestSide * 0.12)
+                          .clamp(48.0, 120.0),
+                    ),
                   ),
-                ),
-                if (footer != null)
-                  Positioned(
-                    left: 24,
-                    right: 24,
-                    bottom: 48,
-                    child: Center(child: footer),
-                  ),
-              ],
-            ),
+                  if (footer != null)
+                    Positioned(
+                      left: 24,
+                      right: 24,
+                      bottom: 48,
+                      child: Center(child: footer),
+                    ),
+                ],
+              ),
+      ),
     );
   }
 }

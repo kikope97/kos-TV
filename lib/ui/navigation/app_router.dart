@@ -35,6 +35,7 @@ import '../screens/auth/login_screen.dart';
 import '../screens/auth/server_screen.dart';
 import '../screens/auth/server_select_screen.dart';
 import '../screens/auth/startup_screen.dart';
+import '../screens/route_not_found_screen.dart';
 import '../screens/web_diagnostics_screen.dart';
 import '../../l10n/app_localizations.dart';
 import '../screens/browse/kostv_catalog_screen.dart';
@@ -87,6 +88,7 @@ import '../screens/search/search_screen.dart';
 import '../screens/settings/settings_side_panel.dart';
 import '../screens/setup/setup_wizard_gate.dart';
 import '../screens/setup/setup_wizard_screen.dart';
+import 'deep_link_navigator.dart';
 import 'destinations.dart';
 import 'focus_route_observer.dart';
 import 'route_lifecycle_observer.dart';
@@ -198,8 +200,38 @@ Page<void> _detailPage(
   );
 }
 
+/// Kos TV: whether the address the web app opened on has been looked at.
+bool _webOpeningAddressSeen = false;
+
+/// Kos TV: the web opens on the browser's address (a reload, a tab Safari
+/// brings back, a link), which goes to the start screen while there is no
+/// session yet and used to be lost there, ending on Home. It is kept and
+/// opened once the session is back and the app is on Home, through the same
+/// path as a deep link, so a PIN, Kids Mode and everything else the router
+/// checks still apply. A player can't be picked up again from an address,
+/// so those are left out. Once per launch: the first address only.
+void _keepWebOpeningAddress(Uri uri) {
+  if (!PlatformDetection.isWeb || _webOpeningAddressSeen) return;
+  _webOpeningAddressSeen = true;
+  final path = uri.path;
+  if (_authRoutes.contains(path) ||
+      path == Destinations.home ||
+      path == Destinations.setup ||
+      Destinations.isPlayerRoute(path)) {
+    return;
+  }
+  try {
+    if (GetIt.instance<SessionRepository>().activeUserId != null) return;
+  } catch (_) {
+    return;
+  }
+  navigateWhenReady(uri.toString());
+}
+
 final appRouter = GoRouter(
   initialLocation: Destinations.startup,
+  // Kos TV: an address with no page, in kOS TV's own words and look.
+  errorBuilder: (context, state) => const RouteNotFoundScreen(),
   observers: [
     FocusRouteObserver(),
     RetroArtworkRouteObserver.instance,
@@ -210,6 +242,7 @@ final appRouter = GoRouter(
   ],
   redirect: (context, state) {
     final path = state.uri.path;
+    _keepWebOpeningAddress(state.uri);
     if (_authRoutes.contains(path)) return null;
     // The old Folders screen, for a bookmark or a link from an older app.
     if (path == '/folders') return Destinations.home;
