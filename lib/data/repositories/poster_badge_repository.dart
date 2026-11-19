@@ -65,7 +65,7 @@ class PosterBadgeRepository {
   static const _unavailableRetryWindow = Duration(minutes: 5);
 
   final MediaServerClient _client;
-  final _dio = Dio(
+  final _dio = moonbaseDio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 60),

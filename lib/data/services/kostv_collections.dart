@@ -14,7 +14,7 @@ class KostvCollectionsLookup {
   KostvCollectionsLookup({Dio? dio})
     : _dio =
           dio ??
-          Dio(
+          moonbaseDio(
             BaseOptions(
               connectTimeout: const Duration(seconds: 10),
               receiveTimeout: const Duration(seconds: 20),

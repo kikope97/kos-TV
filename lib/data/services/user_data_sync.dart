@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:server_core/server_core.dart';
 
 import '../models/aggregated_item.dart';
+import '../utils/bounded_concurrency.dart';
 
 /// The newest watched state, resume position and favourite flag this client
 /// knows about, for every item a screen is still holding.
@@ -22,6 +23,9 @@ class UserDataSync extends ChangeNotifier {
   /// Ids travel in the query string, so a whole paged-in library goes up in
   /// batches this size.
   static const _refreshChunkSize = 100;
+
+  /// Batches in flight at once.
+  static const _refreshConcurrency = 3;
 
   /// Enough for every list a session realistically keeps alive, and bounded so
   /// a long browse can't grow this without end.
@@ -170,12 +174,20 @@ class UserDataSync extends ChangeNotifier {
         : all;
     if (ids.isEmpty) return true;
 
+    // Kos TV: an answer that lands after a user switch belongs to the
+    // previous person (it went out with their token), so it is dropped.
+    final session = _session;
+    final chunks = [
+      for (var start = 0; start < ids.length; start += _refreshChunkSize)
+        ids.sublist(start, min(start + _refreshChunkSize, ids.length)),
+    ];
     var answered = false;
-    for (var start = 0; start < ids.length; start += _refreshChunkSize) {
-      final chunk = ids.sublist(
-        start,
-        min(start + _refreshChunkSize, ids.length),
-      );
+    // A few batches at once instead of one after another, so a large catalog
+    // settles quickly without flooding the server.
+    await mapBounded<List<String>, void>(chunks, _refreshConcurrency, (
+      chunk,
+    ) async {
+      if (session != _session) return;
       try {
         final data = await client.itemsApi.getItems(
           ids: chunk,
@@ -184,6 +196,7 @@ class UserDataSync extends ChangeNotifier {
           limit: chunk.length,
           enableTotalRecordCount: false,
         );
+        if (session != _session) return;
         final changes = <String, Map<String, dynamic>>{};
         for (final raw in (data['Items'] as List? ?? const [])) {
           if (raw is! Map) continue;
@@ -198,7 +211,7 @@ class UserDataSync extends ChangeNotifier {
         // A dropped connection or a library the user lost access to. The next
         // visit asks again.
       }
-    }
+    });
     return answered;
   }
 

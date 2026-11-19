@@ -1,12 +1,19 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:server_core/server_core.dart';
 
 import '../../l10n/app_localizations.dart';
 
 const _maxDetailLength = 200;
 
-const _detailKeys = ['message', 'Message', 'error', 'detail', 'title'];
+// Kos TV: a ProblemDetails `title` is only the status in English ("Not
+// Found", "Forbidden"), so it never reaches the screen.
+const _detailKeys = ['message', 'Message', 'error', 'Error', 'detail'];
+
+/// What Jellyfin answers to any unhandled exception outside development
+/// mode. It says nothing the status doesn't.
+const _genericServerTexts = {'error processing request.'};
 
 const _connectionMarkers = [
   'socketexception',
@@ -44,12 +51,28 @@ String _describeDioError(DioException error, AppLocalizations l10n) {
   }
 
   final status = error.response?.statusCode;
-  // Kos TV: a refused session or permission gets its own words rather than
-  // the server's English reason or a bare status.
-  if (status == 401) return l10n.errorSessionRejected;
-  if (status == 403) return l10n.errorPermissionDenied;
-
   final detail = _serverDetail(error.response?.data);
+
+  // Kos TV: the everyday failures read in the app's language and say what
+  // happened. The server's own text (usually English) goes to the log.
+  final byStatus = switch (status) {
+    401 => l10n.kostvErrorSessionExpired,
+    403 => l10n.kostvErrorNoPermission,
+    404 => l10n.kostvErrorNotOnServer,
+    final int code when code >= 500 && code <= 599 =>
+      l10n.kostvErrorServerFailed,
+    _ => null,
+  };
+  if (byStatus != null) {
+    if (detail != null) {
+      ServerLog.network(
+        'HTTP $status from ${error.requestOptions.path}: $detail',
+        level: ServerLogLevel.warning,
+      );
+    }
+    return byStatus;
+  }
+
   if (detail != null) return detail;
 
   if (status != null && (status < 200 || status > 299)) {
@@ -84,6 +107,7 @@ String? _serverDetail(Object? data) {
 
   text = text?.trim();
   if (text == null || text.isEmpty) return null;
+  if (_genericServerTexts.contains(text.toLowerCase())) return null;
   if (text.length > _maxDetailLength) {
     return '${text.substring(0, _maxDetailLength)}...';
   }

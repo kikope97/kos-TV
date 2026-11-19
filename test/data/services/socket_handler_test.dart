@@ -219,4 +219,89 @@ void main() {
       );
     });
   });
+
+  // Kos TV: a socket left half open, and a token the server turned down.
+  group('a server that goes quiet or refuses the token', () {
+    late HttpServer server;
+    late int upgrades;
+    var answerKeepAlive = false;
+    var refuse = false;
+
+    setUp(() async {
+      upgrades = 0;
+      answerKeepAlive = false;
+      refuse = false;
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) async {
+        if (refuse) {
+          upgrades++;
+          request.response.statusCode = HttpStatus.unauthorized;
+          await request.response.close();
+          return;
+        }
+        final socket = await WebSocketTransformer.upgrade(request);
+        upgrades++;
+        socket.listen((frame) {
+          if (answerKeepAlive) socket.add(jsonEncode({'MessageType': 'KeepAlive'}));
+        });
+      });
+    });
+
+    tearDown(() => server.close(force: true));
+
+    JellyfinWebSocketClient buildClient(Duration keepAlive) {
+      final client = JellyfinWebSocketClient(
+        _FakeClient(baseUrl: 'http://127.0.0.1:${server.port}'),
+        keepAliveInterval: keepAlive,
+      );
+      addTearDown(client.dispose);
+      return client;
+    }
+
+    test('a socket the server stopped answering is replaced', () async {
+      final client = buildClient(const Duration(milliseconds: 100));
+      await client.connect();
+      // Quiet for 250 ms, then the usual first backoff (1 to 1.5 s).
+      await Future<void>.delayed(const Duration(milliseconds: 2500));
+      expect(upgrades, greaterThan(1));
+    });
+
+    test('a socket that answers its keep alive is left alone', () async {
+      answerKeepAlive = true;
+      final client = buildClient(const Duration(milliseconds: 100));
+      await client.connect();
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+      expect(upgrades, 1);
+    });
+
+    test('an immediate retry replaces a quiet open socket', () async {
+      final client = buildClient(const Duration(milliseconds: 200));
+      await client.connect();
+      client.retryNow();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(upgrades, 1, reason: 'a socket that just opened is alive');
+
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      client.retryNow();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(upgrades, 2);
+    });
+
+    test('a refused token tells the session and stops the quick retries', () async {
+      refuse = true;
+      var told = 0;
+      final handler = SocketHandler(
+        clientFactory: (client) => JellyfinWebSocketClient(client),
+      )..onUnauthorized = () => told++;
+      addTearDown(handler.dispose);
+
+      handler.connectTo(
+        _FakeClient(baseUrl: 'http://127.0.0.1:${server.port}'),
+      );
+      await Future<void>.delayed(const Duration(seconds: 3));
+
+      expect(told, 1);
+      expect(upgrades, 1, reason: 'the usual backoff would have tried again');
+    });
+  });
 }

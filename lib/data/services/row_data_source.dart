@@ -16,6 +16,7 @@ import '../utils/bounded_concurrency.dart';
 import '../utils/latest_media_row_normalizer.dart';
 import '../../util/parental_filter.dart';
 import '../utils/blocked_ratings.dart';
+import '../utils/tmdb_language.dart';
 import 'blocked_content_gate.dart';
 import '../utils/genre_browse_utils.dart';
 import '../utils/next_up_cutoff.dart';
@@ -38,6 +39,15 @@ import 'plugin_sync_service.dart';
   if (parsed?.source != HomeSectionPluginSource.collections) return null;
   final collectionId = parsed!.additionalData.trim();
   return collectionId.isEmpty ? null : (id: collectionId, isCollection: true);
+}
+
+/// Kos TV: whether TMDB's online recommendations must give way to the local
+/// ones. They come without a rating, so neither the device's blocked ratings
+/// nor kids mode can screen them.
+bool onlineRecommendationsRestricted() {
+  if (activeParentalFilter.isActive) return true;
+  if (!GetIt.instance.isRegistered<UserPreferences>()) return false;
+  return GetIt.instance<UserPreferences>().get(UserPreferences.kidsModeEnabled);
 }
 
 class RowDataSource {
@@ -2589,7 +2599,12 @@ class RowDataSource {
     final sourceType = prefs.get(UserPreferences.sinceYouWatchedSourceType);
     final sourceItemType = prefs.get(UserPreferences.sinceYouWatchedSourceItem);
     final source = prefs.get(UserPreferences.sinceYouWatchedSource);
-    final isLocal = source == SinceYouWatchedSource.local;
+    // Kos TV: TMDB's titles can't be screened by the parental filter, so with
+    // one in force the online source falls back to the local one.
+    final isLocal =
+        source == SinceYouWatchedSource.local ||
+        (source == SinceYouWatchedSource.online &&
+            onlineRecommendationsRestricted());
 
     final List<String> queryItemTypes;
     if (sourceItemType == SinceYouWatchedSourceItem.recentlyWatched) {
@@ -2819,6 +2834,10 @@ class RowDataSource {
     final itemDetail = baseItem.rawData;
     final types = candidateItemTypes ?? (baseItem.type == 'Series' ? const ['Series'] : const ['Movie']);
     List<AggregatedItem> recommendedItems = [];
+
+    // Kos TV: TMDB's titles carry no rating, so the device's parental filter
+    // can't screen them. With one in force the local source answers instead.
+    if (!isLocal && onlineRecommendationsRestricted()) isLocal = true;
 
     if (isLocal) {
       final genres = (itemDetail['Genres'] as List?)?.map((e) => e?.toString()).whereType<String>().toList() ?? const <String>[];
@@ -3135,11 +3154,11 @@ class RowDataSource {
         if (tmdbIdInt != null) {
           final apiKey = prefs.get(UserPreferences.tmdbApiKey);
           if (apiKey.isNotEmpty) {
+            final dio = Dio(BaseOptions(
+              connectTimeout: const Duration(seconds: 10),
+              receiveTimeout: const Duration(seconds: 10),
+            ));
             try {
-              final dio = Dio(BaseOptions(
-                connectTimeout: const Duration(seconds: 10),
-                receiveTimeout: const Duration(seconds: 10),
-              ));
               final isTv = baseItem.type == 'Series';
               final path = isTv
                   ? 'tv/$tmdbIdInt/recommendations'
@@ -3149,7 +3168,8 @@ class RowDataSource {
                 url,
                 queryParameters: {
                   'api_key': apiKey,
-                  'language': 'en-US',
+                  // Kos TV: titles and overviews in the app's language.
+                  'language': tmdbLanguage(),
                   'page': 1,
                 },
               );
@@ -3158,7 +3178,7 @@ class RowDataSource {
                 recommendedItems = results.map((res) {
                   final idVal = res['id'];
                   final id = idVal?.toString() ?? '';
-                  final title = (res['title'] as String?) ?? (res['name'] as String?) ?? 'Unknown';
+                  final title = (res['title'] as String?) ?? (res['name'] as String?) ?? _l10n.kostvUntitled;
                   final posterPath = res['poster_path'] as String? ?? '';
                   final backdropPath = res['backdrop_path'] as String? ?? '';
                   
@@ -3193,6 +3213,9 @@ class RowDataSource {
               }
             } catch (e) {
               print('[RowDataSource] Direct TMDB recommendation query failed: $e');
+            } finally {
+              // Kos TV: a client per call, so it is let go of here.
+              dio.close();
             }
           }
         }

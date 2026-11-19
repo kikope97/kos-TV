@@ -155,8 +155,10 @@ class _AccountDialogState extends State<_AccountDialog> {
       );
     }
 
+    // Kos TV: Jellyfin serves avatars without signing in (the login screen
+    // shows them), so the token stays out of the URL and the image cache.
     final base =
-        '${account.server.address}/Users/${account.user.id}/Images/Primary?quality=90&maxHeight=180&${account.server.serverType.tokenQueryParam}=$apiKey';
+        '${account.server.address}/Users/${account.user.id}/Images/Primary?quality=90&maxHeight=180';
     final tag = account.user.imageTag;
     if (tag == null || tag.isEmpty) {
       return base;

@@ -34,6 +34,19 @@ class ConnectivityService extends ChangeNotifier {
 
   static const _probeAttempts = 2;
 
+  /// Kos TV: a server can go away without the network changing (restarted,
+  /// switched off), and nothing above re-asks then, so the "no server" notice
+  /// and the downloads fallback never came. While the app is in front and the
+  /// server is believed reachable it is pinged this often. Once it is marked
+  /// unreachable the growing retry delay above takes over.
+  Timer? _healthTimer;
+  final Duration _healthInterval;
+
+  /// Kos TV: a request that could not connect is a reason to ask early, but a
+  /// screen failing row by row must not turn into a ping per row.
+  DateTime? _lastFailureProbe;
+  static const _failureProbeSpacing = Duration(seconds: 30);
+
   bool _isOnline = true;
   bool get isOnline => _isOnline;
 
@@ -85,8 +98,10 @@ class ConnectivityService extends ChangeNotifier {
   ConnectivityService({
     @visibleForTesting Connectivity? connectivity,
     @visibleForTesting Duration retryBase = const Duration(seconds: 5),
+    @visibleForTesting Duration healthInterval = const Duration(seconds: 60),
   }) : _connectivity = connectivity ?? Connectivity(),
-       _retryBase = retryBase;
+       _retryBase = retryBase,
+       _healthInterval = healthInterval;
 
   void initialize() {
     if (!PlatformDetection.isAppleTV) {
@@ -132,6 +147,8 @@ class ConnectivityService extends ChangeNotifier {
 
     if (!_isOnline) {
       _retryTimer?.cancel();
+      _healthTimer?.cancel();
+      _healthTimer = null;
       if (wasOnline) {
         _serverReachable = false;
         notifyListeners();
@@ -253,6 +270,14 @@ class ConnectivityService extends ChangeNotifier {
   }
 
   bool _isForegroundOrPlaying() {
+    if (_isForeground()) return true;
+
+    final getIt = GetIt.instance;
+    return getIt.isRegistered<PlaybackManager>() &&
+        getIt<PlaybackManager>().state.isPlaying;
+  }
+
+  bool _isForeground() {
     final lifecycle = WidgetsBinding.instance.lifecycleState;
     // A null state means no lifecycle event has arrived yet. On desktop that
     // can last the whole run so it counts as foreground, while on Android it
@@ -261,11 +286,37 @@ class ConnectivityService extends ChangeNotifier {
         lifecycle == AppLifecycleState.hidden ||
         lifecycle == AppLifecycleState.detached ||
         (lifecycle == null && PlatformDetection.isAndroid);
-    if (!backgrounded) return true;
+    return !backgrounded;
+  }
 
-    final getIt = GetIt.instance;
-    return getIt.isRegistered<PlaybackManager>() &&
-        getIt<PlaybackManager>().state.isPlaying;
+  /// Kos TV: a request to the server failed to connect or timed out. Asks
+  /// the server straight away (at most every [_failureProbeSpacing]) instead
+  /// of waiting for the next health ping. Only two failed pings in a row mark
+  /// it unreachable, as for every other probe.
+  void noteServerUnreachable() {
+    if (!_initialCheckDone || !_isOnline || !_serverReachable) return;
+    final now = DateTime.now();
+    final last = _lastFailureProbe;
+    if (last != null && now.difference(last) < _failureProbeSpacing) return;
+    _lastFailureProbe = now;
+    unawaited(_checkServerReachability());
+  }
+
+  void _scheduleHealthCheck() {
+    _healthTimer?.cancel();
+    _healthTimer = null;
+    if (!_isOnline || !_serverReachable) return;
+    _healthTimer = Timer(_healthInterval, () {
+      _healthTimer = null;
+      if (!_isOnline || !_serverReachable) return;
+      // In the background nobody sees the notice, and a ping would only
+      // keep the radio awake. The next tick asks again.
+      if (!_isForeground()) {
+        _scheduleHealthCheck();
+        return;
+      }
+      unawaited(_checkServerReachability());
+    });
   }
 
   Future<void> _checkServerReachability() => _inFlightProbe ??= _probeServer()
@@ -301,7 +352,10 @@ class ConnectivityService extends ChangeNotifier {
       _retryAttempt = 0;
       _retryTimer?.cancel();
       _retryTimer = null;
+      _scheduleHealthCheck();
     } else if (_isOnline) {
+      _healthTimer?.cancel();
+      _healthTimer = null;
       _scheduleRetry();
     }
     notifyListeners();
@@ -350,6 +404,8 @@ class ConnectivityService extends ChangeNotifier {
       await _checkServerReachability();
     } else {
       _retryTimer?.cancel();
+      _healthTimer?.cancel();
+      _healthTimer = null;
       _serverReachable = false;
       notifyListeners();
     }
@@ -360,6 +416,7 @@ class ConnectivityService extends ChangeNotifier {
     _subscription?.cancel();
     _recheckDebounce?.cancel();
     _retryTimer?.cancel();
+    _healthTimer?.cancel();
     super.dispose();
   }
 }

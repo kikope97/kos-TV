@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
@@ -206,5 +207,81 @@ void main() {
 
     await Future<void>.delayed(const Duration(milliseconds: 300));
     expect(probes, 0);
+  });
+
+  // Kos TV: a server that goes away while the network stays up used to go
+  // unnoticed until the network changed.
+  test('a server that goes away is noticed without a network change', () async {
+    // The health ping only runs with the app in front.
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.resumed,
+    );
+    when(
+      () => connectivity.checkConnectivity(),
+    ).thenAnswer((_) async => [ConnectivityResult.wifi]);
+    final service = ConnectivityService(
+      connectivity: connectivity,
+      retryBase: const Duration(seconds: 10),
+      healthInterval: const Duration(milliseconds: 100),
+    );
+    addTearDown(service.dispose);
+
+    service.initialize();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(service.canReachServer, isTrue);
+
+    failuresLeft = 99;
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    expect(service.canReachServer, isFalse);
+  });
+
+  test('the health ping waits while the app is in the background', () async {
+    WidgetsBinding.instance.handleAppLifecycleStateChanged(
+      AppLifecycleState.paused,
+    );
+    addTearDown(
+      () => WidgetsBinding.instance.handleAppLifecycleStateChanged(
+        AppLifecycleState.resumed,
+      ),
+    );
+    when(
+      () => connectivity.checkConnectivity(),
+    ).thenAnswer((_) async => [ConnectivityResult.wifi]);
+    final service = ConnectivityService(
+      connectivity: connectivity,
+      healthInterval: const Duration(milliseconds: 50),
+    );
+    addTearDown(service.dispose);
+
+    service.initialize();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final afterStart = probes;
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    expect(probes, afterStart);
+  });
+
+  test('a failed request asks early, but not once per request', () async {
+    when(
+      () => connectivity.checkConnectivity(),
+    ).thenAnswer((_) async => [ConnectivityResult.wifi]);
+    final service = ConnectivityService(
+      connectivity: connectivity,
+      retryBase: const Duration(seconds: 10),
+    );
+    addTearDown(service.dispose);
+    service.initialize();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final before = probes;
+
+    failuresLeft = 99;
+    service
+      ..noteServerUnreachable()
+      ..noteServerUnreachable()
+      ..noteServerUnreachable();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    expect(service.canReachServer, isFalse);
+    // One probe of two pings, however many requests failed.
+    expect(probes - before, 2);
   });
 }

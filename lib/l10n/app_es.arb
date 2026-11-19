@@ -15420,5 +15420,25 @@
     "kostvAudiobookSleepCustomValue": "Elegir otro tiempo",
     "@kostvAudiobookSleepCustomValue": {
         "description": "Kos TV audiobook player: dialog action: open the sleep timer sheet"
+    },
+    "kostvErrorSessionExpired": "Tu sesión ha caducado. Vuelve a entrar.",
+    "@kostvErrorSessionExpired": {
+        "description": "Kos TV: error shown when the server answers 401"
+    },
+    "kostvErrorNoPermission": "No tienes permiso para hacer esto.",
+    "@kostvErrorNoPermission": {
+        "description": "Kos TV: error shown when the server answers 403"
+    },
+    "kostvErrorNotOnServer": "Ya no está en el servidor.",
+    "@kostvErrorNotOnServer": {
+        "description": "Kos TV: error shown when the server answers 404 (the item was removed)"
+    },
+    "kostvErrorServerFailed": "El servidor ha fallado. Prueba otra vez.",
+    "@kostvErrorServerFailed": {
+        "description": "Kos TV: error shown when the server answers 5xx"
+    },
+    "kostvUntitled": "Sin título",
+    "@kostvUntitled": {
+        "description": "Kos TV: title of a TMDB recommendation that came without one"
     }
 }

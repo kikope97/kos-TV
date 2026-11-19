@@ -57,7 +57,7 @@ class FavoritesViewModel extends ChangeNotifier {
   bool get markedAvailable =>
       _prefs.get(UserPreferences.kostvFavoritesAvailable);
 
-  final Dio _dio = Dio(
+  final Dio _dio = moonbaseDio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 30),

@@ -20817,4 +20817,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvAudiobookSleepCustomValue => 'Add Custom Value to Timer';
+
+  @override
+  String get kostvErrorSessionExpired =>
+      'Your session has expired. Sign in again.';
+
+  @override
+  String get kostvErrorNoPermission => 'You don\'t have permission to do this.';
+
+  @override
+  String get kostvErrorNotOnServer => 'It\'s no longer on the server.';
+
+  @override
+  String get kostvErrorServerFailed =>
+      'The server ran into a problem. Try again.';
+
+  @override
+  String get kostvUntitled => 'Untitled';
 }

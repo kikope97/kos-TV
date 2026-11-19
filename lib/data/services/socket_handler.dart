@@ -11,7 +11,9 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../auth/services/silo_token_storage.dart';
+import 'connectivity_service.dart';
 import 'log_service.dart';
+import 'websocket_connect.dart';
 import 'websocket_message_parser.dart';
 
 part 'silo_events_socket_client.dart';
@@ -78,6 +80,59 @@ abstract class _ReconnectingWebSocketClient implements ServerWebSocketClient {
   /// it was called off.
   int _disconnects = 0;
 
+  /// Kos TV: when the server last sent anything on the open socket.
+  DateTime? _lastHeardAt;
+
+  /// Kos TV: connect attempts that failed in a row.
+  int _consecutiveFailures = 0;
+
+  /// Kos TV: after this many failed attempts in a row the session is asked
+  /// to check its token, since a revoked one fails the handshake for ever and
+  /// the browser never says it was a 401.
+  static const _failuresBeforeTokenCheck = 3;
+
+  /// Kos TV: how long a socket refused with 401 waits before trying again.
+  /// The session checks the token meanwhile and ends itself if it's revoked;
+  /// retrying on the usual backoff would be a run of 401s a proxy can read as
+  /// an attack.
+  static const _unauthorizedRetry = Duration(minutes: 5);
+
+  /// Kos TV: told when the server may have turned the token down (see
+  /// `SessionRepository.noteUnauthorized`). Set by [SocketHandler].
+  void Function()? onAuthFailure;
+
+  /// Kos TV: how long an open socket may stay silent before it is taken as
+  /// dead and replaced. Null never judges it (the server drives the keep
+  /// alive). A server or proxy that went away without closing leaves a socket
+  /// that looks open until TCP gives up, a quarter of an hour on Android.
+  Duration? get silenceLimit => null;
+
+  /// Kos TV: how long it may have been silent for [retryNow] to replace it.
+  Duration? get retrySilenceLimit => null;
+
+  bool _silentFor(Duration? limit) {
+    final last = _lastHeardAt;
+    return limit != null &&
+        last != null &&
+        DateTime.now().difference(last) > limit;
+  }
+
+  /// Kos TV: for the keep alive tick. Replaces a socket the server stopped
+  /// answering and returns true, or returns false when it is still alive.
+  bool dropIfSilent() {
+    if (channel == null || !_silentFor(silenceLimit)) return false;
+    logFailure(
+      '$label WebSocket went quiet, reconnecting',
+      TimeoutException('No frame since $_lastHeardAt'),
+    );
+    // The old socket's late close must not tear down the one that follows.
+    final stale = _subscription;
+    _subscription = null;
+    unawaited(stale?.cancel());
+    _dropAndReconnect();
+    return true;
+  }
+
   final _messageController =
       StreamController<ServerWebSocketMessage>.broadcast();
   final _connectionController = StreamController<void>.broadcast();
@@ -92,7 +147,7 @@ abstract class _ReconnectingWebSocketClient implements ServerWebSocketClient {
   Uri? buildUri();
 
   /// Opens the socket, or answers null when there is nothing to connect with.
-  /// Jellyfin and Emby open [buildUri]. Silo first asks for a ticket.
+  /// Jellyfin opens [buildUri]. Silo first asks for a ticket.
   Future<WebSocketChannel?> openChannel() async {
     final uri = buildUri();
     return uri == null ? null : WebSocketChannel.connect(uri);
@@ -129,12 +184,17 @@ abstract class _ReconnectingWebSocketClient implements ServerWebSocketClient {
       channel = socket;
       await socket.ready.timeout(_connectTimeout);
       _reconnectAttempt = 0;
+      _consecutiveFailures = 0;
+      _lastHeardAt = DateTime.now();
       onConnected();
       logLifecycle('$label WebSocket connected');
       _connectionController.add(null);
 
       _subscription = socket.stream.listen(
-        handleMessage,
+        (data) {
+          _lastHeardAt = DateTime.now();
+          handleMessage(data);
+        },
         onError: (error) {
           logFailure('$label WebSocket error, reconnecting', error);
           _dropAndReconnect();
@@ -146,8 +206,23 @@ abstract class _ReconnectingWebSocketClient implements ServerWebSocketClient {
         },
       );
     } catch (e) {
-      logFailure('$label WebSocket connection failed, retrying', e);
-      _dropAndReconnect();
+      _consecutiveFailures++;
+      if (handshakeStatusOf(e) == 401) {
+        logFailure('$label WebSocket refused the token, checking it', e);
+        _dropAndReconnect(after: _unauthorizedRetry);
+        onAuthFailure?.call();
+      } else {
+        logFailure('$label WebSocket connection failed, retrying', e);
+        _dropAndReconnect();
+        if (_consecutiveFailures % _failuresBeforeTokenCheck == 0) {
+          onAuthFailure?.call();
+        }
+        // Kos TV: the server may be gone with the network still up, which
+        // the connectivity check would otherwise only learn on its next ping.
+        if (GetIt.instance.isRegistered<ConnectivityService>()) {
+          GetIt.instance<ConnectivityService>().noteServerUnreachable();
+        }
+      }
     } finally {
       _connecting = false;
     }
@@ -155,12 +230,17 @@ abstract class _ReconnectingWebSocketClient implements ServerWebSocketClient {
 
   /// Clearing the channel is what lets an immediate retry through, since a
   /// stale one left in place reads as a live connection.
-  void _dropAndReconnect({bool atOnce = false}) {
+  void _dropAndReconnect({bool atOnce = false, Duration? after}) {
     keepAliveTimer?.cancel();
     keepAliveTimer = null;
     final stale = channel;
     channel = null;
     unawaited(_closeQuietly(stale));
+    if (after != null && !_disposed) {
+      _reconnectTimer?.cancel();
+      _reconnectTimer = Timer(after, () => connect());
+      return;
+    }
     if (atOnce && !_disposed) {
       _reconnectAttempt = 0;
       _reconnectTimer?.cancel();
@@ -198,7 +278,13 @@ abstract class _ReconnectingWebSocketClient implements ServerWebSocketClient {
 
   @override
   void retryNow() {
-    if (_disposed || _connecting || channel != null) return;
+    if (_disposed || _connecting) return;
+    // Kos TV: an open socket that has gone quiet is likely half open (the
+    // server or proxy went away without closing it), so it is replaced too.
+    if (channel != null) {
+      if (!_silentFor(retrySilenceLimit)) return;
+      logLifecycle('$label WebSocket quiet on retry, reconnecting');
+    }
     _reconnectAttempt = 0;
     _reconnectTimer?.cancel();
     _reconnectTimer = null;
@@ -268,10 +354,28 @@ abstract class _ReconnectingWebSocketClient implements ServerWebSocketClient {
 }
 
 class JellyfinWebSocketClient extends _ReconnectingWebSocketClient {
-  JellyfinWebSocketClient(MediaServerClient client, {Duration? connectTimeout})
-    : super(client, 'Jellyfin', connectTimeout: connectTimeout);
+  JellyfinWebSocketClient(
+    MediaServerClient client, {
+    Duration? connectTimeout,
+    @visibleForTesting Duration keepAliveInterval = const Duration(seconds: 30),
+  }) : _keepAliveInterval = keepAliveInterval,
+       super(client, 'Jellyfin', connectTimeout: connectTimeout);
 
-  static const _keepAliveIntervalSeconds = 30;
+  final Duration _keepAliveInterval;
+
+  // Kos TV: Jellyfin answers every KeepAlive with one of its own, so an open
+  // socket never goes a whole interval without a frame.
+  @override
+  Duration? get silenceLimit => _keepAliveInterval * 2.5;
+
+  @override
+  Duration? get retrySilenceLimit => _keepAliveInterval * 1.5;
+
+  @override
+  Future<WebSocketChannel?> openChannel() async {
+    final uri = buildUri();
+    return uri == null ? null : connectWebSocket(uri);
+  }
 
   @override
   Uri? buildUri() {
@@ -284,8 +388,10 @@ class JellyfinWebSocketClient extends _ReconnectingWebSocketClient {
   void onConnected() {
     keepAliveTimer?.cancel();
     keepAliveTimer = Timer.periodic(
-      const Duration(seconds: _keepAliveIntervalSeconds),
-      (_) => sendKeepAlive(),
+      _keepAliveInterval,
+      (_) {
+        if (!dropIfSilent()) sendKeepAlive();
+      },
     );
   }
 
@@ -308,6 +414,10 @@ class SocketHandler {
   SocketHandler({
     ServerWebSocketClient Function(MediaServerClient)? clientFactory,
   }) : _clientFactory = clientFactory ?? ServerWebSocketClient.forServer;
+
+  /// Kos TV: told when the socket's handshake keeps failing or was refused
+  /// with 401, so the session can check whether its token was revoked.
+  void Function()? onUnauthorized;
 
   ServerWebSocketClient? _wsClient;
   final _eventController =
@@ -343,6 +453,9 @@ class SocketHandler {
   void connectTo(MediaServerClient client) {
     disconnect();
     _wsClient = _clientFactory(client);
+    if (_wsClient case final _ReconnectingWebSocketClient socket) {
+      socket.onAuthFailure = () => onUnauthorized?.call();
+    }
     _forwardSub = _wsClient!.messages.listen(_eventController.add);
     _connectionSub = _wsClient!.connections.listen((_) {
       // A new socket starts with no feeds, so the held ones are asked for again.

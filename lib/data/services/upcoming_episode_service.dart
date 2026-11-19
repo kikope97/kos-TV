@@ -9,6 +9,7 @@ import '../../preference/user_preferences.dart';
 import '../models/aggregated_item.dart';
 import '../models/calendar_entry.dart';
 import '../models/upcoming_episode_info.dart';
+import '../utils/tmdb_language.dart';
 import 'moonbase_endpoint.dart';
 
 /// The calendar reminder for [info], the next episode of [series]. Null when
@@ -39,7 +40,7 @@ CalendarEntry? upcomingEpisodeReminder(
 /// Service that resolves upcoming episode air dates for a TV series from
 /// TMDB (through the server plugin).
 class UpcomingEpisodeService {
-  final _dio = Dio(
+  final _dio = moonbaseDio(
     BaseOptions(
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
@@ -119,6 +120,8 @@ class UpcomingEpisodeService {
         'https://api.themoviedb.org/3/tv/$tmdbId',
         queryParameters: {
           'api_key': apiKey,
+          // Kos TV: the episode title shows in the app's language.
+          'language': tmdbLanguage(),
         },
       );
 
@@ -149,7 +152,8 @@ class UpcomingEpisodeService {
         try {
           final response = await _dio.get(
             '${ep.base}/Moonfin/Tmdb/NextEpisode',
-            queryParameters: {'tmdbId': tmdbId},
+            // Kos TV: a plugin that doesn't read the language ignores it.
+            queryParameters: {'tmdbId': tmdbId, 'language': tmdbLanguage()},
             options: Options(headers: ep.headers),
           );
           if (response.statusCode == 200 && response.data is Map) {

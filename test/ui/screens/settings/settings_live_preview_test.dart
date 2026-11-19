@@ -1352,6 +1352,7 @@ void main() {
           serverId: 'server',
           accessToken: 'token',
           lastUsed: DateTime(2026),
+          imageTag: 'abc',
         ),
       );
       GetIt.instance.registerSingleton<UserRepository>(users);
@@ -1367,15 +1368,17 @@ void main() {
       final client = _Client();
       final images = _Images();
       when(() => client.imageApi).thenReturn(images);
+      when(() => client.serverType).thenReturn(ServerType.jellyfin);
       when(
         () => images.getUserImageUrl('user'),
       ).thenReturn('http://server/Users/user/Images/Primary');
       GetIt.instance.registerSingleton<MediaServerClient>(client);
       controller.showScene(SettingsPreviewScene.home);
       await pumpPreview(tester, controller);
+      // Kos TV: with the photo's tag, so a new photo is a new address.
       expect(
         tester.widget<UserAvatarImage>(find.byType(UserAvatarImage)).url,
-        'http://server/Users/user/Images/Primary',
+        'http://server/Users/user/Images/Primary?tag=abc',
       );
       debugDefaultTargetPlatformOverride = null;
     });

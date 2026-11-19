@@ -8,6 +8,7 @@ import '../../../auth/repositories/server_repository.dart';
 import '../../../auth/repositories/session_repository.dart';
 import '../../../auth/repositories/user_repository.dart';
 import '../../../data/models/aggregated_library.dart';
+import '../../../data/utils/user_avatar_url.dart';
 import '../../../data/repositories/multi_server_repository.dart';
 import '../../../data/repositories/user_views_repository.dart';
 import '../../../data/services/kostv_favorites_news.dart';
@@ -272,9 +273,11 @@ class BottomNavController extends ChangeNotifier {
       return;
     }
     try {
-      _userImageUrl = GetIt.instance<MediaServerClient>()
-          .imageApi
-          .getUserImageUrl(user.id);
+      _userImageUrl = userAvatarUrl(
+        GetIt.instance<MediaServerClient>(),
+        userId: user.id,
+        imageTag: user.imageTag,
+      );
     } catch (_) {
       _userImageUrl = null;
     }

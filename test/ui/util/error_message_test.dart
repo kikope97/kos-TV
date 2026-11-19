@@ -46,10 +46,14 @@ void main() {
       expect(describeError(error, _l10n), _unableToConnect);
     });
 
-    test("reads a list of errors", () {
+    test("reads plex.tv's list of errors", () {
       final refused = _badResponse(400, {
         'errors': [
-          {'code': 1001, 'message': 'Name is taken', 'status': 400},
+          {
+            'code': 1001,
+            'message': 'User could not be authenticated',
+            'status': 400,
+          },
         ],
       });
       expect(describeError(refused, _l10n), 'Name is taken');
@@ -72,28 +76,68 @@ void main() {
       final missingName = _badResponse(400, {'message': 'Name is required'});
       expect(describeError(missingName, _l10n), 'Name is required');
       expect(
-        describeError(_badResponse(409, {'title': 'Conflict'}), _l10n),
-        'Conflict',
+        describeError(_badResponse(409, 'Library is locked'), _l10n),
+        'Library is locked',
+      );
+    });
+
+    // Kos TV: these used to show the server's English text ("Not Found",
+    // "Error processing request.") or a bare status.
+    test('says what happened for the everyday statuses', () {
+      expect(
+        describeError(_badResponse(401, {'error': 'Not authenticated'}), _l10n),
+        'Your session has expired. Sign in again.',
       );
       expect(
-        describeError(_badResponse(500, 'Library is locked'), _l10n),
-        'Library is locked',
+        describeError(_badResponse(403, {'code': 7}), _l10n),
+        "You don't have permission to do this.",
+      );
+      expect(
+        describeError(
+          _badResponse(404, {'title': 'Not Found', 'status': 404}),
+          _l10n,
+        ),
+        "It's no longer on the server.",
+      );
+      for (final status in const [500, 502, 503]) {
+        expect(
+          describeError(
+            _badResponse(status, 'Error processing request.'),
+            _l10n,
+          ),
+          'The server ran into a problem. Try again.',
+          reason: '$status',
+        );
+      }
+    });
+
+    test("never shows a ProblemDetails title or Jellyfin's generic text", () {
+      expect(
+        describeError(_badResponse(409, {'title': 'Conflict'}), _l10n),
+        'Server returned HTTP 409',
+      );
+      expect(
+        describeError(_badResponse(400, 'Error processing request.'), _l10n),
+        'Server returned HTTP 400',
+      );
+      expect(
+        describeError(
+          _badResponse(400, {'title': 'Bad Request', 'detail': 'Bad id'}),
+          _l10n,
+        ),
+        'Bad id',
       );
     });
 
     test('falls back to the status when the body has no reason', () {
       expect(
-        describeError(_badResponse(502, '<html>Bad Gateway</html>'), _l10n),
-        'Server returned HTTP 502',
-      );
-      expect(
-        describeError(_badResponse(404, {'code': 7}), _l10n),
-        'Server returned HTTP 404',
+        describeError(_badResponse(418, '<html>Teapot</html>'), _l10n),
+        'Server returned HTTP 418',
       );
     });
 
     test('shortens a long server reason', () {
-      final result = describeError(_badResponse(500, 'x' * 500), _l10n);
+      final result = describeError(_badResponse(400, 'x' * 500), _l10n);
       expect(result, '${'x' * 200}...');
     });
 

@@ -362,6 +362,7 @@ class SessionRepository {
     // onAppResumed connect it if the user opens the app later.
     _socketSuspended = _isHeadlessAndroidBoot();
     if (!_socketSuspended) {
+      _socketHandler.onUnauthorized = _onSocketUnauthorized;
       _socketHandler.connectTo(client);
     }
     _bindRemoteCommandHandling();
@@ -498,8 +499,11 @@ class SessionRepository {
           serverUser.policy?.enableCollectionManagement ?? false;
       final canManageLiveTv =
           serverUser.policy?.enableLiveTvManagement ?? false;
+      // Kos TV: the avatar's tag, so a photo changed since sign-in shows.
+      final imageTag = serverUser.primaryImageTag;
 
       if (isAdmin != user.isAdministrator ||
+          (imageTag != null && imageTag != user.imageTag) ||
           canDownload != user.canDownload ||
           canManageSubtitles != user.canManageSubtitles ||
           canManageCollections != user.canManageCollections ||
@@ -510,6 +514,7 @@ class SessionRepository {
           canManageSubtitles: canManageSubtitles,
           canManageCollections: canManageCollections,
           canManageLiveTv: canManageLiveTv,
+          imageTag: imageTag,
         );
         await _authStore.putUser(updatedUser);
         if (left()) return false;
@@ -606,8 +611,20 @@ class SessionRepository {
     if (serverId == null) return;
     final client = _clientFactory.getClientIfExists(serverId);
     if (client != null) {
+      _socketHandler.onUnauthorized = _onSocketUnauthorized;
       _socketHandler.connectTo(client);
     }
+  }
+
+  /// Kos TV: the websocket's handshake was refused with 401 or keeps failing.
+  /// A TV left on a quiet screen makes no other request, so this is how it
+  /// learns its token was revoked. Checked like any other 401 (at most every
+  /// 30 seconds); a token the server still takes changes nothing.
+  void _onSocketUnauthorized() {
+    final serverId = _activeServerId;
+    if (serverId == null) return;
+    final client = _clientFactory.getClientIfExists(serverId);
+    noteUnauthorized(serverId, client?.accessToken, '/socket');
   }
 
   DateTime? _tokenCheckedAt;

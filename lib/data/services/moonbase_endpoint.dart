@@ -77,6 +77,17 @@ Future<MoonbaseEndpoint?> moonbaseEndpoint(
   return (base: '$base/api/v2/plugin-content/plugins/$id', headers: headers);
 }
 
+/// Kos TV: a Dio for the server plugin's routes with the main client's
+/// transport: the request slots, a second try when a pooled connection died
+/// before answering, the app's User-Agent, and redirects kept on the
+/// server's own origin so the token never follows one elsewhere.
+Dio moonbaseDio(BaseOptions options) {
+  final dio = Dio(options);
+  configureServerDio(dio);
+  dio.interceptors.add(redirectInterceptor(dio, sameOriginOnly: true));
+  return dio;
+}
+
 /// Whether [client]'s server recently answered that it has no Moonbase. On
 /// Silo a server that couldn't be reached doesn't count.
 bool moonbaseKnownMissing(MediaServerClient client) =>
