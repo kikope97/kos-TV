@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
@@ -87,6 +88,36 @@ String formatQuickConnectCode(String code) {
   return code;
 }
 
+/// Kos TV: what a failed sign-in says, in the app's language. The error's
+/// own text stays for the diagnostics; the person reads why in words they
+/// can act on: a wrong password, a server in trouble, or no way to reach it.
+@visibleForTesting
+String loginErrorMessage(ApiClientError error, AppLocalizations l10n) {
+  final status = error.statusCode;
+  if (status == 401) return l10n.loginWrongCredentials;
+  if (status != null && status >= 500) return l10n.loginServerError;
+  if (status == null && _unreachableErrorTypes.contains(error.errorType)) {
+    return l10n.unableToConnectToServer;
+  }
+  return l10n.loginFailed;
+}
+
+/// Dio's ways of failing without an answer from the server.
+const _unreachableErrorTypes = {
+  'connectionError',
+  'connectionTimeout',
+  'sendTimeout',
+  'receiveTimeout',
+  'unknown',
+};
+
+/// Kos TV: whether checking a Quick Connect code failed because the server
+/// no longer knows it. Jellyfin forgets a code after a few minutes and then
+/// answers 404, so asking again would never sign in.
+@visibleForTesting
+bool isQuickConnectCodeGone(Object error) =>
+    error is DioException && error.response?.statusCode == 404;
+
 /// A verification page as it is shown for typing: without `https://` and a
 /// trailing slash (`silo.example/activate`).
 @visibleForTesting
@@ -140,6 +171,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _pwBtnFocus = FocusNode();
   final _allowCertFocus = FocusNode();
   final _clientCertFocus = FocusNode();
+  final _retryFocus = FocusNode();
+  final _detailsFocus = FocusNode();
 
   Server? _server;
   MediaServerClient? _client;
@@ -171,6 +204,16 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// The code was declined: polling stopped, and the screen offers a new one.
   bool _quickConnectEnded = false;
+
+  /// Kos TV: no code could be had (the server didn't answer, or its
+  /// certificate isn't valid), and the screen offers to try again.
+  bool _quickConnectRetry = false;
+
+  /// Kos TV (web, household server built in): the browser could not reach
+  /// the server, and this is where its diagnostics page explains why. It is
+  /// offered as a button instead of opening by itself, since a server down
+  /// fails in the browser the same way as a misconfigured one.
+  String? _webDiagnosticsLocation;
 
   /// Bumped whenever a code is replaced or dropped, so a poll that was on its
   /// way for the old code neither signs in nor schedules another.
@@ -231,6 +274,8 @@ class _LoginScreenState extends State<LoginScreen> {
     _pwBtnFocus.dispose();
     _allowCertFocus.dispose();
     _clientCertFocus.dispose();
+    _retryFocus.dispose();
+    _detailsFocus.dispose();
     _quickConnectTimer?.cancel();
     super.dispose();
   }
@@ -385,6 +430,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
       _untrustedCertificate = false;
       _clientCertificateRequired = false;
+      _webDiagnosticsLocation = null;
     });
     if (_quickConnectCode == null) _startQuickConnect();
   }
@@ -397,6 +443,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
       _untrustedCertificate = false;
       _clientCertificateRequired = false;
+      _webDiagnosticsLocation = null;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -429,6 +476,8 @@ class _LoginScreenState extends State<LoginScreen> {
               result[QuickConnectKeys.verificationUriComplete] as String?;
           _quickConnectOpened = false;
           _quickConnectEnded = false;
+          _quickConnectRetry = false;
+          _webDiagnosticsLocation = null;
           _errorMessage = null;
         });
       }
@@ -478,11 +527,16 @@ class _LoginScreenState extends State<LoginScreen> {
           detail.toLowerCase().contains('quickconnect is disabled') ||
           detail.toLowerCase().contains('quick connect is disabled');
 
+      // Kos TV: no answer, or a server in trouble, says so in words and
+      // can be tried again.
       setState(() {
+        _quickConnectRetry = !isQcDisabled;
         _errorMessage = isQcDisabled
             ? l10n.quickConnectDisabled
             : (status == null
-                ? l10n.quickConnectUnavailableWithStatus(e.type.name, detail)
+                ? l10n.unableToConnectToServer
+                : status >= 500
+                ? l10n.loginServerError
                 : l10n.quickConnectUnavailableWithStatus(
                     '$status, ${e.type.name}',
                     detail,
@@ -491,16 +545,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (isQcDisabled && isInitial) {
         _selectPassword();
+      } else {
+        _focusRetryOnTv();
       }
     } catch (e) {
       if (!mounted) return;
       final l10n = AppLocalizations.of(context);
-      setState(
-        () => _errorMessage = l10n.quickConnectUnavailable(
-          describeError(e, l10n),
-        ),
-      );
+      setState(() {
+        _quickConnectRetry = true;
+        _errorMessage = l10n.quickConnectUnavailable(describeError(e, l10n));
+      });
+      _focusRetryOnTv();
     }
+  }
+
+  /// On a TV a button that just appeared can't be reached by touch, so the
+  /// remote lands on it.
+  void _focusRetryOnTv() {
+    if (!PlatformDetection.isTV) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _retryFocus.requestFocus();
+    });
   }
 
   /// The next check, after the wait the server asked for (Silo:
@@ -525,7 +590,23 @@ class _LoginScreenState extends State<LoginScreen> {
     Map<String, dynamic> result;
     try {
       result = await client.authApi.checkQuickConnect(secret);
-    } catch (_) {
+    } catch (e) {
+      if (generation != _quickConnectGeneration || !mounted) return;
+      // Kos TV: the server forgot the code (it lasts a few minutes), so it
+      // can no longer be approved: say so and offer a new one.
+      if (isQuickConnectCodeGone(e)) {
+        _stopQuickConnect();
+        setState(() {
+          _quickConnectEnded = true;
+          _errorMessage = AppLocalizations.of(context).quickConnectCodeExpired;
+        });
+        if (PlatformDetection.isTV) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _newCodeFocus.requestFocus();
+          });
+        }
+        return;
+      }
       // A network blip: keep the code and ask again.
       _scheduleQuickConnectPoll(generation, const {});
       return;
@@ -559,7 +640,28 @@ class _LoginScreenState extends State<LoginScreen> {
     _scheduleQuickConnectPoll(generation, result);
   }
 
+  /// Kos TV: whatever goes wrong signing in with the approved code ends on a
+  /// message and a new code, never on a spinner with nothing to press.
   Future<void> _signInWithQuickConnect(
+    MediaServerClient client,
+    String secret,
+  ) async {
+    try {
+      await _completeQuickConnectSignIn(client, secret);
+    } catch (_) {
+      if (!mounted) return;
+      _endQuickConnectWithError(AppLocalizations.of(context).loginFailed);
+    }
+  }
+
+  void _endQuickConnectWithError(String message) {
+    setState(() {
+      _quickConnectEnded = true;
+      _errorMessage = message;
+    });
+  }
+
+  Future<void> _completeQuickConnectSignIn(
     MediaServerClient client,
     String secret,
   ) async {
@@ -583,16 +685,21 @@ class _LoginScreenState extends State<LoginScreen> {
             l10n.siloCodeSignInPasswordChangeRequired,
           ServerUnavailable() => l10n.serverUnavailable,
           SiloRequestRefused(:final failure) => failure.message(l10n),
-          ApiClientError(:final error) => error,
+          final ApiClientError failure => loginErrorMessage(failure, l10n),
           _ => l10n.loginFailed,
         };
       });
       return;
     }
-    await _sessionRepo.switchCurrentSession(
+    final switched = await _sessionRepo.switchCurrentSession(
       serverId: authResult.serverId,
       userId: authResult.userId,
     );
+    if (!mounted) return;
+    if (!switched) {
+      _endQuickConnectWithError(AppLocalizations.of(context).loginFailed);
+      return;
+    }
     if (mounted) {
       if (!await _passesPinCheck(authResult.userId, canResetPin: true)) {
         // Kos TV: signed in already, so a PIN not passed signs them back
@@ -624,6 +731,7 @@ class _LoginScreenState extends State<LoginScreen> {
         _quickConnectUriComplete = null;
         _quickConnectOpened = false;
         _quickConnectEnded = false;
+        _quickConnectRetry = false;
       });
     }
   }
@@ -645,14 +753,27 @@ class _LoginScreenState extends State<LoginScreen> {
     kostvAuthGo(context, '${Destinations.server}?serverId=${server.id}');
   }
 
+  /// Kos TV: with the household server built in, a certificate that isn't
+  /// valid (a hotel's network intercepting it, say) is not offered the
+  /// switch that accepts any certificate in the whole app; it says what may
+  /// be wrong and offers to try again. The switch is still in Settings.
   void _showUntrustedCertificate() {
+    final l10n = AppLocalizations.of(context);
     setState(() {
       _isLoading = false;
       _untrustedCertificate = true;
-      _errorMessage = AppLocalizations.of(context).untrustedServerCertificate;
+      _quickConnectRetry = hasKostvServer;
+      _errorMessage = hasKostvServer
+          ? l10n.kostvUntrustedServerCertificate
+          : l10n.untrustedServerCertificate;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _allowCertFocus.requestFocus();
+      if (!mounted) return;
+      if (!hasKostvServer) {
+        _allowCertFocus.requestFocus();
+      } else if (PlatformDetection.isTV) {
+        (_showQuickConnect ? _retryFocus : _signInFocus).requestFocus();
+      }
     });
   }
 
@@ -666,6 +787,8 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
       _untrustedCertificate = false;
       _clientCertificateRequired = false;
+      _quickConnectRetry = false;
+      _webDiagnosticsLocation = null;
     });
     if (_showQuickConnect) {
       await _startQuickConnect();
@@ -742,14 +865,28 @@ class _LoginScreenState extends State<LoginScreen> {
       return false;
     }
 
-    kostvAuthGo(context, 
-      Destinations.webDiagnosticsRoute(
-        reason: webDiagnosticsFailureReasonToQuery(reason),
-        targetUrl: targetUrl,
-        detail: message,
-      ),
+    final location = Destinations.webDiagnosticsRoute(
+      reason: webDiagnosticsFailureReasonToQuery(reason),
+      targetUrl: targetUrl,
+      detail: message,
     );
+    // Kos TV: the household server's address was set by whoever runs the
+    // web version, and in the browser a server that is down or restarting
+    // fails just like a misconfigured one. The sign-in stays, with the
+    // error and a way to try again, and the diagnostics are a button away.
+    if (hasKostvServer) {
+      setState(() => _webDiagnosticsLocation = location);
+      return false;
+    }
+    kostvAuthGo(context, location);
     return true;
+  }
+
+  /// Kos TV: opens the web diagnostics above the sign-in, so their Back
+  /// returns here.
+  void _openWebDiagnostics() {
+    final location = _webDiagnosticsLocation;
+    if (location != null) unawaited(context.push(location));
   }
 
   Future<bool> _passesPinCheck(
@@ -813,6 +950,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
       _untrustedCertificate = false;
       _clientCertificateRequired = false;
+      _webDiagnosticsLocation = null;
     });
 
     try {
@@ -892,7 +1030,7 @@ class _LoginScreenState extends State<LoginScreen> {
             setState(() => _isLoading = false);
             return;
           }
-          _finishLoginWithError(error);
+          _finishLoginWithError(loginErrorMessage(result, l10n));
         case SignInForbidden():
           _finishLoginWithError(l10n.loginForbidden);
         case ServerUnavailable():
@@ -1221,7 +1359,16 @@ class _LoginScreenState extends State<LoginScreen> {
             onPressed: _startQuickConnect,
           ),
         ],
-        if (_untrustedCertificate) ...[
+        if (_quickConnectRetry && !_quickConnectEnded) ...[
+          const SizedBox(height: 12),
+          _buildActionButton(
+            label: l10n.retry,
+            focusNode: _retryFocus,
+            onPressed: _retrySignIn,
+          ),
+        ],
+        ..._webDiagnosticsButton(l10n),
+        if (_untrustedCertificate && !hasKostvServer) ...[
           const SizedBox(height: 12),
           _buildActionButton(
             label: l10n.settingsAllowSelfSignedCerts,
@@ -1283,7 +1430,8 @@ class _LoginScreenState extends State<LoginScreen> {
           const SizedBox(height: 12),
           Text(_errorMessage!, style: TextStyle(color: _loginErrorColor)),
         ],
-        if (_untrustedCertificate) ...[
+        ..._webDiagnosticsButton(l10n),
+        if (_untrustedCertificate && !hasKostvServer) ...[
           const SizedBox(height: 12),
           _buildActionButton(
             label: l10n.settingsAllowSelfSignedCerts,
@@ -1322,6 +1470,19 @@ class _LoginScreenState extends State<LoginScreen> {
       ],
     );
   }
+
+  /// Kos TV: the way to the web diagnostics, when the browser could not
+  /// reach the household server (see [_webDiagnosticsLocation]).
+  List<Widget> _webDiagnosticsButton(AppLocalizations l10n) => [
+    if (_webDiagnosticsLocation != null) ...[
+      const SizedBox(height: 12),
+      _buildActionButton(
+        label: l10n.details,
+        focusNode: _detailsFocus,
+        onPressed: _openWebDiagnostics,
+      ),
+    ],
+  ];
 
   Widget _buildTextField({
     required TextEditingController controller,

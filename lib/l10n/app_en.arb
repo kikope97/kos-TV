@@ -19455,5 +19455,21 @@
   "kostvChannelOpenFailed": "Unable to open channel",
   "@kostvChannelOpenFailed": {
     "description": "Kos TV: a TV channel could not be opened"
+  },
+  "loginWrongCredentials": "Wrong username or password",
+  "@loginWrongCredentials": {
+    "description": "Kos TV: the server turned the username and password down"
+  },
+  "loginServerError": "The server ran into a problem. Try again later.",
+  "@loginServerError": {
+    "description": "Kos TV: the server answered the sign-in with an error of its own"
+  },
+  "quickConnectCodeExpired": "This code has expired. Get a new one to sign in.",
+  "@quickConnectCodeExpired": {
+    "description": "Kos TV: the server forgot the Quick Connect code before it was approved"
+  },
+  "kostvUntrustedServerCertificate": "The server's certificate isn't valid, so the connection isn't safe. You may be on a network that intercepts connections (a hotel's, for example). Try another network or try again later.",
+  "@kostvUntrustedServerCertificate": {
+    "description": "Kos TV: sign-in to the built-in household server found a certificate that is not valid"
   }
 }

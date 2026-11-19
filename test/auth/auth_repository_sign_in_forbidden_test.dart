@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/auth/models/login_state.dart';
 import 'package:moonfin/auth/repositories/auth_repository.dart';
-import 'package:moonfin/auth/repositories/session_repository.dart';
 import 'package:moonfin/auth/repositories/user_repository.dart';
 import 'package:moonfin/auth/store/authentication_preferences.dart';
 import 'package:moonfin/auth/store/authentication_store.dart';
@@ -31,12 +30,10 @@ class _Store extends Fake implements AuthenticationStore {}
 
 class _Prefs extends Fake implements AuthenticationPreferences {}
 
-class _Sessions extends Fake implements SessionRepository {}
-
 class _Users extends Fake implements UserRepository {}
 
 Future<LoginState> _signInFailingWith(DioException failure) =>
-    AuthRepository(_Store(), _Prefs(), _Sessions(), _Users()).authenticate(
+    AuthRepository(_Store(), _Prefs(), _Users()).authenticate(
       client: _Client(_FailingAuthApi(failure)),
       serverId: 'server',
       username: 'user',

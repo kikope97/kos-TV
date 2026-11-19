@@ -48,6 +48,6 @@ class MoonbaseClientLogApi implements ClientLogApi {
 final Dio _uploadDio = () {
   final dio = Dio(pluginRequestOptions());
   configureServerDio(dio);
-  dio.interceptors.add(redirectInterceptor(dio));
+  dio.interceptors.add(redirectInterceptor(dio, sameOriginOnly: true));
   return dio;
 }();

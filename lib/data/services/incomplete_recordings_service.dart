@@ -145,7 +145,7 @@ class IncompleteRecordingsService extends ChangeNotifier {
        _dio = dio ?? Dio(pluginRequestOptions()) {
     if (dio == null) {
       configureServerDio(_dio);
-      _dio.interceptors.add(redirectInterceptor(_dio));
+      _dio.interceptors.add(redirectInterceptor(_dio, sameOriginOnly: true));
     }
   }
 

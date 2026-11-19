@@ -54,8 +54,4 @@ class ServerUserRepository {
       dio.close();
     }
   }
-
-  Future<void> deleteStoredUser(String serverId, String userId) async {
-    await _authStore.removeUser(serverId, userId);
-  }
 }

@@ -38,6 +38,6 @@ void registerAuthModule() {
     ),
   );
   _getIt.registerLazySingleton(
-    () => AuthRepository(_getIt(), _getIt(), _getIt(), _getIt()),
+    () => AuthRepository(_getIt(), _getIt(), _getIt()),
   );
 }

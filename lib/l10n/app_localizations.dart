@@ -33914,6 +33914,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unable to open channel'**
   String get kostvChannelOpenFailed;
+
+  /// Kos TV: the server turned the username and password down
+  ///
+  /// In en, this message translates to:
+  /// **'Wrong username or password'**
+  String get loginWrongCredentials;
+
+  /// Kos TV: the server answered the sign-in with an error of its own
+  ///
+  /// In en, this message translates to:
+  /// **'The server ran into a problem. Try again later.'**
+  String get loginServerError;
+
+  /// Kos TV: the server forgot the Quick Connect code before it was approved
+  ///
+  /// In en, this message translates to:
+  /// **'This code has expired. Get a new one to sign in.'**
+  String get quickConnectCodeExpired;
+
+  /// Kos TV: sign-in to the built-in household server found a certificate that is not valid
+  ///
+  /// In en, this message translates to:
+  /// **'The server\'s certificate isn\'t valid, so the connection isn\'t safe. You may be on a network that intercepts connections (a hotel\'s, for example). Try another network or try again later.'**
+  String get kostvUntrustedServerCertificate;
 }
 
 class _AppLocalizationsDelegate

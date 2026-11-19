@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 import 'package:server_jellyfin/server_jellyfin.dart';
@@ -19,7 +20,19 @@ class MediaServerClientFactory {
   /// Called when a Jellyfin server answers a request with 403.
   final void Function()? onForbidden;
 
-  MediaServerClientFactory({required this.deviceInfo, this.onForbidden});
+  /// Kos TV: called when a Jellyfin server answers a request with 401, with
+  /// the server's id, the token the request carried (null without one) and
+  /// the request's path. The session decides whether it was the active
+  /// person's token and whether to check it (see
+  /// `SessionRepository.noteUnauthorized`).
+  final void Function(String serverId, String? token, String path)?
+  onUnauthorized;
+
+  MediaServerClientFactory({
+    required this.deviceInfo,
+    this.onForbidden,
+    this.onUnauthorized,
+  });
 
   Map<String, MediaServerClient> get clients => Map.unmodifiable(_clients);
 
@@ -51,6 +64,7 @@ class MediaServerClientFactory {
     final normalizedBaseUrl = normalizeServerBaseUrl(baseUrl);
     return _clients.putIfAbsent(serverId, () {
       return _createClient(
+        serverId: serverId,
         serverType: serverType,
         baseUrl: normalizedBaseUrl,
       );
@@ -88,10 +102,15 @@ class MediaServerClientFactory {
   }
 
   MediaServerClient _createClient({
+    required String serverId,
     required ServerType serverType,
     required String baseUrl,
   }) {
-    final raw = _createRawClient(serverType: serverType, baseUrl: baseUrl);
+    final raw = _createRawClient(
+      serverId: serverId,
+      serverType: serverType,
+      baseUrl: baseUrl,
+    );
     final getIt = GetIt.instance;
     // Background isolates skip the offline stack, so there's nothing to route
     // to and the raw client is all they need.
@@ -111,6 +130,7 @@ class MediaServerClientFactory {
   }
 
   MediaServerClient _createRawClient({
+    required String serverId,
     required ServerType serverType,
     required String baseUrl,
   }) {
@@ -124,6 +144,20 @@ class MediaServerClientFactory {
               InterceptorsWrapper(
                 onError: (error, handler) {
                   if (error.response?.statusCode == 403) onForbidden!();
+                  handler.next(error);
+                },
+              ),
+            if (onUnauthorized != null)
+              InterceptorsWrapper(
+                onError: (error, handler) {
+                  if (error.response?.statusCode == 401) {
+                    final options = error.requestOptions;
+                    onUnauthorized!(
+                      serverId,
+                      authorizationToken(options.headers['Authorization']),
+                      options.uri.path,
+                    );
+                  }
                   handler.next(error);
                 },
               ),
@@ -149,6 +183,17 @@ class MediaServerClientFactory {
     _clients.clear();
   }
 }
+
+/// Kos TV: the token in a `MediaBrowser ... Token="..."` header, or null
+/// when the request carried none.
+@visibleForTesting
+String? authorizationToken(Object? header) {
+  if (header is! String) return null;
+  final token = _tokenPattern.firstMatch(header)?.group(1);
+  return token == null || token.isEmpty ? null : token;
+}
+
+final _tokenPattern = RegExp(r'Token="([^"]*)"');
 
 /// The platform Silo records for this device (`X-Silo-Device-Platform`),
 /// named the same way as the client name in `lib/di/injection.dart`.

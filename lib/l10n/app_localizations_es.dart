@@ -20055,4 +20055,19 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvChannelOpenFailed => 'No se ha podido abrir el canal';
+
+  @override
+  String get loginWrongCredentials => 'Usuario o contraseña incorrectos';
+
+  @override
+  String get loginServerError =>
+      'El servidor ha tenido un problema. Inténtalo de nuevo más tarde.';
+
+  @override
+  String get quickConnectCodeExpired =>
+      'Este código ha caducado. Pide uno nuevo para entrar.';
+
+  @override
+  String get kostvUntrustedServerCertificate =>
+      'El certificado del servidor no es válido, así que la conexión no es segura. Puede que estés en una red que intercepta las conexiones (la de un hotel, por ejemplo). Prueba con otra red o inténtalo más tarde.';
 }

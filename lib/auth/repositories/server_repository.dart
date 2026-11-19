@@ -80,9 +80,17 @@ class ServerRepository {
   /// Silo's native API answers on the same host, [offerSiloNative] is asked
   /// whether to add the native server instead. Without it, or when it
   /// answers false, the Jellyfin server is added as before.
+  ///
+  /// Kos TV: with [exactAddressOnly] only [address] itself is tried, as it
+  /// is written (https when it names no scheme), instead of also trying the
+  /// other scheme and the usual ports, and an answer that redirected
+  /// somewhere else is not taken. It is for the household server built in:
+  /// its address is known, and plain http or another port would only find
+  /// something else, or send the password in the clear.
   Future<Server?> addServer(
     String address, {
     SiloNativeOfferHandler? offerSiloNative,
+    bool exactAddressOnly = false,
   }) async {
     final enteredAddress = address;
     address = normalizeServerBaseUrl(address.trim());
@@ -90,7 +98,9 @@ class ServerRepository {
       return null;
     }
 
-    final candidates = _buildCandidates(address);
+    final candidates = exactAddressOnly
+        ? [exactServerCandidate(address)]
+        : _buildCandidates(address);
     _stateController.add(ServerConnecting(address: address));
 
     String? lastCandidate;
@@ -128,6 +138,11 @@ class ServerRepository {
           }
         }
         final serverAddress = resolvedUrl.isNotEmpty ? resolvedUrl : candidate;
+        if (exactAddressOnly && !_staysOnAddress(candidate, serverAddress)) {
+          throw FormatException(
+            'The server at $candidate answered from $serverAddress',
+          );
+        }
 
         final existingIndex = _servers.indexWhere(
           (s) =>
@@ -365,6 +380,14 @@ class ServerRepository {
     }
   }
 
+  /// Whether [resolved], where the server answered, is still [candidate]'s
+  /// origin (an upgrade from http to https on the same host counts).
+  static bool _staysOnAddress(String candidate, String resolved) {
+    final from = Uri.tryParse(candidate);
+    final to = Uri.tryParse(resolved);
+    return from != null && to != null && isSameOriginRedirect(from, to);
+  }
+
   List<String> _buildCandidates(String address) {
     final candidates = <String>{};
 
@@ -465,4 +488,15 @@ class ServerRepository {
   void dispose() {
     _stateController.close();
   }
+}
+
+/// Kos TV: [address] as the only address to try for the household server:
+/// itself when it names its scheme, otherwise https.
+@visibleForTesting
+String exactServerCandidate(String address) {
+  final lower = address.toLowerCase();
+  if (lower.startsWith('http://') || lower.startsWith('https://')) {
+    return address;
+  }
+  return 'https://$address';
 }

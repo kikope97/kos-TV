@@ -204,7 +204,9 @@ class _ServerScreenState extends State<ServerScreen> {
           .map((stored) => stored.accessToken)
           .firstOrNull,
     );
-    await guard.refresh();
+    // Kos TV: the screen says it's working while the server is asked, and a
+    // server that doesn't answer is waited on no longer than at start-up.
+    await _whileSigningIn(() => _refreshPin(guard));
     if (!mounted) return;
 
     // Asked here only when this device knew of it; otherwise, once there is
@@ -290,6 +292,17 @@ class _ServerScreenState extends State<ServerScreen> {
       kostvAuthGo(context, _buildUserLoginRoute(server, user));
     }
   }
+
+  /// Kos TV: whether the server holds a PIN for the account, asked for at
+  /// most [_pinLookupLimit], as the start-up does. Without an answer, what
+  /// this device knows stands.
+  Future<void> _refreshPin(PinGuard guard) async {
+    try {
+      await guard.refresh().timeout(_pinLookupLimit);
+    } catch (_) {}
+  }
+
+  static const _pinLookupLimit = Duration(seconds: 4);
 
   Future<bool> _trySwitchSession(String serverId, String userId) async {
     try {
