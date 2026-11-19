@@ -37,22 +37,45 @@ RUN cd /web \
       h=$(sha256sum "$f" | cut -c1-7); touch -d "@$((0x$h + 1000000000))" "$f"; \
     done
 
-FROM nginx:1.29-alpine
+# Kos TV: nginx's own image made to run without root (nginxinc's
+# nginx-unprivileged, the same nginx and Alpine): it listens on 8080, as a
+# port under 1024 needs root, and keeps its pid and temporary files in /tmp.
+FROM nginxinc/nginx-unprivileged:1.29-alpine
 
 LABEL org.opencontainers.image.title="kOS TV (web)" \
       org.opencontainers.image.description="kOS TV en el navegador: cliente de Jellyfin para la familia" \
       org.opencontainers.image.source="https://github.com/kikope97/kos-TV" \
       org.opencontainers.image.licenses="GPL-2.0-or-later"
 
-# The certificates the requests service's is checked against.
-RUN apk add --no-cache ca-certificates
+# Root only while the image is built.
+USER root
 
 COPY docker/web/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --chmod=755 docker/web/40-kostv-config.sh /docker-entrypoint.d/40-kostv-config.sh
 COPY --from=web /web /usr/share/nginx/html
 COPY docker/web/admin /usr/share/nginx/admin
 
-EXPOSE 80
+# The certificates the requests service's is checked against.
+#
+# Then nginx's configuration is made root's again (the base image leaves it
+# to nginx's user), so the server can't change its own; the app's files
+# already are. What 40-kostv-config.sh writes at start are the only places
+# nginx's user can write to: the includes, the admin password's hash and
+# config.json. Group 0 too, as the base image does, so it also starts under
+# another user given with --user.
+RUN apk add --no-cache ca-certificates \
+ && chown -R 0:0 /etc/nginx \
+ && chmod -R go-w /etc/nginx \
+ && mkdir -p /etc/nginx/kostv /etc/nginx/kostv-http /etc/nginx/kostv-auth \
+ && chown 101:0 /etc/nginx/kostv /etc/nginx/kostv-http /etc/nginx/kostv-auth \
+ && chmod 770 /etc/nginx/kostv /etc/nginx/kostv-http /etc/nginx/kostv-auth \
+ && touch /usr/share/nginx/html/config.json \
+ && chown 101:0 /usr/share/nginx/html/config.json \
+ && chmod 664 /usr/share/nginx/html/config.json
+
+USER 101
+
+EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -q -O /dev/null http://127.0.0.1/healthz || exit 1
+  CMD wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1

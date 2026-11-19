@@ -39,6 +39,36 @@ En el repositorio hay un ejemplo listo para copiar:
 4. En el proxy inverso, apunta un subdominio con https (por ejemplo
    `https://kostv.example.com`) al puerto 25670 de ese servidor.
 
+El contenedor **no se ejecuta como root**: nginx va con un usuario sin
+privilegios (el 101) y por eso escucha dentro en el puerto **8080**, no en el
+80. En el servidor sigue siendo el 25670 (`"25670:8080"` en el `compose.yml`),
+así que el proxy inverso y las direcciones no cambian.
+
+### Si ya lo tenías instalado: cambia el puerto de dentro
+
+Hasta ahora el contenedor escuchaba dentro en el 80. Con la imagen nueva
+escucha en el 8080, así que en el `compose.yml` que ya tienes (o en el editor
+del stack de Portainer) hay que cambiar una línea, **antes o justo al
+actualizar**:
+
+```yaml
+    ports:
+      - "25670:80"      # lo de antes: quítalo
+      - "25670:8080"    # lo de ahora
+```
+
+Solo cambia el número de la derecha (el de dentro del contenedor); el de la
+izquierda (25670, o el que pusieras) se queda igual, y en el proxy inverso no
+hay que tocar nada. Luego `docker compose pull && docker compose up -d` (en
+Portainer, **Update the stack** con **Re-pull image**). Si se actualiza la
+imagen sin cambiar la línea, la web deja de abrir (el proxy da error 502 o el
+navegador no conecta) hasta que se cambie.
+
+Si usas `KOSTV_ADMIN_PASSWORD_FILE`, el archivo de la contraseña tiene que
+poderlo leer ese usuario: `sudo chown 101 admin_password.txt && chmod 600
+admin_password.txt`. Si no puede, el contenedor no arranca y lo dice en
+`docker compose logs` («no se puede leer KOSTV_ADMIN_PASSWORD_FILE»).
+
 Al abrirlo, la app va directa al usuario y la contraseña de Jellyfin, igual que
 en la tele. El panel de administración está en `/admin` (por ejemplo
 `https://kostv.example.com/admin`).
@@ -102,7 +132,7 @@ Ya está: `https://kostv.example.com` abre kOS TV para la familia y
 | `KOSTV_REQUESTS_VERIFY` | Solo con `KOSTV_REQUESTS_URL`: `off` si el servicio de peticiones usa un certificado propio de la red de casa. Por defecto (`on`) el contenedor comprueba su certificado, como hacen las apps | Se comprueba |
 | `KOSTV_ADMIN_USER` | El usuario del panel de administración | `admin` |
 | `KOSTV_ADMIN_PASSWORD` | Su contraseña, **de al menos 10 caracteres** (con una más corta el contenedor no arranca y lo dice en `docker compose logs`). Si lleva `$`, entre comillas simples en el `.env` (ver arriba) | `/admin` queda cerrado |
-| `KOSTV_ADMIN_PASSWORD_FILE` | En vez de la anterior, la ruta de un archivo que contenga la contraseña (los *secrets* de Docker), así no queda en las variables del contenedor. En el `compose.yml` de ejemplo: quita los `#` del bloque `secrets`, guarda la contraseña en `admin_password.txt` junto al `compose.yml` y pon `KOSTV_ADMIN_PASSWORD_FILE=/run/secrets/kostv_admin_password` en el `.env`. En el editor web de Portainer no sirve un archivo junto al compose: ahí, mejor `KOSTV_ADMIN_PASSWORD` | Se usa `KOSTV_ADMIN_PASSWORD` |
+| `KOSTV_ADMIN_PASSWORD_FILE` | En vez de la anterior, la ruta de un archivo que contenga la contraseña (los *secrets* de Docker), así no queda en las variables del contenedor. En el `compose.yml` de ejemplo: quita los `#` del bloque `secrets`, guarda la contraseña en `admin_password.txt` junto al `compose.yml` (que lo pueda leer el usuario 101 del contenedor: `sudo chown 101 admin_password.txt`) y pon `KOSTV_ADMIN_PASSWORD_FILE=/run/secrets/kostv_admin_password` en el `.env`. En el editor web de Portainer no sirve un archivo junto al compose: ahí, mejor `KOSTV_ADMIN_PASSWORD` | Se usa `KOSTV_ADMIN_PASSWORD` |
 | `KOSTV_TRUSTED_PROXY` | La IP del proxy inverso (Nginx Proxy Manager…) **tal como llega al contenedor**, o un rango, o varias separadas por comas. Si el proxy está en Docker en el mismo servidor, suele bastar `172.16.0.0/12` (las redes de Docker); si está en otro aparato de casa, su IP. Solo entonces se cree la dirección del visitante que manda el proxy (y solo a él), y `/admin` cuenta su límite por cada visitante | `/admin` cuenta su límite por la dirección que llega al contenedor: detrás de un proxy, uno para todos |
 
 Da igual que lleven o no la barra final o `/api/v1`. Una dirección mal escrita
@@ -128,7 +158,8 @@ servicios de casa). Al entrar, el navegador pide el usuario y la contraseña de
 `KOSTV_ADMIN_USER` y `KOSTV_ADMIN_PASSWORD`.
 
 - Para nginx, la contraseña no se guarda tal cual: al arrancar, el contenedor
-  guarda solo su huella cifrada (SHA-512), que únicamente puede leer nginx.
+  guarda solo su huella cifrada (SHA-512), que únicamente puede leer el
+  usuario de nginx.
   Pero si se da en `KOSTV_ADMIN_PASSWORD`, sigue en las variables del
   contenedor (las ve quien pueda hacer `docker inspect`); con
   `KOSTV_ADMIN_PASSWORD_FILE` no.
@@ -201,7 +232,7 @@ Desde la raíz del repositorio:
 ```bash
 flutter build web --wasm --release --no-web-resources-cdn
 docker build -f docker/web/Dockerfile -t kostv-web .
-docker run --rm -p 25670:80 \
+docker run --rm -p 25670:8080 \
   -e KOSTV_SERVER_URL=https://jellyfin.example.com \
   kostv-web
 ```
@@ -221,6 +252,23 @@ imágenes…) da un 404; solo las rutas de la app vuelven a su página.
 Los archivos están en [`docker/web/`](../docker/web/): el `Dockerfile`, la
 configuración de nginx y `40-kostv-config.sh`, que escribe el `config.json` y la
 pasarela a Stremfin al arrancar.
+
+La imagen parte de `nginxinc/nginx-unprivileged` (el mismo nginx, preparado
+para ir sin root): nginx y `40-kostv-config.sh` se ejecutan con el usuario 101,
+que solo puede escribir lo que escribe ese script al arrancar (`config.json`,
+`/etc/nginx/kostv*`) y lo temporal de nginx (`/tmp`, `/var/cache/nginx`); los
+archivos de la app y la configuración de nginx son de root y no los puede
+cambiar. También arranca con otro usuario (`--user`) mientras su grupo sea el
+0.
+
+## Al publicar: las pruebas antes de compilar
+
+Cada versión y cada prueba pasan antes el analizador y las pruebas de la app
+(el trabajo `release-checks` de `build.yml`, con los mismos comandos que
+`checks.yml`). Si el analizador encuentra un error, o un aviso (*warning*) en
+`lib/`, o falla alguna prueba, no se compilan los APK ni se publica nada. Las
+pruebas que fallan se repiten una vez solas (algunas dependen del tiempo y
+fallan de vez en cuando en GitHub); si vuelven a fallar, la versión no sale.
 
 ## Al publicar: la firma de los APK
 
