@@ -90,6 +90,27 @@ void main() {
       expect(find.byType(BookCard), findsNWidgets(5));
     });
 
+    // Kos TV: Open Library and LibriVox are out of reach in Kids Mode.
+    testWidgets('Kids Mode takes Discover away, even while open', (
+      tester,
+    ) async {
+      await pumpWideBookScreen(tester);
+      final discover = find.descendant(
+        of: find.byType(BookLibraryRail),
+        matching: find.text('Discover'),
+      );
+
+      await tester.tap(discover);
+      await tester.pumpAndSettle();
+      expect(find.byType(BookDiscoverScreen), findsOneWidget);
+
+      await prefs.set(UserPreferences.kidsModeEnabled, true);
+      await tester.pumpAndSettle();
+      expect(discover, findsNothing);
+      expect(find.byType(BookDiscoverScreen), findsNothing);
+      expect(find.byType(BookCard), findsNWidgets(5));
+    });
+
     testWidgets('the rail opens the library in folders', (tester) async {
       await pumpWideBookScreen(tester);
 

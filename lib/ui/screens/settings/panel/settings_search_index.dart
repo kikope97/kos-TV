@@ -159,9 +159,9 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     slug: 'parental',
     path: [l10n.account, l10n.parentalControls],
     icon: Icons.shield,
-    // Kos TV: behind the account's PIN, as from Account.
+    // Kos TV: behind its own PIN or the account's, as from Account.
     open: () => unawaited(
-      kostvAccountPinLetsIn(context).then((ok) {
+      kostvParentalControlsLetIn(context).then((ok) {
         if (ok && context.mounted) push(const ParentalSettingsScreen());
       }),
     ),
@@ -523,6 +523,12 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       'pref_recommendations_apply_parental_rating_cap',
       l10n.recommendationsApplyParentalRatingCap,
       subtitle: l10n.recommendationsApplyParentalRatingCapSubtitle,
+    ),
+    parental.leaf(
+      'parental_pin',
+      l10n.kostvParentalPinSection,
+      subtitle: l10n.kostvParentalPinSetSubtitle,
+      keywords: ['pin', 'lock', 'passcode'],
     ),
 
 

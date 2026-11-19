@@ -21,6 +21,11 @@ class PinCodeUtil {
   /// The PIN that unlocks Kids Mode, independent of the sign in PIN.
   PinCodeUtil.kidsMode(this._store, this._userId) : _namespace = 'kids';
 
+  /// Kos TV: the optional PIN that guards Parental controls on this device,
+  /// apart from the sign in PIN that whoever uses the profile knows. Kept per
+  /// person on the device, as the ratings filter it protects is.
+  PinCodeUtil.parental(this._store, this._userId) : _namespace = 'parental';
+
   String get _pinHashKey => '${_namespace}_pin_hash_$_userId';
   String get _pinEnabledKey => '${_namespace}_pin_enabled_$_userId';
   String get _failedAttemptsKey => '${_namespace}_pin_failed_$_userId';

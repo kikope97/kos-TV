@@ -2017,6 +2017,11 @@ class UserPreferences extends ChangeNotifier {
   bool get effectiveRecommendationsApplyParentalRatingCap =>
       get(kidsModeEnabled) ? true : get(recommendationsApplyParentalRatingCap);
 
+  /// Kos TV: book Discover browses Open Library and LibriVox, outside catalogs
+  /// no parental rating reaches, so Kids Mode leaves it out.
+  bool get effectiveShowBookDiscoverTab =>
+      !get(kidsModeEnabled) && get(showBookDiscoverTab);
+
   /// Default mobile view for the Live TV guide (Now/Next list vs compact grid).
   static final epgMobileView = EnumPreference(
     key: 'pref_epg_mobile_view',

@@ -46,6 +46,26 @@ void main() {
       expect(kidsModeBlocksPath(Destinations.myList), isFalse);
     });
 
+    test('blocks book Discover, but not the rest of a book library', () {
+      expect(
+        kidsModeBlocksPath(Destinations.bookCategory('b1', 'discover')),
+        isTrue,
+      );
+      expect(kidsModeBlocksPath('/books/b1/discover/'), isTrue);
+      expect(kidsModeClosesPath('/books/b1/discover'), isTrue);
+      expect(
+        kidsModeBlocksPath(Destinations.bookCategory('b1', 'titles')),
+        isFalse,
+      );
+      expect(kidsModeBlocksPath(Destinations.bookLibrary('b1')), isFalse);
+    });
+
+    test('blocks the RomM account, but not the games', () {
+      expect(kidsModeBlocksPath(Destinations.rommAccount), isTrue);
+      expect(kidsModeClosesPath(Destinations.rommAccount), isTrue);
+      expect(kidsModeBlocksPath('/games/g1'), isFalse);
+    });
+
     test('closes the TV apps page too', () {
       expect(kidsModeClosesPath(Destinations.apps), isTrue);
       expect(kidsModeClosesPath(Destinations.allGenres), isFalse);

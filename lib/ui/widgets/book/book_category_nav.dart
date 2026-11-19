@@ -29,9 +29,9 @@ List<BookCategoryKind> bookCategoriesShown(BookLibraryHelpers facts) => [
       BookCategoryKind.collections => facts.collectionCount > 0,
       BookCategoryKind.favorites => facts.favoriteCount > 0,
       BookCategoryKind.folders => true,
-      BookCategoryKind.discover => GetIt.instance<UserPreferences>().get(
-        UserPreferences.showBookDiscoverTab,
-      ),
+      // Kos TV: and in Kids Mode.
+      BookCategoryKind.discover =>
+        GetIt.instance<UserPreferences>().effectiveShowBookDiscoverTab,
     })
       kind,
 ];

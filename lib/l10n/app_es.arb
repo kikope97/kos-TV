@@ -15440,5 +15440,33 @@
     "kostvUntitled": "Sin título",
     "@kostvUntitled": {
         "description": "Kos TV: title of a TMDB recommendation that came without one"
+    },
+    "kostvParentalPinSection": "PIN del control parental",
+    "@kostvParentalPinSection": {
+        "description": "Kos TV: header and search entry for the optional PIN that guards Parental controls"
+    },
+    "kostvParentalPinSet": "Poner un PIN propio",
+    "@kostvParentalPinSet": {
+        "description": "Kos TV: sets a PIN just for Parental controls"
+    },
+    "kostvParentalPinSetSubtitle": "Aparte del PIN del perfil, para que solo quien lo sepa cambie estos límites en este dispositivo. Sin él, se pide el del perfil, si tiene.",
+    "@kostvParentalPinSetSubtitle": {
+        "description": "Kos TV: what the Parental controls PIN is for"
+    },
+    "kostvParentalPinChangeSubtitle": "Primero se pide el PIN actual",
+    "@kostvParentalPinChangeSubtitle": {
+        "description": "Kos TV: changing the Parental controls PIN asks for the current one"
+    },
+    "kostvParentalPinRemoveSubtitle": "Primero se pide el PIN actual; después vuelve a pedirse el del perfil, si tiene",
+    "@kostvParentalPinRemoveSubtitle": {
+        "description": "Kos TV: removing the Parental controls PIN"
+    },
+    "kostvParentalPinSaved": "PIN del control parental guardado",
+    "@kostvParentalPinSaved": {
+        "description": "Kos TV: the Parental controls PIN was set or changed"
+    },
+    "kostvParentalPinRemoved": "PIN del control parental quitado",
+    "@kostvParentalPinRemoved": {
+        "description": "Kos TV: the Parental controls PIN was removed"
     }
 }
