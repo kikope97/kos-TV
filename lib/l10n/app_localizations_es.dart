@@ -20157,4 +20157,8 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get mediaBarTheaterPreparing => 'PREPARÁNDOLO PARA TI';
+
+  @override
+  String get kostvHomeForYouFailed =>
+      'No se han podido cargar tus recomendaciones';
 }

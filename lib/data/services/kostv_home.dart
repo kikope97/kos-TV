@@ -390,7 +390,11 @@ class KostvHomeRepository {
   Future<StremfinService?> allowedStremfin() async {
     final stremfin = this.stremfin;
     if (stremfin == null) return null;
-    if (!stremfin.isAllowed) {
+    // Kos TV: asked only while it hasn't said yet. Once it said no, it
+    // isn't asked again on every load: it checks again on its own (it
+    // retries when it can't be reached, and when the app comes back), and
+    // Home loads again once it lets the person in.
+    if (stremfin.access == StremfinAccess.unknown) {
       try {
         await stremfin.refreshAccess();
       } catch (_) {
@@ -419,10 +423,12 @@ class KostvHomeRepository {
     final items = (await atHome(recent)).where(_unplayed).toList();
     if (items.isEmpty) return null;
     // What they asked for goes on their list, so it stays to hand once it
-    // leaves this row; the first time only.
+    // leaves this row; the first time only. Kos TV: told once a session, and
+    // not when it is on it already, rather than on every load of Home.
     final myList = this.myList;
     if (myList != null) {
       for (final item in items) {
+        if (myList.contains(item) || !_arrivedSent.add(item.id)) continue;
         unawaited(myList.addArrived(item.id));
       }
     }
@@ -436,6 +442,10 @@ class KostvHomeRepository {
   }
 
   static const arrivedRowId = 'kostvArrived';
+
+  /// Kos TV: what [arrived] has put on the list this session. A Home, and so
+  /// this, is one person's.
+  final Set<String> _arrivedSent = {};
 
   /// The titles of the person's own requests that got home within
   /// [arrivedFor] of [now], the newest first.

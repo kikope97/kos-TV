@@ -106,4 +106,14 @@ void main() {
       isNull,
     );
   });
+
+  // Kos TV: by touch no row has the focus, so the rows to warm follow the
+  // last one the scroll shows.
+  test('lastRowInView is the last row whose top is above the bottom', () {
+    const tops = [0.0, 300.0, 600.0, 900.0, 1200.0];
+    expect(lastRowInView(rowTops: tops, viewportBottom: 800), 2);
+    expect(lastRowInView(rowTops: tops, viewportBottom: 900), 2);
+    expect(lastRowInView(rowTops: tops, viewportBottom: 2000), 4);
+    expect(lastRowInView(rowTops: const [], viewportBottom: 800), 0);
+  });
 }

@@ -34076,6 +34076,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'OPTIMIZING FOR YOU'**
   String get mediaBarTheaterPreparing;
+
+  /// Kos TV: notice when the rows recommended for the person on Home failed to load, with a Retry button next to it
+  ///
+  /// In en, this message translates to:
+  /// **'Your recommendations couldn\'t be loaded'**
+  String get kostvHomeForYouFailed;
 }
 
 class _AppLocalizationsDelegate

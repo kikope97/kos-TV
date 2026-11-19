@@ -87,4 +87,71 @@ void main() {
 
     expect((await store.read('online'))?.map((r) => r.id), ['resume']);
   });
+
+  // Kos TV: on a TV the family shares, each person starts with their rows.
+  group('one slot per person', () {
+    test('each person keeps their own rows', () async {
+      final mum = HomeRowCacheStore(owner: 'server|mum');
+      final kid = HomeRowCacheStore(owner: 'server|kid');
+      await mum.write('mum-key', [_row('mum', HomeRowType.resume)]);
+      await kid.write('kid-key', [_row('kid', HomeRowType.resume)]);
+
+      expect((await mum.read('mum-key'))?.map((r) => r.id), ['mum']);
+      expect((await kid.read('kid-key'))?.map((r) => r.id), ['kid']);
+      expect(await kid.read('mum-key'), isNull);
+    });
+
+    test('only the last few people are kept', () async {
+      for (var i = 0; i < 6; i++) {
+        await HomeRowCacheStore(owner: 'server|$i')
+            .write('key$i', [_row('row$i', HomeRowType.resume)]);
+        // Told apart by when they were written.
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+      }
+      final files = support.listSync().whereType<File>().where(
+        (f) => f.path.contains('home_rows_cache_'),
+      );
+
+      expect(files, hasLength(4));
+      expect(
+        await HomeRowCacheStore(owner: 'server|5').read('key5'),
+        isNotNull,
+      );
+      expect(await HomeRowCacheStore(owner: 'server|0').read('key0'), isNull);
+    });
+
+    test('the rows a build with a single slot saved are still read, and '
+        'go with the next write', () async {
+      final legacy = File('${support.path}/home_rows_cache.json');
+      await HomeRowCacheStore(owner: 'old')
+          .write('old-key', [_row('old', HomeRowType.resume)]);
+      support.listSync().whereType<File>().single.renameSync(legacy.path);
+      final store = HomeRowCacheStore(owner: 'server|mum');
+
+      expect((await store.read('old-key'))?.map((r) => r.id), ['old']);
+      await store.write('mum-key', [_row('mum', HomeRowType.resume)]);
+      expect(legacy.existsSync(), isFalse);
+    });
+  });
+
+  test('keeps whether a row is of music and its subtitle', () async {
+    await store.write('key', [
+      HomeRow(
+        id: 'albums',
+        title: 'Albums',
+        subtitle: 'Lately',
+        rowType: HomeRowType.audioAlbums,
+        isAudio: true,
+        items: [AggregatedItem(id: 'a', serverId: 's', rawData: const {})],
+      ),
+      _row('resume', HomeRowType.resume),
+    ]);
+
+    final rows = await store.read('key');
+
+    expect(rows?.first.isAudio, isTrue);
+    expect(rows?.first.subtitle, 'Lately');
+    expect(rows?.last.isAudio, isFalse);
+    expect(rows?.last.subtitle, isNull);
+  });
 }

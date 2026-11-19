@@ -18,7 +18,6 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:moonfin_native_video/moonfin_native_video.dart';
 import 'package:playback_core/playback_core.dart';
 import 'package:server_core/server_core.dart' hide ImageType;
-import 'package:window_manager/window_manager.dart';
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/models/aggregated_library.dart';
@@ -98,6 +97,7 @@ import '../../screensaver/screensaver_controller.dart';
 import '../../util/home_row_title_localizer.dart';
 import '../../util/outside_library_title.dart';
 import '../../../util/game_library.dart';
+import 'home_app_return.dart';
 import 'home_backdrop.dart';
 import 'home_row_card_image.dart';
 import 'home_row_prefetch.dart';
@@ -467,8 +467,8 @@ class _HomeShellState extends State<_HomeShell>
   }
 
 
-  /// Kos TV: whether the page was hidden since it last resumed.
-  bool _hiddenSinceResume = false;
+  /// Kos TV: whether the app was really away since it last resumed.
+  final HomeAppReturn _appReturn = HomeAppReturn();
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -480,17 +480,12 @@ class _HomeShellState extends State<_HomeShell>
         state == AppLifecycleState.hidden) {
       _partyRooms?.setForeground(false);
     }
-    if (state == AppLifecycleState.resumed) {
-      // Kos TV: on the web the page "resumes" every time the window gets
-      // focus back (a click out of a trailer's frame, the address bar),
-      // which reloaded every row. There only after the page was hidden.
-      if (!PlatformDetection.isWeb || _hiddenSinceResume) {
-        _viewModel.refresh(preserveExisting: true);
-      }
-      _hiddenSinceResume = false;
-    } else if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden) {
-      _hiddenSinceResume = true;
+    // Kos TV: on the web the page "resumes" every time the window gets
+    // focus back (a click out of a trailer's frame, the address bar), and on
+    // the TV and the phone after the notification shade or a system dialog,
+    // which reloaded every row. Everywhere only after the app was away.
+    if (_appReturn.reloadsAt(state)) {
+      _viewModel.refresh(preserveExisting: true);
     }
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
@@ -871,7 +866,7 @@ class _ContentRows extends StatefulWidget {
 }
 
 class _ContentRowsState extends State<_ContentRows>
-    with WidgetsBindingObserver, WindowListener
+    with WidgetsBindingObserver
     implements AudioOwnable {
   static const double _kHomeRowLabelInset = 16.0;
   static const double _kHomeRowTrailingInset = 20.0;
@@ -991,7 +986,6 @@ class _ContentRowsState extends State<_ContentRows>
   // _verticalNavInFlight or finishes a media bar handoff. That way a press
   // during a scroll takes over instead of being dropped.
   int _verticalNavGeneration = 0;
-  bool _windowHasFocus = true;
   bool _holdMediaBarWhileSidebarFocused = false;
 
   String? _pendingPreviewKey;
@@ -1229,7 +1223,6 @@ class _ContentRowsState extends State<_ContentRows>
       _holdMediaBarWhileSidebarFocused = false;
     }
     final hasRowContext = _activeFocusedRowIndex != null || onSidebar;
-    final desktopUnfocused = PlatformDetection.isDesktop && !_windowHasFocus;
     final onIdleFocus =
         primary == null ||
         primary is FocusScopeNode ||
@@ -1237,7 +1230,7 @@ class _ContentRowsState extends State<_ContentRows>
     final onToolbar = TopToolbar.isFocusedNotifier.value;
     final chromeFocusActive =
         SettingsPanel.isOpenNotifier.value ||
-        (!onIdleFocus && !desktopUnfocused && !onMediaBar && !hasRowContext);
+        (!onIdleFocus && !onMediaBar && !hasRowContext);
     // Ending a row preview and pausing the bar part company at the toolbar.
     // Focus rests there after launch and after a mouse scroll, so pausing for
     // it left the bar silent and still with no way back, while a preview the
@@ -1381,12 +1374,10 @@ class _ContentRowsState extends State<_ContentRows>
   @override
   void initState() {
     super.initState();
+    _kostvFailuresOffered = widget.viewModel.kostvForYouFailures;
     HardwareKeyboard.instance.addHandler(_handleGlobalHardwareKey);
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addObserver(this);
-    if (PlatformDetection.isDesktop) {
-      windowManager.addListener(this);
-    }
     appRouter.routerDelegate.addListener(_onRouteChanged);
     _lastObservedPath = appRouter.routerDelegate.currentConfiguration.uri.path;
     FocusManager.instance.addListener(_onGlobalFocusChanged);
@@ -1440,13 +1431,92 @@ class _ContentRowsState extends State<_ContentRows>
     _invalidateStaticRowHeightCache();
     _updateOffsets();
     _clearSelectionOnceEmpty();
+    _offerKostvRetry();
     if (mounted) setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      _dropGoneRowControllers();
       _checkAllRowsFillViewport();
       _scheduleRowPrefetch();
     });
   }
+
+  /// Kos TV: the ids of the rows made for the person change with what they
+  /// watch, so on a TV left on Home for days the controllers of rows long
+  /// gone would pile up. Those of rows no longer on Home, and no longer
+  /// built, go.
+  void _dropGoneRowControllers() {
+    final ids = {for (final row in widget.viewModel.rows) row.id};
+    final gone = [
+      for (final entry in _rowHorizontalControllers.entries)
+        if (!ids.contains(entry.key) && !entry.value.hasClients) entry.key,
+    ];
+    for (final id in gone) {
+      _rowHorizontalControllers.remove(id)?.dispose();
+      _rowGlides.remove(id)?.dispose();
+      _rowKeys.remove(id);
+      _rowContainerKeys.remove(id);
+      _rowHorizontalOffsetsById.remove(id);
+    }
+    // Rows that never had a controller (still loading) keep only keys.
+    _rowKeys.removeWhere(
+      (id, key) => !ids.contains(id) && key.currentContext == null,
+    );
+    _rowContainerKeys.removeWhere(
+      (id, key) => !ids.contains(id) && key.currentContext == null,
+    );
+  }
+
+  /// Kos TV: how many failures of the rows made for the person Home has
+  /// already offered to try again.
+  int _kostvFailuresOffered = 0;
+
+  /// Kos TV: the rows made for the person failed to load with none on
+  /// screen: a notice says so, with a button to try again (it is also tried
+  /// again on its own once, a little later).
+  void _offerKostvRetry() {
+    final failures = widget.viewModel.kostvForYouFailures;
+    if (failures == _kostvFailuresOffered) return;
+    _kostvFailuresOffered = failures;
+    // Shown once the frame this change brings is built.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _showKostvRetry());
+  }
+
+  void _showKostvRetry() {
+    if (!mounted || !_isHomeRouteActive()) return;
+    final l10n = AppLocalizations.of(context);
+    final remote = InputModeTracker.of(context) == InputMode.keyboard;
+    final before = FocusManager.instance.primaryFocus;
+    // With a remote the button takes the focus, as the undo notice's does;
+    // any other key gives it back to where it was.
+    void backToWhereItWas() {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (before != null && before.context != null && before.canRequestFocus) {
+          before.requestFocus();
+        } else {
+          _focusFirstAvailableHomeTarget();
+        }
+      });
+    }
+
+    showKostvUndoToast(
+      context,
+      message: l10n.kostvHomeForYouFailed,
+      undoLabel: l10n.retry,
+      icon: Icons.refresh_rounded,
+      countdown: false,
+      duration: _kostvRetryNoticeTime,
+      takeFocus: remote,
+      onUndo: () {
+        unawaited(widget.viewModel.retryKostvForYou());
+        if (remote) backToWhereItWas();
+      },
+      onLeave: backToWhereItWas,
+    );
+  }
+
+  static const _kostvRetryNoticeTime = Duration(seconds: 10);
 
   void _onMediaBarStateChanged() {
     if (!mounted) return;
@@ -1565,9 +1635,6 @@ class _ContentRowsState extends State<_ContentRows>
     appRouter.routerDelegate.removeListener(_onRouteChanged);
     _resizeCheckDebounce?.cancel();
     WidgetsBinding.instance.removeObserver(this);
-    if (PlatformDetection.isDesktop) {
-      windowManager.removeListener(this);
-    }
     FocusManager.instance.removeListener(_onGlobalFocusChanged);
     SettingsPanel.isOpenNotifier.removeListener(_onSettingsPanelOpenChanged);
     LeftSidebar.isFocusedNotifier.removeListener(_onGlobalFocusChanged);
@@ -1580,6 +1647,8 @@ class _ContentRowsState extends State<_ContentRows>
     _mediaBarVisibleNotifier.dispose();
     _chromeFocusActiveNotifier.dispose();
     _chromeAudioActiveNotifier.dispose();
+    // Kos TV: before the notifiers it resets go.
+    _disposeSharedPreview();
     _activePreviewKeyNotifier.dispose();
     _previewReadyNotifier.dispose();
     _isActivelyScrollingNotifier.dispose();
@@ -1609,7 +1678,6 @@ class _ContentRowsState extends State<_ContentRows>
       glide.dispose();
     }
     _rowGlides.clear();
-    _disposeSharedPreview();
     super.dispose();
   }
 
@@ -1627,47 +1695,6 @@ class _ContentRowsState extends State<_ContentRows>
       _rowPrefetchDebounce?.cancel();
       _finishSharedPreview(releaseResources: true);
     }
-  }
-
-  @override
-  void onWindowBlur() {
-    _windowHasFocus = false;
-    _onGlobalFocusChanged();
-  }
-
-  @override
-  void onWindowFocus() {
-    _windowHasFocus = true;
-    _onGlobalFocusChanged();
-    _repairFocusAfterWindowReturn();
-  }
-
-  void _repairFocusAfterWindowReturn() {
-    if (!_mayRestoreHomeFocus()) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_mayRestoreHomeFocus()) return;
-      if (FocusManager.instance.primaryFocus != null) return;
-
-      final rowIndex = _activeFocusedRowIndex;
-      if (rowIndex != null) {
-        final rowState = _rowStateOf(rowIndex);
-        if (rowState != null) {
-          rowState.requestFocusFromMemory();
-          if (FocusManager.instance.primaryFocus != null) {
-            return;
-          }
-        }
-      }
-
-      if (_isMediaBarIncluded()) {
-        _mediaBarFocusNode.requestFocus();
-        if (_mediaBarFocusNode.hasFocus) {
-          return;
-        }
-      }
-
-      _requestFocusToNavbar();
-    });
   }
 
   void _onRouteChanged() {
@@ -4267,7 +4294,6 @@ class _ContentRowsState extends State<_ContentRows>
   bool _handleGlobalHardwareKey(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
     if (!_isHomeRouteActive()) return false;
-    if (!_windowHasFocus) return false;
     if (SettingsPanel.isOpenNotifier.value || OverlaySheetController.hasOpenSheet) return false;
     if (LeftSidebar.isFocusedNotifier.value) return false;
     // Let the focused top navbar handle its own d-pad keys.
@@ -7114,6 +7140,20 @@ class _ContentRowsState extends State<_ContentRows>
     ]);
   }
 
+  /// The row the next ones to warm follow: the focused one with a remote,
+  /// a mouse or keys. Kos TV: by touch no row takes the focus, so it is the
+  /// last one the scroll shows.
+  int _prefetchFromRow() {
+    if (PlatformDetection.useMobileUi && _scrollController.hasClients) {
+      final position = _scrollController.position;
+      return lastRowInView(
+        rowTops: _rowTopOffsets,
+        viewportBottom: position.pixels + position.viewportDimension,
+      );
+    }
+    return _activeFocusedRowIndex ?? 0;
+  }
+
   void _runRowPrefetch() {
     _rowPrefetchDebounce = null;
     if (!mounted) return;
@@ -7158,7 +7198,7 @@ class _ContentRowsState extends State<_ContentRows>
 
     final targets = homeRowPrefetchTargets(
       rowCount: rows.length,
-      fromRow: _activeFocusedRowIndex ?? 0,
+      fromRow: _prefetchFromRow(),
       rowsAhead: budget.rowsAhead,
       visibleCards: (index) => visibleCardsFor(
         viewportWidth: viewportWidth,

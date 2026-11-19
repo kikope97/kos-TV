@@ -19828,4 +19828,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get mediaBarTheaterPreparing => 'OPTIMIZING FOR YOU';
+
+  @override
+  String get kostvHomeForYouFailed =>
+      'Your recommendations couldn\'t be loaded';
 }

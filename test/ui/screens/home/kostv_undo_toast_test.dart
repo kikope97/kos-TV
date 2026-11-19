@@ -79,4 +79,38 @@ void main() {
     await tester.pump(const Duration(seconds: 6));
     expect(find.text('Deshacer'), findsNothing);
   });
+
+  testWidgets('offering to try again, with no seconds shown', (tester) async {
+    final calls = <String>[];
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => showKostvUndoToast(
+                context,
+                message: 'No se han podido cargar tus recomendaciones',
+                undoLabel: 'Reintentar',
+                icon: Icons.refresh_rounded,
+                countdown: false,
+                duration: const Duration(seconds: 10),
+                onUndo: () => calls.add('retry'),
+              ),
+              child: const Text('abrir'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('abrir'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('10'), findsNothing);
+    expect(find.byIcon(Icons.refresh_rounded), findsOneWidget);
+    await tester.tap(find.text('Reintentar'));
+    await tester.pump();
+    expect(calls, ['retry']);
+    expect(find.text('Reintentar'), findsNothing);
+  });
 }

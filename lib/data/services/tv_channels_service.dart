@@ -85,6 +85,13 @@ class TvChannelsService {
     unawaited(_channel.invokeMethod('clearChannels').catchError((_) {}));
   }
 
+  /// Kos TV: drops a publish still waiting, without touching what the
+  /// launcher shows: the Home that asked for it is no longer the app's.
+  void cancelPending() {
+    _debounce?.cancel();
+    _debounce = null;
+  }
+
   static String _serverIdFor(MediaServerClient client) {
     try {
       final factory = GetIt.instance<MediaServerClientFactory>();

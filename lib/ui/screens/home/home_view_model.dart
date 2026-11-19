@@ -8,6 +8,7 @@ import 'package:playback_core/playback_core.dart' show PlaybackManager;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart' show AppLifecycleState, WidgetsBinding;
 import 'package:get_it/get_it.dart';
+import 'package:jellyfin_preference/jellyfin_preference.dart' show Preference;
 import 'package:server_core/server_core.dart';
 import 'package:collection/collection.dart';
 import 'package:dio/dio.dart' show BaseOptions, Dio, Options;
@@ -233,6 +234,8 @@ class HomeViewModel extends ChangeNotifier {
         DateTime.now().difference(done) < const Duration(minutes: 2);
   }
   Future<void> _loadDone = Future<void>.value();
+  Future<void> _resumeSettled = Future<void>.value();
+  bool _resumeSettledDone = true;
   Future<void> _bgMerge = Future<void>.value();
   bool _bgMergeInFlight = false;
   bool _bgResumeRefreshInFlight = false;
@@ -335,13 +338,78 @@ class HomeViewModel extends ChangeNotifier {
     // an offline home (and vice versa).
     final offline = _isOffline;
     final shape = RowDataSource.fieldShapeToken;
-    return '$_serverId|$userId|$sections|$multiServer|$merge|$blocked|offline:$offline|fields:$shape';
+    // Kos TV: which Home it was (the recommended one, with or without what
+    // was added lately, or Kids Mode's) is in the sections it shows, not in
+    // the saved layout, so one never starts with another's rows.
+    final shown = _prefs.activeHomeSectionConfigs
+        .map((c) => c.stableId)
+        .join(',');
+    final kids = _prefs.get(UserPreferences.kidsModeEnabled);
+    return '$_serverId|$userId|$sections|$multiServer|$merge|$blocked|offline:$offline|fields:$shape|shown:$shown|kids:$kids';
   }
+
+  /// Kos TV: what was last saved, so the same rows aren't written again.
+  ({String key, List<HomeRow> rows, int hidden})? _lastSaved;
+  Timer? _saveTimer;
+
+  /// Kos TV: on the web the rows are encoded and stored on the one thread
+  /// there is, so the saves of a load and of the rows that follow it are
+  /// gathered into one.
+  static const _webSaveDelay = Duration(seconds: 2);
 
   /// Called again when the resume and next up rows refresh on their own, or
   /// the next cold start paints the ones from before the last episode
   /// finished.
-  void _saveRowCache() => unawaited(_cacheStore.write(_homeCacheKey(), _rows));
+  void _saveRowCache() {
+    // Kos TV: a Home whose person signed out saves nothing more: the rows
+    // it is still loading are theirs.
+    if (_retired) return;
+    if (!kIsWeb) {
+      _writeRowCache();
+      return;
+    }
+    _saveTimer?.cancel();
+    _saveTimer = Timer(_webSaveDelay, _writeRowCache);
+  }
+
+  void _writeRowCache() {
+    _saveTimer = null;
+    if (_retired) return;
+    final key = _homeCacheKey();
+    final last = _lastSaved;
+    // Rows are never changed in place, so the same row objects are the same
+    // rows.
+    if (last != null &&
+        last.key == key &&
+        last.hidden == _kostvHiddenVersion &&
+        last.rows.length == _rows.length &&
+        Iterable<int>.generate(
+          _rows.length,
+        ).every((i) => identical(last.rows[i], _rows[i]))) {
+      return;
+    }
+    _lastSaved = (key: key, rows: _rows, hidden: _kostvHiddenVersion);
+    // Kos TV: without the titles turned down, or the next start would show
+    // them again until the server plugin answers.
+    unawaited(
+      _cacheStore.write(
+        key,
+        KostvHomeRepository.visible(_rows, {
+          ..._kostvServerHidden,
+          ..._kostvDismissed,
+        }),
+      ),
+    );
+  }
+
+  /// Kos TV: tells the TV's launcher (its «Play next» row and channels, the
+  /// Apple TV's shelf) about the rows, unless another person signed in.
+  void _publishRows() {
+    if (_retired) return;
+    _topShelf.update(_rows);
+    _watchNext.update(_rows);
+    _tvChannels.update();
+  }
 
   static bool _isFavoriteSectionType(HomeSectionType type) {
     return switch (type) {
@@ -463,7 +531,10 @@ class HomeViewModel extends ChangeNotifier {
        _client = client,
        _mediaBarViewModel = mediaBarViewModel,
        _multiServerRepo = multiServerRepo,
-       _cacheStore = cacheStore ?? HomeRowCacheStore(),
+       // Kos TV: each person's rows in a slot of their own.
+       _cacheStore =
+           cacheStore ??
+           HomeRowCacheStore(owner: '${client.baseUrl}|${client.userId ?? ''}'),
        _ownerUserId = client.userId ?? '';
 
   /// Whether a section whose load threw keeps what is already on screen.
@@ -529,6 +600,16 @@ class HomeViewModel extends ChangeNotifier {
     if (!newSectionsOnly) _kostvAskedAt = DateTime.now();
     final done = Completer<void>();
     _loadDone = done.future;
+    // Kos TV: when this load is done with what carries on (see
+    // [refreshResumeAndNextUp]).
+    final resumeSettled = Completer<void>();
+    _resumeSettled = resumeSettled.future;
+    _resumeSettledDone = false;
+    void settleResume() {
+      if (resumeSettled.isCompleted) return;
+      _resumeSettledDone = true;
+      resumeSettled.complete();
+    }
     if (!newSectionsOnly) {
       _mediaBarViewModel.load(force: forceRefresh);
       _rowOffsets.clear();
@@ -760,6 +841,13 @@ class HomeViewModel extends ChangeNotifier {
         final currentConfigs = _prefs.activeHomeSectionConfigs;
         final isStillActive = currentConfigs.any((c) => c.stableId == cfg.stableId);
         if (!isStillActive) return;
+        if (cfg.isBuiltin && cfg.type == HomeSectionType.kostvForYou) {
+          if (failed) {
+            _kostvForYouFailed();
+          } else {
+            _kostvAutoRetried = false;
+          }
+        }
         // Cleanup runs even when the load failed, so the section's loading
         // placeholder is cleared instead of spinning forever.
         final loadedRows = sectionRows
@@ -847,17 +935,24 @@ class HomeViewModel extends ChangeNotifier {
       }
 
       _loadDeferredSection = loadConfigItem;
-      await mapBounded<HomeSectionConfig, void>(
-        sectionsToLoad,
-        3,
-        (cfg) => loadConfigItem(cfg),
-      );
+      // The merged row was asked for above; the separate ones are among the
+      // sections.
+      var resumeLoads = sectionsToLoad.where(_isResumeSection).length;
+      if (resumeLoads == 0) settleResume();
+      await mapBounded<HomeSectionConfig, void>(sectionsToLoad, 3, (
+        cfg,
+      ) async {
+        try {
+          await loadConfigItem(cfg);
+        } finally {
+          if (_isResumeSection(cfg) && --resumeLoads == 0) settleResume();
+        }
+      });
 
       _saveRowCache();
-      _topShelf.update(_rows);
-      _watchNext.update(_rows);
-      _tvChannels.update();
+      _publishRows();
     } finally {
+      settleResume();
       _isLoading = false;
       done.complete();
       notifyListeners();
@@ -880,6 +975,13 @@ class HomeViewModel extends ChangeNotifier {
 
   bool get hasDeferredSections => _deferredSections.isNotEmpty;
 
+  /// Kos TV: the sections [refreshResumeAndNextUp] refreshes on their own.
+  static bool _isResumeSection(HomeSectionConfig cfg) =>
+      cfg.isBuiltin &&
+      (cfg.type == HomeSectionType.resume ||
+          cfg.type == HomeSectionType.nextUp ||
+          cfg.type == HomeSectionType.resumeAudio);
+
   /// Loads the deferred sections behind [nearRows], the rows on or near the
   /// screen.
   void loadSectionsNear(Iterable<HomeRow> nearRows) {
@@ -888,6 +990,24 @@ class HomeViewModel extends ChangeNotifier {
     final due = [
       for (final row in nearRows) ?_deferredSections.remove(row.id),
     ];
+    // Kos TV: the placeholders of sections that came back empty last time
+    // are hidden, so they are never near anything themselves: they load
+    // with the row shown next to them, or they would never come back.
+    for (final row in nearRows) {
+      final at = _rows.indexWhere((r) => r.id == row.id);
+      if (at < 0) continue;
+      for (final step in const [1, -1]) {
+        for (
+          var i = at + step;
+          i >= 0 && i < _rows.length && _isEmptySectionPlaceholder(_rows[i]);
+          i += step
+        ) {
+          if (_deferredSections.remove(_rows[i].id) case final cfg?) {
+            due.add(cfg);
+          }
+        }
+      }
+    }
     // Kos TV: a section that waits for the scroll may be showing rows kept
     // from the last load instead of its placeholder.
     for (final row in nearRows) {
@@ -898,11 +1018,68 @@ class HomeViewModel extends ChangeNotifier {
       if (id != null) due.add(_deferredSections.remove(id)!);
     }
     if (due.isEmpty) return;
+    // Kos TV: after a title was turned down (or the list changed) the server
+    // plugin works the person's page out again, so the rest of their rows
+    // would no longer follow on from the first ones: those are asked for
+    // again first.
+    final more = due.where(_waitsForScroll).toList();
+    if (more.isNotEmpty && _kostvPageStale && _prefs.kostvHomeActive) {
+      due.removeWhere(_waitsForScroll);
+      _kostvPageStale = false;
+      unawaited(() async {
+        await loadSection(
+          const HomeSectionConfig(type: HomeSectionType.kostvForYou),
+        );
+        for (final cfg in more) {
+          await loadSection(cfg);
+        }
+        _saveRowCache();
+      }());
+      if (due.isEmpty) return;
+    }
     unawaited(
       mapBounded<HomeSectionConfig, void>(due, 3, loadSection)
           .then((_) => _saveRowCache()),
     );
   }
+
+  /// Kos TV: how many times the rows made for the person failed to load
+  /// with none of theirs to keep on screen (the server plugin took too long
+  /// building them, or failed), for Home to offer to try again each time.
+  int get kostvForYouFailures => _kostvForYouFailures;
+  int _kostvForYouFailures = 0;
+
+  /// Kos TV: after a failure they are tried again once on their own, a
+  /// little later.
+  static const kostvRetryDelay = Duration(seconds: 30);
+  bool _kostvAutoRetried = false;
+  Timer? _kostvRetryTimer;
+
+  void _kostvForYouFailed() {
+    if (_retired) return;
+    _kostvForYouFailures++;
+    if (_kostvAutoRetried) return;
+    _kostvAutoRetried = true;
+    _kostvRetryTimer?.cancel();
+    _kostvRetryTimer = Timer(kostvRetryDelay, () {
+      _kostvRetryTimer = null;
+      unawaited(retryKostvForYou());
+    });
+  }
+
+  /// Kos TV: loads the rows made for the person again, after they failed,
+  /// leaving the rest of Home as it is.
+  Future<void> retryKostvForYou() async {
+    _kostvRetryTimer?.cancel();
+    _kostvRetryTimer = null;
+    if (_retired || !_prefs.kostvHomeActive) return;
+    await load(preserveExisting: true, newSectionsOnly: true);
+  }
+
+  /// Kos TV: whether the server plugin has dropped the page of the person's
+  /// rows it gave the first ones from (a title turned down, the list
+  /// changed), so the rest can't be asked for on their own.
+  bool _kostvPageStale = false;
 
   /// Single row sections, which a layout can hold hundreds of, and whose row
   /// takes the section's id.
@@ -1026,10 +1203,13 @@ class HomeViewModel extends ChangeNotifier {
         // Only claim rows that belong to the built-in latest-media section.
         // Plugin-dynamic rows (per-collection, per-playlist, etc.) have IDs
         // starting with 'pluginDynamic:' and must NOT be claimed here.
+        // Kos TV: nor the recommended Home's rows, which are latest media
+        // rows too but come from their own sections.
         return row.rowType == HomeRowType.latestMedia &&
             !row.id.startsWith('pluginDynamic:') &&
             !row.id.startsWith('sinceYouWatched') &&
-            row.id != 'rewatch';
+            row.id != 'rewatch' &&
+            !isKostvRow(row);
       case HomeSectionType.favoriteMovies:
       case HomeSectionType.favoriteSeries:
       case HomeSectionType.favoriteEpisodes:
@@ -1147,6 +1327,18 @@ class HomeViewModel extends ChangeNotifier {
   static const _kostvRowPrefix = 'kostvRec_';
   static const _kostvMorePrefix = 'kostvMore_';
 
+  /// Kos TV: whether [row] is one of the recommended Home's own rows (what
+  /// arrived, the rows made for the person and their placeholders), which
+  /// only their own sections claim.
+  static bool isKostvRow(HomeRow row) =>
+      row.id == KostvHomeRepository.arrivedRowId ||
+      row.id.startsWith(_kostvRowPrefix) ||
+      row.id.startsWith(_kostvMorePrefix) ||
+      row.id ==
+          const HomeSectionConfig(
+            type: HomeSectionType.kostvForYouMore,
+          ).stableId;
+
   Future<void> refresh({
     bool preserveExisting = true,
     bool newMediaBar = false,
@@ -1176,14 +1368,22 @@ class HomeViewModel extends ChangeNotifier {
   /// on the Home button, pull-to-refresh, cold start, and periodic refresh.
   Future<void> refreshResumeAndNextUp() async {
     // A full load can start before the server has the playback stop and fetch
-    // the old rows, so wait for it to finish and fetch again.
-    while (_isLoading) {
-      await _loadDone;
+    // the old rows, so wait for it to finish with them and fetch again.
+    // Kos TV: only with them: the rows made for the person can take up to a
+    // minute the first time in a day, and carrying on doesn't wait for them.
+    while (_isLoading && !_resumeSettledDone) {
+      await _resumeSettled;
     }
     // Kos TV: the rows made for the person only change from what they
     // watch, so they're asked for again after a film or an episode played,
-    // or after a long while, not on every return from any page.
-    if (_kostvRefreshDue()) unawaited(_refreshKostvForYou());
+    // or after a long while, not on every return from any page. Once a load
+    // under way is over, which may be asking for them already.
+    unawaited(() async {
+      while (_isLoading) {
+        await _loadDone;
+      }
+      if (!_retired && _kostvRefreshDue()) await _refreshKostvForYou();
+    }());
 
     // A row that came back empty was dropped, so there's no row to refresh in
     // place. Loading it as a new section brings it back once it has items.
@@ -1232,9 +1432,7 @@ class HomeViewModel extends ChangeNotifier {
       _bgResumeRefreshInFlight = false;
     }
     _saveRowCache();
-    _topShelf.update(_rows);
-    _watchNext.update(_rows);
-    _tvChannels.update();
+    _publishRows();
   }
 
   /// Refetches the row with [rowId] and replaces it in place, or removes it when
@@ -1314,6 +1512,9 @@ class HomeViewModel extends ChangeNotifier {
         );
       }
       final nextOffset = currentOffset + _rowPageSize;
+      // Kos TV: the row was refreshed (or loaded again) while the page was
+      // on its way: what it brought follows on from rows no longer there.
+      if (!_isRowStill(row)) return;
       _rowOffsets[row.id] = nextOffset;
 
       if (hide != null) {
@@ -1356,6 +1557,10 @@ class HomeViewModel extends ChangeNotifier {
     'resume' || 'resumeAudio' => _prefs.filterContinueWatching,
     _ => null,
   };
+
+  /// Kos TV: whether [row] is still on Home as it was, wherever it sits.
+  bool _isRowStill(HomeRow row) =>
+      _rows.any((r) => identical(r, row));
 
   /// Puts a paged [row] back wherever its id sits now. A section that
   /// finished loading during the page request can have moved it.
@@ -1930,10 +2135,11 @@ class HomeViewModel extends ChangeNotifier {
 
   Future<void> _refreshKostvForYou() async {
     final loadSection = _loadDeferredSection;
-    if (!_prefs.kostvHomeActive || loadSection == null) return;
+    if (!_prefs.kostvHomeActive || loadSection == null || _retired) return;
     _kostvAskedAt = DateTime.now();
     // The server needs a moment to take in what was just watched.
     await Future<void>.delayed(const Duration(seconds: 3));
+    if (_retired) return;
     try {
       _kostvRefreshNext = true;
       await loadSection(
@@ -2017,6 +2223,9 @@ class HomeViewModel extends ChangeNotifier {
       )) {
         return;
       }
+      // Kos TV: the server plugin works the person's page out again when
+      // their list changes.
+      _kostvPageStale = true;
       _rows = List.of(_rows);
       if (items.isEmpty) {
         _rows.removeAt(at);
@@ -2027,6 +2236,7 @@ class HomeViewModel extends ChangeNotifier {
       return;
     }
     if (items.isEmpty) return;
+    _kostvPageStale = true;
     // Under the new episodes, or first of the rows made for the person.
     final newEpisodes = _rows.indexWhere(
       (r) => r.id == '$_kostvRowPrefix${KostvHomeRepository.newEpisodesKind}',
@@ -2059,6 +2269,7 @@ class HomeViewModel extends ChangeNotifier {
     bool refresh = false,
   }) async {
     final prefix = more ? _kostvMorePrefix : _kostvRowPrefix;
+    if (!more) _kostvSendUnsent();
     final pageLoad = _kostvHome.rows(
       start: more ? KostvHomeRepository.firstBatch : 0,
       limit: more
@@ -2068,25 +2279,41 @@ class HomeViewModel extends ChangeNotifier {
     );
     // Kos TV: the requests service and, for the first rows, the top of all
     // platforms are asked for while the rows come, not after them.
+    // The rest of the rows bring each platform's own top, whose platforms
+    // are asked for while the rows come too.
     final stremfinLoad = _kostvHome.allowedStremfin();
-    final allTopLoad = more
-        ? null
-        : stremfinLoad.then(
-            (stremfin) => stremfin == null
-                ? null
-                : _kostvTop(
-                    const StremfinPlatform(
-                      id: StremfinPlatform.allId,
-                      name: '',
-                    ),
-                    prefix,
-                    l10n,
-                  ),
-          );
-    final page = await pageLoad;
+    final topsLoad = stremfinLoad.then<List<HomeRow?>>((stremfin) async {
+      if (stremfin == null) return const [];
+      if (!more) {
+        return [
+          await _kostvTop(
+            const StremfinPlatform(id: StremfinPlatform.allId, name: ''),
+            prefix,
+            l10n,
+          ),
+        ];
+      }
+      final platforms = [
+        for (final p in await stremfin.platforms().catchError(
+          (Object _) => const <StremfinPlatform>[],
+        ))
+          if (!p.isAll) p,
+      ];
+      return Future.wait([
+        for (final platform in platforms) _kostvTop(platform, prefix, l10n),
+      ]);
+    });
+    final KostvHomePage? page;
+    try {
+      page = await pageLoad;
+    } catch (_) {
+      stremfinLoad.ignore();
+      topsLoad.ignore();
+      rethrow;
+    }
     if (page == null) {
       stremfinLoad.ignore();
-      allTopLoad?.ignore();
+      topsLoad.ignore();
       if (!more) _kostvRewatchRow = null;
       return const [];
     }
@@ -2108,6 +2335,7 @@ class HomeViewModel extends ChangeNotifier {
     }
 
     if (!more) {
+      _kostvPageStale = false;
       _kostvRewatchRow = KostvHomeRepository.rewatchRow(
         visibleOf(page.rewatch),
         prefix,
@@ -2146,22 +2374,7 @@ class HomeViewModel extends ChangeNotifier {
 
     final stremfin = await stremfinLoad;
     if (stremfin == null) _reloadWhenRequestsServiceIsIn();
-    final List<HomeRow?> tops;
-    if (allTopLoad != null) {
-      tops = [await allTopLoad];
-    } else {
-      final platforms = stremfin == null
-          ? const <StremfinPlatform>[]
-          : [
-              for (final p in await stremfin.platforms().catchError(
-                (Object _) => const <StremfinPlatform>[],
-              ))
-                if (!p.isAll) p,
-            ];
-      tops = await Future.wait([
-        for (final platform in platforms) _kostvTop(platform, prefix, l10n),
-      ]);
-    }
+    final tops = await topsLoad;
     return [
       ?newEpisodes,
       ?myListRow,
@@ -2253,11 +2466,15 @@ class HomeViewModel extends ChangeNotifier {
     _kostvHiddenVersion++;
     // Off the banner too, if it's there.
     _mediaBarViewModel.kostvHide(item.id);
+    // Kos TV: noted on the device straight away, so it still reaches the
+    // server if the app closes before the undo time is over or the server
+    // can't be told (see [_kostvSendUnsent]).
+    _kostvNoteUnsent(item.id, add: true);
     _kostvPending[item.id] = (
       itemId: item.id,
       timer: Timer(kostvUndoTime, () {
         _kostvPending.remove(item.id);
-        unawaited(_kostvHome.notInterested(item.id));
+        unawaited(_kostvSendNotInterested(item.id));
       }),
     );
     notifyListeners();
@@ -2269,13 +2486,67 @@ class HomeViewModel extends ChangeNotifier {
     pending?.timer.cancel();
     _mediaBarViewModel.kostvUnhide(item.id);
     if (_kostvDismissed.remove(item.id)) {
+      _kostvNoteUnsent(item.id, add: false);
       // Taken back just as the time ran out: the server already heard it,
       // so it's told to forget it too.
       if (pending == null) {
+        _kostvPageStale = true;
         unawaited(_kostvHome.notInterested(item.id, undo: true));
       }
       _kostvHiddenVersion++;
       notifyListeners();
+    }
+  }
+
+  /// Kos TV: tells the server plugin, and forgets it on the device once it
+  /// has heard it.
+  Future<void> _kostvSendNotInterested(String itemId) async {
+    if (!await _kostvHome.notInterested(itemId)) return;
+    _kostvPageStale = true;
+    _kostvNoteUnsent(itemId, add: false);
+  }
+
+  /// Kos TV: the titles turned down on this device that the server plugin
+  /// hasn't heard of yet, per server and person.
+  late final Preference<List<String>> _kostvUnsentPref = Preference(
+    key:
+        'kostv_not_interested_unsent_'
+        '${HomeRowCacheStore.slotFor('$_serverId|$_ownerUserId')}',
+    defaultValue: const [],
+  );
+
+  void _kostvNoteUnsent(String itemId, {required bool add}) {
+    final now = _prefs.get(_kostvUnsentPref);
+    if (now.contains(itemId) == add) return;
+    final next = [
+      for (final id in now)
+        if (id != itemId) id,
+      if (add) itemId,
+    ];
+    // The last ones only, should the server never take them.
+    const kept = 50;
+    unawaited(
+      _prefs.set(
+        _kostvUnsentPref,
+        next.length > kept ? next.sublist(next.length - kept) : next,
+      ),
+    );
+  }
+
+  /// Kos TV: sends again what the server plugin didn't hear of (no network
+  /// then, or the app closed within the undo time), keeping it off Home
+  /// meanwhile.
+  void _kostvSendUnsent() {
+    if (_retired) return;
+    final unsent = [
+      for (final id in _prefs.get(_kostvUnsentPref))
+        if (!_kostvPending.containsKey(id)) id,
+    ];
+    if (unsent.isEmpty) return;
+    _kostvDismissed.addAll(unsent);
+    _kostvHiddenVersion++;
+    for (final id in unsent) {
+      unawaited(_kostvSendNotInterested(id));
     }
   }
 
@@ -2927,6 +3198,7 @@ class HomeViewModel extends ChangeNotifier {
     }
     notifyListeners();
     _saveRowCache();
+    if (_retired) return;
     _watchNext.update(_rows);
     _tvChannels.update();
   }
@@ -2950,6 +3222,9 @@ class HomeViewModel extends ChangeNotifier {
     final resumeRow = await resumeFuture;
     final nextUpRow = await nextUpFuture;
     if (resumeRow == null && nextUpRow == null) return;
+    // Kos TV: refreshed meanwhile (back from an episode, say): this page
+    // follows on from items no longer there.
+    if (!_isRowStill(row)) return;
     _rowOffsets[row.id] = offset + _rowPageSize;
 
     final appended = appendNewArrivals(row.items, [
@@ -3270,9 +3545,21 @@ class HomeViewModel extends ChangeNotifier {
 
   /// Kos TV: another person signed in, so this Home is no longer the app's.
   /// What it listens to lets it go (or it would be kept alive, and act, for
-  /// good), and a «not interested» still within its undo time is dropped:
-  /// sent now, it would go with the new person's token.
+  /// good), and a «not interested» still within its undo time isn't sent:
+  /// sent now, it would go with the new person's token. It stays noted on
+  /// the device and goes with their next Home (see [_kostvSendUnsent]).
   void retire() {
+    // Kos TV: a load still under way finishes, but neither saves its rows
+    // nor hands them to the TV's launcher (see [_saveRowCache]), and what it
+    // was about to hand over is dropped.
+    _retired = true;
+    _saveTimer?.cancel();
+    _saveTimer = null;
+    _kostvRetryTimer?.cancel();
+    _kostvRetryTimer = null;
+    _topShelf.dispose();
+    _watchNext.cancelPending();
+    _tvChannels.cancelPending();
     for (final pending in _kostvPending.values) {
       pending.timer.cancel();
     }
@@ -3288,14 +3575,19 @@ class HomeViewModel extends ChangeNotifier {
     _watchingNowTimer = null;
   }
 
+  /// Kos TV: whether another person signed in (see [retire]).
+  bool _retired = false;
+
   @override
   void dispose() {
+    _saveTimer?.cancel();
+    _kostvRetryTimer?.cancel();
     unawaited(_kostvPlayWatch?.cancel());
     _myList?.removeListener(_onMyListChanged);
     // A «not interested» still within its undo time goes through now.
     for (final pending in _kostvPending.values) {
       pending.timer.cancel();
-      unawaited(_kostvHome.notInterested(pending.itemId));
+      unawaited(_kostvSendNotInterested(pending.itemId));
     }
     _kostvPending.clear();
     if (_requestsServiceListener case final listener?) {
@@ -3690,7 +3982,7 @@ class HomeViewModel extends ChangeNotifier {
   Future<List<AggregatedItem>> _loadRadarrCalendarFromCache() async {
     try {
       final dir = await getApplicationSupportDirectory();
-      final file = File('${dir.path}/radarr_calendar_cache.json');
+      final file = File('${dir.path}/radarr_calendar_cache_$_calendarCacheOwner.json');
       if (await file.exists()) {
         final content = await file.readAsString();
         final list = jsonDecode(content) as List;
@@ -3713,7 +4005,7 @@ class HomeViewModel extends ChangeNotifier {
   Future<void> _saveRadarrCalendarToCache(List<AggregatedItem> items) async {
     try {
       final dir = await getApplicationSupportDirectory();
-      final file = File('${dir.path}/radarr_calendar_cache.json');
+      final file = File('${dir.path}/radarr_calendar_cache_$_calendarCacheOwner.json');
       final content = jsonEncode(items.map((x) => _aggregatedItemToJson(x)).toList());
       await file.writeAsString(content, flush: true);
     } catch (e) {
@@ -3724,7 +4016,7 @@ class HomeViewModel extends ChangeNotifier {
   Future<List<AggregatedItem>> _loadSonarrCalendarFromCache() async {
     try {
       final dir = await getApplicationSupportDirectory();
-      final file = File('${dir.path}/sonarr_calendar_cache.json');
+      final file = File('${dir.path}/sonarr_calendar_cache_$_calendarCacheOwner.json');
       if (await file.exists()) {
         final content = await file.readAsString();
         final list = jsonDecode(content) as List;
@@ -3747,13 +4039,19 @@ class HomeViewModel extends ChangeNotifier {
   Future<void> _saveSonarrCalendarToCache(List<AggregatedItem> items) async {
     try {
       final dir = await getApplicationSupportDirectory();
-      final file = File('${dir.path}/sonarr_calendar_cache.json');
+      final file = File('${dir.path}/sonarr_calendar_cache_$_calendarCacheOwner.json');
       final content = jsonEncode(items.map((x) => _aggregatedItemToJson(x)).toList());
       await file.writeAsString(content, flush: true);
     } catch (e) {
       debugPrint('[SonarrCalendarCache] Failed to save: $e');
     }
   }
+
+  /// Kos TV: whose calendars a file holds, as the time they were last
+  /// fetched is each person's too; on a TV the family shares, one person's
+  /// would otherwise stand in for another's.
+  String get _calendarCacheOwner =>
+      HomeRowCacheStore.slotFor('$_serverId|$_ownerUserId');
 
   Map<String, dynamic> _aggregatedItemToJson(AggregatedItem item) {
     return {

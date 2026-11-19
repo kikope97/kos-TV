@@ -55,6 +55,21 @@ List<HomeRowPrefetchTarget> homeRowPrefetchTargets({
   return targets;
 }
 
+/// Kos TV: the last row any of which is above [viewportBottom], from the
+/// rows' tops down the list, or 0 before any is laid out. By touch the rows
+/// to warm are the ones just below it.
+int lastRowInView({
+  required List<double> rowTops,
+  required double viewportBottom,
+}) {
+  var last = 0;
+  for (var i = 0; i < rowTops.length; i++) {
+    if (rowTops[i] >= viewportBottom) break;
+    last = i;
+  }
+  return last;
+}
+
 int visibleCardsFor({
   required double viewportWidth,
   required double cardWidth,

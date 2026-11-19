@@ -35,6 +35,13 @@ class WatchNextService {
     unawaited(_channel.invokeMethod('clear').catchError((_) {}));
   }
 
+  /// Kos TV: drops a publish still waiting, without touching what the
+  /// launcher shows: the Home that asked for it is no longer the app's.
+  void cancelPending() {
+    _debounce?.cancel();
+    _debounce = null;
+  }
+
   void schedulePeriodicRefresh() {
     if (!_enabled) return;
     unawaited(_channel.invokeMethod('schedulePeriodic').catchError((_) {}));
