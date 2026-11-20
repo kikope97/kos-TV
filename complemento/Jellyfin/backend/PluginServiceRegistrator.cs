@@ -2,6 +2,7 @@ using Jellyfin.Data.Events.Users;
 using MediaBrowser.Controller;
 using MediaBrowser.Controller.Events;
 using MediaBrowser.Controller.Plugins;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moonfin.Bookmarks;
@@ -70,6 +71,10 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             logger: services.GetService<ILogger<Moonfin.Server.Kostv.KostvMusicStore>>()));
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvMusicContext>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvMusicService>();
+        // The stop report says when a playback failed, the server's event doesn't: read as it arrives.
+        serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvPlaybackFailures>();
+        serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvPlaybackFailureFilter>();
+        serviceCollection.Configure<MvcOptions>(options => options.Filters.AddService<Moonfin.Server.Kostv.KostvPlaybackFailureFilter>());
         serviceCollection.AddHostedService<Moonfin.Server.Kostv.KostvMusicRecorder>();
         serviceCollection.AddScoped<IEventConsumer<UserDeletedEventArgs>, Moonfin.Server.Kostv.KostvMusicOnUserDeleted>();
         serviceCollection.AddSingleton<SeasonalKeywordStoreService>();

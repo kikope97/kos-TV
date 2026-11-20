@@ -8,6 +8,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Session;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moonfin.Server.Kostv;
 using Xunit;
@@ -174,29 +175,31 @@ public sealed class KostvMusicTests : IDisposable
     }
 
     [Fact]
-    public void MonthsPastAYearAreDropped()
+    public void MonthsPastTwoYearsAreDropped()
     {
+        Assert.Equal(24, KostvMusicStore.KeepMonths);
         var user = Guid.NewGuid();
         var folder = Path.Combine(_root, user.ToString("N"));
         Directory.CreateDirectory(folder);
-        foreach (var month in new[] { "2025-09", "2025-10", "2025-11", "2025-12", "2026-11" })
+        foreach (var month in new[] { "2024-09", "2024-10", "2024-11", "2024-12", "2025-10", "2026-11" })
         {
             File.WriteAllText(Path.Combine(folder, month + ".jsonl"), string.Empty);
         }
 
         File.WriteAllText(Path.Combine(folder, "notes.txt"), string.Empty);
 
-        // November 2026: twelve months back is November 2025, which stays.
+        // November 2026: twenty-four months back is November 2024, which stays (and so does
+        // what is a year old, kept before only twelve months).
         Assert.Equal(2, NewStore().TrimAll());
         Assert.Equal(
-            ["2025-11.jsonl", "2025-12.jsonl", "2026-11.jsonl", "notes.txt"],
+            ["2024-11.jsonl", "2024-12.jsonl", "2025-10.jsonl", "2026-11.jsonl", "notes.txt"],
             Directory.GetFiles(folder).Select(p => Path.GetFileName(p)!).Order(StringComparer.Ordinal).ToArray());
 
         // Writing trims too, once a day.
         _now = new DateTimeOffset(2026, 12, 2, 10, 0, 0, TimeSpan.Zero);
         NewStore().Append(user, Listen(Guid.NewGuid(), _now));
-        Assert.False(File.Exists(Path.Combine(folder, "2025-11.jsonl")));
-        Assert.True(File.Exists(Path.Combine(folder, "2025-12.jsonl")));
+        Assert.False(File.Exists(Path.Combine(folder, "2024-11.jsonl")));
+        Assert.True(File.Exists(Path.Combine(folder, "2024-12.jsonl")));
     }
 
     // ---------------------------------------------------------------- where it came from
@@ -1181,5 +1184,717 @@ public sealed class KostvMusicTests : IDisposable
         // Not only the first ones the library gives: also of those past what is read.
         var pastTheFirst = unplayed.Skip(3000).ToHashSet();
         Assert.Contains(days.SelectMany(d => d), pastTheFirst.Contains);
+    }
+
+    // ---------------------------------------------------------------- more to learn from: lines
+
+    [Fact]
+    public void OldLinesAndNewEventsReadTogether()
+    {
+        var user = Guid.NewGuid();
+        var folder = Path.Combine(_root, user.ToString("N"));
+        Directory.CreateDirectory(folder);
+        var song = Guid.NewGuid().ToString("N");
+        File.WriteAllLines(Path.Combine(folder, "2026-11.jsonl"),
+        [
+            // As written before the new fields.
+            $"{{\"type\":\"listen\",\"at\":\"2026-11-19T10:00:00+00:00\",\"day\":\"2026-11-19\",\"hour\":11,\"weekday\":4,\"item\":\"{song}\",\"played\":200,\"duration\":200,\"outcome\":\"completed\",\"device\":\"tv\"}}",
+            // Events that name no single song.
+            "{\"type\":\"request\",\"at\":\"2026-11-19T11:00:00+00:00\",\"item\":\"\",\"albumName\":\"Motomami\",\"artistName\":\"Rosalía\"}",
+            "{\"type\":\"shown\",\"at\":\"2026-11-19T12:00:00+00:00\",\"surface\":\"moment\",\"slot\":\"tarde\",\"items\":[\"" + song + "\"]}",
+            // A listen without its song is still left out.
+            "{\"type\":\"listen\",\"at\":\"2026-11-19T13:00:00+00:00\",\"item\":\"\"}"
+        ]);
+
+        var store = NewStore();
+        var events = store.Read(user);
+        Assert.Equal(3, events.Count);
+        var old = events[0];
+        Assert.Null(old.EndedBy);
+        Assert.Null(old.Session);
+        Assert.Null(old.Shuffle);
+        Assert.True(old.Counts);
+        Assert.Equal("Motomami", events[1].AlbumName);
+        Assert.Equal([song], events[2].Items!);
+        // Only the listens are counted.
+        Assert.Equal(1, store.Summary(user).Listens);
+        Assert.Single(KostvMusicEngine.Listens(events, _now));
+    }
+
+    // ---------------------------------------------------------------- sessions and the song before
+
+    private KostvMusicRecorder NewRecorder(KostvMusicStore store, KostvPlaybackFailures failures) =>
+        new(null!, null!, null!, store, new KostvMusicContext(), NullLogger<KostvMusicRecorder>.Instance, failures: failures);
+
+    private static string N(BaseItem item) => item.Id.ToString("N");
+
+    [Fact]
+    public async Task ListensInARowShareASessionAndSayTheSongBeforeAlsoAfterARestart()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var session = Session(user);
+        var start = _now;
+        var first = Song();
+        var second = Song();
+        var later = Song();
+
+        Play(recorder, session, first);
+        _now = start.AddSeconds(199);
+        recorder.OnStopped(null, Stop(session, first, 199));
+        _now = start.AddSeconds(201);
+        Play(recorder, session, second);
+        _now = start.AddSeconds(260);
+        recorder.OnStopped(null, Stop(session, second, 59));
+        await recorder.Settled();
+
+        // Forty minutes later: another session.
+        _now = start.AddMinutes(41);
+        Play(recorder, session, later);
+        _now = _now.AddSeconds(199);
+        recorder.OnStopped(null, Stop(session, later, 199));
+        await recorder.Settled();
+
+        var listens = ListensOf(store, user);
+        Assert.Equal([N(first), N(second), N(later)], listens.Select(e => e.Item));
+        Assert.NotNull(listens[0].Session);
+        Assert.Null(listens[0].Prev);
+        Assert.Equal(listens[0].Session, listens[1].Session);
+        Assert.Equal(N(first), listens[1].Prev);
+        Assert.Equal(KostvListenEnd.Natural, listens[1].PrevEndedBy);
+        Assert.NotEqual(listens[1].Session, listens[2].Session);
+        Assert.Null(listens[2].Prev);
+
+        // Restarted: the song before is read from the last line of the month's file.
+        var restartedStore = NewStore();
+        var restarted = NewRecorder(restartedStore);
+        var after = Song();
+        _now = _now.AddMinutes(5);
+        Play(restarted, session, after);
+        _now = _now.AddSeconds(100);
+        restarted.OnStopped(null, Stop(session, after, 100));
+        await restarted.Settled();
+
+        var last = ListensOf(restartedStore, user)[^1];
+        Assert.Equal(listens[2].Session, last.Session);
+        Assert.Equal(N(later), last.Prev);
+        Assert.Equal(KostvListenEnd.Natural, last.PrevEndedBy);
+        Assert.Equal(KostvListenEnd.Stop, last.EndedBy);
+    }
+
+    [Fact]
+    public void AfterARestartAnOldLineStartsANewSessionButSaysTheSongBefore()
+    {
+        var user = Guid.NewGuid();
+        var song = Guid.NewGuid();
+        var store = NewStore();
+        // As written before sessions: no session, no end.
+        store.Append(user, Listen(song, _now.AddMinutes(-10)));
+        store.Append(user, new KostvMusicEvent { Type = KostvMusicEvent.HeartType, Item = song.ToString("N"), Favorite = true }.Stamp(_now, Home));
+
+        var entry = Listen(Guid.NewGuid(), _now);
+        NewStore().Link(user, entry, _now.AddSeconds(200));
+        Assert.Equal(song.ToString("N"), entry.Prev);
+        Assert.Null(entry.PrevEndedBy);
+        Assert.NotNull(entry.Session);
+        Assert.Null(entry.Replay);
+    }
+
+    // ---------------------------------------------------------------- how it really ended
+
+    [Fact]
+    public async Task ASongThatPlaysToItsEndEndedNaturally()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var session = Session(user);
+        var song = Song();
+
+        Play(recorder, session, song);
+        _now = _now.AddSeconds(198);
+        recorder.OnStopped(null, Stop(session, song, 198));
+        await recorder.Settled();
+        Assert.Equal(KostvListenEnd.Natural, Assert.Single(ListensOf(store, user)).EndedBy);
+    }
+
+    [Fact]
+    public async Task AnotherSongStartingSoonAfterTheStopIsNextAndLaterIsStop()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var session = Session(user);
+        var start = _now;
+        var skipped = Song();
+        var stopped = Song();
+        var after = Song();
+        var last = Song();
+
+        // Stopped at 0:40 and the next one two seconds later: next.
+        Play(recorder, session, skipped);
+        _now = start.AddSeconds(40);
+        recorder.OnStopped(null, Stop(session, skipped, 40));
+        _now = start.AddSeconds(42);
+        Play(recorder, session, stopped);
+        // Stopped at 1:00, and the next one twenty seconds later: stop.
+        _now = start.AddSeconds(102);
+        recorder.OnStopped(null, Stop(session, stopped, 60));
+        _now = start.AddSeconds(122);
+        Play(recorder, session, after);
+        // Stopped and nothing follows: stop.
+        _now = start.AddSeconds(150);
+        recorder.OnStopped(null, Stop(session, after, 28));
+        await recorder.Settled();
+
+        // The next one's start before this one's stop: next too.
+        Play(recorder, session, last);
+        _now = start.AddSeconds(230);
+        Play(recorder, session, Song());
+        await recorder.Settled();
+
+        var ended = ListensOf(store, user).ToDictionary(e => e.Item, e => e.EndedBy);
+        Assert.Equal(KostvListenEnd.Next, ended[N(skipped)]);
+        Assert.Equal(KostvListenEnd.Stop, ended[N(stopped)]);
+        Assert.Equal(KostvListenEnd.Stop, ended[N(after)]);
+        Assert.Equal(KostvListenEnd.Next, ended[N(last)]);
+    }
+
+    [Fact]
+    public async Task ASessionThatEndsClosesWhatPlayedOnIt()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var session = Session(user);
+        var start = _now;
+        var playing = Song();
+        var held = Song();
+        var other = Session(user);
+
+        Play(recorder, session, playing);
+        _now = start.AddSeconds(70);
+        recorder.OnProgress(null, Report(session, playing, 70));
+        // Stopped a moment before the app closed, on another session.
+        Play(recorder, other, held);
+        _now = start.AddSeconds(80);
+        recorder.OnStopped(null, Stop(other, held, 10));
+        _now = start.AddSeconds(90);
+        recorder.OnSessionEnded(null, new SessionEventArgs { SessionInfo = session });
+        recorder.OnSessionEnded(null, new SessionEventArgs { SessionInfo = other });
+        await recorder.Settled();
+
+        var listens = ListensOf(store, user).ToDictionary(e => e.Item);
+        Assert.Equal(KostvListenEnd.Closed, listens[N(playing)].EndedBy);
+        Assert.Equal(90, listens[N(playing)].Played);
+        Assert.Equal(KostvListenEnd.Closed, listens[N(held)].EndedBy);
+    }
+
+    /// <summary>A stop event of a server version that would say the playback failed.</summary>
+    private sealed class FailedStopEventArgs : PlaybackStopEventArgs
+    {
+        public bool Failed { get; set; } = true;
+    }
+
+    [Fact]
+    public async Task APlaybackThatFailsIsAnErrorAndNotASkip()
+    {
+        var store = NewStore();
+        var failures = new KostvPlaybackFailures();
+        var recorder = NewRecorder(store, failures);
+        var user = Guid.NewGuid();
+        var session = Session(user);
+        var start = _now;
+        var broken = Song();
+        var said = Song();
+        var fine = Song();
+
+        // The app's stop report said it failed (noted as the report arrives).
+        Play(recorder, session, broken);
+        _now = start.AddSeconds(3);
+        Assert.True(KostvPlaybackFailureFilter.Note(
+            [new PlaybackStopInfo { ItemId = broken.Id, Failed = true }],
+            new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim("Jellyfin-UserId", user.ToString())], "test")),
+            failures,
+            _now));
+        recorder.OnStopped(null, Stop(session, broken, 3));
+
+        // A server whose stop event says it.
+        Play(recorder, session, said);
+        _now = start.AddSeconds(5);
+        recorder.OnStopped(null, new FailedStopEventArgs { Item = said, Session = session, PlaybackPositionTicks = Ticks(2) });
+
+        // Said for another song, or long ago: not this one's.
+        failures.Note(user, Guid.NewGuid(), _now);
+        failures.Note(user, fine.Id, _now.AddMinutes(-5));
+        Play(recorder, session, fine);
+        _now = start.AddSeconds(15);
+        recorder.OnStopped(null, Stop(session, fine, 10));
+        await recorder.Settled();
+
+        var listens = ListensOf(store, user).ToDictionary(e => e.Item);
+        Assert.Equal(KostvListenEnd.Error, listens[N(broken)].EndedBy);
+        Assert.Equal(KostvListenOutcome.Skipped, listens[N(broken)].Outcome);
+        Assert.False(listens[N(broken)].Counts);
+        Assert.Equal(KostvListenEnd.Error, listens[N(said)].EndedBy);
+        Assert.NotEqual(KostvListenEnd.Error, listens[N(fine)].EndedBy);
+        Assert.True(listens[N(fine)].Counts);
+        // Once asked, forgotten.
+        Assert.False(failures.Take(user, broken.Id, _now));
+    }
+
+    private static KostvMusicEvent Failed(Guid item, DateTimeOffset at, int played = 5)
+    {
+        var listen = Listen(item, at, KostvListenOutcome.Classify(played, 200, false));
+        listen.Played = played;
+        listen.EndedBy = KostvListenEnd.Error;
+        return listen;
+    }
+
+    [Fact]
+    public void FailedListensDontCountAsSkipsForMixesSeedsOrTheMoment()
+    {
+        var tracks = Library(genres: 1, artists: 4, played: 4, unplayed: 4);
+        var failing = tracks.First(t => t.PlayCount > 0);
+        var events = new List<KostvMusicEvent>
+        {
+            Failed(failing.Id, _now.AddDays(-3)),
+            Failed(failing.Id, _now.AddDays(-2)),
+            Failed(failing.Id, _now.AddDays(-1)),
+            Listen(failing.Id, _now.AddDays(-4))
+        };
+        var listens = KostvMusicEngine.Listens(events, _now);
+        Assert.Equal(0, listens[failing.Id].Skipped);
+        Assert.Equal(1, listens[failing.Id].Total);
+        var profile = KostvMusicEngine.Profile(tracks, listens, _now);
+        Assert.DoesNotContain(failing.Id, profile.Dropped);
+        Assert.Contains(failing.Id, Assert.Single(KostvMusicEngine.Mixes(Guid.NewGuid(), "2026-11-20", tracks, profile)).Items);
+
+        // The same as skips: dropped, and its artist out of the seeds.
+        var skips = events.Select(e => e.Failed ? Listen(failing.Id, e.At, KostvListenOutcome.Skipped) : e).ToList();
+        Assert.Contains(failing.Id, KostvMusicEngine.Profile(tracks, KostvMusicEngine.Listens(skips, _now), _now).Dropped);
+
+        // Seeds: a song failing often doesn't take its artist away.
+        var day = new DateTime(2026, 11, 19, 0, 0, 0, DateTimeKind.Utc);
+        var seedTracks = Enumerable.Range(0, 12).Select(i => new KostvMusicTrack(Guid.NewGuid(), [$"Artista {i:00}"], ["Pop"], 12 - i, day)).ToList();
+        var failed = Enumerable.Range(0, 3).Select(i => Failed(seedTracks[0].Id, _now.AddDays(-i))).ToList();
+        Assert.Contains("Artista 00", KostvMusicEngine.Seeds(KostvMusicEngine.Profile(seedTracks, KostvMusicEngine.Listens(failed, _now), _now)));
+
+        // The moment: failing early is neither a listen nor a skip; failing late, what was heard counts.
+        var songs = Library(genres: 1, artists: 3, played: 10, unplayed: 0).Take(10).ToList();
+        var afternoon = SlotListens(songs, days: 5, perDay: 5, hourUtc: 14);
+        afternoon[0] = Failed(Guid.Parse(afternoon[0].Item), afternoon[0].At);
+        Assert.False(KostvMusicEngine.MomentReady(afternoon, "tarde", _now, Home));
+        afternoon[0] = Failed(Guid.Parse(afternoon[0].Item), afternoon[0].At, played: 150);
+        Assert.True(afternoon[0].Counts);
+        Assert.True(KostvMusicEngine.MomentReady(afternoon, "tarde", _now, Home));
+    }
+
+    // ---------------------------------------------------------------- shuffle and repeat
+
+    private enum OldShuffleMode
+    {
+        Sorted,
+        Shuffle
+    }
+
+    private sealed class OldPlayState
+    {
+        public OldShuffleMode ShuffleMode { get; set; }
+
+        public string RepeatMode { get; set; } = "RepeatAll";
+    }
+
+    [Fact]
+    public void ShuffleAndRepeatAreReadByName()
+    {
+        Assert.Equal((true, "one"), KostvMusicRecorder.PlayModeOf(new PlayerStateInfo { PlaybackOrder = PlaybackOrder.Shuffle, RepeatMode = RepeatMode.RepeatOne }));
+        Assert.Equal((false, "none"), KostvMusicRecorder.PlayModeOf(new PlayerStateInfo()));
+        // A server with ShuffleMode instead of PlaybackOrder.
+        Assert.Equal((true, "all"), KostvMusicRecorder.PlayModeOf(new OldPlayState { ShuffleMode = OldShuffleMode.Shuffle }));
+        Assert.Equal((false, "all"), KostvMusicRecorder.PlayModeOf(new OldPlayState()));
+        // What it doesn't have, or says in a way not known, is unknown.
+        Assert.Equal((null, null), KostvMusicRecorder.PlayModeOf(new { Volume = 3 }));
+        Assert.Equal((null, null), KostvMusicRecorder.PlayModeOf(new { PlaybackOrder = "Weird", RepeatMode = 7 }));
+        Assert.Equal((null, null), KostvMusicRecorder.PlayModeOf(null));
+    }
+
+    [Fact]
+    public async Task AListenSaysWhetherShuffleAndRepeatWereOn()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var session = Session(user);
+        var song = Song();
+        var unknown = Song();
+
+        session.PlayState = new PlayerStateInfo { PlaybackOrder = PlaybackOrder.Default, RepeatMode = RepeatMode.RepeatNone };
+        Play(recorder, session, song);
+        // Turned on while it played.
+        _now = _now.AddSeconds(30);
+        session.PlayState = new PlayerStateInfo { PlaybackOrder = PlaybackOrder.Shuffle, RepeatMode = RepeatMode.RepeatAll };
+        recorder.OnProgress(null, Report(session, song, 30));
+        _now = _now.AddSeconds(169);
+        recorder.OnStopped(null, Stop(session, song, 199));
+
+        // A session without a state: unknown.
+        var bare = Session(user);
+        bare.PlayState = null!;
+        Play(recorder, bare, unknown);
+        recorder.OnStopped(null, Stop(bare, unknown, 199));
+        await recorder.Settled();
+
+        var listens = ListensOf(store, user).ToDictionary(e => e.Item);
+        Assert.True(listens[N(song)].Shuffle);
+        Assert.Equal("all", listens[N(song)].Repeat);
+        Assert.Null(listens[N(unknown)].Shuffle);
+        Assert.Null(listens[N(unknown)].Repeat);
+    }
+
+    // ---------------------------------------------------------------- replays and going back
+
+    [Fact]
+    public async Task TheSameSongAgainRightAfterIsAReplay()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var session = Session(user);
+        var start = _now;
+        var song = Song();
+
+        Play(recorder, session, song);
+        _now = start.AddSeconds(199);
+        recorder.OnStopped(null, Stop(session, song, 199));
+        _now = start.AddSeconds(201);
+        Play(recorder, session, song);
+        _now = start.AddSeconds(400);
+        recorder.OnStopped(null, Stop(session, song, 199));
+        // Again, but a minute later: not right after.
+        _now = start.AddSeconds(460);
+        Play(recorder, session, song);
+        _now = start.AddSeconds(659);
+        recorder.OnStopped(null, Stop(session, song, 199));
+        await recorder.Settled();
+
+        var listens = ListensOf(store, user);
+        Assert.Equal(3, listens.Count);
+        Assert.Null(listens[0].Replay);
+        Assert.True(listens[1].Replay);
+        Assert.Equal(N(song), listens[1].Prev);
+        Assert.Null(listens[2].Replay);
+        Assert.Equal(listens[0].Session, listens[2].Session);
+    }
+
+    [Fact]
+    public async Task GoingBackWithinASongIsCountedButNotWhilePausedNorWhenItStartsOver()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var session = Session(user);
+        var start = _now;
+        var song = Song();
+
+        Play(recorder, session, song);
+        _now = start.AddSeconds(60);
+        recorder.OnProgress(null, Report(session, song, 60));
+        // Back to 0:30: once.
+        _now = start.AddSeconds(70);
+        recorder.OnProgress(null, Report(session, song, 30));
+        // A few seconds out: nothing.
+        _now = start.AddSeconds(80);
+        recorder.OnProgress(null, Report(session, song, 37));
+        // Paused, moved back while paused, and played again from there: nothing.
+        _now = start.AddSeconds(90);
+        recorder.OnProgress(null, Report(session, song, 47, paused: true));
+        _now = start.AddSeconds(100);
+        recorder.OnProgress(null, Report(session, song, 20, paused: true));
+        _now = start.AddSeconds(110);
+        recorder.OnProgress(null, Report(session, song, 20));
+        // Back again while it played: twice.
+        _now = start.AddSeconds(150);
+        recorder.OnProgress(null, Report(session, song, 10));
+        // To its end, and over again from the start (repeat one in place): not going back.
+        _now = start.AddSeconds(338);
+        recorder.OnProgress(null, Report(session, song, 198));
+        _now = start.AddSeconds(342);
+        recorder.OnProgress(null, Report(session, song, 2));
+        _now = start.AddSeconds(400);
+        recorder.OnStopped(null, Stop(session, song, 60));
+
+        // A song started again (a new start) doesn't carry the last one's count.
+        _now = start.AddSeconds(401);
+        Play(recorder, session, song);
+        _now = start.AddSeconds(420);
+        recorder.OnProgress(null, Report(session, song, 19));
+        _now = start.AddSeconds(619);
+        recorder.OnStopped(null, Stop(session, song, 199));
+        await recorder.Settled();
+
+        var listens = ListensOf(store, user);
+        Assert.Equal(2, listens[0].SeekBack);
+        Assert.Null(listens[1].SeekBack);
+    }
+
+    // ---------------------------------------------------------------- hearts of albums and artists
+
+    [Fact]
+    public async Task HeartsOfAlbumsAndArtistsAreFavoritesOfTheirKind()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var album = new MusicAlbum { Id = Guid.NewGuid(), Name = "Motomami", AlbumArtists = ["Rosalía"], Genres = ["Pop"] };
+        var artist = new MusicArtist { Id = Guid.NewGuid(), Name = "Rosalía", Genres = ["Flamenco"] };
+        var folder = new Folder { Id = Guid.NewGuid() };
+
+        UserDataSaveEventArgs Saved(BaseItem item, bool favorite) =>
+            new() { UserId = user, Item = item, UserData = new UserItemData { Key = item.Id.ToString("N"), IsFavorite = favorite }, SaveReason = UserDataSaveReason.UpdateUserRating };
+
+        recorder.OnUserDataSaved(null, Saved(album, true));
+        recorder.OnUserDataSaved(null, Saved(artist, true));
+        recorder.OnUserDataSaved(null, Saved(folder, true));
+        await recorder.Settled();
+        recorder.OnUserDataSaved(null, Saved(artist, false));
+        await recorder.Settled();
+
+        var favorites = store.Read(user);
+        Assert.All(favorites, e => Assert.Equal(KostvMusicEvent.FavoriteType, e.Type));
+        Assert.Equal(3, favorites.Count);
+        var onAlbum = Assert.Single(favorites, e => e.Item == N(album));
+        Assert.Equal(KostvMusicEvent.AlbumKind, onAlbum.Kind);
+        Assert.True(onAlbum.Favorite);
+        Assert.Equal(["Rosalía"], onAlbum.Artists!);
+        Assert.Equal(["Pop"], onAlbum.Genres!);
+        var onArtist = favorites.Where(e => e.Item == N(artist)).ToList();
+        Assert.All(onArtist, e => Assert.Equal(KostvMusicEvent.ArtistKind, e.Kind));
+        Assert.Equal([true, false], onArtist.Select(e => e.Favorite!.Value).OrderByDescending(f => f));
+        Assert.Equal([N(artist)], onArtist[0].ArtistIds!);
+        Assert.Equal(0, store.Summary(user).Listens);
+
+        // Read back after a restart: not noted twice.
+        var restarted = NewRecorder(NewStore());
+        restarted.OnUserDataSaved(null, Saved(album, true));
+        await restarted.Settled();
+        Assert.Equal(3, NewStore().Read(user).Count);
+    }
+
+    // ---------------------------------------------------------------- the Event route
+
+    private sealed class Services(object users) : IServiceProvider
+    {
+        public object? GetService(Type serviceType) => serviceType == typeof(IUserManager) ? users : null;
+    }
+
+    private KostvMusicController Controller(KostvMusicService service, Guid userId)
+    {
+        var user = new User("ana", "auth", "reset");
+        var users = RecordingHostProxy.Create<IUserManager>((method, _) => method.Name == "GetUserById" ? user : null);
+        var http = new Microsoft.AspNetCore.Http.DefaultHttpContext
+        {
+            User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim("Jellyfin-UserId", userId.ToString())], "test")),
+            RequestServices = new Services(users)
+        };
+        return new KostvMusicController(service, new KostvMusicContext(), null!)
+        {
+            ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext { HttpContext = http }
+        };
+    }
+
+    private static JsonElement Body(object value) => JsonSerializer.SerializeToElement(value);
+
+    [Fact]
+    public void TheEventRouteNotesWhatTheServerDoesntSee()
+    {
+        var store = NewStore();
+        var service = new KostvMusicService(null!, null!, store, NullLogger<KostvMusicService>.Instance);
+        var userId = Guid.NewGuid();
+        var controller = Controller(service, userId);
+        var songs = Enumerable.Range(0, 3).Select(_ => Guid.NewGuid()).ToList();
+
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NoContentResult>(controller.AddEvent(Body(new { Type = "playlist_add", ItemIds = songs.Select(s => s.ToString()) })));
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NoContentResult>(controller.AddEvent(Body(new { type = "REQUEST", album = "Motomami", artist = "Rosalía", deezerAlbumId = "302127" })));
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NoContentResult>(controller.AddEvent(Body(new { Type = "request", Artist = "Solo el artista" })));
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NoContentResult>(controller.AddEvent(Body(new { Type = "dislike", ItemIds = new[] { songs[0].ToString("N") }, Kind = "artist" })));
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NoContentResult>(controller.AddEvent(Body(new { Type = "dislike", ItemIds = new[] { songs[1].ToString() } })));
+
+        var events = store.Read(userId);
+        Assert.Equal(["playlist_add", "request", "request", "dislike", "dislike"], events.Select(e => e.Type));
+        Assert.Equal(songs.Select(s => s.ToString("N")), events[0].Items!);
+        Assert.Equal(("Motomami", "Rosalía", "302127"), (events[1].AlbumName, events[1].ArtistName, events[1].DeezerAlbumId));
+        Assert.Equal((null, "Solo el artista", null), (events[2].AlbumName, events[2].ArtistName, events[2].DeezerAlbumId));
+        Assert.Equal("artist", events[3].Kind);
+        Assert.Null(events[4].Kind);
+        Assert.All(events, e => Assert.Equal(_now, e.At));
+        // Settings count only listens.
+        Assert.Equal(0, store.Summary(userId).Listens);
+        // In the same file of the month as the listens.
+        Assert.True(File.Exists(Path.Combine(_root, userId.ToString("N"), "2026-11.jsonl")));
+    }
+
+    [Fact]
+    public void TheEventRouteTurnsAwayWhatIsNotAsSaid()
+    {
+        var store = NewStore();
+        var service = new KostvMusicService(null!, null!, store, NullLogger<KostvMusicService>.Instance);
+        var userId = Guid.NewGuid();
+        var controller = Controller(service, userId);
+        var id = Guid.NewGuid().ToString();
+
+        object[] wrong =
+        [
+            new { Type = "like", ItemIds = new[] { id } },
+            new { ItemIds = new[] { id } },
+            new { Type = 3 },
+            new { Type = "playlist_add" },
+            new { Type = "playlist_add", ItemIds = Array.Empty<string>() },
+            new { Type = "playlist_add", ItemIds = new[] { "not an id" } },
+            new { Type = "playlist_add", ItemIds = id },
+            new { Type = "playlist_add", ItemIds = Enumerable.Range(0, KostvMusicController.MaxEventItems + 1).Select(_ => Guid.NewGuid().ToString()) },
+            new { Type = "request", Album = new string('a', KostvMusicController.MaxEventNameLength + 1) },
+            new { Type = "request", Artist = 12 },
+            new { Type = "request", DeezerAlbumId = new string('1', KostvMusicController.MaxDeezerIdLength + 1) },
+            new { Type = "dislike", ItemIds = new[] { id }, Kind = "album" },
+            new { Type = "dislike", ItemIds = new[] { id }, Kind = 1 }
+        ];
+        foreach (var body in wrong)
+        {
+            Assert.IsType<Microsoft.AspNetCore.Mvc.BadRequestObjectResult>(controller.AddEvent(Body(body)));
+        }
+
+        Assert.IsType<Microsoft.AspNetCore.Mvc.BadRequestObjectResult>(controller.AddEvent(default));
+        Assert.Empty(store.Read(userId));
+
+        // The limits themselves are fine.
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NoContentResult>(controller.AddEvent(Body(new { Type = "playlist_add", ItemIds = Enumerable.Range(0, KostvMusicController.MaxEventItems).Select(_ => Guid.NewGuid().ToString()) })));
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NoContentResult>(controller.AddEvent(Body(new { Type = "request", Album = new string('a', KostvMusicController.MaxEventNameLength) })));
+        Assert.Equal(KostvMusicController.MaxEventItems, store.Read(userId)[0].Items!.Count);
+
+        // With Learn off: accepted, and nothing noted.
+        store.SetLearn(userId, false);
+        Assert.IsType<Microsoft.AspNetCore.Mvc.NoContentResult>(controller.AddEvent(Body(new { Type = "playlist_add", ItemIds = new[] { id } })));
+        store.SetLearn(userId, true);
+        Assert.Equal(2, store.Read(userId).Count);
+    }
+
+    [Fact]
+    public void TheEventRouteNeedsTheCallersSession()
+    {
+        var service = new KostvMusicService(null!, null!, NewStore(), NullLogger<KostvMusicService>.Instance);
+        var controller = new KostvMusicController(service, new KostvMusicContext(), null!)
+        {
+            ControllerContext = new Microsoft.AspNetCore.Mvc.ControllerContext { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() }
+        };
+        Assert.IsType<Microsoft.AspNetCore.Mvc.UnauthorizedObjectResult>(controller.AddEvent(Body(new { Type = "playlist_add", ItemIds = new[] { Guid.NewGuid() } })));
+        Assert.Contains(typeof(KostvMusicController).GetMethod(nameof(KostvMusicController.AddEvent))!.GetCustomAttributes(true), a => a is Microsoft.AspNetCore.Authorization.AuthorizeAttribute);
+    }
+
+    // ---------------------------------------------------------------- what was shown
+
+    private List<KostvMusicEvent> ShownOf(KostvMusicStore store, Guid user, string surface) =>
+        store.Read(user).Where(e => e.Type == KostvMusicEvent.ShownType && e.Surface == surface).ToList();
+
+    [Fact]
+    public void WhatWasShownIsNotedOnceADay()
+    {
+        var store = NewStore();
+        var service = new KostvMusicService(null!, null!, store, NullLogger<KostvMusicService>.Instance);
+        var user = Guid.NewGuid();
+        var songs = Enumerable.Range(0, 3).Select(_ => Guid.NewGuid()).ToList();
+        var mixes = new List<KostvShownMix> { new() { Id = "daily-1", Genre = "Rock", Items = songs.Select(s => s.ToString("N")).ToList() } };
+
+        service.NoteShownMixes(user, mixes);
+        service.NoteShownMixes(user, mixes);
+        service.NoteShownMoment(user, "manana", songs);
+        service.NoteShownMoment(user, "manana", songs);
+        // Another time of day is another mix.
+        service.NoteShownMoment(user, "tarde", songs.Take(1).ToList());
+        // Nothing shown: nothing noted.
+        service.NoteShownMixes(user, []);
+        service.NoteShownMoment(user, "noche", []);
+
+        var shownMixes = Assert.Single(ShownOf(store, user, KostvMusicEvent.MixesSurface));
+        var mix = Assert.Single(shownMixes.Mixes!);
+        Assert.Equal(("daily-1", "Rock"), (mix.Id, mix.Genre));
+        Assert.Equal(songs.Select(s => s.ToString("N")), mix.Items);
+        var moments = ShownOf(store, user, KostvMusicEvent.MomentSurface);
+        Assert.Equal(["manana", "tarde"], moments.Select(e => e.Slot));
+        Assert.Equal(3, moments[0].Items!.Count);
+        Assert.Equal(0, store.Summary(user).Listens);
+
+        // Restarted the same day: not again.
+        var restarted = new KostvMusicService(null!, null!, NewStore(), NullLogger<KostvMusicService>.Instance);
+        restarted.NoteShownMixes(user, mixes);
+        Assert.Single(ShownOf(restarted.Store, user, KostvMusicEvent.MixesSurface));
+
+        // The next music day (from 5:00 at home): again.
+        _now = _now.AddDays(1);
+        restarted.NoteShownMixes(user, mixes);
+        restarted.NoteShownMoment(user, "manana", songs);
+        Assert.Equal(2, ShownOf(restarted.Store, user, KostvMusicEvent.MixesSurface).Count);
+        Assert.Equal(3, ShownOf(restarted.Store, user, KostvMusicEvent.MomentSurface).Count);
+    }
+
+    [Fact]
+    public void WithLearnOffWhatWasShownIsNotNotedAndLaterItIs()
+    {
+        var store = NewStore();
+        var service = new KostvMusicService(null!, null!, store, NullLogger<KostvMusicService>.Instance);
+        var user = Guid.NewGuid();
+        var mixes = new List<KostvShownMix> { new() { Id = "daily-1", Genre = "Pop", Items = [Guid.NewGuid().ToString("N")] } };
+
+        store.SetLearn(user, false);
+        service.NoteShownMixes(user, mixes);
+        store.SetLearn(user, true);
+        Assert.Empty(store.Read(user));
+        service.NoteShownMixes(user, mixes);
+        Assert.Single(ShownOf(store, user, KostvMusicEvent.MixesSurface));
+
+        // Deleting the listens forgets what was shown too.
+        store.DeleteListens(user);
+        _now = _now.AddMinutes(1);
+        service.NoteShownMixes(user, mixes);
+        Assert.Single(ShownOf(store, user, KostvMusicEvent.MixesSurface));
+    }
+
+    [Fact]
+    public async Task TheWeeksDiscoveryIsNotedOnceAWeekFromTheStoredList()
+    {
+        var library = MusicLibrary.Made(genres: 1, artists: 2, played: 2, unplayed: 0);
+        var store = NewStore();
+        var service = new KostvMusicService(library.Manager(), library.UserData(), store, NullLogger<KostvMusicService>.Instance);
+        var userId = Guid.NewGuid();
+        var controller = Controller(service, userId);
+        var week = service.Week;
+
+        // No list stored yet: nothing shown.
+        await controller.GetDiscovery();
+        Assert.Empty(ShownOf(store, userId, KostvMusicEvent.DiscoverySurface));
+
+        var songs = JsonSerializer.SerializeToElement(new object[]
+        {
+            new { deezer_id = "3135556", title = "Harder, Better, Faster, Stronger" },
+            new { deezer_id = 3135553, title = "One More Time" },
+            new { title = "Sin id" }
+        });
+        Assert.Equal(KostvMusicStore.DiscoveryRefusal.None, store.SetDiscovery(userId, week, songs, week));
+        await controller.GetDiscovery();
+        await controller.GetDiscovery();
+        _now = _now.AddDays(1);
+        await controller.GetDiscovery();
+
+        var shown = Assert.Single(ShownOf(store, userId, KostvMusicEvent.DiscoverySurface));
+        Assert.Equal(week, shown.Week);
+        Assert.Equal(["3135556", "3135553"], shown.DeezerIds!);
+
+        // The next week, its own list: once more.
+        _now = _now.AddDays(7);
+        var next = service.Week;
+        store.SetDiscovery(userId, next, songs, next);
+        await controller.GetDiscovery();
+        Assert.Equal([week, next], ShownOf(store, userId, KostvMusicEvent.DiscoverySurface).Select(e => e.Week));
     }
 }

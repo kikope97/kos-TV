@@ -129,13 +129,16 @@ public static class KostvMusicEngine
 
     // ---------------------------------------------------------------- what they like
 
-    /// <summary>How each song's listens went, the recent ones weighing more.</summary>
+    /// <summary>
+    /// How each song's listens went, the recent ones weighing more. One that failed to play early
+    /// is left out (see <see cref="KostvMusicEvent.Counts"/>): it is not a skip.
+    /// </summary>
     public static Dictionary<Guid, KostvTrackListens> Listens(IEnumerable<KostvMusicEvent> events, DateTimeOffset now)
     {
         var byTrack = new Dictionary<Guid, KostvTrackListens>();
         foreach (var e in events)
         {
-            if (!e.IsListen || !Guid.TryParse(e.Item, out var id))
+            if (!e.Counts || !Guid.TryParse(e.Item, out var id))
             {
                 continue;
             }
@@ -312,9 +315,10 @@ public static class KostvMusicEngine
     /// <summary>
     /// The listens of <paramref name="slot"/> in the last <see cref="MomentWindow"/>, by the hour
     /// at home worked out of when they were (not the hour noted, which may be of another zone).
+    /// One that failed to play early is left out (see <see cref="KostvMusicEvent.Counts"/>).
     /// </summary>
     public static IEnumerable<KostvMusicEvent> SlotListens(IEnumerable<KostvMusicEvent> events, string slot, DateTimeOffset now, TimeZoneInfo zone) =>
-        events.Where(e => e.IsListen && e.At >= now - MomentWindow && e.At <= now && SlotOf(e.LocalIn(zone).Hour) == slot);
+        events.Where(e => e.Counts && e.At >= now - MomentWindow && e.At <= now && SlotOf(e.LocalIn(zone).Hour) == slot);
 
     /// <summary>
     /// The day a listen at <paramref name="at"/> counts for in its time of day: the night from 20:00
