@@ -2201,6 +2201,15 @@
                                 </button>
                             </div>
                         </div>
+                        <div class="checkboxContainer checkboxContainer-withDescription">
+                            <label class="emby-checkbox-label">
+                                <input type="checkbox" id="PushRelayEnabled" is="emby-checkbox" />
+                                <span>Enviar los avisos push por el relé alojado</span>
+                            </label>
+                            <div class="fieldDescription">
+                                Si lo desactivas, dejan de llegar los avisos push que pasan por el relé.
+                            </div>
+                        </div>
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="PushRelayUrl">Push Relay URL (Optional)</label>
                             <input type="text" id="PushRelayUrl" is="emby-input" placeholder="https://push.moonfin.io/send" />
@@ -3722,6 +3731,38 @@
                                 </select>
                                 <div class="fieldDescription">Cuánto tiempo después de emitirse un episodio sigue contando como nuevo, para el aviso y para la fuente «Nuevas temporadas y episodios».</div>
                             </div>
+                            <div class="inputContainer kostvNoSeUsa">
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarNewReleaseKinds">Etiquetas de novedades</label>
+                                <select id="DefaultMediaBarNewReleaseKinds" is="emby-select">
+                                    <option value="">Sin fijar (lo decide cada persona)</option>
+                                    <option value="newSeries,newSeason,newEpisodes,newMovie">Series y películas</option>
+                                    <option value="newSeries,newSeason,newEpisodes">Solo series</option>
+                                    <option value="newMovie">Solo películas</option>
+                                </select>
+                                <div class="fieldDescription">Qué títulos llevan etiqueta: series nuevas, temporadas y episodios nuevos, películas nuevas.</div>
+                            </div>
+                            <div class="inputContainer kostvNoSeUsa">
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarNewMovieDays">Periodo de película nueva</label>
+                                <select id="DefaultMediaBarNewMovieDays" is="emby-select">
+                                    <option value="">Sin fijar (lo decide cada persona)</option>
+                                    <option value="30">30 días</option>
+                                    <option value="60">60 días</option>
+                                    <option value="90">90 días</option>
+                                    <option value="120">120 días</option>
+                                    <option value="180">180 días</option>
+                                    <option value="365">365 días</option>
+                                </select>
+                                <div class="fieldDescription">Cuánto tiempo después de su estreno sigue contando una película como nueva. Los estrenos de cine llegan a los servidores meses después, así que es más largo que el de las series.</div>
+                            </div>
+                            <div class="inputContainer kostvNoSeUsa">
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarNewMovieDetail">Lema de la película nueva</label>
+                                <select id="DefaultMediaBarNewMovieDetail" is="emby-select">
+                                    <option value="">Sin fijar (lo decide cada persona)</option>
+                                    <option value="true">Sí</option>
+                                    <option value="false">No</option>
+                                </select>
+                                <div class="fieldDescription">Debajo de la etiqueta de película nueva, el lema de la película en el idioma de los metadatos del servidor. Si no tiene, la etiqueta va sola.</div>
+                            </div>
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused">Géneros excluidos</label>
                                 <div id="DefaultGenrePicker" style="max-height:260px;overflow-y:auto;border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:6px;margin-top:6px;"></div>
@@ -4200,6 +4241,17 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
+                            <div class="inputContainer kostvNoSeUsa">
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultMergeLibrariesByType">Unir las bibliotecas de películas y de series</label>
+                                <select id="DefaultMergeLibrariesByType" is="emby-select">
+                                    <option value="">Sin fijar (lo decide cada persona)</option>
+                                    <option value="true">Sí</option>
+                                    <option value="false">No</option>
+                                </select>
+                                <div class="fieldDescription">
+                                    Con las bibliotecas de varios servidores activadas, muestra una sola biblioteca de películas y una de series para todos los servidores. Un título que tienen varios servidores sale una vez.
+                                </div>
+                            </div>
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultShowBookDiscoverTab">Mostrar Descubrir de Open Library en las bibliotecas de libros</label>
                                 <select id="DefaultShowBookDiscoverTab" is="emby-select">
@@ -4303,6 +4355,22 @@
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultHideBackdropsInLibraries">Ocultar los fondos de las bibliotecas</label>
                                 <select id="DefaultHideBackdropsInLibraries" is="emby-select">
+                                    <option value="">Sin fijar (lo decide cada persona)</option>
+                                    <option value="true">Sí</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </div>
+                            <div class="inputContainer kostvNoSeUsa">
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultHideLibraryWatchProgress">Ocultar el progreso en las bibliotecas</label>
+                                <select id="DefaultHideLibraryWatchProgress" is="emby-select">
+                                    <option value="">Sin fijar (lo decide cada persona)</option>
+                                    <option value="true">Sí</option>
+                                    <option value="false">No</option>
+                                </select>
+                            </div>
+                            <div class="inputContainer kostvNoSeUsa">
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultHideLibraryUnwatchedCount">Ocultar los «sin ver» en las bibliotecas</label>
+                                <select id="DefaultHideLibraryUnwatchedCount" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
                                     <option value="true">Sí</option>
                                     <option value="false">No</option>
@@ -6448,12 +6516,13 @@
                 { parent: 'DefaultDisplaySinceYouWatchedRows', fields: ['DefaultSinceYouWatchedSource', 'DefaultSinceYouWatchedSourceType', 'DefaultSinceYouWatchedSourceItem', 'DefaultSinceYouWatched1Enabled', 'DefaultSinceYouWatched2Enabled', 'DefaultSinceYouWatched3Enabled', 'DefaultSinceYouWatched4Enabled', 'DefaultSinceYouWatched5Enabled'] },
                 { parent: 'DefaultSinceYouWatchedSource', off: ['online'], fields: ['DefaultSinceYouWatchedIncludeWatched'] },
                 { parent: 'DefaultDisplayStudiosRows', fields: ['DefaultStudiosRowSortBy', 'DefaultStudiosRowSortOrder'] },
-                { parent: 'DefaultMediaBarMode', off: ['off'], fields: ['DefaultMediaBarContentType', 'DefaultMediaBarItemCount', 'DefaultMediaBarSourceType', 'DefaultMediaBarNewReleaseBanner', 'DefaultMediaBarNewReleaseDays', 'DefaultCollectionPickerSection', 'DefaultLibraryPickerSection', 'DefaultGenrePicker', 'DefaultMediaBarAutoAdvance', 'DefaultMediaBarOpacity', 'DefaultMediaBarOverlayColor', 'DefaultMediaBarRowPeek', 'DefaultMediaBarTrailerPreview'] },
+                { parent: 'DefaultMediaBarMode', off: ['off'], fields: ['DefaultMediaBarContentType', 'DefaultMediaBarItemCount', 'DefaultMediaBarSourceType', 'DefaultMediaBarNewReleaseBanner', 'DefaultMediaBarNewReleaseDays', 'DefaultMediaBarNewReleaseKinds', 'DefaultMediaBarNewMovieDays', 'DefaultMediaBarNewMovieDetail', 'DefaultCollectionPickerSection', 'DefaultLibraryPickerSection', 'DefaultGenrePicker', 'DefaultMediaBarAutoAdvance', 'DefaultMediaBarOpacity', 'DefaultMediaBarOverlayColor', 'DefaultMediaBarRowPeek', 'DefaultMediaBarTrailerPreview'] },
                 { parent: 'DefaultMediaBarMode', off: ['off', 'bookshelf', 'aya'], fields: ['DefaultMediaBarRatingsHeading', 'DefaultMediaBarMdblistEnabled', 'DefaultMediaBarMdblistRatingSourcesList', 'DefaultMediaBarMdblistShowRatingNames', 'DefaultMediaBarMdblistShowRatingBadges'] },
                 { parent: 'DefaultMediaBarAutoAdvance', fields: ['DefaultMediaBarIntervalMs'] },
+                { parent: 'DefaultMediaBarNewReleaseBanner', fields: ['DefaultMediaBarNewReleaseKinds'] },
                 { parent: 'DefaultMediaBarTrailerPreview', fields: ['DefaultMediaBarTrailerAudio', 'DefaultTrailerVolume', 'DefaultMediaBarTrailerCaptions'] },
                 { parent: 'DefaultHomeRowsStyle', off: ['v1'], fields: ['DefaultModernCardsOnMyMediaRow', 'DefaultModernHomeRowsPadding'] },
-                { parent: 'DefaultHomeRowsStyle', off: ['v2'], fields: ['DefaultClassicHomeRowsPadding', 'DefaultHomeRowInfoOverlay', 'DefaultHomeImageTypeContinueWatching', 'DefaultHomeRowsImageTypeOverride'] },
+                { parent: 'DefaultHomeRowsStyle', off: ['v2', 'carousel'], fields: ['DefaultClassicHomeRowsPadding', 'DefaultHomeRowInfoOverlay', 'DefaultHomeImageTypeContinueWatching', 'DefaultHomeRowsImageTypeOverride'] },
                 { parent: 'DefaultHomeRowsImageTypeOverride', fields: ['DefaultHomeRowsImageType'] },
                 { parent: 'DefaultHomeRowsImageTypeOverride', off: ['true'], fields: ['DefaultHomeRowImageTypesSection'] },
                 { parent: 'DefaultMediaPreviewMode', off: ['off'], fields: ['DefaultPreviewAudioEnabled'] },
@@ -11460,6 +11529,7 @@
                     document.querySelector('#StuckDownloadNotify').checked = config.StuckDownloadNotify === true;
                     document.querySelector('#StuckDownloadStalledHours').value = config.StuckDownloadStalledHours != null ? config.StuckDownloadStalledHours : 6;
                     loadWebhookProvisioningStatus();
+                    document.querySelector('#PushRelayEnabled').checked = config.PushRelayEnabled !== false;
                     document.querySelector('#PushRelayUrl').value = config.PushRelayUrl || '';
                     document.querySelector('#PushRelayAppKey').value = config.PushRelayAppKey || '';
                     document.querySelector('#FcmServiceAccountJson').value = config.FcmServiceAccountJson || '';
@@ -11615,6 +11685,9 @@
                     setNullableBoolSelect('#DefaultMediaBarRowPeek', defaults.mediaBarRowPeek);
                     setNullableBoolSelect('#DefaultMediaBarNewReleaseBanner', defaults.mediaBarNewReleaseBanner);
                     setSelectValue('#DefaultMediaBarNewReleaseDays', defaults.mediaBarNewReleaseDays, 'Plazo configurado');
+                    setSelectValue('#DefaultMediaBarNewReleaseKinds', defaults.mediaBarNewReleaseKinds, 'Etiquetas configuradas');
+                    setSelectValue('#DefaultMediaBarNewMovieDays', defaults.mediaBarNewMovieDays, 'Plazo configurado');
+                    setNullableBoolSelect('#DefaultMediaBarNewMovieDetail', defaults.mediaBarNewMovieDetail);
                     setNullableBoolSelect('#DefaultMediaBarTrailerPreview', defaults.mediaBarTrailerPreview);
                     setNullableBoolSelect('#DefaultMediaBarTrailerAudio', defaults.mediaBarTrailerAudio);
                     bindNullableRangeInput('#DefaultTrailerVolume', '%');
@@ -11666,6 +11739,7 @@
                     setSelectValue('#DefaultNextUpMaxDays', defaults.nextUpMaxDays, 'Máximo de días configurado');
 
                     setNullableBoolSelect('#DefaultEnableMultiServerLibraries', defaults.enableMultiServerLibraries);
+                    setNullableBoolSelect('#DefaultMergeLibrariesByType', defaults.mergeLibrariesByType);
                     setNullableBoolSelect('#DefaultHideWatchedInRecentRows', defaults.hideWatchedInRecentRows);
                     setNullableBoolSelect('#DefaultMergeRecentRowsByType', defaults.mergeRecentRowsByType);
                     setSelectValue('#DefaultRecentlyReleasedSeriesType', defaults.recentlyReleasedSeriesType, 'Orden configurado');
@@ -11674,6 +11748,8 @@
                     setNullableBoolSelect('#DefaultLibraryCardTitles', defaults.libraryCardTitles);
                     setNullableBoolSelect('#DefaultUseDetailedSubHeadings', defaults.useDetailedSubHeadings);
                     setNullableBoolSelect('#DefaultHideBackdropsInLibraries', defaults.hideBackdropsInLibraries);
+                    setNullableBoolSelect('#DefaultHideLibraryWatchProgress', defaults.hideLibraryWatchProgress);
+                    setNullableBoolSelect('#DefaultHideLibraryUnwatchedCount', defaults.hideLibraryUnwatchedCount);
 
                     setNullableBoolSelect('#DefaultShowShuffleButton', defaults.showShuffleButton);
                     setNullableBoolSelect('#DefaultShowGenresButton', defaults.showGenresButton);
@@ -12459,6 +12535,7 @@
                         config.CalendarCacheMinutes = wholeNumberIn(document.querySelector('#CalendarCacheMinutes').value, 0, 1440, 5);
                         config.StuckDownloadNotify = document.querySelector('#StuckDownloadNotify').checked;
                         config.StuckDownloadStalledHours = wholeNumberIn(document.querySelector('#StuckDownloadStalledHours').value, 1, 168, 6);
+                        config.PushRelayEnabled = document.querySelector('#PushRelayEnabled').checked;
                         config.PushRelayUrl = document.querySelector('#PushRelayUrl').value || 'https://push.moonfin.io/send';
                         config.PushRelayAppKey = document.querySelector('#PushRelayAppKey').value || null;
                         config.FcmServiceAccountJson = document.querySelector('#FcmServiceAccountJson').value || null;
@@ -12681,6 +12758,9 @@
                     ds.mediaBarRowPeek = getNullableBoolSelect('#DefaultMediaBarRowPeek');
                     ds.mediaBarNewReleaseBanner = getNullableBoolSelect('#DefaultMediaBarNewReleaseBanner');
                     ds.mediaBarNewReleaseDays = getNullableIntInput('#DefaultMediaBarNewReleaseDays');
+                    ds.mediaBarNewReleaseKinds = document.querySelector('#DefaultMediaBarNewReleaseKinds').value || null;
+                    ds.mediaBarNewMovieDays = getNullableIntInput('#DefaultMediaBarNewMovieDays');
+                    ds.mediaBarNewMovieDetail = getNullableBoolSelect('#DefaultMediaBarNewMovieDetail');
                     ds.mediaBarTrailerPreview = getNullableBoolSelect('#DefaultMediaBarTrailerPreview');
                     ds.mediaBarTrailerAudio = getNullableBoolSelect('#DefaultMediaBarTrailerAudio');
                     ds.trailerVolume = getNullableRangeInput('#DefaultTrailerVolume');
@@ -12788,6 +12868,7 @@
                     ds.nextUpMaxDays = getNullableIntInput('#DefaultNextUpMaxDays');
 
                     ds.enableMultiServerLibraries = getNullableBoolSelect('#DefaultEnableMultiServerLibraries');
+                    ds.mergeLibrariesByType = getNullableBoolSelect('#DefaultMergeLibrariesByType');
                     ds.hideWatchedInRecentRows = getNullableBoolSelect('#DefaultHideWatchedInRecentRows');
                     ds.mergeRecentRowsByType = getNullableBoolSelect('#DefaultMergeRecentRowsByType');
                     ds.recentlyReleasedSeriesType = document.querySelector('#DefaultRecentlyReleasedSeriesType').value || null;
@@ -12796,6 +12877,8 @@
                     ds.libraryCardTitles = getNullableBoolSelect('#DefaultLibraryCardTitles');
                     ds.useDetailedSubHeadings = getNullableBoolSelect('#DefaultUseDetailedSubHeadings');
                     ds.hideBackdropsInLibraries = getNullableBoolSelect('#DefaultHideBackdropsInLibraries');
+                    ds.hideLibraryWatchProgress = getNullableBoolSelect('#DefaultHideLibraryWatchProgress');
+                    ds.hideLibraryUnwatchedCount = getNullableBoolSelect('#DefaultHideLibraryUnwatchedCount');
 
                     ds.showShuffleButton = getNullableBoolSelect('#DefaultShowShuffleButton');
                     ds.showGenresButton = getNullableBoolSelect('#DefaultShowGenresButton');

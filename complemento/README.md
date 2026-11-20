@@ -32,8 +32,14 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   que no hay Seerr ni calendario (`/Moonfin/Ping`), y en la página de ajustes
   esos apartados están ocultos (su código sigue buscándolos por su nombre).
 - **La página de ajustes en español**, con los mismos nombres que la app para los
-  mismos ajustes, y sin lo que las apps de kOS TV no usan (cuatro valores por
-  defecto y los campos de la web oficial, ocultos con la clase `kostvNoSeUsa`).
+  mismos ajustes, y sin lo que las apps de kOS TV no usan (valores por defecto
+  de funciones que la app no tiene y los campos de la web oficial, ocultos con
+  la clase `kostvNoSeUsa`). De la 3.1.1 se ocultan así unir las bibliotecas de
+  películas y series, ocultar el progreso y los «sin ver» en las bibliotecas, y
+  las etiquetas, el periodo y el lema de las películas nuevas de la barra
+  multimedia; el tipo de filas «Carrusel» no se ofrece.
+- **Sin la notificación de prueba** del oficial (`/Moonfin/Notifications/Test`)
+  ni su política de privacidad: kOS TV tiene el push apagado.
 - **La dirección del servicio de peticiones (Stremfin)** se pone aquí, en la
   pestaña «Direcciones», y el complemento se la da a las apps en `/Moonfin/Ping`
   (`kostvRequestsUrl`) cuando inician sesión. Así no va dentro del APK y, si
@@ -190,9 +196,17 @@ sobre ella. La primera, **3.1.0.1**, es la oficial 3.1.0 con los cambios de
 arriba. Al traer una versión oficial nueva, `X.Y.Z` pasa a la suya y `N` vuelve
 a 1.
 
+Ahora se basa en la oficial **3.1.1**: la siguiente que se publique es la
+**3.1.1.1**. De la 3.1.1 trae que las filas de una lista de TMDB lean todas sus
+páginas (no solo los 20 primeros títulos) y que las de MDBList salgan con la
+sinopsis, los géneros y la duración en el idioma pedido; además, las fuentes
+`justwatch` y `tmdb_discover` de las filas personalizadas
+(`discoverChartsSupported` y `pushSupported` en `/Moonfin/Ping`) y la ruta
+`/Moonfin/Games/{libraryId}/Recent`, que la app aún no usa.
+
 ## Compilar y publicar
 
-- En local (hace falta el SDK de .NET 8): `bash complemento/compilar.sh 3.1.0.1`.
+- En local (hace falta el SDK de .NET 8): `bash complemento/compilar.sh 3.1.1.1`.
   Deja el zip y su suma md5 en `complemento/salida/`.
 - Para publicar, el automatismo **Complemento del servidor**
   (`.github/workflows/complemento.yml`), con la versión y sus novedades. Pasa
@@ -209,9 +223,9 @@ https://github.com/kikope97/kos-TV/releases/download/complemento/manifest.json
 
 ## Traer los cambios del oficial
 
-La carpeta se trajo con `git subtree` (un solo commit con la 3.1.0 exacta). Para
-traer una versión oficial nueva (la etiqueta es su versión, por ejemplo
-`3.2.0`):
+La carpeta se trajo con `git subtree` (un solo commit con la 3.1.0 exacta) y se
+puso al día a la 3.1.1 de la misma forma. Para traer una versión oficial nueva
+(la etiqueta es su versión, por ejemplo `3.2.0`):
 
 ```
 git subtree pull --prefix=complemento https://github.com/Moonfin-Client/plugin 3.2.0 --squash
@@ -222,8 +236,9 @@ no debe subirse, porque las nuestras de la app son también números.)
 
 En los conflictos manda lo nuestro: nombre e identificador de kOS TV, textos en
 español, imágenes y lo quitado (Emby, Go, su `.github`, su `build.sh` y sus
-`manifest.json`; Seerr, el calendario y las descargas atascadas: si traen
-cambios en esos archivos, se vuelven a borrar). Después, pruebas, una pasada a
+`manifest.json`, su `PRIVACY_POLICY.md`, la notificación de prueba y su
+prueba `NotificationTestEndpointTests.cs`; Seerr, el calendario y las descargas
+atascadas: si traen cambios en esos archivos, se vuelven a borrar). Después, pruebas, una pasada a
 los textos nuevos (que se vean en español y sin el nombre del oficial; en la
-página de ajustes, lo nuevo de Seerr se oculta con la clase `kostvSinSeerr`) y
-publicar `3.2.0.1`.
+página de ajustes, lo nuevo de Seerr se oculta con la clase `kostvSinSeerr` y
+lo que la app no usa, con `kostvNoSeUsa`) y publicar `3.2.0.1`.
