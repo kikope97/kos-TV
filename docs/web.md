@@ -231,6 +231,7 @@ Desde la raíz del repositorio:
 
 ```bash
 flutter build web --wasm --release --no-web-resources-cdn
+bash scripts/fetch-web-fonts.sh build/web
 docker build -f docker/web/Dockerfile -t kostv-web .
 docker run --rm -p 25670:8080 \
   -e KOSTV_SERVER_URL=https://jellyfin.example.com \
@@ -244,9 +245,12 @@ en la misma imagen. No hace falta configurar nada en el proxy.
 
 El motor de dibujo de la web (la carpeta `canvaskit/`) va en la imagen y se
 carga desde el propio servidor (`--no-web-resources-cdn`), no desde los
-servidores de Google: así la web abre en casa aunque se caiga internet. Solo
-las fuentes de reserva para letras poco comunes siguen viniendo de
-`fonts.gstatic.com`. Un archivo que no existe (`.js`, `.wasm`, `.json`,
+servidores de Google: así la web abre en casa aunque se caiga internet. Las
+fuentes de reserva para lo que no traen las fuentes de la app (emojis, chino,
+japonés, símbolos…) también van dentro, en `fonts/` (unos 21 MiB): las baja
+`scripts/fetch-web-fonts.sh` al compilar y la web ya no le pide nada a
+`fonts.gstatic.com`. Si se compila sin ese paso, la web funciona igual, pero
+esas fuentes las sigue pidiendo a Google. Un archivo que no existe (`.js`, `.wasm`, `.json`,
 imágenes…) da un 404; solo las rutas de la app vuelven a su página.
 
 Los archivos están en [`docker/web/`](../docker/web/): el `Dockerfile`, la
