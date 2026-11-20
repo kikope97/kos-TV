@@ -62,6 +62,13 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvFavoriteDates>();
         serviceCollection.AddHostedService<Moonfin.Server.Kostv.KostvFavoritesWatcher>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvHomeService>();
+        // kOS TV: what each person listens to, and the music worked out from it.
+        serviceCollection.AddSingleton(_ => new Moonfin.Server.Kostv.KostvMusicStore(
+            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), Moonfin.Server.Kostv.KostvMusicStore.FolderName)));
+        serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvMusicContext>();
+        serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvMusicService>();
+        serviceCollection.AddHostedService<Moonfin.Server.Kostv.KostvMusicRecorder>();
+        serviceCollection.AddScoped<IEventConsumer<UserDeletedEventArgs>, Moonfin.Server.Kostv.KostvMusicOnUserDeleted>();
         serviceCollection.AddSingleton<SeasonalKeywordStoreService>();
         serviceCollection.AddSingleton<SeasonalSuggestionsCacheService>();
         serviceCollection.AddSingleton<SeasonalRowService>();
