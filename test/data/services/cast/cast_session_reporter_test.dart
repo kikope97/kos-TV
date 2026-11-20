@@ -14,6 +14,7 @@ class _Service extends PlayerService {
     int? positionTicks,
     int? audioStreamIndex,
     int? subtitleStreamIndex,
+    PlaybackQueueModes? queueModes,
   }) async {}
 
   @override
@@ -26,6 +27,7 @@ class _Service extends PlayerService {
     int? subtitleStreamIndex,
     int? volumeLevel,
     bool? isMuted,
+    PlaybackQueueModes? queueModes,
   }) async => calls.add(
     'progress ${(mediaItem as AggregatedItem).id} ${position.inSeconds}'
     '${isPaused ? ' paused' : ''}',
@@ -37,6 +39,7 @@ class _Service extends PlayerService {
     StreamResolutionResult resolution,
     Duration position, {
     bool releaseLiveStream = true,
+    bool failed = false,
   }) async => calls.add(
     'stop ${(mediaItem as AggregatedItem).id} ${position.inSeconds}',
   );

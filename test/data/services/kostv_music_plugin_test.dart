@@ -8,8 +8,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/services/kostv_music_plugin.dart';
+import 'package:moonfin/data/services/media_server_client_factory.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
+import 'package:moonfin/ui/widgets/add_to_playlist_dialog.dart';
 import 'package:moonfin/ui/widgets/music/music_navigation.dart';
 import 'package:playback_core/playback_core.dart';
 import 'package:server_core/server_core.dart';
@@ -887,6 +889,275 @@ void main() {
       },
     );
   });
+
+  group('what the person does (Event)', () {
+    const event = 'POST /Moonfin/Kostv/Music/Event';
+
+    test('songs added to a playlist, after returning', () async {
+      final routes = _Plugin(answers: {event: null});
+      KostvMusicPlugin.instance = pluginWith(routes);
+      kostvTellPlaylistAdd(() => client, (_) async => ['1', '', '2', '1']);
+      expect(routes.asked, isEmpty);
+      await pumpEventQueue();
+      expect(routes.asked.single.path, '/Moonfin/Kostv/Music/Event');
+      expect(routes.asked.single.body, {
+        'Type': 'playlist_add',
+        'ItemIds': ['1', '2'],
+      });
+    });
+
+    test('an album asked for from the requests service', () async {
+      final routes = _Plugin(answers: {event: null});
+      KostvMusicPlugin.instance = pluginWith(routes);
+      kostvTellMusicRequest(
+        () => client,
+        deezerAlbumId: '302127',
+        album: 'Discovery',
+        artist: 'Daft Punk',
+      );
+      expect(routes.asked, isEmpty);
+      await pumpEventQueue();
+      expect(routes.asked.single.body, {
+        'Type': 'request',
+        'Album': 'Discovery',
+        'Artist': 'Daft Punk',
+        'DeezerAlbumId': '302127',
+      });
+    });
+
+    test('an album without an artist known goes without it', () async {
+      final routes = _Plugin(answers: {event: null});
+      KostvMusicPlugin.instance = pluginWith(routes);
+      kostvTellMusicRequest(
+        () => client,
+        deezerAlbumId: '1',
+        album: 'Sin título',
+      );
+      await pumpEventQueue();
+      expect(routes.asked.single.body, {
+        'Type': 'request',
+        'Album': 'Sin título',
+        'DeezerAlbumId': '1',
+      });
+    });
+
+    test('only an album that was asked for tells it', () {
+      for (final outcome in StremfinOutcome.values) {
+        expect(
+          kostvMusicRequestCounts(outcome),
+          !const {
+            StremfinOutcome.limit,
+            StremfinOutcome.unavailable,
+            StremfinOutcome.have,
+          }.contains(outcome),
+          reason: outcome.name,
+        );
+      }
+    });
+
+    test('dislike, for when there is a button', () async {
+      final routes = _Plugin(answers: {event: null});
+      final plugin = pluginWith(routes);
+      await plugin.sendDislike(client, ['9']);
+      expect(routes.asked.single.body, {
+        'Type': 'dislike',
+        'ItemIds': ['9'],
+      });
+    });
+
+    test('an older plugin (404): nothing breaks, and an album\'s songs '
+        'aren\'t even asked for afterwards', () async {
+      final routes = _Plugin(hasRoutes: false);
+      KostvMusicPlugin.instance = pluginWith(routes);
+      kostvTellPlaylistAdd(() => client, (_) async => ['1']);
+      await pumpEventQueue();
+      expect(routes.asked, hasLength(1));
+      expect(KostvMusicPlugin.instance.knownMissing(client, 'Event'), isTrue);
+
+      var asked = false;
+      kostvTellPlaylistAdd(() => client, (_) async {
+        asked = true;
+        return ['2'];
+      });
+      kostvTellMusicRequest(() => client, deezerAlbumId: '3');
+      await pumpEventQueue();
+      expect(asked, isFalse);
+      expect(routes.asked, hasLength(1));
+    });
+
+    test('a failure, or no server, reaches nobody', () async {
+      KostvMusicPlugin.instance = KostvMusicPlugin(
+        dio: Dio()..httpClientAdapter = _Down(),
+      );
+      kostvTellPlaylistAdd(() => client, (_) async => ['1']);
+      kostvTellPlaylistAdd(() => client, (_) async => throw StateError('x'));
+      kostvTellPlaylistAdd(() => throw StateError('no server'), (_) async {
+        return ['1'];
+      });
+      kostvTellMusicRequest(() => null, deezerAlbumId: '1');
+      await pumpEventQueue();
+    });
+
+    test('the songs of what is added', () async {
+      final home = _Home();
+      final server = JellyfinMediaServerClient(
+        baseUrl: 'https://casa.example',
+        deviceInfo: _device,
+        interceptors: [home],
+      )..userId = 'ana';
+      expect(await kostvPlaylistSongsOf(_song('1'))!(server), ['1']);
+      final album = _song('album', type: 'MusicAlbum');
+      expect(
+        await kostvPlaylistSongsOf(
+          album,
+          tracks: [
+            _song('a'),
+            _song('b'),
+            _song('v', type: 'Video'),
+          ],
+        )!(server),
+        ['a', 'b'],
+      );
+      expect(home.asked, isEmpty);
+      // Without its songs at hand, they are asked for (only then).
+      expect(await kostvPlaylistSongsOf(album)!(server), ['t1', 't2']);
+      expect(home.asked.single.queryParameters['ParentId'], 'album');
+      expect(kostvPlaylistSongsOf(_song('film', type: 'Movie')), isNull);
+      expect(kostvPlaylistSongsOf(_song('ar', type: 'MusicArtist')), isNull);
+    });
+
+    Future<BuildContext> dialogHost(WidgetTester tester) async {
+      late BuildContext context;
+      await tester.pumpWidget(
+        MaterialApp(
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Builder(
+            builder: (c) {
+              context = c;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      return context;
+    }
+
+    testWidgets('adding a song to a playlist tells it, without waiting for '
+        'the plugin', (tester) async {
+      final home = _Home();
+      final server =
+          JellyfinMediaServerClient(
+              baseUrl: 'https://casa.example',
+              deviceInfo: _device,
+              interceptors: [home],
+            )
+            ..accessToken = 'token'
+            ..userId = 'ana';
+      final never = Completer<void>();
+      final routes = _Plugin(answers: {event: null});
+      KostvMusicPlugin.instance = KostvMusicPlugin(
+        dio: Dio()..httpClientAdapter = _Hanging(routes, never.future),
+      );
+      GetIt.instance
+        ..registerSingleton<MediaServerClient>(server)
+        ..registerSingleton<MediaServerClientFactory>(_Factory());
+      final context = await dialogHost(tester);
+      final song = _song('1');
+      bool? added;
+      unawaited(
+        AddToPlaylistDialog.show(
+          context,
+          itemIds: [song.id],
+          serverId: song.serverId,
+          songs: kostvPlaylistSongsOf(song),
+        ).then((value) => added = value),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mi lista'));
+      await tester.pumpAndSettle();
+      // Added and closed, while the plugin hasn't answered.
+      expect(added, isTrue);
+      expect(home.asked.map((r) => '${r.method} ${r.path}'), [
+        'GET /Users/ana/Items',
+        'POST /Playlists/list/Items',
+      ]);
+      expect(routes.asked.single.body, {
+        'Type': 'playlist_add',
+        'ItemIds': ['1'],
+      });
+      never.complete();
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+    });
+
+    testWidgets('adding a film tells nothing', (tester) async {
+      final home = _Home();
+      final server =
+          JellyfinMediaServerClient(
+              baseUrl: 'https://casa.example',
+              deviceInfo: _device,
+              interceptors: [home],
+            )
+            ..accessToken = 'token'
+            ..userId = 'ana';
+      final routes = _Plugin(answers: {event: null});
+      KostvMusicPlugin.instance = pluginWith(routes);
+      GetIt.instance
+        ..registerSingleton<MediaServerClient>(server)
+        ..registerSingleton<MediaServerClientFactory>(_Factory());
+      final context = await dialogHost(tester);
+      final film = _song('film', type: 'Movie');
+      unawaited(
+        AddToPlaylistDialog.show(
+          context,
+          itemIds: [film.id],
+          serverId: film.serverId,
+          songs: kostvPlaylistSongsOf(film),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Mi lista'));
+      await tester.pumpAndSettle();
+      expect(home.asked.last.path, '/Playlists/list/Items');
+      expect(routes.asked, isEmpty);
+    });
+  });
+}
+
+/// The home server's playlists, and an album's songs, answered without a
+/// network; notes what it was asked.
+class _Home extends Interceptor {
+  final asked = <RequestOptions>[];
+
+  @override
+  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    asked.add(options);
+    final types = options.queryParameters['IncludeItemTypes']?.toString();
+    final Object? data = switch ((options.method, types)) {
+      ('GET', 'Playlist') => {
+        'Items': [
+          {'Id': 'list', 'Name': 'Mi lista', 'Type': 'Playlist'},
+        ],
+      },
+      ('GET', 'Audio') => {
+        'Items': [
+          {'Id': 't1', 'Type': 'Audio'},
+          {'Id': 't2', 'Type': 'Audio'},
+        ],
+      },
+      _ => null,
+    };
+    handler.resolve(
+      Response(requestOptions: options, statusCode: 200, data: data ?? ''),
+    );
+  }
+}
+
+class _Factory extends Fake implements MediaServerClientFactory {
+  @override
+  MediaServerClient? getClientIfExists(String serverId) => null;
 }
 
 /// The plugin, answering only once [until] completes.

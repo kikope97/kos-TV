@@ -508,6 +508,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
           context,
           itemIds: [item.id],
           serverId: item.serverId,
+          songs: kostvPlaylistSongsOf(item),
         );
       case 'sleep':
         await _showSleep();

@@ -198,6 +198,11 @@ class PlaybackStartReport {
   final PlayMethod? playMethod;
   final int? positionTicks;
 
+  /// Kos TV: the queue's modes, as Jellyfin names them (`RepeatNone`,
+  /// `RepeatAll`, `RepeatOne`; `Default`, `Shuffle`). Left out when null.
+  final String? repeatMode;
+  final String? playbackOrder;
+
   const PlaybackStartReport({
     required this.itemId,
     this.mediaSourceId,
@@ -206,6 +211,8 @@ class PlaybackStartReport {
     this.subtitleStreamIndex,
     this.playMethod,
     this.positionTicks,
+    this.repeatMode,
+    this.playbackOrder,
   });
 
   Map<String, dynamic> toJson() => {
@@ -217,6 +224,8 @@ class PlaybackStartReport {
           'SubtitleStreamIndex': subtitleStreamIndex,
         if (playMethod != null) 'PlayMethod': playMethod!.toServerString(),
         if (positionTicks != null) 'PositionTicks': positionTicks,
+        if (repeatMode != null) 'RepeatMode': repeatMode,
+        if (playbackOrder != null) 'PlaybackOrder': playbackOrder,
       };
 }
 
@@ -231,6 +240,10 @@ class PlaybackProgressReport {
   final bool isMuted;
   final int? volumeLevel;
 
+  /// Kos TV: as in [PlaybackStartReport.repeatMode].
+  final String? repeatMode;
+  final String? playbackOrder;
+
   const PlaybackProgressReport({
     required this.itemId,
     this.mediaSourceId,
@@ -241,6 +254,8 @@ class PlaybackProgressReport {
     this.isPaused = false,
     this.isMuted = false,
     this.volumeLevel,
+    this.repeatMode,
+    this.playbackOrder,
   });
 
   Map<String, dynamic> toJson() => {
@@ -253,6 +268,8 @@ class PlaybackProgressReport {
         'IsPaused': isPaused,
         'IsMuted': isMuted,
         if (volumeLevel != null) 'VolumeLevel': volumeLevel,
+        if (repeatMode != null) 'RepeatMode': repeatMode,
+        if (playbackOrder != null) 'PlaybackOrder': playbackOrder,
       };
 }
 
@@ -265,12 +282,17 @@ class PlaybackStopReport {
   /// The item's length. Plex drops a position that comes without one.
   final int? runTimeTicks;
 
+  /// Kos TV: it stopped because it failed to play, not because someone
+  /// stopped or skipped it. Only sent when true.
+  final bool failed;
+
   const PlaybackStopReport({
     required this.itemId,
     this.mediaSourceId,
     this.playSessionId,
     this.positionTicks,
     this.runTimeTicks,
+    this.failed = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -279,5 +301,6 @@ class PlaybackStopReport {
         if (playSessionId != null) 'PlaySessionId': playSessionId,
         if (positionTicks != null) 'PositionTicks': positionTicks,
         if (runTimeTicks != null) 'RunTimeTicks': runTimeTicks,
+        if (failed) 'Failed': true,
       };
 }

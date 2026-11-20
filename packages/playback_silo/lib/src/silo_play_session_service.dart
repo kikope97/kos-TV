@@ -50,6 +50,7 @@ class SiloPlaySessionService implements PlayerService {
     int? positionTicks,
     int? audioStreamIndex,
     int? subtitleStreamIndex,
+    PlaybackQueueModes? queueModes,
   }) async {}
 
   /// One progress sample: the media position in seconds (the player's plus
@@ -75,6 +76,7 @@ class SiloPlaySessionService implements PlayerService {
     int? subtitleStreamIndex,
     int? volumeLevel,
     bool? isMuted,
+    PlaybackQueueModes? queueModes,
   }) async {
     final api = _api;
     final session = _live(resolution);
@@ -133,6 +135,7 @@ class SiloPlaySessionService implements PlayerService {
     StreamResolutionResult resolution,
     Duration position, {
     bool releaseLiveStream = true,
+    bool failed = false,
   }) {
     final session = _sessions.sessionOf(resolution);
     if (session == null) return Future.value();

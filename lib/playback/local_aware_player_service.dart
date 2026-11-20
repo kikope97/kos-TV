@@ -73,6 +73,7 @@ class LocalAwarePlayerService implements PlayerService {
     int? positionTicks,
     int? audioStreamIndex,
     int? subtitleStreamIndex,
+    PlaybackQueueModes? queueModes,
   }) async {
     if (!resolution.isLocalMedia) {
       return _inner.onPlaybackStart(
@@ -81,6 +82,7 @@ class LocalAwarePlayerService implements PlayerService {
         positionTicks: positionTicks,
         audioStreamIndex: audioStreamIndex,
         subtitleStreamIndex: subtitleStreamIndex,
+        queueModes: queueModes,
       );
     }
     await _forward(
@@ -90,6 +92,7 @@ class LocalAwarePlayerService implements PlayerService {
         positionTicks: positionTicks,
         audioStreamIndex: audioStreamIndex,
         subtitleStreamIndex: subtitleStreamIndex,
+        queueModes: queueModes,
       ),
     );
   }
@@ -104,6 +107,7 @@ class LocalAwarePlayerService implements PlayerService {
     int? subtitleStreamIndex,
     int? volumeLevel,
     bool? isMuted,
+    PlaybackQueueModes? queueModes,
   }) async {
     if (!resolution.isLocalMedia) {
       return _inner.onPlaybackProgress(
@@ -115,6 +119,7 @@ class LocalAwarePlayerService implements PlayerService {
         subtitleStreamIndex: subtitleStreamIndex,
         volumeLevel: volumeLevel,
         isMuted: isMuted,
+        queueModes: queueModes,
       );
     }
     await _recordLocal(mediaItem, position.inMicroseconds * 10);
@@ -128,6 +133,7 @@ class LocalAwarePlayerService implements PlayerService {
         subtitleStreamIndex: subtitleStreamIndex,
         volumeLevel: volumeLevel,
         isMuted: isMuted,
+        queueModes: queueModes,
       ),
     );
   }
@@ -138,6 +144,7 @@ class LocalAwarePlayerService implements PlayerService {
     StreamResolutionResult resolution,
     Duration position, {
     bool releaseLiveStream = true,
+    bool failed = false,
   }) async {
     try {
       if (!resolution.isLocalMedia) {
@@ -146,6 +153,7 @@ class LocalAwarePlayerService implements PlayerService {
           resolution,
           position,
           releaseLiveStream: releaseLiveStream,
+          failed: failed,
         );
       }
       await _recordLocal(mediaItem, position.inMicroseconds * 10);
@@ -155,6 +163,7 @@ class LocalAwarePlayerService implements PlayerService {
           resolution,
           position,
           releaseLiveStream: releaseLiveStream,
+          failed: failed,
         ),
       );
       // Kos TV: the server already has this stop, so the next sync must not

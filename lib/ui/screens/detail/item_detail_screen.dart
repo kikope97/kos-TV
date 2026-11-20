@@ -7243,6 +7243,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
             context,
             itemIds: [item.id],
             serverId: item.serverId,
+            songs: kostvPlaylistSongsOf(item),
           ),
         ),
       if (canShowDownloadActions && shows(DetailButton.download))
@@ -17131,6 +17132,7 @@ class _AlbumActions extends StatelessWidget {
             context,
             itemIds: [item.id],
             serverId: item.serverId,
+            songs: kostvPlaylistSongsOf(item, tracks: tracks),
           ),
         ),
     ];
@@ -17879,6 +17881,7 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
         context,
         itemIds: [widget.track.id],
         serverId: widget.track.serverId,
+        songs: kostvPlaylistSongsOf(widget.track),
       ),
       onRemoveFromPlaylist: widget.onRemoveFromPlaylist != null
           ? () => widget.onRemoveFromPlaylist!(widget.track)

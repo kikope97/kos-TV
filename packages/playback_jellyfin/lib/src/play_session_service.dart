@@ -59,6 +59,7 @@ class PlaySessionService implements PlayerService {
     int? positionTicks,
     int? audioStreamIndex,
     int? subtitleStreamIndex,
+    PlaybackQueueModes? queueModes,
   }) async {
     final report = PlaybackStartReport(
       itemId: MediaStreamResolver.extractItemId(mediaItem),
@@ -68,6 +69,8 @@ class PlaySessionService implements PlayerService {
       positionTicks: positionTicks,
       audioStreamIndex: audioStreamIndex,
       subtitleStreamIndex: subtitleStreamIndex,
+      repeatMode: _repeatMode(queueModes),
+      playbackOrder: _playbackOrder(queueModes),
     );
     _rememberStartToken(mediaItem, resolution);
     await _client.playbackApi.reportPlaybackStart(report.toJson());
@@ -84,6 +87,7 @@ class PlaySessionService implements PlayerService {
     int? subtitleStreamIndex,
     int? volumeLevel,
     bool? isMuted,
+    PlaybackQueueModes? queueModes,
   }) async {
     if (_startedByAnotherPerson(mediaItem, resolution)) return;
     final report = PlaybackProgressReport(
@@ -96,6 +100,8 @@ class PlaySessionService implements PlayerService {
       subtitleStreamIndex: subtitleStreamIndex,
       volumeLevel: volumeLevel,
       isMuted: isMuted ?? false,
+      repeatMode: _repeatMode(queueModes),
+      playbackOrder: _playbackOrder(queueModes),
     );
     await _client.playbackApi.reportPlaybackProgress(report.toJson());
     _armExitBeacon(mediaItem, resolution, position.inMicroseconds * 10);
@@ -107,12 +113,14 @@ class PlaySessionService implements PlayerService {
     StreamResolutionResult resolution,
     Duration position, {
     bool releaseLiveStream = true,
+    bool failed = false,
   }) async {
     PlaybackExitBeacon.disarm();
     final report = _stopReport(
       mediaItem,
       resolution,
       position.inMicroseconds * 10,
+      failed: failed,
     );
     final otherPerson = _startedByAnotherPerson(mediaItem, resolution);
     Object? reportError;
@@ -180,15 +188,33 @@ class PlaySessionService implements PlayerService {
   PlaybackStopReport _stopReport(
     dynamic mediaItem,
     StreamResolutionResult resolution,
-    int positionTicks,
-  ) {
+    int positionTicks, {
+    bool failed = false,
+  }) {
     return PlaybackStopReport(
       itemId: MediaStreamResolver.extractItemId(mediaItem),
       mediaSourceId: resolution.mediaSourceId,
       playSessionId: resolution.playSessionId,
       positionTicks: positionTicks,
+      failed: failed,
     );
   }
+
+  /// Kos TV: the queue's modes as Jellyfin's play state names them, so the
+  /// server plugin knows whether the music was on repeat or shuffled.
+  static String? _repeatMode(PlaybackQueueModes? modes) =>
+      switch (modes?.repeatMode) {
+        null => null,
+        RepeatMode.none => 'RepeatNone',
+        RepeatMode.repeatAll => 'RepeatAll',
+        RepeatMode.repeatOne => 'RepeatOne',
+      };
+
+  static String? _playbackOrder(PlaybackQueueModes? modes) => modes == null
+      ? null
+      : modes.shuffled
+      ? 'Shuffle'
+      : 'Default';
 
   static PlayMethod _toPlayMethod(StreamPlayMethod method) => switch (method) {
     StreamPlayMethod.directPlay => PlayMethod.directPlay,

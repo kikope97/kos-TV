@@ -132,6 +132,7 @@ class _TestService implements PlayerService {
     int? positionTicks,
     int? audioStreamIndex,
     int? subtitleStreamIndex,
+    PlaybackQueueModes? queueModes,
   }) async {
     if (failStart) throw StateError('server unreachable');
   }
@@ -146,6 +147,7 @@ class _TestService implements PlayerService {
     int? subtitleStreamIndex,
     int? volumeLevel,
     bool? isMuted,
+    PlaybackQueueModes? queueModes,
   }) async {}
 
   @override
@@ -154,6 +156,7 @@ class _TestService implements PlayerService {
     StreamResolutionResult resolution,
     Duration position, {
     bool releaseLiveStream = true,
+    bool failed = false,
   }) async {}
 
   @override

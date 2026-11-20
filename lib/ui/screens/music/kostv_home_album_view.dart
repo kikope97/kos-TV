@@ -125,6 +125,7 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
           context,
           itemIds: [album.id],
           serverId: album.serverId,
+          songs: kostvPlaylistSongsOf(album, tracks: _vm.tracks),
         );
       case _AlbumChoice.download:
         final tracks = _vm.tracks;

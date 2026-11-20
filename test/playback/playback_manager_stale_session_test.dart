@@ -254,6 +254,7 @@ class _TestService implements PlayerService {
     int? positionTicks,
     int? audioStreamIndex,
     int? subtitleStreamIndex,
+    PlaybackQueueModes? queueModes,
   }) async {
     events.add('start:${resolution.playSessionId}');
   }
@@ -268,6 +269,7 @@ class _TestService implements PlayerService {
     int? subtitleStreamIndex,
     int? volumeLevel,
     bool? isMuted,
+    PlaybackQueueModes? queueModes,
   }) {
     reportedVolumes.add((volumeLevel, isMuted));
     if (!stallProgress) {
@@ -289,6 +291,7 @@ class _TestService implements PlayerService {
     StreamResolutionResult resolution,
     Duration position, {
     bool releaseLiveStream = true,
+    bool failed = false,
   }) async {
     events.add('stop:${resolution.playSessionId}');
     stoppedResolutions.add(resolution);

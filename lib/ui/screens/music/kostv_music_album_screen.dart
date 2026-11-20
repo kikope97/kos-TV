@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
+import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/services/kostv_music.dart' show kostvMusicSameTitle;
 import '../../../data/services/kostv_music_plugin.dart';
@@ -160,6 +161,18 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     setState(() => _asking = true);
     try {
       final result = await stremfin.createMusicRequest(id);
+      // Kos TV: an album asked for (or joined) tells the server plugin what
+      // the person likes, without waiting for it.
+      if (kostvMusicRequestCounts(result.outcome)) {
+        kostvTellMusicRequest(
+          () => GetIt.instance.isRegistered<MediaServerClient>()
+              ? GetIt.instance<MediaServerClient>()
+              : null,
+          deezerAlbumId: id,
+          album: detail.album.title,
+          artist: detail.album.artist,
+        );
+      }
       if (!mounted) return;
       kostvMusicSay(context, result.message ?? l10n.kostvMusicAskedDone);
       await _load();
