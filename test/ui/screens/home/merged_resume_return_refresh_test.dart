@@ -26,7 +26,6 @@ class _MockMultiServer extends Mock implements MultiServerRepository {}
 
 class _MockSync extends Mock implements PluginSyncService {}
 
-
 const _server = 'http://server.test';
 
 /// Played [minutesAgo] minutes before the newest, so the row's order is fixed.
