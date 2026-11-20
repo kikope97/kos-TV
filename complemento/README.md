@@ -100,6 +100,37 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   en `/Moonfin/Ping` (`kostvFavorites`). Los favoritos que ya lo eran antes de que se
   apuntaran las fechas se anotan una vez como «de antes» (unos minutos después de arrancar el
   servidor) y nunca se fechan, así que valorar uno no lo sube al primer puesto.
+- **Música que aprende de cada persona** (`Jellyfin/backend/Kostv/KostvMusic*.cs`, el plan en
+  `docs/musica-recomendaciones.md`):
+  - **Lo que se escucha:** el complemento apunta cada canción que suena (solo `Audio`), desde
+    cualquier app, con los avisos de «empieza», «avanza» y «termina» de Jellyfin, y los ♥ que se
+    ponen y se quitan a las canciones. De cada escucha: canción, álbum, artistas (ids y nombres),
+    géneros, cuándo (UTC, y día, hora y día de la semana en la hora del servidor), cuánto se
+    oyó y lo que dura, cómo acabó (`completed`: ≥ 90 % o hasta el final; `skipped`: < 30 s o
+    < 50 %; `stopped`: el resto), el aparato (`tv`, `mobile`, `web` u `other`, por el nombre
+    de la app y del aparato) y de dónde venía (`source`, si la app lo dijo). Va en
+    `kostv-musica/<usuario>/AAAA-MM.jsonl` (una línea JSON por escucha o ♥, un archivo por
+    mes) en la carpeta de datos del complemento; se guarda 12 meses (lo anterior se borra a
+    diario y al escribir) y se borra la carpeta de la persona al borrar su usuario. En la misma
+    carpeta, `settings.json` (si aprende) y `discovery.json` (la lista de la semana).
+  - **Rutas** (todas con la sesión de la persona; las tarjetas, como las de Inicio):
+    `GET` y `POST /Moonfin/Kostv/Music/Settings` (`{ "Learn": true, "Listens": 1234, "Since":
+    "…Z" }`; con `{ "Learn": false }` no se apunta nada de esa persona y las mezclas usan
+    solo lo que sabe Jellyfin); `DELETE /Moonfin/Kostv/Music/Listens` (borra sus escuchas, `204`);
+    `POST /Moonfin/Kostv/Music/Context` (`{ "Source": "mix:daily-2", "ItemIds": […] }`: de dónde
+    viene lo que va a sonar, se recuerda 6 horas en memoria; `204`); `GET
+    /Moonfin/Kostv/Music/Mixes` (`{ "Day", "Mixes": [ { "Id": "daily-1", "Genre", "Artists",
+    "Items" } ] }`: hasta 4 «Mix diario» de unas 50 canciones, uno por cada género principal de
+    la persona, mitad de lo que escucha y no salta y mitad de esos artistas sin oír y de
+    artistas parecidos de casa, sin repetir canciones entre mezclas ni el mismo artista seguido;
+    iguales todo el día, que empieza a las 5:00); `GET /Moonfin/Kostv/Music/Discovery` (`{
+    "Week": "2026-W47", "Seeds": [hasta 10 artistas], "Songs": null }`) y `PUT` con `{ "Week",
+    "Songs": […] }` (hasta 30 canciones y 64 KB, solo la semana en curso: `409` si es otra,
+    `413` si pasa de 64 KB; las de semanas pasadas se borran); y `GET
+    /Moonfin/Kostv/Music/Moment` (`{ "Slot": "tarde", "Ready": true, "Items": […] }`: 40
+    canciones para `manana` 6–12, `tarde` 12–20 o `noche` 20–6, un 40 % de lo que escucha a
+    esa hora y el resto parecidas; `Ready: false`, sin `Items`, hasta tener 25 escuchas de esa
+    franja en al menos 5 días de los últimos 60).
 - **El botón Descubrir se sincroniza** como los demás (`showDiscoverButton`), con
   su valor por defecto en la página.
 - **La marca del paso a la ficha de kOS TV se sincroniza** junto al estilo de la
