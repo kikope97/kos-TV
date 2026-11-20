@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using Moonfin.Server.Services;
 
 namespace Moonfin.Server.Kostv;
@@ -25,7 +26,11 @@ public sealed class KostvMusicEvent
     [JsonPropertyName("at")]
     public DateTimeOffset At { get; set; }
 
-    /// <summary>The day it was at home (the server's time zone), yyyy-MM-dd.</summary>
+    /// <summary>
+    /// The day it was at home (<see cref="KostvMusicTimeZone"/>), yyyy-MM-dd. Only for reading the
+    /// file: the engine works the day and hour out of <see cref="At"/>, so lines noted in another
+    /// time zone still count right.
+    /// </summary>
     [JsonPropertyName("day")]
     public string Day { get; set; } = string.Empty;
 
@@ -73,12 +78,22 @@ public sealed class KostvMusicEvent
     [JsonPropertyName("source")]
     public string? Source { get; set; }
 
+    /// <summary>
+    /// A listen from a daily mix: that mix's genre on the day (the mix's id is only its place that
+    /// day), so how each mix goes can be measured later.
+    /// </summary>
+    [JsonPropertyName("mixGenre")]
+    public string? MixGenre { get; set; }
+
     /// <summary>A heart: whether it was put on (true) or taken off (false).</summary>
     [JsonPropertyName("favorite")]
     public bool? Favorite { get; set; }
 
     [JsonIgnore]
     public bool IsListen => Type == ListenType;
+
+    /// <summary>When it was at home, in <paramref name="zone"/>, from <see cref="At"/>.</summary>
+    public DateTimeOffset LocalIn(TimeZoneInfo zone) => TimeZoneInfo.ConvertTime(At, zone);
 
     /// <summary>Fills <see cref="Day"/>, <see cref="Hour"/> and <see cref="Weekday"/> from <see cref="At"/> in <paramref name="zone"/>.</summary>
     public KostvMusicEvent Stamp(DateTimeOffset at, TimeZoneInfo zone)
@@ -90,6 +105,63 @@ public sealed class KostvMusicEvent
         Weekday = local.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)local.DayOfWeek;
         return this;
     }
+}
+
+/// <summary>
+/// kOS TV: the home's time zone for music (the times of day, the music day starting at 5:00 and
+/// the week of «Descubrimiento semanal»): an IANA id set on the plugin's page, Madrid unless
+/// changed. Not the server's own, which in a container is often UTC.
+/// </summary>
+public static class KostvMusicTimeZone
+{
+    public const string DefaultId = "Europe/Madrid";
+
+    private static readonly ConcurrentDictionary<string, TimeZoneInfo?> Known = new(StringComparer.Ordinal);
+
+    // Madrid's rules (CET, and CEST from the last Sunday of March to the last of October), for a
+    // server without the time zone database.
+    private static readonly Lazy<TimeZoneInfo> MadridRules = new(() => TimeZoneInfo.CreateCustomTimeZone(
+        DefaultId,
+        TimeSpan.FromHours(1),
+        DefaultId,
+        "CET",
+        "CEST",
+        [
+            TimeZoneInfo.AdjustmentRule.CreateAdjustmentRule(
+                DateTime.MinValue.Date,
+                DateTime.MaxValue.Date,
+                TimeSpan.FromHours(1),
+                TimeZoneInfo.TransitionTime.CreateFloatingDateRule(new DateTime(1, 1, 1, 2, 0, 0), 3, 5, DayOfWeek.Sunday),
+                TimeZoneInfo.TransitionTime.CreateFloatingDateRule(new DateTime(1, 1, 1, 3, 0, 0), 10, 5, DayOfWeek.Sunday))
+        ]));
+
+    /// <summary>The time zone <paramref name="id"/> names, or null when it names none.</summary>
+    public static TimeZoneInfo? Find(string? id)
+    {
+        var value = id?.Trim();
+        if (string.IsNullOrEmpty(value))
+        {
+            return null;
+        }
+
+        return Known.GetOrAdd(value, name =>
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(name);
+            }
+            catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException or ArgumentException)
+            {
+                return string.Equals(name, DefaultId, StringComparison.Ordinal) ? MadridRules.Value : null;
+            }
+        });
+    }
+
+    /// <summary>The time zone <paramref name="id"/> names; Madrid's when it is empty or names none.</summary>
+    public static TimeZoneInfo Resolve(string? id) => Find(id) ?? Find(DefaultId)!;
+
+    /// <summary>Madrid's rules as built here, without the time zone database (for tests).</summary>
+    internal static TimeZoneInfo Madrid => MadridRules.Value;
 }
 
 /// <summary>kOS TV: what one person's music folder holds: how many listens and since when.</summary>
@@ -118,6 +190,7 @@ public sealed class KostvMusicStore
 
     private const string SettingsFile = "settings.json";
     private const string DiscoveryFile = "discovery.json";
+    private const string DayFile = "today.json";
 
     private static readonly Regex MonthFile = new(@"^(\d{4})-(\d{2})\.jsonl$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
@@ -137,16 +210,39 @@ public sealed class KostvMusicStore
     private readonly ConcurrentDictionary<Guid, bool> _learn = new();
     private readonly ConcurrentDictionary<Guid, KostvMusicSummary> _summaries = new();
     private readonly ConcurrentDictionary<Guid, DateOnly> _trimmedOn = new();
+    private readonly Func<TimeZoneInfo> _zone;
+    private readonly ILogger? _logger;
 
-    public KostvMusicStore(string root, Func<DateTimeOffset>? now = null, TimeZoneInfo? zone = null)
+    // Users deleted since the server started: nothing of theirs is written again, so a song that
+    // was still on its way doesn't make their folder again.
+    private readonly ConcurrentDictionary<Guid, byte> _deleted = new();
+
+    // When each person last deleted their listens: one that started before isn't written after.
+    private readonly ConcurrentDictionary<Guid, DateTimeOffset> _listensDeletedAt = new();
+
+    // The last heart noted per person and song, read from their files the first time it is asked.
+    private readonly ConcurrentDictionary<Guid, Dictionary<Guid, bool>> _hearts = new();
+
+    /// <param name="root">The folder of everyone's music.</param>
+    /// <param name="now">The clock, so tests can move it.</param>
+    /// <param name="zone">The home's time zone, fixed (for tests).</param>
+    /// <param name="zoneOf">The home's time zone as set now (the plugin's setting).</param>
+    /// <param name="logger">Where a file that can't be read is told.</param>
+    public KostvMusicStore(
+        string root,
+        Func<DateTimeOffset>? now = null,
+        TimeZoneInfo? zone = null,
+        Func<TimeZoneInfo>? zoneOf = null,
+        ILogger? logger = null)
     {
         _root = root;
         _now = now ?? (() => DateTimeOffset.UtcNow);
-        Zone = zone ?? TimeZoneInfo.Local;
+        _zone = zoneOf ?? (zone != null ? () => zone : () => KostvMusicTimeZone.Resolve(null));
+        _logger = logger;
     }
 
-    /// <summary>The home's time zone: the server's.</summary>
-    public TimeZoneInfo Zone { get; }
+    /// <summary>The home's time zone (see <see cref="KostvMusicTimeZone"/>).</summary>
+    public TimeZoneInfo Zone => _zone();
 
     /// <summary>Now, as this store tells it (so tests can move it).</summary>
     public DateTimeOffset Now => _now();
@@ -192,7 +288,7 @@ public sealed class KostvMusicStore
     /// </summary>
     public bool Append(Guid userId, KostvMusicEvent entry)
     {
-        if (!Learns(userId))
+        if (_deleted.ContainsKey(userId) || !Learns(userId))
         {
             return false;
         }
@@ -201,8 +297,14 @@ public sealed class KostvMusicStore
         var local = TimeZoneInfo.ConvertTime(entry.At, Zone);
         lock (LockOf(userId))
         {
-            // Turned off while this was on its way.
-            if (!Learns(userId))
+            // Turned off, or the user deleted, while this was on its way.
+            if (_deleted.ContainsKey(userId) || !Learns(userId))
+            {
+                return false;
+            }
+
+            // The person deleted their listens while this one played or was on its way.
+            if (_listensDeletedAt.TryGetValue(userId, out var deletedAt) && entry.At < deletedAt)
             {
                 return false;
             }
@@ -239,8 +341,10 @@ public sealed class KostvMusicStore
                 {
                     lines = File.ReadAllLines(path, Utf8NoBom);
                 }
-                catch (IOException)
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
+                    // Left out, rather than failing the person's music.
+                    _logger?.LogWarning(ex, "kOS TV music: {Path} could not be read", path);
                     continue;
                 }
 
@@ -303,7 +407,9 @@ public sealed class KostvMusicStore
                 TryDelete(path);
             }
 
+            _listensDeletedAt[userId] = _now();
             _summaries.TryRemove(userId, out _);
+            _hearts.TryRemove(userId, out _);
         }
     }
 
@@ -327,9 +433,54 @@ public sealed class KostvMusicStore
             {
             }
 
+            _deleted[userId] = 0;
             _learn.TryRemove(userId, out _);
             _summaries.TryRemove(userId, out _);
             _trimmedOn.TryRemove(userId, out _);
+            _hearts.TryRemove(userId, out _);
+            _listensDeletedAt.TryRemove(userId, out _);
+        }
+    }
+
+    /// <summary>
+    /// Deletes the folders of users not in <paramref name="users"/> (deleted while the plugin was
+    /// off, or written again after): for the daily round. Nothing when no user is given, as the
+    /// server's users couldn't be read then. How many folders went.
+    /// </summary>
+    public int RemoveMissingUsers(IReadOnlyCollection<Guid> users)
+    {
+        if (users.Count == 0 || !Directory.Exists(_root))
+        {
+            return 0;
+        }
+
+        var known = users.ToHashSet();
+        var removed = 0;
+        foreach (var userId in UserFolders())
+        {
+            if (!known.Contains(userId))
+            {
+                DeleteUser(userId);
+                removed++;
+            }
+        }
+
+        return removed;
+    }
+
+    private List<Guid> UserFolders()
+    {
+        try
+        {
+            return Directory.EnumerateDirectories(_root)
+                .Select(folder => Guid.TryParseExact(Path.GetFileName(folder), "N", out var id) ? id : Guid.Empty)
+                .Where(id => id != Guid.Empty)
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "kOS TV music: {Path} could not be read", _root);
+            return [];
         }
     }
 
@@ -354,12 +505,9 @@ public sealed class KostvMusicStore
         }
 
         var removed = 0;
-        foreach (var folder in Directory.EnumerateDirectories(_root))
+        foreach (var userId in UserFolders())
         {
-            if (Guid.TryParseExact(Path.GetFileName(folder), "N", out var userId))
-            {
-                removed += Trim(userId);
-            }
+            removed += Trim(userId);
         }
 
         return removed;
@@ -401,12 +549,102 @@ public sealed class KostvMusicStore
             return [];
         }
 
-        return Directory.EnumerateFiles(folder, "*.jsonl")
-            .Select(path => (Path: path, Match: MonthFile.Match(Path.GetFileName(path))))
-            .Where(f => f.Match.Success)
-            .Select(f => (f.Path, Index: int.Parse(f.Match.Groups[1].Value, CultureInfo.InvariantCulture) * 12 + int.Parse(f.Match.Groups[2].Value, CultureInfo.InvariantCulture) - 1))
-            .OrderBy(f => f.Index)
-            .ToList();
+        try
+        {
+            return Directory.EnumerateFiles(folder, "*.jsonl")
+                .Select(path => (Path: path, Match: MonthFile.Match(Path.GetFileName(path))))
+                .Where(f => f.Match.Success)
+                .Select(f => (f.Path, Index: int.Parse(f.Match.Groups[1].Value, CultureInfo.InvariantCulture) * 12 + int.Parse(f.Match.Groups[2].Value, CultureInfo.InvariantCulture) - 1))
+                .OrderBy(f => f.Index)
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "kOS TV music: {Path} could not be read", folder);
+            return [];
+        }
+    }
+
+    // ---------------------------------------------------------------- hearts
+
+    /// <summary>
+    /// The last heart noted for <paramref name="itemId"/> of <paramref name="userId"/>: on, off,
+    /// or null when none was. Read from their files the first time, so a restart doesn't forget.
+    /// </summary>
+    public bool? HeartOf(Guid userId, Guid itemId)
+    {
+        lock (LockOf(userId))
+        {
+            return HeartsOf(userId).TryGetValue(itemId, out var on) ? on : null;
+        }
+    }
+
+    /// <summary>Remembers that the heart of <paramref name="itemId"/> of <paramref name="userId"/> is <paramref name="favorite"/>.</summary>
+    public void SetHeart(Guid userId, Guid itemId, bool favorite)
+    {
+        lock (LockOf(userId))
+        {
+            HeartsOf(userId)[itemId] = favorite;
+        }
+    }
+
+    private Dictionary<Guid, bool> HeartsOf(Guid userId) => _hearts.GetOrAdd(userId, id =>
+    {
+        var hearts = new Dictionary<Guid, bool>();
+        foreach (var e in Read(id))
+        {
+            if (e.Type == KostvMusicEvent.HeartType && e.Favorite is { } on && Guid.TryParse(e.Item, out var item))
+            {
+                hearts[item] = on;
+            }
+        }
+
+        return hearts;
+    });
+
+    // ---------------------------------------------------------------- the day's music
+
+    /// <summary>What was worked out for <paramref name="userId"/> for the day, as stored, or null.</summary>
+    public string? DayText(Guid userId)
+    {
+        lock (LockOf(userId))
+        {
+            return AtomicFile.ReadWithRecovery(Path.Combine(FolderOf(userId), DayFile), text => text);
+        }
+    }
+
+    /// <summary>Stores what was worked out for <paramref name="userId"/> for the day, over the last.</summary>
+    public bool SetDayText(Guid userId, string json)
+    {
+        lock (LockOf(userId))
+        {
+            if (_deleted.ContainsKey(userId))
+            {
+                return false;
+            }
+
+            try
+            {
+                var folder = FolderOf(userId);
+                Directory.CreateDirectory(folder);
+                AtomicFile.WriteAllText(Path.Combine(folder, DayFile), json);
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger?.LogWarning(ex, "kOS TV music: the day's music could not be stored");
+                return false;
+            }
+        }
+    }
+
+    /// <summary>Forgets what was worked out for <paramref name="userId"/> for the day.</summary>
+    public void ForgetDay(Guid userId)
+    {
+        lock (LockOf(userId))
+        {
+            AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), DayFile));
+        }
     }
 
     internal static string MonthName(int year, int month) =>
@@ -533,7 +771,21 @@ public sealed class KostvMusicContext
 
     private static readonly Regex MixId = new("^mix:[a-z0-9][a-z0-9_-]{0,31}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-    private readonly ConcurrentDictionary<(Guid User, Guid Item), (string Source, DateTimeOffset At)> _sources = new();
+    /// <summary>The most songs kept per person, the latest said.</summary>
+    public const int MaxPerPerson = 2000;
+
+    /// <summary>The most songs kept for everyone, the latest said.</summary>
+    public const int MaxTotal = 20000;
+
+    private static readonly TimeSpan SweepEvery = TimeSpan.FromMinutes(30);
+
+    /// <summary>What was said of a song: where it comes from, the genre of its mix, and when.</summary>
+    private sealed record Said(string Source, string? MixGenre, DateTimeOffset At);
+
+    // Per person and song, all under one lock.
+    private readonly object _sync = new();
+    private readonly Dictionary<Guid, Dictionary<Guid, Said>> _sources = new();
+    private int _count;
     private DateTimeOffset _lastSweep = DateTimeOffset.MinValue;
 
     /// <summary>
@@ -561,37 +813,110 @@ public sealed class KostvMusicContext
         return "other";
     }
 
-    /// <summary>The songs <paramref name="itemIds"/> of <paramref name="userId"/> come from <paramref name="source"/>.</summary>
-    public void Remember(Guid userId, string source, IEnumerable<Guid> itemIds, DateTimeOffset now)
+    /// <summary>
+    /// The songs <paramref name="itemIds"/> of <paramref name="userId"/> come from
+    /// <paramref name="source"/> (a daily mix of <paramref name="mixGenre"/>, when it is one).
+    /// At most <see cref="MaxPerPerson"/> songs are kept per person and <see cref="MaxTotal"/> for
+    /// everyone, the oldest said going first.
+    /// </summary>
+    public void Remember(Guid userId, string source, IEnumerable<Guid> itemIds, DateTimeOffset now, string? mixGenre = null)
     {
-        foreach (var id in itemIds.Where(id => id != Guid.Empty).Distinct().Take(MaxItems))
+        var ids = itemIds.Where(id => id != Guid.Empty).Distinct().Take(MaxItems).ToList();
+        lock (_sync)
         {
-            _sources[(userId, id)] = (source, now);
-        }
-
-        if (now - _lastSweep > TimeSpan.FromMinutes(30))
-        {
-            _lastSweep = now;
-            foreach (var (key, value) in _sources)
+            if (!_sources.TryGetValue(userId, out var said))
             {
-                if (now - value.At > KeptFor)
+                _sources[userId] = said = new Dictionary<Guid, Said>();
+            }
+
+            foreach (var id in ids)
+            {
+                if (!said.ContainsKey(id))
                 {
-                    _sources.TryRemove(key, out _);
+                    _count++;
                 }
+
+                said[id] = new Said(source, mixGenre, now);
+            }
+
+            if (said.Count > MaxPerPerson)
+            {
+                DropOldest(said.Select(kv => (userId, kv.Key, kv.Value.At)), said.Count - MaxPerPerson);
+            }
+
+            if (now - _lastSweep > SweepEvery)
+            {
+                _lastSweep = now;
+                DropWhere(at => now - at > KeptFor);
+            }
+
+            if (_count > MaxTotal)
+            {
+                DropOldest(_sources.SelectMany(user => user.Value.Select(kv => (user.Key, kv.Key, kv.Value.At))), _count - MaxTotal);
             }
         }
     }
 
+    private void DropOldest(IEnumerable<(Guid User, Guid Item, DateTimeOffset At)> entries, int count)
+    {
+        foreach (var (user, item, _) in entries.OrderBy(e => e.At).Take(count).ToList())
+        {
+            Drop(user, item);
+        }
+    }
+
+    private void DropWhere(Func<DateTimeOffset, bool> old)
+    {
+        foreach (var (user, item) in _sources.SelectMany(u => u.Value.Where(kv => old(kv.Value.At)).Select(kv => (u.Key, kv.Key))).ToList())
+        {
+            Drop(user, item);
+        }
+    }
+
+    private void Drop(Guid user, Guid item)
+    {
+        if (_sources.TryGetValue(user, out var said) && said.Remove(item))
+        {
+            _count--;
+            if (said.Count == 0)
+            {
+                _sources.Remove(user);
+            }
+        }
+    }
+
+    private Said? Of(Guid userId, Guid itemId, DateTimeOffset now)
+    {
+        lock (_sync)
+        {
+            return _sources.TryGetValue(userId, out var said) && said.TryGetValue(itemId, out var value) && now - value.At <= KeptFor ? value : null;
+        }
+    }
+
     /// <summary>Where <paramref name="itemId"/> of <paramref name="userId"/> came from, if said within <see cref="KeptFor"/>.</summary>
-    public string? SourceOf(Guid userId, Guid itemId, DateTimeOffset now) =>
-        _sources.TryGetValue((userId, itemId), out var value) && now - value.At <= KeptFor ? value.Source : null;
+    public string? SourceOf(Guid userId, Guid itemId, DateTimeOffset now) => Of(userId, itemId, now)?.Source;
+
+    /// <summary>The genre of the daily mix <paramref name="itemId"/> of <paramref name="userId"/> came from, when it did.</summary>
+    public string? MixGenreOf(Guid userId, Guid itemId, DateTimeOffset now) => Of(userId, itemId, now)?.MixGenre;
+
+    /// <summary>How many songs are kept, for everyone or for <paramref name="userId"/>.</summary>
+    internal int Count(Guid? userId = null)
+    {
+        lock (_sync)
+        {
+            return userId is { } id ? (_sources.TryGetValue(id, out var said) ? said.Count : 0) : _count;
+        }
+    }
 
     /// <summary>Forgets what <paramref name="userId"/> said.</summary>
     public void Forget(Guid userId)
     {
-        foreach (var key in _sources.Keys.Where(k => k.User == userId).ToList())
+        lock (_sync)
         {
-            _sources.TryRemove(key, out _);
+            if (_sources.Remove(userId, out var said))
+            {
+                _count -= said.Count;
+            }
         }
     }
 }

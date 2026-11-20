@@ -60,6 +60,13 @@ public class PluginConfiguration : BasePluginConfiguration, IGamesConfig
     public string? KostvRequestsUrl { get; set; }
 
     /// <summary>
+    /// kOS TV: the household's time zone (an IANA id), for the music worked out per person: the
+    /// times of day, the daily mix changing at 5:00 and the week of «Descubrimiento semanal». The
+    /// server's own is often UTC in a container. Madrid when empty or unknown.
+    /// </summary>
+    public string? KostvMusicTimeZone { get; set; } = Kostv.KostvMusicTimeZone.DefaultId;
+
+    /// <summary>
     /// Keeps the Sonarr and Radarr calendar to server admins.
     /// </summary>
     public bool CalendarAdminsOnly { get; set; }

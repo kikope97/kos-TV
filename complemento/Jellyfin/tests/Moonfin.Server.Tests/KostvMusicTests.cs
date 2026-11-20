@@ -1,5 +1,13 @@
 using System.Text.Json;
+using Jellyfin.Data.Entities;
+using Jellyfin.Data.Enums;
+using Jellyfin.Data.Events.Users;
+using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
+using MediaBrowser.Controller.Library;
+using MediaBrowser.Controller.Session;
+using MediaBrowser.Model.Dto;
+using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moonfin.Server.Kostv;
 using Xunit;
@@ -464,20 +472,20 @@ public sealed class KostvMusicTests : IDisposable
     {
         var songs = Library(genres: 1, artists: 3, played: 10, unplayed: 0).Take(10).ToList();
         // 15:00 at home: afternoon.
-        Assert.True(KostvMusicEngine.MomentReady(SlotListens(songs, days: 5, perDay: 5, hourUtc: 14), "tarde", _now));
-        Assert.False(KostvMusicEngine.MomentReady(SlotListens(songs, days: 5, perDay: 5, hourUtc: 14), "manana", _now));
-        Assert.False(KostvMusicEngine.MomentReady(SlotListens(songs, days: 4, perDay: 7, hourUtc: 14), "tarde", _now));
-        Assert.False(KostvMusicEngine.MomentReady(SlotListens(songs, days: 6, perDay: 4, hourUtc: 14), "tarde", _now));
+        Assert.True(KostvMusicEngine.MomentReady(SlotListens(songs, days: 5, perDay: 5, hourUtc: 14), "tarde", _now, Home));
+        Assert.False(KostvMusicEngine.MomentReady(SlotListens(songs, days: 5, perDay: 5, hourUtc: 14), "manana", _now, Home));
+        Assert.False(KostvMusicEngine.MomentReady(SlotListens(songs, days: 4, perDay: 7, hourUtc: 14), "tarde", _now, Home));
+        Assert.False(KostvMusicEngine.MomentReady(SlotListens(songs, days: 6, perDay: 4, hourUtc: 14), "tarde", _now, Home));
         // Older than 60 days doesn't count.
-        Assert.False(KostvMusicEngine.MomentReady(SlotListens(songs, days: 5, perDay: 5, hourUtc: 14, daysBack: 57), "tarde", _now));
+        Assert.False(KostvMusicEngine.MomentReady(SlotListens(songs, days: 5, perDay: 5, hourUtc: 14, daysBack: 57), "tarde", _now, Home));
         // 18:xx UTC is 19:xx at home, still afternoon; 19:xx UTC is 20:xx, night; 05:xx UTC
         // is 06:xx, morning; 04:xx UTC is 05:xx, still night.
-        Assert.True(KostvMusicEngine.MomentReady(SlotListens(songs, days: 5, perDay: 5, hourUtc: 18), "tarde", _now));
+        Assert.True(KostvMusicEngine.MomentReady(SlotListens(songs, days: 5, perDay: 5, hourUtc: 18), "tarde", _now, Home));
         var night = SlotListens(songs, days: 5, perDay: 5, hourUtc: 19);
-        Assert.True(KostvMusicEngine.MomentReady(night, "noche", _now));
-        Assert.False(KostvMusicEngine.MomentReady(night, "tarde", _now));
-        Assert.True(KostvMusicEngine.MomentReady(SlotListens(songs, days: 5, perDay: 5, hourUtc: 5), "manana", _now));
-        Assert.True(KostvMusicEngine.MomentReady(SlotListens(songs, days: 5, perDay: 5, hourUtc: 4), "noche", _now));
+        Assert.True(KostvMusicEngine.MomentReady(night, "noche", _now, Home));
+        Assert.False(KostvMusicEngine.MomentReady(night, "tarde", _now, Home));
+        Assert.True(KostvMusicEngine.MomentReady(SlotListens(songs, days: 5, perDay: 5, hourUtc: 5), "manana", _now, Home));
+        Assert.True(KostvMusicEngine.MomentReady(SlotListens(songs, days: 5, perDay: 5, hourUtc: 4), "noche", _now, Home));
     }
 
     [Fact]
@@ -489,14 +497,689 @@ public sealed class KostvMusicTests : IDisposable
         var events = SlotListens(mornings, days: 6, perDay: 5, hourUtc: 8);
         var user = Guid.NewGuid();
 
-        var items = KostvMusicEngine.Moment(user, "2026-11-20", "manana", events, tracks, profile, _now);
+        var items = KostvMusicEngine.Moment(user, "2026-11-20", "manana", events, tracks, profile, _now, Home);
         Assert.Equal(KostvMusicEngine.MomentSize, items.Count);
         Assert.Equal(items.Count, items.Distinct().Count());
         Assert.Equal(16, items.Count(id => mornings.Any(t => t.Id == id)));
         var byId = tracks.ToDictionary(t => t.Id);
         // The rest are like them: their artists, then their genre.
         Assert.All(items, id => Assert.Equal("Género 1", byId[id].Genres[0]));
-        Assert.Equal(items, KostvMusicEngine.Moment(user, "2026-11-20", "manana", events, tracks.AsEnumerable().Reverse(), profile, _now));
-        Assert.NotEqual(items, KostvMusicEngine.Moment(user, "2026-11-21", "manana", events, tracks, profile, _now));
+        Assert.Equal(items, KostvMusicEngine.Moment(user, "2026-11-20", "manana", events, tracks.AsEnumerable().Reverse(), profile, _now, Home));
+        Assert.NotEqual(items, KostvMusicEngine.Moment(user, "2026-11-21", "manana", events, tracks, profile, _now, Home));
+    }
+
+    // ---------------------------------------------------------------- the server's events, in any order
+
+    private KostvMusicRecorder NewRecorder(KostvMusicStore store, KostvMusicContext? context = null, ILibraryManager? library = null) =>
+        new(null!, null!, library!, store, context ?? new KostvMusicContext(), NullLogger<KostvMusicRecorder>.Instance);
+
+    private static Audio Song(int seconds = 200) => new() { Id = Guid.NewGuid(), Name = "Canción", RunTimeTicks = TimeSpan.FromSeconds(seconds).Ticks };
+
+    private static SessionInfo Session(Guid user, BaseItem? playing = null) => new(null!, NullLogger.Instance)
+    {
+        Id = "sesion-" + Guid.NewGuid().ToString("N"),
+        UserId = user,
+        Client = "kOS TV para Android TV",
+        DeviceName = "Salón",
+        NowPlayingItem = playing == null ? null : new BaseItemDto { Id = playing.Id }
+    };
+
+    private static long? Ticks(double? seconds) => seconds.HasValue ? TimeSpan.FromSeconds(seconds.Value).Ticks : null;
+
+    private static PlaybackProgressEventArgs Report(SessionInfo session, Audio song, double? at, bool paused = false) =>
+        new() { Item = song, Session = session, PlaybackPositionTicks = Ticks(at), IsPaused = paused };
+
+    private static PlaybackStopEventArgs Stop(SessionInfo session, Audio song, double? at, bool toTheEnd = false) =>
+        new() { Item = song, Session = session, PlaybackPositionTicks = Ticks(at), PlayedToCompletion = toTheEnd };
+
+    private void Play(KostvMusicRecorder recorder, SessionInfo session, Audio song)
+    {
+        session.NowPlayingItem = new BaseItemDto { Id = song.Id };
+        recorder.OnStart(null, Report(session, song, 0));
+    }
+
+    private static List<KostvMusicEvent> ListensOf(KostvMusicStore store, Guid user) => store.Read(user).Where(e => e.IsListen).ToList();
+
+    [Fact]
+    public async Task AReportOfProgressAfterTheStopDoesntNoteTheSongTwice()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var song = Song();
+        var next = Song();
+        var session = Session(user);
+        var start = _now;
+
+        Play(recorder, session, song);
+        _now = start.AddSeconds(100);
+        recorder.OnProgress(null, Report(session, song, 100));
+        _now = start.AddSeconds(150);
+        recorder.OnStopped(null, Stop(session, song, 150));
+        // A report sent before the stop, handled after it (the session still says it plays).
+        _now = start.AddSeconds(151);
+        recorder.OnProgress(null, Report(session, song, 148));
+        _now = start.AddSeconds(152);
+        Play(recorder, session, next);
+        await recorder.Settled();
+
+        var listen = Assert.Single(ListensOf(store, user));
+        Assert.Equal(song.Id.ToString("N"), listen.Item);
+        Assert.Equal(150, listen.Played);
+        Assert.Equal(KostvListenOutcome.Stopped, listen.Outcome);
+    }
+
+    [Fact]
+    public async Task AReportOfProgressBeforeTheStartIsTheSameListen()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var song = Song();
+        var session = Session(user, song);
+        var start = _now;
+
+        // Its start is still on its way when the first report arrives.
+        recorder.OnProgress(null, Report(session, song, 1));
+        _now = start.AddSeconds(0.5);
+        recorder.OnStart(null, Report(session, song, 0));
+        _now = start.AddSeconds(100);
+        recorder.OnProgress(null, Report(session, song, 100));
+        _now = start.AddSeconds(199);
+        recorder.OnStopped(null, Stop(session, song, 199));
+        await recorder.Settled();
+
+        var listen = Assert.Single(ListensOf(store, user));
+        Assert.Equal(KostvListenOutcome.Completed, listen.Outcome);
+    }
+
+    [Fact]
+    public async Task ASongIsNotTakenUpByAReportWhenTheSessionIsntPlayingIt()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var song = Song();
+        var other = Song();
+        var session = Session(user, other);
+
+        recorder.OnProgress(null, Report(session, song, 40));
+        recorder.OnProgress(null, Report(Session(user, song), song, 40, paused: true));
+        Play(recorder, session, other);
+        Play(recorder, session, Song());
+        await recorder.Settled();
+
+        Assert.DoesNotContain(ListensOf(store, user), e => e.Item == song.Id.ToString("N"));
+        Assert.Single(ListensOf(store, user));
+    }
+
+    [Fact]
+    public async Task WhenTheNextSongStartsBeforeTheLastStopsItIsNotedFromWhereItGot()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var song = Song(60);
+        var next = Song();
+        var session = Session(user);
+        var start = _now;
+
+        Play(recorder, session, song);
+        _now = start.AddSeconds(52);
+        recorder.OnProgress(null, Report(session, song, 52));
+        // The next one's start comes first; the last report was 8 seconds behind.
+        _now = start.AddSeconds(60);
+        Play(recorder, session, next);
+        _now = start.AddSeconds(60.2);
+        recorder.OnStopped(null, Stop(session, song, 60));
+        recorder.OnProgress(null, Report(session, song, 60));
+        await recorder.Settled();
+
+        var listen = Assert.Single(ListensOf(store, user));
+        Assert.Equal(60, listen.Played);
+        Assert.Equal(KostvListenOutcome.Completed, listen.Outcome);
+    }
+
+    [Fact]
+    public async Task AStopWithoutPositionIsNotedFromHowLongItPlayed()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var session = Session(user);
+        var start = _now;
+
+        // An app that sends no progress and stops without saying where (the server then says
+        // it played to the end): about the whole song played.
+        var whole = Song(180);
+        Play(recorder, session, whole);
+        _now = start.AddSeconds(170);
+        recorder.OnStopped(null, Stop(session, whole, null, toTheEnd: true));
+
+        // Two minutes of three: stopped, not «skipped, 0 s».
+        var part = Song(180);
+        Play(recorder, session, part);
+        _now = start.AddSeconds(290);
+        recorder.OnStopped(null, Stop(session, part, null, toTheEnd: true));
+
+        // Paused at 1:40 and stopped five minutes later: 1:40, not the time it was paused.
+        var paused = Song(180);
+        Play(recorder, session, paused);
+        _now = start.AddSeconds(390);
+        recorder.OnProgress(null, Report(session, paused, 100, paused: true));
+        _now = start.AddSeconds(690);
+        recorder.OnStopped(null, Stop(session, paused, null, toTheEnd: true));
+        await recorder.Settled();
+
+        var listens = ListensOf(store, user).ToDictionary(e => e.Item);
+        Assert.Equal(KostvListenOutcome.Completed, listens[whole.Id.ToString("N")].Outcome);
+        Assert.Equal(120, listens[part.Id.ToString("N")].Played);
+        Assert.Equal(KostvListenOutcome.Stopped, listens[part.Id.ToString("N")].Outcome);
+        Assert.Equal(100, listens[paused.Id.ToString("N")].Played);
+        Assert.Equal(KostvListenOutcome.Stopped, listens[paused.Id.ToString("N")].Outcome);
+    }
+
+    [Fact]
+    public async Task AListenOnItsWayIsntWrittenAfterTheListensOrTheUserAreDeleted()
+    {
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        var user = Guid.NewGuid();
+        var session = Session(user);
+        var song = Song();
+        var start = _now;
+
+        Play(recorder, session, song);
+        _now = start.AddSeconds(50);
+        store.DeleteListens(user);
+        _now = start.AddSeconds(100);
+        recorder.OnStopped(null, Stop(session, song, 100));
+        await recorder.Settled();
+        Assert.Empty(ListensOf(store, user));
+
+        // One that starts after is kept.
+        var after = Song();
+        Play(recorder, session, after);
+        _now = start.AddSeconds(300);
+        recorder.OnStopped(null, Stop(session, after, 199));
+        await recorder.Settled();
+        Assert.Single(ListensOf(store, user));
+
+        // The user deleted while a song plays: its stop doesn't make their folder again.
+        var last = Song();
+        Play(recorder, session, last);
+        store.DeleteUser(user);
+        recorder.OnStopped(null, Stop(session, last, 150));
+        await recorder.Settled();
+        Assert.False(Directory.Exists(Path.Combine(_root, user.ToString("N"))));
+    }
+
+    [Fact]
+    public async Task AListenFromADailyMixNotesTheMixGenre()
+    {
+        var store = NewStore();
+        var context = new KostvMusicContext();
+        var recorder = NewRecorder(store, context);
+        var user = Guid.NewGuid();
+        var session = Session(user);
+        var song = Song();
+        context.Remember(user, "mix:daily-2", [song.Id], _now, "Rock");
+
+        Play(recorder, session, song);
+        recorder.OnStopped(null, Stop(session, song, 199));
+        await recorder.Settled();
+
+        var listen = Assert.Single(ListensOf(store, user));
+        Assert.Equal("mix:daily-2", listen.Source);
+        Assert.Equal("Rock", listen.MixGenre);
+    }
+
+    // ---------------------------------------------------------------- hearts
+
+    private static UserDataSaveEventArgs Heart(Guid user, Audio song, bool favorite, UserDataSaveReason reason) =>
+        new() { UserId = user, Item = song, UserData = new UserItemData { Key = song.Id.ToString("N"), IsFavorite = favorite }, SaveReason = reason };
+
+    [Fact]
+    public async Task HeartsAreNotNotedWrongOrTwiceAfterARestart()
+    {
+        var user = Guid.NewGuid();
+        var song = Song();
+        var never = Song();
+        var store = NewStore();
+        var recorder = NewRecorder(store);
+        recorder.OnUserDataSaved(null, Heart(user, song, true, UserDataSaveReason.UpdateUserRating));
+        await recorder.Settled();
+
+        // Restarted: what was noted is read back from the person's file.
+        var again = NewStore();
+        var restarted = NewRecorder(again);
+        restarted.OnUserDataSaved(null, Heart(user, song, true, UserDataSaveReason.UpdateUserData));
+        restarted.OnUserDataSaved(null, Heart(user, song, true, UserDataSaveReason.UpdateUserRating));
+        // A rating of a song without a heart, never noted: not a heart taken off.
+        restarted.OnUserDataSaved(null, Heart(user, never, false, UserDataSaveReason.UpdateUserRating));
+        await restarted.Settled();
+        Assert.Single(again.Read(user), e => e.Type == KostvMusicEvent.HeartType);
+
+        restarted.OnUserDataSaved(null, Heart(user, song, false, UserDataSaveReason.UpdateUserRating));
+        // Data saved with a heart that was there before anything was noted, then taken off.
+        var before = Song();
+        restarted.OnUserDataSaved(null, Heart(user, before, true, UserDataSaveReason.UpdateUserData));
+        restarted.OnUserDataSaved(null, Heart(user, before, false, UserDataSaveReason.UpdateUserRating));
+        await restarted.Settled();
+        var hearts = again.Read(user).Where(e => e.Type == KostvMusicEvent.HeartType).ToList();
+        // Written as they arrive, which at the same moment may be in any order.
+        Assert.Equal(
+            new[] { (song.Id, true), (song.Id, false), (before.Id, false) }.OrderBy(h => h.Item1).ThenBy(h => h.Item2),
+            hearts.Select(e => (Guid.Parse(e.Item), e.Favorite!.Value)).OrderBy(h => h.Item1).ThenBy(h => h.Item2));
+    }
+
+    // ---------------------------------------------------------------- artists, where it came from
+
+    [Fact]
+    public void AnArtistNotFoundIsLookedForAgainAfterAnHour()
+    {
+        var queries = 0;
+        var artist = new MusicArtist { Id = Guid.NewGuid(), Name = "Rosalía" };
+        var scanned = false;
+        var library = RecordingHostProxy.Create<ILibraryManager>((method, _) =>
+        {
+            queries++;
+            return method.Name == "GetItemList" ? (scanned ? new List<BaseItem> { artist } : new List<BaseItem>()) : throw new NotSupportedException(method.Name);
+        });
+        var recorder = NewRecorder(NewStore(), library: library);
+
+        Assert.Null(recorder.ArtistIdOf("Rosalía"));
+        scanned = true;
+        Assert.Null(recorder.ArtistIdOf("Rosalía"));
+        Assert.Equal(1, queries);
+        _now = _now.AddHours(1.1);
+        Assert.Equal(artist.Id.ToString("N"), recorder.ArtistIdOf("Rosalía"));
+        _now = _now.AddDays(3);
+        Assert.Equal(artist.Id.ToString("N"), recorder.ArtistIdOf("Rosalía"));
+        Assert.Equal(2, queries);
+    }
+
+    [Fact]
+    public void WhereSongsCameFromIsKeptUpToALimit()
+    {
+        var context = new KostvMusicContext();
+        var ana = Guid.NewGuid();
+        var first = Enumerable.Range(0, 500).Select(_ => Guid.NewGuid()).ToList();
+        context.Remember(ana, "album", first, _now);
+        for (var i = 1; i <= 4; i++)
+        {
+            context.Remember(ana, "search", Enumerable.Range(0, 500).Select(_ => Guid.NewGuid()), _now.AddMinutes(i));
+        }
+
+        // The oldest said go first.
+        Assert.Equal(KostvMusicContext.MaxPerPerson, context.Count(ana));
+        Assert.All(first, id => Assert.Null(context.SourceOf(ana, id, _now.AddMinutes(5))));
+
+        for (var person = 0; person < 10; person++)
+        {
+            var someone = Guid.NewGuid();
+            for (var i = 0; i < 4; i++)
+            {
+                context.Remember(someone, "album", Enumerable.Range(0, 500).Select(_ => Guid.NewGuid()), _now.AddMinutes(10 + person));
+            }
+        }
+
+        Assert.Equal(KostvMusicContext.MaxTotal, context.Count());
+        Assert.Equal(0, context.Count(ana));
+    }
+
+    // ---------------------------------------------------------------- users deleted
+
+    [Fact]
+    public async Task DeletingAUserForgetsTheirMusic()
+    {
+        var store = NewStore();
+        var service = new KostvMusicService(null!, null!, store, NullLogger<KostvMusicService>.Instance);
+        var user = new User("ana", "auth", "reset");
+        Assert.True(store.Append(user.Id, Listen(Guid.NewGuid(), _now)));
+
+        await new KostvMusicOnUserDeleted(store, new KostvMusicContext(), service).OnEvent(new UserDeletedEventArgs(user));
+
+        Assert.False(Directory.Exists(Path.Combine(_root, user.Id.ToString("N"))));
+        Assert.False(store.Append(user.Id, Listen(Guid.NewGuid(), _now)));
+    }
+
+    [Fact]
+    public void TheDailyRoundDropsTheFoldersOfUsersNoLongerThere()
+    {
+        var store = NewStore();
+        var ana = Guid.NewGuid();
+        var gone = Guid.NewGuid();
+        store.Append(ana, Listen(Guid.NewGuid(), _now));
+        store.Append(gone, Listen(Guid.NewGuid(), _now));
+        Directory.CreateDirectory(Path.Combine(_root, "not-a-user"));
+
+        // Without the server's users, nothing goes.
+        Assert.Equal(0, store.RemoveMissingUsers([]));
+        Assert.Equal(1, store.RemoveMissingUsers([ana]));
+        Assert.True(Directory.Exists(Path.Combine(_root, ana.ToString("N"))));
+        Assert.False(Directory.Exists(Path.Combine(_root, gone.ToString("N"))));
+        Assert.True(Directory.Exists(Path.Combine(_root, "not-a-user")));
+    }
+
+    // ---------------------------------------------------------------- the home's time zone
+
+    [Fact]
+    public void TheHomesTimeZoneIsTheSettingAndMadridByDefault()
+    {
+        Assert.Equal(Home.BaseUtcOffset, KostvMusicTimeZone.Resolve(null).BaseUtcOffset);
+        Assert.Equal(Home.BaseUtcOffset, KostvMusicTimeZone.Resolve("Nowhere/Nada").BaseUtcOffset);
+        Assert.Null(KostvMusicTimeZone.Find("Nowhere/Nada"));
+        Assert.Equal(TimeSpan.Zero, KostvMusicTimeZone.Resolve("Atlantic/Canary").GetUtcOffset(new DateTimeOffset(2026, 11, 20, 12, 0, 0, TimeSpan.Zero)));
+
+        // Madrid's own rules, for a server without the time zone database, give its hours all year.
+        for (var at = new DateTimeOffset(2026, 1, 1, 0, 30, 0, TimeSpan.Zero); at.Year == 2026; at = at.AddHours(1))
+        {
+            Assert.Equal(Home.GetUtcOffset(at), KostvMusicTimeZone.Madrid.GetUtcOffset(at));
+        }
+
+        // The store follows the setting as it changes.
+        var zone = TimeZoneInfo.Utc;
+        _now = new DateTimeOffset(2026, 11, 20, 4, 30, 0, TimeSpan.Zero);
+        var service = new KostvMusicService(null!, null!, new KostvMusicStore(_root, () => _now, zoneOf: () => zone), NullLogger<KostvMusicService>.Instance);
+        Assert.Equal("2026-11-19", service.Day);
+        zone = Home;
+        Assert.Equal("2026-11-20", service.Day);
+    }
+
+    [Fact]
+    public void TheTimeOfDayOfAListenIsWorkedOutFromWhenItWas()
+    {
+        var songs = Library(genres: 1, artists: 3, played: 10, unplayed: 0).Take(10).ToList();
+        // Noted on a server in UTC: 05:xx there, 06:xx at home, the morning.
+        var events = SlotListens(songs, days: 5, perDay: 5, hourUtc: 5)
+            .Select(e => new KostvMusicEvent { Item = e.Item, Outcome = e.Outcome, Played = e.Played, Duration = e.Duration }.Stamp(e.At, TimeZoneInfo.Utc))
+            .ToList();
+        Assert.All(events, e => Assert.Equal(5, e.Hour));
+
+        Assert.True(KostvMusicEngine.MomentReady(events, "manana", _now, Home));
+        Assert.False(KostvMusicEngine.MomentReady(events, "noche", _now, Home));
+    }
+
+    // ---------------------------------------------------------------- enough for the time of day
+
+    [Fact]
+    public void SkippedListensDontCountForAMixOfTheMoment()
+    {
+        var songs = Library(genres: 1, artists: 3, played: 10, unplayed: 0).Take(10).ToList();
+        List<KostvMusicEvent> WithSkips(int perDay)
+        {
+            var events = SlotListens(songs, days: 5, perDay: perDay, hourUtc: 14);
+            // One of each day skipped.
+            foreach (var day in events.GroupBy(e => e.Day))
+            {
+                day.First().Outcome = KostvListenOutcome.Skipped;
+            }
+
+            return events;
+        }
+
+        Assert.False(KostvMusicEngine.MomentReady(WithSkips(5), "tarde", _now, Home));
+        Assert.True(KostvMusicEngine.MomentReady(WithSkips(6), "tarde", _now, Home));
+    }
+
+    [Fact]
+    public void ANightPastMidnightIsOneDay()
+    {
+        var songs = Library(genres: 1, artists: 3, played: 10, unplayed: 0).Take(10).ToList();
+        // 22:00 to 00:15 at home (21:00 to 23:15 UTC in winter), every other night.
+        List<KostvMusicEvent> Nights(int nights)
+        {
+            var events = new List<KostvMusicEvent>();
+            for (var n = 0; n < nights; n++)
+            {
+                var night = new DateTimeOffset(2026, 11, 18 - 2 * n, 21, 0, 0, TimeSpan.Zero);
+                for (var i = 0; i < 10; i++)
+                {
+                    events.Add(Listen(songs[i].Id, night.AddMinutes(i * 15)));
+                }
+            }
+
+            return events;
+        }
+
+        var three = Nights(3);
+        Assert.Equal(6, three.Select(e => e.Day).Distinct().Count());
+        Assert.False(KostvMusicEngine.MomentReady(three, "noche", _now, Home));
+        Assert.True(KostvMusicEngine.MomentReady(Nights(5), "noche", _now, Home));
+        Assert.Equal(new DateOnly(2026, 11, 18), KostvMusicEngine.SlotDay(new DateTimeOffset(2026, 11, 18, 23, 30, 0, TimeSpan.Zero), Home));
+    }
+
+    // ---------------------------------------------------------------- the day's music, kept
+
+    /// <summary>A made-up music library that answers the queries the music makes.</summary>
+    private sealed class MusicLibrary
+    {
+        public List<BaseItem> Items { get; } = [];
+
+        public Dictionary<Guid, UserItemData> Data { get; } = [];
+
+        public int Queries { get; private set; }
+
+        public Action? OnQuery { get; set; }
+
+        public static MusicLibrary Made(int genres = 5, int artists = 6, int played = 6, int unplayed = 6)
+        {
+            var library = new MusicLibrary();
+            for (var g = 0; g < genres; g++)
+            {
+                for (var a = 0; a < artists; a++)
+                {
+                    var artist = $"Artista {g}-{a}";
+                    library.Items.Add(new MusicArtist { Id = Guid.NewGuid(), Name = artist });
+                    for (var s = 0; s < played + unplayed; s++)
+                    {
+                        var song = new Audio { Id = Guid.NewGuid(), Name = $"Canción {s}", Artists = [artist], Genres = [$"Género {g}"] };
+                        library.Items.Add(song);
+                        var plays = s < played ? (genres - g) * 3 : 0;
+                        library.Data[song.Id] = new UserItemData
+                        {
+                            Key = song.Id.ToString("N"),
+                            PlayCount = plays,
+                            Played = plays > 0,
+                            LastPlayedDate = plays > 0 ? new DateTime(2026, 11, 10, 0, 0, 0, DateTimeKind.Utc) : null
+                        };
+                    }
+                }
+            }
+
+            return library;
+        }
+
+        private UserItemData DataOf(BaseItem item) =>
+            Data.TryGetValue(item.Id, out var data) ? data : new UserItemData { Key = item.Id.ToString("N") };
+
+        private List<BaseItem> Run(InternalItemsQuery query)
+        {
+            Queries++;
+            OnQuery?.Invoke();
+            if (query.SimilarTo != null)
+            {
+                return [];
+            }
+
+            IEnumerable<BaseItem> found = Items.Where(i => query.IncludeItemTypes.Length == 0 || query.IncludeItemTypes.Contains(i.GetBaseItemKind()));
+            if (query.Name != null)
+            {
+                found = found.Where(i => i.Name == query.Name);
+            }
+
+            if (query.ItemIds.Length > 0)
+            {
+                found = found.Where(i => query.ItemIds.Contains(i.Id));
+            }
+
+            if (query.Genres.Count > 0)
+            {
+                found = found.Where(i => i.Genres.Any(g => query.Genres.Contains(g, StringComparer.OrdinalIgnoreCase)));
+            }
+
+            if (query.ArtistIds.Length > 0)
+            {
+                var names = Items.Where(a => query.ArtistIds.Contains(a.Id)).Select(a => a.Name).ToHashSet();
+                found = found.Where(i => i is Audio song && song.Artists.Any(names.Contains));
+            }
+
+            if (query.IsPlayed is { } played)
+            {
+                found = found.Where(i => DataOf(i).Played == played);
+            }
+
+            if (query.IsFavorite is { } favorite)
+            {
+                found = found.Where(i => DataOf(i).IsFavorite == favorite);
+            }
+
+            return found.Take(query.Limit ?? int.MaxValue).ToList();
+        }
+
+        public ILibraryManager Manager() => RecordingHostProxy.Create<ILibraryManager>((method, args) => method.Name switch
+        {
+            "GetItemList" => Run((InternalItemsQuery)args![0]!),
+            "GetItemIds" => Run((InternalItemsQuery)args![0]!).Select(i => i.Id).ToList(),
+            "GetItemById" when args is [Guid id] => Items.FirstOrDefault(i => i.Id == id),
+            _ => throw new NotSupportedException(method.Name)
+        });
+
+        public IUserDataManager UserData() => RecordingHostProxy.Create<IUserDataManager>((method, args) =>
+            method.Name == "GetUserData" && args is [_, BaseItem item] ? DataOf(item) : null);
+    }
+
+    private KostvMusicService NewService(MusicLibrary library) =>
+        new(library.Manager(), library.UserData(), NewStore(), NullLogger<KostvMusicService>.Instance);
+
+    [Fact]
+    public async Task TheDaysMixesStayTheSameAfterARestart()
+    {
+        var library = MusicLibrary.Made();
+        var userId = Guid.NewGuid();
+        var user = new User("ana", "auth", "reset");
+        var mixes = await NewService(library).MixesAsync(userId, user);
+        Assert.Equal(4, mixes.Count);
+        Assert.All(mixes, m => Assert.Equal(3, m.ArtistIds!.Count));
+        Assert.True(File.Exists(Path.Combine(_root, userId.ToString("N"), "today.json")));
+
+        // Restarted, with more played since: the same mixes, without reading the library.
+        foreach (var data in library.Data.Values.Where(d => d.PlayCount == 0).Take(40))
+        {
+            data.PlayCount = 50;
+            data.Played = true;
+        }
+
+        var queries = library.Queries;
+        var restarted = NewService(library);
+        var again = await restarted.MixesAsync(userId, user);
+        Assert.Equal(mixes.Select(m => (m.Id, m.Genre)), again.Select(m => (m.Id, m.Genre)));
+        Assert.Equal(mixes.Select(m => m.Items), again.Select(m => m.Items));
+        Assert.Equal(queries, library.Queries);
+        Assert.Equal("Género 1", restarted.MixGenreOf(userId, "daily-2"));
+
+        // The next day, worked out again.
+        _now = _now.AddDays(1);
+        await restarted.MixesAsync(userId, user);
+        Assert.True(library.Queries > queries);
+    }
+
+    [Fact]
+    public async Task ForgettingAPersonsMusicDropsWhatWasWorkedOut()
+    {
+        var library = MusicLibrary.Made();
+        var userId = Guid.NewGuid();
+        var user = new User("ana", "auth", "reset");
+        var service = NewService(library);
+        await service.MixesAsync(userId, user);
+        var file = Path.Combine(_root, userId.ToString("N"), "today.json");
+        Assert.True(File.Exists(file));
+
+        // Their listens deleted, or Learn turned off.
+        service.Forget(userId);
+        Assert.False(File.Exists(file));
+        var queries = library.Queries;
+        await service.MixesAsync(userId, user);
+        Assert.True(library.Queries > queries);
+
+        // Forgotten while being worked out: what comes out isn't kept.
+        service.Forget(userId);
+        var forgotten = false;
+        library.OnQuery = () =>
+        {
+            if (!forgotten)
+            {
+                forgotten = true;
+                service.Forget(userId);
+            }
+        };
+        await service.MixesAsync(userId, user);
+        library.OnQuery = null;
+        Assert.False(File.Exists(file));
+        queries = library.Queries;
+        await service.MixesAsync(userId, user);
+        Assert.True(library.Queries > queries);
+        Assert.True(File.Exists(file));
+    }
+
+    [Fact]
+    public async Task TheMixOfTheMomentUsesWhatWasReadForTheMixes()
+    {
+        var library = MusicLibrary.Made();
+        var userId = Guid.NewGuid();
+        var user = new User("ana", "auth", "reset");
+        var service = NewService(library);
+        // Mornings of the genre the person plays most (11:00 at home now is the morning).
+        var mornings = library.Items.OfType<Audio>().Where(s => s.Genres[0] == "Género 0" && library.Data[s.Id].Played).Take(20).ToList();
+        for (var d = 1; d <= 6; d++)
+        {
+            for (var i = 0; i < 5; i++)
+            {
+                var song = mornings[(d * 5 + i) % mornings.Count];
+                var listen = Listen(song.Id, new DateTimeOffset(2026, 11, 20 - d, 8, i * 4, 0, TimeSpan.Zero));
+                listen.Genres = [.. song.Genres];
+                listen.Artists = [.. song.Artists];
+                service.Store.Append(userId, listen);
+            }
+        }
+
+        var before = library.Queries;
+        await service.MixesAsync(userId, user);
+        var forMixes = library.Queries - before;
+        before = library.Queries;
+        var moment = await service.MomentAsync(userId, user);
+        Assert.True(moment.Ready);
+        Assert.Equal(KostvMusicEngine.MomentSize, moment.Items.Count);
+        // Its genre and artists were read already for the mixes.
+        Assert.True(library.Queries - before < forMixes / 2, $"{library.Queries - before} queries, {forMixes} for the mixes");
+
+        // Kept for the day, also after a restart.
+        var restarted = NewService(library);
+        before = library.Queries;
+        Assert.Equal(moment.Items, (await restarted.MomentAsync(userId, user)).Items);
+        Assert.Equal(before, library.Queries);
+    }
+
+    [Fact]
+    public async Task NewSongsComeFromAllOfAGenreInAnOrderOfTheDay()
+    {
+        // One genre and six artists with more songs unplayed than are read of them (3000).
+        var library = MusicLibrary.Made(genres: 1, artists: 6, played: 6, unplayed: 600);
+        var userId = Guid.NewGuid();
+        var user = new User("ana", "auth", "reset");
+        var service = NewService(library);
+        var days = new List<IReadOnlyList<Guid>>();
+        for (var d = 0; d < 3; d++)
+        {
+            days.Add((await service.MixesAsync(userId, user)).Single().Items);
+            _now = _now.AddDays(1);
+        }
+
+        var unplayed = library.Items.OfType<Audio>().Where(s => !library.Data[s.Id].Played).Select(s => s.Id).ToList();
+        Assert.NotEqual(days[0].Where(unplayed.Contains), days[1].Where(unplayed.Contains));
+        // Not only the first ones the library gives: also of those past what is read.
+        var pastTheFirst = unplayed.Skip(3000).ToHashSet();
+        Assert.Contains(days.SelectMany(d => d), pastTheFirst.Contains);
     }
 }

@@ -9,6 +9,7 @@ using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Entities;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Moonfin.Server.Helpers;
 
 namespace Moonfin.Server.Kostv;
 
@@ -140,7 +141,8 @@ public static class KostvDeviceKind
 /// kOS TV: notes each song people listen to, from any app (the server says when a song starts
 /// and stops), and each heart put on or taken off a song, in <see cref="KostvMusicStore"/>.
 /// Only music, only for whoever hasn't turned Learn off. Drops what is past its year daily, and
-/// a person's music when their user is deleted (see <see cref="KostvMusicOnUserDeleted"/>).
+/// a person's music when their user is deleted (see <see cref="KostvMusicOnUserDeleted"/>; the
+/// daily round also drops the folders of users deleted while the plugin was off).
 /// </summary>
 public sealed class KostvMusicRecorder : IHostedService
 {
@@ -149,6 +151,25 @@ public sealed class KostvMusicRecorder : IHostedService
 
     /// <summary>A song this close to its end when it stopped played to the end.</summary>
     internal static readonly TimeSpan EndSlack = TimeSpan.FromSeconds(3);
+
+    /// <summary>
+    /// Stopped without saying where, but the server says it played to the end: it did when it
+    /// has been playing about as long as it lasts, this much short at most (the time it took to
+    /// start, or a pause the app didn't tell).
+    /// </summary>
+    internal static readonly TimeSpan EndHintSlack = TimeSpan.FromSeconds(15);
+
+    /// <summary>A song stopped this recently is not taken up again by a late report of its progress.</summary>
+    internal static readonly TimeSpan ClosedFor = TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    /// A song taken up from a report of its progress this recently is the same listen when its
+    /// start arrives late, not one more.
+    /// </summary>
+    internal static readonly TimeSpan AdoptedFor = TimeSpan.FromSeconds(10);
+
+    /// <summary>An artist not found is looked for again after this (it may not have been scanned yet).</summary>
+    internal static readonly TimeSpan ArtistMissingFor = TimeSpan.FromHours(1);
 
     private static readonly TimeSpan TrimEvery = TimeSpan.FromDays(1);
     private static readonly TimeSpan FirstTrimAfter = TimeSpan.FromMinutes(10);
@@ -159,16 +180,21 @@ public sealed class KostvMusicRecorder : IHostedService
     private readonly KostvMusicStore _store;
     private readonly KostvMusicContext _context;
     private readonly ILogger<KostvMusicRecorder> _logger;
+    private readonly IServiceProvider? _services;
     private readonly CancellationTokenSource _stopping = new();
 
     // The song playing on each session, by session (or device) and song.
     private readonly ConcurrentDictionary<string, Open> _open = new(StringComparer.Ordinal);
 
-    // The last heart noted per person and song, so saving a rating with it doesn't note it again.
-    private readonly ConcurrentDictionary<(Guid User, Guid Item), bool> _hearts = new();
+    // The songs stopped lately, by session and song, and when: a late report of their progress
+    // doesn't open them again.
+    private readonly ConcurrentDictionary<string, DateTimeOffset> _closed = new(StringComparer.Ordinal);
 
-    // Artist names to their ids, read once.
-    private readonly ConcurrentDictionary<string, string?> _artistIds = new(StringComparer.OrdinalIgnoreCase);
+    // Artist names to their ids, and when an id was looked for (one not found is looked for again).
+    private readonly ConcurrentDictionary<string, (string? Id, DateTimeOffset At)> _artistIds = new(StringComparer.OrdinalIgnoreCase);
+
+    // The listens and hearts on their way to the store.
+    private readonly ConcurrentDictionary<Task, byte> _pending = new();
 
     /// <summary>A song that started on a session and hasn't stopped yet.</summary>
     internal sealed class Open
@@ -181,9 +207,26 @@ public sealed class KostvMusicRecorder : IHostedService
 
         public required string Device { get; init; }
 
+        /// <summary>Where it was when it started, in seconds (a song taken up again mid way).</summary>
+        public double StartPosition { get; init; }
+
+        /// <summary>Where it was at the last report of its progress that said so, in seconds.</summary>
         public double? Position { get; set; }
 
+        /// <summary>When it was last heard of.</summary>
         public DateTimeOffset SeenAt { get; set; }
+
+        /// <summary>When this was opened.</summary>
+        public DateTimeOffset OpenedAt { get; init; }
+
+        /// <summary>Whether it was paused at the last report.</summary>
+        public bool Paused { get; set; }
+
+        /// <summary>The seconds it has been playing (not paused) up to <see cref="SeenAt"/>.</summary>
+        public double PlayingSeconds { get; set; }
+
+        /// <summary>Taken up from a report of its progress, before (or without) its start.</summary>
+        public bool Adopted { get; set; }
     }
 
     public KostvMusicRecorder(
@@ -192,7 +235,8 @@ public sealed class KostvMusicRecorder : IHostedService
         ILibraryManager library,
         KostvMusicStore store,
         KostvMusicContext context,
-        ILogger<KostvMusicRecorder> logger)
+        ILogger<KostvMusicRecorder> logger,
+        IServiceProvider? services = null)
     {
         _sessions = sessions;
         _userData = userData;
@@ -200,6 +244,7 @@ public sealed class KostvMusicRecorder : IHostedService
         _store = store;
         _context = context;
         _logger = logger;
+        _services = services;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -231,6 +276,12 @@ public sealed class KostvMusicRecorder : IHostedService
             {
                 try
                 {
+                    var gone = _store.RemoveMissingUsers(ServerUsers());
+                    if (gone > 0)
+                    {
+                        _logger.LogInformation("kOS TV music: the music of {Count} users no longer on the server dropped", gone);
+                    }
+
                     var removed = _store.TrimAll();
                     if (removed > 0)
                     {
@@ -252,6 +303,9 @@ public sealed class KostvMusicRecorder : IHostedService
 
     // ---------------------------------------------------------------- playback
 
+    // Jellyfin says when a song starts and stops off the request (in no fixed order between them)
+    // and its progress on it, so they can arrive out of order: a progress after the stop, a
+    // progress before the start, the next song's start before the last one's stop.
     private static string SessionKey(PlaybackProgressEventArgs e) =>
         e.Session?.Id ?? e.DeviceId ?? e.Session?.DeviceId ?? string.Empty;
 
@@ -269,9 +323,13 @@ public sealed class KostvMusicRecorder : IHostedService
         return first?.GetType().GetProperty("Id")?.GetValue(first) is Guid id ? id : Guid.Empty;
     }
 
-    private static double? Seconds(long? ticks) => ticks is > 0 ? TimeSpan.FromTicks(ticks.Value).TotalSeconds : ticks == 0 ? 0 : null;
+    // A position only when one is said: 0 is where a song starts, and what some apps send when
+    // they don't know, so it tells nothing of how far it got.
+    private static double? Seconds(long? ticks) => ticks is > 0 ? TimeSpan.FromTicks(ticks.Value).TotalSeconds : null;
 
-    private void OnStart(object? sender, PlaybackProgressEventArgs e)
+    private static string ItemKey(string sessionKey, BaseItem item) => sessionKey + "|" + item.Id.ToString("N");
+
+    internal void OnStart(object? sender, PlaybackProgressEventArgs e)
     {
         try
         {
@@ -286,32 +344,54 @@ public sealed class KostvMusicRecorder : IHostedService
                 return;
             }
 
-            var key = SessionKey(e);
+            var session = SessionKey(e);
+            var key = ItemKey(session, item);
             var now = _store.Now;
+            Open? adopted = null;
 
             // The session moved on to another song without saying the last one stopped.
-            foreach (var (openKey, open) in _open.Where(kv => kv.Key.StartsWith(key + "|", StringComparison.Ordinal)).ToList())
+            foreach (var (openKey, open) in _open.Where(kv => kv.Key.StartsWith(session + "|", StringComparison.Ordinal)).ToList())
             {
+                // Its progress was told before its start arrived: the same listen, not one more.
+                if (openKey == key && open.Adopted && now - open.OpenedAt <= AdoptedFor)
+                {
+                    adopted = open;
+                    continue;
+                }
+
                 if (_open.TryRemove(openKey, out _))
                 {
-                    Finish(open, open.Position, now);
+                    Close(openKey, open, null, false, now);
                 }
             }
 
             SweepStale(now);
+            if (adopted != null)
+            {
+                lock (adopted)
+                {
+                    adopted.Adopted = false;
+                }
+
+                return;
+            }
+
             if (!_store.Learns(userId))
             {
                 return;
             }
 
-            _open[key + "|" + item.Id.ToString("N")] = new Open
+            _closed.TryRemove(key, out _);
+            _open[key] = new Open
             {
                 UserId = userId,
                 Item = item,
                 StartedAt = now,
                 Device = KostvDeviceKind.Of(e.ClientName ?? e.Session?.Client, e.DeviceName ?? e.Session?.DeviceName),
-                Position = Seconds(e.PlaybackPositionTicks),
-                SeenAt = now
+                StartPosition = Seconds(e.PlaybackPositionTicks) ?? 0,
+                SeenAt = now,
+                OpenedAt = now,
+                Paused = e.IsPaused
             };
         }
         catch (Exception ex)
@@ -320,7 +400,7 @@ public sealed class KostvMusicRecorder : IHostedService
         }
     }
 
-    private void OnProgress(object? sender, PlaybackProgressEventArgs e)
+    internal void OnProgress(object? sender, PlaybackProgressEventArgs e)
     {
         try
         {
@@ -329,32 +409,46 @@ public sealed class KostvMusicRecorder : IHostedService
                 return;
             }
 
-            var key = SessionKey(e) + "|" + item.Id.ToString("N");
+            var key = ItemKey(SessionKey(e), item);
             var now = _store.Now;
             if (_open.TryGetValue(key, out var open))
             {
-                open.Position = Seconds(e.PlaybackPositionTicks) ?? open.Position;
-                open.SeenAt = now;
+                Touch(open, now, e.IsPaused, Seconds(e.PlaybackPositionTicks));
                 return;
             }
 
-            // Already playing when the server started: noted from where it is now.
+            // Stopped a moment ago: a report that arrived late, not the song again.
+            if (_closed.TryGetValue(key, out var closedAt) && now - closedAt <= ClosedFor)
+            {
+                return;
+            }
+
+            // Already playing when the server started, or its start not here yet: taken up from
+            // where it is, but only while the session is playing it.
+            if (e.IsPaused || e.Session?.NowPlayingItem?.Id != item.Id)
+            {
+                return;
+            }
+
             var userId = UserOf(e);
             if (userId == Guid.Empty || !_store.Learns(userId))
             {
                 return;
             }
 
-            var position = Seconds(e.PlaybackPositionTicks) ?? 0;
-            _open[key] = new Open
+            var position = Seconds(e.PlaybackPositionTicks);
+            _open.TryAdd(key, new Open
             {
                 UserId = userId,
                 Item = item,
-                StartedAt = now - TimeSpan.FromSeconds(position),
+                StartedAt = now - TimeSpan.FromSeconds(position ?? 0),
                 Device = KostvDeviceKind.Of(e.ClientName ?? e.Session?.Client, e.DeviceName ?? e.Session?.DeviceName),
+                StartPosition = position ?? 0,
                 Position = position,
-                SeenAt = now
-            };
+                SeenAt = now,
+                OpenedAt = now,
+                Adopted = true
+            });
         }
         catch (Exception ex)
         {
@@ -362,7 +456,7 @@ public sealed class KostvMusicRecorder : IHostedService
         }
     }
 
-    private void OnStopped(object? sender, PlaybackStopEventArgs e)
+    internal void OnStopped(object? sender, PlaybackStopEventArgs e)
     {
         try
         {
@@ -371,14 +465,39 @@ public sealed class KostvMusicRecorder : IHostedService
                 return;
             }
 
-            if (_open.TryRemove(SessionKey(e) + "|" + item.Id.ToString("N"), out var open))
+            var key = ItemKey(SessionKey(e), item);
+            var now = _store.Now;
+            if (_open.TryRemove(key, out var open))
             {
-                Finish(open, Seconds(e.PlaybackPositionTicks) ?? open.Position, _store.Now);
+                Close(key, open, Seconds(e.PlaybackPositionTicks), e.PlayedToCompletion, now);
+            }
+            else
+            {
+                _closed[key] = now;
             }
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "kOS TV music: noting a song that stopped failed");
+        }
+    }
+
+    /// <summary>What a report of its progress says of <paramref name="open"/>.</summary>
+    private static void Touch(Open open, DateTimeOffset now, bool paused, double? position)
+    {
+        lock (open)
+        {
+            if (!open.Paused)
+            {
+                open.PlayingSeconds += Math.Max(0, (now - open.SeenAt).TotalSeconds);
+            }
+
+            open.SeenAt = now;
+            open.Paused = paused;
+            if (position.HasValue)
+            {
+                open.Position = position;
+            }
         }
     }
 
@@ -391,41 +510,101 @@ public sealed class KostvMusicRecorder : IHostedService
                 _open.TryRemove(key, out _);
             }
         }
+
+        foreach (var (key, at) in _closed)
+        {
+            if (now - at > ClosedFor)
+            {
+                _closed.TryRemove(key, out _);
+            }
+        }
     }
 
-    /// <summary>Notes the listen of <paramref name="open"/>, which stopped at <paramref name="position"/> seconds.</summary>
-    private void Finish(Open open, double? position, DateTimeOffset now)
+    private void Close(string key, Open open, double? position, bool playedToCompletion, DateTimeOffset now)
     {
-        var entry = ListenOf(open, position, now, _context.SourceOf(open.UserId, open.Item.Id, now));
+        _closed[key] = now;
+        Finish(open, position, playedToCompletion, now);
+    }
+
+    /// <summary>Notes the listen of <paramref name="open"/>, which stopped at <paramref name="position"/> seconds, if said.</summary>
+    private void Finish(Open open, double? position, bool playedToCompletion, DateTimeOffset now)
+    {
+        var entry = ListenOf(
+            open,
+            position,
+            now,
+            _context.SourceOf(open.UserId, open.Item.Id, now),
+            playedToCompletion,
+            _context.MixGenreOf(open.UserId, open.Item.Id, now));
         // Off this thread: reading the artists asks the library.
-        _ = Task.Run(() =>
+        Later(() =>
         {
-            try
-            {
-                Describe(entry, open.Item);
-                _store.Append(open.UserId, entry);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "kOS TV music: noting a listen failed");
-            }
+            Describe(entry, open.Item);
+            _store.Append(open.UserId, entry);
         });
     }
 
+    private void Later(Action work)
+    {
+        var task = Task.Run(() =>
+        {
+            try
+            {
+                work();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "kOS TV music: noting a listen or a heart failed");
+            }
+        });
+        _pending[task] = 0;
+        task.ContinueWith(done => _pending.TryRemove(done, out _), TaskScheduler.Default);
+    }
+
+    /// <summary>When what is on its way to the store has got there (for tests).</summary>
+    internal Task Settled() => Task.WhenAll(_pending.Keys.ToList());
+
     /// <summary>
-    /// The listen of <paramref name="open"/> stopped at <paramref name="position"/> seconds (or,
-    /// unsaid, as long as it has been playing), without what the library says of the song.
+    /// The listen of <paramref name="open"/>, without what the library says of the song. How far
+    /// it got: where it stopped (<paramref name="position"/>) when the app said; else where the
+    /// last report of its progress put it, plus the time since unless paused; else how long it
+    /// has been playing. Without the position, the server saying it played to the end
+    /// (<paramref name="playedToCompletion"/>) counts when that time is about as long as the song.
     /// </summary>
-    internal KostvMusicEvent ListenOf(Open open, double? position, DateTimeOffset now, string? source)
+    internal KostvMusicEvent ListenOf(
+        Open open,
+        double? position,
+        DateTimeOffset now,
+        string? source,
+        bool playedToCompletion = false,
+        string? mixGenre = null)
     {
         double? duration = open.Item.RunTimeTicks is > 0 ? TimeSpan.FromTicks(open.Item.RunTimeTicks.Value).TotalSeconds : null;
-        var played = position ?? Math.Max(0, (now - open.StartedAt).TotalSeconds);
+        double played;
+        bool reachedEnd;
+        if (position is { } stoppedAt)
+        {
+            played = stoppedAt;
+            reachedEnd = duration.HasValue && stoppedAt >= duration.Value - EndSlack.TotalSeconds;
+        }
+        else
+        {
+            lock (open)
+            {
+                var running = open.Paused ? 0 : Math.Max(0, (now - open.SeenAt).TotalSeconds);
+                played = open.Position is { } last ? last + running : open.StartPosition + open.PlayingSeconds + running;
+            }
+
+            reachedEnd = duration is { } length &&
+                (played >= length - EndSlack.TotalSeconds || (playedToCompletion && played >= length - EndHintSlack.TotalSeconds));
+        }
+
+        played = Math.Max(0, played);
         if (duration.HasValue)
         {
             played = Math.Min(played, duration.Value);
         }
 
-        var reachedEnd = position.HasValue && duration.HasValue && position.Value >= duration.Value - EndSlack.TotalSeconds;
         return new KostvMusicEvent
         {
             Type = KostvMusicEvent.ListenType,
@@ -434,7 +613,8 @@ public sealed class KostvMusicRecorder : IHostedService
             Duration = duration.HasValue ? (int)Math.Round(duration.Value) : null,
             Outcome = KostvListenOutcome.Classify(played, duration, reachedEnd),
             Device = open.Device,
-            Source = source
+            Source = source,
+            MixGenre = source != null && source.StartsWith("mix:", StringComparison.Ordinal) ? mixGenre : null
         }.Stamp(open.StartedAt, _store.Zone);
     }
 
@@ -456,29 +636,71 @@ public sealed class KostvMusicRecorder : IHostedService
         entry.Genres = genres.Count > 0 ? genres : null;
     }
 
-    private string? ArtistIdOf(string name) => _artistIds.GetOrAdd(name, n =>
+    /// <summary>The id of the artist <paramref name="name"/>; one not found is looked for again after <see cref="ArtistMissingFor"/>.</summary>
+    internal string? ArtistIdOf(string name)
     {
+        var now = _store.Now;
+        if (_artistIds.TryGetValue(name, out var known) && (known.Id != null || now - known.At < ArtistMissingFor))
+        {
+            return known.Id;
+        }
+
+        string? id = null;
         try
         {
             // Asked by name, not GetArtist, which makes the artist when it isn't there.
-            return _library.GetItemList(new InternalItemsQuery
+            id = _library.GetItemList(new InternalItemsQuery
             {
                 IncludeItemTypes = [BaseItemKind.MusicArtist],
-                Name = n,
+                Name = name,
                 Recursive = true,
                 Limit = 1,
                 EnableTotalRecordCount = false
             }).FirstOrDefault()?.Id.ToString("N");
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            _logger.LogDebug(ex, "kOS TV music: an artist could not be read");
         }
-    });
+
+        _artistIds[name] = (id, now);
+        return id;
+    }
+
+    /// <summary>The ids of the server's users, or none when any of them can't be read.</summary>
+    private IReadOnlyCollection<Guid> ServerUsers()
+    {
+        try
+        {
+            if (_services == null || UserReflection.AllUsers(_services) is not { } users)
+            {
+                return [];
+            }
+
+            var ids = new List<Guid>();
+            foreach (var user in users)
+            {
+                if (user?.GetType().GetProperty("Id")?.GetValue(user) is not Guid id || id == Guid.Empty)
+                {
+                    // Without everyone, a folder could be taken for a deleted user's.
+                    return [];
+                }
+
+                ids.Add(id);
+            }
+
+            return ids;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "kOS TV music: the server's users could not be read");
+            return [];
+        }
+    }
 
     // ---------------------------------------------------------------- hearts
 
-    private void OnUserDataSaved(object? sender, UserDataSaveEventArgs e)
+    internal void OnUserDataSaved(object? sender, UserDataSaveEventArgs e)
     {
         try
         {
@@ -495,16 +717,18 @@ public sealed class KostvMusicRecorder : IHostedService
             }
 
             var favorite = e.UserData.IsFavorite;
-            var key = (e.UserId, item.Id);
-            if (_hearts.TryGetValue(key, out var had) ? had == favorite : !favorite && e.SaveReason == UserDataSaveReason.UpdateUserData)
+            // The last heart noted, also from before a restart (read from the person's files).
+            var had = _store.HeartOf(e.UserId, item.Id);
+            if (had != favorite)
             {
-                // The same as last noted, or data saved for a song that never had a heart.
-                _hearts[key] = favorite;
-                return;
+                _store.SetHeart(e.UserId, item.Id, favorite);
             }
 
-            _hearts[key] = favorite;
-            if (!_store.Learns(e.UserId))
+            // Never noted before: only a heart put on is told apart. A save without one is of
+            // something else (a rating, the person's data), not a heart taken off; and data saved
+            // with one on is a heart put on before, not now.
+            var changed = had.HasValue ? had.Value != favorite : favorite && e.SaveReason == UserDataSaveReason.UpdateUserRating;
+            if (!changed || !_store.Learns(e.UserId))
             {
                 return;
             }
@@ -515,17 +739,11 @@ public sealed class KostvMusicRecorder : IHostedService
                 Item = item.Id.ToString("N"),
                 Favorite = favorite
             }.Stamp(_store.Now, _store.Zone);
-            _ = Task.Run(() =>
+            var userId = e.UserId;
+            Later(() =>
             {
-                try
-                {
-                    Describe(entry, item);
-                    _store.Append(e.UserId, entry);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "kOS TV music: noting a heart failed");
-                }
+                Describe(entry, item);
+                _store.Append(userId, entry);
             });
         }
         catch (Exception ex)

@@ -121,6 +121,8 @@ public class ItemCardDtoMapper
             // Kos TV: an episode seldom has a rating of its own; the series', apart, so an app
             // can apply its own blocked ratings to it without taking it for the episode's.
             SeriesOfficialRating = series?.OfficialRating,
+            // Kos TV: a song's album by name too, as a stock item carries it (null for the rest).
+            Album = (item as Audio)?.Album,
             AlbumId = album?.Id,
             AlbumPrimaryImageTag = TagOf(album, ImageType.Primary),
             AlbumArtist = (item as IHasAlbumArtist)?.AlbumArtists?.FirstOrDefault(),
