@@ -1,6 +1,6 @@
 # API de Stremfin para la app de Jellyfin de casa
 
-> Versión de la API: **v1** · Stremfin 1.91.0 · documento generado el 13/11/2026
+> Versión de la API: **v1** · Stremfin 1.93.0 · documento generado el 20/11/2026
 >
 > Dirección base: **`https://stremfin.ejemplo.com/api/v1`**
 
@@ -198,7 +198,7 @@ Los de validación añaden `fields` con el detalle de cada campo:
 - **300 llamadas por minuto** por usuario de Jellyfin. Pasado eso, `429 too_many_requests` con `Retry-After` (segundos).
 - **120 búsquedas por minuto** (`/search`, `/discover`, `/people/{id}`, `/music/search`, `/music/songs`, `/music/artists`), dentro de las 300, con su propia cuenta: buscar mientras se escribe no gasta las demás.
 - **60 por minuto** de las que más cuestan (`/series/{id}`, `/movies/{id}/availability`, `/upcoming`, `/music/artists/{id}`, `/music/artists/releases`, `/music/albums/{id}`, `/music/songs/{id}`, `/music/charts/{id}`), también dentro de las 300 y con su propia cuenta.
-- **10 recomendaciones por minuto** (`/music/recommendations`, desde 1.91.0), con su propia cuenta: cada lista nueva de artistas cuesta muchas consultas a Deezer. La respuesta se guarda una hora: pídela al abrir la pantalla, no en bucle.
+- **10 recomendaciones por minuto** (`/music/recommendations`, desde 1.91.0, y `/music/radio`, desde 1.93.0, que comparten la cuenta), con su propia cuenta: cada lista nueva de artistas cuesta muchas consultas a Deezer. La respuesta se guarda una hora: pídela al abrir la pantalla, no en bucle.
 - **30 por minuto** para pedir, retirar y avisar de problemas (`POST /requests`, `DELETE /requests/{id}`, `POST /problems`), con su propia cuenta.
 - Los límites son **por minuto**: no se acumulan. Si llegas a uno, en menos de un minuto (lo dice `Retry-After`) vuelves a tener todo.
 - Para buscar mientras se escribe, espera ~400 ms sin teclear antes de llamar y descarta la respuesta de una búsqueda vieja si llega después de la nueva: menos llamadas y resultados que no saltan.
@@ -208,7 +208,7 @@ Los de validación añaden `fields` con el detalle de cada campo:
   - Como mucho `access.daily_limit` (20) peticiones nuevas **en 24 horas** por persona (contadas desde la primera), aunque se retiren.
   - Al pasarse, `POST /requests` responde `429` con `outcome: "limit"`, el motivo en `message` y `limit`: `pending` (esperando respuesta: se libera cuando el administrador conteste o retires una) o `daily` (con `Retry-After`: cuándo se libera).
 
-Las listas de tops y las búsquedas (también las de música) se guardan en caché en el servidor (de minutos a una hora), y la disponibilidad de una película 10 minutos: llamar más a menudo no da datos más frescos. Lo mismo las recomendaciones de música (una hora) y los discos de cada artista (6 horas).
+Las listas de tops y las búsquedas (también las de música) se guardan en caché en el servidor (de minutos a una hora), y la disponibilidad de una película 10 minutos: llamar más a menudo no da datos más frescos. Lo mismo las recomendaciones de música y la radio (una hora) y los discos de cada artista (6 horas).
 
 ---
 
@@ -396,7 +396,7 @@ Lo devuelven `/requests`, `/requests/{id}` y `POST /requests`.
 
 ### 7.6 Álbum
 
-Lo devuelven `/music/search`, `/music/new`, `/music/artists/{id}`, `/music/albums/{id}`, las listas de álbumes de `/music/charts/{id}`, `/music/releases`, `/music/requested`, `/music/artists/releases`, `/music/recommendations` y, dentro de una canción, `/music/songs/{id}` y las listas de canciones.
+Lo devuelven `/music/search`, `/music/new`, `/music/artists/{id}`, `/music/albums/{id}`, las listas de álbumes de `/music/charts/{id}`, `/music/releases`, `/music/requested`, `/music/artists/releases`, `/music/recommendations` y, dentro de una canción, `/music/songs/{id}`, las listas de canciones y `/music/radio`.
 
 ```json
 {
@@ -444,7 +444,7 @@ Lo devuelven `/music/search`, `/music/new`, `/music/artists/{id}`, `/music/album
 
 ### 7.7 Canción
 
-Desde 1.84.0. Lo devuelven `/music/search` (`songs`), `/music/songs`, `/music/songs/{id}`, `top_songs` de un artista y `songs` de `/music/recommendations`.
+Desde 1.84.0. Lo devuelven `/music/search` (`songs`), `/music/songs`, `/music/songs/{id}`, `top_songs` de un artista, `songs` de `/music/recommendations` y (desde 1.93.0, con `album` como Álbum entero) `songs` de `/music/radio`.
 
 ```json
 {
@@ -497,6 +497,7 @@ Todas empiezan por `https://stremfin.ejemplo.com/api/v1` y llevan el token. Las 
 | GET 🔒 | `/music/requested` | Lo más pedido en casa |
 | GET 🔒 | `/music/artists/releases` | Lo nuevo y lo anunciado de los artistas que tú digas |
 | GET 🔒 | `/music/recommendations` | «Para ti»: discos de artistas parecidos a los que escuchas |
+| GET 🔒 | `/music/radio` | «Descubrimiento semanal»: canciones de la radio de los artistas que escuchas |
 | GET 🔒 | `/music/artists` | Buscar artistas |
 | GET 🔒 | `/music/artists/{deezer_id}` | Un artista: sus discos, sus canciones más escuchadas y artistas parecidos |
 | GET 🔒 | `/music/albums/{deezer_id}` | Un álbum con sus canciones |
@@ -545,7 +546,7 @@ Authorization: Bearer <token>
     "music": true,
     "platforms": ["netflix", "disney", "prime"]
   },
-  "server": { "name": "Stremfin", "version": "1.91.0", "api_version": 1 }
+  "server": { "name": "Stremfin", "version": "1.93.0", "api_version": 1 }
 }
 ```
 
@@ -1173,7 +1174,7 @@ Lo que ha pasado con tus peticiones y tus avisos de problemas, lo más nuevo pri
 | `started` | Tu petición está en marcha (alguien con peticiones directas la pidió o se unió a la tuya) |
 | `rejected` | No la ha aceptado, o (desde 1.87.0) ha cancelado una que ya estaba aceptada: `message` dice cuál («…no ha aceptado tu petición de…» / «…ha cancelado tu petición de…») y el motivo |
 | `waiting` | Aceptada, pero aún no ha salido o no hay una buena versión: te avisa cuando esté |
-| `progress` | Una serie a medias: unos episodios ya están y otros en revisión |
+| `progress` | Una serie a medias: unos episodios ya están y otros en revisión; o (desde 1.93.0) un álbum que está tardando más de lo normal |
 | `available` | Ya está en Jellyfin |
 | `problem_fixed` | Ya hay una versión nueva de algo de lo que avisaste |
 
@@ -1539,6 +1540,49 @@ Desde 1.91.0. **«Para ti»**: discos (y algunas canciones) de artistas **pareci
 - Si Deezer no responde para nada, `503 source_unavailable`. Cuenta en su propio límite: **10 por minuto** ([6](#6-límites)).
 - Los nombres que mandas solo se usan para buscar en Deezer; Stremfin no los guarda con tu usuario ni los escribe en sus registros.
 
+### 8.34 `GET /music/radio`
+
+Desde 1.93.0. **«Descubrimiento semanal»**: canciones de la radio de Deezer de los artistas que escucha esa persona. Cada radio trae canciones de ese artista y de otros parecidos (unas pocas de cada uno), y cambia cada vez que Deezer la da.
+
+| Parámetro | Obligatorio | Valores |
+|---|---|---|
+| `artists` | sí, si no hay `artist_ids` | Nombres de artistas separados por comas, hasta 10. Se buscan en Deezer como en [8.33](#833-get-musicrecommendations): vale el que se llama **exactamente** así (sin mirar tildes ni mayúsculas) |
+| `artist_ids` | sí, si no hay `artists` | Ids de Deezer separados por comas. Mezclados con `artists`, hasta 10 en total; más → `422 invalid` |
+| `only` | no | `missing` (**por defecto**: lo que no está en Jellyfin), `all`, `available` |
+| `exclude_seed_artists` | no | `false` (por defecto) o `true`: sin las canciones de los propios artistas de la llamada (solo descubrir) |
+| `limit` | no | 1–100 (por defecto 50) |
+
+```json
+{
+  "seeds": [ { "name": "Bad Bunny", "deezer_id": "10583405" }, { "name": "Rosalía", "deezer_id": "4795231" }, { "name": "Nadie", "deezer_id": null } ],
+  "only": "missing",
+  "exclude_seed_artists": false,
+  "songs": [
+    {
+      "deezer_id": "3135556", "title": "…", "artist": "…", "artist_deezer_id": "27", "duration": 224, "preview": "https://…/….mp3", "explicit": false,
+      "album": { Álbum…, "contains": "…", "rank": null },
+      "in_jellyfin": false, "in_album": null, "jellyfin_id": null, "album_jellyfin_id": null,
+      "reason": "Porque escuchas a Bad Bunny y Rosalía", "because": ["Bad Bunny", "Rosalía"]
+    }
+  ],
+  "skipped": ["Nadie"],
+  "failed": []
+}
+```
+
+| Campo | Notas |
+|---|---|
+| `seeds` | Los artistas de la llamada, en su orden, con su `deezer_id` (o `null` si Deezer no tiene ninguno que se llame así), como en [8.33](#833-get-musicrecommendations) |
+| `songs` | Canciones (7.7) con `reason` («Porque escuchas a X», «… a X y Y») y `because` (los artistas de `seeds` en cuya radio salió, en el orden de la llamada). Aquí `album` es **el Álbum entero** (7.6, con `library`, `request`, `download` y `can_request`, más `contains`: la canción, y `rank: null`), como en las listas de canciones ([8.29](#829-get-musicchartsid)): lo que pedir. `album.tracks` viene `null` y `album.kind` es `album` aunque sea un sencillo (Deezer no lo dice en la radio): la ficha ([8.12](#812-get-musicalbumsdeezer_id)) lo dice, y pedir un sencillo pide su álbum ([8.15](#815-post-requests)). `null` si Deezer no sitúa la canción en ningún disco |
+| `skipped` | Los nombres o ids que Deezer no conoce |
+| `failed` | Los nombres o ids por los que Deezer no respondió ahora mismo (su radio, o buscarlo): la respuesta trae lo demás |
+
+- **Cómo se mezcla**: una canción de la radio de cada artista por turnos (la primera de cada uno, luego la segunda…), cada canción una sola vez (si sale en varias radios, con todos en `because`) y **como mucho 3 canciones del mismo artista**. Con `exclude_seed_artists=true`, fuera las de los artistas de `seeds`. Después se aplican `only` y `limit`.
+- **Cambia cada semana, igual en el día**: la radio de cada artista se guarda un día en el servidor (el mismo día da las mismas canciones; otro día, otras), y la lista entera una hora por cada conjunto de artistas. Para una lista «de la semana», pídela una vez a la semana y guárdala en la app. `library`, `request`, `download` e `in_jellyfin` sí están siempre al día.
+- Una consulta a Deezer por artista como mucho (más la de buscar cada nombre, que se guarda un día).
+- Si Deezer no responde para nada, `503 source_unavailable`. Cuenta en el mismo límite que las recomendaciones: **10 por minuto** entre las dos ([6](#6-límites)).
+- Los nombres que mandas solo se usan para buscar en Deezer; Stremfin no los guarda con tu usuario ni los escribe en sus registros.
+
 ---
 
 ## 9. Estados, uno a uno
@@ -1564,7 +1608,18 @@ Una serie aceptada puede llegar por partes: la petición sigue `approved` mientr
 | `downloading` | En cola · Descargando · Comprobando… | En descargas: `phase` dice en qué punto |
 | `attention` | En revisión, o «En revisión · se sigue intentando solo» | La descarga necesita que el administrador elija otro enlace. Si fue porque el archivo no estaba listo en el servicio de descargas, Stremfin lo sigue intentando solo: lo dice `label` (desde 1.90.2, «En revisión · se sigue intentando solo») y lo detalla `recheck`. En una serie, `label` lo dice cuando todos sus episodios en revisión están así |
 
-En música, `state` es `accepted` (aceptada, aún sin mandar a la descarga), `downloading` (mandada a la descarga: en su cola o bajando), `importing` (descargada: entrando en la biblioteca) o `attention` (falló la descarga: el administrador lo verá). Los campos de `progress` de un álbum son `state`, `label`, `phase`, `percent`, `track_errors` y `sent_at`, como en [9.5](#95-download-de-un-álbum-de-camino-a-jellyfin).
+En música, `state` es `accepted` (aceptada, aún sin mandar a la descarga), `downloading` (mandada a la descarga: en su cola o bajando), `importing` (descargada: entrando en la biblioteca) o `attention` (el administrador lo está mirando). Desde 1.92.0, `attention` de un álbum lleva una de estas etiquetas:
+
+| `label` | `phase` | Qué es |
+|---|---|---|
+| Falló la descarga: el administrador lo está mirando | `failed` | El servicio de descarga no pudo bajarlo |
+| En revisión: no ha llegado | `failed` | Se mandó hace horas y ya no está en la cola del servicio, o se descargó y no ha entrado en la biblioteca |
+| En revisión: aún no se ha podido pedir | `failed` | Desde 1.93.0. Aceptado hace un día y aún no se ha podido mandar a la descarga |
+| Descargado: falta revisarlo | `importing` | Está en la carpeta de entrada, pero el administrador tiene que revisarlo antes de importarlo (incompleto, choca con lo que ya tiene o no se reconoce) |
+| Descargado: falta importarlo | `importing` | Desde 1.93.0. Está en la carpeta de entrada y aún no se ha importado |
+| Importado: Jellyfin aún no lo enseña | `importing` | Desde 1.93.0. Ya se importó, pero Jellyfin no lo enseña un día después (puede que con otro nombre). No se cancela solo |
+
+Ese estado se guarda: no cambia aunque el servicio olvide el álbum. Si el administrador lo vuelve a pedir, vuelve a `downloading`; si lo importa, a `importing` y luego `completed`. Desde 1.93.0, antes de pasar a revisión Stremfin lo pide otra vez solo una vez, y al pasar a revisión llega el aviso `progress` «… está tardando más de lo normal; el administrador lo está mirando.» (una vez). Si nadie hace nada en unos días (3 por defecto, se cambia en el panel; desde que el administrador lo supo), la petición se cancela sola: `status` pasa a `rejected` con `cancelled: true` (como si la cancelara el administrador) y llega el aviso `rejected` «No se ha podido conseguir «…». Puedes volver a pedirlo.». Si después llega a Jellyfin, pasa a `completed` y llega el aviso `available` de siempre. Un álbum pedido que llega con canciones de menos se importa igualmente; el aviso `available` lo dice («Llegó con 2 canciones de menos…»). Los campos de `progress` de un álbum son `state`, `label`, `phase`, `percent`, `track_errors` y `sent_at`, como en [9.5](#95-download-de-un-álbum-de-camino-a-jellyfin).
 
 **Campos de `progress`** (película y serie; vienen siempre, `null` cuando no aplican):
 
@@ -1634,7 +1689,7 @@ El camino de un álbum: se pide → el administrador lo acepta (o se acepta solo
 | `sent_at` | Cuándo se mandó a la descarga |
 | `arrived_at` | Solo en `download` de un álbum (7.6): cuándo se vio en la biblioteca, si ya está (la petición se cierra en unos minutos) |
 
-Las fases salen de lo que el servicio dice de su cola (se mira como mucho cada pocos segundos). Si el servicio no responde, se ve `sent` hasta que el álbum llega. Un álbum que lleva mucho en `sent` puede haberse quedado atascado: es cosa del administrador.
+Las fases salen de lo que el servicio dice de su cola (se mira como mucho cada pocos segundos). Si el servicio no responde, se ve `sent` hasta que el álbum llega. Un álbum que lleva mucho en `sent` puede haberse quedado atascado: en una petición, a las 6 horas sin estar en la cola del servicio (o 2 horas después de verse descargado sin llegar) pasa a `attention` con «En revisión: no ha llegado» ([9.2](#92-progressstate-de-una-petición-aceptada)) y el administrador lo mira.
 
 ---
 
@@ -1700,6 +1755,7 @@ Las fases salen de lo que el servicio dice de su cola (se mira como mucho cada p
 - «De tus artistas» → `GET /music/releases` (con una etiqueta «Próximamente» si `upcoming`). «Lo más pedido en casa» → `GET /music/requested`.
 - **Reproducir lo que ya está en casa** (1.91.0): un álbum con `library.jellyfin_id` lleva un botón «Reproducir» que abre ese `Id` en el reproductor de Jellyfin; una canción (en el buscador, en `top_songs`, en las listas o en la ficha de un álbum) con `jellyfin_id` se reproduce directamente, y `album_jellyfin_id` abre su álbum. Sin id, el botón es «Pedir el álbum» como siempre.
 - **«Para ti»** (1.91.0): saca de Jellyfin los artistas que más escucha esa persona (por ejemplo, `/Users/{userId}/Items?IncludeItemTypes=Audio&SortBy=PlayCount&SortOrder=Descending`, o sus artistas favoritos) y llama a `GET /music/recommendations?artists=A,B,C` con hasta 10 nombres. Cada tarjeta enseña `reason` debajo («Porque escuchas a Bad Bunny»). Con `only=missing` (por defecto) solo sale lo que no tiene. Guarda la respuesta un rato: el servidor la guarda una hora.
+- **«Descubrimiento semanal»** (1.93.0): con los mismos artistas que «Para ti», `GET /music/radio?artists=A,B,C` (o `artist_ids`) da canciones de su radio de Deezer, mezcladas y con `reason` debajo de cada una. Una fila de canciones con botón de escucha (`preview`, o «Reproducir» con `jellyfin_id`) y, al pulsar, la ficha de su álbum (`album.deezer_id`) con «Pedir el álbum» si `album.can_request`. Para que sea «de la semana», pídela una vez a la semana (por ejemplo el lunes) y guárdala en la app: el mismo día el servidor da la misma; otro día, otra. Con `exclude_seed_artists=true`, solo artistas nuevos para esa persona.
 - **«Novedades de tus artistas»** (1.91.0): con los mismos artistas pasados a ids de Deezer (`seeds[].deezer_id` de la llamada anterior, o `GET /music/artists?q=…`), `GET /music/artists/releases?ids=…` da lo que acaban de sacar y lo anunciado (`upcoming`), sin depender de los artistas que sigue la casa.
 - **Listas de otro país** (1.91.0): `GET /music/charts?country=MX` y `GET /music/charts/{id}?country=MX`; por defecto, España. Un selector de país en la pantalla de listas, con `ES` elegido.
 - Cada álbum: `library.in_jellyfin` → «En Jellyfin»; `library.song_in_album` → «Ya la tienes en {álbum}»; `download` → su `label` con barra si hay `percent`; `request` → «Pedido» (o «Pedido por ti»).
@@ -1804,6 +1860,14 @@ interface StremfinApi {
         @Query("only") only: String? = null,              // por defecto "missing"
         @Query("limit") limit: Int? = null,
     ): Recommendations
+    // 1.93.0: «Descubrimiento semanal».
+    @GET("music/radio") suspend fun musicRadio(
+        @Query("artists") artists: String? = null,        // "Bad Bunny,Rosalía", hasta 10
+        @Query("artist_ids") artistIds: String? = null,   // o ids de Deezer
+        @Query("only") only: String? = null,              // por defecto "missing"
+        @Query("exclude_seed_artists") excludeSeedArtists: Boolean? = null,
+        @Query("limit") limit: Int? = null,               // 1–100, por defecto 50
+    ): Radio
     @GET("music/artists/{id}") suspend fun musicArtist(@Path("id") deezerId: String, @Query("kind") kind: String? = null, @Query("only") only: String? = null): ArtistPage
     @GET("music/albums/{id}") suspend fun musicAlbum(@Path("id") deezerId: String): AlbumPage
     @GET("requests") suspend fun requests(
@@ -1924,6 +1988,30 @@ interface StremfinApi {
     val genres: List<String> = emptyList(),
     val items: List<Album>,                    // Album.reason y Album.because
     val songs: List<MusicSong> = emptyList(),
+    val skipped: List<String> = emptyList(),
+    val failed: List<String> = emptyList(),
+)
+// «Descubrimiento semanal» (1.93.0): como MusicSong, pero `album` es el Álbum entero (lo que pedir).
+@Serializable data class RadioSong(
+    @SerialName("deezer_id") val deezerId: String,
+    val title: String, val artist: String,
+    @SerialName("artist_deezer_id") val artistDeezerId: String? = null,
+    val duration: Int? = null,
+    val preview: String? = null,
+    val explicit: Boolean = false,
+    val album: Album? = null,
+    @SerialName("in_jellyfin") val inJellyfin: Boolean = false,
+    @SerialName("in_album") val inAlbum: String? = null,
+    @SerialName("jellyfin_id") val jellyfinId: String? = null,
+    @SerialName("album_jellyfin_id") val albumJellyfinId: String? = null,
+    val reason: String,
+    val because: List<String> = emptyList(),
+)
+@Serializable data class Radio(
+    val seeds: List<Seed>,
+    val only: String,
+    @SerialName("exclude_seed_artists") val excludeSeedArtists: Boolean = false,
+    val songs: List<RadioSong>,
     val skipped: List<String> = emptyList(),
     val failed: List<String> = emptyList(),
 )
@@ -2291,6 +2379,7 @@ curl -s -H "$AUTH" http://localhost:8000/api/v1/music/releases
 curl -s -H "$AUTH" http://localhost:8000/api/v1/music/requested
 curl -s -H "$AUTH" "http://localhost:8000/api/v1/music/artists/releases?ids=27&days=365"
 curl -s -G -H "$AUTH" --data-urlencode "artists=Los Picos" "http://localhost:8000/api/v1/music/recommendations?only=all"
+curl -s -G -H "$AUTH" --data-urlencode "artists=Los Picos" "http://localhost:8000/api/v1/music/radio?only=all&exclude_seed_artists=true"
 curl -s -H "$AUTH" "http://localhost:8000/api/v1/music/charts?country=MX"
 curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
      -d '{"type":"movie","tmdb_id":920}' http://localhost:8000/api/v1/requests
@@ -2310,7 +2399,7 @@ curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
 curl -i -X OPTIONS http://localhost:8000/api/v1/requests -H "Origin: https://tv.ejemplo.com" -H "Access-Control-Request-Method: POST"
 ```
 
-El servidor falso no tiene las listas de Apple: `/music/charts/{id}` las lee de Apple de verdad (hace falta Internet; sin ella, `503 source_unavailable`). Tampoco tiene canciones de Deezer: `/music/songs` y `songs` vienen vacíos, y `top_songs` y `related` de un artista también (por eso `/music/recommendations` viene vacío: no hay artistas parecidos). Tampoco tiene todo lo de TMDB (parecidos, géneros, explorar, tráiler o calificaciones pueden venir vacíos o dar `503 source_unavailable`): para eso, prueba contra un Stremfin real.
+El servidor falso no tiene las listas de Apple: `/music/charts/{id}` las lee de Apple de verdad (hace falta Internet; sin ella, `503 source_unavailable`). Tampoco tiene canciones de Deezer: `/music/songs` y `songs` vienen vacíos, y `top_songs` y `related` de un artista también (por eso `/music/recommendations` viene vacío: no hay artistas parecidos; y `/music/radio` da `503 source_unavailable` o viene vacío: no tiene radios). Tampoco tiene todo lo de TMDB (parecidos, géneros, explorar, tráiler o calificaciones pueden venir vacíos o dar `503 source_unavailable`): para eso, prueba contra un Stremfin real.
 
 ---
 
@@ -2355,3 +2444,5 @@ El servidor falso no tiene las listas de Apple: `/music/charts/{id}` las lee de 
 | 1.90.1 | v1 | **Nuevo**: `recheck` en el avance de una descarga (en `progress`, en cada episodio de `episodes` y en `download` de la ficha de película): cuando está «En revisión» porque el archivo no estaba listo en el servicio de descargas, Stremfin lo sigue intentando solo; dice hasta cuándo, la siguiente mirada y un texto para enseñar. `null` en lo demás. Nada de lo anterior cambia. |
 | 1.90.2 | v1 | Solo textos, sin campos nuevos. **Cambia**: `recheck.text` ya no nombra el servicio de descargas («Se sigue intentando solo cada 2 h · quedan 2 días») y cuenta días enteros (con 47 h, «queda 1 día»; antes redondeaba hacia arriba); con las descargas en pausa dice «En pausa: se sigue intentando solo al reanudar…». `label` de una descarga en revisión que Stremfin sigue intentando sola es «En revisión · se sigue intentando solo» (`state` y `phase` siguen siendo `attention`), también en el `progress` de una serie cuando todos sus episodios en revisión están así. |
 | 1.91.0 | v1 | Todo es **añadido**: ningún campo cambia de nombre, de tipo ni de valores. **Nuevo**: `library.jellyfin_id` en cada álbum (7.6) y `jellyfin_id` y `album_jellyfin_id` en cada canción (7.7), en las canciones de las listas y en las de la ficha de un álbum, para reproducir lo que ya está en Jellyfin (`null` si no está); `GET /music/artists/releases` (lo nuevo y lo anunciado de hasta 20 artistas que diga la app); `GET /music/recommendations` («Para ti»: discos y canciones de artistas parecidos a los que escuchas, con `reason` y `because`; su propio límite de 10 por minuto); `country` en `GET /music/charts` y `GET /music/charts/{id}` (listas de México, Estados Unidos, Argentina… además de España, que sigue siendo lo de por defecto). |
+| 1.92.0 | v1 | Solo textos y casos, **sin campos ni valores nuevos**. **Cambia**: un álbum pedido que se atasca (falla en el servicio, no llega en unas horas o se queda por revisar en la carpeta de entrada) se queda en `state: "attention"` con su `label` («Falló la descarga: el administrador lo está mirando», «En revisión: no ha llegado», «Descargado: falta revisarlo»; ver 9.2) aunque el servicio lo olvide, en vez de volver a `downloading`/`sent`; a los 3 días sin que nadie haga nada se cancela (`rejected`, `cancelled: true`, aviso «No se ha podido conseguir…»). Un álbum que llega con canciones de menos lo dice en el aviso `available`. |
+| 1.93.0 | v1 | Todo es **añadido**: ningún campo cambia de nombre, de tipo ni de valores. **Nuevo**: `GET /music/radio` («Descubrimiento semanal»: canciones de la radio de Deezer de hasta 10 artistas, mezcladas, con `reason`, `because` y el Álbum que pedir; comparte el límite de 10 por minuto con `/music/recommendations`). **Cambia** (solo textos y casos de las peticiones de música): antes de pasar a revisión se pide otra vez sola una vez; etiquetas nuevas de `attention` («En revisión: aún no se ha podido pedir», «Descargado: falta importarlo», «Importado: Jellyfin aún no lo enseña»; ver 9.2); aviso `progress` «…está tardando más de lo normal…» al pasar a revisión; el aviso de cancelada sola añade «Puedes volver a pedirlo.»; los plazos se cambian en el panel, y una cancelada sola que llega después pasa a `completed` con su aviso `available`. |
