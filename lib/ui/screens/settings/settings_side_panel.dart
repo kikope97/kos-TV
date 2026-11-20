@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:get_it/get_it.dart';
+import 'package:intl/intl.dart' show DateFormat;
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:path_provider/path_provider.dart';
@@ -15,6 +16,7 @@ import 'package:server_core/server_core.dart' hide ImageType;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/services/installed_apps_service.dart';
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../data/repositories/poster_badge_repository.dart';
 import '../../../data/services/achievements_service.dart';
@@ -157,6 +159,7 @@ part 'panel/automation_queue_screen.dart';
 part 'panel/advanced_options_screen.dart';
 part 'panel/syncplay_settings_screen.dart';
 part 'panel/settings_panel_tiles.dart';
+part 'panel/kostv_music_learn_section.dart';
 
 /// The Navigation Bar screen on its own, which the panel otherwise only opens
 /// from inside its private navigator.

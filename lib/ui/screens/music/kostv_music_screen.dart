@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
+import 'package:playback_core/playback_core.dart' show PlaybackManager;
 import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/kostv_music.dart';
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
@@ -16,6 +18,8 @@ import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
+import '../../widgets/music/kostv_music_menu.dart';
+import '../../widgets/music/kostv_now_playing.dart';
 import '../../widgets/music/music_navigation.dart';
 import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
@@ -73,6 +77,14 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   List<AggregatedItem> _newAtHome = const [];
   KostvMusicTaste _taste = const KostvMusicTaste();
   ({String name, List<StremfinAlbum> albums})? _moreOf;
+
+  /// Kos TV: what the server plugin works out from what the person listens
+  /// to: their daily mixes, the mix of the time of day and the week's
+  /// discovery. Null while (or when) the plugin doesn't answer: the page
+  /// then shows what it showed before them.
+  KostvDailyMixes? _dailyMixes;
+  KostvMusicMoment? _moment;
+  List<StremfinSong>? _discovery;
   List<StremfinAlbum> _requested = const [];
   List<StremfinAlbum> _releases = const [];
   bool _loading = true;
@@ -203,6 +215,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       part(() async => _playlists = await _music.playlists()),
       part(() async => _newAtHome = await _music.newAlbums()),
       part(() async => _taste = await _tasteLoad),
+      _loadPluginRows(),
     ]);
     final access = await _allowedStremfin();
     final stremfin = _stremfin = access.service;
@@ -243,7 +256,112 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     _mexico = _unitedStates = null;
     _forYou = null;
     _moreOf = null;
+    _discovery = null;
     _yourNews = _requested = _releases = const [];
+  }
+
+  // Kos TV: the notes the plugin's rows are kept under on the device, with
+  // the requests service's answers.
+  static const _mixesNote = 'daily-mixes';
+  static const _momentNote = 'moment';
+  static const _discoveryNote = 'discovery';
+
+  KostvMusicPlugin get _plugin => KostvMusicPlugin.instance;
+
+  /// Kos TV: the daily mixes and the mix of the time of day, from the
+  /// server plugin: first what was kept on the device last time, then its
+  /// answer now, which replaces it. Without the plugin's routes the page
+  /// stays as before («Tus mezclas»).
+  Future<void> _loadPluginRows() async {
+    final client = _client;
+    final kept = _rememberedStremfin();
+    if (kept != null) {
+      unawaited(() async {
+        try {
+          final mixes = KostvDailyMixes.fromJson(
+            await kept.rememberedMusicNote(_mixesNote),
+            client.baseUrl,
+          );
+          final moment = KostvMusicMoment.fromJson(
+            await kept.rememberedMusicNote(_momentNote),
+            client.baseUrl,
+          );
+          if (!mounted) return;
+          if (mixes != null && !_fresh.contains(_mixesNote)) {
+            _dailyMixes = mixes;
+          }
+          // Another time of day's mix isn't this one.
+          if (moment != null &&
+              moment.slot == kostvMusicSlotAt(DateTime.now()) &&
+              !_fresh.contains(_momentNote)) {
+            _moment = moment;
+          }
+          _refresh();
+        } catch (_) {}
+      }());
+    }
+    await Future.wait([
+      () async {
+        final mixes = await _plugin.mixes(client);
+        _fresh.add(_mixesNote);
+        if (!mounted) return;
+        _dailyMixes = mixes;
+        if (mixes != null) kept?.keepMusicNote(_mixesNote, mixes.toJson());
+        _refresh();
+      }(),
+      () async {
+        final moment = await _plugin.moment(client);
+        _fresh.add(_momentNote);
+        if (!mounted) return;
+        _moment = moment;
+        if (moment != null) kept?.keepMusicNote(_momentNote, moment.toJson());
+        _refresh();
+      }(),
+    ]);
+  }
+
+  /// Kos TV: the week's discovery: the songs the plugin kept for this week
+  /// or, the first time this week, those the requests service recommends
+  /// for the plugin's artists, picked the same on every device and kept in
+  /// the plugin. Null when the plugin has none to give (the page then shows
+  /// «Canciones para ti»).
+  Future<List<StremfinSong>?> _weeklyDiscovery(StremfinService stremfin) async {
+    final client = _client;
+    List<StremfinSong>? songs;
+    // A second go only when the week turned while it was picked (the
+    // plugin answers which one it is now).
+    for (var attempt = 0; attempt < 2; attempt++) {
+      final found = await _plugin.discovery(client);
+      if (found == null) return null;
+      final week = found.week ?? kostvIsoWeek(DateTime.now());
+      songs = found.songs;
+      if (songs != null) break;
+      if (found.seeds.isEmpty) return null;
+      // Kept an hour by the service (and here): asked once a week.
+      final recommended = await stremfin.musicRecommendations(
+        found.seeds.take(10).toList(),
+      );
+      songs = kostvWeeklyPick(
+        recommended.songs,
+        user: client.userId ?? '',
+        week: week,
+      );
+      if (songs.isEmpty) break;
+      final kept = await _plugin.keepDiscovery(client, week, songs);
+      if (kept.week == null) break;
+    }
+    if (songs == null) return null;
+    stremfin.keepMusicNote(_discoveryNote, [
+      for (final song in songs) kostvStremfinSongJson(song),
+    ]);
+    return songs;
+  }
+
+  /// Kos TV: what was kept of the week's discovery on the device.
+  Future<List<StremfinSong>?> _keptDiscovery(StremfinService stremfin) async {
+    final raw = await stremfin.rememberedMusicNote(_discoveryNote);
+    if (raw is! List) return null;
+    return [for (final song in raw) ?StremfinSong.fromJson(song)];
   }
 
   /// The service's parts, now or as it answered last time ([remembered]).
@@ -304,6 +422,13 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       part('releases', () async {
         final found = await stremfin.musicReleases(remembered: remembered);
         return () => _releases = found;
+      }),
+      part(_discoveryNote, () async {
+        final found = remembered
+            ? await _keptDiscovery(stremfin)
+            : await _weeklyDiscovery(stremfin);
+        if (remembered && found == null) return () {};
+        return () => _discovery = found;
       }),
       () async {
         // What was asked last time, so the rows that go with the person's
@@ -538,7 +663,46 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         .mix(artistId)
         .catchError((Object _) => <AggregatedItem>[]);
     if (!mounted || songs.isEmpty) return;
-    await playMusicTracks(context, songs);
+    await playMusicTracks(context, songs, source: KostvMusicSource.radio);
+  });
+
+  /// Kos TV: a daily mix's menu: play it, next or at the end of the queue.
+  Future<void> _dailyMixMenu(
+    KostvDailyMix mix,
+    String title,
+  ) => kostvMusicOnce(() async {
+    final l10n = AppLocalizations.of(context);
+    final choice = await showKostvMusicMenu<int>(
+      context,
+      title: title,
+      subtitle: mix.genre,
+      entries: [
+        KostvMenuEntry(0, Icons.play_arrow_rounded, l10n.play),
+        KostvMenuEntry(1, Icons.playlist_play_rounded, l10n.kostvMusicPlayNext),
+        KostvMenuEntry(2, Icons.queue_music_rounded, l10n.kostvMusicPlayLast),
+      ],
+    );
+    if (choice == null || !mounted) return;
+    final source = KostvMusicSource.mix(mix.id);
+    // Music sounding (an audiobook's queue isn't one to add songs to).
+    final musicPlaying = KostvNowPlaying.instance.item?.type == 'Audio';
+    if (choice == 0 || !musicPlaying) {
+      await playMusicTracks(context, mix.items, source: source);
+      return;
+    }
+    final queue = GetIt.instance<PlaybackManager>().queueService;
+    kostvTellMusicSource(() => _client, source, mix.items);
+    if (choice == 1) {
+      // Each one right after the song sounding: the last first, so they
+      // end up in the mix's order.
+      for (final song in mix.items.reversed) {
+        queue.insertNext(song);
+      }
+      kostvMusicSay(context, l10n.kostvMusicMixAddedNext);
+    } else {
+      queue.addItems(mix.items);
+      kostvMusicSay(context, l10n.kostvMusicMixAddedLast);
+    }
   });
 
   // ------------------------------------------------------------------ build
@@ -810,11 +974,32 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       'recent',
       _recentShelf(context, insets, firstNode('recent', _recent.isNotEmpty)),
     );
+    // Kos TV: what the plugin works out from what the person listens to
+    // replaces the rows that did its job before, only when it answers.
+    final plugin = kostvMusicPluginRows(
+      mixes: _dailyMixes,
+      discovery: _discovery,
+      moment: _moment,
+    );
+    // The mix of the time of day right under what was played lately: both
+    // are about what to put on now, before the rows that stay the same all
+    // day.
+    if (plugin.moment) {
+      add('moment', _momentShelf(context, insets, firstNode('moment', true)));
+    }
     add('favorites', _favoritesShelf(context, insets));
     add('playlists', _playlistsShelf(context, insets));
+    // The same section either way, so the page doesn't jump when the daily
+    // mixes take the place of «Tus mezclas».
     add(
       'mixes',
-      _mixShelf(context, insets, firstNode('mixes', _taste.artists.isNotEmpty)),
+      plugin.dailyMixes
+          ? _dailyMixShelf(context, insets, firstNode('mixes', true))
+          : _mixShelf(
+              context,
+              insets,
+              firstNode('mixes', _taste.artists.isNotEmpty),
+            ),
     );
     // «Para ti»: a row for each «Porque escuchas a …», then its songs.
     final forYou = _forYou;
@@ -835,6 +1020,26 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           ),
         );
       }
+    }
+    // Kos TV: «Descubrimiento semanal» in the place of «Canciones para ti»
+    // when the plugin gives it; the «Porque escuchas a …» rows stay.
+    if (plugin.discovery) {
+      add(
+        'foryou-songs',
+        _chartSongs(
+          context,
+          null,
+          l10n.kostvMusicDiscovery,
+          l10n.kostvMusicDiscoveryWhy,
+          insets,
+          null,
+          songs: _discovery,
+          ranked: false,
+          source: KostvMusicSource.discovery,
+          fresh: true,
+        ),
+      );
+    } else if (forYou != null) {
       add(
         'foryou-songs',
         _chartSongs(
@@ -1022,8 +1227,12 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                         atHome: true,
                         onTap: () => unawaited(
                           kostvMusicOnce(
-                            () =>
-                                playMusicTracks(context, songs, startIndex: i),
+                            () => playMusicTracks(
+                              context,
+                              songs,
+                              startIndex: i,
+                              source: KostvMusicSource.favorites,
+                            ),
                           ),
                         ),
                         onLongPress: () => unawaited(
@@ -1086,9 +1295,40 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     FocusNode? firstNode, {
     List<StremfinSong>? songs,
     bool ranked = true,
+    String source = KostvMusicSource.charts,
+    bool fresh = false,
   }) {
     final list = songs ?? page?.songs ?? const <StremfinSong>[];
-    return _songColumns(context, list, title, why, insets, firstNode, ranked);
+    return _songColumns(
+      context,
+      list,
+      title,
+      why,
+      insets,
+      firstNode,
+      ranked,
+      source,
+      fresh,
+    );
+  }
+
+  /// Kos TV: a song of the week's discovery, which may have been picked
+  /// days ago: what the service says of it now (whether it is at home, a
+  /// preview that hasn't expired), then as a chart's.
+  Future<void> _openFresh(StremfinSong song, String source) async {
+    final stremfin = _stremfin;
+    final id = song.deezerId;
+    var now = song;
+    if (stremfin != null &&
+        id != null &&
+        !song.inJellyfin &&
+        song.jellyfinId == null) {
+      try {
+        now = (await stremfin.musicSong(id)).song;
+      } catch (_) {}
+    }
+    if (!mounted) return;
+    await openKostvMusicSong(context, now, source: source);
   }
 
   Widget? _songColumns(
@@ -1099,6 +1339,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     EdgeInsets insets,
     FocusNode? firstNode,
     bool ranked,
+    String source,
+    bool fresh,
   ) {
     if (songs.isEmpty) return null;
     const perColumn = 4;
@@ -1143,8 +1385,15 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                         badge: songs[i].album == null
                             ? KostvMusicBadge.none
                             : kostvMusicBadgeOf(songs[i].album!),
-                        onTap: () =>
-                            unawaited(openKostvMusicSong(context, songs[i])),
+                        onTap: () => unawaited(
+                          fresh
+                              ? _openFresh(songs[i], source)
+                              : openKostvMusicSong(
+                                  context,
+                                  songs[i],
+                                  source: source,
+                                ),
+                        ),
                         onLongPress: () => unawaited(
                           showKostvMusicSongMenu(context, song: songs[i]),
                         ),
@@ -1267,6 +1516,154 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
             ),
             onTap: () => unawaited(_playMix(artist.id)),
           ),
+      ],
+    );
+  }
+
+  /// Kos TV: «Tus mixes diarios»: square covers, each the colour of its mix
+  /// with three of its artists; one plays the mix in its order, and its
+  /// menu puts it next or at the end of the queue.
+  Widget? _dailyMixShelf(
+    BuildContext context,
+    EdgeInsets insets,
+    FocusNode? firstNode,
+  ) {
+    final mixes = _dailyMixes?.mixes ?? const <KostvDailyMix>[];
+    if (mixes.isEmpty) return null;
+    final l10n = AppLocalizations.of(context);
+    final size = KostvMusicSizes.cover;
+    return KostvMusicShelf(
+      title: l10n.kostvMusicDailyMixes,
+      subtitle: l10n.kostvMusicDailyMixesWhy,
+      insets: insets,
+      children: [
+        for (final (i, mix) in mixes.indexed)
+          () {
+            final title = l10n.kostvMusicDailyMix(i + 1);
+            return KostvMusicAlbumTile(
+              key: ValueKey('daily-mix-${mix.id}'),
+              focusNode: i == 0 ? firstNode : null,
+              onKey: i == 0 && firstNode != null ? _upToSearch : null,
+              title: title,
+              subtitle: mix.genre,
+              art: KostvDailyMixArt(
+                number: i + 1,
+                size: size - 6,
+                pictures: _mixPictures(mix),
+              ),
+              onTap: () => unawaited(
+                kostvMusicOnce(
+                  () => playMusicTracks(
+                    context,
+                    mix.items,
+                    source: KostvMusicSource.mix(mix.id),
+                  ),
+                ),
+              ),
+              onLongPress: () => unawaited(_dailyMixMenu(mix, title)),
+            );
+          }(),
+      ],
+    );
+  }
+
+  /// The pictures of a mix's cover: its artists', or its songs' covers when
+  /// they have none.
+  List<String> _mixPictures(KostvDailyMix mix) {
+    final pictures = <String>[];
+    for (final artist in mix.artists) {
+      final tag = artist.primaryImageTag;
+      if (tag == null) continue;
+      pictures.add(
+        _client.imageApi.getPrimaryImageUrl(artist.id, maxWidth: 400, tag: tag),
+      );
+      if (pictures.length == 3) return pictures;
+    }
+    for (final song in mix.items) {
+      final cover = kostvMusicImageOf(song);
+      if (cover != null && !pictures.contains(cover)) pictures.add(cover);
+      if (pictures.length == 3) break;
+    }
+    return pictures;
+  }
+
+  /// Kos TV: «Para esta mañana», «tarde» or «noche»: the mix of the time of
+  /// day, in columns of songs; one plays them all in their order from it.
+  Widget? _momentShelf(
+    BuildContext context,
+    EdgeInsets insets,
+    FocusNode? firstNode,
+  ) {
+    final moment = _moment;
+    if (moment == null || !moment.shows) return null;
+    final songs = moment.items;
+    final l10n = AppLocalizations.of(context);
+    final title = switch (moment.slot) {
+      'manana' => l10n.kostvMusicMomentMorning,
+      'tarde' => l10n.kostvMusicMomentAfternoon,
+      _ => l10n.kostvMusicMomentNight,
+    };
+    final source = KostvMusicSource.moment(moment.slot);
+    const perColumn = 4;
+    final columns = (songs.length / perColumn).ceil();
+    final rowHeight = _songRowHeight(context, KostvMusicSizes.phone);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        KostvMusicHeading(
+          title: title,
+          subtitle: l10n.kostvMusicMomentWhy,
+          padding: EdgeInsets.fromLTRB(insets.left, 0, insets.right, 10),
+        ),
+        SizedBox(
+          height: rowHeight * perColumn + 8,
+          child: FocusTraversalGroup(
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.only(left: insets.left, right: insets.right),
+              itemCount: columns,
+              separatorBuilder: (_, _) => const SizedBox(width: 18),
+              itemBuilder: (context, column) => SizedBox(
+                width: KostvMusicSizes.songColumn(context),
+                child: Column(
+                  children: [
+                    for (
+                      var i = column * perColumn;
+                      i < songs.length && i < (column + 1) * perColumn;
+                      i++
+                    )
+                      KostvMusicSongRow(
+                        focusNode: i == 0 ? firstNode : null,
+                        onKey: i % perColumn == 0 && firstNode != null
+                            ? _upToSearch
+                            : null,
+                        title: songs[i].name,
+                        artist: [
+                          ...songs[i].artists.take(2),
+                          ?songs[i].album,
+                        ].join(' · '),
+                        cover: kostvMusicImageOf(songs[i]),
+                        atHome: true,
+                        onTap: () => unawaited(
+                          kostvMusicOnce(
+                            () => playMusicTracks(
+                              context,
+                              songs,
+                              startIndex: i,
+                              source: source,
+                            ),
+                          ),
+                        ),
+                        onLongPress: () => unawaited(
+                          showKostvMusicSongMenu(context, item: songs[i]),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1414,8 +1811,13 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                             ].join(' · '),
                             cover: kostvMusicImageOf(song),
                             atHome: true,
-                            onTap: () =>
-                                unawaited(playMusicTrack(context, song)),
+                            onTap: () => unawaited(
+                              playMusicTrack(
+                                context,
+                                song,
+                                source: KostvMusicSource.search,
+                              ),
+                            ),
                             onMenu: () => unawaited(
                               showKostvMusicSongMenu(context, item: song),
                             ),
@@ -1431,8 +1833,13 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                             cover: song.cover,
                             atHome: false,
                             explicit: song.explicit,
-                            onTap: () =>
-                                unawaited(openKostvMusicSong(context, song)),
+                            onTap: () => unawaited(
+                              openKostvMusicSong(
+                                context,
+                                song,
+                                source: KostvMusicSource.search,
+                              ),
+                            ),
                             onMenu: () => unawaited(
                               showKostvMusicSongMenu(context, song: song),
                             ),

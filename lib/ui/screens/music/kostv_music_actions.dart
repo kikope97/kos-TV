@@ -9,6 +9,7 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/repositories/item_mutation_repository.dart';
 import '../../../data/services/kostv_music.dart';
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
@@ -170,7 +171,11 @@ Future<void> openKostvStremfinAlbum(
           .where((song) => song.jellyfinId != null)
           .firstOrNull;
       if (song != null) {
-        await playKostvMusicTrack(context, song.jellyfinId!);
+        await playKostvMusicTrack(
+          context,
+          song.jellyfinId!,
+          source: KostvMusicSource.album,
+        );
       } else {
         kostvMusicSay(
           context,
@@ -185,16 +190,22 @@ Future<void> openKostvStremfinAlbum(
 
 /// A song of a chart, a search or an artist: played if it is at home,
 /// otherwise its album's page to ask for it.
+///
+/// Kos TV: [source] is where it comes from ([KostvMusicSource]).
 Future<void> openKostvMusicSong(
   BuildContext context,
   StremfinSong song, {
   bool toAsk = false,
-}) => kostvMusicOnce(() => _openSong(context, song, toAsk: toAsk));
+  String source = KostvMusicSource.other,
+}) => kostvMusicOnce(
+  () => _openSong(context, song, toAsk: toAsk, source: source),
+);
 
 Future<void> _openSong(
   BuildContext context,
   StremfinSong song, {
   bool toAsk = false,
+  String source = KostvMusicSource.other,
 }) async {
   if (!toAsk && (song.inJellyfin || song.jellyfinId != null)) {
     // The service says which it is (since 1.91.0); otherwise looked for by
@@ -208,7 +219,7 @@ Future<void> _openSong(
             .catchError((Object _) => null);
     if (!context.mounted) return;
     if (found != null) {
-      await playMusicTrack(context, found);
+      await playMusicTrack(context, found, source: source);
       return;
     }
   }
@@ -255,20 +266,23 @@ void openKostvMusicArtist(BuildContext context, StremfinArtist artist) =>
 
 /// A song of an album's page that is at home: it plays, with the rest of
 /// its album after it.
-Future<void> playKostvMusicTrack(BuildContext context, String jellyfinId) =>
-    kostvMusicOnce(() async {
-      final l10n = AppLocalizations.of(context);
-      final song = await kostvMusicService()
-          .item(jellyfinId)
-          .catchError((Object _) => null);
-      if (!context.mounted) return;
-      if (song == null) {
-        // Kos TV: said, rather than nothing happening.
-        kostvMusicSay(context, l10n.kostvMusicCantPlay);
-        return;
-      }
-      await playMusicTrack(context, song);
-    });
+Future<void> playKostvMusicTrack(
+  BuildContext context,
+  String jellyfinId, {
+  String source = KostvMusicSource.album,
+}) => kostvMusicOnce(() async {
+  final l10n = AppLocalizations.of(context);
+  final song = await kostvMusicService()
+      .item(jellyfinId)
+      .catchError((Object _) => null);
+  if (!context.mounted) return;
+  if (song == null) {
+    // Kos TV: said, rather than nothing happening.
+    kostvMusicSay(context, l10n.kostvMusicCantPlay);
+    return;
+  }
+  await playMusicTrack(context, song, source: source);
+});
 
 // ------------------------------------------------------------- a song's menu
 
@@ -421,7 +435,7 @@ Future<void> _songMenu(
         seed,
         for (final other in mix)
           if (other.id != seed.id) other,
-      ]);
+      ], source: KostvMusicSource.radio);
     case _SongChoice.love:
       try {
         await GetIt.instance<ItemMutationRepository>().setFavorite(
@@ -526,6 +540,6 @@ Future<bool> playKostvArrivedAlbum(
   }
   closeLoading();
   if (songs.isEmpty || !context.mounted) return false;
-  await playMusicTracks(context, songs);
+  await playMusicTracks(context, songs, source: KostvMusicSource.album);
   return true;
 }

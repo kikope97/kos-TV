@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
@@ -203,8 +204,13 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                               rank: i + 1,
                               atHome: song.inJellyfin,
                               explicit: song.explicit,
-                              onTap: () =>
-                                  unawaited(openKostvMusicSong(context, song)),
+                              onTap: () => unawaited(
+                                openKostvMusicSong(
+                                  context,
+                                  song,
+                                  source: KostvMusicSource.artist,
+                                ),
+                              ),
                               onLongPress: () => unawaited(
                                 showKostvMusicSongMenu(context, song: song),
                               ),

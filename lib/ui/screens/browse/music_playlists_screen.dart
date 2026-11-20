@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/viewmodels/music_browse_view_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/focus/row_focus_coordinator.dart';
@@ -254,7 +255,7 @@ class _MusicPlaylistsScreenState
                         icon: Icons.play_arrow_rounded,
                         label: l10n.play,
                         primary: true,
-                        onTap: () => unawaited(playMusicTracks(context, _tracks)),
+                        onTap: () => unawaited(playMusicTracks(context, _tracks, source: KostvMusicSource.playlist)),
                         onNavigateLeft: back,
                         onNavigateDown: down,
                       ),
@@ -263,7 +264,7 @@ class _MusicPlaylistsScreenState
                         icon: Icons.shuffle_rounded,
                         label: l10n.shuffle,
                         onTap: () => unawaited(
-                          playMusicTracks(context, List.of(_tracks)..shuffle()),
+                          playMusicTracks(context, List.of(_tracks)..shuffle(), source: KostvMusicSource.playlist),
                         ),
                         onNavigateDown: down,
                       ),
@@ -297,7 +298,7 @@ class _MusicPlaylistsScreenState
               trailing: musicRunTime(_tracks[i]),
               focusNode: node('detailTrack:$i'),
               onTap: () => unawaited(
-                playMusicTracks(context, _tracks, startIndex: i),
+                playMusicTracks(context, _tracks, startIndex: i, source: KostvMusicSource.playlist),
               ),
               edges: MusicGridEdges(
                 up: i == 0 ? node('detail:play').requestFocus : null,

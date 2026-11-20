@@ -693,6 +693,11 @@ class StremfinService extends ChangeNotifier {
   Future<StremfinAlbumDetail> musicAlbum(String deezerId) =>
       _client.musicAlbum(deezerId);
 
+  /// Kos TV: a song's page: whether it is at home now, its preview and the
+  /// album to ask for to have it.
+  Future<StremfinSongDetail> musicSong(String deezerId) =>
+      _client.musicSong(deezerId);
+
   /// An artist's page. What the Music page asks itself ([keep]) is kept a
   /// few minutes; the artist's own page asks each time.
   Future<StremfinArtistDetail> musicArtist(

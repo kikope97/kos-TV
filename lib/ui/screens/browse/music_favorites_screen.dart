@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/viewmodels/music_browse_view_model.dart';
 import '../../../data/viewmodels/music_category_view_model.dart';
 import '../../../l10n/app_localizations.dart';
@@ -121,7 +122,7 @@ class _MusicFavoritesScreenState
         favorite: true,
         limit: 300,
       );
-      if (mounted) await playMusicTracks(context, page.items);
+      if (mounted) await playMusicTracks(context, page.items, source: KostvMusicSource.favorites);
     } catch (e) {
       debugPrint('Failed to play the favorite songs: $e');
     }
@@ -248,7 +249,7 @@ class _MusicFavoritesScreenState
               trailing: musicRunTime(songs[i]),
               focusNode: node('song:$i'),
               onTap: () => unawaited(
-                playMusicTracks(context, songs, startIndex: i),
+                playMusicTracks(context, songs, startIndex: i, source: KostvMusicSource.favorites),
               ),
               edges: MusicGridEdges.of(
                 i,

@@ -14,6 +14,7 @@ import '../../../data/models/aggregated_item.dart';
 import '../../../data/models/lyrics.dart';
 import '../../../data/repositories/item_mutation_repository.dart';
 import '../../../data/services/kostv_music.dart';
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/focus/dpad_keys.dart';
@@ -519,11 +520,21 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
         ).mix(item.id).catchError((Object _) => const <AggregatedItem>[]);
         if (!mounted || mix.isEmpty) return;
         KostvNowPlaying.instance.noteChosen();
-        await _manager.playItems([
+        final queue = [
           item,
           for (final other in mix)
             if (other.id != item.id) other,
-        ]);
+        ];
+        kostvTellMusicSource(
+          () =>
+              GetIt.instance<MediaServerClientFactory>().getClientIfExists(
+                item.serverId,
+              ) ??
+              GetIt.instance<MediaServerClient>(),
+          KostvMusicSource.radio,
+          queue,
+        );
+        await _manager.playItems(queue);
       case 'stop':
         _music.close();
         _leave();

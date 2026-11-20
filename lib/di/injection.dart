@@ -49,7 +49,9 @@ bool _legacyStereoAacFallbackDefaultForPlatform() {
 }
 
 // Kos TV: the client name the server shows for each device (Dashboard,
-// Devices, Activity). The server plugin does not look at it.
+// Devices, Activity). The server plugin reads it to tell where each song was
+// listened to (TV, phone or web: «para Android TV», «para Android», «para la
+// web»), so these names stay as they are.
 String _clientName() {
   if (PlatformDetection.isAppleTV) return 'kOS TV para Apple TV';
   if (PlatformDetection.isAndroid && PlatformDetection.isTV) {
