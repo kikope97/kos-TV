@@ -79,18 +79,14 @@ class _AutomationQueueScreenState extends State<_AutomationQueueScreen> {
           _SectionHeader(l10n.playbackEnhancements),
           adaptiveListSection(
             children: [
-              // Every type writes to the one preference, so each tile is
-              // keyed on the current value. The tiles seed their notifier in
-              // initState, so without the key a tile left over from the
-              // previous value would keep showing it and overwrite a
-              // sibling's change on the next pick.
+              // Every type writes to the one preference. The key stays the
+              // same across picks so the tile, and the focus on it, survive.
+              // The tile picks up a sibling's change on rebuild.
               for (final type in configurableMediaSegmentTypes.where(
                 _shownSegmentTypes.contains,
               ))
                 StringPickerPreferenceTile(
-                  key: ValueKey(
-                    'segmentAction_${type.name}_$mediaSegmentActions',
-                  ),
+                  key: ValueKey('segmentAction_${type.name}'),
                   preference: UserPreferences.mediaSegmentActions,
                   title: l10n.settingsMediaSegmentTypeAction(type.label(l10n)),
                   icon: Icons.content_cut,
@@ -159,9 +155,7 @@ class _AutomationQueueScreenState extends State<_AutomationQueueScreen> {
                     (type) => !_shownSegmentTypes.contains(type),
                   ))
                     StringPickerPreferenceTile(
-                      key: ValueKey(
-                        'segmentAction_${type.name}_$mediaSegmentActions',
-                      ),
+                      key: ValueKey('segmentAction_${type.name}'),
                       preference: UserPreferences.mediaSegmentActions,
                       title: l10n.settingsMediaSegmentTypeAction(
                         type.label(l10n),
@@ -247,3 +241,8 @@ class _AutomationQueueScreenState extends State<_AutomationQueueScreen> {
     );
   }
 }
+
+/// The Skipping & Autoplay page on its own, which the panel otherwise only
+/// opens from inside its private navigator.
+@visibleForTesting
+Widget automationQueueScreenForTesting() => const _AutomationQueueScreen();
