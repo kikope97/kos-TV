@@ -29,12 +29,12 @@ Se actualiza al terminar cada revisión. La siguiente empieza justo aquí.
 | | |
 |---|---|
 | Copia original de kOS TV | upstream `3d87996d2` (2026-11-10): Moonfin 3.0.0 más 658 commits posteriores sin publicar |
-| Último commit de upstream revisado | ninguno: se parte de `3d87996d2` |
-| Última versión del complemento oficial revisada | 3.1.0.0 (2026-11-12, etiqueta `3.1.0`, commit `9e05034`): base del nuestro |
-| Nuestro complemento | «kOS TV» 3.1.0.2, publicada el 2026-11-12 (la oficial 3.1.0 con nombre, identificador y textos propios; sin Seerr ni su calendario; página de ajustes en español; dirección de Stremfin en «Direcciones»; botón Descubrir sincronizado), en `complemento/` |
-| Complemento instalado en el servidor de casa | el oficial, 3.0.0.0, instalado el 2026-11-11 (Seerr apagado, sin push); se pasa al nuestro, 3.1.0.1, el 2026-11-12 |
-| Última revisión | ninguna: punto de partida apuntado el 2026-11-11 |
-| Próxima revisión | a partir del 2026-11-18 |
+| Último commit de upstream revisado | `defe4661b` (2026-11-20 17:13 UTC) |
+| Última versión del complemento oficial revisada | 3.1.1.0 (2026-11-19, etiqueta `3.1.1`, commit `afb2e7356`): traída a nuestra copia |
+| Nuestro complemento | «kOS TV» basado en la 3.1.1 (en la rama, sin publicar; se publicará como 3.1.1.1). Publicado: 3.1.0.8 (2026-11-20) |
+| Complemento instalado en el servidor de casa | el nuestro; la última publicada es la 3.1.0.8 |
+| Última revisión | 2026-11-20 |
+| Próxima revisión | a partir del 2026-11-27 |
 
 ## Cómo apuntar cada revisión
 
@@ -58,6 +58,68 @@ Copiar este bloque arriba del registro y rellenarlo:
 ```
 
 ## Registro
+
+### 2026-11-20
+
+- **App, revisado:** upstream `3d87996d2`..`defe4661b` (333 commits, del
+  2026-11-10 al 2026-11-20). 178 son traducciones de Weblate; los otros 155,
+  uno a uno. Antes de traer nada, se comprobó fallo por fallo, con archivo y
+  línea (y pruebas cuando se pudo), que el mismo fallo existía en kOS TV.
+- **Integrado** (cada uno con su commit, «Traído/Adaptado de upstream»):
+  - Reproductor: el tiempo que se paraba al volver a la app en la tele
+    (`4aeab9820` → `1df713dd7`); bajar rápido a los botones ya no adelanta
+    (`1da2b7372` → `5648ab39e`); mantener Izquierda/Derecha a pasos que crecen
+    (`a438fbe8f` → `ef0ed1ad5`); «Detener» desde otro aparato
+    cierra el reproductor (`189f1219a`, adaptado → `3bb6448e6`); subtítulos «solo
+    si el audio es extranjero» con el audio de la serie (`fc155ab50` →
+    `7da49a263`) y elección por serie desde Siguiente y la cola (`ac5780b7b` →
+    `648c1ac22`); subtítulos mov_text (`bbaed8e80` → `1fe82b7be`); web en
+    iPhone/iPad (`50427ddb9` → `200fd218e`); Ver juntos en la web (`36d5653ad` →
+    `1bef368aa`); bloqueo de controles del móvil (`8f500b709` → `d5ff2cfcb`);
+    sombra de subtítulos con mpv (`fec476bf6` → `16fb04c13`).
+  - Tele, fichas, Inicio y Ajustes: el OK tras «Visto» (`86f76a14c`, adaptado a
+    la ficha kOS TV → `1c541c51f`); el token fuera de las carátulas de Watch
+    Next y canales (`d2d9cf577` → `48420cf79`); «Seguir viendo + Siguiente» al
+    volver (`d0203a49f` → `2dcc4fa05`); temporada no vista que seguía en
+    «Reanudar» (`93887fcff` → `ddf480ad6`); botón que saltaba con el ratón
+    (`b0ae1d747` → `5b4639d52`); más perfiles en «¿Quién está viendo?»
+    (`5650bd798` → `ef71f8aee`); foco en las acciones de segmentos (`6d52efdab`
+    → `661060e53`); editor de filas (`0749c1277` → `647e6e443`); «TV en
+    directo»/«Ahora en directo» al volver (`d7b7cef60` → `22044bec7`); orden de
+    estudios (`cd9fafc57` → `5ee3547e2`).
+  - Móvil, web y privacidad: invitados de SyncPlay (`f846a8e66` → `32f98162d`);
+    Chromecast y DLNA (`61bd49dff`, `1efa38a9f` → `43daa5581`, `b5665527d`);
+    visor de fotos (`609a06136`, `3a7f6c3c5` → `8c84543e0`); SponsorBlock con
+    prefijo del hash (parte de `47d176d6b` → `7e6ee0a35`); fuentes de reserva
+    de la web dentro de la imagen (`a6bec3155`, adaptado → `edd5f0d13`); foco
+    de la web al cambiar de ventana (`e700d7dda` → `581aa9e82`).
+- **Descartado:** traducciones de otros idiomas; Seerr, Silo, Plex, Emby,
+  Firebase/push; escritorio, iOS y tvOS; CI y publicación de upstream; el APK
+  único (`8efeff436`, nosotros publicamos dos); el SDK de Cast al arrancar
+  (`9a806714c`, va unido al APK único). Ya lo teníamos: las descargas que se
+  congelaban (`cd3570c99`, nuestro `42f058a25`), el tráiler del banner
+  (`559f07093`), hls.js local y `allowBackup`. No nos pasa: el logotipo de la
+  serie en «Últimos» (`13091f3e9`, no se ve con nuestro Inicio).
+- **Dudoso o pendiente:** marcar como visto al salir en los créditos
+  (`80d29f1a6`), barra de abajo por defecto en el móvil (`10da70687`), ficha
+  «Solicitar» en ventanas grandes (`4433f1526`), filas de JustWatch/TMDB
+  Discover (`2733144bc`), novedades de películas en la barra (`1c53d95e3`),
+  ocultar el progreso en las bibliotecas (`8a266bb62`), imagen en imagen en la
+  web, 2× con la barra espaciadora, DLNA y demás de app_upstream. La fuente de
+  subtítulos elegida en Ajustes aún se baja de Google.
+- **Complemento, revisado:** oficial 3.1.0 → 3.1.1 (2026-11-19, 13 commits).
+  Ninguna ruta `/Moonfin/...` de la app cambia ni desaparece; el Ping añade
+  `discoverChartsSupported` y `pushSupported`. Trae las listas de TMDB con todas
+  sus páginas (#390) y MDBList en el idioma pedido (#391); lo demás es para
+  funciones que no usamos (juegos, push, Seerr, campos nuevos del perfil).
+- **Decisión del complemento:** traída a nuestra copia con `git subtree pull`
+  (squash `56ccac902`, fusión `867a5a689`), conservando lo nuestro; los campos
+  nuevos del panel van ocultos y traducidos, sin la ruta `Notifications/Test`
+  ni la política de privacidad. 1451 pruebas en verde. Se publica como 3.1.1.1
+  cuando el usuario lo diga. Instalada en casa: 3.1.0.8.
+- **Notas:** pendiente de probar en aparatos reales lo que el ordenador no
+  puede (Kotlin de Media3, Chromecast/DLNA, Watch Next, Safari de iPhone y la
+  imagen de Docker con las fuentes).
 
 ### 2026-11-12 · Complemento sin Seerr y en español (sin revisión)
 
