@@ -7,6 +7,7 @@
 #
 # Se construye desde la raíz del repositorio, después de compilar la web:
 #   flutter build web --wasm --release --no-web-resources-cdn
+#   bash scripts/fetch-web-fonts.sh build/web
 #   docker build -f docker/web/Dockerfile -t kostv-web .
 
 # Kos TV: the web prepared in a stage of its own, so the final image gets it

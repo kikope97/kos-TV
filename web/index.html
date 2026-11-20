@@ -19,11 +19,12 @@
   <title>kOS TV</title>
   <link rel="manifest" href="manifest.json">
   <!-- Kos TV: what the app asks for first, asked for already while the
-       app itself downloads: its config.json, and the connection to the
-       place the fallback fonts come from. The drawing engine comes with
-       the app (built with no-web-resources-cdn), not from www.gstatic.com. -->
+       app itself downloads: its config.json. The drawing engine comes with
+       the app (built with no-web-resources-cdn), not from www.gstatic.com,
+       and so do the fallback fonts in the released web (fonts/, from
+       scripts/fetch-web-fonts.sh; see flutter_bootstrap.js), so nothing
+       connects to Google ahead of time. -->
   <link rel="preload" href="config.json" as="fetch" crossorigin>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
   <style>
     html,

@@ -919,14 +919,14 @@ class SyncPlayManager extends ChangeNotifier {
   }
 
   String? _resolveActiveServerId(MediaServerClient client) {
+    // The active client is the connectivity-aware wrapper registered in
+    // GetIt, never one of the factory's own instances, so an identity match
+    // always failed and guests never loaded the host's queue.
     try {
-      final factory = GetIt.instance<MediaServerClientFactory>();
-      final entries = factory.clients.entries;
-      for (final entry in entries) {
-        if (identical(entry.value, client)) return entry.key;
-      }
-    } catch (_) {}
-    return null;
+      return GetIt.instance<MediaServerClientFactory>().serverIdOf(client);
+    } catch (_) {
+      return null;
+    }
   }
 
   void _handleUnpause(SyncPlayCommand command) {

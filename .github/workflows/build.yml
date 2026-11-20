@@ -796,6 +796,11 @@ jobs:
       - name: Build web
         run: flutter build web --wasm --release --no-web-resources-cdn
 
+      # Kos TV: the engine's fallback fonts (emoji, CJK, symbols) go with
+      # the web too, so the browser never asks fonts.gstatic.com for them.
+      - name: Fallback fonts
+        run: bash scripts/fetch-web-fonts.sh build/web
+
       - uses: actions/upload-artifact@v6
         with:
           name: web
@@ -851,6 +856,11 @@ jobs:
       # home without internet and Google doesn't see each visit.
       - name: Build web
         run: flutter build web --wasm --release --no-web-resources-cdn
+
+      # Kos TV: and the engine's fallback fonts (emoji, CJK, symbols) too,
+      # in fonts/ (about 21 MiB), so the web never asks fonts.gstatic.com.
+      - name: Fallback fonts
+        run: bash scripts/fetch-web-fonts.sh build/web
 
       - name: Image name and tags
         id: image
