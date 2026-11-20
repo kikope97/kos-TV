@@ -51,6 +51,8 @@ class _PlaybackCategoryScreen extends StatelessWidget {
                   ),
                 ],
               ),
+              // Kos TV: Music's own, when the server plugin has them.
+              const KostvMusicLearnSection(),
               _SectionHeader(l10n.settingsSkippingAndQueueSection),
               adaptiveListSection(
                 children: [

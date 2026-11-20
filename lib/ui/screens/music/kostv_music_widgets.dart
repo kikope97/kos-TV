@@ -457,12 +457,16 @@ class KostvMusicAlbumTile extends StatelessWidget {
     this.autofocus = false,
     this.onKey,
     this.art,
+    this.onLongPress,
   });
 
   final String title;
   final String? subtitle;
   final String? cover;
   final KostvMusicBadge badge;
+
+  /// Kos TV: its menu (OK held down, a long press or a right click).
+  final VoidCallback? onLongPress;
   final int? rank;
   final double? size;
   final bool circle;
@@ -483,6 +487,7 @@ class KostvMusicAlbumTile extends StatelessWidget {
         focusNode: focusNode,
         autofocus: autofocus,
         onTap: onTap,
+        onLongPress: onLongPress,
         onKey: onKey,
         builder: (context, lit) => Column(
           crossAxisAlignment: circle
@@ -878,4 +883,119 @@ double kostvMusicSongRowHeight(BuildContext context, bool phone) {
   final base = phone ? 62.0 : 70.0;
   final grown = MediaQuery.textScalerOf(context).scale(36) - 36;
   return base + (grown > 0 ? grown : 0);
+}
+
+/// Kos TV: a daily mix's cover: its colour, a mosaic of the pictures of
+/// three of its artists, and «Mix diario» with its number, as the streaming
+/// apps draw theirs.
+class KostvDailyMixArt extends StatelessWidget {
+  const KostvDailyMixArt({
+    super.key,
+    required this.number,
+    required this.size,
+    this.pictures = const [],
+  });
+
+  /// From 1.
+  final int number;
+  final double size;
+
+  /// Up to three; fewer leave their place in the mix's colour.
+  final List<String> pictures;
+
+  static const _colors = [
+    [Color(0xFFFA2D55), Color(0xFF8E1B6E)],
+    [Color(0xFF5E5CE6), Color(0xFF1E3A8A)],
+    [Color(0xFF30D158), Color(0xFF0E5F5C)],
+    [Color(0xFFFF9F0A), Color(0xFFB4235F)],
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = _colors[(number - 1) % _colors.length];
+    final l10n = AppLocalizations.of(context);
+    final pad = size * 0.07;
+    final gap = size * 0.025;
+    final mosaic = size * 0.56;
+    final inner = size - pad * 2;
+    final small = (mosaic - gap) / 2;
+    final empty = ColoredBox(color: Colors.black.withValues(alpha: 0.18));
+    Widget tile(int i, double width, double height) => ClipRRect(
+      borderRadius: AppRadius.circular(size * 0.035),
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: i < pictures.length
+            ? BoundedNetworkImage(
+                imageUrl: pictures[i],
+                fit: BoxFit.cover,
+                maxWidth: 400,
+                errorBuilder: (context, _, _) => empty,
+              )
+            : empty,
+      ),
+    );
+    // Drawn to the cover's size: the device's larger text doesn't push the
+    // words out of it.
+    return MediaQuery.withNoTextScaling(
+      child: ClipRRect(
+        borderRadius: AppRadius.circular(10),
+        child: SizedBox.square(
+          dimension: size,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: colors,
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(pad),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      tile(0, inner - small - gap, mosaic),
+                      SizedBox(width: gap),
+                      Column(
+                        children: [
+                          tile(1, small, small),
+                          SizedBox(height: gap),
+                          tile(2, small, small),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text(
+                    l10n.kostvMusicDailyMixLabel.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: size * 0.07,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2,
+                      height: 1.1,
+                    ),
+                  ),
+                  Text(
+                    '$number',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: size * 0.15,
+                      fontWeight: FontWeight.w900,
+                      height: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

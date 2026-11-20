@@ -36062,6 +36062,150 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Pick a programme in the TV guide and choose Record Series to record every episode.'**
   String get kostvSeriesRecordingsEmptyHint;
+
+  /// Kos TV Music page: the row of the person's daily mixes, worked out by the server plugin.
+  ///
+  /// In en, this message translates to:
+  /// **'Your daily mixes'**
+  String get kostvMusicDailyMixes;
+
+  /// Kos TV Music page: the line under 'Your daily mixes'.
+  ///
+  /// In en, this message translates to:
+  /// **'New every day, from what you listen to'**
+  String get kostvMusicDailyMixesWhy;
+
+  /// Kos TV Music page: the title of one daily mix, numbered from 1.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily Mix {number}'**
+  String kostvMusicDailyMix(int number);
+
+  /// Kos TV Music page: the small label on a daily mix's cover.
+  ///
+  /// In en, this message translates to:
+  /// **'Daily Mix'**
+  String get kostvMusicDailyMixLabel;
+
+  /// Kos TV Music page: said after a daily mix is put next in the queue.
+  ///
+  /// In en, this message translates to:
+  /// **'The mix will play next'**
+  String get kostvMusicMixAddedNext;
+
+  /// Kos TV Music page: said after a daily mix is added at the end of the queue.
+  ///
+  /// In en, this message translates to:
+  /// **'Mix added to the end of the queue'**
+  String get kostvMusicMixAddedLast;
+
+  /// Kos TV Music page: the row of the week's new songs for the person, not at home yet.
+  ///
+  /// In en, this message translates to:
+  /// **'Weekly discovery'**
+  String get kostvMusicDiscovery;
+
+  /// Kos TV Music page: the line under 'Weekly discovery'.
+  ///
+  /// In en, this message translates to:
+  /// **'New songs for you every Monday, from artists like yours'**
+  String get kostvMusicDiscoveryWhy;
+
+  /// Kos TV Music page: the row of the mix for the time of day, in the morning (6 to 12).
+  ///
+  /// In en, this message translates to:
+  /// **'For this morning'**
+  String get kostvMusicMomentMorning;
+
+  /// Kos TV Music page: the row of the mix for the time of day, in the afternoon (12 to 20).
+  ///
+  /// In en, this message translates to:
+  /// **'For this afternoon'**
+  String get kostvMusicMomentAfternoon;
+
+  /// Kos TV Music page: the row of the mix for the time of day, at night (20 to 6).
+  ///
+  /// In en, this message translates to:
+  /// **'For tonight'**
+  String get kostvMusicMomentNight;
+
+  /// Kos TV Music page: the line under the mix for the time of day.
+  ///
+  /// In en, this message translates to:
+  /// **'What you usually play at this time, and more like it'**
+  String get kostvMusicMomentWhy;
+
+  /// Kos TV Settings: the switch for the server keeping what the person listens to, for their mixes.
+  ///
+  /// In en, this message translates to:
+  /// **'Learn from what I listen to'**
+  String get kostvMusicLearn;
+
+  /// Kos TV Settings: under 'Learn from what I listen to' while it is on.
+  ///
+  /// In en, this message translates to:
+  /// **'Your mixes and recommendations come from what you listen to. It stays on the home server and only you see it.'**
+  String get kostvMusicLearnOn;
+
+  /// Kos TV Settings: under 'Learn from what I listen to' while it is off.
+  ///
+  /// In en, this message translates to:
+  /// **'Off: what you listen to isn\'t kept.'**
+  String get kostvMusicLearnOff;
+
+  /// Kos TV Settings: how much the server has kept of what the person listened to, when it is nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing kept yet.'**
+  String get kostvMusicLearnNone;
+
+  /// Kos TV Settings: how many listens the server has kept of the person, and since which day.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 listen kept since {since}} other{{count} listens kept since {since}}}'**
+  String kostvMusicLearnCount(int count, String since);
+
+  /// Kos TV Settings: deletes what the server kept of what the person listened to.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete what I\'ve listened to'**
+  String get kostvMusicLearnForget;
+
+  /// Kos TV Settings: under 'Delete what I've listened to'.
+  ///
+  /// In en, this message translates to:
+  /// **'Your mixes and recommendations start from scratch.'**
+  String get kostvMusicLearnForgetSubtitle;
+
+  /// Kos TV Settings: the title of the confirmation before deleting the person's listens.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete what you\'ve listened to?'**
+  String get kostvMusicLearnForgetTitle;
+
+  /// Kos TV Settings: the confirmation before deleting the person's listens.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything the home server kept of what you listened to is deleted. Your mixes and recommendations will start from scratch. This can\'t be undone.'**
+  String get kostvMusicLearnForgetBody;
+
+  /// Kos TV Settings: the button that deletes the person's listens.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get kostvMusicLearnForgetConfirm;
+
+  /// Kos TV Settings: said after the person's listens were deleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Done: what you listened to has been deleted.'**
+  String get kostvMusicLearnForgotten;
+
+  /// Kos TV Settings: how many listens the server has kept of the person, when it doesn't say since when.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 listen kept} other{{count} listens kept}}'**
+  String kostvMusicLearnCountNoDate(int count);
 }
 
 class _AppLocalizationsDelegate

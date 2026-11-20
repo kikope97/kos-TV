@@ -15593,5 +15593,119 @@
     "kostvSeriesRecordingsEmptyHint": "Elige un programa en la guía de TV y pulsa «Grabar serie» para grabar todos sus episodios.",
     "@kostvSeriesRecordingsEmptyHint": {
         "description": "Kos TV recordings page: the line under 'no series recordings', saying how to record a series."
+    },
+    "kostvMusicDailyMixes": "Tus mixes diarios",
+    "@kostvMusicDailyMixes": {
+        "description": "Kos TV Music page: the row of the person's daily mixes, worked out by the server plugin."
+    },
+    "kostvMusicDailyMixesWhy": "Cambian cada día con lo que escuchas",
+    "@kostvMusicDailyMixesWhy": {
+        "description": "Kos TV Music page: the line under 'Your daily mixes'."
+    },
+    "kostvMusicDailyMix": "Mix diario {number}",
+    "@kostvMusicDailyMix": {
+        "description": "Kos TV Music page: the title of one daily mix, numbered from 1.",
+        "placeholders": {
+            "number": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvMusicDailyMixLabel": "Mix diario",
+    "@kostvMusicDailyMixLabel": {
+        "description": "Kos TV Music page: the small label on a daily mix's cover."
+    },
+    "kostvMusicMixAddedNext": "El mix sonará a continuación",
+    "@kostvMusicMixAddedNext": {
+        "description": "Kos TV Music page: said after a daily mix is put next in the queue."
+    },
+    "kostvMusicMixAddedLast": "Mix añadido al final de la cola",
+    "@kostvMusicMixAddedLast": {
+        "description": "Kos TV Music page: said after a daily mix is added at the end of the queue."
+    },
+    "kostvMusicDiscovery": "Descubrimiento semanal",
+    "@kostvMusicDiscovery": {
+        "description": "Kos TV Music page: the row of the week's new songs for the person, not at home yet."
+    },
+    "kostvMusicDiscoveryWhy": "Canciones nuevas para ti cada lunes, de artistas parecidos a los tuyos",
+    "@kostvMusicDiscoveryWhy": {
+        "description": "Kos TV Music page: the line under 'Weekly discovery'."
+    },
+    "kostvMusicMomentMorning": "Para esta mañana",
+    "@kostvMusicMomentMorning": {
+        "description": "Kos TV Music page: the row of the mix for the time of day, in the morning (6 to 12)."
+    },
+    "kostvMusicMomentAfternoon": "Para esta tarde",
+    "@kostvMusicMomentAfternoon": {
+        "description": "Kos TV Music page: the row of the mix for the time of day, in the afternoon (12 to 20)."
+    },
+    "kostvMusicMomentNight": "Para esta noche",
+    "@kostvMusicMomentNight": {
+        "description": "Kos TV Music page: the row of the mix for the time of day, at night (20 to 6)."
+    },
+    "kostvMusicMomentWhy": "Lo que sueles escuchar a esta hora, y parecidas",
+    "@kostvMusicMomentWhy": {
+        "description": "Kos TV Music page: the line under the mix for the time of day."
+    },
+    "kostvMusicLearn": "Aprender de lo que escucho",
+    "@kostvMusicLearn": {
+        "description": "Kos TV Settings: the switch for the server keeping what the person listens to, for their mixes."
+    },
+    "kostvMusicLearnOn": "Tus mixes y recomendaciones salen de lo que escuchas. Se guarda en el servidor de casa y solo lo ves tú.",
+    "@kostvMusicLearnOn": {
+        "description": "Kos TV Settings: under 'Learn from what I listen to' while it is on."
+    },
+    "kostvMusicLearnOff": "Apagado: no se guarda lo que escuchas.",
+    "@kostvMusicLearnOff": {
+        "description": "Kos TV Settings: under 'Learn from what I listen to' while it is off."
+    },
+    "kostvMusicLearnNone": "Aún no hay nada guardado.",
+    "@kostvMusicLearnNone": {
+        "description": "Kos TV Settings: how much the server has kept of what the person listened to, when it is nothing."
+    },
+    "kostvMusicLearnCount": "{count, plural, =1{1 escucha guardada desde el {since}} other{{count} escuchas guardadas desde el {since}}}",
+    "@kostvMusicLearnCount": {
+        "description": "Kos TV Settings: how many listens the server has kept of the person, and since which day.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            },
+            "since": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvMusicLearnForget": "Borrar lo que he escuchado",
+    "@kostvMusicLearnForget": {
+        "description": "Kos TV Settings: deletes what the server kept of what the person listened to."
+    },
+    "kostvMusicLearnForgetSubtitle": "Tus mixes y recomendaciones empiezan de cero.",
+    "@kostvMusicLearnForgetSubtitle": {
+        "description": "Kos TV Settings: under 'Delete what I've listened to'."
+    },
+    "kostvMusicLearnForgetTitle": "¿Borrar lo que has escuchado?",
+    "@kostvMusicLearnForgetTitle": {
+        "description": "Kos TV Settings: the title of the confirmation before deleting the person's listens."
+    },
+    "kostvMusicLearnForgetBody": "Se borra todo lo que el servidor de casa ha guardado de lo que has escuchado. Tus mixes y recomendaciones empezarán de cero. No se puede deshacer.",
+    "@kostvMusicLearnForgetBody": {
+        "description": "Kos TV Settings: the confirmation before deleting the person's listens."
+    },
+    "kostvMusicLearnForgetConfirm": "Borrar",
+    "@kostvMusicLearnForgetConfirm": {
+        "description": "Kos TV Settings: the button that deletes the person's listens."
+    },
+    "kostvMusicLearnForgotten": "Listo: se ha borrado lo que habías escuchado.",
+    "@kostvMusicLearnForgotten": {
+        "description": "Kos TV Settings: said after the person's listens were deleted."
+    },
+    "kostvMusicLearnCountNoDate": "{count, plural, =1{1 escucha guardada} other{{count} escuchas guardadas}}",
+    "@kostvMusicLearnCountNoDate": {
+        "description": "Kos TV Settings: how many listens the server has kept of the person, when it doesn't say since when.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
     }
 }

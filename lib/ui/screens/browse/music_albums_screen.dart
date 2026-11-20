@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/viewmodels/music_browse_view_model.dart';
 import '../../../data/viewmodels/music_category_view_model.dart';
 import '../../../l10n/app_localizations.dart';
@@ -345,7 +346,7 @@ class _MusicAlbumsScreenState extends MusicCategoryState<MusicAlbumsScreen> {
               icon: Icons.play_arrow_rounded,
               label: l10n.play,
               primary: true,
-              onTap: () => unawaited(playMusicTracks(context, _tracks)),
+              onTap: () => unawaited(playMusicTracks(context, _tracks, source: KostvMusicSource.album)),
               onNavigateUp: up,
               onNavigateDown: down,
             ),
@@ -401,7 +402,7 @@ class _MusicAlbumsScreenState extends MusicCategoryState<MusicAlbumsScreen> {
               trailing: musicRunTime(_tracks[i]),
               focusNode: node('track:$i'),
               onTap: () => unawaited(
-                playMusicTracks(context, _tracks, startIndex: i),
+                playMusicTracks(context, _tracks, startIndex: i, source: KostvMusicSource.album),
               ),
               edges: MusicGridEdges(
                 up: i < columns ? node('panel:play').requestFocus : null,

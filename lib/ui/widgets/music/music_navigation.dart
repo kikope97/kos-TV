@@ -7,6 +7,7 @@ import 'package:playback_core/playback_core.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../navigation/destinations.dart';
@@ -102,13 +103,16 @@ String? musicSeeAllRoute(String libraryId, String rowId) {
 
 /// Plays a song from its album, and opens anything else on its details
 /// screen, which starts it when [autoPlay] is set.
+///
+/// Kos TV: [source] is where a song played comes from ([KostvMusicSource]).
 void openMusicItem(
   BuildContext context,
   AggregatedItem item, {
   bool autoPlay = false,
+  String source = KostvMusicSource.other,
 }) {
   if (item.type == 'Audio') {
-    unawaited(playMusicTrack(context, item));
+    unawaited(playMusicTrack(context, item, source: source));
     return;
   }
   context.push(
@@ -116,7 +120,13 @@ void openMusicItem(
   );
 }
 
-Future<void> playMusicTrack(BuildContext context, AggregatedItem item) async {
+/// Kos TV: [source] is where it comes from ([KostvMusicSource]), told to
+/// the server plugin without waiting for it.
+Future<void> playMusicTrack(
+  BuildContext context,
+  AggregatedItem item, {
+  String source = KostvMusicSource.other,
+}) async {
   final navigator = Navigator.of(context, rootNavigator: true);
   final manager = GetIt.instance<PlaybackManager>();
   final l10n = AppLocalizations.of(context);
@@ -170,6 +180,7 @@ Future<void> playMusicTrack(BuildContext context, AggregatedItem item) async {
     }
 
     KostvNowPlaying.instance.noteChosen();
+    kostvTellMusicSource(() => _clientOf(item), source, tracks);
     await manager.playItems(tracks, startIndex: startIndex);
     closeLoading();
     if (context.mounted) {
@@ -181,6 +192,7 @@ Future<void> playMusicTrack(BuildContext context, AggregatedItem item) async {
     // (nothing happening looks like the remote not working).
     try {
       KostvNowPlaying.instance.noteChosen();
+      kostvTellMusicSource(() => _clientOf(item), source, [item]);
       await manager.playItems([item]);
       if (context.mounted) {
         context.push(Destinations.audioPlayer);
@@ -225,17 +237,44 @@ void _sayCantPlay(ScaffoldMessengerState? messenger, AppLocalizations l10n) {
     ..showSnackBar(SnackBar(content: Text(l10n.kostvMusicCantPlay)));
 }
 
+/// Kos TV: the client of [item]'s server, to tell its plugin where the
+/// music comes from; null when there is none.
+MediaServerClient? _clientOf(AggregatedItem item) {
+  final getIt = GetIt.instance;
+  // Whatever goes wrong here, the music plays: it is only not told.
+  try {
+    if (item.serverId.isNotEmpty &&
+        getIt.isRegistered<MediaServerClientFactory>()) {
+      final client = getIt<MediaServerClientFactory>().getClientIfExists(
+        item.serverId,
+      );
+      if (client != null) return client;
+    }
+    return getIt.isRegistered<MediaServerClient>()
+        ? getIt<MediaServerClient>()
+        : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 /// Plays [tracks] from [startIndex] and opens the player. Nothing happens
 /// when there's nothing to play; if it can't be played, the person is told.
+///
+/// Kos TV: every Music page starts its music here (or in [playMusicTrack]),
+/// so this is where the server plugin is told where it comes from
+/// ([source], a [KostvMusicSource]), without waiting for it.
 Future<void> playMusicTracks(
   BuildContext context,
   List<AggregatedItem> tracks, {
   int startIndex = 0,
+  String source = KostvMusicSource.other,
 }) async {
   if (tracks.isEmpty) return;
   final l10n = AppLocalizations.of(context);
   final messenger = ScaffoldMessenger.maybeOf(context);
   KostvNowPlaying.instance.noteChosen();
+  kostvTellMusicSource(() => _clientOf(tracks.first), source, tracks);
   try {
     await GetIt.instance<PlaybackManager>().playItems(
       tracks,

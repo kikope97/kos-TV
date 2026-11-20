@@ -21304,4 +21304,100 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvSeriesRecordingsEmptyHint =>
       'Elige un programa en la guía de TV y pulsa «Grabar serie» para grabar todos sus episodios.';
+
+  @override
+  String get kostvMusicDailyMixes => 'Tus mixes diarios';
+
+  @override
+  String get kostvMusicDailyMixesWhy => 'Cambian cada día con lo que escuchas';
+
+  @override
+  String kostvMusicDailyMix(int number) {
+    return 'Mix diario $number';
+  }
+
+  @override
+  String get kostvMusicDailyMixLabel => 'Mix diario';
+
+  @override
+  String get kostvMusicMixAddedNext => 'El mix sonará a continuación';
+
+  @override
+  String get kostvMusicMixAddedLast => 'Mix añadido al final de la cola';
+
+  @override
+  String get kostvMusicDiscovery => 'Descubrimiento semanal';
+
+  @override
+  String get kostvMusicDiscoveryWhy =>
+      'Canciones nuevas para ti cada lunes, de artistas parecidos a los tuyos';
+
+  @override
+  String get kostvMusicMomentMorning => 'Para esta mañana';
+
+  @override
+  String get kostvMusicMomentAfternoon => 'Para esta tarde';
+
+  @override
+  String get kostvMusicMomentNight => 'Para esta noche';
+
+  @override
+  String get kostvMusicMomentWhy =>
+      'Lo que sueles escuchar a esta hora, y parecidas';
+
+  @override
+  String get kostvMusicLearn => 'Aprender de lo que escucho';
+
+  @override
+  String get kostvMusicLearnOn =>
+      'Tus mixes y recomendaciones salen de lo que escuchas. Se guarda en el servidor de casa y solo lo ves tú.';
+
+  @override
+  String get kostvMusicLearnOff => 'Apagado: no se guarda lo que escuchas.';
+
+  @override
+  String get kostvMusicLearnNone => 'Aún no hay nada guardado.';
+
+  @override
+  String kostvMusicLearnCount(int count, String since) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count escuchas guardadas desde el $since',
+      one: '1 escucha guardada desde el $since',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvMusicLearnForget => 'Borrar lo que he escuchado';
+
+  @override
+  String get kostvMusicLearnForgetSubtitle =>
+      'Tus mixes y recomendaciones empiezan de cero.';
+
+  @override
+  String get kostvMusicLearnForgetTitle => '¿Borrar lo que has escuchado?';
+
+  @override
+  String get kostvMusicLearnForgetBody =>
+      'Se borra todo lo que el servidor de casa ha guardado de lo que has escuchado. Tus mixes y recomendaciones empezarán de cero. No se puede deshacer.';
+
+  @override
+  String get kostvMusicLearnForgetConfirm => 'Borrar';
+
+  @override
+  String get kostvMusicLearnForgotten =>
+      'Listo: se ha borrado lo que habías escuchado.';
+
+  @override
+  String kostvMusicLearnCountNoDate(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count escuchas guardadas',
+      one: '1 escucha guardada',
+    );
+    return '$_temp0';
+  }
 }

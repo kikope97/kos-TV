@@ -20961,4 +20961,101 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvSeriesRecordingsEmptyHint =>
       'Pick a programme in the TV guide and choose Record Series to record every episode.';
+
+  @override
+  String get kostvMusicDailyMixes => 'Your daily mixes';
+
+  @override
+  String get kostvMusicDailyMixesWhy =>
+      'New every day, from what you listen to';
+
+  @override
+  String kostvMusicDailyMix(int number) {
+    return 'Daily Mix $number';
+  }
+
+  @override
+  String get kostvMusicDailyMixLabel => 'Daily Mix';
+
+  @override
+  String get kostvMusicMixAddedNext => 'The mix will play next';
+
+  @override
+  String get kostvMusicMixAddedLast => 'Mix added to the end of the queue';
+
+  @override
+  String get kostvMusicDiscovery => 'Weekly discovery';
+
+  @override
+  String get kostvMusicDiscoveryWhy =>
+      'New songs for you every Monday, from artists like yours';
+
+  @override
+  String get kostvMusicMomentMorning => 'For this morning';
+
+  @override
+  String get kostvMusicMomentAfternoon => 'For this afternoon';
+
+  @override
+  String get kostvMusicMomentNight => 'For tonight';
+
+  @override
+  String get kostvMusicMomentWhy =>
+      'What you usually play at this time, and more like it';
+
+  @override
+  String get kostvMusicLearn => 'Learn from what I listen to';
+
+  @override
+  String get kostvMusicLearnOn =>
+      'Your mixes and recommendations come from what you listen to. It stays on the home server and only you see it.';
+
+  @override
+  String get kostvMusicLearnOff => 'Off: what you listen to isn\'t kept.';
+
+  @override
+  String get kostvMusicLearnNone => 'Nothing kept yet.';
+
+  @override
+  String kostvMusicLearnCount(int count, String since) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count listens kept since $since',
+      one: '1 listen kept since $since',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvMusicLearnForget => 'Delete what I\'ve listened to';
+
+  @override
+  String get kostvMusicLearnForgetSubtitle =>
+      'Your mixes and recommendations start from scratch.';
+
+  @override
+  String get kostvMusicLearnForgetTitle => 'Delete what you\'ve listened to?';
+
+  @override
+  String get kostvMusicLearnForgetBody =>
+      'Everything the home server kept of what you listened to is deleted. Your mixes and recommendations will start from scratch. This can\'t be undone.';
+
+  @override
+  String get kostvMusicLearnForgetConfirm => 'Delete';
+
+  @override
+  String get kostvMusicLearnForgotten =>
+      'Done: what you listened to has been deleted.';
+
+  @override
+  String kostvMusicLearnCountNoDate(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count listens kept',
+      one: '1 listen kept',
+    );
+    return '$_temp0';
+  }
 }

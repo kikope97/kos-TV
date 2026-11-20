@@ -7,6 +7,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/download_service.dart';
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/download_utils.dart';
@@ -322,7 +323,13 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
               onTap: tracks.isEmpty
                   ? () => _nothingToPlay(context)
                   : () => unawaited(
-                      kostvMusicOnce(() => playMusicTracks(context, tracks)),
+                      kostvMusicOnce(
+                        () => playMusicTracks(
+                          context,
+                          tracks,
+                          source: KostvMusicSource.album,
+                        ),
+                      ),
                     ),
             ),
             if (tracks.length > 1)
@@ -335,6 +342,7 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
                     () => playMusicTracks(
                       context,
                       List<AggregatedItem>.of(tracks)..shuffle(),
+                      source: KostvMusicSource.album,
                     ),
                   ),
                 ),
@@ -446,7 +454,12 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
           soundingPlays: track.id == soundingId && now.playing,
           onTap: () => unawaited(
             kostvMusicOnce(
-              () => playMusicTracks(context, tracks, startIndex: i),
+              () => playMusicTracks(
+                context,
+                tracks,
+                startIndex: i,
+                source: KostvMusicSource.album,
+              ),
             ),
           ),
           // Kos TV: «Ir al álbum» would be this same page.

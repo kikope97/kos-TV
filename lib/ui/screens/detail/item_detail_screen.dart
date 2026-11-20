@@ -41,6 +41,7 @@ import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/services/book_reader_service.dart';
 import '../../../data/services/theme_music_service.dart';
 import '../../../data/services/kostv_my_list.dart';
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/stremfin/kostv_trailers.dart';
 import '../../../data/services/youtube_stream_resolver.dart';
 import '../../../data/viewmodels/item_detail_view_model.dart';
@@ -3410,6 +3411,19 @@ class _DetailContentState extends State<_DetailContent> {
                       ? Destinations.audioPlayer
                       : Destinations.videoPlayer,
                   startPlayback: (launchSession) async {
+                    // Kos TV: the server plugin is told where it comes from.
+                    if (item.type == 'MusicAlbum' || item.type == 'Playlist') {
+                      kostvTellMusicSource(
+                        () =>
+                            GetIt.instance<MediaServerClientFactory>()
+                                .getClientIfExists(item.serverId) ??
+                            GetIt.instance<MediaServerClient>(),
+                        item.type == 'Playlist'
+                            ? KostvMusicSource.playlist
+                            : KostvMusicSource.album,
+                        displayedTracks,
+                      );
+                    }
                     await runPlaybackStart(
                       launchSession,
                       () =>
@@ -9743,6 +9757,8 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
               }
               throw PlaybackStartupRecoveryAbortedException();
             }
+            // Kos TV: the server plugin is told where the music comes from.
+            kostvTellMusicSource(() => client, KostvMusicSource.artist, tracks);
             await runPlaybackStart(
               launchSession,
               () => manager.playItems(tracks),
@@ -9786,6 +9802,11 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
             }
             // Music remembers which track was playing but starts it from the
             // beginning, matching standard music player behavior.
+            kostvTellMusicSource(
+              () => _clientForItem(item),
+              KostvMusicSource.album,
+              tracks,
+            );
             await runPlaybackStart(
               launchSession,
               () => manager.playItems(tracks, startIndex: albumStartIndex),
@@ -9823,6 +9844,12 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
                 context.mounted &&
                 await _shouldForceTranscodeForDolbyVision(context, tracks);
             final directAllowed = !dvForceTranscode && !forceTranscode;
+            // Kos TV: only its songs count (a playlist may hold videos).
+            kostvTellMusicSource(
+              () => _clientForItem(item),
+              KostvMusicSource.playlist,
+              tracks,
+            );
             await runPlaybackStart(
               launchSession,
               () => manager.playItems(
