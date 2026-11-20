@@ -116,13 +116,35 @@ inteligente, ver juntos, avisos, PIN de perfiles…
     Los avisos que llegan desordenados (un «avanza» tras el «termina», un «avanza» antes del
     «empieza», el «empieza» de la siguiente antes del «termina» de la anterior) no apuntan
     escuchas de más ni saltos falsos. Va en `kostv-musica/<usuario>/AAAA-MM.jsonl` (una línea
-    JSON por escucha o ♥, un archivo por mes) en la carpeta de datos del complemento; se guarda
-    12 meses (lo anterior se borra a diario y al escribir) y se borra la carpeta de la persona al
-    borrar su usuario (y, en la vuelta diaria, la de los usuarios que ya no están en el
+    JSON por escucha, ♥ u otro aviso, un archivo por mes) en la carpeta de datos del complemento;
+    se guarda 24 meses (lo anterior se borra a diario y al escribir) y se borra la carpeta de la
+    persona al borrar su usuario (y, en la vuelta diaria, la de los usuarios que ya no están en el
     servidor). En la misma carpeta, `settings.json` (si aprende), `discovery.json` (la lista de
-    la semana) y `today.json` (los mixes, los artistas y las mezclas del momento del día, para
+    la semana), `today.json` (los mixes, los artistas y las mezclas del momento del día, para
     que no cambien al reiniciar el servidor; se sobrescribe cada día y se borra al borrar las
-    escuchas o apagar «Aprender»).
+    escuchas o apagar «Aprender») y `shown.json` (qué se apuntó ya como enseñado ese día o
+    semana). Las líneas de antes, sin los campos nuevos, se leen igual.
+  - **Más datos de cada escucha:** `session` (las escuchas seguidas de la persona, sin pausas
+    de 30 minutos o más, comparten id), `prev` y `prevEndedBy` (la canción de antes y cómo
+    acabó; tras reiniciar, de la última escucha del archivo del mes); `endedBy`: `natural`
+    (llegó al final, a menos de 3 s, o sin posición con el «hasta el final» de Jellyfin),
+    `next` (otra empezó en la misma sesión en menos de 5 s: la que para antes del final se
+    guarda en memoria unos 6 s esperando a la siguiente y, si no llega, se apunta como
+    `stop`; si el «empieza» de la siguiente llega antes, es `next` al momento), `stop`,
+    `closed` (se acabó la sesión de Jellyfin) o `error` (falló: Jellyfin no lo pasa en su
+    aviso de «termina», así que un filtro del complemento lo lee del `Failed` del propio aviso
+    de la app al llegar a `/Sessions/Playing/Stopped`, sin tocar nada más); `shuffle` y
+    `repeat` (`none`, `all` u `one`), de la sesión de Jellyfin (`PlaybackOrder` o
+    `ShuffleMode` y `RepeatMode`, leídos por nombre; sin ellos, no van); `replay` (la misma
+    canción otra vez a menos de 10 s de acabar) y `seekBack` (cuántas veces se echó atrás más
+    de 5 s mientras sonaba; no en pausa ni al volver a empezar desde el final). Una escucha que
+    falla pronto no cuenta como saltada en nada (mixes, artistas ni mezcla del momento); si
+    falla tras oír buena parte, cuenta lo que se oyó.
+  - **Más señales:** los ♥ de álbumes y artistas (líneas `favorite` con `kind`: `album` o
+    `artist`; los de canciones siguen como `heart`); lo que llega por la ruta `Event`; y lo
+    que se enseñó (`shown`), la primera vez cada día de música que se piden: `mixes` (id,
+    género y canciones de cada mix), `moment` (franja y canciones, una por franja) y
+    `discovery` (semana e ids de Deezer de la lista guardada, una vez por semana). Solo ids.
   - **La hora de casa:** el ajuste «Zona horaria de casa» de la pestaña «Direcciones»
     (`KostvMusicTimeZone`, un nombre como `Europe/Madrid`, que es el de por defecto). Con él
     van las franjas del día, el «Mix diario», que cambia a las 5:00, y la semana del
@@ -132,7 +154,13 @@ inteligente, ver juntos, avisos, PIN de perfiles…
     "…Z" }`; con `{ "Learn": false }` no se apunta nada de esa persona y las mezclas usan
     solo lo que sabe Jellyfin); `DELETE /Moonfin/Kostv/Music/Listens` (borra sus escuchas, `204`);
     `POST /Moonfin/Kostv/Music/Context` (`{ "Source": "mix:daily-2", "ItemIds": […] }`: de dónde
-    viene lo que va a sonar, se recuerda 6 horas en memoria; `204`); `GET
+    viene lo que va a sonar, se recuerda 6 horas en memoria; `204`); `POST
+    /Moonfin/Kostv/Music/Event` (lo que hace la persona y el servidor no ve, apuntado con la
+    fecha: `{ "Type": "playlist_add", "ItemIds": […] }` de 1 a 500 ids, `{ "Type": "request",
+    "Album", "Artist", "DeezerAlbumId" }` todos opcionales, de hasta 200 caracteres y el id de
+    hasta 32, o `{ "Type": "dislike", "ItemIds": […], "Kind": "artist" | "song" }`, para más
+    adelante; con «Aprender» apagado no se apunta; `204`, y `400` con un tipo desconocido o un
+    cuerpo que no es así); `GET
     /Moonfin/Kostv/Music/Mixes` (`{ "Day", "Mixes": [ { "Id": "daily-1", "Genre", "Artists",
     "Items" } ] }`: hasta 4 «Mix diario» de unas 50 canciones, uno por cada género principal de
     la persona, mitad de lo que escucha y no salta y mitad de esos artistas sin oír y de

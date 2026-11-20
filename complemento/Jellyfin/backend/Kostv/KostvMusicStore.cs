@@ -10,19 +10,44 @@ using Moonfin.Server.Services;
 namespace Moonfin.Server.Kostv;
 
 /// <summary>
-/// kOS TV: one thing a person did with a song, one line of their month's file: a listen (how
-/// long, how it ended, where, from what) or a heart put on or taken off.
+/// kOS TV: one thing a person did with their music, one line of their month's file: a listen (how
+/// long, how it ended, where, from what, what played before), a heart put on or taken off a song,
+/// album or artist, songs added to a playlist, an album asked for, a «no me gusta», or what the
+/// app was shown of their music that day. Lines written before a field existed read without it.
 /// </summary>
 public sealed class KostvMusicEvent
 {
     public const string ListenType = "listen";
     public const string HeartType = "heart";
 
-    /// <summary><see cref="ListenType"/> or <see cref="HeartType"/>.</summary>
+    /// <summary>A heart put on or taken off an album or an artist (<see cref="Kind"/> says which).</summary>
+    public const string FavoriteType = "favorite";
+
+    /// <summary>Songs added to a playlist, as the app says (<see cref="Items"/>).</summary>
+    public const string PlaylistAddType = "playlist_add";
+
+    /// <summary>An album asked for in Stremfin, as the app says.</summary>
+    public const string RequestType = "request";
+
+    /// <summary>A «no me gusta» of songs or artists, as the app says (for later).</summary>
+    public const string DislikeType = "dislike";
+
+    /// <summary>What the person was shown of a surface that day (<see cref="Surface"/>): only ids.</summary>
+    public const string ShownType = "shown";
+
+    public const string AlbumKind = "album";
+    public const string ArtistKind = "artist";
+    public const string SongKind = "song";
+
+    public const string MixesSurface = "mixes";
+    public const string MomentSurface = "moment";
+    public const string DiscoverySurface = "discovery";
+
+    /// <summary>One of the types above.</summary>
     [JsonPropertyName("type")]
     public string Type { get; set; } = ListenType;
 
-    /// <summary>When it started (a listen) or happened (a heart), in UTC.</summary>
+    /// <summary>When it started (a listen) or happened (anything else), in UTC.</summary>
     [JsonPropertyName("at")]
     public DateTimeOffset At { get; set; }
 
@@ -89,8 +114,94 @@ public sealed class KostvMusicEvent
     [JsonPropertyName("favorite")]
     public bool? Favorite { get; set; }
 
+    /// <summary>
+    /// A listen: the id of its session, the person's listens one after another with less than
+    /// <see cref="KostvMusicStore.SessionGap"/> between them.
+    /// </summary>
+    [JsonPropertyName("session")]
+    public string? Session { get; set; }
+
+    /// <summary>A listen: the song heard just before it in its session, without dashes.</summary>
+    [JsonPropertyName("prev")]
+    public string? Prev { get; set; }
+
+    /// <summary>A listen: how the one before it in its session ended (see <see cref="KostvListenEnd"/>).</summary>
+    [JsonPropertyName("prevEndedBy")]
+    public string? PrevEndedBy { get; set; }
+
+    /// <summary>A listen: how it really ended (see <see cref="KostvListenEnd"/>).</summary>
+    [JsonPropertyName("endedBy")]
+    public string? EndedBy { get; set; }
+
+    /// <summary>A listen: whether shuffle was on while it played; null when the server didn't say.</summary>
+    [JsonPropertyName("shuffle")]
+    public bool? Shuffle { get; set; }
+
+    /// <summary>A listen: the repeat mode while it played (none, all or one); null when the server didn't say.</summary>
+    [JsonPropertyName("repeat")]
+    public string? Repeat { get; set; }
+
+    /// <summary>A listen: true when it is the same song again right after it ended (only written when true).</summary>
+    [JsonPropertyName("replay")]
+    public bool? Replay { get; set; }
+
+    /// <summary>A listen: how many times it was taken back more than a few seconds (only written when any).</summary>
+    [JsonPropertyName("seekBack")]
+    public int? SeekBack { get; set; }
+
+    /// <summary>A favorite: album or artist; a dislike: artist or song, when the app said.</summary>
+    [JsonPropertyName("kind")]
+    public string? Kind { get; set; }
+
+    /// <summary>A playlist_add, a dislike or the moment's mix shown: the songs (or artists), without dashes.</summary>
+    [JsonPropertyName("items")]
+    public List<string>? Items { get; set; }
+
+    /// <summary>A request: the album's name, as the app gave it.</summary>
+    [JsonPropertyName("albumName")]
+    public string? AlbumName { get; set; }
+
+    /// <summary>A request: the artist's name, as the app gave it.</summary>
+    [JsonPropertyName("artistName")]
+    public string? ArtistName { get; set; }
+
+    /// <summary>A request: the album's Deezer id.</summary>
+    [JsonPropertyName("deezerAlbumId")]
+    public string? DeezerAlbumId { get; set; }
+
+    /// <summary>Shown: mixes, moment or discovery.</summary>
+    [JsonPropertyName("surface")]
+    public string? Surface { get; set; }
+
+    /// <summary>Shown mixes: each mix's id, genre and songs.</summary>
+    [JsonPropertyName("mixes")]
+    public List<KostvShownMix>? Mixes { get; set; }
+
+    /// <summary>Shown moment: its time of day.</summary>
+    [JsonPropertyName("slot")]
+    public string? Slot { get; set; }
+
+    /// <summary>Shown discovery: its week.</summary>
+    [JsonPropertyName("week")]
+    public string? Week { get; set; }
+
+    /// <summary>Shown discovery: the Deezer ids of its songs.</summary>
+    [JsonPropertyName("deezerIds")]
+    public List<string>? DeezerIds { get; set; }
+
     [JsonIgnore]
     public bool IsListen => Type == ListenType;
+
+    /// <summary>A listen that failed to play (see <see cref="KostvListenEnd.Error"/>).</summary>
+    [JsonIgnore]
+    public bool Failed => IsListen && EndedBy == KostvListenEnd.Error;
+
+    /// <summary>
+    /// A listen that tells of the person's taste: every one but one that failed before much of it
+    /// was heard, which is the server's or the app's doing, not a skip.
+    /// </summary>
+    [JsonIgnore]
+    public bool Counts => IsListen && !(Failed && Outcome == KostvListenOutcome.Skipped);
 
     /// <summary>When it was at home, in <paramref name="zone"/>, from <see cref="At"/>.</summary>
     public DateTimeOffset LocalIn(TimeZoneInfo zone) => TimeZoneInfo.ConvertTime(At, zone);
@@ -105,6 +216,38 @@ public sealed class KostvMusicEvent
         Weekday = local.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)local.DayOfWeek;
         return this;
     }
+}
+
+/// <summary>kOS TV: one daily mix as shown: its id that day, its genre and its songs (without dashes).</summary>
+public sealed class KostvShownMix
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    [JsonPropertyName("genre")]
+    public string? Genre { get; set; }
+
+    [JsonPropertyName("items")]
+    public List<string> Items { get; set; } = [];
+}
+
+/// <summary>kOS TV: how a listen really ended, besides how much of it was heard.</summary>
+public static class KostvListenEnd
+{
+    /// <summary>It played to its end (within a few seconds of it).</summary>
+    public const string Natural = "natural";
+
+    /// <summary>Another song started on the same session within a few seconds.</summary>
+    public const string Next = "next";
+
+    /// <summary>Stopped, and nothing followed.</summary>
+    public const string Stop = "stop";
+
+    /// <summary>The session ended (the app closed, or the server let it go).</summary>
+    public const string Closed = "closed";
+
+    /// <summary>It failed to play.</summary>
+    public const string Error = "error";
 }
 
 /// <summary>
@@ -168,9 +311,9 @@ public static class KostvMusicTimeZone
 public sealed record KostvMusicSummary(int Listens, DateTimeOffset? Since);
 
 /// <summary>
-/// kOS TV: each person's music, on disk: what they listened to (one JSON line per listen or
-/// heart, a file per month, kept <see cref="KeepMonths"/> months), whether they want it kept
-/// (Learn), and the app's list of the week for «Descubrimiento semanal». Under
+/// kOS TV: each person's music, on disk: what they listened to and did (one JSON line per listen,
+/// heart or other event, a file per month, kept <see cref="KeepMonths"/> months), whether they
+/// want it kept (Learn), and the app's list of the week for «Descubrimiento semanal». Under
 /// <c>kostv-musica/&lt;user&gt;/</c> in the plugin's data folder. A line is appended under the
 /// person's lock, so songs ending at once on two devices don't mix their lines.
 /// </summary>
@@ -179,8 +322,14 @@ public sealed class KostvMusicStore
     /// <summary>The folder under the plugin's data folder.</summary>
     public const string FolderName = "kostv-musica";
 
-    /// <summary>Months kept back from the current one: a listen is kept at least a year.</summary>
-    public const int KeepMonths = 12;
+    /// <summary>Months kept back from the current one: a listen is kept at least two years.</summary>
+    public const int KeepMonths = 24;
+
+    /// <summary>Listens with less than this between them are of one session.</summary>
+    public static readonly TimeSpan SessionGap = TimeSpan.FromMinutes(30);
+
+    /// <summary>The same song starting again this soon after it ended is a replay.</summary>
+    public static readonly TimeSpan ReplayWithin = TimeSpan.FromSeconds(10);
 
     /// <summary>The most songs the app may store as the week's list.</summary>
     public const int MaxDiscoverySongs = 30;
@@ -191,6 +340,7 @@ public sealed class KostvMusicStore
     private const string SettingsFile = "settings.json";
     private const string DiscoveryFile = "discovery.json";
     private const string DayFile = "today.json";
+    private const string ShownFile = "shown.json";
 
     private static readonly Regex MonthFile = new(@"^(\d{4})-(\d{2})\.jsonl$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
@@ -222,6 +372,15 @@ public sealed class KostvMusicStore
 
     // The last heart noted per person and song, read from their files the first time it is asked.
     private readonly ConcurrentDictionary<Guid, Dictionary<Guid, bool>> _hearts = new();
+
+    // The last listen linked per person (see Link), read from their files the first time.
+    private readonly ConcurrentDictionary<Guid, LastListen?> _last = new();
+
+    // What was noted as shown per person: what of it to the day (or week) it was, from shown.json.
+    private readonly ConcurrentDictionary<Guid, Dictionary<string, string>> _shown = new();
+
+    /// <summary>The last listen of a person: its song, how and when it ended, and its session.</summary>
+    private sealed record LastListen(string Item, string? EndedBy, DateTimeOffset EndedAt, string? Session);
 
     /// <param name="root">The folder of everyone's music.</param>
     /// <param name="now">The clock, so tests can move it.</param>
@@ -371,7 +530,14 @@ public sealed class KostvMusicStore
         try
         {
             var entry = JsonSerializer.Deserialize<KostvMusicEvent>(line, LineOptions);
-            return entry == null || string.IsNullOrEmpty(entry.Item) ? null : entry;
+            if (entry == null)
+            {
+                return null;
+            }
+
+            // A listen or a heart is of a song (or album, or artist); the other events may name none.
+            var needsItem = entry.Type is KostvMusicEvent.ListenType or KostvMusicEvent.HeartType or KostvMusicEvent.FavoriteType;
+            return needsItem && string.IsNullOrEmpty(entry.Item) ? null : entry;
         }
         catch (JsonException)
         {
@@ -410,6 +576,9 @@ public sealed class KostvMusicStore
             _listensDeletedAt[userId] = _now();
             _summaries.TryRemove(userId, out _);
             _hearts.TryRemove(userId, out _);
+            _last.TryRemove(userId, out _);
+            _shown.TryRemove(userId, out _);
+            AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), ShownFile));
         }
     }
 
@@ -438,6 +607,8 @@ public sealed class KostvMusicStore
             _summaries.TryRemove(userId, out _);
             _trimmedOn.TryRemove(userId, out _);
             _hearts.TryRemove(userId, out _);
+            _last.TryRemove(userId, out _);
+            _shown.TryRemove(userId, out _);
             _listensDeletedAt.TryRemove(userId, out _);
         }
     }
@@ -593,13 +764,123 @@ public sealed class KostvMusicStore
         var hearts = new Dictionary<Guid, bool>();
         foreach (var e in Read(id))
         {
-            if (e.Type == KostvMusicEvent.HeartType && e.Favorite is { } on && Guid.TryParse(e.Item, out var item))
+            if (e.Type is KostvMusicEvent.HeartType or KostvMusicEvent.FavoriteType && e.Favorite is { } on && Guid.TryParse(e.Item, out var item))
             {
                 hearts[item] = on;
             }
         }
 
         return hearts;
+    });
+
+    // ---------------------------------------------------------------- sessions
+
+    /// <summary>
+    /// Links the listen <paramref name="entry"/> of <paramref name="userId"/>, which ended at
+    /// <paramref name="endedAt"/>, to the one before: the same session when it started less than
+    /// <see cref="SessionGap"/> after that one ended (a new one otherwise), the song before and how
+    /// it ended, and whether it is that song again right after it (<see cref="ReplayWithin"/>).
+    /// After a restart, the one before is read from the person's files.
+    /// </summary>
+    public void Link(Guid userId, KostvMusicEvent entry, DateTimeOffset endedAt)
+    {
+        lock (LockOf(userId))
+        {
+            var last = _last.GetOrAdd(userId, LastListenInFiles);
+            if (last != null && entry.At - last.EndedAt < SessionGap)
+            {
+                entry.Session = last.Session ?? NewSessionId();
+                entry.Prev = last.Item;
+                entry.PrevEndedBy = last.EndedBy;
+                entry.Replay = last.Item == entry.Item && entry.At - last.EndedAt <= ReplayWithin ? true : null;
+            }
+            else
+            {
+                entry.Session = NewSessionId();
+            }
+
+            _last[userId] = new LastListen(entry.Item, entry.EndedBy, endedAt, entry.Session);
+        }
+    }
+
+    private static string NewSessionId() => Guid.NewGuid().ToString("N")[..12];
+
+    // The last listen in the person's file of this month, or else of the month before. It ended
+    // where it started plus what was heard of it (near enough: pauses aren't counted).
+    private LastListen? LastListenInFiles(Guid userId)
+    {
+        var local = TimeZoneInfo.ConvertTime(_now(), Zone);
+        var index = local.Year * 12 + local.Month - 1;
+        foreach (var (path, _) in MonthFiles(userId).Where(f => f.Index == index || f.Index == index - 1).Reverse())
+        {
+            string[] lines;
+            try
+            {
+                lines = File.ReadAllLines(path, Utf8NoBom);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger?.LogWarning(ex, "kOS TV music: {Path} could not be read", path);
+                continue;
+            }
+
+            for (var i = lines.Length - 1; i >= 0; i--)
+            {
+                if (Parse(lines[i]) is { IsListen: true } listen)
+                {
+                    return new LastListen(listen.Item, listen.EndedBy, listen.At.AddSeconds(listen.Played ?? 0), listen.Session);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    // ---------------------------------------------------------------- what was shown
+
+    /// <summary>
+    /// Adds <paramref name="entry"/> to <paramref name="userId"/>'s file unless one for
+    /// <paramref name="key"/> was noted already for <paramref name="period"/> (the day, or the
+    /// week): what was shown is noted once, not on every visit. Remembered in the person's folder
+    /// (<c>shown.json</c>), so a restart doesn't note it again. False when not noted (it was
+    /// already, or Learn is off).
+    /// </summary>
+    public bool AppendOnce(Guid userId, string key, string period, KostvMusicEvent entry)
+    {
+        lock (LockOf(userId))
+        {
+            var marks = ShownOf(userId);
+            if (marks.TryGetValue(key, out var noted) && noted == period)
+            {
+                return false;
+            }
+
+            if (!Append(userId, entry))
+            {
+                return false;
+            }
+
+            marks[key] = period;
+            try
+            {
+                AtomicFile.WriteAllText(Path.Combine(FolderOf(userId), ShownFile), JsonSerializer.Serialize(marks, LineOptions));
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger?.LogWarning(ex, "kOS TV music: what was shown could not be stored");
+            }
+
+            return true;
+        }
+    }
+
+    // Under the person's lock.
+    private Dictionary<string, string> ShownOf(Guid userId) => _shown.GetOrAdd(userId, id =>
+    {
+        var stored = AtomicFile.ReadWithRecovery(
+            Path.Combine(FolderOf(id), ShownFile),
+            text => JsonSerializer.Deserialize<Dictionary<string, string>>(text, LineOptions));
+        return stored != null ? new Dictionary<string, string>(stored, StringComparer.Ordinal) : new Dictionary<string, string>(StringComparer.Ordinal);
     });
 
     // ---------------------------------------------------------------- the day's music

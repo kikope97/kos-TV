@@ -39,9 +39,9 @@ servidor, vale para cualquier aparato y cualquier app, sin cambiar nada en ellas
 También los ♥ que se ponen y se quitan, con su fecha.
 
 **Dónde:** en la carpeta de datos del complemento, un archivo por persona y mes
-(`kostv-musica/<persona>/2026-11.jsonl`). Unos 150 bytes por canción: con 50
-canciones al día, menos de 3 MB al año por persona. Se guarda **12 meses** y se
-borra lo de una persona al borrar su usuario.
+(`kostv-musica/<persona>/2026-11.jsonl`). Unos 400 bytes por canción (con lo de
+«Más datos para aprender»): con 50 canciones al día, unos 7 MB al año por persona.
+Se guarda **24 meses** y se borra lo de una persona al borrar su usuario.
 
 **Privacidad:** no sale de casa. Cada persona puede apagarlo en Ajustes
 («Aprender de lo que escucho») y borrar lo suyo. Nadie ve lo de otro.
@@ -130,7 +130,7 @@ día.
 2. ¿El «Descubrimiento semanal» **sustituye** a la fila «Canciones para ti»?
    Recomendado: sí; se quedan las de «Porque escuchas a…».
 3. ¿Guardar lo que se escucha viene **encendido** para todos (también niños),
-   12 meses (luego 24), con el ajuste para apagarlo? Recomendado: sí.
+   24 meses (al principio eran 12), con el ajuste para apagarlo? Recomendado: sí.
 4. ¿Las mezclas del momento **no salen** hasta que haya datos suficientes?
    Recomendado: sí, mejor que una mezcla genérica que no es tuya.
 
@@ -150,7 +150,7 @@ mezclas» y «Canciones para ti» de siempre, sin el ajuste).
 | `GET /Moonfin/Kostv/Music/Mixes` | `{ "Day": "2026-11-20", "Mixes": [ { "Id": "daily-1", "Genre": "Reguetón", "Artists": [tarjetas], "Items": [tarjetas] } ] }`: hasta 4 mixes de unas 50 canciones, los mismos todo el día (el día empieza a las 5:00, hora de casa). |
 | `GET /Moonfin/Kostv/Music/Discovery` | `{ "Week": "2026-W47", "Seeds": ["Bad Bunny", …], "Songs": null }`: los artistas (hasta 10) con los que pedir a Stremfin, y la lista de la semana si ya está guardada (`Songs`, tal cual la guardó la app). |
 | `PUT /Moonfin/Kostv/Music/Discovery` | Cuerpo `{ "Week": "2026-W47", "Songs": [ … ] }` (hasta 30 canciones y 64 KB, en el formato de Stremfin). Solo para la semana en curso; `204`. |
-| `POST /Moonfin/Kostv/Music/Event` | Cuerpo `{ "Type": "playlist_add", "ItemIds": ["…"] }` o `{ "Type": "request", "Album": "…", "Artist": "…", "DeezerAlbumId": "…" }`. Lo que hace la persona y el servidor no ve: `playlist_add` (añadir canciones a una lista), `request` (pedir un álbum a Stremfin) y, más adelante, `dislike` ("No me gusta" de una canción o un artista). Se apunta con la fecha en sus datos. `204`; un tipo desconocido, `400`. |
+| `POST /Moonfin/Kostv/Music/Event` | Cuerpo `{ "Type": "playlist_add", "ItemIds": ["…"] }` o `{ "Type": "request", "Album": "…", "Artist": "…", "DeezerAlbumId": "…" }`. Lo que hace la persona y el servidor no ve: `playlist_add` (añadir canciones a una lista; de 1 a 500 ids), `request` (pedir un álbum a Stremfin; los tres opcionales, textos de hasta 200 caracteres y el id de Deezer de hasta 32) y, más adelante, `dislike` ("No me gusta": `{ "Type": "dislike", "ItemIds": ["…"], "Kind": "artist" }`, `Kind` opcional, `artist` o `song`). Se apunta con la fecha en sus datos (con «Aprender» apagado, no se apunta nada). `204`; un tipo desconocido o un cuerpo que no es así, `400`. |
 | `GET /Moonfin/Kostv/Music/Moment` | `{ "Slot": "tarde", "Ready": true, "Items": [tarjetas] }`. Franjas: `manana` (6–12), `tarde` (12–20) y `noche` (20–6), por la hora de casa. `Ready: false` (sin `Items`) mientras no haya datos suficientes. |
 
 ## Más datos para aprender (añadido después)
@@ -177,3 +177,36 @@ Además de lo de la sección A, de cada escucha:
 
 No se guarda lo que se escribe en el buscador, ni el volumen, ni nada de la red
 o la casa.
+
+**Cómo queda en el complemento** (campos nuevos de cada línea; las líneas de antes,
+sin ellos, se siguen leyendo igual):
+
+- **Sesión:** `session` (un id corto), `prev` (la canción de antes) y `prevEndedBy`
+  (cómo acabó). Una pausa de 30 minutos o más entre el final de una y el principio
+  de la siguiente empieza otra sesión. Tras reiniciar el servidor, la de antes se
+  saca de la última escucha del archivo del mes (o del mes anterior).
+- **`endedBy`:** `natural` si llegó al final (a menos de 3 s, o sin posición, el
+  «hasta el final» de Jellyfin); `next` si en el mismo aparato empezó otra en menos
+  de 5 s; `stop` si no siguió nada; `closed` si se acabó la sesión de Jellyfin; y
+  `error` si la app dijo que falló. Como `next` solo se sabe cuando llega la
+  siguiente, una que para antes del final se guarda en memoria unos 6 s: si llega
+  otra en ese tiempo es `next`; si no, se apunta como `stop`. Jellyfin no pasa el
+  «falló» en su aviso de «termina»: el complemento lo lee del propio aviso de la
+  app (`Failed`) al llegar. Una escucha que falla pronto no cuenta como saltada en
+  nada (ni para quitar canciones de los mixes, ni para los artistas, ni para la
+  mezcla del momento); si falla tras oír buena parte, cuenta lo que se oyó.
+- **`shuffle`** (sí o no) y **`repeat`** (`none`, `all` u `one`), como los dice la
+  sesión de Jellyfin en su último aviso; sin el dato, no van.
+- **`replay`:** la misma canción otra vez a menos de 10 s de acabar.
+  **`seekBack`:** cuántas veces se echó atrás más de 5 s mientras sonaba (no en
+  pausa, ni al volver a empezar desde el final, como con «repetir una»).
+- **♥ de álbumes y artistas:** líneas `favorite` con `kind` (`album` o
+  `artist`); los de canciones siguen como `heart`.
+- **Ruta `Event`:** líneas `playlist_add`, `request` y `dislike`.
+- **Lo que se enseñó:** líneas `shown`, una por superficie y día de música (desde
+  las 5:00): `mixes` (id, género y canciones de cada mix), `moment` (franja y
+  canciones; una por franja) y `discovery` (semana e ids de Deezer de la lista
+  guardada; una por semana). Se apunta la primera vez que se piden, no en cada visita
+  (se recuerda en `shown.json`, también tras reiniciar).
+
+«Listens» de los ajustes sigue contando solo escuchas.

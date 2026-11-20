@@ -12,7 +12,8 @@ namespace Moonfin.Server.Kostv;
 
 /// <summary>
 /// kOS TV: each person's music: whether what they listen to is kept, where what they play comes
-/// from, their daily mixes, «Descubrimiento semanal» and the mix for the time of day.
+/// from, what they do that the server doesn't see, their daily mixes, «Descubrimiento semanal»
+/// and the mix for the time of day (each noted as shown the first time in its day or week).
 /// </summary>
 [ApiController]
 [Route("Moonfin/Kostv/Music")]
@@ -153,10 +154,11 @@ public class KostvMusicController : ControllerBase
         var day = _music.Day;
         var mixes = await _music.MixesAsync(caller.Id, caller.User).ConfigureAwait(false);
         var result = new List<object>();
+        var shown = new List<KostvShownMix>();
         foreach (var mix in mixes)
         {
-            var items = Cards(mix.Items, caller.User);
-            if (items.Count == 0)
+            var songs = Visible(mix.Items, caller.User);
+            if (songs.Count == 0)
             {
                 continue;
             }
@@ -169,10 +171,13 @@ public class KostvMusicController : ControllerBase
                     .Where(a => UserReflection.IsVisibleStandaloneTo(a, caller.User))
                     .Select(a => _cards.Map(a, caller.User))
                     .ToList(),
-                Items = items
+                Items = songs.Select(item => _cards.Map(item, caller.User)).ToList()
             });
+            shown.Add(new KostvShownMix { Id = mix.Id, Genre = mix.Genre, Items = songs.Select(s => s.Id.ToString("N")).ToList() });
         }
 
+        // The first time today: what the person was shown, to measure later how much of it is heard.
+        _music.NoteShownMixes(caller.Id, shown);
         return Ok(new { Day = day, Mixes = result });
     }
 
@@ -193,6 +198,8 @@ public class KostvMusicController : ControllerBase
         var week = _music.Week;
         var seeds = await _music.SeedsAsync(caller.Id, caller.User).ConfigureAwait(false);
         var songs = _music.DiscoverySongs(caller.Id);
+        // The first time this week, the stored list as shown.
+        _music.NoteShownDiscovery(caller.Id, week, songs);
         var json = JsonSerializer.Serialize(new { Week = week, Seeds = seeds, Songs = songs }, OutputOptions);
         return Content(json, "application/json");
     }
@@ -240,7 +247,14 @@ public class KostvMusicController : ControllerBase
 
         var week = Property(body, "Week") is { ValueKind: JsonValueKind.String } w ? w.GetString() : null;
         var songs = Property(body, "Songs") ?? default;
-        return Store.SetDiscovery(caller.Id, week, songs, _music.Week) switch
+        var refusal = Store.SetDiscovery(caller.Id, week, songs, _music.Week);
+        if (refusal == KostvMusicStore.DiscoveryRefusal.None)
+        {
+            // The app shows the list it stores: noted as shown, once this week.
+            _music.NoteShownDiscovery(caller.Id, _music.Week, songs);
+        }
+
+        return refusal switch
         {
             KostvMusicStore.DiscoveryRefusal.None => NoContent(),
             KostvMusicStore.DiscoveryRefusal.NotThisWeek => Conflict(new { Error = "Only this week's list can be stored.", Week = _music.Week }),
@@ -265,20 +279,154 @@ public class KostvMusicController : ControllerBase
         }
 
         var moment = await _music.MomentAsync(caller.Id, caller.User).ConfigureAwait(false);
-        var items = moment.Ready ? Cards(moment.Items, caller.User) : [];
-        if (items.Count == 0)
+        var songs = moment.Ready ? Visible(moment.Items, caller.User) : [];
+        if (songs.Count == 0)
         {
             return Ok(new { moment.Slot, Ready = false });
         }
 
-        return Ok(new { moment.Slot, Ready = true, Items = items });
+        // The first time today at this time of day: what the person was shown.
+        _music.NoteShownMoment(caller.Id, moment.Slot, songs.Select(s => s.Id).ToList());
+        return Ok(new { moment.Slot, Ready = true, Items = songs.Select(item => _cards.Map(item, caller.User)).ToList() });
+    }
+
+    /// <summary>The most songs (or artists) one event may name.</summary>
+    public const int MaxEventItems = 500;
+
+    /// <summary>The longest album or artist name a request event may carry.</summary>
+    public const int MaxEventNameLength = 200;
+
+    /// <summary>The longest Deezer id a request event may carry.</summary>
+    public const int MaxDeezerIdLength = 32;
+
+    /// <summary>
+    /// What the caller did that the server doesn't see, noted with the time in their music:
+    /// <c>{ "Type": "playlist_add", "ItemIds": [...] }</c> (songs added to a playlist, up to 500),
+    /// <c>{ "Type": "request", "Album": "…", "Artist": "…", "DeezerAlbumId": "…" }</c> (an album
+    /// asked for in Stremfin, each optional) or <c>{ "Type": "dislike", "ItemIds": [...], "Kind":
+    /// "artist" }</c> («no me gusta» of songs or artists; for later). Nothing is noted while Learn
+    /// is off. An unknown type, or one not as said, is a <c>400</c>.
+    /// </summary>
+    [HttpPost("Event")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult AddEvent([FromBody] JsonElement body)
+    {
+        if (Caller() is not { } caller)
+        {
+            return NotSignedIn();
+        }
+
+        var type = Property(body, "Type") is { ValueKind: JsonValueKind.String } t ? t.GetString()?.Trim().ToLowerInvariant() : null;
+        KostvMusicEvent entry;
+        switch (type)
+        {
+            case KostvMusicEvent.PlaylistAddType:
+            {
+                if (EventItems(body, out var error) is not { } items)
+                {
+                    return BadRequest(new { Error = error });
+                }
+
+                entry = new KostvMusicEvent { Type = type, Items = items };
+                break;
+            }
+
+            case KostvMusicEvent.RequestType:
+            {
+                if (!EventText(body, "Album", MaxEventNameLength, out var album) ||
+                    !EventText(body, "Artist", MaxEventNameLength, out var artist) ||
+                    !EventText(body, "DeezerAlbumId", MaxDeezerIdLength, out var deezer))
+                {
+                    return BadRequest(new { Error = $"Album and Artist are text of up to {MaxEventNameLength} characters, and DeezerAlbumId of up to {MaxDeezerIdLength}." });
+                }
+
+                entry = new KostvMusicEvent { Type = type, AlbumName = album, ArtistName = artist, DeezerAlbumId = deezer };
+                break;
+            }
+
+            case KostvMusicEvent.DislikeType:
+            {
+                if (EventItems(body, out var error) is not { } items)
+                {
+                    return BadRequest(new { Error = error });
+                }
+
+                string? kind = null;
+                if (Property(body, "Kind") is { ValueKind: not JsonValueKind.Null } said)
+                {
+                    kind = said.ValueKind == JsonValueKind.String ? said.GetString()?.Trim().ToLowerInvariant() : string.Empty;
+                    if (kind is not (KostvMusicEvent.ArtistKind or KostvMusicEvent.SongKind))
+                    {
+                        return BadRequest(new { Error = "Kind is artist or song." });
+                    }
+                }
+
+                entry = new KostvMusicEvent { Type = type, Items = items, Kind = kind };
+                break;
+            }
+
+            default:
+                return BadRequest(new { Error = "Type is playlist_add, request or dislike." });
+        }
+
+        // With Learn off, nothing is noted (the store won't write it).
+        Store.Append(caller.Id, entry.Stamp(Store.Now, Store.Zone));
+        return NoContent();
+    }
+
+    /// <summary>The ItemIds of an event, without dashes: at least one and at most <see cref="MaxEventItems"/>, each an id.</summary>
+    private static List<string>? EventItems(JsonElement body, out string error)
+    {
+        error = $"ItemIds is a list of 1 to {MaxEventItems} ids.";
+        if (Property(body, "ItemIds") is not { ValueKind: JsonValueKind.Array } list || list.GetArrayLength() is 0 or > MaxEventItems)
+        {
+            return null;
+        }
+
+        var ids = new List<string>();
+        foreach (var element in list.EnumerateArray())
+        {
+            if (element.ValueKind != JsonValueKind.String || !Guid.TryParse(element.GetString(), out var id) || id == Guid.Empty)
+            {
+                return null;
+            }
+
+            ids.Add(id.ToString("N"));
+        }
+
+        return ids.Distinct(StringComparer.Ordinal).ToList();
+    }
+
+    /// <summary>An optional text of an event: absent or null is null; otherwise text of up to <paramref name="max"/> characters.</summary>
+    private static bool EventText(JsonElement body, string name, int max, out string? value)
+    {
+        value = null;
+        if (Property(body, name) is not { } said || said.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (said.ValueKind != JsonValueKind.String)
+        {
+            return false;
+        }
+
+        var text = said.GetString()?.Trim();
+        if (text?.Length > max)
+        {
+            return false;
+        }
+
+        value = string.IsNullOrEmpty(text) ? null : text;
+        return true;
     }
 
     // Read at once within the person's limits, and each checked again as the card goes out.
-    private List<object> Cards(IReadOnlyList<Guid> ids, object user) =>
+    private List<BaseItem> Visible(IReadOnlyList<Guid> ids, object user) =>
         _music.Songs(user, ids)
             .Where(item => UserReflection.IsVisibleStandaloneTo(item, user))
-            .Select(item => _cards.Map(item, user))
             .ToList();
 
     /// <summary>A property of <paramref name="body"/>, its name in any case.</summary>

@@ -807,4 +807,106 @@ public sealed class KostvMusicService
 
     /// <summary>The week's list the app stored for <paramref name="userId"/>, or null.</summary>
     public JsonElement? DiscoverySongs(Guid userId) => _store.DiscoveryOf(userId, Week);
+
+    // ---------------------------------------------------------------- what was shown
+
+    private KostvMusicEvent Shown(string surface) =>
+        new KostvMusicEvent { Type = KostvMusicEvent.ShownType, Surface = surface }.Stamp(_store.Now, _store.Zone);
+
+    private void NoteShown(Guid userId, string key, string period, KostvMusicEvent entry)
+    {
+        try
+        {
+            _store.AppendOnce(userId, key, period, entry);
+        }
+        catch (Exception ex)
+        {
+            // Never in the way of showing the music.
+            _logger.LogWarning(ex, "kOS TV music: noting what was shown failed");
+        }
+    }
+
+    /// <summary>Notes, once a music day, the daily mixes <paramref name="userId"/> was shown (ids only).</summary>
+    public void NoteShownMixes(Guid userId, IReadOnlyList<KostvShownMix> mixes)
+    {
+        if (mixes.Count == 0)
+        {
+            return;
+        }
+
+        var entry = Shown(KostvMusicEvent.MixesSurface);
+        entry.Mixes = mixes.ToList();
+        NoteShown(userId, KostvMusicEvent.MixesSurface, Day, entry);
+    }
+
+    /// <summary>Notes, once a music day for each time of day, the mix of the moment <paramref name="userId"/> was shown.</summary>
+    public void NoteShownMoment(Guid userId, string slot, IReadOnlyList<Guid> items)
+    {
+        if (items.Count == 0)
+        {
+            return;
+        }
+
+        var entry = Shown(KostvMusicEvent.MomentSurface);
+        entry.Slot = slot;
+        entry.Items = items.Select(id => id.ToString("N")).ToList();
+        NoteShown(userId, KostvMusicEvent.MomentSurface + ":" + slot, Day, entry);
+    }
+
+    /// <summary>
+    /// Notes, once a week, the list of «Descubrimiento semanal» stored for <paramref name="userId"/>
+    /// for <paramref name="week"/>: the Deezer ids of its songs.
+    /// </summary>
+    public void NoteShownDiscovery(Guid userId, string week, JsonElement? songs)
+    {
+        var ids = DeezerIdsOf(songs);
+        if (ids.Count == 0)
+        {
+            return;
+        }
+
+        var entry = Shown(KostvMusicEvent.DiscoverySurface);
+        entry.Week = week;
+        entry.DeezerIds = ids;
+        NoteShown(userId, KostvMusicEvent.DiscoverySurface, week, entry);
+    }
+
+    /// <summary>The Deezer ids of the songs of a week's list, as Stremfin gives them (<c>deezer_id</c>).</summary>
+    internal static List<string> DeezerIdsOf(JsonElement? songs)
+    {
+        var ids = new List<string>();
+        if (songs is not { ValueKind: JsonValueKind.Array } list)
+        {
+            return ids;
+        }
+
+        foreach (var song in list.EnumerateArray().Take(KostvMusicStore.MaxDiscoverySongs))
+        {
+            if (song.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            foreach (var property in song.EnumerateObject())
+            {
+                if (property.Name is "deezer_id" or "deezerId" or "DeezerId")
+                {
+                    var id = property.Value.ValueKind switch
+                    {
+                        JsonValueKind.String => property.Value.GetString(),
+                        JsonValueKind.Number => property.Value.GetRawText(),
+                        _ => null
+                    };
+                    if (!string.IsNullOrWhiteSpace(id) && id.Length <= 32)
+                    {
+                        ids.Add(id.Trim());
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        return ids;
+    }
 }
