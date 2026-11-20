@@ -419,8 +419,10 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   }
 
   /// Kos TV: the week's discovery: the songs the plugin kept for this week
-  /// or, the first time this week, those the requests service recommends
-  /// for the plugin's artists ([kostvLoadWeeklyDiscovery]). Gives what
+  /// or, the first time this week, those of the requests service's radio of
+  /// the plugin's artists, topped up with its recommendations (only these
+  /// with a service from before the radio; [kostvLoadWeeklyDiscovery]),
+  /// without what the person isn't shown. Gives what
   /// applies it to the page: no songs when the plugin has none to give (the
   /// page then shows «Canciones para ti»). Throws when the plugin or the
   /// service failed: what is shown stays.
@@ -430,6 +432,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       _plugin,
       _client,
       recommend: stremfin.musicRecommendations,
+      radio: stremfin.musicRadio,
+      clean: stremfin.cleanMusicSongs,
       wanted: () => mounted,
       onWeek: (week) {
         // Another week's list: it goes, even if the service fails now.
@@ -454,12 +458,14 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   }
 
   /// Kos TV: what was kept of the week's discovery on the device, only when
-  /// it is this week's.
-  Future<List<StremfinSong>?> _keptDiscovery(StremfinService stremfin) async =>
-      kostvKeptDiscovery(
-        await stremfin.rememberedMusicNote(_discoveryNote),
-        now: DateTime.now(),
-      );
+  /// it is this week's, without what the person isn't shown now.
+  Future<List<StremfinSong>?> _keptDiscovery(StremfinService stremfin) async {
+    final kept = kostvKeptDiscovery(
+      await stremfin.rememberedMusicNote(_discoveryNote),
+      now: DateTime.now(),
+    );
+    return kept == null ? null : stremfin.cleanMusicSongs(kept);
+  }
 
   /// The service's parts, now or as it answered last time ([remembered]).
   Future<void> _loadStremfin(

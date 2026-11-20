@@ -301,10 +301,12 @@ class StremfinService extends ChangeNotifier {
     _trailersAccessCheckedAt = null;
     _availability.clear();
     _recommending.clear();
+    _radioLoading.clear();
     // Kos TV: what Music kept is the last person's (their requests, their
     // «Para ti»): none of it is shown to the next one.
     _chartPages.clear();
     _recommended.clear();
+    _radios.clear();
     _musicKept.clear();
     _musicLoading.clear();
     // On the device it is kept for one person only (see
@@ -503,8 +505,17 @@ class StremfinService extends ChangeNotifier {
   /// hours.
   static const _chartFor = Duration(minutes: 30);
 
-  /// One chart's places, kept for half an hour.
+  /// One chart's places, kept for half an hour. Kos TV: without what the
+  /// person isn't shown ([cleanMusicSongs]).
   Future<StremfinChartPage> musicChart(
+    String id, {
+    String? country,
+    bool remembered = false,
+  }) async => _cleanChart(
+    await _musicChart(id, country: country, remembered: remembered),
+  );
+
+  Future<StremfinChartPage> _musicChart(
     String id, {
     String? country,
     bool remembered = false,
@@ -534,8 +545,21 @@ class StremfinService extends ChangeNotifier {
   final Map<String, Future<StremfinRecommendations>> _recommending = {};
 
   /// «Para ti» for [artists]: the service keeps it an hour and allows few
-  /// calls, so it is kept here as long.
+  /// calls, so it is kept here as long. Kos TV: without what the person
+  /// isn't shown ([cleanMusicSongs]).
   Future<StremfinRecommendations> musicRecommendations(
+    List<String> artists, {
+    List<String> genres = const [],
+    bool remembered = false,
+  }) async => _cleanRecommendations(
+    await _musicRecommendations(
+      artists,
+      genres: genres,
+      remembered: remembered,
+    ),
+  );
+
+  Future<StremfinRecommendations> _musicRecommendations(
     List<String> artists, {
     List<String> genres = const [],
     bool remembered = false,
@@ -572,6 +596,85 @@ class StremfinService extends ChangeNotifier {
           if (identical(_recommending[key], future)) _recommending.remove(key);
         });
     return _recommending[key] = future;
+  }
+
+  final Map<String, ({DateTime at, StremfinRadio found})> _radios = {};
+
+  /// Kos TV: the radio being read, shared: it counts in the same few a
+  /// minute as «Para ti».
+  final Map<String, Future<StremfinRadio>> _radioLoading = {};
+
+  /// Kos TV: when the service was last seen without the radio (a 404: one
+  /// from before 1.93.0). Left alone that long, like the server plugin's
+  /// missing routes, so updating it shows without restarting the app.
+  DateTime? _radioMissingAt;
+  static const _radioMissingFor = Duration(minutes: 30);
+
+  /// Kos TV: «Descubrimiento semanal»: songs of Deezer's radio of [artists]
+  /// (see [StremfinClient.musicRadio]). The service keeps the list an hour
+  /// and allows few calls, so it is kept here as long. A service without it
+  /// answers 404 (a [StremfinException] with that status), remembered for a
+  /// while without asking again.
+  Future<StremfinRadio> musicRadio(
+    List<String> artists, {
+    String? only,
+    bool excludeSeedArtists = false,
+    int? limit,
+    bool remembered = false,
+  }) async {
+    final missingAt = _radioMissingAt;
+    if (missingAt != null &&
+        _clock().difference(missingAt) < _radioMissingFor) {
+      throw const StremfinException(code: 'not_found', status: 404);
+    }
+    final artistIds = await _artistIdsOf(artists, remembered: remembered);
+    Future<StremfinRadio> read({bool remembered = false}) => _client
+        .musicRadio(
+          artists,
+          artistIds: artistIds,
+          only: only,
+          excludeSeedArtists: excludeSeedArtists,
+          limit: limit,
+          remembered: remembered,
+        )
+        .then(
+          (found) {
+            if (!remembered) _radioMissingAt = null;
+            return found;
+          },
+          onError: (Object e, StackTrace stack) {
+            if (e is StremfinException && e.status == 404) {
+              _radioMissingAt = _clock();
+            }
+            Error.throwWithStackTrace(e, stack);
+          },
+        );
+    if (remembered) return _cleanRadio(await read(remembered: true));
+    final key = '${artists.join(',')}|$only|$excludeSeedArtists|$limit';
+    final kept = _radios[key];
+    if (kept != null &&
+        _clock().difference(kept.at) < const Duration(hours: 1)) {
+      return _cleanRadio(kept.found);
+    }
+    final pending = _radioLoading[key];
+    if (pending != null) return _cleanRadio(await pending);
+    // Kos TV: kept only for the person it was read for.
+    final generation = _generation;
+    late final Future<StremfinRadio> future;
+    future = read()
+        .then((found) {
+          if (generation == _generation) {
+            _radios[key] = (at: _clock(), found: found);
+          }
+          return found;
+        })
+        .whenComplete(() {
+          if (identical(_radioLoading[key], future)) {
+            _radioLoading.remove(key);
+          }
+        });
+    _radioLoading[key] = future;
+    return _cleanRadio(await future);
   }
 
   /// Kos TV: Deezer's id of each artist whose name has a comma in it («Tyler,
@@ -674,7 +777,17 @@ class StremfinService extends ChangeNotifier {
   /// Music matching [query]: what the home server has and what it hasn't.
   /// What the Music page asks itself ([keep]) is kept a few minutes; what
   /// the person types is asked each time.
+  ///
+  /// Kos TV: without what the person isn't shown ([cleanMusicSongs]).
   Future<StremfinMusicSearch> musicSearch(
+    String query, {
+    bool keep = false,
+    bool remembered = false,
+  }) async => _cleanSearch(
+    await _musicSearch(query, keep: keep, remembered: remembered),
+  );
+
+  Future<StremfinMusicSearch> _musicSearch(
     String query, {
     bool keep = false,
     bool remembered = false,
@@ -694,13 +807,35 @@ class StremfinService extends ChangeNotifier {
       _client.musicAlbum(deezerId);
 
   /// Kos TV: a song's page: whether it is at home now, its preview and the
-  /// album to ask for to have it.
-  Future<StremfinSongDetail> musicSong(String deezerId) =>
-      _client.musicSong(deezerId);
+  /// album to ask for to have it. An explicit one the person isn't shown
+  /// ([cleanMusicSongs]) comes without its preview.
+  Future<StremfinSongDetail> musicSong(String deezerId) async {
+    final detail = await _client.musicSong(deezerId);
+    if (kostvMusicSongAllowed(detail.song, hideExplicit: hidesExplicitMusic)) {
+      return detail;
+    }
+    return StremfinSongDetail(
+      song: detail.song.withoutPreview(),
+      album: detail.album,
+      albumInstead: detail.albumInstead,
+      ask: detail.ask,
+    );
+  }
 
   /// An artist's page. What the Music page asks itself ([keep]) is kept a
   /// few minutes; the artist's own page asks each time.
+  ///
+  /// Kos TV: without the top songs the person isn't shown
+  /// ([cleanMusicSongs]).
   Future<StremfinArtistDetail> musicArtist(
+    String deezerId, {
+    bool keep = false,
+    bool remembered = false,
+  }) async => _cleanArtist(
+    await _musicArtist(deezerId, keep: keep, remembered: remembered),
+  );
+
+  Future<StremfinArtistDetail> _musicArtist(
     String deezerId, {
     bool keep = false,
     bool remembered = false,
@@ -730,6 +865,64 @@ class StremfinService extends ChangeNotifier {
       ? _client.musicReleases(remembered: true)
       : _musicKeep('releases', _client.musicReleases);
 
+  /// Kos TV: whether the requests service's explicit songs are hidden from
+  /// the person now ([kostvMusicHidesExplicit]): their age limit (not read
+  /// yet counts as one), this device's parental control or kids mode. Read
+  /// on every answer, so switching person or turning one of them on or off
+  /// applies at the next.
+  bool get hidesExplicitMusic => kostvMusicHidesExplicit(
+    limit: _readAgeLimit == null ? KostvAgeLimit.none : _ageLimit,
+    parental: _parental(),
+    kidsMode: _kidsMode?.call() ?? false,
+  );
+
+  /// Kos TV: [songs] without those the person isn't shown (explicit and not
+  /// at home, see [kostvMusicSongAllowed]). Every music answer of the
+  /// service goes through here, kept ones included.
+  List<StremfinSong> cleanMusicSongs(List<StremfinSong> songs) =>
+      kostvCleanMusicSongs(songs, hideExplicit: hidesExplicitMusic);
+
+  StremfinChartPage _cleanChart(StremfinChartPage page) => StremfinChartPage(
+    chart: page.chart,
+    songs: cleanMusicSongs(page.songs),
+    albums: page.albums,
+  );
+
+  StremfinRecommendations _cleanRecommendations(
+    StremfinRecommendations found,
+  ) => StremfinRecommendations(
+    seeds: found.seeds,
+    albums: found.albums,
+    songs: cleanMusicSongs(found.songs),
+  );
+
+  StremfinRadio _cleanRadio(StremfinRadio found) => StremfinRadio(
+    seeds: found.seeds,
+    only: found.only,
+    excludeSeedArtists: found.excludeSeedArtists,
+    songs: cleanMusicSongs(found.songs),
+    skipped: found.skipped,
+    failed: found.failed,
+  );
+
+  StremfinMusicSearch _cleanSearch(StremfinMusicSearch found) =>
+      StremfinMusicSearch(
+        artists: found.artists,
+        songs: cleanMusicSongs(found.songs),
+        albums: found.albums,
+        nextCursor: found.nextCursor,
+      );
+
+  StremfinArtistDetail _cleanArtist(StremfinArtistDetail found) =>
+      StremfinArtistDetail(
+        artist: found.artist,
+        albums: found.albums,
+        topSongs: cleanMusicSongs(found.topSongs),
+        related: found.related,
+        have: found.have,
+        total: found.total,
+      );
+
   /// Kos TV: bumped when the person asked for an album, so the Music page
   /// under the album's page shows it as asked for.
   final ValueNotifier<int> musicRequestsRevision = ValueNotifier(0);
@@ -745,6 +938,7 @@ class StremfinService extends ChangeNotifier {
       // What the lists said of it changed («Pedir» → «Pedido»).
       _chartPages.clear();
       _recommended.clear();
+      _radios.clear();
       _musicKept.clear();
       _musicLoading.clear();
       musicRequestsRevision.value++;

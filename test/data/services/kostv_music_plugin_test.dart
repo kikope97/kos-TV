@@ -9,8 +9,12 @@ import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/services/kostv_music_plugin.dart';
 import 'package:moonfin/data/services/media_server_client_factory.dart';
+import 'package:moonfin/data/services/stremfin/kostv_age_gate.dart';
+import 'package:moonfin/data/services/stremfin/stremfin_client.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
+import 'package:moonfin/ui/screens/music/kostv_music_actions.dart';
+import 'package:moonfin/ui/screens/music/kostv_music_widgets.dart';
 import 'package:moonfin/ui/widgets/add_to_playlist_dialog.dart';
 import 'package:moonfin/ui/widgets/music/music_navigation.dart';
 import 'package:playback_core/playback_core.dart';
@@ -113,6 +117,13 @@ AggregatedItem _song(String id, {String type = 'Audio'}) => AggregatedItem(
 
 StremfinSong _stremfin(String id, {String? artist}) =>
     StremfinSong(title: 'Canción $id', deezerId: id, artist: artist ?? 'Lola');
+
+typedef _RadioAsk = ({
+  List<String> artists,
+  String? only,
+  bool excludeSeedArtists,
+  int? limit,
+});
 
 T? _value<T extends Object>(KostvMusicAnswer<T> answer) => answer.value;
 
@@ -863,6 +874,325 @@ void main() {
         week: '2026-W47',
       );
       expect([for (final s in pick) s.deezerId], ['new']);
+    });
+
+    // Kos TV: Stremfin 1.93's radio for the week's discovery.
+    Map<String, Object?> radioAlbum(
+      String id, {
+      Map<String, Object?>? request,
+      Map<String, Object?>? download,
+      bool canRequest = true,
+    }) => {
+      'type': 'music',
+      'deezer_id': id,
+      'title': 'Un disco con un título bastante largo $id',
+      'artist': 'Artista con nombre largo y colaboradores',
+      'cover': 'https://e-cdns-images.dzcdn.net/images/cover/0123456789abcdef0123456789abcdef/500x500-000000-80-0-0.jpg',
+      'tracks': null,
+      'kind': 'album',
+      'release_date': '2025-05-10',
+      'rank': null,
+      'library': {
+        'in_jellyfin': false,
+        'song_in_album': null,
+        'requested_recently': false,
+        'jellyfin_id': null,
+      },
+      'download': download,
+      'contains': 'La canción $id',
+      'request': request,
+      'can_request': canRequest,
+    };
+    StremfinSong radioSong(
+      String id, {
+      Map<String, Object?>? album,
+      bool explicit = false,
+      bool atHome = false,
+    }) => StremfinSong.fromJson({
+      'deezer_id': id,
+      'title': 'La canción $id',
+      'artist': 'Artista con nombre largo y colaboradores',
+      'artist_deezer_id': '27',
+      'duration': 224,
+      'preview': 'https://cdnt-preview.dzcdn.net/api/1/1/a/b/c/0/abcdef0123456789abcdef0123456789.mp3?hdnea=exp=1763650000~acl=/api/1/1/a/b/c/0/abcdef*~data=user_id=0,application_id=42~hmac=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      'explicit': explicit,
+      'album': album ?? radioAlbum('a$id'),
+      'in_jellyfin': atHome,
+      'in_album': null,
+      'jellyfin_id': atHome ? 'j$id' : null,
+      'album_jellyfin_id': null,
+      'reason': 'Porque escuchas a Bad Bunny y Rosalía',
+      'because': ['Bad Bunny', 'Rosalía'],
+    })!;
+
+    test('the radio first: only what the house hasn\'t, without the seeds\' '
+        'own artists, up to 50; enough of it, no recommendations', () async {
+      final routes = _Plugin(answers: {discovery: firstTime, keep: null});
+      final asks = <_RadioAsk>[];
+      var recommendedAsked = 0;
+      final found = await kostvLoadWeeklyDiscovery(
+        pluginWith(routes),
+        client,
+        recommend: (_) async {
+          recommendedAsked++;
+          return recommended;
+        },
+        radio:
+            (
+              artists, {
+              String? only,
+              bool excludeSeedArtists = false,
+              int? limit,
+            }) async {
+              asks.add((
+                artists: artists,
+                only: only,
+                excludeSeedArtists: excludeSeedArtists,
+                limit: limit,
+              ));
+              return StremfinRadio(
+                songs: [for (var i = 0; i < 30; i++) radioSong('radio$i')],
+              );
+            },
+      );
+      final ask = asks.single;
+      expect(ask.artists, ['Bad Bunny']);
+      expect(ask.only, 'missing');
+      expect(ask.excludeSeedArtists, isTrue);
+      expect(ask.limit, 50);
+      expect(recommendedAsked, 0);
+      expect(found!.songs, hasLength(20));
+      expect(found.songs!.every((s) => s.deezerId!.startsWith('radio')), true);
+      // The same 20 on every device of the person, this week.
+      final again = kostvWeeklyPick(
+        [for (var i = 0; i < 30; i++) radioSong('radio$i')],
+        user: client.userId!,
+        week: '2026-W47',
+      );
+      expect(
+        [for (final s in found.songs!) s.deezerId],
+        [for (final s in again) s.deezerId],
+      );
+    });
+
+    test('fewer than 20 from the radio: topped up from the recommendations, '
+        'without the same song twice', () async {
+      final routes = _Plugin(answers: {discovery: firstTime, keep: null});
+      final found = await kostvLoadWeeklyDiscovery(
+        pluginWith(routes),
+        client,
+        recommend: (_) async => StremfinRecommendations(
+          songs: [
+            // Also in the radio: not twice.
+            for (var i = 0; i < 8; i++) _stremfin('radio$i'),
+            for (var i = 0; i < 30; i++) _stremfin('r$i'),
+          ],
+        ),
+        radio:
+            (
+              artists, {
+              String? only,
+              bool excludeSeedArtists = false,
+              int? limit,
+            }) async => StremfinRadio(
+              songs: [
+                for (var i = 0; i < 8; i++) radioSong('radio$i'),
+                // At home: not usable.
+                radioSong('home', atHome: true),
+              ],
+            ),
+      );
+      final songs = found!.songs!;
+      expect(songs, hasLength(20));
+      final ids = [for (final s in songs) s.deezerId];
+      expect(ids.toSet(), hasLength(20));
+      expect(ids.take(8).every((id) => id!.startsWith('radio')), isTrue);
+      expect(
+        ids
+            .skip(8)
+            .every((id) => id!.startsWith('r') && !id.startsWith('radio')),
+        isTrue,
+      );
+      expect(ids, isNot(contains('home')));
+      // The radio's keep their whole album.
+      expect(songs.first.album, isNotNull);
+    });
+
+    test('a service from before the radio (404): the recommendations, as '
+        'before it', () async {
+      Future<KostvWeekDiscovery?> load({bool withRadio = true}) =>
+          kostvLoadWeeklyDiscovery(
+            pluginWith(_Plugin(answers: {discovery: firstTime, keep: null})),
+            client,
+            recommend: (_) async => recommended,
+            radio: withRadio
+                ? (
+                    artists, {
+                    String? only,
+                    bool excludeSeedArtists = false,
+                    int? limit,
+                  }) async => throw const StremfinException(
+                    code: 'not_found',
+                    status: 404,
+                  )
+                : null,
+          );
+      final older = await load();
+      final before = await load(withRadio: false);
+      expect(older!.songs, hasLength(20));
+      expect(
+        [for (final s in older.songs!) s.deezerId],
+        [for (final s in before!.songs!) s.deezerId],
+      );
+    });
+
+    for (final status in [503, 429, 500]) {
+      test('the radio failing ($status): thrown, nothing kept, not the '
+          'recommendations instead', () async {
+        final routes = _Plugin(answers: {discovery: firstTime, keep: null});
+        var recommendedAsked = 0;
+        await expectLater(
+          kostvLoadWeeklyDiscovery(
+            pluginWith(routes),
+            client,
+            recommend: (_) async {
+              recommendedAsked++;
+              return recommended;
+            },
+            radio:
+                (
+                  artists, {
+                  String? only,
+                  bool excludeSeedArtists = false,
+                  int? limit,
+                }) async => throw StremfinException(
+                  code: 'source_unavailable',
+                  status: status,
+                ),
+          ),
+          throwsA(isA<StremfinException>()),
+        );
+        expect(recommendedAsked, 0);
+        expect(routes.asked.where((a) => a.method == 'PUT'), isEmpty);
+      });
+    }
+
+    test('twenty of the radio\'s songs with their albums fit the plugin '
+        '(64 KB), and keep their marks and explicit', () async {
+      final routes = _Plugin(answers: {discovery: firstTime, keep: null});
+      final radio = [
+        for (var i = 0; i < 40; i++)
+          radioSong(
+            '$i',
+            explicit: i.isOdd,
+            album: radioAlbum(
+              'a$i',
+              request: i % 3 == 0
+                  ? {
+                      'id': 100 + i,
+                      'status': 'approved',
+                      'status_label': 'Aceptada',
+                      'mine': true,
+                      'requesters': ['Kiko', 'Ana'],
+                    }
+                  : null,
+              download: i % 3 == 1
+                  ? {
+                      'phase': 'downloading',
+                      'label': 'Descargando',
+                      'percent': 42,
+                      'track_errors': false,
+                      'sent_at': '2026-11-11T10:02:00+01:00',
+                      'arrived_at': null,
+                    }
+                  : null,
+              canRequest: i % 3 == 2,
+            ),
+          ),
+      ];
+      final found = await kostvLoadWeeklyDiscovery(
+        pluginWith(routes),
+        client,
+        recommend: (_) async => recommended,
+        radio: (
+          artists, {
+          String? only,
+          bool excludeSeedArtists = false,
+          int? limit,
+        }) async => StremfinRadio(songs: radio),
+      );
+      expect(found!.songs, hasLength(20));
+      final put = routes.asked.singleWhere((a) => a.method == 'PUT');
+      expect(utf8.encode(jsonEncode(put.body)).length, lessThan(64 * 1024));
+      final kept = KostvMusicDiscovery.fromJson(put.body)!.songs!;
+      expect(kept, hasLength(20));
+      for (final song in kept) {
+        final i = int.parse(song.deezerId!);
+        expect(song.explicit, i.isOdd);
+        expect(kostvMusicBadgeOf(song.album!), switch (i % 3) {
+          0 => KostvMusicBadge.asked,
+          1 => KostvMusicBadge.onItsWay,
+          _ => KostvMusicBadge.ask,
+        });
+      }
+    });
+
+    test('someone with a limit: the explicit ones out before the pick, and '
+        'out of a list the plugin kept', () async {
+      List<StremfinSong> clean(List<StremfinSong> songs) =>
+          kostvCleanMusicSongs(songs, hideExplicit: true);
+      final routes = _Plugin(answers: {discovery: firstTime, keep: null});
+      final found = await kostvLoadWeeklyDiscovery(
+        pluginWith(routes),
+        client,
+        recommend: (_) async => StremfinRecommendations(
+          songs: [
+            for (var i = 0; i < 30; i++)
+              StremfinSong(title: 'R $i', deezerId: 'r$i', explicit: i.isEven),
+          ],
+        ),
+        radio:
+            (
+              artists, {
+              String? only,
+              bool excludeSeedArtists = false,
+              int? limit,
+            }) async => StremfinRadio(
+              songs: [
+                for (var i = 0; i < 30; i++)
+                  radioSong('radio$i', explicit: i.isEven),
+              ],
+            ),
+        clean: clean,
+      );
+      expect(found!.songs, hasLength(20));
+      expect(found.songs!.any((s) => s.explicit), isFalse);
+      final put = routes.asked.singleWhere((a) => a.method == 'PUT');
+      expect(
+        KostvMusicDiscovery.fromJson(put.body)!.songs!.any((s) => s.explicit),
+        isFalse,
+      );
+      // Another device (an adult's phone) kept one with explicit songs.
+      final theirs = await kostvLoadWeeklyDiscovery(
+        pluginWith(
+          _Plugin(
+            answers: {
+              discovery: {
+                'Week': '2026-W47',
+                'Seeds': ['Bad Bunny'],
+                'Songs': [
+                  kostvStremfinSongJson(radioSong('e', explicit: true)),
+                  kostvStremfinSongJson(radioSong('c')),
+                ],
+              },
+            },
+          ),
+        ),
+        client,
+        recommend: (_) async => recommended,
+        clean: clean,
+      );
+      expect([for (final s in theirs!.songs!) s.deezerId], ['c']);
     });
   });
 

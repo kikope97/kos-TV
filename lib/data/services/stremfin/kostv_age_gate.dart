@@ -47,6 +47,34 @@ class KostvAgeLimit {
       Object.hash(maxAge, Object.hashAllUnordered(blockUnrated));
 }
 
+/// Kos TV: whether the requests service's explicit songs (Deezer's
+/// `explicit`) are hidden from the person: anyone with a limit (their
+/// account's maximum rating, this device's parental control or kids mode;
+/// or a limit not read yet, which can't be known to be none). Someone with
+/// no limit sees everything.
+bool kostvMusicHidesExplicit({
+  required KostvAgeLimit? limit,
+  required ParentalFilter parental,
+  required bool kidsMode,
+}) => kidsMode || parental.isActive || limit == null || limit.maxAge != null;
+
+/// Kos TV: whether [song] may be shown: not when it is explicit and
+/// [hideExplicit] ([kostvMusicHidesExplicit]), unless the home server has
+/// it (Jellyfin's own parental control looks after what is at home).
+bool kostvMusicSongAllowed(StremfinSong song, {required bool hideExplicit}) =>
+    !hideExplicit || !song.explicit || song.atHome;
+
+/// Kos TV: [songs] without those [kostvMusicSongAllowed] hides, in order.
+List<StremfinSong> kostvCleanMusicSongs(
+  List<StremfinSong> songs, {
+  required bool hideExplicit,
+}) => hideExplicit
+    ? [
+        for (final song in songs)
+          if (kostvMusicSongAllowed(song, hideExplicit: true)) song,
+      ]
+    : songs;
+
 /// Kos TV: whether [title], from the requests service, may be shown to the
 /// person. The service only says how old a title is for; the app decides.
 ///

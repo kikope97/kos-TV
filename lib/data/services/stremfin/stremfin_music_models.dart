@@ -148,6 +148,7 @@ class StremfinSong {
     this.jellyfinId,
     this.albumJellyfinId,
     this.reason,
+    this.because = const [],
   });
 
   /// Deezer's id, for its page. Null for a chart's song.
@@ -184,6 +185,40 @@ class StremfinSong {
   /// Why it is recommended.
   final String? reason;
 
+  /// Kos TV: the person's artists it is recommended for (a recommendation's
+  /// or the radio's, since 1.93.0).
+  final List<String> because;
+
+  /// Kos TV: whether the home server has it (then it plays from there).
+  bool get atHome => inJellyfin || jellyfinId != null;
+
+  /// Kos TV: this song with [album] as its whole album.
+  StremfinSong withAlbum(StremfinAlbum? album) => _copy(album: album);
+
+  /// Kos TV: this song without its preview.
+  StremfinSong withoutPreview() => _copy(album: album, noPreview: true);
+
+  StremfinSong _copy({StremfinAlbum? album, bool noPreview = false}) =>
+      StremfinSong(
+        title: title,
+        deezerId: deezerId,
+        artist: artist,
+        artistDeezerId: artistDeezerId,
+        duration: duration,
+        preview: noPreview ? null : preview,
+        explicit: explicit,
+        cover: cover,
+        albumTitle: albumTitle,
+        albumDeezerId: albumDeezerId,
+        album: album,
+        inJellyfin: inJellyfin,
+        rank: rank,
+        jellyfinId: jellyfinId,
+        albumJellyfinId: albumJellyfinId,
+        reason: reason,
+        because: because,
+      );
+
   static StremfinSong? fromJson(Object? raw) {
     if (raw is! Map) return null;
     final title = _text(raw['title']);
@@ -215,6 +250,7 @@ class StremfinSong {
       jellyfinId: _text(raw['jellyfin_id']?.toString()),
       albumJellyfinId: _text(raw['album_jellyfin_id']?.toString()),
       reason: _text(raw['reason']),
+      because: _texts(raw['because']),
     );
   }
 }
@@ -533,12 +569,7 @@ class StremfinRecommendations {
     final items = raw['items'];
     final songs = raw['songs'];
     return StremfinRecommendations(
-      seeds: [
-        if (seeds is List)
-          for (final seed in seeds.whereType<Map>())
-            if (_text(seed['name']) case final name?)
-              (name: name, deezerId: _text(seed['deezer_id']?.toString())),
-      ],
+      seeds: _seeds(seeds),
       albums: [
         if (items is List)
           for (final item in items) ?StremfinAlbum.fromJson(item),
@@ -550,3 +581,55 @@ class StremfinRecommendations {
     );
   }
 }
+
+/// Kos TV: «Descubrimiento semanal»: songs of Deezer's radio of the artists
+/// the person listens to, each with its whole album to ask for (since
+/// 1.93.0, `GET /music/radio`).
+@immutable
+class StremfinRadio {
+  const StremfinRadio({
+    this.seeds = const [],
+    this.only,
+    this.excludeSeedArtists = false,
+    this.songs = const [],
+    this.skipped = const [],
+    this.failed = const [],
+  });
+
+  /// The artists asked with, as Deezer knows them (id null when it doesn't).
+  final List<({String name, String? deezerId})> seeds;
+
+  /// `missing`, `all` or `available`, as the service understood it.
+  final String? only;
+  final bool excludeSeedArtists;
+  final List<StremfinSong> songs;
+
+  /// The names or ids Deezer doesn't know.
+  final List<String> skipped;
+
+  /// The names or ids Deezer didn't answer for this time.
+  final List<String> failed;
+
+  static StremfinRadio fromJson(Object? raw) {
+    if (raw is! Map) return const StremfinRadio();
+    final songs = raw['songs'];
+    return StremfinRadio(
+      seeds: _seeds(raw['seeds']),
+      only: _text(raw['only']),
+      excludeSeedArtists: raw['exclude_seed_artists'] == true,
+      songs: [
+        if (songs is List)
+          for (final song in songs) ?StremfinSong.fromJson(song),
+      ],
+      skipped: _texts(raw['skipped']),
+      failed: _texts(raw['failed']),
+    );
+  }
+}
+
+List<({String name, String? deezerId})> _seeds(Object? seeds) => [
+  if (seeds is List)
+    for (final seed in seeds.whereType<Map>())
+      if (_text(seed['name']) case final name?)
+        (name: name, deezerId: _text(seed['deezer_id']?.toString())),
+];
