@@ -1449,6 +1449,20 @@ class HomeViewModel extends ChangeNotifier {
     );
     // Inside Live TV, On Now only shows once that section found channels.
     if (!standalone && !_rows.any((row) => row.id == 'liveTv')) return;
+    // Kos TV: a server with no channels at all has no programs either, so
+    // that is only asked again once in a while rather than on every return.
+    if (_noLiveTvChannelsAt case final since?) {
+      if (DateTime.now().difference(since) < _noLiveTvChannelsRecheck) return;
+      try {
+        if (!await _dataSource.hasLiveTvChannels()) {
+          _noLiveTvChannelsAt = DateTime.now();
+          return;
+        }
+      } catch (_) {
+        return;
+      }
+      _noLiveTvChannelsAt = null;
+    }
     final HomeRow fresh;
     try {
       fresh = await _dataSource.loadOnNow(_serverId);
@@ -1458,9 +1472,36 @@ class HomeViewModel extends ChangeNotifier {
     if (filterEmptyElements(fresh.items).isEmpty) return;
     // The standalone section has no row left, so loading only the sections
     // missing from Home puts it back in place and leaves the other rows and
-    // their loaded pages alone. The Live TV section keeps its own row, so it
-    // takes the same full refresh as the Home button.
-    await load(preserveExisting: true, newSectionsOnly: standalone);
+    // their loaded pages alone.
+    if (standalone) {
+      await load(preserveExisting: true, newSectionsOnly: true);
+      return;
+    }
+    // Kos TV: the Live TV section keeps its own row, so only that section is
+    // loaded again, not the whole of Home.
+    final loadSection = _loadDeferredSection;
+    final liveTv = _prefs.activeHomeSectionConfigs.firstWhereOrNull(
+      (c) => c.type == HomeSectionType.liveTv,
+    );
+    if (loadSection == null || liveTv == null) return;
+    await loadSection(liveTv);
+    _saveRowCache();
+    _publishRows();
+  }
+
+  /// Kos TV: when a section last found the server has no Live TV channels,
+  /// so a return to Home doesn't ask for programs every time.
+  DateTime? _noLiveTvChannelsAt;
+
+  /// Kos TV: how long a server found without channels is taken to stay so.
+  static const _noLiveTvChannelsRecheck = Duration(minutes: 30);
+
+  /// Kos TV: whether the server has Live TV channels, remembered for
+  /// [_restoreMissingOnNow].
+  Future<bool> _hasLiveTvChannels() async {
+    final has = await _dataSource.hasLiveTvChannels();
+    _noLiveTvChannelsAt = has ? null : DateTime.now();
+    return has;
   }
 
   Future<void> _refreshResumeRows() async {
@@ -2048,7 +2089,7 @@ class HomeViewModel extends ChangeNotifier {
         ];
       case HomeSectionType.liveTv:
         try {
-          if (!await _dataSource.hasLiveTvChannels()) return [];
+          if (!await _hasLiveTvChannels()) return [];
         } catch (_) {
           return [];
         }
@@ -2071,7 +2112,7 @@ class HomeViewModel extends ChangeNotifier {
         } catch (_) {}
         return rows;
       case HomeSectionType.onNow:
-        if (!await _dataSource.hasLiveTvChannels()) return [];
+        if (!await _hasLiveTvChannels()) return [];
         return [(await _dataSource.loadOnNow(_serverId)).copyWith(id: 'onNow')];
       case HomeSectionType.activeRecordings:
         return [

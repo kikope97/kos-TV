@@ -36,6 +36,9 @@ class WatchNextService {
   }
 
   void clear() {
+    // Kos TV: called on sign-out, which also drops the token kept for the
+    // artwork provider (phones keep one too, for Android Auto).
+    unawaited(CarArtwork.instance.forgetTokens());
     if (!_enabled) return;
     _debounce?.cancel();
     _debounce = null;

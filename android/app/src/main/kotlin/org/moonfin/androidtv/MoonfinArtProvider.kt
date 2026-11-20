@@ -9,6 +9,8 @@ import android.os.ParcelFileDescriptor
 import org.json.JSONObject
 import java.io.File
 import java.io.FileNotFoundException
+import java.io.InputStream
+import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -27,6 +29,10 @@ import java.security.MessageDigest
  * unexported provider is unreadable there. To keep an exported provider from
  * being an open image proxy, we only fetch http/https URLs whose host is one of
  * the signed-in servers the Dart layer recorded in moonfin_art_hosts.
+ *
+ * Kos TV: and, since the token is added here, only Jellyfin's image routes get
+ * it, and only an image no bigger than [ArtProxyPolicy.MAX_BYTES] is served
+ * (see [ArtProxyPolicy]).
  */
 class MoonfinArtProvider : ContentProvider() {
     override fun onCreate(): Boolean = true
@@ -49,7 +55,9 @@ class MoonfinArtProvider : ContentProvider() {
         val dir = File(ctx.cacheDir, "carart").apply { mkdirs() }
         val file = File(dir, hashName(remote))
         if (!file.exists() || file.length() == 0L) {
-            download(withToken(url), file)
+            // Kos TV: any other URL (one signed by its server already) is
+            // fetched as it is, without the person's token.
+            download(if (ArtProxyPolicy.isImagePath(url.path)) withToken(url) else url, file)
         }
         return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
     }
@@ -97,14 +105,18 @@ class MoonfinArtProvider : ContentProvider() {
             if (conn.responseCode !in 200..299) {
                 throw FileNotFoundException("http ${conn.responseCode}")
             }
-            val contentType = conn.contentType
-            conn.inputStream.use { input ->
-                tmp.outputStream().use { output -> input.copyTo(output) }
-            }
             // Reject non-images (e.g. an HTML login page returned by an auth
             // proxy) so a bogus body is never cached as a permanent broken tile.
-            if (!looksLikeImage(contentType, tmp)) {
+            // Kos TV: only an explicit image/* type, before reading the body,
+            // so nothing else (a video, a subtitle) is downloaded at all.
+            if (!ArtProxyPolicy.isImageType(conn.contentType)) {
                 throw FileNotFoundException("not an image")
+            }
+            if (!ArtProxyPolicy.fitsSize(conn.contentLengthLong)) {
+                throw FileNotFoundException("too large")
+            }
+            conn.inputStream.use { input ->
+                tmp.outputStream().use { output -> copyCapped(input, output) }
             }
             // A concurrent read may have already produced the file; keep the
             // first result and drop ours.
@@ -119,21 +131,16 @@ class MoonfinArtProvider : ContentProvider() {
         }
     }
 
-    // An image never begins with '<'; a login/error page (HTML/XML) does. Trust
-    // an explicit image/* content-type, reject an explicit textual one, and
-    // otherwise sniff the leading bytes.
-    private fun looksLikeImage(contentType: String?, file: File): Boolean {
-        val ct = contentType?.substringBefore(';')?.trim()?.lowercase()
-        if (ct != null && ct.startsWith("image/")) return true
-        if (ct != null && (ct.startsWith("text/") || ct.contains("html") || ct.contains("json"))) {
-            return false
-        }
-        return try {
-            val head = ByteArray(8)
-            val n = file.inputStream().use { it.read(head) }
-            if (n <= 0) false else String(head, 0, n).trimStart().firstOrNull() != '<'
-        } catch (_: Exception) {
-            false
+    // Kos TV: a body without a length (chunked) is cut off at the cap too.
+    private fun copyCapped(input: InputStream, output: OutputStream) {
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        var total = 0L
+        while (true) {
+            val n = input.read(buffer)
+            if (n < 0) return
+            total += n
+            if (!ArtProxyPolicy.fitsSize(total)) throw FileNotFoundException("too large")
+            output.write(buffer, 0, n)
         }
     }
 

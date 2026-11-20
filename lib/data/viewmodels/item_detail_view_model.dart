@@ -709,12 +709,33 @@ class ItemDetailViewModel extends ChangeNotifier {
       );
     }
     if (!_userDataStale) return Future.value();
+    _userDataPassCount++;
     return _userDataPass = _syncUserData().whenComplete(
       () => _userDataPass = null,
     );
   }
 
   Future<void>? _userDataPass;
+
+  /// Kos TV: how many passes have started, so a change made here can tell
+  /// whether one read the server while it was being made.
+  int _userDataPassCount = 0;
+
+  /// Kos TV: after a change made from this page, a pass that was out while it
+  /// was being made may have read the server before it, and its answer can
+  /// land after the change and put the old state back in the shared cache
+  /// (Home and the lists read it too). So another pass follows. Costs nothing
+  /// when no pass was out.
+  Future<void> _resyncIfPassOverlapped(bool passWasOut, int passCountBefore) {
+    if (_isDisposed) return Future.value();
+    if (!passWasOut &&
+        _userDataPass == null &&
+        _userDataPassCount == passCountBefore) {
+      return Future.value();
+    }
+    _userDataStale = true;
+    return syncUserDataIfStale().catchError((Object _) {});
+  }
 
   Future<void> _syncUserData() async {
     // Cleared before reading, so a change marked during the read survives it.
@@ -2628,6 +2649,8 @@ class ItemDetailViewModel extends ChangeNotifier {
     final item = seriesFeaturedBook ?? _item;
     if (item == null) return;
     final newState = !item.isFavorite;
+    final passWasOut = _userDataPass != null;
+    final passCountBefore = _userDataPassCount;
     _applyOptimisticUpdate({'IsFavorite': newState});
     try {
       await _mutations.setFavorite(_mutationId, isFavorite: newState);
@@ -2639,6 +2662,7 @@ class ItemDetailViewModel extends ChangeNotifier {
       return;
     }
     await _reload();
+    await _resyncIfPassOverlapped(passWasOut, passCountBefore);
   }
 
   Future<void> togglePlayed() async {
@@ -2646,6 +2670,8 @@ class ItemDetailViewModel extends ChangeNotifier {
     if (item == null || _playedInFlight) return;
     final newState = !item.isPlayed;
     _playedInFlight = true;
+    final passWasOut = _userDataPass != null;
+    final passCountBefore = _userDataPassCount;
     try {
       _applyOptimisticUpdate({'Played': newState});
       try {
@@ -2669,6 +2695,9 @@ class ItemDetailViewModel extends ChangeNotifier {
         try {
           await syncUserDataIfStale();
         } catch (_) {}
+      } else {
+        // Any other item: only when a pass may have read the old state.
+        await _resyncIfPassOverlapped(passWasOut, passCountBefore);
       }
     } finally {
       _playedInFlight = false;

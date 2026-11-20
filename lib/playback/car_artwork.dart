@@ -34,6 +34,10 @@ class CarArtwork {
   CarArtwork._();
   static final CarArtwork instance = CarArtwork._();
 
+  /// A fresh one, with nothing resolved or recorded yet.
+  @visibleForTesting
+  factory CarArtwork.forTesting() => CarArtwork._();
+
   static const _hostsKey = 'moonfin_art_hosts';
   static const _tokensKey = 'moonfin_art_tokens';
   static const _tokenParams = {
@@ -77,8 +81,14 @@ class CarArtwork {
     // Idempotent: the persisted last-session artUri is already wrapped.
     if (url.startsWith('content://')) return Uri.tryParse(url);
     final authority = _authority;
-    if (authority == null) return Uri.tryParse(url);
     final parsed = Uri.tryParse(url);
+    if (authority == null) {
+      // Kos TV: on Android this URL ends up in the launcher's or the car
+      // host's own storage, so it never takes the token along, even when
+      // the provider couldn't be named (PackageInfo failed). Jellyfin serves
+      // item images without one.
+      return _isAndroid ? Uri.tryParse(_splitToken(url, parsed).$1) : parsed;
+    }
     final host = parsed?.host;
     if (host != null && host.isNotEmpty && _hosts.add(host)) {
       _dirty = true;
@@ -92,8 +102,20 @@ class CarArtwork {
   }
 
   String _withoutToken(String url, Uri? parsed) {
+    final (stripped, token) = _splitToken(url, parsed);
+    if (parsed == null || token == null) return stripped;
+    final origin = '${parsed.scheme}://${parsed.host}:${parsed.port}';
+    if (_tokens[origin] != token) {
+      _tokens[origin] = token;
+      _dirty = true;
+    }
+    return stripped;
+  }
+
+  /// [url] without its token parameter, and that parameter (`name=value`).
+  (String, String?) _splitToken(String url, Uri? parsed) {
     final q = url.indexOf('?');
-    if (parsed == null || q < 0) return url;
+    if (parsed == null || q < 0) return (url, null);
     final kept = <String>[];
     String? token;
     for (final part in url.substring(q + 1).split('&')) {
@@ -103,14 +125,25 @@ class CarArtwork {
         kept.add(part);
       }
     }
-    if (token == null) return url;
-    final origin = '${parsed.scheme}://${parsed.host}:${parsed.port}';
-    if (_tokens[origin] != token) {
-      _tokens[origin] = token;
-      _dirty = true;
-    }
+    if (token == null) return (url, null);
     final base = url.substring(0, q);
-    return kept.isEmpty ? base : '$base?${kept.join('&')}';
+    return (kept.isEmpty ? base : '$base?${kept.join('&')}', token);
+  }
+
+  /// Kos TV: drops the tokens kept for the provider, on sign-out and when
+  /// another person's profile takes over. Whoever is signed in next records
+  /// their own the next time artwork is wrapped.
+  Future<void> forgetTokens() async {
+    _tokens.clear();
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_tokensKey);
+    } catch (_) {}
+    // The next person's may have been recorded meanwhile.
+    if (_tokens.isNotEmpty) {
+      _dirty = true;
+      await persistHosts();
+    }
   }
 
   /// Writes the hosts and tokens seen so far to the preferences the provider

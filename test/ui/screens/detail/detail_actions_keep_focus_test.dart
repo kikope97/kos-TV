@@ -291,4 +291,126 @@ void main() {
       layout: InterfaceLayout.phone,
     );
   });
+
+  // Kos TV: the kOS TV row with a cap the test picks, for the action that has
+  // focus leaving the row or going behind More.
+  Future<
+    ({
+      void Function(AggregatedItem) setItem,
+      Future<void> Function() rebuild,
+      Finder focusedButton,
+    })
+  >
+  pumpKostvRow(WidgetTester tester, {required int maxVisible}) async {
+    final playNode = FocusNode(debugLabel: 'kostvPlay');
+    addTearDown(playNode.dispose);
+    PlatformDetection.setInterfaceLayout(InterfaceLayout.tv);
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+
+    var item = _movie(played: true);
+    final vm = _ViewModel();
+    when(() => vm.item).thenAnswer((_) => item);
+    when(() => vm.actionsSettled).thenReturn(true);
+    when(() => vm.supportsPersonalRating).thenReturn(false);
+    when(() => vm.searchesYouTubeForTrailer).thenReturn(false);
+    when(() => vm.features).thenReturn(const []);
+
+    Widget app() => MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: const [Locale('en')],
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: DetailActionButtons(
+            viewModel: vm,
+            itemId: 'movie-1',
+            onSelectedMediaSourceChanged: (_) {},
+            modernStyle: true,
+            tvPlayFocusNode: playNode,
+            kostv: true,
+            overflowAsMenu: true,
+            maxVisibleButtonsOverride: maxVisible,
+            labelsUnderCircles: true,
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(app());
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+    return (
+      setItem: (AggregatedItem next) => item = next,
+      rebuild: () async {
+        await tester.pumpWidget(app());
+        for (var i = 0; i < 4; i++) {
+          await tester.pump(const Duration(milliseconds: 60));
+        }
+      },
+      focusedButton: find.byElementPredicate(
+        (e) => identical(e, FocusManager.instance.primaryFocus?.context),
+      ),
+    );
+  }
+
+  testWidgets('kOS TV row: an action pushed behind More hands focus to More', (
+    tester,
+  ) async {
+    // Three slots: Play, Watched and More while watched.
+    final row = await pumpKostvRow(tester, maxVisible: 3);
+    final watched = find.byIcon(Icons.check_circle);
+    expect(watched, findsOneWidget);
+    Focus.of(tester.element(watched)).requestFocus();
+    await tester.pump();
+    expect(
+      find.descendant(of: row.focusedButton, matching: watched),
+      findsOneWidget,
+    );
+
+    // Unmarked elsewhere: Restart comes back before it and pushes it into
+    // the menu.
+    row.setItem(_movie(played: false, position: const Duration(minutes: 20)));
+    await row.rebuild();
+    expect(find.byIcon(Icons.restart_alt), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle_outline), findsNothing);
+    expect(
+      find.descendant(
+        of: row.focusedButton,
+        matching: find.byIcon(Icons.more_horiz),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('kOS TV row: an action leaving the row hands focus to its '
+      'neighbour, not to the one focused before', (tester) async {
+    final row = await pumpKostvRow(tester, maxVisible: 7);
+    row.setItem(_movie(played: false, position: const Duration(minutes: 20)));
+    await row.rebuild();
+    // Favorite first, then Restart, so Flutter's own pick would be Favorite.
+    final favorite = find.byIcon(Icons.favorite);
+    expect(favorite, findsOneWidget);
+    Focus.of(tester.element(favorite)).requestFocus();
+    await tester.pump();
+    final restart = find.byIcon(Icons.restart_alt);
+    Focus.of(tester.element(restart)).requestFocus();
+    await tester.pump();
+    expect(
+      find.descendant(of: row.focusedButton, matching: restart),
+      findsOneWidget,
+    );
+
+    // Marked watched elsewhere: the resume point and Restart go.
+    row.setItem(_movie(played: true));
+    await row.rebuild();
+    expect(find.byIcon(Icons.restart_alt), findsNothing);
+    expect(
+      find.descendant(
+        of: row.focusedButton,
+        matching: find.byIcon(Icons.check_circle),
+      ),
+      findsOneWidget,
+    );
+  });
 }
