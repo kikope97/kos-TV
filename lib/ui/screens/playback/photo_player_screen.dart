@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
@@ -10,6 +11,7 @@ import 'package:server_core/server_core.dart';
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../util/focus/dpad_keys.dart';
 import '../../../util/image_fetch_priority.dart';
 import '../../../util/system_ui.dart';
 import '../../navigation/destinations.dart';
@@ -40,6 +42,22 @@ class _PhotoPlayerScreenState extends State<PhotoPlayerScreen>
   Offset _swipeStart = Offset.zero;
   Offset _swipeLast = Offset.zero;
   bool _swipeIgnored = false;
+  // Kos TV: counts photo changes, as the crossfade's key: going back to a
+  // photo still fading out (Left then Right on the remote, or a held key
+  // going round a short album) would otherwise give it two children with
+  // the same key.
+  int _photoChanges = 0;
+
+  // Kos TV: with a remote (or a keyboard), Left/Right change photo and any
+  // other key brings the controls back. The screen's own node holds the
+  // focus while they are hidden, so keys still arrive in an album of only
+  // photos, where nothing else is left to focus.
+  final _screenFocus = FocusNode(debugLabel: 'Photo viewer');
+  final _overlayFocus = FocusNode(debugLabel: 'Photo viewer controls');
+  final _controlBarFocus = FocusNode(debugLabel: 'Photo viewer bottom bar');
+  final _backFocus = FocusNode(debugLabel: 'Photo viewer back');
+  final _slideshowFocus = FocusNode(debugLabel: 'Photo viewer slideshow');
+  final _playVideoFocus = FocusNode(debugLabel: 'Photo viewer play video');
 
   static const _swipeMinDistance = 50.0;
   static const _slideshowInterval = Duration(seconds: 5);
@@ -63,6 +81,16 @@ class _PhotoPlayerScreenState extends State<PhotoPlayerScreen>
     _slideshow.dispose();
     _hideTimer?.cancel();
     _transformController.dispose();
+    for (final node in [
+      _screenFocus,
+      _overlayFocus,
+      _controlBarFocus,
+      _backFocus,
+      _slideshowFocus,
+      _playVideoFocus,
+    ]) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -127,7 +155,10 @@ class _PhotoPlayerScreenState extends State<PhotoPlayerScreen>
     // A swipe still in progress belongs to the photo it started on.
     if (_pointerCount > 0) _swipeIgnored = true;
     _transformController.value = Matrix4.identity();
-    setState(() => _currentIndex = index);
+    setState(() {
+      _currentIndex = index;
+      _photoChanges++;
+    });
     _onPhotoShown();
   }
 
@@ -282,50 +313,103 @@ class _PhotoPlayerScreenState extends State<PhotoPlayerScreen>
   void _scheduleHideControls() {
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted) setState(() => _controlsVisible = false);
+      if (mounted) _hideControls();
     });
+  }
+
+  void _hideControls() {
+    _hideTimer?.cancel();
+    // Kos TV: a control about to go away hands the focus to the screen
+    // rather than leaving it nowhere, where the remote's keys would be lost.
+    if (_overlayFocus.hasFocus) _screenFocus.requestFocus();
+    setState(() => _controlsVisible = false);
   }
 
   void _toggleControls() {
     if (_controlsVisible) {
-      _hideTimer?.cancel();
-      setState(() => _controlsVisible = false);
+      _hideControls();
     } else {
       _showControlsTemporarily();
     }
+  }
+
+  /// Kos TV: Left/Right change photo, except between the bottom bar's
+  /// buttons, where they move along it. Any other key (Back aside, which
+  /// leaves) shows the controls and keeps them up while the remote is in
+  /// use; with nothing focused it also lands on a control, the video's play
+  /// button, the slideshow or Back.
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (!event.isActionable) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    if (key.isBackKey) return KeyEventResult.ignored;
+    if ((key.isLeftKey || key.isRightKey) && !_controlBarFocus.hasFocus) {
+      if (_items.length > 1) {
+        _showControlsTemporarily();
+        key.isRightKey ? _next() : _previous();
+      }
+      return KeyEventResult.handled;
+    }
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    _showControlsTemporarily();
+    if (!_screenFocus.hasPrimaryFocus) return KeyEventResult.ignored;
+    final FocusNode target;
+    if (_items.isNotEmpty && _isVideo(_items[_currentIndex])) {
+      target = _playVideoFocus;
+    } else if (_items.length > 1) {
+      target = _slideshowFocus;
+    } else {
+      target = _backFocus;
+    }
+    // The controls are only built on the next frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _screenFocus.hasPrimaryFocus) target.requestFocus();
+    });
+    return KeyEventResult.handled;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColorScheme.background,
-      body: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: _onPointerDown,
-        onPointerMove: _onPointerMove,
-        onPointerUp: _onPointerUp,
-        onPointerCancel: _onPointerCancel,
-        child: GestureDetector(
-          onTap: _toggleControls,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _buildPhotoView(),
-              if (_items.isNotEmpty && _isVideo(_items[_currentIndex]))
-                Center(
-                  child: IconButton(
-                    iconSize: 72,
-                    tooltip: AppLocalizations.of(context).play,
-                    icon: AdaptiveIcon(
-                      Icons.play_circle_fill,
-                      color: AppColorScheme.onSurface,
-                      size: 72,
+      body: Focus(
+        focusNode: _screenFocus,
+        skipTraversal: true,
+        onKeyEvent: _onKeyEvent,
+        child: Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _onPointerDown,
+          onPointerMove: _onPointerMove,
+          onPointerUp: _onPointerUp,
+          onPointerCancel: _onPointerCancel,
+          child: GestureDetector(
+            onTap: _toggleControls,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _buildPhotoView(),
+                if (_items.isNotEmpty && _isVideo(_items[_currentIndex]))
+                  Center(
+                    child: IconButton(
+                      focusNode: _playVideoFocus,
+                      iconSize: 72,
+                      tooltip: AppLocalizations.of(context).play,
+                      icon: AdaptiveIcon(
+                        Icons.play_circle_fill,
+                        color: AppColorScheme.onSurface,
+                        size: 72,
+                      ),
+                      onPressed: () => _playVideo(_items[_currentIndex]),
                     ),
-                    onPressed: () => _playVideo(_items[_currentIndex]),
                   ),
-                ),
-              if (_controlsVisible) _buildOverlay(context),
-            ],
+                if (_controlsVisible)
+                  Focus(
+                    focusNode: _overlayFocus,
+                    canRequestFocus: false,
+                    skipTraversal: true,
+                    child: _buildOverlay(context),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -354,7 +438,7 @@ class _PhotoPlayerScreenState extends State<PhotoPlayerScreen>
     return AnimatedSwitcher(
       duration: _photoTransition,
       child: InteractiveViewer(
-        key: ValueKey(item.id),
+        key: ValueKey((item.id, _photoChanges)),
         transformationController: _transformController,
         minScale: 1.0,
         maxScale: 5.0,
@@ -405,6 +489,7 @@ class _PhotoPlayerScreenState extends State<PhotoPlayerScreen>
             child: Row(
               children: [
                 IconButton(
+                  focusNode: _backFocus,
                   icon: AdaptiveIcon(Icons.arrow_back, color: AppColorScheme.onSurface),
                   onPressed: () {
                     if (context.canPop()) {
@@ -457,36 +542,42 @@ class _PhotoPlayerScreenState extends State<PhotoPlayerScreen>
                 colors: [AppColorScheme.scrim, Colors.transparent],
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: AdaptiveIcon(
-                    Icons.skip_previous,
-                    color: AppColorScheme.onSurface,
-                    size: 32,
+            child: Focus(
+              focusNode: _controlBarFocus,
+              canRequestFocus: false,
+              skipTraversal: true,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: AdaptiveIcon(
+                      Icons.skip_previous,
+                      color: AppColorScheme.onSurface,
+                      size: 32,
+                    ),
+                    onPressed: _items.length > 1 ? _previous : null,
                   ),
-                  onPressed: _items.length > 1 ? _previous : null,
-                ),
-                const SizedBox(width: 24),
-                IconButton(
-                  icon: AdaptiveIcon(
-                    _slideshow.isRunning ? Icons.pause : Icons.play_arrow,
-                    color: AppColorScheme.onSurface,
-                    size: 40,
+                  const SizedBox(width: 24),
+                  IconButton(
+                    focusNode: _slideshowFocus,
+                    icon: AdaptiveIcon(
+                      _slideshow.isRunning ? Icons.pause : Icons.play_arrow,
+                      color: AppColorScheme.onSurface,
+                      size: 40,
+                    ),
+                    onPressed: _items.length > 1 ? _toggleSlideshow : null,
                   ),
-                  onPressed: _items.length > 1 ? _toggleSlideshow : null,
-                ),
-                const SizedBox(width: 24),
-                IconButton(
-                  icon: AdaptiveIcon(
-                    Icons.skip_next,
-                    color: AppColorScheme.onSurface,
-                    size: 32,
+                  const SizedBox(width: 24),
+                  IconButton(
+                    icon: AdaptiveIcon(
+                      Icons.skip_next,
+                      color: AppColorScheme.onSurface,
+                      size: 32,
+                    ),
+                    onPressed: _items.length > 1 ? _next : null,
                   ),
-                  onPressed: _items.length > 1 ? _next : null,
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

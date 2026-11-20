@@ -352,7 +352,10 @@ void main() {
 
       router.pop();
       await settle(tester);
-      await tester.pump(const Duration(seconds: 1));
+      // Kos TV: pressing keys keeps the controls up, so they are only gone
+      // again a while after the last press.
+      await tester.pump(const Duration(seconds: 5));
+      expect(find.byIcon(Icons.skip_next), findsNothing);
       expect(playButton, findsOneWidget);
 
       await press(tester, LogicalKeyboardKey.arrowDown);
@@ -360,6 +363,97 @@ void main() {
       await press(tester, LogicalKeyboardKey.select);
       await settle(tester);
       expect(playItemsCalls, hasLength(2));
+    });
+
+    group('in an album of only photos', () {
+      final photos = [
+        _entry('photoA', 'Photo A', 'Photo'),
+        _entry('photoB', 'Photo B', 'Photo'),
+        _entry('photoC', 'Photo C', 'Photo'),
+      ];
+
+      setUp(() {
+        when(() => items.getItem(any())).thenAnswer((invocation) async {
+          final id = invocation.positionalArguments.first as String;
+          return photos.firstWhere((e) => e['Id'] == id);
+        });
+        when(
+          () => items.getItems(
+            parentId: any(named: 'parentId'),
+            includeItemTypes: any(named: 'includeItemTypes'),
+            sortBy: any(named: 'sortBy'),
+            sortOrder: any(named: 'sortOrder'),
+            limit: any(named: 'limit'),
+          ),
+        ).thenAnswer((_) async => {'Items': photos});
+      });
+
+      testWidgets('Left and Right change photo once the controls hide', (
+        tester,
+      ) async {
+        await pumpViewer(tester, 'photoA', tv: true);
+        await tester.pump(const Duration(seconds: 6));
+        expect(find.byIcon(Icons.skip_next), findsNothing);
+
+        await press(tester, LogicalKeyboardKey.arrowRight);
+        expect(find.text('Photo B'), findsOneWidget);
+        expect(find.text('2 / 3'), findsOneWidget);
+
+        await press(tester, LogicalKeyboardKey.arrowLeft);
+        await press(tester, LogicalKeyboardKey.arrowLeft);
+        expect(find.text('Photo C'), findsOneWidget);
+        expect(find.text('3 / 3'), findsOneWidget);
+        await tester.pump(const Duration(seconds: 6));
+      });
+
+      testWidgets('any other key brings the controls back onto the '
+          'slideshow button', (tester) async {
+        await pumpViewer(tester, 'photoA', tv: true);
+        await tester.pump(const Duration(seconds: 6));
+        expect(find.byIcon(Icons.skip_next), findsNothing);
+
+        await press(tester, LogicalKeyboardKey.arrowDown);
+        expect(find.byIcon(Icons.skip_next), findsOneWidget);
+        expect(focusedIcon(), 'slideshow');
+
+        await press(tester, LogicalKeyboardKey.select);
+        expect(find.byIcon(Icons.pause), findsOneWidget);
+        await press(tester, LogicalKeyboardKey.select);
+        expect(find.byIcon(Icons.play_arrow), findsOneWidget);
+        await tester.pump(const Duration(seconds: 6));
+      });
+
+      testWidgets('Left and Right still move along the bottom bar', (
+        tester,
+      ) async {
+        await pumpViewer(tester, 'photoA', tv: true);
+        await tester.pump(const Duration(seconds: 1));
+        expect(focusedIcon(), 'back');
+        // From Back, Right changes photo.
+        await press(tester, LogicalKeyboardKey.arrowRight);
+        expect(find.text('Photo B'), findsOneWidget);
+
+        await press(tester, LogicalKeyboardKey.arrowDown);
+        await press(tester, LogicalKeyboardKey.arrowRight);
+        await press(tester, LogicalKeyboardKey.arrowRight);
+        expect(focusedIcon(), 'next');
+        expect(find.text('Photo B'), findsOneWidget);
+        await tester.pump(const Duration(seconds: 6));
+      });
+
+      testWidgets('pressing keys keeps the controls up', (tester) async {
+        await pumpViewer(tester, 'photoA', tv: true);
+        await tester.pump(const Duration(seconds: 1));
+        await press(tester, LogicalKeyboardKey.arrowDown);
+        for (var i = 0; i < 3; i++) {
+          await tester.pump(const Duration(seconds: 3));
+          await press(tester, LogicalKeyboardKey.arrowUp);
+          await press(tester, LogicalKeyboardKey.arrowDown);
+        }
+        expect(find.byIcon(Icons.skip_next), findsOneWidget);
+        await tester.pump(const Duration(seconds: 6));
+        expect(find.byIcon(Icons.skip_next), findsNothing);
+      });
     });
   });
 }

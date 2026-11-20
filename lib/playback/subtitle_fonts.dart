@@ -7,9 +7,11 @@ import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 
 import '../preference/user_preferences.dart';
+import 'subtitle_font_base.dart';
 
 /// A subtitle font. None ship with the app, picking one downloads its regular
-/// and bold files from Google Fonts.
+/// and bold files from Google Fonts. Kos TV: the web image brings them in its
+/// fonts/ folder (scripts/fetch-web-fonts.sh) and asks for them there.
 class SubtitleFont {
   final String family;
   final String regularUrl;
@@ -17,10 +19,20 @@ class SubtitleFont {
 
   const SubtitleFont(this.family, this.regularUrl, this.boldUrl);
 
-  String url({required bool bold}) => bold ? boldUrl : regularUrl;
+  String url({required bool bold}) {
+    final google = bold ? boldUrl : regularUrl;
+    final base = subtitleFontBase();
+    if (base == null || !google.startsWith('$_gstatic/')) return google;
+    return '$base${google.substring(_gstatic.length + 1)}';
+  }
 }
 
 const _gstatic = 'https://fonts.gstatic.com/s';
+
+/// Kos TV: the folder the build's own fonts are in, with the same paths as on
+/// Google Fonts, or null to fetch them from Google.
+@visibleForTesting
+String? Function() subtitleFontBase = bundledSubtitleFontBase;
 
 /// Static instances, since libass and Android pick the bold face by file and
 /// a variable font only offers its default one.
