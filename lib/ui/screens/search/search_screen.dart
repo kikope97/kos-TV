@@ -14,6 +14,8 @@ import '../../../data/models/aggregated_item.dart';
 import '../../../data/offline/connectivity_aware_media_server_client.dart';
 import '../../../data/repositories/multi_server_repository.dart';
 import '../../../data/repositories/search_repository.dart';
+import '../../../data/services/kostv_music_plugin.dart'
+    show KostvMusicSource;
 import '../../../data/services/plugin_sync_service.dart';
 import '../../../data/services/recent_searches_store.dart';
 import '../../../data/services/remote_search_session.dart';
@@ -1728,7 +1730,7 @@ class _SearchScreenState extends State<SearchScreen>
       // Kos TV: a song (from searching a music library) plays, as it does
       // from the library's own pages.
       onTap: () => item.type == 'Audio'
-          ? openMusicItem(context, item)
+          ? openMusicItem(context, item, source: KostvMusicSource.search)
           : context.push(
               Destinations.itemOrPhoto(
                 item.id,

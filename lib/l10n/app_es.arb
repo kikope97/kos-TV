@@ -13591,7 +13591,7 @@
     "@kostvMusicUnloved": {"description": "Kos TV music."},
     "kostvMusicSeeAlbumToAsk": "Ver el álbum para pedirlo",
     "@kostvMusicSeeAlbumToAsk": {"description": "Kos TV music."},
-    "kostvMusicMenuHint": "Mantén pulsado OK en una canción para ver más opciones",
+    "kostvMusicMenuHint": "Mantén pulsado OK en una canción o un mix para ver más opciones",
     "@kostvMusicMenuHint": {"description": "Kos TV music."},
     "kostvMusicFavorites": "Tus favoritas",
     "@kostvMusicFavorites": {"description": "Kos TV music."},
@@ -15643,7 +15643,7 @@
     "@kostvMusicMomentNight": {
         "description": "Kos TV Music page: the row of the mix for the time of day, at night (20 to 6)."
     },
-    "kostvMusicMomentWhy": "Lo que sueles escuchar a esta hora, y parecidas",
+    "kostvMusicMomentWhy": "Lo que sueles escuchar a esta hora y canciones parecidas",
     "@kostvMusicMomentWhy": {
         "description": "Kos TV Music page: the line under the mix for the time of day."
     },
@@ -15651,7 +15651,7 @@
     "@kostvMusicLearn": {
         "description": "Kos TV Settings: the switch for the server keeping what the person listens to, for their mixes."
     },
-    "kostvMusicLearnOn": "Tus mixes y recomendaciones salen de lo que escuchas. Se guarda en el servidor de casa y solo lo ves tú.",
+    "kostvMusicLearnOn": "Tus mixes y recomendaciones salen de lo que escuchas. Se guarda en el servidor de casa y no se comparte con nadie.",
     "@kostvMusicLearnOn": {
         "description": "Kos TV Settings: under 'Learn from what I listen to' while it is on."
     },
@@ -15668,7 +15668,8 @@
         "description": "Kos TV Settings: how many listens the server has kept of the person, and since which day.",
         "placeholders": {
             "count": {
-                "type": "int"
+                "type": "int",
+                "format": "decimalPattern"
             },
             "since": {
                 "type": "String"
@@ -15704,8 +15705,13 @@
         "description": "Kos TV Settings: how many listens the server has kept of the person, when it doesn't say since when.",
         "placeholders": {
             "count": {
-                "type": "int"
+                "type": "int",
+                "format": "decimalPattern"
             }
         }
+    },
+    "kostvMusicLearnUnanswered": "No se ha podido consultar ahora. Pulsa para volver a intentarlo.",
+    "@kostvMusicLearnUnanswered": {
+        "description": "Kos TV Settings: under 'Learn from what I listen to' when the server couldn't be asked; selecting it asks again."
     }
 }

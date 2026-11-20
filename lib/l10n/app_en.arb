@@ -19102,7 +19102,7 @@
     "kostvMusicLoved": "Added to your favourites",
     "kostvMusicUnloved": "Removed from your favourites",
     "kostvMusicSeeAlbumToAsk": "See the album to ask for it",
-    "kostvMusicMenuHint": "Hold OK on a song for more options",
+    "kostvMusicMenuHint": "Hold OK on a song or mix for more options",
     "kostvMusicFavorites": "Your favourites",
     "kostvMusicFavoritesWhy": "The songs you marked with ♥",
     "kostvMusicPlaylists": "Your playlists",
@@ -21140,7 +21140,7 @@
     "@kostvMusicMomentNight": {
         "description": "Kos TV Music page: the row of the mix for the time of day, at night (20 to 6)."
     },
-    "kostvMusicMomentWhy": "What you usually play at this time, and more like it",
+    "kostvMusicMomentWhy": "What you usually play at this time and songs like it",
     "@kostvMusicMomentWhy": {
         "description": "Kos TV Music page: the line under the mix for the time of day."
     },
@@ -21148,7 +21148,7 @@
     "@kostvMusicLearn": {
         "description": "Kos TV Settings: the switch for the server keeping what the person listens to, for their mixes."
     },
-    "kostvMusicLearnOn": "Your mixes and recommendations come from what you listen to. It stays on the home server and only you see it.",
+    "kostvMusicLearnOn": "Your mixes and recommendations come from what you listen to. It stays on the home server and isn't shared with anyone.",
     "@kostvMusicLearnOn": {
         "description": "Kos TV Settings: under 'Learn from what I listen to' while it is on."
     },
@@ -21165,7 +21165,8 @@
         "description": "Kos TV Settings: how many listens the server has kept of the person, and since which day.",
         "placeholders": {
             "count": {
-                "type": "int"
+                "type": "int",
+                "format": "decimalPattern"
             },
             "since": {
                 "type": "String"
@@ -21201,8 +21202,13 @@
         "description": "Kos TV Settings: how many listens the server has kept of the person, when it doesn't say since when.",
         "placeholders": {
             "count": {
-                "type": "int"
+                "type": "int",
+                "format": "decimalPattern"
             }
         }
+    },
+    "kostvMusicLearnUnanswered": "Couldn't check right now. Select to try again.",
+    "@kostvMusicLearnUnanswered": {
+        "description": "Kos TV Settings: under 'Learn from what I listen to' when the server couldn't be asked; selecting it asks again."
     }
 }

@@ -180,7 +180,12 @@ Future<void> playMusicTrack(
     }
 
     KostvNowPlaying.instance.noteChosen();
-    kostvTellMusicSource(() => _clientOf(item), source, tracks);
+    kostvTellMusicSource(
+      () => _clientOf(item),
+      source,
+      tracks,
+      startIndex: startIndex,
+    );
     await manager.playItems(tracks, startIndex: startIndex);
     closeLoading();
     if (context.mounted) {
@@ -274,7 +279,12 @@ Future<void> playMusicTracks(
   final l10n = AppLocalizations.of(context);
   final messenger = ScaffoldMessenger.maybeOf(context);
   KostvNowPlaying.instance.noteChosen();
-  kostvTellMusicSource(() => _clientOf(tracks.first), source, tracks);
+  kostvTellMusicSource(
+    () => _clientOf(tracks.first),
+    source,
+    tracks,
+    startIndex: startIndex,
+  );
   try {
     await GetIt.instance<PlaybackManager>().playItems(
       tracks,

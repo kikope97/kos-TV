@@ -29,9 +29,13 @@ class _Plugin implements HttpClientAdapter {
     this.hasRoutes = true,
     this.answers = const {},
     this.statuses = const {},
+    this.onAsk,
   });
 
   final bool hasRoutes;
+
+  /// Called with each `METHOD /path` before it is answered.
+  final void Function(String key)? onAsk;
 
   /// The status of a route's answer, when it isn't 200 (or 204 without one).
   final Map<String, int> statuses;
@@ -54,6 +58,7 @@ class _Plugin implements HttpClientAdapter {
     }
     final key = '${options.method} ${options.uri.path}';
     asked.add((method: options.method, path: options.uri.path, body: body));
+    onAsk?.call(key);
     if (!hasRoutes || !answers.containsKey(key)) {
       return ResponseBody.fromString('', 404);
     }
@@ -107,6 +112,8 @@ AggregatedItem _song(String id, {String type = 'Audio'}) => AggregatedItem(
 StremfinSong _stremfin(String id, {String? artist}) =>
     StremfinSong(title: 'Canción $id', deezerId: id, artist: artist ?? 'Lola');
 
+T? _value<T extends Object>(KostvMusicAnswer<T> answer) => answer.value;
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -143,7 +150,7 @@ void main() {
           },
         ),
       );
-      final state = await plugin.settings(client);
+      final state = await plugin.settings(client).then(_value);
       expect(state!.learn, isTrue);
       expect(state.listens, 1234);
       expect(state.since!.toUtc(), DateTime.utc(2026, 11, 20, 10));
@@ -180,9 +187,9 @@ void main() {
         'for a while', () async {
       final routes = _Plugin(hasRoutes: false);
       final plugin = pluginWith(routes);
-      expect(await plugin.settings(client), isNull);
+      expect(await plugin.settings(client).then(_value), isNull);
       expect(plugin.knownMissing(client, 'Settings'), isTrue);
-      expect(await plugin.settings(client), isNull);
+      expect(await plugin.settings(client).then(_value), isNull);
       expect(routes.asked, hasLength(1));
       expect(await plugin.forgetListens(client), isFalse);
     });
@@ -214,7 +221,7 @@ void main() {
       final plugin = pluginWith(
         _Plugin(answers: {'GET /Moonfin/Kostv/Music/Settings': 'hola'}),
       );
-      expect(await plugin.settings(client), isNull);
+      expect(await plugin.settings(client).then(_value), isNull);
     });
   });
 
@@ -251,7 +258,7 @@ void main() {
     test('reads them, ids without dashes', () async {
       final mixes = await pluginWith(
         _Plugin(answers: {'GET /Moonfin/Kostv/Music/Mixes': answer}),
-      ).mixes(client);
+      ).mixes(client).then(_value);
       expect(mixes!.day, '2026-11-20');
       expect(mixes.mixes, hasLength(1));
       final mix = mixes.mixes.single;
@@ -276,7 +283,10 @@ void main() {
     });
 
     test('an older plugin (404): none', () async {
-      expect(await pluginWith(_Plugin(hasRoutes: false)).mixes(client), isNull);
+      expect(
+        await pluginWith(_Plugin(hasRoutes: false)).mixes(client).then(_value),
+        isNull,
+      );
     });
   });
 
@@ -292,7 +302,7 @@ void main() {
             },
           },
         ),
-      ).discovery(client);
+      ).discovery(client).then(_value);
       expect(found!.week, '2026-W47');
       expect(found.seeds, ['Bad Bunny', 'Rosalía']);
       expect(found.songs, isNull);
@@ -319,7 +329,7 @@ void main() {
             },
           },
         ),
-      ).discovery(client);
+      ).discovery(client).then(_value);
       final back = found!.songs!.single;
       expect(back.title, 'Despechá');
       expect(back.deezerId, '123');
@@ -392,7 +402,9 @@ void main() {
 
     test('an older plugin (404): none', () async {
       expect(
-        await pluginWith(_Plugin(hasRoutes: false)).discovery(client),
+        await pluginWith(_Plugin(hasRoutes: false))
+            .discovery(client)
+            .then(_value),
         isNull,
       );
     });
@@ -412,7 +424,7 @@ void main() {
             },
           },
         ),
-      ).moment(client);
+      ).moment(client).then(_value);
       expect(ready!.slot, 'tarde');
       expect(ready.shows, isTrue);
       expect(ready.items.single.id, 'a1');
@@ -426,7 +438,7 @@ void main() {
             },
           },
         ),
-      ).moment(client);
+      ).moment(client).then(_value);
       expect(waiting!.shows, isFalse);
     });
 
@@ -534,14 +546,14 @@ void main() {
 
   group('where the music comes from', () {
     test('sends the source with the songs, after returning, songs only and '
-        '200 at most', () async {
+        '500 at most (the plugin\'s own limit)', () async {
       final routes = _Plugin(
         answers: {'POST /Moonfin/Kostv/Music/Context': null},
       );
       KostvMusicPlugin.instance = pluginWith(routes);
       kostvTellMusicSource(() => client, KostvMusicSource.mix('daily-2'), [
         _song('video', type: 'Movie'),
-        for (var i = 0; i < 250; i++) _song('s$i'),
+        for (var i = 0; i < 600; i++) _song('s$i'),
       ]);
       // Nothing yet: it starts once the caller went on.
       expect(routes.asked, isEmpty);
@@ -549,7 +561,7 @@ void main() {
       final body = routes.asked.single.body as Map;
       expect(routes.asked.single.path, '/Moonfin/Kostv/Music/Context');
       expect(body['Source'], 'mix:daily-2');
-      expect(body['ItemIds'], hasLength(200));
+      expect(body['ItemIds'], hasLength(500));
       expect((body['ItemIds'] as List).first, 's0');
     });
 
@@ -611,6 +623,270 @@ void main() {
       }
     });
   });
+
+  group('missing or failed', () {
+    test('a 404 is «not there», remembered; a 500 or 401 is a failure, '
+        'asked again next time', () async {
+      final missing = pluginWith(_Plugin(hasRoutes: false));
+      final gone = await missing.mixes(client);
+      expect(gone.missing, isTrue);
+      expect(gone.failed, isFalse);
+
+      for (final status in [401, 500, 503]) {
+        final routes = _Plugin(
+          answers: {
+            'GET /Moonfin/Kostv/Music/Mixes': {'Error': 'No.'},
+            'GET /Moonfin/Kostv/Music/Settings': {'Error': 'No.'},
+          },
+          statuses: {
+            'GET /Moonfin/Kostv/Music/Mixes': status,
+            'GET /Moonfin/Kostv/Music/Settings': status,
+          },
+        );
+        final plugin = pluginWith(routes);
+        final mixes = await plugin.mixes(client);
+        expect(mixes.failed, isTrue, reason: '$status');
+        expect(mixes.missing, isFalse);
+        expect(plugin.knownMissing(client, 'Mixes'), isFalse);
+        expect((await plugin.settings(client)).failed, isTrue);
+        // Not remembered: asked again.
+        await plugin.mixes(client);
+        expect(
+          routes.asked.where((a) => a.path.endsWith('/Mixes')),
+          hasLength(2),
+        );
+      }
+    });
+
+    test('no network, or an answer that isn\'t one, is a failure', () async {
+      final offline = KostvMusicPlugin(dio: Dio()..httpClientAdapter = _Down());
+      expect((await offline.moment(client)).failed, isTrue);
+      expect((await offline.discovery(client)).failed, isTrue);
+      expect(offline.knownMissing(client, 'Moment'), isFalse);
+
+      final garbled = pluginWith(
+        _Plugin(answers: {'GET /Moonfin/Kostv/Music/Mixes': 'hola'}),
+      );
+      expect((await garbled.mixes(client)).failed, isTrue);
+    });
+  });
+
+  group('what is kept on the device', () {
+    test('the week\'s discovery only shows in its week', () {
+      final note = kostvDiscoveryNote('2026-W47', [_stremfin('1')]);
+      final kept = jsonDecode(jsonEncode(note));
+      expect(
+        kostvKeptDiscovery(kept, now: DateTime(2026, 11, 20))!.single.deezerId,
+        '1',
+      );
+      // The next Monday: last week's isn't this one.
+      expect(kostvKeptDiscovery(kept, now: DateTime(2026, 11, 23)), isNull);
+      // Kept before the week went with it: not shown.
+      expect(
+        kostvKeptDiscovery([
+          kostvStremfinSongJson(_stremfin('1')),
+        ], now: DateTime(2026, 11, 20)),
+        isNull,
+      );
+    });
+
+    test('the daily mixes only show on their day, which starts at 5:00', () {
+      final mixes = KostvDailyMixes(
+        day: '2026-11-20',
+        mixes: [
+          KostvDailyMix(id: 'daily-1', items: [_song('1')]),
+        ],
+      );
+      final kept = jsonDecode(jsonEncode(mixes.toJson()));
+      KostvDailyMixes? at(DateTime now) =>
+          kostvKeptMixes(kept, 'https://casa.example', now: now);
+      expect(at(DateTime(2026, 11, 20, 18)), isNotNull);
+      // Past midnight, before 5:00: still that day's.
+      expect(at(DateTime(2026, 11, 21, 4, 30)), isNotNull);
+      expect(at(DateTime(2026, 11, 21, 5, 30)), isNull);
+      expect(kostvMusicDayAt(DateTime(2026, 11, 21, 4)), '2026-11-20');
+    });
+
+    test('a discovery song keeps its album\'s request through the plugin', () {
+      final album = StremfinAlbum.fromJson({
+        'title': 'Motomami',
+        'deezer_id': '777',
+        'library': {'in_jellyfin': false},
+        'request': {'id': 4, 'status': 'pending', 'mine': true},
+        'can_request': false,
+      })!;
+      final songs = kostvSongsWithAlbums(
+        [
+          StremfinSong(
+            title: 'Despechá',
+            deezerId: '123',
+            albumTitle: 'Motomami',
+            albumDeezerId: '777',
+          ),
+          _stremfin('2'),
+        ],
+        [album],
+      );
+      expect(songs.first.album, same(album));
+      expect(songs.last.album, isNull);
+      final back = StremfinSong.fromJson(
+        jsonDecode(jsonEncode(kostvStremfinSongJson(songs.first))),
+      )!;
+      expect(back.album!.request!.status, 'pending');
+      expect(back.album!.canRequest, isFalse);
+      expect(back.albumDeezerId, '777');
+      // Twenty of them stay far below what the plugin takes (64 KB).
+      final body = jsonEncode([
+        for (var i = 0; i < 20; i++) kostvStremfinSongJson(songs.first),
+      ]);
+      expect(body.length, lessThan(64 * 1024));
+    });
+  });
+
+  group('the week\'s discovery, loaded', () {
+    const discovery = 'GET /Moonfin/Kostv/Music/Discovery';
+    const keep = 'PUT /Moonfin/Kostv/Music/Discovery';
+    final firstTime = {
+      'Week': '2026-W47',
+      'Seeds': ['Bad Bunny'],
+      'Songs': null,
+    };
+    final recommended = StremfinRecommendations(
+      songs: [for (var i = 0; i < 30; i++) _stremfin('r$i')],
+    );
+
+    test('the first time, picked and kept for the week', () async {
+      final routes = _Plugin(answers: {discovery: firstTime, keep: null});
+      final found = await kostvLoadWeeklyDiscovery(
+        pluginWith(routes),
+        client,
+        recommend: (_) async => recommended,
+      );
+      expect(found!.week, '2026-W47');
+      expect(found.songs, hasLength(20));
+      final put = routes.asked.singleWhere((a) => a.method == 'PUT');
+      expect((put.body as Map)['Songs'], hasLength(20));
+    });
+
+    test('another device kept the week\'s while this one picked: theirs, '
+        'without keeping its own', () async {
+      final answers = <String, Object?>{discovery: firstTime, keep: null};
+      var reads = 0;
+      final routes = _Plugin(
+        answers: answers,
+        onAsk: (key) {
+          if (key != discovery) return;
+          // From the second read on, the other device's list is there.
+          if (++reads == 2) {
+            answers[discovery] = {
+              'Week': '2026-W47',
+              'Seeds': ['Bad Bunny'],
+              'Songs': [kostvStremfinSongJson(_stremfin('theirs'))],
+            };
+          }
+        },
+      );
+      final found = await kostvLoadWeeklyDiscovery(
+        pluginWith(routes),
+        client,
+        recommend: (_) async => recommended,
+      );
+      expect(found!.songs!.single.deezerId, 'theirs');
+      expect(routes.asked.where((a) => a.method == 'PUT'), isEmpty);
+    });
+
+    test('a switch of person while it worked: nothing kept with the other '
+        'session, nothing given', () async {
+      final routes = _Plugin(answers: {discovery: firstTime, keep: null});
+      final found = await kostvLoadWeeklyDiscovery(
+        pluginWith(routes),
+        client,
+        recommend: (_) async {
+          // Bruno takes over the same server's client meanwhile.
+          client
+            ..userId = 'bruno'
+            ..accessToken = 'token-bruno';
+          return recommended;
+        },
+      );
+      expect(found, isNull);
+      expect(routes.asked.where((a) => a.method == 'PUT'), isEmpty);
+    });
+
+    test('the page gone: it stops after the wait it was in', () async {
+      var open = true;
+      final routes = _Plugin(answers: {discovery: firstTime, keep: null});
+      final found = await kostvLoadWeeklyDiscovery(
+        pluginWith(routes),
+        client,
+        wanted: () => open,
+        recommend: (_) async {
+          open = false;
+          return recommended;
+        },
+      );
+      expect(found, isNull);
+      expect(routes.asked.where((a) => a.method == 'PUT'), isEmpty);
+    });
+
+    test('the plugin failing throws (what is shown stays); without the route '
+        'there are no songs', () async {
+      final failing = pluginWith(
+        _Plugin(answers: {discovery: firstTime}, statuses: {discovery: 500}),
+      );
+      await expectLater(
+        kostvLoadWeeklyDiscovery(
+          failing,
+          client,
+          recommend: (_) async => recommended,
+        ),
+        throwsA(isA<KostvMusicUnanswered>()),
+      );
+      final older = await kostvLoadWeeklyDiscovery(
+        pluginWith(_Plugin(hasRoutes: false)),
+        client,
+        recommend: (_) async => recommended,
+      );
+      expect(older!.songs, isNull);
+    });
+
+    test('songs already at home aren\'t picked', () {
+      final pick = kostvWeeklyPick(
+        [
+          _stremfin('new'),
+          const StremfinSong(title: 'Casa', deezerId: 'home', inJellyfin: true),
+          const StremfinSong(title: 'Casa 2', deezerId: 'id', jellyfinId: 'j1'),
+        ],
+        user: 'ana',
+        week: '2026-W47',
+      );
+      expect([for (final s in pick) s.deezerId], ['new']);
+    });
+  });
+
+  group('where the music comes from, from the song pressed', () {
+    test(
+      'the songs from the one pressed on first, then those before it',
+      () async {
+        final routes = _Plugin(
+          answers: {'POST /Moonfin/Kostv/Music/Context': null},
+        );
+        KostvMusicPlugin.instance = pluginWith(routes);
+        kostvTellMusicSource(() => client, KostvMusicSource.favorites, [
+          for (var i = 0; i < 700; i++) _song('s$i'),
+        ], startIndex: 250);
+        await pumpEventQueue();
+        final ids = (routes.asked.single.body as Map)['ItemIds'] as List;
+        expect(ids, hasLength(500));
+        expect(ids.first, 's250');
+        expect(ids, contains('s699'));
+        // Then from the start, as many as still fit.
+        expect(ids[450], 's0');
+        expect(ids.last, 's49');
+        expect(ids, isNot(contains('s50')));
+      },
+    );
+  });
 }
 
 /// The plugin, answering only once [until] completes.
@@ -630,6 +906,22 @@ class _Hanging implements HttpClientAdapter {
     await until;
     return answer;
   }
+
+  @override
+  void close({bool force = false}) {}
+}
+
+/// No network at all.
+class _Down implements HttpClientAdapter {
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async => throw DioException.connectionError(
+    requestOptions: options,
+    reason: 'offline',
+  );
 
   @override
   void close({bool force = false}) {}

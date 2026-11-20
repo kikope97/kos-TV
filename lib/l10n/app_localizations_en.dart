@@ -19401,7 +19401,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kostvMusicSeeAlbumToAsk => 'See the album to ask for it';
 
   @override
-  String get kostvMusicMenuHint => 'Hold OK on a song for more options';
+  String get kostvMusicMenuHint => 'Hold OK on a song or mix for more options';
 
   @override
   String get kostvMusicFavorites => 'Your favourites';
@@ -21001,14 +21001,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvMusicMomentWhy =>
-      'What you usually play at this time, and more like it';
+      'What you usually play at this time and songs like it';
 
   @override
   String get kostvMusicLearn => 'Learn from what I listen to';
 
   @override
   String get kostvMusicLearnOn =>
-      'Your mixes and recommendations come from what you listen to. It stays on the home server and only you see it.';
+      'Your mixes and recommendations come from what you listen to. It stays on the home server and isn\'t shared with anyone.';
 
   @override
   String get kostvMusicLearnOff => 'Off: what you listen to isn\'t kept.';
@@ -21018,10 +21018,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String kostvMusicLearnCount(int count, String since) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count listens kept since $since',
+      other: '$countString listens kept since $since',
       one: '1 listen kept since $since',
     );
     return '$_temp0';
@@ -21050,12 +21054,20 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String kostvMusicLearnCountNoDate(int count) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count listens kept',
+      other: '$countString listens kept',
       one: '1 listen kept',
     );
     return '$_temp0';
   }
+
+  @override
+  String get kostvMusicLearnUnanswered =>
+      'Couldn\'t check right now. Select to try again.';
 }

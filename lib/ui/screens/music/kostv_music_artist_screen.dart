@@ -212,7 +212,11 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                                 ),
                               ),
                               onLongPress: () => unawaited(
-                                showKostvMusicSongMenu(context, song: song),
+                                showKostvMusicSongMenu(
+                                  context,
+                                  song: song,
+                                  source: KostvMusicSource.artist,
+                                ),
                               ),
                             ),
                         ],
