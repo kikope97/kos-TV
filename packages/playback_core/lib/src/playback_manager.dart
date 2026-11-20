@@ -31,6 +31,9 @@ class _ProgressGeneration {
   bool reporting = false;
   bool reportPending = false;
   Duration stopPosition = Duration.zero;
+
+  /// Kos TV: it failed to play, so its stop says so (music only).
+  bool failed = false;
 }
 
 /// How far a confirmed position may sit from the seek target. Streams land
@@ -1266,9 +1269,46 @@ class PlaybackManager implements AudioOwnable {
       );
       return;
     }
+    if (state.phase == PlaybackBringupPhase.failed) _markPlaybackFailed();
     _bringupState = state;
     _bringupStateController.add(state);
   }
+
+  /// Kos TV: the item playing failed, so the stop reported for it says it
+  /// failed rather than that someone stopped or skipped it.
+  void _markPlaybackFailed() {
+    final generation = _progressGeneration;
+    if (generation == null || generation.ended) return;
+    if (!identical(generation.item, queueService.currentItem)) return;
+    generation.failed = true;
+  }
+
+  /// Kos TV: music, not an audiobook: what the server plugin learns from.
+  bool _isMusicItem(dynamic item) {
+    if (!_isAudioLikeItem(item)) return false;
+    Object? type;
+    if (item is Map) {
+      type = item['Type'];
+    } else if (item is String) {
+      type = _offlineMetadataByUrl[item]?['Type'];
+    } else {
+      try {
+        type = item?.type;
+      } catch (_) {
+        return false;
+      }
+    }
+    return type?.toString() == 'Audio';
+  }
+
+  /// Kos TV: the queue's repeat and shuffle modes for [item]'s reports, only
+  /// for music (the server plugin notes them with each listen).
+  PlaybackQueueModes? _queueModesFor(dynamic item) => _isMusicItem(item)
+      ? PlaybackQueueModes(
+          repeatMode: queueService.repeatMode,
+          shuffled: queueService.isShuffled,
+        )
+      : null;
 
   void setBackend(PlayerBackend backend, {bool disposePrevious = true}) {
     if (identical(_backend, backend)) {
@@ -2017,6 +2057,8 @@ class PlaybackManager implements AudioOwnable {
     final resolution = _currentResolution ?? _lastPlaybackResolution;
     _isAutoNexting = true;
     _mediaSourceId = null;
+    // Kos TV: the stop below is a failure's, not the viewer's.
+    _markPlaybackFailed();
     try {
       await _stopAndReportCurrent(skipQueueChange: true);
     } catch (_) {
@@ -4119,6 +4161,7 @@ class PlaybackManager implements AudioOwnable {
       positionTicks: startTicks,
       audioStreamIndex: _audioStreamIndex,
       subtitleStreamIndex: _subtitleStreamIndex,
+      queueModes: _queueModesFor(item),
     );
     if (startReport != null) unawaited(startReport.catchError((_) {}));
 
@@ -4184,7 +4227,8 @@ class PlaybackManager implements AudioOwnable {
     });
   }
 
-  void _reportProgress(_ProgressGeneration generation) {
+  /// [position] is where a seek just landed, before the player says so.
+  void _reportProgress(_ProgressGeneration generation, {Duration? position}) {
     if (_progressTimer == null ||
         generation.ended ||
         !identical(_progressGeneration, generation)) {
@@ -4207,7 +4251,7 @@ class PlaybackManager implements AudioOwnable {
             .onPlaybackProgress(
               generation.item,
               generation.resolution,
-              state.position,
+              position ?? state.position,
               // Not `!isPlaying`: that reads true while the stream is merely
               // starved, so the server could never tell a viewer pause from a
               // stall. Engines with no intent flag fall back to the old answer.
@@ -4218,6 +4262,7 @@ class PlaybackManager implements AudioOwnable {
               // full volume there.
               volumeLevel: _volume.clamp(0, 100).round(),
               isMuted: _isMuted,
+              queueModes: _queueModesFor(generation.item),
             )
             .then<void>(
               (_) => _progressSettled(generation),
@@ -4263,6 +4308,7 @@ class PlaybackManager implements AudioOwnable {
             generation.resolution,
             generation.stopPosition,
             releaseLiveStream: _claimLiveStreamRelease(generation.resolution),
+            failed: generation.failed && _isMusicItem(generation.item),
           )
           .catchError((_) {});
     } catch (_) {}
@@ -4457,6 +4503,15 @@ class PlaybackManager implements AudioOwnable {
       return;
     }
     await _backend?.seekTo(_playerPosition(position));
+    // Kos TV: music tells the server where a seek landed at once, not at
+    // the next tick up to 5 seconds later, so the server plugin sees each
+    // seek back (one of a few seconds otherwise hides between two ticks).
+    final generation = _progressGeneration;
+    if (generation != null &&
+        identical(generation.item, queueService.currentItem) &&
+        _isMusicItem(generation.item)) {
+      _reportProgress(generation, position: position);
+    }
   }
 
   /// A seek the stream can't do itself: the resolver replans at [position]

@@ -616,6 +616,59 @@ class KostvMusicPlugin {
     );
   }
 
+  /// Tells the plugin of something the person did that the server doesn't
+  /// see (`POST Music/Event`). Never waited for, like [sendContext].
+  Future<void> _sendEvent(
+    MediaServerClient client,
+    Map<String, Object?> body,
+  ) async {
+    await _call(client, 'POST', 'Event', body: body);
+  }
+
+  /// The songs [items] were added to a playlist.
+  Future<void> sendPlaylistAdd(
+    MediaServerClient client,
+    Iterable<String> items,
+  ) async {
+    final ids = <String>{
+      for (final id in items)
+        if (id.isNotEmpty) id,
+    }.take(contextMax).toList();
+    if (ids.isEmpty) return;
+    await _sendEvent(client, {'Type': 'playlist_add', 'ItemIds': ids});
+  }
+
+  /// An album was asked for from the requests service (Stremfin).
+  Future<void> sendAlbumRequest(
+    MediaServerClient client, {
+    required String deezerAlbumId,
+    String? album,
+    String? artist,
+  }) async {
+    if (deezerAlbumId.isEmpty) return;
+    await _sendEvent(client, {
+      'Type': 'request',
+      'Album': ?_text(album),
+      'Artist': ?_text(artist),
+      'DeezerAlbumId': deezerAlbumId,
+    });
+  }
+
+  /// «No me gusta» of the songs [items]. Not used yet: the app has no such
+  /// button. Kept for when it has one, with the body the plugin's plan
+  /// gives (`dislike` with the songs' ids); check it against the plugin then.
+  Future<void> sendDislike(
+    MediaServerClient client,
+    Iterable<String> items,
+  ) async {
+    final ids = <String>{
+      for (final id in items)
+        if (id.isNotEmpty) id,
+    }.take(contextMax).toList();
+    if (ids.isEmpty) return;
+    await _sendEvent(client, {'Type': 'dislike', 'ItemIds': ids});
+  }
+
   /// The person's daily mixes.
   Future<KostvMusicAnswer<KostvDailyMixes>> mixes(MediaServerClient client) {
     final server = client.baseUrl;
@@ -795,3 +848,103 @@ void kostvTellMusicSource(
     }
   });
 }
+
+/// Kos TV: runs [send] with the server's plugin once the caller has gone
+/// on, and nothing that fails in it (not even finding [client]) reaches
+/// whoever did what it tells.
+void _kostvTellLater(
+  MediaServerClient? Function() client,
+  Future<void> Function(KostvMusicPlugin plugin, MediaServerClient server) send,
+) {
+  Timer.run(() {
+    try {
+      final server = client();
+      if (server == null) return;
+      unawaited(
+        Future<void>.sync(() => send(KostvMusicPlugin.instance, server))
+            .catchError((Object e) {
+              debugPrint('[MusicPlugin] Not told what the person did: $e');
+            }),
+      );
+    } catch (e) {
+      debugPrint('[MusicPlugin] Not told what the person did: $e');
+    }
+  });
+}
+
+/// Kos TV: the songs a playlist add tells the server plugin of: the song
+/// itself, or an album's songs ([tracks] when they are at hand, otherwise
+/// asked of the server after the add). Null for anything else (a film, an
+/// episode, an artist): nothing is told then.
+Future<Iterable<String>> Function(MediaServerClient server)?
+kostvPlaylistSongsOf(AggregatedItem item, {List<AggregatedItem>? tracks}) {
+  switch (item.type) {
+    case 'Audio':
+      return (_) async => [item.id];
+    case 'MusicAlbum':
+      if (tracks != null && tracks.isNotEmpty) {
+        final ids = [
+          for (final track in tracks)
+            if (track.type == 'Audio') track.id,
+        ];
+        return (_) async => ids;
+      }
+      return (server) async {
+        final data = await server.itemsApi.getItems(
+          parentId: item.id,
+          includeItemTypes: const ['Audio'],
+          recursive: true,
+          limit: KostvMusicPlugin.contextMax,
+          enableTotalRecordCount: false,
+        );
+        return [
+          for (final raw in (data['Items'] as List?) ?? const [])
+            if (raw is Map && raw['Id'] != null) raw['Id'].toString(),
+        ];
+      };
+    default:
+      return null;
+  }
+}
+
+/// Kos TV: tells the server plugin the person added songs to a playlist
+/// (`playlist_add`), those [songs] gives. Fire and forget, like
+/// [kostvTellMusicSource]: the add is done and shown whatever happens here.
+void kostvTellPlaylistAdd(
+  MediaServerClient? Function() client,
+  Future<Iterable<String>> Function(MediaServerClient server) songs,
+) => _kostvTellLater(client, (plugin, server) async {
+  // Not even an album's songs asked for when nobody would be told.
+  if (!server.features.supportsMoonfinPlugin ||
+      plugin.knownMissing(server, 'Event')) {
+    return;
+  }
+  await plugin.sendPlaylistAdd(server, await songs(server));
+});
+
+/// Kos TV: whether asking for an album with this answer tells the server
+/// plugin: not when nothing was asked (at their limit, not to be had, or
+/// already at home).
+bool kostvMusicRequestCounts(StremfinOutcome outcome) => switch (outcome) {
+  StremfinOutcome.limit ||
+  StremfinOutcome.unavailable ||
+  StremfinOutcome.have => false,
+  _ => true,
+};
+
+/// Kos TV: tells the server plugin the person asked the requests service
+/// for an album (`request`). Fire and forget.
+void kostvTellMusicRequest(
+  MediaServerClient? Function() client, {
+  required String deezerAlbumId,
+  String? album,
+  String? artist,
+}) => _kostvTellLater(
+  client,
+  (plugin, server) => plugin.sendAlbumRequest(
+    server,
+    deezerAlbumId: deezerAlbumId,
+    album: album,
+    artist: artist,
+  ),
+);

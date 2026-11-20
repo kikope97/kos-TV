@@ -23,6 +23,7 @@ import '../../../util/home_refresh_helper.dart';
 import '../../../util/item_watch_state.dart';
 import '../../../data/services/item_membership_service.dart';
 import '../../../data/services/kostv_my_list.dart';
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/user_data_sync.dart';
 import '../../navigation/destinations.dart';
 import '../../screens/home/kostv_undo_toast.dart';
@@ -582,6 +583,7 @@ List<ItemContextAction> contextActionsFor(
             context,
             itemIds: [item.id],
             serverId: item.serverId,
+            songs: kostvPlaylistSongsOf(item),
           );
           if (added == true) {
             onChanged?.call();

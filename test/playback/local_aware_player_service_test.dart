@@ -16,6 +16,7 @@ class _Server extends Fake implements PlayerService {
     StreamResolutionResult resolution,
     Duration position, {
     bool releaseLiveStream = true,
+    bool failed = false,
   }) async {
     events.add('reported');
     if (fail) throw StateError('server down');

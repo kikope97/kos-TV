@@ -5,6 +5,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../data/services/item_membership_service.dart';
+import '../../data/services/kostv_music_plugin.dart';
 import '../../data/services/media_server_client_factory.dart';
 import '../../l10n/app_localizations.dart';
 import '../../preference/user_preferences.dart';
@@ -17,16 +18,30 @@ class AddToPlaylistDialog extends StatefulWidget {
   final List<String> itemIds;
   final String? serverId;
 
-  const AddToPlaylistDialog({super.key, required this.itemIds, this.serverId});
+  /// Kos TV: the songs added, for the server plugin to learn from (see
+  /// [kostvPlaylistSongsOf]); null when they aren't music.
+  final Future<Iterable<String>> Function(MediaServerClient server)? songs;
+
+  const AddToPlaylistDialog({
+    super.key,
+    required this.itemIds,
+    this.serverId,
+    this.songs,
+  });
 
   static Future<bool?> show(
     BuildContext context, {
     required List<String> itemIds,
     String? serverId,
+    Future<Iterable<String>> Function(MediaServerClient server)? songs,
   }) {
     return showFocusRestoringDialog<bool>(
       context: context,
-      builder: (_) => AddToPlaylistDialog(itemIds: itemIds, serverId: serverId),
+      builder: (_) => AddToPlaylistDialog(
+        itemIds: itemIds,
+        serverId: serverId,
+        songs: songs,
+      ),
     );
   }
 
@@ -101,6 +116,7 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
         playlistId,
         widget.itemIds,
       );
+      _tellPlugin();
       if (mounted) Navigator.pop(context, true);
     } catch (_) {
       if (mounted) {
@@ -113,6 +129,15 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
     } finally {
       _busy = false;
     }
+  }
+
+  /// Kos TV: songs added to a playlist tell the server plugin, without
+  /// waiting for it.
+  void _tellPlugin() {
+    final songs = widget.songs;
+    if (songs == null) return;
+    final client = _client;
+    kostvTellPlaylistAdd(() => client, songs);
   }
 
   /// Closes the name dialog and creates, once.
@@ -139,6 +164,7 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
           widget.itemIds,
         );
       }
+      if (result.isNotEmpty) _tellPlugin();
       if (mounted) Navigator.pop(context, result.isNotEmpty);
     } catch (_) {
       if (mounted) {

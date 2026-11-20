@@ -185,6 +185,7 @@ class _TestService extends Fake implements PlayerService {
     int? positionTicks,
     int? audioStreamIndex,
     int? subtitleStreamIndex,
+    PlaybackQueueModes? queueModes,
   }) async {}
 
   @override
@@ -197,6 +198,7 @@ class _TestService extends Fake implements PlayerService {
     int? subtitleStreamIndex,
     int? volumeLevel,
     bool? isMuted,
+    PlaybackQueueModes? queueModes,
   }) async {}
 
   @override
@@ -205,6 +207,7 @@ class _TestService extends Fake implements PlayerService {
     StreamResolutionResult resolution,
     Duration position, {
     bool releaseLiveStream = true,
+    bool failed = false,
   }) async => stops.add(resolution.streamUrl);
 
   @override

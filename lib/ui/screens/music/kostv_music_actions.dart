@@ -508,6 +508,7 @@ Future<void> _songMenu(
         context,
         itemIds: [home!.id],
         serverId: home.serverId,
+        songs: kostvPlaylistSongsOf(home),
       );
     case _SongChoice.album:
       unawaited(
