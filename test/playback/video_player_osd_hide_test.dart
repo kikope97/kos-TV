@@ -489,6 +489,128 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  group('holding Left or Right on TV', () {
+    Future<void> playOnTv(WidgetTester tester) async {
+      PlatformDetection.setTvMode(true);
+      addTearDown(() => PlatformDetection.setTvMode(false));
+      await GetIt.instance<UserPreferences>().set(
+        UserPreferences.skipForwardLength,
+        10000,
+      );
+      await mountPlayer(tester);
+      manager.state.setDuration(const Duration(hours: 10));
+      manager.state.setPlaying(true);
+      await tester.pump();
+      // Lets the controls hide.
+      await tester.pump(const Duration(seconds: 10));
+    }
+
+    // Focus moves wait for a frame and retry, so frames keep coming the way
+    // playing video does.
+    Future<void> advance(WidgetTester tester, int milliseconds) async {
+      for (var t = 0; t < milliseconds; t += 10) {
+        tester.binding.scheduleFrame();
+        await tester.pump(const Duration(milliseconds: 10));
+      }
+    }
+
+    // The seek bar retries its focus for a few frames after the controls come
+    // up. A quick second Down used to be pulled back to it, and Right seeked.
+    group('on the TV layout', () {
+      setUp(() => PlatformDetection.setInterfaceLayout(InterfaceLayout.tv));
+      tearDown(
+        () => PlatformDetection.setInterfaceLayout(InterfaceLayout.automatic),
+      );
+
+      testWidgets('a quick Down to the buttons stays there', (tester) async {
+        String? focused() => FocusManager.instance.primaryFocus?.debugLabel;
+        await playOnTv(tester);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await advance(tester, 30);
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+        await advance(tester, 20);
+        expect(focused(), 'video_player_primary_play');
+        await advance(tester, 600);
+        expect(focused(), 'video_player_primary_play', reason: 'kept');
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+        await advance(tester, 100);
+        expect(focused(), isNot('video_player_primary_play'));
+        expect(focused(), isNot('video_player_tv_seekbar'));
+        expect(manager.seeks, isEmpty, reason: 'Right moved along the buttons');
+
+        await tester.pumpWidget(const SizedBox());
+      });
+    });
+
+    test('grows from the set step to 30, 60 and 180 seconds', () {
+      expect(
+        [
+          for (var count = 1; count <= 18; count++)
+            heldSeekStepMs(10000, count) ~/ 1000,
+        ],
+        [10, 10, 10, 30, 30, 30, 30, 30, 60, 60, 60, 60, 60, 60, 60, 60, 180, 180],
+      );
+      expect(heldSeekStepMs(60000, 5), 60000, reason: 'never below the set step');
+    });
+
+    testWidgets('steps on a timer, not on key repeats', (tester) async {
+      await playOnTv(tester);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowRight);
+      expect(manager.seeks, [const Duration(seconds: 10)]);
+      manager.state.setPosition(const Duration(seconds: 10));
+      await advance(tester, 200);
+      for (var i = 0; i < 5; i++) {
+        await tester.sendKeyRepeatEvent(LogicalKeyboardKey.arrowRight);
+      }
+      // Steps land at 350 ms, then every 110 ms, through the eighth.
+      await advance(tester, 850);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+      expect(manager.seeks, [
+        const Duration(seconds: 10),
+        const Duration(seconds: 10 + 10 + 10 + 5 * 30),
+      ]);
+
+      await advance(tester, 1000);
+      expect(manager.seeks, hasLength(2), reason: 'release stops the hold');
+
+      // A tap on the seek bar moves one set step.
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+      expect(manager.seeks.last, const Duration(seconds: 190));
+      await advance(tester, 1000);
+      expect(manager.seeks, hasLength(3));
+
+      // Lets the last commit stop waiting for the player to land.
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('stops by itself when the release never comes', (
+      tester,
+    ) async {
+      await playOnTv(tester);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowRight);
+      manager.state.setPosition(const Duration(seconds: 10));
+      await advance(tester, 1000);
+      await tester.pump(const Duration(seconds: 11));
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+      // From 10 s, ten seconds of steps: 10, 10, five of 30, eight of 60 and
+      // 73 of 180.
+      expect(
+        manager.seeks.last,
+        const Duration(seconds: 10 + 10 + 10 + 5 * 30 + 8 * 60 + 73 * 180),
+      );
+
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpWidget(const SizedBox());
+    });
+  });
+
   testWidgets('short Cinema pre-roll blocks ordinary intro/outro actions', (
     tester,
   ) async {
@@ -753,6 +875,55 @@ void main() {
     expect(find.byType(Slider), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
+  });
+
+  group('OSD lock', () {
+    final unlockPill = find.text('Long press to unlock');
+
+    setUp(
+      () => GetIt.instance<UserPreferences>().set(
+        UserPreferences.osdLockEnabled,
+        true,
+      ),
+    );
+
+    // Issue #2378: the controls hiding on their own locked the player.
+    testWidgets('the controls hide without locking', (tester) async {
+      await playWithHideDelay(tester, 1000);
+
+      await tester.pump(const Duration(milliseconds: 1500));
+      expect(find.byType(Slider), findsNothing);
+      expect(unlockPill, findsNothing);
+
+      await tester.tapAt(const Offset(400, 300));
+      await tester.pump(kDoubleTapTimeout + const Duration(milliseconds: 50));
+      expect(find.byType(Slider), findsOneWidget);
+
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('the lock button locks and one long press unlocks', (
+      tester,
+    ) async {
+      await playWithHideDelay(tester, 1000);
+
+      await tester.tap(find.byIcon(Icons.lock_outline));
+      await tester.pump();
+      expect(find.byType(Slider), findsNothing);
+      expect(unlockPill, findsOneWidget);
+
+      await tester.tapAt(const Offset(400, 300));
+      await tester.pump(const Duration(seconds: 3));
+      expect(find.byType(Slider), findsNothing, reason: 'a tap stays blocked');
+      expect(unlockPill, findsOneWidget);
+
+      await tester.longPress(unlockPill);
+      await tester.pump();
+      expect(find.byType(Slider), findsOneWidget);
+      expect(unlockPill, findsNothing);
+
+      await tester.pumpWidget(const SizedBox());
+    });
   });
 
   group('dimming the controls in HDR', () {
