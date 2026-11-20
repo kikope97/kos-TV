@@ -132,3 +132,21 @@ día.
    12 meses, con el ajuste para apagarlo? Recomendado: sí.
 4. ¿Las mezclas del momento **no salen** hasta que haya datos suficientes?
    Recomendado: sí, mejor que una mezcla genérica que no es tuya.
+
+## Rutas entre la app y el complemento
+
+Todas con la sesión de la persona (`[Authorize]`, la persona sale de su sesión) y
+las tarjetas con el mismo formato que las de Inicio (`ItemCardDtoMapper`). Si el
+complemento no las tiene (versión anterior, 404), la app sigue como antes («Tus
+mezclas» y «Canciones para ti» de siempre, sin el ajuste).
+
+| Ruta | Qué hace |
+|---|---|
+| `GET /Moonfin/Kostv/Music/Settings` | `{ "Learn": true, "Listens": 1234, "Since": "2026-11-20T10:00:00Z" }`: si se guarda lo que escucha esa persona, cuántas escuchas hay y desde cuándo. |
+| `POST /Moonfin/Kostv/Music/Settings` | Cuerpo `{ "Learn": false }`. Devuelve lo mismo que el `GET`. Apagado, no se apunta nada de esa persona. |
+| `DELETE /Moonfin/Kostv/Music/Listens` | Borra todo lo apuntado de esa persona. `204`. |
+| `POST /Moonfin/Kostv/Music/Context` | Cuerpo `{ "Source": "mix:daily-2", "ItemIds": ["…"] }`. De dónde viene lo que se va a escuchar; se recuerda 6 horas y se apunta en las escuchas de esas canciones. Fuentes: `mix:<id>`, `discovery`, `moment:<franja>`, `search`, `album`, `artist`, `favorites`, `playlist`, `charts`, `radio`, `other`. `204`. |
+| `GET /Moonfin/Kostv/Music/Mixes` | `{ "Day": "2026-11-20", "Mixes": [ { "Id": "daily-1", "Genre": "Reguetón", "Artists": [tarjetas], "Items": [tarjetas] } ] }`: hasta 4 mixes de unas 50 canciones, los mismos todo el día (el día empieza a las 5:00, hora de casa). |
+| `GET /Moonfin/Kostv/Music/Discovery` | `{ "Week": "2026-W47", "Seeds": ["Bad Bunny", …], "Songs": null }`: los artistas (hasta 10) con los que pedir a Stremfin, y la lista de la semana si ya está guardada (`Songs`, tal cual la guardó la app). |
+| `PUT /Moonfin/Kostv/Music/Discovery` | Cuerpo `{ "Week": "2026-W47", "Songs": [ … ] }` (hasta 30 canciones y 64 KB, en el formato de Stremfin). Solo para la semana en curso; `204`. |
+| `GET /Moonfin/Kostv/Music/Moment` | `{ "Slot": "tarde", "Ready": true, "Items": [tarjetas] }`. Franjas: `manana` (6–12), `tarde` (12–20) y `noche` (20–6), por la hora de casa. `Ready: false` (sin `Items`) mientras no haya datos suficientes. |
