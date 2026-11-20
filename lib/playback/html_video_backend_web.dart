@@ -1704,7 +1704,8 @@ class HtmlVideoBackend extends PlayerBackend
   }
 
   /// The browser fetches the picked font itself, the first time a cue needs
-  /// it.
+  /// it. Kos TV: from the image's own fonts/ when it brings them (see
+  /// SubtitleFont.url).
   static String _fontFaces(SubtitleFont font) => [
     for (final bold in [false, true])
       "@font-face { font-family: '${font.family}'; "

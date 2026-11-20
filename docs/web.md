@@ -246,12 +246,26 @@ en la misma imagen. No hace falta configurar nada en el proxy.
 El motor de dibujo de la web (la carpeta `canvaskit/`) va en la imagen y se
 carga desde el propio servidor (`--no-web-resources-cdn`), no desde los
 servidores de Google: así la web abre en casa aunque se caiga internet. Las
-fuentes de reserva para lo que no traen las fuentes de la app (emojis, chino,
-japonés, símbolos…) también van dentro, en `fonts/` (unos 21 MiB): las baja
-`scripts/fetch-web-fonts.sh` al compilar y la web ya no le pide nada a
-`fonts.gstatic.com`. Si se compila sin ese paso, la web funciona igual, pero
-esas fuentes las sigue pidiendo a Google. Un archivo que no existe (`.js`, `.wasm`, `.json`,
-imágenes…) da un 404; solo las rutas de la app vuelven a su página.
+fuentes también van dentro, en `fonts/` (unos 26 MiB), y las baja
+`scripts/fetch-web-fonts.sh` al compilar:
+
+- las de reserva para lo que no traen las fuentes de la app (emojis, chino,
+  japonés, símbolos…), unos 21 MiB;
+- las 10 fuentes de subtítulos que se pueden elegir en Ajustes (normal y
+  negrita de cada una), unos 5 MiB.
+
+Con ellas dentro, la web no le pide ninguna fuente a `fonts.gstatic.com`. Si
+se compila sin ese paso, o si en la compilación de GitHub no se han podido
+bajar ni reintentándolo (entonces la imagen sale igual, con un aviso en el
+registro del trabajo, y basta con relanzar ese trabajo), la web funciona igual,
+pero esas fuentes las sigue pidiendo a Google. Las de `fonts/` llevan la versión en la ruta y nginx
+deja que el navegador las guarde un año sin volver a preguntar.
+
+En las apps de la tele y del móvil, la fuente de subtítulos que elijas se baja
+de Google Fonts la primera vez y se queda guardada en el aparato.
+
+Un archivo que no existe (`.js`, `.wasm`, `.json`, imágenes…) da un 404; solo
+las rutas de la app vuelven a su página.
 
 Los archivos están en [`docker/web/`](../docker/web/): el `Dockerfile`, la
 configuración de nginx y `40-kostv-config.sh`, que escribe el `config.json` y la

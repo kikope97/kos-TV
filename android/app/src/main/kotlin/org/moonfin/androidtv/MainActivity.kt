@@ -98,6 +98,12 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
     private var castStatusListener: SessionManagerListener<CastSession>? = null
     private var castDiscoveryCallback: MediaRouter.Callback? = null
     private val castRouteKeepAlive = object : MediaRouter.Callback() {}
+    // Kos TV: the keep-alive above asks MediaRouter to keep discovering, so
+    // it only stays while a cast may need the picked route: from the picker
+    // opening until a grace period after it closes or a cast is started, and
+    // never with the app in the background (unless a cast is connecting).
+    private var castRouteKeepAliveAdded = false
+    private val releaseCastRouteKeepAlive = Runnable { removeCastRouteKeepAlive() }
 
     // A receiver is published by both the MediaRouter and the MediaRouter2
     // provider service, so it arrives once per provider under ids that differ
@@ -213,6 +219,10 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         private const val EXTERNAL_PLAYER_CHANNEL = "moonfin/external_player"
         private const val ACTION_PLAY_PAUSE = "org.moonfin.androidtv.ACTION_PIP_PLAY_PAUSE"
         private const val DISMISS_DELAY_MS = 300L
+        // Kos TV: how long the picked route is kept findable after the
+        // picker closes, for the cast to start (getting the stream ready
+        // takes a few seconds).
+        private const val CAST_KEEP_ALIVE_GRACE_MS = 60_000L
         private const val PLATFORM_CHANNEL = "org.moonfin.androidtv/platform"
         private const val GAMEPAD_CHANNEL = "org.moonfin.androidtv/gamepad"
         private const val WATCH_NEXT_CHANNEL = WatchNextWorker.CHANNEL
@@ -1121,6 +1131,20 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         }
     }
 
+    // Kos TV: in the background (music with the screen off, a cast left
+    // playing...) nothing can pick a Cast device, so discovery stops, unless
+    // a cast is connecting right then. Back in front with the picker still
+    // open, it starts again.
+    override fun onStop() {
+        super.onStop()
+        if (pendingCastListener == null) removeCastRouteKeepAlive()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (castDiscoveryCallback != null) addCastRouteKeepAlive()
+    }
+
     override fun onResume() {
         super.onResume()
         // Re-attach the emulator's output surface on devices where Flutter's
@@ -1206,7 +1230,7 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         }
         unregisterCastMediaCallback()
         stopGoogleCastDiscovery()
-        MediaRouter.getInstance(this).removeCallback(castRouteKeepAlive)
+        removeCastRouteKeepAlive()
         try { unregisterReceiver(pipReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(screenReceiver) } catch (_: Exception) {}
         castChannel?.setMethodCallHandler(null)
@@ -1272,11 +1296,7 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
             val selector = castRouteSelector()
             // The picker's scan ends when it closes, and without a callback left
             // behind the picked route is gone before the cast starts.
-            mediaRouter.addCallback(
-                selector,
-                castRouteKeepAlive,
-                MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY,
-            )
+            addCastRouteKeepAlive()
             emittedCastReceivers.clear()
             if (castDiscoveryCallback == null) {
                 val callback = object : MediaRouter.Callback() {
@@ -1307,7 +1327,38 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
             MediaRouter.getInstance(this).removeCallback(callback)
             castDiscoveryCallback = null
             emittedCastReceivers.clear()
+            releaseCastRouteKeepAliveLater()
         }
+    }
+
+    // Kos TV: (re)adds the keep-alive and cancels a pending release. Main
+    // thread only, as all MediaRouter calls.
+    private fun addCastRouteKeepAlive() {
+        handler.removeCallbacks(releaseCastRouteKeepAlive)
+        MediaRouter.getInstance(this).addCallback(
+            castRouteSelector(),
+            castRouteKeepAlive,
+            MediaRouter.CALLBACK_FLAG_REQUEST_DISCOVERY,
+        )
+        castRouteKeepAliveAdded = true
+    }
+
+    private fun removeCastRouteKeepAlive() {
+        handler.removeCallbacks(releaseCastRouteKeepAlive)
+        if (!castRouteKeepAliveAdded) return
+        MediaRouter.getInstance(this).removeCallback(castRouteKeepAlive)
+        castRouteKeepAliveAdded = false
+    }
+
+    // Kos TV: the picked route stays findable for a while after the picker
+    // closes or a cast is set off, then discovery stops. While the picker is
+    // open or a cast is connecting it is kept (closing the picker or the
+    // cast settling schedules it again).
+    private fun releaseCastRouteKeepAliveLater() {
+        handler.removeCallbacks(releaseCastRouteKeepAlive)
+        if (!castRouteKeepAliveAdded) return
+        if (castDiscoveryCallback != null || pendingCastListener != null) return
+        handler.postDelayed(releaseCastRouteKeepAlive, CAST_KEEP_ALIVE_GRACE_MS)
     }
 
     // Route ids carry the publishing provider ahead of a colon and the receiver
@@ -1356,9 +1407,14 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
 
         emitGoogleCastEvent("connecting")
 
+        // Kos TV: the keep-alive mustn't be released while the route is
+        // looked up and the session connects; each way out below lets it go
+        // again after the grace period.
+        handler.removeCallbacks(releaseCastRouteKeepAlive)
         val mediaRouter = MediaRouter.getInstance(this)
         val route = mediaRouter.routes.firstOrNull { it.id == targetId }
         if (route == null) {
+            releaseCastRouteKeepAliveLater()
             result.error("NOT_FOUND", "Google Cast route not found", null)
             return
         }
@@ -1366,6 +1422,7 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         val castContext = try {
             CastContext.getSharedInstance(this)
         } catch (t: Throwable) {
+            releaseCastRouteKeepAliveLater()
             result.error("CAST_INIT_FAILED", t.message, null)
             return
         }
@@ -1373,6 +1430,7 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         val sessionManager = castContext.sessionManager
         val currentSession = sessionManager.currentCastSession
         if (currentSession != null) {
+            releaseCastRouteKeepAliveLater()
             loadOnCastSession(
                 session = currentSession,
                 streamUrl = streamUrl,
@@ -1436,6 +1494,7 @@ class MainActivity : AudioServiceActivity(), GamepadsCompatibleActivity {
         pendingCastTimeout = null
         sessionManager.removeSessionManagerListener(listener, CastSession::class.java)
         pendingCastListener = null
+        releaseCastRouteKeepAliveLater()
     }
 
     private fun loadOnCastSession(

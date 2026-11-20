@@ -81,4 +81,37 @@ void main() {
 
     expect(await fonts.files('Fira Sans'), isNull);
   });
+
+  test('a web build with its own fonts asks for them there', () async {
+    final original = subtitleFontBase;
+    addTearDown(() => subtitleFontBase = original);
+    subtitleFontBase = () => 'https://kostv.ejemplo.com/fonts/';
+    final fetched = <String>[];
+    final fonts = SubtitleFonts(
+      directory: () async => null,
+      client: MockClient((request) async {
+        fetched.add(request.url.toString());
+        return http.Response.bytes(roboto, 200);
+      }),
+    );
+
+    expect(
+      fira.url(bold: false),
+      'https://kostv.ejemplo.com/fonts/firasans/v18/va9E4kDNxMZdWfMOD5VfkA.ttf',
+    );
+    expect(await fonts.load('Fira Sans'), isTrue);
+    expect(fetched, [fira.url(bold: false), fira.url(bold: true)]);
+    expect(fetched.any((url) => url.contains('gstatic')), isFalse);
+  });
+
+  test('every subtitle font comes from Google Fonts under a versioned path', () {
+    // scripts/fetch-web-fonts.sh reads these paths to bring them with the web.
+    final path = RegExp(
+      r'^https://fonts\.gstatic\.com/s/[a-z0-9]+/v[0-9]+/[A-Za-z0-9_-]+\.ttf$',
+    );
+    for (final font in subtitleFonts) {
+      expect(font.regularUrl, matches(path));
+      expect(font.boldUrl, matches(path));
+    }
+  });
 }

@@ -784,6 +784,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.web == 'true'
     runs-on: ubuntu-26.04
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
         with:
@@ -796,10 +797,20 @@ jobs:
       - name: Build web
         run: flutter build web --wasm --release --no-web-resources-cdn
 
-      # Kos TV: the engine's fallback fonts (emoji, CJK, symbols) go with
-      # the web too, so the browser never asks fonts.gstatic.com for them.
+      # Kos TV: the engine's fallback fonts (emoji, CJK, symbols) and the
+      # subtitle fonts go with the web too, so the browser never asks
+      # fonts.gstatic.com for them. If Google can't be reached even after the
+      # retries (the script's 75), the web still goes out, asking Google as a
+      # plain build does, with a warning; any other failure stops it.
       - name: Fallback fonts
-        run: bash scripts/fetch-web-fonts.sh build/web
+        run: |
+          status=0
+          bash scripts/fetch-web-fonts.sh build/web || status=$?
+          if [ "$status" -eq 75 ]; then
+            echo "::warning title=Fuentes de la web::No se han podido bajar las fuentes de reserva ni las de subtítulos: esta web no las lleva dentro y las pedirá a fonts.gstatic.com. Relanza el trabajo para que vayan dentro."
+          elif [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
 
       - uses: actions/upload-artifact@v6
         with:
@@ -820,6 +831,7 @@ jobs:
     needs: [plan, android, release, test-release]
     if: always() && (needs.release.result == 'success' || needs.test-release.result == 'success')
     runs-on: ubuntu-26.04
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
@@ -857,10 +869,19 @@ jobs:
       - name: Build web
         run: flutter build web --wasm --release --no-web-resources-cdn
 
-      # Kos TV: and the engine's fallback fonts (emoji, CJK, symbols) too,
-      # in fonts/ (about 21 MiB), so the web never asks fonts.gstatic.com.
+      # Kos TV: and the engine's fallback fonts (emoji, CJK, symbols) and the
+      # subtitle fonts too, in fonts/ (about 26 MiB), so the web never asks
+      # fonts.gstatic.com. As in the web job, Google out of reach (the
+      # script's 75) still publishes the image, asking Google, with a warning.
       - name: Fallback fonts
-        run: bash scripts/fetch-web-fonts.sh build/web
+        run: |
+          status=0
+          bash scripts/fetch-web-fonts.sh build/web || status=$?
+          if [ "$status" -eq 75 ]; then
+            echo "::warning title=Fuentes de la web::No se han podido bajar las fuentes de reserva ni las de subtítulos: esta web no las lleva dentro y las pedirá a fonts.gstatic.com. Relanza el trabajo para que vayan dentro."
+          elif [ "$status" -ne 0 ]; then
+            exit "$status"
+          fi
 
       - name: Image name and tags
         id: image
