@@ -5970,6 +5970,39 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
   /// e.g. the hidden delete-download action, so the d-pad chain is never
   /// stranded on an invisible button. A node keeps its context after its
   /// button goes away, so check that the context is still mounted.
+  /// Focuses [node] once the frame is built, if its button is still there.
+  void _focusAfterFrame(FocusNode node) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && node.context?.mounted == true) node.requestFocus();
+    });
+  }
+
+  /// Kos TV: once the frame is built, focuses the action closest to where
+  /// [gone] sat in [ids] (its line in the last build) that still has a button,
+  /// the one after it first, since that one slides into its place; or More,
+  /// when nothing else is left on that line.
+  void _focusNearestAfterFrame(Object gone, List<Object> ids) {
+    final at = ids.indexOf(gone);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      bool shown(FocusNode? node) => node?.context?.mounted == true;
+      if (at >= 0) {
+        for (var distance = 1; distance < ids.length; distance++) {
+          for (final i in [at + distance, at - distance]) {
+            if (i < 0 || i >= ids.length || ids[i] == gone) continue;
+            final node = _nodeByAction[ids[i]];
+            if (shown(node)) {
+              node!.requestFocus();
+              return;
+            }
+          }
+        }
+      }
+      final more = widget.actionRowRightFocusNode ?? _overflowMoreFocusNode;
+      if (shown(more)) more.requestFocus();
+    });
+  }
+
   bool _focusAdjacent(
     FocusNode Function(int) nodeAt,
     int from,
@@ -6146,6 +6179,14 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
       return _DeleteDownloadButton(
         item: button.item,
         focusNode: focusNode,
+        // Kos TV: it hides itself once the files are gone, before the row
+        // finds out, so the row is told while it still has focus.
+        onHiddenWhileFocused: () => _focusNearestAfterFrame(
+          DetailButton.deleteFiles,
+          _rowPrimaryIds.contains(DetailButton.deleteFiles)
+              ? _rowPrimaryIds
+              : _rowExtraIds,
+        ),
         onFocused: onFocused,
         onArrowUp: onArrowUp,
         onArrowDown: onArrowDown,
@@ -7619,6 +7660,8 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
     for (var i = 0; i < allButtons.length; i++) {
       idOf[allButtons[i]] = allIds[i];
     }
+    final previousPrimaryIds = _rowPrimaryIds;
+    final previousExtraIds = _rowExtraIds;
     _rowPrimaryIds = [for (final button in primaryButtons) idOf[button]!];
     _rowExtraIds = [for (final button in extraButtons) idOf[button]!];
     // The page's own nodes stay with their slot, so an action that moves into
@@ -7989,11 +8032,31 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
     }
 
     _nodeByAction = nodeByAction;
-    final refocus = nodeByAction[focusedAction];
-    if (refocus != null && !identical(refocus, focused)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && refocus.context?.mounted == true) refocus.requestFocus();
-      });
+    // Kos TV: an action that went behind More (pushed out of the row by one
+    // that appeared before it), or that left the row, has no mounted button
+    // any more, and Flutter would hand focus to whatever had it before, often
+    // far along the row. Focus goes to More, or to the nearest action still
+    // in the row.
+    if (focusedAction != null) {
+      final refocus = nodeByAction[focusedAction];
+      final hiddenBehindMore =
+          needsOverflow &&
+          (widget.overflowAsMenu || !_expanded) &&
+          _rowExtraIds.contains(focusedAction);
+      if (hiddenBehindMore) {
+        _focusAfterFrame(
+          widget.actionRowRightFocusNode ?? _overflowMoreFocusNode,
+        );
+      } else if (refocus == null) {
+        _focusNearestAfterFrame(
+          focusedAction,
+          previousPrimaryIds.contains(focusedAction)
+              ? previousPrimaryIds
+              : previousExtraIds,
+        );
+      } else if (!identical(refocus, focused)) {
+        _focusAfterFrame(refocus);
+      }
     }
 
     return Focus(
@@ -12456,9 +12519,13 @@ class _DeleteDownloadButton extends StatefulWidget {
   final VoidCallback? onArrowRight;
   final bool suppressAutoScrollToTop;
 
+  /// Kos TV: called when the button hides itself while it has focus.
+  final VoidCallback? onHiddenWhileFocused;
+
   const _DeleteDownloadButton({
     required this.item,
     this.focusNode,
+    this.onHiddenWhileFocused,
     this.onFocused,
     this.onArrowUp,
     this.onArrowDown,
@@ -12504,10 +12571,15 @@ class _DeleteDownloadButtonState extends State<_DeleteDownloadButton> {
 
   void _onDownloadChanged() => _checkFiles();
 
+  void _hidingWhileFocused() {
+    if (widget.focusNode?.hasFocus == true) widget.onHiddenWhileFocused?.call();
+  }
+
   Future<void> _checkFiles() async {
     final service = GetIt.instance<DownloadService>();
     final exists = await service.hasDownloadedFiles(widget.item);
     if (mounted) {
+      if (_hasFiles && !exists) _hidingWhileFocused();
       setState(() {
         _hasFiles = exists;
         _checking = false;
@@ -12527,6 +12599,7 @@ class _DeleteDownloadButtonState extends State<_DeleteDownloadButton> {
         widget.item,
         onDeleted: () {
           if (mounted) {
+            if (_hasFiles) _hidingWhileFocused();
             setState(() => _hasFiles = false);
           }
         },

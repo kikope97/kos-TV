@@ -67,6 +67,7 @@ import '../../data/services/sync_service.dart';
 import '../../data/services/user_data_sync.dart';
 import '../../data/services/theme_music_service.dart';
 import '../../data/viewmodels/media_bar_view_model.dart';
+import '../../playback/car_artwork.dart';
 import '../../playback/current_playing_item.dart';
 import '../../playback/external_player_service.dart';
 import '../../preference/user_preferences.dart';
@@ -126,6 +127,9 @@ void resetUserScopedSingletons() {
   unregister<UpcomingEpisodeService>();
   // Watched state is per user, so the next account must not inherit it.
   userDataSync.reset();
+  // Kos TV: nor the previous person's server token kept for the artwork
+  // provider.
+  unawaited(CarArtwork.instance.forgetTokens());
   // A Watch Party room belongs to the session that joined it.
   if (_getIt.isRegistered<SiloWatchPartyManager>()) {
     _getIt<SiloWatchPartyManager>().onSessionChanged();

@@ -33,6 +33,7 @@ void main() {
   late _MockDataSource source;
   late HomeViewModel model;
   late UserPreferences prefs;
+  late _MockMediaBar mediaBar;
 
   setUp(() async {
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
@@ -57,7 +58,7 @@ void main() {
     final client = _MockClient();
     when(() => client.userId).thenReturn('user');
     when(() => client.baseUrl).thenReturn('http://server.test');
-    final mediaBar = _MockMediaBar();
+    mediaBar = _MockMediaBar();
     when(() => mediaBar.load(force: any(named: 'force')))
         .thenAnswer((_) async {});
     model = HomeViewModel(
@@ -306,6 +307,41 @@ void main() {
       await model.refreshResumeAndNextUp();
 
       expect(model.rows.map((row) => row.id), ['onNow']);
+    });
+
+    test(
+      'brings On Now back inside Live TV reloading only that section',
+      () async {
+        await enableSections({HomeSectionType.liveTv});
+        stubLiveTvRows();
+        when(() => source.loadOnNow('http://server.test'))
+            .thenAnswer((_) async => airing(const []));
+        await model.load();
+        expect(model.rows.map((row) => row.id), ['liveTv']);
+        clearInteractions(mediaBar);
+
+        when(() => source.loadOnNow('http://server.test'))
+            .thenAnswer((_) async => airing(['program']));
+        await model.refreshResumeAndNextUp();
+
+        expect(model.rows.map((row) => row.id), ['liveTv', 'liveTvOnNow']);
+        // A whole Home load would ask for the media bar again.
+        verifyNever(() => mediaBar.load(force: any(named: 'force')));
+        expect(model.isLoading, isFalse);
+      },
+    );
+
+    test('remembers a server without channels for a while', () async {
+      when(() => source.hasLiveTvChannels()).thenAnswer((_) async => false);
+      await model.load();
+      expect(model.rows, isEmpty);
+      clearInteractions(source);
+
+      await model.refreshResumeAndNextUp();
+      await model.refreshResumeAndNextUp();
+
+      verifyNever(() => source.loadOnNow(any()));
+      verifyNever(() => source.hasLiveTvChannels());
     });
 
     test('asks nothing for Live TV without channels', () async {
