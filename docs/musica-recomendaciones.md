@@ -130,7 +130,7 @@ día.
 2. ¿El «Descubrimiento semanal» **sustituye** a la fila «Canciones para ti»?
    Recomendado: sí; se quedan las de «Porque escuchas a…».
 3. ¿Guardar lo que se escucha viene **encendido** para todos (también niños),
-   12 meses, con el ajuste para apagarlo? Recomendado: sí.
+   12 meses (luego 24), con el ajuste para apagarlo? Recomendado: sí.
 4. ¿Las mezclas del momento **no salen** hasta que haya datos suficientes?
    Recomendado: sí, mejor que una mezcla genérica que no es tuya.
 
@@ -150,4 +150,30 @@ mezclas» y «Canciones para ti» de siempre, sin el ajuste).
 | `GET /Moonfin/Kostv/Music/Mixes` | `{ "Day": "2026-11-20", "Mixes": [ { "Id": "daily-1", "Genre": "Reguetón", "Artists": [tarjetas], "Items": [tarjetas] } ] }`: hasta 4 mixes de unas 50 canciones, los mismos todo el día (el día empieza a las 5:00, hora de casa). |
 | `GET /Moonfin/Kostv/Music/Discovery` | `{ "Week": "2026-W47", "Seeds": ["Bad Bunny", …], "Songs": null }`: los artistas (hasta 10) con los que pedir a Stremfin, y la lista de la semana si ya está guardada (`Songs`, tal cual la guardó la app). |
 | `PUT /Moonfin/Kostv/Music/Discovery` | Cuerpo `{ "Week": "2026-W47", "Songs": [ … ] }` (hasta 30 canciones y 64 KB, en el formato de Stremfin). Solo para la semana en curso; `204`. |
+| `POST /Moonfin/Kostv/Music/Event` | Cuerpo `{ "Type": "playlist_add", "ItemIds": ["…"] }` o `{ "Type": "request", "Album": "…", "Artist": "…", "DeezerAlbumId": "…" }`. Lo que hace la persona y el servidor no ve: `playlist_add` (añadir canciones a una lista), `request` (pedir un álbum a Stremfin) y, más adelante, `dislike` ("No me gusta" de una canción o un artista). Se apunta con la fecha en sus datos. `204`; un tipo desconocido, `400`. |
 | `GET /Moonfin/Kostv/Music/Moment` | `{ "Slot": "tarde", "Ready": true, "Items": [tarjetas] }`. Franjas: `manana` (6–12), `tarde` (12–20) y `noche` (20–6), por la hora de casa. `Ready: false` (sin `Items`) mientras no haya datos suficientes. |
+
+## Más datos para aprender (añadido después)
+
+Se guardan **24 meses** (el mes en curso y los 24 anteriores; antes eran 12).
+Además de lo de la sección A, de cada escucha:
+
+1. **Sesión y lo que sonó antes:** las escuchas seguidas de una persona (sin
+   pausas de más de 30 minutos) llevan el mismo id de sesión, y cada una dice qué
+   canción sonó justo antes. Base para «quien escucha esta suele escuchar esta».
+2. **Cómo terminó de verdad:** `natural` (se acabó sola), `next` (se pasó a otra
+   enseguida, en el mismo aparato), `stop` (se paró y no siguió nada), `closed`
+   (se cerró la app o se cortó la sesión) o `error` (falló al reproducirse). Una
+   que falla no cuenta como saltada.
+3. **Aleatorio y repetición:** si estaban puestos mientras sonaba.
+4. **Volver a escucharla:** si se repite justo después (`replay`) y cuántas veces
+   se volvió atrás dentro de la canción (`seekBack`).
+5. **Más señales de gusto:** ♥ de álbumes y artistas (no solo canciones), añadir
+   a una lista y pedir un álbum a Stremfin (ruta `Event`); «No me gusta», cuando
+   exista.
+6. **Lo que se enseñó:** las canciones de cada mix, de la mezcla del momento y
+   del descubrimiento de cada día (solo ids), para medir luego cuánto de lo
+   recomendado se escucha.
+
+No se guarda lo que se escribe en el buscador, ni el volumen, ni nada de la red
+o la casa.
