@@ -141,6 +141,7 @@ public class MoonfinController : ControllerBase
             TmdbPersonLinksSupported = true,
             TmdbReviewsSupported = true,
             TmdbDetailsSupported = true,
+            DiscoverChartsSupported = true,
             MessagesSupported = true,
             PinSupported = true,
             IncompleteRecordingsSupported = config?.LiveTvDetectIncompleteRecordings ?? true,
@@ -155,6 +156,7 @@ public class MoonfinController : ControllerBase
             CalendarReminders = true,
             ArrQueueAvailable = config?.SeerrEnabled == true && !string.IsNullOrEmpty(config.GetEffectiveSeerrUrl()),
             SocketRelay = config?.EnableSocketRelay ?? false,
+            PushSupported = config?.PushEnabled ?? false,
             DefaultSettings = _settingsService.AdminDefaultsFor(profile)
         });
     }
@@ -1850,6 +1852,13 @@ public class MoonfinPingResponse
     public bool? TmdbDetailsSupported { get; set; }
 
     /// <summary>
+    /// True when the custom rows endpoint serves the justwatch and tmdb_discover sources. Older
+    /// plugins leave it out, so the apps don't offer those rows.
+    /// </summary>
+    [JsonPropertyName("discoverChartsSupported")]
+    public bool? DiscoverChartsSupported { get; set; }
+
+    /// <summary>
     /// True when this plugin has the admin messages endpoints. Older plugins leave it out, so
     /// the app reads a missing value as false and hides the button.
     /// </summary>
@@ -1917,6 +1926,13 @@ public class MoonfinPingResponse
     /// </summary>
     [JsonPropertyName("arrQueueAvailable")]
     public bool? ArrQueueAvailable { get; set; }
+
+    /// <summary>
+    /// True when the server can deliver push right now, through its own service account or the
+    /// hosted relay. Older plugins leave it out, so the app reads a missing value as true.
+    /// </summary>
+    [JsonPropertyName("pushSupported")]
+    public bool? PushSupported { get; set; }
 
     [JsonPropertyName("defaultSettings")]
     public MoonfinSettingsProfile? DefaultSettings { get; set; }

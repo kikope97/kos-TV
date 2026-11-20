@@ -91,6 +91,9 @@ namespace Emby.Plugins.Moonfin.Api
                 // Older plugins leave this out, so the app shows an outside title with only what
                 // its list carried.
                 tmdbDetailsSupported = true,
+                // Older plugins leave this out, so the app doesn't offer the JustWatch and TMDB
+                // discover rows.
+                discoverChartsSupported = true,
                 // Older plugins leave this out, which the app reads as false and hides the
                 // messages button.
                 messagesSupported = true,
@@ -108,6 +111,8 @@ namespace Emby.Plugins.Moonfin.Api
                 calendarReminders = true,
                 // Older plugins leave this out, so the app shows no download queue details.
                 arrQueueAvailable = seerrEnabled && !string.IsNullOrEmpty(config?.GetEffectiveSeerrUrl()),
+                // Older plugins leave this out, which the app reads as true.
+                pushSupported = config?.PushEnabled ?? false,
                 defaultSettings = MoonfinSettingsService.AdminDefaultsFor(request.Profile, config)
             });
         }

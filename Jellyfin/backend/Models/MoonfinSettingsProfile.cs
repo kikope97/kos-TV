@@ -187,6 +187,9 @@ public class MoonfinSettingsProfile
     [JsonPropertyName("enableMultiServerLibraries")]
     public bool? EnableMultiServerLibraries { get; set; }
 
+    [JsonPropertyName("mergeLibrariesByType")]
+    public bool? MergeLibrariesByType { get; set; }
+
     [JsonPropertyName("enableFolderView")]
     public bool? EnableFolderView { get; set; }
 
@@ -250,6 +253,20 @@ public class MoonfinSettingsProfile
 
     [JsonPropertyName("mediaBarNewReleaseDays")]
     public int? MediaBarNewReleaseDays { get; set; }
+
+    /// <summary>
+    /// Which labels the bar shows, comma separated: newSeries, newSeason, newEpisodes, newMovie.
+    /// </summary>
+    [JsonPropertyName("mediaBarNewReleaseKinds")]
+    public string? MediaBarNewReleaseKinds { get; set; }
+
+    /// <summary>How many days after its release a movie stays new.</summary>
+    [JsonPropertyName("mediaBarNewMovieDays")]
+    public int? MediaBarNewMovieDays { get; set; }
+
+    /// <summary>Whether the new movie label shows the movie's tagline under it.</summary>
+    [JsonPropertyName("mediaBarNewMovieDetail")]
+    public bool? MediaBarNewMovieDetail { get; set; }
 
     [JsonPropertyName("mediaBarCollectionIds")]
     public List<string>? MediaBarCollectionIds { get; set; }
@@ -1058,6 +1075,12 @@ public class MoonfinSettingsProfile
 
     [JsonPropertyName("hideBackdropsInLibraries")]
     public bool? HideBackdropsInLibraries { get; set; }
+
+    [JsonPropertyName("hideLibraryWatchProgress")]
+    public bool? HideLibraryWatchProgress { get; set; }
+
+    [JsonPropertyName("hideLibraryUnwatchedCount")]
+    public bool? HideLibraryUnwatchedCount { get; set; }
 
     [JsonPropertyName("playlistsRowSortBy")]
     public string? PlaylistsRowSortBy { get; set; }
