@@ -28,14 +28,12 @@ public class KostvMusicController : ControllerBase
 
     private readonly KostvMusicService _music;
     private readonly KostvMusicContext _context;
-    private readonly ILibraryManager _library;
     private readonly ItemCardDtoMapper _cards;
 
-    public KostvMusicController(KostvMusicService music, KostvMusicContext context, ILibraryManager library, ItemCardDtoMapper cards)
+    public KostvMusicController(KostvMusicService music, KostvMusicContext context, ItemCardDtoMapper cards)
     {
         _music = music;
         _context = context;
-        _library = library;
         _cards = cards;
     }
 
@@ -135,7 +133,9 @@ public class KostvMusicController : ControllerBase
             .Select(e => e.ValueKind == JsonValueKind.String && Guid.TryParse(e.GetString(), out var id) ? id : Guid.Empty)
             .Where(id => id != Guid.Empty)
             .ToList();
-        _context.Remember(caller.Id, source, ids, Store.Now);
+        // A daily mix's id is its place that day: its genre is noted too, to tell the mixes apart later.
+        var mixGenre = source.StartsWith("mix:", StringComparison.Ordinal) ? _music.MixGenreOf(caller.Id, source["mix:".Length..]) : null;
+        _context.Remember(caller.Id, source, ids, Store.Now, mixGenre);
         return NoContent();
     }
 
@@ -161,15 +161,13 @@ public class KostvMusicController : ControllerBase
                 continue;
             }
 
-            var artists = _music.ArtistsByName(mix.Artists);
             result.Add(new
             {
                 mix.Id,
                 mix.Genre,
-                Artists = mix.Artists
-                    .Select(name => artists.GetValueOrDefault(name))
-                    .Where(a => a != null && UserReflection.IsVisibleStandaloneTo(a, caller.User))
-                    .Select(a => _cards.Map(a!, caller.User))
+                Artists = _music.CoverArtists(mix)
+                    .Where(a => UserReflection.IsVisibleStandaloneTo(a, caller.User))
+                    .Select(a => _cards.Map(a, caller.User))
                     .ToList(),
                 Items = items
             });
@@ -276,10 +274,11 @@ public class KostvMusicController : ControllerBase
         return Ok(new { moment.Slot, Ready = true, Items = items });
     }
 
-    private List<object> Cards(IEnumerable<Guid> ids, object user) =>
-        ids.Select(id => _library.GetItemById(id))
-            .Where(item => item != null && UserReflection.IsVisibleStandaloneTo(item, user))
-            .Select(item => _cards.Map(item!, user))
+    // Read at once within the person's limits, and each checked again as the card goes out.
+    private List<object> Cards(IReadOnlyList<Guid> ids, object user) =>
+        _music.Songs(user, ids)
+            .Where(item => UserReflection.IsVisibleStandaloneTo(item, user))
+            .Select(item => _cards.Map(item, user))
             .ToList();
 
     /// <summary>A property of <paramref name="body"/>, its name in any case.</summary>

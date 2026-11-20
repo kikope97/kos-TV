@@ -54,8 +54,11 @@ public sealed record KostvMusicProfile(
 /// <summary>kOS TV: a genre or an artist with how much it weighs.</summary>
 public sealed record KostvWeighted(string Name, double Weight);
 
-/// <summary>kOS TV: one daily mix: its genre, the artists for its cover and its songs in order.</summary>
-public sealed record KostvMix(string Id, string Genre, IReadOnlyList<string> Artists, IReadOnlyList<Guid> Items);
+/// <summary>
+/// kOS TV: one daily mix: its genre, the artists for its cover (and their ids, once looked up)
+/// and its songs in order.
+/// </summary>
+public sealed record KostvMix(string Id, string Genre, IReadOnlyList<string> Artists, IReadOnlyList<Guid> Items, IReadOnlyList<Guid>? ArtistIds = null);
 
 /// <summary>
 /// kOS TV: the music the app offers each person, worked out from what the server knows of their
@@ -306,19 +309,33 @@ public static class KostvMusicEngine
 
     // ---------------------------------------------------------------- the time of day
 
-    /// <summary>The listens of <paramref name="slot"/> in the last <see cref="MomentWindow"/>.</summary>
-    private static IEnumerable<KostvMusicEvent> SlotListens(IEnumerable<KostvMusicEvent> events, string slot, DateTimeOffset now) =>
-        events.Where(e => e.IsListen && e.At >= now - MomentWindow && e.At <= now && SlotOf(e.Hour) == slot);
+    /// <summary>
+    /// The listens of <paramref name="slot"/> in the last <see cref="MomentWindow"/>, by the hour
+    /// at home worked out of when they were (not the hour noted, which may be of another zone).
+    /// </summary>
+    public static IEnumerable<KostvMusicEvent> SlotListens(IEnumerable<KostvMusicEvent> events, string slot, DateTimeOffset now, TimeZoneInfo zone) =>
+        events.Where(e => e.IsListen && e.At >= now - MomentWindow && e.At <= now && SlotOf(e.LocalIn(zone).Hour) == slot);
+
+    /// <summary>
+    /// The day a listen at <paramref name="at"/> counts for in its time of day: the night from 20:00
+    /// to 6:00 is one, so what is played after midnight counts for the day before.
+    /// </summary>
+    public static DateOnly SlotDay(DateTimeOffset at, TimeZoneInfo zone)
+    {
+        var local = TimeZoneInfo.ConvertTime(at, zone).DateTime;
+        return DateOnly.FromDateTime(local.Hour < 6 ? local.AddDays(-1) : local);
+    }
 
     /// <summary>
     /// Whether the person has listened enough at <paramref name="slot"/> for a mix of it: at
     /// least <see cref="MomentMinListens"/> listens on at least <see cref="MomentMinDays"/>
-    /// different days, within the last <see cref="MomentWindow"/>.
+    /// different days, within the last <see cref="MomentWindow"/>. Only listens not skipped count,
+    /// and a night past midnight is one day (see <see cref="SlotDay"/>).
     /// </summary>
-    public static bool MomentReady(IEnumerable<KostvMusicEvent> events, string slot, DateTimeOffset now)
+    public static bool MomentReady(IEnumerable<KostvMusicEvent> events, string slot, DateTimeOffset now, TimeZoneInfo zone)
     {
-        var listens = SlotListens(events, slot, now).ToList();
-        return listens.Count >= MomentMinListens && listens.Select(e => e.Day).Distinct(StringComparer.Ordinal).Count() >= MomentMinDays;
+        var listens = SlotListens(events, slot, now, zone).Where(e => e.Outcome != KostvListenOutcome.Skipped).ToList();
+        return listens.Count >= MomentMinListens && listens.Select(e => SlotDay(e.At, zone)).Distinct().Count() >= MomentMinDays;
     }
 
     /// <summary>
@@ -334,12 +351,13 @@ public static class KostvMusicEngine
         IEnumerable<KostvMusicTrack> tracks,
         KostvMusicProfile profile,
         DateTimeOffset now,
+        TimeZoneInfo zone,
         IReadOnlyDictionary<string, IReadOnlyList<string>>? similar = null)
     {
         var all = Unique(tracks);
         var random = RandomFor(userId, day, "moment", slot);
         var slotScores = new Dictionary<Guid, double>();
-        foreach (var e in SlotListens(events, slot, now))
+        foreach (var e in SlotListens(events, slot, now, zone))
         {
             if (e.Outcome == KostvListenOutcome.Skipped || !Guid.TryParse(e.Item, out var id))
             {
@@ -534,14 +552,27 @@ public static class KostvMusicEngine
     /// <summary>A random sequence fixed by the person, the day and what it is for.</summary>
     internal static Random RandomFor(Guid userId, string day, string kind, string key)
     {
-        // FNV-1a: string.GetHashCode changes from one run of the server to the next.
+        var hash = Hash($"{userId:N}|{day}|{kind}|{key}");
+        return new Random((int)(hash ^ (hash >> 32)));
+    }
+
+    /// <summary>
+    /// <paramref name="ids"/> in a random order fixed by the person, the day and what it is for
+    /// (each id has its own place, so one more or less doesn't move the rest).
+    /// </summary>
+    public static IEnumerable<Guid> Shuffled(IEnumerable<Guid> ids, Guid userId, string day, string kind) =>
+        ids.Distinct().OrderBy(id => Hash($"{userId:N}|{day}|{kind}|{id:N}")).ThenBy(id => id);
+
+    // FNV-1a: string.GetHashCode changes from one run of the server to the next.
+    private static ulong Hash(string text)
+    {
         var hash = 14695981039346656037UL;
-        foreach (var c in $"{userId:N}|{day}|{kind}|{key}")
+        foreach (var c in text)
         {
             hash ^= c;
             hash *= 1099511628211UL;
         }
 
-        return new Random((int)(hash ^ (hash >> 32)));
+        return hash;
     }
 }

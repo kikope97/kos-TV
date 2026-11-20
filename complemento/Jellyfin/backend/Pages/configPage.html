@@ -2063,7 +2063,7 @@
                     <section class="moonfinTabPanel" data-tab="webClient">
                     <div class="moonfinPageHead">
                         <h3 class="moonfinPageTitle">Direcciones</h3>
-                        <p class="moonfinPageLead">Dónde encuentran las apps de kOS TV este servidor y el servicio de peticiones.</p>
+                        <p class="moonfinPageLead">Dónde encuentran las apps de kOS TV este servidor y el servicio de peticiones, y la hora de casa.</p>
                     </div>
 
                     <div class="verticalSection">
@@ -2090,6 +2090,18 @@
                                 <code>https://</code>, así que el servicio tiene que contestar por <code>https</code>.
                             </div>
                             <div class="fieldDescription" id="KostvRequestsUrlStatus" style="display:none;"></div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="KostvMusicTimeZone">Zona horaria de casa</label>
+                            <input type="text" id="KostvMusicTimeZone" is="emby-input" placeholder="Europe/Madrid" autocomplete="off" spellcheck="false" />
+                            <div class="fieldDescription">
+                                La hora de casa para la música de cada persona: las mezclas de la mañana, la tarde y la noche,
+                                el «Mix diario», que cambia a las 5:00, y la semana del «Descubrimiento semanal». Escribe el nombre
+                                de la zona horaria, como <code>Europe/Madrid</code> o <code>Atlantic/Canary</code>. Hace falta porque
+                                el servidor suele ir con la hora universal (UTC) cuando está en un contenedor. Si la dejas vacía,
+                                se usa <code>Europe/Madrid</code>.
+                            </div>
+                            <div class="fieldDescription" id="KostvMusicTimeZoneStatus" style="display:none;"></div>
                         </div>
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused">Inicio con recomendaciones</label>
@@ -11406,6 +11418,14 @@
                         kostvRequestsInput.addEventListener('input', kostvShowRequestsUrlStatus);
                     }
                     kostvShowRequestsUrlStatus();
+                    // kOS TV: the home's time zone for the music, and whether it is a real one.
+                    var kostvZoneInput = document.querySelector('#KostvMusicTimeZone');
+                    kostvZoneInput.value = config.KostvMusicTimeZone || 'Europe/Madrid';
+                    if (!kostvZoneInput.dataset.kostvStatus) {
+                        kostvZoneInput.dataset.kostvStatus = '1';
+                        kostvZoneInput.addEventListener('input', kostvShowTimeZoneStatus);
+                    }
+                    kostvShowTimeZoneStatus();
                     // kOS TV: how full each person's home page comes out.
                     var kostvHomeCheck = document.querySelector('#KostvHomeCheck');
                     if (kostvHomeCheck && !kostvHomeCheck.dataset.ready) {
@@ -12400,6 +12420,24 @@
                     return true;
                 }
 
+                // kOS TV: under the time zone field, the time it is there now, or that it isn't one.
+                function kostvShowTimeZoneStatus() {
+                    var status = document.querySelector('#KostvMusicTimeZoneStatus');
+                    if (!status) return true;
+                    var zone = (document.querySelector('#KostvMusicTimeZone').value || '').trim() || 'Europe/Madrid';
+                    status.style.display = '';
+                    try {
+                        var time = new Intl.DateTimeFormat('es-ES', { timeZone: zone, hour: '2-digit', minute: '2-digit' }).format(new Date());
+                        status.style.color = '';
+                        status.textContent = 'Ahora son las ' + time + ' en casa.';
+                        return true;
+                    } catch (e) {
+                        status.style.color = '#ff6b6b';
+                        status.textContent = 'Esa zona horaria no existe: hasta que la corrijas, se usa Europe/Madrid.';
+                        return false;
+                    }
+                }
+
                 // A blank or broken number falls back, and 0 stays 0.
                 function wholeNumberIn(raw, min, max, fallback) {
                     var value = parseInt(raw, 10);
@@ -12414,6 +12452,7 @@
                         config.SeerrDisplayName = document.querySelector('#SeerrDisplayName').value || null;
                         config.PublicServerUrl = document.querySelector('#PublicServerUrl').value || null;
                         config.KostvRequestsUrl = (document.querySelector('#KostvRequestsUrl').value || '').trim() || null;
+                        config.KostvMusicTimeZone = (document.querySelector('#KostvMusicTimeZone').value || '').trim() || 'Europe/Madrid';
                         config.CalendarAdminsOnly = document.querySelector('#CalendarAdminsOnly').value === 'true';
                         config.CalendarDaysBack = wholeNumberIn(document.querySelector('#CalendarDaysBack').value, 0, 365, 14);
                         config.CalendarDaysAhead = wholeNumberIn(document.querySelector('#CalendarDaysAhead').value, 0, 730, 90);

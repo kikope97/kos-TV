@@ -105,14 +105,28 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   - **Lo que se escucha:** el complemento apunta cada canción que suena (solo `Audio`), desde
     cualquier app, con los avisos de «empieza», «avanza» y «termina» de Jellyfin, y los ♥ que se
     ponen y se quitan a las canciones. De cada escucha: canción, álbum, artistas (ids y nombres),
-    géneros, cuándo (UTC, y día, hora y día de la semana en la hora del servidor), cuánto se
-    oyó y lo que dura, cómo acabó (`completed`: ≥ 90 % o hasta el final; `skipped`: < 30 s o
-    < 50 %; `stopped`: el resto), el aparato (`tv`, `mobile`, `web` u `other`, por el nombre
-    de la app y del aparato) y de dónde venía (`source`, si la app lo dijo). Va en
-    `kostv-musica/<usuario>/AAAA-MM.jsonl` (una línea JSON por escucha o ♥, un archivo por
-    mes) en la carpeta de datos del complemento; se guarda 12 meses (lo anterior se borra a
-    diario y al escribir) y se borra la carpeta de la persona al borrar su usuario. En la misma
-    carpeta, `settings.json` (si aprende) y `discovery.json` (la lista de la semana).
+    géneros, cuándo (UTC, y día, hora y día de la semana en la hora de casa, solo para leer el
+    archivo: las franjas se sacan siempre de la hora UTC), cuánto se oyó y lo que dura, cómo
+    acabó (`completed`: ≥ 90 % o hasta el final; `skipped`: < 30 s o < 50 %; `stopped`: el
+    resto), el aparato (`tv`, `mobile`, `web` u `other`, por el nombre de la app y del aparato)
+    y de dónde venía (`source`, si la app lo dijo; si es un «Mix diario», también su género ese
+    día, `mixGenre`). Cuánto se oyó es dónde paró la canción si la app lo dice; si no, dónde
+    estaba en su último aviso de «avanza» más el tiempo desde entonces (sin contar pausas) o,
+    sin avisos, cuánto tiempo lleva sonando (con el «hasta el final» de Jellyfin como pista).
+    Los avisos que llegan desordenados (un «avanza» tras el «termina», un «avanza» antes del
+    «empieza», el «empieza» de la siguiente antes del «termina» de la anterior) no apuntan
+    escuchas de más ni saltos falsos. Va en `kostv-musica/<usuario>/AAAA-MM.jsonl` (una línea
+    JSON por escucha o ♥, un archivo por mes) en la carpeta de datos del complemento; se guarda
+    12 meses (lo anterior se borra a diario y al escribir) y se borra la carpeta de la persona al
+    borrar su usuario (y, en la vuelta diaria, la de los usuarios que ya no están en el
+    servidor). En la misma carpeta, `settings.json` (si aprende), `discovery.json` (la lista de
+    la semana) y `today.json` (los mixes, los artistas y las mezclas del momento del día, para
+    que no cambien al reiniciar el servidor; se sobrescribe cada día y se borra al borrar las
+    escuchas o apagar «Aprender»).
+  - **La hora de casa:** el ajuste «Zona horaria de casa» de la pestaña «Direcciones»
+    (`KostvMusicTimeZone`, un nombre como `Europe/Madrid`, que es el de por defecto). Con él
+    van las franjas del día, el «Mix diario», que cambia a las 5:00, y la semana del
+    «Descubrimiento semanal», aunque el servidor vaya en UTC (lo normal en un contenedor).
   - **Rutas** (todas con la sesión de la persona; las tarjetas, como las de Inicio):
     `GET` y `POST /Moonfin/Kostv/Music/Settings` (`{ "Learn": true, "Listens": 1234, "Since":
     "…Z" }`; con `{ "Learn": false }` no se apunta nada de esa persona y las mezclas usan
@@ -129,8 +143,9 @@ inteligente, ver juntos, avisos, PIN de perfiles…
     `413` si pasa de 64 KB; las de semanas pasadas se borran); y `GET
     /Moonfin/Kostv/Music/Moment` (`{ "Slot": "tarde", "Ready": true, "Items": […] }`: 40
     canciones para `manana` 6–12, `tarde` 12–20 o `noche` 20–6, un 40 % de lo que escucha a
-    esa hora y el resto parecidas; `Ready: false`, sin `Items`, hasta tener 25 escuchas de esa
-    franja en al menos 5 días de los últimos 60).
+    esa hora y el resto parecidas; `Ready: false`, sin `Items`, hasta tener 25 escuchas no
+    saltadas de esa franja en al menos 5 días de los últimos 60; una noche que pasa de las
+    doce cuenta como un solo día).
 - **El botón Descubrir se sincroniza** como los demás (`showDiscoverButton`), con
   su valor por defecto en la página.
 - **La marca del paso a la ficha de kOS TV se sincroniza** junto al estilo de la

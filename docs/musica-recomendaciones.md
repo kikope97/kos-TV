@@ -30,11 +30,11 @@ servidor, vale para cualquier aparato y cualquier app, sin cambiar nada en ellas
 | Dato | Para qué |
 |---|---|
 | Persona, canción, álbum, artistas y géneros | De qué va el gusto |
-| Cuándo (día, hora y día de la semana, en la hora de casa) | Mezclas del momento y lo reciente |
+| Cuándo (día, hora y día de la semana, en la hora de casa: el ajuste «Zona horaria de casa» del complemento, `Europe/Madrid` por defecto) | Mezclas del momento y lo reciente |
 | Cuánto se escuchó de lo que dura | Saber si gustó |
 | Cómo acabó: **entera** (≥ 90 %), **saltada** (< 30 s o < 50 %) o **parada** | Lo saltado pesa en contra |
 | En qué aparato (tele, móvil, web) | Gustos distintos en cada sitio |
-| De dónde venía (un mix, la búsqueda, un álbum…), si la app lo dice | Medir si las mezclas gustan |
+| De dónde venía (un mix, la búsqueda, un álbum…), si la app lo dice; de un «Mix diario», también su género ese día | Medir si las mezclas gustan |
 
 También los ♥ que se ponen y se quitan, con su fecha.
 
@@ -87,8 +87,9 @@ mientras se hace lo demás.
 - **De qué está hecha:** 40 canciones; un 40 % de lo que esa persona escucha a
   esa hora y el resto, parecidas que haya en casa. Cambia cada día.
 - **Necesita los datos de A:** sale cuando hay bastante de esa franja (unas 25
-  canciones en al menos 5 días distintos), así que aparece a la semana o dos de
-  usar la app. Antes, no se enseña.
+  canciones no saltadas en al menos 5 días distintos; una noche que pasa de las doce
+  cuenta como un día), así que aparece a la semana o dos de usar la app. Antes, no
+  se enseña.
 
 ## D. Más adelante: aprender de verdad
 
