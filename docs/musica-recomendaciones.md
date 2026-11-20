@@ -83,7 +83,7 @@ mientras se hace lo demás.
 ## C. Mezclas según el momento
 
 - **Qué es:** una fila «Para esta mañana», «Para esta tarde» o «Para esta noche»
-  (6–12, 12–20 y 20–2), según la hora a la que se abra Música.
+  (6–12, 12–20 y 20–6), según la hora a la que se abra Música.
 - **De qué está hecha:** 40 canciones; un 40 % de lo que esa persona escucha a
   esa hora y el resto, parecidas que haya en casa. Cambia cada día.
 - **Necesita los datos de A:** sale cuando hay bastante de esa franja (unas 25
