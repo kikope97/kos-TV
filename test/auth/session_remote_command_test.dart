@@ -162,6 +162,10 @@ class _RecordingManager extends Fake implements PlaybackManager {
   final reportedVolumes = <double>[];
   Completer<void>? stopBarrier;
 
+  /// Holds the next playItems until it completes, as the real manager does
+  /// while it stops what played before.
+  Completer<void>? playBarrier;
+
   @override
   final PlayerState state = PlayerState();
 
@@ -219,6 +223,9 @@ class _RecordingManager extends Fake implements PlaybackManager {
   }) async {
     calls.add('play');
     seeks.add(startPosition);
+    final barrier = playBarrier;
+    playBarrier = null;
+    await barrier?.future;
   }
 
   @override
@@ -1130,6 +1137,131 @@ void main() {
       expect(manager.calls, isNot(contains('play')));
       expect(router.state.uri.path, Destinations.home);
       expect(router.routerDelegate.currentConfiguration.matches.length, 1);
+      await tester.pumpWidget(const SizedBox());
+      receiver.dispose();
+      router.dispose();
+    });
+
+    // Kos TV: PlayNow waits a frame after pushing the player; a Stop in that
+    // frame must keep it from starting and close the player it opened.
+    testWidgets('outdates a PlayNow whose player is still opening', (
+      tester,
+    ) async {
+      final router = await mountRouter(tester);
+      final receiver = receiverFor(router, clients: _EpisodeClientFactory())
+        ..setActiveSessionForTest('server', 'user');
+      final playing = receiver.handleRemoteCommandForTest(
+        PlayMessage(itemIds: const ['episode']),
+      );
+      // Let the items load and the push start, without a frame.
+      for (var i = 0; i < 20; i++) {
+        await Future<void>.value();
+      }
+      expect(manager.calls, isEmpty);
+      await receiver.handleRemoteCommandForTest(
+        PlaystateMessage(command: 'Stop'),
+      );
+      await tester.pumpAndSettle();
+      await playing;
+      await tester.pumpAndSettle();
+      expect(manager.calls, isNot(contains('play')));
+      expect(router.state.uri.path, Destinations.home);
+      expect(router.routerDelegate.currentConfiguration.matches.length, 1);
+      await tester.pumpWidget(const SizedBox());
+      receiver.dispose();
+      router.dispose();
+    });
+
+    // Kos TV: the manager's stop waits for the stop playItems makes of the
+    // previous title and returns, so the PlayNow stops itself once started.
+    testWidgets('stops a PlayNow that a Stop caught while it started', (
+      tester,
+    ) async {
+      final router = await mountRouter(tester);
+      final receiver = receiverFor(router, clients: _EpisodeClientFactory())
+        ..setActiveSessionForTest('server', 'user');
+      final barrier = manager.playBarrier = Completer<void>();
+      final playing = receiver.handleRemoteCommandForTest(
+        PlayMessage(itemIds: const ['episode']),
+      );
+      await tester.pumpAndSettle();
+      expect(manager.calls, ['play']);
+      expect(router.state.uri.path, Destinations.videoPlayer);
+      await receiver.handleRemoteCommandForTest(
+        PlaystateMessage(command: 'Stop'),
+      );
+      await tester.pumpAndSettle();
+      barrier.complete();
+      await playing;
+      await tester.pumpAndSettle();
+      expect(manager.calls, ['play', 'stop', 'stop']);
+      expect(router.state.uri.path, Destinations.home);
+      expect(router.routerDelegate.currentConfiguration.matches.length, 1);
+      await tester.pumpWidget(const SizedBox());
+      receiver.dispose();
+      router.dispose();
+    });
+
+    // Kos TV: a PlayNow after that Stop is the newest command; the earlier
+    // PlayNow finishing must not stop it.
+    testWidgets('leaves a newer PlayNow after the Stop playing', (
+      tester,
+    ) async {
+      final router = await mountRouter(tester);
+      final receiver = receiverFor(router, clients: _EpisodeClientFactory())
+        ..setActiveSessionForTest('server', 'user');
+      final barrier = manager.playBarrier = Completer<void>();
+      final first = receiver.handleRemoteCommandForTest(
+        PlayMessage(itemIds: const ['episode']),
+      );
+      await tester.pumpAndSettle();
+      await receiver.handleRemoteCommandForTest(
+        PlaystateMessage(command: 'Stop'),
+      );
+      await tester.pumpAndSettle();
+      final second = receiver.handleRemoteCommandForTest(
+        PlayMessage(itemIds: const ['episode']),
+      );
+      await tester.pumpAndSettle();
+      await second;
+      barrier.complete();
+      await first;
+      await tester.pumpAndSettle();
+      expect(manager.calls, ['play', 'stop', 'play']);
+      expect(router.state.uri.path, Destinations.videoPlayer);
+      expect(router.routerDelegate.currentConfiguration.matches.length, 2);
+      await tester.pumpWidget(const SizedBox());
+      receiver.dispose();
+      router.dispose();
+    });
+
+    // Kos TV: a page (the cast, another item) can be open over the player;
+    // Stop takes the player out from under it and leaves the page alone.
+    testWidgets('takes a covered player out from under the page on top', (
+      tester,
+    ) async {
+      final router = await mountRouter(tester);
+      final receiver = receiverFor(router);
+      unawaited(router.push(Destinations.videoPlayer));
+      await tester.pumpAndSettle();
+      unawaited(router.push(Destinations.search));
+      await tester.pumpAndSettle();
+      expect(router.routerDelegate.currentConfiguration.matches.length, 3);
+      await receiver.handleRemoteCommandForTest(
+        PlaystateMessage(command: 'Stop'),
+      );
+      await tester.pumpAndSettle();
+      expect(manager.calls, ['stop']);
+      expect(router.state.uri.path, Destinations.search);
+      expect(find.text(Destinations.search), findsOneWidget);
+      expect(
+        router.routerDelegate.currentConfiguration.matches
+            .map((match) => match.matchedLocation),
+        [Destinations.home, Destinations.search],
+      );
+      router.pop();
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, Destinations.home);
       await tester.pumpWidget(const SizedBox());
       receiver.dispose();
       router.dispose();

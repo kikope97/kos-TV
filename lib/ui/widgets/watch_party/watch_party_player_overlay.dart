@@ -524,6 +524,9 @@ class _WatchPartyChatViewState extends State<WatchPartyChatView> {
     if (_manager.sendChat(_controller.text)) _controller.clear();
   }
 
+  static bool get _keepsFocusOnSend =>
+      PlatformDetection.isWeb || PlatformDetection.isDesktop;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -577,7 +580,11 @@ class _WatchPartyChatViewState extends State<WatchPartyChatView> {
                       ),
                       // Enter sends and keeps the field focused. Submitting
                       // would drop focus and hand the next keys to the player.
-                      onEditingComplete: _send,
+                      // Kos TV: only with a keyboard at hand (web); a phone
+                      // or TV sends from the on-screen keyboard's Done, which
+                      // closes it as before, so it doesn't stay over the video.
+                      onEditingComplete: _keepsFocusOnSend ? _send : null,
+                      onSubmitted: _keepsFocusOnSend ? null : (_) => _send(),
                     ),
                   ),
                 ),

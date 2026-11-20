@@ -1226,6 +1226,17 @@ class SessionRepository {
   final _remoteKeys = GamepadKeySynthesizer.remote();
   int _remoteNavigationGeneration = 0;
 
+  /// Kos TV: the generation the latest remote Stop and the latest remote
+  /// PlayNow took, so a PlayNow that finishes starting can tell a Stop that
+  /// came after it from a newer PlayNow, which must not be stopped.
+  int _lastRemoteStopGeneration = 0;
+  int _lastRemotePlayGeneration = 0;
+
+  /// Kos TV: the generation of the PlayNow that last decided whether to open
+  /// the video player or reuse the one on top, so one outdated while its push
+  /// settles closes only a player no newer PlayNow has taken over.
+  int _remotePlayerClaimGeneration = 0;
+
   Future<void> _navigateRemote(String command, GamepadNavKey key) async {
     final backend = GetIt.instance<PlaybackManager>().backend;
     if (backend is NativeApplePlayerBackend && backend.isPlayerPresented) {
@@ -1302,6 +1313,7 @@ class SessionRepository {
     final generation = queuesOnly
         ? _remoteNavigationGeneration
         : ++_remoteNavigationGeneration;
+    if (!queuesOnly) _lastRemotePlayGeneration = generation;
 
     final loaded = await Future.wait(
       message.itemIds.map((itemId) async {
@@ -1382,12 +1394,21 @@ class SessionRepository {
       if (generation != _remoteNavigationGeneration) return;
     }
     final pushedVideo = !isAudio && !isMediaPlayerRouteOnTop(_router);
+    if (!isAudio) _remotePlayerClaimGeneration = generation;
     if (pushedVideo) {
       manager.beginPlaybackPreparation();
       manager.skipExternalRoutingOnce();
       unawaited(_router.push(Destinations.videoPlayer));
       // The push's redirect reads the held-back flag; let it run first.
       await WidgetsBinding.instance.endOfFrame;
+      // Kos TV: a Stop (or a newer command) in that frame outdates this
+      // PlayNow; it goes the refused way and closes the player it opened.
+      if (generation != _remoteNavigationGeneration) {
+        manager.consumeSkipExternalRoutingOnce();
+        manager.cancelPlaybackPreparation();
+        _closeOutdatedRemotePlayer(generation);
+        return;
+      }
     }
     try {
       await manager.playItems(
@@ -1410,6 +1431,18 @@ class SessionRepository {
       rethrow;
     }
     if (pushedVideo) manager.consumeSkipExternalRoutingOnce();
+
+    // Kos TV: a Stop that came while playItems stopped the previous title
+    // could not stop this one yet (the manager waits for that stop and
+    // returns), so it is stopped now, unless a newer PlayNow followed it.
+    if (_lastRemoteStopGeneration > _lastRemotePlayGeneration) {
+      await manager.stop(userInitiated: false);
+      if (pushedVideo) {
+        manager.cancelPlaybackPreparation();
+        _closeOutdatedRemotePlayer(generation);
+      }
+      return;
+    }
 
     if (manager.playbackDeferredToExternalPlayer) {
       final top = topRouteLocation(_router);
@@ -1436,6 +1469,13 @@ class SessionRepository {
       return;
     }
     if (isAudio) _ensurePlayerRouteForItem(item);
+  }
+
+  /// Kos TV: closes the video player the PlayNow that took [generation]
+  /// opened, when it is still on top and no newer PlayNow has taken it over.
+  void _closeOutdatedRemotePlayer(int generation) {
+    if (_remotePlayerClaimGeneration != generation) return;
+    if (topRouteLocation(_router) == Destinations.videoPlayer) _router.pop();
   }
 
   bool _isAudioItem(AggregatedItem item) {
@@ -1543,8 +1583,11 @@ class SessionRepository {
     // Stop outdates any PlayNow still on its way, even one that left Live TV
     // for the page under it and has not opened its player yet.
     final generation = ++_remoteNavigationGeneration;
+    _lastRemoteStopGeneration = generation;
     if (!_remoteStopPlayerRoutes.contains(_remoteRoutePath)) {
       await manager.stop(userInitiated: false);
+      if (generation != _remoteNavigationGeneration) return;
+      _removeCoveredPlayer();
       return;
     }
     final player = _closeDialogsAbovePage();
@@ -1563,6 +1606,41 @@ class SessionRepository {
     if (!_remoteStopPlayerRoutes.contains(_remoteRoutePath)) return;
     if (player != null && !player.isCurrent) return;
     _leaveTopPage();
+  }
+
+  /// Kos TV: a page can be open over the player (the cast, and another item
+  /// from there). Stopped from a remote, the player under it is taken out of
+  /// the stack without touching the page on top, so Back doesn't land on an
+  /// empty player.
+  void _removeCoveredPlayer() {
+    final now = _router.routerDelegate.currentConfiguration;
+    final matches = now.matches;
+    if (matches.length < 2) return;
+    final covered = [
+      for (final match in matches.take(matches.length - 1))
+        if (_remoteStopPlayerRoutes.contains(match.matchedLocation)) match,
+    ];
+    if (covered.isEmpty) return;
+    // Same location (the page on top), only the players taken out from
+    // under it: the page on top keeps its state.
+    _router.restore(
+      RouteMatchList(
+        matches: [
+          for (final match in matches)
+            if (!covered.any((player) => identical(player, match))) match,
+        ],
+        uri: now.uri,
+        extra: now.extra,
+        error: now.error,
+        pathParameters: now.pathParameters,
+      ),
+    );
+    for (final player in covered) {
+      if (player is ImperativeRouteMatch && !player.completer.isCompleted) {
+        // Its push never returns otherwise.
+        player.complete();
+      }
+    }
   }
 
   /// Moves playback by the same amount this device's own skip buttons use, so

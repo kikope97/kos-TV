@@ -375,8 +375,9 @@ object Media3Bridge {
             val sourceArgs = call.arguments as? Map<*, *>
             val current = activeView
             val mounted = newestMountedMainView()
+            val isPreview = sourceArgs?.get("preview") as? Boolean ?: false
             val route = Media3SlotPolicy.routeSource(
-                isPreview = sourceArgs?.get("preview") as? Boolean ?: false,
+                isPreview = isPreview,
                 isAudio = sourceArgs?.get("mediaType")?.toString()?.lowercase() == "audio",
                 slot = slotOf(current),
                 slotReattachable = current?.isReattachable() == true,
@@ -409,7 +410,11 @@ object Media3Bridge {
                     // appPaused releases the player but leaves the view in the
                     // slot. The restart of a session stopped in the background
                     // skips appResumed, so its source is what reaches it first.
-                    if (current != null && current.isReattachable()) current.ensurePlayerAlive()
+                    // Kos TV: only for that main session; a trailer's source
+                    // must not bring the main player back to play in it.
+                    if (!isPreview && current != null && current.isReattachable()) {
+                        current.ensurePlayerAlive()
+                    }
                 }
             }
         }

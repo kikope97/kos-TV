@@ -1553,7 +1553,16 @@ class _LiveTvPlayerScreenState extends State<LiveTvPlayerScreen>
     setImmersive(false);
     // Safari has no screen.orientation.unlock(), so this never finishes on web.
     final unlock = SystemChrome.setPreferredOrientations([]);
-    if (!kIsWeb) await unlock;
+    if (kIsWeb) {
+      // Kos TV: not awaited, so a failure would surface as an uncaught error.
+      unawaited(
+        unlock.catchError((Object e) {
+          debugPrint('[LiveTvPlayer] Orientation unlock failed: $e');
+        }),
+      );
+    } else {
+      await unlock;
+    }
   }
 
   void _showPlaybackInfo() {
