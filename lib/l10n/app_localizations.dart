@@ -36212,6 +36212,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t check right now. Select to try again.'**
   String get kostvMusicLearnUnanswered;
+
+  /// Kos TV music player: the button over the synced lyrics after they were scrolled by hand; it takes them back to the line being sung and they follow the song again.
+  ///
+  /// In en, this message translates to:
+  /// **'Back to the current line'**
+  String get kostvLyricsBackToLine;
 }
 
 class _AppLocalizationsDelegate

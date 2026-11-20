@@ -20,6 +20,7 @@ import '../calendar/calendar_common.dart';
 import '../../widgets/music/kostv_now_playing_capsule.dart'
     show KostvEqualizerBars;
 import 'kostv_music_actions.dart';
+import 'kostv_music_links.dart';
 import 'kostv_music_widgets.dart';
 import '../../../util/kostv_browser_menu.dart';
 
@@ -339,6 +340,11 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
         : CrossAxisAlignment.start;
     final textAlign = centred ? TextAlign.center : TextAlign.start;
     final preview = widget.seed?.preview;
+    final artistStyle = theme.textTheme.titleMedium?.copyWith(
+      color: kostvMusicColor,
+      fontWeight: FontWeight.w600,
+      fontSize: phone ? 18 : 22,
+    );
     return Column(
       crossAxisAlignment: align,
       mainAxisSize: MainAxisSize.min,
@@ -356,15 +362,21 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
           ),
         ),
         if (album.artist != null)
-          Text(
-            album.artist!,
-            textAlign: textAlign,
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: kostvMusicColor,
-              fontWeight: FontWeight.w600,
-              fontSize: phone ? 18 : 22,
+          // Kos TV: the artist opens their page, with the remote too.
+          switch (kostvStremfinArtistLink(
+            context,
+            album.artist,
+            detail?.artistDeezerId,
+          )) {
+            final link? when link.opens => KostvMusicLinkButtons(
+              groups: [
+                [link],
+              ],
+              style: artistStyle ?? const TextStyle(color: kostvMusicColor),
+              centred: centred,
             ),
-          ),
+            _ => Text(album.artist!, textAlign: textAlign, style: artistStyle),
+          },
         const SizedBox(height: 6),
         Text(
           meta,
@@ -702,6 +714,7 @@ class KostvMusicTrackRow extends StatelessWidget {
     required this.title,
     this.disc,
     this.artist,
+    this.artistLinks,
     this.duration,
     this.atHome = false,
     this.picked = false,
@@ -727,6 +740,10 @@ class KostvMusicTrackRow extends StatelessWidget {
   final int? disc;
   final String title;
   final String? artist;
+
+  /// Kos TV: [artist] as names that open their pages (see
+  /// [KostvMusicLinks]).
+  final List<KostvMusicLink>? artistLinks;
   final int? duration;
   final bool atHome;
   final bool picked;
@@ -805,7 +822,12 @@ class KostvMusicTrackRow extends StatelessWidget {
                     fontWeight: picked ? FontWeight.w700 : FontWeight.w500,
                   ),
                 ),
-                if (artist != null)
+                if (artistLinks case final links? when links.isNotEmpty)
+                  KostvMusicLinks(
+                    groups: [links],
+                    style: const TextStyle(color: kostvMusicGrey, fontSize: 13),
+                  )
+                else if (artist != null)
                   Text(
                     artist!,
                     maxLines: 1,

@@ -21210,5 +21210,9 @@
     "kostvMusicLearnUnanswered": "Couldn't check right now. Select to try again.",
     "@kostvMusicLearnUnanswered": {
         "description": "Kos TV Settings: under 'Learn from what I listen to' when the server couldn't be asked; selecting it asks again."
+    },
+    "kostvLyricsBackToLine": "Back to the current line",
+    "@kostvLyricsBackToLine": {
+        "description": "Kos TV music player: the button over the synced lyrics after they were scrolled by hand; it takes them back to the line being sung and they follow the song again."
     }
 }

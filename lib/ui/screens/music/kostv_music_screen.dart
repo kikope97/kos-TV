@@ -4,6 +4,7 @@ import 'package:custom_tv_text_field/custom_tv_text_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:playback_core/playback_core.dart' show PlaybackManager;
 import 'package:server_core/server_core.dart' show MediaServerClient;
@@ -24,6 +25,7 @@ import '../../widgets/music/music_navigation.dart';
 import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
+import 'kostv_music_links.dart';
 import 'kostv_music_widgets.dart';
 import '../../../util/kostv_browser_menu.dart';
 
@@ -1330,6 +1332,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                           ...songs[i].artists.take(2),
                           ?songs[i].album,
                         ].join(' · '),
+                        artistLinks: _homeSongLinks(context, songs[i]),
                         cover: kostvMusicImageOf(songs[i]),
                         atHome: true,
                         onTap: () => unawaited(
@@ -1526,6 +1529,15 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                             : null,
                         title: songs[i].title,
                         artist: songs[i].artist,
+                        artistLinks: [
+                          [
+                            ?kostvStremfinArtistLink(
+                              context,
+                              songs[i].artist,
+                              songs[i].artistDeezerId,
+                            ),
+                          ],
+                        ],
                         cover: songs[i].cover,
                         rank: ranked ? songs[i].rank ?? i + 1 : null,
                         atHome:
@@ -1835,6 +1847,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                           ...songs[i].artists.take(2),
                           ?songs[i].album,
                         ].join(' · '),
+                        artistLinks: _homeSongLinks(context, songs[i]),
                         cover: kostvMusicImageOf(songs[i]),
                         atHome: true,
                         onTap: () => unawaited(
@@ -1959,6 +1972,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         required String id,
         required String title,
         required String artist,
+        required List<List<KostvMusicLink>> artistLinks,
         required String? cover,
         required bool atHome,
         bool explicit = false,
@@ -1972,6 +1986,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           onKey: first && node != null ? _upToSearch : null,
           title: title,
           artist: artist,
+          artistLinks: artistLinks,
           cover: cover,
           atHome: atHome,
           explicit: explicit,
@@ -2006,6 +2021,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                               ...song.artists.take(2),
                               ?song.album,
                             ].join(' · '),
+                            artistLinks: _homeSongLinks(context, song),
                             cover: kostvMusicImageOf(song),
                             atHome: true,
                             onTap: () => unawaited(
@@ -2031,6 +2047,16 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                               ?song.artist,
                               ?song.albumTitle,
                             ].join(' · '),
+                            artistLinks: [
+                              [
+                                ?kostvStremfinArtistLink(
+                                  context,
+                                  song.artist,
+                                  song.artistDeezerId,
+                                ),
+                              ],
+                              [?kostvStremfinAlbumLink(context, song)],
+                            ],
                             cover: song.cover,
                             atHome: false,
                             explicit: song.explicit,
@@ -2141,3 +2167,16 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
 /// TV's or phone's own text size: its two lines of text get taller.
 double _songRowHeight(BuildContext context, bool phone) =>
     kostvMusicSongRowHeight(context, phone);
+
+/// Kos TV: the line of one of the home server's songs in a list, «Artista,
+/// Otra · Álbum», with each name opening its page.
+List<List<KostvMusicLink>> _homeSongLinks(
+  BuildContext context,
+  AggregatedItem song,
+) {
+  void open(String location) => unawaited(context.push(location));
+  return [
+    kostvHomeArtistLinks(song, open: open, limit: 2),
+    [?kostvHomeAlbumLink(song, open: open)],
+  ];
+}
