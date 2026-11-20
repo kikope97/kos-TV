@@ -33360,7 +33360,7 @@ abstract class AppLocalizations {
   /// No description provided for @kostvMusicMenuHint.
   ///
   /// In en, this message translates to:
-  /// **'Hold OK on a song for more options'**
+  /// **'Hold OK on a song or mix for more options'**
   String get kostvMusicMenuHint;
 
   /// No description provided for @kostvMusicFavorites.
@@ -36132,7 +36132,7 @@ abstract class AppLocalizations {
   /// Kos TV Music page: the line under the mix for the time of day.
   ///
   /// In en, this message translates to:
-  /// **'What you usually play at this time, and more like it'**
+  /// **'What you usually play at this time and songs like it'**
   String get kostvMusicMomentWhy;
 
   /// Kos TV Settings: the switch for the server keeping what the person listens to, for their mixes.
@@ -36144,7 +36144,7 @@ abstract class AppLocalizations {
   /// Kos TV Settings: under 'Learn from what I listen to' while it is on.
   ///
   /// In en, this message translates to:
-  /// **'Your mixes and recommendations come from what you listen to. It stays on the home server and only you see it.'**
+  /// **'Your mixes and recommendations come from what you listen to. It stays on the home server and isn\'t shared with anyone.'**
   String get kostvMusicLearnOn;
 
   /// Kos TV Settings: under 'Learn from what I listen to' while it is off.
@@ -36206,6 +36206,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 listen kept} other{{count} listens kept}}'**
   String kostvMusicLearnCountNoDate(int count);
+
+  /// Kos TV Settings: under 'Learn from what I listen to' when the server couldn't be asked; selecting it asks again.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t check right now. Select to try again.'**
+  String get kostvMusicLearnUnanswered;
 }
 
 class _AppLocalizationsDelegate

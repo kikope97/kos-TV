@@ -85,6 +85,28 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   KostvDailyMixes? _dailyMixes;
   KostvMusicMoment? _moment;
   List<StremfinSong>? _discovery;
+
+  /// Kos TV: the week [_discovery] is of, as kept or as the plugin said.
+  String? _discoveryWeek;
+
+  /// Kos TV: the slot of the day (by this device's clock) the moment's mix
+  /// was last asked for: when the page is still open as another one starts,
+  /// it is asked again.
+  String? _momentAskedFor;
+  Timer? _momentTurn;
+  AppLifecycleListener? _lifecycle;
+
+  /// Kos TV: the person had a moment's row last time (of another time of
+  /// day, so not shown): its place is kept while today's is asked for, so
+  /// the page doesn't jump when it lands.
+  bool _momentHeld = false;
+
+  /// Kos TV: the plugin answered (or failed) for the moment's mix at least
+  /// once: what was kept no longer holds a place for it.
+  bool _momentLanded = false;
+
+  /// Kos TV: the plugin failed the last time the moment's mix was asked.
+  bool _momentFailed = false;
   List<StremfinAlbum> _requested = const [];
   List<StremfinAlbum> _releases = const [];
   bool _loading = true;
@@ -116,6 +138,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     kostvMusicFavoritesChanged.addListener(_reloadFavorites);
     // With a mouse, the right click is the songs' menu, not the browser's.
     kostvHoldBrowserMenu();
+    // Kos TV: back to the app in another time of day: its mix.
+    _lifecycle = AppLifecycleListener(onResume: _checkMomentSlot);
     unawaited(_stremfinReady);
   }
 
@@ -139,6 +163,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   void dispose() {
     _debounce?.cancel();
     _refreshing?.cancel();
+    _momentTurn?.cancel();
+    _lifecycle?.dispose();
     kostvMusicFavoritesChanged.removeListener(_reloadFavorites);
     _listening?.musicRequestsRevision.removeListener(_onMusicRequested);
     kostvReleaseBrowserMenu();
@@ -268,33 +294,50 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
 
   KostvMusicPlugin get _plugin => KostvMusicPlugin.instance;
 
+  /// Kos TV: who the page is loading for. The server's client is the same
+  /// for everyone on it (its user and token change under it when the person
+  /// switches), so an answer that lands after a switch is dropped.
+  ({String? user, String? token}) _whoNow() =>
+      (user: _client.userId, token: _client.accessToken);
+
+  /// Whether the page is still there and still for [who].
+  bool _stillFor(({String? user, String? token}) who) =>
+      mounted && _whoNow() == who;
+
   /// Kos TV: the daily mixes and the mix of the time of day, from the
-  /// server plugin: first what was kept on the device last time, then its
-  /// answer now, which replaces it. Without the plugin's routes the page
-  /// stays as before («Tus mezclas»).
+  /// server plugin: first what was kept on the device last time (only
+  /// today's mixes, only this time of day's mix), then its answer now,
+  /// which replaces it. Without the plugin's routes the page stays as
+  /// before («Tus mezclas»); when the plugin fails, what is shown stays.
   Future<void> _loadPluginRows() async {
     final client = _client;
+    final who = _whoNow();
     final kept = _rememberedStremfin();
     if (kept != null) {
       unawaited(() async {
         try {
-          final mixes = KostvDailyMixes.fromJson(
+          final now = DateTime.now();
+          final mixes = kostvKeptMixes(
             await kept.rememberedMusicNote(_mixesNote),
             client.baseUrl,
+            now: now,
           );
           final moment = KostvMusicMoment.fromJson(
             await kept.rememberedMusicNote(_momentNote),
             client.baseUrl,
           );
-          if (!mounted) return;
+          if (!_stillFor(who)) return;
           if (mixes != null && !_fresh.contains(_mixesNote)) {
             _dailyMixes = mixes;
           }
-          // Another time of day's mix isn't this one.
-          if (moment != null &&
-              moment.slot == kostvMusicSlotAt(DateTime.now()) &&
-              !_fresh.contains(_momentNote)) {
-            _moment = moment;
+          if (moment != null && !_fresh.contains(_momentNote)) {
+            // Another time of day's mix isn't this one; it only keeps its
+            // place.
+            if (moment.slot == kostvMusicSlotAt(now)) {
+              _moment = moment;
+            } else if (!_momentLanded) {
+              _momentHeld = moment.shows;
+            }
           }
           _refresh();
         } catch (_) {}
@@ -302,67 +345,121 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     }
     await Future.wait([
       () async {
-        final mixes = await _plugin.mixes(client);
+        final answer = await _plugin.mixes(client);
+        if (!_stillFor(who)) return;
+        // Not answered: what is shown (and kept) stays.
+        if (answer.failed) return;
         _fresh.add(_mixesNote);
-        if (!mounted) return;
+        final mixes = answer.value;
         _dailyMixes = mixes;
-        if (mixes != null) kept?.keepMusicNote(_mixesNote, mixes.toJson());
+        // Without the route, nothing kept shows next time either.
+        kept?.keepMusicNote(
+          _mixesNote,
+          (mixes ?? const KostvDailyMixes()).toJson(),
+        );
         _refresh();
       }(),
-      () async {
-        final moment = await _plugin.moment(client);
-        _fresh.add(_momentNote);
-        if (!mounted) return;
-        _moment = moment;
-        if (moment != null) kept?.keepMusicNote(_momentNote, moment.toJson());
-        _refresh();
-      }(),
+      _loadMoment(),
     ]);
+  }
+
+  /// Kos TV: the mix of the time of day, now. Asked again when the page is
+  /// still open as another time of day starts ([_checkMomentSlot]).
+  Future<void> _loadMoment() async {
+    final client = _client;
+    final who = _whoNow();
+    final kept = _rememberedStremfin();
+    final slot = kostvMusicSlotAt(DateTime.now());
+    _momentAskedFor = slot;
+    _scheduleMomentTurn();
+    final answer = await _plugin.moment(client);
+    if (!_stillFor(who)) return;
+    _momentLanded = true;
+    _momentHeld = false;
+    if (answer.failed) {
+      // What is shown stays; asked again at the next turn or return.
+      _momentFailed = true;
+      _refresh();
+      return;
+    }
+    _momentFailed = false;
+    _fresh.add(_momentNote);
+    final moment = answer.value;
+    _moment = moment;
+    kept?.keepMusicNote(
+      _momentNote,
+      (moment ?? KostvMusicMoment(slot: slot, ready: false)).toJson(),
+    );
+    _refresh();
+  }
+
+  /// Kos TV: the next start of a time of day (6:00, 12:00, 20:00), a minute
+  /// after it so the plugin's clock is there too.
+  void _scheduleMomentTurn() {
+    _momentTurn?.cancel();
+    final now = DateTime.now();
+    final starts = [
+      for (final day in [0, 1])
+        for (final hour in [6, 12, 20])
+          DateTime(now.year, now.month, now.day + day, hour, 1),
+    ];
+    final next = starts.firstWhere((at) => at.isAfter(now));
+    _momentTurn = Timer(next.difference(now), _checkMomentSlot);
+  }
+
+  /// Kos TV: the page is open (or back) in another time of day than the
+  /// one its mix was asked for: that one's.
+  void _checkMomentSlot() {
+    if (!mounted || _momentAskedFor == null) return;
+    if (!_momentFailed && kostvMusicSlotAt(DateTime.now()) == _momentAskedFor) {
+      _scheduleMomentTurn();
+      return;
+    }
+    unawaited(_loadMoment());
   }
 
   /// Kos TV: the week's discovery: the songs the plugin kept for this week
   /// or, the first time this week, those the requests service recommends
-  /// for the plugin's artists, picked the same on every device and kept in
-  /// the plugin. Null when the plugin has none to give (the page then shows
-  /// «Canciones para ti»).
-  Future<List<StremfinSong>?> _weeklyDiscovery(StremfinService stremfin) async {
-    final client = _client;
-    List<StremfinSong>? songs;
-    // A second go only when the week turned while it was picked (the
-    // plugin answers which one it is now).
-    for (var attempt = 0; attempt < 2; attempt++) {
-      final found = await _plugin.discovery(client);
-      if (found == null) return null;
-      final week = found.week ?? kostvIsoWeek(DateTime.now());
-      songs = found.songs;
-      if (songs != null) break;
-      if (found.seeds.isEmpty) return null;
-      // Kept an hour by the service (and here): asked once a week.
-      final recommended = await stremfin.musicRecommendations(
-        found.seeds.take(10).toList(),
-      );
-      songs = kostvWeeklyPick(
-        recommended.songs,
-        user: client.userId ?? '',
-        week: week,
-      );
-      if (songs.isEmpty) break;
-      final kept = await _plugin.keepDiscovery(client, week, songs);
-      if (kept.week == null) break;
-    }
-    if (songs == null) return null;
-    stremfin.keepMusicNote(_discoveryNote, [
-      for (final song in songs) kostvStremfinSongJson(song),
-    ]);
-    return songs;
+  /// for the plugin's artists ([kostvLoadWeeklyDiscovery]). Gives what
+  /// applies it to the page: no songs when the plugin has none to give (the
+  /// page then shows «Canciones para ti»). Throws when the plugin or the
+  /// service failed: what is shown stays.
+  Future<void Function()> _weeklyDiscovery(StremfinService stremfin) async {
+    final who = _whoNow();
+    final found = await kostvLoadWeeklyDiscovery(
+      _plugin,
+      _client,
+      recommend: stremfin.musicRecommendations,
+      wanted: () => mounted,
+      onWeek: (week) {
+        // Another week's list: it goes, even if the service fails now.
+        if (_discoveryWeek == null || _discoveryWeek == week) return;
+        stremfin.keepMusicNote(_discoveryNote, kostvDiscoveryNote(week, []));
+        _discoveryWeek = null;
+        _discovery = null;
+        _refresh();
+      },
+    );
+    if (found == null || !_stillFor(who)) return () {};
+    final songs = found.songs;
+    // Kept as it is now: with none, nothing old shows next time.
+    stremfin.keepMusicNote(
+      _discoveryNote,
+      kostvDiscoveryNote(found.week, songs ?? const []),
+    );
+    return () {
+      _discovery = songs;
+      _discoveryWeek = found.week;
+    };
   }
 
-  /// Kos TV: what was kept of the week's discovery on the device.
-  Future<List<StremfinSong>?> _keptDiscovery(StremfinService stremfin) async {
-    final raw = await stremfin.rememberedMusicNote(_discoveryNote);
-    if (raw is! List) return null;
-    return [for (final song in raw) ?StremfinSong.fromJson(song)];
-  }
+  /// Kos TV: what was kept of the week's discovery on the device, only when
+  /// it is this week's.
+  Future<List<StremfinSong>?> _keptDiscovery(StremfinService stremfin) async =>
+      kostvKeptDiscovery(
+        await stremfin.rememberedMusicNote(_discoveryNote),
+        now: DateTime.now(),
+      );
 
   /// The service's parts, now or as it answered last time ([remembered]).
   Future<void> _loadStremfin(
@@ -424,15 +521,18 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         return () => _releases = found;
       }),
       part(_discoveryNote, () async {
-        final found = remembered
-            ? await _keptDiscovery(stremfin)
-            : await _weeklyDiscovery(stremfin);
-        if (remembered && found == null) return () {};
-        return () => _discovery = found;
+        if (!remembered) return _weeklyDiscovery(stremfin);
+        final found = await _keptDiscovery(stremfin);
+        if (found == null) return () {};
+        return () {
+          _discovery = found;
+          _discoveryWeek = kostvIsoWeek(DateTime.now());
+        };
       }),
       () async {
         // What was asked last time, so the rows that go with the person's
         // taste don't wait for it to be worked out again; now, the real one.
+        final who = _whoNow();
         KostvMusicTaste? taste;
         // Kos TV: whether the taste now is really known (it didn't fail).
         var known = true;
@@ -448,7 +548,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
             known = false;
           }
         }
-        if (taste == null) return;
+        // Kos TV: not kept for whoever the session is now, if it changed.
+        if (taste == null || !_stillFor(who)) return;
         if (!remembered) stremfin.keepMusicNote('taste', taste.toJson());
         await _loadForTaste(stremfin, taste, part, remembered, known: known);
       }(),
@@ -693,11 +794,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     final queue = GetIt.instance<PlaybackManager>().queueService;
     kostvTellMusicSource(() => _client, source, mix.items);
     if (choice == 1) {
-      // Each one right after the song sounding: the last first, so they
-      // end up in the mix's order.
-      for (final song in mix.items.reversed) {
-        queue.insertNext(song);
-      }
+      // Right after the song sounding, in the mix's order, as one change.
+      queue.insertAllNext(mix.items);
       kostvMusicSay(context, l10n.kostvMusicMixAddedNext);
     } else {
       queue.addItems(mix.items);
@@ -986,6 +1084,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     // day.
     if (plugin.moment) {
       add('moment', _momentShelf(context, insets, firstNode('moment', true)));
+    } else if (_momentHeld) {
+      add('moment', _momentPlace(context, insets));
     }
     add('favorites', _favoritesShelf(context, insets));
     add('playlists', _playlistsShelf(context, insets));
@@ -1051,6 +1151,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           null,
           songs: forYou.songs,
           ranked: false,
+          source: KostvMusicSource.other,
         ),
       );
     }
@@ -1236,7 +1337,11 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                           ),
                         ),
                         onLongPress: () => unawaited(
-                          showKostvMusicSongMenu(context, item: songs[i]),
+                          showKostvMusicSongMenu(
+                            context,
+                            item: songs[i],
+                            source: KostvMusicSource.favorites,
+                          ),
                         ),
                       ),
                   ],
@@ -1314,21 +1419,52 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
 
   /// Kos TV: a song of the week's discovery, which may have been picked
   /// days ago: what the service says of it now (whether it is at home, a
-  /// preview that hasn't expired), then as a chart's.
-  Future<void> _openFresh(StremfinSong song, String source) async {
+  /// preview that hasn't expired), for it to open (or its menu) as a
+  /// chart's. As it was when it is at home or can't be asked.
+  Future<StremfinSong?> _songNow(StremfinSong song) async {
     final stremfin = _stremfin;
     final id = song.deezerId;
-    var now = song;
-    if (stremfin != null &&
-        id != null &&
-        !song.inJellyfin &&
-        song.jellyfinId == null) {
-      try {
-        now = (await stremfin.musicSong(id)).song;
-      } catch (_) {}
+    if (stremfin == null || id == null || !_needsNow(song)) return song;
+    return (await stremfin.musicSong(id)).song;
+  }
+
+  /// Whether [_songNow] has anything to ask of [song]: one that isn't at
+  /// home, which the service knows.
+  bool _needsNow(StremfinSong song) =>
+      _stremfin != null &&
+      song.deezerId != null &&
+      !song.inJellyfin &&
+      song.jellyfinId == null;
+
+  /// Kos TV: the albums the page knows now, by their Deezer id, with what
+  /// the service says of them (asked for, on their way): the week's
+  /// discovery, picked days ago, shows its marks from them.
+  Map<String, StremfinAlbum> _knownAlbums() {
+    final known = <String, StremfinAlbum>{};
+    void addAll(Iterable<StremfinAlbum?> albums) {
+      for (final album in albums) {
+        final id = album?.deezerId;
+        if (id != null) known[id] = album!;
+      }
     }
-    if (!mounted) return;
-    await openKostvMusicSong(context, now, source: source);
+
+    for (final chart in [
+      _topSongs,
+      _latino,
+      _mexico,
+      _unitedStates,
+      _genreChart,
+    ]) {
+      addAll([for (final song in chart?.songs ?? const []) song.album]);
+    }
+    addAll(_topAlbums?.albums ?? const []);
+    addAll(_forYou?.albums ?? const []);
+    addAll(_moreOf?.albums ?? const []);
+    addAll(_yourNews);
+    addAll(_releases);
+    // Last: what the house asked for says it best.
+    addAll(_requested);
+    return known;
   }
 
   Widget? _songColumns(
@@ -1343,6 +1479,11 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     bool fresh,
   ) {
     if (songs.isEmpty) return null;
+    // Kos TV: the discovery's albums as the page knows them now, rather
+    // than as they were when the week's songs were picked.
+    final known = fresh ? _knownAlbums() : const <String, StremfinAlbum>{};
+    StremfinAlbum? albumOf(StremfinSong song) =>
+        known[song.albumDeezerId] ?? song.album;
     const perColumn = 4;
     final columns = (songs.length / perColumn).ceil();
     final phone = KostvMusicSizes.phone;
@@ -1381,21 +1522,32 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                         artist: songs[i].artist,
                         cover: songs[i].cover,
                         rank: ranked ? songs[i].rank ?? i + 1 : null,
-                        atHome: songs[i].inJellyfin,
-                        badge: songs[i].album == null
-                            ? KostvMusicBadge.none
-                            : kostvMusicBadgeOf(songs[i].album!),
+                        atHome:
+                            songs[i].inJellyfin ||
+                            (albumOf(songs[i])?.inJellyfin ?? false),
+                        badge: switch (albumOf(songs[i])) {
+                          final album? => kostvMusicBadgeOf(album),
+                          null => KostvMusicBadge.none,
+                        },
                         onTap: () => unawaited(
-                          fresh
-                              ? _openFresh(songs[i], source)
-                              : openKostvMusicSong(
-                                  context,
-                                  songs[i],
-                                  source: source,
-                                ),
+                          openKostvMusicSong(
+                            context,
+                            songs[i],
+                            source: source,
+                            refresh: fresh && _needsNow(songs[i])
+                                ? _songNow
+                                : null,
+                          ),
                         ),
                         onLongPress: () => unawaited(
-                          showKostvMusicSongMenu(context, song: songs[i]),
+                          showKostvMusicSongMenu(
+                            context,
+                            song: songs[i],
+                            source: source,
+                            refresh: fresh && _needsNow(songs[i])
+                                ? _songNow
+                                : null,
+                          ),
                         ),
                       ),
                   ],
@@ -1587,6 +1739,45 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     return pictures;
   }
 
+  static String _momentTitle(AppLocalizations l10n, String slot) =>
+      switch (slot) {
+        'manana' => l10n.kostvMusicMomentMorning,
+        'tarde' => l10n.kostvMusicMomentAfternoon,
+        _ => l10n.kostvMusicMomentNight,
+      };
+
+  /// Kos TV: the room the moment's row takes, empty, while it is asked for
+  /// (the person had one last time): nothing moves when it lands.
+  Widget _momentPlace(BuildContext context, EdgeInsets insets) {
+    final l10n = AppLocalizations.of(context);
+    final rowHeight = _songRowHeight(context, KostvMusicSizes.phone);
+    return ExcludeFocus(
+      child: ExcludeSemantics(
+        child: IgnorePointer(
+          child: Opacity(
+            opacity: 0,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                KostvMusicHeading(
+                  title: _momentTitle(l10n, kostvMusicSlotAt(DateTime.now())),
+                  subtitle: l10n.kostvMusicMomentWhy,
+                  padding: EdgeInsets.fromLTRB(
+                    insets.left,
+                    0,
+                    insets.right,
+                    10,
+                  ),
+                ),
+                SizedBox(height: rowHeight * 4 + 8),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Kos TV: «Para esta mañana», «tarde» or «noche»: the mix of the time of
   /// day, in columns of songs; one plays them all in their order from it.
   Widget? _momentShelf(
@@ -1598,11 +1789,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     if (moment == null || !moment.shows) return null;
     final songs = moment.items;
     final l10n = AppLocalizations.of(context);
-    final title = switch (moment.slot) {
-      'manana' => l10n.kostvMusicMomentMorning,
-      'tarde' => l10n.kostvMusicMomentAfternoon,
-      _ => l10n.kostvMusicMomentNight,
-    };
+    final title = _momentTitle(l10n, moment.slot);
     final source = KostvMusicSource.moment(moment.slot);
     const perColumn = 4;
     final columns = (songs.length / perColumn).ceil();
@@ -1655,7 +1842,11 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                           ),
                         ),
                         onLongPress: () => unawaited(
-                          showKostvMusicSongMenu(context, item: songs[i]),
+                          showKostvMusicSongMenu(
+                            context,
+                            item: songs[i],
+                            source: source,
+                          ),
                         ),
                       ),
                   ],
@@ -1819,7 +2010,11 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                               ),
                             ),
                             onMenu: () => unawaited(
-                              showKostvMusicSongMenu(context, item: song),
+                              showKostvMusicSongMenu(
+                                context,
+                                item: song,
+                                source: KostvMusicSource.search,
+                              ),
                             ),
                           ),
                         for (final song in songsAway)
@@ -1841,7 +2036,11 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                               ),
                             ),
                             onMenu: () => unawaited(
-                              showKostvMusicSongMenu(context, song: song),
+                              showKostvMusicSongMenu(
+                                context,
+                                song: song,
+                                source: KostvMusicSource.search,
+                              ),
                             ),
                           ),
                       ],

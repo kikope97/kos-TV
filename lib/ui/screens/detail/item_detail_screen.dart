@@ -10068,14 +10068,26 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
     ) => _runWithDolbyVisionStartupFallbackPrompt(
       context,
       manager,
-      () => runPlaybackStart(
-        launchSession,
-        () => manager.playItems(
-          prepared.queue,
-          enableDirectPlay: !prepared.forceTranscode,
-          enableDirectStream: !prepared.forceTranscode,
-        ),
-      ),
+      () {
+        // Kos TV: «Aleatorio» of an album, artist or list: the server
+        // plugin is told where the music comes from (only its songs).
+        final source = _kostvMusicSourceOf(item.type);
+        if (source != null) {
+          kostvTellMusicSource(
+            () => _clientForItem(item),
+            source,
+            prepared.queue,
+          );
+        }
+        return runPlaybackStart(
+          launchSession,
+          () => manager.playItems(
+            prepared.queue,
+            enableDirectPlay: !prepared.forceTranscode,
+            enableDirectStream: !prepared.forceTranscode,
+          ),
+        );
+      },
     );
 
     final canOpenVideoBeforeQueueWork = switch (item.type) {
@@ -10945,6 +10957,15 @@ _showDolbyVisionDirectPlayStartupFailureDecisionDialog(
   }
   return PlaybackStartupRecoveryDecision.abortPlayback;
 }
+
+/// Kos TV: where music started from a page of [type] comes from, for the
+/// server plugin ([KostvMusicSource]); null for a page that isn't music's.
+String? _kostvMusicSourceOf(String? type) => switch (type) {
+  'MusicAlbum' => KostvMusicSource.album,
+  'MusicArtist' || 'AlbumArtist' => KostvMusicSource.artist,
+  'Playlist' => KostvMusicSource.playlist,
+  _ => null,
+};
 
 Future<bool> _runWithDolbyVisionStartupFallbackPrompt(
   BuildContext context,
@@ -16990,6 +17011,19 @@ class _AlbumActions extends StatelessWidget {
               ? Destinations.audioPlayer
               : Destinations.videoPlayer,
           startPlayback: (launchSession) async {
+            // Kos TV: the server plugin is told where the music comes from
+            // («Reproducir» and «Aleatorio» of an album, artist or list).
+            final source = _kostvMusicSourceOf(item.type);
+            if (source != null) {
+              kostvTellMusicSource(
+                () =>
+                    GetIt.instance<MediaServerClientFactory>()
+                        .getClientIfExists(item.serverId) ??
+                    GetIt.instance<MediaServerClient>(),
+                source,
+                queue,
+              );
+            }
             await runPlaybackStart(
               launchSession,
               () => manager.playItems(queue),

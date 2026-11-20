@@ -28,6 +28,23 @@ abstract final class KostvMusicSource {
   static String moment(String slot) => 'moment:$slot';
 }
 
+/// Kos TV: what one of the plugin's routes gave: its [value] or, without
+/// one, why not. [missing]: the plugin doesn't have the route (a 404,
+/// remembered for a while): the page shows what it showed before it.
+/// Otherwise it [failed] (no network, a 401 or 5xx, too slow, an answer
+/// that isn't one): what is shown stays, and it is asked again next time.
+@immutable
+class KostvMusicAnswer<T extends Object> {
+  const KostvMusicAnswer(T this.value) : missing = false;
+  const KostvMusicAnswer.missing() : value = null, missing = true;
+  const KostvMusicAnswer.failed() : value = null, missing = false;
+
+  final T? value;
+  final bool missing;
+
+  bool get failed => value == null && !missing;
+}
+
 /// Kos TV: whether the plugin keeps what the person listens to, and how
 /// much it has kept since when.
 @immutable
@@ -213,6 +230,48 @@ String kostvMusicSlotAt(DateTime at) {
   return 'noche';
 }
 
+/// Kos TV: the day of the daily mixes [at] falls in (`2026-11-20`): as the
+/// plugin counts it, a day starts at 5:00 (by the house's clock there; by
+/// the device's here, which is near enough).
+String kostvMusicDayAt(DateTime at) {
+  final day = at.subtract(const Duration(hours: 5));
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${day.year}-${two(day.month)}-${two(day.day)}';
+}
+
+/// Kos TV: the daily mixes kept on the device ([KostvDailyMixes.toJson]),
+/// unless they are another day's.
+KostvDailyMixes? kostvKeptMixes(
+  Object? raw,
+  String serverId, {
+  required DateTime now,
+}) {
+  final mixes = KostvDailyMixes.fromJson(raw, serverId);
+  if (mixes == null) return null;
+  final day = mixes.day;
+  if (day != null && day != kostvMusicDayAt(now)) return null;
+  return mixes;
+}
+
+/// Kos TV: the week's discovery as kept on the device: the week it is of
+/// and its songs ([kostvKeptDiscovery] reads it back).
+Map<String, Object?> kostvDiscoveryNote(
+  String week,
+  List<StremfinSong> songs,
+) => {
+  'Week': week,
+  'Songs': [for (final song in songs) kostvStremfinSongJson(song)],
+};
+
+/// Kos TV: the week's discovery kept on the device, only when it is this
+/// week's (a list from before the week was kept with it isn't shown).
+List<StremfinSong>? kostvKeptDiscovery(Object? raw, {required DateTime now}) {
+  if (raw is! Map || raw['Week'] != kostvIsoWeek(now)) return null;
+  final songs = raw['Songs'];
+  if (songs is! List) return null;
+  return [for (final song in songs) ?StremfinSong.fromJson(song)];
+}
+
 /// Kos TV: the ISO week of [at] (`2026-W47`), for when the plugin doesn't
 /// say it.
 String kostvIsoWeek(DateTime at) {
@@ -225,7 +284,8 @@ String kostvIsoWeek(DateTime at) {
 
 /// Kos TV: the week's songs of discovery out of [songs]: up to [count],
 /// always the same for the same [user] and [week] (on the TV, the phone and
-/// the web alike), each song once.
+/// the web alike), each song once, and only songs the house doesn't have
+/// yet (the plan's «que no tienes»).
 List<StremfinSong> kostvWeeklyPick(
   List<StremfinSong> songs, {
   required String user,
@@ -237,6 +297,7 @@ List<StremfinSong> kostvWeeklyPick(
       '${song.title.toLowerCase()}|${(song.artist ?? '').toLowerCase()}';
   final unique = <String, StremfinSong>{};
   for (final song in songs) {
+    if (song.inJellyfin || song.jellyfinId != null) continue;
     unique.putIfAbsent(keyOf(song), () => song);
   }
   final ranked =
@@ -266,8 +327,44 @@ int kostvStableHash(String text) {
   return hash;
 }
 
+/// Kos TV: [songs] each with its whole album out of [albums] (a
+/// recommendation's songs only say where they sit; its albums say whether
+/// they can be asked for, are asked for or on their way), as a chart's.
+List<StremfinSong> kostvSongsWithAlbums(
+  List<StremfinSong> songs,
+  List<StremfinAlbum> albums,
+) {
+  final byId = <String, StremfinAlbum>{
+    for (final album in albums) ?album.deezerId: album,
+  };
+  return [
+    for (final song in songs)
+      song.album != null || byId[song.albumDeezerId] == null
+          ? song
+          : StremfinSong(
+              title: song.title,
+              deezerId: song.deezerId,
+              artist: song.artist,
+              artistDeezerId: song.artistDeezerId,
+              duration: song.duration,
+              preview: song.preview,
+              explicit: song.explicit,
+              cover: song.cover,
+              albumTitle: song.albumTitle,
+              albumDeezerId: song.albumDeezerId,
+              album: byId[song.albumDeezerId],
+              inJellyfin: song.inJellyfin,
+              rank: song.rank,
+              jellyfinId: song.jellyfinId,
+              albumJellyfinId: song.albumJellyfinId,
+              reason: song.reason,
+            ),
+  ];
+}
+
 /// Kos TV: [song] as the requests service writes it, for the week's list
-/// kept in the plugin ([StremfinSong.fromJson] reads it back).
+/// kept in the plugin ([StremfinSong.fromJson] reads it back). With its
+/// whole album, what [StremfinAlbum.fromJson] needs for its mark too.
 Map<String, Object?> kostvStremfinSongJson(StremfinSong song) => {
   'title': song.title,
   'deezer_id': ?song.deezerId,
@@ -277,7 +374,9 @@ Map<String, Object?> kostvStremfinSongJson(StremfinSong song) => {
   'preview': ?song.preview,
   'explicit': song.explicit,
   'cover': ?song.cover,
-  if (song.albumTitle != null || song.albumDeezerId != null)
+  if (song.album case final album?)
+    'album': _albumJson(album, song.cover)
+  else if (song.albumTitle != null || song.albumDeezerId != null)
     'album': {
       'title': ?song.albumTitle,
       'deezer_id': ?song.albumDeezerId,
@@ -288,6 +387,36 @@ Map<String, Object?> kostvStremfinSongJson(StremfinSong song) => {
   'album_jellyfin_id': ?song.albumJellyfinId,
   'reason': ?song.reason,
 };
+
+Map<String, Object?> _albumJson(StremfinAlbum album, String? cover) {
+  final request = album.request;
+  final download = album.download;
+  return {
+    'title': album.title,
+    'deezer_id': ?album.deezerId,
+    'artist': ?album.artist,
+    'cover': ?(album.cover ?? cover),
+    'library': {
+      'in_jellyfin': album.inJellyfin,
+      'jellyfin_id': ?album.jellyfinId,
+      'song_in_album': ?album.songInAlbum,
+    },
+    if (request != null)
+      'request': {
+        'id': request.id,
+        'status': request.status,
+        'status_label': ?request.statusLabel,
+        'mine': request.mine,
+      },
+    if (download != null)
+      'download': {
+        'phase': ?download.phase,
+        'label': ?download.label,
+        'percent': ?download.percent,
+      },
+    'can_request': album.canRequest,
+  };
+}
 
 /// Kos TV: the plugin's cards ([ItemCardDtoMapper]'s, as Home's) as the
 /// app's items, ids without dashes as the server's own lists write them.
@@ -364,8 +493,9 @@ class KostvMusicPlugin {
   /// updating the plugin shows without restarting the app.
   static const _retryAfter = Duration(minutes: 30);
 
-  /// What is about to play: as many songs as the plugin is told of.
-  static const contextMax = 200;
+  /// What is about to play: as many songs as the plugin is told of (its
+  /// own limit).
+  static const contextMax = 500;
 
   final Dio _dio;
   final Map<String, DateTime> _missingAt = {};
@@ -378,24 +508,31 @@ class KostvMusicPlugin {
     return at != null && DateTime.now().difference(at) < _retryAfter;
   }
 
-  /// Forgets which routes were missing (a test, a user switch).
+  /// Forgets which routes were missing. Only for tests: what is missing is
+  /// the server's plugin, the same whoever uses it, so a switch of person
+  /// keeps it.
   @visibleForTesting
   void reset() => _missingAt.clear();
 
-  /// The answer of [route], or null when the plugin can't give it: missing
-  /// (404, kept for a while), unreachable or not there at all. A status in
-  /// [answers] is an answer too (409 of a week that is over), with its body.
-  Future<({Object? data, int? status})?> _call(
+  /// The answer of [route]: its body, or why there is none ([missing]: the
+  /// plugin lacks it, a 404 kept for a while; otherwise it failed). A status
+  /// in [answers] is an answer too (409 of a week that is over), with its
+  /// body.
+  Future<({bool ok, bool missing, Object? data, int? status})> _call(
     MediaServerClient client,
     String method,
     String route, {
     Object? body,
     Set<int> answers = const {},
   }) async {
-    if (knownMissing(client, route)) return null;
+    const failed = (ok: false, missing: false, data: null, status: null);
+    const missing = (ok: false, missing: true, data: null, status: null);
+    if (knownMissing(client, route)) return missing;
+    // A server without the plugin's kind of routes at all.
+    if (!client.features.supportsMoonfinPlugin) return missing;
     try {
       final ep = await moonbaseEndpoint(client, _dio);
-      if (ep == null) return null;
+      if (ep == null) return failed;
       final response = await _dio.request<dynamic>(
         '${ep.base}$_base/$route',
         data: body,
@@ -407,26 +544,43 @@ class KostvMusicPlugin {
               (status >= 200 && status < 300 || answers.contains(status)),
         ),
       );
-      return (data: response.data, status: response.statusCode);
+      return (
+        ok: true,
+        missing: false,
+        data: response.data,
+        status: response.statusCode,
+      );
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
         _missingAt['${client.baseUrl}|$route'] = DateTime.now();
-      } else {
-        debugPrint('[MusicPlugin] $method $route failed: ${e.message}');
+        return missing;
       }
-      return null;
+      debugPrint('[MusicPlugin] $method $route failed: ${e.message}');
+      return failed;
     } catch (e) {
       debugPrint('[MusicPlugin] $method $route failed: $e');
-      return null;
+      return failed;
     }
   }
 
-  /// Whether the plugin keeps what the person listens to; null without the
-  /// route.
-  Future<KostvMusicLearnState?> settings(MediaServerClient client) async =>
-      KostvMusicLearnState.fromJson(
-        (await _call(client, 'GET', 'Settings'))?.data,
-      );
+  /// [route]'s answer read by [read]; an answer it can't read is a failure.
+  Future<KostvMusicAnswer<T>> _read<T extends Object>(
+    MediaServerClient client,
+    String route,
+    T? Function(Object? data) read,
+  ) async {
+    final reply = await _call(client, 'GET', route);
+    if (reply.missing) return const KostvMusicAnswer.missing();
+    final value = reply.ok ? read(reply.data) : null;
+    return value == null
+        ? const KostvMusicAnswer.failed()
+        : KostvMusicAnswer(value);
+  }
+
+  /// Whether the plugin keeps what the person listens to.
+  Future<KostvMusicAnswer<KostvMusicLearnState>> settings(
+    MediaServerClient client,
+  ) => _read(client, 'Settings', KostvMusicLearnState.fromJson);
 
   /// Turns keeping what the person listens to on or off; the state after,
   /// or null when it couldn't be changed.
@@ -434,13 +588,13 @@ class KostvMusicPlugin {
     MediaServerClient client,
     bool learn,
   ) async => KostvMusicLearnState.fromJson(
-    (await _call(client, 'POST', 'Settings', body: {'Learn': learn}))?.data,
+    (await _call(client, 'POST', 'Settings', body: {'Learn': learn})).data,
   );
 
   /// Forgets everything kept of what the person listened to. False when it
   /// couldn't.
   Future<bool> forgetListens(MediaServerClient client) async =>
-      await _call(client, 'DELETE', 'Listens') != null;
+      (await _call(client, 'DELETE', 'Listens')).ok;
 
   /// Tells the plugin where the songs [items] about to play come from.
   /// Never waited for: whatever happens to it, the music plays.
@@ -462,18 +616,20 @@ class KostvMusicPlugin {
     );
   }
 
-  /// The person's daily mixes, or null without the route.
-  Future<KostvDailyMixes?> mixes(MediaServerClient client) async =>
-      KostvDailyMixes.fromJson(
-        (await _call(client, 'GET', 'Mixes'))?.data,
-        client.baseUrl,
-      );
+  /// The person's daily mixes.
+  Future<KostvMusicAnswer<KostvDailyMixes>> mixes(MediaServerClient client) {
+    final server = client.baseUrl;
+    return _read(
+      client,
+      'Mixes',
+      (data) => KostvDailyMixes.fromJson(data, server),
+    );
+  }
 
-  /// The person's weekly discovery, or null without the route.
-  Future<KostvMusicDiscovery?> discovery(MediaServerClient client) async =>
-      KostvMusicDiscovery.fromJson(
-        (await _call(client, 'GET', 'Discovery'))?.data,
-      );
+  /// The person's weekly discovery.
+  Future<KostvMusicAnswer<KostvMusicDiscovery>> discovery(
+    MediaServerClient client,
+  ) => _read(client, 'Discovery', KostvMusicDiscovery.fromJson);
 
   /// Keeps the week's songs, so every device of the person shows the same.
   ///
@@ -497,7 +653,7 @@ class KostvMusicPlugin {
       },
       answers: const {409},
     );
-    if (answer == null) return (kept: false, week: null);
+    if (!answer.ok) return (kept: false, week: null);
     if (answer.status == 409) {
       final data = answer.data;
       final now = data is Map ? _text(data['Week']) : null;
@@ -506,25 +662,121 @@ class KostvMusicPlugin {
     return (kept: true, week: null);
   }
 
-  /// The mix of the time of day, or null without the route.
-  Future<KostvMusicMoment?> moment(MediaServerClient client) async =>
-      KostvMusicMoment.fromJson(
-        (await _call(client, 'GET', 'Moment'))?.data,
-        client.baseUrl,
-      );
+  /// The mix of the time of day.
+  Future<KostvMusicAnswer<KostvMusicMoment>> moment(MediaServerClient client) {
+    final server = client.baseUrl;
+    return _read(
+      client,
+      'Moment',
+      (data) => KostvMusicMoment.fromJson(data, server),
+    );
+  }
+}
+
+/// Kos TV: the plugin didn't answer (or failed): what is shown stays.
+class KostvMusicUnanswered implements Exception {
+  const KostvMusicUnanswered(this.route);
+
+  final String route;
+
+  @override
+  String toString() => 'The music plugin\'s $route didn\'t answer';
+}
+
+/// Kos TV: the week's discovery as the plugin has it now: [songs] to show
+/// (null when it has none to give: the page shows «Canciones para ti») and
+/// the [week] they are of.
+typedef KostvWeekDiscovery = ({List<StremfinSong>? songs, String week});
+
+/// Kos TV: the week's discovery: the songs the plugin kept for this week or,
+/// the first time this week, those [recommend] gives for the plugin's
+/// artists, picked the same on every device ([kostvWeeklyPick]) and kept in
+/// the plugin.
+///
+/// The person and their session are taken at the start: if either changes
+/// under [client] while it works (the server's client is the same for
+/// everyone on it), or [wanted] says the page is gone, it stops after the
+/// wait it was in and gives null, without keeping one person's list with
+/// another's session. Throws [KostvMusicUnanswered] when the plugin failed
+/// (not when it lacks the route: then the songs are null), and whatever
+/// [recommend] throws. [onWeek] hears the plugin's week as soon as it says
+/// it.
+Future<KostvWeekDiscovery?> kostvLoadWeeklyDiscovery(
+  KostvMusicPlugin plugin,
+  MediaServerClient client, {
+  required Future<StremfinRecommendations> Function(List<String> seeds)
+  recommend,
+  bool Function()? wanted,
+  void Function(String week)? onWeek,
+  DateTime Function()? now,
+}) async {
+  final user = client.userId;
+  final token = client.accessToken;
+  bool still() =>
+      (wanted?.call() ?? true) &&
+      client.userId == user &&
+      client.accessToken == token;
+  final today = now ?? DateTime.now;
+
+  Future<KostvMusicDiscovery?> read() async {
+    final answer = await plugin.discovery(client);
+    if (answer.failed) throw const KostvMusicUnanswered('Discovery');
+    return answer.value;
+  }
+
+  KostvWeekDiscovery? picked;
+  // A second go only when the week turned while it was picked (the plugin
+  // answers which one it is now).
+  for (var attempt = 0; attempt < 2; attempt++) {
+    final found = await read();
+    if (!still()) return null;
+    if (found == null) return (songs: null, week: kostvIsoWeek(today()));
+    final week = found.week ?? kostvIsoWeek(today());
+    onWeek?.call(week);
+    if (found.songs case final songs?) return (songs: songs, week: week);
+    if (found.seeds.isEmpty) return (songs: null, week: week);
+    // Kept an hour by the service (and here): asked once a week.
+    final recommended = await recommend(found.seeds.take(10).toList());
+    if (!still()) return null;
+    final songs = kostvWeeklyPick(
+      kostvSongsWithAlbums(recommended.songs, recommended.albums),
+      user: user ?? '',
+      week: week,
+    );
+    if (songs.isEmpty) return (songs: songs, week: week);
+    // Another of the person's devices may have kept the week's while this
+    // one picked: theirs, so every device shows the same.
+    final again = await read();
+    if (!still()) return null;
+    if (again?.week == week && again?.songs != null) {
+      return (songs: again!.songs, week: week);
+    }
+    picked = (songs: songs, week: week);
+    final kept = await plugin.keepDiscovery(client, week, songs);
+    if (!still()) return null;
+    // Kept, or not and not for a week that is over: shown all the same.
+    if (kept.week == null) return picked;
+  }
+  return picked;
 }
 
 /// Kos TV: tells the server plugin where the music about to play comes from
 /// ([KostvMusicSource]), with its songs. Fire and forget: it starts after
 /// this returns and nothing waits for it, and nothing that fails in it (not
 /// even finding [client], the server's) reaches whoever plays the music.
+///
+/// [startIndex] is the song it starts at: the plugin is told of those from
+/// it on first (the ones that sound), then those before it, as many as it
+/// takes ([KostvMusicPlugin.contextMax]).
 void kostvTellMusicSource(
   MediaServerClient? Function() client,
   String source,
-  List<AggregatedItem> tracks,
-) {
+  List<AggregatedItem> tracks, {
+  int startIndex = 0,
+}) {
+  final start = startIndex.clamp(0, tracks.length);
   final ids = [
-    for (final track in tracks)
+    for (final track in [...tracks.skip(start), ...tracks.take(start)])
       if (track.type == 'Audio') track.id,
   ];
   if (ids.isEmpty) return;

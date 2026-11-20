@@ -191,15 +191,41 @@ Future<void> openKostvStremfinAlbum(
 /// A song of a chart, a search or an artist: played if it is at home,
 /// otherwise its album's page to ask for it.
 ///
-/// Kos TV: [source] is where it comes from ([KostvMusicSource]).
+/// Kos TV: [source] is where it comes from ([KostvMusicSource]). [refresh]
+/// asks what the service says of [song] now (one of the week's discovery,
+/// picked days ago), within the same lock: a second OK while it is asked
+/// doesn't open its album twice.
 Future<void> openKostvMusicSong(
   BuildContext context,
   StremfinSong song, {
   bool toAsk = false,
   String source = KostvMusicSource.other,
-}) => kostvMusicOnce(
-  () => _openSong(context, song, toAsk: toAsk, source: source),
-);
+  Future<StremfinSong?> Function(StremfinSong song)? refresh,
+}) => kostvMusicOnce(() async {
+  final now = await _refreshed(context, song, refresh);
+  if (now == null || !context.mounted) return;
+  await _openSong(context, now, toAsk: toAsk, source: source);
+});
+
+/// Kos TV: [song] as [refresh] says it is now, with the short wait while it
+/// is asked (null when [context] went meanwhile). As it was when asking
+/// fails.
+Future<StremfinSong?> _refreshed(
+  BuildContext context,
+  StremfinSong song,
+  Future<StremfinSong?> Function(StremfinSong song)? refresh,
+) async {
+  if (refresh == null) return song;
+  final closeLoading = showMusicLoading(context);
+  StremfinSong? now;
+  try {
+    now = await refresh(song);
+  } catch (_) {
+  } finally {
+    closeLoading();
+  }
+  return context.mounted ? now ?? song : null;
+}
 
 Future<void> _openSong(
   BuildContext context,
@@ -306,21 +332,35 @@ enum _SongChoice { next, last, radio, love, playlist, album, artist, ask }
 /// isn't: its album, to ask for it, and its artist.
 ///
 /// Kos TV: [fromAlbumId] is the home server's album page it is opened on,
-/// whose «Ir al álbum» would only open that same page again.
+/// whose «Ir al álbum» would only open that same page again. [source] is
+/// where the song comes from, told with «A continuación» and «Al final»
+/// too. [refresh] as in [openKostvMusicSong]: one that arrived home since
+/// gets the menu of one at home.
 Future<void> showKostvMusicSongMenu(
   BuildContext context, {
   StremfinSong? song,
   AggregatedItem? item,
   String? fromAlbumId,
-}) => kostvMusicOnce(
-  () => _songMenu(context, song: song, item: item, fromAlbumId: fromAlbumId),
-);
+  String source = KostvMusicSource.other,
+  Future<StremfinSong?> Function(StremfinSong song)? refresh,
+}) => kostvMusicOnce(() async {
+  final now = song == null ? null : await _refreshed(context, song, refresh);
+  if (!context.mounted || (song != null && now == null)) return;
+  await _songMenu(
+    context,
+    song: now,
+    item: item,
+    fromAlbumId: fromAlbumId,
+    source: source,
+  );
+});
 
 Future<void> _songMenu(
   BuildContext context, {
   StremfinSong? song,
   AggregatedItem? item,
   String? fromAlbumId,
+  String source = KostvMusicSource.other,
 }) async {
   final l10n = AppLocalizations.of(context);
   var home = item;
@@ -415,14 +455,19 @@ Future<void> _songMenu(
     case _SongChoice.next:
     case _SongChoice.last:
       if (!musicPlaying) {
-        await playMusicTracks(context, [home!]);
+        await playMusicTracks(context, [home!], source: source);
         return;
       }
+      // Kos TV: added to what sounds, it is told where it comes from too.
+      final client = GetIt.instance.isRegistered<MediaServerClient>()
+          ? GetIt.instance<MediaServerClient>()
+          : null;
+      kostvTellMusicSource(() => client, source, [home!]);
       if (choice == _SongChoice.next) {
-        queue.insertNext(home!);
+        queue.insertNext(home);
         kostvMusicSay(context, l10n.kostvMusicAddedNext);
       } else {
-        queue.addToQueue(home!);
+        queue.addToQueue(home);
         kostvMusicSay(context, l10n.kostvMusicAddedLast);
       }
     case _SongChoice.radio:

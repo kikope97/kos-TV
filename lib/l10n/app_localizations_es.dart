@@ -19727,7 +19727,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMusicMenuHint =>
-      'Mantén pulsado OK en una canción para ver más opciones';
+      'Mantén pulsado OK en una canción o un mix para ver más opciones';
 
   @override
   String get kostvMusicFavorites => 'Tus favoritas';
@@ -21343,14 +21343,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMusicMomentWhy =>
-      'Lo que sueles escuchar a esta hora, y parecidas';
+      'Lo que sueles escuchar a esta hora y canciones parecidas';
 
   @override
   String get kostvMusicLearn => 'Aprender de lo que escucho';
 
   @override
   String get kostvMusicLearnOn =>
-      'Tus mixes y recomendaciones salen de lo que escuchas. Se guarda en el servidor de casa y solo lo ves tú.';
+      'Tus mixes y recomendaciones salen de lo que escuchas. Se guarda en el servidor de casa y no se comparte con nadie.';
 
   @override
   String get kostvMusicLearnOff => 'Apagado: no se guarda lo que escuchas.';
@@ -21360,10 +21360,14 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String kostvMusicLearnCount(int count, String since) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count escuchas guardadas desde el $since',
+      other: '$countString escuchas guardadas desde el $since',
       one: '1 escucha guardada desde el $since',
     );
     return '$_temp0';
@@ -21392,12 +21396,20 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String kostvMusicLearnCountNoDate(int count) {
+    final intl.NumberFormat countNumberFormat =
+        intl.NumberFormat.decimalPattern(localeName);
+    final String countString = countNumberFormat.format(count);
+
     String _temp0 = intl.Intl.pluralLogic(
       count,
       locale: localeName,
-      other: '$count escuchas guardadas',
+      other: '$countString escuchas guardadas',
       one: '1 escucha guardada',
     );
     return '$_temp0';
   }
+
+  @override
+  String get kostvMusicLearnUnanswered =>
+      'No se ha podido consultar ahora. Pulsa para volver a intentarlo.';
 }

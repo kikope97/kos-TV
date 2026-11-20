@@ -67,6 +67,17 @@ class QueueService {
     _queueChangedController.add(null);
   }
 
+  /// Kos TV: [items] right after the current one, in their order, as one
+  /// change (a whole mix «A continuación»: one notice, not one per song, and
+  /// kept in their order for when shuffle is turned off again).
+  void insertAllNext(List<dynamic> items) {
+    if (items.isEmpty) return;
+    final insertAt = (_currentIndex + 1).clamp(0, _items.length);
+    _items.insertAll(insertAt, items);
+    _originalOrder.addAll(items);
+    _queueChangedController.add(null);
+  }
+
   void addToQueue(dynamic item) {
     _items.add(item);
     _originalOrder.add(item);

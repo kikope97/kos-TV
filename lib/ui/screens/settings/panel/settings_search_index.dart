@@ -130,6 +130,15 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
   final musicOnAnyServer = musicOnAnySignedInServer();
   final playlistsOnAnyServer = playlistsOnAnySignedInServer();
   final moonfinPluginOnAnyServer = moonfinPluginOnAnySignedInServer();
+  // Kos TV: Music's «Aprender de lo que escucho», unless the server's plugin
+  // was seen without it (the section then isn't there either).
+  final musicLearnClient = GetIt.instance.isRegistered<MediaServerClient>()
+      ? GetIt.instance<MediaServerClient>()
+      : null;
+  final musicLearnSearchable =
+      musicLearnClient != null &&
+      musicLearnClient.features.supportsMoonfinPlugin &&
+      !KostvMusicPlugin.instance.knownMissing(musicLearnClient, 'Settings');
   // Retro games come from the Moonfin plugin's game libraries.
   final gamesOnAnyServer = anySignedInServerSupports(
     (f) => f.supportsFullMoonfinPlugin,
@@ -1556,6 +1565,22 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     ),
 
     playback.screen(keywords: ['video', 'audio', 'subtitles', 'player']),
+    if (musicLearnSearchable) ...[
+      playback.leaf(
+        'kostv_music_learn',
+        l10n.kostvMusicLearn,
+        subtitle: l10n.kostvMusicLearnOn,
+        keywords: ['music', 'mixes', l10n.kostvMusicLearnForget],
+        header: l10n.kostvMusic,
+      ),
+      playback.leaf(
+        'kostv_music_forget',
+        l10n.kostvMusicLearnForget,
+        subtitle: l10n.kostvMusicLearnForgetSubtitle,
+        keywords: ['music', 'history', l10n.kostvMusicLearn],
+        header: l10n.kostvMusic,
+      ),
+    ],
     video.screen(keywords: ['player', 'playback']),
     if (PlatformDetection.isAndroid)
       video.leaf(

@@ -464,7 +464,12 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
           ),
           // Kos TV: «Ir al álbum» would be this same page.
           onMenu: () => unawaited(
-            showKostvMusicSongMenu(context, item: track, fromAlbumId: album.id),
+            showKostvMusicSongMenu(
+              context,
+              item: track,
+              fromAlbumId: album.id,
+              source: KostvMusicSource.album,
+            ),
           ),
         ),
     ];

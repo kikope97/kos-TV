@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/services/kostv_music.dart' show kostvMusicSameTitle;
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/kostv_music_preview.dart';
 import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
@@ -572,6 +573,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
                       jellyfinId: song.jellyfinId,
                       inJellyfin: true,
                     ),
+                    source: KostvMusicSource.album,
                   ),
                 ),
         ),
