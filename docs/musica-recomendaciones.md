@@ -72,13 +72,45 @@ mientras se hace lo demás.
 
 - **Qué es:** cada lunes, 20 canciones nuevas para ti de artistas parecidos a los
   tuyos, que no tienes.
-- **Cómo:** el complemento dice qué artistas pesan más en tu gusto; la app se los
-  pide a Stremfin (`/music/recommendations`, como ya hace «Para ti») y elige 20,
-  siempre las mismas en esa semana. La lista de la semana se guarda en el
-  complemento para que salga igual en todos los aparatos.
+- **Cómo:** el complemento dice qué artistas pesan más en tu gusto; la app le
+  pide a Stremfin la **radio de Deezer** de esos artistas (`/music/radio`, desde
+  Stremfin 1.93: `only=missing`, `exclude_seed_artists=true` para que sean
+  artistas nuevos para ti, y `limit=50`) y elige 20, siempre las mismas para esa
+  persona en esa semana. Si de la radio salen menos de 20 que valgan (sin repetir
+  y que no estén en casa), se completa con las canciones de
+  `/music/recommendations` (las de «Para ti»), sin repetir ninguna. La lista de
+  la semana se guarda en el complemento (cada canción con su álbum entero, tal
+  como lo da la radio, y con `explicit`) para que salga igual en todos los
+  aparatos.
+- **Si la radio no está o falla:** con un Stremfin anterior a la 1.93 (la radio
+  da 404, y se recuerda media hora sin volver a preguntar) se usa
+  `/music/recommendations` como antes. Si la radio falla por otra cosa (503 de
+  Deezer, 429 por el límite, sin red…), no se cambia a las recomendaciones: se
+  queda lo que se veía y se vuelve a intentar la próxima vez.
 - **En la app:** fila «Descubrimiento semanal». Las que lleguen a estar en casa
   suenan; las demás, adelanto de 30 s y «Pedir» con un toque, como en los tops.
-- Una llamada a Stremfin por persona y semana: muy lejos de su límite.
+  Las marcas «Pedir», «Pedido» y «De camino» salen del álbum de cada canción
+  (`can_request`, `request` y `download`) y se ponen al día con lo que la página
+  sabe de esos álbumes por las demás filas.
+- Una llamada a Stremfin por persona y semana (dos si hay que completar), y se
+  guarda una hora: muy lejos de su límite (10 por minuto entre la radio y las
+  recomendaciones).
+
+### Canciones explícitas
+
+A quien tiene un límite no se le enseñan las canciones que Deezer marca como
+explícitas (`explicit: true`): una edad máxima en su cuenta de Jellyfin, el
+«Control parental» del aparato o el modo infantil (y mientras no se sabe aún su
+límite, tampoco). Quien no tiene límite lo ve todo, como antes. Vale para todo
+lo de Stremfin en Música: el «Descubrimiento semanal» (se quitan antes de
+elegir, así que las 20 salen limpias; y también de una lista que guardó otro
+aparato), «Para ti», la búsqueda («Para pedir»), las canciones más escuchadas
+de un artista, las listas y el adelanto de la ficha de una canción (sin
+adelanto). Lo que ya está en casa no se quita: de eso se encarga el control
+parental de Jellyfin. Stremfin solo dice `explicit` de las canciones de Deezer:
+los álbumes (discografía, «Nuevo de tus artistas», las listas de álbumes), las
+pistas de la ficha de un álbum y las canciones de las listas de Apple no lo
+traen, así que ahí no se puede quitar nada.
 
 ## C. Mezclas según el momento
 

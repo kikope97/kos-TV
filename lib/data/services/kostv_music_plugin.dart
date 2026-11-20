@@ -6,6 +6,7 @@ import 'package:server_core/server_core.dart';
 
 import '../models/aggregated_item.dart';
 import 'moonbase_endpoint.dart';
+import 'stremfin/stremfin_client.dart';
 import 'stremfin/stremfin_models.dart';
 
 /// Kos TV: where the music the person is about to hear comes from, as the
@@ -292,13 +293,10 @@ List<StremfinSong> kostvWeeklyPick(
   required String week,
   int count = 20,
 }) {
-  String keyOf(StremfinSong song) =>
-      song.deezerId ??
-      '${song.title.toLowerCase()}|${(song.artist ?? '').toLowerCase()}';
   final unique = <String, StremfinSong>{};
   for (final song in songs) {
     if (song.inJellyfin || song.jellyfinId != null) continue;
-    unique.putIfAbsent(keyOf(song), () => song);
+    unique.putIfAbsent(_songKey(song), () => song);
   }
   final ranked =
       [
@@ -313,6 +311,45 @@ List<StremfinSong> kostvWeeklyPick(
         return byRank != 0 ? byRank : a.key.compareTo(b.key);
       });
   return [for (final entry in ranked.take(count)) entry.song];
+}
+
+/// The same song, wherever it comes from (the radio, a recommendation).
+String _songKey(StremfinSong song) =>
+    song.deezerId ??
+    '${song.title.toLowerCase()}|${(song.artist ?? '').toLowerCase()}';
+
+/// Kos TV: how many songs the week's discovery has.
+const kostvDiscoveryCount = 20;
+
+/// Kos TV: the week's songs of discovery: [kostvWeeklyPick] of the radio's
+/// [radio] songs and, when they are fewer than [count] once picked, as many
+/// more as it takes out of the recommendation's [recommended] songs (picked
+/// the same way, without any already in). Each with its whole album.
+List<StremfinSong> kostvDiscoveryPick({
+  required List<StremfinSong> radio,
+  required StremfinRecommendations? recommended,
+  required String user,
+  required String week,
+  int count = kostvDiscoveryCount,
+}) {
+  final songs = kostvWeeklyPick(radio, user: user, week: week, count: count);
+  if (songs.length >= count || recommended == null) return songs;
+  final taken = {for (final song in songs) _songKey(song)};
+  return [
+    ...songs,
+    ...kostvWeeklyPick(
+      [
+        for (final song in kostvSongsWithAlbums(
+          recommended.songs,
+          recommended.albums,
+        ))
+          if (!taken.contains(_songKey(song))) song,
+      ],
+      user: user,
+      week: week,
+      count: count - songs.length,
+    ),
+  ];
 }
 
 /// Kos TV: FNV-1a of [text], the same on every platform (the web's numbers
@@ -341,24 +378,7 @@ List<StremfinSong> kostvSongsWithAlbums(
     for (final song in songs)
       song.album != null || byId[song.albumDeezerId] == null
           ? song
-          : StremfinSong(
-              title: song.title,
-              deezerId: song.deezerId,
-              artist: song.artist,
-              artistDeezerId: song.artistDeezerId,
-              duration: song.duration,
-              preview: song.preview,
-              explicit: song.explicit,
-              cover: song.cover,
-              albumTitle: song.albumTitle,
-              albumDeezerId: song.albumDeezerId,
-              album: byId[song.albumDeezerId],
-              inJellyfin: song.inJellyfin,
-              rank: song.rank,
-              jellyfinId: song.jellyfinId,
-              albumJellyfinId: song.albumJellyfinId,
-              reason: song.reason,
-            ),
+          : song.withAlbum(byId[song.albumDeezerId]),
   ];
 }
 
@@ -742,9 +762,17 @@ class KostvMusicUnanswered implements Exception {
 typedef KostvWeekDiscovery = ({List<StremfinSong>? songs, String week});
 
 /// Kos TV: the week's discovery: the songs the plugin kept for this week or,
-/// the first time this week, those [recommend] gives for the plugin's
-/// artists, picked the same on every device ([kostvWeeklyPick]) and kept in
-/// the plugin.
+/// the first time this week, those of Deezer's radio of the plugin's artists
+/// ([radio]: only what the house hasn't, without those artists' own songs,
+/// up to 50), topped up from [recommend] when they are fewer than 20, picked
+/// the same on every device ([kostvDiscoveryPick]) and kept in the plugin.
+/// A requests service without the radio (404, from before 1.93.0), or no
+/// [radio] at all: [recommend]'s songs alone, as before it. Any other
+/// failure of the radio is a failure: thrown, what is shown stays.
+///
+/// [clean] takes out what the person isn't shown (explicit songs, for
+/// someone with a limit): before the pick, so the week's are all clean, and
+/// from a list the plugin kept (another device may have picked it).
 ///
 /// The person and their session are taken at the start: if either changes
 /// under [client] while it works (the server's client is the same for
@@ -759,6 +787,14 @@ Future<KostvWeekDiscovery?> kostvLoadWeeklyDiscovery(
   MediaServerClient client, {
   required Future<StremfinRecommendations> Function(List<String> seeds)
   recommend,
+  Future<StremfinRadio> Function(
+    List<String> artists, {
+    String? only,
+    bool excludeSeedArtists,
+    int? limit,
+  })?
+  radio,
+  List<StremfinSong> Function(List<StremfinSong> songs)? clean,
   bool Function()? wanted,
   void Function(String week)? onWeek,
   DateTime Function()? now,
@@ -770,6 +806,8 @@ Future<KostvWeekDiscovery?> kostvLoadWeeklyDiscovery(
       client.userId == user &&
       client.accessToken == token;
   final today = now ?? DateTime.now;
+  List<StremfinSong> shown(List<StremfinSong> songs) =>
+      clean == null ? songs : clean(songs);
 
   Future<KostvMusicDiscovery?> read() async {
     final answer = await plugin.discovery(client);
@@ -786,23 +824,57 @@ Future<KostvWeekDiscovery?> kostvLoadWeeklyDiscovery(
     if (found == null) return (songs: null, week: kostvIsoWeek(today()));
     final week = found.week ?? kostvIsoWeek(today());
     onWeek?.call(week);
-    if (found.songs case final songs?) return (songs: songs, week: week);
+    if (found.songs case final songs?) {
+      return (songs: shown(songs), week: week);
+    }
     if (found.seeds.isEmpty) return (songs: null, week: week);
+    final seeds = found.seeds.take(10).toList();
     // Kept an hour by the service (and here): asked once a week.
-    final recommended = await recommend(found.seeds.take(10).toList());
-    if (!still()) return null;
-    final songs = kostvWeeklyPick(
-      kostvSongsWithAlbums(recommended.songs, recommended.albums),
+    List<StremfinSong>? fromRadio;
+    if (radio != null) {
+      try {
+        fromRadio = shown(
+          (await radio(
+            seeds,
+            only: 'missing',
+            excludeSeedArtists: true,
+            limit: 50,
+          )).songs,
+        );
+      } on StremfinException catch (e) {
+        // A service from before the radio: the recommendations, as then.
+        if (e.status != 404) rethrow;
+      }
+      if (!still()) return null;
+    }
+    var songs = kostvDiscoveryPick(
+      radio: fromRadio ?? const [],
+      recommended: null,
       user: user ?? '',
       week: week,
     );
+    // Without the radio, or short of songs from it: the recommendations'.
+    if (fromRadio == null || songs.length < kostvDiscoveryCount) {
+      final recommended = await recommend(seeds);
+      if (!still()) return null;
+      songs = kostvDiscoveryPick(
+        radio: fromRadio ?? const [],
+        recommended: StremfinRecommendations(
+          seeds: recommended.seeds,
+          albums: recommended.albums,
+          songs: shown(recommended.songs),
+        ),
+        user: user ?? '',
+        week: week,
+      );
+    }
     if (songs.isEmpty) return (songs: songs, week: week);
     // Another of the person's devices may have kept the week's while this
     // one picked: theirs, so every device shows the same.
     final again = await read();
     if (!still()) return null;
     if (again?.week == week && again?.songs != null) {
-      return (songs: again!.songs, week: week);
+      return (songs: shown(again!.songs!), week: week);
     }
     picked = (songs: songs, week: week);
     final kept = await plugin.keepDiscovery(client, week, songs);

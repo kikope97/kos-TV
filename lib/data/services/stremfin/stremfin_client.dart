@@ -363,6 +363,36 @@ class StremfinClient {
     );
   }
 
+  /// Kos TV: «Descubrimiento semanal»: songs of Deezer's radio of [artists]
+  /// (names) and [artistIds] (Deezer's ids), up to ten in all, each with its
+  /// whole album (since 1.93.0). [only] `missing` (the service's default),
+  /// `all` or `available`; [excludeSeedArtists] leaves out those artists' own
+  /// songs; [limit] 1–100. Names with a comma in them are left out, as in
+  /// [musicRecommendations]. A service from before it answers 404.
+  Future<StremfinRadio> musicRadio(
+    List<String> artists, {
+    List<String> artistIds = const [],
+    String? only,
+    bool excludeSeedArtists = false,
+    int? limit,
+    bool remembered = false,
+  }) async {
+    final ids = artistIds.take(10).toList();
+    final names = artists
+        .where((name) => !name.contains(','))
+        .take(10 - ids.length)
+        .toList();
+    return StremfinRadio.fromJson(
+      await _music('/music/radio', {
+        if (names.isNotEmpty) 'artists': names.join(','),
+        if (ids.isNotEmpty) 'artist_ids': ids.join(','),
+        'only': ?only,
+        if (excludeSeedArtists) 'exclude_seed_artists': 'true',
+        if (limit != null) 'limit': limit.clamp(1, 100),
+      }, remembered),
+    );
+  }
+
   /// The latest and announced records of the artists [deezerIds] (up to
   /// twenty).
   Future<List<StremfinAlbum>> musicArtistReleases(
