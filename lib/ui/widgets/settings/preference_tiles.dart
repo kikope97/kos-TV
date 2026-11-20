@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 
+import '../../../preference/user_preferences.dart';
 import '../../../util/idiom/app_ui_idiom.dart';
 import '../../../util/platform_detection.dart';
 import '../../../util/focus/dpad_keys.dart';
@@ -532,7 +533,10 @@ class _EnumPreferenceTileState<T extends Enum>
         title: widget.title,
         description: widget.description,
         options: [for (final v in values) widget.labelOf(v)],
-        currentIndex: () => values.indexOf(_binding.value),
+        // A value the tile no longer offers reads as its first option.
+        currentIndex: () => values.contains(_binding.value)
+            ? values.indexOf(_binding.value)
+            : 0,
       ),
       child: _buildTile(context, values),
     );
@@ -1083,6 +1087,18 @@ class _StringPickerPreferenceTileState
       widget.preference,
       oldWidget.preference,
     );
+    // Several tiles can write one preference (the media segment actions),
+    // so re-read it when a sibling changed it rather than keep the value
+    // read in initState.
+    final getIt = GetIt.instance;
+    if (getIt.isRegistered<UserPreferences>() &&
+        _binding.value != getIt<UserPreferences>().get(widget.preference)) {
+      _binding.dispose();
+      _binding = PreferenceBinding(
+        GetIt.instance<PreferenceStore>(),
+        widget.preference,
+      );
+    }
   }
 
   @override

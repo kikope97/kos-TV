@@ -694,8 +694,31 @@ class ItemDetailViewModel extends ChangeNotifier {
 
   /// Does nothing until a change has actually been recorded, so coming back to
   /// the page normally costs no request.
-  Future<void> syncUserDataIfStale() async {
-    if (_isDisposed || _syncingUserData || !_userDataStale) return;
+  ///
+  /// A change recorded while a pass is out may postdate what that pass read,
+  /// so it gets a pass of its own once the current one ends, and the returned
+  /// future waits for that one. A pass already out is waited for even when
+  /// nothing is stale, since another caller may have just started it.
+  Future<void> syncUserDataIfStale() {
+    if (_isDisposed) return Future.value();
+    final active = _userDataPass;
+    if (active != null) {
+      return active.then(
+        (_) => syncUserDataIfStale(),
+        onError: (Object _) => syncUserDataIfStale(),
+      );
+    }
+    if (!_userDataStale) return Future.value();
+    return _userDataPass = _syncUserData().whenComplete(
+      () => _userDataPass = null,
+    );
+  }
+
+  Future<void>? _userDataPass;
+
+  Future<void> _syncUserData() async {
+    // Cleared before reading, so a change marked during the read survives it.
+    _userDataStale = false;
     final ids = <String>{
       if (!_isBookSeries) itemId,
       if (_nextUp != null) _nextUp!.id,
@@ -726,7 +749,7 @@ class ItemDetailViewModel extends ChangeNotifier {
       _syncingUserData = false;
       // Kos TV: a refresh that got nowhere (the network gone) is tried again
       // the next time, rather than taken as done.
-      _userDataStale = !refreshed;
+      if (!refreshed) _userDataStale = true;
     }
     // A change to an episode's watched state can move the series on, and
     // only the server knows which episode comes next.
