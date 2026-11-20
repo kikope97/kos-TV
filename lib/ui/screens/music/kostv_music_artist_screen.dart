@@ -13,6 +13,7 @@ import '../../navigation/destinations.dart';
 import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
+import 'kostv_music_links.dart';
 import 'kostv_music_album_screen.dart' show KostvMusicButton;
 import 'kostv_music_widgets.dart';
 import '../../../util/kostv_browser_menu.dart';
@@ -200,6 +201,9 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                               autofocus: i == 0 && PlatformDetection.isTV,
                               title: song.title,
                               artist: song.albumTitle,
+                              artistLinks: [
+                                [?kostvStremfinAlbumLink(context, song)],
+                              ],
                               cover: song.cover,
                               rank: i + 1,
                               atHome: song.inJellyfin,

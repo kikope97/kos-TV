@@ -22,6 +22,7 @@ import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
 import 'kostv_music_album_screen.dart';
+import 'kostv_music_links.dart';
 import 'kostv_music_widgets.dart';
 import '../../../util/kostv_browser_menu.dart';
 
@@ -264,7 +265,17 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
     final artist =
         album.albumArtist ??
         (album.artists.isNotEmpty ? album.artists.join(', ') : null);
-    final artistId = kostvMusicArtistIdOf(album);
+    // Kos TV: each of its artists opens their page, with the remote too.
+    final artistLinks = kostvHomeArtistLinks(
+      album,
+      albumArtists: true,
+      open: (location) => unawaited(context.push(location)),
+    );
+    final artistStyle = theme.textTheme.titleMedium?.copyWith(
+      color: kostvMusicColor,
+      fontWeight: FontWeight.w600,
+      fontSize: phone ? 18 : 22,
+    );
     final align = centred
         ? CrossAxisAlignment.center
         : CrossAxisAlignment.start;
@@ -286,23 +297,14 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
             letterSpacing: -0.5,
           ),
         ),
-        if (artist != null)
-          GestureDetector(
-            onTap: artistId == null
-                ? null
-                : () => context.push(
-                    Destinations.item(artistId, serverId: album.serverId),
-                  ),
-            child: Text(
-              artist,
-              textAlign: textAlign,
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: kostvMusicColor,
-                fontWeight: FontWeight.w600,
-                fontSize: phone ? 18 : 22,
-              ),
-            ),
-          ),
+        if (artistLinks.any((link) => link.opens))
+          KostvMusicLinkButtons(
+            groups: [artistLinks],
+            style: artistStyle ?? const TextStyle(color: kostvMusicColor),
+            centred: centred,
+          )
+        else if (artist != null)
+          Text(artist, textAlign: textAlign, style: artistStyle),
         const SizedBox(height: 6),
         Text(
           meta,
@@ -450,6 +452,12 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
           disc: multiDisc ? track.parentIndexNumber : null,
           title: track.name,
           artist: _otherArtist(track, albumArtist),
+          artistLinks: _otherArtist(track, albumArtist) == null
+              ? null
+              : kostvHomeArtistLinks(
+                  track,
+                  open: (location) => unawaited(context.push(location)),
+                ),
           duration: track.runtime?.inSeconds,
           sounding: track.id == soundingId,
           soundingPlays: track.id == soundingId && now.playing,

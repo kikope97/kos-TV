@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/gestures.dart' show PointerScrollEvent;
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
@@ -32,6 +33,7 @@ import '../../widgets/music/kostv_queue_moves.dart';
 import '../../widgets/offline_aware_image.dart';
 import '../../widgets/player_volume_control.dart' show volumeIconFor;
 import '../playback/audiobook_player_view.dart';
+import 'kostv_music_links.dart';
 import 'kostv_music_widgets.dart' show kostvMusicColor;
 import 'kostv_music_actions.dart' show kostvMusicFavoritesChanged;
 
@@ -43,6 +45,10 @@ import 'kostv_music_actions.dart' show kostvMusicFavoritesChanged;
 /// screen of the cover and the lyrics.
 class KostvNowPlayingScreen extends StatefulWidget {
   const KostvNowPlayingScreen({super.key});
+
+  /// Tests: where the player sends the person, instead of the app's router.
+  @visibleForTesting
+  static ValueChanged<String>? debugOpen;
 
   @override
   State<KostvNowPlayingScreen> createState() => _KostvNowPlayingScreenState();
@@ -386,7 +392,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   bool get _hasLyrics => (_lyrics?.isNotEmpty ?? false) || _lyricsLoading;
 
   /// The lyrics panel: empty while the song's are on their way.
-  Widget _lyricsPanel({bool big = false}) => _LyricsPanel(
+  Widget _lyricsPanel({bool big = false}) => KostvLyricsPanel(
     lyrics: _lyrics?.isNotEmpty == true ? _lyrics! : LyricsData.empty,
     big: big,
   );
@@ -446,11 +452,31 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     return null;
   }
 
+  /// Kos TV: the song's artists, each opening their page (not with what is
+  /// downloaded: the pages are the server's).
+  List<KostvMusicLink> _artistLinks(AggregatedItem item) {
+    final links = kostvHomeArtistLinks(item, open: _goTo);
+    if (!_manager.isOfflinePlayback) return links;
+    return [for (final link in links) KostvMusicLink(link.name)];
+  }
+
+  /// Kos TV: the song's album, opening its page.
+  KostvMusicLink? _albumLink(AggregatedItem item) {
+    final link = kostvHomeAlbumLink(item, open: _goTo);
+    if (link == null || !_manager.isOfflinePlayback) return link;
+    return KostvMusicLink(link.name);
+  }
+
   /// Leaves the player for one of the app's pages, where the floating
   /// player takes over.
   void _goTo(String location) {
     _popToHere();
     if (context.canPop()) context.pop();
+    final open = KostvNowPlayingScreen.debugOpen;
+    if (open != null) {
+      open(location);
+      return;
+    }
     unawaited(appRouter.push(location));
   }
 
@@ -675,9 +701,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
             item: item,
             big: _tv,
             centered: true,
-            onArtist: _artistId(item) == null || _manager.isOfflinePlayback
-                ? null
-                : () => _goTo(Destinations.item(_artistId(item)!)),
+            artists: _artistLinks(item),
+            album: _albumLink(item),
           ),
           SizedBox(height: height * 0.03),
           const _Scrubber(),
@@ -820,7 +845,13 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
                   children: [
                     _CoverThumb(item: item, size: 56),
                     const SizedBox(width: 14),
-                    Expanded(child: _TitleBlock(item: item, small: true)),
+                    Expanded(
+                      child: _TitleBlock(
+                        item: item,
+                        small: true,
+                        artists: _artistLinks(item),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -849,13 +880,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
                         Expanded(
                           child: _TitleBlock(
                             item: item,
-                            onArtist:
-                                _artistId(item) == null ||
-                                    _manager.isOfflinePlayback
-                                ? null
-                                : () => _goTo(
-                                    Destinations.item(_artistId(item)!),
-                                  ),
+                            artists: _artistLinks(item),
+                            album: _albumLink(item),
                           ),
                         ),
                         if (!_manager.isOfflinePlayback)
@@ -1118,14 +1144,19 @@ class _TitleBlock extends StatelessWidget {
     this.big = false,
     this.small = false,
     this.centered = false,
-    this.onArtist,
+    this.artists = const [],
+    this.album,
   });
 
   final AggregatedItem item;
   final bool big;
   final bool small;
   final bool centered;
-  final VoidCallback? onArtist;
+
+  /// Kos TV: the song's artists and its album, each opening its page (a
+  /// tap, a click, or a stop of the remote with OK).
+  final List<KostvMusicLink> artists;
+  final KostvMusicLink? album;
 
   @override
   Widget build(BuildContext context) {
@@ -1136,19 +1167,33 @@ class _TitleBlock extends StatelessWidget {
       if (!small && album != null && album.isNotEmpty) album,
     ].join(' · ');
     final align = centered ? TextAlign.center : TextAlign.start;
-    final artistText = Text(
-      secondLine,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      textAlign: align,
-      style: TextStyle(
-        color: small
-            ? Colors.white.withValues(alpha: 0.7)
-            : Colors.white.withValues(alpha: 0.72),
-        fontSize: big ? 20 : (small ? 13.5 : 16),
-        fontWeight: FontWeight.w500,
-      ),
+    final style = TextStyle(
+      color: small
+          ? Colors.white.withValues(alpha: 0.7)
+          : Colors.white.withValues(alpha: 0.72),
+      fontSize: big ? 20 : (small ? 13.5 : 16),
+      fontWeight: FontWeight.w500,
     );
+    final links = [
+      artists,
+      if (!small && this.album != null) [this.album!],
+    ];
+    final artistText = links.any((group) => group.any((link) => link.opens))
+        ? KostvMusicLinkButtons(
+            groups: links,
+            style: style,
+            centred: centered,
+            oneLine: true,
+            look: KostvMusicLinkLook.player,
+            stop: (onTap, builder) => _Stop(onTap: onTap, builder: builder),
+          )
+        : Text(
+            secondLine,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: align,
+            style: style,
+          );
     return Column(
       crossAxisAlignment: centered
           ? CrossAxisAlignment.center
@@ -1169,14 +1214,9 @@ class _TitleBlock extends StatelessWidget {
           ),
         ),
         if (secondLine.isNotEmpty) ...[
-          SizedBox(height: small ? 2 : 6),
-          if (onArtist == null || PlatformDetection.isTV)
-            artistText
-          else
-            MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(onTap: onArtist, child: artistText),
-            ),
+          // The buttons' own room makes up the gap above them.
+          SizedBox(height: artistText is Text ? (small ? 2 : 6) : 2),
+          artistText,
         ],
       ],
     );
@@ -1418,7 +1458,12 @@ class _Stop extends StatefulWidget {
     this.focusNode,
     this.autofocus = false,
     this.tooltip,
+    this.reveal = true,
   });
+
+  /// Whether the focus brings it into view in the list it is in. Kos TV: the
+  /// synced lyrics bring their lines into view themselves.
+  final bool reveal;
 
   final Widget Function(BuildContext context, bool lit) builder;
   final VoidCallback? onTap;
@@ -1444,7 +1489,7 @@ class _StopState extends State<_Stop> {
       canRequestFocus: widget.onTap != null,
       onFocusChange: (f) {
         setState(() => _focused = f);
-        if (!f) return;
+        if (!f || !widget.reveal) return;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
           final box = context.findRenderObject();
@@ -1737,100 +1782,215 @@ class _ActionsRow extends StatelessWidget {
 
 // --- Lyrics ---
 
-/// The lyrics, sung along: the line sounding big and bright, the ones gone
-/// dimmer, and the page following the song. A line picked jumps there.
-class _LyricsPanel extends StatefulWidget {
-  const _LyricsPanel({required this.lyrics, this.big = false});
+/// The lyrics, sung along: the line sounding big and bright, the ones to
+/// come dimmed and the ones gone dimmer still, and the page following the
+/// song with the line sounding a third of the way down. A line picked jumps
+/// there, and the page follows from it.
+///
+/// Kos TV: every line is built (lyrics are a few dozen lines), so the one
+/// sounding can always be found and brought into view, however far down it
+/// is. Moving the lyrics by hand (a finger, the mouse wheel, the remote along
+/// the lines) stops the following for a few seconds after the last move;
+/// meanwhile «Volver a la línea actual» brings it back at once (off the TV,
+/// where the remote picks a line instead).
+@visibleForTesting
+class KostvLyricsPanel extends StatefulWidget {
+  const KostvLyricsPanel({super.key, required this.lyrics, this.big = false});
 
   final LyricsData lyrics;
   final bool big;
 
+  /// How long the following waits after the last move by hand.
+  static const holdFor = Duration(seconds: 4);
+
   @override
-  State<_LyricsPanel> createState() => _LyricsPanelState();
+  State<KostvLyricsPanel> createState() => _KostvLyricsPanelState();
 }
 
-class _LyricsPanelState extends State<_LyricsPanel> {
+class _KostvLyricsPanelState extends State<KostvLyricsPanel> {
   final _manager = GetIt.instance<PlaybackManager>();
   StreamSubscription<Duration>? _sub;
   final _scroll = ScrollController();
   late List<GlobalKey> _keys;
+  late List<FocusNode> _nodes;
   int _active = -1;
 
-  // While the person moves along the lines, the page stops following.
-  DateTime _heldUntil = DateTime.fromMillisecondsSinceEpoch(0);
+  // Moved by hand: the page stops following until [_resume] fires.
+  bool _held = false;
+  Timer? _resume;
+
+  // The line the panel itself is sending the remote to, so its arrival
+  // isn't taken for a move by hand.
+  int? _focusTarget;
+
+  // The line just picked, until the player has got there.
+  ({int index, DateTime until})? _picked;
 
   @override
   void initState() {
     super.initState();
-    _keys = List.generate(widget.lyrics.lines.length, (_) => GlobalKey());
-    if (widget.lyrics.isSynced) {
-      _update(_manager.state.position, jump: true);
-      _sub = _manager.state.positionStream.listen(_update);
-    }
+    _makeLines();
+    _listen();
   }
 
   @override
-  void didUpdateWidget(_LyricsPanel old) {
+  void didUpdateWidget(KostvLyricsPanel old) {
     super.didUpdateWidget(old);
     if (!identical(old.lyrics, widget.lyrics)) {
-      _keys = List.generate(widget.lyrics.lines.length, (_) => GlobalKey());
+      // The old lines' stops go once the new ones have taken their place.
+      final gone = _nodes;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final node in gone) {
+          node.dispose();
+        }
+      });
+      _makeLines();
       _active = -1;
+      _held = false;
+      _resume?.cancel();
+      _resume = null;
+      _focusTarget = null;
+      _picked = null;
       _sub?.cancel();
       _sub = null;
-      if (widget.lyrics.isSynced) {
-        _update(_manager.state.position, jump: true);
-        _sub = _manager.state.positionStream.listen(_update);
-      }
+      _listen();
     }
+  }
+
+  void _makeLines() {
+    final count = widget.lyrics.lines.length;
+    _keys = List.generate(count, (_) => GlobalKey());
+    _nodes = [
+      for (var i = 0; i < count; i++)
+        FocusNode(debugLabel: 'LyricsLine$i')
+          ..addListener(() => _lineFocusChanged(i)),
+    ];
+  }
+
+  void _listen() {
+    if (!widget.lyrics.isSynced) return;
+    // Straight to the line sounding, with no scrolling to it.
+    _active = _indexAt(_manager.state.position);
+    _follow(jump: true);
+    _sub = _manager.state.positionStream.listen(_update);
   }
 
   @override
   void dispose() {
     _sub?.cancel();
+    _resume?.cancel();
     _scroll.dispose();
+    for (final node in _nodes) {
+      node.dispose();
+    }
     super.dispose();
   }
 
-  void _update(Duration position, {bool jump = false}) {
+  int _indexAt(Duration position) {
     final lines = widget.lyrics.lines;
-    var index = -1;
     for (var i = lines.length - 1; i >= 0; i--) {
-      if (position >= lines[i].start) {
-        index = i;
-        break;
+      if (position >= lines[i].start) return i;
+    }
+    return -1;
+  }
+
+  void _update(Duration position) {
+    if (!mounted) return;
+    final index = _indexAt(position);
+    // A line just picked: a position from before the jump doesn't take the
+    // page back for a moment.
+    final picked = _picked;
+    if (picked != null) {
+      if (DateTime.now().isBefore(picked.until) && index != picked.index) {
+        return;
       }
+      _picked = null;
     }
     if (index == _active) return;
     setState(() => _active = index);
-    if (DateTime.now().isBefore(_heldUntil)) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) => _follow(index, jump));
+    _follow();
   }
 
-  void _follow(int index, bool jump, {bool again = true}) {
+  /// Brings the line sounding a third of the way down, unless the person is
+  /// moving the lyrics. With the remote on a line, it moves along with it.
+  void _follow({bool jump = false}) {
+    if (_held || !widget.lyrics.isSynced || !mounted) return;
+    final index = _active < 0 ? 0 : _active;
+    if (index >= _nodes.length) return;
+    final focused = _nodes.indexWhere((node) => node.hasPrimaryFocus);
+    if (focused >= 0 && focused != index) {
+      _focusTarget = index;
+      _nodes[index].requestFocus();
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _held || !_scroll.hasClients) return;
+      final box = _keys[index].currentContext?.findRenderObject();
+      if (box == null || !box.attached) return;
+      unawaited(
+        _scroll.position.ensureVisible(
+          box,
+          alignment: 0.35,
+          duration: jump ? Duration.zero : const Duration(milliseconds: 520),
+          curve: Curves.easeOutCubic,
+        ),
+      );
+    });
+  }
+
+  /// Moved by hand: the following waits until a while after the last move.
+  void _hold() {
+    if (!widget.lyrics.isSynced) return;
+    _resume?.cancel();
+    _resume = Timer(KostvLyricsPanel.holdFor, _release);
+    if (!_held) setState(() => _held = true);
+  }
+
+  /// Back to following the song, from the line sounding now.
+  void _release() {
+    _resume?.cancel();
+    _resume = null;
     if (!mounted) return;
-    final target = _keys.elementAtOrNull(index < 0 ? 0 : index);
-    final context = target?.currentContext;
-    if (context == null) {
-      // Far down the list, not built yet: near it first, then to it.
-      if (!again || !_scroll.hasClients) return;
-      final size = widget.big ? 38.0 : 28.0;
-      final position = _scroll.position;
-      _scroll.jumpTo(
-        (index * (size * 1.25 + 24)).clamp(0.0, position.maxScrollExtent),
-      );
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) => _follow(index, true, again: false),
-      );
+    if (_held) setState(() => _held = false);
+    _follow();
+  }
+
+  void _lineFocusChanged(int index) {
+    if (!mounted || !_nodes[index].hasPrimaryFocus) return;
+    if (_focusTarget == index) {
+      _focusTarget = null;
       return;
     }
-    unawaited(
-      Scrollable.ensureVisible(
-        context,
-        alignment: 0.35,
-        duration: jump ? Duration.zero : const Duration(milliseconds: 520),
-        curve: Curves.easeOutCubic,
-      ),
+    _focusTarget = null;
+    if (!widget.lyrics.isSynced) return;
+    // The remote moved along the lines: the page shows the one it is on.
+    _hold();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      final box = _keys[index].currentContext?.findRenderObject();
+      if (box == null || !box.attached) return;
+      unawaited(
+        _scroll.position.ensureVisible(
+          box,
+          alignment: 0.4,
+          duration: const Duration(milliseconds: 200),
+        ),
+      );
+    });
+  }
+
+  void _seekTo(int index) {
+    final start = widget.lyrics.lines[index].start;
+    unawaited(_manager.seekTo(start));
+    // The page follows from the line picked, at once.
+    _picked = (
+      index: index,
+      until: DateTime.now().add(const Duration(milliseconds: 1500)),
     );
+    _held = false;
+    _resume?.cancel();
+    _resume = null;
+    setState(() => _active = index);
+    _follow();
   }
 
   @override
@@ -1838,87 +1998,170 @@ class _LyricsPanelState extends State<_LyricsPanel> {
     final lines = widget.lyrics.lines;
     final synced = widget.lyrics.isSynced;
     final size = widget.big ? 38.0 : 28.0;
-    return ShaderMask(
-      shaderCallback: (rect) => const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Colors.transparent,
-          Colors.white,
-          Colors.white,
-          Colors.transparent,
-        ],
-        stops: [0, 0.1, 0.85, 1],
-      ).createShader(rect),
-      blendMode: BlendMode.dstIn,
-      child: NotificationListener<UserScrollNotification>(
-        onNotification: (_) {
-          _heldUntil = DateTime.now().add(const Duration(seconds: 4));
-          return false;
-        },
-        child: ListView.builder(
-          controller: _scroll,
-          padding: EdgeInsets.symmetric(
-            vertical: MediaQuery.sizeOf(context).height * 0.25,
-            horizontal: 24,
-          ),
-          itemCount: lines.length,
-          itemBuilder: (context, i) {
-            final line = lines[i];
-            final active = synced && i == _active;
-            final past = synced && i < _active;
-            final text = line.text.trim().isEmpty ? '♪' : line.text;
-            return Padding(
+    final list = SingleChildScrollView(
+      controller: _scroll,
+      padding: EdgeInsets.symmetric(
+        vertical: MediaQuery.sizeOf(context).height * 0.25,
+        horizontal: 24,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < lines.length; i++)
+            Padding(
               key: _keys[i],
               padding: const EdgeInsets.symmetric(vertical: 6),
-              child: _Stop(
-                // Unsynced lyrics are still lines to move along with the
-                // remote, to read them all; a synced one jumps there.
-                onTap: synced
-                    ? () => unawaited(_manager.seekTo(line.start))
-                    : () {},
-                builder: (context, lit) {
-                  _heldUntilIfLit(lit);
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: lit
-                          ? Colors.white.withValues(alpha: 0.12)
-                          : Colors.transparent,
-                    ),
-                    child: AnimatedDefaultTextStyle(
-                      duration: const Duration(milliseconds: 320),
-                      style: TextStyle(
-                        fontSize: synced ? size : size * 0.72,
-                        height: 1.25,
-                        fontWeight: FontWeight.w800,
-                        color: !synced
-                            ? Colors.white.withValues(alpha: 0.9)
-                            : active
-                            ? Colors.white
-                            : past
-                            ? Colors.white.withValues(alpha: 0.42)
-                            : Colors.white.withValues(alpha: 0.28),
-                      ),
-                      child: Text(text),
-                    ),
-                  );
+              child: _line(i, synced: synced, size: size),
+            ),
+        ],
+      ),
+    );
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: ShaderMask(
+            shaderCallback: (rect) => const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.transparent,
+                Colors.white,
+                Colors.white,
+                Colors.transparent,
+              ],
+              stops: [0, 0.1, 0.85, 1],
+            ).createShader(rect),
+            blendMode: BlendMode.dstIn,
+            child: Listener(
+              // The mouse wheel (and a trackpad) moves the lyrics by hand.
+              onPointerSignal: (event) {
+                if (event is PointerScrollEvent) _hold();
+              },
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  // A finger or the wheel, not the page following the song.
+                  if (notification is UserScrollNotification ||
+                      (notification is ScrollUpdateNotification &&
+                          notification.dragDetails != null)) {
+                    _hold();
+                  }
+                  return false;
                 },
+                child: list,
               ),
-            );
-          },
+            ),
+          ),
+        ),
+        if (_held && synced && !PlatformDetection.isTV)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 16,
+            child: Center(child: _BackToLine(onTap: _release)),
+          ),
+      ],
+    );
+  }
+
+  Widget _line(int i, {required bool synced, required double size}) {
+    final line = widget.lyrics.lines[i];
+    final active = synced && i == _active;
+    final past = synced && i < _active;
+    final text = line.text.trim().isEmpty ? '♪' : line.text;
+    return _Stop(
+      focusNode: _nodes[i],
+      // Kos TV: a synced line the remote is on is brought into view by the
+      // panel itself, which knows whether it moved there by hand.
+      reveal: !synced,
+      // Unsynced lyrics are still lines to move along with the remote, to
+      // read them all; a synced one jumps there.
+      onTap: synced ? () => _seekTo(i) : () {},
+      builder: (context, lit) => AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: lit
+              ? Colors.white.withValues(alpha: 0.12)
+              : Colors.transparent,
+        ),
+        child: AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 320),
+          style: TextStyle(
+            fontSize: synced ? size : size * 0.72,
+            height: 1.25,
+            fontWeight: FontWeight.w800,
+            color: !synced
+                ? Colors.white.withValues(alpha: 0.9)
+                : active
+                ? Colors.white
+                // Kos TV: the lines gone a little dimmer than those to come.
+                : past
+                ? Colors.white.withValues(alpha: 0.26)
+                : Colors.white.withValues(alpha: 0.4),
+          ),
+          child: Text(text),
         ),
       ),
     );
   }
+}
 
-  void _heldUntilIfLit(bool lit) {
-    if (lit) _heldUntil = DateTime.now().add(const Duration(seconds: 4));
+/// «Volver a la línea actual», while the lyrics were moved by hand.
+class _BackToLine extends StatelessWidget {
+  const _BackToLine({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = AppLocalizations.of(context).kostvLyricsBackToLine;
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 44),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.35),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.vertical_align_center_rounded,
+                  color: Colors.black,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -2290,7 +2533,7 @@ class _AmbientScreen extends StatelessWidget {
                   Expanded(
                     child: IgnorePointer(
                       child: ExcludeFocus(
-                        child: _LyricsPanel(lyrics: lyrics, big: true),
+                        child: KostvLyricsPanel(lyrics: lyrics, big: true),
                       ),
                     ),
                   ),

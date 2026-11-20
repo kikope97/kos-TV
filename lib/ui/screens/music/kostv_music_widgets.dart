@@ -13,6 +13,7 @@ import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../widgets/bounded_network_image.dart';
 import '../../widgets/navigation_layout.dart';
+import 'kostv_music_links.dart';
 
 /// Kos TV: the colour of Music, Apple Music's red-pink.
 const kostvMusicColor = Color(0xFFFA2D55);
@@ -604,6 +605,7 @@ class KostvMusicSongRow extends StatelessWidget {
     this.onKey,
     this.trailing,
     this.onLongPress,
+    this.artistLinks,
   });
 
   /// The song's menu (OK held down, a long press or a right click).
@@ -611,6 +613,11 @@ class KostvMusicSongRow extends StatelessWidget {
 
   final String title;
   final String? artist;
+
+  /// Kos TV: [artist] as names that open their pages, «Artista · Álbum»
+  /// (see [KostvMusicLinks]); off the TV, a tap on one opens it and on the
+  /// rest of the row plays the song.
+  final List<List<KostvMusicLink>>? artistLinks;
   final String? cover;
   final int? rank;
   final bool atHome;
@@ -687,7 +694,16 @@ class KostvMusicSongRow extends StatelessWidget {
                       ],
                     ],
                   ),
-                  if (artist != null)
+                  if (artistLinks case final links?
+                      when links.any((group) => group.isNotEmpty))
+                    KostvMusicLinks(
+                      groups: links,
+                      style: TextStyle(
+                        color: lit ? Colors.black54 : kostvMusicGrey,
+                        fontSize: phone ? 13 : 14,
+                      ),
+                    )
+                  else if (artist != null)
                     Text(
                       artist!,
                       maxLines: 1,

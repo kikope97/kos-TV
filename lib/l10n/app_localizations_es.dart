@@ -21412,4 +21412,7 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvMusicLearnUnanswered =>
       'No se ha podido consultar ahora. Pulsa para volver a intentarlo.';
+
+  @override
+  String get kostvLyricsBackToLine => 'Volver a la línea actual';
 }

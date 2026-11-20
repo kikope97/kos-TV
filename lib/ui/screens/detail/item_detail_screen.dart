@@ -3,6 +3,7 @@ import 'dart:async';
 import 'kostv/kostv_detail_buttons.dart';
 import 'kostv/kostv_detail_content.dart';
 import '../music/kostv_home_album_view.dart';
+import '../music/kostv_music_links.dart';
 import '../../theme/focus_foreground.dart';
 import '../../widgets/bounded_network_image.dart';
 import '../../widgets/offline_aware_image.dart';
@@ -17569,6 +17570,28 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
       ?runtimeText,
     ].join(' • ');
 
+    // Kos TV: a song's names, each opening its page (see KostvMusicLinks).
+    List<List<KostvMusicLink>>? trackLinks;
+    if (isAudio &&
+        !widget.isAudiobook &&
+        subtitle != null &&
+        subtitle.isNotEmpty &&
+        !PlatformDetection.isTV) {
+      void open(String location) => unawaited(context.push(location));
+      final artists = kostvHomeArtistLinks(widget.track, open: open);
+      final album = widget.showAlbum
+          ? kostvHomeAlbumLink(widget.track, open: open)
+          : null;
+      final links = [
+        [?album],
+        artists,
+      ].where((group) => group.isNotEmpty).toList();
+      // Only when it reads the same as the line it takes the place of.
+      if (kostvMusicLinksText(links, separator: ' • ') == subtitle) {
+        trackLinks = links;
+      }
+    }
+
     Widget? thumbnailWidget;
     if (widget.isPlaylist && widget.imageApi != null) {
       final imgId = widget.track.primaryImageItemId ?? widget.track.id;
@@ -17757,7 +17780,22 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      if (subtitleLine.isNotEmpty)
+                      // Kos TV: a song's artists (and album) open their pages
+                      // with a tap or a click; on the TV, its menu does.
+                      if (subtitleLine.isNotEmpty && trackLinks != null)
+                        KostvMusicLinks(
+                          groups: trackLinks,
+                          separator: ' • ',
+                          after: runtimeText == null ? null : ' • $runtimeText',
+                          style:
+                              theme.textTheme.bodySmall?.copyWith(
+                                color: showFocusBorder
+                                    ? Colors.white.withValues(alpha: 0.82)
+                                    : Colors.white.withValues(alpha: 0.6),
+                              ) ??
+                              const TextStyle(),
+                        )
+                      else if (subtitleLine.isNotEmpty)
                         Text(
                           subtitleLine,
                           style: theme.textTheme.bodySmall?.copyWith(

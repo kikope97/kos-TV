@@ -21070,4 +21070,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvMusicLearnUnanswered =>
       'Couldn\'t check right now. Select to try again.';
+
+  @override
+  String get kostvLyricsBackToLine => 'Back to the current line';
 }
