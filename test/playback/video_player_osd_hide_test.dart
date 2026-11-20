@@ -609,6 +609,53 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       await tester.pumpWidget(const SizedBox());
     });
+
+    // Kos TV: a hold over the end of an episode used to scrub on into the
+    // next one, and the release jumped it somewhere nobody asked for.
+    testWidgets('ends when the title changes', (tester) async {
+      manager.queueService.setQueue([
+        {'Id': 'first', 'RunTimeTicks': 360000000000},
+        {'Id': 'second', 'RunTimeTicks': 360000000000},
+      ]);
+      await playOnTv(tester);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowRight);
+      manager.state.setPosition(const Duration(seconds: 10));
+      await advance(tester, 500);
+      manager.queueService.next();
+      await advance(tester, 1000);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+      expect(manager.seeks, [
+        const Duration(seconds: 10),
+      ], reason: 'nothing scrubbed on the new title');
+
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    // Kos TV: the release of a key held when a dialog opens goes to the
+    // dialog, so the hold ends with the cover and a new press works again.
+    testWidgets('ends when a route covers the player', (tester) async {
+      await playOnTv(tester);
+
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.arrowRight);
+      manager.state.setPosition(const Duration(seconds: 10));
+      final player = tester.element(find.byType(VideoPlayerScreen));
+      showDialog<void>(context: player, builder: (_) => const SizedBox());
+      await advance(tester, 1000);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.arrowRight);
+      Navigator.of(player).pop();
+      await advance(tester, 500);
+
+      // A tap moves one set step from where the hold stopped.
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.pump();
+      expect(manager.seeks.last, const Duration(seconds: 20));
+
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpWidget(const SizedBox());
+    });
   });
 
   testWidgets('short Cinema pre-roll blocks ordinary intro/outro actions', (

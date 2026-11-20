@@ -1068,6 +1068,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     }
     _queueSub = _queue.queueChangedStream.listen((_) {
       _closeEpisodeBrowser();
+      // Kos TV: a hold on the last item must not scrub on into this one.
+      _endHeldSeek();
       // Kos TV: a scrub left pending on the last item would freeze the bar
       // on its time and commit it on this one the moment play is pressed.
       _dropScrubSession(resume: false);
@@ -3256,6 +3258,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
       _isStopping = true;
     });
     _cancelTemporarySpeed();
+    _endHeldSeek();
     if (!PlatformDetection.isTV) _pipService.enableAutoPiP(false);
     if (_wasAlwaysOnTopOnEntry == false && _isAlwaysOnTop) {
       await _setAlwaysOnTop(false);
@@ -3293,6 +3296,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     if (_isStopping || !mounted) return;
     setState(() => _isStopping = true);
     _cancelTemporarySpeed();
+    _endHeldSeek();
     if (!PlatformDetection.isTV) _pipService.enableAutoPiP(false);
     await _restoreSystemUiForExit();
     await _manager.stop(userInitiated: false);
@@ -3358,7 +3362,16 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
     // Safari has no screen.orientation.unlock(), so on web this never
     // completes and waiting on it would leave the player stuck.
     final unlock = SystemChrome.setPreferredOrientations([]);
-    if (!kIsWeb) await unlock;
+    if (kIsWeb) {
+      // Kos TV: not awaited, so a failure would surface as an uncaught error.
+      unawaited(
+        unlock.catchError((Object e) {
+          debugPrint('[VideoPlayer] Orientation unlock failed: $e');
+        }),
+      );
+    } else {
+      await unlock;
+    }
   }
 
   void _updateDisplayPlaying(bool playing) {
@@ -3978,6 +3991,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen>
   }
 
   void _stepHeldSeek() {
+    // Kos TV: the release goes to a route opened over the player, so the
+    // hold ends with the cover instead of scrubbing on under it.
+    if (!mounted || _routeCovered) {
+      _endHeldSeek();
+      return;
+    }
     final ms = heldSeekStepMs(_heldSeekBaseMs, ++_heldSeekCount);
     _seekRelativeAccumulate(
       _heldSeekKey == LogicalKeyboardKey.arrowLeft ? -ms : ms,
