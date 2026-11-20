@@ -1294,6 +1294,15 @@ class SessionRepository {
       return;
     }
 
+    final command = message.playCommand.toLowerCase();
+    final queuesOnly =
+        command == 'playnext' || command == 'playlast' || command == 'enqueue';
+    // A command that starts playback takes its turn on arrival, before its
+    // items load, so a Stop sent after it outdates it even while they load.
+    final generation = queuesOnly
+        ? _remoteNavigationGeneration
+        : ++_remoteNavigationGeneration;
+
     final loaded = await Future.wait(
       message.itemIds.map((itemId) async {
         try {
@@ -1316,11 +1325,10 @@ class SessionRepository {
     }
     final (items, startIndex) = picked;
     final manager = GetIt.instance<PlaybackManager>();
-    final command = message.playCommand.toLowerCase();
 
     switch (command) {
       case 'playnow':
-        await _playRemoteItems(manager, items, startIndex, message);
+        await _playRemoteItems(manager, items, startIndex, message, generation);
         break;
       case 'playnext':
         for (final item in items.reversed) {
@@ -1332,18 +1340,21 @@ class SessionRepository {
         manager.queueService.addItems(items);
         break;
       default:
-        await _playRemoteItems(manager, items, startIndex, message);
+        await _playRemoteItems(manager, items, startIndex, message, generation);
         break;
     }
   }
 
+  /// Plays [items] for a remote command that took [generation] on arrival,
+  /// unless a newer remote command took over while its items loaded.
   Future<void> _playRemoteItems(
     PlaybackManager manager,
     List<AggregatedItem> items,
     int startIndex,
     PlayMessage message,
+    int generation,
   ) async {
-    _remoteNavigationGeneration++;
+    if (generation != _remoteNavigationGeneration) return;
     _remoteSearch?.close();
     final item = items[startIndex];
     final isLiveTv = _isLiveTvItem(item);
@@ -1361,11 +1372,20 @@ class SessionRepository {
     // again instead of leaving a black player behind. Audio opens its
     // player once it is actually playing.
     final isAudio = _isAudioItem(item);
-    final pushedVideo = !isAudio && !isMediaPlayerRouteOnTop(appRouter);
+    if (_remoteRoutePath == Destinations.liveTvPlayer) {
+      final liveTv = _closeDialogsAbovePage();
+      _leaveTopPage();
+      if (liveTv != null) {
+        await liveTv.completed;
+        await WidgetsBinding.instance.endOfFrame;
+      }
+      if (generation != _remoteNavigationGeneration) return;
+    }
+    final pushedVideo = !isAudio && !isMediaPlayerRouteOnTop(_router);
     if (pushedVideo) {
       manager.beginPlaybackPreparation();
       manager.skipExternalRoutingOnce();
-      unawaited(appRouter.push(Destinations.videoPlayer));
+      unawaited(_router.push(Destinations.videoPlayer));
       // The push's redirect reads the held-back flag; let it run first.
       await WidgetsBinding.instance.endOfFrame;
     }
@@ -1392,13 +1412,13 @@ class SessionRepository {
     if (pushedVideo) manager.consumeSkipExternalRoutingOnce();
 
     if (manager.playbackDeferredToExternalPlayer) {
-      final top = topRouteLocation(appRouter);
+      final top = topRouteLocation(_router);
       if (top == Destinations.videoPlayer) {
         // The internal player stands aside without stopping what was
         // handed over (its dispose checks the deferral).
-        unawaited(appRouter.pushReplacement(Destinations.externalPlayer));
+        unawaited(_router.pushReplacement(Destinations.externalPlayer));
       } else if (top != Destinations.externalPlayer) {
-        unawaited(appRouter.push(Destinations.externalPlayer));
+        unawaited(_router.push(Destinations.externalPlayer));
       }
       return;
     }
@@ -1408,8 +1428,8 @@ class SessionRepository {
               manager.bringupState.phase == PlaybackBringupPhase.preparing;
     if (refused) {
       if (pushedVideo) {
-        if (topRouteLocation(appRouter) == Destinations.videoPlayer) {
-          appRouter.pop();
+        if (topRouteLocation(_router) == Destinations.videoPlayer) {
+          _router.pop();
         }
         manager.cancelPlaybackPreparation();
       }
@@ -1440,12 +1460,30 @@ class SessionRepository {
         item.rawData['TimerId'] != null;
   }
 
+  PageRoute<dynamic>? _closeDialogsAbovePage() {
+    PageRoute<dynamic>? page;
+    _router.routerDelegate.navigatorKey.currentState?.popUntil((route) {
+      if (route is! PageRoute) return false;
+      page = route;
+      return true;
+    });
+    return page;
+  }
+
+  void _leaveTopPage() {
+    if (_router.canPop()) {
+      _router.pop();
+    } else {
+      _router.go(Destinations.home);
+    }
+  }
+
   void _ensurePlayerRouteForItem(AggregatedItem item) {
     // Kos TV: a pushed player leaves the router's uri on the tab below, so
     // the match list is what says a player is already up.
-    if (isMediaPlayerRouteOnTop(appRouter)) return;
+    if (isMediaPlayerRouteOnTop(_router)) return;
 
-    appRouter.push(
+    _router.push(
       _isAudioItem(item) ? Destinations.audioPlayer : Destinations.videoPlayer,
     );
   }
@@ -1459,7 +1497,7 @@ class SessionRepository {
       case 'play':
         await manager.resume();
       case 'stop':
-        await manager.stop(userInitiated: false);
+        await _stopRemotePlayback(manager);
       case 'seek':
         final seek = _durationFromTicks(message.seekPositionTicks);
         if (seek != null) {
@@ -1488,6 +1526,43 @@ class SessionRepository {
       default:
         break;
     }
+  }
+
+  /// Screens that show what the playback manager plays, and so are left empty
+  /// once it stops.
+  static const _remoteStopPlayerRoutes = {
+    Destinations.videoPlayer,
+    Destinations.audioPlayer,
+    Destinations.liveTvPlayer,
+  };
+
+  /// Stops playback and leaves its player the way the viewer's own Back would,
+  /// so a remote Stop doesn't strand an empty player on screen. Any other page
+  /// stays where it is.
+  Future<void> _stopRemotePlayback(PlaybackManager manager) async {
+    // Stop outdates any PlayNow still on its way, even one that left Live TV
+    // for the page under it and has not opened its player yet.
+    final generation = ++_remoteNavigationGeneration;
+    if (!_remoteStopPlayerRoutes.contains(_remoteRoutePath)) {
+      await manager.stop(userInitiated: false);
+      return;
+    }
+    final player = _closeDialogsAbovePage();
+    final backend = manager.backend;
+    if (OverlaySheetController.hasOpenSheet) {
+      await OverlaySheetController.closeAllSheets();
+    }
+    // A PlayNow while the sheets closed started something this Stop predates.
+    if (generation != _remoteNavigationGeneration) return;
+    await manager.stop(userInitiated: false);
+    if (generation != _remoteNavigationGeneration) return;
+    if (backend is NativeApplePlayerBackend) await backend.dismissPlayer();
+    if (generation != _remoteNavigationGeneration) return;
+    // The player may have closed itself while playback stopped, or the viewer
+    // may have left it, even for another player at the same path.
+    if (!_remoteStopPlayerRoutes.contains(_remoteRoutePath)) return;
+    if (player != null && !player.isCurrent) return;
+    _leaveTopPage();
   }
 
   /// Moves playback by the same amount this device's own skip buttons use, so
