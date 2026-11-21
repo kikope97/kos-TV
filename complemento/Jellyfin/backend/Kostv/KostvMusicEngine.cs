@@ -112,6 +112,12 @@ public static partial class KostvMusicEngine
     /// <summary>A genre needs this many songs the person likes to have a mix.</summary>
     public const int MinFamiliarPerMix = 5;
 
+    /// <summary>
+    /// The songs the person knows a mix is made of (three of each four): with fewer left after
+    /// those not to repeat, some of these are given back (see <see cref="KostvMixRules.Readmit"/>).
+    /// </summary>
+    public const int KnownPerMix = 38;
+
     public const int MaxSeeds = 10;
 
     public const int MomentSize = 40;
@@ -315,7 +321,15 @@ public static partial class KostvMusicEngine
             var random = RandomFor(userId, day, "mix", genreKey);
             bool InGenre(KostvMusicTrack t) => t.Genres.Any(g => Key(g) == genreKey);
 
-            var familiar = all.Where(t => profile.Scores.ContainsKey(t.Id) && !used.Contains(t.Id) && InGenre(t)).ToList();
+            bool Familiar(KostvMusicTrack t) => profile.Scores.ContainsKey(t.Id) && !used.Contains(t.Id) && InGenre(t);
+            var familiar = all.Where(Familiar).ToList();
+            // Too few left after the days before: some of those given back, the oldest first.
+            var back = Readmitted(tracks, rules, Familiar, familiar.Count, KnownPerMix);
+            if (back.Count > 0)
+            {
+                familiar = familiar.Concat(back).OrderBy(t => t.Id).ToList();
+            }
+
             if (familiar.Count < MinFamiliarPerMix)
             {
                 continue;
@@ -336,7 +350,7 @@ public static partial class KostvMusicEngine
                 WeightedOrder(fresh.Where(t => InGenre(t) && t.Artists.Any(a => alike.Contains(Key(a)))).ToList(), t => (1 + profile.Scores.GetValueOrDefault(t.Id)) * Fresh(profile, t), random),
                 WeightedOrder(unheard.Where(InGenre).ToList(), t => Fresh(profile, t), random));
 
-            var items = Arrange(familiarOrder, newOrder, MixSize, MixNearShare, t => profile.Scores.GetValueOrDefault(t.Id), similarByKey);
+            var items = Arrange(familiarOrder, newOrder, MixSize, MixNearShare, t => profile.Scores.GetValueOrDefault(t.Id), similarByKey, fillTo: MinMixSize);
             if (items.Count < MinMixSize)
             {
                 continue;
@@ -435,7 +449,15 @@ public static partial class KostvMusicEngine
             }
         }
 
-        var ownTracks = all.Where(t => slotScores.GetValueOrDefault(t.Id) > 0 && !profile.Dropped.Contains(t.Id)).ToList();
+        bool Own(KostvMusicTrack t) => slotScores.GetValueOrDefault(t.Id) > 0 && !profile.Dropped.Contains(t.Id);
+        var ownTracks = all.Where(Own).ToList();
+        // Too few left after the days before: some of those given back, the oldest first.
+        var ownBack = Readmitted(tracks, rules, Own, ownTracks.Count, (int)Math.Ceiling(MomentSize * MomentOwnShare));
+        if (ownBack.Count > 0)
+        {
+            ownTracks = ownTracks.Concat(ownBack).OrderBy(t => t.Id).ToList();
+        }
+
         var ownIds = ownTracks.Select(t => t.Id).ToHashSet();
         var artistWeights = ArtistWeights(ownTracks, t => slotScores[t.Id]);
         var genres = Weigh(ownTracks.SelectMany(t => t.Genres.Select(g => (Name: g, Weight: slotScores[t.Id])))).Take(3).Select(g => Key(g.Name)).ToHashSet();
@@ -449,7 +471,7 @@ public static partial class KostvMusicEngine
             WeightedOrder(rest.Where(t => t.Artists.Any(a => alike.Contains(Key(a)))).ToList(), t => (1 + profile.Scores.GetValueOrDefault(t.Id)) * Fresh(profile, t), random),
             WeightedOrder(rest.Where(t => t.Genres.Any(g => genres.Contains(Key(g)))).ToList(), t => (1 + profile.Scores.GetValueOrDefault(t.Id)) * Fresh(profile, t), random));
 
-        var items = Arrange(ownOrder, likeOrder, MomentSize, 1 - MomentOwnShare, t => slotScores.GetValueOrDefault(t.Id), similarByKey);
+        var items = Arrange(ownOrder, likeOrder, MomentSize, 1 - MomentOwnShare, t => slotScores.GetValueOrDefault(t.Id), similarByKey, fillTo: MinMomentSize);
         return items.Count < MinMomentSize ? [] : items.Select(t => t.Id).ToList();
     }
 

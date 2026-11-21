@@ -299,7 +299,34 @@ public static partial class KostvMusicEngine
 
     /// <summary>The songs a mix may have: each once, none with «no me gusta» nor left out by <paramref name="rules"/>.</summary>
     private static List<KostvMusicTrack> Allowed(IEnumerable<KostvMusicTrack> tracks, KostvMixRules rules) =>
-        Unique(tracks).Where(t => !rules.Dislikes.Blocks(t) && !rules.Exclude.Contains(t.Id)).ToList();
+        Unique(tracks).Where(t => !rules.Dislikes.Blocks(t) && !rules.Excludes(t.Id)).ToList();
+
+    /// <summary>
+    /// When only <paramref name="have"/> of the songs a mix needs (<paramref name="need"/>)
+    /// are left, those <paramref name="wanted"/> that were out only for not repeating
+    /// (<see cref="KostvMixRules.Readmit"/>), given back a day at a time, the oldest first and what
+    /// was heard in the last day last, until there are enough (or none is left out). In the order
+    /// of their id, as <see cref="Allowed"/> gives them.
+    /// </summary>
+    private static List<KostvMusicTrack> Readmitted(IEnumerable<KostvMusicTrack> tracks, KostvMixRules rules, Func<KostvMusicTrack, bool> wanted, int have, int need)
+    {
+        if (have >= need || rules.Readmit is not { Count: > 0 } tiers)
+        {
+            return [];
+        }
+
+        var candidates = Unique(tracks)
+            .Where(t => !rules.Dislikes.Blocks(t) && !rules.Exclude.Contains(t.Id) && rules.Excludes(t.Id) && wanted(t))
+            .ToList();
+        var back = new List<KostvMusicTrack>();
+        for (var given = 1; given <= tiers.Count && have + back.Count < need; given++)
+        {
+            // The first «given» tiers back: what is in none of the others.
+            back = candidates.Where(t => !tiers.Skip(given).Any(s => s.Contains(t.Id))).ToList();
+        }
+
+        return back;
+    }
 
     /// <summary>What is left of a new song's odds after the weeks it was shown and not played.</summary>
     private static double Fresh(KostvMusicProfile profile, KostvMusicTrack track) =>
@@ -365,7 +392,10 @@ public static partial class KostvMusicEngine
     /// <see cref="VarietyPerBlock"/> of one artist each <see cref="VarietyBlock"/>, never two of
     /// one album in a row; and each next song, of the few next that fit, the closest to the one
     /// before (a genre in common, an artist like theirs). When nothing at all fits, the limit per
-    /// 25 gives way first and then the gap, but never the same artist or album twice in a row.
+    /// 25 gives way first and then the gap, but never the same artist or album twice in a row;
+    /// only while the songs are fewer than <paramref name="fillTo"/> (the least a mix is offered
+    /// with), as a last resort, one artist may go twice in a row, so a genre of one artist almost
+    /// alone (songs for children, say) still has its mix. Never two of one album in a row.
     /// </summary>
     internal static List<KostvMusicTrack> Arrange(
         List<KostvMusicTrack> known,
@@ -373,7 +403,8 @@ public static partial class KostvMusicEngine
         int size,
         double nearShare,
         Func<KostvMusicTrack, double> safety,
-        IReadOnlyDictionary<string, IReadOnlyList<string>> similar)
+        IReadOnlyDictionary<string, IReadOnlyList<string>> similar,
+        int fillTo = 0)
     {
         var knownIds = known.Select(t => t.Id).ToHashSet();
         var pools = new[] { known.ToList(), near.Where(t => !knownIds.Contains(t.Id)).ToList() };
@@ -397,8 +428,9 @@ public static partial class KostvMusicEngine
             nearCount++;
         }
 
-        // The rules, from all of them to the least: gap and limit per block, gap, not in a row.
-        (int Gap, bool Cap)[] levels = [(VarietyGap, true), (VarietyGap, false), (1, false)];
+        // The rules, from all of them to the least: gap and limit per block, gap, not in a row;
+        // and, while short of fillTo, only not two of one album in a row.
+        (int Gap, bool Cap)[] levels = [(VarietyGap, true), (VarietyGap, false), (1, false), (0, false)];
         while (result.Count > 0 && result.Count < size)
         {
             var wantNear = nearCount < (int)Math.Floor((result.Count + 1) * nearShare);
@@ -406,6 +438,11 @@ public static partial class KostvMusicEngine
             int pool = -1, index = -1;
             foreach (var (gap, cap) in levels)
             {
+                if (gap == 0 && result.Count >= fillTo)
+                {
+                    break;
+                }
+
                 foreach (var p in order)
                 {
                     index = Choose(pools[p], result, gap, cap, similar);
