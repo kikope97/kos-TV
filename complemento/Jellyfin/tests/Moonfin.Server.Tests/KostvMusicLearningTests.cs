@@ -655,7 +655,7 @@ public sealed partial class KostvMusicTests
         // Off: not worked out.
         var off = Guid.NewGuid();
         store.Append(off, Listen(Guid.NewGuid(), _now));
-        store.SetLearn(off, false);
+        store.SetSettings(off, false, null);
         Assert.Equal(1, store.RecomputeTastes());
 
         // Comparisons past the two years go, as the listens do.
@@ -682,7 +682,7 @@ public sealed partial class KostvMusicTests
         var (service, controller, library) = Routes(userId);
         var songs = library.Items.OfType<Audio>().Take(3).ToList();
         var artist = library.Items.OfType<MusicArtist>().First(a => a.Name == "Artista 1-4");
-        service.Store.SetLearn(userId, false);
+        service.Store.SetSettings(userId, false, null);
 
         Assert.IsType<NoContentResult>(controller.AddEvent(Body(new { Type = "dislike", ItemIds = new[] { songs[0].Id.ToString() } })));
         _now = _now.AddMinutes(1);
@@ -708,7 +708,7 @@ public sealed partial class KostvMusicTests
         Assert.Equal(songs[0].Name, Json(controller.GetDislikes()).GetProperty("Songs")[1].GetProperty("Name").GetString());
 
         // Deleting the listens leaves them; undoing one, or one that wasn't there, is fine.
-        service.Store.SetLearn(userId, true);
+        service.Store.SetSettings(userId, true, null);
         Assert.IsType<NoContentResult>(controller.DeleteListens());
         Assert.Equal(2, Json(controller.GetDislikes()).GetProperty("Songs").GetArrayLength());
         Assert.IsType<NoContentResult>(controller.RemoveDislike(songs[1].Id.ToString()));
@@ -861,7 +861,7 @@ public sealed partial class KostvMusicTests
 
         // With Learn off, nothing compared.
         var off = Guid.NewGuid();
-        service.Store.SetLearn(off, false);
+        service.Store.SetSettings(off, false, null);
         await service.MixesAsync(off, user);
         Assert.False(File.Exists(Path.Combine(_root, off.ToString("N"), "shadow.json")));
     }

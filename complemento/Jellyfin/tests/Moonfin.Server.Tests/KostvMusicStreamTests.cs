@@ -196,9 +196,6 @@ public sealed partial class KostvMusicTests
             new { Type = "stream_listen", DeezerId = "1", Title = "  ", Artist = "A", Played = 10, EndedBy = "next" },
             new { Type = "stream_listen", DeezerId = "1", Title = "T", Played = 10, EndedBy = "next" },
             new { Type = "stream_listen", DeezerId = "1", Title = "T", Artist = 5, Played = 10, EndedBy = "next" },
-            new { Type = "stream_listen", DeezerId = "1", Title = name, Artist = "A", Played = 10, EndedBy = "next" },
-            new { Type = "stream_listen", DeezerId = "1", Title = "T", Artist = name, Played = 10, EndedBy = "next" },
-            new { Type = "stream_listen", DeezerId = "1", Title = "T", Artist = "A", Album = name, Played = 10, EndedBy = "next" },
             new { Type = "stream_listen", DeezerId = "1", Title = "T", Artist = "A", Genre = name, Played = 10, EndedBy = "next" },
             new { Type = "stream_listen", DeezerId = "1", Title = "T", Artist = "A", Genre = 3, Played = 10, EndedBy = "next" },
             new { Type = "stream_listen", DeezerId = "1", Title = "T", Artist = "A", Source = 3, Played = 10, EndedBy = "next" },
@@ -315,12 +312,18 @@ public sealed partial class KostvMusicTests
     public void SongsNotAtHomeWeighTheirArtistsAndGenresInBothEnginesAndAreNeverInAMix()
     {
         var now = _now;
-        // Half the taste learned: what is at home still counts for what the server knows.
+        // Half the taste learned (by 150 listens at home, of a song not read for it): what is at
+        // home still counts for what the server knows.
         var summary = new KostvTasteSummary();
+        var elsewhere = Guid.NewGuid();
         for (var i = 0; i < 150; i++)
         {
             summary.Apply(new KostvMusicEvent { Item = "stremfin:1", Artists = ["Fuera", "Invitada"], Genres = ["Indie"], Outcome = KostvListenOutcome.Completed, Played = 200, Duration = 200, EndedBy = KostvListenEnd.Natural }.Stamp(now.AddMinutes(-i * 5), Home));
+            summary.Apply(Listen(elsewhere, now.AddMinutes(-i * 5 - 2)));
         }
+
+        Assert.Equal((300, 150), (summary.Listens, summary.HomeListens));
+        Assert.Equal(0.5, summary.Learned, 9);
 
         var tracks = WideLibrary(genres: 1, artists: 6);
         foreach (var profile in new[] { KostvMusicEngine.Profile(tracks, new Dictionary<Guid, KostvTrackListens>(), now, null, summary), KostvMusicEngine.LearnedProfile(tracks, summary, now) })
@@ -380,12 +383,15 @@ public sealed partial class KostvMusicTests
 
         _now = _now.AddDays(1);
         var taste = Json(await controller.GetTaste());
-        Assert.Equal(1, taste.GetProperty("Learned").GetDouble());
-        var top = taste.GetProperty("Artists")[0];
-        // Not at home: by name, without an id.
-        Assert.Equal("Fuera de Casa", top.GetProperty("Name").GetString());
-        Assert.Equal(JsonValueKind.Null, top.GetProperty("Id").ValueKind);
-        Assert.Equal("Fuera de Casa", taste.GetProperty("Recent")[0].GetProperty("Name").GetString());
+        // Listens not at home don't count for how much of the taste at home is learned.
+        Assert.Equal(0, taste.GetProperty("Learned").GetDouble());
+        // Not at home: by name, without an id, after the 20 at home.
+        var artists = taste.GetProperty("Artists").EnumerateArray().ToList();
+        Assert.Equal(KostvMusicService.TasteArtists + 1, artists.Count);
+        Assert.All(artists.Take(KostvMusicService.TasteArtists), a => Assert.Equal(JsonValueKind.String, a.GetProperty("Id").ValueKind));
+        Assert.Equal("Fuera de Casa", artists[^1].GetProperty("Name").GetString());
+        Assert.Equal(JsonValueKind.Null, artists[^1].GetProperty("Id").ValueKind);
+        Assert.Equal("Fuera de Casa", taste.GetProperty("Recent").EnumerateArray().Last().GetProperty("Name").GetString());
         Assert.Equal("Indie", taste.GetProperty("Genres")[0].GetProperty("Name").GetString());
 
         // «Descubrimiento semanal» asks for songs like theirs, with either engine.
@@ -450,7 +456,7 @@ public sealed partial class KostvMusicTests
     {
         var userId = Guid.NewGuid();
         var (service, controller, library) = Routes(userId);
-        service.Store.SetLearn(userId, false);
+        service.Store.SetSettings(userId, false, null);
         var home = library.Items.OfType<Audio>().First();
 
         Assert.IsType<NoContentResult>(controller.AddEvent(Body(new { Type = "dislike", Songs = new[] { new { DeezerId = "55", Name = "De fuera", Artist = "Fuera de Casa" } } })));
@@ -473,7 +479,7 @@ public sealed partial class KostvMusicTests
         var stored = File.ReadAllText(Path.Combine(_root, userId.ToString("N"), "dislikes.json"));
         Assert.Contains("\"deezerId\":\"55\"", stored);
         Assert.Equal(3, NewStore().DislikesOf(userId).Songs.Count);
-        service.Store.SetLearn(userId, true);
+        service.Store.SetSettings(userId, true, null);
         controller.DeleteListens();
         Assert.Equal(3, Json(controller.GetDislikes()).GetProperty("Songs").GetArrayLength());
         Assert.True(service.DislikeSetOf(userId).BlocksStreamed("66", null));

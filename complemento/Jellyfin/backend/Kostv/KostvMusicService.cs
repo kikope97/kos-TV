@@ -86,6 +86,12 @@ public sealed class KostvMusicService
 
     public const int TasteGenres = 10;
 
+    /// <summary>
+    /// Kos TV: the most artists of a taste looked up at home to find its <see cref="TasteArtists"/>
+    /// at home and as many not at home (besides those with «no me gusta»).
+    /// </summary>
+    public const int TasteLookedUp = 5 * TasteArtists;
+
     /// <summary>Of the days before, the mixes of these many are not repeated.</summary>
     public const int NoRepeatDays = 3;
 
@@ -189,6 +195,12 @@ public sealed class KostvMusicService
     /// nuevo or alterno; see <see cref="KostvMusicEngineMode"/>), read each time.
     /// </summary>
     public Func<string?> EngineModeOf { get; set; } = () => MoonfinPlugin.Instance?.Configuration?.KostvMusicEngine;
+
+    /// <summary>
+    /// Kos TV: whether the person (the server's user) may see an item of the library on its own,
+    /// within their limits (by the server's rules; for tests, to set).
+    /// </summary>
+    public Func<BaseItem, object, bool> Sees { get; set; } = UserReflection.IsVisibleStandaloneTo;
 
     /// <summary>The music day it is at home (see <see cref="KostvMusicEngine.MusicDay"/>).</summary>
     public string Day => KostvMusicEngine.DayKey(KostvMusicEngine.MusicDay(_store.Now, _store.Zone));
@@ -591,9 +603,10 @@ public sealed class KostvMusicService
     /// <summary>
     /// <paramref name="userId"/>'s taste, the same everything else is made from (by the new engine,
     /// which leans on the server's plays until they have listened enough): up to
-    /// <see cref="TasteArtists"/> artists by their background taste and as many by their taste of
-    /// now, and <see cref="TasteGenres"/> genres; no artist with «no me gusta». With Learn off,
-    /// only what the server knows.
+    /// <see cref="TasteArtists"/> artists at home by their background taste and as many by their
+    /// taste of now, each list followed by up to as many not at home (without an id), and
+    /// <see cref="TasteGenres"/> genres; no artist with «no me gusta». With Learn off, only what
+    /// the server knows.
     /// </summary>
     public async Task<KostvTasteView> TasteAsync(Guid userId, object user)
     {
@@ -608,17 +621,40 @@ public sealed class KostvMusicService
             Guid? IdOf(string name) => work.Artists.GetValueOrDefault(name)?.Id;
             var background = (profile.Background ?? profile.Artists).Where(a => !dislikes.BlocksArtist(a.Name)).ToList();
             var lately = (profile.Recent ?? profile.Artists).Where(a => !dislikes.BlocksArtist(a.Name)).ToList();
-            var looked = TasteArtists + dislikes.ArtistIds.Count;
-            FindArtists(work, background.Take(looked).Concat(lately.Take(looked)).Select(a => a.Name));
-            var artists = background.Where(a => !dislikes.BlocksArtist(IdOf(a.Name), a.Name)).Take(TasteArtists).ToList();
-            var recent = lately.Where(a => !dislikes.BlocksArtist(IdOf(a.Name), a.Name)).Take(TasteArtists).ToList();
-            FindArtists(work, artists.Concat(recent).Select(a => a.Name));
 
-            KostvTasteEntry Entry(KostvWeighted a) => new(work.Artists.GetValueOrDefault(a.Name)?.Id, a.Name, Math.Round(a.Weight, 3));
+            // Kos TV: up to TasteArtists at home (with their id) first, and then up to as many not
+            // at home (heard through Stremfin, by name, without an id), so those not at home never
+            // take the place of one at home: an app that leaves out what has no id still gets its
+            // full list. Looked up at home a few at a time, only as far as needed (and no further
+            // than TasteLookedUp, past those out).
+            List<KostvTasteEntry> Split(List<KostvWeighted> list)
+            {
+                var home = new List<KostvTasteEntry>();
+                var away = new List<KostvTasteEntry>();
+                var step = TasteArtists + dislikes.ArtistIds.Count;
+                var end = Math.Min(list.Count, TasteLookedUp + dislikes.ArtistIds.Count);
+                for (var from = 0; from < end && (home.Count < TasteArtists || away.Count < TasteArtists); from += step)
+                {
+                    var batch = list.Skip(from).Take(Math.Min(step, end - from)).ToList();
+                    FindArtists(work, batch.Select(a => a.Name));
+                    foreach (var a in batch)
+                    {
+                        var id = IdOf(a.Name);
+                        var said = id != null ? home : away;
+                        if (said.Count < TasteArtists && !dislikes.BlocksArtist(id, a.Name))
+                        {
+                            said.Add(new KostvTasteEntry(id, a.Name, Math.Round(a.Weight, 3)));
+                        }
+                    }
+                }
+
+                return [.. home, .. away];
+            }
+
             return new KostvTasteView(
                 Math.Round(work.Taste.Summary.Learned, 3),
-                artists.Select(Entry).ToList(),
-                recent.Select(Entry).ToList(),
+                Split(background),
+                Split(lately),
                 profile.Genres.Take(TasteGenres).Select(g => new KostvTasteEntry(null, g.Name, Math.Round(g.Weight, 3))).ToList());
         }
         finally
@@ -650,12 +686,15 @@ public sealed class KostvMusicService
     /// the artists) <paramref name="ids"/>: kept with their names to show in the list, also with
     /// Learn off, and the day's music worked out again without them. Only what is at home and
     /// of its kind is kept: a song, or an artist (for an artist, a song stands for its main
-    /// artist); the rest is let go of. False when it could not be stored.
+    /// artist); the rest is let go of, as is a song <paramref name="user"/> may not see (so its
+    /// name, artist and album aren't given back in their list). False when it could not be stored.
     /// </summary>
-    public bool Dislike(Guid userId, bool artists, IReadOnlyList<Guid> ids)
+    public bool Dislike(Guid userId, object user, bool artists, IReadOnlyList<Guid> ids)
     {
         var now = _store.Now;
-        var items = ids.Select(ItemOf).OfType<BaseItem>().ToList();
+        // Kos TV: a song the person may not see is let go of, so its name, artist and album
+        // aren't given back in their list.
+        var items = ids.Select(ItemOf).OfType<BaseItem>().Where(item => item is not Audio || Sees(item, user)).ToList();
         var songs = items.OfType<Audio>()
             .Select(item => (Item: (BaseItem)item, Name: item.Name?.Trim(), Track: TrackOf(item, null)))
             .Where(s => !string.IsNullOrEmpty(s.Name))
@@ -730,19 +769,23 @@ public sealed class KostvMusicService
         return saved;
     }
 
-    /// <summary>Takes <paramref name="itemId"/> off what <paramref name="userId"/> doesn't want to hear.</summary>
-    public void Undislike(Guid userId, Guid itemId) => Undislike(userId, itemId.ToString("N"));
+    /// <summary>Takes <paramref name="itemId"/> off what <paramref name="userId"/> doesn't want to hear (see <see cref="Undislike(Guid, string)"/>).</summary>
+    public bool Undislike(Guid userId, Guid itemId) => Undislike(userId, itemId.ToString("N"));
 
     /// <summary>
     /// Takes <paramref name="key"/> off what <paramref name="userId"/> doesn't want to hear: an id
-    /// at home without dashes, or a song not at home as <c>stremfin:&lt;DeezerId&gt;</c>.
+    /// at home without dashes, or a song not at home as <c>stremfin:&lt;DeezerId&gt;</c>. False
+    /// when it was on it and could not be stored without it (true also when it wasn't on it).
     /// </summary>
-    public void Undislike(Guid userId, string key)
+    public bool Undislike(Guid userId, string key)
     {
-        if (_store.RemoveDislike(userId, key))
+        var removal = _store.RemoveDislike(userId, key);
+        if (removal == KostvDislikeRemoval.Removed)
         {
             Forget(userId);
         }
+
+        return removal != KostvDislikeRemoval.NotStored;
     }
 
     /// <summary>Empties what <paramref name="userId"/> doesn't want to hear.</summary>
@@ -754,14 +797,15 @@ public sealed class KostvMusicService
 
     /// <summary>
     /// What <paramref name="userId"/> doesn't want to hear, the latest first, with the names the
-    /// library has now (or, for what is no longer there, the ones kept).
+    /// library has now (or, for what is no longer there, or a song <paramref name="user"/> no
+    /// longer sees, the ones kept).
     /// </summary>
-    public KostvDislikes DislikesView(Guid userId)
+    public KostvDislikes DislikesView(Guid userId, object user)
     {
         var dislikes = _store.DislikesOf(userId);
         foreach (var song in dislikes.Songs)
         {
-            if (Guid.TryParse(song.Id, out var id) && ItemOf(id) is { } item)
+            if (Guid.TryParse(song.Id, out var id) && ItemOf(id) is { } item && Sees(item, user))
             {
                 var track = TrackOf(item, null);
                 song.Name = item.Name?.Trim() ?? song.Name;

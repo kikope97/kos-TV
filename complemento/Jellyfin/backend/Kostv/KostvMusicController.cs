@@ -338,8 +338,9 @@ public class KostvMusicController : ControllerBase
 
     /// <summary>
     /// The caller's taste, the one their music is made of: <c>Learned</c> (0, all the server's
-    /// plays, to 1, 300 listens or more), up to 20 <c>Artists</c> by their background taste, 20
-    /// <c>Recent</c> by their taste of now and 10 <c>Genres</c>; no artist with «no me gusta».
+    /// plays, to 1, 300 listens at home or more), up to 20 <c>Artists</c> at home by their
+    /// background taste, 20 <c>Recent</c> by their taste of now (each followed by up to 20 not at
+    /// home, with <c>Id</c> null) and 10 <c>Genres</c>; no artist with «no me gusta».
     /// </summary>
     [HttpGet("Taste")]
     [Authorize]
@@ -376,7 +377,7 @@ public class KostvMusicController : ControllerBase
             return NotSignedIn();
         }
 
-        var dislikes = _music.DislikesView(caller.Id);
+        var dislikes = _music.DislikesView(caller.Id, caller.User);
         static Guid? IdOf(string? id) => Guid.TryParse(id, out var guid) ? guid : null;
         return Ok(new
         {
@@ -394,6 +395,7 @@ public class KostvMusicController : ControllerBase
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public ActionResult RemoveDislike([FromRoute] string itemId)
     {
         if (Caller() is not { } caller)
@@ -401,19 +403,22 @@ public class KostvMusicController : ControllerBase
             return NotSignedIn();
         }
 
+        bool stored;
         if (KostvMusicEvent.DeezerIdOf(itemId?.Trim()) is { } deezerId)
         {
-            _music.Undislike(caller.Id, KostvMusicEvent.StreamedItem(deezerId));
-            return NoContent();
+            stored = _music.Undislike(caller.Id, KostvMusicEvent.StreamedItem(deezerId));
         }
-
-        if (!Guid.TryParse(itemId, out var id) || id == Guid.Empty)
+        else if (Guid.TryParse(itemId, out var id) && id != Guid.Empty)
+        {
+            stored = _music.Undislike(caller.Id, id);
+        }
+        else
         {
             return BadRequest(new { Error = "itemId is an id, or stremfin:<DeezerId>." });
         }
 
-        _music.Undislike(caller.Id, id);
-        return NoContent();
+        // Kos TV: not stored, it stays on the list (here and after a restart): a 500, as for adding one.
+        return stored ? NoContent() : StatusCode(StatusCodes.Status500InternalServerError, new { Error = "The dislike could not be taken off." });
     }
 
     /// <summary>Empties what the caller doesn't want to hear.</summary>
@@ -547,7 +552,7 @@ public class KostvMusicController : ControllerBase
 
                 // Kept apart from the listens (not in their history), also with Learn off. What
                 // isn't at home, or of its kind, is let go of (still a 204); not stored, a 500.
-                var stored = items == null || _music.Dislike(caller.Id, kind == KostvMusicEvent.ArtistKind, items.Select(Guid.Parse).ToList());
+                var stored = items == null || _music.Dislike(caller.Id, caller.User, kind == KostvMusicEvent.ArtistKind, items.Select(Guid.Parse).ToList());
                 stored &= streamed == null || _music.DislikeStreamed(caller.Id, streamed);
                 if (!stored)
                 {
@@ -578,9 +583,9 @@ public class KostvMusicController : ControllerBase
         var endedBy = Property(body, "EndedBy") is { ValueKind: JsonValueKind.String } e ? e.GetString()?.Trim().ToLowerInvariant() : null;
         var shuffleSaid = Property(body, "Shuffle");
         if (!KostvMusicEvent.IsDeezerId(deezerId) ||
-            !EventText(body, "Title", MaxEventNameLength, out var title) || title == null ||
-            !EventText(body, "Artist", MaxEventNameLength, out var artist) || artist == null ||
-            !EventText(body, "Album", MaxEventNameLength, out var album) ||
+            !EventText(body, "Title", MaxEventNameLength, out var title, cut: true) || title == null ||
+            !EventText(body, "Artist", MaxEventNameLength, out var artist, cut: true) || artist == null ||
+            !EventText(body, "Album", MaxEventNameLength, out var album, cut: true) ||
             !EventText(body, "Genre", MaxEventNameLength, out var genre) ||
             !EventText(body, "Source", MaxEventNameLength, out var source) ||
             !EventSeconds(body, "Played", required: true, out var played) ||
@@ -588,11 +593,18 @@ public class KostvMusicController : ControllerBase
             endedBy == null || !EndedByValues.Contains(endedBy) ||
             shuffleSaid is { ValueKind: not (JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null) })
         {
-            return BadRequest(new { Error = $"A stream_listen has a DeezerId (digits, up to {MaxDeezerIdLength}), a Title and an Artist (and may have an Album, a Genre and a Source), text of up to {MaxEventNameLength} characters; Played (and Duration) in seconds, 0 to {MaxStreamSeconds}; EndedBy natural, next, stop, closed or error; and Shuffle true or false." });
+            return BadRequest(new { Error = $"A stream_listen has a DeezerId (digits, up to {MaxDeezerIdLength}), a Title and an Artist (and may have an Album, a Genre and a Source), text (a Genre and a Source of up to {MaxEventNameLength} characters; a longer Title, Artist or Album is cut to {MaxEventNameLength}); Played (and Duration) in seconds, 0 to {MaxStreamSeconds}; EndedBy natural, next, stop, closed or error; and Shuffle true or false." });
         }
 
         // With Learn off, nothing is noted, nor linked to what comes after.
         if (!Store.Learns(userId))
+        {
+            return NoContent();
+        }
+
+        // Kos TV: no more than a person's listening could send (see TakeStreamListen); past it,
+        // let go of, as with Learn off, so an app that went wrong doesn't keep at it.
+        if (!Store.TakeStreamListen(userId))
         {
             return NoContent();
         }
@@ -618,9 +630,9 @@ public class KostvMusicController : ControllerBase
             EndedBy = endedBy,
             Shuffle = shuffleSaid is { ValueKind: JsonValueKind.True or JsonValueKind.False } shuffle ? shuffle.GetBoolean() : null
         }.Stamp(now.AddSeconds(-heard), Store.Zone);
-        // It started about what was heard of it ago, and ends now.
-        Store.Link(userId, entry, now);
-        Store.Append(userId, entry);
+        // It started about what was heard of it ago, and ends now. Linked to the one before only
+        // once written (Learn turned off, or the listens deleted, meanwhile: not written).
+        Store.LinkAndAppend(userId, entry, now);
         return NoContent();
     }
 
@@ -697,8 +709,11 @@ public class KostvMusicController : ControllerBase
         return ids.Distinct(StringComparer.Ordinal).ToList();
     }
 
-    /// <summary>An optional text of an event: absent or null is null; otherwise text of up to <paramref name="max"/> characters.</summary>
-    private static bool EventText(JsonElement body, string name, int max, out string? value)
+    /// <summary>
+    /// An optional text of an event: absent or null is null; otherwise text of up to
+    /// <paramref name="max"/> characters (a longer one, with <paramref name="cut"/>, cut to it).
+    /// </summary>
+    private static bool EventText(JsonElement body, string name, int max, out string? value, bool cut = false)
     {
         value = null;
         if (Property(body, name) is not { } said || said.ValueKind == JsonValueKind.Null)
@@ -714,7 +729,13 @@ public class KostvMusicController : ControllerBase
         var text = said.GetString()?.Trim();
         if (text?.Length > max)
         {
-            return false;
+            if (!cut)
+            {
+                return false;
+            }
+
+            // Kos TV: not halfway through a character outside the basic plane.
+            text = text[..(char.IsHighSurrogate(text[max - 1]) ? max - 1 : max)].TrimEnd();
         }
 
         value = string.IsNullOrEmpty(text) ? null : text;

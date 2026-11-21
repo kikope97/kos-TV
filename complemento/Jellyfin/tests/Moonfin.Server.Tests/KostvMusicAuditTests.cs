@@ -316,7 +316,7 @@ public sealed partial class KostvMusicTests
 
         // With Learn off it isn't noted, but the server's hearts count all the same.
         await service.MixesAsync(userId, user);
-        service.Store.SetLearn(userId, false);
+        service.Store.SetSettings(userId, false, null);
         recorder.OnUserDataSaved(null, Heart(userId, song, false, UserDataSaveReason.UpdateUserRating));
         await recorder.Settled();
         Assert.False(File.Exists(today));

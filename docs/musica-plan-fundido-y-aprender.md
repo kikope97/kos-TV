@@ -226,7 +226,9 @@ tenga ♥.
 **Arranque en frío.** Al principio solo hay lo que sabe Jellyfin (cuántas veces
 se puso cada canción, sin fechas, y los ♥).
 - La puntuación mezcla las dos cosas según cuánto historial hay: con 0 escuchas
-  apuntadas, todo es Jellyfin; con 300 o más, todo es lo aprendido.
+  apuntadas, todo es Jellyfin; con 300 o más, todo es lo aprendido. Solo cuentan
+  las escuchas de canciones de casa: lo escuchado fuera (Stremfin) no le quita
+  peso a lo que sabe Jellyfin de las de casa.
 - Así cada persona pasa sola y poco a poco, sin esperar a una fecha.
 - Los ♥ y las listas cuentan desde el primer día.
 
@@ -398,7 +400,7 @@ Rutas, todas con la sesión de la persona (`[Authorize]`), en
 | `GET Dislikes` | `{ "Songs": [ { "Id", "Name", "Artist", "ArtistId", "AlbumId", "At" } ], "Artists": [ { "Id", "Name", "At" } ] }`, lo más reciente primero. Lo que ya no existe en la biblioteca sale con el nombre guardado. |
 | `DELETE Dislikes/{itemId}` | Quita uno (deshacer, o desde la lista de Ajustes). `204` (también si no estaba). |
 | `DELETE Dislikes` | Vacía la lista de esa persona. `204`. |
-| `GET Taste` | `{ "Learned": 0.0–1.0, "Artists": [ { "Id", "Name", "Score" } ], "Recent": [ { "Id", "Name", "Score" } ], "Genres": [ { "Name", "Score" } ] }`: el gusto único (hasta 20 artistas de fondo, 20 de ahora y 10 géneros), sin artistas con «No me gusta». `Learned` dice cuánto viene de lo aprendido frente a Jellyfin (0 = todo Jellyfin; 1 = 300 escuchas o más). |
+| `GET Taste` | `{ "Learned": 0.0–1.0, "Artists": [ { "Id", "Name", "Score" } ], "Recent": [ { "Id", "Name", "Score" } ], "Genres": [ { "Name", "Score" } ] }`: el gusto único (hasta 20 artistas de fondo, 20 de ahora y 10 géneros), sin artistas con «No me gusta». `Learned` dice cuánto viene de lo aprendido frente a Jellyfin (0 = todo Jellyfin; 1 = 300 escuchas o más); solo cuentan las escuchas de canciones de casa. En `Artists` y `Recent` van primero hasta 20 artistas de casa (con `Id`) y detrás hasta 20 de fuera (`"Id": null`), para que los de fuera no quiten sitio a los de casa. |
 | `GET Mixes` y `GET Moment` | Como ahora, más `"Because": ["Artista 1", "Artista 2", "Artista 3"]` en cada mezcla (los artistas que más pesan en ella, para «Con X, Y y más»). Nunca llevan canciones ni artistas con «No me gusta» (se filtra al servir, sin esperar al día siguiente). |
 | `DELETE Listens` | Como ahora y además borra `taste.json`; **no** borra `dislikes.json` ni el ajuste. |
 

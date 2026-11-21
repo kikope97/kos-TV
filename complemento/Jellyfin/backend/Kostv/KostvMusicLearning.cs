@@ -126,7 +126,8 @@ public static partial class KostvMusicEngine
     /// <summary>
     /// What the person likes by the new engine: for each song, what the server knows of their
     /// plays mixed with what was learned from <paramref name="summary"/> by how much was learned
-    /// (all the server's with no listens, all learned with 300 or more); a heart (+3), a playlist
+    /// (all the server's with no listens at home, all learned with 300 or more; see
+    /// <see cref="KostvTasteSummary.Learned"/>); a heart (+3), a playlist
     /// (+2) and a heart on its album (+2) count from the first day. A song skipped too often
     /// (more than 60 %, with margin, of 3 or more) is out unless it has a heart; one with «no me
     /// gusta», or of an artist with it, is out; and the songs out of an artist weigh it down.
@@ -207,7 +208,8 @@ public static partial class KostvMusicEngine
         }
 
         // Kos TV: the songs not at home (heard through Stremfin) weigh their artists and genres by
-        // name, learned as the rest: none skipped too often, nor out.
+        // name, learned as the rest (by all the listens, those not at home too: the server knows
+        // nothing of them to mix with): none skipped too often, nor out.
         var streamed = new List<KostvStreamedScore>();
         foreach (var (deezerId, song) in summary.Streamed())
         {
@@ -217,7 +219,7 @@ public static partial class KostvMusicEngine
                 continue;
             }
 
-            var factor = learned * dislikes.ArtistFactor(song.Artists![0]);
+            var factor = summary.LearnedOfAll * dislikes.ArtistFactor(song.Artists![0]);
             var longScore = song.LongAt(now);
             var shortScore = song.ShortAt(now);
             streamed.Add(new KostvStreamedScore(song.Artists!, song.Genres ?? [], factor * (longScore + shortScore) / 2, factor * longScore, factor * shortScore));

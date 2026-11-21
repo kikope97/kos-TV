@@ -283,7 +283,8 @@ public sealed class KostvTasteSummary
 {
     // 2: the weeks a song was shown are kept as weeks (see KostvSongTaste.Weeks); a summary of
     // before is worked out again.
-    public const int CurrentVersion = 2;
+    // 3: the listens of songs at home are counted apart (HomeListens); worked out again.
+    public const int CurrentVersion = 3;
 
     [JsonPropertyName("v")]
     public int Version { get; set; } = CurrentVersion;
@@ -291,6 +292,14 @@ public sealed class KostvTasteSummary
     /// <summary>The listens that count (see <see cref="KostvMusicEvent.Counts"/>).</summary>
     [JsonPropertyName("listens")]
     public int Listens { get; set; }
+
+    /// <summary>
+    /// Kos TV: of <see cref="Listens"/>, those of songs at home: what <see cref="Learned"/> is
+    /// counted by, so listens not at home (through Stremfin) don't take the weight off what the
+    /// server knows of the songs at home.
+    /// </summary>
+    [JsonPropertyName("home")]
+    public int HomeListens { get; set; }
 
     /// <summary>When it was last worked out in full.</summary>
     [JsonPropertyName("full")]
@@ -308,9 +317,19 @@ public sealed class KostvTasteSummary
     [JsonPropertyName("albums")]
     public Dictionary<string, KostvFavoriteMark> Albums { get; set; } = new(StringComparer.Ordinal);
 
-    /// <summary>How much of the taste is learned rather than the server's: 0 with no listens, 1 with 300 or more.</summary>
+    /// <summary>
+    /// How much of the taste of the songs at home is learned rather than the server's: 0 with no
+    /// listens at home, 1 with 300 or more (those not at home don't count, see <see cref="HomeListens"/>).
+    /// </summary>
     [JsonIgnore]
-    public double Learned => Math.Min(1, Listens / (double)KostvTasteWeights.FullyLearnedAt);
+    public double Learned => Math.Min(1, HomeListens / (double)KostvTasteWeights.FullyLearnedAt);
+
+    /// <summary>
+    /// Kos TV: how much is learned of all the listens, at home or not (0 to 1, as
+    /// <see cref="Learned"/>): what the songs not at home weigh by, as nothing else is known of them.
+    /// </summary>
+    [JsonIgnore]
+    public double LearnedOfAll => Math.Min(1, Listens / (double)KostvTasteWeights.FullyLearnedAt);
 
     public KostvSongTaste? SongOf(Guid id) => Songs.GetValueOrDefault(id.ToString("N"));
 
@@ -322,6 +341,7 @@ public sealed class KostvTasteSummary
     {
         Version = Version,
         Listens = Listens,
+        HomeListens = HomeListens,
         WorkedOut = WorkedOut,
         Songs = Songs.ToDictionary(s => s.Key, s => s.Value.Copy(), StringComparer.Ordinal),
         Artists = Artists.ToDictionary(a => a.Key, a => a.Value.Copy(), StringComparer.Ordinal),
@@ -455,6 +475,11 @@ public sealed class KostvTasteSummary
         }
 
         Listens++;
+        if (deezerId == null)
+        {
+            HomeListens++;
+        }
+
         var song = Song(id);
         if (deezerId != null)
         {
@@ -719,6 +744,19 @@ public sealed class KostvDislikes
         Songs = Songs.Select(s => new KostvDislikedSong { Id = s.Id, DeezerId = s.DeezerId, Name = s.Name, Artist = s.Artist, ArtistId = s.ArtistId, AlbumId = s.AlbumId, At = s.At }).ToList(),
         Artists = Artists.Select(a => new KostvDislikedArtist { Id = a.Id, Name = a.Name, At = a.At }).ToList()
     };
+}
+
+/// <summary>kOS TV: what came of taking one off a person's «no me gusta» list.</summary>
+public enum KostvDislikeRemoval
+{
+    /// <summary>It wasn't on it.</summary>
+    NotThere,
+
+    /// <summary>Taken off, and stored so.</summary>
+    Removed,
+
+    /// <summary>It could not be stored without it: it stays on it.</summary>
+    NotStored
 }
 
 /// <summary>
