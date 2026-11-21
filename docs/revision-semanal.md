@@ -29,7 +29,7 @@ Se actualiza al terminar cada revisión. La siguiente empieza justo aquí.
 | | |
 |---|---|
 | Copia original de kOS TV | upstream `3d87996d2` (2026-11-10): Moonfin 3.0.0 más 658 commits posteriores sin publicar |
-| Último commit de upstream revisado | `defe4661b` (2026-11-20 17:13 UTC) |
+| Último commit de upstream revisado | `a1fa0f9f1` (2026-11-20; revisión corta del 2026-11-21) |
 | Última versión del complemento oficial revisada | 3.1.1.0 (2026-11-19, etiqueta `3.1.1`, commit `afb2e7356`): traída a nuestra copia |
 | Nuestro complemento | «kOS TV» 3.1.1.1, basado en la 3.1.1, publicado el 2026-11-21 (con la app 1.17.2) |
 | Complemento instalado en el servidor de casa | el nuestro; la última publicada es la 3.1.1.1 |
@@ -58,6 +58,31 @@ Copiar este bloque arriba del registro y rellenarlo:
 ```
 
 ## Registro
+
+### 2026-11-21 · Revisión corta (a petición, por el anuncio de una versión nueva)
+
+- **App, revisado:** upstream `defe4661b`..`a1fa0f9f1` (9 commits, del
+  2026-11-20). La última versión publicada del original sigue siendo la 3.1.1
+  (etiqueta del 2026-11-18), que ya se revisó entera el 2026-11-20; el anuncio
+  de Reddit no se pudo leer desde aquí.
+- **Integrado:** nada todavía (a la espera del visto bueno).
+- **Propuesto para traer:**
+  - `379a9bad4`: al volver a Inicio desde una página abierta en la barra de
+    arriba, el banner se iba de la vista. Nuestro `home_screen.dart:3750` tiene
+    la misma línea.
+  - `bef6fd5a0`: cambiar «Decodificación por hardware» se aplica al siguiente
+    título sin reiniciar la app. Solo con el reproductor mpv (opcional en
+    Android) y en la web; con Media3, el de por defecto, no cambia nada.
+- **Dudoso:** `808ddbcc2`, enlaces directos para abrir una biblioteca,
+  Favoritos, Ajustes, el buscador o la TV en directo. Tenemos el mismo
+  servicio de enlaces, pero nadie los usa en casa; solo serviría para atajos
+  o para Home Assistant.
+- **Descartado:** `d58b20d5c` y `66076d9b2` (escritorio y Windows),
+  `6c7bd864f`, `2f25cf3bd` y `1dabeb736` (snap y flatpak de Linux) y
+  `a1fa0f9f1` (traducción al chino).
+- **Complemento, revisado:** sin cambios desde la 3.1.1 (ya traída y publicada
+  como 3.1.1.1).
+- **Decisión del complemento:** nada que traer.
 
 ### 2026-11-20
 
