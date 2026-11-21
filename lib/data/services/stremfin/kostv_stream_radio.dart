@@ -251,7 +251,12 @@ class KostvStreamRadio {
     late final Future<List<StremfinSong>> future;
     future = fetch(names, artistIds: ids, only: only, limit: limit)
         .then((found) {
-          _kept[key] = (at: _clock(), songs: found.songs);
+          // Kos TV: what has expired goes, rather than staying for good on a
+          // TV left on for days (each set of artists, person and limit).
+          final now = _clock();
+          _kept
+            ..removeWhere((_, v) => now.difference(v.at) >= keep)
+            ..[key] = (at: now, songs: found.songs);
           return found.songs;
         })
         .catchError((Object e) {
@@ -263,6 +268,10 @@ class KostvStreamRadio {
         });
     return _asking[key] = future;
   }
+
+  /// How many radios are kept (for tests).
+  @visibleForTesting
+  int get debugKeptCount => _kept.length;
 
   @visibleForTesting
   void debugReset() {
@@ -396,33 +405,36 @@ class KostvMixExtras {
 
   bool _isNow(String person) => who == null || who!() == person;
 
-  Future<void> _ensureLoaded(String person) => _loaded[person] ??= () async {
-    // Only the note of the person it is read for.
-    if (!_isNow(person)) return;
-    try {
-      final raw = await load?.call();
-      if (raw is! Map || raw['mixes'] is! Map) return;
-      // A note of before kept one day for all its mixes.
-      final noteDay = raw['day'];
-      final mixes = _mixesOf(person);
-      for (final entry in (raw['mixes'] as Map).entries) {
-        final value = entry.value;
-        final day = value is Map ? value['day'] : noteDay;
-        final list = value is Map ? value['songs'] : value;
-        if (day is! String || list is! List) continue;
-        mixes.putIfAbsent(
-          '${entry.key}',
-          () => (
-            day: day,
-            songs: [
-              for (final song in list.whereType<Map>())
-                song.map((k, v) => MapEntry('$k', v)),
-            ],
-          ),
-        );
-      }
-    } catch (_) {}
-  }();
+  // Kos TV: only the note of the person it is read for, and nothing is
+  // taken as read for someone who isn't signed in now (their note is read
+  // when they are).
+  Future<void> _ensureLoaded(String person) => !_isNow(person)
+      ? Future.value()
+      : _loaded[person] ??= () async {
+          try {
+            final raw = await load?.call();
+            if (raw is! Map || raw['mixes'] is! Map) return;
+            // A note of before kept one day for all its mixes.
+            final noteDay = raw['day'];
+            final mixes = _mixesOf(person);
+            for (final entry in (raw['mixes'] as Map).entries) {
+              final value = entry.value;
+              final day = value is Map ? value['day'] : noteDay;
+              final list = value is Map ? value['songs'] : value;
+              if (day is! String || list is! List) continue;
+              mixes.putIfAbsent(
+                '${entry.key}',
+                () => (
+                  day: day,
+                  songs: [
+                    for (final song in list.whereType<Map>())
+                      song.map((k, v) => MapEntry('$k', v)),
+                  ],
+                ),
+              );
+            }
+          } catch (_) {}
+        }();
 
   /// Keeps [person]'s mixes in their note: those of [day] and the day
   /// before (the two ways of counting days), not older ones.

@@ -74,12 +74,24 @@ void _say(ScaffoldMessengerState? messenger, String message) => messenger
   ?..hideCurrentSnackBar()
   ..showSnackBar(SnackBar(content: Text(message)));
 
+/// Kos TV: whether [node] is still in the focus tree. A node whose widget
+/// went away keeps its context and still says it can take the focus, but
+/// Flutter keeps a request for it pending and jumps to it when it comes
+/// back, wherever the remote is by then.
+bool kostvFocusInTree(FocusNode? node) =>
+    node != null &&
+    node.context?.mounted == true &&
+    node.enclosingScope != null &&
+    node.canRequestFocus;
+
 /// Shows the notice with its «Deshacer»: with a remote its button takes
-/// the focus, and any other key gives it back to where it was.
+/// the focus, and any other key gives it back to where it was (or to
+/// [orElse] when that has gone from the page meanwhile).
 void _offerUndo(
   BuildContext context, {
   required String message,
   required Future<void> Function() undo,
+  FocusNode? orElse,
 }) {
   final l10n = AppLocalizations.of(context);
   final overlay = Overlay.of(context, rootOverlay: true);
@@ -89,10 +101,10 @@ void _offerUndo(
     final before = FocusManager.instance.primaryFocus;
     void backToWhereItWas() {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (before != null &&
-            before.context != null &&
-            before.canRequestFocus) {
-          before.requestFocus();
+        if (kostvFocusInTree(before)) {
+          before!.requestFocus();
+        } else if (kostvFocusInTree(orElse)) {
+          orElse!.requestFocus();
         }
       });
     }
@@ -114,8 +126,13 @@ void _offerUndo(
 
 /// «No me gusta» of [song]: skipped if it is sounding, taken out of what is
 /// still to play, kept by the server plugin, and a few seconds to take it
-/// back.
-Future<void> kostvDislikeSong(BuildContext context, AggregatedItem song) async {
+/// back. [orElse] takes the remote after the notice when what had it went
+/// away (the player's 👎 with a next song that isn't at home).
+Future<void> kostvDislikeSong(
+  BuildContext context,
+  AggregatedItem song, {
+  FocusNode? orElse,
+}) async {
   final client = kostvMusicClientOf(song);
   if (client == null) return;
   final l10n = AppLocalizations.of(context);
@@ -130,6 +147,7 @@ Future<void> kostvDislikeSong(BuildContext context, AggregatedItem song) async {
     _offerUndo(
       context,
       message: l10n.kostvMusicDislikedSong(song.name),
+      orElse: orElse,
       undo: () async {
         // Kos TV: back where it was in the queue, and back to it if it was
         // the one sounding, as «No me interesa» puts the card back on Home.

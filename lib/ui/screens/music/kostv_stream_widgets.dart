@@ -334,13 +334,19 @@ class _KostvStreamPillState extends State<KostvStreamPill> {
                       color: lit ? Colors.black : Colors.white,
                     ),
                   SizedBox(width: big ? 8 : 6),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    style: TextStyle(
-                      color: lit ? Colors.black : Colors.white,
-                      fontSize: fontSize,
-                      fontWeight: FontWeight.w700,
+                  // Kos TV: a long label (what the service says, with its
+                  // percentage) or big system text is cut short, rather
+                  // than overflowing on a narrow phone.
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: lit ? Colors.black : Colors.white,
+                        fontSize: fontSize,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -464,9 +470,13 @@ class _KostvPulseState extends State<KostvPulse>
   @override
   void didUpdateWidget(KostvPulse old) {
     super.didUpdateWidget(old);
-    if (widget.active && !_beat.isAnimating) {
+    // Kos TV: by the change, not by whether it moves: back on while it was
+    // still settling (going from one song that isn't at home to another),
+    // it beats again rather than staying still.
+    if (widget.active == old.active) return;
+    if (widget.active) {
       _beat.repeat(reverse: true);
-    } else if (!widget.active && _beat.isAnimating) {
+    } else {
       _beat
         ..stop()
         ..animateTo(0, duration: const Duration(milliseconds: 250));

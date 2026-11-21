@@ -19,7 +19,7 @@ import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_actions.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_widgets.dart';
 import 'package:moonfin/ui/screens/music/kostv_stream_widgets.dart'
-    show kostvStreamAlbumState;
+    show KostvPulse, KostvStreamPill, kostvStreamAlbumState;
 import 'package:moonfin/ui/widgets/music/kostv_stream_play.dart';
 import 'package:moonfin/util/focus/input_mode_tracker.dart';
 import 'package:moonfin/util/platform_detection.dart';
@@ -451,6 +451,92 @@ void main() {
         },
       );
       expect(kostvStationArtists(song).names, ['Lola', 'Nube']);
+    });
+  });
+
+  group('Kos TV: second audit of the pages', () {
+    test('a song Jellyfin didn\'t give, with a home id, keeps the home menu; '
+        'one without it has the menu of one that isn\'t at home only when '
+        'it may sound', () async {
+      await catalog(all: true);
+      // Without the requests service, the app hides what is explicit.
+      const away = StremfinSong(title: 'Lejos', deezerId: '77', artist: 'Rayo');
+      expect(kostvSongMenuFromAway(away), isTrue);
+      const hidden = StremfinSong(
+        title: 'Casa',
+        deezerId: '78',
+        artist: 'Rayo',
+        inJellyfin: true,
+        jellyfinId: 'j78',
+      );
+      expect(kostvSongPlayable(hidden), isTrue);
+      expect(kostvSongMenuFromAway(hidden), isFalse);
+      const explicit = StremfinSong(
+        title: 'Fuerte',
+        deezerId: '79',
+        artist: 'Rayo',
+        explicit: true,
+      );
+      expect(kostvSongMenuFromAway(explicit), isFalse);
+      await catalog(all: false);
+      expect(kostvSongMenuFromAway(away), isFalse);
+    });
+
+    testWidgets('the cover beats again when «Preparando…» comes back while '
+        'it was settling', (tester) async {
+      Future<void> pulse(bool active) => tester.pumpWidget(
+        _app(KostvPulse(active: active, child: const SizedBox(width: 40))),
+      );
+      double opacity() => tester
+          .widget<Opacity>(
+            find.descendant(
+              of: find.byType(KostvPulse),
+              matching: find.byType(Opacity),
+            ),
+          )
+          .opacity;
+      Future<bool> beating() async {
+        final before = opacity();
+        await tester.pump(const Duration(milliseconds: 300));
+        return opacity() != before;
+      }
+
+      await pulse(true);
+      expect(await beating(), isTrue);
+      await pulse(false);
+      // Settling back (250 ms), and on again before it ends.
+      await tester.pump(const Duration(milliseconds: 100));
+      await pulse(true);
+      await tester.pump(const Duration(seconds: 2));
+      expect(await beating(), isTrue);
+      await pulse(false);
+      await tester.pumpAndSettle();
+      expect(await beating(), isFalse);
+    });
+
+    testWidgets('«Pedir álbum» is cut short on a narrow phone with big '
+        'text, rather than overflowing', (tester) async {
+      tester.view.physicalSize = const Size(300, 700);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            size: Size(300, 700),
+            textScaler: TextScaler.linear(2.5),
+          ),
+          child: _app(
+            KostvStreamPill(
+              item: _away(),
+              stop: (onTap, builder) =>
+                  Builder(builder: (context) => builder(context, false)),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.text('Pedir álbum'), findsOneWidget);
     });
   });
 }

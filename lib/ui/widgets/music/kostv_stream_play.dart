@@ -173,6 +173,14 @@ bool kostvSongPlayable(StremfinSong song) => switch (kostvSongWayOf(song)) {
   KostvSongWay.none => false,
 };
 
+/// Kos TV: whether a song of the requests service whose home copy wasn't
+/// found has the menu of one that isn't at home: only without a home id,
+/// with «Toda la música» and allowed to the person (nothing explicit with
+/// a limit). One with a home id that Jellyfin didn't give (hidden from
+/// them) keeps the home menu.
+bool kostvSongMenuFromAway(StremfinSong song) =>
+    kostvSongWayOf(song) == KostvSongWay.stream && kostvSongPlayable(song);
+
 /// Kos TV: [kostvSongPlayable] of an album's song. An album's songs don't
 /// say whether they are explicit, so for someone with a limit one that
 /// isn't at home doesn't sound (its album can still be asked for).
@@ -214,8 +222,9 @@ bool kostvStationWantsRadio(AggregatedItem seed) =>
 
 /// Kos TV: the songs of a station around [seed] (not the seed itself):
 /// the home server's mix of it when it is at home, mixed in turns with the
-/// requests service's radio of its artists when [kostvStationWantsRadio]
-/// (what isn't at home only with «Toda la música»); without what the
+/// requests service's radio of its artists (what isn't at home only with
+/// «Toda la música»; asked only when [kostvStationWantsRadio], which its
+/// callers check: otherwise the home server's mix alone); without what the
 /// person doesn't want to hear, nor what is in [skip]. [homeLimit] is how
 /// many the home server's mix gives. [skipKeys] are the [kostvSongKey]s of
 /// the songs in the queue, so the same song in its other version (at home
@@ -238,15 +247,6 @@ Future<List<AggregatedItem>> kostvStationFor(
   Future<List<AggregatedItem>> Function()? homeMix;
   if (!isKostvStream(seed) && music != null) {
     homeMix = () => music.mix(seed.id, limit: homeLimit);
-  }
-  if (!kostvStationWantsRadio(seed)) {
-    final mix =
-        await (homeMix?.call() ?? Future.value(const <AggregatedItem>[]))
-            .catchError((Object _) => const <AggregatedItem>[]);
-    return [
-      for (final other in mix)
-        if (other.id != seed.id && !skip.contains(other.id)) other,
-    ];
   }
   final artists = kostvStationArtists(seed);
   return kostvStationOf(
@@ -371,6 +371,12 @@ String kostvToday([DateTime? now]) {
   String two(int n) => n.toString().padLeft(2, '0');
   return '${day.year}-${two(day.month)}-${two(day.day)}';
 }
+
+/// Kos TV: the day the moment's mix [now] falls in belongs to: the one its
+/// slot started on, so the night's (20:00–6:00) keeps the songs it got
+/// before midnight after it (see [kostvMusicSlotAt]).
+String kostvMomentDay([DateTime? now]) =>
+    kostvToday((now ?? DateTime.now()).subtract(const Duration(hours: 6)));
 
 /// Kos TV: a daily mix's songs ([items], by the artists [because]) to play:
 /// with «Toda la música», about a quarter of songs that aren't at home

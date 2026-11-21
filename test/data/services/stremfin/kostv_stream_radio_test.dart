@@ -12,7 +12,7 @@ import 'package:moonfin/data/services/stremfin/kostv_stream_song.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_client.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
 import 'package:moonfin/ui/widgets/music/kostv_stream_play.dart'
-    show kostvSongsToPlay, kostvToday;
+    show kostvMomentDay, kostvSongsToPlay, kostvToday;
 import 'package:server_core/server_core.dart';
 import 'package:server_jellyfin/server_jellyfin.dart';
 
@@ -90,6 +90,10 @@ class _Radio {
     return StremfinRadio(songs: songs);
   }
 }
+
+final _mix9 = [
+  for (var i = 0; i < 9; i++) _home('h$i', i.isEven ? 'Lola' : 'Nube'),
+];
 
 void main() {
   group('mixing what is at home with what is not', () {
@@ -815,6 +819,74 @@ void main() {
       );
       expect(items.where(isKostvStream).map((e) => e.id), ['stremfin:7']);
       expect(fake.asked, isEmpty);
+    });
+  });
+
+  group('Kos TV: second audit of the lists', () {
+    test('radios that expired go when another is kept', () async {
+      final fake = _Radio([_song('1', 'Rayo')]);
+      var now = DateTime(2026, 11, 21, 10);
+      final radio = KostvStreamRadio(fetch: fake.call, clock: () => now);
+      await radio.songs(artists: ['Lola']);
+      await radio.songs(artists: ['Nube']);
+      expect(radio.debugKeptCount, 2);
+      now = now.add(const Duration(hours: 2));
+      await radio.songs(artists: ['Sol']);
+      // Only the one just asked for: Lola's and Nube's had expired.
+      expect(radio.debugKeptCount, 1);
+      await radio.songs(artists: ['Lola']);
+      expect(fake.asked, hasLength(4));
+      expect(radio.debugKeptCount, 2);
+    });
+
+    test('a mix put on for someone who is no longer signed in doesn\'t take '
+        'their note as read', () async {
+      final fake = _Radio([_song('1', 'Rayo')]);
+      final notes = <String, Object?>{
+        'casa|ana': {
+          'mixes': {
+            'ana|daily-1': {
+              'day': '2026-11-21',
+              'songs': [
+                {'id': 'stremfin:7', 'raw': _away('7', 'Mar').rawData},
+              ],
+            },
+          },
+        },
+      };
+      // Luis signed in while Ana's mix was being put on.
+      var who = 'casa|luis';
+      final extras = KostvMixExtras(
+        radio: KostvStreamRadio(fetch: fake.call, who: () => who),
+        load: () async => notes[who],
+        save: (value) => notes[who] = jsonDecode(jsonEncode(value)),
+        who: () => who,
+      );
+      Future<List<AggregatedItem>> play(String mixId) => extras.mixWith(
+        mixId: mixId,
+        person: 'casa|ana',
+        day: '2026-11-21',
+        because: const ['Lola'],
+        items: _mix9,
+        serverId: _server,
+        hideExplicit: false,
+      );
+      await play('ana|daily-2');
+      final asked = fake.asked.length;
+      // Ana back: her note is read, and her mix keeps today's songs.
+      who = 'casa|ana';
+      final again = await play('ana|daily-1');
+      expect(again.where(isKostvStream).map((e) => e.id), ['stremfin:7']);
+      expect(fake.asked, hasLength(asked));
+    });
+
+    test('the night\'s mix keeps its day past midnight', () {
+      expect(kostvMomentDay(DateTime(2026, 11, 21, 23)), '2026-11-21');
+      expect(kostvMomentDay(DateTime(2026, 11, 22, 1)), '2026-11-21');
+      expect(kostvMomentDay(DateTime(2026, 11, 22, 5, 59)), '2026-11-21');
+      // The morning and the afternoon are the day's own.
+      expect(kostvMomentDay(DateTime(2026, 11, 22, 6)), '2026-11-22');
+      expect(kostvMomentDay(DateTime(2026, 11, 22, 19)), '2026-11-22');
     });
   });
 }

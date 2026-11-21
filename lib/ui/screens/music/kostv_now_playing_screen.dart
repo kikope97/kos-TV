@@ -290,11 +290,17 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       _lyricsFor = null;
       _lyricsLoading = id != null;
       // A line of the old lyrics had the remote: it goes back to Letra rather
-      // than to nobody.
+      // than to nobody. Kos TV: a song that isn't at home has no Letra (its
+      // button leaves the row), so to play/pause; and never to a node that has
+      // left the tree, which Flutter would keep pending and jump to later.
       if (_tv && _view == _View.lyrics && _panelFocus.hasFocus) {
+        final away = isKostvStream(_music.item);
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _lyricsButtonFocus.canRequestFocus) {
+          if (!mounted) return;
+          if (!away && kostvFocusInTree(_lyricsButtonFocus)) {
             _lyricsButtonFocus.requestFocus();
+          } else if (kostvFocusInTree(_playFocus)) {
+            _playFocus.requestFocus();
           }
         });
       }
@@ -479,7 +485,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
         unawaited(kostvUndislike(context, id: item.id, name: item.name));
       } else {
         _direction = 1;
-        unawaited(kostvDislikeSong(context, item));
+        unawaited(kostvDislikeSong(context, item, orElse: _playFocus));
       }
     };
   }

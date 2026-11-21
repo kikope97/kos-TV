@@ -99,6 +99,19 @@ void main() {
       users.setCurrentUser(user(canManageLiveTv: true));
       expect(DetailButton.keepAsComplete.isOffered, isTrue);
     });
+
+    test('Kos TV: «No me pongas a este artista» never in Kids Mode, as in the '
+        'card menu', () async {
+      final prefs = await _prefs();
+      GetIt.instance.registerSingleton<UserPreferences>(prefs);
+      addTearDown(GetIt.instance.reset);
+      await prefs.set(UserPreferences.kidsModeEnabled, true);
+      expect(DetailButton.kostvDislikeArtist.isOffered, isFalse);
+      expect(
+        DetailButton.kidsModeOrder,
+        isNot(contains(DetailButton.kostvDislikeArtist)),
+      );
+    });
   });
 
   group('showsTvDownloadActions', () {

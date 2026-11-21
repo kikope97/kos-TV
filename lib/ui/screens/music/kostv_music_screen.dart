@@ -997,6 +997,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           mixId: source,
           items: songs,
           because: moment.because,
+          // Kos TV: the night's mix keeps its songs past midnight.
+          day: kostvMomentDay(),
         );
         if (!mounted) return;
         final picked = songs[index.clamp(0, songs.length - 1)];
@@ -1011,11 +1013,14 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
 
   /// Kos TV: [songs] of a list played as one queue from [index], or all of
   /// it shuffled («Toda la música»).
+  /// Kos TV: not [picked] from the header's «Reproducir»: no song of it was
+  /// chosen, so it doesn't start with one the person doesn't want to hear.
   void _playList(
     List<StremfinSong> songs,
     String source, {
     int index = 0,
     bool shuffle = false,
+    bool picked = true,
   }) => unawaited(
     playKostvSongList(
       context,
@@ -1023,7 +1028,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       index: index,
       source: source,
       shuffle: shuffle,
-      picked: !shuffle,
+      picked: picked && !shuffle,
     ),
   );
 
@@ -1753,7 +1758,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                 label: l10n.play,
                 primary: true,
                 onKey: headingKey,
-                onTap: () => _playList(list, source),
+                onTap: () => _playList(list, source, picked: false),
               ),
               if (songs.length > 2)
                 KostvMusicRowAction(

@@ -59,6 +59,8 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
   bool _asking = false;
   Object? _error;
 
+  StremfinService? _listening;
+
   StremfinService? get _stremfin =>
       GetIt.instance.isRegistered<StremfinService>()
       ? GetIt.instance<StremfinService>()
@@ -68,6 +70,9 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
   void initState() {
     super.initState();
     _preview.addListener(_onPreview);
+    // Kos TV: the person's age limit read meanwhile (just started): the
+    // songs that aren't at home play, or not, at once.
+    _listening = _stremfin?..addListener(_onPreview);
     // With a mouse, the right click is the songs' menu, not the browser's.
     kostvHoldBrowserMenu();
     unawaited(_load());
@@ -77,6 +82,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
   void dispose() {
     kostvPrefetchCancel();
     kostvReleaseBrowserMenu();
+    _listening?.removeListener(_onPreview);
     _preview
       ..removeListener(_onPreview)
       ..dispose();
