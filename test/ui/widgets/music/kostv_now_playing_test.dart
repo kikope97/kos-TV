@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
+import 'package:moonfin/playback/stremfin_stream_resolver.dart';
 import 'package:moonfin/ui/widgets/music/kostv_now_playing.dart';
 import 'package:moonfin/ui/widgets/music/kostv_now_playing_capsule.dart';
 import 'package:playback_core/playback_core.dart';
@@ -124,6 +125,45 @@ void main() {
       expect(music.item, isNull);
       manager.queueService.clear();
       expect(music.item, isNull);
+    });
+
+    // Kos TV: «Preparando…» and «Está tardando…» are the song sounding's.
+    test('the next song prepared ahead neither redraws nor starts the wait '
+        'for «tardando»; it counts from when it sounds', () {
+      fakeAsync((async) {
+        addTearDown(() => StremfinStreamResolver.preparing.value = null);
+        final music = KostvNowPlaying.instance..ensureStarted();
+        manager.queueService.setQueue([
+          _item('s1', 'Audio'),
+          _item('s2', 'Audio'),
+        ]);
+        async.flushMicrotasks();
+        var redraws = 0;
+        void redraw() => redraws++;
+        music.addListener(redraw);
+        addTearDown(() => music.removeListener(redraw));
+
+        StremfinStreamResolver.preparing.value = 's2';
+        StremfinStreamResolver.preparing.value = null;
+        StremfinStreamResolver.preparing.value = 's2';
+        expect(redraws, 0);
+        expect(music.preparing, isFalse);
+        async.elapse(const Duration(seconds: 15));
+
+        // The song before ended and it isn't ready yet.
+        manager.queueService.next();
+        async.flushMicrotasks();
+        expect(music.preparing, isTrue);
+        async.elapse(const Duration(seconds: 10));
+        expect(music.preparingSlow, isFalse);
+        async.elapse(const Duration(seconds: 11));
+        expect(music.preparingSlow, isTrue);
+        final before = redraws;
+        StremfinStreamResolver.preparing.value = null;
+        expect(redraws, before + 1);
+        expect(music.preparing, isFalse);
+        expect(music.preparingSlow, isFalse);
+      });
     });
 
     test('the sleep timer pauses the music when it is up', () {

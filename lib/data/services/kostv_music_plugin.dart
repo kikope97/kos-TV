@@ -866,6 +866,10 @@ class KostvMusicPlugin {
   /// it came from ([source], a [KostvMusicSource]) and whether on shuffle.
   /// A plugin from before it answers 400 or 404: nothing more is done (the
   /// route stays for the other events).
+  ///
+  /// Kos TV: the texts go cut to what the plugin takes (200 characters), and
+  /// one without a title or an artist, which the plugin turns down, isn't
+  /// sent (false).
   Future<bool> sendStreamListen(
     MediaServerClient client, {
     required String deezerId,
@@ -880,6 +884,9 @@ class KostvMusicPlugin {
     bool shuffle = false,
   }) async {
     if (deezerId.isEmpty) return false;
+    final name = _short(title);
+    final by = _short(artist);
+    if (name == null || by == null) return false;
     final reply = await _call(
       client,
       'POST',
@@ -887,10 +894,10 @@ class KostvMusicPlugin {
       body: {
         'Type': 'stream_listen',
         'DeezerId': deezerId,
-        'Title': title,
-        'Artist': ?_text(artist),
-        'Album': ?_text(album),
-        'Genre': ?_text(genre),
+        'Title': name,
+        'Artist': by,
+        'Album': ?_short(album),
+        'Genre': ?_short(genre),
         'Played': double.parse(played.toStringAsFixed(1)),
         'Duration': ?duration,
         'EndedBy': endedBy,

@@ -1,7 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:playback_core/playback_core.dart';
+
+String _idOf(dynamic item) =>
+    item is Map ? item['Id'] as String : (item as AggregatedItem).id;
 
 /// A player that can queue the next song (like Media3 does), driven by hand:
 /// the test moves the position, ends the song or moves on to the queued one.
@@ -9,6 +13,7 @@ class _GaplessBackend extends Fake implements PlayerBackend, GaplessCapable {
   final _position = StreamController<Duration>.broadcast();
   final _completed = StreamController<bool>.broadcast();
   final _transitioned = StreamController<void>.broadcast();
+  final _dropped = StreamController<bool>.broadcast();
   final List<String> playedUrls = <String>[];
   final List<Map<dynamic, dynamic>> preloaded = <Map<dynamic, dynamic>>[];
   int stopCalls = 0;
@@ -36,6 +41,9 @@ class _GaplessBackend extends Fake implements PlayerBackend, GaplessCapable {
     _transitioned.add(null);
   }
 
+  /// What Media3 does when it lets the queued song go by itself.
+  void dropQueued({required bool failed}) => _dropped.add(failed);
+
   @override
   bool get canPreloadNext => true;
 
@@ -51,6 +59,9 @@ class _GaplessBackend extends Fake implements PlayerBackend, GaplessCapable {
 
   @override
   Stream<void> get transitionedStream => _transitioned.stream;
+
+  @override
+  Stream<bool> get nextDroppedStream => _dropped.stream;
 
   @override
   Duration get position => currentPosition;
@@ -139,7 +150,7 @@ class _Resolver extends MediaStreamResolver {
     bool enableDirectStream = true,
     bool enableTranscoding = true,
   }) async {
-    final id = (mediaItem as Map)['Id'] as String;
+    final id = _idOf(mediaItem);
     asked.add(id);
     final n = asked.length;
     await holds[id]?.future;
@@ -168,7 +179,7 @@ class _Service implements PlayerService {
     int? subtitleStreamIndex,
     PlaybackQueueModes? queueModes,
   }) async {
-    events.add('start:${(mediaItem as Map)['Id']}');
+    events.add('start:${_idOf(mediaItem)}');
   }
 
   @override
@@ -192,7 +203,7 @@ class _Service implements PlayerService {
     bool releaseLiveStream = true,
     bool failed = false,
   }) async {
-    final id = (mediaItem as Map)['Id'] as String;
+    final id = _idOf(mediaItem);
     events.add('stop:$id');
     stoppedAt[id] = position;
   }
@@ -462,5 +473,82 @@ void main() {
     await at(const Duration(minutes: 2, seconds: 50));
     expect(resolver.asked, ['e1']);
     expect(backend.preloaded, isEmpty);
+  });
+
+  // Kos TV: the player letting the queued song go by itself.
+  test('a queued song the player could not load starts the usual way at the '
+      'end, resolved afresh, and is not queued again', () async {
+    await playAlbum();
+    await at(const Duration(minutes: 2, seconds: 40));
+    expect(backend.preloaded, hasLength(1));
+
+    backend.dropQueued(failed: true);
+    await pumpEventQueue();
+    await at(const Duration(minutes: 2, seconds: 45));
+    expect(backend.preloaded, hasLength(1));
+    expect(backend.cancelCalls, 0);
+
+    manager.state.setPosition(const Duration(minutes: 3));
+    backend.end();
+    await pumpEventQueue();
+    expect(backend.playedUrls.last, 'https://example.test/b');
+    expect(resolver.asked, ['a', 'b', 'b']);
+    expect(manager.queueService.currentIndex, 1);
+  });
+
+  test('a queued song the player let go when it opened the song again is '
+      'queued again on the next tick', () async {
+    await playAlbum();
+    await at(const Duration(minutes: 2, seconds: 40));
+    expect(backend.preloaded, hasLength(1));
+
+    backend.dropQueued(failed: false);
+    await pumpEventQueue();
+    expect(backend.cancelCalls, 0);
+    await at(const Duration(minutes: 2, seconds: 41));
+    expect(backend.preloaded, hasLength(2));
+    expect(resolver.asked, ['a', 'b', 'b']);
+  });
+
+  test('a song whose file is shorter than its listed length goes on to the '
+      'next one, reported as played to its end', () async {
+    AggregatedItem song(String id) => AggregatedItem(
+      id: id,
+      serverId: 'casa',
+      rawData: {
+        'Id': id,
+        'Type': 'Audio',
+        'MediaType': 'Audio',
+        // 3:20 listed; the file (the player's) lasts 3:00.
+        'RunTimeTicks': 2000000000,
+      },
+    );
+    backend.takesPreload = false;
+    await manager.playItems([song('a'), song('b')]);
+    now = now.add(const Duration(minutes: 2));
+
+    manager.state.setPosition(const Duration(minutes: 3));
+    backend.end();
+    await pumpEventQueue();
+
+    expect(manager.queueService.currentIndex, 1);
+    expect(backend.playedUrls.last, 'https://example.test/b');
+    expect(service.stoppedAt['a'], const Duration(seconds: 200));
+  });
+
+  test('a video whose file ends early still stays where it is', () async {
+    AggregatedItem episode(String id) => AggregatedItem(
+      id: id,
+      serverId: 'casa',
+      rawData: {'Id': id, 'Type': 'Episode', 'RunTimeTicks': 2000000000},
+    );
+    await manager.playItems([episode('e1'), episode('e2')]);
+    now = now.add(const Duration(minutes: 2));
+
+    manager.state.setPosition(const Duration(minutes: 3));
+    backend.end();
+    await pumpEventQueue();
+
+    expect(manager.queueService.currentIndex, 0);
   });
 }

@@ -725,10 +725,13 @@ class MediaBrowseService {
         final ctxKind = parts.elementAtOrNull(3);
         final ctxId = parts.elementAtOrNull(4);
         if (itemId == null) return null;
-        // Kos TV: a song that isn't at home is only in the last queue.
+        // Kos TV: a song that isn't at home is only in the last queue, and
+        // that queue plays from it.
         if (isKostvStreamId(itemId)) {
           final last = await _lastSessionStore.load();
-          return last == null ? null : resolveLastSession(last);
+          return last == null
+              ? null
+              : resolveLastSession(last, startAt: itemId);
         }
         if (ctxKind == 'album' && ctxId != null && ctxId != '-') {
           return _siblingsRequest(
@@ -945,17 +948,27 @@ class MediaBrowseService {
     return _toItems(response, serverId);
   }
 
-  Future<PlayRequest?> resolveLastSession(LastPlaybackSession session) async {
+  /// The last queue, from where it was left; or, with [startAt] (one of its
+  /// songs, the one tapped), from the start of that song.
+  Future<PlayRequest?> resolveLastSession(
+    LastPlaybackSession session, {
+    String? startAt,
+  }) async {
     final client = await _client();
     if (client == null) return null;
     final clientForServer =
         _clientFactory.getClientIfExists(session.serverId) ?? client;
 
+    // Kos TV: the song tapped, when the queue has it.
+    final tappedAt = startAt == null ? -1 : session.itemIds.indexOf(startAt);
+    final fromTapped = tappedAt >= 0 && startAt != session.currentItemId;
+    final at = fromTapped ? tappedAt : session.index;
+
     // Bound the restore: fetch a window around the saved index rather than the
     // entire persisted queue.
     const window = 25;
     final start =
-        (session.index - window ~/ 2).clamp(0, session.itemIds.length - 1);
+        (at - window ~/ 2).clamp(0, session.itemIds.length - 1);
     final ids = session.itemIds
         .sublist(start, (start + window).clamp(0, session.itemIds.length));
 
@@ -975,12 +988,14 @@ class MediaBrowseService {
     final items = loaded.whereType<AggregatedItem>().toList();
     if (items.isEmpty) return null;
 
-    final currentId = session.currentItemId;
+    final currentId = fromTapped ? startAt : session.currentItemId;
     final index = items.indexWhere((i) => i.id == currentId);
     return PlayRequest(
       items: items,
       startIndex: index < 0 ? 0 : index,
-      startPosition: Duration(milliseconds: session.positionMs),
+      startPosition: fromTapped
+          ? Duration.zero
+          : Duration(milliseconds: session.positionMs),
     );
   }
 

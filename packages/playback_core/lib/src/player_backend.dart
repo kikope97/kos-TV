@@ -98,6 +98,12 @@ abstract interface class GaplessCapable {
   /// Fires when the player moved on to the queued item by itself. Never for
   /// a play, a stop or a seek.
   Stream<void> get transitionedStream;
+
+  /// Fires when the player let the queued item go by itself (true when it
+  /// couldn't load it; false when it opened the current item again, for a
+  /// retry or a setting, which empties its queue). The item then starts the
+  /// usual way. Never for a [cancelPreload], a play or a stop.
+  Stream<bool> get nextDroppedStream;
 }
 
 /// Lets a backend expose secondary size and color support independently.

@@ -823,6 +823,8 @@ void setActiveStreamResolver(MediaServerClient client) {
         : null,
     homeItem: (jellyfinId) => KostvMusicService(client).item(jellyfinId),
     probe: kostvStreamProbe,
+    // Kos TV: what is kept of the songs heard is each person's own.
+    person: () => client.userId,
   );
   final service = LocalAwarePlayerService(
     serverService,
@@ -837,6 +839,7 @@ void setActiveStreamResolver(MediaServerClient client) {
     // Kos TV: an out-of-home song goes to the server plugin, not to the
     // home server.
     onStreamStopped: KostvStreamPlayback.instance.stopped,
+    onStreamStarted: KostvStreamPlayback.instance.started,
     homeOf: StremfinStreamResolver.homeOf,
   );
 

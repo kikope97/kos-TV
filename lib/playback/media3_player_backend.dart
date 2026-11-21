@@ -155,6 +155,7 @@ class Media3PlayerBackend extends PlayerBackend
   /// Kos TV: a next song is queued in the native player behind this one.
   bool _nextQueued = false;
   final _transitionedStream = StreamController<void>.broadcast();
+  final _nextDroppedStream = StreamController<bool>.broadcast();
   SubtitleRendererMode _requestedSubtitleRendererMode =
       SubtitleRendererMode.native;
 
@@ -382,6 +383,19 @@ class Media3PlayerBackend extends PlayerBackend
         _transitionedStream.add(null);
         _positionStream.add(_position);
         _durationStream.add(_duration);
+      case 'nextDropped':
+        // Kos TV: the player let the song queued behind go by itself: it
+        // couldn't load it (failed), or it opened this one again.
+        final failed = _toBool(map['failed']);
+        _diag(
+          failed
+              ? 'Media3: the queued song could not be loaded; dropped'
+              : 'Media3: the queued song was dropped (source reopened)',
+        );
+        if (_nextQueued) {
+          _nextQueued = false;
+          _nextDroppedStream.add(failed);
+        }
       case 'completed':
         _nextQueued = false;
         _completed = _toBool(map['completed']);
@@ -1552,6 +1566,9 @@ class Media3PlayerBackend extends PlayerBackend
   Stream<void> get transitionedStream => _transitionedStream.stream;
 
   @override
+  Stream<bool> get nextDroppedStream => _nextDroppedStream.stream;
+
+  @override
   Future<bool> preloadNext(dynamic mediaItem) async {
     if (!canPreloadNext || mediaItem is! Map) return false;
     final url = mediaItem['url']?.toString() ?? '';
@@ -2056,6 +2073,7 @@ class Media3PlayerBackend extends PlayerBackend
     _bufferingStream.close();
     _completedStream.close();
     _transitionedStream.close();
+    _nextDroppedStream.close();
     _errorStream.close();
     _tracksChangedController.close();
     _subtitleLoadingStream.close();

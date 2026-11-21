@@ -1430,6 +1430,17 @@ class Media3VideoView(
                 VideoDecoderStartupFailure.Action.IGNORE -> Unit
             }
 
+            // Kos TV: the queued next song couldn't be loaded. The song
+            // playing is fine: it is taken out of the queue (Dart starts it
+            // the usual way, with its own messages) and the current one goes
+            // on from where it is, with none of its own retries.
+            if (isQueuedNextError(error)) {
+                dropQueuedNext(failed = true)
+                player.prepare()
+                emitState()
+                return
+            }
+
             // Recovery order matters: an error while a display mode switch is
             // in flight is most likely the dropped surface, so that retry gets
             // the first look. A reclaimed decoder is next, since nothing else
@@ -4478,7 +4489,7 @@ class Media3VideoView(
         player.skipSilenceEnabled = nextEnabled
         // Kos TV: no song queued with no gap while silences are skipped; the
         // next one then starts the usual way.
-        if (nextEnabled) cancelQueuedNext()
+        if (nextEnabled) dropQueuedNext(failed = false)
         applyTrackSelectorForCurrentSource()
         emitState()
     }
@@ -4537,6 +4548,56 @@ class Media3VideoView(
     private fun forgetQueuedNext() {
         queuedNextSourceArguments = null
         queuedNextMediaId = null
+    }
+
+    /**
+     * Kos TV: lets the queued next song go by itself (it couldn't be loaded,
+     * or the current source is opened again, which empties the playlist) and
+     * tells Dart, which then starts it the usual way. Nothing without one.
+     */
+    private fun dropQueuedNext(failed: Boolean) {
+        if (queuedNextMediaId == null) return
+        cancelQueuedNext()
+        if (Media3Bridge.isActive(this@Media3VideoView)) {
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "nextDropped",
+                    "failed" to failed,
+                ),
+            )
+        }
+    }
+
+    /**
+     * Kos TV: whether [error] is the queued next song's and not the current
+     * one's. ExoPlayer loads the next song while the current one plays, and
+     * a source error there (an address no longer kept, the network) comes
+     * before it moves on to it, often named after the current item. So it is
+     * the next one's when ExoPlayer names it, or when it is a source error
+     * and the current item was already loaded to its end. A decoder error of
+     * the next one comes after the move, as that song's own.
+     */
+    private fun isQueuedNextError(error: PlaybackException): Boolean {
+        val queuedId = queuedNextMediaId ?: return false
+        if (isPlayerReleased) return false
+        val nextIndex = player.currentMediaItemIndex + 1
+        if (player.mediaItemCount <= nextIndex) return false
+        if (player.getMediaItemAt(nextIndex).mediaId != queuedId) return false
+        val periodUid = (error as? ExoPlaybackException)?.mediaPeriodId?.periodUid
+        if (periodUid != null) {
+            val timeline = player.currentTimeline
+            val periodIndex = timeline.getIndexOfPeriod(periodUid)
+            if (periodIndex != C.INDEX_UNSET &&
+                timeline.getPeriod(periodIndex, Timeline.Period()).windowIndex == nextIndex
+            ) {
+                return true
+            }
+        }
+        // IO (2xxx) and parsing (3xxx) errors are the source's.
+        if (error.errorCode !in 2000..3999) return false
+        val duration = player.duration
+        if (duration == C.TIME_UNSET || duration <= 0L) return false
+        return player.bufferedPosition >= duration - 1_000L
     }
 
     /**
@@ -5476,6 +5537,9 @@ class Media3VideoView(
     private fun prepareCurrentSource(startPositionMs: Long, playWhenReady: Boolean) {
         correctionProgress.reset()
         val url = currentUrl ?: return
+        // Kos TV: the source set below replaces the whole playlist, a next
+        // song queued in it included: Dart is told, and queues it again.
+        dropQueuedNext(failed = false)
         // Rebuilding may change Media3 track-group IDs. Retry the existing
         // primary choice when the replacement tracks become available.
         rememberTrackOverridesForSourceRebuild()
