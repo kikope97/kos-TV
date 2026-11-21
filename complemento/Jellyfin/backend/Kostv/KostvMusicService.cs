@@ -322,12 +322,14 @@ public sealed class KostvMusicService
             }
 
             var generation = GenerationOf(userId);
+            // Before anything is read: if the listens are deleted after, the engines aren't compared.
+            var startedAt = _store.Now;
             var work = WorkOf(userId, user, day, generation);
             var tracks = MixTracksOf(work, user, userId);
             var now = _store.Now;
             var learns = _store.Learns(userId);
             var recent = learns ? _store.Read(userId, now - TimeSpan.FromDays(NoRepeatDays + 1)) : [];
-            var rules = new KostvMixRules(NotToRepeat(recent, KostvMusicEvent.MixesSurface, null, now), work.Taste.Dislikes, now);
+            var rules = new KostvMixRules(new HashSet<Guid>(), work.Taste.Dislikes, now, NotToRepeat(recent, KostvMusicEvent.MixesSurface, null, now));
             // Both engines, whichever is shown: the other is compared with what is heard.
             var old = KostvMusicEngine.Mixes(userId, day, tracks, work.Taste.Old, work.Similar, rules);
             var fresh = KostvMusicEngine.Mixes(userId, day, tracks, work.Taste.New, work.Similar, rules);
@@ -342,7 +344,7 @@ public sealed class KostvMusicService
             });
             if (learns && GenerationOf(userId) == generation)
             {
-                NoteShadow(userId, day, work.Taste.UsesNew, old, fresh);
+                NoteShadow(userId, day, work.Taste.UsesNew, old, fresh, startedAt);
             }
 
             return mixes;
@@ -420,7 +422,7 @@ public sealed class KostvMusicService
                 var genres = slotItems.SelectMany(e => e.Genres ?? []).GroupBy(KostvMusicEngine.Key).OrderByDescending(g => g.Count()).Take(3).Select(g => g.First()).ToList();
                 var artists = slotItems.SelectMany(e => e.Artists ?? []).GroupBy(KostvMusicEngine.Key).OrderByDescending(g => g.Count()).Take(PoolArtists).Select(g => g.First()).ToList();
                 Extend(work, user, userId, genres, artists, "moment-" + slot);
-                var rules = new KostvMixRules(NotToRepeat(events.Where(e => e.At >= now - TimeSpan.FromDays(NoRepeatDays + 1)), KostvMusicEvent.MomentSurface, slot, now), work.Taste.Dislikes, now);
+                var rules = new KostvMixRules(new HashSet<Guid>(), work.Taste.Dislikes, now, NotToRepeat(events.Where(e => e.At >= now - TimeSpan.FromDays(NoRepeatDays + 1)), KostvMusicEvent.MomentSurface, slot, now));
                 var tracks = work.Tracks.ToList();
                 var items = KostvMusicEngine.Moment(userId, day, slot, events, tracks, work.Taste.Profile, now, zone, work.Similar, rules, learned: work.Taste.UsesNew);
                 var byId = tracks.GroupBy(t => t.Id).ToDictionary(g => g.Key, g => g.First());
@@ -487,7 +489,7 @@ public sealed class KostvMusicService
         // Their listens summed up (kept up to date as each is noted), not two years read each day.
         var summary = _store.Learns(userId) ? _store.Taste(userId) : new KostvTasteSummary();
         var listens = summary.OldListens(now);
-        var dislikes = KostvDislikeSet.Of(_store.DislikesOf(userId));
+        var dislikes = DislikeSetOf(userId);
 
         var items = new Dictionary<Guid, BaseItem>();
         foreach (var item in Query(user, q => q.IsPlayed = true, HeardLimit, newestBy: ItemSortBy.DatePlayed)
@@ -509,48 +511,54 @@ public sealed class KostvMusicService
         KostvMusicEngine.Seeds(work.Taste.Profile, userId, Week, work.Taste.Dislikes);
 
     /// <summary>
-    /// What not to repeat in a mix: the songs of the <paramref name="surface"/> shown on the
-    /// <see cref="NoRepeatDays"/> music days before this one (of <paramref name="slot"/>, for the
-    /// moment's), and those heard in the last <see cref="NoRepeatHeard"/>.
+    /// What not to repeat in a mix, in the order it is given back when the person knows too few
+    /// songs without it (see <see cref="KostvMixRules.Readmit"/>): the songs of the
+    /// <paramref name="surface"/> shown on each of the <see cref="NoRepeatDays"/> music days
+    /// before this one (of <paramref name="slot"/>, for the moment's), the oldest day first, and
+    /// last those heard in the last <see cref="NoRepeatHeard"/>.
     /// </summary>
-    private HashSet<Guid> NotToRepeat(IEnumerable<KostvMusicEvent> events, string surface, string? slot, DateTimeOffset now)
+    private List<IReadOnlySet<Guid>> NotToRepeat(IEnumerable<KostvMusicEvent> events, string surface, string? slot, DateTimeOffset now)
     {
         var zone = _store.Zone;
         var today = KostvMusicEngine.MusicDay(now, zone);
-        var exclude = new HashSet<Guid>();
+        // One per day before, the oldest first; the heard last.
+        var tiers = Enumerable.Range(0, NoRepeatDays + 1).Select(_ => new HashSet<Guid>()).ToList();
         foreach (var e in events)
         {
             IEnumerable<string> ids = [];
+            var tier = -1;
             if (e.IsListen && e.At >= now - NoRepeatHeard && e.At <= now)
             {
                 ids = [e.Item];
+                tier = NoRepeatDays;
             }
             else if (e.Type == KostvMusicEvent.ShownType && e.Surface == surface && (slot == null || e.Slot == slot))
             {
                 var day = KostvMusicEngine.MusicDay(e.At, zone);
                 if (day < today && day >= today.AddDays(-NoRepeatDays))
                 {
-                    ids = surface == KostvMusicEvent.MixesSurface ? (e.Mixes ?? []).SelectMany(m => m.Items) : e.Items ?? [];
+                    ids = surface == KostvMusicEvent.MixesSurface ? (e.Mixes ?? []).SelectMany(m => m?.Items ?? []) : e.Items ?? [];
+                    tier = NoRepeatDays - (today.DayNumber - day.DayNumber);
                 }
             }
 
             foreach (var id in ids)
             {
-                if (Guid.TryParse(id, out var guid))
+                if (tier >= 0 && Guid.TryParse(id, out var guid))
                 {
-                    exclude.Add(guid);
+                    tiers[tier].Add(guid);
                 }
             }
         }
 
-        return exclude;
+        return tiers.Cast<IReadOnlySet<Guid>>().ToList();
     }
 
     /// <summary>
     /// Keeps the first songs of each engine's mixes of <paramref name="day"/>, and compares the
     /// ones of the day before with what was heard whole on it (<c>compare.jsonl</c>).
     /// </summary>
-    private void NoteShadow(Guid userId, string day, bool usesNew, IReadOnlyList<KostvMix> old, IReadOnlyList<KostvMix> fresh)
+    private void NoteShadow(Guid userId, string day, bool usesNew, IReadOnlyList<KostvMix> old, IReadOnlyList<KostvMix> fresh, DateTimeOffset workedOutAt)
     {
         try
         {
@@ -568,7 +576,8 @@ public sealed class KostvMusicService
                 {
                     var date = DateOnly.ParseExact(before.Day, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
                     return (KostvMusicEngine.Hits(before.Old, events, date, zone), KostvMusicEngine.Hits(before.New, events, date, zone));
-                });
+                },
+                workedOutAt);
         }
         catch (Exception ex)
         {
@@ -595,16 +604,15 @@ public sealed class KostvMusicService
             var work = WorkOf(userId, user, Day, GenerationOf(userId));
             var profile = work.Taste.New;
             var dislikes = work.Taste.Dislikes;
-            var artists = (profile.Background ?? profile.Artists).Where(a => !dislikes.BlocksArtist(a.Name)).Take(TasteArtists).ToList();
-            var recent = (profile.Recent ?? profile.Artists).Where(a => !dislikes.BlocksArtist(a.Name)).Take(TasteArtists).ToList();
-            var missing = artists.Concat(recent).Select(a => a.Name).Where(n => !work.Artists.ContainsKey(n)).ToList();
-            if (missing.Count > 0)
-            {
-                foreach (var (name, artist) in ArtistsByName(missing))
-                {
-                    work.Artists[name] = artist;
-                }
-            }
+            // By name, and by the id at home once found (an artist renamed since is still out).
+            Guid? IdOf(string name) => work.Artists.GetValueOrDefault(name)?.Id;
+            var background = (profile.Background ?? profile.Artists).Where(a => !dislikes.BlocksArtist(a.Name)).ToList();
+            var lately = (profile.Recent ?? profile.Artists).Where(a => !dislikes.BlocksArtist(a.Name)).ToList();
+            var looked = TasteArtists + dislikes.ArtistIds.Count;
+            FindArtists(work, background.Take(looked).Concat(lately.Take(looked)).Select(a => a.Name));
+            var artists = background.Where(a => !dislikes.BlocksArtist(IdOf(a.Name), a.Name)).Take(TasteArtists).ToList();
+            var recent = lately.Where(a => !dislikes.BlocksArtist(IdOf(a.Name), a.Name)).Take(TasteArtists).ToList();
+            FindArtists(work, artists.Concat(recent).Select(a => a.Name));
 
             KostvTasteEntry Entry(KostvWeighted a) => new(work.Artists.GetValueOrDefault(a.Name)?.Id, a.Name, Math.Round(a.Weight, 3));
             return new KostvTasteView(
@@ -622,7 +630,17 @@ public sealed class KostvMusicService
     // ---------------------------------------------------------------- «no me gusta»
 
     /// <summary>What <paramref name="userId"/> doesn't want to hear, as the engine uses it.</summary>
-    public KostvDislikeSet DislikeSetOf(Guid userId) => KostvDislikeSet.Of(_store.DislikesOf(userId));
+    public KostvDislikeSet DislikeSetOf(Guid userId)
+    {
+        var dislikes = _store.DislikesOf(userId);
+        // The names the artists out have at home now, for one renamed since it was said.
+        var namesNow = dislikes.Artists
+            .Select(a => Guid.TryParse(a.Id, out var id) ? ItemOf(id)?.Name?.Trim() : null)
+            .Where(n => !string.IsNullOrEmpty(n))
+            .OfType<string>()
+            .ToList();
+        return KostvDislikeSet.Of(dislikes, namesNow);
+    }
 
     /// <summary>Whether <paramref name="item"/> is out for whoever said <paramref name="dislikes"/>: the song, or any of its artists.</summary>
     public static bool Blocks(KostvDislikeSet dislikes, BaseItem item) => !dislikes.IsEmpty && dislikes.Blocks(TrackOf(item, null));
@@ -630,38 +648,61 @@ public sealed class KostvMusicService
     /// <summary>
     /// «No me gusta» of <paramref name="userId"/> to the songs (or, with <paramref name="artists"/>,
     /// the artists) <paramref name="ids"/>: kept with their names to show in the list, also with
-    /// Learn off, and the day's music worked out again without them.
+    /// Learn off, and the day's music worked out again without them. Only what is at home and
+    /// of its kind is kept: a song, or an artist (for an artist, a song stands for its main
+    /// artist); the rest is let go of. False when it could not be stored.
     /// </summary>
-    public void Dislike(Guid userId, bool artists, IReadOnlyList<Guid> ids)
+    public bool Dislike(Guid userId, bool artists, IReadOnlyList<Guid> ids)
     {
         var now = _store.Now;
+        var items = ids.Select(ItemOf).OfType<BaseItem>().ToList();
+        var songs = items.OfType<Audio>()
+            .Select(item => (Item: (BaseItem)item, Name: item.Name?.Trim(), Track: TrackOf(item, null)))
+            .Where(s => !string.IsNullOrEmpty(s.Name))
+            .ToList();
+        // Their artists, asked for at once.
+        var byName = ArtistsByName(songs.Select(s => s.Track.PrimaryArtist?.Trim()).OfType<string>());
+        bool saved;
         if (artists)
         {
-            _store.AddDislikes(userId, [], ids.Select(id => new KostvDislikedArtist { Id = id.ToString("N"), Name = ItemOf(id)?.Name?.Trim(), At = now }).ToList());
+            var found = items.OfType<MusicArtist>()
+                .Select(a => (Id: a.Id, Name: a.Name?.Trim()))
+                .Concat(songs.Select(s => byName.GetValueOrDefault(s.Track.PrimaryArtist?.Trim() ?? string.Empty)).OfType<BaseItem>().Select(a => (Id: a.Id, Name: a.Name?.Trim())))
+                .Where(a => !string.IsNullOrEmpty(a.Name))
+                .DistinctBy(a => a.Id)
+                .Select(a => new KostvDislikedArtist { Id = a.Id.ToString("N"), Name = a.Name, At = now })
+                .ToList();
+            if (found.Count == 0)
+            {
+                return true;
+            }
+
+            saved = _store.AddDislikes(userId, [], found);
         }
         else
         {
-            var songs = new List<KostvDislikedSong>();
-            foreach (var id in ids)
+            if (songs.Count == 0)
             {
-                var item = ItemOf(id);
-                var track = item != null ? TrackOf(item, null) : null;
-                var artist = track?.PrimaryArtist?.Trim();
-                songs.Add(new KostvDislikedSong
-                {
-                    Id = id.ToString("N"),
-                    Name = item?.Name?.Trim(),
-                    Artist = artist,
-                    ArtistId = artist != null ? ArtistsByName([artist]).GetValueOrDefault(artist)?.Id.ToString("N") : null,
-                    AlbumId = track?.Album?.ToString("N"),
-                    At = now
-                });
+                return true;
             }
 
-            _store.AddDislikes(userId, songs, []);
+            saved = _store.AddDislikes(userId, songs.Select(s =>
+            {
+                var artist = s.Track.PrimaryArtist?.Trim();
+                return new KostvDislikedSong
+                {
+                    Id = s.Item.Id.ToString("N"),
+                    Name = s.Name,
+                    Artist = artist,
+                    ArtistId = artist != null ? byName.GetValueOrDefault(artist)?.Id.ToString("N") : null,
+                    AlbumId = s.Track.Album?.ToString("N"),
+                    At = now
+                };
+            }).ToList(), []);
         }
 
         Forget(userId);
+        return saved;
     }
 
     /// <summary>Takes <paramref name="itemId"/> off what <paramref name="userId"/> doesn't want to hear.</summary>
@@ -806,16 +847,31 @@ public sealed class KostvMusicService
     /// <summary>The ids of the artists on a mix's cover, found once for the day.</summary>
     private List<Guid> ArtistIdsOf(Work work, IReadOnlyList<string> names)
     {
-        var missing = names.Where(n => !work.Artists.ContainsKey(n)).ToList();
-        if (missing.Count > 0)
+        FindArtists(work, names);
+        return names.Select(n => work.Artists.GetValueOrDefault(n)).OfType<BaseItem>().Select(a => a.Id).ToList();
+    }
+
+    /// <summary>
+    /// Looks for the artists <paramref name="names"/> not looked for yet today (found or not), at
+    /// once, into <see cref="Work.Artists"/>: one not at home isn't asked for again each time.
+    /// </summary>
+    private void FindArtists(Work work, IEnumerable<string> names)
+    {
+        var missing = names
+            .Where(n => !string.IsNullOrWhiteSpace(n) && !work.Artists.ContainsKey(n) && !work.ArtistsLooked.Contains(KostvMusicEngine.Key(n)))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (missing.Count == 0)
         {
-            foreach (var (name, artist) in ArtistsByName(missing))
-            {
-                work.Artists[name] = artist;
-            }
+            return;
         }
 
-        return names.Select(n => work.Artists.GetValueOrDefault(n)).OfType<BaseItem>().Select(a => a.Id).ToList();
+        foreach (var (name, artist) in ArtistsByName(missing))
+        {
+            work.Artists[name] = artist;
+        }
+
+        work.ArtistsLooked.UnionWith(missing.Select(KostvMusicEngine.Key));
     }
 
     /// <summary>The artists of a mix's cover, by their ids (or, without them, by name).</summary>

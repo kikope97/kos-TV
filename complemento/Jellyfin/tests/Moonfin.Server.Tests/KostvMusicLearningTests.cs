@@ -615,6 +615,8 @@ public sealed partial class KostvMusicTests
         Assert.True(File.Exists(Path.Combine(folder, "taste.json")));
         store.Append(user, Listen(song, _now));
         store.Append(user, new KostvMusicEvent { Type = KostvMusicEvent.PlaylistAddType, Items = [song.ToString("N")] }.Stamp(_now, Home));
+        // Written when the server stops (or later on), not with each line.
+        store.FlushTastes();
         var restarted = NewStore();
         var taste = restarted.Taste(user);
         Assert.Equal(2, taste.Listens);

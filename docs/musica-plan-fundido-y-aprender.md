@@ -232,9 +232,11 @@ se puso cada canción, sin fechas, y los ♥).
 
 **Dónde se calcula.**
 - Un resumen por persona (`taste.json`) que se actualiza al apuntar cada
-  escucha, en vez de leer los 24 meses cada día.
-- Recálculo completo una vez al día de madrugada y al cambiar un ♥ o un «No me
-  gusta».
+  escucha, en vez de leer los 24 meses cada día. Se escribe cada 50 cambios o
+  cada 5 minutos, en la ronda diaria y al parar el servidor (no con cada
+  escucha), y sin las canciones que solo se enseñaron hace más de 12 semanas.
+- Recálculo completo una vez al día, al empezar el día de música (5:00 en casa),
+  y al cambiar un ♥ o un «No me gusta» se rehace la música del día.
 - Ruta nueva `GET /Moonfin/Kostv/Music/Taste`: artistas y géneros principales
   (con su id de Jellyfin, el de Deezer si se conoce y el motivo), para que la
   app pida «Para ti».
@@ -251,9 +253,15 @@ se puso cada canción, sin fechas, y los ♥).
   - nunca el mismo artista seguido;
   - al menos 3 canciones entre dos del mismo artista;
   - como mucho 3 por artista cada 25;
-  - nunca dos del mismo disco seguidas.
+  - nunca dos del mismo disco seguidas;
+  - si no queda otra (un género casi de un solo artista, como Cantajuego), el
+    mismo artista puede ir seguido, solo hasta tener la mezcla mínima (20; 10 la
+    del momento) y nunca dos del mismo disco seguidas.
 - **Sin repetirse:** fuera lo que salió en las mezclas de los 3 días anteriores
-  y lo oído en las últimas 24 h.
+  y lo oído en las últimas 24 h. Si con eso no quedan conocidas para ¾ de la
+  mezcla (bibliotecas pequeñas), vuelven primero las del día más antiguo de los
+  tres, luego las del siguiente, y lo oído en las últimas 24 h solo si aún
+  faltan.
 - **Orden:** empieza por algo muy seguro (lo que más gusta de esa mezcla) y va
   encadenando por artistas y géneros parecidos, para que no haya saltos bruscos.
 

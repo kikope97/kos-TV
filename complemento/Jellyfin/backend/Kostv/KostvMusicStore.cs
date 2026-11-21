@@ -355,6 +355,15 @@ public sealed class KostvMusicStore
     /// <summary>The most songs, and artists, a person's «no me gusta» list keeps (the oldest go).</summary>
     public const int MaxDislikes = 2000;
 
+    /// <summary>
+    /// While listens are noted, the taste (<c>taste.json</c>) is written once these many are
+    /// added to it...
+    /// </summary>
+    public const int TasteSaveAfter = 50;
+
+    /// <summary>...or once the first not written is this old; and always on the daily round and when the server stops.</summary>
+    public static readonly TimeSpan TasteSaveEvery = TimeSpan.FromMinutes(5);
+
     private static readonly JsonSerializerOptions TasteOptions = new()
     {
         WriteIndented = false,
@@ -401,6 +410,9 @@ public sealed class KostvMusicStore
 
     // Each person's taste summed up (taste.json), once read or worked out.
     private readonly ConcurrentDictionary<Guid, KostvTasteSummary> _tastes = new();
+
+    // What was added to each person's taste and not written yet: how many, and since when.
+    private readonly ConcurrentDictionary<Guid, (int Count, DateTimeOffset Since)> _tasteUnsaved = new();
 
     // Each person's «no me gusta» (dislikes.json), once read.
     private readonly ConcurrentDictionary<Guid, KostvDislikes> _dislikes = new();
@@ -611,6 +623,7 @@ public sealed class KostvMusicStore
             AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), ShownFile));
             // What was worked out of them goes too; «no me gusta» and Learn stay.
             _tastes.TryRemove(userId, out _);
+            _tasteUnsaved.TryRemove(userId, out _);
             AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), TasteFile));
             AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), ShadowFile));
             AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), CompareFile));
@@ -646,6 +659,7 @@ public sealed class KostvMusicStore
             _shown.TryRemove(userId, out _);
             _listensDeletedAt.TryRemove(userId, out _);
             _tastes.TryRemove(userId, out _);
+            _tasteUnsaved.TryRemove(userId, out _);
             _dislikes.TryRemove(userId, out _);
         }
     }
@@ -973,13 +987,15 @@ public sealed class KostvMusicStore
 
     /// <summary>
     /// <paramref name="userId"/>'s taste summed up (see <see cref="KostvTasteSummary"/>): from
-    /// memory, their folder or, the first time, worked out from all their listens.
+    /// memory, their folder or, the first time, worked out from all their listens. A copy, made
+    /// under their lock: the one kept goes on being brought up to date as listens are noted, and
+    /// reading it meanwhile would fail.
     /// </summary>
     public KostvTasteSummary Taste(Guid userId)
     {
         lock (LockOf(userId))
         {
-            return TasteLocked(userId, create: true)!;
+            return TasteLocked(userId, create: true)!.Copy();
         }
     }
 
@@ -995,16 +1011,20 @@ public sealed class KostvMusicStore
             text => JsonSerializer.Deserialize<KostvTasteSummary>(text, TasteOptions));
         if (stored is { Version: KostvTasteSummary.CurrentVersion })
         {
-            _tastes[userId] = stored;
+            // A file edited by hand, or cut short, may have lists as null.
+            _tastes[userId] = stored.Normalized();
             return stored;
         }
 
         return create ? RecomputeTasteLocked(userId) : null;
     }
 
+    /// <summary>How the taste is worked out in full from the listens (for tests, to make it fail).</summary>
+    internal Func<IReadOnlyList<KostvMusicEvent>, DateTimeOffset, KostvTasteSummary> Summarize { get; set; } = KostvMusicEngine.Summarize;
+
     private KostvTasteSummary RecomputeTasteLocked(Guid userId)
     {
-        var summary = KostvMusicEngine.Summarize(Read(userId), _now());
+        var summary = Summarize(Read(userId), _now());
         _tastes[userId] = summary;
         SaveTasteLocked(userId, summary);
         return summary;
@@ -1012,6 +1032,7 @@ public sealed class KostvMusicStore
 
     private void SaveTasteLocked(Guid userId, KostvTasteSummary summary)
     {
+        _tasteUnsaved.TryRemove(userId, out _);
         if (_deleted.ContainsKey(userId))
         {
             return;
@@ -1019,6 +1040,8 @@ public sealed class KostvMusicStore
 
         try
         {
+            // The songs only shown, and not lately, would only grow the file.
+            summary.DropOldShown(_now());
             var folder = FolderOf(userId);
             Directory.CreateDirectory(folder);
             AtomicFile.WriteAllText(Path.Combine(folder, TasteFile), JsonSerializer.Serialize(summary, TasteOptions));
@@ -1037,7 +1060,18 @@ public sealed class KostvMusicStore
             if (TasteLocked(userId, create: false) is { } summary)
             {
                 summary.Apply(entry);
-                SaveTasteLocked(userId, summary);
+                // Not written each time: once enough is added, or the first not written is old
+                // enough (and on the daily round and when the server stops, see FlushTastes).
+                var now = _now();
+                var unsaved = _tasteUnsaved.TryGetValue(userId, out var had) ? (Count: had.Count + 1, had.Since) : (Count: 1, Since: now);
+                if (unsaved.Count >= TasteSaveAfter || now - unsaved.Since >= TasteSaveEvery)
+                {
+                    SaveTasteLocked(userId, summary);
+                }
+                else
+                {
+                    _tasteUnsaved[userId] = unsaved;
+                }
             }
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
@@ -1057,27 +1091,57 @@ public sealed class KostvMusicStore
         }
     }
 
+    /// <summary>Writes what was added to anyone's taste and not written yet: when the server stops.</summary>
+    public void FlushTastes()
+    {
+        foreach (var userId in _tasteUnsaved.Keys.ToList())
+        {
+            lock (LockOf(userId))
+            {
+                if (_tasteUnsaved.ContainsKey(userId) && _tastes.TryGetValue(userId, out var summary))
+                {
+                    SaveTasteLocked(userId, summary);
+                }
+                else
+                {
+                    _tasteUnsaved.TryRemove(userId, out _);
+                }
+            }
+        }
+    }
+
     /// <summary>
     /// Works out again the taste of everyone who keeps what they listen to: for the daily round,
-    /// so what is brought up to date line by line never drifts. How many.
+    /// so what is brought up to date line by line never drifts. How many; one that fails doesn't
+    /// stop the others (it is told, and its taste kept as it was).
     /// </summary>
     public int RecomputeTastes()
     {
         if (!Directory.Exists(_root))
         {
+            FlushTastes();
             return 0;
         }
 
         var count = 0;
         foreach (var userId in UserFolders())
         {
-            if (!_deleted.ContainsKey(userId) && Learns(userId))
+            try
             {
-                RecomputeTaste(userId);
-                count++;
+                if (!_deleted.ContainsKey(userId) && Learns(userId))
+                {
+                    RecomputeTaste(userId);
+                    count++;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "kOS TV music: the taste of {User} could not be worked out again", userId.ToString("N"));
             }
         }
 
+        // Those not worked out again (Learn off since): what was added, written.
+        FlushTastes();
         return count;
     }
 
@@ -1098,7 +1162,7 @@ public sealed class KostvMusicStore
     private KostvDislikes DislikesLocked(Guid userId) => _dislikes.GetOrAdd(userId, id =>
         AtomicFile.ReadWithRecovery(
             Path.Combine(FolderOf(id), DislikesFile),
-            text => JsonSerializer.Deserialize<KostvDislikes>(text, LineOptions)) ?? new KostvDislikes());
+            text => JsonSerializer.Deserialize<KostvDislikes>(text, LineOptions))?.Normalized() ?? new KostvDislikes());
 
     /// <summary>
     /// Adds <paramref name="songs"/> and <paramref name="artists"/> to what <paramref name="userId"/>
@@ -1215,13 +1279,20 @@ public sealed class KostvMusicStore
     /// Keeps <paramref name="shadow"/> as <paramref name="userId"/>'s first songs of each engine
     /// for its day; the ones of a day before are compared first with what was heard whole that
     /// day (<paramref name="hits"/>), and the comparison added to <c>compare.jsonl</c>. Nothing
-    /// while Learn is off.
+    /// while Learn is off, nor when worked out (<paramref name="workedOutAt"/>) before the person
+    /// deleted their listens.
     /// </summary>
-    public void NoteShadow(Guid userId, KostvShadow shadow, Func<KostvShadow, IReadOnlyList<KostvMusicEvent>, (int Old, int New)> hits)
+    public void NoteShadow(Guid userId, KostvShadow shadow, Func<KostvShadow, IReadOnlyList<KostvMusicEvent>, (int Old, int New)> hits, DateTimeOffset? workedOutAt = null)
     {
         lock (LockOf(userId))
         {
             if (_deleted.ContainsKey(userId) || !Learns(userId))
+            {
+                return;
+            }
+
+            // Worked out before the person deleted their listens: not written after.
+            if (workedOutAt is { } at && _listensDeletedAt.TryGetValue(userId, out var deletedAt) && at < deletedAt)
             {
                 return;
             }

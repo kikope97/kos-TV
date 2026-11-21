@@ -144,12 +144,17 @@ public sealed class KostvSongTaste
     [JsonPropertyName("pl")]
     public bool Playlist { get; set; }
 
-    /// <summary>Weeks it was shown in the mixes or the moment's mix.</summary>
+    /// <summary>
+    /// The different weeks it was shown in the mixes or the moment's mix (ISO, yyyy-Www), up to
+    /// <see cref="KostvTasteWeights.ShownWeeksCap"/>: more don't weigh more. Kept as weeks, not
+    /// counted, so a week told twice or out of order counts once.
+    /// </summary>
     [JsonPropertyName("sw")]
-    public int ShownWeeks { get; set; }
+    public List<string>? Weeks { get; set; }
 
-    [JsonPropertyName("lw")]
-    public string? LastShownWeek { get; set; }
+    /// <summary>How many weeks it was shown and not played (see <see cref="Weeks"/>).</summary>
+    [JsonIgnore]
+    public int ShownWeeks => Weeks?.Count ?? 0;
 
     [JsonPropertyName("ls")]
     public DateTimeOffset? LastShown { get; set; }
@@ -162,6 +167,13 @@ public sealed class KostvSongTaste
     public double ShortAt(DateTimeOffset now) => Short * KostvDecay.Factor(At, now, KostvTasteWeights.ShortHalfLife);
 
     public double OldAt(DateTimeOffset now) => Old * KostvDecay.Factor(At, now, KostvTasteWeights.OldHalfLife);
+
+    public KostvSongTaste Copy()
+    {
+        var copy = (KostvSongTaste)MemberwiseClone();
+        copy.Weeks = Weeks?.ToList();
+        return copy;
+    }
 
     /// <summary>Adds what happened at <paramref name="at"/>, the sums kept as of the latest time seen.</summary>
     public void Add(DateTimeOffset at, double longWeight, double shortWeight, double oldWeight)
@@ -209,6 +221,8 @@ public sealed class KostvArtistTaste
 
     public double ShortAt(DateTimeOffset now) => Short * KostvDecay.Factor(At, now, KostvTasteWeights.ShortHalfLife);
 
+    public KostvArtistTaste Copy() => (KostvArtistTaste)MemberwiseClone();
+
     public void AddRequest(DateTimeOffset at)
     {
         if (At == default)
@@ -253,7 +267,9 @@ internal static class KostvDecay
 /// </summary>
 public sealed class KostvTasteSummary
 {
-    public const int CurrentVersion = 1;
+    // 2: the weeks a song was shown are kept as weeks (see KostvSongTaste.Weeks); a summary of
+    // before is worked out again.
+    public const int CurrentVersion = 2;
 
     [JsonPropertyName("v")]
     public int Version { get; set; } = CurrentVersion;
@@ -283,6 +299,37 @@ public sealed class KostvTasteSummary
     public double Learned => Math.Min(1, Listens / (double)KostvTasteWeights.FullyLearnedAt);
 
     public KostvSongTaste? SongOf(Guid id) => Songs.GetValueOrDefault(id.ToString("N"));
+
+    /// <summary>
+    /// A copy of it all, to read while it goes on being brought up to date (under the person's
+    /// lock) as listens are noted.
+    /// </summary>
+    public KostvTasteSummary Copy() => new()
+    {
+        Version = Version,
+        Listens = Listens,
+        WorkedOut = WorkedOut,
+        Songs = Songs.ToDictionary(s => s.Key, s => s.Value.Copy(), StringComparer.Ordinal),
+        Artists = Artists.ToDictionary(a => a.Key, a => a.Value.Copy(), StringComparer.Ordinal),
+        Albums = Albums.ToDictionary(a => a.Key, a => new KostvFavoriteMark { Favorite = a.Value.Favorite, At = a.Value.At }, StringComparer.Ordinal)
+    };
+
+    /// <summary>
+    /// As read from a file: what is missing in it (a list written as null, an entry null) made
+    /// empty, so nothing that reads it fails.
+    /// </summary>
+    public KostvTasteSummary Normalized()
+    {
+        Songs = new Dictionary<string, KostvSongTaste>((Songs ?? []).Where(s => s.Value != null), StringComparer.Ordinal);
+        Artists = new Dictionary<string, KostvArtistTaste>((Artists ?? []).Where(a => a.Value != null), StringComparer.Ordinal);
+        Albums = new Dictionary<string, KostvFavoriteMark>((Albums ?? []).Where(a => a.Value != null), StringComparer.Ordinal);
+        foreach (var song in Songs.Values)
+        {
+            song.Weeks = song.Weeks?.Where(w => !string.IsNullOrEmpty(w)).Distinct(StringComparer.Ordinal).ToList();
+        }
+
+        return this;
+    }
 
     /// <summary>Whether the album <paramref name="album"/> has a heart.</summary>
     public bool FavoriteAlbum(Guid? album) => album is { } id && Albums.TryGetValue(id.ToString("N"), out var mark) && mark.Favorite;
@@ -323,7 +370,7 @@ public sealed class KostvTasteSummary
                         Albums[album] = new KostvFavoriteMark { Favorite = on, At = e.At };
                     }
                 }
-                else if (e.Kind == KostvMusicEvent.ArtistKind && e.Artists is [var name, ..] && KostvMusicEngine.Key(name) is { Length: > 0 } key)
+                else if (e.Kind == KostvMusicEvent.ArtistKind && e.Artists is [{ } name, ..] && KostvMusicEngine.Key(name) is { Length: > 0 } key)
                 {
                     var artist = Artist(key);
                     if (artist.FavoriteAt is not { } at || at <= e.At)
@@ -350,7 +397,7 @@ public sealed class KostvTasteSummary
             case KostvMusicEvent.ShownType:
                 var shown = e.Surface switch
                 {
-                    KostvMusicEvent.MixesSurface => (e.Mixes ?? []).SelectMany(m => m.Items),
+                    KostvMusicEvent.MixesSurface => (e.Mixes ?? []).SelectMany(m => m?.Items ?? []),
                     KostvMusicEvent.MomentSurface => e.Items ?? [],
                     _ => []
                 };
@@ -369,10 +416,10 @@ public sealed class KostvTasteSummary
                     }
 
                     var song = Song(id);
-                    if (song.LastShownWeek != week)
+                    song.Weeks ??= [];
+                    if (song.Weeks.Count < KostvTasteWeights.ShownWeeksCap && !song.Weeks.Contains(week))
                     {
-                        song.ShownWeeks++;
-                        song.LastShownWeek = week;
+                        song.Weeks.Add(week);
                     }
 
                     song.LastShown = song.LastShown is { } last && last > e.At ? last : e.At;
@@ -424,8 +471,7 @@ public sealed class KostvTasteSummary
 
         song.LastHeard = song.LastHeard is { } last && last > e.At ? last : e.At;
         // Played now: what was noted as shown and not played no longer applies.
-        song.ShownWeeks = 0;
-        song.LastShownWeek = null;
+        song.Weeks = null;
         song.LastShown = null;
     }
 
@@ -480,11 +526,12 @@ public sealed class KostvDislikeSet
 {
     public static readonly KostvDislikeSet Empty = new([], [], new Dictionary<string, int>());
 
-    public KostvDislikeSet(IEnumerable<Guid> songs, IEnumerable<string> artists, IReadOnlyDictionary<string, int> songsPerArtist)
+    public KostvDislikeSet(IEnumerable<Guid> songs, IEnumerable<string> artists, IReadOnlyDictionary<string, int> songsPerArtist, IEnumerable<Guid>? artistIds = null)
     {
         Songs = songs.ToHashSet();
         Artists = artists.Select(KostvMusicEngine.Key).Where(k => k.Length > 0).ToHashSet(StringComparer.Ordinal);
         SongsPerArtist = songsPerArtist;
+        ArtistIds = (artistIds ?? []).Where(id => id != Guid.Empty).ToHashSet();
     }
 
     public IReadOnlySet<Guid> Songs { get; }
@@ -495,12 +542,18 @@ public sealed class KostvDislikeSet
     /// <summary>How many songs out there are of each artist, as matched.</summary>
     public IReadOnlyDictionary<string, int> SongsPerArtist { get; }
 
-    public bool IsEmpty => Songs.Count == 0 && Artists.Count == 0;
+    /// <summary>The artists out, by their id at home (so one renamed since is still out).</summary>
+    public IReadOnlySet<Guid> ArtistIds { get; }
+
+    public bool IsEmpty => Songs.Count == 0 && Artists.Count == 0 && ArtistIds.Count == 0;
 
     /// <summary>Whether <paramref name="track"/> is out: the song, or any of its artists.</summary>
     public bool Blocks(KostvMusicTrack track) => Songs.Contains(track.Id) || track.Artists.Any(BlocksArtist);
 
     public bool BlocksArtist(string? name) => name != null && Artists.Contains(KostvMusicEngine.Key(name));
+
+    /// <summary>Whether the artist <paramref name="id"/> (or, by name, <paramref name="name"/>) is out.</summary>
+    public bool BlocksArtist(Guid? id, string? name) => (id is { } artistId && ArtistIds.Contains(artistId)) || BlocksArtist(name);
 
     /// <summary>What is kept of the weight of the artist <paramref name="name"/> for their songs out.</summary>
     public double ArtistFactor(string? name) =>
@@ -509,8 +562,11 @@ public sealed class KostvDislikeSet
     /// <summary>What is kept of a song's weight for the songs out of its main artist.</summary>
     public double Factor(KostvMusicTrack track) => ArtistFactor(track.PrimaryArtist);
 
-    /// <summary>The set from what the person said, as kept (see <see cref="KostvDislikes"/>).</summary>
-    public static KostvDislikeSet Of(KostvDislikes? dislikes)
+    /// <summary>
+    /// The set from what the person said, as kept (see <see cref="KostvDislikes"/>), with the names
+    /// the artists out have at home now (<paramref name="artistNamesNow"/>), when renamed since.
+    /// </summary>
+    public static KostvDislikeSet Of(KostvDislikes? dislikes, IEnumerable<string>? artistNamesNow = null)
     {
         if (dislikes == null || (dislikes.Songs.Count == 0 && dislikes.Artists.Count == 0))
         {
@@ -529,8 +585,9 @@ public sealed class KostvDislikeSet
 
         return new KostvDislikeSet(
             dislikes.Songs.Select(s => Guid.TryParse(s.Id, out var id) ? id : Guid.Empty).Where(id => id != Guid.Empty),
-            dislikes.Artists.Select(a => a.Name).OfType<string>(),
-            perArtist);
+            dislikes.Artists.Select(a => a.Name).OfType<string>().Concat(artistNamesNow ?? []),
+            perArtist,
+            dislikes.Artists.Select(a => Guid.TryParse(a.Id, out var id) ? id : Guid.Empty));
     }
 }
 
@@ -582,6 +639,14 @@ public sealed class KostvDislikes
     [JsonPropertyName("artists")]
     public List<KostvDislikedArtist> Artists { get; set; } = [];
 
+    /// <summary>As read from a file: a list written as null made empty, and entries null or without an id left out.</summary>
+    public KostvDislikes Normalized()
+    {
+        Songs = (Songs ?? []).Where(s => s != null && !string.IsNullOrEmpty(s.Id)).ToList();
+        Artists = (Artists ?? []).Where(a => a != null && !string.IsNullOrEmpty(a.Id)).ToList();
+        return this;
+    }
+
     public KostvDislikes Copy() => new()
     {
         Songs = Songs.Select(s => new KostvDislikedSong { Id = s.Id, Name = s.Name, Artist = s.Artist, ArtistId = s.ArtistId, AlbumId = s.AlbumId, At = s.At }).ToList(),
@@ -591,12 +656,21 @@ public sealed class KostvDislikes
 
 /// <summary>
 /// kOS TV: what a mix may not have, whatever engine scores it: songs with «no me gusta» (or of
-/// artists with it) and songs not to repeat (in the mixes of the days before, or heard in the last
-/// day); and when it is, to tell the forgotten songs.
+/// artists with it), songs left out (<see cref="Exclude"/>) and songs not to repeat
+/// (<see cref="Readmit"/>: those of the mixes of each day before, the oldest day first, and those
+/// heard in the last day, last), given back in that order only when what the person knows isn't
+/// enough for a mix without them; and when it is, to tell the forgotten songs.
 /// </summary>
-public sealed record KostvMixRules(IReadOnlySet<Guid> Exclude, KostvDislikeSet Dislikes, DateTimeOffset? Now = null)
+public sealed record KostvMixRules(
+    IReadOnlySet<Guid> Exclude,
+    KostvDislikeSet Dislikes,
+    DateTimeOffset? Now = null,
+    IReadOnlyList<IReadOnlySet<Guid>>? Readmit = null)
 {
     public static readonly KostvMixRules None = new(new HashSet<Guid>(), KostvDislikeSet.Empty);
+
+    /// <summary>Whether <paramref name="id"/> is left out, or not to repeat.</summary>
+    public bool Excludes(Guid id) => Exclude.Contains(id) || (Readmit?.Any(s => s.Contains(id)) ?? false);
 }
 
 /// <summary>

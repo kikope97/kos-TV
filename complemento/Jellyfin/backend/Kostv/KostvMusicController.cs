@@ -171,7 +171,7 @@ public class KostvMusicController : ControllerBase
                 mix.Id,
                 mix.Genre,
                 Artists = _music.CoverArtists(mix)
-                    .Where(a => UserReflection.IsVisibleStandaloneTo(a, caller.User) && !dislikes.BlocksArtist(a.Name))
+                    .Where(a => UserReflection.IsVisibleStandaloneTo(a, caller.User) && !dislikes.BlocksArtist(a.Id, a.Name))
                     .Select(a => _cards.Map(a, caller.User))
                     .ToList(),
                 Items = songs.Select(item => _cards.Map(item, caller.User)).ToList(),
@@ -407,6 +407,7 @@ public class KostvMusicController : ControllerBase
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public ActionResult AddEvent([FromBody] JsonElement body)
     {
         if (Caller() is not { } caller)
@@ -459,8 +460,13 @@ public class KostvMusicController : ControllerBase
                     }
                 }
 
-                // Kept apart from the listens (not in their history), also with Learn off.
-                _music.Dislike(caller.Id, kind == KostvMusicEvent.ArtistKind, items.Select(Guid.Parse).ToList());
+                // Kept apart from the listens (not in their history), also with Learn off. What
+                // isn't at home, or of its kind, is let go of (still a 204); not stored, a 500.
+                if (!_music.Dislike(caller.Id, kind == KostvMusicEvent.ArtistKind, items.Select(Guid.Parse).ToList()))
+                {
+                    return StatusCode(StatusCodes.Status500InternalServerError, new { Error = "The dislike could not be stored." });
+                }
+
                 return NoContent();
             }
 

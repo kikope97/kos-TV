@@ -1732,9 +1732,10 @@ public sealed partial class KostvMusicTests : IDisposable
         Assert.Equal(songs.Select(s => s.ToString("N")), events[0].Items!);
         Assert.Equal(("Motomami", "Rosalía", "302127"), (events[1].AlbumName, events[1].ArtistName, events[1].DeezerAlbumId));
         Assert.Equal((null, "Solo el artista", null), (events[2].AlbumName, events[2].ArtistName, events[2].DeezerAlbumId));
+        // Not in the library (there is none here): still a 204, but nothing kept without a name.
         var dislikes = store.DislikesOf(userId);
-        Assert.Equal([songs[0].ToString("N")], dislikes.Artists.Select(a => a.Id));
-        Assert.Equal([songs[1].ToString("N")], dislikes.Songs.Select(a => a.Id));
+        Assert.Empty(dislikes.Artists);
+        Assert.Empty(dislikes.Songs);
         Assert.All(events, e => Assert.Equal(_now, e.At));
         // Settings count only listens.
         Assert.Equal(0, store.Summary(userId).Listens);

@@ -284,8 +284,10 @@ public sealed class KostvMusicRecorder : IHostedService
     /// <summary>Taken back more than this within a song, while it played, counts as going back.</summary>
     internal const double SeekBackSeconds = 5;
 
-    private static readonly TimeSpan TrimEvery = TimeSpan.FromDays(1);
     private static readonly TimeSpan FirstTrimAfter = TimeSpan.FromMinutes(10);
+
+    /// <summary>The daily round goes this long after the music day starts at home, so it is past it.</summary>
+    internal static readonly TimeSpan RoundAfterDayStart = TimeSpan.FromMinutes(1);
 
     private readonly ISessionManager _sessions;
     private readonly IUserDataManager _userData;
@@ -295,6 +297,7 @@ public sealed class KostvMusicRecorder : IHostedService
     private readonly ILogger<KostvMusicRecorder> _logger;
     private readonly IServiceProvider? _services;
     private readonly KostvPlaybackFailures? _failures;
+    private readonly KostvMusicService? _music;
     private readonly CancellationTokenSource _stopping = new();
 
     // The listen stopped short on each session, held for the next song's start (see HoldFor).
@@ -373,7 +376,8 @@ public sealed class KostvMusicRecorder : IHostedService
         KostvMusicContext context,
         ILogger<KostvMusicRecorder> logger,
         IServiceProvider? services = null,
-        KostvPlaybackFailures? failures = null)
+        KostvPlaybackFailures? failures = null,
+        KostvMusicService? music = null)
     {
         _sessions = sessions;
         _userData = userData;
@@ -383,6 +387,7 @@ public sealed class KostvMusicRecorder : IHostedService
         _logger = logger;
         _services = services;
         _failures = failures;
+        _music = music;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -406,6 +411,25 @@ public sealed class KostvMusicRecorder : IHostedService
         _userData.UserDataSaved -= OnUserDataSaved;
         // Nothing more can follow what is held: stopped.
         ReleaseAllHeld();
+        try
+        {
+            // What is on its way, and then the tastes not written yet.
+            Task.WaitAll(_pending.Keys.ToArray(), TimeSpan.FromSeconds(5));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "kOS TV music: a listen on its way failed as the server stopped");
+        }
+
+        try
+        {
+            _store.FlushTastes();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "kOS TV music: the tastes could not be written as the server stopped");
+        }
+
         return Task.CompletedTask;
     }
 
@@ -436,15 +460,25 @@ public sealed class KostvMusicRecorder : IHostedService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "kOS TV music: dropping old listens failed");
+                    _logger.LogWarning(ex, "kOS TV music: the daily round (old listens, users gone, tastes) failed");
                 }
 
-                await Task.Delay(TrimEvery, token).ConfigureAwait(false);
+                // Then each day as the music day starts at home (5:00), not a day after the start.
+                await Task.Delay(NextRoundIn(_store.Now, _store.Zone), token).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException)
         {
         }
+    }
+
+    /// <summary>How long from <paramref name="now"/> until the next daily round: just after the next music day starts at home.</summary>
+    internal static TimeSpan NextRoundIn(DateTimeOffset now, TimeZoneInfo zone)
+    {
+        var next = KostvMusicEngine.DayStart(KostvMusicEngine.MusicDay(now, zone).AddDays(1), zone) + RoundAfterDayStart;
+        var wait = next - now;
+        // Bounded, should the clock or the zone jump.
+        return wait < TimeSpan.FromMinutes(1) ? TimeSpan.FromMinutes(1) : wait > TimeSpan.FromHours(26) ? TimeSpan.FromHours(26) : wait;
     }
 
     // ---------------------------------------------------------------- playback
@@ -1152,8 +1186,15 @@ public sealed class KostvMusicRecorder : IHostedService
             // something else (a rating, the person's data), not a heart taken off; and data saved
             // with one on is a heart put on before, not now.
             var changed = had.HasValue ? had.Value != favorite : favorite && e.SaveReason == UserDataSaveReason.UpdateUserRating;
-            if (!changed || !_store.Learns(e.UserId))
+            if (!changed)
             {
+                return;
+            }
+
+            if (!_store.Learns(e.UserId))
+            {
+                // Not noted, but the server's hearts count all the same: the day's music made again.
+                _music?.Forget(e.UserId);
                 return;
             }
 
@@ -1177,6 +1218,8 @@ public sealed class KostvMusicRecorder : IHostedService
                 }
 
                 _store.Append(userId, entry);
+                // A heart counts the same day: the day's music is made again with it.
+                _music?.Forget(userId);
             });
         }
         catch (Exception ex)
