@@ -180,13 +180,24 @@ public sealed class KostvMusicService
         ILibraryManager library,
         IUserDataManager userData,
         KostvMusicStore store,
-        ILogger<KostvMusicService> logger)
+        ILogger<KostvMusicService> logger,
+        KostvAwayStore? away = null)
     {
         _library = library;
         _userData = userData;
         _store = store;
         _logger = logger;
+        if (away != null)
+        {
+            AwayHeartsOf = userId => away.Favorites(userId).Select(s => new KostvAwayHeart(s.DeezerId, s.Artist)).ToList();
+        }
     }
+
+    /// <summary>
+    /// Kos TV: the hearts of a person on songs not at home (see <see cref="KostvAwayStore"/>); none
+    /// without the plugin's store of them (for tests, to set).
+    /// </summary>
+    public Func<Guid, IReadOnlyList<KostvAwayHeart>> AwayHeartsOf { get; set; } = _ => [];
 
     public KostvMusicStore Store => _store;
 
@@ -525,8 +536,11 @@ public sealed class KostvMusicService
         }
 
         var tracks = items.Values.Select(item => TrackOf(item, UserDataOf(user, item))).ToList();
-        var old = KostvMusicEngine.Profile(tracks, listens, now, dislikes, summary);
-        var learned = KostvMusicEngine.LearnedProfile(tracks, summary, now, dislikes);
+        // Kos TV: the hearts on songs not at home, as those of the server, also with Learn off;
+        // read with the rest, so one put on counts from the next music day.
+        var awayHearts = AwayHeartsOf(userId);
+        var old = KostvMusicEngine.Profile(tracks, listens, now, dislikes, summary, awayHearts);
+        var learned = KostvMusicEngine.LearnedProfile(tracks, summary, now, dislikes, awayHearts);
         var usesNew = KostvMusicEngineMode.UsesNew(EngineModeOf(), KostvMusicEngine.MusicDay(now, _store.Zone));
         return new Taste(tracks, usesNew ? learned : old, old, learned, usesNew, summary, dislikes);
     }

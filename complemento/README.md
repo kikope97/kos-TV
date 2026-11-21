@@ -202,6 +202,16 @@ inteligente, ver juntos, avisos, PIN de perfiles…
     esa hora y el resto parecidas; `Ready: false`, sin `Items`, hasta tener 25 escuchas no
     saltadas de esa franja en al menos 5 días de los últimos 60; una noche que pasa de las
     doce cuenta como un solo día).
+  - **Listas y ♥ con canciones de fuera** (`/Moonfin/Kostv/Music/Away/...`, contrato en
+    `docs/musica-toda-la-musica.md`, sección 8): los «huecos» de cada lista de Jellyfin van en
+    `kostv-musica/listas-fuera/<lista>.json` (uno por lista, el mismo para todos: los lee quien
+    puede ver la lista y los cambia su dueña o quien la tiene compartida con edición; hasta 500)
+    y el ♥ de cada persona en `fuera-favoritas.json` de su carpeta (hasta 2000; cuenta en el gusto
+    como un ♥ desde el día siguiente). Cuando una llega a casa (lo dice la app con `Arrived`, o el
+    complemento la reconoce al entrar o cambiar canciones en la biblioteca y en la ronda diaria,
+    por título, artista y disco, y duración ±3 s), entra en la lista de Jellyfin en su sitio
+    (como la dueña de la lista, si puede verla), se quita el hueco y el ♥ pasa a ser el de
+    Jellyfin para quien puede verla. Al borrar una lista se van sus huecos.
 - **El botón Descubrir se sincroniza** como los demás (`showDiscoverButton`), con
   su valor por defecto en la página.
 - **La marca del paso a la ficha de kOS TV se sincroniza** junto al estilo de la

@@ -205,14 +205,16 @@ public static partial class KostvMusicEngine
     /// times and how lately, and their hearts) and, when there are, their
     /// <paramref name="listens"/>: a song mostly skipped is dropped, recent plays weigh more. The
     /// songs not at home of <paramref name="summary"/> (heard through Stremfin) count for their
-    /// artists and genres by name, as their listens say.
+    /// artists and genres by name, as their listens say; and those with a heart of the person's
+    /// own (<paramref name="awayHearts"/>, see <see cref="KostvAwayStore"/>) as a heart weighs.
     /// </summary>
     public static KostvMusicProfile Profile(
         IEnumerable<KostvMusicTrack> tracks,
         IReadOnlyDictionary<Guid, KostvTrackListens> listens,
         DateTimeOffset now,
         KostvDislikeSet? dislikes = null,
-        KostvTasteSummary? summary = null)
+        KostvTasteSummary? summary = null,
+        IEnumerable<KostvAwayHeart>? awayHearts = null)
     {
         dislikes ??= KostvDislikeSet.Empty;
         var scores = new Dictionary<Guid, double>();
@@ -279,20 +281,33 @@ public static partial class KostvMusicEngine
             }
         }
 
-        // Kos TV: the songs not at home, as their listens went (none mostly skipped, nor out).
+        // Kos TV: the songs not at home, as their listens went (none mostly skipped unless it has
+        // a heart, nor out), and a heart on one as on a song at home (heard or not).
+        var hearts = AwayHeartsBy(awayHearts);
         var streamed = new List<KostvStreamedScore>();
+        var heardAway = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (deezerId, song) in summary?.Streamed() ?? [])
         {
+            heardAway.Add(deezerId);
+            var hearted = hearts.ContainsKey(deezerId);
             var stats = new KostvTrackListens { Completed = song.OldCompleted, Skipped = song.OldSkipped, Stopped = song.OldStopped };
-            if (dislikes.BlocksStreamed(deezerId, song.Artists) || stats.MostlySkipped)
+            if (dislikes.BlocksStreamed(deezerId, song.Artists) || (stats.MostlySkipped && !hearted))
             {
                 continue;
             }
 
-            var score = 1.5 * song.OldAt(now) * dislikes.ArtistFactor(song.Artists![0]);
+            var score = (1.5 * song.OldAt(now) + (hearted ? 1.5 : 0)) * dislikes.ArtistFactor(song.Artists![0]);
             if (score > 0)
             {
                 streamed.Add(new KostvStreamedScore(song.Artists!, song.Genres ?? [], score));
+            }
+        }
+
+        foreach (var (deezerId, heart) in hearts)
+        {
+            if (!heardAway.Contains(deezerId) && !dislikes.BlocksStreamed(deezerId, [heart.Artist!]))
+            {
+                streamed.Add(new KostvStreamedScore([heart.Artist!], [], 1.5 * dislikes.ArtistFactor(heart.Artist)));
             }
         }
 
@@ -548,6 +563,24 @@ public static partial class KostvMusicEngine
     /// Kos TV: a song not at home (heard through Stremfin) as the profile weighs it: its artists
     /// and genres by name, and what it adds to them (as a whole, in the background and now).
     /// </summary>
+    /// <summary>
+    /// Kos TV: the hearts on songs not at home with an artist, by their Deezer id (one said twice,
+    /// once).
+    /// </summary>
+    private static Dictionary<string, KostvAwayHeart> AwayHeartsBy(IEnumerable<KostvAwayHeart>? hearts)
+    {
+        var byId = new Dictionary<string, KostvAwayHeart>(StringComparer.Ordinal);
+        foreach (var heart in hearts ?? [])
+        {
+            if (KostvMusicEvent.IsDeezerId(heart.DeezerId) && !string.IsNullOrWhiteSpace(heart.Artist))
+            {
+                byId.TryAdd(heart.DeezerId, heart);
+            }
+        }
+
+        return byId;
+    }
+
     private sealed record KostvStreamedScore(IReadOnlyList<string> Artists, IReadOnlyList<string> Genres, double Score, double Background = 0, double Recent = 0);
 
     /// <summary>What the songs not at home add to their artists (half for a second artist), by <paramref name="score"/>.</summary>

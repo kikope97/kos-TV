@@ -139,13 +139,16 @@ public static partial class KostvMusicEngine
     /// (more than 60 %, with margin, of 3 or more) is out unless it has a heart; one with «no me
     /// gusta», or of an artist with it, is out; and the songs out of an artist weigh it down.
     /// Artists and genres add up their songs under a square root, so one album played a lot
-    /// doesn't hide the rest; a song's second artist counts half.
+    /// doesn't hide the rest; a song's second artist counts half. Kos TV: a heart on a song not at
+    /// home (<paramref name="awayHearts"/>, see <see cref="KostvAwayStore"/>) weighs its artist as
+    /// one on a song at home, heard or not.
     /// </summary>
     public static KostvMusicProfile LearnedProfile(
         IEnumerable<KostvMusicTrack> tracks,
         KostvTasteSummary? summary,
         DateTimeOffset now,
-        KostvDislikeSet? dislikes = null)
+        KostvDislikeSet? dislikes = null,
+        IEnumerable<KostvAwayHeart>? awayHearts = null)
     {
         summary ??= new KostvTasteSummary();
         dislikes ??= KostvDislikeSet.Empty;
@@ -216,20 +219,37 @@ public static partial class KostvMusicEngine
 
         // Kos TV: the songs not at home (heard through Stremfin) weigh their artists and genres by
         // name, learned as the rest (by all the listens, those not at home too: the server knows
-        // nothing of them to mix with): none skipped too often, nor out.
+        // nothing of them to mix with): none skipped too often unless it has a heart, nor out. A
+        // heart on one (the person's own, kept by the plugin) adds as on a song at home, also to
+        // one never heard (by its artist only: its genre isn't known).
+        var hearts = AwayHeartsBy(awayHearts);
+        var heardAway = new HashSet<string>(StringComparer.Ordinal);
         var streamed = new List<KostvStreamedScore>();
         foreach (var (deezerId, song) in summary.Streamed())
         {
+            heardAway.Add(deezerId);
+            var hearted = hearts.ContainsKey(deezerId);
             if (dislikes.BlocksStreamed(deezerId, song.Artists) ||
-                (song.Plays >= KostvTasteWeights.SkipRateMinPlays && KostvTasteWeights.SkipRate(song.Skips, song.Plays) > KostvTasteWeights.SkipRateLimit))
+                (!hearted && song.Plays >= KostvTasteWeights.SkipRateMinPlays && KostvTasteWeights.SkipRate(song.Skips, song.Plays) > KostvTasteWeights.SkipRateLimit))
             {
                 continue;
             }
 
-            var factor = summary.LearnedOfAll * dislikes.ArtistFactor(song.Artists![0]);
+            var artistFactor = dislikes.ArtistFactor(song.Artists![0]);
+            var factor = summary.LearnedOfAll * artistFactor;
+            var heart = hearted ? KostvTasteWeights.Heart * artistFactor : 0;
             var longScore = song.LongAt(now);
             var shortScore = song.ShortAt(now);
-            streamed.Add(new KostvStreamedScore(song.Artists!, song.Genres ?? [], factor * (longScore + shortScore) / 2, factor * longScore, factor * shortScore));
+            streamed.Add(new KostvStreamedScore(song.Artists!, song.Genres ?? [], factor * (longScore + shortScore) / 2 + heart, factor * longScore + heart, factor * shortScore + heart));
+        }
+
+        foreach (var (deezerId, heart) in hearts)
+        {
+            if (!heardAway.Contains(deezerId) && !dislikes.BlocksStreamed(deezerId, [heart.Artist!]))
+            {
+                var weight = KostvTasteWeights.Heart * dislikes.ArtistFactor(heart.Artist);
+                streamed.Add(new KostvStreamedScore([heart.Artist!], [], weight, weight, weight));
+            }
         }
 
         var liked = unique.Where(t => mix.ContainsKey(t.Id)).ToList();

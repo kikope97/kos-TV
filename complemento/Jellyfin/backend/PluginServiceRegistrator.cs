@@ -69,6 +69,12 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
             Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), Moonfin.Server.Kostv.KostvMusicStore.FolderName),
             zoneOf: () => Moonfin.Server.Kostv.KostvMusicTimeZone.Resolve(MoonfinPlugin.Instance?.Configuration?.KostvMusicTimeZone),
             logger: services.GetService<ILogger<Moonfin.Server.Kostv.KostvMusicStore>>()));
+        // Kos TV: the songs not at home in playlists and hearts, in the music's folder.
+        serviceCollection.AddSingleton(services => new Moonfin.Server.Kostv.KostvAwayStore(
+            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), Moonfin.Server.Kostv.KostvMusicStore.FolderName),
+            logger: services.GetService<ILogger<Moonfin.Server.Kostv.KostvAwayStore>>()));
+        serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvMusicAway>();
+        serviceCollection.AddHostedService<Moonfin.Server.Kostv.KostvMusicAwayWatcher>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvMusicContext>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvMusicService>();
         // The stop report says when a playback failed, the server's event doesn't: read as it arrives.
