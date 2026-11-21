@@ -44,6 +44,13 @@ class KostvNowPlaying extends ChangeNotifier {
     final manager = _manager;
     if (manager == null) return;
     _started = true;
+    try {
+      // Kos TV: «Al acabar la canción» stops at the end of this song, so the
+      // next one isn't queued to follow it with no gap.
+      manager.preloadVeto = () => _sleepAfterSong;
+    } catch (_) {
+      // A stand-in player (the tests') without it.
+    }
     _subs.addAll([
       manager.state.playingStream.listen((_) => _changed()),
       manager.queueService.queueChangedStream.listen((_) => _changed()),

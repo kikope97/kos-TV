@@ -1069,6 +1069,13 @@ class Media3VideoView(
     private var videoHeightPx = 0
     private var videoPixelRatio = 1f
     private var currentNormalizationGainDb: Float? = null
+    // Kos TV: the next song queued behind the one playing (enqueueNext), so
+    // ExoPlayer moves on to it with no gap; and whether music asked to keep
+    // the audio offload gapless.
+    private var queuedNextSourceArguments: Map<*, *>? = null
+    private var queuedNextMediaId: String? = null
+    private var queuedNextSerial = 0
+    private var gaplessAudioRequested = false
     private var currentContainer: String? = null
     private var currentIsLive = false
     private var currentIsPreview = false
@@ -1566,6 +1573,15 @@ class Media3VideoView(
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            // Kos TV: moved on by itself to the song queued behind.
+            val queued = queuedNextSourceArguments
+            if (queued != null &&
+                reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO &&
+                mediaItem != null &&
+                mediaItem.mediaId == queuedNextMediaId
+            ) {
+                adoptQueuedNext(queued)
+            }
             audioPipeline.normalizationGainDb = currentNormalizationGainDb
             audioPipeline.userBoostMb = userVolumeBoostLevel * 200
         }
@@ -3193,6 +3209,15 @@ class Media3VideoView(
                     result.success(null)
                 }
 
+                "enqueueNext" -> {
+                    result.success(enqueueNext(call.arguments))
+                }
+
+                "cancelNext" -> {
+                    cancelQueuedNext()
+                    result.success(null)
+                }
+
                 "setVolumeBoost" -> {
                     updateVolumeBoost(call.arguments)
                     result.success(null)
@@ -3496,6 +3521,8 @@ class Media3VideoView(
         trackSelector.setSecondaryTrack(null)
         secondarySubtitleDelayMs = clampManualDelayMs((args["secondarySubtitleDelayMs"] as? Number)?.toLong() ?: 0L)
         lastSourceArguments = args
+        // Kos TV: a new source replaces the whole queue, a next song included.
+        forgetQueuedNext()
         val url = args["url"]?.toString() ?: return
         cancelRateStartup()
         frameTiming.reset()
@@ -3634,6 +3661,7 @@ class Media3VideoView(
         applyStereoDownmix(effectiveStereoDownmix())
         currentNormalizationGainDb = (args["normalizationGainDb"] as? Number)?.toFloat()
         skipSilenceEnabled = args["skipSilenceEnabled"] as? Boolean ?: false
+        gaplessAudioRequested = args["gaplessAudio"] as? Boolean ?: false
         manualSubtitleDelayMs = clampManualDelayMs((args["subtitleDelayMs"] as? Number)?.toLong() ?: 0L)
         sidecarOffsetSources = emptyList()
         embeddedOffsetSource = null
@@ -3976,6 +4004,7 @@ class Media3VideoView(
         // and an immediately queued appResumed must not restore stale media.
         lastSourceArguments = null
         lastPlaybackPositionMs = 0L
+        forgetQueuedNext()
         player.stop()
         player.clearMediaItems()
         disableCapabilityReselection()
@@ -4208,6 +4237,9 @@ class Media3VideoView(
                     // Offloaded speed goes through the AudioTrack, which some
                     // devices can't change, and audiobooks rely on speed.
                     .setIsSpeedChangeSupportRequired(true)
+                    // Kos TV: music moves from song to song with no gap, which
+                    // offload only keeps where the device can trim it there.
+                    .setIsGaplessSupportRequired(isAudioContent && gaplessAudioRequested)
                     .build(),
             )
             .setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true)
@@ -4444,7 +4476,118 @@ class Media3VideoView(
         }
         skipSilenceEnabled = nextEnabled
         player.skipSilenceEnabled = nextEnabled
+        // Kos TV: no song queued with no gap while silences are skipped; the
+        // next one then starts the usual way.
+        if (nextEnabled) cancelQueuedNext()
         applyTrackSelectorForCurrentSource()
+        emitState()
+    }
+
+    /**
+     * Kos TV: queues the next song behind the one playing, so ExoPlayer moves
+     * on to it by itself with no gap (it trims MP3/AAC delay and padding from
+     * their metadata). Only for a plain audio source: one item, no subtitle
+     * wrappers, the same request headers (they are set once on the data
+     * source). False leaves the player as it was, and the song ending goes on
+     * as before.
+     */
+    private fun enqueueNext(arguments: Any?): Boolean {
+        val args = arguments as? Map<*, *> ?: return false
+        val url = args["url"]?.toString()?.takeIf { it.isNotBlank() } ?: return false
+        if (isPlayerReleased || isDisposed || currentUrl == null) return false
+        if (currentMediaType != "audio" || currentIsLive || currentIsPreview) return false
+        if (args["mediaType"]?.toString()?.lowercase() != "audio") return false
+        if (args["isLive"] as? Boolean == true || skipSilenceEnabled) return false
+        val state = player.playbackState
+        if (state == Player.STATE_IDLE || state == Player.STATE_ENDED) return false
+        if (sidecarOffsetSources.isNotEmpty() || embeddedOffsetSource != null) return false
+        if (externalSubtitleConfigurations.isNotEmpty()) return false
+        val headers = (args["headers"] as? Map<*, *>)
+            ?.mapNotNull { (k, v) -> if (k == null || v == null) null else k.toString() to v.toString() }
+            ?.toMap()
+            ?: emptyMap()
+        if (headers != currentHeaders) return false
+        cancelQueuedNext()
+        // Only the item playing stays: anything after it was ours to replace.
+        if (player.mediaItemCount != player.currentMediaItemIndex + 1) return false
+        val mediaId = "kostv-next-${++queuedNextSerial}"
+        val container = args["container"]?.toString()?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
+        val builder = MediaItem.Builder()
+            .setUri(parseUri(url))
+            .setMediaId(mediaId)
+            .setMediaMetadata(buildNowPlayingMetadata())
+        inferStreamMimeType(url, container, "audio")?.let { builder.setMimeType(it) }
+        player.addMediaItem(builder.build())
+        queuedNextSourceArguments = args
+        queuedNextMediaId = mediaId
+        return true
+    }
+
+    /** Kos TV: takes the queued next song back out, if there is one. */
+    private fun cancelQueuedNext() {
+        val hadQueued = queuedNextMediaId != null
+        forgetQueuedNext()
+        if (!hadQueued || isPlayerReleased) return
+        val after = player.currentMediaItemIndex + 1
+        if (player.mediaItemCount > after) {
+            player.removeMediaItems(after, player.mediaItemCount)
+        }
+    }
+
+    private fun forgetQueuedNext() {
+        queuedNextSourceArguments = null
+        queuedNextMediaId = null
+    }
+
+    /**
+     * Kos TV: the queued song is the one playing now. It becomes the current
+     * source (what a retry, a resume from the background or a handover opens
+     * again), Dart is told, and the song before leaves the queue.
+     */
+    private fun adoptQueuedNext(queued: Map<*, *>) {
+        forgetQueuedNext()
+        val url = queued["url"]?.toString() ?: return
+        val previous = lastSourceArguments
+        lastSourceArguments = (previous ?: emptyMap<Any?, Any?>()).toMutableMap().apply {
+            for ((key, value) in queued) this[key] = value
+            this["startPositionMs"] = 0L
+            this["autoPlay"] = true
+            this["externalSubtitles"] = emptyList<Any?>()
+            remove("audioTrackOrdinal")
+            remove("primarySubtitleSelection")
+            remove("closedCaptionTrackId")
+            remove("secondarySubtitleTrackId")
+            remove("secondarySubtitleUrl")
+            remove("secondarySubtitleCodec")
+        }
+        currentUrl = url
+        currentContainer = queued["container"]
+            ?.toString()
+            ?.trim()
+            ?.lowercase()
+            ?.takeIf { it.isNotEmpty() }
+        currentNormalizationGainDb = (queued["normalizationGainDb"] as? Number)?.toFloat()
+        currentAudioIsLossless = isLosslessAudioCodecName(queued["audioCodec"]?.toString())
+        audioOffloadRetryAttemptedForCurrentSource = false
+        stereoDownmixRetryAttemptedForCurrentSource = false
+        containerFallbackAttempted = false
+        if (Media3Bridge.isActive(this@Media3VideoView)) {
+            Media3Bridge.emitEvent(
+                mapOf(
+                    "event" to "transitioned",
+                    "url" to url,
+                    "positionMs" to player.currentPosition.coerceAtLeast(0L),
+                    "durationMs" to player.duration.takeIf { it != C.TIME_UNSET }?.coerceAtLeast(0L),
+                ),
+            )
+        }
+        // The song before stays in the playlist until now; dropping it keeps
+        // the queue to the song playing and, later, the one after it.
+        mainHandler.post {
+            if (isPlayerReleased || isDisposed) return@post
+            val index = player.currentMediaItemIndex
+            if (index > 0) player.removeMediaItems(0, index)
+        }
         emitState()
     }
 
