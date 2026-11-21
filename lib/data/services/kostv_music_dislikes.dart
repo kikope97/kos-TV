@@ -114,9 +114,14 @@ class KostvMusicDislikesStore extends ChangeNotifier {
     try {
       answer = await plugin.dislikes(client);
     } catch (_) {
-      _failed(who);
+      if (_who(client) == who) _failed(who);
       rethrow;
     }
+    // Kos TV: another person signed in on this client meanwhile (the
+    // server's client is the same for everyone on it): this answer is the
+    // last one's, and doesn't take the place of what is known for the new
+    // one.
+    if (_who(client) != who) return answer;
     if (answer.missing) {
       _readFine(who);
       _supported[client.baseUrl] = false;
@@ -326,14 +331,24 @@ List<String> kostvMusicArtistIds(AggregatedItem item) => [
 
 /// Kos TV: the names of the artists of one of the home server's songs (its
 /// own; its album's only when it names none, as the server plugin does).
-List<String> kostvMusicArtistNames(AggregatedItem item) => [
-  for (final artist in _songArtistMaps(item))
-    if (artist['Name']?.toString() case final name? when name.isNotEmpty) name,
-  if (_hasTrackArtists(item))
-    ...item.artists.where((name) => name.isNotEmpty)
-  else if (item.albumArtist case final artist? when artist.isNotEmpty)
-    artist,
-];
+///
+/// Kos TV: each once (whatever the case), so a song «A feat. B» whose
+/// `ArtistItems` names only A still gives `[A, B]`, not `[A, A, B]`.
+List<String> kostvMusicArtistNames(AggregatedItem item) {
+  final seen = <String>{};
+  return [
+    for (final name in [
+      for (final artist in _songArtistMaps(item))
+        if (artist['Name']?.toString() case final name? when name.isNotEmpty)
+          name,
+      if (_hasTrackArtists(item))
+        ...item.artists.where((name) => name.isNotEmpty)
+      else if (item.albumArtist case final artist? when artist.isNotEmpty)
+        artist,
+    ])
+      if (seen.add(name.toLowerCase())) name,
+  ];
+}
 
 /// Kos TV: the artist «No me pongas a …» offers for one of the home
 /// server's songs: the first of its own (the album's only when it names

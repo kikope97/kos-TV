@@ -44,6 +44,8 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
   /// Why it couldn't be read, for what the page says.
   Object? _error;
 
+  StremfinService? _listening;
+
   @override
   void initState() {
     super.initState();
@@ -52,6 +54,11 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
     KostvMusicDislikesStore.instance.addListener(_dislikesChanged);
     // Kos TV: «Qué música enseñar» changed: the songs play (or not) at once.
     KostvMusicCatalog.instance.addListener(_dislikesChanged);
+    // Kos TV: the person's age limit read meanwhile (just started): what
+    // isn't at home shows, and plays, as it should at once.
+    _listening = GetIt.instance.isRegistered<StremfinService>()
+        ? (GetIt.instance<StremfinService>()..addListener(_dislikesChanged))
+        : null;
     kostvRefreshMusicCatalog();
     unawaited(_load());
   }
@@ -64,6 +71,7 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
   void dispose() {
     KostvMusicDislikesStore.instance.removeListener(_dislikesChanged);
     KostvMusicCatalog.instance.removeListener(_dislikesChanged);
+    _listening?.removeListener(_dislikesChanged);
     kostvPrefetchCancel();
     kostvReleaseBrowserMenu();
     super.dispose();
@@ -71,10 +79,13 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
 
   /// Kos TV: the artist's top songs as one queue from [index] (or all of
   /// them shuffled), what isn't at home through the requests service.
+  /// Kos TV: not [picked] from the header's «Reproducir»: no song of it was
+  /// chosen, so it doesn't start with one the person doesn't want to hear.
   void _playTop(
     List<StremfinSong> songs, {
     int index = 0,
     bool shuffle = false,
+    bool picked = true,
   }) => unawaited(
     playKostvSongList(
       context,
@@ -82,7 +93,7 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
       index: index,
       source: KostvMusicSource.artist,
       shuffle: shuffle,
-      picked: !shuffle,
+      picked: picked && !shuffle,
     ),
   );
 
@@ -296,7 +307,7 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                       icon: Icons.play_arrow_rounded,
                       label: l10n.play,
                       primary: true,
-                      onTap: () => _playTop(top),
+                      onTap: () => _playTop(top, picked: false),
                     ),
                     if (top.length > 2)
                       KostvMusicRowAction(

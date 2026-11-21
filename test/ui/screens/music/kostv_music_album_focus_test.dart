@@ -14,6 +14,7 @@ import 'package:moonfin/data/repositories/user_views_repository.dart';
 import 'package:moonfin/data/services/media_server_client_factory.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/data/services/kostv_music_catalog.dart';
+import 'package:moonfin/data/services/stremfin/kostv_age_gate.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_client.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
@@ -24,6 +25,7 @@ import 'package:moonfin/ui/screens/music/kostv_music_album_screen.dart';
 import 'package:moonfin/ui/screens/music/kostv_stream_widgets.dart';
 import 'package:moonfin/ui/widgets/music/kostv_stream_play.dart';
 import 'package:moonfin/util/game_library.dart';
+import 'package:moonfin/util/parental_filter.dart';
 import 'package:moonfin/util/platform_detection.dart';
 import 'package:playback_core/playback_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -249,5 +251,36 @@ void main() {
     kids = false;
     expect(kostvTrackPlayable(away), isTrue);
     await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Kos TV: the age limit read once the page is open: «Reproducir» '
+      'comes then, without leaving and coming back', (tester) async {
+    final limit = Completer<KostvAgeLimit>();
+    final later = StremfinService(
+      StremfinClient(
+        dio: Dio()..httpClientAdapter = server,
+        baseUrl: 'https://requests.example.org/api/v1',
+        token: () => 'token',
+      ),
+      watchLifecycle: false,
+      ageLimit: () => limit.future,
+      parental: () => ParentalFilter.none,
+    );
+    GetIt.instance
+      ..unregister<StremfinService>()
+      ..registerSingleton<StremfinService>(later);
+    unawaited(later.refreshAccess());
+    await open(tester);
+    await answer(tester);
+    // Not known yet: as for someone with a limit.
+    expect(find.text('Reproducir'), findsNothing);
+    limit.complete(KostvAgeLimit.none);
+    for (var i = 0; i < 5; i++) {
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(find.text('Reproducir'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+    later.dispose();
   });
 }

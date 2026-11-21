@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter/services.dart';
@@ -277,6 +279,61 @@ void main() {
     manager.queueService.next(manual: true);
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'NowPlayingPlay');
+  });
+
+  testWidgets('Kos TV: on the TV, the remote on a line of the lyrics when a '
+      'song that isn\'t at home comes goes to play/pause, and doesn\'t jump to '
+      '«Letra» when one at home comes back', (tester) async {
+    PlatformDetection.setTvMode(true);
+    final dir = await tester.runAsync(
+      () => Directory.systemTemp.createTemp('kostv_lyrics'),
+    );
+    addTearDown(() => tester.runAsync(() => dir!.delete(recursive: true)));
+    final file = File('${dir!.path}/lyrics.json');
+    await tester.runAsync(
+      () => file.writeAsString(
+        jsonEncode({
+          'Lyrics': [
+            for (var i = 0; i < 4; i++) {'Text': 'Línea $i', 'Start': 0},
+          ],
+        }),
+      ),
+    );
+    AggregatedItem withLyrics(String id) {
+      final song = _home(id);
+      return AggregatedItem(
+        id: id,
+        serverId: song.serverId,
+        rawData: {...song.rawData, '_localLyricsPath': file.path},
+      );
+    }
+
+    manager.queueService.setQueue([
+      withLyrics('h'),
+      _stream('2'),
+      withLyrics('h2'),
+    ]);
+    // Opened for real, for the song's lyrics to be read from the file.
+    await tester.runAsync(() async {
+      await open(tester, const Size(1920, 1080));
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.lyrics_rounded));
+    await tester.pumpAndSettle();
+    Focus.of(tester.element(find.text('Línea 1'))).requestFocus();
+    await tester.pump();
+    expect(find.text('Línea 1'), findsOneWidget);
+    // The next one isn't at home: no lyrics, no «Letra».
+    manager.queueService.next(manual: true);
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.lyrics_rounded), findsNothing);
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'NowPlayingPlay');
+    // One at home again: «Letra» is back, and the remote stays where it is.
+    manager.queueService.next(manual: true);
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.lyrics_rounded), findsOneWidget);
     expect(FocusManager.instance.primaryFocus?.debugLabel, 'NowPlayingPlay');
   });
 }

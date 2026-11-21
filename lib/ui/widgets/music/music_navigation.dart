@@ -277,6 +277,25 @@ MediaServerClient? _clientOf(AggregatedItem item) {
 /// Kos TV: [picked] false when the person didn't pick the song at
 /// [startIndex] (an artist's radio, a whole mix): what plays by itself then
 /// doesn't start with one they don't want to hear either.
+/// Kos TV: counts what [playMusicTracks] put on, so a late failure of a
+/// song that isn't at home knows whether something else came after it.
+int _kostvPlayTurn = 0;
+
+/// Kos TV: whether what [playMusicTracks] put on as [turn] (the songs
+/// [put]) is still what plays: nothing was put on after it, and what
+/// sounds (if anything) is one of those songs.
+@visibleForTesting
+bool kostvStillPlaysWhatWasPut(int turn, List<AggregatedItem> put) {
+  if (turn != _kostvPlayTurn) return false;
+  final now = KostvNowPlaying.instance.item;
+  return now == null || put.any((song) => song.id == now.id);
+}
+
+/// Kos TV: starts a new turn of [playMusicTracks], as putting songs on does
+/// (for tests).
+@visibleForTesting
+int kostvNextPlayTurn() => ++_kostvPlayTurn;
+
 Future<void> playMusicTracks(
   BuildContext context,
   List<AggregatedItem> tracks, {
@@ -318,17 +337,22 @@ Future<void> playMusicTracks(
   // after it. Kos TV: nor is it waited for here (up to a minute), so the
   // Music pages' lock (`kostvMusicOnce`) is let go at once: back on the
   // page, another song can be picked meanwhile.
+  final turn = ++_kostvPlayTurn;
   if (isKostvStream(tracks[startIndex.clamp(0, tracks.length - 1)])) {
     final play = GetIt.instance<PlaybackManager>().playItems(
       tracks,
       startIndex: startIndex,
     );
     if (context.mounted) unawaited(context.push(Destinations.audioPlayer));
+    final put = tracks;
     unawaited(
       play.then<void>(
         (_) {},
         onError: (Object e) {
           debugPrint('[Music] Could not play it: $e');
+          // Kos TV: another song was put on while this one was got ready:
+          // that one plays fine, so this one's failure isn't told over it.
+          if (!kostvStillPlaysWhatWasPut(turn, put)) return;
           _sayCantPlay(messenger, l10n);
         },
       ),

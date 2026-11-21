@@ -473,11 +473,11 @@ Future<void> _songMenu(
     if (!context.mounted) return;
   }
   // Kos TV: not at home, with «Toda la música»: it sounds through the
-  // requests service, and its menu is of one that does.
-  if (home == null &&
-      song != null &&
-      kostvMusicCatalogAll() &&
-      kostvSongPlayable(song)) {
+  // requests service, and its menu is of one that does. Not one with a home
+  // id Jellyfin didn't give (hidden by the person's parental control, or
+  // not answering): what Jellyfin hides never sounds through the service,
+  // as in [kostvQueueOf].
+  if (home == null && song != null && kostvSongMenuFromAway(song)) {
     final stream = kostvStreamItemFromSong(
       song,
       serverId: GetIt.instance.isRegistered<MediaServerClient>()

@@ -259,4 +259,42 @@ void main() {
     );
     expect(KostvMusicCatalog.instance.olderPlugin, isFalse);
   });
+
+  test('Kos TV: chosen just after another person signed in, before their '
+      'own answer: kept by the plugin all the same', () async {
+    await setUpWith(_Plugin());
+    // Ana's read: this server's plugin keeps it.
+    await KostvMusicCatalog.instance.refresh(client);
+    // Luis signs in; his own read hasn't come back yet.
+    client
+      ..userId = 'luis'
+      ..accessToken = 'token-luis';
+    expect(await KostvMusicCatalog.instance.set(false), isTrue);
+    expect(plugin.catalog, 'home');
+    expect(
+      plugin.sent.where((s) => s.route == 'POST /Moonfin/Kostv/Music/Settings'),
+      hasLength(1),
+    );
+    expect(kostvMusicCatalogAll(), isFalse);
+    // His next read (the plugin's) doesn't undo it.
+    await KostvMusicCatalog.instance.refresh(client);
+    expect(kostvMusicCatalogAll(), isFalse);
+  });
+
+  test(
+    'Kos TV: with a plugin from before it, still kept on the device only',
+    () async {
+      await setUpWith(_Plugin(knowsCatalog: false));
+      await KostvMusicCatalog.instance.refresh(client);
+      client.userId = 'luis';
+      expect(await KostvMusicCatalog.instance.set(false), isTrue);
+      expect(
+        plugin.sent.where(
+          (s) => s.route == 'POST /Moonfin/Kostv/Music/Settings',
+        ),
+        isEmpty,
+      );
+      expect(prefs.get(UserPreferences.kostvMusicCatalogAll), isFalse);
+    },
+  );
 }

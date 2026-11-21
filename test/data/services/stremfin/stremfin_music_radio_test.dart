@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/data/services/stremfin/kostv_age_gate.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_client.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
+import 'package:moonfin/data/services/stremfin/stremfin_music_memory.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
 import 'package:moonfin/util/parental_filter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -363,5 +364,33 @@ void main() {
         '3',
       ]);
     });
+  });
+
+  test('Kos TV: a radio isn\'t kept in the Music page\'s memory (it would push '
+      'its answers out); only when asked to', () async {
+    final memory = StremfinMusicMemory();
+    final client = StremfinClient(
+      dio: Dio()..httpClientAdapter = adapter,
+      baseUrl: 'https://stremfin.ejemplo.com/api/v1',
+      token: () => 'token',
+      musicMemory: memory,
+    );
+    await client.musicRadio(['Bad Bunny']);
+    await expectLater(
+      client.musicRadio(['Bad Bunny'], remembered: true),
+      throwsA(
+        isA<StremfinException>().having(
+          (e) => e.code,
+          'code',
+          'not_remembered',
+        ),
+      ),
+    );
+    await client.musicRadio(['Bad Bunny'], keep: true);
+    final kept = await client.musicRadio(['Bad Bunny'], remembered: true);
+    expect(kept.songs, isNotEmpty);
+    // The page's own answers are still kept.
+    await client.musicChart('top-songs');
+    await client.musicChart('top-songs', remembered: true);
   });
 }

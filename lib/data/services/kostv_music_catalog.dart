@@ -44,6 +44,11 @@ class KostvMusicCatalog extends ChangeNotifier {
   /// música»).
   String? _olderFor;
 
+  /// Kos TV: whether each server's plugin (by address) keeps it, as far as
+  /// it has said: the same plugin for everyone on it, so a person who just
+  /// signed in, whose own answer hasn't come yet, still sets it there.
+  final Map<String, bool> _keptOn = {};
+
   /// Whether the person's plugin keeps it.
   bool get keptByServer => _person != null;
 
@@ -86,6 +91,9 @@ class KostvMusicCatalog extends ChangeNotifier {
     if (answer.failed) return;
     final before = all;
     _olderFor = state != null && state.catalog == null ? who : null;
+    if (answer.missing || state != null) {
+      _keptOn[server.baseUrl] = state?.catalog != null;
+    }
     if (state?.catalog == null) {
       _person = null;
       _personOf = null;
@@ -117,6 +125,7 @@ class KostvMusicCatalog extends ChangeNotifier {
     final server = client ?? _client;
     final before = all;
     _olderFor = learned.catalog == null ? _who(server) : null;
+    if (server != null) _keptOn[server.baseUrl] = learned.catalog != null;
     if (learned.catalog == null) {
       _person = null;
       _personOf = null;
@@ -150,6 +159,35 @@ class KostvMusicCatalog extends ChangeNotifier {
       notifyListeners();
       return true;
     }
+    // Kos TV: the person's own answer hasn't come yet (just signed in), but
+    // their server's plugin is known to keep it: set there, not only on
+    // the device (the plugin's would undo it at its next read).
+    if (server != null && _keptOn[server.baseUrl] == true) {
+      final who = _who(server);
+      final before = (person: _person, of: _personOf);
+      _person = showAll;
+      _personOf = who;
+      notifyListeners();
+      final after = await _plugin().setCatalog(
+        server,
+        showAll ? 'all' : 'home',
+      );
+      // Someone else signed in meanwhile: theirs isn't touched.
+      if (_who(server) != who) return after?.catalog != null;
+      if (after?.catalog == null) {
+        if (_personOf == who) {
+          _person = before.person;
+          _personOf = before.of;
+        }
+        notifyListeners();
+        return false;
+      }
+      _person = after!.catalog == 'all';
+      _personOf = who;
+      await _copy(server, _person!);
+      notifyListeners();
+      return true;
+    }
     await _prefs()?.set(UserPreferences.kostvMusicCatalogAll, showAll);
     notifyListeners();
     return true;
@@ -160,6 +198,7 @@ class KostvMusicCatalog extends ChangeNotifier {
     _person = null;
     _personOf = null;
     _olderFor = null;
+    _keptOn.clear();
   }
 }
 

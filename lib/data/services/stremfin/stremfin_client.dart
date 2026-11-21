@@ -382,6 +382,10 @@ class StremfinClient {
   /// `all` or `available`; [excludeSeedArtists] leaves out those artists' own
   /// songs; [limit] 1–100. Names with a comma in them are left out, as in
   /// [musicRecommendations]. A service from before it answers 404.
+  ///
+  /// Kos TV: kept on the device only when [keep]: every station and ∞ asks
+  /// for one, and they would push the Music page's answers and notes out of
+  /// its memory (the service and [StremfinService] keep it an hour anyway).
   Future<StremfinRadio> musicRadio(
     List<String> artists, {
     List<String> artistIds = const [],
@@ -389,6 +393,7 @@ class StremfinClient {
     bool excludeSeedArtists = false,
     int? limit,
     bool remembered = false,
+    bool keep = false,
   }) async {
     final ids = artistIds.take(10).toList();
     final names = artists
@@ -396,13 +401,18 @@ class StremfinClient {
         .take(10 - ids.length)
         .toList();
     return StremfinRadio.fromJson(
-      await _music('/music/radio', {
-        if (names.isNotEmpty) 'artists': names.join(','),
-        if (ids.isNotEmpty) 'artist_ids': ids.join(','),
-        'only': ?only,
-        if (excludeSeedArtists) 'exclude_seed_artists': 'true',
-        if (limit != null) 'limit': limit.clamp(1, 100),
-      }, remembered),
+      await _music(
+        '/music/radio',
+        {
+          if (names.isNotEmpty) 'artists': names.join(','),
+          if (ids.isNotEmpty) 'artist_ids': ids.join(','),
+          'only': ?only,
+          if (excludeSeedArtists) 'exclude_seed_artists': 'true',
+          if (limit != null) 'limit': limit.clamp(1, 100),
+        },
+        remembered,
+        keep,
+      ),
     );
   }
 

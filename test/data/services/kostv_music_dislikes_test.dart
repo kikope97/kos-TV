@@ -370,7 +370,9 @@ void main() {
         'Artists»', () {
       final song = _compilationSong('c1');
       expect(kostvMusicArtistIds(song), ['a1']);
-      expect(kostvMusicArtistNames(song), ['Lola Brisa', 'Lola Brisa']);
+      // Kos TV: each name once (it was there twice, from `ArtistItems` and
+      // `Artists`).
+      expect(kostvMusicArtistNames(song), ['Lola Brisa']);
       expect(kostvMusicSongArtist(song), (id: 'a1', name: 'Lola Brisa'));
       const various = KostvMusicDislikes(
         artists: [
@@ -483,6 +485,51 @@ void main() {
       await store.load(client, force: true);
       expect(reads(), 2);
       expect(store.supported(client), isTrue);
+    });
+
+    test('a late answer for the person before doesn\'t take the place of '
+        'the one signed in now', () async {
+      final server = _Server()..songs.add({'Id': 's1', 'Name': 'Uno'});
+      final store = KostvMusicDislikesStore(pluginWith(server));
+      // Ana's read, slow to come back.
+      final held = server.holdRead = Completer<void>();
+      final anas = store.refresh(client);
+      await Future<void>.delayed(Duration.zero);
+      // Luis signs in on the same client, and his comes back first.
+      server
+        ..holdRead = null
+        ..songs.clear()
+        ..songs.add({'Id': 's2', 'Name': 'Dos'});
+      client.userId = 'luis';
+      await store.load(client);
+      expect(store.of(client).has('s2'), isTrue);
+      held.complete();
+      await anas;
+      // Still Luis's, not emptied by Ana's answer.
+      expect(store.of(client).has('s2'), isTrue);
+      expect(store.of(client).has('s1'), isFalse);
+      // And not read again at once: what was read for him stands.
+      final reads = server.asked.length;
+      await store.load(client);
+      expect(server.asked.length, reads);
+    });
+
+    test('an artist named twice is asked for once (case aside)', () {
+      final song = AggregatedItem(
+        id: 'f1',
+        serverId: 'https://casa.example',
+        rawData: {
+          'Id': 'f1',
+          'Name': 'A feat. B',
+          'Type': 'Audio',
+          'Artists': ['Lola Brisa', 'Nube Roja'],
+          'ArtistItems': [
+            {'Id': 'a1', 'Name': 'lola brisa'},
+          ],
+        },
+      );
+      expect(kostvMusicArtistNames(song), ['lola brisa', 'Nube Roja']);
+      expect(kostvMusicArtistNames(song).take(2), ['lola brisa', 'Nube Roja']);
     });
 
     test('someone else\'s list isn\'t this person\'s', () async {
