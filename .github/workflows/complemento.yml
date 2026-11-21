@@ -45,6 +45,14 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      # Kos TV: the NuGet packages, the plugin's and those of the Jellyfin
+      # versions it is checked against ("Comprobar con cada Jellyfin").
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('complemento/**/*.csproj', 'complemento/Jellyfin/tools/abi-check/comprobar.sh') }}
+          restore-keys: nuget-${{ runner.os }}-
+
       # Kos TV: reads the catalogue as it is now and decides whether this
       # version still has to be published. A run that failed after creating
       # the version's release but before the catalogue listed it can be run
@@ -103,6 +111,19 @@ jobs:
 
       - name: Compilar
         run: bash complemento/compilar.sh "$VERSION" "$RUNNER_TEMP/salida"
+
+      # Kos TV: the plugin is compiled against Jellyfin 10.10, so something a
+      # later Jellyfin changed compiles without a word and only fails on the
+      # server when it is used. This loads the plugin just built against the
+      # real assemblies of each version and stops here, before anything is
+      # published, if any reference to them is broken. It needs .NET 10, set
+      # up only now so everything above is still built with .NET 8.
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Comprobar con cada Jellyfin
+        run: bash complemento/Jellyfin/tools/abi-check/comprobar.sh complemento/Jellyfin/backend/bin/Release/net8.0/publish/Moonfin.Server.dll
 
       - name: Catálogo nuevo
         run: |

@@ -491,6 +491,7 @@ public sealed class KostvMusicAwayTests : IDisposable
         var library = RecordingHostProxy.Create<ILibraryManager>((method, _) => method.Name switch
         {
             "GetItemList" => new List<BaseItem>(),
+            "GetItemsResult" => new QueryResult<BaseItem>(new List<BaseItem>()),
             "GetItemIds" => new List<Guid>(),
             _ => null
         });

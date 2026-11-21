@@ -943,6 +943,14 @@ public sealed class KostvMusicAway
     private static Guid? IdOf(LinkedChild child) =>
         child.ItemId is { } id && id != Guid.Empty ? id : Guid.TryParse(child.LibraryItemId, out var parsed) && parsed != Guid.Empty ? parsed : null;
 
+    // Kos TV: LinkedChild.Id (the playlist entry's own id, which 10.10 moves by) is gone from
+    // 10.11, where an entry is moved by its item's id; bound by name so it works on both.
+    private static readonly PropertyInfo? LinkedChildIdProperty = typeof(LinkedChild).GetProperty("Id");
+
+    /// <summary>The id the server's playlist moves <paramref name="child"/> (the item <paramref name="itemId"/>) by.</summary>
+    internal static string EntryIdOf(LinkedChild child, Guid itemId) =>
+        LinkedChildIdProperty?.GetValue(child) as string is { Length: > 0 } entryId ? entryId : itemId.ToString("N");
+
     // ---------------------------------------------------------------- a song comes home
 
     /// <summary>
@@ -1039,7 +1047,7 @@ public sealed class KostvMusicAway
                 {
                     try
                     {
-                        await _editor.MoveAsync(playlistId, children[at].Id, index, ownerId).ConfigureAwait(false);
+                        await _editor.MoveAsync(playlistId, EntryIdOf(children[at], item.Id), index, ownerId).ConfigureAwait(false);
                     }
                     catch (Exception ex)
                     {

@@ -1089,15 +1089,16 @@ public sealed class KostvMusicRecorder : IHostedService
         string? id = null;
         try
         {
-            // Asked by name, not GetArtist, which makes the artist when it isn't there.
-            id = _library.GetItemList(new InternalItemsQuery
+            // Asked by name, not GetArtist, which makes the artist when it isn't there. Kos TV:
+            // GetItemsResult, the same on every server version (GetItemList isn't).
+            id = _library.GetItemsResult(new InternalItemsQuery
             {
                 IncludeItemTypes = [BaseItemKind.MusicArtist],
                 Name = name,
                 Recursive = true,
                 Limit = 1,
                 EnableTotalRecordCount = false
-            }).FirstOrDefault()?.Id.ToString("N");
+            }).Items.FirstOrDefault()?.Id.ToString("N");
         }
         catch (Exception ex)
         {
