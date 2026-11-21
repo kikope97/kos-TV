@@ -36494,6 +36494,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'There are no songs for this station right now'**
   String get kostvStreamStationEmpty;
+
+  /// Kos TV Watch together: the song playing is not on the home server (heard through the requests service), so it is not shared with the group
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s playing isn\'t at home, and songs that aren\'t at home can\'t be listened to together.'**
+  String get kostvSyncPlayErrorOutOfHomeSong;
 }
 
 class _AppLocalizationsDelegate

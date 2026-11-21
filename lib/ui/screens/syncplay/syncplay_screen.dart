@@ -350,6 +350,7 @@ String syncPlayErrorText(AppLocalizations l10n, SyncPlayError error) =>
       SyncPlayError.setShuffleMode => l10n.kostvSyncPlayErrorSetShuffle,
       SyncPlayError.updateIgnoreWait => l10n.kostvSyncPlayErrorIgnoreWait,
       SyncPlayError.syncQueue => l10n.kostvSyncPlayErrorSyncQueue,
+      SyncPlayError.outOfHomeSong => l10n.kostvSyncPlayErrorOutOfHomeSong,
     };
 
 class _ErrorBanner extends StatelessWidget {

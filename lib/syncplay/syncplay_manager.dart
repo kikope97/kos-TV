@@ -9,6 +9,7 @@ import 'package:server_core/server_core.dart';
 
 import '../data/models/aggregated_item.dart';
 import '../data/services/media_server_client_factory.dart';
+import '../data/services/stremfin/kostv_stream_song.dart';
 import '../playback/media_kit_player_backend.dart';
 import '../preference/user_preferences.dart';
 import '../ui/navigation/app_router.dart';
@@ -41,6 +42,10 @@ enum SyncPlayError {
   setShuffleMode,
   updateIgnoreWait,
   syncQueue,
+
+  /// Kos TV: what sounds isn't at home (heard through the requests
+  /// service), which the home server can't play for the group.
+  outOfHomeSong,
 }
 
 /// Kos TV: the items to play and where to start, from a group playlist
@@ -65,6 +70,30 @@ enum SyncPlayError {
     items.add(item);
   }
   return (items, start);
+}
+
+/// Kos TV: the ids of [items] the home server can play for the group, and
+/// where [currentIndex] is among them. The songs that aren't at home
+/// ([isKostvStream]) aren't the home server's and stay out. Null when
+/// nothing is left, or when the one at [currentIndex] isn't at home.
+({List<String> ids, int start})? syncPlayQueueToSend(
+  List<Object?> items,
+  int currentIndex,
+  String? Function(Object? item) idOf,
+) {
+  final ids = <String>[];
+  var start = 0;
+  for (var i = 0; i < items.length; i++) {
+    final id = idOf(items[i]);
+    if (id == null || isKostvStreamId(id)) {
+      if (i == currentIndex && id != null) return null;
+      continue;
+    }
+    if (i <= currentIndex) start = ids.length;
+    ids.add(id);
+  }
+  if (ids.isEmpty) return null;
+  return (ids: ids, start: start);
 }
 
 class SyncPlayManager extends ChangeNotifier {
@@ -1778,9 +1807,14 @@ class SyncPlayManager extends ChangeNotifier {
     List<String> itemIds, {
     SyncPlayQueueMode mode = SyncPlayQueueMode.queue,
   }) async {
-    if (!_state.enabled || !syncPlayEnabled || itemIds.isEmpty) return;
+    // Kos TV: the songs that aren't at home aren't the home server's.
+    final ids = [
+      for (final id in itemIds)
+        if (!isKostvStreamId(id)) id,
+    ];
+    if (!_state.enabled || !syncPlayEnabled || ids.isEmpty) return;
     try {
-      await _api?.queue(itemIds: itemIds, mode: mode);
+      await _api?.queue(itemIds: ids, mode: mode);
     } catch (_) {
       _setError(SyncPlayError.queueItems);
     }
@@ -1845,16 +1879,19 @@ class SyncPlayManager extends ChangeNotifier {
     final pm = _playbackManager;
     final items = pm.queueService.items;
     if (items.isEmpty) return;
-    final ids = <String>[];
-    for (final i in items) {
-      final id = _itemId(i);
-      if (id != null) ids.add(id);
-    }
-    if (ids.isEmpty) return;
+    // Kos TV: only what the home server has, and where the one sounding is
+    // among it. A song that isn't at home sounding isn't shared: the
+    // group is told why instead of the home server refusing the queue.
     final currentIdx = pm.queueService.currentIndex;
-    final clamped = currentIdx < 0
-        ? 0
-        : (currentIdx >= ids.length ? ids.length - 1 : currentIdx);
+    final current =
+        currentIdx >= 0 && currentIdx < items.length ? items[currentIdx] : null;
+    final queue = syncPlayQueueToSend(items, currentIdx, _itemId);
+    if (queue == null) {
+      if (isKostvStream(current)) _setError(SyncPlayError.outOfHomeSong);
+      return;
+    }
+    final ids = queue.ids;
+    final clamped = currentIdx < 0 ? 0 : queue.start;
     final positionTicks =
         SyncPlayUtils.msToTicks(pm.state.position.inMilliseconds);
     try {

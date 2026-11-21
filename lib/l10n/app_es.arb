@@ -15952,5 +15952,7 @@
     "kostvStreamDislikedOutOfHome": "{artist} · No está en casa",
     "@kostvStreamDislikedOutOfHome": {"description": "Kos TV «Toda la música»: a disliked song that is not at home, in Settings", "placeholders": {"artist": {"type": "String"}}},
     "kostvStreamStationEmpty": "No hay canciones para esta emisora ahora mismo",
-    "@kostvStreamStationEmpty": {"description": "Kos TV «Toda la música»: «Crear emisora» found nothing"}
+    "@kostvStreamStationEmpty": {"description": "Kos TV «Toda la música»: «Crear emisora» found nothing"},
+    "kostvSyncPlayErrorOutOfHomeSong": "Lo que suena no está en casa, y las canciones que no están en casa no se pueden escuchar juntos.",
+    "@kostvSyncPlayErrorOutOfHomeSong": {"description": "Kos TV Watch together: the song playing is not on the home server (heard through the requests service), so it is not shared with the group"}
 }

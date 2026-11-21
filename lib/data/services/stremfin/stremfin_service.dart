@@ -898,6 +898,11 @@ class StremfinService extends ChangeNotifier {
     kidsMode: _kidsMode?.call() ?? false,
   );
 
+  /// Kos TV: whether the person's age limit is known (read from their
+  /// account, or there is none to read): [hidesExplicitMusic] counts one
+  /// not read yet as a limit.
+  bool get musicAgeLimitKnown => _readAgeLimit == null || _ageLimit != null;
+
   /// Kos TV: [songs] without those the person isn't shown (explicit and not
   /// at home, see [kostvMusicSongAllowed]). Every music answer of the
   /// service goes through here, kept ones included.

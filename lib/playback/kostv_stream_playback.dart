@@ -31,10 +31,12 @@ class KostvStreamPlayback {
   KostvStreamPlayback({
     Future<StremfinPrefetch> Function(String deezerId)? prefetch,
     Future<bool> Function(KostvStreamListen listen)? report,
+    Object? Function()? owner,
     @visibleForTesting Duration endWait = const Duration(milliseconds: 700),
     @visibleForTesting DateTime Function()? now,
   }) : _prefetch = prefetch ?? _servicePrefetch,
        _report = report ?? _pluginReport,
+       _owner = owner ?? _signedIn,
        _endWait = endWait,
        _now = now ?? DateTime.now;
 
@@ -43,6 +45,11 @@ class KostvStreamPlayback {
 
   final Future<StremfinPrefetch> Function(String deezerId) _prefetch;
   final Future<bool> Function(KostvStreamListen listen) _report;
+
+  /// Kos TV: who is signed in (the server and the person), read when a song
+  /// stops and again when its listen is told: a listen is only told as the
+  /// person who heard it.
+  final Object? Function() _owner;
   final Duration _endWait;
   final DateTime Function() _now;
 
@@ -92,6 +99,7 @@ class KostvStreamPlayback {
     _playing = playing;
     _restarting = restarting ?? () => false;
     if (source != null) _source = source;
+    StremfinStreamResolver.wanted = wanted;
     _subs
       ..add(positions.listen(onProgress))
       ..add(queue.queueChangedStream.listen((_) => onQueueChanged()));
@@ -114,6 +122,9 @@ class KostvStreamPlayback {
     }
     _subs.clear();
     _queue = null;
+    if (StremfinStreamResolver.wanted == wanted) {
+      StremfinStreamResolver.wanted = null;
+    }
     _currentId = null;
     _halfway = false;
     _heard = 0;
@@ -134,10 +145,25 @@ class KostvStreamPlayback {
     _restedAt = null;
     _started.clear();
     _starts.clear();
+    _origins.clear();
+    _lengths.clear();
+    _pending.clear();
+    _sending.clear();
   }
 
   /// Whether [deezerId] was found ready by an ask ahead.
   bool isReady(String deezerId) => _ready.contains(deezerId);
+
+  /// Kos TV: whether the queue still needs [item]'s sound: it is the song
+  /// sounding or the one that sounds next. Without a queue it is.
+  bool wanted(AggregatedItem item) {
+    final queue = _queue;
+    if (queue == null) return true;
+    final current = queue.currentItem;
+    if (current is AggregatedItem && current.id == item.id) return true;
+    final next = _upcoming().firstOrNull;
+    return next != null && next.id == item.id;
+  }
 
   AggregatedItem? get _current {
     final item = _queue?.currentItem;
@@ -170,8 +196,18 @@ class KostvStreamPlayback {
         _heard += step.inMilliseconds / 1000;
       }
     }
+    // Kos TV: the length of its sound as the player found it (the file may
+    // be shorter or longer than the requests service said), for its end.
+    final sound = _duration();
+    if (isKostvStream(current) &&
+        sound > Duration.zero &&
+        position > Duration.zero &&
+        position <= sound) {
+      if (_lengths.length > 200) _lengths.clear();
+      _lengths[current.id] = sound;
+    }
     if (_halfway || position <= Duration.zero) return;
-    var length = _duration();
+    var length = sound;
     if (length <= Duration.zero) length = current.runtime ?? Duration.zero;
     if (length <= Duration.zero) return;
     final half = position * 2 >= length;
@@ -366,6 +402,21 @@ class KostvStreamPlayback {
   /// How many times each song started, to tell a stop from one opened again.
   final _starts = <String, int>{};
 
+  /// Kos TV: where the queue of each song came from and whether it was
+  /// shuffled, as it started: by the time it is told, another queue may
+  /// have taken its place (the source is noted before the new queue plays).
+  final _origins = <String, ({String source, bool shuffle})>{};
+
+  /// Kos TV: the length of each song's sound as the player found it.
+  final _lengths = <String, Duration>{};
+
+  /// Kos TV: the stops still waiting to know how they ended, each to be
+  /// settled at once ([settleForSessionChange]).
+  final _pending = <void Function()>{};
+
+  /// Kos TV: the listens being told.
+  final _sending = <Future<void>>{};
+
   /// How long the stop of a song still in the queue waits while the player
   /// opens it again (asked again for its sound after an error, another
   /// track) before it is told as a stop.
@@ -377,6 +428,11 @@ class KostvStreamPlayback {
     _started.add(item.id);
     if (_starts.length > 200) _starts.clear();
     _starts[item.id] = (_starts[item.id] ?? 0) + 1;
+    if (_origins.length > 200) _origins.clear();
+    _origins[item.id] = (
+      source: _source(),
+      shuffle: _queue?.isShuffled ?? false,
+    );
   }
 
   /// Told by the player's reports when a song that isn't at home stopped,
@@ -395,56 +451,97 @@ class KostvStreamPlayback {
     if (!_started.remove(item.id)) return;
     // Nothing heard of one that didn't start: there is nothing to tell.
     if (failed && heard < 1) return;
-    var length = item.runtime ?? Duration.zero;
+    // Kos TV: whose listen it is, as it stopped: one told after the person
+    // changed would go as the new one's.
+    final owner = _owner();
+    final told = item.runtime ?? Duration.zero;
+    final sound = _lengths[item.id];
+    var length = sound ?? told;
     final player = _duration();
     if (length <= Duration.zero && player > Duration.zero) length = player;
-    final source = _source();
-    final shuffle = _queue?.isShuffled ?? false;
-    void send(String endedBy) => unawaited(
-      _report(
-        KostvStreamListen(
-          deezerId: info.deezerId,
-          title: item.name,
-          artist: item.artists.isNotEmpty
-              ? item.artists.join(', ')
-              : item.albumArtist,
-          album: item.album,
-          genre: item.genres.firstOrNull,
-          played: heard,
-          duration: length > Duration.zero ? length.inSeconds : null,
-          endedBy: endedBy,
-          source: source,
-          shuffle: shuffle,
-        ),
-      ).catchError((Object _) => false),
-    );
+    final origin = _origins[item.id];
+    final source = origin?.source ?? _source();
+    final shuffle = origin?.shuffle ?? _queue?.isShuffled ?? false;
+    void send(String endedBy) {
+      if (_owner() != owner) return;
+      late final Future<void> sending;
+      sending =
+          _report(
+                KostvStreamListen(
+                  deezerId: info.deezerId,
+                  title: item.name,
+                  artist: item.artists.isNotEmpty
+                      ? item.artists.join(', ')
+                      : item.albumArtist,
+                  album: item.album,
+                  genre: item.genres.firstOrNull,
+                  played: heard,
+                  duration: length > Duration.zero ? length.inSeconds : null,
+                  endedBy: endedBy,
+                  source: source,
+                  shuffle: shuffle,
+                ),
+              )
+              .then<void>((_) {}, onError: (Object _) {})
+              .whenComplete(() => _sending.remove(sending));
+      _sending.add(sending);
+    }
+
     if (failed) return send('error');
-    if (length > Duration.zero &&
-        position >= length - const Duration(seconds: 3)) {
+    // Kos TV: at its end by the length the requests service said, or by
+    // its sound's own (the player's, which is where it stops when the next
+    // song follows without a gap).
+    bool atEnd(Duration end) =>
+        end > Duration.zero && position >= end - const Duration(seconds: 3);
+    if (atEnd(told) || (sound != null && atEnd(sound))) {
       return send('natural');
     }
     // Stopped part way: by going on to another song, or by stopping. The
     // queue says which a moment later (the stop is told before it moves).
     final starts = _starts[item.id] ?? 0;
     final until = _now().add(_reopenWait);
-    void settle() {
-      final now = _queue?.currentItem;
-      if (now == null || _queue == null) return send('stop');
-      if (!identical(now, item)) return send('next');
+    Timer? timer;
+    late final void Function() settleNow;
+    void settle({bool now = false}) {
+      _pending.remove(settleNow);
+      final current = _queue?.currentItem;
+      if (current == null || _queue == null) return send('stop');
+      if (!identical(current, item)) return send('next');
       // Still the same song: opened again, which goes on as one listen with
       // what was heard so far; being opened again; or stopped.
       if ((_starts[item.id] ?? 0) != starts) {
         if (_currentId == item.id) _heard += heard;
         return;
       }
-      if (_restarting() && _now().isBefore(until)) {
-        Timer(_endWait, settle);
+      if (!now && _restarting() && _now().isBefore(until)) {
+        timer = Timer(_endWait, settle);
+        _pending.add(settleNow);
         return;
       }
       send('stop');
     }
 
-    Timer(_endWait, settle);
+    settleNow = () {
+      timer?.cancel();
+      settle(now: true);
+    };
+    timer = Timer(_endWait, settle);
+    _pending.add(settleNow);
+  }
+
+  /// Kos TV: the person is about to change (or sign out), right after the
+  /// player stopped: the stops still waiting are told now, while the
+  /// session is still theirs, and this waits (a moment at most) until the
+  /// server plugin got them.
+  Future<void> settleForSessionChange({
+    Duration wait = const Duration(seconds: 3),
+  }) async {
+    for (final settle in _pending.toList()) {
+      settle();
+    }
+    if (_sending.isEmpty) return;
+    await Future.wait(_sending.toList())
+        .timeout(wait, onTimeout: () => const []);
   }
 
   static Future<StremfinPrefetch> _servicePrefetch(String deezerId) {
@@ -453,6 +550,13 @@ class KostvStreamPlayback {
       return Future.error(const StremfinException(code: 'not_configured'));
     }
     return getIt<StremfinService>().musicPrefetch(deezerId);
+  }
+
+  static Object? _signedIn() {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<MediaServerClient>()) return null;
+    final client = getIt<MediaServerClient>();
+    return (client.baseUrl, client.userId);
   }
 
   static Future<bool> _pluginReport(KostvStreamListen listen) async {

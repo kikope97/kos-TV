@@ -35,6 +35,7 @@ import '../../data/models/aggregated_item.dart';
 import '../../data/services/carplay_service.dart';
 import '../../data/services/cast/cast_service.dart';
 import '../../data/services/crash_report_service.dart';
+import '../../data/services/connectivity_service.dart';
 import '../../data/services/kostv_music_catalog.dart';
 import '../../data/services/download_notification_service.dart';
 import '../../data/services/topshelf_service.dart';
@@ -58,6 +59,7 @@ import '../../playback/media_kit_player_backend.dart';
 import '../../playback/native_apple_player_backend.dart';
 import '../../playback/audio_handler.dart';
 import '../../playback/headless_session_bootstrap.dart';
+import '../../playback/kostv_stream_playback.dart';
 import '../../playback/last_playback_session_store.dart';
 import '../../playback/media_browse_service.dart';
 import '../../preference/preference_constants.dart';
@@ -359,12 +361,32 @@ class SessionRepository {
     setActiveStreamResolver(client);
     // Kos TV: «Qué música enseñar» is the person's (their plugin's): read
     // now, so «Solo la de casa» applies before any Music page is opened.
-    kostvReadMusicCatalog(client);
+    // Not where nobody will look at Music: a start without a screen (the
+    // car, the headphones; the queue it restores reads it itself), without
+    // a way to the server, or in kids mode (no Music). The device's copy
+    // stands meanwhile, and Music reads it as it opens.
+    final headless = _isHeadlessAndroidBoot();
+    _musicCatalogPending = false;
+    if (kostvReadsMusicCatalogAtSignIn(
+      headless: headless,
+      canReachServer:
+          !GetIt.instance.isRegistered<ConnectivityService>() ||
+          GetIt.instance<ConnectivityService>().canReachServer,
+      kidsMode:
+          GetIt.instance.isRegistered<UserPreferences>() &&
+          GetIt.instance<UserPreferences>().get(
+            UserPreferences.kidsModeEnabled,
+          ),
+    )) {
+      kostvReadMusicCatalog(client);
+    } else {
+      _musicCatalogPending = true;
+    }
     _cancelSocketIdleTimer();
     // A headless boot has no UI to serve, and car browse, playback, and
     // progress reporting all go over REST, so skip the socket there and let
     // onAppResumed connect it if the user opens the app later.
-    _socketSuspended = _isHeadlessAndroidBoot();
+    _socketSuspended = headless;
     if (!_socketSuspended) {
       _socketHandler.onUnauthorized = _onSocketUnauthorized;
       _socketHandler.connectTo(client);
@@ -603,6 +625,7 @@ class SessionRepository {
   /// server still takes the session's token, on every platform.
   void onAppResumed() {
     unawaited(_checkTokenStillValid());
+    _readPendingMusicCatalog();
     _cancelSocketIdleTimer();
     if (!_socketSuspended) {
       // A socket that dropped while the app sat idle is waiting out its
@@ -784,6 +807,34 @@ class SessionRepository {
     _socketIdleTimer = null;
   }
 
+  /// Kos TV: «Qué música enseñar» wasn't read as the person signed in
+  /// ([kostvReadsMusicCatalogAtSignIn]): it is once the app is in front,
+  /// when it can be of use.
+  bool _musicCatalogPending = false;
+
+  void _readPendingMusicCatalog() {
+    if (!_musicCatalogPending) return;
+    final serverId = _activeServerId;
+    final client = serverId == null
+        ? null
+        : _clientFactory.getClientIfExists(serverId);
+    if (client == null) return;
+    final getIt = GetIt.instance;
+    if (!kostvReadsMusicCatalogAtSignIn(
+      headless: false,
+      canReachServer:
+          !getIt.isRegistered<ConnectivityService>() ||
+          getIt<ConnectivityService>().canReachServer,
+      kidsMode:
+          getIt.isRegistered<UserPreferences>() &&
+          getIt<UserPreferences>().get(UserPreferences.kidsModeEnabled),
+    )) {
+      return;
+    }
+    _musicCatalogPending = false;
+    kostvReadMusicCatalog(client);
+  }
+
   /// True when this engine was booted without a UI, which on Android happens
   /// when Android Auto or media resumption binds the media browser service.
   /// Such an engine never receives an activity lifecycle event, so its state
@@ -922,6 +973,12 @@ class SessionRepository {
     if (!GetIt.instance.isRegistered<PlaybackManager>()) return;
     try {
       await GetIt.instance<PlaybackManager>().stop(userInitiated: false);
+    } catch (_) {}
+    // Kos TV: what was heard of a song that isn't at home is told now, as
+    // this person's, before the token changes (it waits a moment to know
+    // how it ended otherwise).
+    try {
+      await KostvStreamPlayback.instance.settleForSessionChange();
     } catch (_) {}
   }
 
@@ -1876,3 +1933,14 @@ bool isSignInRequestPath(String path) {
       lower.contains('/quickconnect/') ||
       lower.endsWith('/sessions/logout');
 }
+
+/// Kos TV: whether «Qué música enseñar» is read from the server plugin as
+/// the person signs in: not in a start without a screen ([headless]: the car
+/// or the headphones, whose restored queue reads it itself), without a way
+/// to the server, nor in kids mode (no Music there).
+@visibleForTesting
+bool kostvReadsMusicCatalogAtSignIn({
+  required bool headless,
+  required bool canReachServer,
+  required bool kidsMode,
+}) => !headless && canReachServer && !kidsMode;

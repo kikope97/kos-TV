@@ -99,6 +99,42 @@ void main() {
       },
     );
 
+    // Kos TV: in a browser the time to connect lasts until the headers
+    // come, and the service sends none until the sound is ready.
+    test('listen: in a browser, a minute to connect too; nothing else '
+        'changes', () async {
+      final adapter = FakeStremfinAdapter(
+        (path, _) => (
+          status: 200,
+          body: path.endsWith('/listen')
+              ? {'url': '/api/v1/music/listen?k=abc', 'ready': true}
+              : {'state': 'queued'},
+          headers: const <String, String>{},
+        ),
+      );
+      StremfinClient client({required bool web}) => StremfinClient(
+        dio: Dio(
+          BaseOptions(
+            connectTimeout: const Duration(seconds: 15),
+            receiveTimeout: const Duration(seconds: 20),
+          ),
+        )..httpClientAdapter = adapter,
+        baseUrl: 'https://requests.example.org/api/v1',
+        token: () => 'token',
+        web: web,
+      );
+      await client(web: true).musicListen('1');
+      expect(adapter.calls.last.connectTimeout, StremfinClient.listenTimeout);
+      expect(adapter.calls.last.receiveTimeout, StremfinClient.listenTimeout);
+      await client(web: true).musicPrefetch('1');
+      expect(adapter.calls.last.connectTimeout, const Duration(seconds: 15));
+      expect(adapter.calls.last.receiveTimeout, const Duration(seconds: 20));
+      // On a device the wait for the answer already covers its headers.
+      await client(web: false).musicListen('1');
+      expect(adapter.calls.last.connectTimeout, const Duration(seconds: 15));
+      expect(adapter.calls.last.receiveTimeout, StremfinClient.listenTimeout);
+    });
+
     test('listen: 404, 503 and 429 come as what they are', () async {
       for (final (status, code) in [
         (404, 'not_found'),

@@ -297,6 +297,41 @@ void main() {
       });
     });
 
+    // Kos TV: the player still names the start by the out-of-home song it
+    // was before it turned out to be at home.
+    test('one that turned out to be at home while it was prepared is still '
+        'told when it fails', () {
+      fakeAsync((async) {
+        addTearDown(StremfinStreamResolver.debugReset);
+        final music = KostvNowPlaying.instance..ensureStarted();
+        final home = _item('j7', 'Audio');
+        StremfinStreamResolver.atHome['stremfin:7'] = home;
+        manager.queueService.setQueue([home]);
+        async.flushMicrotasks();
+        manager.setBringup(
+          const PlaybackBringupState(
+            phase: PlaybackBringupPhase.failed,
+            itemId: 'stremfin:7',
+          ),
+        );
+        expect(music.tellsStartFailure(), isTrue);
+        async.elapse(const Duration(seconds: 2));
+        expect(music.failed, isTrue);
+        // Another song's start is still not this one's.
+        manager.setBringup(
+          const PlaybackBringupState(phase: PlaybackBringupPhase.ready),
+        );
+        manager.setBringup(
+          const PlaybackBringupState(
+            phase: PlaybackBringupPhase.failed,
+            itemId: 'stremfin:8',
+          ),
+        );
+        async.elapse(const Duration(seconds: 2));
+        expect(music.failed, isFalse);
+      });
+    });
+
     test('a film failing is the video player\'s to tell', () {
       fakeAsync((async) {
         final music = KostvNowPlaying.instance..ensureStarted();
