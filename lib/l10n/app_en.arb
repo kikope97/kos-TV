@@ -21441,5 +21441,13 @@
     "kostvMusicCatalogHomeHint": "Only what's already on the home server, as before",
     "@kostvMusicCatalogHomeHint": {
         "description": "Kos TV «Toda la música»: under the option «Solo la de casa»"
-    }
+    },
+    "kostvStreamMoreAlbums": "More albums",
+    "@kostvStreamMoreAlbums": {"description": "Kos TV «Toda la música»: search shelf of albums that are not at home"},
+    "kostvStreamMoreAlbumsWhy": "Not at home: they play by streaming",
+    "@kostvStreamMoreAlbumsWhy": {"description": "Kos TV «Toda la música»: under «Más álbumes» in the search"},
+    "kostvStreamDislikedOutOfHome": "{artist} · Not at home",
+    "@kostvStreamDislikedOutOfHome": {"description": "Kos TV «Toda la música»: a disliked song that is not at home, in Settings", "placeholders": {"artist": {"type": "String"}}},
+    "kostvStreamStationEmpty": "There are no songs for this station right now",
+    "@kostvStreamStationEmpty": {"description": "Kos TV «Toda la música»: «Crear emisora» found nothing"}
 }

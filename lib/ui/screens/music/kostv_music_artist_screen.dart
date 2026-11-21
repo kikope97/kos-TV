@@ -4,14 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/kostv_music_catalog.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../playback/kostv_stream_playback.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
+import '../../widgets/music/kostv_stream_play.dart';
 import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
@@ -47,6 +50,9 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
     // Its songs have a menu of their own on a right click.
     kostvHoldBrowserMenu();
     KostvMusicDislikesStore.instance.addListener(_dislikesChanged);
+    // Kos TV: «Qué música enseñar» changed: the songs play (or not) at once.
+    KostvMusicCatalog.instance.addListener(_dislikesChanged);
+    kostvRefreshMusicCatalog();
     unawaited(_load());
   }
 
@@ -57,8 +63,40 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
   @override
   void dispose() {
     KostvMusicDislikesStore.instance.removeListener(_dislikesChanged);
+    KostvMusicCatalog.instance.removeListener(_dislikesChanged);
+    kostvPrefetchCancel();
     kostvReleaseBrowserMenu();
     super.dispose();
+  }
+
+  /// Kos TV: the artist's top songs as one queue from [index] (or all of
+  /// them shuffled), what isn't at home through the requests service.
+  void _playTop(
+    List<StremfinSong> songs, {
+    int index = 0,
+    bool shuffle = false,
+  }) => unawaited(
+    playKostvSongList(
+      context,
+      songs,
+      index: index,
+      source: KostvMusicSource.artist,
+      shuffle: shuffle,
+      picked: !shuffle,
+    ),
+  );
+
+  /// Kos TV: «Crear emisora» of the artist: the requests service's radio of
+  /// them, what is at home from home.
+  Widget? _stationButton(AppLocalizations l10n, StremfinArtistDetail? detail) {
+    if (detail == null || !kostvMusicCatalogAll()) return null;
+    return KostvMusicButton(
+      icon: Icons.radio_rounded,
+      label: l10n.kostvMusicRadio,
+      onTap: () => unawaited(
+        kostvMusicOnce(() => playKostvArtistStation(context, detail.artist)),
+      ),
+    );
   }
 
   Future<void> _load() async {
@@ -132,6 +170,17 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
     final insets = calendarChromeInsets(context);
     final phone = KostvMusicSizes.phone;
     final detail = _detail;
+    final all = kostvMusicCatalogAll();
+    final station = _stationButton(l10n, detail);
+    // Kos TV: nothing explicit that isn't at home for someone with a limit.
+    final hidesExplicit =
+        !GetIt.instance.isRegistered<StremfinService>() ||
+        GetIt.instance<StremfinService>().hidesExplicitMusic;
+    final top = [
+      for (final song in detail?.topSongs ?? const <StremfinSong>[])
+        if (!all || song.atHome || !song.explicit || !hidesExplicit) song,
+    ];
+    final topPlays = all && top.any(kostvSongPlayable);
     final artist = detail?.artist ?? widget.seed;
     final theme = Theme.of(context);
     return Scaffold(
@@ -188,9 +237,13 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                                 fontSize: 15,
                               ),
                             ),
-                          if (dislike != null) ...[
+                          if (dislike != null || station != null) ...[
                             const SizedBox(height: 12),
-                            dislike,
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: [?station, ?dislike],
+                            ),
                           ],
                         ],
                       ),
@@ -232,10 +285,27 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                   ],
                 ),
               ),
-            if (detail != null && detail.topSongs.isNotEmpty) ...[
+            if (detail != null && top.isNotEmpty) ...[
               KostvMusicHeading(
                 title: l10n.kostvMusicArtistTopSongs,
                 padding: EdgeInsets.fromLTRB(insets.left, 0, insets.right, 8),
+                // Kos TV: with «Toda la música», the list plays whole.
+                actions: [
+                  if (topPlays) ...[
+                    KostvMusicRowAction(
+                      icon: Icons.play_arrow_rounded,
+                      label: l10n.play,
+                      primary: true,
+                      onTap: () => _playTop(top),
+                    ),
+                    if (top.length > 2)
+                      KostvMusicRowAction(
+                        icon: Icons.shuffle_rounded,
+                        label: l10n.shuffle,
+                        onTap: () => _playTop(top, shuffle: true),
+                      ),
+                  ],
+                ],
               ),
               Padding(
                 padding: EdgeInsets.only(
@@ -249,7 +319,7 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                     child: FocusTraversalGroup(
                       child: Column(
                         children: [
-                          for (final (i, song) in detail.topSongs.indexed)
+                          for (final (i, song) in top.indexed)
                             KostvMusicSongRow(
                               autofocus: i == 0 && PlatformDetection.isTV,
                               title: song.title,
@@ -260,14 +330,33 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                               cover: song.cover,
                               rank: i + 1,
                               atHome: song.inJellyfin,
+                              away: all && kostvSongPlayable(song),
+                              trailing:
+                                  all &&
+                                      !song.atHome &&
+                                      !kostvSongPlayable(song)
+                                  ? const Icon(
+                                      Icons.album_outlined,
+                                      color: kostvMusicGrey,
+                                      size: 22,
+                                    )
+                                  : null,
                               explicit: song.explicit,
-                              onTap: () => unawaited(
-                                openKostvMusicSong(
-                                  context,
-                                  song,
-                                  source: KostvMusicSource.artist,
-                                ),
-                              ),
+                              onRest:
+                                  all && !song.atHome && kostvSongPlayable(song)
+                                  ? (resting) => resting
+                                        ? kostvPrefetchSoon(song)
+                                        : kostvPrefetchCancel()
+                                  : null,
+                              onTap: () => all && kostvSongPlayable(song)
+                                  ? _playTop(top, index: i)
+                                  : unawaited(
+                                      openKostvMusicSong(
+                                        context,
+                                        song,
+                                        source: KostvMusicSource.artist,
+                                      ),
+                                    ),
                               onLongPress: () => unawaited(
                                 showKostvMusicSongMenu(
                                   context,
@@ -293,13 +382,15 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                     KostvMusicAlbumTile(
                       // Without songs of theirs, the remote starts here.
                       autofocus:
-                          i == 0 &&
-                          detail.topSongs.isEmpty &&
-                          PlatformDetection.isTV,
+                          i == 0 && top.isEmpty && PlatformDetection.isTV,
                       title: album.title,
                       subtitle: album.year?.toString(),
                       cover: album.cover,
-                      badge: kostvMusicBadgeOf(album),
+                      // Kos TV: with «Toda la música», asking for it is on
+                      // its page.
+                      badge: all
+                          ? KostvMusicBadge.none
+                          : kostvMusicBadgeOf(album),
                       onTap: () =>
                           unawaited(openKostvStremfinAlbum(context, album)),
                     ),

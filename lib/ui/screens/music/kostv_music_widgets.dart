@@ -107,7 +107,13 @@ class KostvMusicPressable extends StatefulWidget {
     this.onKey,
     this.centerVertically = true,
     this.revealFromTop = false,
+    this.onRest,
   });
+
+  /// Kos TV: told true when the remote's focus (shown) or the mouse comes
+  /// onto it, and false when both leave: a song rested on a moment is asked
+  /// for in advance. Not with touch (a phone's scroll passes by songs).
+  final ValueChanged<bool>? onRest;
 
   /// Kos TV: a stop of a page's header (an album's buttons): with the focus,
   /// the page goes back to its top rather than bringing it to the middle,
@@ -137,9 +143,24 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
   bool _hovered = false;
   Timer? _hold;
 
+  /// Kos TV: what [KostvMusicPressable.onRest] was last told.
+  bool _resting = false;
+
+  void _rest() {
+    final onRest = widget.onRest;
+    if (onRest == null || !mounted) return;
+    final now =
+        _hovered ||
+        (_focused && InputModeTracker.showFocusVisuals(context, true));
+    if (now == _resting) return;
+    _resting = now;
+    onRest(now);
+  }
+
   @override
   void dispose() {
     _hold?.cancel();
+    if (_resting) widget.onRest?.call(false);
     super.dispose();
   }
 
@@ -152,6 +173,7 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
 
   void _onFocus(bool focused) {
     setState(() => _focused = focused);
+    _rest();
     if (!focused) {
       // OK went down here and up somewhere else: no menu out of nowhere.
       _hold?.cancel();
@@ -268,8 +290,14 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
       },
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _hovered = true),
-        onExit: (_) => setState(() => _hovered = false),
+        onEnter: (_) {
+          setState(() => _hovered = true);
+          _rest();
+        },
+        onExit: (_) {
+          setState(() => _hovered = false);
+          _rest();
+        },
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: widget.onTap,
@@ -332,11 +360,16 @@ class KostvMusicHeading extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.padding = EdgeInsets.zero,
+    this.actions = const [],
   });
 
   final String title;
   final String? subtitle;
   final EdgeInsets padding;
+
+  /// Kos TV: small buttons at the end of the title's line («Reproducir»,
+  /// «Aleatorio» of a list), [KostvMusicRowAction]s.
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -363,6 +396,10 @@ class KostvMusicHeading extends StatelessWidget {
                   ),
                 ),
               ),
+              for (final action in actions) ...[
+                SizedBox(width: phone ? 8 : 12),
+                action,
+              ],
             ],
           ),
           if (subtitle != null)
@@ -378,6 +415,75 @@ class KostvMusicHeading extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Kos TV: a small button of a list's heading («Reproducir», «Aleatorio»):
+/// a pill with its icon and, but on a narrow phone, its word.
+class KostvMusicRowAction extends StatelessWidget {
+  const KostvMusicRowAction({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.primary = false,
+    this.onKey,
+    this.focusNode,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool primary;
+  final KeyEventResult Function(KeyEvent event)? onKey;
+  final FocusNode? focusNode;
+
+  @override
+  Widget build(BuildContext context) {
+    final phone = KostvMusicSizes.phone;
+    // On a narrow phone, only the icon (the word goes in the tooltip).
+    final words = !phone || MediaQuery.sizeOf(context).width >= 420;
+    final pill = KostvMusicPressable(
+      focusNode: focusNode,
+      onTap: onTap,
+      onKey: onKey,
+      builder: (context, lit) => AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        padding: EdgeInsets.symmetric(
+          horizontal: words ? (phone ? 12 : 14) : 9,
+          vertical: phone ? 6 : 7,
+        ),
+        decoration: BoxDecoration(
+          color: lit
+              ? Colors.white
+              : (primary ? kostvMusicColor : const Color(0xFF2C2C2E)),
+          borderRadius: AppRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: phone ? 18 : 20,
+              color: lit ? Colors.black : Colors.white,
+            ),
+            if (words) ...[
+              const SizedBox(width: 6),
+              Text(
+                label,
+                maxLines: 1,
+                style: TextStyle(
+                  color: lit ? Colors.black : Colors.white,
+                  fontSize: phone ? 13 : 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+    return words ? pill : Tooltip(message: label, child: pill);
   }
 }
 
@@ -613,10 +719,19 @@ class KostvMusicSongRow extends StatelessWidget {
     this.trailing,
     this.onLongPress,
     this.artistLinks,
+    this.onRest,
+    this.away = false,
   });
 
   /// The song's menu (OK held down, a long press or a right click).
   final VoidCallback? onLongPress;
+
+  /// Kos TV: see [KostvMusicPressable.onRest].
+  final ValueChanged<bool>? onRest;
+
+  /// Kos TV: it isn't at home but plays all the same, through the requests
+  /// service («Toda la música»): the play mark, with no «Pedir».
+  final bool away;
 
   final String title;
   final String? artist;
@@ -646,6 +761,7 @@ class KostvMusicSongRow extends StatelessWidget {
       onTap: onTap,
       onLongPress: onLongPress,
       onKey: onKey,
+      onRest: onRest,
       builder: (context, lit) => AnimatedContainer(
         duration: const Duration(milliseconds: 160),
         height: kostvMusicSongRowHeight(context, phone),
@@ -731,6 +847,15 @@ class KostvMusicSongRow extends StatelessWidget {
                         child: Icon(
                           Icons.play_circle_fill_rounded,
                           color: lit ? Colors.black : kostvMusicColor,
+                          size: phone ? 26 : 28,
+                        ),
+                      )
+                    : away
+                    ? Tooltip(
+                        message: l10n.kostvStreamNotAtHome,
+                        child: Icon(
+                          Icons.play_circle_outline_rounded,
+                          color: lit ? Colors.black : Colors.white70,
                           size: phone ? 26 : 28,
                         ),
                       )

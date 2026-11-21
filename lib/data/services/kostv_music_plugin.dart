@@ -317,10 +317,18 @@ class KostvMusicDisliked {
     this.artistId,
     this.albumId,
     this.at,
+    this.deezerId,
   });
 
-  /// The home server's id, without dashes.
+  /// The home server's id, without dashes. Kos TV: a song that isn't at
+  /// home, `stremfin:<DeezerId>`, as it goes in the queue.
   final String id;
+
+  /// Kos TV: Deezer's id of a song that isn't at home («Toda la música»).
+  final String? deezerId;
+
+  /// Kos TV: whether it is a song that isn't at home.
+  bool get outOfHome => deezerId != null;
   final String name;
 
   /// An artist rather than a song.
@@ -334,10 +342,14 @@ class KostvMusicDisliked {
 
   static KostvMusicDisliked? _of(Object? raw, bool artist) {
     if (raw is! Map) return null;
-    final id = _text(raw['Id']);
+    // Kos TV: a song that isn't at home comes with its DeezerId and no Id.
+    final deezerId = artist ? null : _text(raw['DeezerId']);
+    final id =
+        _text(raw['Id']) ?? (deezerId == null ? null : kostvStreamId(deezerId));
     if (id == null) return null;
     final at = raw['At'];
     return KostvMusicDisliked(
+      deezerId: _text(raw['Id']) == null ? deezerId : null,
       id: _plainId(id),
       name: _text(raw['Name']) ?? '',
       artist: artist,
@@ -977,6 +989,39 @@ class KostvMusicPlugin {
       },
     );
     return reply.ok;
+  }
+
+  /// Kos TV: «No me gusta» of [songs] that aren't at home (`Songs` of the
+  /// event, each with its DeezerId, name and artist). False when the
+  /// plugin didn't keep it.
+  Future<bool> sendStreamDislike(
+    MediaServerClient client,
+    Iterable<({String deezerId, String name, String? artist})> songs,
+  ) async {
+    final list = [
+      for (final song in songs)
+        if (song.deezerId.isNotEmpty)
+          {
+            'DeezerId': song.deezerId,
+            'Name': ?_short(song.name),
+            'Artist': ?_short(song.artist),
+          },
+    ].take(contextMax).toList();
+    if (list.isEmpty) return false;
+    final reply = await _call(
+      client,
+      'POST',
+      'Event',
+      body: {'Type': 'dislike', 'Songs': list, 'Kind': 'song'},
+    );
+    return reply.ok;
+  }
+
+  /// Kos TV: a name as the plugin takes it (up to 200 characters), or null.
+  static String? _short(String? name) {
+    final text = _text(name);
+    if (text == null) return null;
+    return text.length > 200 ? text.substring(0, 200) : text;
   }
 
   /// What the person doesn't want to hear. [KostvMusicAnswer.missing] with

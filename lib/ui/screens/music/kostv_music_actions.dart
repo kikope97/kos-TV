@@ -9,9 +9,10 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/repositories/item_mutation_repository.dart';
 import '../../../data/services/kostv_music.dart';
-import '../../../data/services/kostv_music_dislikes.dart'
-    show kostvMusicSongArtist;
+import '../../../data/services/kostv_music_dislikes.dart';
+import '../../../data/services/kostv_music_catalog.dart';
 import '../../../data/services/kostv_music_plugin.dart';
+import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
@@ -20,8 +21,10 @@ import '../../navigation/destinations.dart';
 import '../../widgets/add_to_playlist_dialog.dart';
 import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/kostv_now_playing.dart';
+import '../../widgets/music/kostv_stream_play.dart';
 import '../../widgets/music/music_navigation.dart';
 import 'kostv_music_dislike.dart';
+import 'kostv_stream_widgets.dart';
 import 'kostv_music_widgets.dart';
 
 /// Kos TV: what the Music pages do when something is picked: what is at
@@ -253,6 +256,17 @@ Future<void> _openSong(
     }
   }
   if (!context.mounted) return;
+  // Kos TV: with «Toda la música», one that isn't at home plays through
+  // the requests service, at once (its album is asked for from its page or
+  // «Reproduciendo»).
+  if (!toAsk && kostvMusicCatalogAll() && kostvSongPlayable(song)) {
+    await playKostvStreamSongs(
+      context,
+      kostvQueueSongs([song]),
+      source: source,
+    );
+    return;
+  }
   final album = song.album;
   if (album != null) {
     openKostvMusicAlbum(
@@ -285,6 +299,38 @@ Future<void> _openSong(
     );
   }
 }
+
+/// Kos TV: [songs] of a list of the requests service (a chart, «Para ti»,
+/// the discovery, an artist's top songs) played as one queue from [index]
+/// («Toda la música»): what is at home from home, the rest through the
+/// service; those without a Deezer id are skipped, and so is what the
+/// person doesn't want to hear (but the song picked). [shuffle] plays it
+/// all in a random order. Within the same lock as [openKostvMusicSong].
+Future<void> playKostvSongList(
+  BuildContext context,
+  List<StremfinSong> songs, {
+  int index = 0,
+  String source = KostvMusicSource.other,
+  bool shuffle = false,
+  bool picked = true,
+}) => kostvMusicOnce(() {
+  final client = GetIt.instance.isRegistered<MediaServerClient>()
+      ? GetIt.instance<MediaServerClient>()
+      : null;
+  final kept = kostvSongsToPlay(
+    songs,
+    KostvMusicDislikesStore.instance.of(client),
+    index: shuffle || !picked ? -1 : index,
+  );
+  return playKostvStreamSongs(
+    context,
+    kostvQueueSongs(kept.songs),
+    startIndex: kept.index,
+    source: source,
+    shuffle: shuffle,
+    picked: picked,
+  );
+});
 
 /// An artist's page.
 void openKostvMusicArtist(BuildContext context, StremfinArtist artist) =>
@@ -351,11 +397,17 @@ enum _SongChoice {
 /// where the song comes from, told with «A continuación» and «Al final»
 /// too. [refresh] as in [openKostvMusicSong]: one that arrived home since
 /// gets the menu of one at home.
+///
+/// Kos TV: with «Toda la música», one that isn't at home (or [item] being
+/// one) gets the menu of a song that sounds through the requests service
+/// ([_streamSongMenu]); [fromAlbumDeezerId] is the album page it is opened
+/// on.
 Future<void> showKostvMusicSongMenu(
   BuildContext context, {
   StremfinSong? song,
   AggregatedItem? item,
   String? fromAlbumId,
+  String? fromAlbumDeezerId,
   String source = KostvMusicSource.other,
   Future<StremfinSong?> Function(StremfinSong song)? refresh,
 }) => kostvMusicOnce(() async {
@@ -366,6 +418,7 @@ Future<void> showKostvMusicSongMenu(
     song: now,
     item: item,
     fromAlbumId: fromAlbumId,
+    fromAlbumDeezerId: fromAlbumDeezerId,
     source: source,
   );
 });
@@ -375,9 +428,20 @@ Future<void> _songMenu(
   StremfinSong? song,
   AggregatedItem? item,
   String? fromAlbumId,
+  String? fromAlbumDeezerId,
   String source = KostvMusicSource.other,
 }) async {
   final l10n = AppLocalizations.of(context);
+  // Kos TV: a song that isn't at home has a menu of its own.
+  if (item != null && isKostvStream(item)) {
+    await _streamSongMenu(
+      context,
+      item,
+      fromAlbumDeezerId: fromAlbumDeezerId,
+      source: source,
+    );
+    return;
+  }
   var home = item;
   if (home == null &&
       song != null &&
@@ -396,6 +460,29 @@ Future<void> _songMenu(
       closeLoading();
     }
     if (!context.mounted) return;
+  }
+  // Kos TV: not at home, with «Toda la música»: it sounds through the
+  // requests service, and its menu is of one that does.
+  if (home == null &&
+      song != null &&
+      kostvMusicCatalogAll() &&
+      kostvSongPlayable(song)) {
+    final stream = kostvStreamItemFromSong(
+      song,
+      serverId: GetIt.instance.isRegistered<MediaServerClient>()
+          ? GetIt.instance<MediaServerClient>().baseUrl
+          : '',
+    );
+    if (stream != null) {
+      await _streamSongMenu(
+        context,
+        stream,
+        album: song.album,
+        fromAlbumDeezerId: fromAlbumDeezerId,
+        source: source,
+      );
+      return;
+    }
   }
   final title = home?.name ?? song?.title ?? '';
   final artistName = home == null
@@ -520,6 +607,12 @@ Future<void> _songMenu(
       }
     case _SongChoice.radio:
       final seed = home!;
+      // Kos TV: with «Toda la música», the requests service's radio of its
+      // artists too, mixed in turns with the home server's mix.
+      if (kostvStationWantsRadio(seed)) {
+        await playKostvStation(context, seed);
+        return;
+      }
       final mix = await kostvMusicService()
           .mix(seed.id)
           .catchError((Object _) => const <AggregatedItem>[]);
@@ -591,6 +684,207 @@ Future<void> _songMenu(
       }
     case _SongChoice.ask:
       await _openSong(context, song!, toAsk: true);
+  }
+}
+
+/// Kos TV: the home server's artist named [name] (the same name, not
+/// minding case), or null: «No me pongas a …» of a song that isn't at home
+/// goes by them (what plays by itself is the home server's, and the server
+/// plugin knows its artists by their id there).
+Future<AggregatedItem?> kostvHomeArtistNamed(String name) async {
+  final wanted = name.trim().toLowerCase();
+  if (wanted.isEmpty) return null;
+  final found = await kostvMusicService().search(name);
+  return found.artists
+      .where((a) => a.name.trim().toLowerCase() == wanted)
+      .firstOrNull;
+}
+
+enum _StreamChoice {
+  next,
+  last,
+  radio,
+  dislike,
+  undislike,
+  dislikeArtist,
+  album,
+  artist,
+  ask,
+}
+
+/// Kos TV: the menu of a song that isn't at home, heard through the
+/// requests service («Toda la música»): play it next or at the end of the
+/// queue, a station around it, «No me gusta» (by its Deezer id) and «No me
+/// pongas a …» (when its artist is at home), its album and its artist, and
+/// «Pedir álbum» with how it stands (Pedido, De camino…). Nothing of the
+/// home server's own (♥, playlists): it isn't there. [album] is its album
+/// as the list it comes from knows it.
+Future<void> _streamSongMenu(
+  BuildContext context,
+  AggregatedItem stream, {
+  StremfinAlbum? album,
+  String? fromAlbumDeezerId,
+  String source = KostvMusicSource.other,
+}) async {
+  final l10n = AppLocalizations.of(context);
+  final info = KostvStreamInfo.of(stream)!;
+  final albumId = info.albumDeezerId ?? album?.deezerId;
+  final artistName =
+      stream.artists.where((a) => a.trim().isNotEmpty).firstOrNull ??
+      stream.albumArtist;
+  var known =
+      album ?? (albumId == null ? null : KostvStreamAlbums.known(albumId));
+  AggregatedItem? homeArtist;
+  // What the menu says of its album and its artist, looked for meanwhile
+  // (with a slow service or home server, a short wait at most).
+  final closeLoading = showMusicLoading(context);
+  try {
+    await Future.wait<void>([
+      kostvMusicDislikesReady(stream),
+      if (albumId != null)
+        KostvStreamAlbums.read(albumId).then((found) {
+          known = found ?? known;
+        }),
+    ]).timeout(const Duration(seconds: 4));
+    if (artistName != null && kostvMusicCanDislike(stream)) {
+      homeArtist = await kostvHomeArtistNamed(artistName)
+          .timeout(const Duration(seconds: 3));
+    }
+  } catch (_) {
+  } finally {
+    closeLoading();
+  }
+  if (!context.mounted) return;
+  final canDislike = kostvMusicCanDislike(stream);
+  final disliked = canDislike && kostvMusicDisliked(stream.id, stream);
+  final artistToDislike =
+      canDislike &&
+          homeArtist != null &&
+          !kostvMusicDisliked(homeArtist.id, stream)
+      ? homeArtist
+      : null;
+  final askState = kostvStreamAlbumState(
+    l10n,
+    known,
+    hasAlbum: albumId != null,
+  );
+  final choice = await showKostvMusicMenu<_StreamChoice>(
+    context,
+    title: stream.name,
+    subtitle: [?artistName, l10n.kostvStreamOutOfHome].join(' · '),
+    entries: [
+      KostvMenuEntry(
+        _StreamChoice.next,
+        Icons.playlist_play_rounded,
+        l10n.kostvMusicPlayNext,
+      ),
+      KostvMenuEntry(
+        _StreamChoice.last,
+        Icons.queue_music_rounded,
+        l10n.kostvMusicPlayLast,
+      ),
+      KostvMenuEntry(
+        _StreamChoice.radio,
+        Icons.radio_rounded,
+        l10n.kostvMusicRadio,
+      ),
+      if (canDislike)
+        disliked
+            ? KostvMenuEntry(
+                _StreamChoice.undislike,
+                Icons.thumb_down_rounded,
+                l10n.kostvMusicUndislike,
+              )
+            : KostvMenuEntry(
+                _StreamChoice.dislike,
+                Icons.thumb_down_outlined,
+                l10n.kostvMusicDislike,
+              ),
+      if (artistToDislike != null)
+        KostvMenuEntry(
+          _StreamChoice.dislikeArtist,
+          Icons.person_off_outlined,
+          l10n.kostvMusicDislikeArtistNamed(artistToDislike.name),
+        ),
+      if (albumId != null && albumId != fromAlbumDeezerId)
+        KostvMenuEntry(
+          _StreamChoice.album,
+          Icons.album_rounded,
+          l10n.kostvPlayerGoToAlbum,
+        ),
+      if (info.artistDeezerId != null)
+        KostvMenuEntry(
+          _StreamChoice.artist,
+          Icons.person_rounded,
+          l10n.kostvPlayerGoToArtist,
+        ),
+      if (askState != null)
+        KostvMenuEntry(_StreamChoice.ask, askState.icon, askState.label),
+    ],
+  );
+  if (choice == null || !context.mounted) return;
+  final queue = GetIt.instance<PlaybackManager>().queueService;
+  // Music sounding (an audiobook's queue isn't one to add songs to).
+  final musicPlaying = KostvNowPlaying.instance.item?.type == 'Audio';
+  switch (choice) {
+    case _StreamChoice.next:
+    case _StreamChoice.last:
+      if (!musicPlaying) {
+        await playMusicTracks(context, [stream], source: source);
+        return;
+      }
+      if (choice == _StreamChoice.next) {
+        queue.insertNext(stream);
+        kostvMusicSay(context, l10n.kostvMusicAddedNext);
+      } else {
+        queue.addToQueue(stream);
+        kostvMusicSay(context, l10n.kostvMusicAddedLast);
+      }
+    case _StreamChoice.radio:
+      await playKostvStation(context, stream);
+    case _StreamChoice.dislike:
+      await kostvDislikeSong(context, stream);
+    case _StreamChoice.undislike:
+      await kostvUndislike(
+        context,
+        id: stream.id,
+        name: stream.name,
+        from: stream,
+      );
+    case _StreamChoice.dislikeArtist:
+      await kostvDislikeArtist(
+        context,
+        id: artistToDislike!.id,
+        name: artistToDislike.name,
+        from: stream,
+      );
+    case _StreamChoice.album:
+      await openKostvStremfinAlbum(
+        context,
+        known ??
+            StremfinAlbum(
+              title: info.albumTitle ?? stream.album ?? stream.name,
+              deezerId: albumId,
+              artist: stream.albumArtist ?? artistName,
+              cover: info.cover,
+            ),
+      );
+    case _StreamChoice.artist:
+      openKostvMusicArtist(
+        context,
+        StremfinArtist(deezerId: info.artistDeezerId!, name: artistName ?? ''),
+      );
+    case _StreamChoice.ask:
+      if (askState!.can) {
+        await kostvStreamAskAlbum(
+          context,
+          albumId!,
+          title: known?.title ?? info.albumTitle,
+          artist: known?.artist ?? stream.albumArtist,
+        );
+      } else {
+        kostvMusicSay(context, askState.label);
+      }
   }
 }
 

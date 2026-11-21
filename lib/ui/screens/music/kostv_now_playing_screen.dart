@@ -37,7 +37,10 @@ import '../../widgets/player_volume_control.dart' show volumeIconFor;
 import '../playback/audiobook_player_view.dart';
 import 'kostv_music_links.dart';
 import 'kostv_music_widgets.dart' show kostvMusicColor;
-import 'kostv_music_actions.dart' show kostvMusicFavoritesChanged;
+import 'kostv_music_actions.dart'
+    show kostvHomeArtistNamed, kostvMusicFavoritesChanged, kostvMusicSay;
+import '../../widgets/music/kostv_stream_play.dart'
+    show kostvStationFor, kostvStationWantsRadio;
 import 'kostv_music_dislike.dart';
 import 'kostv_stream_widgets.dart';
 
@@ -448,8 +451,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   /// one already on the list (put on by hand), it takes it off.
   VoidCallback? _dislikeOf(AggregatedItem item) {
     if (_manager.isOfflinePlayback || item.type != 'Audio') return null;
-    // Kos TV: the plugin's «No me gusta» is of the home server's songs.
-    if (isKostvStream(item)) return null;
+    // Kos TV: one that isn't at home goes by its Deezer id (the plugin's
+    // `Songs`), with the same «Deshacer».
     if (!kostvMusicCanDislike(item)) return null;
     return () {
       if (kostvMusicDisliked(item.id, item)) {
@@ -521,7 +524,21 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     // Kos TV: «No me pongas a …», when the server plugin keeps it: the
     // song's own artist, not its album's (a compilation's song isn't by
     // «Various Artists»), as the plugin leaves them out.
-    final songArtist = kostvMusicSongArtist(item);
+    // Kos TV: of one that isn't at home, its artist at home by name (what
+    // plays by itself is the home server's), looked for a moment at most.
+    final stream = KostvStreamInfo.of(item);
+    var songArtist = kostvMusicSongArtist(item);
+    if (stream != null && _dislikeOf(item) != null) {
+      final name = item.artists.firstOrNull ?? item.albumArtist;
+      if (name != null) {
+        try {
+          final home = await kostvHomeArtistNamed(name)
+              .timeout(const Duration(seconds: 2));
+          if (home != null) songArtist = (id: home.id, name: home.name);
+        } catch (_) {}
+      }
+      if (!mounted) return;
+    }
     final artistToDislike =
         _dislikeOf(item) != null &&
             songArtist != null &&
@@ -531,6 +548,20 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     final choice = await _showMenu<String>(
       title: item.name,
       entries: [
+        // Kos TV: one that isn't at home: its album's and its artist's
+        // pages of the requests service.
+        if (stream?.albumDeezerId != null)
+          KostvMenuEntry(
+            'streamAlbum',
+            Icons.album_rounded,
+            l10n.kostvPlayerGoToAlbum,
+          ),
+        if (stream?.artistDeezerId != null)
+          KostvMenuEntry(
+            'streamArtist',
+            Icons.person_rounded,
+            l10n.kostvPlayerGoToArtist,
+          ),
         if (albumId != null && !offline)
           KostvMenuEntry(
             'album',
@@ -560,7 +591,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
                   (sleepAt.difference(DateTime.now()).inSeconds / 60).ceil(),
                 ),
         ),
-        if (!offline)
+        if (!offline || (stream != null && !_manager.isOfflinePlayback))
           KostvMenuEntry('radio', Icons.radio_rounded, l10n.kostvMusicRadio),
         if (artistToDislike != null)
           KostvMenuEntry(
@@ -577,6 +608,10 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
         _goTo(Destinations.item(albumId!));
       case 'artist':
         _goTo(Destinations.item(artistId!));
+      case 'streamAlbum':
+        _goTo(Destinations.kostvMusicAlbumOf(stream!.albumDeezerId!));
+      case 'streamArtist':
+        _goTo(Destinations.kostvMusicArtistOf(stream!.artistDeezerId!));
       case 'playlist':
         await AddToPlaylistDialog.show(
           context,
@@ -587,13 +622,28 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       case 'sleep':
         await _showSleep();
       case 'radio':
-        final mix = await KostvMusicService(
-          GetIt.instance<MediaServerClientFactory>().getClientIfExists(
-                item.serverId,
-              ) ??
-              GetIt.instance<MediaServerClient>(),
-        ).mix(item.id).catchError((Object _) => const <AggregatedItem>[]);
-        if (!mounted || mix.isEmpty) return;
+        final client =
+            GetIt.instance<MediaServerClientFactory>().getClientIfExists(
+              item.serverId,
+            ) ??
+            GetIt.instance<MediaServerClient>();
+        // Kos TV: with «Toda la música» (or of one that isn't at home), the
+        // requests service's radio of its artists too, mixed in turns.
+        final mix = kostvStationWantsRadio(item)
+            ? await kostvStationFor(
+                item,
+                client: client,
+              ).catchError((Object _) => const <AggregatedItem>[])
+            : await KostvMusicService(client)
+                  .mix(item.id)
+                  .catchError((Object _) => const <AggregatedItem>[]);
+        if (!mounted) return;
+        if (mix.isEmpty) {
+          if (kostvStationWantsRadio(item)) {
+            kostvMusicSay(context, l10n.kostvStreamStationEmpty);
+          }
+          return;
+        }
         KostvNowPlaying.instance.noteChosen();
         // Kos TV: without what the person doesn't want to hear.
         final queue = kostvMusicLeaveOut(

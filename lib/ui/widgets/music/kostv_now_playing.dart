@@ -22,6 +22,7 @@ import '../../screens/playback/osd_buttons.dart'
     show playerVolumeIgnoredByBrowser;
 import '../floating_notification.dart';
 import 'kostv_now_playing_web_session.dart';
+import 'kostv_stream_play.dart' show kostvStationFor, kostvStationWantsRadio;
 
 /// Kos TV: the music sounding in the app, for the floating player and the
 /// «Reproduciendo» page: which song, whether it plays, and the colours of
@@ -735,8 +736,6 @@ class KostvNowPlaying extends ChangeNotifier {
     if (_autoplayBusy) return;
     final seed = item;
     if (seed == null || seed.isAudiobook || seed.type != 'Audio') return;
-    // Kos TV: the home server has no mix of a song it doesn't have.
-    if (isKostvStream(seed)) return;
     if (_autoplaySeed == seed.id || !autoplay) return;
     final manager = _manager;
     if (manager == null) return;
@@ -757,13 +756,30 @@ class KostvNowPlaying extends ChangeNotifier {
             seed.serverId,
           ) ??
           GetIt.instance<MediaServerClient>();
+      final known = items.whereType<AggregatedItem>().map((e) => e.id).toSet();
+      // Kos TV: with «Toda la música», or after a song that isn't at home
+      // (the home server has no mix of it), the requests service's radio
+      // of its artists too, mixed in turns with the home server's mix.
+      if (kostvStationWantsRadio(seed)) {
+        final station = await kostvStationFor(
+          seed,
+          skip: known,
+          homeLimit: 25,
+          client: client,
+        );
+        final added = station.take(25).toList();
+        if (added.isNotEmpty && autoplay && item?.id == seed.id) {
+          autoplayItems.addAll(added);
+          queue.addItems(added);
+        }
+        return;
+      }
       final data = await client.instantMixApi.getInstantMix(seed.id, limit: 25);
       // Kos TV: without what the person doesn't want to hear (read now if
       // it wasn't; a plugin without it leaves nothing out).
       final dislikes = await KostvMusicDislikesStore.instance
           .load(client)
           .catchError((Object _) => KostvMusicDislikes.empty);
-      final known = items.whereType<AggregatedItem>().map((e) => e.id).toSet();
       final added = <AggregatedItem>[];
       for (final raw in (data['Items'] as List?) ?? const []) {
         if (raw is! Map) continue;

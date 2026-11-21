@@ -6,6 +6,7 @@ import 'package:server_core/server_core.dart';
 import '../models/aggregated_item.dart';
 import 'kostv_music.dart' show KostvMusicTaste;
 import 'kostv_music_plugin.dart';
+import 'stremfin/kostv_stream_song.dart';
 import 'stremfin/stremfin_models.dart';
 
 /// Kos TV: what the person doesn't want to hear («No me gusta» of a song,
@@ -163,19 +164,47 @@ class KostvMusicDislikesStore extends ChangeNotifier {
   }
 
   /// «No me gusta» of [song]: left out at once; false (and put back) when
-  /// the plugin didn't keep it.
-  Future<bool> dislikeSong(MediaServerClient client, AggregatedItem song) =>
-      _add(
+  /// the plugin didn't keep it. Kos TV: one that isn't at home goes by its
+  /// Deezer id (`stremfin:<DeezerId>`), with its name and artist.
+  Future<bool> dislikeSong(MediaServerClient client, AggregatedItem song) {
+    final deezerId = kostvStreamDeezerId(song);
+    if (deezerId != null) {
+      return dislikeStreamSong(
         client,
-        KostvMusicDisliked(
-          id: song.id.replaceAll('-', ''),
-          name: song.name,
-          artistName: kostvMusicArtistNames(song).firstOrNull,
-          artistId: kostvMusicArtistIds(song).firstOrNull,
-          albumId: song.albumId,
-          at: DateTime.now(),
-        ),
+        deezerId: deezerId,
+        name: song.name,
+        artist: song.artists.firstOrNull ?? song.albumArtist,
       );
+    }
+    return _add(
+      client,
+      KostvMusicDisliked(
+        id: song.id.replaceAll('-', ''),
+        name: song.name,
+        artistName: kostvMusicArtistNames(song).firstOrNull,
+        artistId: kostvMusicArtistIds(song).firstOrNull,
+        albumId: song.albumId,
+        at: DateTime.now(),
+      ),
+    );
+  }
+
+  /// Kos TV: «No me gusta» of the song [deezerId] that isn't at home.
+  Future<bool> dislikeStreamSong(
+    MediaServerClient client, {
+    required String deezerId,
+    required String name,
+    String? artist,
+  }) => _add(
+    client,
+    KostvMusicDisliked(
+      id: kostvStreamId(deezerId),
+      deezerId: deezerId,
+      name: name,
+      artistName: artist,
+      at: DateTime.now(),
+    ),
+  );
 
   /// «No me pongas a este artista» of the artist [id], named [name].
   Future<bool> dislikeArtist(
@@ -200,8 +229,13 @@ class KostvMusicDislikesStore extends ChangeNotifier {
     final who = _who(client);
     final before = of(client);
     _change(who, before.withEntry(entry));
+    final deezerId = entry.deezerId;
     final kept = await _send(
-      () => plugin.sendDislike(client, [entry.id], artist: entry.artist),
+      () => deezerId != null
+          ? plugin.sendStreamDislike(client, [
+              (deezerId: deezerId, name: entry.name, artist: entry.artistName),
+            ])
+          : plugin.sendDislike(client, [entry.id], artist: entry.artist),
     );
     if (!kept && _for == who) _change(who, _list.without(entry.id));
     return kept;
@@ -363,6 +397,13 @@ extension KostvMusicDislikesFilter on KostvMusicDislikes {
     if (isEmpty) return false;
     final id = song.jellyfinId;
     if (id != null && _songIds.contains(id.replaceAll('-', ''))) return true;
+    // Kos TV: one that isn't at home, by its Deezer id.
+    final deezerId = song.deezerId;
+    if (deezerId != null &&
+        deezerId.isNotEmpty &&
+        _songIds.contains(kostvStreamId(deezerId))) {
+      return true;
+    }
     return artistNamedOut(song.artist);
   }
 

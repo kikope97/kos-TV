@@ -2,14 +2,32 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:jellyfin_preference/jellyfin_preference.dart';
+import 'package:moonfin/data/services/kostv_music_catalog.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
+import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_actions.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// A song of the week's discovery that isn't at home: what the service says
 /// of it now is asked before it opens, within the same lock as opening it.
+///
+/// Kos TV: with «Solo la de casa», where such a song opens its album (with
+/// «Toda la música» it plays, see `kostv_stream_screens_test.dart`).
 void main() {
   const song = StremfinSong(title: 'Despechá', deezerId: '123');
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    final store = PreferenceStore();
+    await store.init();
+    final prefs = UserPreferences(store);
+    await prefs.set(UserPreferences.kostvMusicCatalogAll, false);
+    KostvMusicCatalog.instance = KostvMusicCatalog(prefs: () => prefs);
+  });
+
+  tearDown(() => KostvMusicCatalog.instance = KostvMusicCatalog());
 
   Future<BuildContext> host(WidgetTester tester) async {
     late BuildContext context;
