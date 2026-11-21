@@ -1638,6 +1638,11 @@ class PlaybackManager implements AudioOwnable {
           (_) => _onGaplessTransition(backend),
         ),
       );
+      _streamSubs.add(
+        gapless.nextDroppedStream.listen(
+          (failed) => _onGaplessNextDropped(backend, failed: failed),
+        ),
+      );
     }
 
     final errorStream = backend.errorStream;
@@ -1779,6 +1784,7 @@ class PlaybackManager implements AudioOwnable {
     }
 
     final remaining = effectiveDuration - pos;
+    var endedShort = false;
     if (remaining > const Duration(seconds: 5)) {
       // The player ran out of media early. That is starvation -- a server
       // transcode the client outran -- and it used to return here and do
@@ -1795,18 +1801,32 @@ class PlaybackManager implements AudioOwnable {
       if (playerRemaining > const Duration(seconds: 30)) {
         _logCompletion('starved', effectiveDuration: effectiveDuration);
         unawaited(_recoverStalledStream(trigger: 'starved', live: false));
-      } else {
-        _logCompletion('not-near-end', effectiveDuration: effectiveDuration);
+        return;
       }
-      return;
+      // Kos TV: a song whose file is shorter than its listed length (one
+      // heard through the requests service is listed with Deezer's length)
+      // ended all the same when the player's own length is spent: the queue
+      // goes on, instead of stopping there with the bar at the end. It is
+      // reported as played to its end, as it was.
+      endedShort =
+          backendDuration > Duration.zero &&
+          playerRemaining <= const Duration(seconds: 5) &&
+          _isMusicItem(completedItem);
+      if (!endedShort) {
+        _logCompletion('not-near-end', effectiveDuration: effectiveDuration);
+        return;
+      }
     }
 
-    _logCompletion('auto-next', effectiveDuration: effectiveDuration);
+    _logCompletion(
+      endedShort ? 'auto-next-short-file' : 'auto-next',
+      effectiveDuration: effectiveDuration,
+    );
     _isAutoNexting = true;
     // Kos TV: a next item that can't start says so through the bring-up
     // state (failed), which the screens show; thrown on from here it only
     // reached the zone.
-    _autoNext()
+    _autoNext(finished: endedShort)
         .catchError((Object e) {
           _diagnosticLogger?.call(
             'Auto-next failed to start the next item: $e',
@@ -3550,6 +3570,28 @@ class PlaybackManager implements AudioOwnable {
     } else if (queueService.repeatMode == RepeatMode.repeatOne) {
       _discardNextPreload('repeat one');
     }
+  }
+
+  /// Kos TV: the player let the song queued in it go by itself. When it
+  /// couldn't load it ([failed]), it starts the usual way at the end of this
+  /// one, resolved afresh, and says what is wrong with it there; otherwise
+  /// (the player opened this one again) it is prepared again on the next
+  /// tick.
+  void _onGaplessNextDropped(PlayerBackend backend, {required bool failed}) {
+    if (!identical(backend, _backend)) return;
+    final preload = _nextPreload;
+    if (preload == null || !preload.handed) return;
+    preload.handed = false;
+    _lengthBeforeQueued = Duration.zero;
+    if (!failed) {
+      _discardNextPreload('the player let it go');
+      return;
+    }
+    preload.failed = true;
+    _diagnosticLogger?.call(
+      'The player could not load the next song; it starts the usual way',
+    );
+    _releasePreloaded(preload);
   }
 
   /// The player moved on to the song queued in it by itself.

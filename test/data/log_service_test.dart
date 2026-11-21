@@ -142,6 +142,18 @@ void main() {
       );
     });
 
+    // Kos TV: the key of a song's address at the requests service.
+    test('redacts the key of a song heard through the requests service', () {
+      assertRedacted(
+        'Media3 error: https://requests.example.org/api/v1/music/listen'
+        '?k=s3cr3tk3y (404)',
+        '/api/v1/music/listen?k=[REDACTED] (404)',
+      );
+      logs.clear();
+      logs.log(LogCategory.general, 'listen?k=s3cr3tk3y');
+      expect(logs.entries.single.message, isNot(contains('s3cr3tk3y')));
+    });
+
     test('redacts a credential sent as a header', () {
       assertRedacted('X-Emby-Token: deadbeefcafe', 'X-Emby-Token: [REDACTED]');
       assertRedacted(
@@ -354,6 +366,20 @@ void main() {
     test('leaves a line with no credentials as it is', () {
       const line = 'Uncaught: RangeError (index): Invalid value: 3';
       expect(LogService.redactCredentials(line), line);
+    });
+
+    // Kos TV: the key of a song's address at the requests service.
+    test('drops the key of a song heard through the requests service', () {
+      final text = LogService.redactCredentials(
+        'Source error: https://requests.example.org/api/v1/music/listen'
+        '?k=s3cr3tk3y&x=1 and /music/listen?a=1&k=0th3r#t; rank=3 k=v',
+      );
+      expect(text, isNot(contains('s3cr3tk3y')));
+      expect(text, isNot(contains('0th3r')));
+      expect(text, contains('listen?k=[REDACTED]&x=1'));
+      expect(text, contains('a=1&k=[REDACTED]#t'));
+      // Not a query parameter: left alone.
+      expect(text, contains('k=v'));
     });
   });
 }

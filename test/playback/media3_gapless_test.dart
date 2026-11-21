@@ -170,4 +170,30 @@ void main() {
     await backend.cancelPreload();
     expect(calls.where((c) => c.method == 'cancelNext'), hasLength(1));
   });
+
+  test('the native player letting the queued song go is told once, and the '
+      'end of this one is the end again', () async {
+    await backend.play(_song);
+    await backend.preloadNext(_next);
+    final dropped = <bool>[];
+    final completed = <bool>[];
+    final subs = [
+      backend.nextDroppedStream.listen(dropped.add),
+      backend.completedStream.listen(completed.add),
+    ];
+
+    await _send(<String, dynamic>{'event': 'nextDropped', 'failed': true});
+    await _send(<String, dynamic>{'event': 'nextDropped', 'failed': true});
+    await pumpEventQueue();
+    expect(dropped, [true]);
+    // Nothing left to take back.
+    await backend.cancelPreload();
+    expect(calls.where((c) => c.method == 'cancelNext'), isEmpty);
+
+    await tick(180000, playing: false);
+    expect(completed, contains(true));
+    for (final sub in subs) {
+      await sub.cancel();
+    }
+  });
 }

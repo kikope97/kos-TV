@@ -108,11 +108,24 @@ class LogService extends ChangeNotifier {
     caseSensitive: false,
   );
 
+  // Kos TV: the key of the address of a song heard through the requests
+  // service (`…/music/listen?k=…`) is as good as its token. Only as a query
+  // parameter, so a plain "k=" in a message stays.
+  static final _queryKeyRegex = RegExp(r"""([?&]k=)([^\s&#"',;<>{}\[\]]+)""");
+
+  static String _redactQueryKey(String text) {
+    if (!text.contains('k=')) return text;
+    return text.replaceAllMapped(_queryKeyRegex, (match) {
+      return '${match.group(1)}[REDACTED]';
+    });
+  }
+
   /// Kos TV: [text] with the value of every credential in it replaced, the
   /// way the diagnostic log does (`api_key=`, `ApiKey=`, `X-Emby-Token:`…),
   /// for lines printed outside it, such as the crash handlers'. Hosts are
   /// left as they are, so the line still says which call failed.
   static String redactCredentials(String text) {
+    text = _redactQueryKey(text);
     final lower = text.toLowerCase();
     if (!lower.contains('key') &&
         !lower.contains('token') &&
@@ -429,7 +442,8 @@ class LogService extends ChangeNotifier {
         return '${match.group(1)}${match.group(2)}[REDACTED]';
       });
     }
-    
+    result = _redactQueryKey(result);
+
     // catch any ipv4's
     if (result.contains('.')) {
       result = result.replaceAll(_ipv4Regex, '[REDACTED]');

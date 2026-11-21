@@ -52,6 +52,7 @@ class StremfinStreamResolver extends MediaStreamResolver
     required String? Function(String url) address,
     Future<AggregatedItem?> Function(String jellyfinId)? homeItem,
     Future<int?> Function(String url)? probe,
+    String? Function()? person,
     @visibleForTesting DateTime Function()? now,
     @visibleForTesting Future<void> Function(Duration wait) pause = _pauseFor,
   }) : _inner = inner,
@@ -59,6 +60,7 @@ class StremfinStreamResolver extends MediaStreamResolver
        _address = address,
        _homeItem = homeItem,
        _probe = probe,
+       _person = person,
        _now = now ?? DateTime.now,
        _pause = pause;
 
@@ -70,6 +72,10 @@ class StremfinStreamResolver extends MediaStreamResolver
   /// The status a request for an address gets now (a 404 once it is no
   /// longer kept), or null when it couldn't be asked.
   final Future<int?> Function(String url)? _probe;
+
+  /// Kos TV: who is signed in (read at each song: the person changes in
+  /// place on a switch).
+  final String? Function()? _person;
   final DateTime Function() _now;
   final Future<void> Function(Duration wait) _pause;
 
@@ -96,6 +102,20 @@ class StremfinStreamResolver extends MediaStreamResolver
 
   static final _cache = <String, _Heard>{};
 
+  /// Kos TV: whose the addresses kept, [atHome] and [failures] are. Each
+  /// `listen` counts as that person's listen (and goes in their history at
+  /// the service), so another person's are not used: they go when the
+  /// person changes.
+  static String? _keptFor;
+
+  /// Kos TV: when `listen` last said nobody can listen to a song (404), by
+  /// its Deezer id, so its start right after being prepared ahead takes that
+  /// answer instead of asking again.
+  static final _gone = <String, DateTime>{};
+
+  /// Kos TV: how long a 404 of `listen` is taken as the answer.
+  static const goneFor = Duration(minutes: 2);
+
   /// A cached address is asked about again once it is this old: the
   /// service may have stopped keeping the sound (its administrator, or the
   /// days going by), and then it answers 404 and `listen` is asked again.
@@ -121,6 +141,20 @@ class StremfinStreamResolver extends MediaStreamResolver
     failures.clear();
     atHome.clear();
     _cache.clear();
+    _gone.clear();
+    _keptFor = null;
+  }
+
+  /// Kos TV: forgets what was kept for someone else than [person].
+  static void _keepFor(String? person) {
+    if (person == null || person == _keptFor) return;
+    final before = _keptFor;
+    _keptFor = person;
+    if (before == null) return;
+    failures.clear();
+    atHome.clear();
+    _cache.clear();
+    _gone.clear();
   }
 
   /// Whether [resolution] is an out-of-home song's stream.
@@ -157,10 +191,21 @@ class StremfinStreamResolver extends MediaStreamResolver
       enableTranscoding: enableTranscoding,
     );
     if (!isKostvStream(mediaItem)) return usual(mediaItem);
+    _keepFor(_person?.call());
     final item = mediaItem as AggregatedItem;
     final home = atHome[item.id];
     if (home != null) return usual(home);
     final deezerId = kostvStreamDeezerId(item)!;
+    // Kos TV: nobody could listen to it a moment ago (asked ahead, as the
+    // song before ended): that is the answer still, without asking again.
+    final gone = _gone[deezerId];
+    if (gone != null) {
+      if (_now().difference(gone) < goneFor) {
+        failures[item.id] = KostvStreamFailure.notFound;
+        throw const KostvStreamException(KostvStreamFailure.notFound);
+      }
+      _gone.remove(deezerId);
+    }
     failures.remove(item.id);
     // A file of the service has nothing to convert: direct play is asked
     // for even when the player wanted it converted (enableDirectPlay false),
@@ -190,6 +235,10 @@ class StremfinStreamResolver extends MediaStreamResolver
         _cache[deezerId] = heard;
       } on KostvStreamException catch (e) {
         failures[item.id] = e.failure;
+        if (e.failure == KostvStreamFailure.notFound) {
+          if (_gone.length > 200) _gone.clear();
+          _gone[deezerId] = _now();
+        }
         rethrow;
       } finally {
         if (preparing.value == item.id) preparing.value = null;

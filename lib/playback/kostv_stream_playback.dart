@@ -32,9 +32,11 @@ class KostvStreamPlayback {
     Future<StremfinPrefetch> Function(String deezerId)? prefetch,
     Future<bool> Function(KostvStreamListen listen)? report,
     @visibleForTesting Duration endWait = const Duration(milliseconds: 700),
+    @visibleForTesting DateTime Function()? now,
   }) : _prefetch = prefetch ?? _servicePrefetch,
        _report = report ?? _pluginReport,
-       _endWait = endWait;
+       _endWait = endWait,
+       _now = now ?? DateTime.now;
 
   /// The app's own.
   static KostvStreamPlayback instance = KostvStreamPlayback();
@@ -42,15 +44,22 @@ class KostvStreamPlayback {
   final Future<StremfinPrefetch> Function(String deezerId) _prefetch;
   final Future<bool> Function(KostvStreamListen listen) _report;
   final Duration _endWait;
+  final DateTime Function() _now;
 
   QueueService? _queue;
   Duration Function() _duration = () => Duration.zero;
   bool Function() _playing = () => false;
+  bool Function() _restarting = () => false;
   String Function() _source = () => KostvMusicSource.other;
   final _subs = <StreamSubscription<dynamic>>[];
 
-  /// The deezer ids asked for in advance this session (asked once each).
+  /// The deezer ids asked for in advance this session (asked once each):
+  /// those the service answered, ready or not, or said it can't have.
   final _asked = <String>{};
+
+  /// Kos TV: those being asked for now. One that fails (too many calls, no
+  /// network) isn't kept as asked: it is asked for again later.
+  final _asking = <String>{};
 
   /// Those the service has ready (they start at once).
   final _ready = <String>{};
@@ -66,19 +75,22 @@ class KostvStreamPlayback {
   /// Listens to [queue] and to the player's [positions], for the songs
   /// that aren't at home it plays. [duration] is the song's length as the
   /// player knows it, [playing] whether it sounds, [source] where the queue
-  /// came from ([KostvMusicSource]). Again with another queue, the one
-  /// before is let go.
+  /// came from ([KostvMusicSource]), [restarting] whether the player is
+  /// opening a song (again). Again with another queue, the one before is let
+  /// go.
   void attach({
     required QueueService queue,
     required Stream<Duration> positions,
     required Duration Function() duration,
     required bool Function() playing,
     String Function()? source,
+    bool Function()? restarting,
   }) {
     detach();
     _queue = queue;
     _duration = duration;
     _playing = playing;
+    _restarting = restarting ?? () => false;
     if (source != null) _source = source;
     _subs
       ..add(positions.listen(onProgress))
@@ -93,6 +105,7 @@ class KostvStreamPlayback {
     duration: () => manager.state.duration,
     playing: () => manager.state.isPlaying,
     source: source,
+    restarting: () => manager.bringupState.phase.isInProgress,
   );
 
   void detach() {
@@ -105,15 +118,22 @@ class KostvStreamPlayback {
     _halfway = false;
     _heard = 0;
     _lastPosition = null;
+    _aheadRetry?.cancel();
+    _aheadRetry = null;
   }
 
   @visibleForTesting
   void debugReset() {
     detach();
     _asked.clear();
+    _asking.clear();
     _ready.clear();
     _soon?.cancel();
     _soon = null;
+    _resting = false;
+    _restedAt = null;
+    _started.clear();
+    _starts.clear();
   }
 
   /// Whether [deezerId] was found ready by an ask ahead.
@@ -131,6 +151,9 @@ class KostvStreamPlayback {
     _halfway = false;
     _heard = 0;
     _lastPosition = null;
+    _aheadRetry?.cancel();
+    _aheadRetry = null;
+    _aheadRetried = false;
   }
 
   /// The player's position moved to [position].
@@ -195,30 +218,57 @@ class KostvStreamPlayback {
     return true;
   }
 
+  // Kos TV: an ask ahead that got no answer (too many calls, no network) is
+  // tried once more a while later, while the same song sounds.
+  static const _aheadRetryAfter = Duration(seconds: 15);
+  Timer? _aheadRetry;
+  bool _aheadRetried = false;
+
   void _askAhead() {
     for (final item in _upcoming()) {
       if (!isKostvStream(item)) continue;
       if (!_needsAsking(item)) continue;
       final deezerId = kostvStreamDeezerId(item)!;
-      if (!_asked.contains(deezerId)) unawaited(_ask(deezerId));
+      if (!_asked.contains(deezerId)) unawaited(_askNext(deezerId));
       return;
     }
   }
 
-  Future<void> _ask(String deezerId) async {
-    if (_asked.length > 500) _asked.clear();
-    _asked.add(deezerId);
+  Future<void> _askNext(String deezerId) async {
+    final sounding = _currentId;
+    if (await _ask(deezerId)) return;
+    if (_aheadRetried || _aheadRetry != null || _currentId != sounding) {
+      return;
+    }
+    _aheadRetry = Timer(_aheadRetryAfter, () {
+      _aheadRetry = null;
+      _aheadRetried = true;
+      if (_currentId == sounding && _halfway) _askAhead();
+    });
+  }
+
+  /// Asks the service for [deezerId] in advance. False when it got no
+  /// answer (too many calls, no network): that isn't kept as asked.
+  Future<bool> _ask(String deezerId) async {
+    if (_asked.contains(deezerId) || !_asking.add(deezerId)) return true;
     StremfinPrefetchState state;
     try {
       state = (await _prefetch(deezerId)).state;
     } on StremfinException catch (e) {
       // Not in Deezer, or the service doesn't let anyone listen: it won't
       // sound either.
-      if (!e.isNotFound) return;
+      if (!e.isNotFound) {
+        _asking.remove(deezerId);
+        return false;
+      }
       state = StremfinPrefetchState.unavailable;
     } catch (_) {
-      return;
+      _asking.remove(deezerId);
+      return false;
     }
+    _asking.remove(deezerId);
+    if (_asked.length > 500) _asked.clear();
+    _asked.add(deezerId);
     switch (state) {
       case StremfinPrefetchState.ready:
         _ready.add(deezerId);
@@ -227,6 +277,7 @@ class KostvStreamPlayback {
       default:
         break;
     }
+    return true;
   }
 
   /// Takes [deezerId] out of what is still to sound (not the one sounding:
@@ -244,10 +295,18 @@ class KostvStreamPlayback {
 
   Timer? _soon;
 
+  /// Kos TV: at most one song rested on is asked for at a time, and one
+  /// every this long (as fast as the service gets them): resting on song
+  /// after song doesn't use up what the person may ask for, which the next
+  /// song of the queue ([_askAhead], never held back by this) needs.
+  static const restGap = Duration(seconds: 10);
+  bool _resting = false;
+  DateTime? _restedAt;
+
   /// Kos TV: the song [deezerId] may sound soon (the person rests on it on a
   /// page): once they have stayed [dwell] on it, it is asked for in advance,
   /// unless it is at home or ready already, or was asked for. Another one
-  /// meanwhile (passing the songs by) takes its place.
+  /// meanwhile (passing the songs by) takes its place. See [restGap].
   void prefetchSoon(
     String? deezerId, {
     bool listenReady = false,
@@ -261,8 +320,32 @@ class KostvStreamPlayback {
     if (_asked.contains(deezerId) || _ready.contains(deezerId)) return;
     _soon = Timer(dwell, () {
       _soon = null;
-      unawaited(_ask(deezerId));
+      _askRested(deezerId);
     });
+  }
+
+  void _askRested(String deezerId) {
+    if (_asked.contains(deezerId) ||
+        _asking.contains(deezerId) ||
+        _ready.contains(deezerId)) {
+      return;
+    }
+    final at = _restedAt;
+    final since = at == null ? null : _now().difference(at);
+    if (_resting || (since != null && since < restGap)) {
+      // Still resting on it: asked for once the one before allows.
+      final wait = since != null && since < restGap
+          ? restGap - since
+          : const Duration(seconds: 2);
+      _soon = Timer(wait, () {
+        _soon = null;
+        _askRested(deezerId);
+      });
+      return;
+    }
+    _resting = true;
+    _restedAt = _now();
+    unawaited(_ask(deezerId).whenComplete(() => _resting = false));
   }
 
   /// The person left the song before [prefetchSoon]'s wait was over.
@@ -272,6 +355,29 @@ class KostvStreamPlayback {
   }
 
   // --- What was heard, for the server plugin ---
+
+  /// Kos TV: the songs that started sounding and haven't stopped: only these
+  /// are told when they stop, as the home server only closes a listen it saw
+  /// start. One left before it sounded (another song chosen while it was
+  /// being prepared, one prepared ahead that never came to sound) has
+  /// nothing to tell.
+  final _started = <String>{};
+
+  /// How many times each song started, to tell a stop from one opened again.
+  final _starts = <String, int>{};
+
+  /// How long the stop of a song still in the queue waits while the player
+  /// opens it again (asked again for its sound after an error, another
+  /// track) before it is told as a stop.
+  static const _reopenWait = Duration(seconds: 30);
+
+  /// Told by the player's reports when a song that isn't at home started.
+  void started(dynamic item) {
+    if (item is! AggregatedItem || !isKostvStream(item)) return;
+    _started.add(item.id);
+    if (_starts.length > 200) _starts.clear();
+    _starts[item.id] = (_starts[item.id] ?? 0) + 1;
+  }
 
   /// Told by the player's reports when a song that isn't at home stopped,
   /// at [position], and whether it [failed].
@@ -285,6 +391,8 @@ class KostvStreamPlayback {
       _heard = 0;
       _lastPosition = null;
     }
+    // Only what started is told, and once.
+    if (!_started.remove(item.id)) return;
     // Nothing heard of one that didn't start: there is nothing to tell.
     if (failed && heard < 1) return;
     var length = item.runtime ?? Duration.zero;
@@ -301,6 +409,7 @@ class KostvStreamPlayback {
               ? item.artists.join(', ')
               : item.albumArtist,
           album: item.album,
+          genre: item.genres.firstOrNull,
           played: heard,
           duration: length > Duration.zero ? length.inSeconds : null,
           endedBy: endedBy,
@@ -316,11 +425,26 @@ class KostvStreamPlayback {
     }
     // Stopped part way: by going on to another song, or by stopping. The
     // queue says which a moment later (the stop is told before it moves).
-    Timer(_endWait, () {
+    final starts = _starts[item.id] ?? 0;
+    final until = _now().add(_reopenWait);
+    void settle() {
       final now = _queue?.currentItem;
       if (now == null || _queue == null) return send('stop');
-      send(identical(now, item) ? 'stop' : 'next');
-    });
+      if (!identical(now, item)) return send('next');
+      // Still the same song: opened again, which goes on as one listen with
+      // what was heard so far; being opened again; or stopped.
+      if ((_starts[item.id] ?? 0) != starts) {
+        if (_currentId == item.id) _heard += heard;
+        return;
+      }
+      if (_restarting() && _now().isBefore(until)) {
+        Timer(_endWait, settle);
+        return;
+      }
+      send('stop');
+    }
+
+    Timer(_endWait, settle);
   }
 
   static Future<StremfinPrefetch> _servicePrefetch(String deezerId) {
@@ -340,6 +464,7 @@ class KostvStreamPlayback {
       title: listen.title,
       artist: listen.artist,
       album: listen.album,
+      genre: listen.genre,
       played: listen.played,
       duration: listen.duration,
       endedBy: listen.endedBy,
@@ -357,6 +482,7 @@ class KostvStreamListen {
     required this.title,
     this.artist,
     this.album,
+    this.genre,
     required this.played,
     this.duration,
     required this.endedBy,
@@ -368,6 +494,9 @@ class KostvStreamListen {
   final String title;
   final String? artist;
   final String? album;
+
+  /// Kos TV: its album's genre, when the requests service gave it.
+  final String? genre;
 
   /// Seconds heard.
   final double played;

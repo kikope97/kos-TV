@@ -140,6 +140,7 @@ class KostvNowPlaying extends ChangeNotifier {
     _slowPreparing?.cancel();
     _slowPreparing = null;
     _preparingSlow = false;
+    _preparingId = null;
     _streamRetried.clear();
     _queueSource = null;
   }
@@ -156,6 +157,8 @@ class KostvNowPlaying extends ChangeNotifier {
       final before = _itemId;
       _itemId = item?.id;
       _loadColors(item);
+      // Kos TV: the new song may be the one being prepared (ahead, or now).
+      _reviewPreparing();
       if (item == null) {
         // Nothing sounds any more: what went with it goes too.
         setSleep(null);
@@ -395,18 +398,31 @@ class KostvNowPlaying extends ChangeNotifier {
   /// Kos TV: [preparing] has gone on for [slowPreparing].
   bool get preparingSlow => preparing && _preparingSlow;
 
+  /// Kos TV: the song sounding whose sound [_slowPreparing] times, if any.
+  String? _preparingId;
+
+  /// Kos TV: only the song sounding counts: the next one prepared ahead
+  /// neither starts the wait for «tardando» nor redraws anything.
   void _preparingChanged() {
+    if (_reviewPreparing()) notifyListeners();
+  }
+
+  /// Times [preparing] again when it changed; true when it did.
+  bool _reviewPreparing() {
+    final id = preparing ? item?.id : null;
+    if (id == _preparingId) return false;
+    _preparingId = id;
     _slowPreparing?.cancel();
     _slowPreparing = null;
     _preparingSlow = false;
-    if (StremfinStreamResolver.preparing.value != null) {
+    if (id != null) {
       _slowPreparing = Timer(slowPreparing, () {
         _slowPreparing = null;
         _preparingSlow = true;
         notifyListeners();
       });
     }
-    notifyListeners();
+    return true;
   }
 
   /// Kos TV: an out-of-home song turned out to be at home: the home

@@ -112,10 +112,15 @@ AggregatedItem kostvStreamItem({
   String? artistDeezerId,
   bool explicit = false,
   bool listenReady = false,
+  List<String> genres = const [],
 }) {
   final id = kostvStreamId(deezerId);
   final artists = [
     if (artist != null && artist.trim().isNotEmpty) artist.trim(),
+  ];
+  final named = [
+    for (final genre in genres)
+      if (genre.trim().isNotEmpty) genre.trim(),
   ];
   return AggregatedItem(
     id: id,
@@ -128,6 +133,9 @@ AggregatedItem kostvStreamItem({
       'Artists': artists,
       'AlbumArtist': ?(albumArtist ?? artists.firstOrNull),
       'Album': ?album,
+      // Kos TV: its album's genres, when the service gave them (for what
+      // the server plugin learns of it).
+      if (named.isNotEmpty) 'Genres': named,
       if (durationSeconds != null && durationSeconds > 0)
         'RunTimeTicks': durationSeconds * 10000000,
       'UserData': const <String, dynamic>{},
@@ -207,12 +215,13 @@ AggregatedItem? kostvStreamItemFromSong(
 }
 
 /// [track] of [album]'s page as an out-of-home song, or null when it can't
-/// be one (no Deezer id).
+/// be one (no Deezer id). [genres] are the album's, when its page has them.
 AggregatedItem? kostvStreamItemFromTrack(
   StremfinAlbumTrack track,
   StremfinAlbum album, {
   required String serverId,
   String? artistDeezerId,
+  List<String> genres = const [],
 }) {
   final deezerId = track.deezerId;
   if (deezerId == null || deezerId.isEmpty) return null;
@@ -228,6 +237,7 @@ AggregatedItem? kostvStreamItemFromTrack(
     albumDeezerId: album.deezerId,
     artistDeezerId: artistDeezerId,
     listenReady: track.listenReady,
+    genres: genres,
   );
 }
 
@@ -263,6 +273,7 @@ class KostvQueueSong {
     StremfinAlbum album, {
     required String serverId,
     String? artistDeezerId,
+    List<String> genres = const [],
   }) => KostvQueueSong(
     way: kostvTrackWayOf(track),
     jellyfinId: track.jellyfinId,
@@ -271,6 +282,7 @@ class KostvQueueSong {
       album,
       serverId: serverId,
       artistDeezerId: artistDeezerId,
+      genres: genres,
     ),
   );
 }

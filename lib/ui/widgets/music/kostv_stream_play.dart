@@ -147,6 +147,7 @@ List<KostvQueueSong> kostvAlbumQueueSongs(StremfinAlbumDetail detail) {
         detail.album,
         serverId: server,
         artistDeezerId: detail.artistDeezerId,
+        genres: detail.genres,
       ),
   ];
 }

@@ -35,6 +35,11 @@ class LocalAwarePlayerService implements PlayerService {
   final void Function(dynamic mediaItem, Duration position, bool failed)?
   _onStreamStopped;
 
+  /// Kos TV: told when a song that isn't at home starts sounding, so only a
+  /// song that started is told of when it stops (one left while it was
+  /// being prepared never started).
+  final void Function(dynamic mediaItem)? _onStreamStarted;
+
   /// Kos TV: the home server's song an out-of-home one turned out to be (the
   /// requests service said it is at home now), else the item itself.
   final dynamic Function(dynamic mediaItem) _homeOf;
@@ -52,11 +57,13 @@ class LocalAwarePlayerService implements PlayerService {
     onStopped,
     void Function(dynamic mediaItem, Duration position, bool failed)?
     onStreamStopped,
+    void Function(dynamic mediaItem)? onStreamStarted,
     dynamic Function(dynamic mediaItem)? homeOf,
   }) : _canReachServer = canReachServer,
        _userId = userId ?? (() => null),
        _onStopped = onStopped,
        _onStreamStopped = onStreamStopped,
+       _onStreamStarted = onStreamStarted,
        _homeOf = homeOf ?? _same;
 
   static dynamic _same(dynamic item) => item;
@@ -104,7 +111,10 @@ class LocalAwarePlayerService implements PlayerService {
     PlaybackQueueModes? queueModes,
   }) async {
     final reported = _reported(mediaItem, resolution);
-    if (reported == null) return;
+    if (reported == null) {
+      _onStreamStarted?.call(mediaItem);
+      return;
+    }
     mediaItem = reported;
     if (!resolution.isLocalMedia) {
       return _inner.onPlaybackStart(

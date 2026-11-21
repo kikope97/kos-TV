@@ -188,6 +188,41 @@ void main() {
       },
     );
 
+    test('stream_listen: texts cut to 200, the genre when known, and none '
+        'without a title or an artist (the plugin turns it down)', () async {
+      final routes = _Plugin(
+        answers: {'POST /Moonfin/Kostv/Music/Event': null},
+      );
+      final plugin = pluginWith(routes);
+      final long = 'Symphony No. 9 ${'Allegro assai · ' * 20}';
+      Future<bool> send({String title = 'Harder', String? artist = 'Lola'}) =>
+          plugin.sendStreamListen(
+            client,
+            deezerId: '3135556',
+            title: title,
+            artist: artist,
+            album: long,
+            genre: ' Pop ',
+            played: 30,
+            duration: 224,
+            endedBy: 'next',
+            source: 'search',
+          );
+
+      expect(await send(title: long), isTrue);
+      final body = routes.asked.single.body! as Map;
+      expect((body['Title'] as String).length, 200);
+      expect((body['Album'] as String).length, 200);
+      expect(body['Artist'], 'Lola');
+      expect(body['Genre'], 'Pop');
+      expect(long.length, greaterThan(200));
+
+      expect(await send(artist: null), isFalse);
+      expect(await send(artist: '  '), isFalse);
+      expect(await send(title: ' '), isFalse);
+      expect(routes.asked, hasLength(1));
+    });
+
     test('deleting what was listened to is a DELETE of Listens', () async {
       final routes = _Plugin(
         answers: {'DELETE /Moonfin/Kostv/Music/Listens': null},

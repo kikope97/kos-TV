@@ -207,6 +207,14 @@ class _FakeResumeService implements AudiobookResumeService {
 }
 
 class _FakeSessionStore implements LastPlaybackSessionStore {
+  _FakeSessionStore([this.kept]);
+
+  /// Kos TV: the last queue, when the test keeps one.
+  final LastPlaybackSession? kept;
+
+  @override
+  Future<LastPlaybackSession?> load() async => kept;
+
   @override
   dynamic noSuchMethod(Invocation invocation) =>
       super.noSuchMethod(invocation);
@@ -216,12 +224,13 @@ MediaBrowseService _service(
   _FakeItemsApi api, {
   List<Map<String, dynamic>> views = const [],
   Map<String, int> localResume = const {},
+  LastPlaybackSession? lastSession,
 }) =>
     MediaBrowseService(
       _FakeClientFactory(_FakeClient(api, views: views)),
       _FakeBootstrap(),
       _FakeResumeService(localResume),
-      _FakeSessionStore(),
+      _FakeSessionStore(lastSession),
     );
 
 void main() {
@@ -513,6 +522,56 @@ void main() {
       final recent = await service.getChildren(AudioService.recentRootId);
 
       expect(recent, isEmpty);
+    });
+  });
+
+  // Kos TV: songs that aren't at home are only in the last queue.
+  group('MediaBrowseService songs that aren\'t at home', () {
+    Map<String, dynamic> stream(String id) => {
+      'Id': id,
+      'Name': 'Canción $id',
+      'Type': 'Audio',
+    };
+    final session = LastPlaybackSession(
+      serverId: 'srv',
+      itemIds: const ['h1', 'stremfin:2', 'stremfin:3'],
+      index: 1,
+      positionMs: 42000,
+      title: 'Canción stremfin:2',
+      streamItems: {
+        'stremfin:2': stream('stremfin:2'),
+        'stremfin:3': stream('stremfin:3'),
+      },
+    );
+    MediaBrowseService service() => _service(
+      _FakeItemsApi(
+        totalItems: 0,
+        itemsById: const {
+          'h1': {'Id': 'h1', 'Name': 'De casa', 'Type': 'Audio'},
+        },
+      ),
+      lastSession: session,
+    );
+
+    test('one tapped plays the last queue from it, from its start', () async {
+      final request = await service().resolvePlayRequest(
+        'track|srv|stremfin:3|-|-',
+      );
+      expect(request!.items.map((i) => i.id), [
+        'h1',
+        'stremfin:2',
+        'stremfin:3',
+      ]);
+      expect(request.startIndex, 2);
+      expect(request.startPosition, Duration.zero);
+    });
+
+    test('the one it was left on goes on from where it was', () async {
+      final request = await service().resolvePlayRequest(
+        'track|srv|stremfin:2|-|-',
+      );
+      expect(request!.startIndex, 1);
+      expect(request.startPosition, const Duration(seconds: 42));
     });
   });
 }
