@@ -31,8 +31,8 @@ Se actualiza al terminar cada revisión. La siguiente empieza justo aquí.
 | Copia original de kOS TV | upstream `3d87996d2` (2026-11-10): Moonfin 3.0.0 más 658 commits posteriores sin publicar |
 | Último commit de upstream revisado | `a1fa0f9f1` (2026-11-20; revisión corta del 2026-11-21) |
 | Última versión del complemento oficial revisada | 3.1.1.0 (2026-11-19, etiqueta `3.1.1`, commit `afb2e7356`): traída a nuestra copia |
-| Nuestro complemento | «kOS TV» 3.1.1.2, basado en la 3.1.1, publicado el 2026-11-21 (con la app 1.18.0) |
-| Complemento instalado en el servidor de casa | el nuestro; la última publicada es la 3.1.1.2 |
+| Nuestro complemento | «kOS TV» 3.1.1.3, basado en la 3.1.1, publicado el 2026-11-21 desde la rama `complemento-hotfix-3.1.1.3` (la 3.1.1.2 más los arreglos para Jellyfin 10.11 y 12 y «kOS TV» en los similares); la próxima con lo de la rama principal será la 3.1.1.4 |
+| Complemento instalado en el servidor de casa | el nuestro, en Jellyfin 12.4.0; la última publicada es la 3.1.1.3 |
 | Última revisión | 2026-11-20 |
 | Próxima revisión | a partir del 2026-11-27 |
 
@@ -212,3 +212,11 @@ Copiar este bloque arriba del registro y rellenarlo:
   (kOS TV no se apunta a las notificaciones), clave de TMDB (y de MDBList si
   se quiere), recomendaciones y logos de estudios encendidos, anime solo si
   hay anime. «User defaults» sin tocar de momento.
+
+## 2026-11-21 · Complemento 3.1.1.3 (fuera de la revisión semanal)
+
+- No es una revisión del original: auditoría de nuestro complemento contra Jellyfin 12.4.0, el del servidor de casa (Jellyfin dejó el «10.» en la 12.0).
+- La 3.1.1.2 cargaba, pero fallaban en 10.11 y 12 los mixes de música, el Descubrimiento semanal y el Momento (error 500), el artista de las escuchas, `/Moonfin/Kostv/Collections`, los favoritos de antes y los disparadores de «listas personalizadas» (esto último también en el oficial). Causa: cambios de la API de Jellyfin en 10.11 (`GetItemList`/`GetItemIds`, `SimilarTo`, `LinkedChild.Id`, `TaskTriggerInfo.Type`).
+- Publicada la 3.1.1.3 desde `complemento-hotfix-3.1.1.3` (sobre la 3.1.1.2, commit `34a07d30c`), solo con esos arreglos, el proveedor de similares renombrado a «kOS TV» (con migración del orden de cada biblioteca en 12) y la nota de no tener Moonbase y kOS TV a la vez. En la rama principal: `913b2c102` y `b4c08dc77`.
+- Nuevo: `complemento/Jellyfin/tools/abi-check/`, que comprueba el complemento contra Jellyfin 10.10.0, 10.10.7, 10.11.11 y 12.4.0 al publicarlo.
+- Para la próxima revisión: mirar qué hace el oficial con Jellyfin 12 (sus issues #350 y #355).
