@@ -70,12 +70,13 @@ public class KostvCollectionsController : ControllerBase
             return Ok(new { Items = Array.Empty<object>(), TotalRecordCount = 0 });
         }
 
-        List<BaseItem> boxSets;
+        IReadOnlyList<BaseItem> boxSets;
         try
         {
             // A collection's members are its linked children, which come with it, so this is one
-            // read of the collections and no read of their members.
-            boxSets = _libraryManager.GetItemList(query);
+            // read of the collections and no read of their members. Kos TV: bound by name, so it
+            // works on every server version (see LibraryQueries).
+            boxSets = LibraryQueries.ItemList(_libraryManager, query);
         }
         catch (Exception ex)
         {

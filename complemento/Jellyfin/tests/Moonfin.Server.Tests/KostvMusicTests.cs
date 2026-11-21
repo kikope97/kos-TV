@@ -8,6 +8,7 @@ using MediaBrowser.Controller.Library;
 using MediaBrowser.Controller.Session;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
+using MediaBrowser.Model.Querying;
 using MediaBrowser.Model.Session;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moonfin.Server.Kostv;
@@ -792,7 +793,7 @@ public sealed partial class KostvMusicTests : IDisposable
         var library = RecordingHostProxy.Create<ILibraryManager>((method, _) =>
         {
             queries++;
-            return method.Name == "GetItemList" ? (scanned ? new List<BaseItem> { artist } : new List<BaseItem>()) : throw new NotSupportedException(method.Name);
+            return method.Name == "GetItemsResult" ? new QueryResult<BaseItem>(scanned ? new List<BaseItem> { artist } : new List<BaseItem>()) : throw new NotSupportedException(method.Name);
         });
         var recorder = NewRecorder(NewStore(), library: library);
 
@@ -1049,6 +1050,7 @@ public sealed partial class KostvMusicTests : IDisposable
         public ILibraryManager Manager() => RecordingHostProxy.Create<ILibraryManager>((method, args) => method.Name switch
         {
             "GetItemList" => Run((InternalItemsQuery)args![0]!),
+            "GetItemsResult" => new QueryResult<BaseItem>(Run((InternalItemsQuery)args![0]!)),
             "GetItemIds" => Run((InternalItemsQuery)args![0]!).Select(i => i.Id).ToList(),
             "GetItemById" when args is [Guid id] => Items.FirstOrDefault(i => i.Id == id),
             _ => throw new NotSupportedException(method.Name)

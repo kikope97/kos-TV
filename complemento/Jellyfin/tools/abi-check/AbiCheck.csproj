@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Kos TV: loads the built plugin against the real Jellyfin assemblies of one server version
+       (JfVer, given with -p:JfVer=…) and checks every reference it makes to them. Built once per
+       version by comprobar.sh. net10.0, as Jellyfin 12 runs on .NET 10 (and older versions'
+       assemblies load on it too). -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <JfVer Condition="'$(JfVer)' == ''">12.4.0</JfVer>
+    <!-- The server's dependency graph is the server's business, not this tool's. -->
+    <NoWarn>$(NoWarn);NU1608;NU1901;NU1902;NU1903;NU1904</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Jellyfin.Controller" Version="$(JfVer)" />
+    <PackageReference Include="Jellyfin.Model" Version="$(JfVer)" />
+    <PackageReference Include="Jellyfin.Data" Version="$(JfVer)" />
+    <PackageReference Include="Jellyfin.Common" Version="$(JfVer)" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+  </ItemGroup>
+
+</Project>

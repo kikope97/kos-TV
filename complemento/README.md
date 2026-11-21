@@ -23,6 +23,12 @@ inteligente, ver juntos, avisos, PIN de perfiles…
   (`plugins/configurations/Moonfin/` y `Moonfin.Server.xml`). Por eso, al
   cambiar del oficial a este, todo se conserva: ajustes del administrador, los
   de cada persona y el historial de las tareas.
+- **Nunca los dos a la vez:** Moonbase (el oficial) y kOS TV no pueden estar
+  instalados al mismo tiempo. Usan los mismos nombres por dentro y el mismo
+  archivo de ajustes, y con los dos cargados Jellyfin puede dejar
+  `Moonfin.Server.xml` vacío (se pierden los ajustes). Para cambiar del oficial
+  a este: desinstala Moonbase en **Panel > Complementos**, reinicia el
+  servidor y solo entonces instala kOS TV (y vuelve a reiniciar).
 - **Solo Jellyfin:** fuera las versiones para Emby, Plex y Silo y lo de GitHub
   del oficial.
 - **Sin Seerr:** fuera todo lo suyo (la conexión, el acceso único, sus avisos de
@@ -240,9 +246,23 @@ sinopsis, los géneros y la duración en el idioma pedido; además, las fuentes
 
 - En local (hace falta el SDK de .NET 8): `bash complemento/compilar.sh 3.1.1.1`.
   Deja el zip y su suma md5 en `complemento/salida/`.
+- **Que funcione con cada Jellyfin:** se compila contra Jellyfin 10.10, pero
+  tiene que valer también en 10.11 y en 12. Algo que Jellyfin cambió después
+  (un método que ahora devuelve otro tipo, una propiedad que ya no existe)
+  compila sin avisar y solo falla en el servidor, al usarse. Lo comprueba
+  `Jellyfin/tools/abi-check/comprobar.sh` (hace falta el SDK de .NET 10): carga
+  el complemento con las DLL reales de Jellyfin 10.10.0, 10.10.7, 10.11.11 y
+  12.4.0 y falla si alguna referencia no existe, si algún método no compila o
+  si una tarea no da sus disparadores. Tras compilar:
+  `bash complemento/Jellyfin/tools/abi-check/comprobar.sh complemento/Jellyfin/backend/bin/Release/net8.0/publish/Moonfin.Server.dll`
+  (con más versiones detrás, prueba esas). El automatismo lo pasa antes de
+  publicar. En el código nuevo, lo que cambió entre versiones va por nombre
+  (`Helpers/LibraryQueries.cs`, `UserReflection.cs`, `TaskTriggers.cs`): nunca
+  `GetItemList`, `GetItemIds`, `SimilarTo`, `LinkedChild.Id` ni
+  `TaskTriggerInfo.Type` directos.
 - Para publicar, el automatismo **Complemento del servidor**
   (`.github/workflows/complemento.yml`), con la versión y sus novedades. Pasa
-  las pruebas, compila, publica «Complemento kOS TV X.Y.Z.N» y lo añade al
+  las pruebas, compila, lo comprueba con cada Jellyfin, publica «Complemento kOS TV X.Y.Z.N» y lo añade al
   catálogo. Todas son pre-publicaciones, para que las apps no las tomen por una
   versión suya.
 

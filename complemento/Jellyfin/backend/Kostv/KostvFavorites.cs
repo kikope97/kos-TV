@@ -321,7 +321,8 @@ public sealed class KostvFavoritesWatcher : IHostedService
                 continue;
             }
 
-            var favorites = _libraryManager.GetItemList(query).Select(i => i.Id.ToString("N")).ToList();
+            // Kos TV: bound by name, so it works on every server version (see LibraryQueries).
+            var favorites = LibraryQueries.ItemList(_libraryManager, query).Select(i => i.Id.ToString("N")).ToList();
             // Kos TV: no favourites and nothing at all to see is a library not loaded yet, not a
             // person without favourites: not noted as done, so it is tried again.
             if (favorites.Count == 0 && !SeesAnything(user))
@@ -340,7 +341,7 @@ public sealed class KostvFavoritesWatcher : IHostedService
     private bool SeesAnything(object user)
     {
         var query = new InternalItemsQuery { Recursive = true, Limit = 1, EnableTotalRecordCount = false };
-        return UserReflection.ApplyUser(query, user) && _libraryManager.GetItemList(query).Count > 0;
+        return UserReflection.ApplyUser(query, user) && LibraryQueries.ItemList(_libraryManager, query).Count > 0;
     }
 
     private void OnUserDataSaved(object? sender, UserDataSaveEventArgs e)
