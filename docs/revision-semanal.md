@@ -65,8 +65,8 @@ Copiar este bloque arriba del registro y rellenarlo:
   2026-11-20). La última versión publicada del original sigue siendo la 3.1.1
   (etiqueta del 2026-11-18), que ya se revisó entera el 2026-11-20; el anuncio
   de Reddit no se pudo leer desde aquí.
-- **Integrado:** nada todavía (a la espera del visto bueno).
-- **Propuesto para traer:**
+- **Integrado** (con el visto bueno del usuario, el mismo día): `379a9bad4` →
+  `6373e0d1e` y `bef6fd5a0` → `d9822375e`:
   - `379a9bad4`: al volver a Inicio desde una página abierta en la barra de
     arriba, el banner se iba de la vista. Nuestro `home_screen.dart:3750` tiene
     la misma línea.
