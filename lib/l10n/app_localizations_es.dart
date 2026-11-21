@@ -19671,7 +19671,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvPlayerFavorite => 'Me gusta';
 
   @override
-  String get kostvPlayerUnfavorite => 'Ya no me gusta';
+  String get kostvPlayerUnfavorite => 'Quitar de Me gusta';
 
   @override
   String get kostvPlayerAddToPlaylist => 'Añadir a una lista';

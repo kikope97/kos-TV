@@ -33258,7 +33258,7 @@ abstract class AppLocalizations {
   /// No description provided for @kostvPlayerUnfavorite.
   ///
   /// In en, this message translates to:
-  /// **'Unlove'**
+  /// **'Remove from Loved'**
   String get kostvPlayerUnfavorite;
 
   /// No description provided for @kostvPlayerAddToPlaylist.

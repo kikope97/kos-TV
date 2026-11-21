@@ -13557,7 +13557,7 @@
     "@kostvPlayerGoToArtist": {"description": "Kos TV music player."},
     "kostvPlayerFavorite": "Me gusta",
     "@kostvPlayerFavorite": {"description": "Kos TV music player."},
-    "kostvPlayerUnfavorite": "Ya no me gusta",
+    "kostvPlayerUnfavorite": "Quitar de Me gusta",
     "@kostvPlayerUnfavorite": {"description": "Kos TV music player."},
     "kostvPlayerAddToPlaylist": "Añadir a una lista",
     "@kostvPlayerAddToPlaylist": {"description": "Kos TV music player."},

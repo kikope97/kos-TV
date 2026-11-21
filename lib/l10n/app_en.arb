@@ -19083,7 +19083,7 @@
     "kostvPlayerGoToAlbum": "Go to the album",
     "kostvPlayerGoToArtist": "Go to the artist",
     "kostvPlayerFavorite": "Love",
-    "kostvPlayerUnfavorite": "Unlove",
+    "kostvPlayerUnfavorite": "Remove from Loved",
     "kostvPlayerAddToPlaylist": "Add to a playlist",
     "kostvPlayerSleep": "Sleep timer",
     "kostvPlayerSleepOff": "No timer",

@@ -19346,7 +19346,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kostvPlayerFavorite => 'Love';
 
   @override
-  String get kostvPlayerUnfavorite => 'Unlove';
+  String get kostvPlayerUnfavorite => 'Remove from Loved';
 
   @override
   String get kostvPlayerAddToPlaylist => 'Add to a playlist';
