@@ -469,6 +469,9 @@ public sealed class KostvMusicStore
     // Each person's taste summed up (taste.json), once read or worked out.
     private readonly ConcurrentDictionary<Guid, KostvTasteSummary> _tastes = new();
 
+    // Kos TV: per person, what the lines of their months before this one add up to (see TasteStartLocked).
+    private readonly ConcurrentDictionary<Guid, TasteBase> _tasteBases = new();
+
     // What was added to each person's taste and not written yet: how many, and since when.
     private readonly ConcurrentDictionary<Guid, (int Count, DateTimeOffset Since)> _tasteUnsaved = new();
 
@@ -614,29 +617,44 @@ public sealed class KostvMusicStore
         {
             foreach (var (path, _) in MonthFiles(userId).Where(f => f.Index >= fromIndex - 1))
             {
-                string[] lines;
-                try
-                {
-                    lines = File.ReadAllLines(path, Utf8NoBom);
-                }
-                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-                {
-                    // Left out, rather than failing the person's music.
-                    _logger?.LogWarning(ex, "kOS TV music: {Path} could not be read", path);
-                    continue;
-                }
-
-                foreach (var line in lines)
-                {
-                    if (Parse(line) is { } entry && (!since.HasValue || entry.At >= since.Value))
-                    {
-                        events.Add(entry);
-                    }
-                }
+                // Left out when it can't be read, rather than failing the person's music.
+                ReadMonth(path, since, events);
             }
         }
 
         return events.OrderBy(e => e.At).ToList();
+    }
+
+    /// <summary>Kos TV: how many month files have been read (for tests, to tell how much the daily round reads).</summary>
+    internal int MonthsRead => Volatile.Read(ref _monthsRead);
+
+    private int _monthsRead;
+
+    // The lines of the month file at path at or after since, added to events; false (and told)
+    // when it could not be read.
+    private bool ReadMonth(string path, DateTimeOffset? since, List<KostvMusicEvent> events)
+    {
+        string[] lines;
+        try
+        {
+            Interlocked.Increment(ref _monthsRead);
+            lines = File.ReadAllLines(path, Utf8NoBom);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "kOS TV music: {Path} could not be read", path);
+            return false;
+        }
+
+        foreach (var line in lines)
+        {
+            if (Parse(line) is { } entry && (!since.HasValue || entry.At >= since.Value))
+            {
+                events.Add(entry);
+            }
+        }
+
+        return true;
     }
 
     private static KostvMusicEvent? Parse(string line)
@@ -703,6 +721,7 @@ public sealed class KostvMusicStore
             AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), ShownFile));
             // What was worked out of them goes too; «no me gusta» and Learn stay.
             _tastes.TryRemove(userId, out _);
+            _tasteBases.TryRemove(userId, out _);
             _tasteUnsaved.TryRemove(userId, out _);
             AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), TasteFile));
             AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), ShadowFile));
@@ -739,6 +758,7 @@ public sealed class KostvMusicStore
             _shown.TryRemove(userId, out _);
             _listensDeletedAt.TryRemove(userId, out _);
             _tastes.TryRemove(userId, out _);
+            _tasteBases.TryRemove(userId, out _);
             _tasteUnsaved.TryRemove(userId, out _);
             _dislikes.TryRemove(userId, out _);
             _streamPace.TryRemove(userId, out _);
@@ -1168,15 +1188,144 @@ public sealed class KostvMusicStore
         return create ? RecomputeTasteLocked(userId) : null;
     }
 
-    /// <summary>How the taste is worked out in full from the listens (for tests, to make it fail).</summary>
-    internal Func<IReadOnlyList<KostvMusicEvent>, DateTimeOffset, KostvTasteSummary> Summarize { get; set; } = KostvMusicEngine.Summarize;
+    /// <summary>
+    /// How the taste is worked out in full from the listens, carrying on from what the lines
+    /// before them added up to (see <see cref="KostvMusicEngine.SummarizeOnto"/>; for tests, to make it fail).
+    /// </summary>
+    internal Func<KostvTasteSummary, IReadOnlyList<KostvMusicEvent>, DateTimeOffset, KostvTasteSummary> Summarize { get; set; } = KostvMusicEngine.SummarizeOnto;
 
     private KostvTasteSummary RecomputeTasteLocked(Guid userId)
     {
-        var summary = Summarize(Read(userId), _now());
+        var (start, events) = TasteStartLocked(userId);
+        var summary = Summarize(start, events, _now());
         _tastes[userId] = summary;
         SaveTasteLocked(userId, summary);
         return summary;
+    }
+
+    /// <summary>
+    /// Kos TV: what the lines of a person's months before this one add up to (before any song
+    /// only shown is dropped), and the files they were read from as they were then.
+    /// </summary>
+    private sealed class TasteBase
+    {
+        public required string Zone { get; init; }
+
+        public Dictionary<string, (long Length, DateTime Written)> Files { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>The latest month in it.</summary>
+        public int UpTo { get; set; } = int.MinValue;
+
+        /// <summary>The latest time of a line in it.</summary>
+        public DateTimeOffset LastAt { get; set; } = DateTimeOffset.MinValue;
+
+        public KostvTasteSummary Summary { get; } = new();
+    }
+
+    /// <summary>
+    /// Kos TV: under the person's lock, where working out their taste in full starts: what the
+    /// months before this one add up to and the lines of this month on, so the daily round reads
+    /// only this month's file (the months before don't change but by being trimmed, and are read
+    /// again whenever one of their files did, or a line of after comes before one of them). The
+    /// same summary as from all the lines at once (<see cref="KostvMusicEngine.Summarize"/>): the
+    /// lines are added in the same order. When it can't be told so (a file that can't be read, the
+    /// lines out of order), nothing and all the lines, as before.
+    /// </summary>
+    private (KostvTasteSummary Start, IReadOnlyList<KostvMusicEvent> Events) TasteStartLocked(Guid userId)
+    {
+        (KostvTasteSummary, IReadOnlyList<KostvMusicEvent>) All()
+        {
+            _tasteBases.TryRemove(userId, out _);
+            return (new KostvTasteSummary(), Read(userId));
+        }
+
+        var local = TimeZoneInfo.ConvertTime(_now(), Zone);
+        var current = local.Year * 12 + local.Month - 1;
+        var files = MonthFiles(userId).ToList();
+        var past = files.Where(f => f.Index < current).ToList();
+        var stats = new Dictionary<string, (long Length, DateTime Written)>(StringComparer.Ordinal);
+        try
+        {
+            foreach (var (path, _) in past)
+            {
+                var info = new FileInfo(path);
+                stats[path] = (info.Length, info.LastWriteTimeUtc);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return All();
+        }
+
+        var known = _tasteBases.GetValueOrDefault(userId);
+        // Of before still, if none of its files changed or went, and no month before its latest came.
+        var kept = known != null &&
+            known.Zone == Zone.Id &&
+            known.Files.All(f => stats.TryGetValue(f.Key, out var now) && now == f.Value) &&
+            past.All(f => known.Files.ContainsKey(f.Path) || f.Index > known.UpTo);
+        var added = new List<KostvMusicEvent>();
+        var adding = kept ? past.Where(f => !known!.Files.ContainsKey(f.Path)).ToList() : past;
+        foreach (var (path, _) in adding)
+        {
+            if (!ReadMonth(path, null, added))
+            {
+                return All();
+            }
+        }
+
+        added = added.OrderBy(e => e.At).ToList();
+        if (kept && added.Count > 0 && added[0].At < known!.LastAt)
+        {
+            // A line of a month added comes before one already in: added again from the start.
+            kept = false;
+            added.Clear();
+            foreach (var (path, _) in past)
+            {
+                if (!ReadMonth(path, null, added))
+                {
+                    return All();
+                }
+            }
+
+            added = added.OrderBy(e => e.At).ToList();
+            adding = past;
+        }
+
+        var start = kept ? known! : new TasteBase { Zone = Zone.Id };
+        foreach (var entry in added)
+        {
+            start.Summary.Apply(entry);
+        }
+
+        foreach (var (path, index) in adding)
+        {
+            start.Files[path] = stats[path];
+            start.UpTo = Math.Max(start.UpTo, index);
+        }
+
+        if (added.Count > 0 && added[^1].At > start.LastAt)
+        {
+            start.LastAt = added[^1].At;
+        }
+
+        _tasteBases[userId] = start;
+
+        var rest = new List<KostvMusicEvent>();
+        foreach (var (path, _) in files.Where(f => f.Index >= current))
+        {
+            if (!ReadMonth(path, null, rest))
+            {
+                return All();
+            }
+        }
+
+        rest = rest.OrderBy(e => e.At).ToList();
+        if (rest.Count > 0 && rest[0].At < start.LastAt)
+        {
+            return All();
+        }
+
+        return (start.Summary.Copy(), rest);
     }
 
     private void SaveTasteLocked(Guid userId, KostvTasteSummary summary)
@@ -1383,13 +1532,31 @@ public sealed class KostvMusicStore
         }
     }
 
-    /// <summary>Empties <paramref name="userId"/>'s list of what they don't want to hear.</summary>
-    public void ClearDislikes(Guid userId)
+    /// <summary>
+    /// Empties <paramref name="userId"/>'s list of what they don't want to hear. False when it
+    /// could not be stored empty (then it stays as it was, here and after a restart).
+    /// </summary>
+    public bool ClearDislikes(Guid userId)
     {
         lock (LockOf(userId))
         {
-            _dislikes[userId] = new KostvDislikes();
-            AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), DislikesFile));
+            if (_deleted.ContainsKey(userId))
+            {
+                return false;
+            }
+
+            // Kos TV: written empty (which fails if it can't be), not deleted (which doesn't say),
+            // and emptied in memory only once stored, as in AddDislikes.
+            var empty = new KostvDislikes();
+            if (!SaveDislikesLocked(userId, empty))
+            {
+                return false;
+            }
+
+            _dislikes[userId] = empty;
+            // The copy of before kept to fall back to would bring the list back if the file broke.
+            TryDelete(AtomicFile.BackupPath(Path.Combine(FolderOf(userId), DislikesFile)));
+            return true;
         }
     }
 
@@ -1500,6 +1667,21 @@ public sealed class KostvMusicStore
         {
             return ReadCompareLocked(userId);
         }
+    }
+
+    /// <summary>Kos TV: the engines' comparisons of a person summed up: how many days, from and to which, and the hits of each.</summary>
+    public sealed record KostvComparisonSum(int Days, string? From, string? To, int HitsOld, int HitsNew);
+
+    /// <summary>Kos TV: <paramref name="comparisons"/> summed up, for the settings page (one day told twice counts once, the last).</summary>
+    public static KostvComparisonSum Sum(IEnumerable<KostvComparison> comparisons)
+    {
+        var days = comparisons
+            .Where(c => !string.IsNullOrEmpty(c.Day))
+            .GroupBy(c => c.Day, StringComparer.Ordinal)
+            .Select(g => g.Last())
+            .OrderBy(c => c.Day, StringComparer.Ordinal)
+            .ToList();
+        return new KostvComparisonSum(days.Count, days.FirstOrDefault()?.Day, days.LastOrDefault()?.Day, days.Sum(c => c.HitsOld), days.Sum(c => c.HitsNew));
     }
 
     private List<KostvComparison> ReadCompareLocked(Guid userId)

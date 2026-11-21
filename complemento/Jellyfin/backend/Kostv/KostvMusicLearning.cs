@@ -96,17 +96,24 @@ public static partial class KostvMusicEngine
     }
 
     /// <summary>The person's taste summed up from all of <paramref name="events"/>, worked out at <paramref name="now"/>.</summary>
-    public static KostvTasteSummary Summarize(IEnumerable<KostvMusicEvent> events, DateTimeOffset now)
+    public static KostvTasteSummary Summarize(IEnumerable<KostvMusicEvent> events, DateTimeOffset now) =>
+        SummarizeOnto(new KostvTasteSummary(), events, now);
+
+    /// <summary>
+    /// Kos TV: as <see cref="Summarize"/>, carrying on from <paramref name="start"/> (what the lines
+    /// before all of <paramref name="events"/> added up to, nothing dropped yet), which is changed
+    /// and given back: the same summary as from all the lines at once.
+    /// </summary>
+    public static KostvTasteSummary SummarizeOnto(KostvTasteSummary start, IEnumerable<KostvMusicEvent> events, DateTimeOffset now)
     {
-        var summary = new KostvTasteSummary();
         foreach (var e in events.OrderBy(e => e.At))
         {
-            summary.Apply(e);
+            start.Apply(e);
         }
 
-        summary.DropOldShown(now);
-        summary.WorkedOut = now;
-        return summary;
+        start.DropOldShown(now);
+        start.WorkedOut = now;
+        return start;
     }
 
     // ---------------------------------------------------------------- the profile

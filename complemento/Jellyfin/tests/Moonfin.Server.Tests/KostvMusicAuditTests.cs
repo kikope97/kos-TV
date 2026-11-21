@@ -13,7 +13,7 @@ namespace Moonfin.Server.Tests;
 /// kOS TV: what the review of the music that learns found, kept from coming back: the taste read
 /// while it is brought up to date, a genre of one artist almost alone, small libraries and the
 /// days not to repeat, taste.json written now and then, files with lists as null, weeks shown
-/// out of order, the daily round, hearts the same day and «no me gusta» checked.
+/// out of order, the daily round, hearts from the next day and «no me gusta» checked.
 /// </summary>
 public sealed partial class KostvMusicTests
 {
@@ -275,15 +275,15 @@ public sealed partial class KostvMusicTests
         store.Append(luis, Listen(Guid.NewGuid(), _now));
         var real = store.Summarize;
         // Ana's fails, whatever the order the folders are read in: Luis's is worked out all the same.
-        store.Summarize = (events, now) => events.Any(e => e.Item == anasSong.ToString("N"))
+        store.Summarize = (start, events, now) => events.Any(e => e.Item == anasSong.ToString("N"))
             ? throw new InvalidOperationException("roto")
-            : real(events, now);
+            : real(start, events, now);
         Assert.Equal(1, store.RecomputeTastes());
         store.Summarize = real;
         Assert.Equal(2, store.RecomputeTastes());
     }
 
-    // ---------------------------------------------------------------- 8. when the round goes, and hearts the same day
+    // ---------------------------------------------------------------- 8. when the round goes, and hearts from the next day
 
     [Theory]
     // 11:00 at home: the next day at 5:01.
@@ -298,28 +298,44 @@ public sealed partial class KostvMusicTests
     }
 
     [Fact]
-    public async Task AHeartCountsTheSameDay()
+    public async Task AHeartCountsFromTheNextMusicDayWithoutMakingTheDayAgain()
     {
         var library = MusicLibrary.Made(genres: 2, artists: 12, played: 6, unplayed: 4);
         var service = NewService(library);
         var userId = Guid.NewGuid();
         var user = new User("ana", "auth", "reset");
-        await service.MixesAsync(userId, user);
+        var first = await service.MixesAsync(userId, user);
         var today = Path.Combine(_root, userId.ToString("N"), "today.json");
         Assert.True(File.Exists(today));
+        static List<string> Songs(IEnumerable<KostvMix> mixes) => mixes.SelectMany(m => m.Items).Select(id => id.ToString("N")).ToList();
 
         var recorder = new KostvMusicRecorder(null!, null!, library.Manager(), service.Store, new KostvMusicContext(), NullLogger<KostvMusicRecorder>.Instance, music: service);
-        var song = library.Items.OfType<Audio>().First();
+        var song = library.Items.OfType<Audio>().First(s => library.Data[s.Id].PlayCount == 0);
+        // As the server keeps it.
+        library.Data[song.Id].IsFavorite = true;
         recorder.OnUserDataSaved(null, Heart(userId, song, true, UserDataSaveReason.UpdateUserRating));
         await recorder.Settled();
-        Assert.False(File.Exists(today));
+        // Noted at once...
+        Assert.Single(service.Store.Read(userId), e => e.Type == KostvMusicEvent.HeartType);
+        // ...but the day's music isn't made again: the same mixes, without reading the library.
+        Assert.True(File.Exists(today));
+        var before = library.Queries;
+        Assert.Equal(Songs(first), Songs(await service.MixesAsync(userId, user)));
+        Assert.Equal(before, library.Queries);
 
-        // With Learn off it isn't noted, but the server's hearts count all the same.
-        await service.MixesAsync(userId, user);
+        // With Learn off, the same.
         service.Store.SetSettings(userId, false, null);
+        library.Data[song.Id].IsFavorite = false;
         recorder.OnUserDataSaved(null, Heart(userId, song, false, UserDataSaveReason.UpdateUserRating));
         await recorder.Settled();
-        Assert.False(File.Exists(today));
+        Assert.True(File.Exists(today));
+        Assert.Equal(Songs(first), Songs(await service.MixesAsync(userId, user)));
+        Assert.Equal(before, library.Queries);
+
+        // The next music day, worked out afresh, with the server's hearts as they are then.
+        _now = _now.AddDays(1);
+        await service.MixesAsync(userId, user);
+        Assert.True(library.Queries > before);
     }
 
     // ---------------------------------------------------------------- 9 and 10. «no me gusta» checked

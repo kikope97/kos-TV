@@ -482,13 +482,26 @@ public sealed class KostvMusicService
     {
         if (work.MixTracks == null)
         {
-            var genres = work.Taste.Profile.Genres.Take(PoolGenres).Select(g => g.Name).ToList();
+            // Kos TV: the genres of the songs at home first, so one heard only through Stremfin
+            // (often named unlike any at home) doesn't take the place of one at home.
+            var genres = HomeFirst(work, work.Taste.Profile.Genres).Take(PoolGenres).Select(g => g.Name).ToList();
             var artists = work.Taste.Profile.Artists.Select(a => a.Name).ToList();
             Extend(work, user, userId, genres, artists, "mix");
             work.MixTracks = work.Tracks.ToList();
         }
 
         return work.MixTracks;
+    }
+
+    /// <summary>
+    /// Kos TV: <paramref name="genres"/> as they come, those of the songs at home the person knows
+    /// first and then the rest (heard only through Stremfin).
+    /// </summary>
+    private static IEnumerable<KostvWeighted> HomeFirst(Work work, IEnumerable<KostvWeighted> genres)
+    {
+        var home = work.Taste.Tracks.SelectMany(t => t.Genres).Select(KostvMusicEngine.Key).ToHashSet(StringComparer.Ordinal);
+        var split = genres.ToLookup(g => home.Contains(KostvMusicEngine.Key(g.Name)));
+        return split[true].Concat(split[false]);
     }
 
     /// <summary>
@@ -618,28 +631,36 @@ public sealed class KostvMusicService
             var profile = work.Taste.New;
             var dislikes = work.Taste.Dislikes;
             // By name, and by the id at home once found (an artist renamed since is still out).
-            Guid? IdOf(string name) => work.Artists.GetValueOrDefault(name)?.Id;
             var background = (profile.Background ?? profile.Artists).Where(a => !dislikes.BlocksArtist(a.Name)).ToList();
             var lately = (profile.Recent ?? profile.Artists).Where(a => !dislikes.BlocksArtist(a.Name)).ToList();
 
             // Kos TV: up to TasteArtists at home (with their id) first, and then up to as many not
             // at home (heard through Stremfin, by name, without an id), so those not at home never
             // take the place of one at home: an app that leaves out what has no id still gets its
-            // full list. Looked up at home a few at a time, only as far as needed (and no further
-            // than TasteLookedUp, past those out).
+            // full list. Looked up at home a few at a time, only until those at home are found (and
+            // no further than TasteLookedUp, past those out): those not at home are the ones met on
+            // the way. An artist at home the person may not see (in a library out of their limits)
+            // is given as not at home, without its id, as the mixes' covers leave it out.
+            var outById = Math.Min(dislikes.ArtistIds.Count, TasteArtists);
             List<KostvTasteEntry> Split(List<KostvWeighted> list)
             {
                 var home = new List<KostvTasteEntry>();
                 var away = new List<KostvTasteEntry>();
-                var step = TasteArtists + dislikes.ArtistIds.Count;
-                var end = Math.Min(list.Count, TasteLookedUp + dislikes.ArtistIds.Count);
-                for (var from = 0; from < end && (home.Count < TasteArtists || away.Count < TasteArtists); from += step)
+                var step = TasteArtists + outById;
+                var end = Math.Min(list.Count, TasteLookedUp + outById);
+                for (var from = 0; from < end && home.Count < TasteArtists; from += step)
                 {
                     var batch = list.Skip(from).Take(Math.Min(step, end - from)).ToList();
                     FindArtists(work, batch.Select(a => a.Name));
                     foreach (var a in batch)
                     {
-                        var id = IdOf(a.Name);
+                        var found = work.Artists.GetValueOrDefault(a.Name);
+                        if (found != null && dislikes.BlocksArtist(found.Id, a.Name))
+                        {
+                            continue;
+                        }
+
+                        var id = found != null && Sees(found, user) ? found.Id : (Guid?)null;
                         var said = id != null ? home : away;
                         if (said.Count < TasteArtists && !dislikes.BlocksArtist(id, a.Name))
                         {
@@ -655,7 +676,7 @@ public sealed class KostvMusicService
                 Math.Round(work.Taste.Summary.Learned, 3),
                 Split(background),
                 Split(lately),
-                profile.Genres.Take(TasteGenres).Select(g => new KostvTasteEntry(null, g.Name, Math.Round(g.Weight, 3))).ToList());
+                HomeFirst(work, profile.Genres).Take(TasteGenres).Select(g => new KostvTasteEntry(null, g.Name, Math.Round(g.Weight, 3))).ToList());
         }
         finally
         {
@@ -692,9 +713,9 @@ public sealed class KostvMusicService
     public bool Dislike(Guid userId, object user, bool artists, IReadOnlyList<Guid> ids)
     {
         var now = _store.Now;
-        // Kos TV: a song the person may not see is let go of, so its name, artist and album
-        // aren't given back in their list.
-        var items = ids.Select(ItemOf).OfType<BaseItem>().Where(item => item is not Audio || Sees(item, user)).ToList();
+        // Kos TV: a song or an artist the person may not see is let go of, so its name (and a
+        // song's artist and album) aren't given back in their list.
+        var items = ids.Select(ItemOf).OfType<BaseItem>().Where(item => item is not (Audio or MusicArtist) || Sees(item, user)).ToList();
         var songs = items.OfType<Audio>()
             .Select(item => (Item: (BaseItem)item, Name: item.Name?.Trim(), Track: TrackOf(item, null)))
             .Where(s => !string.IsNullOrEmpty(s.Name))
@@ -788,11 +809,16 @@ public sealed class KostvMusicService
         return removal != KostvDislikeRemoval.NotStored;
     }
 
-    /// <summary>Empties what <paramref name="userId"/> doesn't want to hear.</summary>
-    public void ClearDislikes(Guid userId)
+    /// <summary>Empties what <paramref name="userId"/> doesn't want to hear. False when it could not be stored.</summary>
+    public bool ClearDislikes(Guid userId)
     {
-        _store.ClearDislikes(userId);
+        if (!_store.ClearDislikes(userId))
+        {
+            return false;
+        }
+
         Forget(userId);
+        return true;
     }
 
     /// <summary>
@@ -816,7 +842,7 @@ public sealed class KostvMusicService
 
         foreach (var artist in dislikes.Artists)
         {
-            if (Guid.TryParse(artist.Id, out var id) && ItemOf(id) is { } item)
+            if (Guid.TryParse(artist.Id, out var id) && ItemOf(id) is { } item && Sees(item, user))
             {
                 artist.Name = item.Name?.Trim() ?? artist.Name;
             }
