@@ -374,3 +374,30 @@ móvil y web, `KOSTV.md` al día y subida a la rama. Se publica cuando digas.
    no se borra al borrar el historial (recomendado).
 4. **iPhone (web) sin fundido si el servidor no da CORS** (recomendado), en vez
    de tocar la configuración de Jellyfin o del proxy.
+
+## 6. Contrato del bloque 1 (complemento ↔ app)
+
+Decisiones tomadas (2026-11-21): las cuatro recomendadas (fundido apagado por
+defecto y sin cortes siempre; «No me gusta» permanente con deshacer en canción y
+artista; guardado aparte del historial; iPhone sin fundido si no hay CORS).
+
+Rutas, todas con la sesión de la persona (`[Authorize]`), en
+`/Moonfin/Kostv/Music/`:
+
+| Ruta | Qué hace |
+|---|---|
+| `POST Event` con `{ "Type": "dislike", "ItemIds": ["…"], "Kind": "song" \| "artist" }` | `Kind` por defecto `song`. Guarda en `dislikes.json` de la persona (no en el historial), **también con «Aprender» apagado**. Con `song` resta también un poco a su artista; tres canciones del mismo artista lo bajan mucho. Invalida lo calculado del día de esa persona. `204`. |
+| `GET Dislikes` | `{ "Songs": [ { "Id", "Name", "Artist", "ArtistId", "AlbumId", "At" } ], "Artists": [ { "Id", "Name", "At" } ] }`, lo más reciente primero. Lo que ya no existe en la biblioteca sale con el nombre guardado. |
+| `DELETE Dislikes/{itemId}` | Quita uno (deshacer, o desde la lista de Ajustes). `204` (también si no estaba). |
+| `DELETE Dislikes` | Vacía la lista de esa persona. `204`. |
+| `GET Taste` | `{ "Learned": 0.0–1.0, "Artists": [ { "Id", "Name", "Score" } ], "Recent": [ { "Id", "Name", "Score" } ], "Genres": [ { "Name", "Score" } ] }`: el gusto único (hasta 20 artistas de fondo, 20 de ahora y 10 géneros), sin artistas con «No me gusta». `Learned` dice cuánto viene de lo aprendido frente a Jellyfin (0 = todo Jellyfin; 1 = 300 escuchas o más). |
+| `GET Mixes` y `GET Moment` | Como ahora, más `"Because": ["Artista 1", "Artista 2", "Artista 3"]` en cada mezcla (los artistas que más pesan en ella, para «Con X, Y y más»). Nunca llevan canciones ni artistas con «No me gusta» (se filtra al servir, sin esperar al día siguiente). |
+| `DELETE Listens` | Como ahora y además borra `taste.json`; **no** borra `dislikes.json` ni el ajuste. |
+
+Modo del motor, en la configuración del complemento (`KostvMusicEngine`):
+`actual` (por defecto), `nuevo` o `alterno` (días pares nuevo, impares actual).
+Las reglas de variedad, de no repetirse y el «No me gusta» valen en los tres
+modos; lo que cambia es la puntuación. En modo `actual` el nuevo se calcula
+igualmente «en sombra» y se apunta al día siguiente cuál habría acertado más
+(`compare.jsonl` por persona: día, aciertos en las 25 primeras de cada motor
+frente a lo que se escuchó entero), para el panel del bloque 5.
