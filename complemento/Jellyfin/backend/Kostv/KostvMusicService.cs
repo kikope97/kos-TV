@@ -69,14 +69,41 @@ public sealed class KostvMusicService
     // Goes up each time a person's music is forgotten, so a working out that started before isn't kept.
     private readonly Dictionary<Guid, int> _generations = new();
 
-    /// <summary>The mix of the time of day: which, whether there is enough for it, and its songs.</summary>
-    public sealed record KostvMoment(string Slot, bool Ready, IReadOnlyList<Guid> Items);
+    /// <summary>
+    /// The mix of the time of day: which, whether there is enough for it, its songs and the three
+    /// artists that weigh most in it (null in one kept before there were).
+    /// </summary>
+    public sealed record KostvMoment(string Slot, bool Ready, IReadOnlyList<Guid> Items, IReadOnlyList<string>? Because = null);
 
-    /// <summary>What was read of a person to work out their music.</summary>
+    /// <summary>An artist or genre of a person's taste, with its id at home when it is an artist found.</summary>
+    public sealed record KostvTasteEntry(Guid? Id, string Name, double Score);
+
+    /// <summary>A person's taste as the app asks for it (see <see cref="TasteAsync"/>).</summary>
+    public sealed record KostvTasteView(double Learned, IReadOnlyList<KostvTasteEntry> Artists, IReadOnlyList<KostvTasteEntry> Recent, IReadOnlyList<KostvTasteEntry> Genres);
+
+    /// <summary>The most artists and genres the taste gives.</summary>
+    public const int TasteArtists = 20;
+
+    public const int TasteGenres = 10;
+
+    /// <summary>Of the days before, the mixes of these many are not repeated.</summary>
+    public const int NoRepeatDays = 3;
+
+    /// <summary>Nothing heard this recently goes in a mix.</summary>
+    public static readonly TimeSpan NoRepeatHeard = TimeSpan.FromHours(24);
+
+    /// <summary>
+    /// What was read of a person to work out their music: the songs, their profile by each engine
+    /// (and the one the day's music is scored by), their taste summed up and their «no me gusta».
+    /// </summary>
     private sealed record Taste(
-        IReadOnlyList<KostvMusicEvent> Events,
         List<KostvMusicTrack> Tracks,
-        KostvMusicProfile Profile);
+        KostvMusicProfile Profile,
+        KostvMusicProfile Old,
+        KostvMusicProfile New,
+        bool UsesNew,
+        KostvTasteSummary Summary,
+        KostvDislikeSet Dislikes);
 
     /// <summary>Something worked out, when, and whether it came out empty, as kept in the person's folder.</summary>
     private sealed class Kept<T>
@@ -156,6 +183,12 @@ public sealed class KostvMusicService
     }
 
     public KostvMusicStore Store => _store;
+
+    /// <summary>
+    /// The engine the music is scored by (the plugin's setting <c>KostvMusicEngine</c>: actual,
+    /// nuevo or alterno; see <see cref="KostvMusicEngineMode"/>), read each time.
+    /// </summary>
+    public Func<string?> EngineModeOf { get; set; } = () => MoonfinPlugin.Instance?.Configuration?.KostvMusicEngine;
 
     /// <summary>The music day it is at home (see <see cref="KostvMusicEngine.MusicDay"/>).</summary>
     public string Day => KostvMusicEngine.DayKey(KostvMusicEngine.MusicDay(_store.Now, _store.Zone));
@@ -291,15 +324,27 @@ public sealed class KostvMusicService
             var generation = GenerationOf(userId);
             var work = WorkOf(userId, user, day, generation);
             var tracks = MixTracksOf(work, user, userId);
-            var mixes = KostvMusicEngine.Mixes(userId, day, tracks, work.Taste.Profile, work.Similar)
+            var now = _store.Now;
+            var learns = _store.Learns(userId);
+            var recent = learns ? _store.Read(userId, now - TimeSpan.FromDays(NoRepeatDays + 1)) : [];
+            var rules = new KostvMixRules(NotToRepeat(recent, KostvMusicEvent.MixesSurface, null, now), work.Taste.Dislikes, now);
+            // Both engines, whichever is shown: the other is compared with what is heard.
+            var old = KostvMusicEngine.Mixes(userId, day, tracks, work.Taste.Old, work.Similar, rules);
+            var fresh = KostvMusicEngine.Mixes(userId, day, tracks, work.Taste.New, work.Similar, rules);
+            var mixes = (work.Taste.UsesNew ? fresh : old)
                 .Select(mix => mix with { ArtistIds = ArtistIdsOf(work, mix.Artists) })
                 .ToList();
-            var seeds = KostvMusicEngine.Seeds(work.Taste.Profile).ToList();
+            var seeds = SeedsOf(userId, work).ToList();
             Save(userId, day, generation, r =>
             {
                 r.Mixes = Keep(mixes, mixes.Count == 0);
                 r.Seeds = Keep(seeds, seeds.Count == 0);
             });
+            if (learns && GenerationOf(userId) == generation)
+            {
+                NoteShadow(userId, day, work.Taste.UsesNew, old, fresh);
+            }
+
             return mixes;
         }
         finally
@@ -327,7 +372,7 @@ public sealed class KostvMusicService
             }
 
             var generation = GenerationOf(userId);
-            var seeds = KostvMusicEngine.Seeds(WorkOf(userId, user, day, generation).Taste.Profile).ToList();
+            var seeds = SeedsOf(userId, WorkOf(userId, user, day, generation)).ToList();
             Save(userId, day, generation, r => r.Seeds = Keep(seeds, seeds.Count == 0));
             return seeds;
         }
@@ -375,8 +420,12 @@ public sealed class KostvMusicService
                 var genres = slotItems.SelectMany(e => e.Genres ?? []).GroupBy(KostvMusicEngine.Key).OrderByDescending(g => g.Count()).Take(3).Select(g => g.First()).ToList();
                 var artists = slotItems.SelectMany(e => e.Artists ?? []).GroupBy(KostvMusicEngine.Key).OrderByDescending(g => g.Count()).Take(PoolArtists).Select(g => g.First()).ToList();
                 Extend(work, user, userId, genres, artists, "moment-" + slot);
-                var items = KostvMusicEngine.Moment(userId, day, slot, events, work.Tracks, work.Taste.Profile, now, zone, work.Similar);
-                moment = new KostvMoment(slot, items.Count > 0, items);
+                var rules = new KostvMixRules(NotToRepeat(events.Where(e => e.At >= now - TimeSpan.FromDays(NoRepeatDays + 1)), KostvMusicEvent.MomentSurface, slot, now), work.Taste.Dislikes, now);
+                var tracks = work.Tracks.ToList();
+                var items = KostvMusicEngine.Moment(userId, day, slot, events, tracks, work.Taste.Profile, now, zone, work.Similar, rules, learned: work.Taste.UsesNew);
+                var byId = tracks.GroupBy(t => t.Id).ToDictionary(g => g.Key, g => g.First());
+                var because = KostvMusicEngine.BecauseOf(items.Select(id => byId.GetValueOrDefault(id)).OfType<KostvMusicTrack>(), work.Taste.Profile);
+                moment = new KostvMoment(slot, items.Count > 0, items, because);
             }
 
             Save(userId, day, generation, r => r.Moments[slot] = Keep(moment, !moment.Ready));
@@ -435,19 +484,243 @@ public sealed class KostvMusicService
     private Taste TasteOf(Guid userId, object user)
     {
         var now = _store.Now;
-        var events = _store.Learns(userId) ? _store.Read(userId) : [];
-        var listens = KostvMusicEngine.Listens(events, now);
+        // Their listens summed up (kept up to date as each is noted), not two years read each day.
+        var summary = _store.Learns(userId) ? _store.Taste(userId) : new KostvTasteSummary();
+        var listens = summary.OldListens(now);
+        var dislikes = KostvDislikeSet.Of(_store.DislikesOf(userId));
 
         var items = new Dictionary<Guid, BaseItem>();
         foreach (var item in Query(user, q => q.IsPlayed = true, HeardLimit, newestBy: ItemSortBy.DatePlayed)
             .Concat(Query(user, q => q.IsFavorite = true, FavoritesLimit))
-            .Concat(Load(user, listens.Keys.ToList())))
+            .Concat(Load(user, summary.PlayedSongs().ToList())))
         {
             items.TryAdd(item.Id, item);
         }
 
         var tracks = items.Values.Select(item => TrackOf(item, UserDataOf(user, item))).ToList();
-        return new Taste(events, tracks, KostvMusicEngine.Profile(tracks, listens, now));
+        var old = KostvMusicEngine.Profile(tracks, listens, now, dislikes);
+        var learned = KostvMusicEngine.LearnedProfile(tracks, summary, now, dislikes);
+        var usesNew = KostvMusicEngineMode.UsesNew(EngineModeOf(), KostvMusicEngine.MusicDay(now, _store.Zone));
+        return new Taste(tracks, usesNew ? learned : old, old, learned, usesNew, summary, dislikes);
+    }
+
+    /// <summary>The seeds of the week for «Descubrimiento semanal», rotating among the artists liked most.</summary>
+    private IReadOnlyList<string> SeedsOf(Guid userId, Work work) =>
+        KostvMusicEngine.Seeds(work.Taste.Profile, userId, Week, work.Taste.Dislikes);
+
+    /// <summary>
+    /// What not to repeat in a mix: the songs of the <paramref name="surface"/> shown on the
+    /// <see cref="NoRepeatDays"/> music days before this one (of <paramref name="slot"/>, for the
+    /// moment's), and those heard in the last <see cref="NoRepeatHeard"/>.
+    /// </summary>
+    private HashSet<Guid> NotToRepeat(IEnumerable<KostvMusicEvent> events, string surface, string? slot, DateTimeOffset now)
+    {
+        var zone = _store.Zone;
+        var today = KostvMusicEngine.MusicDay(now, zone);
+        var exclude = new HashSet<Guid>();
+        foreach (var e in events)
+        {
+            IEnumerable<string> ids = [];
+            if (e.IsListen && e.At >= now - NoRepeatHeard && e.At <= now)
+            {
+                ids = [e.Item];
+            }
+            else if (e.Type == KostvMusicEvent.ShownType && e.Surface == surface && (slot == null || e.Slot == slot))
+            {
+                var day = KostvMusicEngine.MusicDay(e.At, zone);
+                if (day < today && day >= today.AddDays(-NoRepeatDays))
+                {
+                    ids = surface == KostvMusicEvent.MixesSurface ? (e.Mixes ?? []).SelectMany(m => m.Items) : e.Items ?? [];
+                }
+            }
+
+            foreach (var id in ids)
+            {
+                if (Guid.TryParse(id, out var guid))
+                {
+                    exclude.Add(guid);
+                }
+            }
+        }
+
+        return exclude;
+    }
+
+    /// <summary>
+    /// Keeps the first songs of each engine's mixes of <paramref name="day"/>, and compares the
+    /// ones of the day before with what was heard whole on it (<c>compare.jsonl</c>).
+    /// </summary>
+    private void NoteShadow(Guid userId, string day, bool usesNew, IReadOnlyList<KostvMix> old, IReadOnlyList<KostvMix> fresh)
+    {
+        try
+        {
+            var zone = _store.Zone;
+            _store.NoteShadow(
+                userId,
+                new KostvMusicStore.KostvShadow
+                {
+                    Day = day,
+                    Engine = usesNew ? KostvMusicEngineMode.New : KostvMusicEngineMode.Current,
+                    Old = KostvMusicEngine.Top(old).ToList(),
+                    New = KostvMusicEngine.Top(fresh).ToList()
+                },
+                (before, events) =>
+                {
+                    var date = DateOnly.ParseExact(before.Day, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+                    return (KostvMusicEngine.Hits(before.Old, events, date, zone), KostvMusicEngine.Hits(before.New, events, date, zone));
+                });
+        }
+        catch (Exception ex)
+        {
+            // Never in the way of the mixes.
+            _logger.LogWarning(ex, "kOS TV music: the engines could not be compared");
+        }
+    }
+
+    // ---------------------------------------------------------------- the taste
+
+    /// <summary>
+    /// <paramref name="userId"/>'s taste, the same everything else is made from (by the new engine,
+    /// which leans on the server's plays until they have listened enough): up to
+    /// <see cref="TasteArtists"/> artists by their background taste and as many by their taste of
+    /// now, and <see cref="TasteGenres"/> genres; no artist with «no me gusta». With Learn off,
+    /// only what the server knows.
+    /// </summary>
+    public async Task<KostvTasteView> TasteAsync(Guid userId, object user)
+    {
+        var gate = GateOf(userId);
+        await gate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            var work = WorkOf(userId, user, Day, GenerationOf(userId));
+            var profile = work.Taste.New;
+            var dislikes = work.Taste.Dislikes;
+            var artists = (profile.Background ?? profile.Artists).Where(a => !dislikes.BlocksArtist(a.Name)).Take(TasteArtists).ToList();
+            var recent = (profile.Recent ?? profile.Artists).Where(a => !dislikes.BlocksArtist(a.Name)).Take(TasteArtists).ToList();
+            var missing = artists.Concat(recent).Select(a => a.Name).Where(n => !work.Artists.ContainsKey(n)).ToList();
+            if (missing.Count > 0)
+            {
+                foreach (var (name, artist) in ArtistsByName(missing))
+                {
+                    work.Artists[name] = artist;
+                }
+            }
+
+            KostvTasteEntry Entry(KostvWeighted a) => new(work.Artists.GetValueOrDefault(a.Name)?.Id, a.Name, Math.Round(a.Weight, 3));
+            return new KostvTasteView(
+                Math.Round(work.Taste.Summary.Learned, 3),
+                artists.Select(Entry).ToList(),
+                recent.Select(Entry).ToList(),
+                profile.Genres.Take(TasteGenres).Select(g => new KostvTasteEntry(null, g.Name, Math.Round(g.Weight, 3))).ToList());
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    // ---------------------------------------------------------------- «no me gusta»
+
+    /// <summary>What <paramref name="userId"/> doesn't want to hear, as the engine uses it.</summary>
+    public KostvDislikeSet DislikeSetOf(Guid userId) => KostvDislikeSet.Of(_store.DislikesOf(userId));
+
+    /// <summary>Whether <paramref name="item"/> is out for whoever said <paramref name="dislikes"/>: the song, or any of its artists.</summary>
+    public static bool Blocks(KostvDislikeSet dislikes, BaseItem item) => !dislikes.IsEmpty && dislikes.Blocks(TrackOf(item, null));
+
+    /// <summary>
+    /// «No me gusta» of <paramref name="userId"/> to the songs (or, with <paramref name="artists"/>,
+    /// the artists) <paramref name="ids"/>: kept with their names to show in the list, also with
+    /// Learn off, and the day's music worked out again without them.
+    /// </summary>
+    public void Dislike(Guid userId, bool artists, IReadOnlyList<Guid> ids)
+    {
+        var now = _store.Now;
+        if (artists)
+        {
+            _store.AddDislikes(userId, [], ids.Select(id => new KostvDislikedArtist { Id = id.ToString("N"), Name = ItemOf(id)?.Name?.Trim(), At = now }).ToList());
+        }
+        else
+        {
+            var songs = new List<KostvDislikedSong>();
+            foreach (var id in ids)
+            {
+                var item = ItemOf(id);
+                var track = item != null ? TrackOf(item, null) : null;
+                var artist = track?.PrimaryArtist?.Trim();
+                songs.Add(new KostvDislikedSong
+                {
+                    Id = id.ToString("N"),
+                    Name = item?.Name?.Trim(),
+                    Artist = artist,
+                    ArtistId = artist != null ? ArtistsByName([artist]).GetValueOrDefault(artist)?.Id.ToString("N") : null,
+                    AlbumId = track?.Album?.ToString("N"),
+                    At = now
+                });
+            }
+
+            _store.AddDislikes(userId, songs, []);
+        }
+
+        Forget(userId);
+    }
+
+    /// <summary>Takes <paramref name="itemId"/> off what <paramref name="userId"/> doesn't want to hear.</summary>
+    public void Undislike(Guid userId, Guid itemId)
+    {
+        if (_store.RemoveDislike(userId, itemId))
+        {
+            Forget(userId);
+        }
+    }
+
+    /// <summary>Empties what <paramref name="userId"/> doesn't want to hear.</summary>
+    public void ClearDislikes(Guid userId)
+    {
+        _store.ClearDislikes(userId);
+        Forget(userId);
+    }
+
+    /// <summary>
+    /// What <paramref name="userId"/> doesn't want to hear, the latest first, with the names the
+    /// library has now (or, for what is no longer there, the ones kept).
+    /// </summary>
+    public KostvDislikes DislikesView(Guid userId)
+    {
+        var dislikes = _store.DislikesOf(userId);
+        foreach (var song in dislikes.Songs)
+        {
+            if (Guid.TryParse(song.Id, out var id) && ItemOf(id) is { } item)
+            {
+                var track = TrackOf(item, null);
+                song.Name = item.Name?.Trim() ?? song.Name;
+                song.Artist = track.PrimaryArtist?.Trim() ?? song.Artist;
+                song.AlbumId = track.Album?.ToString("N") ?? song.AlbumId;
+            }
+        }
+
+        foreach (var artist in dislikes.Artists)
+        {
+            if (Guid.TryParse(artist.Id, out var id) && ItemOf(id) is { } item)
+            {
+                artist.Name = item.Name?.Trim() ?? artist.Name;
+            }
+        }
+
+        return dislikes;
+    }
+
+    /// <summary>The library's item <paramref name="id"/>, or null (not there, or no library to ask).</summary>
+    private BaseItem? ItemOf(Guid id)
+    {
+        try
+        {
+            return _library?.GetItemById(id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "kOS TV music: an item could not be read");
+            return null;
+        }
     }
 
     /// <summary>
@@ -641,7 +914,7 @@ public sealed class KostvMusicService
         return ids.Select(id => byId.GetValueOrDefault(id)).OfType<BaseItem>().ToList();
     }
 
-    private static KostvMusicTrack TrackOf(BaseItem item, UserItemData? data)
+    internal static KostvMusicTrack TrackOf(BaseItem item, UserItemData? data)
     {
         var audio = item as Audio;
         var artists = (audio?.Artists ?? []).Where(a => !string.IsNullOrWhiteSpace(a)).ToList();
@@ -656,7 +929,9 @@ public sealed class KostvMusicService
             (item.Genres ?? []).Where(g => !string.IsNullOrWhiteSpace(g)).ToList(),
             data?.PlayCount ?? 0,
             data?.LastPlayedDate,
-            data?.IsFavorite ?? false);
+            data?.IsFavorite ?? false,
+            // A song's album is its parent: two of one album don't go one after the other.
+            item.ParentId == Guid.Empty ? null : item.ParentId);
     }
 
     private static InternalItemsQuery NewQuery(Action<InternalItemsQuery> filter, int limit)

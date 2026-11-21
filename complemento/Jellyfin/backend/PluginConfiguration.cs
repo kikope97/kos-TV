@@ -67,6 +67,14 @@ public class PluginConfiguration : BasePluginConfiguration, IGamesConfig
     public string? KostvMusicTimeZone { get; set; } = Kostv.KostvMusicTimeZone.DefaultId;
 
     /// <summary>
+    /// kOS TV: which engine scores each person's music: <c>actual</c>, the one so far (by
+    /// default); <c>nuevo</c>, the one that learns from every signal; or <c>alterno</c>, one day
+    /// each. The rules of variety and «no me gusta» count with all three, and the other engine is
+    /// still worked out to compare. Anything else is <c>actual</c>.
+    /// </summary>
+    public string? KostvMusicEngine { get; set; } = Kostv.KostvMusicEngineMode.Current;
+
+    /// <summary>
     /// Keeps the Sonarr and Radarr calendar to server admins.
     /// </summary>
     public bool CalendarAdminsOnly { get; set; }

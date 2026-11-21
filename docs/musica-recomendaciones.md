@@ -177,13 +177,24 @@ mezclas» y «Canciones para ti» de siempre, sin el ajuste).
 |---|---|
 | `GET /Moonfin/Kostv/Music/Settings` | `{ "Learn": true, "Listens": 1234, "Since": "2026-11-20T10:00:00Z" }`: si se guarda lo que escucha esa persona, cuántas escuchas hay y desde cuándo. |
 | `POST /Moonfin/Kostv/Music/Settings` | Cuerpo `{ "Learn": false }`. Devuelve lo mismo que el `GET`. Apagado, no se apunta nada de esa persona. |
-| `DELETE /Moonfin/Kostv/Music/Listens` | Borra todo lo apuntado de esa persona. `204`. |
+| `DELETE /Moonfin/Kostv/Music/Listens` | Borra todo lo apuntado de esa persona y lo que se calculó con ello (`taste.json`, `shadow.json` y `compare.jsonl`); **no** borra `dislikes.json` ni el ajuste. `204`. |
 | `POST /Moonfin/Kostv/Music/Context` | Cuerpo `{ "Source": "mix:daily-2", "ItemIds": ["…"] }`. De dónde viene lo que se va a escuchar; se recuerda 6 horas y se apunta en las escuchas de esas canciones. Fuentes: `mix:<id>`, `discovery`, `moment:<franja>`, `search`, `album`, `artist`, `favorites`, `playlist`, `charts`, `radio`, `other`. `204`. |
-| `GET /Moonfin/Kostv/Music/Mixes` | `{ "Day": "2026-11-20", "Mixes": [ { "Id": "daily-1", "Genre": "Reguetón", "Artists": [tarjetas], "Items": [tarjetas] } ] }`: hasta 4 mixes de unas 50 canciones, los mismos todo el día (el día empieza a las 5:00, hora de casa). |
-| `GET /Moonfin/Kostv/Music/Discovery` | `{ "Week": "2026-W47", "Seeds": ["Bad Bunny", …], "Songs": null }`: los artistas (hasta 10) con los que pedir a Stremfin, y la lista de la semana si ya está guardada (`Songs`, tal cual la guardó la app). |
+| `GET /Moonfin/Kostv/Music/Mixes` | `{ "Day": "2026-11-20", "Mixes": [ { "Id": "daily-1", "Genre": "Reguetón", "Artists": [tarjetas], "Items": [tarjetas], "Because": ["Artista 1", "Artista 2", "Artista 3"] } ] }`: hasta 4 mixes de unas 50 canciones, los mismos todo el día (el día empieza a las 5:00, hora de casa). `Because`: los tres artistas que más pesan en cada mezcla (para «Con X, Y y más»). Nunca llevan canciones ni artistas con «No me gusta» (se quitan al servir, sin esperar al día siguiente), ni lo que salió en los mixes de los 3 días anteriores ni lo oído en las últimas 24 horas. |
+| `GET /Moonfin/Kostv/Music/Discovery` | `{ "Week": "2026-W47", "Seeds": ["Bad Bunny", …], "Songs": null }`: los artistas (hasta 10) con los que pedir a Stremfin, y la lista de la semana si ya está guardada (`Songs`, tal cual la guardó la app). Las semillas rotan cada semana entre los 20 artistas que más gustan (los 3 primeros siempre), sin artistas con «No me gusta». |
 | `PUT /Moonfin/Kostv/Music/Discovery` | Cuerpo `{ "Week": "2026-W47", "Songs": [ … ] }` (hasta 30 canciones y 64 KB, en el formato de Stremfin). Solo para la semana en curso; `204`. |
-| `POST /Moonfin/Kostv/Music/Event` | Cuerpo `{ "Type": "playlist_add", "ItemIds": ["…"] }` o `{ "Type": "request", "Album": "…", "Artist": "…", "DeezerAlbumId": "…" }`. Lo que hace la persona y el servidor no ve: `playlist_add` (añadir canciones a una lista; de 1 a 500 ids), `request` (pedir un álbum a Stremfin; los tres opcionales, textos de hasta 200 caracteres y el id de Deezer de hasta 32) y, más adelante, `dislike` ("No me gusta": `{ "Type": "dislike", "ItemIds": ["…"], "Kind": "artist" }`, `Kind` opcional, `artist` o `song`). Se apunta con la fecha en sus datos (con «Aprender» apagado, no se apunta nada). `204`; un tipo desconocido o un cuerpo que no es así, `400`. |
-| `GET /Moonfin/Kostv/Music/Moment` | `{ "Slot": "tarde", "Ready": true, "Items": [tarjetas] }`. Franjas: `manana` (6–12), `tarde` (12–20) y `noche` (20–6), por la hora de casa. `Ready: false` (sin `Items`) mientras no haya datos suficientes. |
+| `POST /Moonfin/Kostv/Music/Event` | Cuerpo `{ "Type": "playlist_add", "ItemIds": ["…"] }` o `{ "Type": "request", "Album": "…", "Artist": "…", "DeezerAlbumId": "…" }`. Lo que hace la persona y el servidor no ve: `playlist_add` (añadir canciones a una lista; de 1 a 500 ids) y `request` (pedir un álbum a Stremfin; los tres opcionales, textos de hasta 200 caracteres y el id de Deezer de hasta 32): se apuntan con la fecha en sus datos (con «Aprender» apagado, no se apunta nada). Y `dislike` («No me gusta»: `{ "Type": "dislike", "ItemIds": ["…"], "Kind": "song" \| "artist" }`, `Kind` por defecto `song`; ids de canciones o de artistas de Jellyfin): se guarda aparte, en `dislikes.json` de la persona (no en el historial), **también con «Aprender» apagado**, con el nombre, el artista y el disco para enseñarlo en la lista; con `song` resta también un poco a su artista (tres canciones del mismo artista lo bajan mucho); y vuelve a calcular lo del día de esa persona. `204`; un tipo desconocido o un cuerpo que no es así, `400`. |
+| `GET /Moonfin/Kostv/Music/Moment` | `{ "Slot": "tarde", "Ready": true, "Items": [tarjetas], "Because": ["…", "…", "…"] }`. Franjas: `manana` (6–12), `tarde` (12–20) y `noche` (20–6), por la hora de casa. `Ready: false` (sin `Items`) mientras no haya datos suficientes. Con las mismas reglas de variedad que los mixes y sin «No me gusta»; no repite lo de esa franja de los 3 días anteriores ni lo oído en las últimas 24 horas. |
+| `GET /Moonfin/Kostv/Music/Dislikes` | `{ "Songs": [ { "Id", "Name", "Artist", "ArtistId", "AlbumId", "At" } ], "Artists": [ { "Id", "Name", "At" } ] }`: lo que esa persona no quiere oír, lo más reciente primero. Lo que ya no existe en la biblioteca sale con el nombre guardado. |
+| `DELETE /Moonfin/Kostv/Music/Dislikes/{itemId}` | Quita uno, canción o artista (deshacer, o desde la lista de Ajustes). `204`, también si no estaba; un id que no es un id, `400`. |
+| `DELETE /Moonfin/Kostv/Music/Dislikes` | Vacía la lista de esa persona. `204`. |
+| `GET /Moonfin/Kostv/Music/Taste` | `{ "Learned": 0.4, "Artists": [ { "Id", "Name", "Score" } ], "Recent": [ { "Id", "Name", "Score" } ], "Genres": [ { "Name", "Score" } ] }`: el gusto único de esa persona, con el cálculo nuevo (hasta 20 artistas de fondo, 20 de ahora y 10 géneros), sin artistas con «No me gusta». `Id` es el del artista en Jellyfin (`null` si no se encuentra). `Learned`: cuánto viene de lo aprendido frente a lo que sabe Jellyfin (0 sin escuchas; 1 con 300 o más; 0 con «Aprender» apagado). |
+
+**Cómo se puntúa** (ajuste «Cómo se puntúa la música» del complemento, `KostvMusicEngine`): `actual`
+(por defecto, el de siempre), `nuevo` (el que aprende de todas las señales, ver
+`docs/musica-plan-fundido-y-aprender.md`, 3.2) o `alterno` (un día cada uno). Las reglas de variedad,
+de no repetirse y el «No me gusta» valen en los tres; el que no se usa se calcula igualmente y al día
+siguiente se apunta en `compare.jsonl` de la persona cuántas de las 25 primeras de cada uno se
+oyeron enteras ese día (`{ "day", "engine", "hitsOld", "hitsNew" }`; con «Aprender» apagado, nada).
 
 ## Más datos para aprender (añadido después)
 
@@ -201,8 +212,8 @@ Además de lo de la sección A, de cada escucha:
 4. **Volver a escucharla:** si se repite justo después (`replay`) y cuántas veces
    se volvió atrás dentro de la canción (`seekBack`).
 5. **Más señales de gusto:** ♥ de álbumes y artistas (no solo canciones), añadir
-   a una lista y pedir un álbum a Stremfin (ruta `Event`); «No me gusta», cuando
-   exista.
+   a una lista y pedir un álbum a Stremfin (ruta `Event`); el «No me gusta», aparte
+   (`dislikes.json`).
 6. **Lo que se enseñó:** las canciones de cada mix, de la mezcla del momento y
    del descubrimiento de cada día (solo ids), para medir luego cuánto de lo
    recomendado se escucha.
@@ -234,7 +245,7 @@ sin ellos, se siguen leyendo igual):
   pausa, ni al volver a empezar desde el final, como con «repetir una»).
 - **♥ de álbumes y artistas:** líneas `favorite` con `kind` (`album` o
   `artist`); los de canciones siguen como `heart`.
-- **Ruta `Event`:** líneas `playlist_add`, `request` y `dislike`.
+- **Ruta `Event`:** líneas `playlist_add` y `request` (el «No me gusta» va aparte, en `dislikes.json`, y las líneas `dislike` de antes no se usan: ninguna app las mandaba).
 - **Lo que se enseñó:** líneas `shown`, una por superficie y día de música (desde
   las 5:00): `mixes` (id, género y canciones de cada mix), `moment` (franja y
   canciones; una por franja) y `discovery` (semana e ids de Deezer de la lista

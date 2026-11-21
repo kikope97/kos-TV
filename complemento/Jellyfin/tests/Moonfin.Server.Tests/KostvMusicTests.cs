@@ -19,7 +19,7 @@ namespace Moonfin.Server.Tests;
 /// kOS TV: what the server keeps of what each person listens to, and the music worked out from
 /// it: daily mixes, the artists for «Descubrimiento semanal» and the mix for the time of day.
 /// </summary>
-public sealed class KostvMusicTests : IDisposable
+public sealed partial class KostvMusicTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), "kostv-music-" + Guid.NewGuid().ToString("N"));
 
@@ -264,7 +264,7 @@ public sealed class KostvMusicTests : IDisposable
     }
 
     [Fact]
-    public void MixesAreOneGenreEachWithoutRepeatsAndHalfNew()
+    public void MixesAreOneGenreEachWithoutRepeatsAndAQuarterNew()
     {
         var user = Guid.NewGuid();
         var tracks = Library();
@@ -280,10 +280,12 @@ public sealed class KostvMusicTests : IDisposable
         {
             Assert.Equal(KostvMusicEngine.MixSize, mix.Items.Count);
             Assert.All(mix.Items, id => Assert.Equal(mix.Genre, byId[id].Genres[0]));
-            Assert.Equal(25, mix.Items.Count(id => byId[id].PlayCount > 0));
+            // About three of four known (the rules of variety may take a few more new ones).
+            Assert.InRange(mix.Items.Count(id => byId[id].PlayCount > 0), 34, 39);
             Assert.Equal(3, mix.Artists.Count);
-            // Never the same artist twice in a row.
-            Assert.All(mix.Items.Zip(mix.Items.Skip(1)), pair => Assert.NotEqual(byId[pair.First].PrimaryArtist, byId[pair.Second].PrimaryArtist));
+            Assert.Equal(3, mix.Because!.Count);
+            // Never the same artist twice in a row, nor closer than three songs.
+            AssertVariety(mix.Items.Select(id => byId[id]).ToList());
         }
 
         var all = mixes.SelectMany(m => m.Items).ToList();
@@ -360,12 +362,15 @@ public sealed class KostvMusicTests : IDisposable
         var similar = new Dictionary<string, IReadOnlyList<string>> { ["bad bunny"] = ["Feid"] };
 
         var mix = Assert.Single(KostvMusicEngine.Mixes(Guid.NewGuid(), "2026-11-20", tracks, profile, similar));
-        // 25 of theirs and the 20 new ones there are of the genre.
-        Assert.Equal(45, mix.Items.Count);
-        Assert.All(alike, t => Assert.Contains(t.Id, mix.Items));
+        // Theirs and the 20 new ones there are of the genre, but for a few that the rules of variety
+        // can't place with only four artists (with nothing else left, never twice in a row).
+        Assert.InRange(mix.Items.Count, 40, 45);
+        Assert.True(alike.Count(t => mix.Items.Contains(t.Id)) >= 8);
         // Genres match without minding case; songs of other genres stay out.
-        Assert.All(others, t => Assert.Contains(t.Id, mix.Items));
+        Assert.True(others.Count(t => mix.Items.Contains(t.Id)) >= 8);
         Assert.All(outside, t => Assert.DoesNotContain(t.Id, mix.Items));
+        var byId = tracks.ToDictionary(t => t.Id);
+        AssertVariety(mix.Items.Select(id => byId[id]).ToList(), gap: 1);
     }
 
     // ---------------------------------------------------------------- seeds
@@ -1722,12 +1727,14 @@ public sealed class KostvMusicTests : IDisposable
         Assert.IsType<Microsoft.AspNetCore.Mvc.NoContentResult>(controller.AddEvent(Body(new { Type = "dislike", ItemIds = new[] { songs[1].ToString() } })));
 
         var events = store.Read(userId);
-        Assert.Equal(["playlist_add", "request", "request", "dislike", "dislike"], events.Select(e => e.Type));
+        // «No me gusta» is kept apart, not in the history (see the tests of «no me gusta»).
+        Assert.Equal(["playlist_add", "request", "request"], events.Select(e => e.Type));
         Assert.Equal(songs.Select(s => s.ToString("N")), events[0].Items!);
         Assert.Equal(("Motomami", "Rosalía", "302127"), (events[1].AlbumName, events[1].ArtistName, events[1].DeezerAlbumId));
         Assert.Equal((null, "Solo el artista", null), (events[2].AlbumName, events[2].ArtistName, events[2].DeezerAlbumId));
-        Assert.Equal("artist", events[3].Kind);
-        Assert.Null(events[4].Kind);
+        var dislikes = store.DislikesOf(userId);
+        Assert.Equal([songs[0].ToString("N")], dislikes.Artists.Select(a => a.Id));
+        Assert.Equal([songs[1].ToString("N")], dislikes.Songs.Select(a => a.Id));
         Assert.All(events, e => Assert.Equal(_now, e.At));
         // Settings count only listens.
         Assert.Equal(0, store.Summary(userId).Listens);

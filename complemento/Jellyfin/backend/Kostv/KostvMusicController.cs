@@ -12,8 +12,9 @@ namespace Moonfin.Server.Kostv;
 
 /// <summary>
 /// kOS TV: each person's music: whether what they listen to is kept, where what they play comes
-/// from, what they do that the server doesn't see, their daily mixes, «Descubrimiento semanal»
-/// and the mix for the time of day (each noted as shown the first time in its day or week).
+/// from, what they do that the server doesn't see, what they don't want to hear («no me gusta»),
+/// their taste, their daily mixes, «Descubrimiento semanal» and the mix for the time of day (each
+/// noted as shown the first time in its day or week).
 /// </summary>
 [ApiController]
 [Route("Moonfin/Kostv/Music")]
@@ -91,7 +92,7 @@ public class KostvMusicController : ControllerBase
         return Ok(SettingsOf(caller.Id));
     }
 
-    /// <summary>Forgets everything the caller listened to.</summary>
+    /// <summary>Forgets everything the caller listened to, and their taste worked out of it; «no me gusta» stays.</summary>
     [HttpDelete("Listens")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
@@ -153,11 +154,13 @@ public class KostvMusicController : ControllerBase
 
         var day = _music.Day;
         var mixes = await _music.MixesAsync(caller.Id, caller.User).ConfigureAwait(false);
+        // «No me gusta» goes out as it is served, without waiting for the mixes to be made again.
+        var dislikes = _music.DislikeSetOf(caller.Id);
         var result = new List<object>();
         var shown = new List<KostvShownMix>();
         foreach (var mix in mixes)
         {
-            var songs = Visible(mix.Items, caller.User);
+            var songs = Visible(mix.Items, caller.User, dislikes);
             if (songs.Count == 0)
             {
                 continue;
@@ -168,10 +171,11 @@ public class KostvMusicController : ControllerBase
                 mix.Id,
                 mix.Genre,
                 Artists = _music.CoverArtists(mix)
-                    .Where(a => UserReflection.IsVisibleStandaloneTo(a, caller.User))
+                    .Where(a => UserReflection.IsVisibleStandaloneTo(a, caller.User) && !dislikes.BlocksArtist(a.Name))
                     .Select(a => _cards.Map(a, caller.User))
                     .ToList(),
-                Items = songs.Select(item => _cards.Map(item, caller.User)).ToList()
+                Items = songs.Select(item => _cards.Map(item, caller.User)).ToList(),
+                Because = BecauseOf(mix.Because ?? mix.Artists, dislikes)
             });
             shown.Add(new KostvShownMix { Id = mix.Id, Genre = mix.Genre, Items = songs.Select(s => s.Id.ToString("N")).ToList() });
         }
@@ -279,7 +283,8 @@ public class KostvMusicController : ControllerBase
         }
 
         var moment = await _music.MomentAsync(caller.Id, caller.User).ConfigureAwait(false);
-        var songs = moment.Ready ? Visible(moment.Items, caller.User) : [];
+        var dislikes = _music.DislikeSetOf(caller.Id);
+        var songs = moment.Ready ? Visible(moment.Items, caller.User, dislikes) : [];
         if (songs.Count == 0)
         {
             return Ok(new { moment.Slot, Ready = false });
@@ -287,7 +292,96 @@ public class KostvMusicController : ControllerBase
 
         // The first time today at this time of day: what the person was shown.
         _music.NoteShownMoment(caller.Id, moment.Slot, songs.Select(s => s.Id).ToList());
-        return Ok(new { moment.Slot, Ready = true, Items = songs.Select(item => _cards.Map(item, caller.User)).ToList() });
+        var because = moment.Because ?? songs.Select(s => KostvMusicService.TrackOf(s, null).PrimaryArtist).OfType<string>().Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return Ok(new { moment.Slot, Ready = true, Items = songs.Select(item => _cards.Map(item, caller.User)).ToList(), Because = BecauseOf(because, dislikes) });
+    }
+
+    /// <summary>The three artists to say a mix is made of, none with «no me gusta».</summary>
+    private static List<string> BecauseOf(IEnumerable<string> names, KostvDislikeSet dislikes) =>
+        names.Where(n => !string.IsNullOrWhiteSpace(n) && !dislikes.BlocksArtist(n)).Take(3).ToList();
+
+    /// <summary>
+    /// The caller's taste, the one their music is made of: <c>Learned</c> (0, all the server's
+    /// plays, to 1, 300 listens or more), up to 20 <c>Artists</c> by their background taste, 20
+    /// <c>Recent</c> by their taste of now and 10 <c>Genres</c>; no artist with «no me gusta».
+    /// </summary>
+    [HttpGet("Taste")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public async Task<ActionResult> GetTaste()
+    {
+        if (Caller() is not { } caller)
+        {
+            return NotSignedIn();
+        }
+
+        var taste = await _music.TasteAsync(caller.Id, caller.User).ConfigureAwait(false);
+        return Ok(new
+        {
+            taste.Learned,
+            Artists = taste.Artists.Select(a => new { a.Id, a.Name, a.Score }).ToList(),
+            Recent = taste.Recent.Select(a => new { a.Id, a.Name, a.Score }).ToList(),
+            Genres = taste.Genres.Select(g => new { g.Name, g.Score }).ToList()
+        });
+    }
+
+    /// <summary>
+    /// What the caller doesn't want to hear, the latest first: <c>Songs</c> (with their artist and
+    /// album) and <c>Artists</c>; what is no longer in the library, with the name kept.
+    /// </summary>
+    [HttpGet("Dislikes")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult GetDislikes()
+    {
+        if (Caller() is not { } caller)
+        {
+            return NotSignedIn();
+        }
+
+        var dislikes = _music.DislikesView(caller.Id);
+        static Guid? IdOf(string? id) => Guid.TryParse(id, out var guid) ? guid : null;
+        return Ok(new
+        {
+            Songs = dislikes.Songs.Select(s => new { Id = IdOf(s.Id), s.Name, s.Artist, ArtistId = IdOf(s.ArtistId), AlbumId = IdOf(s.AlbumId), At = s.At.UtcDateTime }).ToList(),
+            Artists = dislikes.Artists.Select(a => new { Id = IdOf(a.Id), a.Name, At = a.At.UtcDateTime }).ToList()
+        });
+    }
+
+    /// <summary>Takes a song or an artist off what the caller doesn't want to hear (to undo it, or from the list). <c>204</c> also when it wasn't there.</summary>
+    [HttpDelete("Dislikes/{itemId}")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult RemoveDislike([FromRoute] string itemId)
+    {
+        if (Caller() is not { } caller)
+        {
+            return NotSignedIn();
+        }
+
+        if (!Guid.TryParse(itemId, out var id) || id == Guid.Empty)
+        {
+            return BadRequest(new { Error = "itemId is an id." });
+        }
+
+        _music.Undislike(caller.Id, id);
+        return NoContent();
+    }
+
+    /// <summary>Empties what the caller doesn't want to hear.</summary>
+    [HttpDelete("Dislikes")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public ActionResult ClearDislikes()
+    {
+        if (Caller() is not { } caller)
+        {
+            return NotSignedIn();
+        }
+
+        _music.ClearDislikes(caller.Id);
+        return NoContent();
     }
 
     /// <summary>The most songs (or artists) one event may name.</summary>
@@ -304,8 +398,10 @@ public class KostvMusicController : ControllerBase
     /// <c>{ "Type": "playlist_add", "ItemIds": [...] }</c> (songs added to a playlist, up to 500),
     /// <c>{ "Type": "request", "Album": "…", "Artist": "…", "DeezerAlbumId": "…" }</c> (an album
     /// asked for in Stremfin, each optional) or <c>{ "Type": "dislike", "ItemIds": [...], "Kind":
-    /// "artist" }</c> («no me gusta» of songs or artists; for later). Nothing is noted while Learn
-    /// is off. An unknown type, or one not as said, is a <c>400</c>.
+    /// "song" | "artist" }</c> («no me gusta» of songs, by default, or artists). The first two are
+    /// noted in the caller's music, and not while Learn is off; «no me gusta» is kept apart, also
+    /// with Learn off (see <see cref="KostvMusicStore.AddDislikes"/>). An unknown type, or one not
+    /// as said, is a <c>400</c>.
     /// </summary>
     [HttpPost("Event")]
     [Authorize]
@@ -353,18 +449,19 @@ public class KostvMusicController : ControllerBase
                     return BadRequest(new { Error = error });
                 }
 
-                string? kind = null;
+                var kind = KostvMusicEvent.SongKind;
                 if (Property(body, "Kind") is { ValueKind: not JsonValueKind.Null } said)
                 {
-                    kind = said.ValueKind == JsonValueKind.String ? said.GetString()?.Trim().ToLowerInvariant() : string.Empty;
+                    kind = said.ValueKind == JsonValueKind.String ? said.GetString()?.Trim().ToLowerInvariant() ?? string.Empty : string.Empty;
                     if (kind is not (KostvMusicEvent.ArtistKind or KostvMusicEvent.SongKind))
                     {
                         return BadRequest(new { Error = "Kind is artist or song." });
                     }
                 }
 
-                entry = new KostvMusicEvent { Type = type, Items = items, Kind = kind };
-                break;
+                // Kept apart from the listens (not in their history), also with Learn off.
+                _music.Dislike(caller.Id, kind == KostvMusicEvent.ArtistKind, items.Select(Guid.Parse).ToList());
+                return NoContent();
             }
 
             default:
@@ -423,10 +520,11 @@ public class KostvMusicController : ControllerBase
         return true;
     }
 
-    // Read at once within the person's limits, and each checked again as the card goes out.
-    private List<BaseItem> Visible(IReadOnlyList<Guid> ids, object user) =>
+    // Read at once within the person's limits, and each checked again as the card goes out;
+    // none with «no me gusta».
+    private List<BaseItem> Visible(IReadOnlyList<Guid> ids, object user, KostvDislikeSet dislikes) =>
         _music.Songs(user, ids)
-            .Where(item => UserReflection.IsVisibleStandaloneTo(item, user))
+            .Where(item => UserReflection.IsVisibleStandaloneTo(item, user) && !KostvMusicService.Blocks(dislikes, item))
             .ToList();
 
     /// <summary>A property of <paramref name="body"/>, its name in any case.</summary>
