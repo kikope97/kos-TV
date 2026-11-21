@@ -49,7 +49,9 @@ class StremfinClient {
     String? baseUrl,
     @visibleForTesting String? Function()? token,
     this.musicMemory,
-  }) : _baseUrl = baseUrl == null
+    @visibleForTesting bool? web,
+  }) : _web = web ?? kIsWeb,
+       _baseUrl = baseUrl == null
            // The address can change while the app runs (the home server's
            // plugin gives it), so it's read on every call.
            ? (() => apiBaseFor(kostvRequestsUrl))
@@ -65,6 +67,11 @@ class StremfinClient {
            );
 
   final Dio _dio;
+
+  /// Kos TV: whether the app runs in a browser, whose way of calling the
+  /// service gives up on an answer whose headers haven't come within the
+  /// time to connect (see [musicListen]).
+  final bool _web;
 
   /// Kos TV: where the Music page's last answers are kept (none in tests).
   final StremfinMusicMemory? musicMemory;
@@ -477,11 +484,15 @@ class StremfinClient {
   /// don't answer) and 429 come as a [StremfinException].
   Future<StremfinListen> musicListen(String deezerId) async {
     final listen = StremfinListen.fromJson(
-      await _get(
+      await _send(
+        'GET',
         '/music/songs/${Uri.encodeComponent(deezerId)}/listen',
-        null,
-        listenTimeout,
-      ),
+        receiveTimeout: listenTimeout,
+        // Kos TV: the service sends nothing (not even its headers) until
+        // the sound is ready, and in a browser the time to connect lasts
+        // until the headers come: there it gets the same minute.
+        connectTimeout: _web ? listenTimeout : null,
+      ).then(_body),
       deezerId: deezerId,
     );
     if (listen == null) throw const StremfinException(code: 'bad_response');
@@ -599,6 +610,7 @@ class StremfinClient {
     Map<String, Object?>? query,
     Object? data,
     Duration? receiveTimeout,
+    Duration? connectTimeout,
   }) async {
     final base = _baseUrl();
     if (base == null) {
@@ -624,6 +636,7 @@ class StremfinClient {
           responseType: ResponseType.json,
           validateStatus: (_) => true,
           receiveTimeout: receiveTimeout,
+          connectTimeout: connectTimeout,
         ),
       );
     } on DioException catch (e) {

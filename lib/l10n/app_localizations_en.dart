@@ -21256,4 +21256,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvStreamStationEmpty =>
       'There are no songs for this station right now';
+
+  @override
+  String get kostvSyncPlayErrorOutOfHomeSong =>
+      'What\'s playing isn\'t at home, and songs that aren\'t at home can\'t be listened to together.';
 }

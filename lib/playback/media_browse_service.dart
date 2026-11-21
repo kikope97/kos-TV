@@ -2,12 +2,19 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:dio/dio.dart';
+import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
 import '../data/models/aggregated_item.dart';
 import '../data/services/audiobook_resume_service.dart';
+import '../data/services/kostv_music_catalog.dart';
+import '../data/services/kostv_music_dislikes.dart';
+import '../data/services/kostv_music_plugin.dart' show KostvMusicDislikes;
 import '../data/services/media_server_client_factory.dart';
 import '../data/services/stremfin/kostv_stream_song.dart';
+import '../data/services/stremfin/stremfin_service.dart';
+import '../data/utils/blocked_ratings.dart';
+import '../preference/user_preferences.dart';
 import '../l10n/app_localizations.dart';
 import '../l10n/current_app_localizations.dart';
 import 'car_artwork.dart';
@@ -50,6 +57,71 @@ class _CachedProbe {
 ///   track|<s>|<id>|<ctxKind>|<ctxId>   (ctx enables sibling queueing)
 ///   book|<s>|<id>, shuffle|<s>|all, msg|<code>
 /// ```
+/// Kos TV: which of a restored queue's songs that aren't at home may sound
+/// for [client]'s person now (see [kostvRestoredStreamKept]).
+typedef KostvRestoredStreamGate =
+    Future<bool Function(AggregatedItem song)> Function(
+      MediaServerClient client,
+    );
+
+/// Kos TV: whether a restored queue's [song], which isn't at home, may
+/// sound now: the queue was kept with what was allowed then, and since the
+/// person may have chosen «Solo la de casa» ([catalogAll] false), the device
+/// may be in kids mode (no Music there), they may have a limit
+/// ([hideExplicit]) or not want to hear it any more ([dislikes]).
+bool kostvRestoredStreamKept(
+  AggregatedItem song, {
+  required bool catalogAll,
+  required bool kidsMode,
+  required bool hideExplicit,
+  required KostvMusicDislikes dislikes,
+}) {
+  if (!catalogAll || kidsMode) return false;
+  if (hideExplicit && (KostvStreamInfo.of(song)?.explicit ?? false)) {
+    return false;
+  }
+  return !dislikes.songOut(song);
+}
+
+/// Kos TV: [KostvRestoredStreamGate] with what the app knows of the person.
+/// «Qué música enseñar» and what they don't want to hear are read first (a
+/// moment at most: a start without a screen hasn't read them). Their age
+/// limit counts only when it is known: one not read yet keeps the songs,
+/// as kids mode and this device's parental control are known anyway.
+Future<bool Function(AggregatedItem song)> kostvRestoredStreamGate(
+  MediaServerClient client,
+) async {
+  await Future.wait<void>([
+    KostvMusicCatalog.instance.refresh(client).catchError((Object _) {}),
+    KostvMusicDislikesStore.instance
+        .load(client)
+        .then<void>((_) {}, onError: (Object _) {}),
+  ]).timeout(const Duration(seconds: 4), onTimeout: () => const []);
+  final getIt = GetIt.instance;
+  final kidsMode =
+      getIt.isRegistered<UserPreferences>() &&
+      getIt<UserPreferences>().get(UserPreferences.kidsModeEnabled);
+  final service =
+      getIt.isRegistered<StremfinService>() &&
+          getIt.checkLazySingletonInstanceExists<StremfinService>()
+      ? getIt<StremfinService>()
+      : null;
+  final hideExplicit =
+      activeParentalFilter.isActive ||
+      (service != null &&
+          service.musicAgeLimitKnown &&
+          service.hidesExplicitMusic);
+  final catalogAll = kostvMusicCatalogAll();
+  final dislikes = KostvMusicDislikesStore.instance.of(client);
+  return (song) => kostvRestoredStreamKept(
+    song,
+    catalogAll: catalogAll,
+    kidsMode: kidsMode,
+    hideExplicit: hideExplicit,
+    dislikes: dislikes,
+  );
+}
+
 class MediaBrowseService {
   /// Message ids. A lone message item stands in for a listing that couldn't
   /// load, and each car adapter shows it its own way.
@@ -92,6 +164,9 @@ class MediaBrowseService {
   final AudiobookResumeService _resumeService;
   final LastPlaybackSessionStore _lastSessionStore;
 
+  /// Kos TV: which songs that aren't at home a restored queue keeps.
+  final KostvRestoredStreamGate _streamGate;
+
   final Map<String, _CachedChildren> _cache = {};
   // Concurrent requests for the same node share one fetch: paging hosts fire
   // several page subscriptions at once and CarPlay reloads all tabs on connect.
@@ -104,8 +179,9 @@ class MediaBrowseService {
     this._clientFactory,
     this._bootstrap,
     this._resumeService,
-    this._lastSessionStore,
-  );
+    this._lastSessionStore, {
+    KostvRestoredStreamGate? streamGate,
+  }) : _streamGate = streamGate ?? kostvRestoredStreamGate;
 
   void clearCache() {
     _cache.clear();
@@ -974,13 +1050,21 @@ class MediaBrowseService {
 
     // Kos TV: a song that isn't at home comes back as it was kept (the home
     // server doesn't have it); its sound is asked for again as it plays.
+    // Only those the person may hear now ([_streamGate]).
+    final keep = ids.any(isKostvStreamId)
+        ? await _streamGate(clientForServer)
+        : null;
     final loaded = await Future.wait(
       ids.map((id) async {
         if (isKostvStreamId(id)) {
           final raw = session.streamItems[id];
-          return raw == null
-              ? null
-              : AggregatedItem(id: id, serverId: session.serverId, rawData: raw);
+          if (raw == null) return null;
+          final song = AggregatedItem(
+            id: id,
+            serverId: session.serverId,
+            rawData: raw,
+          );
+          return keep == null || keep(song) ? song : null;
         }
         return _getItem(clientForServer, session.serverId, id);
       }),
@@ -989,13 +1073,28 @@ class MediaBrowseService {
     if (items.isEmpty) return null;
 
     final currentId = fromTapped ? startAt : session.currentItemId;
-    final index = items.indexWhere((i) => i.id == currentId);
+    var index = items.indexWhere((i) => i.id == currentId);
+    // Kos TV: the song it was on (or the one tapped) left out: from the
+    // next one that stays, from its start.
+    var startPosition = fromTapped
+        ? Duration.zero
+        : Duration(milliseconds: session.positionMs);
+    if (index < 0 && currentId != null && isKostvStreamId(currentId)) {
+      final from = ids.indexOf(currentId);
+      for (final id in from < 0 ? const <String>[] : ids.skip(from + 1)) {
+        final next = items.indexWhere((i) => i.id == id);
+        if (next >= 0) {
+          index = next;
+          break;
+        }
+      }
+      startPosition = Duration.zero;
+      if (index < 0) index = 0;
+    }
     return PlayRequest(
       items: items,
       startIndex: index < 0 ? 0 : index,
-      startPosition: fromTapped
-          ? Duration.zero
-          : Duration(milliseconds: session.positionMs),
+      startPosition: startPosition,
     );
   }
 

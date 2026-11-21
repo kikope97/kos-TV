@@ -900,6 +900,255 @@ void main() {
       expect(queue.currentIndex, 1);
     });
   });
+
+  // Kos TV: second round of the audit of what plays the songs that aren't
+  // at home.
+  group('a listen told as whose and from where it was', () {
+    late List<KostvStreamListen> reports;
+    late QueueService queue;
+    late KostvStreamPlayback playback;
+    late Object who;
+    late String source;
+    var length = const Duration(seconds: 200);
+
+    void attach(FakeAsync async) {
+      reports = [];
+      who = 'ana';
+      source = 'radio';
+      length = const Duration(seconds: 200);
+      queue = QueueService();
+      final start = DateTime.utc(2026, 11, 21, 10);
+      playback = KostvStreamPlayback(
+        prefetch: (id) async =>
+            StremfinPrefetch(deezerId: id, state: StremfinPrefetchState.ready),
+        report: (listen) async {
+          reports.add(listen);
+          return true;
+        },
+        owner: () => who,
+        now: () => start.add(async.elapsed),
+      );
+      playback.attach(
+        queue: queue,
+        positions: const Stream.empty(),
+        duration: () => length,
+        playing: () => true,
+        source: () => source,
+      );
+    }
+
+    void hear(int from, int to) {
+      for (var s = from; s <= to; s++) {
+        playback.onProgress(Duration(seconds: s));
+      }
+    }
+
+    test('the person changing before it is told: not as the new one', () {
+      fakeAsync((async) {
+        attach(async);
+        final song = _stream('1');
+        queue.setQueue([song, _stream('2')]);
+        playback.started(song);
+        hear(0, 30);
+        playback.stopped(song, const Duration(seconds: 30), false);
+        who = 'leo';
+        queue.clear();
+        async.elapse(const Duration(seconds: 1));
+        expect(reports, isEmpty);
+        playback.detach();
+      });
+    });
+
+    test('a session change tells the stops waiting at once, as theirs', () {
+      fakeAsync((async) {
+        attach(async);
+        final song = _stream('1');
+        queue.setQueue([song, _stream('2')]);
+        playback.started(song);
+        hear(0, 30);
+        playback.stopped(song, const Duration(seconds: 30), false);
+        var settled = false;
+        unawaited(
+          playback.settleForSessionChange().then((_) => settled = true),
+        );
+        async.flushMicrotasks();
+        expect(settled, isTrue);
+        expect(reports.single.endedBy, 'stop');
+        expect(reports.single.played, closeTo(30, 0.01));
+        // The person changes now: nothing more is told.
+        who = 'leo';
+        async.elapse(const Duration(seconds: 1));
+        expect(reports, hasLength(1));
+        playback.detach();
+      });
+    });
+
+    test('the source and shuffle of the queue it started in, not of the one '
+        'put after it', () {
+      fakeAsync((async) {
+        attach(async);
+        final song = _stream('1');
+        queue.setQueue([song, _stream('2')]);
+        playback.started(song);
+        hear(0, 20);
+        // An album is chosen: its source is noted before it plays.
+        source = 'album';
+        playback.stopped(song, const Duration(seconds: 20), false);
+        queue.setQueue([_home('a'), _home('b')]);
+        queue.toggleShuffle();
+        async.elapse(const Duration(seconds: 1));
+        expect(reports.single.source, 'radio');
+        expect(reports.single.shuffle, isFalse);
+        expect(reports.single.endedBy, 'next');
+        playback.detach();
+      });
+    });
+
+    test('a sound shorter than the service said ends as natural at its own '
+        'end', () {
+      fakeAsync((async) {
+        attach(async);
+        // Deezer says 200 s; the file the player got lasts 150 s.
+        length = const Duration(seconds: 150);
+        final song = _stream('1', seconds: 200);
+        final next = _stream('2');
+        queue.setQueue([song, next]);
+        playback.started(song);
+        hear(0, 150);
+        // Without a gap: the manager stops it at the player's length, and
+        // the next one is already playing.
+        queue.next();
+        length = const Duration(seconds: 240);
+        playback.stopped(song, const Duration(seconds: 150), false);
+        async.elapse(const Duration(seconds: 1));
+        expect(reports.single.endedBy, 'natural');
+        expect(reports.single.duration, 150);
+        // Stopped part way it is still not natural.
+        playback.started(next);
+        hear(0, 100);
+        playback.stopped(next, const Duration(seconds: 100), false);
+        queue.clear();
+        async.elapse(const Duration(seconds: 1));
+        expect(reports.last.endedBy, 'stop');
+        playback.detach();
+      });
+    });
+  });
+
+  group('the songs passed by quickly', () {
+    test('the queue wants the one sounding and the next one, no other', () {
+      final queue = QueueService();
+      final playback = KostvStreamPlayback(
+        prefetch: (id) async =>
+            StremfinPrefetch(deezerId: id, state: StremfinPrefetchState.ready),
+        report: (_) async => true,
+      );
+      final a = _stream('1');
+      final b = _stream('2');
+      final c = _stream('3');
+      expect(playback.wanted(c), isTrue, reason: 'no queue: wanted');
+      playback.attach(
+        queue: queue,
+        positions: const Stream.empty(),
+        duration: () => Duration.zero,
+        playing: () => true,
+      );
+      queue.setQueue([a, b, c]);
+      expect(StremfinStreamResolver.wanted, isNotNull);
+      expect(StremfinStreamResolver.wanted!(a), isTrue);
+      expect(playback.wanted(b), isTrue);
+      expect(playback.wanted(c), isFalse);
+      queue.next(manual: true);
+      expect(playback.wanted(a), isFalse);
+      expect(playback.wanted(c), isTrue);
+      playback.detach();
+      expect(StremfinStreamResolver.wanted, isNull);
+    });
+
+    test('one no longer wanted after a moment isn\'t asked for', () async {
+      var listens = 0;
+      final waited = <Duration>[];
+      var want = false;
+      StremfinStreamResolver.wanted = (_) => want;
+      final resolver = StremfinStreamResolver(
+        inner: _Usual(),
+        listen: (id) async {
+          listens++;
+          return _heard(id);
+        },
+        address: (url) => url,
+        settle: (wait) async => waited.add(wait),
+      );
+      await expectLater(
+        resolver.resolve(_stream('1')),
+        throwsA(isA<KostvStreamNotWanted>()),
+      );
+      expect(listens, 0);
+      expect(waited, [StremfinStreamResolver.settleFor]);
+      expect(StremfinStreamResolver.preparing.value, isNull);
+      expect(StremfinStreamResolver.failures, isEmpty);
+      want = true;
+      await resolver.resolve(_stream('1'));
+      expect(listens, 1);
+      // Kept: no wait the next time.
+      await resolver.resolve(_stream('1'));
+      expect(waited, hasLength(2));
+    });
+  });
+
+  group('at home, but the home server doesn\'t give it to the person', () {
+    test(
+      'it doesn\'t sound through the service: as nobody can listen',
+      () async {
+        final usual = _Usual();
+        final resolver = StremfinStreamResolver(
+          inner: usual,
+          listen: (id) async => StremfinListen(
+            deezerId: id,
+            inJellyfin: true,
+            jellyfinId: 'j$id',
+            url: '/api/v1/music/listen?k=$id',
+          ),
+          address: (url) => 'https://requests.example.org$url',
+          homeItem: (_) async => null,
+        );
+        await expectLater(
+          resolver.resolve(_stream('7')),
+          throwsA(
+            isA<KostvStreamException>().having(
+              (e) => e.failure,
+              'failure',
+              KostvStreamFailure.notFound,
+            ),
+          ),
+        );
+        expect(usual.resolved, isEmpty);
+        expect(
+          StremfinStreamResolver.failures['stremfin:7'],
+          KostvStreamFailure.notFound,
+        );
+      },
+    );
+
+    test('the home server not answering: the service\'s sound', () async {
+      final resolver = StremfinStreamResolver(
+        inner: _Usual(),
+        listen: (id) async => StremfinListen(
+          deezerId: id,
+          inJellyfin: true,
+          jellyfinId: 'j$id',
+          url: '/api/v1/music/listen?k=$id',
+        ),
+        address: (url) => 'https://requests.example.org$url',
+        homeItem: (_) async => throw StateError('no network'),
+      );
+      final result = await resolver.resolve(_stream('8'));
+      expect(
+        result.streamUrl,
+        'https://requests.example.org/api/v1/music/listen?k=8',
+      );
+    });
+  });
 }
 
 class _Server extends Fake implements PlayerService {

@@ -1,6 +1,9 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/services/audiobook_resume_service.dart';
+import 'package:moonfin/data/services/kostv_music_plugin.dart';
+import 'package:moonfin/data/services/stremfin/kostv_stream_song.dart';
 import 'package:moonfin/data/services/media_server_client_factory.dart';
 import 'package:moonfin/playback/headless_session_bootstrap.dart';
 import 'package:moonfin/playback/last_playback_session_store.dart';
@@ -225,12 +228,16 @@ MediaBrowseService _service(
   List<Map<String, dynamic>> views = const [],
   Map<String, int> localResume = const {},
   LastPlaybackSession? lastSession,
+  KostvRestoredStreamGate? streamGate,
 }) =>
     MediaBrowseService(
       _FakeClientFactory(_FakeClient(api, views: views)),
       _FakeBootstrap(),
       _FakeResumeService(localResume),
       _FakeSessionStore(lastSession),
+      // Kos TV: every song that isn't at home may sound, unless the test
+      // says otherwise.
+      streamGate: streamGate ?? (_) async => (_) => true,
     );
 
 void main() {
@@ -572,6 +579,128 @@ void main() {
       );
       expect(request!.startIndex, 1);
       expect(request.startPosition, const Duration(seconds: 42));
+    });
+
+    // Kos TV: what the person may hear now, not what they could when the
+    // queue was kept.
+    test('the restored queue keeps only those that may sound now', () async {
+      var asked = 0;
+      final request = await _service(
+        _FakeItemsApi(
+          totalItems: 0,
+          itemsById: const {
+            'h1': {'Id': 'h1', 'Name': 'De casa', 'Type': 'Audio'},
+          },
+        ),
+        lastSession: session,
+        streamGate: (_) async {
+          asked++;
+          return (song) => song.id != 'stremfin:2';
+        },
+      ).resolveLastSession(session);
+      expect(asked, 1);
+      expect(request!.items.map((i) => i.id), ['h1', 'stremfin:3']);
+      // The one it was on is gone: from the next that stays, from its start.
+      expect(request.startIndex, 1);
+      expect(request.startPosition, Duration.zero);
+    });
+
+    test('none left after the one it was on: from the first', () async {
+      final request = await _service(
+        _FakeItemsApi(
+          totalItems: 0,
+          itemsById: const {
+            'h1': {'Id': 'h1', 'Name': 'De casa', 'Type': 'Audio'},
+          },
+        ),
+        lastSession: session,
+        streamGate: (_) async => (_) => false,
+      ).resolveLastSession(session);
+      expect(request!.items.map((i) => i.id), ['h1']);
+      expect(request.startIndex, 0);
+      expect(request.startPosition, Duration.zero);
+    });
+
+    test('a queue of songs at home only asks nothing', () async {
+      var asked = 0;
+      const home = LastPlaybackSession(
+        serverId: 'srv',
+        itemIds: ['h1'],
+        index: 0,
+        positionMs: 1000,
+        title: 'De casa',
+      );
+      final request = await _service(
+        _FakeItemsApi(
+          totalItems: 0,
+          itemsById: const {
+            'h1': {'Id': 'h1', 'Name': 'De casa', 'Type': 'Audio'},
+          },
+        ),
+        lastSession: home,
+        streamGate: (_) async {
+          asked++;
+          return (_) => false;
+        },
+      ).resolveLastSession(home);
+      expect(asked, 0);
+      expect(request!.items.single.id, 'h1');
+      expect(request.startPosition, const Duration(seconds: 1));
+    });
+  });
+
+  group('kostvRestoredStreamKept', () {
+    AggregatedItem song({bool explicit = false}) => kostvStreamItem(
+      deezerId: '7',
+      title: 'Canción',
+      serverId: 'srv',
+      artist: 'Lola',
+      explicit: explicit,
+    );
+    bool kept(
+      AggregatedItem item, {
+      bool catalogAll = true,
+      bool kidsMode = false,
+      bool hideExplicit = false,
+      KostvMusicDislikes dislikes = KostvMusicDislikes.empty,
+    }) => kostvRestoredStreamKept(
+      item,
+      catalogAll: catalogAll,
+      kidsMode: kidsMode,
+      hideExplicit: hideExplicit,
+      dislikes: dislikes,
+    );
+
+    test('with all the music and no limit, every one', () {
+      expect(kept(song()), isTrue);
+      expect(kept(song(explicit: true)), isTrue);
+    });
+
+    test('«Solo la de casa» and kids mode: none', () {
+      expect(kept(song(), catalogAll: false), isFalse);
+      expect(kept(song(), kidsMode: true), isFalse);
+    });
+
+    test('with a limit, not the explicit ones', () {
+      expect(kept(song(), hideExplicit: true), isTrue);
+      expect(kept(song(explicit: true), hideExplicit: true), isFalse);
+    });
+
+    test('not one the person doesn\'t want to hear', () {
+      final dislikes = KostvMusicDislikes(
+        songs: [
+          KostvMusicDisliked(
+            id: kostvStreamId('7'),
+            name: 'Canción',
+            deezerId: '7',
+          ),
+        ],
+      );
+      expect(kept(song(), dislikes: dislikes), isFalse);
+      const byArtist = KostvMusicDislikes(
+        artists: [KostvMusicDisliked(id: 'a1', name: 'Lola', artist: true)],
+      );
+      expect(kept(song(), dislikes: byArtist), isFalse);
     });
   });
 }

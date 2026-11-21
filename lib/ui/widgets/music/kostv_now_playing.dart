@@ -270,7 +270,7 @@ class KostvNowPlaying extends ChangeNotifier {
     }
     final song = item;
     if (song == null || song.type != 'Audio') return;
-    if (state.itemId != null && state.itemId != song.id) return;
+    if (!_startOf(state.itemId, song)) return;
     // Kos TV: one that isn't at home says why, in its own words.
     if (isKostvStream(song)) {
       _streamFailed(song);
@@ -300,8 +300,17 @@ class KostvNowPlaying extends ChangeNotifier {
     if (manager == null || song == null || song.type != 'Audio') return false;
     final state = manager.bringupState;
     if (state.phase != PlaybackBringupPhase.failed) return false;
-    return state.itemId == null || state.itemId == song.id;
+    return _startOf(state.itemId, song);
   }
+
+  /// Kos TV: whether the start the player tells of ([itemId]) is [song]'s:
+  /// its own, or that of the out-of-home song it was before it turned out
+  /// to be at home (the player still names the start by that one).
+  bool _startOf(String? itemId, AggregatedItem song) =>
+      itemId == null ||
+      itemId == song.id ||
+      (isKostvStreamId(itemId) &&
+          StremfinStreamResolver.atHome[itemId]?.id == song.id);
 
   void _tellFailure(AggregatedItem song) {
     final context = appRouter.routerDelegate.navigatorKey.currentContext;

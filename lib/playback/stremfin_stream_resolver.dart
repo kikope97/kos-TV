@@ -29,6 +29,15 @@ class KostvStreamException implements Exception {
   String toString() => 'KostvStreamException(${failure.name}, $cause)';
 }
 
+/// Kos TV: an out-of-home song left before its sound was asked for (the
+/// person went on to another one): the queue no longer needs it.
+class KostvStreamNotWanted implements Exception {
+  const KostvStreamNotWanted();
+
+  @override
+  String toString() => 'KostvStreamNotWanted';
+}
+
 /// Kos TV: an out-of-home song that turned out to be at home, and the home
 /// server's song it is.
 typedef KostvStreamAtHome = ({AggregatedItem stream, AggregatedItem home});
@@ -55,6 +64,7 @@ class StremfinStreamResolver extends MediaStreamResolver
     String? Function()? person,
     @visibleForTesting DateTime Function()? now,
     @visibleForTesting Future<void> Function(Duration wait) pause = _pauseFor,
+    @visibleForTesting Future<void> Function(Duration wait) settle = _pauseFor,
   }) : _inner = inner,
        _listen = listen,
        _address = address,
@@ -62,7 +72,8 @@ class StremfinStreamResolver extends MediaStreamResolver
        _probe = probe,
        _person = person,
        _now = now ?? DateTime.now,
-       _pause = pause;
+       _pause = pause,
+       _settle = settle;
 
   final MediaStreamResolver _inner;
   final Future<StremfinListen> Function(String deezerId) _listen;
@@ -78,6 +89,7 @@ class StremfinStreamResolver extends MediaStreamResolver
   final String? Function()? _person;
   final DateTime Function() _now;
   final Future<void> Function(Duration wait) _pause;
+  final Future<void> Function(Duration wait) _settle;
 
   static Future<void> _pauseFor(Duration wait) => Future.delayed(wait);
 
@@ -124,6 +136,17 @@ class StremfinStreamResolver extends MediaStreamResolver
   /// Kos TV: an address is taken as expired this long before it says.
   static const _margin = Duration(minutes: 2);
 
+  /// Kos TV: whether the queue still needs a song's sound (the one sounding
+  /// or the next), told by the player's queue
+  /// (`KostvStreamPlayback.wanted`); null when nobody tells.
+  static bool Function(AggregatedItem item)? wanted;
+
+  /// Kos TV: how long a song whose sound isn't kept waits before `listen`
+  /// is asked, to see whether it is still wanted: each `listen` counts as a
+  /// listen and the service gets only a couple at a time, so the songs
+  /// passed by quickly (Next pressed again and again) aren't asked for.
+  static const settleFor = Duration(milliseconds: 600);
+
   /// Kos TV: [stream] is [home] on the home server (the service said so):
   /// it plays from there from now on.
   static void noteAtHome(AggregatedItem stream, AggregatedItem home) {
@@ -143,6 +166,7 @@ class StremfinStreamResolver extends MediaStreamResolver
     _cache.clear();
     _gone.clear();
     _keptFor = null;
+    wanted = null;
   }
 
   /// Kos TV: forgets what was kept for someone else than [person].
@@ -214,12 +238,24 @@ class StremfinStreamResolver extends MediaStreamResolver
     if (heard == null) {
       preparing.value = item.id;
       try {
+        final stillWanted = wanted;
+        if (stillWanted != null) {
+          await _settle(settleFor);
+          if (!stillWanted(item)) throw const KostvStreamNotWanted();
+        }
         final listen = await _listenOnce(deezerId);
         if (listen.inJellyfin && listen.jellyfinId != null) {
-          final found = await _home(listen.jellyfinId!);
+          final (:found, :asked) = await _home(listen.jellyfinId!);
           if (found != null) {
             noteAtHome(item, found);
             return await usual(found);
+          }
+          // Kos TV: the home server answered without it: it keeps it from
+          // this person (their parental control, a library they don't
+          // see), so it doesn't sound through the service either. Only
+          // when it couldn't be asked does the service's sound go.
+          if (asked) {
+            throw const KostvStreamException(KostvStreamFailure.notFound);
           }
         }
         final url = listen.url == null ? null : _address(listen.url!);
@@ -315,13 +351,16 @@ class StremfinStreamResolver extends MediaStreamResolver
     }
   }
 
-  Future<AggregatedItem?> _home(String jellyfinId) async {
+  /// The home server's song [jellyfinId] for the person, and whether the
+  /// home server could be asked ([asked] with no [found]: it didn't give
+  /// it).
+  Future<({AggregatedItem? found, bool asked})> _home(String jellyfinId) async {
     final find = _homeItem;
-    if (find == null) return null;
+    if (find == null) return (found: null, asked: false);
     try {
-      return await find(jellyfinId);
+      return (found: await find(jellyfinId), asked: true);
     } catch (_) {
-      return null;
+      return (found: null, asked: false);
     }
   }
 
