@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediaBrowser.Model.Tasks;
 using Microsoft.Extensions.Logging;
+using Moonfin.Server.Helpers;
 using Moonfin.Server.Models;
 
 namespace Moonfin.Server.Services;
@@ -168,15 +169,9 @@ public class CustomRowsSyncTask : IScheduledTask
 
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()
     {
-        yield return new TaskTriggerInfo
-        {
-            Type = TaskTriggerInfo.TriggerStartup
-        };
-
-        yield return new TaskTriggerInfo
-        {
-            Type = TaskTriggerInfo.TriggerDaily,
-            TimeOfDayTicks = TimeSpan.FromHours(4).Ticks
-        };
+        // Kos TV: through TaskTriggers, as the other tasks: TaskTriggerInfo.Type is an enum from
+        // 10.11, so setting it directly only works on 10.10.
+        yield return TaskTriggers.Startup();
+        yield return TaskTriggers.Daily(TimeSpan.FromHours(4));
     }
 }

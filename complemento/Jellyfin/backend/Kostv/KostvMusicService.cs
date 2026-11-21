@@ -1,10 +1,10 @@
 using System.Collections.Concurrent;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Jellyfin.Data.Enums;
+using MediaBrowser.Controller.Dto;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Audio;
 using MediaBrowser.Controller.Library;
@@ -49,6 +49,12 @@ public sealed class KostvMusicService
 
     private static readonly PropertyInfo? OrderByProperty = typeof(InternalItemsQuery).GetProperty(nameof(InternalItemsQuery.OrderBy));
 
+    // Kos TV: the server's similar items from Jellyfin 12 on (see ServerSimilarArtists), bound by name.
+    private static readonly Type? SimilarItemsManagerType = Type.GetType("MediaBrowser.Controller.Library.ISimilarItemsManager, MediaBrowser.Controller");
+    private static readonly MethodInfo? SimilarItemsAsync = SimilarItemsManagerType?
+        .GetMethods()
+        .FirstOrDefault(m => m.Name == "GetSimilarItemsAsync" && m.GetParameters().Length == 7);
+
     // The person's data of a song. It takes the User, whose type changed between server
     // versions, so it is bound by reflection, and compiled once: it is asked for thousands of songs.
     private static readonly Func<IUserDataManager, object, BaseItem, UserItemData?>? GetUserData = BindGetUserData();
@@ -57,6 +63,7 @@ public sealed class KostvMusicService
     private readonly IUserDataManager _userData;
     private readonly KostvMusicStore _store;
     private readonly ILogger<KostvMusicService> _logger;
+    private readonly IServiceProvider? _services;
 
     private readonly ConcurrentDictionary<Guid, SemaphoreSlim> _gates = new();
 
@@ -174,12 +181,14 @@ public sealed class KostvMusicService
         ILibraryManager library,
         IUserDataManager userData,
         KostvMusicStore store,
-        ILogger<KostvMusicService> logger)
+        ILogger<KostvMusicService> logger,
+        IServiceProvider? services = null)
     {
         _library = library;
         _userData = userData;
         _store = store;
         _logger = logger;
+        _services = services;
     }
 
     public KostvMusicStore Store => _store;
@@ -911,14 +920,15 @@ public sealed class KostvMusicService
             try
             {
                 // Not GetArtist, which makes the artist when it isn't there.
-                var artist = _library.GetItemList(new InternalItemsQuery
+                // Kos TV: GetItemsResult, the same on every server version (GetItemList isn't).
+                var artist = _library.GetItemsResult(new InternalItemsQuery
                 {
                     IncludeItemTypes = [BaseItemKind.MusicArtist],
                     Name = name,
                     Recursive = true,
                     Limit = 1,
                     EnableTotalRecordCount = false
-                }).FirstOrDefault();
+                }).Items.FirstOrDefault();
                 if (artist != null)
                 {
                     found[name] = artist;
@@ -938,21 +948,44 @@ public sealed class KostvMusicService
     {
         try
         {
-            return _library.GetItemList(new InternalItemsQuery
-            {
-                IncludeItemTypes = [BaseItemKind.MusicArtist],
-                SimilarTo = artist,
-                ExcludeItemIds = [artist.Id],
-                Recursive = true,
-                Limit = SimilarEach,
-                EnableTotalRecordCount = false
-            }).Where(a => !string.IsNullOrWhiteSpace(a.Name)).ToList();
+            return ServerSimilarArtists(artist).Where(a => !string.IsNullOrWhiteSpace(a.Name)).ToList();
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "kOS TV music: the artists like one could not be read");
             return [];
         }
+    }
+
+    // Kos TV: InternalItemsQuery.SimilarTo is only on 10.10; from 12 the server's similar items
+    // are ISimilarItemsManager's (its local providers only: no library options, so nothing is
+    // asked outside). 10.11 has neither, so it finds none.
+    private IReadOnlyList<BaseItem> ServerSimilarArtists(BaseItem artist)
+    {
+        if (LibraryQueries.SimilarToProperty is { } similarTo)
+        {
+            var query = new InternalItemsQuery
+            {
+                IncludeItemTypes = [BaseItemKind.MusicArtist],
+                ExcludeItemIds = [artist.Id],
+                Recursive = true,
+                Limit = SimilarEach,
+                EnableTotalRecordCount = false
+            };
+            similarTo.SetValue(query, artist);
+            return LibraryQueries.ItemList(_library, query);
+        }
+
+        if (SimilarItemsManagerType == null || SimilarItemsAsync == null ||
+            _services?.GetService(SimilarItemsManagerType) is not { } manager)
+        {
+            return [];
+        }
+
+        var task = (Task)SimilarItemsAsync.Invoke(manager, [artist, Array.Empty<Guid>(), null, new DtoOptions(), SimilarEach, null, CancellationToken.None])!;
+        task.GetAwaiter().GetResult();
+        var found = task.GetType().GetProperty("Result")?.GetValue(task) as IEnumerable<BaseItem> ?? [];
+        return found.Where(a => a is MusicArtist && a.Id != artist.Id).ToList();
     }
 
     /// <summary>
@@ -1021,7 +1054,8 @@ public sealed class KostvMusicService
 
         try
         {
-            return _library.GetItemList(query);
+            // Kos TV: bound by name, so it works on every server version (see LibraryQueries).
+            return LibraryQueries.ItemList(_library, query);
         }
         catch (Exception ex)
         {
@@ -1062,9 +1096,10 @@ public sealed class KostvMusicService
         return Load(user, KostvMusicEngine.Shuffled(ids, userId, day, kind).Take(limit).ToList());
     }
 
-    // Apart, so a server without it fails only here.
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private List<Guid> ItemIds(InternalItemsQuery query) => _library.GetItemIds(query);
+    // Kos TV: bound by name (its return type changed in 10.11); a server without it fails only
+    // here, and the songs are read instead.
+    private List<Guid> ItemIds(InternalItemsQuery query) =>
+        LibraryQueries.ItemIds(_library, query) ?? throw new NotSupportedException("GetItemIds");
 
     // The tuple type of OrderBy changed between server versions, so it is built by reflection.
     private static void Order(InternalItemsQuery query, ItemSortBy sortBy)
