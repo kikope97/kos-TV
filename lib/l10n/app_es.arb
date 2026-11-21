@@ -15872,5 +15872,21 @@
                 "type": "String"
             }
         }
+    },
+    "kostvMusicBecauseTwoE": "Con {first} e {second}",
+    "@kostvMusicBecauseTwoE": {
+        "description": "Kos TV music: under a mix, the two artists that weigh most in it, when the second starts with an «i» sound (Spanish «e» instead of «y»).",
+        "placeholders": {
+            "first": {
+                "type": "String"
+            },
+            "second": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvMusicUndislikeShort": "Quitar “No me gusta”",
+    "@kostvMusicUndislikeShort": {
+        "description": "Kos TV music: an artist page's button when the artist is on the person's «No me gusta» list; short, it goes under an icon on the phone."
     }
 }

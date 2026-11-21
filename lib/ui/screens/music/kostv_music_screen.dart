@@ -33,16 +33,32 @@ import '../../../util/kostv_browser_menu.dart';
 /// Kos TV: who is in a mix, from the artists that weigh most in it
 /// ([names], the plugin's `Because`): «Con X», «Con X y Y» or «Con X, Y y
 /// más». Null without any (a plugin from before them).
+///
+/// Kos TV: in Spanish «e» rather than «y» before a name that starts with
+/// the «i» sound («Con Lola e Isabel»; not «hie»: «y Hielo»).
 String? kostvMusicBecause(AppLocalizations l10n, List<String> names) =>
     switch (names) {
       [] => null,
       [final first] => l10n.kostvMusicBecauseOne(first),
+      [final first, final second] when kostvTakesE(second) =>
+        l10n.kostvMusicBecauseTwoE(first, second),
       [final first, final second] => l10n.kostvMusicBecauseTwo(first, second),
       [final first, final second, ...] => l10n.kostvMusicBecauseMore(
         first,
         second,
       ),
     };
+
+/// Kos TV: whether the Spanish «y» before [word] becomes «e»: it starts
+/// with «i» or «hi» (accented or not), but not with «hie» («y hierro»).
+bool kostvTakesE(String word) {
+  final w = word.trimLeft().toLowerCase();
+  if (w.startsWith('hie')) return false;
+  return w.startsWith('i') ||
+      w.startsWith('í') ||
+      w.startsWith('hi') ||
+      w.startsWith('hí');
+}
 
 /// Kos TV: Music, a page of its own as the music apps open: a big search
 /// at the top (only music: what is at home and, under it, what can be asked
@@ -181,7 +197,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     _lifecycle = AppLifecycleListener(onResume: _checkMomentSlot);
     // Kos TV: what the person doesn't want to hear leaves the rows that
     // play by themselves at once (and comes back with «Deshacer»).
-    KostvMusicDislikesStore.instance.addListener(_refresh);
+    KostvMusicDislikesStore.instance.addListener(_dislikesChanged);
     unawaited(_stremfinReady);
   }
 
@@ -192,6 +208,69 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       _refreshing = null;
       if (mounted) setState(() {});
     });
+  }
+
+  void _dislikesChanged() {
+    _keepMomentFocus();
+    _refresh();
+  }
+
+  /// Kos TV: the moment row's songs as last built, each with its row's
+  /// node, and those nodes, one per song (the mix's own entries).
+  List<({AggregatedItem song, FocusNode node})> _momentRows = const [];
+  final _momentNodes = Map<AggregatedItem, FocusNode>.identity();
+
+  FocusNode _momentNode(AggregatedItem song) => _momentNodes.putIfAbsent(
+    song,
+    () => FocusNode(debugLabel: 'kostvMoment-${song.id}'),
+  );
+
+  /// Kos TV: the nodes of songs no longer in the moment's mix (another one
+  /// came), once their rows are gone.
+  void _pruneMomentNodes() {
+    final all = Set<AggregatedItem>.identity()
+      ..addAll(_moment?.items ?? const []);
+    final gone = [
+      for (final song in _momentNodes.keys)
+        if (!all.contains(song)) song,
+    ];
+    if (gone.isEmpty) return;
+    final nodes = [for (final song in gone) _momentNodes.remove(song)!];
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      for (final node in nodes) {
+        node.dispose();
+      }
+    });
+  }
+
+  /// Kos TV: the moment's song the remote is on (or comes back to, from
+  /// its menu) is about to leave the row («No me gusta», its artist): the
+  /// remote goes to the one taking its place (or the one before it), as in
+  /// «Lo que no quieres oír», before the row goes, so it isn't lost and
+  /// «Deshacer»'s notice gives it back there.
+  void _keepMomentFocus() {
+    final rows = _momentRows;
+    final at = rows.indexWhere(
+      (r) => r.node.hasFocus || r.node.enclosingScope?.focusedChild == r.node,
+    );
+    if (at < 0) return;
+    final shown = Set<AggregatedItem>.identity()
+      ..addAll(_shownMoment?.items ?? const []);
+    if (shown.contains(rows[at].song)) return;
+    // The page's first stop moves on to the new first row by itself.
+    if (!identical(rows[at].node, _momentNodes[rows[at].song])) return;
+    final staying = [
+      for (final (i, r) in rows.indexed)
+        if (shown.contains(r.song)) (i: i, row: r),
+    ];
+    if (staying.isEmpty) return;
+    final next = staying.where((s) => s.i > at).firstOrNull ?? staying.last;
+    // The one that will be first takes the page's first stop with it.
+    final firstStop = rows.first.node;
+    final becomesFirst =
+        identical(next, staying.first) &&
+        !identical(firstStop, _momentNodes[rows.first.song]);
+    (becomesFirst ? firstStop : next.row.node).requestFocus();
   }
 
   Future<void> _reloadFavorites() async {
@@ -207,7 +286,10 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     _refreshing?.cancel();
     _momentTurn?.cancel();
     _lifecycle?.dispose();
-    KostvMusicDislikesStore.instance.removeListener(_refresh);
+    KostvMusicDislikesStore.instance.removeListener(_dislikesChanged);
+    for (final node in _momentNodes.values) {
+      node.dispose();
+    }
     kostvMusicFavoritesChanged.removeListener(_reloadFavorites);
     _listening?.musicRequestsRevision.removeListener(_onMusicRequested);
     kostvReleaseBrowserMenu();
@@ -818,7 +900,14 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         .mix(artistId)
         .catchError((Object _) => <AggregatedItem>[]);
     if (!mounted || songs.isEmpty) return;
-    await playMusicTracks(context, songs, source: KostvMusicSource.radio);
+    // Kos TV: no song of it was picked: it doesn't start with one the
+    // person doesn't want to hear.
+    await playMusicTracks(
+      context,
+      songs,
+      source: KostvMusicSource.radio,
+      picked: false,
+    );
   });
 
   /// Kos TV: a daily mix's menu: play it, next or at the end of the queue.
@@ -842,7 +931,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     // Music sounding (an audiobook's queue isn't one to add songs to).
     final musicPlaying = KostvNowPlaying.instance.item?.type == 'Audio';
     if (choice == 0 || !musicPlaying) {
-      await playMusicTracks(context, mix.items, source: source);
+      await playMusicTracks(context, mix.items, source: source, picked: false);
       return;
     }
     final queue = GetIt.instance<PlaybackManager>().queueService;
@@ -1779,6 +1868,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                     context,
                     mix.items,
                     source: KostvMusicSource.mix(mix.id),
+                    picked: false,
                   ),
                 ),
               ),
@@ -1864,6 +1954,23 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     const perColumn = 4;
     final columns = (songs.length / perColumn).ceil();
     final rowHeight = _songRowHeight(context, KostvMusicSizes.phone);
+    // Kos TV: each song keeps its own row and node (keyed), so one leaving
+    // («No me gusta») hands the remote to its neighbour (see
+    // [_keepMomentFocus]) rather than to nothing.
+    // (A song twice, which the plugin doesn't send, would share them: then
+    // as before, without.)
+    final distinct =
+        (Set<AggregatedItem>.identity()..addAll(songs)).length == songs.length;
+    FocusNode? nodeAt(int i) => i == 0 && firstNode != null
+        ? firstNode
+        : distinct
+        ? _momentNode(songs[i])
+        : null;
+    _momentRows = [
+      if (distinct)
+        for (final (i, song) in songs.indexed) (song: song, node: nodeAt(i)!),
+    ];
+    _pruneMomentNodes();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1892,7 +1999,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                       i++
                     )
                       KostvMusicSongRow(
-                        focusNode: i == 0 ? firstNode : null,
+                        key: distinct ? ObjectKey(songs[i]) : null,
+                        focusNode: nodeAt(i),
                         onKey: i % perColumn == 0 && firstNode != null
                             ? _upToSearch
                             : null,

@@ -36374,6 +36374,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'With {first}, {second} and more'**
   String kostvMusicBecauseMore(String first, String second);
+
+  /// Kos TV music: under a mix, the two artists that weigh most in it, when the second starts with an «i» sound (Spanish «e» instead of «y»).
+  ///
+  /// In en, this message translates to:
+  /// **'With {first} and {second}'**
+  String kostvMusicBecauseTwoE(String first, String second);
+
+  /// Kos TV music: an artist page's button when the artist is on the person's «No me gusta» list; short, it goes under an icon on the phone.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove “Dislike”'**
+  String get kostvMusicUndislikeShort;
 }
 
 class _AppLocalizationsDelegate

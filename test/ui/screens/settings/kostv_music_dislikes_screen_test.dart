@@ -255,7 +255,12 @@ void main() {
       },
     );
 
-    Future<void> openMenu(WidgetTester tester, {required bool dislikes}) async {
+    Future<void> openMenu(
+      WidgetTester tester, {
+      required bool dislikes,
+      AggregatedItem? item,
+      bool readFirst = true,
+    }) async {
       late BuildContext context;
       await show(
         tester,
@@ -267,7 +272,15 @@ void main() {
         ),
         dislikes: dislikes,
       );
-      unawaited(showKostvMusicSongMenu(context, item: song));
+      // As the Music page does on opening.
+      if (readFirst) {
+        await tester.runAsync(
+          () => KostvMusicDislikesStore.instance.load(
+            GetIt.instance<MediaServerClient>(),
+          ),
+        );
+      }
+      unawaited(showKostvMusicSongMenu(context, item: item ?? song));
       await tester.runAsync(pumpEventQueue);
       await tester.pumpAndSettle();
     }
@@ -278,6 +291,53 @@ void main() {
       expect(find.text('No me pongas a Lola Brisa'), findsOneWidget);
       Navigator.of(tester.element(find.text('No me gusta'))).pop();
       await tester.pumpAndSettle();
+    });
+
+    testWidgets('a compilation\'s song: its own artist, not the album\'s', (
+      tester,
+    ) async {
+      await openMenu(
+        tester,
+        dislikes: true,
+        item: AggregatedItem(
+          id: 's6',
+          serverId: '',
+          rawData: const {
+            'Id': 's6',
+            'Name': 'Sol',
+            'Type': 'Audio',
+            'Artists': ['Nube Roja'],
+            'ArtistItems': [
+              {'Id': 'a2', 'Name': 'Nube Roja'},
+            ],
+            'AlbumArtists': [
+              {'Id': 'va', 'Name': 'Various Artists'},
+            ],
+          },
+        ),
+      );
+      expect(find.text('No me pongas a Nube Roja'), findsOneWidget);
+      expect(find.textContaining('Various Artists'), findsNothing);
+      Navigator.of(tester.element(find.text('No me gusta'))).pop();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('opens at once, without waiting for the list, which is read '
+        'meanwhile', (tester) async {
+      await openMenu(tester, dislikes: true, readFirst: false);
+      // Not known yet: the menu is there, without them.
+      expect(find.text('Ir al artista'), findsOneWidget);
+      expect(find.text('No me gusta'), findsNothing);
+      expect(plugin.asked, contains('GET /Moonfin/Kostv/Music/Dislikes'));
+      Navigator.of(tester.element(find.text('Ir al artista'))).pop();
+      await tester.pumpAndSettle();
+      // Read meanwhile: the next time, they are.
+      expect(
+        KostvMusicDislikesStore.instance.supported(
+          GetIt.instance<MediaServerClient>(),
+        ),
+        isTrue,
+      );
     });
 
     testWidgets('a plugin from before it: neither', (tester) async {

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -28,6 +29,9 @@ class _Server implements HttpClientAdapter {
   /// The status everything answers with for now, when the server isn't well.
   int? failing;
 
+  /// Kos TV: holds the list's reads until it completes.
+  Completer<void>? holdRead;
+
   final songs = <Map<String, Object?>>[];
   final artists = <Map<String, Object?>>[];
   final asked = <({String method, String path, Object? body})>[];
@@ -54,7 +58,13 @@ class _Server implements HttpClientAdapter {
     if (!hasRoutes) return ResponseBody.fromString('', 404);
     switch ((options.method, path)) {
       case ('GET', '$base/Dislikes'):
-        return _json({'Songs': songs, 'Artists': artists});
+        // What the list was when asked, answered when [holdRead] lets it.
+        final answer = {
+          'Songs': [...songs],
+          'Artists': [...artists],
+        };
+        if (holdRead case final hold?) await hold.future;
+        return _json(answer);
       case ('POST', '$base/Event'):
         final event = body as Map;
         for (final id in event['ItemIds'] as List) {
@@ -102,8 +112,37 @@ AggregatedItem _song(
     'Name': 'Canción $id',
     'Type': 'Audio',
     'Artists': [artist],
+    'ArtistItems': [
+      {'Id': artistId, 'Name': artist},
+    ],
     'AlbumArtists': [
       {'Id': artistId, 'Name': artist},
+    ],
+  },
+);
+
+/// A compilation's song: by [artist], on an album by «Various Artists».
+AggregatedItem _compilationSong(
+  String id, {
+  bool ownArtists = true,
+  String artistId = 'a1',
+  String artist = 'Lola Brisa',
+}) => AggregatedItem(
+  id: id,
+  serverId: 'https://casa.example',
+  rawData: {
+    'Id': id,
+    'Name': 'Canción $id',
+    'Type': 'Audio',
+    if (ownArtists) ...{
+      'Artists': [artist],
+      'ArtistItems': [
+        {'Id': artistId, 'Name': artist},
+      ],
+    },
+    'AlbumArtist': 'Various Artists',
+    'AlbumArtists': [
+      {'Id': 'va', 'Name': 'Various Artists'},
     ],
   },
 );
@@ -301,6 +340,55 @@ void main() {
       expect(kept.startIndex, 1);
     });
 
+    test('an artist\'s radio, with no song picked, doesn\'t start with one '
+        'out', () {
+      final kept = kostvMusicLeaveOut(list, [
+        _song('s1'),
+        _song('s5', artistId: 'a9'),
+        _song('s6'),
+        _song('s7'),
+      ], keepStart: false);
+      expect(kept.tracks.map((t) => t.id), ['s6', 's7']);
+      expect(kept.startIndex, 0);
+      // From the middle: the first kept from there on.
+      final later = kostvMusicLeaveOut(
+        list,
+        [_song('s4'), _song('s1'), _song('s6')],
+        startIndex: 1,
+        keepStart: false,
+      );
+      expect(later.tracks.map((t) => t.id), ['s4', 's6']);
+      expect(later.startIndex, 1);
+      // All of it out: nothing to play.
+      expect(
+        kostvMusicLeaveOut(list, [_song('s1')], keepStart: false).tracks,
+        isEmpty,
+      );
+    });
+
+    test('a compilation\'s song is by its own artist, not «Various '
+        'Artists»', () {
+      final song = _compilationSong('c1');
+      expect(kostvMusicArtistIds(song), ['a1']);
+      expect(kostvMusicArtistNames(song), ['Lola Brisa', 'Lola Brisa']);
+      expect(kostvMusicSongArtist(song), (id: 'a1', name: 'Lola Brisa'));
+      const various = KostvMusicDislikes(
+        artists: [
+          KostvMusicDisliked(id: 'va', name: 'Various Artists', artist: true),
+        ],
+      );
+      expect(various.songOut(song), isFalse);
+      const lola = KostvMusicDislikes(
+        artists: [KostvMusicDisliked(id: 'a1', name: 'Lola', artist: true)],
+      );
+      expect(lola.songOut(song), isTrue);
+      // One that names no artist of its own is its album's, as for the
+      // plugin.
+      final bare = _compilationSong('c2', ownArtists: false);
+      expect(kostvMusicSongArtist(bare), (id: 'va', name: 'Various Artists'));
+      expect(various.songOut(bare), isTrue);
+    });
+
     test('a mix without them, and without them in «Con …»', () {
       final mixes = list.mixesIn(
         KostvDailyMixes(
@@ -357,6 +445,44 @@ void main() {
       server.failing = 500;
       expect(await store.dislikeSong(client, _song('s1')), isFalse);
       expect(store.of(client).has('s1'), isFalse);
+    });
+
+    test('a read on its way doesn\'t undo a change made meanwhile', () async {
+      final server = _Server()..songs.add({'Id': 's1', 'Name': 'Uno'});
+      final store = KostvMusicDislikesStore(pluginWith(server));
+      await store.load(client);
+      server.holdRead = Completer<void>();
+      final reading = store.refresh(client);
+      // Asked before the change: its answer still has s1 and not s2.
+      await Future<void>.delayed(Duration.zero);
+      await store.remove(client, 's1');
+      await store.dislikeSong(client, _song('s2'));
+      server.holdRead!.complete();
+      await reading;
+      expect(store.of(client).has('s1'), isFalse);
+      expect(store.of(client).has('s2'), isTrue);
+      // And the next load still has the change.
+      server.holdRead = null;
+      await store.load(client);
+      expect(store.of(client).has('s1'), isFalse);
+      expect(store.of(client).has('s2'), isTrue);
+    });
+
+    test('after a failure it waits before asking again', () async {
+      final server = _Server()..failing = 500;
+      final store = KostvMusicDislikesStore(pluginWith(server));
+      await store.load(client);
+      await store.load(client);
+      await store.load(client);
+      int reads() => server.asked
+          .where((a) => a.method == 'GET' && a.path.endsWith('/Dislikes'))
+          .length;
+      expect(reads(), 1);
+      // Asked on purpose (Settings), it is read.
+      server.failing = null;
+      await store.load(client, force: true);
+      expect(reads(), 2);
+      expect(store.supported(client), isTrue);
     });
 
     test('someone else\'s list isn\'t this person\'s', () async {
@@ -450,9 +576,48 @@ void main() {
     expect(kostvMusicBecause(l10n, const []), isNull);
     expect(kostvMusicBecause(l10n, const ['Lola']), 'Con Lola');
     expect(kostvMusicBecause(l10n, const ['Lola', 'Nube']), 'Con Lola y Nube');
+    // «e» before the «i» sound, but not before «hie».
+    expect(
+      kostvMusicBecause(l10n, const ['Lola', 'Isabel']),
+      'Con Lola e Isabel',
+    );
+    expect(
+      kostvMusicBecause(l10n, const ['Lola', 'Hilario']),
+      'Con Lola e Hilario',
+    );
+    expect(kostvMusicBecause(l10n, const ['Lola', 'Ívar']), 'Con Lola e Ívar');
+    expect(
+      kostvMusicBecause(l10n, const ['Lola', 'Hielo Azul']),
+      'Con Lola y Hielo Azul',
+    );
+    expect(
+      kostvMusicBecause(l10n, const ['Isabel', 'Lola']),
+      'Con Isabel y Lola',
+    );
     expect(
       kostvMusicBecause(l10n, const ['Lola', 'Nube', 'Clara']),
       'Con Lola, Nube y más',
+    );
+  });
+
+  testWidgets('in English, «and» whatever the name', (tester) async {
+    late AppLocalizations l10n;
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Builder(
+          builder: (context) {
+            l10n = AppLocalizations.of(context);
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+    expect(
+      kostvMusicBecause(l10n, const ['Lola', 'Isabel']),
+      'With Lola and Isabel',
     );
   });
 }

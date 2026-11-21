@@ -110,8 +110,8 @@ class KostvNowPlaying extends ChangeNotifier {
     _volumeAt = null;
     _persistVolume?.cancel();
     _persistVolume = null;
-    autoplayIds.clear();
-    automaticIds.clear();
+    autoplayItems.clear();
+    automaticItems.clear();
   }
 
   void _changed() {
@@ -131,8 +131,8 @@ class KostvNowPlaying extends ChangeNotifier {
         setSleep(null);
         _sleepAfterSong = false;
         _autoplaySeed = null;
-        autoplayIds.clear();
-        automaticIds.clear();
+        autoplayItems.clear();
+        automaticItems.clear();
       } else if (_sleepAfterSong && before != null && !_personChose()) {
         // «Al acabar la canción»: the next one doesn't go on. One the person
         // chose (skipped to, or another album put on) isn't the song ending:
@@ -469,53 +469,94 @@ class KostvNowPlaying extends ChangeNotifier {
   String? _autoplaySeed;
 
   /// The songs autoplay added to the queue, to show them apart.
-  final autoplayIds = <String>{};
+  ///
+  /// Kos TV: the queue's own entries (by identity, not by id), so a queue
+  /// put on somewhere else (an album's page, the favourites, the library)
+  /// with the same songs doesn't take them as autoplay's.
+  final autoplayItems = Set<AggregatedItem>.identity();
 
   /// Kos TV: the songs of the queue that came by themselves (a radio, a
-  /// mix, the discovery): with [autoplayIds], what «No me pongas a este
-  /// artista» takes out of what is still to play.
-  final automaticIds = <String>{};
+  /// mix, the discovery): with [autoplayItems], what «No me pongas a este
+  /// artista» takes out of what is still to play. By identity as well: the
+  /// queue's entries, which another queue doesn't share.
+  final automaticItems = Set<AggregatedItem>.identity();
+
+  /// Kos TV: whether the queue's [song] came by itself (see
+  /// [automaticItems]).
+  bool cameByItself(AggregatedItem song) =>
+      autoplayItems.contains(song) || automaticItems.contains(song);
 
   /// Kos TV: [tracks] were put on from [source] ([KostvMusicSource]): kept
   /// when they came by themselves; another queue of the person's choosing
   /// isn't.
   void noteQueueSource(String source, List<AggregatedItem> tracks) {
-    automaticIds.clear();
-    if (KostvMusicSource.automatic(source)) {
-      automaticIds.addAll(tracks.map((t) => t.id));
-    }
+    automaticItems.clear();
+    autoplayItems.clear();
+    if (KostvMusicSource.automatic(source)) automaticItems.addAll(tracks);
   }
 
-  /// Kos TV: takes out of what is still to play (after the song sounding)
-  /// the songs [out] says, only those that came by themselves with
-  /// [onlyAutomatic]. Gives how many went.
-  int leaveOutUpcoming(
+  /// Kos TV: takes out of what is still to play (after the song sounding;
+  /// with the whole queue on repeat, before it too) the songs [out] says,
+  /// only those that came by themselves with [onlyAutomatic]. Gives what
+  /// went, for [putBack].
+  KostvLeftOut leaveOutUpcoming(
     bool Function(AggregatedItem song) out, {
     bool onlyAutomatic = false,
   }) {
     final manager = _manager;
-    if (manager == null) return 0;
+    if (manager == null) return const KostvLeftOut._();
     final queue = manager.queueService;
     final items = queue.items;
-    var gone = 0;
-    for (var i = items.length - 1; i > queue.currentIndex; i--) {
+    final current = queue.currentIndex;
+    final sounding = queue.currentItem;
+    // With repeat-all the songs before it come round again.
+    final first = queue.repeatMode == RepeatMode.repeatAll ? 0 : current + 1;
+    final gone = <({int index, AggregatedItem song})>[];
+    for (var i = items.length - 1; i >= first; i--) {
+      if (i == current) continue;
       final song = items[i];
       if (song is! AggregatedItem || !out(song)) continue;
-      if (onlyAutomatic &&
-          !autoplayIds.contains(song.id) &&
-          !automaticIds.contains(song.id)) {
-        continue;
-      }
+      if (onlyAutomatic && !cameByItself(song)) continue;
       queue.removeAt(i);
-      gone++;
+      gone.add((index: i, song: song));
     }
-    return gone;
+    return KostvLeftOut._(gone: gone.reversed.toList(), sounding: sounding);
   }
 
   /// Kos TV: the next song, if [id] is the one sounding («No me gusta» on
-  /// it).
-  void skipIfSounding(String id) {
-    if (item?.id == id) next();
+  /// it): straight to it, not to the song's next chapter first. Gives what
+  /// [putBack] needs to go back to it (null when it wasn't sounding).
+  KostvSkipped? skipIfSounding(String id) {
+    if (item?.id != id) return null;
+    final queue = _manager?.queueService;
+    final skipped = (song: queue?.currentItem, next: queue?.peekNext);
+    noteChosen();
+    unawaited(_manager?.nextInQueue());
+    return skipped;
+  }
+
+  /// Kos TV: «Deshacer» of a «No me gusta»: what [left] took out goes back
+  /// where it was and, if [skipped] (the song that was sounding) was skipped
+  /// and the person is still on the one after it, back to it. Nothing when
+  /// the queue was put on anew since.
+  void putBack(KostvLeftOut left, {KostvSkipped? skipped}) {
+    final manager = _manager;
+    if (manager == null) return;
+    final queue = manager.queueService;
+    bool inQueue(Object? entry) =>
+        entry != null && queue.items.any((e) => identical(e, entry));
+    if (left.sounding != null && !inQueue(left.sounding)) return;
+    for (final (:index, :song) in left.gone) {
+      queue.insertAt(index, song);
+    }
+    final song = skipped?.song;
+    if (song == null || !inQueue(song)) return;
+    final next = skipped!.next;
+    if (next != null && !identical(queue.currentItem, next)) return;
+    final at = queue.items.indexWhere((e) => identical(e, song));
+    if (at < 0) return;
+    noteChosen();
+    unawaited(manager.playFromQueue(at).catchError((_) {}));
   }
 
   /// Near the end of the queue (and with nothing on repeat), similar songs
@@ -567,7 +608,7 @@ class KostvNowPlaying extends ChangeNotifier {
       }
       // Still the same song, and the person didn't change their mind.
       if (added.isNotEmpty && autoplay && item?.id == seed.id) {
-        autoplayIds.addAll(added.map((e) => e.id));
+        autoplayItems.addAll(added);
         queue.addItems(added);
       }
     } catch (_) {
@@ -655,6 +696,25 @@ class KostvCoverColors {
   @override
   int get hashCode => Object.hash(top, bottom, accent);
 }
+
+/// Kos TV: what [KostvNowPlaying.leaveOutUpcoming] took out of the queue,
+/// for «Deshacer» to put it back where it was.
+class KostvLeftOut {
+  const KostvLeftOut._({this.gone = const [], this.sounding});
+
+  /// Each one with its place in the queue as it was, in the queue's order.
+  final List<({int index, AggregatedItem song})> gone;
+
+  /// The queue's entry sounding then: without it in the queue any more,
+  /// it is another queue, and nothing is put back.
+  final Object? sounding;
+
+  int get length => gone.length;
+}
+
+/// Kos TV: the song [KostvNowPlaying.skipIfSounding] skipped and the one it
+/// went on to (the queue's entries), for «Deshacer» to go back to it.
+typedef KostvSkipped = ({Object? song, Object? next});
 
 /// Which page is on top, so the floating player knows when to step aside:
 /// over a player, a dialog or a sheet, and where the mobile bottom bar

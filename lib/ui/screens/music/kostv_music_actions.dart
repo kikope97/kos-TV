@@ -9,6 +9,8 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/repositories/item_mutation_repository.dart';
 import '../../../data/services/kostv_music.dart';
+import '../../../data/services/kostv_music_dislikes.dart'
+    show kostvMusicSongArtist;
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
@@ -325,18 +327,6 @@ String? kostvMusicArtistIdOf(AggregatedItem item) {
   return null;
 }
 
-/// Kos TV: the name of the artist [kostvMusicArtistIdOf] gives.
-String? kostvMusicArtistNameOf(AggregatedItem item) {
-  for (final key in const ['AlbumArtists', 'ArtistItems']) {
-    final list = item.rawData[key];
-    if (list is List && list.isNotEmpty && list.first is Map) {
-      final name = (list.first as Map)['Name']?.toString();
-      if (name != null && name.isNotEmpty) return name;
-    }
-  }
-  return item.albumArtist ?? item.artists.firstOrNull;
-}
-
 enum _SongChoice {
   next,
   last,
@@ -413,17 +403,20 @@ Future<void> _songMenu(
       : (home.artists.isNotEmpty ? home.artists.join(', ') : home.albumArtist);
   final favorite = home?.isFavorite ?? false;
   final artistId = home == null ? null : kostvMusicArtistIdOf(home);
-  // Kos TV: «No me gusta», when the server plugin keeps it (read first if
-  // it wasn't lately).
-  if (home != null) {
-    await kostvMusicDislikesReady(home);
-    if (!context.mounted) return;
-  }
+  // Kos TV: «No me gusta», when the server plugin keeps it. The menu opens
+  // at once with what is known; the list is read meanwhile if it wasn't
+  // lately (for the next time).
+  if (home != null) unawaited(kostvMusicDislikesReady(home));
   final canDislike = home != null && kostvMusicCanDislike(home);
   final disliked = canDislike && kostvMusicDisliked(home.id, home);
+  // Kos TV: the song's own artist, not its album's (a compilation's song
+  // isn't by «Various Artists»), as the server plugin leaves them out.
+  final songArtist = home == null ? null : kostvMusicSongArtist(home);
   final artistToDislike =
-      canDislike && artistId != null && !kostvMusicDisliked(artistId, home)
-      ? kostvMusicArtistNameOf(home)
+      canDislike &&
+          songArtist != null &&
+          !kostvMusicDisliked(songArtist.id, home)
+      ? songArtist
       : null;
   final choice = await showKostvMusicMenu<_SongChoice>(
     context,
@@ -467,7 +460,7 @@ Future<void> _songMenu(
           KostvMenuEntry(
             _SongChoice.dislikeArtist,
             Icons.person_off_outlined,
-            l10n.kostvMusicDislikeArtistNamed(artistToDislike),
+            l10n.kostvMusicDislikeArtistNamed(artistToDislike.name),
           ),
         KostvMenuEntry(
           _SongChoice.playlist,
@@ -565,8 +558,8 @@ Future<void> _songMenu(
     case _SongChoice.dislikeArtist:
       await kostvDislikeArtist(
         context,
-        id: artistId!,
-        name: artistToDislike!,
+        id: artistToDislike!.id,
+        name: artistToDislike.name,
         from: home,
       );
     case _SongChoice.playlist:

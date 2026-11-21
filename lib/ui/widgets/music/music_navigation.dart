@@ -272,11 +272,16 @@ MediaServerClient? _clientOf(AggregatedItem item) {
 /// Kos TV: every Music page starts its music here (or in [playMusicTrack]),
 /// so this is where the server plugin is told where it comes from
 /// ([source], a [KostvMusicSource]), without waiting for it.
+///
+/// Kos TV: [picked] false when the person didn't pick the song at
+/// [startIndex] (an artist's radio, a whole mix): what plays by itself then
+/// doesn't start with one they don't want to hear either.
 Future<void> playMusicTracks(
   BuildContext context,
   List<AggregatedItem> tracks, {
   int startIndex = 0,
   String source = KostvMusicSource.other,
+  bool picked = true,
 }) async {
   if (tracks.isEmpty) return;
   final l10n = AppLocalizations.of(context);
@@ -288,7 +293,14 @@ Future<void> playMusicTracks(
       KostvMusicDislikesStore.instance.of(_clientOf(tracks.first)),
       tracks,
       startIndex: startIndex,
+      keepStart: picked,
     );
+    if (kept.tracks.isEmpty) {
+      // All of it is what they don't want to hear: told, rather than
+      // nothing happening.
+      _sayCantPlay(messenger, l10n);
+      return;
+    }
     tracks = kept.tracks;
     startIndex = kept.startIndex;
   }

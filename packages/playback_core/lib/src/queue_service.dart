@@ -78,6 +78,16 @@ class QueueService {
     _queueChangedController.add(null);
   }
 
+  /// Kos TV: [item] at [index] (clamped to the queue), keeping [currentIndex]
+  /// on the same item: what was taken out put back where it was.
+  void insertAt(int index, dynamic item) {
+    final at = index.clamp(0, _items.length);
+    _items.insert(at, item);
+    _originalOrder.insert(at.clamp(0, _originalOrder.length), item);
+    if (_currentIndex >= 0 && at <= _currentIndex) _currentIndex++;
+    _queueChangedController.add(null);
+  }
+
   void addToQueue(dynamic item) {
     _items.add(item);
     _originalOrder.add(item);

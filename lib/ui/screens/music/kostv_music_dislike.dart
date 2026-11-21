@@ -6,6 +6,8 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
+import '../../../data/services/kostv_music_plugin.dart'
+    show KostvMusicDisliked, KostvMusicDislikes;
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/focus/input_mode_tracker.dart';
@@ -116,13 +118,16 @@ Future<void> kostvDislikeSong(BuildContext context, AggregatedItem song) async {
   final music = KostvNowPlaying.instance;
   final id = song.id;
   final kept = store.dislikeSong(client, song);
-  music.leaveOutUpcoming((other) => other.id == id);
-  music.skipIfSounding(id);
+  final left = music.leaveOutUpcoming((other) => other.id == id);
+  final skipped = music.skipIfSounding(id);
   if (context.mounted) {
     _offerUndo(
       context,
       message: l10n.kostvMusicDislikedSong(song.name),
       undo: () async {
+        // Kos TV: back where it was in the queue, and back to it if it was
+        // the one sounding, as «No me interesa» puts the card back on Home.
+        music.putBack(left, skipped: skipped);
         // Not before the plugin kept it: the undo would land first.
         await kept;
         if (!await store.remove(client, id)) {
@@ -149,16 +154,22 @@ Future<void> kostvDislikeArtist(
   final messenger = ScaffoldMessenger.maybeOf(context);
   final store = KostvMusicDislikesStore.instance;
   final kept = store.dislikeArtist(client, id: id, name: name);
-  final dislikes = store.of(client);
-  KostvNowPlaying.instance.leaveOutUpcoming(
-    dislikes.songOut,
-    onlyAutomatic: true,
+  // Kos TV: only this artist's songs go (and come back with «Deshacer»),
+  // not others the person said no to before.
+  final dislikes = KostvMusicDislikes(
+    artists: [
+      KostvMusicDisliked(id: id.replaceAll('-', ''), name: name, artist: true),
+    ],
   );
+  final music = KostvNowPlaying.instance;
+  final left = music.leaveOutUpcoming(dislikes.songOut, onlyAutomatic: true);
   if (context.mounted) {
     _offerUndo(
       context,
       message: l10n.kostvMusicDislikedArtist(name),
       undo: () async {
+        // Kos TV: their songs back where they were in what is to play.
+        music.putBack(left);
         await kept;
         if (!await store.remove(client, id)) {
           _say(messenger, l10n.kostvMusicDislikeFailed);
