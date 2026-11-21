@@ -9,15 +9,17 @@ using System.Threading.Tasks;
 using MediaBrowser.Controller.Entities;
 using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Entities.TV;
+using MediaBrowser.Controller.Library;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Moonfin.Server.Kostv;
 
 namespace Moonfin.Server.Services;
 
 /// <summary>
-/// Registers "Moonfin Recommends" with Jellyfin 12's similar items pipeline when the host exposes
-/// one. The provider is emitted at runtime rather than declared because the plugin compiles against
+/// Registers the plugin's recommendations with Jellyfin 12's similar items pipeline when the host
+/// exposes one. Kos TV: the dashboard shows it as <see cref="KostvSimilarProviderName.Current"/>. The provider is emitted at runtime rather than declared because the plugin compiles against
 /// Jellyfin.Controller 10.10, where none of those interfaces exist yet.
 /// </summary>
 public class MoonfinSimilarItemsProviderManager : IHostedService
@@ -56,7 +58,20 @@ public class MoonfinSimilarItemsProviderManager : IHostedService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to register Moonfin similar items provider with Jellyfin host.");
+            _logger.LogError(ex, "Failed to register the {ProviderName} similar items provider with Jellyfin host.", KostvSimilarProviderName.Current);
+        }
+
+        // Kos TV: libraries saved under the provider's old name keep its place under the new one.
+        try
+        {
+            if (_serviceProvider.GetService(typeof(ILibraryManager)) is ILibraryManager libraryManager)
+            {
+                KostvSimilarProviderName.RenameInLibraries(libraryManager, _logger);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not rename the similar items provider in the saved libraries.");
         }
 
         return Task.CompletedTask;
@@ -108,8 +123,9 @@ public class MoonfinSimilarItemsProviderManager : IHostedService
         if (existingField?.GetValue(simMgr) is not Array existingArr)
         {
             _logger.LogWarning(
-                "Could not read the existing similar items providers from {ManagerType}, so Moonfin Recommends was not registered. Registering it would have removed Jellyfin's own providers.",
-                simMgr.GetType().FullName);
+                "Could not read the existing similar items providers from {ManagerType}, so {ProviderName} was not registered. Registering it would have removed Jellyfin's own providers.",
+                simMgr.GetType().FullName,
+                KostvSimilarProviderName.Current);
             return;
         }
 
@@ -146,7 +162,8 @@ public class MoonfinSimilarItemsProviderManager : IHostedService
 
         addPartsMethod.Invoke(simMgr, [arr]);
         _logger.LogInformation(
-            "Registered 'Moonfin Recommends' ahead of {ExistingCount} existing similar items providers.",
+            "Registered '{ProviderName}' ahead of {ExistingCount} existing similar items providers.",
+            KostvSimilarProviderName.Current,
             allList.Count - 1);
     }
 
@@ -160,7 +177,7 @@ public class MoonfinSimilarItemsProviderManager : IHostedService
         var metaPluginEnumType = ifacePropType.PropertyType;
         if (!Enum.TryParse(metaPluginEnumType, "LocalSimilarityProvider", out var localSimilarityKind) || localSimilarityKind == null)
         {
-            _logger.LogWarning("{EnumType} has no LocalSimilarityProvider member, so Moonfin Recommends was not registered.", metaPluginEnumType.FullName);
+            _logger.LogWarning("{EnumType} has no LocalSimilarityProvider member, so {ProviderName} was not registered.", metaPluginEnumType.FullName, KostvSimilarProviderName.Current);
             return null;
         }
 
@@ -187,7 +204,8 @@ public class MoonfinSimilarItemsProviderManager : IHostedService
         var propName = typeBuilder.DefineProperty("Name", PropertyAttributes.None, typeof(string), Type.EmptyTypes);
         var getName = typeBuilder.DefineMethod("get_Name", propMethodAttrs, typeof(string), Type.EmptyTypes);
         var ilName = getName.GetILGenerator();
-        ilName.Emit(OpCodes.Ldstr, "Moonfin Recommends");
+        // Kos TV: the name the dashboard lists under each library's similar items providers.
+        ilName.Emit(OpCodes.Ldstr, KostvSimilarProviderName.Current);
         ilName.Emit(OpCodes.Ret);
         propName.SetGetMethod(getName);
         typeBuilder.DefineMethodOverride(getName, ifacePropName.GetGetMethod()!);
@@ -244,7 +262,7 @@ public class MoonfinSimilarItemsProviderManager : IHostedService
         var generatedType = typeBuilder.CreateType();
         if (generatedType == null)
         {
-            _logger.LogWarning("Failed to create dynamic Moonfin similar items provider.");
+            _logger.LogWarning("Failed to create the dynamic {ProviderName} similar items provider.", KostvSimilarProviderName.Current);
             return null;
         }
 
