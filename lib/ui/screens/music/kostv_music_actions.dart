@@ -768,6 +768,15 @@ Future<void> _streamSongMenu(
     known,
     hasAlbum: albumId != null,
   );
+  // Its artist's page: the song's own id or, from a chart (which doesn't
+  // give it), its album's artist when it is the same one.
+  String? fold(String? name) => name?.trim().toLowerCase();
+  final artistDeezerId =
+      info.artistDeezerId ??
+      (albumId != null &&
+              (artistName == null || fold(known?.artist) == fold(artistName))
+          ? KostvStreamAlbums.artistOf(albumId)
+          : null);
   final choice = await showKostvMusicMenu<_StreamChoice>(
     context,
     title: stream.name,
@@ -812,7 +821,7 @@ Future<void> _streamSongMenu(
           Icons.album_rounded,
           l10n.kostvPlayerGoToAlbum,
         ),
-      if (info.artistDeezerId != null)
+      if (artistDeezerId != null)
         KostvMenuEntry(
           _StreamChoice.artist,
           Icons.person_rounded,
@@ -872,7 +881,7 @@ Future<void> _streamSongMenu(
     case _StreamChoice.artist:
       openKostvMusicArtist(
         context,
-        StremfinArtist(deezerId: info.artistDeezerId!, name: artistName ?? ''),
+        StremfinArtist(deezerId: artistDeezerId!, name: artistName ?? ''),
       );
     case _StreamChoice.ask:
       if (askState!.can) {

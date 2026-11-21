@@ -18,6 +18,8 @@ import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_actions.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_widgets.dart';
+import 'package:moonfin/ui/screens/music/kostv_stream_widgets.dart'
+    show kostvStreamAlbumState;
 import 'package:moonfin/ui/widgets/music/kostv_stream_play.dart';
 import 'package:moonfin/util/focus/input_mode_tracker.dart';
 import 'package:moonfin/util/platform_detection.dart';
@@ -372,6 +374,43 @@ void main() {
       expect(find.text('Reproducir a continuación'), findsNothing);
       await close(tester);
     });
+  });
+
+  test('«Pedir álbum» says how its album stands', () async {
+    final l10n = await AppLocalizations.delegate.load(const Locale('es'));
+    expect(
+      kostvStreamAlbumState(
+        l10n,
+        const StremfinAlbum(
+          title: 'Tormenta',
+          deezerId: 'al1',
+          canRequest: true,
+        ),
+        hasAlbum: true,
+      ),
+      (label: 'Pedir álbum', icon: Icons.add_rounded, can: true),
+    );
+    // Not known yet: it can be asked for (the service says if not).
+    expect(kostvStreamAlbumState(l10n, null, hasAlbum: true)?.can, isTrue);
+    final onItsWay = kostvStreamAlbumState(
+      l10n,
+      const StremfinAlbum(
+        title: 'Tormenta',
+        download: StremfinAlbumDownload(phase: 'downloading', percent: 42),
+      ),
+      hasAlbum: true,
+    );
+    expect(onItsWay?.label, 'De camino · 42 %');
+    expect(onItsWay?.can, isFalse);
+    expect(kostvStreamAlbumState(l10n, null, hasAlbum: false), isNull);
+    expect(
+      kostvStreamAlbumState(
+        l10n,
+        const StremfinAlbum(title: 'Tormenta', inJellyfin: true),
+        hasAlbum: true,
+      ),
+      isNull,
+    );
   });
 
   group('the radio and the mixes with «Solo la de casa»', () {

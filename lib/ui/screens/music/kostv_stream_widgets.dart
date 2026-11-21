@@ -28,6 +28,9 @@ class KostvStreamAlbums {
   KostvStreamAlbums._();
 
   static final _known = <String, ({StremfinAlbum album, DateTime at})>{};
+
+  /// Kos TV: the Deezer id of each album's artist, as its page said.
+  static final _artists = <String, String>{};
   static final _asking = <String, Future<StremfinAlbum?>>{};
   static const _keep = Duration(minutes: 5);
 
@@ -38,6 +41,9 @@ class KostvStreamAlbums {
 
   /// What is known of [deezerId] now (null until it is read).
   static StremfinAlbum? known(String deezerId) => _known[deezerId]?.album;
+
+  /// Kos TV: the Deezer id of the album [deezerId]'s artist, once read.
+  static String? artistOf(String deezerId) => _artists[deezerId];
 
   /// [deezerId] read from the service, unless it was a moment ago (or
   /// [fresh]).
@@ -52,6 +58,8 @@ class KostvStreamAlbums {
         if (service == null) return null;
         final detail = await service.musicAlbum(deezerId);
         _known[deezerId] = (album: detail.album, at: DateTime.now());
+        final artist = detail.artistDeezerId;
+        if (artist != null && artist.isNotEmpty) _artists[deezerId] = artist;
         return detail.album;
       } catch (_) {
         return kept?.album;
@@ -64,6 +72,7 @@ class KostvStreamAlbums {
   @visibleForTesting
   static void debugReset() {
     _known.clear();
+    _artists.clear();
     _asking.clear();
   }
 }
