@@ -3747,7 +3747,10 @@ class _ContentRowsState extends State<_ContentRows>
   /// still reads true here.
   void noteLeavingHome() {
     _rowIdsWhenLeft = _shownRowIds;
-    _returnFocusToMediaBar = _mediaBarFocusNode.hasFocus;
+    // Leaving from the top navbar returns to the media bar, like pressing
+    // down from it does.
+    _returnFocusToMediaBar =
+        _mediaBarFocusNode.hasFocus || TopToolbar.isFocusedNotifier.value;
     _returnScrollRowId = null;
     _returnScrollRowShift = null;
     // The media bar return path scrolls itself back to the top.
