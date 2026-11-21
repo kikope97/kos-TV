@@ -146,6 +146,39 @@ public class KostvMusicController : ControllerBase
     }
 
     /// <summary>
+    /// Kos TV: for the settings page, the engines compared, by person: how many days, from and to
+    /// which, and how many of each engine's first songs were heard whole (<c>compare.jsonl</c>).
+    /// </summary>
+    [HttpGet("Compare")]
+    [Authorize(Policy = "RequiresElevation")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult GetComparisons()
+    {
+        var people = new List<object>();
+        foreach (var user in UserReflection.AllUsers(HttpContext.RequestServices) ?? Array.Empty<object>())
+        {
+            var type = user.GetType();
+            if (type.GetProperty("Id")?.GetValue(user) is not Guid id)
+            {
+                continue;
+            }
+
+            var sum = KostvMusicStore.Sum(Store.Comparisons(id));
+            people.Add(new
+            {
+                Name = type.GetProperty("Username")?.GetValue(user) as string ?? id.ToString("N"),
+                sum.Days,
+                sum.From,
+                sum.To,
+                sum.HitsOld,
+                sum.HitsNew
+            });
+        }
+
+        return Ok(new { People = people });
+    }
+
+    /// <summary>
     /// Where the songs the caller is about to play come from
     /// (<c>{ "Source": "mix:daily-2", "ItemIds": [...] }</c>), noted with their listens for 6 hours.
     /// </summary>
@@ -425,6 +458,7 @@ public class KostvMusicController : ControllerBase
     [HttpDelete("Dislikes")]
     [Authorize]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
     public ActionResult ClearDislikes()
     {
         if (Caller() is not { } caller)
@@ -432,8 +466,10 @@ public class KostvMusicController : ControllerBase
             return NotSignedIn();
         }
 
-        _music.ClearDislikes(caller.Id);
-        return NoContent();
+        // Kos TV: not stored empty, the list stays as it was: a 500, as for taking one off.
+        return _music.ClearDislikes(caller.Id)
+            ? NoContent()
+            : StatusCode(StatusCodes.Status500InternalServerError, new { Error = "The dislikes could not be emptied." });
     }
 
     /// <summary>The most songs (or artists) one event may name.</summary>
@@ -575,7 +611,8 @@ public class KostvMusicController : ControllerBase
     /// Kos TV: a song not at home heard through Stremfin, noted as a listen of
     /// <c>stremfin:&lt;DeezerId&gt;</c> with its artist, genre and album by name, how it ended by the
     /// same rule as those at home, and linked to the listen before; only with Learn on. Not as said,
-    /// a <c>400</c>.
+    /// a <c>400</c>. Kos TV: one without an artist counts all the same (as a listen, in the session
+    /// and for the time of day), only not for the taste by artist.
     /// </summary>
     private ActionResult StreamListen(Guid userId, JsonElement body)
     {
@@ -584,7 +621,7 @@ public class KostvMusicController : ControllerBase
         var shuffleSaid = Property(body, "Shuffle");
         if (!KostvMusicEvent.IsDeezerId(deezerId) ||
             !EventText(body, "Title", MaxEventNameLength, out var title, cut: true) || title == null ||
-            !EventText(body, "Artist", MaxEventNameLength, out var artist, cut: true) || artist == null ||
+            !EventText(body, "Artist", MaxEventNameLength, out var artist, cut: true) ||
             !EventText(body, "Album", MaxEventNameLength, out var album, cut: true) ||
             !EventText(body, "Genre", MaxEventNameLength, out var genre) ||
             !EventText(body, "Source", MaxEventNameLength, out var source) ||
@@ -593,7 +630,7 @@ public class KostvMusicController : ControllerBase
             endedBy == null || !EndedByValues.Contains(endedBy) ||
             shuffleSaid is { ValueKind: not (JsonValueKind.True or JsonValueKind.False or JsonValueKind.Null) })
         {
-            return BadRequest(new { Error = $"A stream_listen has a DeezerId (digits, up to {MaxDeezerIdLength}), a Title and an Artist (and may have an Album, a Genre and a Source), text (a Genre and a Source of up to {MaxEventNameLength} characters; a longer Title, Artist or Album is cut to {MaxEventNameLength}); Played (and Duration) in seconds, 0 to {MaxStreamSeconds}; EndedBy natural, next, stop, closed or error; and Shuffle true or false." });
+            return BadRequest(new { Error = $"A stream_listen has a DeezerId (digits, up to {MaxDeezerIdLength}), a Title (and may have an Artist, an Album, a Genre and a Source), text (a Genre and a Source of up to {MaxEventNameLength} characters; a longer Title, Artist or Album is cut to {MaxEventNameLength}); Played (and Duration) in seconds, 0 to {MaxStreamSeconds}; EndedBy natural, next, stop, closed or error; and Shuffle true or false." });
         }
 
         // With Learn off, nothing is noted, nor linked to what comes after.
@@ -619,7 +656,7 @@ public class KostvMusicController : ControllerBase
             Type = KostvMusicEvent.ListenType,
             Item = KostvMusicEvent.StreamedItem(deezerId!),
             Title = title,
-            Artists = [artist],
+            Artists = artist != null ? [artist] : null,
             Genres = genre != null ? [genre] : null,
             AlbumName = album,
             Played = (int)Math.Round(heard),

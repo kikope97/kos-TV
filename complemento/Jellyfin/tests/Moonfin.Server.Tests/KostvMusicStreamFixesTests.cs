@@ -309,11 +309,22 @@ public sealed partial class KostvMusicTests
         Assert.IsType<NoContentResult>(controller.AddEvent(Body(new { Type = "dislike", ItemIds = new[] { songs[0].Id.ToString(), hidden.Id.ToString() } })));
         var list = Json(controller.GetDislikes());
         Assert.Equal([songs[0].Id], list.GetProperty("Songs").EnumerateArray().Select(s => s.GetProperty("Id").GetGuid()));
-        // An artist, as ever.
+        // Kos TV: an artist they may not see, the same: let go of, a 204; one they see, kept.
         var artist = library.Items.OfType<MusicArtist>().First();
         service.Sees = (_, _) => false;
         Assert.IsType<NoContentResult>(controller.AddEvent(Body(new { Type = "dislike", ItemIds = new[] { artist.Id.ToString() }, Kind = "artist" })));
+        Assert.Equal(0, Json(controller.GetDislikes()).GetProperty("Artists").GetArrayLength());
+        service.Sees = (_, _) => true;
+        Assert.IsType<NoContentResult>(controller.AddEvent(Body(new { Type = "dislike", ItemIds = new[] { artist.Id.ToString() }, Kind = "artist" })));
         Assert.Equal(1, Json(controller.GetDislikes()).GetProperty("Artists").GetArrayLength());
+        // Kept while it could be seen, and no longer: the name kept, not the one at home now.
+        var artistName = artist.Name;
+        artist.Name = "Artista renombrado";
+        service.Sees = (_, _) => false;
+        Assert.Equal(artistName, Json(controller.GetDislikes()).GetProperty("Artists")[0].GetProperty("Name").GetString());
+        service.Sees = (_, _) => true;
+        Assert.Equal("Artista renombrado", Json(controller.GetDislikes()).GetProperty("Artists")[0].GetProperty("Name").GetString());
+        artist.Name = artistName;
 
         // One kept while it could be seen, and no longer: the name kept, not the one at home now.
         service.Sees = (_, _) => true;

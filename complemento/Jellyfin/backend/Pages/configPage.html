@@ -2117,7 +2117,13 @@
                                 escucha cada uno. Con cualquiera de los tres, las mezclas no repiten artista ni disco seguidos ni lo de los
                                 tres días anteriores, y nunca llevan lo que alguien marcó con «No me gusta». El que no se usa se calcula
                                 igualmente para comparar al día siguiente cuál habría acertado más.
+                                Si lo cambias, se nota desde el día siguiente (a las 5:00, hora de casa): la música de hoy ya está hecha
+                                y no cambia a media jornada.
                             </div>
+                            <button is="emby-button" type="button" id="KostvMusicCompare" class="raised" style="margin-top:.6em">
+                                <span>Ver qué cálculo acierta más</span>
+                            </button>
+                            <div id="KostvMusicCompareResult" class="fieldDescription" style="margin-top:.8em;white-space:pre-wrap"></div>
                         </div>
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused">Inicio con recomendaciones</label>
@@ -11514,6 +11520,33 @@
                     // kOS TV: which engine scores the music.
                     var kostvEngine = (config.KostvMusicEngine || 'actual').toLowerCase();
                     document.querySelector('#KostvMusicEngine').value = ['actual', 'nuevo', 'alterno'].indexOf(kostvEngine) >= 0 ? kostvEngine : 'actual';
+                    // kOS TV: how often each engine's first songs were heard whole, summed up by person.
+                    var kostvCompare = document.querySelector('#KostvMusicCompare');
+                    if (kostvCompare && !kostvCompare.dataset.ready) {
+                        kostvCompare.dataset.ready = '1';
+                        kostvCompare.addEventListener('click', function() {
+                            var out = document.querySelector('#KostvMusicCompareResult');
+                            out.textContent = 'Leyendo…';
+                            ApiClient.ajax({ type: 'GET', url: ApiClient.getUrl('Moonfin/Kostv/Music/Compare'), dataType: 'json' }).then(function(data) {
+                                var lines = (data.People || []).map(function(person) {
+                                    if (!person.Days) {
+                                        return person.Name + ': aún no hay días comparados';
+                                    }
+                                    var winner = person.HitsNew > person.HitsOld ? 'acierta más «Lo nuevo»'
+                                        : person.HitsOld > person.HitsNew ? 'acierta más «Como hasta ahora»' : 'empatan';
+                                    return person.Name + ': ' + person.Days + (person.Days === 1 ? ' día' : ' días') +
+                                        ' (del ' + String(person.From).split('-').reverse().join('/') + ' al ' + String(person.To).split('-').reverse().join('/') + '), ' + winner +
+                                        '\n   · Como hasta ahora: ' + person.HitsOld + ' oídas enteras' +
+                                        '\n   · Lo nuevo: ' + person.HitsNew + ' oídas enteras';
+                                });
+                                out.textContent = lines.length
+                                    ? 'De las 25 primeras canciones de las mezclas de cada cálculo, cuántas se oyeron enteras ese día.\n\n' + lines.join('\n\n')
+                                    : 'No hay personas en el servidor.';
+                            }, function() {
+                                out.textContent = 'No se ha podido leer. Mira el registro del servidor.';
+                            });
+                        });
+                    }
                     // kOS TV: how full each person's home page comes out.
                     var kostvHomeCheck = document.querySelector('#KostvHomeCheck');
                     if (kostvHomeCheck && !kostvHomeCheck.dataset.ready) {

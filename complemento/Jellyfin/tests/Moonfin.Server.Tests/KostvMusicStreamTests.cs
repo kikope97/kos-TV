@@ -194,7 +194,6 @@ public sealed partial class KostvMusicTests
             new { Type = "stream_listen", DeezerId = new string('1', KostvMusicController.MaxDeezerIdLength + 1), Title = "T", Artist = "A", Played = 10, EndedBy = "next" },
             new { Type = "stream_listen", DeezerId = "1", Artist = "A", Played = 10, EndedBy = "next" },
             new { Type = "stream_listen", DeezerId = "1", Title = "  ", Artist = "A", Played = 10, EndedBy = "next" },
-            new { Type = "stream_listen", DeezerId = "1", Title = "T", Played = 10, EndedBy = "next" },
             new { Type = "stream_listen", DeezerId = "1", Title = "T", Artist = 5, Played = 10, EndedBy = "next" },
             new { Type = "stream_listen", DeezerId = "1", Title = "T", Artist = "A", Genre = name, Played = 10, EndedBy = "next" },
             new { Type = "stream_listen", DeezerId = "1", Title = "T", Artist = "A", Genre = 3, Played = 10, EndedBy = "next" },
@@ -222,7 +221,16 @@ public sealed partial class KostvMusicTests
         var longest = new string('a', KostvMusicController.MaxEventNameLength);
         Assert.IsType<NoContentResult>(controller.AddEvent(Body(new { Type = "stream_listen", DeezerId = new string('9', KostvMusicController.MaxDeezerIdLength), Title = longest, Artist = longest, Album = longest, Genre = longest, Played = 0, Duration = KostvMusicController.MaxStreamSeconds, EndedBy = "ERROR", Shuffle = (bool?)null })));
         Assert.IsType<NoContentResult>(controller.AddEvent(Body(new { Type = "Stream_Listen", DeezerId = " 1 ", Title = "T", Artist = "A", Played = KostvMusicController.MaxStreamSeconds, EndedBy = "stop" })));
-        var events = store.Read(userId);
+        // Kos TV: without an artist (or with it null) it counts all the same, only without one.
+        _now = _now.AddMinutes(10);
+        Assert.IsType<NoContentResult>(controller.AddEvent(Body(new { Type = "stream_listen", DeezerId = "2", Title = "Sin artista", Played = 200, EndedBy = "natural" })));
+        _now = _now.AddMinutes(10);
+        Assert.IsType<NoContentResult>(controller.AddEvent(Body(new { Type = "stream_listen", DeezerId = "3", Title = "Sin artista", Artist = (string?)null, Played = 200, EndedBy = "natural" })));
+        var lone = store.Read(userId).Where(e => e.Item is "stremfin:2" or "stremfin:3").ToList();
+        Assert.Equal(2, lone.Count);
+        Assert.All(lone, e => Assert.Null(e.Artists));
+        Assert.All(lone, e => Assert.Equal(KostvListenOutcome.Completed, e.Outcome));
+        var events = store.Read(userId).Where(e => e.Item is not ("stremfin:2" or "stremfin:3")).ToList();
         Assert.Equal(2, events.Count);
         var plain = events.Single(e => e.Item == "stremfin:1");
         Assert.Equal((KostvListenEnd.Stop, (string?)null, (int?)null), (plain.EndedBy, plain.AlbumName, plain.Duration));
@@ -392,7 +400,10 @@ public sealed partial class KostvMusicTests
         Assert.Equal("Fuera de Casa", artists[^1].GetProperty("Name").GetString());
         Assert.Equal(JsonValueKind.Null, artists[^1].GetProperty("Id").ValueKind);
         Assert.Equal("Fuera de Casa", taste.GetProperty("Recent").EnumerateArray().Last().GetProperty("Name").GetString());
-        Assert.Equal("Indie", taste.GetProperty("Genres")[0].GetProperty("Name").GetString());
+        // Kos TV: their genre too, but after those of the songs at home (named as at home).
+        var genres = taste.GetProperty("Genres").EnumerateArray().Select(g => g.GetProperty("Name").GetString()).ToList();
+        Assert.Equal("Indie", genres[^1]);
+        Assert.All(genres.SkipLast(1), g => Assert.StartsWith("Género ", g));
 
         // «Descubrimiento semanal» asks for songs like theirs, with either engine.
         Assert.Contains("Fuera de Casa", await service.SeedsAsync(userId, user));

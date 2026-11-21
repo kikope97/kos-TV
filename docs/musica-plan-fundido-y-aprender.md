@@ -238,7 +238,12 @@ se puso cada canción, sin fechas, y los ♥).
   cada 5 minutos, en la ronda diaria y al parar el servidor (no con cada
   escucha), y sin las canciones que solo se enseñaron hace más de 12 semanas.
 - Recálculo completo una vez al día, al empezar el día de música (5:00 en casa),
-  y al cambiar un ♥ o un «No me gusta» se rehace la música del día.
+  y al cambiar un «No me gusta» se rehace la música del día. Un ♥ cuenta desde
+  el día siguiente (se apunta al momento, pero no rehace las mezclas): así el
+  «Mix diario» no cambia a media jornada ni se vuelve a leer la biblioteca con
+  cada ♥. El recálculo diario solo lee el mes en curso: lo de los meses
+  anteriores se suma una vez y se guarda en memoria (tras reiniciar el
+  servidor, la primera vuelta lo lee todo).
 - Ruta nueva `GET /Moonfin/Kostv/Music/Taste`: artistas y géneros principales
   (con su id de Jellyfin, el de Deezer si se conoce y el motivo), para que la
   app pida «Para ti».
@@ -410,4 +415,7 @@ Las reglas de variedad, de no repetirse y el «No me gusta» valen en los tres
 modos; lo que cambia es la puntuación. En modo `actual` el nuevo se calcula
 igualmente «en sombra» y se apunta al día siguiente cuál habría acertado más
 (`compare.jsonl` por persona: día, aciertos en las 25 primeras de cada motor
-frente a lo que se escuchó entero), para el panel del bloque 5.
+frente a lo que se escuchó entero), para el panel del bloque 5. Un cambio de
+modo se nota desde el día siguiente (lo del día ya está hecho). En la página
+del complemento, «Ver qué cálculo acierta más» suma esas comparaciones por
+persona (`GET Music/Compare`, solo administradores).

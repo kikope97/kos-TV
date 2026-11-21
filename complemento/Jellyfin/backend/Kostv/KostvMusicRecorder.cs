@@ -297,7 +297,6 @@ public sealed class KostvMusicRecorder : IHostedService
     private readonly ILogger<KostvMusicRecorder> _logger;
     private readonly IServiceProvider? _services;
     private readonly KostvPlaybackFailures? _failures;
-    private readonly KostvMusicService? _music;
     private readonly CancellationTokenSource _stopping = new();
 
     // The listen stopped short on each session, held for the next song's start (see HoldFor).
@@ -387,7 +386,9 @@ public sealed class KostvMusicRecorder : IHostedService
         _logger = logger;
         _services = services;
         _failures = failures;
-        _music = music;
+        // Kos TV: no longer needed (a heart counts from the next music day); still taken, as
+        // the server and the tests give it.
+        _ = music;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -1191,10 +1192,11 @@ public sealed class KostvMusicRecorder : IHostedService
                 return;
             }
 
+            // Kos TV: a heart counts from the next music day (the server's hearts are read then,
+            // and with Learn on it is noted), not by making the whole day's music again now: that
+            // read the library afresh on each heart and changed the daily mixes halfway through the day.
             if (!_store.Learns(e.UserId))
             {
-                // Not noted, but the server's hearts count all the same: the day's music made again.
-                _music?.Forget(e.UserId);
                 return;
             }
 
@@ -1218,8 +1220,6 @@ public sealed class KostvMusicRecorder : IHostedService
                 }
 
                 _store.Append(userId, entry);
-                // A heart counts the same day: the day's music is made again with it.
-                _music?.Forget(userId);
             });
         }
         catch (Exception ex)
