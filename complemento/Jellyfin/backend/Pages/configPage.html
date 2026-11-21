@@ -2104,6 +2104,22 @@
                             <div class="fieldDescription" id="KostvMusicTimeZoneStatus" style="display:none;"></div>
                         </div>
                         <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="KostvMusicEngine">Cómo se puntúa la música</label>
+                            <select is="emby-select" id="KostvMusicEngine">
+                                <option value="actual">Como hasta ahora</option>
+                                <option value="nuevo">Lo nuevo: aprende de todo lo que hace cada persona</option>
+                                <option value="alterno">Un día cada uno, para comparar</option>
+                            </select>
+                            <div class="fieldDescription">
+                                Con qué cálculo se hacen el «Mix diario», la Mezcla del momento y las semillas del «Descubrimiento semanal».
+                                «Lo nuevo» usa todo lo que se apunta de cada persona (si la oyó entera, si la saltó y desde dónde la puso,
+                                los ♥, las listas y las peticiones) y pasa poco a poco de lo que sabe Jellyfin a lo aprendido según lo que
+                                escucha cada uno. Con cualquiera de los tres, las mezclas no repiten artista ni disco seguidos ni lo de los
+                                tres días anteriores, y nunca llevan lo que alguien marcó con «No me gusta». El que no se usa se calcula
+                                igualmente para comparar al día siguiente cuál habría acertado más.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused">Inicio con recomendaciones</label>
                             <div class="fieldDescription">
                                 El Inicio de las apps de kOS TV se monta para cada persona con lo que ha visto: «Porque viste…»,
@@ -11495,6 +11511,9 @@
                         kostvZoneInput.addEventListener('input', kostvShowTimeZoneStatus);
                     }
                     kostvShowTimeZoneStatus();
+                    // kOS TV: which engine scores the music.
+                    var kostvEngine = (config.KostvMusicEngine || 'actual').toLowerCase();
+                    document.querySelector('#KostvMusicEngine').value = ['actual', 'nuevo', 'alterno'].indexOf(kostvEngine) >= 0 ? kostvEngine : 'actual';
                     // kOS TV: how full each person's home page comes out.
                     var kostvHomeCheck = document.querySelector('#KostvHomeCheck');
                     if (kostvHomeCheck && !kostvHomeCheck.dataset.ready) {
@@ -12529,6 +12548,7 @@
                         config.PublicServerUrl = document.querySelector('#PublicServerUrl').value || null;
                         config.KostvRequestsUrl = (document.querySelector('#KostvRequestsUrl').value || '').trim() || null;
                         config.KostvMusicTimeZone = (document.querySelector('#KostvMusicTimeZone').value || '').trim() || 'Europe/Madrid';
+                        config.KostvMusicEngine = document.querySelector('#KostvMusicEngine').value || 'actual';
                         config.CalendarAdminsOnly = document.querySelector('#CalendarAdminsOnly').value === 'true';
                         config.CalendarDaysBack = wholeNumberIn(document.querySelector('#CalendarDaysBack').value, 0, 365, 14);
                         config.CalendarDaysAhead = wholeNumberIn(document.querySelector('#CalendarDaysAhead').value, 0, 730, 90);

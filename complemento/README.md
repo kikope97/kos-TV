@@ -151,6 +151,28 @@ inteligente, ver juntos, avisos, PIN de perfiles…
     que se enseñó (`shown`), la primera vez cada día de música que se piden: `mixes` (id,
     género y canciones de cada mix), `moment` (franja y canciones, una por franja) y
     `discovery` (semana e ids de Deezer de la lista guardada, una vez por semana). Solo ids.
+  - **«No me gusta» y el gusto aprendido:** el «No me gusta» de canciones y artistas va en
+    `dislikes.json` de cada persona (con nombre, artista y disco para la lista de la app; hasta
+    2000 de cada), aparte del historial: vale con «Aprender» apagado y no se borra al borrar las
+    escuchas (`GET /Moonfin/Kostv/Music/Dislikes`, `DELETE …/Dislikes/{itemId}` y `DELETE
+    …/Dislikes`). Lo que tiene «No me gusta» no sale en los mixes, la mezcla del momento, las
+    semillas ni el gusto (se quita al servir lo del día, que además se vuelve a calcular), y cada
+    canción con «No me gusta» resta a su artista (tres, mucho). El gusto de cada persona se resume
+    en `taste.json`, que se pone al día al apuntar cada línea y se calcula entero una vez al día
+    (y al faltarle algo), en vez de leer los 24 meses: con dos medidas por canción (la mitad cada
+    90 y cada 14 días), los pesos del plan (`docs/musica-plan-fundido-y-aprender.md`, 3.2) y la
+    mezcla con lo que sabe Jellyfin según cuántas escuchas hay. `GET /Moonfin/Kostv/Music/Taste`
+    lo da a la app (`Learned`, `Artists`, `Recent` y `Genres`). Los mixes y la mezcla del momento
+    siguen las reglas de variedad (nunca el mismo artista a menos de tres canciones, como mucho 3
+    por artista cada 25, nunca dos del mismo disco seguidas; si con lo que hay no cabe nada más,
+    ceden primero las 3 cada 25 y luego la distancia, nunca el seguido), 3 de cada 4 conocidas
+    (con algunas «olvidadas») y no repiten lo de los 3 días anteriores ni lo oído en 24 horas; y
+    llevan `Because`, sus tres artistas principales.
+  - **Cómo se puntúa:** el ajuste «Cómo se puntúa la música» de la pestaña «Direcciones»
+    (`KostvMusicEngine`): `actual` (por defecto), `nuevo` o `alterno` (un día cada uno). El que no
+    se usa se calcula igual (`shadow.json`) y al día siguiente se apunta en `compare.jsonl` cuántas
+    de sus 25 primeras se oyeron enteras, para el panel de más adelante. Los dos se borran con las
+    escuchas, y `compare.jsonl` guarda 24 meses como ellas.
   - **La hora de casa:** el ajuste «Zona horaria de casa» de la pestaña «Direcciones»
     (`KostvMusicTimeZone`, un nombre como `Europe/Madrid`, que es el de por defecto). Con él
     van las franjas del día, el «Mix diario», que cambia a las 5:00, y la semana del
@@ -164,9 +186,9 @@ inteligente, ver juntos, avisos, PIN de perfiles…
     /Moonfin/Kostv/Music/Event` (lo que hace la persona y el servidor no ve, apuntado con la
     fecha: `{ "Type": "playlist_add", "ItemIds": […] }` de 1 a 500 ids, `{ "Type": "request",
     "Album", "Artist", "DeezerAlbumId" }` todos opcionales, de hasta 200 caracteres y el id de
-    hasta 32, o `{ "Type": "dislike", "ItemIds": […], "Kind": "artist" | "song" }`, para más
-    adelante; con «Aprender» apagado no se apunta; `204`, y `400` con un tipo desconocido o un
-    cuerpo que no es así); `GET
+    hasta 32; con «Aprender» apagado no se apunta; o `{ "Type": "dislike", "ItemIds": […],
+    "Kind": "song" | "artist" }`, que va aparte, ver abajo; `204`, y `400` con un tipo desconocido
+    o un cuerpo que no es así); `GET
     /Moonfin/Kostv/Music/Mixes` (`{ "Day", "Mixes": [ { "Id": "daily-1", "Genre", "Artists",
     "Items" } ] }`: hasta 4 «Mix diario» de unas 50 canciones, uno por cada género principal de
     la persona, mitad de lo que escucha y no salta y mitad de esos artistas sin oír y de

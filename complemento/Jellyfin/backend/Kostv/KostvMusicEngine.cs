@@ -9,13 +9,15 @@ namespace Moonfin.Server.Kostv;
 /// <param name="PlayCount">How many times the person played it, as the server counts.</param>
 /// <param name="LastPlayed">When the person last played it, as the server says.</param>
 /// <param name="Favorite">Whether the person has a heart on it.</param>
+/// <param name="Album">Its album, when known (two of one album don't go one after the other).</param>
 public sealed record KostvMusicTrack(
     Guid Id,
     IReadOnlyList<string> Artists,
     IReadOnlyList<string> Genres,
     int PlayCount = 0,
     DateTime? LastPlayed = null,
-    bool Favorite = false)
+    bool Favorite = false,
+    Guid? Album = null)
 {
     public string? PrimaryArtist => Artists.Count > 0 ? Artists[0] : null;
 }
@@ -49,16 +51,39 @@ public sealed record KostvMusicProfile(
     IReadOnlySet<Guid> Heard,
     IReadOnlySet<Guid> Dropped,
     IReadOnlyList<KostvWeighted> Genres,
-    IReadOnlyList<KostvWeighted> Artists);
+    IReadOnlyList<KostvWeighted> Artists)
+{
+    /// <summary>When each song was last heard, to tell the forgotten ones; null when unknown.</summary>
+    public IReadOnlyDictionary<Guid, DateTimeOffset>? LastHeard { get; init; }
+
+    /// <summary>
+    /// What is taken off a song never played for the weeks it was shown in the mixes (new engine
+    /// only), so the new songs don't keep coming back.
+    /// </summary>
+    public IReadOnlyDictionary<Guid, double>? ShownPenalty { get; init; }
+
+    /// <summary>The artists by the background taste (halving every 90 days), for the seeds; null: <see cref="Artists"/>.</summary>
+    public IReadOnlyList<KostvWeighted>? Background { get; init; }
+
+    /// <summary>The artists by the taste of now (halving every 14 days); null when not worked out.</summary>
+    public IReadOnlyList<KostvWeighted>? Recent { get; init; }
+}
 
 /// <summary>kOS TV: a genre or an artist with how much it weighs.</summary>
 public sealed record KostvWeighted(string Name, double Weight);
 
 /// <summary>
-/// kOS TV: one daily mix: its genre, the artists for its cover (and their ids, once looked up)
-/// and its songs in order.
+/// kOS TV: one daily mix: its genre, the artists for its cover (and their ids, once looked up),
+/// its songs in order and the three artists that weigh most in it (for «Con X, Y y más»; null in
+/// a mix kept before there were).
 /// </summary>
-public sealed record KostvMix(string Id, string Genre, IReadOnlyList<string> Artists, IReadOnlyList<Guid> Items, IReadOnlyList<Guid>? ArtistIds = null);
+public sealed record KostvMix(
+    string Id,
+    string Genre,
+    IReadOnlyList<string> Artists,
+    IReadOnlyList<Guid> Items,
+    IReadOnlyList<Guid>? ArtistIds = null,
+    IReadOnlyList<string>? Because = null);
 
 /// <summary>
 /// kOS TV: the music the app offers each person, worked out from what the server knows of their
@@ -66,7 +91,7 @@ public sealed record KostvMix(string Id, string Genre, IReadOnlyList<string> Art
 /// artists to ask about for «Descubrimiento semanal», and the songs for the time of day. Pure:
 /// the same person, day and library always give the same.
 /// </summary>
-public static class KostvMusicEngine
+public static partial class KostvMusicEngine
 {
     public const string Morning = "manana";
     public const string Afternoon = "tarde";
@@ -177,11 +202,14 @@ public static class KostvMusicEngine
     public static KostvMusicProfile Profile(
         IEnumerable<KostvMusicTrack> tracks,
         IReadOnlyDictionary<Guid, KostvTrackListens> listens,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        KostvDislikeSet? dislikes = null)
     {
+        dislikes ??= KostvDislikeSet.Empty;
         var scores = new Dictionary<Guid, double>();
         var heard = new HashSet<Guid>();
         var dropped = new HashSet<Guid>();
+        var lastHeard = new Dictionary<Guid, DateTimeOffset>();
         var unique = Unique(tracks);
         foreach (var track in unique)
         {
@@ -194,6 +222,18 @@ public static class KostvMusicEngine
             if (track.PlayCount > 0 || track.LastPlayed != null || stats != null)
             {
                 heard.Add(track.Id);
+            }
+
+            if (track.LastPlayed is { } played)
+            {
+                lastHeard[track.Id] = new DateTimeOffset(DateTime.SpecifyKind(played, DateTimeKind.Utc));
+            }
+
+            // Kos TV: «no me gusta» counts whatever engine scores the music.
+            if (dislikes.Blocks(track))
+            {
+                dropped.Add(track.Id);
+                continue;
             }
 
             if (stats is { MostlySkipped: true } && !track.Favorite)
@@ -223,6 +263,7 @@ public static class KostvMusicEngine
                 score += 1.5 * stats.Score;
             }
 
+            score *= dislikes.Factor(track);
             if (score > 0)
             {
                 scores[track.Id] = score;
@@ -232,7 +273,7 @@ public static class KostvMusicEngine
         var liked = unique.Where(t => scores.ContainsKey(t.Id)).ToList();
         var genres = Weigh(liked.SelectMany(t => t.Genres.Select(g => (Name: g, Weight: scores[t.Id]))));
         var artists = Weigh(liked.SelectMany(t => t.Artists.Select((a, i) => (Name: a, Weight: i == 0 ? scores[t.Id] : scores[t.Id] / 2))));
-        return new KostvMusicProfile(scores, heard, dropped, genres, artists);
+        return new KostvMusicProfile(scores, heard, dropped, genres, artists) { LastHeard = lastHeard };
     }
 
     /// <summary>Up to <see cref="MaxSeeds"/> artists the person likes most, for «Descubrimiento semanal».</summary>
@@ -243,24 +284,26 @@ public static class KostvMusicEngine
 
     /// <summary>
     /// Up to <see cref="MaxMixes"/> mixes of about <see cref="MixSize"/> songs for
-    /// <paramref name="userId"/> on <paramref name="day"/>, one per genre they like most: half
-    /// songs they play and don't skip, half songs of those artists they haven't heard and of
-    /// artists like them (<paramref name="similar"/>, by artist) at home. No song in two mixes,
-    /// and the same artist not twice in a row when it can be helped. A genre without enough is
-    /// left out, so there may be fewer mixes, or none.
+    /// <paramref name="userId"/> on <paramref name="day"/>, one per genre they like most: three
+    /// of four songs they play and don't skip (some of them forgotten ones: liked, and unheard for
+    /// a month), one of four songs of those artists they haven't heard and of artists like them
+    /// (<paramref name="similar"/>, by artist) at home. Arranged by the rules of variety (see
+    /// <see cref="Arrange"/>), no song in two mixes, and none of what <paramref name="rules"/>
+    /// leaves out. A genre without enough is left out, so there may be fewer mixes, or none.
     /// </summary>
     public static IReadOnlyList<KostvMix> Mixes(
         Guid userId,
         string day,
         IEnumerable<KostvMusicTrack> tracks,
         KostvMusicProfile profile,
-        IReadOnlyDictionary<string, IReadOnlyList<string>>? similar = null)
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? similar = null,
+        KostvMixRules? rules = null)
     {
-        var all = Unique(tracks);
+        rules ??= KostvMixRules.None;
+        var all = Allowed(tracks, rules);
         var similarByKey = SimilarByKey(similar);
         var used = new HashSet<Guid>();
         var mixes = new List<KostvMix>();
-        var half = MixSize / 2;
         foreach (var genre in profile.Genres)
         {
             if (mixes.Count >= MaxMixes)
@@ -278,7 +321,7 @@ public static class KostvMusicEngine
                 continue;
             }
 
-            var familiarOrder = WeightedOrder(familiar, t => profile.Scores[t.Id], random);
+            var familiarOrder = WithForgotten(WeightedOrder(familiar, t => profile.Scores[t.Id], random), profile, rules.Now);
             var artistWeights = ArtistWeights(familiar, t => profile.Scores[t.Id]);
             var familiarIds = familiar.Select(t => t.Id).ToHashSet();
             var fresh = all.Where(t => !used.Contains(t.Id) && !familiarIds.Contains(t.Id) && !profile.Dropped.Contains(t.Id)).ToList();
@@ -286,25 +329,26 @@ public static class KostvMusicEngine
             var alike = SimilarArtists(artistWeights.Keys, similarByKey);
 
             // Their artists' songs they haven't heard, then songs of the genre by artists like
-            // theirs, then any other of the genre they haven't heard.
+            // theirs, then any other of the genre they haven't heard; less each week one was
+            // shown and not played.
             var newOrder = Concat(
-                WeightedOrder(unheard.Where(t => t.Artists.Any(a => artistWeights.ContainsKey(Key(a)))).ToList(), t => t.Artists.Select(a => artistWeights.GetValueOrDefault(Key(a))).Max(), random),
-                WeightedOrder(fresh.Where(t => InGenre(t) && t.Artists.Any(a => alike.Contains(Key(a)))).ToList(), t => 1 + profile.Scores.GetValueOrDefault(t.Id), random),
-                WeightedOrder(unheard.Where(InGenre).ToList(), _ => 1, random));
+                WeightedOrder(unheard.Where(t => t.Artists.Any(a => artistWeights.ContainsKey(Key(a)))).ToList(), t => t.Artists.Select(a => artistWeights.GetValueOrDefault(Key(a))).Max() * Fresh(profile, t), random),
+                WeightedOrder(fresh.Where(t => InGenre(t) && t.Artists.Any(a => alike.Contains(Key(a)))).ToList(), t => (1 + profile.Scores.GetValueOrDefault(t.Id)) * Fresh(profile, t), random),
+                WeightedOrder(unheard.Where(InGenre).ToList(), t => Fresh(profile, t), random));
 
-            var (own, others) = Split(familiarOrder, newOrder, half, MixSize);
-            if (own.Count + others.Count < MinMixSize)
+            var items = Arrange(familiarOrder, newOrder, MixSize, MixNearShare, t => profile.Scores.GetValueOrDefault(t.Id), similarByKey);
+            if (items.Count < MinMixSize)
             {
                 continue;
             }
 
-            var items = Spread(Interleave(own, others));
             used.UnionWith(items.Select(t => t.Id));
             mixes.Add(new KostvMix(
                 string.Create(CultureInfo.InvariantCulture, $"daily-{mixes.Count + 1}"),
                 genre.Name,
                 Cover(items, artistWeights),
-                items.Select(t => t.Id).ToList()));
+                items.Select(t => t.Id).ToList(),
+                Because: BecauseOf(items, profile)));
         }
 
         return mixes;
@@ -345,7 +389,11 @@ public static class KostvMusicEngine
     /// <summary>
     /// The songs for <paramref name="slot"/>: about <see cref="MomentOwnShare"/> of what the
     /// person plays at that time (not what they skip), the rest songs like them at home (their
-    /// artists, artists like them, their genres). The same all day for the person and slot.
+    /// artists, artists like them, their genres), arranged by the rules of variety (see
+    /// <see cref="Arrange"/>) and without what <paramref name="rules"/> leaves out. The same all
+    /// day for the person and slot. With <paramref name="learned"/> (the new engine) each listen
+    /// weighs as in the taste, and what is played then is mixed with their taste overall until the
+    /// time of day has enough of its own.
     /// </summary>
     public static IReadOnlyList<Guid> Moment(
         Guid userId,
@@ -356,11 +404,15 @@ public static class KostvMusicEngine
         KostvMusicProfile profile,
         DateTimeOffset now,
         TimeZoneInfo zone,
-        IReadOnlyDictionary<string, IReadOnlyList<string>>? similar = null)
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? similar = null,
+        KostvMixRules? rules = null,
+        bool learned = false)
     {
-        var all = Unique(tracks);
+        rules ??= KostvMixRules.None;
+        var all = Allowed(tracks, rules);
         var random = RandomFor(userId, day, "moment", slot);
         var slotScores = new Dictionary<Guid, double>();
+        var slotListens = 0;
         foreach (var e in SlotListens(events, slot, now, zone))
         {
             if (e.Outcome == KostvListenOutcome.Skipped || !Guid.TryParse(e.Item, out var id))
@@ -368,25 +420,36 @@ public static class KostvMusicEngine
                 continue;
             }
 
-            slotScores[id] = slotScores.GetValueOrDefault(id) + (e.Outcome == KostvListenOutcome.Completed ? 1 : 0.5) * Recency(e.At, now, 30);
+            slotListens++;
+            var weight = learned ? Math.Max(0, WeighListen(e).Weight) : e.Outcome == KostvListenOutcome.Completed ? 1 : 0.5;
+            slotScores[id] = slotScores.GetValueOrDefault(id) + weight * Recency(e.At, now, 30);
         }
 
-        var own = all.Where(t => slotScores.ContainsKey(t.Id) && !profile.Dropped.Contains(t.Id)).ToList();
-        var ownIds = own.Select(t => t.Id).ToHashSet();
-        var artistWeights = ArtistWeights(own, t => slotScores[t.Id]);
-        var genres = Weigh(own.SelectMany(t => t.Genres.Select(g => (Name: g, Weight: slotScores[t.Id])))).Take(3).Select(g => Key(g.Name)).ToHashSet();
-        var alike = SimilarArtists(artistWeights.Keys, SimilarByKey(similar));
+        if (learned)
+        {
+            // Their taste overall weighs less as the time of day has more of its own.
+            var own = Math.Min(1, slotListens / (double)MomentOwnListens);
+            foreach (var id in slotScores.Keys.ToList())
+            {
+                slotScores[id] = own * slotScores[id] + (1 - own) * profile.Scores.GetValueOrDefault(id);
+            }
+        }
+
+        var ownTracks = all.Where(t => slotScores.GetValueOrDefault(t.Id) > 0 && !profile.Dropped.Contains(t.Id)).ToList();
+        var ownIds = ownTracks.Select(t => t.Id).ToHashSet();
+        var artistWeights = ArtistWeights(ownTracks, t => slotScores[t.Id]);
+        var genres = Weigh(ownTracks.SelectMany(t => t.Genres.Select(g => (Name: g, Weight: slotScores[t.Id])))).Take(3).Select(g => Key(g.Name)).ToHashSet();
+        var similarByKey = SimilarByKey(similar);
+        var alike = SimilarArtists(artistWeights.Keys, similarByKey);
         var rest = all.Where(t => !ownIds.Contains(t.Id) && !profile.Dropped.Contains(t.Id)).ToList();
 
-        var ownOrder = WeightedOrder(own, t => slotScores[t.Id], random);
+        var ownOrder = WeightedOrder(ownTracks, t => slotScores[t.Id], random);
         var likeOrder = Concat(
-            WeightedOrder(rest.Where(t => t.Artists.Any(a => artistWeights.ContainsKey(Key(a)))).ToList(), t => t.Artists.Select(a => artistWeights.GetValueOrDefault(Key(a))).Max() + profile.Scores.GetValueOrDefault(t.Id), random),
-            WeightedOrder(rest.Where(t => t.Artists.Any(a => alike.Contains(Key(a)))).ToList(), t => 1 + profile.Scores.GetValueOrDefault(t.Id), random),
-            WeightedOrder(rest.Where(t => t.Genres.Any(g => genres.Contains(Key(g)))).ToList(), t => 1 + profile.Scores.GetValueOrDefault(t.Id), random));
+            WeightedOrder(rest.Where(t => t.Artists.Any(a => artistWeights.ContainsKey(Key(a)))).ToList(), t => (t.Artists.Select(a => artistWeights.GetValueOrDefault(Key(a))).Max() + profile.Scores.GetValueOrDefault(t.Id)) * Fresh(profile, t), random),
+            WeightedOrder(rest.Where(t => t.Artists.Any(a => alike.Contains(Key(a)))).ToList(), t => (1 + profile.Scores.GetValueOrDefault(t.Id)) * Fresh(profile, t), random),
+            WeightedOrder(rest.Where(t => t.Genres.Any(g => genres.Contains(Key(g)))).ToList(), t => (1 + profile.Scores.GetValueOrDefault(t.Id)) * Fresh(profile, t), random));
 
-        var ownTarget = (int)Math.Round(MomentSize * MomentOwnShare);
-        var (mine, like) = Split(ownOrder, likeOrder, ownTarget, MomentSize, othersFirst: MomentSize - ownTarget);
-        var items = Spread(Interleave(like, mine));
+        var items = Arrange(ownOrder, likeOrder, MomentSize, 1 - MomentOwnShare, t => slotScores.GetValueOrDefault(t.Id), similarByKey);
         return items.Count < MinMomentSize ? [] : items.Select(t => t.Id).ToList();
     }
 
@@ -474,72 +537,6 @@ public static class KostvMusicEngine
         var seen = new HashSet<Guid>();
         return lists.SelectMany(l => l).Where(t => seen.Add(t.Id)).ToList();
     }
-
-    /// <summary>
-    /// <paramref name="ownTarget"/> of <paramref name="own"/> and the rest up to
-    /// <paramref name="size"/> of <paramref name="others"/>; when one falls short, more of the other.
-    /// </summary>
-    private static (List<KostvMusicTrack> Own, List<KostvMusicTrack> Others) Split(
-        List<KostvMusicTrack> own,
-        List<KostvMusicTrack> others,
-        int ownTarget,
-        int size,
-        int? othersFirst = null)
-    {
-        var ownIds = own.Select(t => t.Id).ToHashSet();
-        others = others.Where(t => !ownIds.Contains(t.Id)).ToList();
-        var othersCount = Math.Min(othersFirst ?? size - ownTarget, others.Count);
-        var ownCount = Math.Min(own.Count, size - othersCount);
-        othersCount = Math.Min(others.Count, size - ownCount);
-        return (own.Take(ownCount).ToList(), others.Take(othersCount).ToList());
-    }
-
-    private static List<KostvMusicTrack> Interleave(List<KostvMusicTrack> first, List<KostvMusicTrack> second)
-    {
-        var result = new List<KostvMusicTrack>(first.Count + second.Count);
-        for (var i = 0; i < Math.Max(first.Count, second.Count); i++)
-        {
-            if (i < first.Count)
-            {
-                result.Add(first[i]);
-            }
-
-            if (i < second.Count)
-            {
-                result.Add(second[i]);
-            }
-        }
-
-        return result;
-    }
-
-    /// <summary>The same order, moving a song along when its artist would play twice in a row.</summary>
-    internal static List<KostvMusicTrack> Spread(List<KostvMusicTrack> items)
-    {
-        var left = new List<KostvMusicTrack>(items);
-        var result = new List<KostvMusicTrack>(items.Count);
-        while (left.Count > 0)
-        {
-            var last = result.Count > 0 ? ArtistKey(result[^1]) : null;
-            // The artist with most songs left goes now when waiting would leave them side by side
-            // at the end; otherwise the next song by anyone but the last artist.
-            var most = left.GroupBy(ArtistKey).OrderByDescending(g => g.Count()).First();
-            var index = most.Key != last && most.Count() * 2 > left.Count
-                ? left.FindIndex(t => ArtistKey(t) == most.Key)
-                : left.FindIndex(t => last == null || ArtistKey(t) != last);
-            if (index < 0)
-            {
-                index = 0;
-            }
-
-            result.Add(left[index]);
-            left.RemoveAt(index);
-        }
-
-        return result;
-    }
-
-    private static string ArtistKey(KostvMusicTrack track) => track.PrimaryArtist is { } a ? Key(a) : track.Id.ToString("N");
 
     /// <summary>The three artists most in <paramref name="items"/>, for its cover.</summary>
     private static List<string> Cover(List<KostvMusicTrack> items, IReadOnlyDictionary<string, double> weights) =>

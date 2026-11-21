@@ -12,8 +12,8 @@ namespace Moonfin.Server.Kostv;
 /// <summary>
 /// kOS TV: one thing a person did with their music, one line of their month's file: a listen (how
 /// long, how it ended, where, from what, what played before), a heart put on or taken off a song,
-/// album or artist, songs added to a playlist, an album asked for, a «no me gusta», or what the
-/// app was shown of their music that day. Lines written before a field existed read without it.
+/// album or artist, songs added to a playlist, an album asked for, or what the app was shown of
+/// their music that day. Lines written before a field existed read without it.
 /// </summary>
 public sealed class KostvMusicEvent
 {
@@ -29,7 +29,11 @@ public sealed class KostvMusicEvent
     /// <summary>An album asked for in Stremfin, as the app says.</summary>
     public const string RequestType = "request";
 
-    /// <summary>A «no me gusta» of songs or artists, as the app says (for later).</summary>
+    /// <summary>
+    /// A «no me gusta» of songs or artists as the first versions of the route noted it. No longer
+    /// written (it is kept apart, in <c>dislikes.json</c>), and old lines are left unused: no app
+    /// sent it then.
+    /// </summary>
     public const string DislikeType = "dislike";
 
     /// <summary>What the person was shown of a surface that day (<see cref="Surface"/>): only ids.</summary>
@@ -312,8 +316,10 @@ public sealed record KostvMusicSummary(int Listens, DateTimeOffset? Since);
 
 /// <summary>
 /// kOS TV: each person's music, on disk: what they listened to and did (one JSON line per listen,
-/// heart or other event, a file per month, kept <see cref="KeepMonths"/> months), whether they
-/// want it kept (Learn), and the app's list of the week for «Descubrimiento semanal». Under
+/// heart or other event, a file per month, kept <see cref="KeepMonths"/> months), their taste
+/// summed up from it (<c>taste.json</c>), whether they want it kept (Learn), what they don't want
+/// to hear (<c>dislikes.json</c>), how each engine did (<c>compare.jsonl</c>) and the app's list
+/// of the week for «Descubrimiento semanal». Under
 /// <c>kostv-musica/&lt;user&gt;/</c> in the plugin's data folder. A line is appended under the
 /// person's lock, so songs ending at once on two devices don't mix their lines.
 /// </summary>
@@ -341,6 +347,20 @@ public sealed class KostvMusicStore
     private const string DiscoveryFile = "discovery.json";
     private const string DayFile = "today.json";
     private const string ShownFile = "shown.json";
+    private const string TasteFile = "taste.json";
+    private const string DislikesFile = "dislikes.json";
+    private const string ShadowFile = "shadow.json";
+    private const string CompareFile = "compare.jsonl";
+
+    /// <summary>The most songs, and artists, a person's «no me gusta» list keeps (the oldest go).</summary>
+    public const int MaxDislikes = 2000;
+
+    private static readonly JsonSerializerOptions TasteOptions = new()
+    {
+        WriteIndented = false,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+    };
 
     private static readonly Regex MonthFile = new(@"^(\d{4})-(\d{2})\.jsonl$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
@@ -378,6 +398,12 @@ public sealed class KostvMusicStore
 
     // What was noted as shown per person: what of it to the day (or week) it was, from shown.json.
     private readonly ConcurrentDictionary<Guid, Dictionary<string, string>> _shown = new();
+
+    // Each person's taste summed up (taste.json), once read or worked out.
+    private readonly ConcurrentDictionary<Guid, KostvTasteSummary> _tastes = new();
+
+    // Each person's «no me gusta» (dislikes.json), once read.
+    private readonly ConcurrentDictionary<Guid, KostvDislikes> _dislikes = new();
 
     /// <summary>The last listen of a person: its song, how and when it ended, and its session.</summary>
     private sealed record LastListen(string Item, string? EndedBy, DateTimeOffset EndedAt, string? Session);
@@ -476,6 +502,7 @@ public sealed class KostvMusicStore
                 _summaries[userId] = new KostvMusicSummary(had.Listens + 1, had.Since is { } since && since <= entry.At ? since : entry.At);
             }
 
+            UpdateTasteLocked(userId, entry);
             TrimLocked(userId, onceADay: true);
         }
 
@@ -563,7 +590,10 @@ public sealed class KostvMusicStore
         }
     }
 
-    /// <summary>Forgets everything <paramref name="userId"/> listened to; Learn and the week's list stay.</summary>
+    /// <summary>
+    /// Forgets everything <paramref name="userId"/> listened to, and what was worked out of it (their
+    /// taste and the engines compared); Learn, «no me gusta» and the week's list stay.
+    /// </summary>
     public void DeleteListens(Guid userId)
     {
         lock (LockOf(userId))
@@ -579,6 +609,11 @@ public sealed class KostvMusicStore
             _last.TryRemove(userId, out _);
             _shown.TryRemove(userId, out _);
             AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), ShownFile));
+            // What was worked out of them goes too; «no me gusta» and Learn stay.
+            _tastes.TryRemove(userId, out _);
+            AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), TasteFile));
+            AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), ShadowFile));
+            AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), CompareFile));
         }
     }
 
@@ -610,6 +645,8 @@ public sealed class KostvMusicStore
             _last.TryRemove(userId, out _);
             _shown.TryRemove(userId, out _);
             _listensDeletedAt.TryRemove(userId, out _);
+            _tastes.TryRemove(userId, out _);
+            _dislikes.TryRemove(userId, out _);
         }
     }
 
@@ -707,8 +744,12 @@ public sealed class KostvMusicStore
         if (removed > 0)
         {
             _summaries.TryRemove(userId, out _);
+            // Worked out again from what is left, the next time it is asked.
+            _tastes.TryRemove(userId, out _);
+            AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), TasteFile));
         }
 
+        TrimCompareLocked(userId, oldest);
         return removed;
     }
 
@@ -925,6 +966,357 @@ public sealed class KostvMusicStore
         lock (LockOf(userId))
         {
             AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), DayFile));
+        }
+    }
+
+    // ---------------------------------------------------------------- the taste summed up
+
+    /// <summary>
+    /// <paramref name="userId"/>'s taste summed up (see <see cref="KostvTasteSummary"/>): from
+    /// memory, their folder or, the first time, worked out from all their listens.
+    /// </summary>
+    public KostvTasteSummary Taste(Guid userId)
+    {
+        lock (LockOf(userId))
+        {
+            return TasteLocked(userId, create: true)!;
+        }
+    }
+
+    private KostvTasteSummary? TasteLocked(Guid userId, bool create)
+    {
+        if (_tastes.TryGetValue(userId, out var known))
+        {
+            return known;
+        }
+
+        var stored = AtomicFile.ReadWithRecovery(
+            Path.Combine(FolderOf(userId), TasteFile),
+            text => JsonSerializer.Deserialize<KostvTasteSummary>(text, TasteOptions));
+        if (stored is { Version: KostvTasteSummary.CurrentVersion })
+        {
+            _tastes[userId] = stored;
+            return stored;
+        }
+
+        return create ? RecomputeTasteLocked(userId) : null;
+    }
+
+    private KostvTasteSummary RecomputeTasteLocked(Guid userId)
+    {
+        var summary = KostvMusicEngine.Summarize(Read(userId), _now());
+        _tastes[userId] = summary;
+        SaveTasteLocked(userId, summary);
+        return summary;
+    }
+
+    private void SaveTasteLocked(Guid userId, KostvTasteSummary summary)
+    {
+        if (_deleted.ContainsKey(userId))
+        {
+            return;
+        }
+
+        try
+        {
+            var folder = FolderOf(userId);
+            Directory.CreateDirectory(folder);
+            AtomicFile.WriteAllText(Path.Combine(folder, TasteFile), JsonSerializer.Serialize(summary, TasteOptions));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "kOS TV music: the taste could not be stored");
+        }
+    }
+
+    // Under the person's lock: what was just appended, added to their taste if it was worked out.
+    private void UpdateTasteLocked(Guid userId, KostvMusicEvent entry)
+    {
+        try
+        {
+            if (TasteLocked(userId, create: false) is { } summary)
+            {
+                summary.Apply(entry);
+                SaveTasteLocked(userId, summary);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        {
+            // Worked out in full the next time instead.
+            _tastes.TryRemove(userId, out _);
+            _logger?.LogWarning(ex, "kOS TV music: the taste could not be brought up to date");
+        }
+    }
+
+    /// <summary>Works out <paramref name="userId"/>'s taste again from all their listens.</summary>
+    public KostvTasteSummary RecomputeTaste(Guid userId)
+    {
+        lock (LockOf(userId))
+        {
+            return RecomputeTasteLocked(userId);
+        }
+    }
+
+    /// <summary>
+    /// Works out again the taste of everyone who keeps what they listen to: for the daily round,
+    /// so what is brought up to date line by line never drifts. How many.
+    /// </summary>
+    public int RecomputeTastes()
+    {
+        if (!Directory.Exists(_root))
+        {
+            return 0;
+        }
+
+        var count = 0;
+        foreach (var userId in UserFolders())
+        {
+            if (!_deleted.ContainsKey(userId) && Learns(userId))
+            {
+                RecomputeTaste(userId);
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    // ---------------------------------------------------------------- «no me gusta»
+
+    /// <summary>What <paramref name="userId"/> doesn't want to hear, a copy (the latest first).</summary>
+    public KostvDislikes DislikesOf(Guid userId)
+    {
+        lock (LockOf(userId))
+        {
+            var copy = DislikesLocked(userId).Copy();
+            copy.Songs = copy.Songs.OrderByDescending(s => s.At).ToList();
+            copy.Artists = copy.Artists.OrderByDescending(a => a.At).ToList();
+            return copy;
+        }
+    }
+
+    private KostvDislikes DislikesLocked(Guid userId) => _dislikes.GetOrAdd(userId, id =>
+        AtomicFile.ReadWithRecovery(
+            Path.Combine(FolderOf(id), DislikesFile),
+            text => JsonSerializer.Deserialize<KostvDislikes>(text, LineOptions)) ?? new KostvDislikes());
+
+    /// <summary>
+    /// Adds <paramref name="songs"/> and <paramref name="artists"/> to what <paramref name="userId"/>
+    /// doesn't want to hear (one said again moves to the top). Also with Learn off: it is their
+    /// choice, not something learned. False when not stored.
+    /// </summary>
+    public bool AddDislikes(Guid userId, IEnumerable<KostvDislikedSong> songs, IEnumerable<KostvDislikedArtist> artists)
+    {
+        lock (LockOf(userId))
+        {
+            if (_deleted.ContainsKey(userId))
+            {
+                return false;
+            }
+
+            var dislikes = DislikesLocked(userId);
+            foreach (var song in songs)
+            {
+                dislikes.Songs.RemoveAll(s => s.Id == song.Id);
+                dislikes.Songs.Add(song);
+            }
+
+            foreach (var artist in artists)
+            {
+                dislikes.Artists.RemoveAll(a => a.Id == artist.Id);
+                dislikes.Artists.Add(artist);
+            }
+
+            dislikes.Songs = dislikes.Songs.OrderBy(s => s.At).TakeLast(MaxDislikes).ToList();
+            dislikes.Artists = dislikes.Artists.OrderBy(a => a.At).TakeLast(MaxDislikes).ToList();
+            return SaveDislikesLocked(userId, dislikes);
+        }
+    }
+
+    /// <summary>Takes <paramref name="itemId"/> (a song or an artist) off <paramref name="userId"/>'s list. Whether it was on it.</summary>
+    public bool RemoveDislike(Guid userId, Guid itemId)
+    {
+        var id = itemId.ToString("N");
+        lock (LockOf(userId))
+        {
+            var dislikes = DislikesLocked(userId);
+            var removed = dislikes.Songs.RemoveAll(s => s.Id == id) + dislikes.Artists.RemoveAll(a => a.Id == id);
+            if (removed > 0)
+            {
+                SaveDislikesLocked(userId, dislikes);
+            }
+
+            return removed > 0;
+        }
+    }
+
+    /// <summary>Empties <paramref name="userId"/>'s list of what they don't want to hear.</summary>
+    public void ClearDislikes(Guid userId)
+    {
+        lock (LockOf(userId))
+        {
+            _dislikes[userId] = new KostvDislikes();
+            AtomicFile.DeleteWithSidecars(Path.Combine(FolderOf(userId), DislikesFile));
+        }
+    }
+
+    private bool SaveDislikesLocked(Guid userId, KostvDislikes dislikes)
+    {
+        try
+        {
+            var folder = FolderOf(userId);
+            Directory.CreateDirectory(folder);
+            AtomicFile.WriteAllText(Path.Combine(folder, DislikesFile), JsonSerializer.Serialize(dislikes, LineOptions));
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "kOS TV music: «no me gusta» could not be stored");
+            return false;
+        }
+    }
+
+    // ---------------------------------------------------------------- the engines compared
+
+    /// <summary>The first songs of a day's mixes by each engine, to compare with what is heard.</summary>
+    public sealed class KostvShadow
+    {
+        [JsonPropertyName("day")]
+        public string Day { get; set; } = string.Empty;
+
+        /// <summary>The engine whose mixes were shown that day.</summary>
+        [JsonPropertyName("engine")]
+        public string? Engine { get; set; }
+
+        [JsonPropertyName("old")]
+        public List<Guid> Old { get; set; } = [];
+
+        [JsonPropertyName("new")]
+        public List<Guid> New { get; set; } = [];
+    }
+
+    /// <summary>One line of <c>compare.jsonl</c>: of a day, how many of each engine's first 25 were heard whole.</summary>
+    public sealed class KostvComparison
+    {
+        [JsonPropertyName("day")]
+        public string Day { get; set; } = string.Empty;
+
+        [JsonPropertyName("engine")]
+        public string? Engine { get; set; }
+
+        [JsonPropertyName("hitsOld")]
+        public int HitsOld { get; set; }
+
+        [JsonPropertyName("hitsNew")]
+        public int HitsNew { get; set; }
+    }
+
+    /// <summary>
+    /// Keeps <paramref name="shadow"/> as <paramref name="userId"/>'s first songs of each engine
+    /// for its day; the ones of a day before are compared first with what was heard whole that
+    /// day (<paramref name="hits"/>), and the comparison added to <c>compare.jsonl</c>. Nothing
+    /// while Learn is off.
+    /// </summary>
+    public void NoteShadow(Guid userId, KostvShadow shadow, Func<KostvShadow, IReadOnlyList<KostvMusicEvent>, (int Old, int New)> hits)
+    {
+        lock (LockOf(userId))
+        {
+            if (_deleted.ContainsKey(userId) || !Learns(userId))
+            {
+                return;
+            }
+
+            var folder = FolderOf(userId);
+            var path = Path.Combine(folder, ShadowFile);
+            var before = AtomicFile.ReadWithRecovery(path, text => JsonSerializer.Deserialize<KostvShadow>(text, LineOptions));
+            try
+            {
+                Directory.CreateDirectory(folder);
+                if (before != null && string.CompareOrdinal(before.Day, shadow.Day) < 0 &&
+                    DateOnly.TryParseExact(before.Day, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day))
+                {
+                    var events = Read(userId, KostvMusicEngine.DayStart(day, Zone));
+                    var (old, fresh) = hits(before, events);
+                    var line = JsonSerializer.Serialize(new KostvComparison { Day = before.Day, Engine = before.Engine, HitsOld = old, HitsNew = fresh }, LineOptions) + "\n";
+                    File.AppendAllText(Path.Combine(folder, CompareFile), line, Utf8NoBom);
+                }
+
+                if (before == null || string.CompareOrdinal(before.Day, shadow.Day) <= 0)
+                {
+                    AtomicFile.WriteAllText(path, JsonSerializer.Serialize(shadow, LineOptions));
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                _logger?.LogWarning(ex, "kOS TV music: the engines could not be compared");
+            }
+        }
+    }
+
+    /// <summary>The comparisons of <paramref name="userId"/>'s engines, oldest first.</summary>
+    public IReadOnlyList<KostvComparison> Comparisons(Guid userId)
+    {
+        lock (LockOf(userId))
+        {
+            return ReadCompareLocked(userId);
+        }
+    }
+
+    private List<KostvComparison> ReadCompareLocked(Guid userId)
+    {
+        var path = Path.Combine(FolderOf(userId), CompareFile);
+        if (!File.Exists(path))
+        {
+            return [];
+        }
+
+        try
+        {
+            return File.ReadAllLines(path, Utf8NoBom)
+                .Select(line =>
+                {
+                    try
+                    {
+                        return string.IsNullOrWhiteSpace(line) ? null : JsonSerializer.Deserialize<KostvComparison>(line, LineOptions);
+                    }
+                    catch (JsonException)
+                    {
+                        return null;
+                    }
+                })
+                .OfType<KostvComparison>()
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "kOS TV music: {Path} could not be read", path);
+            return [];
+        }
+    }
+
+    // The comparisons of days before the oldest month kept go, as the listens do.
+    private void TrimCompareLocked(Guid userId, int oldestMonth)
+    {
+        var path = Path.Combine(FolderOf(userId), CompareFile);
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        var lines = ReadCompareLocked(userId);
+        var kept = lines.Where(c => DateOnly.TryParseExact(c.Day, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var day) && day.Year * 12 + day.Month - 1 >= oldestMonth).ToList();
+        if (kept.Count == lines.Count)
+        {
+            return;
+        }
+
+        try
+        {
+            AtomicFile.WriteAllText(path, string.Concat(kept.Select(c => JsonSerializer.Serialize(c, LineOptions) + "\n")));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger?.LogWarning(ex, "kOS TV music: {Path} could not be trimmed", path);
         }
     }
 

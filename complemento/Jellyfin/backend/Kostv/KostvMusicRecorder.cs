@@ -429,6 +429,10 @@ public sealed class KostvMusicRecorder : IHostedService
                     {
                         _logger.LogInformation("kOS TV music: {Count} months of listens past their two years dropped", removed);
                     }
+
+                    // Once a day, each taste worked out in full again (it is brought up to date
+                    // as each listen is noted the rest of the day).
+                    _store.RecomputeTastes();
                 }
                 catch (Exception ex)
                 {
