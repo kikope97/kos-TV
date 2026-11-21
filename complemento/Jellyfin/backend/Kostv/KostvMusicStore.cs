@@ -37,9 +37,8 @@ public sealed class KostvMusicEvent
     public const string StreamListenType = "stream_listen";
 
     /// <summary>
-    /// A «no me gusta» of songs or artists as the first versions of the route noted it. No longer
-    /// written (it is kept apart, in <c>dislikes.json</c>), and old lines are left unused: no app
-    /// sent it then.
+    /// What the app says (route <c>Event</c>) of a «no me gusta» of songs or artists. Not a type
+    /// of line: it is kept apart, in <c>dislikes.json</c> (see <see cref="KostvMusicStore.AddDislikes"/>).
     /// </summary>
     public const string DislikeType = "dislike";
 
@@ -160,11 +159,11 @@ public sealed class KostvMusicEvent
     [JsonPropertyName("seekBack")]
     public int? SeekBack { get; set; }
 
-    /// <summary>A favorite: album or artist; a dislike: artist or song, when the app said.</summary>
+    /// <summary>A favorite: album or artist.</summary>
     [JsonPropertyName("kind")]
     public string? Kind { get; set; }
 
-    /// <summary>A playlist_add, a dislike or the moment's mix shown: the songs (or artists), without dashes.</summary>
+    /// <summary>A playlist_add or the moment's mix shown: the songs, without dashes.</summary>
     [JsonPropertyName("items")]
     public List<string>? Items { get; set; }
 
@@ -461,6 +460,9 @@ public sealed class KostvMusicStore
     // The last listen linked per person (see Link), read from their files the first time.
     private readonly ConcurrentDictionary<Guid, LastListen?> _last = new();
 
+    // Kos TV: how many listens not at home each person noted, since when, in the minute and the day.
+    private readonly ConcurrentDictionary<Guid, (DateTimeOffset Minute, int InMinute, DateTimeOffset Day, int InDay)> _streamPace = new();
+
     // What was noted as shown per person: what of it to the day (or week) it was, from shown.json.
     private readonly ConcurrentDictionary<Guid, Dictionary<string, string>> _shown = new();
 
@@ -533,9 +535,6 @@ public sealed class KostvMusicStore
     /// (also what isn't at home, through Stremfin) unless they chose <see cref="KostvMusicCatalog.Home"/>.
     /// </summary>
     public string Catalog(Guid userId) => SettingsOf(userId).Catalog ?? KostvMusicCatalog.All;
-
-    /// <summary>Turns keeping what <paramref name="userId"/> listens to on or off.</summary>
-    public void SetLearn(Guid userId, bool learn) => SetSettings(userId, learn, null);
 
     /// <summary>
     /// Changes what is given of <paramref name="userId"/>'s settings (<paramref name="learn"/>,
@@ -742,6 +741,7 @@ public sealed class KostvMusicStore
             _tastes.TryRemove(userId, out _);
             _tasteUnsaved.TryRemove(userId, out _);
             _dislikes.TryRemove(userId, out _);
+            _streamPace.TryRemove(userId, out _);
         }
     }
 
@@ -922,20 +922,88 @@ public sealed class KostvMusicStore
     {
         lock (LockOf(userId))
         {
-            var last = _last.GetOrAdd(userId, LastListenInFiles);
-            if (last != null && entry.At - last.EndedAt < SessionGap)
+            _last[userId] = LinkLocked(userId, entry, endedAt);
+        }
+    }
+
+    /// <summary>
+    /// Kos TV: <see cref="Link"/> and <see cref="Append"/> at once, under the person's lock: the
+    /// listen is the one before the next only once it is written (not when Learn was turned off,
+    /// or the listens deleted, while it was on its way), and two at once are written in the order
+    /// they are linked. Whether it was written.
+    /// </summary>
+    public bool LinkAndAppend(Guid userId, KostvMusicEvent entry, DateTimeOffset endedAt)
+    {
+        lock (LockOf(userId))
+        {
+            var next = LinkLocked(userId, entry, endedAt);
+            if (!Append(userId, entry))
             {
-                entry.Session = last.Session ?? NewSessionId();
-                entry.Prev = last.Item;
-                entry.PrevEndedBy = last.EndedBy;
-                entry.Replay = last.Item == entry.Item && entry.At - last.EndedAt <= ReplayWithin ? true : null;
-            }
-            else
-            {
-                entry.Session = NewSessionId();
+                return false;
             }
 
-            _last[userId] = new LastListen(entry.Item, entry.EndedBy, endedAt, entry.Session);
+            _last[userId] = next;
+            return true;
+        }
+    }
+
+    private LastListen LinkLocked(Guid userId, KostvMusicEvent entry, DateTimeOffset endedAt)
+    {
+        var last = _last.GetOrAdd(userId, LastListenInFiles);
+        if (last != null && entry.At - last.EndedAt < SessionGap)
+        {
+            entry.Session = last.Session ?? NewSessionId();
+            entry.Prev = last.Item;
+            entry.PrevEndedBy = last.EndedBy;
+            entry.Replay = last.Item == entry.Item && entry.At - last.EndedAt <= ReplayWithin ? true : null;
+        }
+        else
+        {
+            entry.Session = NewSessionId();
+        }
+
+        return new LastListen(entry.Item, entry.EndedBy, endedAt, entry.Session);
+    }
+
+    /// <summary>
+    /// Kos TV: the most listens not at home (route <c>Event</c>, <c>stream_listen</c>) a person's
+    /// apps may note in a minute, far above what listening, even skipping song after song, sends.
+    /// </summary>
+    public const int MaxStreamListensPerMinute = 60;
+
+    /// <summary>...and in a day (24 hours nonstop of songs of under 30 seconds each).</summary>
+    public const int MaxStreamListensPerDay = 3000;
+
+    /// <summary>
+    /// Kos TV: whether one more listen not at home of <paramref name="userId"/> may be noted now
+    /// (counted if so): no more than <see cref="MaxStreamListensPerMinute"/> in a minute nor
+    /// <see cref="MaxStreamListensPerDay"/> in a day, so an app gone wrong (or ill meant) sending
+    /// them over and over can't fill the person's folder and the server's memory. Only in memory.
+    /// </summary>
+    public bool TakeStreamListen(Guid userId)
+    {
+        var now = _now();
+        lock (LockOf(userId))
+        {
+            var (minute, inMinute, day, inDay) = _streamPace.GetValueOrDefault(userId);
+            if (now - minute >= TimeSpan.FromMinutes(1) || now < minute)
+            {
+                (minute, inMinute) = (now, 0);
+            }
+
+            if (now - day >= TimeSpan.FromDays(1) || now < day)
+            {
+                (day, inDay) = (now, 0);
+            }
+
+            if (inMinute >= MaxStreamListensPerMinute || inDay >= MaxStreamListensPerDay)
+            {
+                _streamPace[userId] = (minute, inMinute, day, inDay);
+                return false;
+            }
+
+            _streamPace[userId] = (minute, inMinute + 1, day, inDay + 1);
+            return true;
         }
     }
 
@@ -1259,7 +1327,8 @@ public sealed class KostvMusicStore
                 return false;
             }
 
-            var dislikes = DislikesLocked(userId);
+            // Kos TV: on a copy, kept only once stored, so what is used is what is on disk.
+            var dislikes = DislikesLocked(userId).Copy();
             foreach (var song in songs)
             {
                 dislikes.Songs.RemoveAll(s => s.Key == song.Key);
@@ -1274,30 +1343,43 @@ public sealed class KostvMusicStore
 
             dislikes.Songs = dislikes.Songs.OrderBy(s => s.At).TakeLast(MaxDislikes).ToList();
             dislikes.Artists = dislikes.Artists.OrderBy(a => a.At).TakeLast(MaxDislikes).ToList();
-            return SaveDislikesLocked(userId, dislikes);
+            if (!SaveDislikesLocked(userId, dislikes))
+            {
+                return false;
+            }
+
+            _dislikes[userId] = dislikes;
+            return true;
         }
     }
 
-    /// <summary>Takes <paramref name="itemId"/> (a song or an artist) off <paramref name="userId"/>'s list. Whether it was on it.</summary>
-    public bool RemoveDislike(Guid userId, Guid itemId) => RemoveDislike(userId, itemId.ToString("N"));
+    /// <summary>Takes <paramref name="itemId"/> (a song or an artist) off <paramref name="userId"/>'s list (see <see cref="RemoveDislike(Guid, string)"/>).</summary>
+    public KostvDislikeRemoval RemoveDislike(Guid userId, Guid itemId) => RemoveDislike(userId, itemId.ToString("N"));
 
     /// <summary>
     /// Takes <paramref name="key"/> off <paramref name="userId"/>'s list: a song or an artist at
     /// home (its id, without dashes), or a song not at home (<c>stremfin:&lt;DeezerId&gt;</c>).
-    /// Whether it was on it.
+    /// Whether it was on it, and whether it could be stored without it (if not, it stays on it).
     /// </summary>
-    public bool RemoveDislike(Guid userId, string key)
+    public KostvDislikeRemoval RemoveDislike(Guid userId, string key)
     {
         lock (LockOf(userId))
         {
-            var dislikes = DislikesLocked(userId);
+            // Kos TV: on a copy, kept only once stored, as in AddDislikes.
+            var dislikes = DislikesLocked(userId).Copy();
             var removed = dislikes.Songs.RemoveAll(s => s.Key == key) + dislikes.Artists.RemoveAll(a => a.Id == key);
-            if (removed > 0)
+            if (removed == 0)
             {
-                SaveDislikesLocked(userId, dislikes);
+                return KostvDislikeRemoval.NotThere;
             }
 
-            return removed > 0;
+            if (!SaveDislikesLocked(userId, dislikes))
+            {
+                return KostvDislikeRemoval.NotStored;
+            }
+
+            _dislikes[userId] = dislikes;
+            return KostvDislikeRemoval.Removed;
         }
     }
 

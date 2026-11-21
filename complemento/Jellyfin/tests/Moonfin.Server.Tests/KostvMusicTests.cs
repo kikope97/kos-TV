@@ -144,12 +144,12 @@ public sealed partial class KostvMusicTests : IDisposable
         var user = Guid.NewGuid();
         Assert.True(store.Learns(user));
 
-        store.SetLearn(user, false);
+        store.SetSettings(user, false, null);
         Assert.False(store.Append(user, Listen(Guid.NewGuid(), _now)));
         Assert.Empty(store.Read(user));
         Assert.False(NewStore().Learns(user));
 
-        store.SetLearn(user, true);
+        store.SetSettings(user, true, null);
         Assert.True(store.Append(user, Listen(Guid.NewGuid(), _now)));
         Assert.Single(store.Read(user));
     }
@@ -159,10 +159,10 @@ public sealed partial class KostvMusicTests : IDisposable
     {
         var store = NewStore();
         var user = Guid.NewGuid();
-        store.SetLearn(user, false);
-        store.SetLearn(user, true);
+        store.SetSettings(user, false, null);
+        store.SetSettings(user, true, null);
         store.Append(user, Listen(Guid.NewGuid(), _now));
-        store.SetLearn(user, false);
+        store.SetSettings(user, false, null);
 
         store.DeleteListens(user);
         Assert.Empty(store.Read(user));
@@ -1058,8 +1058,9 @@ public sealed partial class KostvMusicTests : IDisposable
             method.Name == "GetUserData" && args is [_, BaseItem item] ? DataOf(item) : null);
     }
 
+    // The made-up library's items are all the person's to see (the server's rules need a server).
     private KostvMusicService NewService(MusicLibrary library) =>
-        new(library.Manager(), library.UserData(), NewStore(), NullLogger<KostvMusicService>.Instance);
+        new(library.Manager(), library.UserData(), NewStore(), NullLogger<KostvMusicService>.Instance) { Sees = (_, _) => true };
 
     [Fact]
     public async Task TheDaysMixesStayTheSameAfterARestart()
@@ -1782,9 +1783,9 @@ public sealed partial class KostvMusicTests : IDisposable
         Assert.Equal(KostvMusicController.MaxEventItems, store.Read(userId)[0].Items!.Count);
 
         // With Learn off: accepted, and nothing noted.
-        store.SetLearn(userId, false);
+        store.SetSettings(userId, false, null);
         Assert.IsType<Microsoft.AspNetCore.Mvc.NoContentResult>(controller.AddEvent(Body(new { Type = "playlist_add", ItemIds = new[] { id } })));
-        store.SetLearn(userId, true);
+        store.SetSettings(userId, true, null);
         Assert.Equal(2, store.Read(userId).Count);
     }
 
@@ -1854,9 +1855,9 @@ public sealed partial class KostvMusicTests : IDisposable
         var user = Guid.NewGuid();
         var mixes = new List<KostvShownMix> { new() { Id = "daily-1", Genre = "Pop", Items = [Guid.NewGuid().ToString("N")] } };
 
-        store.SetLearn(user, false);
+        store.SetSettings(user, false, null);
         service.NoteShownMixes(user, mixes);
-        store.SetLearn(user, true);
+        store.SetSettings(user, true, null);
         Assert.Empty(store.Read(user));
         service.NoteShownMixes(user, mixes);
         Assert.Single(ShownOf(store, user, KostvMusicEvent.MixesSurface));
