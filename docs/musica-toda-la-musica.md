@@ -146,3 +146,49 @@ Rutas del complemento (`/Moonfin/Kostv/Music/`), nuevas o ampliadas:
 
 La app filtra lo de fuera con esa lista (por `DeezerId` y por nombre de
 artista).
+
+## 8. Listas y ♥ con canciones de fuera (2026-11-21)
+
+Jellyfin solo guarda en sus listas y en sus favoritos canciones suyas. Para poder
+añadir canciones de fuera, el complemento guarda «huecos» en las listas de
+Jellyfin y un ♥ propio; cuando la canción llega a casa, la pasa a Jellyfin sola.
+
+Decisiones: las listas siguen siendo las de Jellyfin; añadir o dar ♥ **no pide el
+álbum solo** (se ofrece: «Añadida. ¿Pedir el álbum para tenerla en casa?»); en
+otras apps la lista se ve solo con lo de casa; entra en la 1.19.0.
+
+### Qué ve la familia
+
+- En el menú de una canción de fuera (y en Reproduciendo): «Añadir a una lista»
+  (las listas de siempre y «Nueva lista») y ♥.
+- La lista se ve entera, en su orden, con la nube en las de fuera; al ponerla
+  suena todo (lo de fuera en streaming). Se quitan y se mueven como las demás.
+- «Tus favoritas» lleva también las de fuera con ♥.
+- Niños: lo explícito de fuera no sale. «No me gusta»: se salta al ponerla.
+  «Solo la de casa»: las de fuera salen en gris y no suenan, pero no se borran.
+- Cuando la canción llega a casa, pasa a ser una canción normal de la lista (en
+  su sitio) y su ♥ pasa a ser el de Jellyfin.
+
+### Rutas del complemento (`/Moonfin/Kostv/Music/`)
+
+Una canción de fuera (`AwaySong`): `{ "DeezerId", "Title", "Artist", "Album",
+"AlbumDeezerId"?, "ArtistDeezerId"?, "Cover"?, "Duration"? (s), "Explicit" }`.
+Textos recortados a 200; `DeezerId` solo cifras (≤ 32).
+
+| Ruta | Qué hace |
+|---|---|
+| `GET Away/Playlist/{playlistId}` | `{ "Entries": [ { …AwaySong, "After": "<id>" \| null, "Added": fecha } ] }`. `After` es el id del elemento que la precede en la lista completa: un id de Jellyfin o `stremfin:<DeezerId>`; `null` = la primera. La app las coloca recorriendo la lista de Jellyfin; si su `After` ya no está, van al final. Quien puede ver la lista de Jellyfin puede leerla; si no, `404`. |
+| `POST Away/Playlist/{playlistId}` | Cuerpo `{ "Songs": [AwaySong…], "After": "<id>" \| null }` (`After` ausente = al final). Solo quien puede cambiar la lista (su dueña o con permiso de edición). Repetida (mismo `DeezerId`) no se duplica. `200` con la lista como en el `GET`; `403` sin permiso; `400` mal formado. Tope: 500 canciones de fuera por lista. |
+| `DELETE Away/Playlist/{playlistId}/{deezerId}` | Quita una. `204` (también si no estaba). |
+| `POST Away/Playlist/{playlistId}/Order` | Cuerpo `{ "Ids": [ …el orden completo, ids de Jellyfin y stremfin:<id> ] }`: recalcula los `After` de las de fuera. Lo de Jellyfin lo mueve la app con la API de Jellyfin, como ahora. `204`. |
+| `GET Away/Favorites` | `{ "Songs": [ { …AwaySong, "Added": fecha } ] }` de la persona, lo último primero. |
+| `POST Away/Favorites` | Cuerpo `AwaySong`. `204`. Cuenta para el gusto como un ♥ (desde el día siguiente). Tope 2000. |
+| `DELETE Away/Favorites/{deezerId}` | `204`. |
+| `POST Away/Arrived` | Cuerpo `{ "DeezerId", "JellyfinId" }`: la app avisa de que una canción de fuera ya está en casa (Stremfin dijo `in_jellyfin`). El complemento comprueba que `JellyfinId` existe y es Audio, y entonces, en todas las listas y ♥ donde esté ese `DeezerId`: la mete en la lista de Jellyfin en su sitio (tras su `After`) y borra el hueco; da el ♥ de Jellyfin a quien lo tenía y lo quita de los suyos. `204`. |
+
+Además, el complemento busca solo las que han llegado: al entrar canciones en la
+biblioteca (evento de Jellyfin) y en la ronda diaria, por título, artista y
+álbum normalizados (y duración ±3 s si la tiene), y hace lo mismo que `Arrived`.
+
+Con un complemento antiguo (rutas en `404`), la app no ofrece «Añadir a una
+lista» ni ♥ en canciones de fuera.
