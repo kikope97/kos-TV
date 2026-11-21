@@ -39,8 +39,26 @@ class KostvStreamAlbums {
       ? GetIt.instance<StremfinService>()
       : null;
 
+  /// Kos TV: whose [_known] is (the service's [StremfinService.generation]):
+  /// whether an album was asked for is each person's own.
+  static int? _generationKnown;
+
+  static int? _generationNow() => _service?.generation;
+
+  /// Forgets what was known for someone else.
+  static void _sync() {
+    final now = _generationNow();
+    if (now == _generationKnown) return;
+    _generationKnown = now;
+    _known.clear();
+    _asking.clear();
+  }
+
   /// What is known of [deezerId] now (null until it is read).
-  static StremfinAlbum? known(String deezerId) => _known[deezerId]?.album;
+  static StremfinAlbum? known(String deezerId) {
+    _sync();
+    return _known[deezerId]?.album;
+  }
 
   /// Kos TV: the Deezer id of the album [deezerId]'s artist, once read.
   static String? artistOf(String deezerId) => _artists[deezerId];
@@ -48,25 +66,34 @@ class KostvStreamAlbums {
   /// [deezerId] read from the service, unless it was a moment ago (or
   /// [fresh]).
   static Future<StremfinAlbum?> read(String deezerId, {bool fresh = false}) {
+    _sync();
     final kept = _known[deezerId];
     if (!fresh && kept != null && DateTime.now().difference(kept.at) < _keep) {
       return Future.value(kept.album);
     }
-    return _asking[deezerId] ??= () async {
+    final generation = _generationKnown;
+    late final Future<StremfinAlbum?> asking;
+    asking = _asking[deezerId] ??= () async {
       try {
         final service = _service;
         if (service == null) return null;
         final detail = await service.musicAlbum(deezerId);
-        _known[deezerId] = (album: detail.album, at: DateTime.now());
         final artist = detail.artistDeezerId;
         if (artist != null && artist.isNotEmpty) _artists[deezerId] = artist;
+        // Kos TV: read for someone who is no longer signed in: not kept.
+        if (_generationNow() != generation) return null;
+        _known[deezerId] = (album: detail.album, at: DateTime.now());
         return detail.album;
       } catch (_) {
         return kept?.album;
       } finally {
-        unawaited(Future<void>.sync(() => _asking.remove(deezerId)));
+        // After it is in [_asking] (this may end before that).
+        scheduleMicrotask(() {
+          if (identical(_asking[deezerId], asking)) _asking.remove(deezerId);
+        });
       }
     }();
+    return asking;
   }
 
   @visibleForTesting
@@ -74,6 +101,7 @@ class KostvStreamAlbums {
     _known.clear();
     _artists.clear();
     _asking.clear();
+    _generationKnown = null;
   }
 }
 

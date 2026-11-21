@@ -315,19 +315,24 @@ Future<void> playMusicTracks(
   );
   // Kos TV: a song that isn't at home may take some seconds to be ready:
   // the player opens at once, with «Preparando la canción…», rather than
-  // after it.
+  // after it. Kos TV: nor is it waited for here (up to a minute), so the
+  // Music pages' lock (`kostvMusicOnce`) is let go at once: back on the
+  // page, another song can be picked meanwhile.
   if (isKostvStream(tracks[startIndex.clamp(0, tracks.length - 1)])) {
     final play = GetIt.instance<PlaybackManager>().playItems(
       tracks,
       startIndex: startIndex,
     );
     if (context.mounted) unawaited(context.push(Destinations.audioPlayer));
-    try {
-      await play;
-    } catch (e) {
-      debugPrint('[Music] Could not play it: $e');
-      _sayCantPlay(messenger, l10n);
-    }
+    unawaited(
+      play.then<void>(
+        (_) {},
+        onError: (Object e) {
+          debugPrint('[Music] Could not play it: $e');
+          _sayCantPlay(messenger, l10n);
+        },
+      ),
+    );
     return;
   }
   try {

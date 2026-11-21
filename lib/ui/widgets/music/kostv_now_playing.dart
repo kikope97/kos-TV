@@ -10,6 +10,8 @@ import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/media_server_client_factory.dart';
+import '../../../data/services/stremfin/kostv_stream_radio.dart'
+    show KostvStreamRadio, kostvSongKey;
 import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../playback/kostv_stream_playback.dart';
@@ -136,6 +138,8 @@ class KostvNowPlaying extends ChangeNotifier {
     _persistVolume = null;
     autoplayItems.clear();
     automaticItems.clear();
+    _autoplayRetry?.cancel();
+    _autoplayRetry = null;
     StremfinStreamResolver.preparing.removeListener(_preparingChanged);
     _slowPreparing?.cancel();
     _slowPreparing = null;
@@ -633,6 +637,11 @@ class KostvNowPlaying extends ChangeNotifier {
   bool _autoplayBusy = false;
   String? _autoplaySeed;
 
+  /// Kos TV: asks again once the radio has rested, after neither it nor
+  /// the home server's mix answered (nothing else may wake it before the
+  /// queue ends).
+  Timer? _autoplayRetry;
+
   /// The songs autoplay added to the queue, to show them apart.
   ///
   /// Kos TV: the queue's own entries (by identity, not by id), so a queue
@@ -750,6 +759,9 @@ class KostvNowPlaying extends ChangeNotifier {
     final items = queue.items;
     _autoplayBusy = true;
     _autoplaySeed = seed.id;
+    _autoplayRetry?.cancel();
+    _autoplayRetry = null;
+    var radio = false;
     try {
       final client =
           GetIt.instance<MediaServerClientFactory>().getClientIfExists(
@@ -761,9 +773,12 @@ class KostvNowPlaying extends ChangeNotifier {
       // (the home server has no mix of it), the requests service's radio
       // of its artists too, mixed in turns with the home server's mix.
       if (kostvStationWantsRadio(seed)) {
+        radio = true;
         final station = await kostvStationFor(
           seed,
           skip: known,
+          // Kos TV: nor the same song in its other version (at home or not).
+          skipKeys: items.whereType<AggregatedItem>().map(kostvSongKey).toSet(),
           homeLimit: 25,
           client: client,
         );
@@ -800,6 +815,15 @@ class KostvNowPlaying extends ChangeNotifier {
       }
     } catch (_) {
       _autoplaySeed = null;
+      if (radio) {
+        _autoplayRetry = Timer(
+          KostvStreamRadio.quiet + const Duration(seconds: 5),
+          () {
+            _autoplayRetry = null;
+            unawaited(_maybeAutoplay());
+          },
+        );
+      }
     } finally {
       _autoplayBusy = false;
       // The song changed while it was asked: asked again for the new one.

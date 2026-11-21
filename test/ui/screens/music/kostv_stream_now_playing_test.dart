@@ -252,4 +252,31 @@ void main() {
       expect(music.failed, isTrue);
     });
   });
+
+  testWidgets('Kos TV: on the TV, the remote on ♥ when the next song (one '
+      'that isn\'t at home, without ♥) comes goes to play/pause', (
+    tester,
+  ) async {
+    PlatformDetection.setTvMode(true);
+    manager.queueService.setQueue([_home('h'), _stream('2')]);
+    await open(tester, const Size(1920, 1080));
+    await tester.pumpAndSettle();
+    final heart = find.byIcon(Icons.favorite_border_rounded);
+    expect(heart, findsOneWidget);
+    // Through the queue's button first: Flutter alone would send it back
+    // there.
+    Focus.of(tester.element(find.byIcon(Icons.queue_music_rounded)))
+        .requestFocus();
+    await tester.pump();
+    Focus.of(tester.element(heart)).requestFocus();
+    await tester.pump();
+    expect(
+      FocusManager.instance.primaryFocus?.debugLabel,
+      'NowPlayingFavorite',
+    );
+    manager.queueService.next(manual: true);
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
+    expect(FocusManager.instance.primaryFocus?.debugLabel, 'NowPlayingPlay');
+  });
 }

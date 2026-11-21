@@ -313,13 +313,24 @@ Future<void> playKostvSongList(
   String source = KostvMusicSource.other,
   bool shuffle = false,
   bool picked = true,
-}) => kostvMusicOnce(() {
+}) => kostvMusicOnce(() async {
   final client = GetIt.instance.isRegistered<MediaServerClient>()
       ? GetIt.instance<MediaServerClient>()
       : null;
+  // Kos TV: what the person doesn't want to hear, read now if it wasn't
+  // (just started, another person) rather than taken as nothing.
+  final dislikes = client == null
+      ? KostvMusicDislikes.empty
+      : await KostvMusicDislikesStore.instance
+            .load(client)
+            .timeout(const Duration(seconds: 3))
+            .catchError(
+              (Object _) => KostvMusicDislikesStore.instance.of(client),
+            );
+  if (!context.mounted) return;
   final kept = kostvSongsToPlay(
     songs,
-    KostvMusicDislikesStore.instance.of(client),
+    dislikes,
     index: shuffle || !picked ? -1 : index,
   );
   return playKostvStreamSongs(
@@ -746,7 +757,9 @@ Future<void> _streamSongMenu(
           known = found ?? known;
         }),
     ]).timeout(const Duration(seconds: 4));
-    if (artistName != null && kostvMusicCanDislike(stream)) {
+    // Kos TV: its artist at home goes by the home id, which a plugin from
+    // before «Toda la música» keeps too.
+    if (artistName != null && kostvMusicCanDislike()) {
       homeArtist = await kostvHomeArtistNamed(artistName)
           .timeout(const Duration(seconds: 3));
     }
@@ -758,7 +771,7 @@ Future<void> _streamSongMenu(
   final canDislike = kostvMusicCanDislike(stream);
   final disliked = canDislike && kostvMusicDisliked(stream.id, stream);
   final artistToDislike =
-      canDislike &&
+      kostvMusicCanDislike() &&
           homeArtist != null &&
           !kostvMusicDisliked(homeArtist.id, stream)
       ? homeArtist

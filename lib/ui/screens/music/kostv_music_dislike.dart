@@ -5,10 +5,13 @@ import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/kostv_music_catalog.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart'
     show KostvMusicDisliked, KostvMusicDislikes;
 import '../../../data/services/media_server_client_factory.dart';
+import '../../../data/services/stremfin/kostv_stream_song.dart'
+    show isKostvStream;
 import '../../../l10n/app_localizations.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../widgets/music/kostv_now_playing.dart';
@@ -45,8 +48,11 @@ MediaServerClient? kostvMusicClientOf([AggregatedItem? item]) {
 
 /// Kos TV: whether «No me gusta» is offered for [item]'s server: its plugin
 /// keeps the list (read at least once; a plugin from before it, never).
+/// For a song that isn't at home, not with a plugin from before «Toda la
+/// música» either: it would turn it down every time.
 bool kostvMusicCanDislike([AggregatedItem? item]) =>
-    KostvMusicDislikesStore.instance.supported(kostvMusicClientOf(item));
+    KostvMusicDislikesStore.instance.supported(kostvMusicClientOf(item)) &&
+    !(isKostvStream(item) && KostvMusicCatalog.instance.olderPlugin);
 
 /// Kos TV: reads whether [item]'s server keeps the list, and the list, if
 /// it wasn't read lately: for a menu or a page about to offer it.

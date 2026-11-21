@@ -306,7 +306,8 @@ void main() {
           const StremfinSong(title: 'B', deezerId: '4'),
           serverId: server,
         ),
-        // At home, but no longer there: through the service.
+        // Kos TV: at home, but the home server doesn't give it (gone, or
+        // kept from the person by its parental control): left out.
         KostvQueueSong.ofSong(
           const StremfinSong(
             title: 'C',
@@ -329,14 +330,17 @@ void main() {
       expect(asked, [
         ['ja', 'gone'],
       ]);
-      expect(queue.items.map((i) => i.id), ['ja', 'stremfin:4', 'stremfin:5']);
+      expect(queue.items.map((i) => i.id), ['ja', 'stremfin:4']);
       // The one picked couldn't sound: the next one that can.
       expect(queue.startIndex, 1);
+      // The home server not answering at all: through the service, only
+      // when asked to (all the music, no limit).
       final grown = await kostvQueueOf(
         songs,
         startIndex: 2,
         hideExplicit: false,
         homeItems: (_) async => throw StateError('offline'),
+        streamWhenHomeFails: true,
       );
       expect(grown.items.map((i) => i.id), [
         'stremfin:1',
@@ -345,6 +349,47 @@ void main() {
         'stremfin:5',
       ]);
       expect(grown.startIndex, 1);
+      final kept = await kostvQueueOf(
+        songs,
+        hideExplicit: false,
+        homeItems: (_) async => throw StateError('offline'),
+      );
+      expect(kept.items.map((i) => i.id), ['stremfin:3', 'stremfin:4']);
+    });
+
+    test('an album\'s songs say nothing of explicit: with a limit, those '
+        'that aren\'t at home don\'t sound', () async {
+      const album = StremfinAlbum(title: 'Disco', deezerId: '9');
+      const away = StremfinAlbumTrack(title: 'Fuera', deezerId: '1');
+      const home = StremfinAlbumTrack(
+        title: 'Casa',
+        deezerId: '2',
+        inJellyfin: true,
+        jellyfinId: 'jh',
+      );
+      Future<List<String>> queue({required bool limit}) async =>
+          (await kostvQueueOf(
+            [
+              for (final track in const [away, home])
+                KostvQueueSong.ofTrack(
+                  track,
+                  album,
+                  serverId: server,
+                  explicit: limit,
+                ),
+            ],
+            hideExplicit: limit,
+            homeItems: (ids) async => [
+              for (final id in ids)
+                AggregatedItem(
+                  id: id,
+                  serverId: server,
+                  rawData: {'Id': id, 'Name': id, 'Type': 'Audio'},
+                ),
+            ],
+          )).items.map((i) => i.id).toList();
+      expect(await queue(limit: true), ['jh']);
+      expect(await queue(limit: false), ['stremfin:1', 'jh']);
     });
   });
 }
