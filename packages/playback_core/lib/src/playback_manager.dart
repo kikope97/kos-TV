@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'chapter_steps.dart';
 import 'media_stream_resolver.dart';
@@ -34,6 +35,49 @@ class _ProgressGeneration {
 
   /// Kos TV: it failed to play, so its stop says so (music only).
   bool failed = false;
+}
+
+/// Kos TV: the next song, resolved before the one playing ends and, where the
+/// player can, queued in it to follow with no gap (see
+/// [PlaybackManager.gaplessPreloadLead]).
+class _NextPreload {
+  _NextPreload({required this.after, required this.item});
+
+  /// The queue item playing when it was made, and the one it is for.
+  final dynamic after;
+  final dynamic item;
+
+  /// Every request made for [item], keyed as [PlaybackManager] keys its own
+  /// (see `_preloadRequestKey`), with what the server answered, in order.
+  final List<({String key, StreamResolutionResult resolution})> resolved = [];
+
+  /// The last answer, the one the item plays from.
+  StreamResolutionResult? resolution;
+
+  /// The track picks the last request named.
+  int? audioStreamIndex;
+  int? subtitleStreamIndex;
+
+  /// Still resolving.
+  Future<void>? running;
+
+  /// Thrown away (the queue changed, playback stopped).
+  bool cancelled = false;
+
+  /// Taken by the start of [item] the usual way, which uses what was
+  /// resolved and must not lose it to a cancel.
+  bool taken = false;
+
+  /// Resolving it failed or it may not play: nothing is tried again for it.
+  bool failed = false;
+
+  /// Queued in the player, which moves on to it by itself.
+  bool handed = false;
+
+  /// How long the song before it is. Once the player has moved on, its own
+  /// position and duration are the new song's, and the finished report of
+  /// the one before needs this.
+  Duration previousDuration = Duration.zero;
 }
 
 /// How far a confirmed position may sit from the seek target. Streams land
@@ -242,6 +286,24 @@ class PlaybackManager implements AudioOwnable {
   bool _skipRepeatOneAtEnd = false;
   bool suppressAutoNext = false;
   bool autoAdvanceEnabled = true;
+
+  /// Kos TV: how long before the end of a song the next one is resolved and,
+  /// on a [GaplessCapable] player, queued behind it. Long enough for a slow
+  /// resolver (a song from outside the household's library can take some
+  /// ten seconds); a next song not ready by the end starts the usual way.
+  static const gaplessPreloadLead = Duration(seconds: 25);
+
+  /// Kos TV: true while the next song must not be prepared ahead: something
+  /// will stop at the end of this one (the sleep timer «al acabar la
+  /// canción»), and a next song already playing would be heard.
+  bool Function()? preloadVeto;
+
+  _NextPreload? _nextPreload;
+
+  /// Kos TV: the length of the song playing when a next one was last queued
+  /// in the player, kept after that one is taken back: a player that moves
+  /// on anyway (the cancel came too late) has already lost the song's own.
+  Duration _lengthBeforeQueued = Duration.zero;
 
   /// Kos TV: asked before the queue moves on by itself to its next item at
   /// the end of one, when nothing held it there for a card. That advance is
@@ -1315,6 +1377,8 @@ class PlaybackManager implements AudioOwnable {
       return;
     }
     final previous = _backend;
+    // Kos TV: a next song queued in the old player isn't in the new one.
+    _discardNextPreload('the player changed');
     _streamRecoveryInFlight = false;
     _suppressNextGenericBackendError = false;
     _suppressedDecoderFailureEventId = null;
@@ -1531,6 +1595,7 @@ class PlaybackManager implements AudioOwnable {
         if (actualSpeed > 0 && actualSpeed != state.playbackSpeed) {
           state.setPlaybackSpeed(actualSpeed);
         }
+        _maybePreloadNext();
       }),
       backend.durationStream.listen((playerDuration) {
         final dur = playerDuration > Duration.zero
@@ -1563,7 +1628,17 @@ class PlaybackManager implements AudioOwnable {
         _evaluateLiveStallWatchdog();
       }),
       backend.completedStream.listen(_onTrackCompleted),
+      // Kos TV: a next song prepared ahead follows the queue.
+      queueService.queueChangedStream.listen((_) => _reviewNextPreload()),
     ]);
+    if (backend is GaplessCapable) {
+      final gapless = backend as GaplessCapable;
+      _streamSubs.add(
+        gapless.transitionedStream.listen(
+          (_) => _onGaplessTransition(backend),
+        ),
+      );
+    }
 
     final errorStream = backend.errorStream;
     if (errorStream != null) {
@@ -2933,7 +3008,7 @@ class PlaybackManager implements AudioOwnable {
     }
   }
 
-  Future<void> _autoNext() async {
+  Future<void> _autoNext({bool finished = false, Duration? finishedAt}) async {
     final skipped = _skipRepeatOneAtEnd;
     _skipRepeatOneAtEnd = false;
     if (await _maybeIntercept(TransportAction.next)) return;
@@ -2956,7 +3031,11 @@ class PlaybackManager implements AudioOwnable {
       }
       return;
     }
-    await _stopAndReportCurrent(skipQueueChange: true);
+    await _stopAndReportCurrent(
+      skipQueueChange: true,
+      finished: finished,
+      finishedAt: finishedAt,
+    );
     _resetBackendSelectionLock();
     final repeating =
         !skipped && queueService.repeatMode == RepeatMode.repeatOne;
@@ -2986,6 +3065,634 @@ class PlaybackManager implements AudioOwnable {
     } catch (_) {
       return true;
     }
+  }
+
+  // --- Kos TV: the next song, ahead of time (and with no gap) ---
+
+  /// The length the end of the item playing is judged by, as
+  /// [_onTrackCompleted] judges it.
+  Duration get _effectiveItemDuration {
+    if (_itemKnownDuration > Duration.zero) return _itemKnownDuration;
+    final backendDuration = _backendMediaDuration;
+    return backendDuration > Duration.zero ? backendDuration : state.duration;
+  }
+
+  /// Why no next song may be prepared ahead now, or null when one may.
+  String? _preloadBlockedReason() {
+    final current = queueService.currentItem;
+    if (current == null || !_isMusicItem(current)) return 'not music';
+    if (_backend == null || _resolver == null) return 'no player';
+    if (_isOfflinePlayback) return 'offline';
+    final resolution = _currentResolution;
+    if (resolution == null || resolution.liveStreamId != null) {
+      return 'no source';
+    }
+    if (_bringupState.phase != PlaybackBringupPhase.ready) return 'starting';
+    if (_waitingForMedia ||
+        _isAutoNexting ||
+        _isManualNexting ||
+        _stopInFlight != null) {
+      return 'busy';
+    }
+    // Something holds the queue at the end of this item, and SyncPlay moves
+    // the queue for the whole group; a host asking before the queue moves on
+    // might say no.
+    if (suppressAutoNext ||
+        !autoAdvanceEnabled ||
+        hasTransportInterceptor ||
+        confirmAutoNext != null) {
+      return 'held';
+    }
+    if (queueService.repeatMode == RepeatMode.repeatOne) return 'repeat one';
+    try {
+      if (preloadVeto?.call() ?? false) return 'vetoed';
+    } catch (_) {}
+    return null;
+  }
+
+  /// The item that would follow by itself, when it can be prepared ahead.
+  dynamic _preloadableNext() {
+    final current = queueService.currentItem;
+    final next = queueService.peekNext;
+    if (next == null || identical(next, current)) return null;
+    if (!_isMusicItem(next) || _isPreroll(next)) return null;
+    if (_queueContentFilter?.call(next) ?? false) return null;
+    // Track picks someone made for that item go through its own start.
+    if (_pendingItemOverrideId != null &&
+        _pendingItemOverrideId == _traceItemId(next)) {
+      return null;
+    }
+    // The resolver is set up per server, and the song playing must keep its.
+    final currentServer = _serverIdOf(current);
+    final nextServer = _serverIdOf(next);
+    if (currentServer != null &&
+        nextServer != null &&
+        currentServer != nextServer) {
+      return null;
+    }
+    return next;
+  }
+
+  static String? _serverIdOf(dynamic item) {
+    try {
+      final Object? id = item is Map ? item['ServerId'] : item?.serverId;
+      return id is String && id.isNotEmpty ? id : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Called on every position tick: starts preparing the next song once the
+  /// one playing is within [gaplessPreloadLead] of its end, and drops one
+  /// prepared when something now rules it out.
+  void _maybePreloadNext() {
+    final existing = _nextPreload;
+    if (existing != null) {
+      if (!existing.taken &&
+          identical(existing.after, queueService.currentItem)) {
+        // What now stops the queue at the end of this song (not a move
+        // already under way, which takes care of it).
+        final reason = _preloadBlockedReason();
+        if (reason == 'vetoed' || reason == 'repeat one' || reason == 'held') {
+          _discardNextPreload(reason!);
+        }
+      }
+      return;
+    }
+    if (_preloadBlockedReason() != null) return;
+    final duration = _effectiveItemDuration;
+    if (duration <= Duration.zero) return;
+    final position = state.position;
+    if (duration - position > gaplessPreloadLead) return;
+    final next = _preloadableNext();
+    if (next == null) return;
+    final preload = _NextPreload(after: queueService.currentItem, item: next);
+    _nextPreload = preload;
+    _diagnosticLogger?.call(
+      'Preloading the next song ${_traceItemId(next)} '
+      '${(duration - position).inSeconds}s before the end',
+    );
+    preload.running = _runPreload(preload).catchError((Object error) {
+      preload.failed = true;
+      _releasePreloaded(preload);
+      _diagnosticLogger?.call('Preloading the next song failed: $error');
+    });
+  }
+
+  /// The key a resolve request is matched by, so an answer got ahead is only
+  /// used for exactly the request that would have been made.
+  static String? _preloadRequestKey({
+    required Map<String, dynamic> profile,
+    int? maxStreamingBitrate,
+    int? audioStreamIndex,
+    int? subtitleStreamIndex,
+    int? startTimeTicks,
+    String? mediaSourceId,
+    required bool enableDirectPlay,
+    required bool enableDirectStream,
+    required bool enableTranscoding,
+  }) {
+    try {
+      return jsonEncode({
+        'profile': profile,
+        'cap': maxStreamingBitrate,
+        'audio': audioStreamIndex,
+        'subtitle': subtitleStreamIndex,
+        'start': startTimeTicks,
+        'source': mediaSourceId,
+        'directPlay': enableDirectPlay,
+        'directStream': enableDirectStream,
+        'transcoding': enableTranscoding,
+      });
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The track picks [_translateTrackSelectionsForNewItem] will make for
+  /// [item] when it starts, without making them.
+  ({int? audio, int? subtitle}) _predictTrackSelections(dynamic item) {
+    final streams = _extractMediaStreams(item);
+    final int? subtitle;
+    if (_lastExplicitSubtitleEnabled == false) {
+      subtitle = -1;
+    } else if (streams.isNotEmpty && _lastExplicitSubtitleLanguage != null) {
+      subtitle = _matchLastExplicitSubtitle(streams);
+    } else {
+      subtitle = null;
+    }
+    final audio = streams.isNotEmpty && _lastExplicitAudioLanguage != null
+        ? _matchStreamIndexByLanguage(
+            streams,
+            _lastExplicitAudioLanguage,
+            'Audio',
+            preferredIndex: _lastExplicitAudioIndex,
+            preferredTitle: _lastExplicitAudioTitle,
+          )
+        : null;
+    return (audio: audio, subtitle: subtitle);
+  }
+
+  /// Resolves [preload]'s item the way [_playCurrentItem] would on an
+  /// automatic advance, then hands it to the player when it can follow with
+  /// no gap.
+  Future<void> _runPreload(_NextPreload preload) async {
+    final item = preload.item;
+    bool stale() =>
+        preload.cancelled ||
+        (!preload.taken && !identical(_nextPreload, preload));
+
+    final refusal = _playContentRefusal;
+    if (refusal != null && await refusal(item)) {
+      // Its own start refuses it the usual way.
+      preload.failed = true;
+      return;
+    }
+    if (stale()) return;
+    final configurator = _resolverConfigurator;
+    if (configurator != null) {
+      await configurator(item);
+      // Set back for the song still playing (the same server, see
+      // [_preloadableNext]).
+      if (identical(queueService.currentItem, preload.after)) {
+        await configurator(preload.after);
+      }
+      if (stale()) return;
+    }
+    final resolver = _resolver;
+    final backend = _backend;
+    if (resolver == null || backend == null) {
+      preload.failed = true;
+      return;
+    }
+
+    var enableDirectPlay = true;
+    var enableDirectStream = true;
+    var enableTranscoding = true;
+    if (_forceTranscodeForQueue) {
+      enableDirectPlay = false;
+      enableDirectStream = false;
+      enableTranscoding = true;
+    }
+    enableDirectPlay = enableDirectPlay && _directPlayAllowedForQueue;
+    final profile = backend.getDeviceProfile(
+      useProgressiveTranscode: !enableDirectPlay && !enableDirectStream,
+    );
+    stripVetoedAudioCodecs(profile, _vetoedAudioCodecs);
+    if (_maxBitrateOverrideMbps != null) {
+      profile['MaxStreamingBitrate'] = _maxBitrateOverrideMbps! * 1000000;
+    }
+    var maxBitrate = profile['MaxStreamingBitrate'] as int?;
+    final autoBitrate = maxBitrate == null && autoBitrateProvider != null;
+    int? measuredBitrate;
+    if (autoBitrate) {
+      final int? startingBitrate;
+      if (!enableDirectPlay) {
+        startingBitrate = measuredBitrate = await autoBitrateProvider!();
+      } else {
+        startingBitrate = await savedAutoBitrateProvider?.call();
+      }
+      if (stale()) return;
+      if (startingBitrate != null && startingBitrate > 0) {
+        maxBitrate = _autoBitrateCap(
+          startingBitrate,
+          _sourceBitrate(item),
+          enableDirectPlay,
+        );
+        profile['MaxStreamingBitrate'] = maxBitrate;
+      }
+    }
+
+    final picks = _predictTrackSelections(item);
+    var audioStreamIndex = picks.audio;
+    String? mediaSourceId;
+    Future<StreamResolutionResult> ask(int? cap) async {
+      final key = _preloadRequestKey(
+        profile: profile,
+        maxStreamingBitrate: cap,
+        audioStreamIndex: audioStreamIndex,
+        subtitleStreamIndex: picks.subtitle,
+        mediaSourceId: mediaSourceId,
+        enableDirectPlay: enableDirectPlay,
+        enableDirectStream: enableDirectStream,
+        enableTranscoding: enableTranscoding,
+      );
+      final answer = await resolver.resolve(
+        item,
+        deviceProfile: profile,
+        maxStreamingBitrate: cap,
+        audioStreamIndex: audioStreamIndex,
+        subtitleStreamIndex: picks.subtitle,
+        mediaSourceId: mediaSourceId,
+        enableDirectPlay: enableDirectPlay,
+        enableDirectStream: enableDirectStream,
+        enableTranscoding: enableTranscoding,
+      );
+      if (key != null) preload.resolved.add((key: key, resolution: answer));
+      preload
+        ..resolution = answer
+        ..audioStreamIndex = audioStreamIndex
+        ..subtitleStreamIndex = picks.subtitle;
+      return answer;
+    }
+
+    var resolution = await ask(maxBitrate);
+    if (stale()) return _releasePreloaded(preload);
+    // The same second request [_playCurrentItem] makes when a codec the
+    // profile holds back is involved.
+    final requestedAudioIndex =
+        audioStreamIndex ?? resolution.selectedAudioStreamIndex;
+    if (requestedAudioIndex != null &&
+        resolution.liveStreamId == null &&
+        {requestedAudioIndex, resolution.selectedAudioStreamIndex}.any(
+          (index) => _videoWithholdsAudioCodec(
+            profile,
+            resolution.mediaStreams.firstWhere(
+                  (s) => s['Type'] == 'Audio' && s['Index'] == index,
+                  orElse: () => const <String, dynamic>{},
+                )['Codec']
+                as String?,
+          ),
+        )) {
+      audioStreamIndex = requestedAudioIndex;
+      mediaSourceId = resolution.mediaSourceId;
+      resolution = await ask(maxBitrate);
+      if (stale()) return _releasePreloaded(preload);
+    }
+    if (autoBitrate &&
+        resolution.liveStreamId == null &&
+        resolution.playMethod == StreamPlayMethod.transcode) {
+      measuredBitrate ??= await autoBitrateProvider!();
+      if (stale()) return _releasePreloaded(preload);
+      final cap = measuredBitrate == null || measuredBitrate <= 0
+          ? maxBitrate
+          : _autoBitrateCap(
+              measuredBitrate,
+              resolution.sourceBitrate ?? _sourceBitrate(item),
+              enableDirectPlay,
+            );
+      if (cap != maxBitrate) {
+        maxBitrate = cap;
+        profile['MaxStreamingBitrate'] = cap;
+        resolution = await ask(cap);
+        if (stale()) return _releasePreloaded(preload);
+      }
+    }
+    if (preload.taken) return;
+    await _handPreloadToBackend(
+      preload,
+      backend,
+      resolution,
+      directOnly: enableDirectPlay && enableDirectStream && enableTranscoding,
+    );
+  }
+
+  /// Queues [resolution] in [backend] behind the song playing, when it can
+  /// follow it with no gap there and nothing in its own start would play it
+  /// differently.
+  Future<void> _handPreloadToBackend(
+    _NextPreload preload,
+    PlayerBackend backend,
+    StreamResolutionResult resolution, {
+    required bool directOnly,
+  }) async {
+    if (backend is! GaplessCapable || !identical(backend, _backend)) return;
+    final gapless = backend as GaplessCapable;
+    if (!gapless.canPreloadNext) return;
+    if (!identical(queueService.currentItem, preload.after) ||
+        !identical(queueService.peekNext, preload.item) ||
+        _preloadBlockedReason() != null) {
+      return;
+    }
+    // A conversion by the server, a stream with subtitles of its own or a
+    // source another player would take starts the usual way.
+    if (resolution.playMethod == StreamPlayMethod.transcode ||
+        resolution.liveStreamId != null ||
+        resolution.externalSubtitles.isNotEmpty) {
+      return;
+    }
+    final selector = _backendSelector;
+    if (selector != null &&
+        !identical(selector(resolution, backend), backend)) {
+      return;
+    }
+    final transcodeSelector = _transcodeSelector;
+    if (transcodeSelector != null &&
+        directOnly &&
+        transcodeSelector(resolution) != null) {
+      return;
+    }
+    final audioIndex =
+        preload.audioStreamIndex ??
+        resolution.selectedAudioStreamIndex ??
+        _defaultAudioStream(resolution.mediaStreams)?['Index'] as int?;
+    final payload = _buildBackendMediaPayload(
+      url: resolution.streamUrl,
+      mediaStreams: resolution.mediaStreams,
+      audioStreamIndex: audioIndex,
+      container: resolution.container,
+      videoRangeType: resolution.videoRangeType,
+      mediaType: resolution.mediaType,
+      headers: resolution.requestHeaders,
+      normalizationGainDb: resolution.normalizationGainDb,
+      hybridAudioUrl: resolution.hybridAudioUrl,
+      audioLike: true,
+    );
+    payload['playMethod'] = resolution.playMethod.name;
+    payload['gaplessAudio'] = true;
+    preload.previousDuration = _effectiveItemDuration;
+    bool took;
+    try {
+      took = await gapless.preloadNext(payload);
+    } catch (_) {
+      took = false;
+    }
+    if (preload.cancelled ||
+        preload.taken ||
+        !identical(_nextPreload, preload) ||
+        !identical(backend, _backend)) {
+      if (took) unawaited(gapless.cancelPreload().catchError((_) {}));
+      return;
+    }
+    preload.handed = took;
+    if (took) _lengthBeforeQueued = preload.previousDuration;
+    _diagnosticLogger?.call(
+      took
+          ? 'Next song queued in the player for a gapless start'
+          : 'The player did not take the next song; it starts the usual way',
+    );
+  }
+
+  /// Hands [item]'s start what was prepared ahead for it, if anything.
+  /// Anything prepared for another item is thrown away.
+  _NextPreload? _takeNextPreload(dynamic item) {
+    final preload = _nextPreload;
+    if (preload == null) return null;
+    if (!identical(preload.item, item)) {
+      _discardNextPreload('another item started');
+      return null;
+    }
+    _nextPreload = null;
+    preload.taken = true;
+    return preload;
+  }
+
+  /// The answer [preload] got for the request [key], waiting for one still
+  /// on its way (it was asked first, so it beats asking again). Each is used
+  /// once.
+  Future<StreamResolutionResult?> _preloadedAnswer(
+    _NextPreload preload,
+    String? key,
+  ) async {
+    if (key == null) return null;
+    final running = preload.running;
+    if (running != null) await running;
+    final index = preload.resolved.indexWhere((e) => e.key == key);
+    if (index < 0) {
+      if (preload.resolved.isNotEmpty) {
+        _diagnosticLogger?.call(
+          'The next song was resolved ahead with another request; '
+          'resolving it again',
+        );
+      }
+      return null;
+    }
+    _diagnosticLogger?.call('Starting the next song from its early resolve');
+    return preload.resolved.removeAt(index).resolution;
+  }
+
+  /// Ends on the server whatever [preload] opened there that will not play,
+  /// all but [keep].
+  void _releasePreloaded(_NextPreload preload, {StreamResolutionResult? keep}) {
+    final playing = _currentResolution?.playSessionId;
+    for (final entry in preload.resolved) {
+      final resolution = entry.resolution;
+      if (identical(resolution, keep)) continue;
+      if (resolution.playMethod == StreamPlayMethod.directPlay ||
+          resolution.isLocalMedia) {
+        continue;
+      }
+      if (playing != null && resolution.playSessionId == playing) continue;
+      try {
+        unawaited(_service?.stopTranscoding(resolution).catchError((_) {}));
+      } catch (_) {}
+    }
+    preload.resolved.clear();
+  }
+
+  /// Throws away the next song prepared ahead: out of the player's queue,
+  /// and its conversion ended on the server.
+  void _discardNextPreload(String reason) {
+    final preload = _nextPreload;
+    if (preload == null) return;
+    _nextPreload = null;
+    preload.cancelled = true;
+    _diagnosticLogger?.call('Dropping the next song prepared ahead: $reason');
+    final backend = _backend;
+    if (preload.handed && backend is GaplessCapable) {
+      preload.handed = false;
+      unawaited(
+        (backend as GaplessCapable).cancelPreload().catchError((_) {}),
+      );
+    }
+    _releasePreloaded(preload);
+  }
+
+  /// The queue changed: a next song prepared ahead goes if it no longer
+  /// follows, and a new one is prepared on the next tick.
+  void _reviewNextPreload() {
+    final preload = _nextPreload;
+    if (preload == null) return;
+    if (!identical(queueService.currentItem, preload.after)) {
+      _discardNextPreload('the queue moved on');
+    } else if (!identical(queueService.peekNext, preload.item)) {
+      _discardNextPreload('the queue changed');
+    } else if (queueService.repeatMode == RepeatMode.repeatOne) {
+      _discardNextPreload('repeat one');
+    }
+  }
+
+  /// The player moved on to the song queued in it by itself.
+  void _onGaplessTransition(PlayerBackend backend) {
+    if (!identical(backend, _backend)) return;
+    if (_isAutoNexting ||
+        _isManualNexting ||
+        _waitingForMedia ||
+        _stopInFlight != null) {
+      // Whatever is moving the queue opens its own source.
+      _diagnosticLogger?.call('Gapless move ignored: the queue is moving');
+      return;
+    }
+    final preload = _nextPreload;
+    final expected =
+        preload != null &&
+        preload.handed &&
+        !preload.cancelled &&
+        preload.resolution != null &&
+        identical(queueService.currentItem, preload.after) &&
+        identical(queueService.peekNext, preload.item);
+    _isAutoNexting = true;
+    if (!expected) {
+      // The player plays a song the queue no longer wants: the one before
+      // ended all the same, and the queue's next starts the usual way.
+      _diagnosticLogger?.call(
+        'Gapless move to a song no longer next; starting the next one afresh',
+      );
+      final finishedAt = preload != null && preload.handed
+          ? preload.previousDuration
+          : _lengthBeforeQueued;
+      _lengthBeforeQueued = Duration.zero;
+      _discardNextPreload('the player moved on to it too late');
+      _autoNext(
+            finished: true,
+            finishedAt: finishedAt > Duration.zero ? finishedAt : null,
+          )
+          .catchError((Object e) {
+            _diagnosticLogger?.call(
+              'Auto-next failed to start the next item: $e',
+            );
+          })
+          .whenComplete(() => _isAutoNexting = false);
+      return;
+    }
+    _adoptGaplessNext(preload)
+        .catchError((Object e) {
+          _diagnosticLogger?.call('Gapless move failed: $e');
+        })
+        .whenComplete(() => _isAutoNexting = false);
+  }
+
+  /// What [_autoNext] and [_playCurrentItem] do between two songs, without
+  /// stopping or opening anything: the player already plays the next one.
+  Future<void> _adoptGaplessNext(_NextPreload preload) async {
+    _nextPreload = null;
+    preload.taken = true;
+    _lengthBeforeQueued = Duration.zero;
+    final resolution = preload.resolution!;
+    final previous = queueService.currentItem;
+    final previousId = MediaStreamResolver.extractItemId(previous);
+    onSubtitleTrackChanged?.call(previousId, null);
+    onAudioTrackChanged?.call(previousId, null);
+    _beginNewPlaybackSource('the queue moved on to the next song, no gap');
+    _mediaSourceId = null;
+    // Played to its end: reported at its length, as a whole listen.
+    await _stopAndReportCurrent(
+      skipQueueChange: true,
+      finished: true,
+      stopBackend: false,
+      finishedAt: preload.previousDuration > Duration.zero
+          ? preload.previousDuration
+          : null,
+    );
+    if (!identical(queueService.currentItem, previous)) return;
+    _releasePreloaded(preload, keep: resolution);
+
+    // From here nothing waits: the queue, the position and the length change
+    // together, so the lyrics, the floating player and the bar never see the
+    // new song with the old one's figures.
+    queueService.next(manual: false);
+    final item = queueService.currentItem;
+    _itemEpoch++;
+    _resetLiveRecoveryBudget();
+    _endReconnect();
+    _skipRepeatOneAtEnd = false;
+    final sessionToken = ++_playbackSessionToken;
+    final itemId = _traceItemId(item);
+    _secondarySubtitleStreamIndex = null;
+    _secondarySubtitleDelaySeconds = 0;
+    _translateTrackSelectionsForNewItem(item);
+    _audioStreamIndex =
+        preload.audioStreamIndex ??
+        resolution.selectedAudioStreamIndex ??
+        _defaultAudioStream(resolution.mediaStreams)?['Index'] as int?;
+    _subtitleStreamIndex =
+        preload.subtitleStreamIndex ?? resolution.selectedSubtitleStreamIndex;
+    _lastItemId = itemId;
+    _lastPlayedItem = item;
+    _currentResolution = resolution;
+    _streamsOutdatedItemId = null;
+    _lastPlaybackItem = item;
+    _lastPlaybackResolution = resolution;
+    _mediaSourceId = resolution.mediaSourceId;
+    _itemKnownDuration = _resolvedItemDuration(item, resolution.mediaSourceId);
+    final backend = _backend;
+    final position = backend == null
+        ? Duration.zero
+        : _mediaPosition(backend.position);
+    _lastKnownPosition = position;
+    state.setDuration(
+      _itemKnownDuration > Duration.zero
+          ? _itemKnownDuration
+          : _backendMediaDuration,
+    );
+    state.setPosition(position);
+    _playbackStartTime = clock();
+    _streamRecoveryInFlight = false;
+    _suppressNextGenericBackendError = false;
+    _lastPlayerErrorKind = null;
+    _clientTranscodeReason = null;
+    _externalSubsLoaded = Future.value();
+    _viewerPaused = false;
+
+    final startReport = _service?.onPlaybackStart(
+      item,
+      resolution,
+      audioStreamIndex: _audioStreamIndex,
+      subtitleStreamIndex: _subtitleStreamIndex,
+      queueModes: _queueModesFor(item),
+    );
+    if (startReport != null) unawaited(startReport.catchError((_) {}));
+    _startProgressTimer();
+    _setBringupState(
+      PlaybackBringupState(
+        phase: PlaybackBringupPhase.ready,
+        sessionToken: sessionToken,
+        itemId: itemId,
+        backend: _traceBackendName(backend),
+        playMethod: resolution.playMethod.name,
+      ),
+    );
+    _diagnosticLogger?.call('Moved on to the next song with no gap: $itemId');
   }
 
   Future<bool> _tryAutoAdvanceToNextSeason() async {
@@ -3265,6 +3972,10 @@ class PlaybackManager implements AudioOwnable {
       _setBringupState(const PlaybackBringupState.idle());
       return;
     }
+    // Kos TV: the song resolved ahead for this start, if it was. Taken before
+    // anything waits, so the queue change that brought it here doesn't
+    // cancel it.
+    final preloaded = reopening ? null : _takeNextPreload(item);
 
     // The backstop for everything the queue filter couldn't answer without a
     // lookup. Prerolls carry no rating of their own and are skipped.
@@ -3431,6 +4142,24 @@ class PlaybackManager implements AudioOwnable {
           );
         }
       }
+      // Kos TV: what was resolved ahead for this very request, if anything.
+      if (preloaded != null && base == null) {
+        final hit = await _preloadedAnswer(
+          preloaded,
+          _preloadRequestKey(
+            profile: profile,
+            maxStreamingBitrate: cap,
+            audioStreamIndex: _audioStreamIndex,
+            subtitleStreamIndex: _subtitleStreamIndex,
+            startTimeTicks: startTicks,
+            mediaSourceId: _mediaSourceId,
+            enableDirectPlay: enableDirectPlay,
+            enableDirectStream: enableDirectStream && !originalFile,
+            enableTranscoding: enableTranscoding && !originalFile,
+          ),
+        );
+        if (hit != null) return hit;
+      }
       try {
         return await _resolver!.resolve(
           item,
@@ -3563,6 +4292,8 @@ class PlaybackManager implements AudioOwnable {
         return;
       }
     }
+    // Kos TV: what was resolved ahead and not used now never plays.
+    if (preloaded != null) _releasePreloaded(preloaded, keep: resolution);
 
     _setBringupState(
       PlaybackBringupState(
@@ -3905,6 +4636,12 @@ class PlaybackManager implements AudioOwnable {
       // Kos TV: the web player tells a failed transcode (final) from a
       // failed direct play (worth a transcode) by this.
       backendMediaPayload['playMethod'] = resolution.playMethod.name;
+      // Kos TV: music goes from one song to the next with no gap, which the
+      // player has to keep possible from the first one (Media3's audio
+      // offload).
+      if (_isMusicItem(item) && _backend is GaplessCapable) {
+        backendMediaPayload['gaplessAudio'] = true;
+      }
       await _arbiter?.acquire(AudioProducer.mainPlayback);
       if (sessionToken != _playbackSessionToken) {
         _cleanupPreemptedSession(item, resolution, startPosition);
@@ -3919,6 +4656,10 @@ class PlaybackManager implements AudioOwnable {
       // it returns, and a reset placed after would erase that first frame.
       _liveFrameSeenSinceOpen = false;
       _liveResumedInPlace = false;
+      // Kos TV: opening a source empties the player's queue, a next song
+      // queued in it included; the end then goes the usual way.
+      _nextPreload?.handed = false;
+      _lengthBeforeQueued = Duration.zero;
       await _backend!.play(
         backendMediaPayload,
         startPosition: useNativeStart
@@ -5757,6 +6498,12 @@ class PlaybackManager implements AudioOwnable {
     bool releaseServerResources = false,
     bool preserveSubtitleDelay = false,
     bool finished = false,
+    // Kos TV: false when the player has already moved on to the next song
+    // by itself (no gap), which must go on playing.
+    bool stopBackend = true,
+    // Kos TV: the length a [finished] item is reported at, when the player's
+    // own duration is no longer its (see [stopBackend]).
+    Duration? finishedAt,
   }) async {
     final existingStop = _stopInFlight;
     if (existingStop != null) {
@@ -5835,12 +6582,16 @@ class PlaybackManager implements AudioOwnable {
         // Skipping the rest counts as playing to the end, judged by the same
         // duration as [_onTrackCompleted]. With none known, nothing changes.
         final backendDuration = _backendMediaDuration;
-        final end = _itemKnownDuration > Duration.zero
-            ? _itemKnownDuration
-            : (backendDuration > Duration.zero
-                  ? backendDuration
-                  : state.duration);
-        if (end > pos) pos = end;
+        final end =
+            finishedAt ??
+            (_itemKnownDuration > Duration.zero
+                ? _itemKnownDuration
+                : (backendDuration > Duration.zero
+                      ? backendDuration
+                      : state.duration));
+        // Kos TV: at the end exactly, not past it: the server plugin counts
+        // a listen as whole when its stop is within 3 s of the length.
+        if (end > Duration.zero) pos = end;
       }
       final progressGeneration = _progressGeneration;
       if (progressGeneration != null) {
@@ -5875,7 +6626,7 @@ class PlaybackManager implements AudioOwnable {
       _currentResolution = null;
       _lastPlaybackItem = null;
       _lastPlaybackResolution = null;
-      await _backend?.stop();
+      if (stopBackend) await _backend?.stop();
       _playbackStartTime = null;
       _waitingForMedia = false;
       if (!skipQueueChange) {
@@ -5928,6 +6679,7 @@ class PlaybackManager implements AudioOwnable {
     _cancelLiveRecoveryProven();
     _endLiveStallWatch();
     _stopProgressTimer();
+    _discardNextPreload('the manager was disposed');
     _disposeStreamSubs();
     _backendChangedController.close();
     _bringupStateController.close();

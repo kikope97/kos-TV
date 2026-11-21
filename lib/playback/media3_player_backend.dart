@@ -20,7 +20,7 @@ import 'subtitle_fonts.dart';
 
 class Media3PlayerBackend extends PlayerBackend
     with SubtitleDelayState
-    implements SubtitleLoadingBackend, SecondarySubtitleBackend {
+    implements SubtitleLoadingBackend, SecondarySubtitleBackend, GaplessCapable {
   @override
   bool get supportsSecondarySubtitleDelay => true;
   @override
@@ -151,6 +151,10 @@ class Media3PlayerBackend extends PlayerBackend
   bool _skipSilenceEnabled = false;
   RepeatMode _repeatMode = RepeatMode.none;
   bool _completed = false;
+
+  /// Kos TV: a next song is queued in the native player behind this one.
+  bool _nextQueued = false;
+  final _transitionedStream = StreamController<void>.broadcast();
   SubtitleRendererMode _requestedSubtitleRendererMode =
       SubtitleRendererMode.native;
 
@@ -318,8 +322,14 @@ class Media3PlayerBackend extends PlayerBackend
           );
         }
 
+        // Kos TV: with a next song queued, the end of this one is where the
+        // player moves on (it can sit there buffering it); only the native
+        // end of the queue ('completed') is an end then.
         final completedNow =
-            _duration > Duration.zero && _position >= _duration && !_isPlaying;
+            !_nextQueued &&
+            _duration > Duration.zero &&
+            _position >= _duration &&
+            !_isPlaying;
         if (completedNow != _completed) {
           _completed = completedNow;
           _completedStream.add(_completed);
@@ -357,7 +367,23 @@ class Media3PlayerBackend extends PlayerBackend
         if (!_tracksChangedController.isClosed) {
           _tracksChangedController.add(null);
         }
+      case 'transitioned':
+        // Kos TV: the player moved on by itself to the song queued behind.
+        // Told even after a cancel that came too late: the manager then
+        // starts the song its queue wants.
+        _nextQueued = false;
+        _completed = false;
+        _previousItemPosition = null;
+        final nextUrl = map['url']?.toString();
+        if (nextUrl != null && nextUrl.isNotEmpty) _currentUrl = nextUrl;
+        _position = Duration(milliseconds: _toInt(map['positionMs']));
+        _duration = Duration(milliseconds: _toInt(map['durationMs']));
+        _diag('Media3: moved on to the queued song with no gap');
+        _transitionedStream.add(null);
+        _positionStream.add(_position);
+        _durationStream.add(_duration);
       case 'completed':
+        _nextQueued = false;
         _completed = _toBool(map['completed']);
         if (_completed) {
           // A live source has no end, so what the player thought the window
@@ -1300,6 +1326,8 @@ class Media3PlayerBackend extends PlayerBackend
     final isPreview = payload['preview'] == true;
 
     _completed = false;
+    // Opening a source empties the native queue.
+    _nextQueued = false;
     // The native ticker keeps reporting the previous item's frozen position
     // until the new source is set. Left in place, a stop in the first second
     // reports where the last episode ended, which marks this one watched.
@@ -1435,6 +1463,8 @@ class Media3PlayerBackend extends PlayerBackend
       'subtitleDelayMs': (subtitleDelaySeconds * 1000).round(),
       'volumeBoostLevel': _volumeBoostLevel,
       'preview': isPreview,
+      // Kos TV: music keeps the audio offload gapless (see [preloadNext]).
+      'gaplessAudio': payload['gaplessAudio'] == true,
     });
     await _invoke<void>('setRepeatMode', {
       'mode': _engineRepeatWire(_repeatMode),
@@ -1503,7 +1533,58 @@ class Media3PlayerBackend extends PlayerBackend
   }
 
   @override
-  Future<void> stop() => _teardown('stop');
+  Future<void> stop() {
+    _nextQueued = false;
+    return _teardown('stop');
+  }
+
+  // --- Kos TV: the next song with no gap ([GaplessCapable]) ---
+
+  /// Skip silence works on the decoded audio, which a song queued with no
+  /// gap would have to share; with it on, songs start the usual way.
+  @override
+  bool get canPreloadNext =>
+      !_disposed &&
+      !_sourceIsLive &&
+      !_prefs.get(UserPreferences.media3SkipSilence);
+
+  @override
+  Stream<void> get transitionedStream => _transitionedStream.stream;
+
+  @override
+  Future<bool> preloadNext(dynamic mediaItem) async {
+    if (!canPreloadNext || mediaItem is! Map) return false;
+    final url = mediaItem['url']?.toString() ?? '';
+    if (url.isEmpty || mediaItem['mediaType']?.toString() != 'audio') {
+      return false;
+    }
+    final headers = mediaItem['headers'] is Map
+        ? (mediaItem['headers'] as Map).map(
+            (key, value) => MapEntry(key.toString(), value.toString()),
+          )
+        : <String, String>{};
+    final took =
+        await _invoke<bool>('enqueueNext', {
+          'url': url,
+          'headers': headers,
+          'container': mediaItem['container']?.toString(),
+          'mediaType': 'audio',
+          'isLive': false,
+          'normalizationGainDb': (mediaItem['normalizationGainDb'] as num?)
+              ?.toDouble(),
+          'audioCodec': mediaItem['audioCodec']?.toString(),
+        }) ??
+        false;
+    _nextQueued = took;
+    return took;
+  }
+
+  @override
+  Future<void> cancelPreload() async {
+    if (!_nextQueued) return;
+    _nextQueued = false;
+    await _invoke<void>('cancelNext');
+  }
 
   Future<void> release({bool previewOnly = false}) =>
       _teardown('release', previewOnly ? const {'previewOnly': true} : null);
@@ -1974,6 +2055,7 @@ class Media3PlayerBackend extends PlayerBackend
     _playingStream.close();
     _bufferingStream.close();
     _completedStream.close();
+    _transitionedStream.close();
     _errorStream.close();
     _tracksChangedController.close();
     _subtitleLoadingStream.close();

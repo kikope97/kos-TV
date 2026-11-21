@@ -78,6 +78,28 @@ abstract interface class SecondarySubtitleBackend {
   bool get supportsSecondarySubtitleStyle;
 }
 
+/// Kos TV: a player that can hold the next song behind the one playing and
+/// move on to it by itself, with no gap. The playback manager only uses it
+/// for music.
+abstract interface class GaplessCapable {
+  /// Whether a next song can be queued now. False with settings that rule it
+  /// out (skip silence), and the manager then only resolves it ahead.
+  bool get canPreloadNext;
+
+  /// Queues [mediaItem], a payload like the one [PlayerBackend.play] takes,
+  /// to start when the current item ends. True when the player took it;
+  /// false leaves the player as it was, and the item ending goes on as
+  /// before (completed, then a fresh play).
+  Future<bool> preloadNext(dynamic mediaItem);
+
+  /// Takes a queued next item back out. Nothing happens without one.
+  Future<void> cancelPreload();
+
+  /// Fires when the player moved on to the queued item by itself. Never for
+  /// a play, a stop or a seek.
+  Stream<void> get transitionedStream;
+}
+
 /// Lets a backend expose secondary size and color support independently.
 /// Backends that don't implement this keep the all-or-nothing
 /// [SecondarySubtitleBackend.supportsSecondarySubtitleStyle] behavior.
