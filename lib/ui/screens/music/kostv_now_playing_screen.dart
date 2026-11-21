@@ -15,6 +15,7 @@ import '../../../data/models/aggregated_item.dart';
 import '../../../data/models/lyrics.dart';
 import '../../../data/repositories/item_mutation_repository.dart';
 import '../../../data/services/kostv_music.dart';
+import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../l10n/app_localizations.dart';
@@ -35,7 +36,9 @@ import '../../widgets/player_volume_control.dart' show volumeIconFor;
 import '../playback/audiobook_player_view.dart';
 import 'kostv_music_links.dart';
 import 'kostv_music_widgets.dart' show kostvMusicColor;
-import 'kostv_music_actions.dart' show kostvMusicFavoritesChanged;
+import 'kostv_music_actions.dart'
+    show kostvMusicArtistNameOf, kostvMusicFavoritesChanged;
+import 'kostv_music_dislike.dart';
 
 /// Kos TV: «Reproduciendo», the music player. Its background takes the
 /// colours of the cover; the cover breathes with the music (smaller while
@@ -121,6 +124,9 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     ]);
     _lastId = _music.item?.id;
     unawaited(_loadLyrics());
+    // Kos TV: «No me gusta» next to ♥, when the server plugin keeps it.
+    KostvMusicDislikesStore.instance.addListener(_rebuild);
+    unawaited(kostvMusicDislikesReady(_music.item));
     // The page opens on play/pause (the app would hand the remote the
     // first thing on it, the progress bar).
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -135,6 +141,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   @override
   void dispose() {
     _music.removeListener(_changed);
+    KostvMusicDislikesStore.instance.removeListener(_rebuild);
     for (final sub in _subs) {
       sub.cancel();
     }
@@ -431,6 +438,22 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     }
   }
 
+  /// Kos TV: «No me gusta» of the song sounding, when the server plugin
+  /// keeps it (not with what is downloaded): it skips to the next one. On
+  /// one already on the list (put on by hand), it takes it off.
+  VoidCallback? _dislikeOf(AggregatedItem item) {
+    if (_manager.isOfflinePlayback || item.type != 'Audio') return null;
+    if (!kostvMusicCanDislike(item)) return null;
+    return () {
+      if (kostvMusicDisliked(item.id, item)) {
+        unawaited(kostvUndislike(context, id: item.id, name: item.name));
+      } else {
+        _direction = 1;
+        unawaited(kostvDislikeSong(context, item));
+      }
+    };
+  }
+
   void _next() {
     _direction = 1;
     _music.next();
@@ -486,6 +509,13 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     final artistId = _artistId(item);
     final offline = _manager.isOfflinePlayback;
     final sleepAt = _music.sleepAt;
+    // Kos TV: «No me pongas a …», when the server plugin keeps it.
+    final artistToDislike =
+        _dislikeOf(item) != null &&
+            artistId != null &&
+            !kostvMusicDisliked(artistId, item)
+        ? kostvMusicArtistNameOf(item)
+        : null;
     final choice = await _showMenu<String>(
       title: item.name,
       entries: [
@@ -520,6 +550,12 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
         ),
         if (!offline)
           KostvMenuEntry('radio', Icons.radio_rounded, l10n.kostvMusicRadio),
+        if (artistToDislike != null)
+          KostvMenuEntry(
+            'dislikeArtist',
+            Icons.person_off_outlined,
+            l10n.kostvMusicDislikeArtistNamed(artistToDislike),
+          ),
         KostvMenuEntry('stop', Icons.stop_circle_rounded, l10n.kostvPlayerStop),
       ],
     );
@@ -547,11 +583,16 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
         ).mix(item.id).catchError((Object _) => const <AggregatedItem>[]);
         if (!mounted || mix.isEmpty) return;
         KostvNowPlaying.instance.noteChosen();
-        final queue = [
-          item,
-          for (final other in mix)
-            if (other.id != item.id) other,
-        ];
+        // Kos TV: without what the person doesn't want to hear.
+        final queue = kostvMusicLeaveOut(
+          KostvMusicDislikesStore.instance.of(kostvMusicClientOf(item)),
+          [
+            item,
+            for (final other in mix)
+              if (other.id != item.id) other,
+          ],
+        ).tracks;
+        KostvNowPlaying.instance.noteQueueSource(KostvMusicSource.radio, queue);
         kostvTellMusicSource(
           () =>
               GetIt.instance<MediaServerClientFactory>().getClientIfExists(
@@ -562,6 +603,13 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
           queue,
         );
         await _manager.playItems(queue);
+      case 'dislikeArtist':
+        await kostvDislikeArtist(
+          context,
+          id: artistId!,
+          name: artistToDislike!,
+          from: item,
+        );
       case 'stop':
         _music.close();
         _leave();
@@ -721,6 +769,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
             onFavorite: _manager.isOfflinePlayback
                 ? null
                 : () => _toggleFavorite(item),
+            disliked: kostvMusicDisliked(item.id, item),
+            onDislike: _dislikeOf(item),
             view: _view,
             hasLyrics: _hasLyrics,
             lyricsFocus: _lyricsButtonFocus,
@@ -884,6 +934,17 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
                             album: _albumLink(item),
                           ),
                         ),
+                        if (_dislikeOf(item) case final onDislike?)
+                          _IconToggle(
+                            icon: kostvMusicDisliked(item.id, item)
+                                ? Icons.thumb_down_rounded
+                                : Icons.thumb_down_outlined,
+                            tooltip: kostvMusicDisliked(item.id, item)
+                                ? l10n.kostvMusicUndislike
+                                : l10n.kostvMusicDislike,
+                            lit: kostvMusicDisliked(item.id, item),
+                            onTap: onDislike,
+                          ),
                         if (!_manager.isOfflinePlayback)
                           _IconToggle(
                             icon: _isFavorite(item)
@@ -1724,10 +1785,16 @@ class _ActionsRow extends StatelessWidget {
     required this.onQueue,
     required this.onMore,
     this.lyricsFocus,
+    this.disliked = false,
+    this.onDislike,
   });
 
   final bool favorite;
   final VoidCallback? onFavorite;
+
+  /// Kos TV: «No me gusta», next to ♥ (null: not offered).
+  final bool disliked;
+  final VoidCallback? onDislike;
   final _View view;
   final bool hasLyrics;
   final FocusNode? lyricsFocus;
@@ -1752,6 +1819,19 @@ class _ActionsRow extends StatelessWidget {
             lit: favorite,
             onTap: onFavorite!,
           ),
+        if (onDislike != null) ...[
+          const SizedBox(width: 18),
+          _IconToggle(
+            icon: disliked
+                ? Icons.thumb_down_rounded
+                : Icons.thumb_down_outlined,
+            tooltip: disliked
+                ? l10n.kostvMusicUndislike
+                : l10n.kostvMusicDislike,
+            lit: disliked,
+            onTap: onDislike!,
+          ),
+        ],
         const SizedBox(width: 18),
         _IconToggle(
           icon: Icons.lyrics_rounded,

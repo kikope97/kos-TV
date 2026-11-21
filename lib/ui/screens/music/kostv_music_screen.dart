@@ -11,6 +11,7 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/kostv_music.dart';
+import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
@@ -28,6 +29,20 @@ import 'kostv_music_actions.dart';
 import 'kostv_music_links.dart';
 import 'kostv_music_widgets.dart';
 import '../../../util/kostv_browser_menu.dart';
+
+/// Kos TV: who is in a mix, from the artists that weigh most in it
+/// ([names], the plugin's `Because`): «Con X», «Con X y Y» or «Con X, Y y
+/// más». Null without any (a plugin from before them).
+String? kostvMusicBecause(AppLocalizations l10n, List<String> names) =>
+    switch (names) {
+      [] => null,
+      [final first] => l10n.kostvMusicBecauseOne(first),
+      [final first, final second] => l10n.kostvMusicBecauseTwo(first, second),
+      [final first, final second, ...] => l10n.kostvMusicBecauseMore(
+        first,
+        second,
+      ),
+    };
 
 /// Kos TV: Music, a page of its own as the music apps open: a big search
 /// at the top (only music: what is at home and, under it, what can be asked
@@ -91,6 +106,28 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   /// Kos TV: the week [_discovery] is of, as kept or as the plugin said.
   String? _discoveryWeek;
 
+  /// Kos TV: what the person doesn't want to hear, and the rows that play
+  /// by themselves as shown, without it (what came is kept whole, so
+  /// «Deshacer» brings it back at once).
+  KostvMusicDislikes get _dislikes =>
+      KostvMusicDislikesStore.instance.of(_client);
+  KostvDailyMixes? get _shownMixes =>
+      _dailyMixes == null ? null : _dislikes.mixesIn(_dailyMixes!);
+  KostvMusicMoment? get _shownMoment =>
+      _moment == null ? null : _dislikes.momentIn(_moment!);
+  List<StremfinSong>? get _shownDiscovery =>
+      _discovery == null ? null : _dislikes.stremfinSongsIn(_discovery!);
+  StremfinRecommendations? get _shownForYou =>
+      _forYou == null ? null : _dislikes.recommendationsIn(_forYou!);
+  List<StremfinAlbum> get _shownYourNews =>
+      _dislikes.stremfinAlbumsIn(_yourNews);
+
+  /// Kos TV: a daily mix's genre and who is in it, for its menu.
+  static String? _mixSubtitle(AppLocalizations l10n, KostvDailyMix mix) {
+    final parts = [?mix.genre, ?kostvMusicBecause(l10n, mix.because)];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
+
   /// Kos TV: the slot of the day (by this device's clock) the moment's mix
   /// was last asked for: when the page is still open as another one starts,
   /// it is asked again.
@@ -142,6 +179,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     kostvHoldBrowserMenu();
     // Kos TV: back to the app in another time of day: its mix.
     _lifecycle = AppLifecycleListener(onResume: _checkMomentSlot);
+    // Kos TV: what the person doesn't want to hear leaves the rows that
+    // play by themselves at once (and comes back with «Deshacer»).
+    KostvMusicDislikesStore.instance.addListener(_refresh);
     unawaited(_stremfinReady);
   }
 
@@ -167,6 +207,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     _refreshing?.cancel();
     _momentTurn?.cancel();
     _lifecycle?.dispose();
+    KostvMusicDislikesStore.instance.removeListener(_refresh);
     kostvMusicFavoritesChanged.removeListener(_reloadFavorites);
     _listening?.musicRequestsRevision.removeListener(_onMusicRequested);
     kostvReleaseBrowserMenu();
@@ -217,7 +258,12 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   /// time no longer replaces them.
   final _fresh = <String>{};
 
-  late final Future<KostvMusicTaste> _tasteLoad = _music.taste();
+  late final Future<KostvMusicTaste> _tasteLoad = kostvLoadMusicTaste(
+    _plugin,
+    _client,
+    fallback: _music.taste,
+    dislikes: () => KostvMusicDislikesStore.instance.load(_client),
+  );
 
   /// Loads every part on its own, each shown as soon as it is there: first
   /// what the service answered last time, kept on the device (the page opens
@@ -784,7 +830,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     final choice = await showKostvMusicMenu<int>(
       context,
       title: title,
-      subtitle: mix.genre,
+      subtitle: _mixSubtitle(l10n, mix),
       entries: [
         KostvMenuEntry(0, Icons.play_arrow_rounded, l10n.play),
         KostvMenuEntry(1, Icons.playlist_play_rounded, l10n.kostvMusicPlayNext),
@@ -1083,9 +1129,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     // Kos TV: what the plugin works out from what the person listens to
     // replaces the rows that did its job before, only when it answers.
     final plugin = kostvMusicPluginRows(
-      mixes: _dailyMixes,
-      discovery: _discovery,
-      moment: _moment,
+      mixes: _shownMixes,
+      discovery: _shownDiscovery,
+      moment: _shownMoment,
     );
     // The mix of the time of day right under what was played lately: both
     // are about what to put on now, before the rows that stay the same all
@@ -1110,7 +1156,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
             ),
     );
     // «Para ti»: a row for each «Porque escuchas a …», then its songs.
-    final forYou = _forYou;
+    final forYou = _shownForYou;
     if (forYou != null) {
       final byReason = <String, List<StremfinAlbum>>{};
       for (final album in forYou.albums) {
@@ -1141,7 +1187,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           l10n.kostvMusicDiscoveryWhy,
           insets,
           null,
-          songs: _discovery,
+          songs: _shownDiscovery,
           ranked: false,
           source: KostvMusicSource.discovery,
           fresh: true,
@@ -1169,7 +1215,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         context,
         l10n.kostvMusicNewFromYours,
         l10n.kostvMusicNewFromYoursWhy,
-        _yourNews,
+        _shownYourNews,
         insets,
       ),
     );
@@ -1698,7 +1744,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     EdgeInsets insets,
     FocusNode? firstNode,
   ) {
-    final mixes = _dailyMixes?.mixes ?? const <KostvDailyMix>[];
+    final mixes = _shownMixes?.mixes ?? const <KostvDailyMix>[];
     if (mixes.isEmpty) return null;
     final l10n = AppLocalizations.of(context);
     final size = KostvMusicSizes.cover;
@@ -1706,6 +1752,10 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       title: l10n.kostvMusicDailyMixes,
       subtitle: l10n.kostvMusicDailyMixesWhy,
       insets: insets,
+      // Kos TV: room for the second line of «Con X, Y y más».
+      height: mixes.any((m) => m.because.isNotEmpty)
+          ? KostvMusicSizes.cover + 82
+          : null,
       children: [
         for (final (i, mix) in mixes.indexed)
           () {
@@ -1715,7 +1765,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
               focusNode: i == 0 ? firstNode : null,
               onKey: i == 0 && firstNode != null ? _upToSearch : null,
               title: title,
-              subtitle: mix.genre,
+              subtitle: kostvMusicBecause(l10n, mix.because) ?? mix.genre,
+              // Kos TV: «Con X, Y y más» may take two lines.
+              subtitleLines: 2,
               art: KostvDailyMixArt(
                 number: i + 1,
                 size: size - 6,
@@ -1803,7 +1855,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     EdgeInsets insets,
     FocusNode? firstNode,
   ) {
-    final moment = _moment;
+    final moment = _shownMoment;
     if (moment == null || !moment.shows) return null;
     final songs = moment.items;
     final l10n = AppLocalizations.of(context);
@@ -1817,7 +1869,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       children: [
         KostvMusicHeading(
           title: title,
-          subtitle: l10n.kostvMusicMomentWhy,
+          subtitle:
+              kostvMusicBecause(l10n, moment.because) ??
+              l10n.kostvMusicMomentWhy,
           padding: EdgeInsets.fromLTRB(insets.left, 0, insets.right, 10),
         ),
         SizedBox(

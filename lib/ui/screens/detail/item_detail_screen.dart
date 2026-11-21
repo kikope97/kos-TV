@@ -3,6 +3,7 @@ import 'dart:async';
 import 'kostv/kostv_detail_buttons.dart';
 import 'kostv/kostv_detail_content.dart';
 import '../music/kostv_home_album_view.dart';
+import '../music/kostv_music_dislike.dart';
 import '../music/kostv_music_links.dart';
 import '../../theme/focus_foreground.dart';
 import '../../widgets/bounded_network_image.dart';
@@ -42,6 +43,7 @@ import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/services/book_reader_service.dart';
 import '../../../data/services/theme_music_service.dart';
 import '../../../data/services/kostv_my_list.dart';
+import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/stremfin/kostv_trailers.dart';
 import '../../../data/services/youtube_stream_resolver.dart';
@@ -6044,6 +6046,13 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
       setState(() {});
     });
     _myList?.addListener(_onMyListChanged);
+    // Kos TV: «No me pongas a este artista» on an artist of the home
+    // server, once the server plugin says it keeps it.
+    KostvMusicDislikesStore.instance.addListener(_onMyListChanged);
+    final shown = viewModel.item;
+    if (shown != null && shown.type == 'MusicArtist') {
+      unawaited(kostvMusicDislikesReady(shown));
+    }
     _checkOffline();
     _maybeTriggerAutoPlay();
   }
@@ -6084,6 +6093,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
   @override
   void dispose() {
     _myList?.removeListener(_onMyListChanged);
+    KostvMusicDislikesStore.instance.removeListener(_onMyListChanged);
     _downloadService?.removeListener(_onDownloadChanged);
     _userSub?.cancel();
     _localTvPlayFocusNode.dispose();
@@ -7291,6 +7301,27 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
           onPressed: viewModel.toggleFavorite,
           isActive: item.isFavorite,
           activeColor: const Color(0xFFFF4757),
+        ),
+      // Kos TV: an artist of the home server out of what plays by itself.
+      if (item.type == 'MusicArtist' &&
+          kostvMusicCanDislike(item) &&
+          shows(DetailButton.kostvDislikeArtist))
+        DetailButton.kostvDislikeArtist: _DetailActionButton(
+          // Short, as it goes under an icon on the phone; lit when on.
+          label: l10n.kostvMusicDislike,
+          icon: Icons.person_off_outlined,
+          onPressed: () => unawaited(
+            kostvMusicDisliked(item.id, item)
+                ? kostvUndislike(context, id: item.id, name: item.name, from: item)
+                : kostvDislikeArtist(
+                    context,
+                    id: item.id,
+                    name: item.name,
+                    from: item,
+                  ),
+          ),
+          isActive: kostvMusicDisliked(item.id, item),
+          activeColor: AppColorScheme.accent,
         ),
       if (_ratableItemTypes.contains(item.type) &&
           viewModel.supportsPersonalRating &&

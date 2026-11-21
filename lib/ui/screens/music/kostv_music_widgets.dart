@@ -459,10 +459,14 @@ class KostvMusicAlbumTile extends StatelessWidget {
     this.onKey,
     this.art,
     this.onLongPress,
+    this.subtitleLines = 1,
   });
 
   final String title;
   final String? subtitle;
+
+  /// Kos TV: the lines [subtitle] may take (a mix's «Con X, Y y más»).
+  final int subtitleLines;
   final String? cover;
   final KostvMusicBadge badge;
 
@@ -572,7 +576,10 @@ class KostvMusicAlbumTile extends StatelessWidget {
             if (subtitle != null)
               Text(
                 subtitle!,
-                maxLines: 1,
+                maxLines: subtitleLines,
+                // Kos TV: wrapped even where the text around says not to
+                // (the TV's).
+                softWrap: subtitleLines > 1 ? true : null,
                 overflow: TextOverflow.ellipsis,
                 textAlign: circle ? TextAlign.center : TextAlign.start,
                 style: TextStyle(

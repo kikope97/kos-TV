@@ -27,6 +27,7 @@ import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/user_data_sync.dart';
 import '../../navigation/destinations.dart';
 import '../../screens/home/kostv_undo_toast.dart';
+import '../../screens/music/kostv_music_dislike.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../add_to_collection_dialog.dart';
 import '../add_to_playlist_dialog.dart';
@@ -727,6 +728,38 @@ List<ItemContextAction> contextActionsFor(
         context.push(Destinations.item(item.seriesId!, serverId: item.serverId));
       },
     ));
+  }
+
+  // Kos TV: «No me gusta» of a song and «No me pongas a este artista», when
+  // the server plugin keeps them (known once the Music page or the player
+  // read it); none in Kids Mode.
+  if (!kidsMode &&
+      (type == 'Audio' || type == 'MusicArtist') &&
+      kostvMusicCanDislike(item)) {
+    final artist = type == 'MusicArtist';
+    if (kostvMusicDisliked(item.id, item)) {
+      actions.add(ItemContextAction(
+        icon: artist ? Icons.person_rounded : Icons.thumb_down_rounded,
+        label: l10n.kostvMusicUndislike,
+        onSelect: () async {
+          if (!context.mounted) return;
+          await kostvUndislike(context, id: item.id, name: item.name, from: item);
+        },
+      ));
+    } else {
+      actions.add(ItemContextAction(
+        icon: artist ? Icons.person_off_outlined : Icons.thumb_down_outlined,
+        label: artist ? l10n.kostvMusicDislikeArtist : l10n.kostvMusicDislike,
+        onSelect: () async {
+          if (!context.mounted) return;
+          if (artist) {
+            await kostvDislikeArtist(context, id: item.id, name: item.name, from: item);
+          } else {
+            await kostvDislikeSong(context, item);
+          }
+        },
+      ));
+    }
   }
 
   if (extraActions.isNotEmpty) {

@@ -7,6 +7,8 @@ import 'package:playback_core/playback_core.dart';
 import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/kostv_music_dislikes.dart';
+import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/user_preferences.dart';
@@ -108,6 +110,8 @@ class KostvNowPlaying extends ChangeNotifier {
     _volumeAt = null;
     _persistVolume?.cancel();
     _persistVolume = null;
+    autoplayIds.clear();
+    automaticIds.clear();
   }
 
   void _changed() {
@@ -128,6 +132,7 @@ class KostvNowPlaying extends ChangeNotifier {
         _sleepAfterSong = false;
         _autoplaySeed = null;
         autoplayIds.clear();
+        automaticIds.clear();
       } else if (_sleepAfterSong && before != null && !_personChose()) {
         // «Al acabar la canción»: the next one doesn't go on. One the person
         // chose (skipped to, or another album put on) isn't the song ending:
@@ -466,6 +471,53 @@ class KostvNowPlaying extends ChangeNotifier {
   /// The songs autoplay added to the queue, to show them apart.
   final autoplayIds = <String>{};
 
+  /// Kos TV: the songs of the queue that came by themselves (a radio, a
+  /// mix, the discovery): with [autoplayIds], what «No me pongas a este
+  /// artista» takes out of what is still to play.
+  final automaticIds = <String>{};
+
+  /// Kos TV: [tracks] were put on from [source] ([KostvMusicSource]): kept
+  /// when they came by themselves; another queue of the person's choosing
+  /// isn't.
+  void noteQueueSource(String source, List<AggregatedItem> tracks) {
+    automaticIds.clear();
+    if (KostvMusicSource.automatic(source)) {
+      automaticIds.addAll(tracks.map((t) => t.id));
+    }
+  }
+
+  /// Kos TV: takes out of what is still to play (after the song sounding)
+  /// the songs [out] says, only those that came by themselves with
+  /// [onlyAutomatic]. Gives how many went.
+  int leaveOutUpcoming(
+    bool Function(AggregatedItem song) out, {
+    bool onlyAutomatic = false,
+  }) {
+    final manager = _manager;
+    if (manager == null) return 0;
+    final queue = manager.queueService;
+    final items = queue.items;
+    var gone = 0;
+    for (var i = items.length - 1; i > queue.currentIndex; i--) {
+      final song = items[i];
+      if (song is! AggregatedItem || !out(song)) continue;
+      if (onlyAutomatic &&
+          !autoplayIds.contains(song.id) &&
+          !automaticIds.contains(song.id)) {
+        continue;
+      }
+      queue.removeAt(i);
+      gone++;
+    }
+    return gone;
+  }
+
+  /// Kos TV: the next song, if [id] is the one sounding («No me gusta» on
+  /// it).
+  void skipIfSounding(String id) {
+    if (item?.id == id) next();
+  }
+
   /// Near the end of the queue (and with nothing on repeat), similar songs
   /// from home are added after it, so the music goes on by itself. Whether
   /// the player's page is open or not.
@@ -494,6 +546,11 @@ class KostvNowPlaying extends ChangeNotifier {
           ) ??
           GetIt.instance<MediaServerClient>();
       final data = await client.instantMixApi.getInstantMix(seed.id, limit: 25);
+      // Kos TV: without what the person doesn't want to hear (read now if
+      // it wasn't; a plugin without it leaves nothing out).
+      final dislikes = await KostvMusicDislikesStore.instance
+          .load(client)
+          .catchError((Object _) => KostvMusicDislikes.empty);
       final known = items.whereType<AggregatedItem>().map((e) => e.id).toSet();
       final added = <AggregatedItem>[];
       for (final raw in (data['Items'] as List?) ?? const []) {
@@ -501,13 +558,12 @@ class KostvNowPlaying extends ChangeNotifier {
         final map = Map<String, dynamic>.from(raw);
         final id = map['Id']?.toString();
         if (id == null || !known.add(id)) continue;
-        added.add(
-          AggregatedItem(
-            id: id,
-            serverId: map['ServerId']?.toString() ?? seed.serverId,
-            rawData: map,
-          ),
+        final song = AggregatedItem(
+          id: id,
+          serverId: map['ServerId']?.toString() ?? seed.serverId,
+          rawData: map,
         );
+        if (!dislikes.songOut(song)) added.add(song);
       }
       // Still the same song, and the person didn't change their mind.
       if (added.isNotEmpty && autoplay && item?.id == seed.id) {

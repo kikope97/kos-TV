@@ -21415,4 +21415,117 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvLyricsBackToLine => 'Volver a la línea actual';
+
+  @override
+  String get kostvMusicDislike => 'No me gusta';
+
+  @override
+  String get kostvMusicDislikeArtist => 'No me pongas a este artista';
+
+  @override
+  String kostvMusicDislikeArtistNamed(String artist) {
+    return 'No me pongas a $artist';
+  }
+
+  @override
+  String kostvMusicDislikedSong(String song) {
+    return '«$song» ya no saldrá en tus mezclas';
+  }
+
+  @override
+  String kostvMusicDislikedArtist(String artist) {
+    return '$artist ya no saldrá en tus mezclas';
+  }
+
+  @override
+  String get kostvMusicDislikeFailed =>
+      'No se ha podido guardar. Prueba otra vez.';
+
+  @override
+  String get kostvMusicUndislike => 'Quitar de «Lo que no quieres oír»';
+
+  @override
+  String kostvMusicUndisliked(String name) {
+    return '«$name» puede volver a sonar';
+  }
+
+  @override
+  String get kostvMusicDislikes => 'Lo que no quieres oír';
+
+  @override
+  String get kostvMusicDislikesNone => 'Nada por ahora';
+
+  @override
+  String kostvMusicDislikesSongs(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count canciones',
+      one: '1 canción',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kostvMusicDislikesArtists(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count artistas',
+      one: '1 artista',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvMusicDislikesExplain =>
+      'Solo cambia lo que suena solo: tus mezclas, la radio, la reproducción continua (∞) y las recomendaciones. Si lo buscas o abres su disco, sigue ahí. Vale aunque «Aprender de lo que escucho» esté apagado, y «Borrar lo que he escuchado» no lo borra.';
+
+  @override
+  String get kostvMusicDislikesEmptyHint =>
+      'Aún no hay nada. Usa «No me gusta» en una canción o «No me pongas a este artista» para que no te salga en lo que suena solo.';
+
+  @override
+  String get kostvMusicDislikesSongsHeader => 'Canciones';
+
+  @override
+  String get kostvMusicDislikesArtistsHeader => 'Artistas';
+
+  @override
+  String get kostvMusicDislikesRemove => 'Quitar de la lista';
+
+  @override
+  String get kostvMusicDislikesClear => 'Vaciar la lista';
+
+  @override
+  String get kostvMusicDislikesClearTitle => '¿Vaciar la lista?';
+
+  @override
+  String get kostvMusicDislikesClearBody =>
+      'Todo lo que hay en ella podrá volver a sonar en tus mezclas, la radio y las recomendaciones.';
+
+  @override
+  String get kostvMusicDislikesClearConfirm => 'Vaciar';
+
+  @override
+  String get kostvMusicDislikesCleared => 'Listo: la lista está vacía.';
+
+  @override
+  String get kostvMusicDislikesUnanswered =>
+      'No se ha podido leer la lista. Pulsa para volver a intentarlo.';
+
+  @override
+  String kostvMusicBecauseOne(String first) {
+    return 'Con $first';
+  }
+
+  @override
+  String kostvMusicBecauseTwo(String first, String second) {
+    return 'Con $first y $second';
+  }
+
+  @override
+  String kostvMusicBecauseMore(String first, String second) {
+    return 'Con $first, $second y más';
+  }
 }

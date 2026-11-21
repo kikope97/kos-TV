@@ -7,6 +7,7 @@ import 'package:playback_core/playback_core.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../l10n/app_localizations.dart';
@@ -180,6 +181,7 @@ Future<void> playMusicTrack(
     }
 
     KostvNowPlaying.instance.noteChosen();
+    KostvNowPlaying.instance.noteQueueSource(source, tracks);
     kostvTellMusicSource(
       () => _clientOf(item),
       source,
@@ -197,6 +199,7 @@ Future<void> playMusicTrack(
     // (nothing happening looks like the remote not working).
     try {
       KostvNowPlaying.instance.noteChosen();
+      KostvNowPlaying.instance.noteQueueSource(source, [item]);
       kostvTellMusicSource(() => _clientOf(item), source, [item]);
       await manager.playItems([item]);
       if (context.mounted) {
@@ -278,7 +281,19 @@ Future<void> playMusicTracks(
   if (tracks.isEmpty) return;
   final l10n = AppLocalizations.of(context);
   final messenger = ScaffoldMessenger.maybeOf(context);
+  // Kos TV: what plays by itself (a radio, a mix) leaves out what the
+  // person doesn't want to hear, but not the song they picked in it.
+  if (KostvMusicSource.automatic(source)) {
+    final kept = kostvMusicLeaveOut(
+      KostvMusicDislikesStore.instance.of(_clientOf(tracks.first)),
+      tracks,
+      startIndex: startIndex,
+    );
+    tracks = kept.tracks;
+    startIndex = kept.startIndex;
+  }
   KostvNowPlaying.instance.noteChosen();
+  KostvNowPlaying.instance.noteQueueSource(source, tracks);
   kostvTellMusicSource(
     () => _clientOf(tracks.first),
     source,
