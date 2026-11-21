@@ -126,3 +126,22 @@ fotos en tele (barra de arriba y lateral), móvil y web, y `KOSTV.md` al día.
 - La notificación del móvil con la carátula de Deezer.
 - La web en el iPhone (Opus y CORS).
 - Cuánto tarda de verdad el paso a una canción que no se adelantó.
+
+## 7. Decisiones y contrato (2026-11-21)
+
+Decisiones tomadas: ajuste por persona con «Toda la música» por defecto (niños
+sin lo explícito de fuera); lo escuchado en streaming cuenta para aprender; sin
+Chromecast para lo de fuera; las cuatro fases de golpe, con la parte 2 del plan
+de música (sin cortes en tele y móvil) para la fase 4.
+
+Rutas del complemento (`/Moonfin/Kostv/Music/`), nuevas o ampliadas:
+
+| Ruta | Qué cambia |
+|---|---|
+| `GET`/`POST Settings` | Campo nuevo `"Catalog": "all" \| "home"` (por persona, `all` por defecto). `POST` acepta `{ "Catalog": "home" }` solo, `{ "Learn": … }` solo, o los dos. Un complemento antiguo no lo trae: la app usa entonces un ajuste del aparato. |
+| `POST Event` con `"Type": "stream_listen"` | Cuerpo `{ "Type": "stream_listen", "DeezerId": "…", "Title": "…", "Artist": "…", "Album": "…", "Genre": "…" (opcional), "Played": 123.4, "Duration": 224, "EndedBy": "natural" \| "next" \| "stop" \| "closed" \| "error", "Source": "…" (como en Context), "Shuffle": false }`. Se apunta como una escucha (`item` = `stremfin:<DeezerId>`, `outcome` con la misma regla que las de casa) y cuenta en el gusto del artista y del género por nombre. Solo con «Aprender» encendido. `204`; mal formado, `400`. |
+| `POST Event` con `"Type": "dislike"` | Además de `ItemIds`, acepta `"Songs": [ { "DeezerId", "Name", "Artist" } ]` para canciones de fuera (Kind `song`). |
+| `GET Dislikes` | Las canciones de fuera salen con `"DeezerId"` e `"Id": null`. `DELETE Dislikes/{id}` acepta también `stremfin:<DeezerId>`. |
+
+La app filtra lo de fuera con esa lista (por `DeezerId` y por nombre de
+artista).
