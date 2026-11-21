@@ -10,7 +10,10 @@ import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/media_server_client_factory.dart';
+import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../playback/kostv_stream_playback.dart';
+import '../../../playback/stremfin_stream_resolver.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/audio_artwork_url.dart';
 import '../../../util/platform_detection.dart';
@@ -83,6 +86,19 @@ class KostvNowPlaying extends ChangeNotifier {
     } catch (_) {
       // A stand-in player (the tests') without it.
     }
+    // Kos TV: the songs that aren't at home: what is prepared, asked ahead
+    // and heard of them, and those that turn out to be at home.
+    _subs.add(StremfinStreamResolver.arrivals.listen(_atHome));
+    StremfinStreamResolver.preparing.addListener(_preparingChanged);
+    if (StremfinStreamResolver.preparing.value != null) _preparingChanged();
+    try {
+      KostvStreamPlayback.instance.attachTo(
+        manager,
+        source: () => _queueSource ?? KostvMusicSource.other,
+      );
+    } catch (_) {
+      // A stand-in player (the tests') without it.
+    }
     // Kos TV: on the web, the browser's lock screen and media keys.
     attachKostvWebMediaSession(this);
     // Often started while a menu is being built: what it finds is told
@@ -112,6 +128,12 @@ class KostvNowPlaying extends ChangeNotifier {
     _persistVolume = null;
     autoplayItems.clear();
     automaticItems.clear();
+    StremfinStreamResolver.preparing.removeListener(_preparingChanged);
+    _slowPreparing?.cancel();
+    _slowPreparing = null;
+    _preparingSlow = false;
+    _streamRetried.clear();
+    _queueSource = null;
   }
 
   void _changed() {
@@ -177,6 +199,8 @@ class KostvNowPlaying extends ChangeNotifier {
   PlayerState? get state => _manager?.state;
 
   String? artUrl(AggregatedItem item, {int maxHeight = 300}) {
+    // Kos TV: one that isn't at home has Deezer's cover.
+    if (isKostvStream(item)) return KostvStreamInfo.of(item)?.cover;
     if (!GetIt.instance.isRegistered<MediaServerClientFactory>()) return null;
     return audioArtUrl(
       item,
@@ -212,6 +236,11 @@ class KostvNowPlaying extends ChangeNotifier {
 
   void _bringupChanged(PlaybackBringupState state) {
     if (state.phase != PlaybackBringupPhase.failed) {
+      // Kos TV: one that isn't at home that did start may be asked for
+      // again another time.
+      if (state.phase == PlaybackBringupPhase.ready) {
+        _streamRetried.remove(state.itemId);
+      }
       // Another go at it (a retry, the next song) clears it.
       if (state.phase.isInProgress ||
           state.phase == PlaybackBringupPhase.ready) {
@@ -227,6 +256,11 @@ class KostvNowPlaying extends ChangeNotifier {
     final song = item;
     if (song == null || song.type != 'Audio') return;
     if (state.itemId != null && state.itemId != song.id) return;
+    // Kos TV: one that isn't at home says why, in its own words.
+    if (isKostvStream(song)) {
+      _streamFailed(song);
+      return;
+    }
     // The player may still get there another way (the server converting
     // it): only told if it is still failed a moment later.
     _failureCheck?.cancel();
@@ -267,6 +301,129 @@ class KostvNowPlaying extends ChangeNotifier {
       icon: Icons.music_off_rounded,
       actions: tv ? const [] : [(l10n.retry, retry)],
     );
+  }
+
+  // --- Songs that aren't at home ---
+
+  /// The out-of-home songs already tried again once after the player
+  /// couldn't open their sound (its address may have stopped working).
+  final _streamRetried = <String>{};
+
+  /// Kos TV: an out-of-home song couldn't start. One nobody can listen to
+  /// (404) is said and skipped; with the service not answering (503, no
+  /// network) it is said, to try later; one whose sound the player couldn't
+  /// open is asked for again once, then told as any other.
+  void _streamFailed(AggregatedItem song) {
+    final failure = StremfinStreamResolver.failures[song.id];
+    final manager = _manager;
+    if (failure == null) {
+      final deezerId = kostvStreamDeezerId(song);
+      if (deezerId != null && _streamRetried.add(song.id) && manager != null) {
+        StremfinStreamResolver.forget(deezerId);
+        final index = manager.queueService.currentIndex;
+        if (index >= 0) {
+          unawaited(manager.playFromQueue(index).catchError((_) {}));
+          return;
+        }
+      }
+      _failedId = song.id;
+      notifyListeners();
+      _tellFailure(song);
+      return;
+    }
+    final context = appRouter.routerDelegate.navigatorKey.currentContext;
+    final l10n = context != null && context.mounted
+        ? AppLocalizations.of(context)
+        : null;
+    if (failure == KostvStreamFailure.notFound) {
+      if (context != null && l10n != null) {
+        FloatingNotification.show(
+          context,
+          l10n.kostvStreamCantListen,
+          song.name,
+          null,
+          icon: Icons.music_off_rounded,
+        );
+      }
+      if (manager != null && manager.queueService.hasNext) {
+        noteChosen();
+        unawaited(manager.nextInQueue().catchError((_) {}));
+      } else {
+        _failedId = song.id;
+        notifyListeners();
+      }
+      return;
+    }
+    _failedId = song.id;
+    notifyListeners();
+    if (context != null && l10n != null) {
+      FloatingNotification.show(
+        context,
+        l10n.kostvStreamUnavailableNow,
+        song.name,
+        null,
+        icon: Icons.cloud_off_rounded,
+        actions: PlatformDetection.useLeanbackUi
+            ? const []
+            : [(l10n.retry, retry)],
+      );
+    }
+  }
+
+  Timer? _slowPreparing;
+  bool _preparingSlow = false;
+
+  /// How long «Preparando la canción…» waits before it says it is taking
+  /// longer than usual.
+  static const slowPreparing = Duration(seconds: 20);
+
+  /// Kos TV: the song sounding isn't at home and its sound is being prepared
+  /// (the service is getting it): «Preparando la canción…».
+  bool get preparing {
+    final song = item;
+    return song != null && StremfinStreamResolver.preparing.value == song.id;
+  }
+
+  /// Kos TV: [preparing] has gone on for [slowPreparing].
+  bool get preparingSlow => preparing && _preparingSlow;
+
+  void _preparingChanged() {
+    _slowPreparing?.cancel();
+    _slowPreparing = null;
+    _preparingSlow = false;
+    if (StremfinStreamResolver.preparing.value != null) {
+      _slowPreparing = Timer(slowPreparing, () {
+        _slowPreparing = null;
+        _preparingSlow = true;
+        notifyListeners();
+      });
+    }
+    notifyListeners();
+  }
+
+  /// Kos TV: an out-of-home song turned out to be at home: the home
+  /// server's takes its place in the queue (its ♥, its lyrics, its
+  /// reports), with what was known of it (autoplay's, come by itself).
+  void _atHome(KostvStreamAtHome found) {
+    final manager = _manager;
+    if (manager == null) return;
+    final queue = manager.queueService;
+    final items = queue.items;
+    for (var i = 0; i < items.length; i++) {
+      final entry = items[i];
+      if (entry is! AggregatedItem || entry.id != found.stream.id) continue;
+      final home = AggregatedItem(
+        id: found.home.id,
+        serverId: found.home.serverId,
+        rawData: found.home.rawData,
+      );
+      if (autoplayItems.remove(entry)) autoplayItems.add(home);
+      if (automaticItems.remove(entry)) automaticItems.add(home);
+      // The song sounding changing its id isn't the person choosing another
+      // one, nor the last one ending («Al acabar la canción»).
+      if (i == queue.currentIndex) _itemId = home.id;
+      queue.replaceAt(i, home);
+    }
   }
 
   void _tellBlocked() {
@@ -481,6 +638,10 @@ class KostvNowPlaying extends ChangeNotifier {
   /// queue's entries, which another queue doesn't share.
   final automaticItems = Set<AggregatedItem>.identity();
 
+  /// Kos TV: where the queue came from ([KostvMusicSource]), for what is
+  /// told of the songs that aren't at home.
+  String? _queueSource;
+
   /// Kos TV: whether the queue's [song] came by itself (see
   /// [automaticItems]).
   bool cameByItself(AggregatedItem song) =>
@@ -490,6 +651,7 @@ class KostvNowPlaying extends ChangeNotifier {
   /// when they came by themselves; another queue of the person's choosing
   /// isn't.
   void noteQueueSource(String source, List<AggregatedItem> tracks) {
+    _queueSource = source;
     automaticItems.clear();
     autoplayItems.clear();
     if (KostvMusicSource.automatic(source)) automaticItems.addAll(tracks);
@@ -566,6 +728,8 @@ class KostvNowPlaying extends ChangeNotifier {
     if (_autoplayBusy) return;
     final seed = item;
     if (seed == null || seed.isAudiobook || seed.type != 'Audio') return;
+    // Kos TV: the home server has no mix of a song it doesn't have.
+    if (isKostvStream(seed)) return;
     if (_autoplaySeed == seed.id || !autoplay) return;
     final manager = _manager;
     if (manager == null) return;

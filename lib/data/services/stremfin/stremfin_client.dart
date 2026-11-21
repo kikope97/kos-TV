@@ -31,6 +31,12 @@ class StremfinException implements Exception {
   /// The person has no access (signed out, not linked, no access).
   bool get isNoAccess => status == 401 || status == 403;
 
+  /// Kos TV: there is no such thing (a song nobody can listen to).
+  bool get isNotFound => status == 404;
+
+  /// Kos TV: too many calls a minute: wait for [retryAfter].
+  bool get isRateLimited => status == 429;
+
   @override
   String toString() => 'StremfinException($status $code)';
 }
@@ -463,6 +469,69 @@ class StremfinClient {
     ];
   }
 
+  /// Kos TV: «Escuchar mientras llega» (8.35): where to hear the song
+  /// [deezerId], which isn't at home. The service answers once its sound
+  /// can be played whole: at once when it was kept, some seconds otherwise
+  /// (hence its own minute of wait). It counts as a listen: only for a song
+  /// about to sound. 404 (nobody can listen to it), 503 (Deezer or YouTube
+  /// don't answer) and 429 come as a [StremfinException].
+  Future<StremfinListen> musicListen(String deezerId) async {
+    final listen = StremfinListen.fromJson(
+      await _get(
+        '/music/songs/${Uri.encodeComponent(deezerId)}/listen',
+        null,
+        listenTimeout,
+      ),
+      deezerId: deezerId,
+    );
+    if (listen == null) throw const StremfinException(code: 'bad_response');
+    return listen;
+  }
+
+  /// How long [musicListen] waits for its answer (the service's own advice:
+  /// at least a minute, others may be waiting before it).
+  static const listenTimeout = Duration(seconds: 60);
+
+  /// Kos TV: «Quizás la escuche» (8.37): the service keeps the song
+  /// [deezerId] in its queue and downloads it in the background; the answer
+  /// says how it is, at once. Asking again doesn't download it twice.
+  Future<StremfinPrefetch> musicPrefetch(String deezerId) async {
+    final prefetch = StremfinPrefetch.fromJson(
+      await _send(
+        'POST',
+        '/music/songs/${Uri.encodeComponent(deezerId)}/prefetch',
+      ).then(_body),
+      deezerId: deezerId,
+    );
+    if (prefetch == null) throw const StremfinException(code: 'bad_response');
+    return prefetch;
+  }
+
+  /// Kos TV: the address to hand the player for a [musicListen] `url`: the
+  /// service's own (with the web container's `/stremfin` path in front, when
+  /// that is the way in), without `/api/v1`, before it. An absolute one is
+  /// kept. Null when the service's address isn't known.
+  String? listenAddress(String url) {
+    final raw = url.trim();
+    if (raw.isEmpty) return null;
+    final lower = raw.toLowerCase();
+    if (lower.startsWith('https://') || lower.startsWith('http://')) {
+      return raw;
+    }
+    final base = _baseUrl();
+    if (base == null) return null;
+    final origin = base.endsWith('/api/v1')
+        ? base.substring(0, base.length - 7)
+        : base;
+    return raw.startsWith('/') ? '$origin$raw' : '$origin/$raw';
+  }
+
+  static Object? _body(Response<Object?> response) {
+    final status = response.statusCode ?? 0;
+    if (status >= 200 && status < 300) return response.data;
+    throw _failure(response);
+  }
+
   /// Takes back one of theirs that still waits for an answer.
   Future<void> withdrawRequest(int id) async {
     final response = await _send('DELETE', '/requests/$id');
@@ -510,11 +579,18 @@ class StremfinClient {
     return musicMemory?.read(StremfinMusicMemory.scopeOf(token), 'note:$name');
   }
 
-  Future<Object?> _get(String path, [Map<String, Object?>? query]) async {
-    final response = await _send('GET', path, query: query);
-    final status = response.statusCode ?? 0;
-    if (status >= 200 && status < 300) return response.data;
-    throw _failure(response);
+  Future<Object?> _get(
+    String path, [
+    Map<String, Object?>? query,
+    Duration? receiveTimeout,
+  ]) async {
+    final response = await _send(
+      'GET',
+      path,
+      query: query,
+      receiveTimeout: receiveTimeout,
+    );
+    return _body(response);
   }
 
   Future<Response<Object?>> _send(
@@ -522,6 +598,7 @@ class StremfinClient {
     String path, {
     Map<String, Object?>? query,
     Object? data,
+    Duration? receiveTimeout,
   }) async {
     final base = _baseUrl();
     if (base == null) {
@@ -546,6 +623,7 @@ class StremfinClient {
           contentType: data == null ? null : Headers.jsonContentType,
           responseType: ResponseType.json,
           validateStatus: (_) => true,
+          receiveTimeout: receiveTimeout,
         ),
       );
     } on DioException catch (e) {

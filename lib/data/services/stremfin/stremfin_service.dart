@@ -806,6 +806,19 @@ class StremfinService extends ChangeNotifier {
   Future<StremfinAlbumDetail> musicAlbum(String deezerId) =>
       _client.musicAlbum(deezerId);
 
+  /// Kos TV: «Escuchar mientras llega»: where to hear a song that isn't at
+  /// home (see [StremfinClient.musicListen]).
+  Future<StremfinListen> musicListen(String deezerId) =>
+      _client.musicListen(deezerId);
+
+  /// Kos TV: a song that may sound soon, asked for in advance (see
+  /// [StremfinClient.musicPrefetch]).
+  Future<StremfinPrefetch> musicPrefetch(String deezerId) =>
+      _client.musicPrefetch(deezerId);
+
+  /// Kos TV: the player's address for a [musicListen] `url`.
+  String? musicListenAddress(String url) => _client.listenAddress(url);
+
   /// Kos TV: a song's page: whether it is at home now, its preview and the
   /// album to ask for to have it. An explicit one the person isn't shown
   /// ([cleanMusicSongs]) comes without its preview.

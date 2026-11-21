@@ -88,6 +88,19 @@ class QueueService {
     _queueChangedController.add(null);
   }
 
+  /// Kos TV: [item] in the place of the entry at [index] (a song that turned
+  /// out to be at home in the place of the one heard from outside), in the
+  /// order to go back to when shuffle is turned off too. [currentIndex]
+  /// stays where it is.
+  void replaceAt(int index, dynamic item) {
+    if (index < 0 || index >= _items.length) return;
+    final old = _items[index];
+    _items[index] = item;
+    final original = _originalOrder.indexWhere((e) => identical(e, old));
+    if (original >= 0) _originalOrder[original] = item;
+    _queueChangedController.add(null);
+  }
+
   void addToQueue(dynamic item) {
     _items.add(item);
     _originalOrder.add(item);

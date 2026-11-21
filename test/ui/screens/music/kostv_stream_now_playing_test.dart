@@ -1,0 +1,255 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart' hide RepeatMode;
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
+import 'package:moonfin/data/models/aggregated_item.dart';
+import 'package:moonfin/data/services/stremfin/kostv_stream_song.dart';
+import 'package:moonfin/l10n/app_localizations.dart';
+import 'package:moonfin/playback/kostv_stream_playback.dart';
+import 'package:moonfin/playback/stremfin_stream_resolver.dart';
+import 'package:moonfin/ui/screens/music/kostv_now_playing_screen.dart';
+import 'package:moonfin/ui/screens/music/kostv_stream_widgets.dart';
+import 'package:moonfin/ui/widgets/music/kostv_now_playing.dart';
+import 'package:moonfin/util/platform_detection.dart';
+import 'package:playback_core/playback_core.dart';
+
+class _Manager extends Fake implements PlaybackManager {
+  @override
+  final PlayerState state = PlayerState();
+
+  @override
+  final QueueService queueService = QueueService();
+
+  @override
+  bool get isOfflinePlayback => false;
+
+  @override
+  Map<String, dynamic>? get currentOfflineMetadata => null;
+
+  @override
+  Stream<void> get sessionEndedStream => const Stream<void>.empty();
+
+  @override
+  Stream<void> get repeatedStream => const Stream<void>.empty();
+
+  final bringup = StreamController<PlaybackBringupState>.broadcast(sync: true);
+  PlaybackBringupState current = const PlaybackBringupState.idle();
+
+  void fail(String itemId) {
+    current = PlaybackBringupState(
+      phase: PlaybackBringupPhase.failed,
+      itemId: itemId,
+    );
+    bringup.add(current);
+  }
+
+  @override
+  Stream<PlaybackBringupState> get bringupStateStream => bringup.stream;
+
+  @override
+  PlaybackBringupState get bringupState => current;
+
+  int nexts = 0;
+  final picked = <int>[];
+
+  @override
+  Future<void> nextInQueue() async {
+    nexts++;
+    queueService.next(manual: true);
+  }
+
+  @override
+  Future<void> playFromQueue(int index) async => picked.add(index);
+
+  @override
+  Stream<void> get playBlockedStream => const Stream<void>.empty();
+
+  @override
+  Stream<PlayerBackend> get backendChangedStream =>
+      const Stream<PlayerBackend>.empty();
+
+  @override
+  PlayerBackend? get backend => null;
+}
+
+AggregatedItem _stream(String id) => kostvStreamItem(
+  deezerId: id,
+  title: 'Canción $id',
+  serverId: 'casa',
+  artist: 'Lola Brisa',
+  album: 'Disco',
+  durationSeconds: 200,
+  albumDeezerId: 'al$id',
+);
+
+AggregatedItem _home(String id) => AggregatedItem(
+  id: id,
+  serverId: 'casa',
+  rawData: {
+    'Id': id,
+    'Name': 'Canción $id',
+    'Type': 'Audio',
+    'MediaType': 'Audio',
+    'Artists': ['Lola Brisa'],
+  },
+);
+
+/// Kos TV: «Reproduciendo» with a song that isn't at home: «Preparando la
+/// canción…» while its sound is got ready, the pill with «Pedir álbum», no ♥
+/// nor lyrics, and the mark of the queue's songs that aren't at home.
+void main() {
+  late _Manager manager;
+
+  setUp(() {
+    StremfinStreamResolver.debugReset();
+    KostvStreamPlayback.instance.debugReset();
+    manager = _Manager();
+    GetIt.instance.registerSingleton<PlaybackManager>(manager);
+    manager.queueService.setQueue([_stream('1'), _home('h'), _stream('2')]);
+  });
+
+  tearDown(() async {
+    PlatformDetection.setTvMode(false);
+    StremfinStreamResolver.debugReset();
+    KostvNowPlaying.instance.debugReset();
+    KostvStreamPlayback.instance.debugReset();
+    await GetIt.instance.reset();
+  });
+
+  Future<void> open(WidgetTester tester, Size size) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final router = GoRouter(
+      routes: [
+        GoRoute(path: '/', builder: (_, _) => const KostvNowPlayingScreen()),
+      ],
+    );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(
+      MaterialApp.router(
+        locale: const Locale('es'),
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        routerConfig: router,
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+  }
+
+  String? focusedText() {
+    final focused = FocusManager.instance.primaryFocus?.context;
+    if (focused == null) return null;
+    final texts = <String>[];
+    void visit(Element element) {
+      final widget = element.widget;
+      if (widget is Text && widget.data != null) texts.add(widget.data!);
+      element.visitChildElements(visit);
+    }
+
+    (focused as Element).visitChildElements(visit);
+    return texts.join(' ');
+  }
+
+  testWidgets('on the TV: «Preparando…», after 20 s «Está tardando…», the '
+      'pill, and the remote reaches «Pedir álbum»', (tester) async {
+    PlatformDetection.setTvMode(true);
+    StremfinStreamResolver.preparing.value = 'stremfin:1';
+    await open(tester, const Size(1920, 1080));
+    expect(find.text('Preparando la canción…'), findsOneWidget);
+    expect(
+      find.text(
+        'No está en casa: la estamos preparando para que la escuches. '
+        'Tarda unos segundos',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byType(KostvPulse), findsOneWidget);
+    await tester.pump(const Duration(seconds: 21));
+    expect(find.text('Está tardando más de lo normal'), findsOneWidget);
+    StremfinStreamResolver.preparing.value = null;
+    await tester.pumpAndSettle();
+    expect(find.text('Preparando la canción…'), findsNothing);
+    expect(find.text('No está en casa · en streaming'), findsOneWidget);
+    expect(find.text('Pedir álbum'), findsOneWidget);
+    // ♥ and the lyrics are the home server's.
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
+    expect(find.byIcon(Icons.lyrics_rounded), findsNothing);
+    // From play/pause up to the pill's button.
+    for (var i = 0; i < 4 && !(focusedText() ?? '').contains('Pedir'); i++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+      await tester.pumpAndSettle();
+    }
+    expect(focusedText(), contains('Pedir álbum'));
+  });
+
+  testWidgets('on the phone: the pill, and the queue marks the songs that '
+      'aren\'t at home', (tester) async {
+    await open(tester, const Size(393, 852));
+    await tester.pumpAndSettle();
+    expect(find.text('No está en casa · en streaming'), findsOneWidget);
+    expect(find.text('Pedir álbum'), findsOneWidget);
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
+    expect(find.byIcon(Icons.lyrics_rounded), findsNothing);
+    await tester.tap(find.byIcon(Icons.queue_music_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('Canción h'), findsOneWidget);
+    expect(find.text('Canción 2'), findsOneWidget);
+    expect(find.byType(KostvStreamMark), findsOneWidget);
+  });
+
+  testWidgets('a song at home has none of it', (tester) async {
+    manager.queueService.setQueue([_home('h'), _stream('2')]);
+    await open(tester, const Size(1440, 900));
+    await tester.pumpAndSettle();
+    expect(find.text('No está en casa · en streaming'), findsNothing);
+    expect(find.byIcon(Icons.lyrics_rounded), findsOneWidget);
+  });
+
+  testWidgets('turned out to be at home: the home server\'s song takes its '
+      'place in the queue', (tester) async {
+    await open(tester, const Size(1440, 900));
+    await tester.pumpAndSettle();
+    StremfinStreamResolver.noteAtHome(
+      manager.queueService.currentItem as AggregatedItem,
+      _home('j1'),
+    );
+    await tester.pumpAndSettle();
+    expect((manager.queueService.currentItem as AggregatedItem).id, 'j1');
+    expect(find.text('No está en casa · en streaming'), findsNothing);
+  });
+
+  group('a song that can\'t start', () {
+    test('nobody can listen to it (404): on to the next one', () {
+      final music = KostvNowPlaying.instance..ensureStarted();
+      StremfinStreamResolver.failures['stremfin:1'] =
+          KostvStreamFailure.notFound;
+      manager.fail('stremfin:1');
+      expect(manager.nexts, 1);
+      expect((music.item)!.id, 'h');
+      expect(music.failed, isFalse);
+    });
+
+    test('the service not answering (503): it stays, to try later', () {
+      final music = KostvNowPlaying.instance..ensureStarted();
+      StremfinStreamResolver.failures['stremfin:1'] =
+          KostvStreamFailure.unavailable;
+      manager.fail('stremfin:1');
+      expect(manager.nexts, 0);
+      expect(music.failed, isTrue);
+    });
+
+    test('the player couldn\'t open its sound: asked for again once', () {
+      final music = KostvNowPlaying.instance..ensureStarted();
+      manager.fail('stremfin:1');
+      expect(manager.picked, [0]);
+      expect(music.failed, isFalse);
+      manager.fail('stremfin:1');
+      expect(manager.picked, [0]);
+      expect(music.failed, isTrue);
+    });
+  });
+}

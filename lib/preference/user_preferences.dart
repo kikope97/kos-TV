@@ -667,6 +667,8 @@ class UserPreferences extends ChangeNotifier {
     // keeps «Añadido recientemente», and how they order their Favorites.
     'kostv_show_music_button',
     'kostv_music_autoplay',
+    // Kos TV: «Qué música enseñar» when the server plugin can't keep it.
+    'kostv_music_catalog_all',
     'kostv_home_recommended',
     'kostv_home_show_recent',
     'library_sort_by_favorites',
@@ -2099,6 +2101,15 @@ class UserPreferences extends ChangeNotifier {
   /// similar ones from home («Reproducción automática», ∞).
   static final kostvMusicAutoplay = Preference(
     key: 'kostv_music_autoplay',
+    defaultValue: true,
+  );
+
+  /// Kos TV: «Qué música enseñar»: all the music (also what isn't at home,
+  /// heard through the requests service) or only what is at home. The
+  /// person's own in the server plugin; this keeps it on the device only
+  /// when the plugin can't (one from before it).
+  static final kostvMusicCatalogAll = Preference(
+    key: 'kostv_music_catalog_all',
     defaultValue: true,
   );
 

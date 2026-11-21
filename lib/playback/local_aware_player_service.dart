@@ -1,6 +1,7 @@
 import 'package:playback_core/playback_core.dart';
 
 import '../data/repositories/offline_repository.dart';
+import '../data/services/stremfin/kostv_stream_song.dart';
 
 /// Decorates the server play-session service so local-file playback keeps the
 /// downloads DB position current (the source of truth for offline resume) and
@@ -28,6 +29,16 @@ class LocalAwarePlayerService implements PlayerService {
   )?
   _onStopped;
 
+  /// Kos TV: told when a song that isn't at home ([isKostvStream]) stops,
+  /// where and whether it failed. Nothing of it goes to the home server,
+  /// which doesn't have it.
+  final void Function(dynamic mediaItem, Duration position, bool failed)?
+  _onStreamStopped;
+
+  /// Kos TV: the home server's song an out-of-home one turned out to be (the
+  /// requests service said it is at home now), else the item itself.
+  final dynamic Function(dynamic mediaItem) _homeOf;
+
   LocalAwarePlayerService(
     this._inner,
     this._offlineRepo, {
@@ -39,9 +50,26 @@ class LocalAwarePlayerService implements PlayerService {
       Duration position,
     )?
     onStopped,
+    void Function(dynamic mediaItem, Duration position, bool failed)?
+    onStreamStopped,
+    dynamic Function(dynamic mediaItem)? homeOf,
   }) : _canReachServer = canReachServer,
        _userId = userId ?? (() => null),
-       _onStopped = onStopped;
+       _onStopped = onStopped,
+       _onStreamStopped = onStreamStopped,
+       _homeOf = homeOf ?? _same;
+
+  static dynamic _same(dynamic item) => item;
+
+  /// Kos TV: what the home server is told of [mediaItem] played as
+  /// [resolution]: its home song when it has one, or null for an
+  /// out-of-home song, which it isn't told of.
+  dynamic _reported(dynamic mediaItem, StreamResolutionResult resolution) {
+    if (isKostvStreamId(resolution.mediaSourceId)) return null;
+    if (!isKostvStream(mediaItem)) return mediaItem;
+    final home = _homeOf(mediaItem);
+    return isKostvStream(home) ? null : home;
+  }
 
   Future<void> _recordLocal(dynamic mediaItem, int positionTicks) async {
     try {
@@ -75,6 +103,9 @@ class LocalAwarePlayerService implements PlayerService {
     int? subtitleStreamIndex,
     PlaybackQueueModes? queueModes,
   }) async {
+    final reported = _reported(mediaItem, resolution);
+    if (reported == null) return;
+    mediaItem = reported;
     if (!resolution.isLocalMedia) {
       return _inner.onPlaybackStart(
         mediaItem,
@@ -109,6 +140,9 @@ class LocalAwarePlayerService implements PlayerService {
     bool? isMuted,
     PlaybackQueueModes? queueModes,
   }) async {
+    final reported = _reported(mediaItem, resolution);
+    if (reported == null) return;
+    mediaItem = reported;
     if (!resolution.isLocalMedia) {
       return _inner.onPlaybackProgress(
         mediaItem,
@@ -146,6 +180,12 @@ class LocalAwarePlayerService implements PlayerService {
     bool releaseLiveStream = true,
     bool failed = false,
   }) async {
+    final reported = _reported(mediaItem, resolution);
+    if (reported == null) {
+      _onStreamStopped?.call(mediaItem, position, failed);
+      return;
+    }
+    mediaItem = reported;
     try {
       if (!resolution.isLocalMedia) {
         return await _inner.onPlaybackStop(
@@ -188,6 +228,7 @@ class LocalAwarePlayerService implements PlayerService {
   @override
   Future<void> stopTranscoding(StreamResolutionResult resolution) async {
     if (resolution.isLocalMedia) return;
+    if (isKostvStreamId(resolution.mediaSourceId)) return;
     return _inner.stopTranscoding(resolution);
   }
 

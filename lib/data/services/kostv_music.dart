@@ -62,6 +62,11 @@ class KostvMusicService {
   Future<AggregatedItem?> item(String id) async =>
       (await _get(types: const ['Audio', 'MusicAlbum'], ids: [id])).firstOrNull;
 
+  /// Kos TV: the songs [ids] of the home server, those it has (in its own
+  /// order: who asks puts them in theirs).
+  Future<List<AggregatedItem>> songs(List<String> ids) async =>
+      ids.isEmpty ? const [] : _get(types: const ['Audio'], ids: ids);
+
   /// The albums of what the person played lately, the latest first.
   Future<List<AggregatedItem>> recentAlbums({int max = 12}) async {
     final songs = await _get(

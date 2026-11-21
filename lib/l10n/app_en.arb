@@ -21385,5 +21385,61 @@
     "kostvMusicUndislikeShort": "Remove “Dislike”",
     "@kostvMusicUndislikeShort": {
         "description": "Kos TV music: an artist page's button when the artist is on the person's «No me gusta» list; short, it goes under an icon on the phone."
+    },
+    "kostvStreamPreparing": "Getting the song ready…",
+    "@kostvStreamPreparing": {
+        "description": "Kos TV «Toda la música»: Reproduciendo and the floating player while a song that isn't at home is being got ready by the requests service"
+    },
+    "kostvStreamPreparingHint": "It isn't at home: we're getting it ready for you to listen to. It takes a few seconds",
+    "@kostvStreamPreparingHint": {
+        "description": "Kos TV «Toda la música»: under «Preparando la canción…» in Reproduciendo"
+    },
+    "kostvStreamPreparingSlow": "It's taking longer than usual",
+    "@kostvStreamPreparingSlow": {
+        "description": "Kos TV «Toda la música»: in place of the hint after 20 seconds of getting the song ready"
+    },
+    "kostvStreamCantListen": "This song can't be played",
+    "@kostvStreamCantListen": {
+        "description": "Kos TV «Toda la música»: notice when a song that isn't at home can't be had (the player goes on to the next one); the song's name goes under it"
+    },
+    "kostvStreamUnavailableNow": "It can't be played right now. Try again later",
+    "@kostvStreamUnavailableNow": {
+        "description": "Kos TV «Toda la música»: notice when the requests service or its sources don't answer; the song's name goes under it"
+    },
+    "kostvStreamNotAtHome": "Not at home · streaming",
+    "@kostvStreamNotAtHome": {
+        "description": "Kos TV «Toda la música»: the pill in Reproduciendo for a song heard through the requests service"
+    },
+    "kostvStreamAskAlbum": "Request album",
+    "@kostvStreamAskAlbum": {
+        "description": "Kos TV «Toda la música»: the button next to the pill in Reproduciendo: asks for the song's album to be brought home"
+    },
+    "kostvStreamOutOfHome": "Not at home",
+    "@kostvStreamOutOfHome": {
+        "description": "Kos TV «Toda la música»: tooltip of the small icon on the queue's songs that aren't at home"
+    },
+    "kostvStreamAlbumNote": "This record isn't at home · it plays by streaming",
+    "@kostvStreamAlbumNote": {
+        "description": "Kos TV «Toda la música»: on the page of an album that isn't at home, when it can be listened to"
+    },
+    "kostvMusicCatalog": "Which music to show",
+    "@kostvMusicCatalog": {
+        "description": "Kos TV «Toda la música»: setting in Settings > Playback > Music"
+    },
+    "kostvMusicCatalogAll": "All the music",
+    "@kostvMusicCatalogAll": {
+        "description": "Kos TV «Toda la música»: option of «Qué música enseñar»"
+    },
+    "kostvMusicCatalogHome": "Only what's at home",
+    "@kostvMusicCatalogHome": {
+        "description": "Kos TV «Toda la música»: option of «Qué música enseñar»"
+    },
+    "kostvMusicCatalogAllHint": "Also what isn't at home: it plays by streaming until it arrives",
+    "@kostvMusicCatalogAllHint": {
+        "description": "Kos TV «Toda la música»: under the option «Toda la música»"
+    },
+    "kostvMusicCatalogHomeHint": "Only what's already on the home server, as before",
+    "@kostvMusicCatalogHomeHint": {
+        "description": "Kos TV «Toda la música»: under the option «Solo la de casa»"
     }
 }

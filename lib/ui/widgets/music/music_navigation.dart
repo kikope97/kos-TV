@@ -10,6 +10,7 @@ import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/media_server_client_factory.dart';
+import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../navigation/destinations.dart';
 import 'kostv_now_playing.dart';
@@ -312,6 +313,23 @@ Future<void> playMusicTracks(
     tracks,
     startIndex: startIndex,
   );
+  // Kos TV: a song that isn't at home may take some seconds to be ready:
+  // the player opens at once, with «Preparando la canción…», rather than
+  // after it.
+  if (isKostvStream(tracks[startIndex.clamp(0, tracks.length - 1)])) {
+    final play = GetIt.instance<PlaybackManager>().playItems(
+      tracks,
+      startIndex: startIndex,
+    );
+    if (context.mounted) unawaited(context.push(Destinations.audioPlayer));
+    try {
+      await play;
+    } catch (e) {
+      debugPrint('[Music] Could not play it: $e');
+      _sayCantPlay(messenger, l10n);
+    }
+    return;
+  }
   try {
     await GetIt.instance<PlaybackManager>().playItems(
       tracks,

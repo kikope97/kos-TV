@@ -5,6 +5,7 @@ import 'package:logger/logger.dart';
 
 import '../../models/aggregated_item.dart';
 import '../log_service.dart';
+import '../stremfin/kostv_stream_song.dart';
 import 'cast_provider.dart';
 import 'cast_session_reporter.dart';
 import 'cast_target.dart';
@@ -287,6 +288,17 @@ class CastService {
     int? audioStreamIndex,
     int? subtitleStreamIndex,
   }) async {
+    // Kos TV: the songs that aren't at home stay on this device: a cast
+    // device would ask the home server for them, which doesn't have them.
+    if (isKostvStream(item)) {
+      throw StateError('A song that is not at home is not cast');
+    }
+    if (queueItems != null && queueItems.any(isKostvStream)) {
+      queueItems = [
+        for (final entry in queueItems)
+          if (!isKostvStream(entry)) entry,
+      ];
+    }
     final provider = _providers.firstWhere(
       (p) => p.supportedKinds.contains(target.kind),
       orElse: () => throw StateError('No cast provider found for target'),

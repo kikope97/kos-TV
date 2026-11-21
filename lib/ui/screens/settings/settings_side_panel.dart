@@ -16,6 +16,7 @@ import 'package:server_core/server_core.dart' hide ImageType;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../data/services/installed_apps_service.dart';
+import '../../../data/services/kostv_music_catalog.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';

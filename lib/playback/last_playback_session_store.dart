@@ -22,6 +22,11 @@ class LastPlaybackSession {
   /// Kos TV: the person whose queue this was. The store fills it in.
   final String? userId;
 
+  /// Kos TV: the songs of the queue that aren't at home, by their id, as
+  /// they were put on (the home server can't give them back); their sound is
+  /// asked for again when they play.
+  final Map<String, Map<String, dynamic>> streamItems;
+
   const LastPlaybackSession({
     required this.serverId,
     required this.itemIds,
@@ -32,6 +37,7 @@ class LastPlaybackSession {
     this.artUri,
     this.isAudiobook = false,
     this.userId,
+    this.streamItems = const {},
   });
 
   Map<String, dynamic> toJson() => {
@@ -44,6 +50,7 @@ class LastPlaybackSession {
         'artUri': artUri,
         'isAudiobook': isAudiobook,
         'userId': userId,
+        if (streamItems.isNotEmpty) 'streamItems': streamItems,
       };
 
   static LastPlaybackSession? fromJson(Map<String, dynamic> json) {
@@ -61,8 +68,16 @@ class LastPlaybackSession {
       artUri: json['artUri'] as String?,
       isAudiobook: json['isAudiobook'] as bool? ?? false,
       userId: json['userId'] as String?,
+      streamItems: _streamItemsOf(json['streamItems']),
     );
   }
+
+  static Map<String, Map<String, dynamic>> _streamItemsOf(Object? raw) => {
+    if (raw is Map)
+      for (final entry in raw.entries)
+        if (entry.key is String && entry.value is Map)
+          entry.key as String: (entry.value as Map).cast<String, dynamic>(),
+  };
 
   String get currentItemId =>
       itemIds[index.clamp(0, itemIds.length - 1).toInt()];
@@ -116,15 +131,17 @@ class LastPlaybackSessionStore {
       artUri: session.artUri,
       isAudiobook: session.isAudiobook,
       userId: owner,
+      streamItems: session.streamItems,
     );
     if (session.itemIds.length > _maxQueueIds) {
       // Keep a window around the current index so resume stays meaningful.
       final start = (session.index - _maxQueueIds ~/ 2)
           .clamp(0, session.itemIds.length - _maxQueueIds)
           .toInt();
+      final kept = session.itemIds.sublist(start, start + _maxQueueIds);
       toStore = LastPlaybackSession(
         serverId: session.serverId,
-        itemIds: session.itemIds.sublist(start, start + _maxQueueIds),
+        itemIds: kept,
         index: session.index - start,
         positionMs: session.positionMs,
         title: session.title,
@@ -132,6 +149,9 @@ class LastPlaybackSessionStore {
         artUri: session.artUri,
         isAudiobook: session.isAudiobook,
         userId: owner,
+        streamItems: {
+          for (final id in kept) id: ?session.streamItems[id],
+        },
       );
     }
     await prefs.setString(_key, jsonEncode(toStore.toJson()));

@@ -13,6 +13,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
+import '../../screens/music/kostv_stream_widgets.dart';
 import '../offline_aware_image.dart';
 import 'kostv_now_playing.dart';
 
@@ -457,10 +458,13 @@ class _TouchCapsuleState extends State<_TouchCapsule> {
               ),
               child: Row(
                 children: [
-                  KostvCapsuleCover(
-                    item: item,
-                    size: height - 16,
-                    round: !mobile,
+                  KostvPulse(
+                    active: music.preparing,
+                    child: KostvCapsuleCover(
+                      item: item,
+                      size: height - 16,
+                      round: !mobile,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -564,10 +568,13 @@ class _TvCapsule extends StatelessWidget {
                     Stack(
                       alignment: Alignment.center,
                       children: [
-                        KostvCapsuleCover(
-                          item: item,
-                          size: height - 16,
-                          round: true,
+                        KostvPulse(
+                          active: music.preparing,
+                          child: KostvCapsuleCover(
+                            item: item,
+                            size: height - 16,
+                            round: true,
+                          ),
                         ),
                         if (compact)
                           Container(
@@ -635,7 +642,16 @@ class _Titles extends StatelessWidget {
           height: 1.15,
         ),
       ),
-      if (artist.isNotEmpty) ...[
+      // Kos TV: a song that isn't at home, while it is prepared.
+      if (KostvNowPlaying.instance.preparing) ...[
+        const SizedBox(height: 3),
+        KostvPreparingNote(
+          slow: KostvNowPlaying.instance.preparingSlow,
+          big: big,
+          centred: false,
+          compact: true,
+        ),
+      ] else if (artist.isNotEmpty) ...[
         const SizedBox(height: 3),
         Text(
           artist,

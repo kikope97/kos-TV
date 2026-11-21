@@ -22,6 +22,8 @@ import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/kostv_now_playing.dart';
+import '../../widgets/music/kostv_stream_play.dart'
+    show kostvRefreshMusicCatalog;
 import '../../widgets/music/music_navigation.dart';
 import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
@@ -193,6 +195,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     kostvMusicFavoritesChanged.addListener(_reloadFavorites);
     // With a mouse, the right click is the songs' menu, not the browser's.
     kostvHoldBrowserMenu();
+    // Kos TV: «Qué música enseñar», as the person has it now.
+    kostvRefreshMusicCatalog();
     // Kos TV: back to the app in another time of day: its mix.
     _lifecycle = AppLifecycleListener(onResume: _checkMomentSlot);
     // Kos TV: what the person doesn't want to hear leaves the rows that

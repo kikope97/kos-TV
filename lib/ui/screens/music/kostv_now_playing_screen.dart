@@ -18,6 +18,7 @@ import '../../../data/services/kostv_music.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/media_server_client_factory.dart';
+import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/input_mode_tracker.dart';
@@ -38,6 +39,7 @@ import 'kostv_music_links.dart';
 import 'kostv_music_widgets.dart' show kostvMusicColor;
 import 'kostv_music_actions.dart' show kostvMusicFavoritesChanged;
 import 'kostv_music_dislike.dart';
+import 'kostv_stream_widgets.dart';
 
 /// Kos TV: «Reproduciendo», the music player. Its background takes the
 /// colours of the cover; the cover breathes with the music (smaller while
@@ -365,6 +367,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     _lyricsFor = item.id;
     LyricsData found = LyricsData.empty;
     try {
+      // Kos TV: a song that isn't at home has no lyrics of the home server.
+      if (isKostvStream(item)) throw const _NoLyrics();
       final path = item.rawData['_localLyricsPath'] as String?;
       if (path != null && !kIsWeb && File(path).existsSync()) {
         found = LyricsData.fromJson(
@@ -395,7 +399,9 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     }
   }
 
-  bool get _hasLyrics => (_lyrics?.isNotEmpty ?? false) || _lyricsLoading;
+  bool get _hasLyrics =>
+      !isKostvStream(_music.item) &&
+      ((_lyrics?.isNotEmpty ?? false) || _lyricsLoading);
 
   /// The lyrics panel: empty while the song's are on their way.
   Widget _lyricsPanel({bool big = false}) => KostvLyricsPanel(
@@ -442,6 +448,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   /// one already on the list (put on by hand), it takes it off.
   VoidCallback? _dislikeOf(AggregatedItem item) {
     if (_manager.isOfflinePlayback || item.type != 'Audio') return null;
+    // Kos TV: the plugin's «No me gusta» is of the home server's songs.
+    if (isKostvStream(item)) return null;
     if (!kostvMusicCanDislike(item)) return null;
     return () {
       if (kostvMusicDisliked(item.id, item)) {
@@ -506,7 +514,9 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     final l10n = AppLocalizations.of(context);
     final albumId = item.albumId;
     final artistId = _artistId(item);
-    final offline = _manager.isOfflinePlayback;
+    // Kos TV: a song that isn't at home has none of the home server's own
+    // (its album, its artist, a playlist, its mix).
+    final offline = _manager.isOfflinePlayback || isKostvStream(item);
     final sleepAt = _music.sleepAt;
     // Kos TV: «No me pongas a …», when the server plugin keeps it: the
     // song's own artist, not its album's (a compilation's song isn't by
@@ -733,18 +743,28 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     final height = size.height;
     // The cover takes what the titles and the controls leave.
     final ownVolume = KostvNowPlaying.hasOwnVolume;
-    final room = height * 0.9 - (_tv ? 360 : 320) - (ownVolume ? 48 : 0);
+    // Kos TV: a song that isn't at home has its pill (and, while it is
+    // prepared, why it takes a moment) under its titles.
+    final stream = isKostvStream(item);
+    final room =
+        height * 0.9 -
+        (_tv ? 360 : 320) -
+        (ownVolume ? 48 : 0) -
+        (stream ? (_tv ? 130 : 110) : 0);
     final coverSize = room.clamp(150.0, panel == null ? 560.0 : 460.0);
     final controls = SizedBox(
       width: (coverSize * 1.25).clamp(320.0, 620.0),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _CoverArt(
-            item: item,
-            size: coverSize,
-            playing: _music.playing,
-            direction: _direction,
+          KostvPulse(
+            active: _music.preparing,
+            child: _CoverArt(
+              item: item,
+              size: coverSize,
+              playing: _music.playing || _music.preparing,
+              direction: _direction,
+            ),
           ),
           SizedBox(height: height * 0.045),
           _TitleBlock(
@@ -754,6 +774,10 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
             artists: _artistLinks(item),
             album: _albumLink(item),
           ),
+          if (stream) ...[
+            SizedBox(height: height * 0.02),
+            _streamSlot(item, big: _tv),
+          ],
           SizedBox(height: height * 0.03),
           const _Scrubber(),
           SizedBox(height: height * 0.02),
@@ -768,9 +792,11 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
           SizedBox(height: height * 0.025),
           _ActionsRow(
             favorite: _isFavorite(item),
-            onFavorite: _manager.isOfflinePlayback
+            // Kos TV: ♥ is the home server's.
+            onFavorite: _manager.isOfflinePlayback || stream
                 ? null
                 : () => _toggleFavorite(item),
+            showLyrics: !stream,
             disliked: kostvMusicDisliked(item.id, item),
             onDislike: _dislikeOf(item),
             view: _view,
@@ -830,6 +856,47 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     );
   }
 
+  /// Kos TV: under the titles of a song that isn't at home: its pill, with
+  /// «Pedir álbum», and while it is prepared, why it takes a moment.
+  Widget _streamSlot(
+    AggregatedItem item, {
+    bool big = false,
+    bool centred = true,
+  }) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: centred
+        ? CrossAxisAlignment.center
+        : CrossAxisAlignment.start,
+    children: [
+      Align(
+        alignment: centred ? Alignment.center : Alignment.centerLeft,
+        child: KostvStreamPill(
+          item: item,
+          big: big,
+          centred: centred,
+          stop: (onTap, builder) => _Stop(onTap: onTap, builder: builder),
+        ),
+      ),
+      AnimatedSize(
+        duration: const Duration(milliseconds: 250),
+        alignment: Alignment.topCenter,
+        child: _music.preparing
+            ? Padding(
+                padding: EdgeInsets.only(top: big ? 14 : 10),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 520),
+                  child: KostvPreparingNote(
+                    slow: _music.preparingSlow,
+                    big: big,
+                    centred: centred,
+                  ),
+                ),
+              )
+            : const SizedBox(width: double.infinity),
+      ),
+    ],
+  );
+
   /// The phone upright: the big cover, or the lyrics or the queue in its
   /// place under a small header; the controls always at the bottom.
   Widget _phone(AggregatedItem item, Size size) {
@@ -840,7 +907,11 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       _View.queue => const _QueuePanel(),
       _ => null,
     };
-    final coverSize = (size.width - 56).clamp(160.0, size.height * 0.46);
+    final stream = isKostvStream(item);
+    final coverSize = (size.width - 56).clamp(
+      160.0,
+      size.height * (stream ? 0.4 : 0.46),
+    );
 
     final top = Padding(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
@@ -881,11 +952,14 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
                 if (v < -250) _next();
                 if (v > 250) _previous();
               },
-              child: _CoverArt(
-                item: item,
-                size: coverSize,
-                playing: _music.playing,
-                direction: _direction,
+              child: KostvPulse(
+                active: _music.preparing,
+                child: _CoverArt(
+                  item: item,
+                  size: coverSize,
+                  playing: _music.playing || _music.preparing,
+                  direction: _direction,
+                ),
               ),
             ),
           )
@@ -947,7 +1021,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
                             lit: kostvMusicDisliked(item.id, item),
                             onTap: onDislike,
                           ),
-                        if (!_manager.isOfflinePlayback)
+                        if (!_manager.isOfflinePlayback && !stream)
                           _IconToggle(
                             icon: _isFavorite(item)
                                 ? Icons.favorite_rounded
@@ -960,6 +1034,10 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
                           ),
                       ],
                     ),
+                  if (stream) ...[
+                    const SizedBox(height: 12),
+                    _streamSlot(item, centred: false),
+                  ],
                   const SizedBox(height: 14),
                   const _Scrubber(),
                   const SizedBox(height: 6),
@@ -973,13 +1051,15 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      _IconToggle(
-                        icon: Icons.lyrics_rounded,
-                        tooltip: l10n.kostvPlayerLyrics,
-                        lit: _view == _View.lyrics,
-                        enabled: _hasLyrics,
-                        onTap: () => _show(_View.lyrics),
-                      ),
+                      // Kos TV: no lyrics for a song that isn't at home.
+                      if (!stream)
+                        _IconToggle(
+                          icon: Icons.lyrics_rounded,
+                          tooltip: l10n.kostvPlayerLyrics,
+                          lit: _view == _View.lyrics,
+                          enabled: _hasLyrics,
+                          onTap: () => _show(_View.lyrics),
+                        ),
                       const Spacer(),
                       _IconToggle(
                         icon: Icons.queue_music_rounded,
@@ -998,6 +1078,11 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       ),
     );
   }
+}
+
+/// Kos TV: no lyrics to look for.
+class _NoLyrics implements Exception {
+  const _NoLyrics();
 }
 
 // --- The background ---
@@ -1789,7 +1874,12 @@ class _ActionsRow extends StatelessWidget {
     this.lyricsFocus,
     this.disliked = false,
     this.onDislike,
+    this.showLyrics = true,
   });
+
+  /// Kos TV: off for a song that isn't at home (its lyrics are the home
+  /// server's).
+  final bool showLyrics;
 
   final bool favorite;
   final VoidCallback? onFavorite;
@@ -1834,15 +1924,17 @@ class _ActionsRow extends StatelessWidget {
             onTap: onDislike!,
           ),
         ],
-        const SizedBox(width: 18),
-        _IconToggle(
-          icon: Icons.lyrics_rounded,
-          tooltip: l10n.kostvPlayerLyrics,
-          lit: view == _View.lyrics,
-          enabled: hasLyrics,
-          focusNode: lyricsFocus,
-          onTap: onLyrics,
-        ),
+        if (showLyrics) ...[
+          const SizedBox(width: 18),
+          _IconToggle(
+            icon: Icons.lyrics_rounded,
+            tooltip: l10n.kostvPlayerLyrics,
+            lit: view == _View.lyrics,
+            enabled: hasLyrics,
+            focusNode: lyricsFocus,
+            onTap: onLyrics,
+          ),
+        ],
         const SizedBox(width: 18),
         _IconToggle(
           icon: Icons.queue_music_rounded,
@@ -2474,6 +2566,12 @@ class _QueuePanel extends StatelessWidget {
                   ],
                 ),
               ),
+              // Kos TV: the songs that aren't at home, marked.
+              if (isKostvStream(item))
+                Padding(
+                  padding: const EdgeInsets.only(left: 6, right: 4),
+                  child: KostvStreamMark(size: big ? 20 : 16),
+                ),
               if (fromAutoplay)
                 Tooltip(
                   message: l10n.kostvPlayerAutoplayAdded,

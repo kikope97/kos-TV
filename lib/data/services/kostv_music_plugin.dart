@@ -7,6 +7,7 @@ import 'package:server_core/server_core.dart';
 import '../models/aggregated_item.dart';
 import 'kostv_music.dart' show KostvMusicTaste;
 import 'moonbase_endpoint.dart';
+import 'stremfin/kostv_stream_song.dart';
 import 'stremfin/stremfin_client.dart';
 import 'stremfin/stremfin_models.dart';
 
@@ -64,10 +65,16 @@ class KostvMusicLearnState {
     required this.learn,
     this.listens = 0,
     this.since,
+    this.catalog,
   });
 
   final bool learn;
   final int listens;
+
+  /// Kos TV: «Qué música enseñar» (`Catalog`): `all` (all the music, the
+  /// default) or `home` (only what is at home). Null with a plugin from
+  /// before it: the device keeps it then.
+  final String? catalog;
 
   /// The first listen kept, or null with none.
   final DateTime? since;
@@ -78,10 +85,12 @@ class KostvMusicLearnState {
     if (learn is! bool) return null;
     final listens = raw['Listens'];
     final since = raw['Since'];
+    final catalog = raw['Catalog'];
     return KostvMusicLearnState(
       learn: learn,
       listens: listens is num ? listens.toInt() : 0,
       since: since is String ? DateTime.tryParse(since)?.toLocal() : null,
+      catalog: catalog == 'all' || catalog == 'home' ? catalog as String : null,
     );
   }
 }
@@ -601,6 +610,7 @@ Map<String, Object?> kostvStremfinSongJson(StremfinSong song) => {
       'cover': ?song.cover,
     },
   'in_jellyfin': song.inJellyfin,
+  'listen_ready': song.listenReady,
   'jellyfin_id': ?song.jellyfinId,
   'album_jellyfin_id': ?song.albumJellyfinId,
   'reason': ?song.reason,
@@ -747,6 +757,7 @@ class KostvMusicPlugin {
     String route, {
     Object? body,
     Set<int> answers = const {},
+    bool keepMissing = true,
   }) async {
     const failed = (ok: false, missing: false, data: null, status: null);
     const missing = (ok: false, missing: true, data: null, status: null);
@@ -775,7 +786,11 @@ class KostvMusicPlugin {
       );
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) {
-        _missingAt['${client.baseUrl}|$route'] = DateTime.now();
+        // Kos TV: a 404 of something new on an old route (an event of a
+        // kind it doesn't know) doesn't take the route away.
+        if (keepMissing) {
+          _missingAt['${client.baseUrl}|$route'] = DateTime.now();
+        }
         return missing;
       }
       debugPrint('[MusicPlugin] $method $route failed: ${e.message}');
@@ -813,6 +828,67 @@ class KostvMusicPlugin {
   ) async => KostvMusicLearnState.fromJson(
     (await _call(client, 'POST', 'Settings', body: {'Learn': learn})).data,
   );
+
+  /// Kos TV: «Qué música enseñar» ([catalog] `all` or `home`), the
+  /// person's; the state after, or null when the plugin couldn't keep it
+  /// (one from before it answers 400: the device keeps it then).
+  Future<KostvMusicLearnState?> setCatalog(
+    MediaServerClient client,
+    String catalog,
+  ) async {
+    final state = KostvMusicLearnState.fromJson(
+      (await _call(
+        client,
+        'POST',
+        'Settings',
+        body: {'Catalog': catalog},
+        keepMissing: false,
+      )).data,
+    );
+    return state?.catalog == null ? null : state;
+  }
+
+  /// Kos TV: a song that isn't at home was listened to through the requests
+  /// service (`stream_listen`): [played] seconds of its [duration], how it
+  /// ended ([endedBy]: `natural`, `next`, `stop`, `closed` or `error`), where
+  /// it came from ([source], a [KostvMusicSource]) and whether on shuffle.
+  /// A plugin from before it answers 400 or 404: nothing more is done (the
+  /// route stays for the other events).
+  Future<bool> sendStreamListen(
+    MediaServerClient client, {
+    required String deezerId,
+    required String title,
+    String? artist,
+    String? album,
+    String? genre,
+    required double played,
+    int? duration,
+    required String endedBy,
+    required String source,
+    bool shuffle = false,
+  }) async {
+    if (deezerId.isEmpty) return false;
+    final reply = await _call(
+      client,
+      'POST',
+      'Event',
+      body: {
+        'Type': 'stream_listen',
+        'DeezerId': deezerId,
+        'Title': title,
+        'Artist': ?_text(artist),
+        'Album': ?_text(album),
+        'Genre': ?_text(genre),
+        'Played': double.parse(played.toStringAsFixed(1)),
+        'Duration': ?duration,
+        'EndedBy': endedBy,
+        'Source': source,
+        'Shuffle': shuffle,
+      },
+      keepMissing: false,
+    );
+    return reply.ok;
+  }
 
   /// Forgets everything kept of what the person listened to. False when it
   /// couldn't.
@@ -1139,7 +1215,9 @@ void kostvTellMusicSource(
   final start = startIndex.clamp(0, tracks.length);
   final ids = [
     for (final track in [...tracks.skip(start), ...tracks.take(start)])
-      if (track.type == 'Audio') track.id,
+      // Kos TV: not the songs that aren't at home: the plugin only knows the
+      // home server's (it hears of those as stream_listen).
+      if (track.type == 'Audio' && !isKostvStream(track)) track.id,
   ];
   if (ids.isEmpty) return;
   // After the caller goes on to play: nothing of this runs before it.
