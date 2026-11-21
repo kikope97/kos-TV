@@ -8,6 +8,8 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 import '../../../data/services/kostv_music.dart' show kostvMusicSameTitle;
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/kostv_music_preview.dart';
+import '../../../data/services/stremfin/kostv_stream_song.dart'
+    show kostvStreamItemFromTrack;
 import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
@@ -676,8 +678,20 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
                   unawaited(_preview.stop(resume: false));
                   unawaited(playKostvMusicTrack(context, song.jellyfinId!));
                 },
+          // Kos TV: one that sounds through the service, resting on it a
+          // couple of seconds (the remote's focus, the mouse) asks for it
+          // in advance.
+          onRest:
+              _streamable(detail) && !song.atHome && kostvTrackPlayable(song)
+              ? (resting) => resting
+                    ? kostvPrefetchSoonTrack(
+                        song,
+                        dwell: const Duration(seconds: 2),
+                      )
+                    : kostvPrefetchCancel()
+              : null,
           onMenu: song.jellyfinId == null
-              ? null
+              ? _streamMenu(detail, song)
               : () => unawaited(
                   showKostvMusicSongMenu(
                     context,
@@ -692,6 +706,35 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
                 ),
         ),
     ];
+  }
+
+  /// Kos TV: the menu of one of the album's songs that sounds through the
+  /// requests service («Toda la música»), or null.
+  VoidCallback? _streamMenu(
+    StremfinAlbumDetail detail,
+    StremfinAlbumTrack track,
+  ) {
+    if (!_streamable(detail) || track.atHome || !kostvTrackPlayable(track)) {
+      return null;
+    }
+    final client = GetIt.instance.isRegistered<MediaServerClient>()
+        ? GetIt.instance<MediaServerClient>()
+        : null;
+    final item = kostvStreamItemFromTrack(
+      track,
+      detail.album,
+      serverId: client?.baseUrl ?? '',
+      artistDeezerId: detail.artistDeezerId,
+    );
+    if (item == null) return null;
+    return () => unawaited(
+      showKostvMusicSongMenu(
+        context,
+        item: item,
+        fromAlbumDeezerId: detail.album.deezerId,
+        source: KostvMusicSource.album,
+      ),
+    );
   }
 }
 
@@ -813,7 +856,11 @@ class KostvMusicTrackRow extends StatelessWidget {
     this.soundingPlays = false,
     this.focusNode,
     this.autofocus = false,
+    this.onRest,
   });
+
+  /// Kos TV: see [KostvMusicPressable.onRest].
+  final ValueChanged<bool>? onRest;
 
   /// Whether it's the song the player has, and whether it's playing.
   final bool sounding;
@@ -855,6 +902,7 @@ class KostvMusicTrackRow extends StatelessWidget {
       autofocus: autofocus,
       onTap: onTap ?? () {},
       onLongPress: onMenu,
+      onRest: onRest,
       builder: (context, lit) => _row(context, l10n, length, lit: lit),
     );
   }

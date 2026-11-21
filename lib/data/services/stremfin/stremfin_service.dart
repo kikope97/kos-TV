@@ -615,8 +615,12 @@ class StremfinService extends ChangeNotifier {
   /// and allows few calls, so it is kept here as long. A service without it
   /// answers 404 (a [StremfinException] with that status), remembered for a
   /// while without asking again.
+  ///
+  /// Kos TV: [deezerArtistIds] are artists already known by Deezer's id (a
+  /// song's that isn't at home, for its radio), asked for by it.
   Future<StremfinRadio> musicRadio(
     List<String> artists, {
+    List<String> deezerArtistIds = const [],
     String? only,
     bool excludeSeedArtists = false,
     int? limit,
@@ -627,7 +631,10 @@ class StremfinService extends ChangeNotifier {
         _clock().difference(missingAt) < _radioMissingFor) {
       throw const StremfinException(code: 'not_found', status: 404);
     }
-    final artistIds = await _artistIdsOf(artists, remembered: remembered);
+    final artistIds = [
+      ...deezerArtistIds,
+      ...await _artistIdsOf(artists, remembered: remembered),
+    ];
     Future<StremfinRadio> read({bool remembered = false}) => _client
         .musicRadio(
           artists,
@@ -650,7 +657,9 @@ class StremfinService extends ChangeNotifier {
           },
         );
     if (remembered) return _cleanRadio(await read(remembered: true));
-    final key = '${artists.join(',')}|$only|$excludeSeedArtists|$limit';
+    final key =
+        '${artists.join(',')}|${deezerArtistIds.join(',')}|$only|'
+        '$excludeSeedArtists|$limit';
     final kept = _radios[key];
     if (kept != null &&
         _clock().difference(kept.at) < const Duration(hours: 1)) {

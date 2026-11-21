@@ -21583,4 +21583,20 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvMusicCatalogHomeHint =>
       'Solo la que ya está en el servidor de casa, como siempre';
+
+  @override
+  String get kostvStreamMoreAlbums => 'Más álbumes';
+
+  @override
+  String get kostvStreamMoreAlbumsWhy =>
+      'No están en casa: se escuchan en streaming';
+
+  @override
+  String kostvStreamDislikedOutOfHome(String artist) {
+    return '$artist · No está en casa';
+  }
+
+  @override
+  String get kostvStreamStationEmpty =>
+      'No hay canciones para esta emisora ahora mismo';
 }

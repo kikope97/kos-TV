@@ -175,7 +175,16 @@ class _KostvMusicDislikesScreenState extends State<KostvMusicDislikesScreen> {
       entry.artist ? Icons.person_off_outlined : Icons.music_off_outlined,
     ),
     title: Text(entry.name.isEmpty ? '—' : entry.name),
-    subtitle: entry.artistName == null ? null : Text(entry.artistName!),
+    // Kos TV: a song that isn't at home says so («Toda la música»).
+    subtitle: entry.outOfHome
+        ? Text(
+            entry.artistName == null
+                ? l10n.kostvStreamOutOfHome
+                : l10n.kostvStreamDislikedOutOfHome(entry.artistName!),
+          )
+        : entry.artistName == null
+        ? null
+        : Text(entry.artistName!),
     trailing: Tooltip(
       message: l10n.kostvMusicDislikesRemove,
       child: const Icon(Icons.close_rounded),

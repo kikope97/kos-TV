@@ -28,6 +28,9 @@ class KostvStreamAlbums {
   KostvStreamAlbums._();
 
   static final _known = <String, ({StremfinAlbum album, DateTime at})>{};
+
+  /// Kos TV: the Deezer id of each album's artist, as its page said.
+  static final _artists = <String, String>{};
   static final _asking = <String, Future<StremfinAlbum?>>{};
   static const _keep = Duration(minutes: 5);
 
@@ -38,6 +41,9 @@ class KostvStreamAlbums {
 
   /// What is known of [deezerId] now (null until it is read).
   static StremfinAlbum? known(String deezerId) => _known[deezerId]?.album;
+
+  /// Kos TV: the Deezer id of the album [deezerId]'s artist, once read.
+  static String? artistOf(String deezerId) => _artists[deezerId];
 
   /// [deezerId] read from the service, unless it was a moment ago (or
   /// [fresh]).
@@ -52,6 +58,8 @@ class KostvStreamAlbums {
         if (service == null) return null;
         final detail = await service.musicAlbum(deezerId);
         _known[deezerId] = (album: detail.album, at: DateTime.now());
+        final artist = detail.artistDeezerId;
+        if (artist != null && artist.isNotEmpty) _artists[deezerId] = artist;
         return detail.album;
       } catch (_) {
         return kept?.album;
@@ -64,8 +72,81 @@ class KostvStreamAlbums {
   @visibleForTesting
   static void debugReset() {
     _known.clear();
+    _artists.clear();
     _asking.clear();
   }
+}
+
+/// Kos TV: asks for the album [deezerId] of a song that isn't at home (its
+/// [title] and [artist], told to the server plugin), and says how it went.
+/// True when it was asked for.
+Future<bool> kostvStreamAskAlbum(
+  BuildContext context,
+  String deezerId, {
+  String? title,
+  String? artist,
+}) async {
+  final service = GetIt.instance.isRegistered<StremfinService>()
+      ? GetIt.instance<StremfinService>()
+      : null;
+  if (service == null) return false;
+  final l10n = AppLocalizations.of(context);
+  try {
+    final result = await service.createMusicRequest(deezerId);
+    if (kostvMusicRequestCounts(result.outcome)) {
+      kostvTellMusicRequest(
+        () => GetIt.instance.isRegistered<MediaServerClient>()
+            ? GetIt.instance<MediaServerClient>()
+            : null,
+        deezerAlbumId: deezerId,
+        album: title,
+        artist: artist,
+      );
+    }
+    if (context.mounted) {
+      kostvMusicSay(context, result.message ?? l10n.kostvMusicAskedDone);
+    }
+    unawaited(KostvStreamAlbums.read(deezerId, fresh: true));
+    return true;
+  } catch (e) {
+    if (context.mounted) {
+      kostvMusicSay(
+        context,
+        kostvStremfinErrorText(l10n, e, fallback: l10n.kostvMusicCantAskNow),
+      );
+    }
+    return false;
+  }
+}
+
+/// Kos TV: how the album of a song that isn't at home stands for its
+/// «Pedir álbum»: what the button says, and whether it can be asked for
+/// now (null: nothing to say, at home or not to be asked for).
+({String label, IconData icon, bool can})? kostvStreamAlbumState(
+  AppLocalizations l10n,
+  StremfinAlbum? album, {
+  required bool hasAlbum,
+}) {
+  if (!hasAlbum || album?.inJellyfin == true) return null;
+  if (album?.download case final download?) {
+    return (
+      label: [
+        download.label ?? l10n.kostvMusicOnItsWay,
+        if (download.percent != null) '${download.percent} %',
+      ].join(' · '),
+      icon: Icons.downloading_rounded,
+      can: false,
+    );
+  }
+  if (album?.request case final request?) {
+    return (
+      label: request.statusLabel ?? l10n.kostvMusicAsked,
+      icon: Icons.check_rounded,
+      can: false,
+    );
+  }
+  if (album != null && !album.canRequest) return null;
+  return (label: l10n.kostvStreamAskAlbum, icon: Icons.add_rounded, can: true);
 }
 
 /// Kos TV: «No está en casa · en streaming», the pill of «Reproduciendo»
@@ -125,34 +206,16 @@ class _KostvStreamPillState extends State<KostvStreamPill> {
 
   Future<void> _ask() async {
     final id = _albumId;
-    final service = GetIt.instance.isRegistered<StremfinService>()
-        ? GetIt.instance<StremfinService>()
-        : null;
-    if (id == null || service == null || _asking) return;
-    final l10n = AppLocalizations.of(context);
+    if (id == null || _asking) return;
     setState(() => _asking = true);
     try {
-      final result = await service.createMusicRequest(id);
-      if (kostvMusicRequestCounts(result.outcome)) {
-        kostvTellMusicRequest(
-          () => GetIt.instance.isRegistered<MediaServerClient>()
-              ? GetIt.instance<MediaServerClient>()
-              : null,
-          deezerAlbumId: id,
-          album: _album?.title ?? widget.item.album,
-          artist: _album?.artist ?? widget.item.albumArtist,
-        );
-      }
-      if (!mounted) return;
-      kostvMusicSay(context, result.message ?? l10n.kostvMusicAskedDone);
-      await _read(fresh: true);
-    } catch (e) {
-      if (mounted) {
-        kostvMusicSay(
-          context,
-          kostvStremfinErrorText(l10n, e, fallback: l10n.kostvMusicCantAskNow),
-        );
-      }
+      final asked = await kostvStreamAskAlbum(
+        context,
+        id,
+        title: _album?.title ?? widget.item.album,
+        artist: _album?.artist ?? widget.item.albumArtist,
+      );
+      if (asked && mounted) await _read(fresh: true);
     } finally {
       if (mounted) setState(() => _asking = false);
     }
@@ -199,33 +262,14 @@ class _KostvStreamPillState extends State<KostvStreamPill> {
       ),
     );
     // What the album button says: to ask for it, or how it is once asked.
-    final String? label;
-    final IconData icon;
-    final bool can;
-    if (_albumId == null || album?.inJellyfin == true) {
-      label = null;
-      icon = Icons.add_rounded;
-      can = false;
-    } else if (album?.download case final download?) {
-      label = [
-        download.label ?? l10n.kostvMusicOnItsWay,
-        if (download.percent != null) '${download.percent} %',
-      ].join(' · ');
-      icon = Icons.downloading_rounded;
-      can = false;
-    } else if (album?.request case final request?) {
-      label = request.statusLabel ?? l10n.kostvMusicAsked;
-      icon = Icons.check_rounded;
-      can = false;
-    } else if (album != null && !album.canRequest) {
-      label = null;
-      icon = Icons.add_rounded;
-      can = false;
-    } else {
-      label = l10n.kostvStreamAskAlbum;
-      icon = Icons.add_rounded;
-      can = true;
-    }
+    final state = kostvStreamAlbumState(
+      l10n,
+      album,
+      hasAlbum: _albumId != null,
+    );
+    final label = state?.label;
+    final icon = state?.icon ?? Icons.add_rounded;
+    final can = state?.can ?? false;
     final button = label == null
         ? null
         : widget.stop(
@@ -263,7 +307,7 @@ class _KostvStreamPillState extends State<KostvStreamPill> {
                     ),
                   SizedBox(width: big ? 8 : 6),
                   Text(
-                    label!,
+                    label,
                     maxLines: 1,
                     style: TextStyle(
                       color: lit ? Colors.black : Colors.white,

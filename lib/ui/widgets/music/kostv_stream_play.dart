@@ -7,7 +7,9 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/kostv_music.dart';
 import '../../../data/services/kostv_music_catalog.dart';
+import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
+import '../../../data/services/stremfin/kostv_stream_radio.dart';
 import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
@@ -112,6 +114,29 @@ List<KostvQueueSong> kostvQueueSongs(List<StremfinSong> songs) {
   ];
 }
 
+/// Kos TV: [songs] of a list to play whole, without what the person
+/// doesn't want to hear ([dislikes]: by the home id, the Deezer id or the
+/// artist's name) but the one at [index] (picked; -1 for none), and where
+/// that one is now.
+({List<StremfinSong> songs, int index}) kostvSongsToPlay(
+  List<StremfinSong> songs,
+  KostvMusicDislikes dislikes, {
+  int index = -1,
+}) {
+  if (dislikes.isEmpty) return (songs: songs, index: index < 0 ? 0 : index);
+  final kept = <StremfinSong>[];
+  var at = 0;
+  for (final (i, song) in songs.indexed) {
+    if (i == index) {
+      at = kept.length;
+    } else if (dislikes.stremfinSongOut(song)) {
+      continue;
+    }
+    kept.add(song);
+  }
+  return (songs: kept, index: at);
+}
+
 /// Kos TV: an album page's songs for [playKostvStreamSongs].
 List<KostvQueueSong> kostvAlbumQueueSongs(StremfinAlbumDetail detail) {
   final server = _homeClient()?.baseUrl ?? '';
@@ -151,3 +176,222 @@ bool kostvTrackPlayable(StremfinAlbumTrack track) =>
 /// Kos TV: reads «Qué música enseñar» again (a Music page opening).
 void kostvRefreshMusicCatalog() =>
     unawaited(KostvMusicCatalog.instance.refresh().catchError((Object _) {}));
+
+// ------------------------------------------------- the radio and the mixes
+
+/// Kos TV: whether a station or the endless play (∞) around [seed] goes
+/// through the requests service's radio too: with «Toda la música», or
+/// when the seed itself isn't at home (the home server has no mix of it).
+/// With «Solo la de casa» and a seed at home, only the home server's mix,
+/// as before.
+bool kostvStationWantsRadio(AggregatedItem seed) =>
+    isKostvStream(seed) || kostvMusicCatalogAll();
+
+/// Kos TV: the artists the requests service's radio of [seed] is asked
+/// with: by Deezer's id for a song that isn't at home, by name for one of
+/// the home server's (its own two first).
+({List<String> names, List<String> ids}) kostvStationArtists(
+  AggregatedItem seed,
+) {
+  final info = KostvStreamInfo.of(seed);
+  final id = info?.artistDeezerId;
+  if (id != null) return (names: const [], ids: [id]);
+  final names = isKostvStream(seed)
+      ? seed.artists.where((a) => a.trim().isNotEmpty).take(1).toList()
+      : kostvMusicArtistNames(seed).take(2).toList();
+  return (names: names, ids: const []);
+}
+
+/// Kos TV: the songs of a station around [seed] (not the seed itself):
+/// the home server's mix of it when it is at home, mixed in turns with the
+/// requests service's radio of its artists when [kostvStationWantsRadio]
+/// (what isn't at home only with «Toda la música»); without what the
+/// person doesn't want to hear, nor what is in [skip]. [homeLimit] is how
+/// many the home server's mix gives.
+Future<List<AggregatedItem>> kostvStationFor(
+  AggregatedItem seed, {
+  Set<String> skip = const {},
+  int homeLimit = 60,
+  MediaServerClient? client,
+}) async {
+  final server = client ?? _homeClient();
+  final music = server == null ? null : KostvMusicService(server);
+  final dislikes = server == null
+      ? KostvMusicDislikes.empty
+      : await KostvMusicDislikesStore.instance
+            .load(server)
+            .catchError((Object _) => KostvMusicDislikes.empty);
+  Future<List<AggregatedItem>> Function()? homeMix;
+  if (!isKostvStream(seed) && music != null) {
+    homeMix = () => music.mix(seed.id, limit: homeLimit);
+  }
+  if (!kostvStationWantsRadio(seed)) {
+    final mix =
+        await (homeMix?.call() ?? Future.value(const <AggregatedItem>[]))
+            .catchError((Object _) => const <AggregatedItem>[]);
+    return [
+      for (final other in mix)
+        if (other.id != seed.id && !skip.contains(other.id)) other,
+    ];
+  }
+  final artists = kostvStationArtists(seed);
+  return kostvStationOf(
+    radio: KostvStreamRadio.instance,
+    serverId: server?.baseUrl ?? seed.serverId,
+    includeAway: kostvMusicCatalogAll(),
+    hideExplicit: _hidesExplicit(),
+    homeItems: (ids) => music == null
+        ? Future.value(const <AggregatedItem>[])
+        : music.songs(ids),
+    dislikes: dislikes,
+    homeMix: homeMix,
+    artists: artists.names,
+    artistIds: artists.ids,
+    seed: seed,
+    skip: skip,
+  );
+}
+
+/// Kos TV: [song] of the requests service as the seed of a station: the
+/// home server's copy when it is at home, otherwise as a song that isn't.
+Future<AggregatedItem?> kostvStationSeedOf(StremfinSong song) async {
+  final queued = await kostvStreamQueue([
+    KostvQueueSong.ofSong(song, serverId: _homeClient()?.baseUrl ?? ''),
+  ], includeStream: true);
+  return queued.items.firstOrNull;
+}
+
+/// Kos TV: «Crear emisora» of [seed]: it plays, and its station after it.
+/// Without anything to go after it, the seed plays on its own, and the
+/// person is told.
+Future<void> playKostvStation(BuildContext context, AggregatedItem seed) async {
+  final l10n = AppLocalizations.of(context);
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final closeLoading = showMusicLoading(context);
+  List<AggregatedItem> station;
+  try {
+    station = await kostvStationFor(seed);
+  } catch (_) {
+    station = const [];
+  } finally {
+    closeLoading();
+  }
+  if (!context.mounted) return;
+  await playMusicTracks(context, [
+    seed,
+    ...station,
+  ], source: KostvMusicSource.radio);
+  if (station.isEmpty) {
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(l10n.kostvStreamStationEmpty)));
+  }
+}
+
+/// Kos TV: «Crear emisora» of an artist of the requests service (their
+/// page): the radio of them, what is at home from home.
+Future<void> playKostvArtistStation(
+  BuildContext context,
+  StremfinArtist artist,
+) async {
+  final l10n = AppLocalizations.of(context);
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final server = _homeClient();
+  final music = server == null ? null : KostvMusicService(server);
+  final closeLoading = showMusicLoading(context);
+  List<AggregatedItem> station;
+  try {
+    final dislikes = server == null
+        ? KostvMusicDislikes.empty
+        : await KostvMusicDislikesStore.instance
+              .load(server)
+              .catchError((Object _) => KostvMusicDislikes.empty);
+    station = await kostvStationOf(
+      radio: KostvStreamRadio.instance,
+      serverId: server?.baseUrl ?? '',
+      includeAway: kostvMusicCatalogAll(),
+      hideExplicit: _hidesExplicit(),
+      homeItems: (ids) => music == null
+          ? Future.value(const <AggregatedItem>[])
+          : music.songs(ids),
+      dislikes: dislikes,
+      artistIds: [artist.deezerId],
+    );
+  } catch (_) {
+    station = const [];
+  } finally {
+    closeLoading();
+  }
+  if (!context.mounted) return;
+  if (station.isEmpty) {
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(l10n.kostvStreamStationEmpty)));
+    return;
+  }
+  await playMusicTracks(
+    context,
+    station,
+    source: KostvMusicSource.radio,
+    picked: false,
+  );
+}
+
+/// Kos TV: the extra songs of the mixes, kept on the device with the Music
+/// page's notes of the person.
+KostvMixExtras kostvMixExtras = KostvMixExtras(
+  radio: KostvStreamRadio.instance,
+  load: () async {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<StremfinService>()) return null;
+    return getIt<StremfinService>().rememberedMusicNote(KostvMixExtras.note);
+  },
+  save: (value) {
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<StremfinService>()) return;
+    getIt<StremfinService>().keepMusicNote(KostvMixExtras.note, value);
+  },
+);
+
+/// Kos TV: today, by this device's clock (`2026-11-21`).
+String kostvToday([DateTime? now]) {
+  final day = now ?? DateTime.now();
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${day.year}-${two(day.month)}-${two(day.day)}';
+}
+
+/// Kos TV: a daily mix's songs ([items], by the artists [because]) to play:
+/// with «Toda la música», about a quarter of songs that aren't at home
+/// spread through it (picked once a day, see [KostvMixExtras]); with «Solo
+/// la de casa», as they are. A slow radio doesn't hold the mix more than a
+/// few seconds.
+Future<List<AggregatedItem>> kostvMixQueue({
+  required String mixId,
+  required List<AggregatedItem> items,
+  required List<String> because,
+  String? day,
+}) async {
+  if (!kostvMusicCatalogAll() || items.isEmpty || because.isEmpty) {
+    return items;
+  }
+  final server = _homeClient();
+  if (server == null || !GetIt.instance.isRegistered<StremfinService>()) {
+    return items;
+  }
+  try {
+    return await kostvMixExtras
+        .mixWith(
+          // Kept apart for each person signed in on the device.
+          mixId: '${server.userId}|$mixId',
+          day: day ?? kostvToday(),
+          because: because,
+          items: items,
+          serverId: server.baseUrl,
+          hideExplicit: _hidesExplicit(),
+          dislikes: KostvMusicDislikesStore.instance.of(server),
+        )
+        .timeout(const Duration(seconds: 8));
+  } catch (_) {
+    return items;
+  }
+}

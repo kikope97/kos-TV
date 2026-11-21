@@ -36470,6 +36470,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Only what\'s already on the home server, as before'**
   String get kostvMusicCatalogHomeHint;
+
+  /// Kos TV «Toda la música»: search shelf of albums that are not at home
+  ///
+  /// In en, this message translates to:
+  /// **'More albums'**
+  String get kostvStreamMoreAlbums;
+
+  /// Kos TV «Toda la música»: under «Más álbumes» in the search
+  ///
+  /// In en, this message translates to:
+  /// **'Not at home: they play by streaming'**
+  String get kostvStreamMoreAlbumsWhy;
+
+  /// Kos TV «Toda la música»: a disliked song that is not at home, in Settings
+  ///
+  /// In en, this message translates to:
+  /// **'{artist} · Not at home'**
+  String kostvStreamDislikedOutOfHome(String artist);
+
+  /// Kos TV «Toda la música»: «Crear emisora» found nothing
+  ///
+  /// In en, this message translates to:
+  /// **'There are no songs for this station right now'**
+  String get kostvStreamStationEmpty;
 }
 
 class _AppLocalizationsDelegate

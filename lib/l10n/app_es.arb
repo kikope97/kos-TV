@@ -15944,5 +15944,13 @@
     "kostvMusicCatalogHomeHint": "Solo la que ya está en el servidor de casa, como siempre",
     "@kostvMusicCatalogHomeHint": {
         "description": "Kos TV «Toda la música»: under the option «Solo la de casa»"
-    }
+    },
+    "kostvStreamMoreAlbums": "Más álbumes",
+    "@kostvStreamMoreAlbums": {"description": "Kos TV «Toda la música»: search shelf of albums that are not at home"},
+    "kostvStreamMoreAlbumsWhy": "No están en casa: se escuchan en streaming",
+    "@kostvStreamMoreAlbumsWhy": {"description": "Kos TV «Toda la música»: under «Más álbumes» in the search"},
+    "kostvStreamDislikedOutOfHome": "{artist} · No está en casa",
+    "@kostvStreamDislikedOutOfHome": {"description": "Kos TV «Toda la música»: a disliked song that is not at home, in Settings", "placeholders": {"artist": {"type": "String"}}},
+    "kostvStreamStationEmpty": "No hay canciones para esta emisora ahora mismo",
+    "@kostvStreamStationEmpty": {"description": "Kos TV «Toda la música»: «Crear emisora» found nothing"}
 }
