@@ -1,6 +1,6 @@
 # API de Stremfin para la app de Jellyfin de casa
 
-> Versión de la API: **v1** · Stremfin 1.97.0 · documento generado el 21/11/2026
+> Versión de la API: **v1** · Stremfin 1.98.1 · documento generado el 21/11/2026
 >
 > Dirección base: **`https://stremfin.ejemplo.com/api/v1`**
 
@@ -66,7 +66,7 @@ Lo que la API **nunca** da: enlaces de descarga, addons, el servicio debrid, rut
 | Ids | `tmdb_id` (número) para películas y series; `deezer_id` (texto con dígitos) para álbumes, artistas y canciones (solo el de un álbum, EP o sencillo sirve para pedir); `jellyfin_id` (texto) para abrir algo en Jellyfin |
 | Versión | `v1` va en la ruta. Se añadirán campos nuevos sin aviso: **ignora los campos que no conozcas**. Quitar o cambiar un campo exigiría una `v2` |
 | Texto | UTF-8 válido en todos los parámetros (si no, `422 invalid`) |
-| Desde un navegador (CORS) | Solo las webs que el administrador ponga en *Ajustes → Acceso desde fuera* («Webs que pueden usar la API desde el navegador»), por su origen exacto (esquema, dominio y puerto). A esas se les responde `Access-Control-Allow-Origin: <su origen>`, `Vary: Origin` y `Access-Control-Expose-Headers: Retry-After`, también en los errores; la consulta previa (`OPTIONS`, sin token) recibe `204` con `Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS`, `Access-Control-Allow-Headers: Authorization, Content-Type` y `Access-Control-Max-Age: 600`, y no cuenta para ningún límite. Nunca `*` ni credenciales: la sesión va en `Authorization`. Las apps nativas (sin `Origin`) no necesitan nada |
+| Desde un navegador (CORS) | Solo las webs que el administrador ponga en *Ajustes → Acceso desde fuera* («Webs que pueden usar la API desde el navegador»), por su origen exacto (esquema, dominio y puerto). A esas se les responde `Access-Control-Allow-Origin: <su origen>`, `Vary: Origin` y `Access-Control-Expose-Headers: Retry-After, Content-Length, Content-Range, Accept-Ranges` (las tres últimas desde 1.98.1, para el audio de [8.36](#836-get-musiclisten)), también en los errores; la consulta previa (`OPTIONS`, sin token) recibe `204` con `Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS`, `Access-Control-Allow-Headers: Authorization, Content-Type` y `Access-Control-Max-Age: 600`, y no cuenta para ningún límite. Nunca `*` ni credenciales: la sesión va en `Authorization`. Las apps nativas (sin `Origin`) no necesitan nada |
 | Caché | Cada `GET` correcto (200) lleva `ETag`. `/requests`, `/notifications` y la disponibilidad llevan la hora en la respuesta, así que cambian siempre: ahí usa `since`. Si lo mandas en `If-None-Match` y la respuesta no ha cambiado, llega `304 Not Modified` **sin cuerpo**: usa la que ya tenías. Va por usuario (`Cache-Control: private, no-cache`). Opcional: sin `If-None-Match`, todo como siempre |
 
 La API está **apagada por defecto**: se enciende en el panel, *Ajustes → Acceso desde fuera*. Apagada, todo responde `503 api_disabled`.
@@ -554,7 +554,7 @@ Authorization: Bearer <token>
     "music": true,
     "platforms": ["netflix", "disney", "prime"]
   },
-  "server": { "name": "Stremfin", "version": "1.97.0", "api_version": 1 }
+  "server": { "name": "Stremfin", "version": "1.98.1", "api_version": 1 }
 }
 ```
 
@@ -1599,7 +1599,7 @@ Desde 1.93.0. **«Descubrimiento semanal»**: canciones de la radio de Deezer de
 
 ### 8.35 `GET /music/songs/{deezer_id}/listen`
 
-Desde 1.94.0 (el audio se guarda en el servidor desde 1.95.0). **«La quiere escuchar»**: alguien pulsa reproducir una canción que aún no está en Jellyfin. El servidor tiene (o consigue ahora) **solo el audio** de su vídeo de YouTube, lo guarda, cuenta una escucha y da a la app **una dirección suya** para el reproductor. La app nunca habla con YouTube. Cómo encaja todo: [8.38](#838-escuchar-mientras-llega-cómo-funciona).
+Desde 1.94.0 (el audio se guarda en el servidor desde 1.95.0; del servicio de descarga de la casa desde 1.98.0). **«La quiere escuchar»**: alguien pulsa reproducir una canción que aún no está en Jellyfin. El servidor tiene (o consigue ahora) **solo esa canción**, la guarda, cuenta una escucha y da a la app **una dirección suya** para el reproductor. La app no sabe ni le importa de dónde sale: primero del servicio de descarga de la casa (la canción exacta, en MP3 de 128 kbps) y, si está ocupado o no la tiene a tiempo, de YouTube. Cómo encaja todo: [8.38](#838-escuchar-mientras-llega-cómo-funciona).
 
 **Llámala solo cuando la canción va a sonar ya** (el usuario pulsa reproducir, o el reproductor pasa a ella): cuenta como escucha. Para adelantar, [8.37](#837-post-musicsongsdeezer_idprefetch).
 
@@ -1612,7 +1612,7 @@ Desde 1.94.0 (el audio se guarda en el servidor desde 1.95.0). **«La quiere esc
   "in_jellyfin": false,
   "jellyfin_id": null,
   "url": "/api/v1/music/listen?k=eyJpdiI6…",
-  "type": "audio/mp4",
+  "type": "audio/mpeg",
   "expires_at": "2026-11-22T08:30:00+01:00",
   "ready": true,
   "size": 3567407
@@ -1622,7 +1622,7 @@ Desde 1.94.0 (el audio se guarda en el servidor desde 1.95.0). **«La quiere esc
 | Campo | Notas |
 |---|---|
 | `url` | La dirección del audio, **relativa al servidor**: ponle delante el origen de `https://stremfin.ejemplo.com/api/v1` (esquema, dominio y puerto, sin `/api/v1`) y dásela al reproductor tal cual. **No lleva el token** ni hace falta mandarlo: la clave `k` es el permiso. Ver [8.36](#836-get-musiclisten) |
-| `type` | El formato: casi siempre `audio/mp4` (AAC, unos 128 kbps); a veces `audio/webm` (Opus). ExoPlayer reproduce los dos |
+| `type` | El formato del archivo: **solo** `audio/mpeg` (MP3 128 kbps, del servicio de descarga; desde 1.98.0 lo más habitual) o `audio/mp4` (AAC, de YouTube). Desde 1.98.1 nunca `audio/webm`: si YouTube solo tiene Opus, el servidor lo convierte a AAC antes de darlo (uno o dos segundos más), y los que estaban guardados en WebM se convierten solos. Los dos se reproducen en ExoPlayer, Chrome, Firefox y Safari (también en el iPhone): no hace falta pedir un formato |
 | `duration` | Segundos, los de Deezer (el audio puede durar uno o dos segundos más o menos) |
 | `expires_at` | Hasta cuándo vale `url` (12 horas). Después, `404`: pide otra vez esta dirección (si la canción sigue guardada, responde al momento) |
 | `ready` | Desde 1.95.0. `true`: ya estaba guardada y la respuesta ha sido inmediata. `false`: se ha descargado ahora (la respuesta ha tardado unos segundos) |
@@ -1635,13 +1635,15 @@ Desde 1.94.0 (el audio se guarda en el servidor desde 1.95.0). **«La quiere esc
 |---|---|
 | Ya guardada (`ready: true`): escuchada por alguien de casa en los últimos 30 días, o adelantada con [8.37](#837-post-musicsongsdeezer_idprefetch) | **Al momento** |
 | Adelantándose ahora mismo (`state: "downloading"` en 8.37) | Lo que le quede: **unos segundos** como mucho (espera a esa misma descarga, no empieza otra) |
-| Nueva | **Unos 8 a 12 segundos** (medido en noviembre de 2026): se busca el vídeo (~2 s, se guarda 30 días) y se descarga su audio (~6–10 s). Depende del servidor |
+| Nueva, con el servicio de descarga libre (desde 1.98.0) | **Unos pocos segundos**: lo que tarde el servicio en bajar una canción en MP3 128 (el servidor mira cada medio segundo y la tiene en cuanto termina) |
+| Nueva, con el servicio ocupado con un álbum, caído o que no la trae en 20 s | De YouTube: **unos 8 a 12 segundos** (medido en noviembre de 2026; la mayor parte es una espera que impone YouTube). Si el servicio no la trajo a tiempo, **hasta unos 30 s** en el peor caso (20 de espera + YouTube) |
 
-Pon un tiempo de espera de lectura de al menos **60 segundos** en esta llamada (si el servidor tiene otras dos esperando, la tuya espera turno).
+Pon un tiempo de espera de lectura de al menos **60 segundos** en esta llamada (el peor caso, servicio lento y luego YouTube, ronda los 30 s) (si el servidor tiene otras dos esperando, la tuya espera turno).
 
 - **Cuenta una escucha** por persona y canción como mucho cada 3 horas (repetirla, saltar o pedir la dirección otra vez no suma). Una canción escuchada se guarda **30 días desde la última escucha**: mientras se siga oyendo, no se borra.
 - Si estaba adelantada («quizás»), pasa a escuchada.
-- **Cómo se elige el vídeo**: el que dura lo mismo que la canción de Deezer y es el audio original (canales «… - Topic», «Official Audio», vídeos con letra que suben fans); nunca directos, versiones, karaoke, remix, sped up, programas de TV o festivales, salvo que la canción lo sea. Puede fallar alguna vez; no hay forma de corregirlo desde la app en esta versión.
+- **De dónde sale el audio** (desde 1.98.0): del servicio de descarga de la casa, la **misma canción de Deezer** en MP3 128, cuando está libre (no baja ni tiene en cola ningún álbum: una canción nunca espera detrás de un álbum). Si no, o si no la trae en 20 segundos (45 para una adelantada), de YouTube. Para la app es igual: la misma `url`; solo cambia `type`.
+- **Cómo se elige el vídeo** (solo cuando sale de YouTube): el que dura lo mismo que la canción de Deezer y es el audio original (canales «… - Topic», «Official Audio», vídeos con letra que suben fans); nunca directos, versiones, karaoke, remix, sped up, programas de TV o festivales, salvo que la canción lo sea. Puede fallar alguna vez; no hay forma de corregirlo desde la app en esta versión.
 - Si YouTube ha pedido esperar ([8.38](#838-escuchar-mientras-llega-cómo-funciona)), **esta dirección sigue funcionando**: lo que alguien pone a sonar nunca espera a los topes.
 
 | Error | Cuándo | Qué hacer |
@@ -1654,8 +1656,11 @@ Pon un tiempo de espera de lectura de al menos **60 segundos** en esta llamada (
 
 Desde 1.94.0. La dirección que da [8.35](#835-get-musicsongsdeezer_idlisten) en `url`: **el archivo de audio**, para el reproductor. Es la única dirección de la API **sin token**: la clave `k` (cifrada por el servidor) es el permiso, para una sola canción y 12 horas.
 
-- Responde el archivo con `Content-Type` (el `type` de 8.35), `Content-Length`, `Accept-Ranges: bytes` y `Cache-Control: private, max-age=3600`. Con `Range: bytes=N-` (lo que manda ExoPlayer al saltar) responde `206` con `Content-Range`. `HEAD` también vale.
-- El archivo está entero en el servidor: saltar adelante y atrás es inmediato y no vuelve a YouTube.
+- Responde el archivo con `Content-Type` (el `type` de 8.35), `Content-Length`, `Accept-Ranges: bytes` y `Cache-Control: max-age=3600, private`. Con `Range: bytes=N-` o `bytes=N-M` (lo que mandan ExoPlayer y el navegador al saltar) responde `206` con `Content-Range`. `HEAD` responde lo mismo sin cuerpo. Un rango que empieza después del final responde el archivo entero (`200`).
+- **El archivo está entero en el servidor** antes de que 8.35 dé la dirección: nunca se sirve uno a medias, tampoco si se acaba de descargar (mientras se descarga, esta dirección da `404`). Saltar adelante y atrás es inmediato y no vuelve a la fuente.
+- **Varias peticiones a la vez** sobre la misma `k` (un navegador a veces abre dos, con rangos distintos): cada una es independiente y recibe lo suyo. Tope: 240 por minuto desde la misma IP.
+- **Desde una web** (desde 1.98.1): si la web está en *Ajustes → Acceso desde fuera*, **todas** las respuestas de esta dirección (`200`, `206`, `HEAD`, `404`, `429`) llevan `Access-Control-Allow-Origin` con su origen, `Vary: Origin` y `Access-Control-Expose-Headers: Retry-After, Content-Length, Content-Range, Accept-Ranges` ([2](#2-lo-básico)). Sirve `<audio crossorigin="anonymous" src="…">` (sin token ni credenciales; el navegador no hace consulta previa para un `GET` con `Range`). Una web que no está en la lista no recibe esas cabeceras.
+- **iPhone y Safari**: el archivo es siempre MP3 o AAC ([8.35](#835-get-musicsongsdeezer_idlisten), `type`), que Safari reproduce.
 - `404` (texto, no JSON): clave mala o caducada, el archivo ya no se guarda (pasaron los días, o el administrador lo borró) o «Escuchar mientras llega» apagado. Pide otra vez [8.35](#835-get-musicsongsdeezer_idlisten).
 - Fuera de casa gasta datos como cualquier música en streaming (unos 1 MB por minuto).
 
@@ -1693,6 +1698,8 @@ Desde 1.95.0. Lo que pasa en el servidor, para decidir cuándo llamar a cada cos
 | Escuchada | Ha sonado con 8.35 | **30 días desde la última escucha** (cada escucha reinicia la cuenta) | Una por persona y canción cada 3 horas |
 
 En cuanto la canción entra en Jellyfin (porque llegó su álbum), se borra de aquí sola: desde ese momento 8.35 y 8.37 dicen `in_jellyfin: true` / `in_jellyfin` y hay que ponerla desde Jellyfin.
+
+**De dónde sale cada canción** (desde 1.98.0): primero del servicio de descarga de la casa (la canción exacta de Deezer, MP3 128, en unos segundos) cuando está libre; si está con un álbum, caído o no la trae a tiempo, de YouTube. Lo que el servicio deja en su carpeta se saca al momento: **nunca entra en la biblioteca de Jellyfin** como un sencillo suelto. La app no tiene que hacer nada distinto.
 
 **Prioridades**
 
@@ -2178,7 +2185,7 @@ interface StremfinApi {
     @SerialName("in_jellyfin") val inJellyfin: Boolean = false,
     @SerialName("jellyfin_id") val jellyfinId: String? = null,   // si no es null, mejor desde Jellyfin
     val url: String,                                             // "/api/v1/music/listen?k=…"
-    val type: String = "audio/mp4",
+    val type: String = "audio/mpeg",                             // o audio/mp4 (nunca webm desde 1.98.1)
     @SerialName("expires_at") val expiresAt: String,
     val ready: Boolean = false,                                  // 1.95.0: ya estaba guardada
     val size: Long? = null,                                      // 1.95.0
@@ -2195,7 +2202,7 @@ interface StremfinApi {
 //   val link = api.musicListen(song.deezerId)
 //   val item = MediaItem.Builder()
 //       .setUri(serverOrigin + link.url)              // p. ej. "https://stremfin.example"
-//       .setMimeType(MimeTypes.AUDIO_MP4)             // o según link.type
+//       .setMimeType(link.type)                       // "audio/mpeg" o "audio/mp4" (o no lo pongas: ExoPlayer lo detecta)
 //       .setMediaMetadata(MediaMetadata.Builder().setTitle(link.title).setArtist(link.artist).build())
 //       .build()
 //   player.addMediaItem(item)
@@ -2645,3 +2652,5 @@ El servidor falso no tiene las listas de Apple: `/music/charts/{id}` las lee de 
 | 1.94.1 | v1 | Sin cambios en campos ni direcciones. **Cambia**: `/music/songs/{id}/listen` tarda un poco más la primera vez (unos 6 a 9 segundos) porque espera a que YouTube dé el audio; con la 1.94.0, la dirección del audio podía responder `502`. |
 | 1.95.0 | v1 | Todo es **añadido**: ningún campo cambia de nombre ni de tipo. **Nuevo**: `POST /music/songs/{id}/prefetch` («quizás la escuche»: adelantar una canción por detrás; `state`, `paused`, `paused_until`; 60 por minuto); `ready` y `size` en `/music/songs/{id}/listen`; sección [8.38](#838-escuchar-mientras-llega-cómo-funciona) con estados, prioridades y flujos. **Cambia**: el audio se guarda en el servidor (30 días desde la última escucha; 14 si solo se adelantó): la segunda vez y al saltar es inmediato; `/music/listen` ya no responde `502`; `/music/songs/{id}/listen` cuenta una escucha cada vez que se llama (una por persona y canción cada 3 horas). |
 | 1.97.0 | v1 | Todo es **añadido**: ningún campo cambia ni se quita. **Nuevo**: `deezer_id` en cada canción de la ficha de un álbum (`/music/albums/{id}`, `songs[]`) y en cada canción de las listas de éxitos (`/music/charts/{id}`, `items[]`, `null` si Deezer no la tiene igual), para escucharlas mientras llegan; `listen_ready` en todas las canciones (7.7, ficha de álbum, listas): su audio ya está guardado y suena al momento. En [8.38](#838-escuchar-mientras-llega-cómo-funciona), de dónde sale cada canción que se puede escuchar y la regla única para la app. **Cambia**: la primera vez que se pide una lista de canciones tarda unos segundos más (busca cada canción en Deezer; se guarda una semana). |
+| 1.98.0 | v1 | **Sin cambios en campos ni direcciones.** **Cambia** (solo valores y tiempos): «Escuchar mientras llega» saca la canción primero del servicio de descarga de la casa (la misma de Deezer, MP3 128) y, si está ocupado o no la trae en 20 s, de YouTube; por eso `type` de `/music/songs/{id}/listen` suele ser `audio/mpeg` (antes `audio/mp4`), y una canción nueva suele sonar en unos pocos segundos en vez de 8–12. |
+| 1.98.1 | v1 | **Sin cambios en campos ni direcciones.** **Nuevo**: `Content-Length`, `Content-Range` y `Accept-Ranges` en `Access-Control-Expose-Headers` (toda la API, para las webs de *Acceso desde fuera*). **Cambia**: `type` de `/music/songs/{id}/listen` es solo `audio/mpeg` o `audio/mp4` (lo que llegaba en WebM se convierte a AAC); `/music/listen` responde `Cache-Control: max-age=3600, private` (antes, por un fallo, `public`). Confirmado y documentado en [8.36](#836-get-musiclisten): CORS en todas sus respuestas, `HEAD`, rangos, varias peticiones a la vez y que nunca se sirve un archivo a medias. |
