@@ -192,3 +192,32 @@ biblioteca (evento de Jellyfin) y en la ronda diaria, por título, artista y
 
 Con un complemento antiguo (rutas en `404`), la app no ofrece «Añadir a una
 lista» ni ♥ en canciones de fuera.
+
+**Detalles del complemento** (precisan lo de arriba, sin cambiarlo):
+
+- `AwaySong`: `DeezerId` y `Title` hacen falta; `DeezerId` puede venir como
+  texto o como número entero (igual que `AlbumDeezerId` y `ArtistDeezerId`).
+  `Artist` y `Album` pueden faltar, pero sin `Artist` el complemento no la
+  reconoce sola al llegar a casa (solo con `Arrived`). `Cover`, si viene, es una
+  dirección `http`/`https` de hasta 1000 caracteres (si no, `400`); `Duration`,
+  de 0 a 6 h; `Explicit` ausente es `false`.
+- `GET Away/Playlist/{id}`: las `Entries` salen ya en el orden de la lista
+  completa, y `After` sale siempre (con `null`). Los ids de Jellyfin van sin
+  guiones; en lo que manda la app vale cualquier forma.
+- `POST Away/Playlist/{id}`: lo que ya estaba detrás de ese `After` queda detrás
+  de las nuevas (se meten justo ahí). Pasar de 500 en la lista es `400` (no se
+  añade ninguna). `After` igual a una de las que se añaden, `400`.
+- `DELETE` y `POST …/Order`: `403` sin permiso de edición y `404` si no se puede
+  ver. En `Order`, las de fuera que no vengan en `Ids` se quedan como estaban.
+  `DELETE` acepta el `DeezerId` solo o `stremfin:<DeezerId>` (también en
+  `DELETE Away/Favorites/…`).
+- `POST Away/Favorites`: repetida conserva su fecha (`Added`) y actualiza lo
+  demás; pasar de 2000 es `400`. Los favoritos no llevan `After`.
+- `POST Away/Arrived`: `400` mal formado; `404` si `JellyfinId` no es una canción
+  (Audio) que quien llama pueda ver. Al llegar, cada lista se cambia como su
+  dueña (si ella no puede ver la canción, el hueco se queda) y el ♥ solo pasa a
+  Jellyfin a quien puede verla (a los demás se les queda el suyo). Si la canción
+  ya estaba en la lista de Jellyfin, solo se quita el hueco. Repetirla no hace
+  nada más.
+- Al borrar una lista de Jellyfin se borran sus huecos (y, si el complemento
+  estaba apagado, en la ronda diaria).
