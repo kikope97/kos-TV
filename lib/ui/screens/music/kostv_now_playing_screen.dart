@@ -15,6 +15,7 @@ import '../../../data/models/aggregated_item.dart';
 import '../../../data/models/lyrics.dart';
 import '../../../data/repositories/item_mutation_repository.dart';
 import '../../../data/services/kostv_music.dart';
+import '../../../data/services/kostv_music_away.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/media_server_client_factory.dart';
@@ -41,6 +42,7 @@ import 'kostv_music_actions.dart'
     show kostvHomeArtistNamed, kostvMusicFavoritesChanged, kostvMusicSay;
 import '../../widgets/music/kostv_stream_play.dart'
     show kostvStationFor, kostvStationWantsRadio;
+import 'kostv_music_away_actions.dart';
 import 'kostv_music_dislike.dart';
 import 'kostv_stream_widgets.dart';
 
@@ -135,6 +137,9 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     // Kos TV: «No me gusta» next to ♥, when the server plugin keeps it.
     KostvMusicDislikesStore.instance.addListener(_rebuild);
     unawaited(kostvMusicDislikesReady(_music.item));
+    // Kos TV: the ♥ of songs that aren't at home, kept by the plugin.
+    KostvMusicAwayStore.instance.addListener(_rebuild);
+    unawaited(kostvAwayReady(_music.item));
     // The page opens on play/pause (the app would hand the remote the
     // first thing on it, the progress bar).
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -150,6 +155,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   void dispose() {
     _music.removeListener(_changed);
     KostvMusicDislikesStore.instance.removeListener(_rebuild);
+    KostvMusicAwayStore.instance.removeListener(_rebuild);
     for (final sub in _subs) {
       sub.cancel();
     }
@@ -309,10 +315,11 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       // (one that isn't at home) has none: to play/pause, rather than
       // wherever Flutter would send it.
       final song = _music.item;
+      if (isKostvStream(song)) unawaited(kostvAwayReady(song));
       if (_tv &&
           song != null &&
           isKostvStream(song) &&
-          (_favoriteFocus.hasFocus ||
+          ((_favoriteFocus.hasFocus && !kostvAwayCanKeep(song)) ||
               _lyricsButtonFocus.hasFocus ||
               (_dislikeFocus.hasFocus && _dislikeOf(song) == null))) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -444,11 +451,26 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
 
   // --- Actions ---
 
-  bool _isFavorite(AggregatedItem item) => _favoriteFor == item.id
+  bool _isFavorite(AggregatedItem item) => isKostvStream(item)
+      ? kostvAwayLoved(item)
+      : _favoriteFor == item.id
       ? (_favorite ?? item.isFavorite)
       : item.isFavorite;
 
+  /// Kos TV: whether the song has a ♥ here: the home server's, or the
+  /// plugin's for one that isn't at home (when it keeps them).
+  bool _hasFavorite(AggregatedItem item) =>
+      !_manager.isOfflinePlayback &&
+      (!isKostvStream(item) || kostvAwayCanKeep(item));
+
   Future<void> _toggleFavorite(AggregatedItem item) async {
+    // Kos TV: one that isn't at home, the plugin's ♥ (with the offer to
+    // ask for its album).
+    if (isKostvStream(item)) {
+      await kostvAwayToggleLove(context, item);
+      if (mounted) setState(() {});
+      return;
+    }
     final was = _isFavorite(item);
     setState(() {
       _favoriteFor = item.id;
@@ -608,7 +630,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
             Icons.person_rounded,
             l10n.kostvPlayerGoToArtist,
           ),
-        if (!offline)
+        // Kos TV: one that isn't at home too, when the plugin keeps it.
+        if (!offline || (!_manager.isOfflinePlayback && kostvAwayCanKeep(item)))
           KostvMenuEntry(
             'playlist',
             Icons.playlist_add_rounded,
@@ -646,6 +669,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
         _goTo(Destinations.kostvMusicAlbumOf(stream!.albumDeezerId!));
       case 'streamArtist':
         _goTo(Destinations.kostvMusicArtistOf(stream!.artistDeezerId!));
+      case 'playlist' when stream != null:
+        await kostvAwayAddToPlaylist(context, item);
       case 'playlist':
         await AddToPlaylistDialog.show(
           context,
@@ -876,10 +901,9 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
           SizedBox(height: height * 0.025),
           _ActionsRow(
             favorite: _isFavorite(item),
-            // Kos TV: ♥ is the home server's.
-            onFavorite: _manager.isOfflinePlayback || stream
-                ? null
-                : () => _toggleFavorite(item),
+            // Kos TV: ♥ is the home server's, or the plugin's for one that
+            // isn't at home.
+            onFavorite: _hasFavorite(item) ? () => _toggleFavorite(item) : null,
             showLyrics: !stream,
             disliked: kostvMusicDisliked(item.id, item),
             onDislike: _dislikeOf(item),
@@ -1107,7 +1131,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
                             lit: kostvMusicDisliked(item.id, item),
                             onTap: onDislike,
                           ),
-                        if (!_manager.isOfflinePlayback && !stream)
+                        if (_hasFavorite(item))
                           _IconToggle(
                             icon: _isFavorite(item)
                                 ? Icons.favorite_rounded

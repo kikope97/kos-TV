@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:server_core/server_core.dart';
 
 import '../models/aggregated_item.dart';
+import '../services/kostv_music_away.dart';
 import '../utils/playlist_utils.dart';
 
 /// One page of items and how many the server has in all.
@@ -133,8 +134,13 @@ class MusicLibraryQueries {
     ),
   ).items;
 
+  /// Kos TV: with its songs that aren't at home in their places.
   Future<List<AggregatedItem>> playlistTracks(String playlistId) async =>
-      _page(await client.itemsApi.getPlaylistItems(playlistId)).items;
+      kostvPlaylistWithAway(
+        client,
+        playlistId,
+        _page(await client.itemsApi.getPlaylistItems(playlistId)).items,
+      );
 
   /// The library's genres with how many albums each holds.
   Future<List<AggregatedItem>> genres() async => _page(

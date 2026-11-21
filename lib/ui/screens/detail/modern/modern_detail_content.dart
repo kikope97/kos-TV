@@ -16,6 +16,7 @@ import 'package:server_core/server_core.dart';
 import '../../../mixins/focus_state_mixin.dart';
 
 import '../../../../data/models/aggregated_item.dart';
+import '../../../../data/services/kostv_music_away.dart';
 import '../../../../data/services/stremfin/kostv_series_gaps.dart';
 import '../../../widgets/kostv_missing_episodes.dart';
 import '../../../../data/viewmodels/item_detail_view_model.dart';
@@ -3887,6 +3888,12 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     final manager = GetIt.instance<PlaybackManager>();
     final tracks = tracksOverride ?? _vm.tracks;
     final isAudio = tracks.every(_isAudioItem);
+    // Kos TV: a playlist plays without what can't sound (songs that aren't
+    // at home with «Solo la de casa») and what the person doesn't want to
+    // hear.
+    final play = _vm.item?.type == 'Playlist'
+        ? kostvPlaylistToPlay(tracks, startIndex: index)
+        : (tracks: tracks, startIndex: index);
     await launchPlayerWhilePreparing(
       context,
       manager: manager,
@@ -3894,9 +3901,10 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
           ? Destinations.audioPlayer
           : Destinations.videoPlayer,
       startPlayback: (launchSession) async {
+        if (play.tracks.isEmpty) return false;
         await runPlaybackStart(
           launchSession,
-          () => manager.playItems(tracks, startIndex: index),
+          () => manager.playItems(play.tracks, startIndex: play.startIndex),
         );
         return true;
       },

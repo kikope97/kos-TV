@@ -6,6 +6,7 @@ import 'package:server_core/server_core.dart';
 
 import '../models/aggregated_item.dart';
 import 'kostv_music.dart' show KostvMusicTaste;
+import 'kostv_music_away.dart';
 import 'moonbase_endpoint.dart';
 import 'stremfin/kostv_stream_song.dart';
 import 'stremfin/stremfin_client.dart';
@@ -1109,6 +1110,148 @@ class KostvMusicPlugin {
       (data) => KostvMusicMoment.fromJson(data, server),
     );
   }
+
+  // Kos TV: songs that aren't at home in playlists and ♥ (plan section 8).
+
+  static String _playlistRoute(String playlistId) =>
+      'Away/Playlist/${Uri.encodeComponent(playlistId)}';
+
+  /// The out-of-home songs of the playlist [playlistId]. A 404 is a plugin
+  /// from before it or a list the person can't see ([KostvMusicAnswer
+  /// .missing] either way); it doesn't take the routes away (another list
+  /// may be seen).
+  Future<KostvMusicAnswer<List<KostvAwayEntry>>> awayPlaylist(
+    MediaServerClient client,
+    String playlistId,
+  ) async {
+    if (playlistId.isEmpty) return const KostvMusicAnswer.failed();
+    final reply = await _call(
+      client,
+      'GET',
+      _playlistRoute(playlistId),
+      keepMissing: false,
+    );
+    if (reply.missing) return const KostvMusicAnswer.missing();
+    final value = reply.ok ? KostvAwayEntry.listOf(reply.data) : null;
+    return value == null
+        ? const KostvMusicAnswer.failed()
+        : KostvMusicAnswer(value);
+  }
+
+  /// Adds [songs] to the playlist [playlistId] after [after] (an id of the
+  /// list, null for the first) or, with [atEnd], at the end. Its entries
+  /// after, or none when it couldn't ([forbidden]: 403, the person can't
+  /// change it; [full]: 400, which for songs the app sends well formed is
+  /// the plugin's limit of 500 in a list).
+  Future<({List<KostvAwayEntry>? entries, bool forbidden, bool full})>
+  addAwayToPlaylist(
+    MediaServerClient client,
+    String playlistId,
+    List<KostvAwaySong> songs, {
+    String? after,
+    bool atEnd = true,
+  }) async {
+    if (playlistId.isEmpty || songs.isEmpty) {
+      return (entries: null, forbidden: false, full: false);
+    }
+    final reply = await _call(
+      client,
+      'POST',
+      _playlistRoute(playlistId),
+      body: {
+        'Songs': [for (final song in songs) song.toJson()],
+        if (!atEnd) 'After': after,
+      },
+      answers: const {400, 403},
+      keepMissing: false,
+    );
+    if (reply.status == 403) {
+      return (entries: null, forbidden: true, full: false);
+    }
+    if (reply.status == 400) {
+      return (entries: null, forbidden: false, full: true);
+    }
+    if (!reply.ok) return (entries: null, forbidden: false, full: false);
+    return (
+      entries: KostvAwayEntry.listOf(reply.data) ?? const <KostvAwayEntry>[],
+      forbidden: false,
+      full: false,
+    );
+  }
+
+  /// Takes the out-of-home song [deezerId] out of the playlist.
+  Future<bool> removeAwayFromPlaylist(
+    MediaServerClient client,
+    String playlistId,
+    String deezerId,
+  ) async {
+    if (playlistId.isEmpty || deezerId.isEmpty) return false;
+    final route =
+        '${_playlistRoute(playlistId)}/${Uri.encodeComponent(deezerId)}';
+    return (await _call(client, 'DELETE', route, keepMissing: false)).ok;
+  }
+
+  /// The whole order of the playlist [playlistId] ([ids]: Jellyfin's and
+  /// `stremfin:<DeezerId>`), for the plugin to place its songs again.
+  Future<bool> orderAwayPlaylist(
+    MediaServerClient client,
+    String playlistId,
+    List<String> ids,
+  ) async {
+    if (playlistId.isEmpty || ids.isEmpty) return false;
+    final reply = await _call(
+      client,
+      'POST',
+      '${_playlistRoute(playlistId)}/Order',
+      body: {'Ids': ids},
+      keepMissing: false,
+    );
+    return reply.ok;
+  }
+
+  /// The person's out-of-home ♥, the latest first. [KostvMusicAnswer
+  /// .missing] with a plugin from before it: nothing of this is offered.
+  Future<KostvMusicAnswer<List<KostvAwayFavorite>>> awayFavorites(
+    MediaServerClient client,
+  ) => _read(client, 'Away/Favorites', KostvAwayFavorite.listOf);
+
+  /// Gives [song] the person's ♥: the plugin's status (2xx kept; 400 for a
+  /// song sent well formed is its limit of 2000), null when it didn't
+  /// answer.
+  Future<int?> addAwayFavorite(
+    MediaServerClient client,
+    KostvAwaySong song,
+  ) async => (await _call(
+    client,
+    'POST',
+    'Away/Favorites',
+    body: song.toJson(),
+    answers: const {400},
+    keepMissing: false,
+  )).status;
+
+  /// Takes the ♥ of [deezerId] away. False when it couldn't.
+  Future<bool> removeAwayFavorite(
+    MediaServerClient client,
+    String deezerId,
+  ) async {
+    if (deezerId.isEmpty) return false;
+    final route = 'Away/Favorites/${Uri.encodeComponent(deezerId)}';
+    return (await _call(client, 'DELETE', route, keepMissing: false)).ok;
+  }
+
+  /// The out-of-home song [deezerId] is at home now as [jellyfinId].
+  Future<bool> sendAwayArrived(
+    MediaServerClient client, {
+    required String deezerId,
+    required String jellyfinId,
+  }) async => (await _call(
+    client,
+    'POST',
+    'Away/Arrived',
+    body: {'DeezerId': deezerId, 'JellyfinId': jellyfinId},
+    keepMissing: false,
+  )).ok;
 }
 
 /// Kos TV: the plugin didn't answer (or failed): what is shown stays.

@@ -21260,4 +21260,26 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvSyncPlayErrorOutOfHomeSong =>
       'What\'s playing isn\'t at home, and songs that aren\'t at home can\'t be listened to together.';
+
+  @override
+  String get kostvAwayAddedAskAlbum =>
+      'Added. Ask for the album to have it at home?';
+
+  @override
+  String get kostvAwayAdded => 'Added to the playlist';
+
+  @override
+  String get kostvAwayHomeOnly =>
+      'Not at home: with «Only what\'s at home» it doesn\'t play';
+
+  @override
+  String get kostvAwayNotAllowed => 'You can\'t change this playlist';
+
+  @override
+  String get kostvAwayPlaylistFull =>
+      'This playlist already has 500 songs that aren\'t at home: no more fit';
+
+  @override
+  String get kostvAwayFavoritesFull =>
+      'You already have 2000 favourites that aren\'t at home: remove some to add more';
 }

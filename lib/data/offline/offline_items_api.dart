@@ -877,6 +877,7 @@ class OfflineItemsApi implements ItemsApi {
   Future<Map<String, dynamic>> createPlaylist({
     required String name,
     List<String>? itemIds,
+    String? mediaType,
   }) async {
     throw offlineUnavailable('/Playlists');
   }

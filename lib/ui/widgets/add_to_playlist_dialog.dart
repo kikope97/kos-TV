@@ -4,7 +4,9 @@ import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
 
+import '../../data/models/aggregated_item.dart';
 import '../../data/services/item_membership_service.dart';
+import '../../data/services/kostv_music_away.dart';
 import '../../data/services/kostv_music_plugin.dart';
 import '../../data/services/media_server_client_factory.dart';
 import '../../l10n/app_localizations.dart';
@@ -22,11 +24,17 @@ class AddToPlaylistDialog extends StatefulWidget {
   /// [kostvPlaylistSongsOf]); null when they aren't music.
   final Future<Iterable<String>> Function(MediaServerClient server)? songs;
 
+  /// Kos TV: songs that aren't at home, added as the server plugin's
+  /// «huecos» in the playlist (Jellyfin only keeps its own); [itemIds] is
+  /// empty then. A new playlist is made empty first.
+  final List<AggregatedItem> awaySongs;
+
   const AddToPlaylistDialog({
     super.key,
     required this.itemIds,
     this.serverId,
     this.songs,
+    this.awaySongs = const [],
   });
 
   static Future<bool?> show(
@@ -34,6 +42,7 @@ class AddToPlaylistDialog extends StatefulWidget {
     required List<String> itemIds,
     String? serverId,
     Future<Iterable<String>> Function(MediaServerClient server)? songs,
+    List<AggregatedItem> awaySongs = const [],
   }) {
     return showFocusRestoringDialog<bool>(
       context: context,
@@ -41,6 +50,7 @@ class AddToPlaylistDialog extends StatefulWidget {
         itemIds: itemIds,
         serverId: serverId,
         songs: songs,
+        awaySongs: awaySongs,
       ),
     );
   }
@@ -106,10 +116,42 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
     }
   }
 
+  /// Kos TV: the songs that aren't at home go to the server plugin; false
+  /// (and said) when they couldn't.
+  Future<bool> _addAway(String playlistId) async {
+    final added = await KostvMusicAwayStore.instance.addToPlaylist(
+      _client,
+      playlistId,
+      widget.awaySongs,
+    );
+    if (added.entries != null) return true;
+    if (mounted) {
+      final l10n = AppLocalizations.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            added.forbidden
+                ? l10n.kostvAwayNotAllowed
+                : added.full
+                ? l10n.kostvAwayPlaylistFull
+                : l10n.playlistAddFailed,
+          ),
+        ),
+      );
+    }
+    return false;
+  }
+
   Future<void> _addToPlaylist(String playlistId) async {
     if (_busy) return;
     _busy = true;
     try {
+      if (widget.awaySongs.isNotEmpty) {
+        if (await _addAway(playlistId) && mounted) {
+          Navigator.pop(context, true);
+        }
+        return;
+      }
       await _client.itemsApi.addToPlaylist(playlistId, widget.itemIds);
       ItemMembershipService.instance.notifyItemAddedToPlaylist(
         widget.serverId ?? '',
@@ -152,6 +194,19 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
     if (name.isEmpty || _busy) return;
     _busy = true;
     try {
+      // Kos TV: songs that aren't at home go into a playlist made empty
+      // (for music: Jellyfin can't tell from its items).
+      if (widget.awaySongs.isNotEmpty) {
+        final made = await _client.itemsApi.createPlaylist(
+          name: name,
+          itemIds: const [],
+          mediaType: 'Audio',
+        );
+        final id = made['Id']?.toString();
+        if (id == null || id.isEmpty) throw StateError('no playlist');
+        if (await _addAway(id) && mounted) Navigator.pop(context, true);
+        return;
+      }
       final result = await _client.itemsApi.createPlaylist(
         name: name,
         itemIds: widget.itemIds,

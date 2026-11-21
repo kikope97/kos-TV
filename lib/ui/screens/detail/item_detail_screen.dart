@@ -3,7 +3,10 @@ import 'dart:async';
 import 'kostv/kostv_detail_buttons.dart';
 import 'kostv/kostv_detail_content.dart';
 import '../music/kostv_home_album_view.dart';
+import '../music/kostv_music_actions.dart'
+    show KostvAwayListActions, kostvMusicSay, showKostvMusicSongMenu;
 import '../music/kostv_music_dislike.dart';
+import '../music/kostv_stream_widgets.dart' show KostvStreamMark;
 import '../music/kostv_music_links.dart';
 import '../../theme/focus_foreground.dart';
 import '../../widgets/bounded_network_image.dart';
@@ -45,6 +48,8 @@ import '../../../data/services/theme_music_service.dart';
 import '../../../data/services/kostv_my_list.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
+import '../../../data/services/kostv_music_away.dart';
+import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../data/services/stremfin/kostv_trailers.dart';
 import '../../../data/services/youtube_stream_resolver.dart';
 import '../../../data/viewmodels/item_detail_view_model.dart';
@@ -3427,10 +3432,19 @@ class _DetailContentState extends State<_DetailContent> {
                         displayedTracks,
                       );
                     }
+                    // Kos TV: a playlist plays without what can't sound
+                    // (songs that aren't at home with «Solo la de casa»)
+                    // and what the person doesn't want to hear.
+                    final play = isPlaylist
+                        ? kostvPlaylistToPlay(displayedTracks, startIndex: index)
+                        : (tracks: displayedTracks, startIndex: index);
+                    if (play.tracks.isEmpty) return false;
                     await runPlaybackStart(
                       launchSession,
-                      () =>
-                          manager.playItems(displayedTracks, startIndex: index),
+                      () => manager.playItems(
+                        play.tracks,
+                        startIndex: play.startIndex,
+                      ),
                     );
                     return true;
                   },
@@ -10003,6 +10017,13 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
               throw PlaybackStartupRecoveryAbortedException();
             }
             ensureLaunchStillWanted(launchSession);
+
+            // Kos TV: without what can't sound and what the person doesn't
+            // want to hear.
+            tracks = kostvPlaylistToPlay(tracks, picked: false).tracks;
+            if (tracks.isEmpty) {
+              throw PlaybackStartupRecoveryAbortedException();
+            }
 
             // Start at the first unwatched item, or resume the one left partway
             // through, instead of always restarting from the top.
@@ -17224,9 +17245,15 @@ class _AlbumActions extends StatelessWidget {
                 queue,
               );
             }
+            // Kos TV: a playlist plays without what can't sound and what
+            // the person doesn't want to hear.
+            final play = item.type == 'Playlist'
+                ? kostvPlaylistToPlay(queue, picked: false).tracks
+                : queue;
+            if (play.isEmpty) return false;
             await runPlaybackStart(
               launchSession,
-              () => manager.playItems(queue),
+              () => manager.playItems(play),
             );
             return true;
           },
@@ -17703,9 +17730,22 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
 
     return _selectKeyHandler.handleKeyEvent(
       event,
-      onTap: widget.onTap,
+      onTap: _tap,
       onLongPress: () => _showTrackActions(context),
     );
+  }
+
+  /// Kos TV: a song of a playlist that isn't at home and can't sound now
+  /// («Solo la de casa»): in grey, and a press says why.
+  bool get _awayOff =>
+      isKostvStream(widget.track) && !kostvAwayPlayable(widget.track);
+
+  void _tap() {
+    if (_awayOff) {
+      kostvMusicSay(context, AppLocalizations.of(context).kostvAwayHomeOnly);
+      return;
+    }
+    widget.onTap();
   }
 
   @override
@@ -17791,6 +17831,10 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
     }
 
     Widget? thumbnailWidget;
+    // Kos TV: a song that isn't at home has its cover from the requests
+    // service.
+    final awayCover = KostvStreamInfo.of(widget.track)?.cover;
+    final away = isKostvStream(widget.track);
     if (widget.isPlaylist && widget.imageApi != null) {
       final imgId = widget.track.primaryImageItemId ?? widget.track.id;
       final logoTag = widget.track.logoImageTag;
@@ -17800,7 +17844,10 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
 
       final String imageUrl;
       final BoxFit fit;
-      if (thumbTag != null) {
+      if (away) {
+        imageUrl = awayCover ?? '';
+        fit = BoxFit.cover;
+      } else if (thumbTag != null) {
         imageUrl = widget.imageApi!.getThumbImageUrl(
           imgId,
           tag: thumbTag,
@@ -17923,7 +17970,7 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
         },
         onKeyEvent: (_, event) => _handleTvKeys(event),
         child: GestureDetector(
-          onTap: widget.onTap,
+          onTap: _tap,
           // A reorderable row drags from its handle, and a long press there
           // would open the menu instead. The menu button still opens it.
           onLongPress: widget.reorderable
@@ -17961,22 +18008,36 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
                     ),
                   ),
                 ),
-                if (thumbnailWidget != null) thumbnailWidget,
+                if (thumbnailWidget != null)
+                  Opacity(opacity: _awayOff ? 0.4 : 1, child: thumbnailWidget),
                 Expanded(
-                  child: Column(
+                  child: Opacity(
+                    opacity: _awayOff ? 0.45 : 1,
+                    child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        title,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.white,
-                          fontWeight: showFocusBorder
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              title,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: showFocusBorder
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          // Kos TV: the cloud on a song that isn't at home.
+                          if (away) ...[
+                            const SizedBox(width: 6),
+                            const KostvStreamMark(size: 15),
+                          ],
+                        ],
                       ),
                       // Kos TV: a song's artists (and album) open their pages
                       // with a tap or a click; on the TV, its menu does.
@@ -18005,6 +18066,7 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
                           overflow: TextOverflow.ellipsis,
                         ),
                     ],
+                  ),
                   ),
                 ),
                 if (PlatformDetection.isTV) ...[
@@ -18096,6 +18158,34 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
   }
 
   void _showTrackActions(BuildContext context) {
+    // Kos TV: a song that isn't at home has the menu of one, with the
+    // playlist's own actions.
+    if (isKostvStream(widget.track)) {
+      final remove = widget.onRemoveFromPlaylist;
+      unawaited(
+        showKostvMusicSongMenu(
+          context,
+          item: widget.track,
+          source: KostvMusicSource.playlist,
+          listActions: KostvAwayListActions(
+            remove: remove == null ? null : () => remove(widget.track),
+            moveUp:
+                widget.reorderable &&
+                    widget.onMoveUp != null &&
+                    widget.currentIndex > 0
+                ? () => widget.onMoveUp!(widget.currentIndex)
+                : null,
+            moveDown:
+                widget.reorderable &&
+                    widget.onMoveDown != null &&
+                    widget.currentIndex < widget.totalCount - 1
+                ? () => widget.onMoveDown!(widget.currentIndex)
+                : null,
+          ),
+        ),
+      );
+      return;
+    }
     final manager = GetIt.instance<PlaybackManager>();
     TrackActionDialog.show(
       context,

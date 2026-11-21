@@ -376,6 +376,15 @@ class MusicTrackTile extends StatefulWidget {
   final VoidCallback? onNavigateRight;
   final VoidCallback? onFocus;
 
+  /// Kos TV: a song that isn't at home: the cloud after its title.
+  final bool away;
+
+  /// Kos TV: one that can't sound now («Solo la de casa»): in grey.
+  final bool dimmed;
+
+  /// Kos TV: its menu (OK held down, a long press or a right click).
+  final VoidCallback? onLongPress;
+
   const MusicTrackTile({
     super.key,
     required this.title,
@@ -390,6 +399,9 @@ class MusicTrackTile extends StatefulWidget {
     this.edges = const MusicGridEdges(),
     this.onNavigateRight,
     this.onFocus,
+    this.away = false,
+    this.dimmed = false,
+    this.onLongPress,
   });
 
   @override
@@ -426,11 +438,14 @@ class _MusicTrackTileState extends State<MusicTrackTile> {
         if (focused) widget.onFocus?.call();
       },
       onSelect: widget.onTap,
+      onLongPress: widget.onLongPress,
       onNavigateUp: widget.edges.up,
       onNavigateDown: widget.edges.down,
       onNavigateLeft: widget.edges.left,
       onNavigateRight: widget.onNavigateRight,
-      child: AnimatedContainer(
+      child: Opacity(
+        opacity: widget.dimmed ? 0.45 : 1,
+        child: AnimatedContainer(
         duration: const Duration(milliseconds: 90),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
@@ -478,15 +493,26 @@ class _MusicTrackTileState extends State<MusicTrackTile> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    widget.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: text,
-                    ),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          widget.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: text,
+                          ),
+                        ),
+                      ),
+                      // Kos TV: the cloud of a song that isn't at home.
+                      if (widget.away) ...[
+                        const SizedBox(width: 6),
+                        Icon(Icons.cloud_outlined, size: 15, color: muted),
+                      ],
+                    ],
                   ),
                   if (widget.subtitle.isNotEmpty)
                     Text(
@@ -507,6 +533,7 @@ class _MusicTrackTileState extends State<MusicTrackTile> {
             ],
           ],
         ),
+      ),
       ),
     );
   }

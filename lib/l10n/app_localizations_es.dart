@@ -21603,4 +21603,26 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvSyncPlayErrorOutOfHomeSong =>
       'Lo que suena no está en casa, y las canciones que no están en casa no se pueden escuchar juntos.';
+
+  @override
+  String get kostvAwayAddedAskAlbum =>
+      'Añadida. ¿Pedir el álbum para tenerla en casa?';
+
+  @override
+  String get kostvAwayAdded => 'Añadida a la lista';
+
+  @override
+  String get kostvAwayHomeOnly =>
+      'No está en casa: con «Solo la de casa» no suena';
+
+  @override
+  String get kostvAwayNotAllowed => 'No puedes cambiar esta lista';
+
+  @override
+  String get kostvAwayPlaylistFull =>
+      'Esta lista ya tiene 500 canciones que no están en casa: no caben más';
+
+  @override
+  String get kostvAwayFavoritesFull =>
+      'Ya tienes 2000 favoritas que no están en casa: quita alguna para añadir más';
 }

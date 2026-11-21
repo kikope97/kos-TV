@@ -7,6 +7,7 @@ import 'package:playback_core/playback_core.dart';
 import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/kostv_music_away.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/media_server_client_factory.dart';
@@ -442,6 +443,16 @@ class KostvNowPlaying extends ChangeNotifier {
   /// server's takes its place in the queue (its ♥, its lyrics, its
   /// reports), with what was known of it (autoplay's, come by itself).
   void _atHome(KostvStreamAtHome found) {
+    // Kos TV: the server plugin moves it into the person's playlists and ♥
+    // (told once for each song this session).
+    final deezerId = kostvStreamDeezerId(found.stream);
+    if (deezerId != null) {
+      KostvMusicAwayStore.instance.arrived(
+        _clientOf(found.home),
+        deezerId,
+        found.home.id,
+      );
+    }
     final manager = _manager;
     if (manager == null) return;
     final queue = manager.queueService;
@@ -460,6 +471,24 @@ class KostvNowPlaying extends ChangeNotifier {
       // one, nor the last one ending («Al acabar la canción»).
       if (i == queue.currentIndex) _itemId = home.id;
       queue.replaceAt(i, home);
+    }
+  }
+
+  /// Kos TV: the client of [item]'s server (the one signed in otherwise).
+  static MediaServerClient? _clientOf(AggregatedItem item) {
+    try {
+      final getIt = GetIt.instance;
+      if (getIt.isRegistered<MediaServerClientFactory>()) {
+        final client = getIt<MediaServerClientFactory>().getClientIfExists(
+          item.serverId,
+        );
+        if (client != null) return client;
+      }
+      return getIt.isRegistered<MediaServerClient>()
+          ? getIt<MediaServerClient>()
+          : null;
+    } catch (_) {
+      return null;
     }
   }
 
