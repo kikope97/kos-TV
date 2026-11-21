@@ -1076,6 +1076,11 @@ class Media3VideoView(
     private var queuedNextMediaId: String? = null
     private var queuedNextSerial = 0
     private var gaplessAudioRequested = false
+    // Kos TV: whether the gapless audio offload is asked for now. Only once
+    // a next song is queued (enqueueNext), so a device whose offload isn't
+    // gapless keeps it the rest of the time; it stays asked for while the
+    // songs go on with no gap, and the next source opened afresh drops it.
+    private var gaplessOffloadArmed = false
     private var currentContainer: String? = null
     private var currentIsLive = false
     private var currentIsPreview = false
@@ -1436,6 +1441,25 @@ class Media3VideoView(
             // on from where it is, with none of its own retries.
             if (isQueuedNextError(error)) {
                 dropQueuedNext(failed = true)
+                // ExoPlayer stopped with the error. In the song's last moments
+                // opening it again isn't worth it (a gap, and with the network
+                // down a failure of its own): it ends here, and Dart moves on
+                // to the next one, which says what is wrong with it.
+                val duration = player.duration
+                if (duration != C.TIME_UNSET && duration > 0L &&
+                    duration - player.currentPosition.coerceAtLeast(0L) <= 2_000L
+                ) {
+                    emitState()
+                    if (Media3Bridge.isActive(this@Media3VideoView)) {
+                        Media3Bridge.emitEvent(
+                            mapOf(
+                                "event" to "completed",
+                                "completed" to true,
+                            ) + endOfStreamDiagnostics(),
+                        )
+                    }
+                    return
+                }
                 player.prepare()
                 emitState()
                 return
@@ -3673,6 +3697,7 @@ class Media3VideoView(
         currentNormalizationGainDb = (args["normalizationGainDb"] as? Number)?.toFloat()
         skipSilenceEnabled = args["skipSilenceEnabled"] as? Boolean ?: false
         gaplessAudioRequested = args["gaplessAudio"] as? Boolean ?: false
+        gaplessOffloadArmed = false
         manualSubtitleDelayMs = clampManualDelayMs((args["subtitleDelayMs"] as? Number)?.toLong() ?: 0L)
         sidecarOffsetSources = emptyList()
         embeddedOffsetSource = null
@@ -4250,7 +4275,9 @@ class Media3VideoView(
                     .setIsSpeedChangeSupportRequired(true)
                     // Kos TV: music moves from song to song with no gap, which
                     // offload only keeps where the device can trim it there.
-                    .setIsGaplessSupportRequired(isAudioContent && gaplessAudioRequested)
+                    .setIsGaplessSupportRequired(
+                        isAudioContent && gaplessAudioRequested && gaplessOffloadArmed,
+                    )
                     .build(),
             )
             .setAllowInvalidateSelectionsOnRendererCapabilitiesChange(true)
@@ -4521,6 +4548,13 @@ class Media3VideoView(
         cancelQueuedNext()
         // Only the item playing stays: anything after it was ours to replace.
         if (player.mediaItemCount != player.currentMediaItemIndex + 1) return false
+        // Kos TV: from now on the audio offload has to be gapless (see
+        // gaplessOffloadArmed). Asked for before the item is added, so the
+        // reselection it may cause only touches the song playing.
+        if (gaplessAudioRequested && !gaplessOffloadArmed) {
+            gaplessOffloadArmed = true
+            applyTrackSelectorForCurrentSource()
+        }
         val mediaId = "kostv-next-${++queuedNextSerial}"
         val container = args["container"]?.toString()?.trim()?.lowercase()?.takeIf { it.isNotEmpty() }
         val builder = MediaItem.Builder()
@@ -4583,6 +4617,24 @@ class Media3VideoView(
         val nextIndex = player.currentMediaItemIndex + 1
         if (player.mediaItemCount <= nextIndex) return false
         if (player.getMediaItemAt(nextIndex).mediaId != queuedId) return false
+        // Kos TV: an HTTP error names the address it was loading, which tells
+        // the two songs apart even when the current one's length is unknown.
+        val queuedUrl = queuedNextSourceArguments?.let { it["url"] }?.toString()
+        val playingUrl = currentUrl
+        if (queuedUrl != null && queuedUrl != playingUrl) {
+            var cause: Throwable? = error
+            var depth = 0
+            while (cause != null && depth < 8) {
+                if (cause is HttpDataSource.HttpDataSourceException) {
+                    val uri = cause.dataSpec.uri
+                    if (uri == parseUri(queuedUrl)) return true
+                    if (playingUrl != null && uri == parseUri(playingUrl)) return false
+                    break
+                }
+                cause = cause.cause
+                depth++
+            }
+        }
         val periodUid = (error as? ExoPlaybackException)?.mediaPeriodId?.periodUid
         if (periodUid != null) {
             val timeline = player.currentTimeline

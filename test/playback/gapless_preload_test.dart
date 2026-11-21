@@ -15,6 +15,7 @@ class _GaplessBackend extends Fake implements PlayerBackend, GaplessCapable {
   final _transitioned = StreamController<void>.broadcast();
   final _dropped = StreamController<bool>.broadcast();
   final List<String> playedUrls = <String>[];
+  final List<Map<dynamic, dynamic>> playedPayloads = <Map<dynamic, dynamic>>[];
   final List<Map<dynamic, dynamic>> preloaded = <Map<dynamic, dynamic>>[];
   int stopCalls = 0;
   int cancelCalls = 0;
@@ -109,6 +110,7 @@ class _GaplessBackend extends Fake implements PlayerBackend, GaplessCapable {
     Duration startPosition = Duration.zero,
   }) async {
     playedUrls.add((mediaItem as Map)['url'] as String);
+    playedPayloads.add(mediaItem);
     currentPosition = startPosition;
     reportedDuration = const Duration(minutes: 3);
     playing = true;
@@ -170,6 +172,9 @@ class _Service implements PlayerService {
   final Map<String, Duration> stoppedAt = <String, Duration>{};
   final List<String> stoppedTranscodes = <String>[];
 
+  /// Stop reports for these ids wait on their completer.
+  final Map<String, Completer<void>> stopHolds = <String, Completer<void>>{};
+
   @override
   Future<void> onPlaybackStart(
     dynamic mediaItem,
@@ -206,6 +211,7 @@ class _Service implements PlayerService {
     final id = _idOf(mediaItem);
     events.add('stop:$id');
     stoppedAt[id] = position;
+    await stopHolds[id]?.future;
   }
 
   @override
@@ -497,7 +503,7 @@ void main() {
   });
 
   test('a queued song the player let go when it opened the song again is '
-      'queued again on the next tick', () async {
+      'queued again on the next tick, from what was resolved', () async {
     await playAlbum();
     await at(const Duration(minutes: 2, seconds: 40));
     expect(backend.preloaded, hasLength(1));
@@ -507,7 +513,18 @@ void main() {
     expect(backend.cancelCalls, 0);
     await at(const Duration(minutes: 2, seconds: 41));
     expect(backend.preloaded, hasLength(2));
-    expect(resolver.asked, ['a', 'b', 'b']);
+    expect(backend.preloaded.last['url'], 'https://example.test/b');
+    // Kos TV: not asked again; the answer it had still holds.
+    expect(resolver.asked, ['a', 'b']);
+
+    // Once only.
+    await at(const Duration(minutes: 2, seconds: 42));
+    expect(backend.preloaded, hasLength(2));
+
+    backend.moveOnToQueued();
+    await pumpEventQueue();
+    expect(manager.queueService.currentIndex, 1);
+    expect(backend.playedUrls, ['https://example.test/a']);
   });
 
   test('a song whose file is shorter than its listed length goes on to the '
@@ -550,5 +567,126 @@ void main() {
     await pumpEventQueue();
 
     expect(manager.queueService.currentIndex, 0);
+  });
+
+  test('a queued song the player could not load is told to the app, to '
+      'forget its address', () async {
+    final failed = <String>[];
+    manager.onQueuedNextFailed = (item, resolution) =>
+        failed.add('${_idOf(item)} ${resolution?.streamUrl}');
+    await playAlbum();
+    await at(const Duration(minutes: 2, seconds: 40));
+
+    backend.dropQueued(failed: true);
+    await pumpEventQueue();
+    expect(failed, ['b https://example.test/b']);
+  });
+
+  test('a queued song the player only let go is not told as failed', () async {
+    final failed = <String>[];
+    manager.onQueuedNextFailed = (item, resolution) => failed.add('$item');
+    await playAlbum();
+    await at(const Duration(minutes: 2, seconds: 40));
+
+    backend.dropQueued(failed: false);
+    await pumpEventQueue();
+    expect(failed, isEmpty);
+  });
+
+  test('the start of the song reached with no gap waits for the stop of the '
+      'one before', () async {
+    final hold = Completer<void>();
+    service.stopHolds['a'] = hold;
+    await playAlbum();
+    await at(const Duration(minutes: 2, seconds: 40));
+    await at(const Duration(minutes: 2, seconds: 59));
+
+    backend.moveOnToQueued();
+    await pumpEventQueue();
+    expect(service.events, ['start:a', 'stop:a']);
+    expect(manager.queueService.currentIndex, 1);
+    expect(manager.bringupState.phase, PlaybackBringupPhase.ready);
+
+    hold.complete();
+    await pumpEventQueue();
+    expect(service.events, ['start:a', 'stop:a', 'start:b']);
+  });
+
+  test('a stop report that never answers holds the start back only a '
+      'moment', () async {
+    service.stopHolds['a'] = Completer<void>();
+    await playAlbum();
+    await at(const Duration(minutes: 2, seconds: 40));
+
+    backend.moveOnToQueued();
+    await pumpEventQueue();
+    expect(service.events, ['start:a', 'stop:a']);
+
+    await Future<void>.delayed(
+      PlaybackManager.gaplessStartReportWait +
+          const Duration(milliseconds: 200),
+    );
+    expect(service.events, ['start:a', 'stop:a', 'start:b']);
+  });
+
+  test('«al acabar la canción» turned on after the next song was queued '
+      'stops the move with no gap: it goes the usual way', () async {
+    var sleepsAfterSong = false;
+    manager.preloadVeto = () => sleepsAfterSong;
+    await playAlbum();
+    await at(const Duration(minutes: 2, seconds: 40));
+    expect(backend.preloaded, hasLength(1));
+
+    // Turned on between two ticks, and the player moves on right then.
+    sleepsAfterSong = true;
+    backend.moveOnToQueued();
+    await pumpEventQueue();
+
+    // The queue's next one is opened the usual way (where the app pauses),
+    // not taken from the player as if nothing held it.
+    expect(manager.queueService.currentIndex, 1);
+    expect(backend.playedUrls.last, 'https://example.test/b');
+    expect(service.stoppedAt['a'], const Duration(minutes: 3));
+  });
+
+  test('repeat-one turned on right as the player moves on plays the song '
+      'again', () async {
+    await playAlbum();
+    await at(const Duration(minutes: 2, seconds: 40));
+    expect(backend.preloaded, hasLength(1));
+
+    manager.toggleRepeat();
+    manager.toggleRepeat();
+    backend.moveOnToQueued();
+    await pumpEventQueue();
+
+    expect(manager.queueService.currentIndex, 0);
+    expect(backend.playedUrls.last, 'https://example.test/a');
+  });
+
+  test('SyncPlay taking over drops a queued song at once', () async {
+    await playAlbum();
+    await at(const Duration(minutes: 2, seconds: 40));
+    expect(backend.preloaded, hasLength(1));
+
+    manager.setTransportInterceptor((action, {position}) async => false);
+    await pumpEventQueue();
+    expect(backend.cancelCalls, 1);
+  });
+
+  test('an audiobook of type Audio never takes the gapless path', () async {
+    manager.gaplessEligible = (item) => _idOf(item) != 'book1';
+    await playAlbum([_song('book1'), _song('book2')]);
+    expect(backend.playedPayloads.single.containsKey('gaplessAudio'), isFalse);
+
+    await at(const Duration(minutes: 2, seconds: 50));
+    expect(resolver.asked, ['book1']);
+    expect(backend.preloaded, isEmpty);
+  });
+
+  test('music still asks for gapless audio when it opens', () async {
+    manager.gaplessEligible = (item) => true;
+    await playAlbum();
+    expect(backend.playedPayloads.single['gaplessAudio'], isTrue);
   });
 }

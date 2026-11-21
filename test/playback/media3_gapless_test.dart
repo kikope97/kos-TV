@@ -196,4 +196,38 @@ void main() {
       await sub.cancel();
     }
   });
+
+  test('an audiobook does not ask for gapless audio', () async {
+    await backend.play(const <String, dynamic>{
+      'url': 'https://server.test/book.m4b',
+      'mediaType': 'audio',
+    });
+    final source = calls.firstWhere((c) => c.method == 'setSource');
+    expect((source.arguments as Map)['gaplessAudio'], isFalse);
+  });
+
+  test('a queued song that fails in the last moments of this one ends this '
+      'one there', () async {
+    await backend.play(_song);
+    await backend.preloadNext(_next);
+    final dropped = <bool>[];
+    final completed = <bool>[];
+    final subs = [
+      backend.nextDroppedStream.listen(dropped.add),
+      backend.completedStream.listen(completed.add),
+    ];
+
+    // What the native side sends: the drop, its state stopped short of the
+    // end, then the end.
+    await _send(<String, dynamic>{'event': 'nextDropped', 'failed': true});
+    await tick(178500, playing: false);
+    await _send(<String, dynamic>{'event': 'completed', 'completed': true});
+    await pumpEventQueue();
+
+    expect(dropped, [true]);
+    expect(completed.last, isTrue);
+    for (final sub in subs) {
+      await sub.cancel();
+    }
+  });
 }

@@ -24,6 +24,7 @@ import '../../playback/local_first_media_stream_resolver.dart';
 import '../../playback/kostv_stream_playback.dart';
 import '../../playback/stremfin_stream_resolver.dart';
 import '../../data/services/kostv_music.dart';
+import '../../data/services/stremfin/kostv_stream_song.dart';
 import '../../data/services/stremfin/stremfin_service.dart';
 
 import '../../playback/hdr_stream_capability.dart';
@@ -467,7 +468,20 @@ void registerPlaybackModule() {
   final autoBitrate = AutoBitrateService(_getIt<MediaServerClientFactory>());
   manager
     ..autoBitrateProvider = autoBitrate.measuredBpsForActiveServer
-    ..savedAutoBitrateProvider = autoBitrate.savedBpsForActiveServer;
+    ..savedAutoBitrateProvider = autoBitrate.savedBpsForActiveServer
+    // Kos TV: an audiobook (even one of type Audio) never goes from file to
+    // file with no gap, nor asks the player for gapless audio.
+    ..gaplessEligible = ((item) => item is! AggregatedItem || !item.isAudiobook)
+    // Kos TV: an out-of-home song whose address the player couldn't load
+    // ahead is resolved afresh at its start, not from that address again.
+    ..onQueuedNextFailed = (item, resolution) {
+      if (resolution == null ||
+          !StremfinStreamResolver.isStreamResolution(resolution)) {
+        return;
+      }
+      final deezerId = kostvStreamDeezerId(item);
+      if (deezerId != null) StremfinStreamResolver.forget(deezerId);
+    };
 
   // The streams of one kind belonging to whatever is playing, or null when
   // that isn't an episode and so has no series to remember a choice for.
