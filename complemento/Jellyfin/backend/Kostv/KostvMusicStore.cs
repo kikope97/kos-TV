@@ -30,6 +30,13 @@ public sealed class KostvMusicEvent
     public const string RequestType = "request";
 
     /// <summary>
+    /// Kos TV: what the app says (route <c>Event</c>) of a song not at home it played through
+    /// Stremfin. Not a type of line: it is noted as a <see cref="ListenType"/> of
+    /// <c>stremfin:&lt;DeezerId&gt;</c> (see <see cref="StreamedPrefix"/>).
+    /// </summary>
+    public const string StreamListenType = "stream_listen";
+
+    /// <summary>
     /// A «no me gusta» of songs or artists as the first versions of the route noted it. No longer
     /// written (it is kept apart, in <c>dislikes.json</c>), and old lines are left unused: no app
     /// sent it then.
@@ -193,6 +200,37 @@ public sealed class KostvMusicEvent
     [JsonPropertyName("deezerIds")]
     public List<string>? DeezerIds { get; set; }
 
+    /// <summary>A listen of a song not at home (see <see cref="StreamedPrefix"/>): its title, as the app gave it.</summary>
+    [JsonPropertyName("title")]
+    public string? Title { get; set; }
+
+    /// <summary>
+    /// Kos TV: what <see cref="Item"/> starts with for a song not at home, heard through Stremfin
+    /// («Toda la música»): <c>stremfin:&lt;DeezerId&gt;</c>. Its artists, genres and album
+    /// (<see cref="AlbumName"/>) are by name; there is no song of the library to read.
+    /// </summary>
+    public const string StreamedPrefix = "stremfin:";
+
+    /// <summary>The longest Deezer id kept.</summary>
+    public const int MaxDeezerIdLength = 32;
+
+    /// <summary>Whether <paramref name="deezerId"/> is a Deezer id: digits only, 1 to <see cref="MaxDeezerIdLength"/>.</summary>
+    public static bool IsDeezerId(string? deezerId) =>
+        deezerId is { Length: > 0 and <= MaxDeezerIdLength } && deezerId.All(char.IsAsciiDigit);
+
+    /// <summary>The item of a song not at home: <c>stremfin:&lt;DeezerId&gt;</c>.</summary>
+    public static string StreamedItem(string deezerId) => StreamedPrefix + deezerId;
+
+    /// <summary>The Deezer id of <paramref name="item"/> when it is a song not at home (see <see cref="StreamedPrefix"/>), or null.</summary>
+    public static string? DeezerIdOf(string? item) =>
+        item != null && item.StartsWith(StreamedPrefix, StringComparison.Ordinal) && IsDeezerId(item[StreamedPrefix.Length..])
+            ? item[StreamedPrefix.Length..]
+            : null;
+
+    /// <summary>A listen of a song not at home, heard through Stremfin.</summary>
+    [JsonIgnore]
+    public bool IsStreamed => DeezerIdOf(Item) != null;
+
     [JsonIgnore]
     public bool IsListen => Type == ListenType;
 
@@ -252,6 +290,24 @@ public static class KostvListenEnd
 
     /// <summary>It failed to play.</summary>
     public const string Error = "error";
+}
+
+/// <summary>
+/// kOS TV: what music the app offers a person (their setting «Toda la música»): all, also what
+/// isn't at home (through Stremfin), by default; or only what is at home.
+/// </summary>
+public static class KostvMusicCatalog
+{
+    public const string All = "all";
+    public const string Home = "home";
+
+    /// <summary>The catalog as said (any case, spaces around), or null when it is neither.</summary>
+    public static string? Normalize(string? catalog) => catalog?.Trim().ToLowerInvariant() switch
+    {
+        All => All,
+        Home => Home,
+        _ => null
+    };
 }
 
 /// <summary>
@@ -386,7 +442,7 @@ public sealed class KostvMusicStore
     private readonly string _root;
     private readonly Func<DateTimeOffset> _now;
     private readonly ConcurrentDictionary<Guid, object> _locks = new();
-    private readonly ConcurrentDictionary<Guid, bool> _learn = new();
+    private readonly ConcurrentDictionary<Guid, Settings> _settings = new();
     private readonly ConcurrentDictionary<Guid, KostvMusicSummary> _summaries = new();
     private readonly ConcurrentDictionary<Guid, DateOnly> _trimmedOn = new();
     private readonly Func<TimeZoneInfo> _zone;
@@ -454,26 +510,51 @@ public sealed class KostvMusicStore
     {
         [JsonPropertyName("learn")]
         public bool Learn { get; set; } = true;
+
+        /// <summary>Kos TV: what music the app offers (see <see cref="KostvMusicCatalog"/>); null, all.</summary>
+        [JsonPropertyName("catalog")]
+        public string? Catalog { get; set; }
     }
 
-    /// <summary>Whether what <paramref name="userId"/> listens to is kept. On unless they turned it off.</summary>
-    public bool Learns(Guid userId) => _learn.GetOrAdd(userId, id =>
+    private Settings SettingsOf(Guid userId) => _settings.GetOrAdd(userId, id =>
     {
         var settings = AtomicFile.ReadWithRecovery(
             Path.Combine(FolderOf(id), SettingsFile),
-            text => JsonSerializer.Deserialize<Settings>(text, LineOptions));
-        return settings?.Learn ?? true;
+            text => JsonSerializer.Deserialize<Settings>(text, LineOptions)) ?? new Settings();
+        settings.Catalog = KostvMusicCatalog.Normalize(settings.Catalog);
+        return settings;
     });
 
+    /// <summary>Whether what <paramref name="userId"/> listens to is kept. On unless they turned it off.</summary>
+    public bool Learns(Guid userId) => SettingsOf(userId).Learn;
+
+    /// <summary>
+    /// What music the app offers <paramref name="userId"/>: <see cref="KostvMusicCatalog.All"/>
+    /// (also what isn't at home, through Stremfin) unless they chose <see cref="KostvMusicCatalog.Home"/>.
+    /// </summary>
+    public string Catalog(Guid userId) => SettingsOf(userId).Catalog ?? KostvMusicCatalog.All;
+
     /// <summary>Turns keeping what <paramref name="userId"/> listens to on or off.</summary>
-    public void SetLearn(Guid userId, bool learn)
+    public void SetLearn(Guid userId, bool learn) => SetSettings(userId, learn, null);
+
+    /// <summary>
+    /// Changes what is given of <paramref name="userId"/>'s settings (<paramref name="learn"/>,
+    /// <paramref name="catalog"/>, one of <see cref="KostvMusicCatalog"/>), the rest as it was.
+    /// </summary>
+    public void SetSettings(Guid userId, bool? learn, string? catalog)
     {
         lock (LockOf(userId))
         {
+            var had = SettingsOf(userId);
+            var settings = new Settings
+            {
+                Learn = learn ?? had.Learn,
+                Catalog = catalog != null ? KostvMusicCatalog.Normalize(catalog) : had.Catalog
+            };
             var folder = FolderOf(userId);
             Directory.CreateDirectory(folder);
-            AtomicFile.WriteAllText(Path.Combine(folder, SettingsFile), JsonSerializer.Serialize(new Settings { Learn = learn }, LineOptions));
-            _learn[userId] = learn;
+            AtomicFile.WriteAllText(Path.Combine(folder, SettingsFile), JsonSerializer.Serialize(settings, LineOptions));
+            _settings[userId] = settings;
         }
     }
 
@@ -651,7 +732,7 @@ public sealed class KostvMusicStore
             }
 
             _deleted[userId] = 0;
-            _learn.TryRemove(userId, out _);
+            _settings.TryRemove(userId, out _);
             _summaries.TryRemove(userId, out _);
             _trimmedOn.TryRemove(userId, out _);
             _hearts.TryRemove(userId, out _);
@@ -1181,7 +1262,7 @@ public sealed class KostvMusicStore
             var dislikes = DislikesLocked(userId);
             foreach (var song in songs)
             {
-                dislikes.Songs.RemoveAll(s => s.Id == song.Id);
+                dislikes.Songs.RemoveAll(s => s.Key == song.Key);
                 dislikes.Songs.Add(song);
             }
 
@@ -1198,13 +1279,19 @@ public sealed class KostvMusicStore
     }
 
     /// <summary>Takes <paramref name="itemId"/> (a song or an artist) off <paramref name="userId"/>'s list. Whether it was on it.</summary>
-    public bool RemoveDislike(Guid userId, Guid itemId)
+    public bool RemoveDislike(Guid userId, Guid itemId) => RemoveDislike(userId, itemId.ToString("N"));
+
+    /// <summary>
+    /// Takes <paramref name="key"/> off <paramref name="userId"/>'s list: a song or an artist at
+    /// home (its id, without dashes), or a song not at home (<c>stremfin:&lt;DeezerId&gt;</c>).
+    /// Whether it was on it.
+    /// </summary>
+    public bool RemoveDislike(Guid userId, string key)
     {
-        var id = itemId.ToString("N");
         lock (LockOf(userId))
         {
             var dislikes = DislikesLocked(userId);
-            var removed = dislikes.Songs.RemoveAll(s => s.Id == id) + dislikes.Artists.RemoveAll(a => a.Id == id);
+            var removed = dislikes.Songs.RemoveAll(s => s.Key == key) + dislikes.Artists.RemoveAll(a => a.Id == key);
             if (removed > 0)
             {
                 SaveDislikesLocked(userId, dislikes);
