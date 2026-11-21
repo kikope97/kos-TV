@@ -15717,5 +15717,160 @@
     "kostvLyricsBackToLine": "Volver a la línea actual",
     "@kostvLyricsBackToLine": {
         "description": "Kos TV music player: the button over the synced lyrics after they were scrolled by hand; it takes them back to the line being sung and they follow the song again."
+    },
+    "kostvMusicDislike": "No me gusta",
+    "@kostvMusicDislike": {
+        "description": "Kos TV music: a song's menu and the player's button; the song is skipped if it is playing and never comes up again in what plays by itself (mixes, radio, autoplay, recommendations)."
+    },
+    "kostvMusicDislikeArtist": "No me pongas a este artista",
+    "@kostvMusicDislikeArtist": {
+        "description": "Kos TV music: on an artist's page or menu; their songs no longer come up in what plays by itself."
+    },
+    "kostvMusicDislikeArtistNamed": "No me pongas a {artist}",
+    "@kostvMusicDislikeArtistNamed": {
+        "description": "Kos TV music: in a song's menu, for the song's artist.",
+        "placeholders": {
+            "artist": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvMusicDislikedSong": "«{song}» ya no saldrá en tus mezclas",
+    "@kostvMusicDislikedSong": {
+        "description": "Kos TV music: the notice after «No me gusta» on a song, with a button to undo it.",
+        "placeholders": {
+            "song": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvMusicDislikedArtist": "{artist} ya no saldrá en tus mezclas",
+    "@kostvMusicDislikedArtist": {
+        "description": "Kos TV music: the notice after «Don't play this artist», with a button to undo it.",
+        "placeholders": {
+            "artist": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvMusicDislikeFailed": "No se ha podido guardar. Prueba otra vez.",
+    "@kostvMusicDislikeFailed": {
+        "description": "Kos TV music: the server didn't keep a «No me gusta» (or its undo)."
+    },
+    "kostvMusicUndislike": "Quitar de «Lo que no quieres oír»",
+    "@kostvMusicUndislike": {
+        "description": "Kos TV music: a song's or artist's menu entry when it is already on the list of what the person doesn't want to hear."
+    },
+    "kostvMusicUndisliked": "«{name}» puede volver a sonar",
+    "@kostvMusicUndisliked": {
+        "description": "Kos TV music: after taking a song or artist off the list of what the person doesn't want to hear.",
+        "placeholders": {
+            "name": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvMusicDislikes": "Lo que no quieres oír",
+    "@kostvMusicDislikes": {
+        "description": "Kos TV Settings > Music: the list of songs and artists marked «No me gusta» / «Don't play this artist»."
+    },
+    "kostvMusicDislikesNone": "Nada por ahora",
+    "@kostvMusicDislikesNone": {
+        "description": "Kos TV Settings > Music: under 'What you don't want to hear' when the list is empty."
+    },
+    "kostvMusicDislikesSongs": "{count, plural, =1{1 canción} other{{count} canciones}}",
+    "@kostvMusicDislikesSongs": {
+        "description": "Kos TV Settings > Music: how many songs are on the list of what the person doesn't want to hear.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvMusicDislikesArtists": "{count, plural, =1{1 artista} other{{count} artistas}}",
+    "@kostvMusicDislikesArtists": {
+        "description": "Kos TV Settings > Music: how many artists are on the list of what the person doesn't want to hear.",
+        "placeholders": {
+            "count": {
+                "type": "int"
+            }
+        }
+    },
+    "kostvMusicDislikesExplain": "Solo cambia lo que suena solo: tus mezclas, la radio, la reproducción continua (∞) y las recomendaciones. Si lo buscas o abres su disco, sigue ahí. Vale aunque «Aprender de lo que escucho» esté apagado, y «Borrar lo que he escuchado» no lo borra.",
+    "@kostvMusicDislikesExplain": {
+        "description": "Kos TV Settings > Music > What you don't want to hear: what the list does and doesn't do. The two quoted names are the other settings of the same section."
+    },
+    "kostvMusicDislikesEmptyHint": "Aún no hay nada. Usa «No me gusta» en una canción o «No me pongas a este artista» para que no te salga en lo que suena solo.",
+    "@kostvMusicDislikesEmptyHint": {
+        "description": "Kos TV Settings > Music > What you don't want to hear: shown when the list is empty."
+    },
+    "kostvMusicDislikesSongsHeader": "Canciones",
+    "@kostvMusicDislikesSongsHeader": {
+        "description": "Kos TV Settings > Music > What you don't want to hear: the heading over the songs."
+    },
+    "kostvMusicDislikesArtistsHeader": "Artistas",
+    "@kostvMusicDislikesArtistsHeader": {
+        "description": "Kos TV Settings > Music > What you don't want to hear: the heading over the artists."
+    },
+    "kostvMusicDislikesRemove": "Quitar de la lista",
+    "@kostvMusicDislikesRemove": {
+        "description": "Kos TV Settings > Music > What you don't want to hear: the button on each song or artist."
+    },
+    "kostvMusicDislikesClear": "Vaciar la lista",
+    "@kostvMusicDislikesClear": {
+        "description": "Kos TV Settings > Music > What you don't want to hear: removes everything on it, after asking."
+    },
+    "kostvMusicDislikesClearTitle": "¿Vaciar la lista?",
+    "@kostvMusicDislikesClearTitle": {
+        "description": "Kos TV Settings > Music > What you don't want to hear: the title of the question before emptying it."
+    },
+    "kostvMusicDislikesClearBody": "Todo lo que hay en ella podrá volver a sonar en tus mezclas, la radio y las recomendaciones.",
+    "@kostvMusicDislikesClearBody": {
+        "description": "Kos TV Settings > Music > What you don't want to hear: the question before emptying it."
+    },
+    "kostvMusicDislikesClearConfirm": "Vaciar",
+    "@kostvMusicDislikesClearConfirm": {
+        "description": "Kos TV Settings > Music > What you don't want to hear: the button that empties it."
+    },
+    "kostvMusicDislikesCleared": "Listo: la lista está vacía.",
+    "@kostvMusicDislikesCleared": {
+        "description": "Kos TV Settings > Music > What you don't want to hear: after emptying it."
+    },
+    "kostvMusicDislikesUnanswered": "No se ha podido leer la lista. Pulsa para volver a intentarlo.",
+    "@kostvMusicDislikesUnanswered": {
+        "description": "Kos TV Settings > Music > What you don't want to hear: the server couldn't be asked; selecting it asks again."
+    },
+    "kostvMusicBecauseOne": "Con {first}",
+    "@kostvMusicBecauseOne": {
+        "description": "Kos TV music: under a mix, the artist that weighs most in it.",
+        "placeholders": {
+            "first": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvMusicBecauseTwo": "Con {first} y {second}",
+    "@kostvMusicBecauseTwo": {
+        "description": "Kos TV music: under a mix, the two artists that weigh most in it.",
+        "placeholders": {
+            "first": {
+                "type": "String"
+            },
+            "second": {
+                "type": "String"
+            }
+        }
+    },
+    "kostvMusicBecauseMore": "Con {first}, {second} y más",
+    "@kostvMusicBecauseMore": {
+        "description": "Kos TV music: under a mix, the two artists that weigh most in it, of more.",
+        "placeholders": {
+            "first": {
+                "type": "String"
+            },
+            "second": {
+                "type": "String"
+            }
+        }
     }
 }

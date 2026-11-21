@@ -10,6 +10,7 @@ import '../../../watch_party/silo_watch_party_manager.dart';
 import '../../../util/platform_detection.dart';
 import '../../../util/signed_in_server_features.dart';
 import '../../widgets/live_tv/incomplete_recording.dart';
+import '../music/kostv_music_dislike.dart' show kostvMusicCanDislike;
 
 /// The details screen action buttons a user can arrange. Play is absent on
 /// purpose, it always leads the row because it renders as the primary button
@@ -30,6 +31,8 @@ enum DetailButton {
   watchWithGroup('watchWithGroup'),
   watched('watched'),
   favorite('favorite'),
+  // Kos TV: «No me pongas a este artista», on an artist's page.
+  kostvDislikeArtist('kostvDislikeArtist'),
   personalRating('personalRating'),
   playlist('playlist'),
   download('download'),
@@ -61,6 +64,7 @@ enum DetailButton {
       // Not when no signed-in server has playlists (all Silo, say).
       DetailButton.playlist => playlistsOnAnySignedInServer(),
       DetailButton.myList => _myListAvailable,
+      DetailButton.kostvDislikeArtist => kostvMusicCanDislike(),
       _ => true,
     };
   }
@@ -148,6 +152,7 @@ enum DetailButton {
     DetailButton.watchWithGroup => Icons.groups_rounded,
     DetailButton.watched => Icons.check_circle_outline,
     DetailButton.favorite => Icons.favorite_border,
+    DetailButton.kostvDislikeArtist => Icons.person_off_outlined,
     DetailButton.personalRating => Icons.star_outline,
     DetailButton.playlist => Icons.playlist_add,
     DetailButton.download => Icons.download_for_offline,
@@ -169,6 +174,7 @@ enum DetailButton {
     DetailButton.watchWithGroup => l10n.watchWithGroup,
     DetailButton.watched => l10n.watched,
     DetailButton.favorite => l10n.favorite,
+    DetailButton.kostvDislikeArtist => l10n.kostvMusicDislikeArtist,
     DetailButton.personalRating => l10n.rate,
     DetailButton.playlist => l10n.addToPlaylist,
     DetailButton.download => l10n.download,

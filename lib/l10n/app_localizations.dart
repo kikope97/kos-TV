@@ -36218,6 +36218,162 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Back to the current line'**
   String get kostvLyricsBackToLine;
+
+  /// Kos TV music: a song's menu and the player's button; the song is skipped if it is playing and never comes up again in what plays by itself (mixes, radio, autoplay, recommendations).
+  ///
+  /// In en, this message translates to:
+  /// **'I don\'t like it'**
+  String get kostvMusicDislike;
+
+  /// Kos TV music: on an artist's page or menu; their songs no longer come up in what plays by itself.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t play this artist'**
+  String get kostvMusicDislikeArtist;
+
+  /// Kos TV music: in a song's menu, for the song's artist.
+  ///
+  /// In en, this message translates to:
+  /// **'Don\'t play {artist}'**
+  String kostvMusicDislikeArtistNamed(String artist);
+
+  /// Kos TV music: the notice after «No me gusta» on a song, with a button to undo it.
+  ///
+  /// In en, this message translates to:
+  /// **'“{song}” won\'t come up in your mixes'**
+  String kostvMusicDislikedSong(String song);
+
+  /// Kos TV music: the notice after «Don't play this artist», with a button to undo it.
+  ///
+  /// In en, this message translates to:
+  /// **'{artist} won\'t come up in your mixes'**
+  String kostvMusicDislikedArtist(String artist);
+
+  /// Kos TV music: the server didn't keep a «No me gusta» (or its undo).
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save it. Try again.'**
+  String get kostvMusicDislikeFailed;
+
+  /// Kos TV music: a song's or artist's menu entry when it is already on the list of what the person doesn't want to hear.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from “What you don\'t want to hear”'**
+  String get kostvMusicUndislike;
+
+  /// Kos TV music: after taking a song or artist off the list of what the person doesn't want to hear.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” can come up again'**
+  String kostvMusicUndisliked(String name);
+
+  /// Kos TV Settings > Music: the list of songs and artists marked «No me gusta» / «Don't play this artist».
+  ///
+  /// In en, this message translates to:
+  /// **'What you don\'t want to hear'**
+  String get kostvMusicDislikes;
+
+  /// Kos TV Settings > Music: under 'What you don't want to hear' when the list is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing yet'**
+  String get kostvMusicDislikesNone;
+
+  /// Kos TV Settings > Music: how many songs are on the list of what the person doesn't want to hear.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 song} other{{count} songs}}'**
+  String kostvMusicDislikesSongs(int count);
+
+  /// Kos TV Settings > Music: how many artists are on the list of what the person doesn't want to hear.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 artist} other{{count} artists}}'**
+  String kostvMusicDislikesArtists(int count);
+
+  /// Kos TV Settings > Music > What you don't want to hear: what the list does and doesn't do. The two quoted names are the other settings of the same section.
+  ///
+  /// In en, this message translates to:
+  /// **'It only changes what plays by itself: your mixes, the radio, autoplay (∞) and recommendations. If you search for it or open its album, it\'s still there. It applies even with “Learn from what I listen to” off, and “Delete what I\'ve listened to” doesn\'t remove it.'**
+  String get kostvMusicDislikesExplain;
+
+  /// Kos TV Settings > Music > What you don't want to hear: shown when the list is empty.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing here yet. Use “I don\'t like it” on a song or “Don\'t play this artist” so it doesn\'t come up in what plays by itself.'**
+  String get kostvMusicDislikesEmptyHint;
+
+  /// Kos TV Settings > Music > What you don't want to hear: the heading over the songs.
+  ///
+  /// In en, this message translates to:
+  /// **'Songs'**
+  String get kostvMusicDislikesSongsHeader;
+
+  /// Kos TV Settings > Music > What you don't want to hear: the heading over the artists.
+  ///
+  /// In en, this message translates to:
+  /// **'Artists'**
+  String get kostvMusicDislikesArtistsHeader;
+
+  /// Kos TV Settings > Music > What you don't want to hear: the button on each song or artist.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from the list'**
+  String get kostvMusicDislikesRemove;
+
+  /// Kos TV Settings > Music > What you don't want to hear: removes everything on it, after asking.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty the list'**
+  String get kostvMusicDislikesClear;
+
+  /// Kos TV Settings > Music > What you don't want to hear: the title of the question before emptying it.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty the list?'**
+  String get kostvMusicDislikesClearTitle;
+
+  /// Kos TV Settings > Music > What you don't want to hear: the question before emptying it.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything on it can come up again in your mixes, the radio and recommendations.'**
+  String get kostvMusicDislikesClearBody;
+
+  /// Kos TV Settings > Music > What you don't want to hear: the button that empties it.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty'**
+  String get kostvMusicDislikesClearConfirm;
+
+  /// Kos TV Settings > Music > What you don't want to hear: after emptying it.
+  ///
+  /// In en, this message translates to:
+  /// **'Done: the list is empty.'**
+  String get kostvMusicDislikesCleared;
+
+  /// Kos TV Settings > Music > What you don't want to hear: the server couldn't be asked; selecting it asks again.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read the list. Select to try again.'**
+  String get kostvMusicDislikesUnanswered;
+
+  /// Kos TV music: under a mix, the artist that weighs most in it.
+  ///
+  /// In en, this message translates to:
+  /// **'With {first}'**
+  String kostvMusicBecauseOne(String first);
+
+  /// Kos TV music: under a mix, the two artists that weigh most in it.
+  ///
+  /// In en, this message translates to:
+  /// **'With {first} and {second}'**
+  String kostvMusicBecauseTwo(String first, String second);
+
+  /// Kos TV music: under a mix, the two artists that weigh most in it, of more.
+  ///
+  /// In en, this message translates to:
+  /// **'With {first}, {second} and more'**
+  String kostvMusicBecauseMore(String first, String second);
 }
 
 class _AppLocalizationsDelegate

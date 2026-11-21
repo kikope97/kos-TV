@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
@@ -13,6 +15,7 @@ import '../../navigation/destinations.dart';
 import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
+import 'kostv_music_dislike.dart';
 import 'kostv_music_links.dart';
 import 'kostv_music_album_screen.dart' show KostvMusicButton;
 import 'kostv_music_widgets.dart';
@@ -43,11 +46,17 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
     super.initState();
     // Its songs have a menu of their own on a right click.
     kostvHoldBrowserMenu();
+    KostvMusicDislikesStore.instance.addListener(_dislikesChanged);
     unawaited(_load());
+  }
+
+  void _dislikesChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    KostvMusicDislikesStore.instance.removeListener(_dislikesChanged);
     kostvReleaseBrowserMenu();
     super.dispose();
   }
@@ -68,6 +77,7 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
           _detail = detail;
           _error = null;
         });
+        unawaited(_findAtHome(detail.artist.name));
       }
     } catch (e) {
       debugPrint('[Music] Artist failed: $e');
@@ -77,9 +87,48 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
     }
   }
 
+  /// Kos TV: the same artist on the home server, for «No me pongas a este
+  /// artista» (what plays by itself is the home server's), when the server
+  /// plugin keeps it.
+  AggregatedItem? _atHome;
+
+  Future<void> _findAtHome(String name) async {
+    await kostvMusicDislikesReady();
+    if (!mounted || !kostvMusicCanDislike()) return;
+    try {
+      final found = await kostvMusicService().search(name);
+      final wanted = name.trim().toLowerCase();
+      final match = found.artists
+          .where((a) => a.name.trim().toLowerCase() == wanted)
+          .firstOrNull;
+      if (mounted && match != null) setState(() => _atHome = match);
+    } catch (_) {}
+  }
+
+  Widget? _dislikeButton(AppLocalizations l10n) {
+    final home = _atHome;
+    if (home == null || !kostvMusicCanDislike(home)) return null;
+    final disliked = kostvMusicDisliked(home.id, home);
+    return KostvMusicButton(
+      icon: Icons.person_off_outlined,
+      label: disliked ? l10n.kostvMusicUndislike : l10n.kostvMusicDislikeArtist,
+      onTap: () => unawaited(
+        disliked
+            ? kostvUndislike(context, id: home.id, name: home.name, from: home)
+            : kostvDislikeArtist(
+                context,
+                id: home.id,
+                name: home.name,
+                from: home,
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final dislike = _dislikeButton(l10n);
     final insets = calendarChromeInsets(context);
     final phone = KostvMusicSizes.phone;
     final detail = _detail;
@@ -139,6 +188,10 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                                 fontSize: 15,
                               ),
                             ),
+                          if (dislike != null) ...[
+                            const SizedBox(height: 12),
+                            dislike,
+                          ],
                         ],
                       ),
                     ),

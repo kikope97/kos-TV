@@ -1285,13 +1285,14 @@ void main() {
       }
     });
 
-    test('dislike, for when there is a button', () async {
+    test('dislike, of a song (the plan\'s section 6)', () async {
       final routes = _Plugin(answers: {event: null});
       final plugin = pluginWith(routes);
-      await plugin.sendDislike(client, ['9']);
+      expect(await plugin.sendDislike(client, ['9']), isTrue);
       expect(routes.asked.single.body, {
         'Type': 'dislike',
         'ItemIds': ['9'],
+        'Kind': 'song',
       });
     });
 

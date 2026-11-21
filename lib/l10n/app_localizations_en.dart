@@ -21073,4 +21073,117 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvLyricsBackToLine => 'Back to the current line';
+
+  @override
+  String get kostvMusicDislike => 'I don\'t like it';
+
+  @override
+  String get kostvMusicDislikeArtist => 'Don\'t play this artist';
+
+  @override
+  String kostvMusicDislikeArtistNamed(String artist) {
+    return 'Don\'t play $artist';
+  }
+
+  @override
+  String kostvMusicDislikedSong(String song) {
+    return '“$song” won\'t come up in your mixes';
+  }
+
+  @override
+  String kostvMusicDislikedArtist(String artist) {
+    return '$artist won\'t come up in your mixes';
+  }
+
+  @override
+  String get kostvMusicDislikeFailed => 'Couldn\'t save it. Try again.';
+
+  @override
+  String get kostvMusicUndislike =>
+      'Remove from “What you don\'t want to hear”';
+
+  @override
+  String kostvMusicUndisliked(String name) {
+    return '“$name” can come up again';
+  }
+
+  @override
+  String get kostvMusicDislikes => 'What you don\'t want to hear';
+
+  @override
+  String get kostvMusicDislikesNone => 'Nothing yet';
+
+  @override
+  String kostvMusicDislikesSongs(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count songs',
+      one: '1 song',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String kostvMusicDislikesArtists(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count artists',
+      one: '1 artist',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvMusicDislikesExplain =>
+      'It only changes what plays by itself: your mixes, the radio, autoplay (∞) and recommendations. If you search for it or open its album, it\'s still there. It applies even with “Learn from what I listen to” off, and “Delete what I\'ve listened to” doesn\'t remove it.';
+
+  @override
+  String get kostvMusicDislikesEmptyHint =>
+      'Nothing here yet. Use “I don\'t like it” on a song or “Don\'t play this artist” so it doesn\'t come up in what plays by itself.';
+
+  @override
+  String get kostvMusicDislikesSongsHeader => 'Songs';
+
+  @override
+  String get kostvMusicDislikesArtistsHeader => 'Artists';
+
+  @override
+  String get kostvMusicDislikesRemove => 'Remove from the list';
+
+  @override
+  String get kostvMusicDislikesClear => 'Empty the list';
+
+  @override
+  String get kostvMusicDislikesClearTitle => 'Empty the list?';
+
+  @override
+  String get kostvMusicDislikesClearBody =>
+      'Everything on it can come up again in your mixes, the radio and recommendations.';
+
+  @override
+  String get kostvMusicDislikesClearConfirm => 'Empty';
+
+  @override
+  String get kostvMusicDislikesCleared => 'Done: the list is empty.';
+
+  @override
+  String get kostvMusicDislikesUnanswered =>
+      'Couldn\'t read the list. Select to try again.';
+
+  @override
+  String kostvMusicBecauseOne(String first) {
+    return 'With $first';
+  }
+
+  @override
+  String kostvMusicBecauseTwo(String first, String second) {
+    return 'With $first and $second';
+  }
+
+  @override
+  String kostvMusicBecauseMore(String first, String second) {
+    return 'With $first, $second and more';
+  }
 }

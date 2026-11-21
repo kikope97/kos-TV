@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:server_core/server_core.dart';
 
 import '../models/aggregated_item.dart';
+import 'kostv_music.dart' show KostvMusicTaste;
 import 'moonbase_endpoint.dart';
 import 'stremfin/stremfin_client.dart';
 import 'stremfin/stremfin_models.dart';
@@ -27,6 +28,15 @@ abstract final class KostvMusicSource {
 
   /// The mix of the time of day, by its slot (`manana`, `tarde`, `noche`).
   static String moment(String slot) => 'moment:$slot';
+
+  /// Kos TV: whether music from [source] is picked by the app rather than
+  /// the person (a radio, a mix, the discovery): what «No me gusta» leaves
+  /// out.
+  static bool automatic(String source) =>
+      source == radio ||
+      source == discovery ||
+      source.startsWith('mix:') ||
+      source.startsWith('moment:');
 }
 
 /// Kos TV: what one of the plugin's routes gave: its [value] or, without
@@ -84,10 +94,15 @@ class KostvDailyMix {
     required this.items,
     this.genre,
     this.artists = const [],
+    this.because = const [],
   });
 
   final String id;
   final String? genre;
+
+  /// Kos TV: the artists that weigh most in it, by name, for «Con X, Y y
+  /// más» (a plugin from before them gives none).
+  final List<String> because;
 
   /// Its artists, for its cover (the first three).
   final List<AggregatedItem> artists;
@@ -120,6 +135,7 @@ class KostvDailyMixes {
               genre: _text(mix['Genre']),
               artists: kostvMusicCards(mix['Artists'], serverId),
               items: kostvMusicCards(mix['Items'], serverId),
+              because: _texts(mix['Because']),
             ),
       ].where((mix) => mix.items.isNotEmpty).toList(),
     );
@@ -136,6 +152,7 @@ class KostvDailyMixes {
           'Genre': mix.genre,
           'Artists': [for (final a in mix.artists.take(3)) _slim(a)],
           'Items': [for (final i in mix.items) _slim(i)],
+          if (mix.because.isNotEmpty) 'Because': mix.because,
         },
     ],
   };
@@ -180,12 +197,16 @@ class KostvMusicMoment {
     required this.slot,
     required this.ready,
     this.items = const [],
+    this.because = const [],
   });
 
   /// `manana`, `tarde` or `noche`.
   final String slot;
   final bool ready;
   final List<AggregatedItem> items;
+
+  /// Kos TV: the artists that weigh most in it, as [KostvDailyMix.because].
+  final List<String> because;
 
   /// Whether it is shown: ready, with songs.
   bool get shows => ready && items.isNotEmpty;
@@ -198,6 +219,7 @@ class KostvMusicMoment {
       slot: slot,
       ready: raw['Ready'] == true,
       items: kostvMusicCards(raw['Items'], serverId),
+      because: _texts(raw['Because']),
     );
   }
 
@@ -205,7 +227,183 @@ class KostvMusicMoment {
     'Slot': slot,
     'Ready': ready,
     'Items': [for (final i in items) _slim(i)],
+    if (because.isNotEmpty) 'Because': because,
   };
+}
+
+/// Kos TV: what the person said they don't want to hear in anything that
+/// plays by itself (`GET Music/Dislikes`): songs and artists, the latest
+/// first. Kept apart from what is learnt: it holds with «Aprender» off and
+/// «Borrar mi historial» doesn't take it away.
+@immutable
+class KostvMusicDislikes {
+  const KostvMusicDislikes({this.songs = const [], this.artists = const []});
+
+  static const empty = KostvMusicDislikes();
+
+  final List<KostvMusicDisliked> songs;
+  final List<KostvMusicDisliked> artists;
+
+  bool get isEmpty => songs.isEmpty && artists.isEmpty;
+
+  /// Whether [id] (a song's or an artist's) is in it.
+  bool has(String id) {
+    final wanted = _plainId(id);
+    return songs.any((s) => s.id == wanted) ||
+        artists.any((a) => a.id == wanted);
+  }
+
+  /// With [entry] in it, the latest first, once.
+  KostvMusicDislikes withEntry(KostvMusicDisliked entry) => entry.artist
+      ? KostvMusicDislikes(
+          songs: songs,
+          artists: [entry, ...artists.where((a) => a.id != entry.id)],
+        )
+      : KostvMusicDislikes(
+          songs: [entry, ...songs.where((s) => s.id != entry.id)],
+          artists: artists,
+        );
+
+  /// Without [id].
+  KostvMusicDislikes without(String id) {
+    final wanted = _plainId(id);
+    return KostvMusicDislikes(
+      songs: [
+        for (final s in songs)
+          if (s.id != wanted) s,
+      ],
+      artists: [
+        for (final a in artists)
+          if (a.id != wanted) a,
+      ],
+    );
+  }
+
+  static KostvMusicDislikes? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final songs = raw['Songs'];
+    final artists = raw['Artists'];
+    if (songs is! List && artists is! List) return null;
+    return KostvMusicDislikes(
+      songs: [
+        if (songs is List)
+          for (final song in songs) ?KostvMusicDisliked._of(song, false),
+      ],
+      artists: [
+        if (artists is List)
+          for (final artist in artists) ?KostvMusicDisliked._of(artist, true),
+      ],
+    );
+  }
+}
+
+/// Kos TV: one song or artist of [KostvMusicDislikes].
+@immutable
+class KostvMusicDisliked {
+  const KostvMusicDisliked({
+    required this.id,
+    required this.name,
+    this.artist = false,
+    this.artistName,
+    this.artistId,
+    this.albumId,
+    this.at,
+  });
+
+  /// The home server's id, without dashes.
+  final String id;
+  final String name;
+
+  /// An artist rather than a song.
+  final bool artist;
+
+  /// A song's artist.
+  final String? artistName;
+  final String? artistId;
+  final String? albumId;
+  final DateTime? at;
+
+  static KostvMusicDisliked? _of(Object? raw, bool artist) {
+    if (raw is! Map) return null;
+    final id = _text(raw['Id']);
+    if (id == null) return null;
+    final at = raw['At'];
+    return KostvMusicDisliked(
+      id: _plainId(id),
+      name: _text(raw['Name']) ?? '',
+      artist: artist,
+      artistName: artist ? null : _text(raw['Artist']),
+      artistId: artist ? null : _text(raw['ArtistId'])?.replaceAll('-', ''),
+      albumId: artist ? null : _text(raw['AlbumId'])?.replaceAll('-', ''),
+      at: at is String ? DateTime.tryParse(at)?.toLocal() : null,
+    );
+  }
+}
+
+String _plainId(String id) => id.replaceAll('-', '');
+
+/// Kos TV: the person's one taste, as the plugin works it out
+/// (`GET Music/Taste`): their artists of always and of lately, and their
+/// genres, without the artists they said no to.
+@immutable
+class KostvMusicPluginTaste {
+  const KostvMusicPluginTaste({
+    this.learned = 0,
+    this.artists = const [],
+    this.recent = const [],
+    this.genres = const [],
+  });
+
+  /// How much comes from what was learnt (1) rather than Jellyfin's plays
+  /// (0).
+  final double learned;
+  final List<({String id, String name})> artists;
+  final List<({String id, String name})> recent;
+  final List<String> genres;
+
+  bool get isEmpty => artists.isEmpty && recent.isEmpty;
+
+  static KostvMusicPluginTaste? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    List<({String id, String name})> people(Object? list) => [
+      if (list is List)
+        for (final a in list.whereType<Map>())
+          if ((_text(a['Id']), _text(a['Name'])) case (final id?, final name?))
+            (id: _plainId(id), name: name),
+    ];
+    final artists = raw['Artists'];
+    final recent = raw['Recent'];
+    if (artists is! List && recent is! List) return null;
+    final genres = raw['Genres'];
+    final learned = raw['Learned'];
+    return KostvMusicPluginTaste(
+      learned: learned is num ? learned.toDouble().clamp(0.0, 1.0) : 0,
+      artists: people(artists),
+      recent: people(recent),
+      genres: [
+        if (genres is List)
+          for (final g in genres) ?_text(g is Map ? g['Name'] : g),
+      ],
+    );
+  }
+
+  /// As the Music page asks for what goes with it («Para ti»): a few of
+  /// lately's artists first ([recentFirst]), then those of always, then the
+  /// rest of lately's, each once.
+  KostvMusicTaste toTaste({int recentFirst = 4}) {
+    final seen = <String>{};
+    return KostvMusicTaste(
+      artists: [
+        for (final a in [
+          ...recent.take(recentFirst),
+          ...artists,
+          ...recent.skip(recentFirst),
+        ])
+          if (seen.add(a.id)) a,
+      ],
+      genres: genres,
+    );
+  }
 }
 
 /// Kos TV: which of the Music page's rows from the plugin show. Each only
@@ -487,6 +685,11 @@ String? _text(Object? raw) {
   return text == null || text.isEmpty ? null : text;
 }
 
+/// Kos TV: a list of names, without empty or repeated ones.
+List<String> _texts(Object? raw) => [
+  if (raw is List) ...{for (final item in raw) ?_text(item)},
+];
+
 /// Kos TV: the server plugin's routes for what the Music page learns from
 /// what each person listens to (`/Moonfin/Kostv/Music/...`): whether it
 /// keeps it, where what is about to play comes from, the daily mixes, the
@@ -674,20 +877,54 @@ class KostvMusicPlugin {
     });
   }
 
-  /// «No me gusta» of the songs [items]. Not used yet: the app has no such
-  /// button. Kept for when it has one, with the body the plugin's plan
-  /// gives (`dislike` with the songs' ids); check it against the plugin then.
-  Future<void> sendDislike(
+  /// «No me gusta» of the songs [items] or, with [artist], «No me pongas a
+  /// este artista» of the artists [items]. Kept by the plugin apart from
+  /// what is learnt. False when it couldn't be kept.
+  Future<bool> sendDislike(
     MediaServerClient client,
-    Iterable<String> items,
-  ) async {
+    Iterable<String> items, {
+    bool artist = false,
+  }) async {
     final ids = <String>{
       for (final id in items)
         if (id.isNotEmpty) id,
     }.take(contextMax).toList();
-    if (ids.isEmpty) return;
-    await _sendEvent(client, {'Type': 'dislike', 'ItemIds': ids});
+    if (ids.isEmpty) return false;
+    final reply = await _call(
+      client,
+      'POST',
+      'Event',
+      body: {
+        'Type': 'dislike',
+        'ItemIds': ids,
+        'Kind': artist ? 'artist' : 'song',
+      },
+    );
+    return reply.ok;
   }
+
+  /// What the person doesn't want to hear. [KostvMusicAnswer.missing] with
+  /// a plugin from before it: there is no «No me gusta» then.
+  Future<KostvMusicAnswer<KostvMusicDislikes>> dislikes(
+    MediaServerClient client,
+  ) => _read(client, 'Dislikes', KostvMusicDislikes.fromJson);
+
+  /// Takes [itemId] out of what the person doesn't want to hear (to undo
+  /// it, or from Settings). False when it couldn't.
+  Future<bool> removeDislike(MediaServerClient client, String itemId) async {
+    if (itemId.isEmpty) return false;
+    final route = 'Dislikes/${Uri.encodeComponent(itemId)}';
+    return (await _call(client, 'DELETE', route)).ok;
+  }
+
+  /// Empties what the person doesn't want to hear. False when it couldn't.
+  Future<bool> clearDislikes(MediaServerClient client) async =>
+      (await _call(client, 'DELETE', 'Dislikes')).ok;
+
+  /// The person's taste as the plugin works it out.
+  Future<KostvMusicAnswer<KostvMusicPluginTaste>> taste(
+    MediaServerClient client,
+  ) => _read(client, 'Taste', KostvMusicPluginTaste.fromJson);
 
   /// The person's daily mixes.
   Future<KostvMusicAnswer<KostvDailyMixes>> mixes(MediaServerClient client) {

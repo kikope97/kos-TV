@@ -19,6 +19,7 @@ import '../../widgets/add_to_playlist_dialog.dart';
 import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/kostv_now_playing.dart';
 import '../../widgets/music/music_navigation.dart';
+import 'kostv_music_dislike.dart';
 import 'kostv_music_widgets.dart';
 
 /// Kos TV: what the Music pages do when something is picked: what is at
@@ -324,7 +325,31 @@ String? kostvMusicArtistIdOf(AggregatedItem item) {
   return null;
 }
 
-enum _SongChoice { next, last, radio, love, playlist, album, artist, ask }
+/// Kos TV: the name of the artist [kostvMusicArtistIdOf] gives.
+String? kostvMusicArtistNameOf(AggregatedItem item) {
+  for (final key in const ['AlbumArtists', 'ArtistItems']) {
+    final list = item.rawData[key];
+    if (list is List && list.isNotEmpty && list.first is Map) {
+      final name = (list.first as Map)['Name']?.toString();
+      if (name != null && name.isNotEmpty) return name;
+    }
+  }
+  return item.albumArtist ?? item.artists.firstOrNull;
+}
+
+enum _SongChoice {
+  next,
+  last,
+  radio,
+  love,
+  dislike,
+  undislike,
+  dislikeArtist,
+  playlist,
+  album,
+  artist,
+  ask,
+}
 
 /// A song's menu (OK held down, a long press or a right click). For one at
 /// home: play it next or at the end of the queue, a station of songs like
@@ -388,6 +413,18 @@ Future<void> _songMenu(
       : (home.artists.isNotEmpty ? home.artists.join(', ') : home.albumArtist);
   final favorite = home?.isFavorite ?? false;
   final artistId = home == null ? null : kostvMusicArtistIdOf(home);
+  // Kos TV: «No me gusta», when the server plugin keeps it (read first if
+  // it wasn't lately).
+  if (home != null) {
+    await kostvMusicDislikesReady(home);
+    if (!context.mounted) return;
+  }
+  final canDislike = home != null && kostvMusicCanDislike(home);
+  final disliked = canDislike && kostvMusicDisliked(home.id, home);
+  final artistToDislike =
+      canDislike && artistId != null && !kostvMusicDisliked(artistId, home)
+      ? kostvMusicArtistNameOf(home)
+      : null;
   final choice = await showKostvMusicMenu<_SongChoice>(
     context,
     title: title,
@@ -414,6 +451,24 @@ Future<void> _songMenu(
           favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
           favorite ? l10n.kostvPlayerUnfavorite : l10n.kostvPlayerFavorite,
         ),
+        if (canDislike)
+          disliked
+              ? KostvMenuEntry(
+                  _SongChoice.undislike,
+                  Icons.thumb_down_rounded,
+                  l10n.kostvMusicUndislike,
+                )
+              : KostvMenuEntry(
+                  _SongChoice.dislike,
+                  Icons.thumb_down_outlined,
+                  l10n.kostvMusicDislike,
+                ),
+        if (artistToDislike != null)
+          KostvMenuEntry(
+            _SongChoice.dislikeArtist,
+            Icons.person_off_outlined,
+            l10n.kostvMusicDislikeArtistNamed(artistToDislike),
+          ),
         KostvMenuEntry(
           _SongChoice.playlist,
           Icons.playlist_add_rounded,
@@ -503,6 +558,17 @@ Future<void> _songMenu(
       } catch (_) {
         if (context.mounted) kostvMusicSay(context, l10n.kostvMusicCantChange);
       }
+    case _SongChoice.dislike:
+      await kostvDislikeSong(context, home!);
+    case _SongChoice.undislike:
+      await kostvUndislike(context, id: home!.id, name: home.name, from: home);
+    case _SongChoice.dislikeArtist:
+      await kostvDislikeArtist(
+        context,
+        id: artistId!,
+        name: artistToDislike!,
+        from: home,
+      );
     case _SongChoice.playlist:
       await AddToPlaylistDialog.show(
         context,

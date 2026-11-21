@@ -34,7 +34,45 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
   @override
   void initState() {
     super.initState();
+    // Kos TV: «Lo que no quieres oír», when the plugin keeps it.
+    KostvMusicDislikesStore.instance.addListener(_dislikesChanged);
     unawaited(_read());
+    final client = _client;
+    if (client != null) {
+      unawaited(
+        KostvMusicDislikesStore.instance
+            .refresh(client)
+            .catchError(
+              (Object _) => const KostvMusicAnswer<KostvMusicDislikes>.failed(),
+            ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    KostvMusicDislikesStore.instance.removeListener(_dislikesChanged);
+    super.dispose();
+  }
+
+  void _dislikesChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Kos TV: «Lo que no quieres oír», next to what is learnt: kept apart
+  /// from it, so it shows even when nothing else of the section can.
+  Widget? _dislikesTile(AppLocalizations l10n) {
+    final store = KostvMusicDislikesStore.instance;
+    final client = _client;
+    if (!store.supported(client)) return null;
+    return _TvSettingsListTile(
+      leading: const Icon(Icons.thumb_down_outlined),
+      title: Text(l10n.kostvMusicDislikes),
+      subtitle: Text(kostvMusicDislikesCount(l10n, store.of(client))),
+      onTap: () => unawaited(
+        context.pushSettingsScreen(const KostvMusicDislikesScreen()),
+      ),
+    );
   }
 
   /// Who the section is for: an answer that lands after a switch of person
@@ -155,8 +193,18 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
   Widget build(BuildContext context) {
     final state = _state;
     final l10n = AppLocalizations.of(context);
+    final dislikes = _dislikesTile(l10n);
     if (state == null) {
-      if (!_unanswered) return const SizedBox.shrink();
+      if (!_unanswered) {
+        if (dislikes == null) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _SectionHeader(l10n.kostvMusic),
+            adaptiveListSection(children: [dislikes]),
+          ],
+        );
+      }
       // Kos TV: it couldn't be asked: said, with a way to ask again.
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -178,6 +226,7 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
                   if (!_busy) unawaited(_read());
                 },
               ),
+              ?dislikes,
             ],
           ),
         ],
@@ -245,6 +294,7 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
               trailing: const SizedBox.shrink(),
               onTap: _busy ? null : () => unawaited(_forget()),
             ),
+            ?dislikes,
           ],
         ),
       ],
