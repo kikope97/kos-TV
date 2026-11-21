@@ -203,13 +203,16 @@ public static partial class KostvMusicEngine
     /// <summary>
     /// What the person likes, from the server's plays of <paramref name="tracks"/> (how many
     /// times and how lately, and their hearts) and, when there are, their
-    /// <paramref name="listens"/>: a song mostly skipped is dropped, recent plays weigh more.
+    /// <paramref name="listens"/>: a song mostly skipped is dropped, recent plays weigh more. The
+    /// songs not at home of <paramref name="summary"/> (heard through Stremfin) count for their
+    /// artists and genres by name, as their listens say.
     /// </summary>
     public static KostvMusicProfile Profile(
         IEnumerable<KostvMusicTrack> tracks,
         IReadOnlyDictionary<Guid, KostvTrackListens> listens,
         DateTimeOffset now,
-        KostvDislikeSet? dislikes = null)
+        KostvDislikeSet? dislikes = null,
+        KostvTasteSummary? summary = null)
     {
         dislikes ??= KostvDislikeSet.Empty;
         var scores = new Dictionary<Guid, double>();
@@ -276,9 +279,26 @@ public static partial class KostvMusicEngine
             }
         }
 
+        // Kos TV: the songs not at home, as their listens went (none mostly skipped, nor out).
+        var streamed = new List<KostvStreamedScore>();
+        foreach (var (deezerId, song) in summary?.Streamed() ?? [])
+        {
+            var stats = new KostvTrackListens { Completed = song.OldCompleted, Skipped = song.OldSkipped, Stopped = song.OldStopped };
+            if (dislikes.BlocksStreamed(deezerId, song.Artists) || stats.MostlySkipped)
+            {
+                continue;
+            }
+
+            var score = 1.5 * song.OldAt(now) * dislikes.ArtistFactor(song.Artists![0]);
+            if (score > 0)
+            {
+                streamed.Add(new KostvStreamedScore(song.Artists!, song.Genres ?? [], score));
+            }
+        }
+
         var liked = unique.Where(t => scores.ContainsKey(t.Id)).ToList();
-        var genres = Weigh(liked.SelectMany(t => t.Genres.Select(g => (Name: g, Weight: scores[t.Id]))));
-        var artists = Weigh(liked.SelectMany(t => t.Artists.Select((a, i) => (Name: a, Weight: i == 0 ? scores[t.Id] : scores[t.Id] / 2))));
+        var genres = Weigh(liked.SelectMany(t => t.Genres.Select(g => (Name: g, Weight: scores[t.Id]))).Concat(StreamedGenres(streamed, s => s.Score)));
+        var artists = Weigh(liked.SelectMany(t => t.Artists.Select((a, i) => (Name: a, Weight: i == 0 ? scores[t.Id] : scores[t.Id] / 2))).Concat(StreamedArtists(streamed, s => s.Score)));
         return new KostvMusicProfile(scores, heard, dropped, genres, artists) { LastHeard = lastHeard };
     }
 
@@ -427,15 +447,33 @@ public static partial class KostvMusicEngine
         var random = RandomFor(userId, day, "moment", slot);
         var slotScores = new Dictionary<Guid, double>();
         var slotListens = 0;
+        // Kos TV: the songs not at home heard at this time, for their artists and genres by name.
+        var streamed = new List<KostvStreamedScore>();
         foreach (var e in SlotListens(events, slot, now, zone))
         {
-            if (e.Outcome == KostvListenOutcome.Skipped || !Guid.TryParse(e.Item, out var id))
+            if (e.Outcome == KostvListenOutcome.Skipped)
+            {
+                continue;
+            }
+
+            var weight = learned ? Math.Max(0, WeighListen(e).Weight) : e.Outcome == KostvListenOutcome.Completed ? 1 : 0.5;
+            if (KostvMusicEvent.DeezerIdOf(e.Item) is { } deezerId)
+            {
+                if (!rules.Dislikes.BlocksStreamed(deezerId, e.Artists))
+                {
+                    slotListens++;
+                    streamed.Add(new KostvStreamedScore(e.Artists ?? [], e.Genres ?? [], weight * Recency(e.At, now, 30)));
+                }
+
+                continue;
+            }
+
+            if (!Guid.TryParse(e.Item, out var id))
             {
                 continue;
             }
 
             slotListens++;
-            var weight = learned ? Math.Max(0, WeighListen(e).Weight) : e.Outcome == KostvListenOutcome.Completed ? 1 : 0.5;
             slotScores[id] = slotScores.GetValueOrDefault(id) + weight * Recency(e.At, now, 30);
         }
 
@@ -460,7 +498,15 @@ public static partial class KostvMusicEngine
 
         var ownIds = ownTracks.Select(t => t.Id).ToHashSet();
         var artistWeights = ArtistWeights(ownTracks, t => slotScores[t.Id]);
-        var genres = Weigh(ownTracks.SelectMany(t => t.Genres.Select(g => (Name: g, Weight: slotScores[t.Id])))).Take(3).Select(g => Key(g.Name)).ToHashSet();
+        foreach (var (name, weight) in StreamedArtists(streamed, s => s.Score))
+        {
+            if (Key(name) is { Length: > 0 } key)
+            {
+                artistWeights[key] = artistWeights.GetValueOrDefault(key) + weight;
+            }
+        }
+
+        var genres = Weigh(ownTracks.SelectMany(t => t.Genres.Select(g => (Name: g, Weight: slotScores[t.Id]))).Concat(StreamedGenres(streamed, s => s.Score))).Take(3).Select(g => Key(g.Name)).ToHashSet();
         var similarByKey = SimilarByKey(similar);
         var alike = SimilarArtists(artistWeights.Keys, similarByKey);
         var rest = all.Where(t => !ownIds.Contains(t.Id) && !profile.Dropped.Contains(t.Id)).ToList();
@@ -497,6 +543,20 @@ public static partial class KostvMusicEngine
             .ThenBy(w => w.Name, StringComparer.Ordinal)
             .ToList();
     }
+
+    /// <summary>
+    /// Kos TV: a song not at home (heard through Stremfin) as the profile weighs it: its artists
+    /// and genres by name, and what it adds to them (as a whole, in the background and now).
+    /// </summary>
+    private sealed record KostvStreamedScore(IReadOnlyList<string> Artists, IReadOnlyList<string> Genres, double Score, double Background = 0, double Recent = 0);
+
+    /// <summary>What the songs not at home add to their artists (half for a second artist), by <paramref name="score"/>.</summary>
+    private static IEnumerable<(string Name, double Weight)> StreamedArtists(IEnumerable<KostvStreamedScore> songs, Func<KostvStreamedScore, double> score) =>
+        songs.Where(s => score(s) > 0).SelectMany(s => s.Artists.Select((a, i) => (Name: a, Weight: i == 0 ? score(s) : score(s) / 2)));
+
+    /// <summary>What the songs not at home add to their genres, by <paramref name="score"/>.</summary>
+    private static IEnumerable<(string Name, double Weight)> StreamedGenres(IEnumerable<KostvStreamedScore> songs, Func<KostvStreamedScore, double> score) =>
+        songs.Where(s => score(s) > 0).SelectMany(s => s.Genres.Select(g => (Name: g, Weight: score(s))));
 
     private static Dictionary<string, double> ArtistWeights(IEnumerable<KostvMusicTrack> tracks, Func<KostvMusicTrack, double> weight)
     {

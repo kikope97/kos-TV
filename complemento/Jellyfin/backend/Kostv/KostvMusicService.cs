@@ -500,7 +500,7 @@ public sealed class KostvMusicService
         }
 
         var tracks = items.Values.Select(item => TrackOf(item, UserDataOf(user, item))).ToList();
-        var old = KostvMusicEngine.Profile(tracks, listens, now, dislikes);
+        var old = KostvMusicEngine.Profile(tracks, listens, now, dislikes, summary);
         var learned = KostvMusicEngine.LearnedProfile(tracks, summary, now, dislikes);
         var usesNew = KostvMusicEngineMode.UsesNew(EngineModeOf(), KostvMusicEngine.MusicDay(now, _store.Zone));
         return new Taste(tracks, usesNew ? learned : old, old, learned, usesNew, summary, dislikes);
@@ -705,10 +705,41 @@ public sealed class KostvMusicService
         return saved;
     }
 
-    /// <summary>Takes <paramref name="itemId"/> off what <paramref name="userId"/> doesn't want to hear.</summary>
-    public void Undislike(Guid userId, Guid itemId)
+    /// <summary>A song not at home said «no me gusta» to: its Deezer id, and its name and artist to show in the list.</summary>
+    public sealed record KostvStreamedDislike(string DeezerId, string? Name, string? Artist);
+
+    /// <summary>
+    /// Kos TV: «no me gusta» of <paramref name="userId"/> to songs not at home (heard through
+    /// Stremfin), kept by their Deezer id with their name and artist, also with Learn off: out of
+    /// their taste, and their artist, by name, weighing less as for a song at home. The day's music
+    /// is worked out again. False when it could not be stored.
+    /// </summary>
+    public bool DislikeStreamed(Guid userId, IReadOnlyList<KostvStreamedDislike> songs)
     {
-        if (_store.RemoveDislike(userId, itemId))
+        if (songs.Count == 0)
+        {
+            return true;
+        }
+
+        var now = _store.Now;
+        var saved = _store.AddDislikes(
+            userId,
+            songs.DistinctBy(s => s.DeezerId).Select(s => new KostvDislikedSong { Id = null, DeezerId = s.DeezerId, Name = s.Name, Artist = s.Artist, At = now }).ToList(),
+            []);
+        Forget(userId);
+        return saved;
+    }
+
+    /// <summary>Takes <paramref name="itemId"/> off what <paramref name="userId"/> doesn't want to hear.</summary>
+    public void Undislike(Guid userId, Guid itemId) => Undislike(userId, itemId.ToString("N"));
+
+    /// <summary>
+    /// Takes <paramref name="key"/> off what <paramref name="userId"/> doesn't want to hear: an id
+    /// at home without dashes, or a song not at home as <c>stremfin:&lt;DeezerId&gt;</c>.
+    /// </summary>
+    public void Undislike(Guid userId, string key)
+    {
+        if (_store.RemoveDislike(userId, key))
         {
             Forget(userId);
         }

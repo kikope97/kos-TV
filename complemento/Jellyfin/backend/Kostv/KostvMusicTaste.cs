@@ -159,6 +159,18 @@ public sealed class KostvSongTaste
     [JsonPropertyName("ls")]
     public DateTimeOffset? LastShown { get; set; }
 
+    /// <summary>
+    /// Kos TV: of a song not at home (keyed <c>stremfin:&lt;DeezerId&gt;</c>), its artists by name,
+    /// the main one first, as its last listen said: there is no song of the library to read them
+    /// from. Null for a song at home.
+    /// </summary>
+    [JsonPropertyName("a")]
+    public List<string>? Artists { get; set; }
+
+    /// <summary>Kos TV: of a song not at home, its genres by name, as its last listen said.</summary>
+    [JsonPropertyName("g")]
+    public List<string>? Genres { get; set; }
+
     [JsonIgnore]
     public bool Played => LastHeard != null || Playlist;
 
@@ -172,6 +184,8 @@ public sealed class KostvSongTaste
     {
         var copy = (KostvSongTaste)MemberwiseClone();
         copy.Weeks = Weeks?.ToList();
+        copy.Artists = Artists?.ToList();
+        copy.Genres = Genres?.ToList();
         return copy;
     }
 
@@ -282,7 +296,7 @@ public sealed class KostvTasteSummary
     [JsonPropertyName("full")]
     public DateTimeOffset? WorkedOut { get; set; }
 
-    /// <summary>By song, without dashes.</summary>
+    /// <summary>By song, without dashes; a song not at home, as <c>stremfin:&lt;DeezerId&gt;</c>.</summary>
     [JsonPropertyName("songs")]
     public Dictionary<string, KostvSongTaste> Songs { get; set; } = new(StringComparer.Ordinal);
 
@@ -326,6 +340,8 @@ public sealed class KostvTasteSummary
         foreach (var song in Songs.Values)
         {
             song.Weeks = song.Weeks?.Where(w => !string.IsNullOrEmpty(w)).Distinct(StringComparer.Ordinal).ToList();
+            song.Artists = song.Artists?.Where(a => !string.IsNullOrWhiteSpace(a)).ToList();
+            song.Genres = song.Genres?.Where(g => !string.IsNullOrWhiteSpace(g)).ToList();
         }
 
         return this;
@@ -431,13 +447,24 @@ public sealed class KostvTasteSummary
 
     private void ApplyListen(KostvMusicEvent e)
     {
-        if (!e.Counts || NormalId(e.Item) is not { } id)
+        // Kos TV: a song not at home counts too, by its Deezer id, with its artists and genres by name.
+        var deezerId = KostvMusicEvent.DeezerIdOf(e.Item);
+        if (!e.Counts || (deezerId != null ? KostvMusicEvent.StreamedItem(deezerId) : NormalId(e.Item)) is not { } id)
         {
             return;
         }
 
         Listens++;
         var song = Song(id);
+        if (deezerId != null)
+        {
+            var artists = (e.Artists ?? []).Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a.Trim()).ToList();
+            var genres = (e.Genres ?? []).Where(g => !string.IsNullOrWhiteSpace(g)).Select(g => g.Trim()).ToList();
+            // As the latest listen says, but not forgotten by one that says nothing.
+            song.Artists = artists.Count > 0 ? artists : song.Artists;
+            song.Genres = genres.Count > 0 ? genres : song.Genres;
+        }
+
         var weight = KostvMusicEngine.WeighListen(e);
         var old = e.Outcome switch
         {
@@ -505,6 +532,17 @@ public sealed class KostvTasteSummary
         return listens;
     }
 
+    /// <summary>
+    /// Kos TV: the songs not at home heard (heard through Stremfin), by their Deezer id: they count
+    /// for their artists and genres by name, and are never read from the library nor put in a mix.
+    /// </summary>
+    public IEnumerable<(string DeezerId, KostvSongTaste Song)> Streamed() =>
+        Songs
+            .Select(s => (DeezerId: KostvMusicEvent.DeezerIdOf(s.Key), Song: s.Value))
+            .Where(s => s.DeezerId != null && s.Song.Artists is { Count: > 0 })
+            .OrderBy(s => s.DeezerId, StringComparer.Ordinal)
+            .Select(s => (s.DeezerId!, s.Song));
+
     /// <summary>The songs to read from the library for the taste: those played or added to a list.</summary>
     public IEnumerable<Guid> PlayedSongs() =>
         Songs.Where(s => s.Value.Played).Select(s => Guid.TryParseExact(s.Key, "N", out var id) ? id : Guid.Empty).Where(id => id != Guid.Empty);
@@ -526,15 +564,24 @@ public sealed class KostvDislikeSet
 {
     public static readonly KostvDislikeSet Empty = new([], [], new Dictionary<string, int>());
 
-    public KostvDislikeSet(IEnumerable<Guid> songs, IEnumerable<string> artists, IReadOnlyDictionary<string, int> songsPerArtist, IEnumerable<Guid>? artistIds = null)
+    public KostvDislikeSet(
+        IEnumerable<Guid> songs,
+        IEnumerable<string> artists,
+        IReadOnlyDictionary<string, int> songsPerArtist,
+        IEnumerable<Guid>? artistIds = null,
+        IEnumerable<string>? streamedSongs = null)
     {
         Songs = songs.ToHashSet();
         Artists = artists.Select(KostvMusicEngine.Key).Where(k => k.Length > 0).ToHashSet(StringComparer.Ordinal);
         SongsPerArtist = songsPerArtist;
         ArtistIds = (artistIds ?? []).Where(id => id != Guid.Empty).ToHashSet();
+        StreamedSongs = (streamedSongs ?? []).Where(KostvMusicEvent.IsDeezerId).ToHashSet(StringComparer.Ordinal);
     }
 
     public IReadOnlySet<Guid> Songs { get; }
+
+    /// <summary>Kos TV: the songs out that are not at home, by their Deezer id.</summary>
+    public IReadOnlySet<string> StreamedSongs { get; }
 
     /// <summary>The artists out, as matched (see <see cref="KostvMusicEngine.Key"/>).</summary>
     public IReadOnlySet<string> Artists { get; }
@@ -545,10 +592,14 @@ public sealed class KostvDislikeSet
     /// <summary>The artists out, by their id at home (so one renamed since is still out).</summary>
     public IReadOnlySet<Guid> ArtistIds { get; }
 
-    public bool IsEmpty => Songs.Count == 0 && Artists.Count == 0 && ArtistIds.Count == 0;
+    public bool IsEmpty => Songs.Count == 0 && Artists.Count == 0 && ArtistIds.Count == 0 && StreamedSongs.Count == 0;
 
     /// <summary>Whether <paramref name="track"/> is out: the song, or any of its artists.</summary>
     public bool Blocks(KostvMusicTrack track) => Songs.Contains(track.Id) || track.Artists.Any(BlocksArtist);
+
+    /// <summary>Whether the song not at home <paramref name="deezerId"/> is out: the song, or any of its <paramref name="artists"/>.</summary>
+    public bool BlocksStreamed(string deezerId, IEnumerable<string>? artists) =>
+        StreamedSongs.Contains(deezerId) || (artists ?? []).Any(BlocksArtist);
 
     public bool BlocksArtist(string? name) => name != null && Artists.Contains(KostvMusicEngine.Key(name));
 
@@ -587,15 +638,28 @@ public sealed class KostvDislikeSet
             dislikes.Songs.Select(s => Guid.TryParse(s.Id, out var id) ? id : Guid.Empty).Where(id => id != Guid.Empty),
             dislikes.Artists.Select(a => a.Name).OfType<string>().Concat(artistNamesNow ?? []),
             perArtist,
-            dislikes.Artists.Select(a => Guid.TryParse(a.Id, out var id) ? id : Guid.Empty));
+            dislikes.Artists.Select(a => Guid.TryParse(a.Id, out var id) ? id : Guid.Empty),
+            dislikes.Songs.Where(s => string.IsNullOrEmpty(s.Id)).Select(s => s.DeezerId).OfType<string>());
     }
 }
 
-/// <summary>kOS TV: a song with «no me gusta», with what is needed to show it in the list.</summary>
+/// <summary>
+/// kOS TV: a song with «no me gusta», with what is needed to show it in the list: one at home
+/// (<see cref="Id"/>), or one not at home (<see cref="DeezerId"/>, and <see cref="Id"/> null).
+/// </summary>
 public sealed class KostvDislikedSong
 {
+    /// <summary>The song at home, without dashes; null for one not at home.</summary>
     [JsonPropertyName("id")]
-    public string Id { get; set; } = string.Empty;
+    public string? Id { get; set; }
+
+    /// <summary>Kos TV: the Deezer id of a song not at home, heard through Stremfin; null for one at home.</summary>
+    [JsonPropertyName("deezerId")]
+    public string? DeezerId { get; set; }
+
+    /// <summary>What tells it from the others: its id at home, or <c>stremfin:&lt;DeezerId&gt;</c>.</summary>
+    [JsonIgnore]
+    public string Key => !string.IsNullOrEmpty(Id) ? Id : KostvMusicEvent.StreamedItem(DeezerId ?? string.Empty);
 
     [JsonPropertyName("name")]
     public string? Name { get; set; }
@@ -639,17 +703,20 @@ public sealed class KostvDislikes
     [JsonPropertyName("artists")]
     public List<KostvDislikedArtist> Artists { get; set; } = [];
 
-    /// <summary>As read from a file: a list written as null made empty, and entries null or without an id left out.</summary>
+    /// <summary>
+    /// As read from a file: a list written as null made empty, and entries null or without an id
+    /// (at home, or a Deezer id for a song not at home) left out.
+    /// </summary>
     public KostvDislikes Normalized()
     {
-        Songs = (Songs ?? []).Where(s => s != null && !string.IsNullOrEmpty(s.Id)).ToList();
+        Songs = (Songs ?? []).Where(s => s != null && (!string.IsNullOrEmpty(s.Id) || KostvMusicEvent.IsDeezerId(s.DeezerId))).ToList();
         Artists = (Artists ?? []).Where(a => a != null && !string.IsNullOrEmpty(a.Id)).ToList();
         return this;
     }
 
     public KostvDislikes Copy() => new()
     {
-        Songs = Songs.Select(s => new KostvDislikedSong { Id = s.Id, Name = s.Name, Artist = s.Artist, ArtistId = s.ArtistId, AlbumId = s.AlbumId, At = s.At }).ToList(),
+        Songs = Songs.Select(s => new KostvDislikedSong { Id = s.Id, DeezerId = s.DeezerId, Name = s.Name, Artist = s.Artist, ArtistId = s.ArtistId, AlbumId = s.AlbumId, At = s.At }).ToList(),
         Artists = Artists.Select(a => new KostvDislikedArtist { Id = a.Id, Name = a.Name, At = a.At }).ToList()
     };
 }
