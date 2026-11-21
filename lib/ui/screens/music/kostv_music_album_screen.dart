@@ -47,6 +47,8 @@ class KostvMusicAlbumScreen extends StatefulWidget {
 class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
   final _preview = KostvMusicPreview();
   final _askFocus = FocusNode(debugLabel: 'kostvMusicAsk');
+  // Kos TV: «Reproducir» of an album that sounds through the service.
+  final _playFocus = FocusNode(debugLabel: 'kostvMusicAlbumPlay');
   StremfinAlbumDetail? _detail;
 
   /// The single it was opened as, when the album asked for is another,
@@ -79,6 +81,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
       ..removeListener(_onPreview)
       ..dispose();
     _askFocus.dispose();
+    _playFocus.dispose();
     super.dispose();
   }
 
@@ -114,11 +117,26 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
         }
       }
       if (!mounted) return;
+      // Kos TV: while it was read, the remote landed on the ask (the main
+      // button then); with «Reproducir» in front of it now, it goes there,
+      // unless the person has moved (or pressed it already).
+      final toPlay =
+          PlatformDetection.isTV &&
+          _detail == null &&
+          !_asking &&
+          _askFocus.hasFocus;
       setState(() {
         _detail = detail;
         _loading = false;
         _error = null;
       });
+      if (toPlay && _streamable(detail)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _askFocus.hasFocus && _playFocus.canRequestFocus) {
+            _playFocus.requestFocus();
+          }
+        });
+      }
       // Kos TV: the page left open a moment: its first song that would
       // sound through the service is asked for in advance.
       if (_streamable(detail)) {
@@ -435,8 +453,12 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
           alignment: centred ? WrapAlignment.center : WrapAlignment.start,
           children: [
             // Kos TV: an album that isn't at home plays through the service.
+            // Kos TV: each with its own key, so the ask keeps its element
+            // (and the remote) when «Reproducir» comes in front of it.
             if (_streamable(detail)) ...[
               KostvMusicButton(
+                key: const ValueKey('kostvAlbumPlay'),
+                focusNode: _playFocus,
                 icon: Icons.play_arrow_rounded,
                 label: l10n.play,
                 primary: true,
@@ -444,14 +466,23 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
                 onTap: () => unawaited(_play()),
               ),
               KostvMusicButton(
+                key: const ValueKey('kostvAlbumShuffle'),
                 icon: Icons.shuffle_rounded,
                 label: l10n.shuffle,
                 onTap: () => unawaited(_play(shuffle: true)),
               ),
             ],
-            _askButton(context, album, focusFirst: !_streamable(detail)),
+            KeyedSubtree(
+              key: const ValueKey('kostvAlbumAsk'),
+              child: _askButton(
+                context,
+                album,
+                focusFirst: !_streamable(detail),
+              ),
+            ),
             if (preview != null)
               KostvMusicButton(
+                key: const ValueKey('kostvAlbumPreview'),
                 icon: _preview.isPlaying(preview)
                     ? Icons.stop_rounded
                     : Icons.play_arrow_rounded,

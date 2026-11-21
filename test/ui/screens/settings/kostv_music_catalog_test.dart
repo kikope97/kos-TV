@@ -151,8 +151,8 @@ void main() {
     expect(plugin.sent.last.body, {'Catalog': 'home'});
     expect(plugin.catalog, 'home');
     expect(kostvMusicCatalogAll(), isFalse);
-    // The device's own is left as it was.
-    expect(prefs.get(UserPreferences.kostvMusicCatalogAll), isTrue);
+    // Kos TV: kept on the device too, as the person's last known choice.
+    expect(prefs.get(UserPreferences.kostvMusicCatalogAll), isFalse);
     expect(find.text('Solo la de casa'), findsOneWidget);
   });
 
@@ -212,5 +212,51 @@ void main() {
       'Shuffle': true,
     });
     expect(KostvMusicPlugin.instance.knownMissing(client, 'Event'), isFalse);
+  });
+
+  test('Kos TV: read as the person signs in, and kept on the device, so «Solo '
+      'la de casa» applies from the start', () async {
+    await setUpWith(_Plugin()..catalog = 'home');
+    expect(kostvMusicCatalogAll(), isTrue);
+    kostvReadMusicCatalog(client);
+    await pumpEventQueue();
+    expect(kostvMusicCatalogAll(), isFalse);
+    expect(prefs.get(UserPreferences.kostvMusicCatalogAll), isFalse);
+    // The app opened again: before the plugin answers, the last known.
+    final fresh = KostvMusicCatalog(prefs: () => prefs);
+    expect(fresh.all, isFalse);
+  });
+
+  test('Kos TV: what the plugin says of someone else isn\'t kept on this '
+      'person\'s device', () async {
+    await setUpWith(_Plugin()..catalog = 'home');
+    final other =
+        JellyfinMediaServerClient(
+            baseUrl: 'https://casa.example',
+            deviceInfo: const DeviceInfo(
+              id: 'device',
+              name: 'Device',
+              appName: 'kOS TV',
+              appVersion: '1.0.0',
+            ),
+          )
+          ..accessToken = 'token-luis'
+          ..userId = 'luis';
+    await KostvMusicCatalog.instance.refresh(other);
+    expect(prefs.get(UserPreferences.kostvMusicCatalogAll), isTrue);
+    expect(kostvMusicCatalogAll(), isTrue);
+  });
+
+  test('Kos TV: a plugin from before «Toda la música» is told apart (its '
+      '«No me gusta» of what isn\'t at home is hidden)', () async {
+    await setUpWith(_Plugin(knowsCatalog: false));
+    expect(KostvMusicCatalog.instance.olderPlugin, isFalse);
+    await KostvMusicCatalog.instance.refresh(client);
+    expect(KostvMusicCatalog.instance.olderPlugin, isTrue);
+    KostvMusicCatalog.instance.take(
+      const KostvMusicLearnState(learn: true, catalog: 'all'),
+      client,
+    );
+    expect(KostvMusicCatalog.instance.olderPlugin, isFalse);
   });
 }

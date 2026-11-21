@@ -18,7 +18,7 @@ import 'stremfin_service.dart';
 /// artist the house has little of still goes on.
 ///
 /// The service allows ten radios and recommendations a minute between them
-/// all: each set of artists is asked once per session ([KostvStreamRadio]),
+/// all: each set of artists is asked once an hour ([KostvStreamRadio]),
 /// and each mix's extra songs once a day ([KostvMixExtras]).
 
 /// Kos TV: the artist a song is told apart by when nothing of the same one
@@ -42,14 +42,16 @@ String kostvSongKey(AggregatedItem item) =>
 /// Kos TV: [home] and [away] taken in turns (one of home, one from away…),
 /// each song once (by id, and by title and artist), never two of the same
 /// artist in a row when another can go there instead. What is left of one
-/// when the other runs out goes after, with the same care.
+/// when the other runs out goes after, with the same care. [skip] are ids
+/// and [skipKeys] [kostvSongKey]s already in the queue.
 List<AggregatedItem> kostvInterleaveRadio(
   List<AggregatedItem> home,
   List<AggregatedItem> away, {
   Set<String> skip = const {},
+  Set<String> skipKeys = const {},
 }) {
   final seenIds = {...skip};
-  final seenKeys = <String>{};
+  final seenKeys = {...skipKeys};
   List<AggregatedItem> fresh(List<AggregatedItem> list) => [
     for (final item in list)
       if (seenIds.add(item.id) && seenKeys.add(kostvSongKey(item))) item,
@@ -119,11 +121,13 @@ List<AggregatedItem> kostvSpreadExtras(
   return result;
 }
 
-/// Kos TV: the requests service's radio of a set of artists, asked once per
-/// session for each set (the service allows ten a minute between radios
-/// and recommendations): the endless play asks for it whenever the song
+/// Kos TV: the requests service's radio of a set of artists, asked once an
+/// hour for each set (the service allows ten a minute between radios and
+/// recommendations): the endless play asks for it whenever the song
 /// sounding changes artist. After it says no (too many asked, not
-/// answering), it is left alone a minute.
+/// answering), it is left alone a minute. What is kept is the person's as
+/// the service says now (their age limit, once read, asks again: the
+/// service keeps the radio itself an hour, so that costs no call).
 class KostvStreamRadio {
   KostvStreamRadio({
     Future<StremfinRadio> Function(
@@ -157,12 +161,22 @@ class KostvStreamRadio {
     );
   }
 
-  /// Whose the radios kept are: another person signed in gets their own.
+  /// Whose the radios kept are: another person signed in gets their own,
+  /// and so does the same one once their age limit is known (what was kept
+  /// was cleaned with the limit of then).
   static String _signedIn() {
     final getIt = GetIt.instance;
     if (!getIt.isRegistered<MediaServerClient>()) return '';
     final client = getIt<MediaServerClient>();
-    return '${client.baseUrl}|${client.userId}';
+    final service = getIt.isRegistered<StremfinService>()
+        ? getIt<StremfinService>()
+        : null;
+    return [
+      client.baseUrl,
+      client.userId,
+      service?.generation ?? '',
+      service?.hidesExplicitMusic ?? '',
+    ].join('|');
   }
 
   /// The app's own; set up with the requests service at start.
@@ -178,12 +192,15 @@ class KostvStreamRadio {
   final String Function() _who;
   final DateTime Function() _clock;
 
-  final _kept = <String, List<StremfinSong>>{};
+  final _kept = <String, ({DateTime at, List<StremfinSong> songs})>{};
   final _asking = <String, Future<List<StremfinSong>>>{};
   DateTime? _quietUntil;
 
   /// How long it is left alone after the service said no.
   static const quiet = Duration(minutes: 1);
+
+  /// How long a radio is kept: what comes home meanwhile is told then.
+  static const keep = Duration(hours: 1);
 
   /// How many calls went to the service (for tests).
   @visibleForTesting
@@ -221,7 +238,9 @@ class KostvStreamRadio {
       limit ?? '',
     ].join('|');
     final kept = _kept[key];
-    if (kept != null) return Future.value(kept);
+    if (kept != null && _clock().difference(kept.at) < keep) {
+      return Future.value(kept.songs);
+    }
     final pending = _asking[key];
     if (pending != null) return pending;
     final quietUntil = _quietUntil;
@@ -231,7 +250,10 @@ class KostvStreamRadio {
     calls++;
     late final Future<List<StremfinSong>> future;
     future = fetch(names, artistIds: ids, only: only, limit: limit)
-        .then((found) => _kept[key] = found.songs)
+        .then((found) {
+          _kept[key] = (at: _clock(), songs: found.songs);
+          return found.songs;
+        })
         .catchError((Object e) {
           _quietUntil = _clock().add(quiet);
           throw e;
@@ -259,7 +281,9 @@ class KostvStreamRadio {
 /// go in too; otherwise only those of it that are at home. Without what the
 /// person doesn't want to hear ([dislikes]) nor, for someone with a limit
 /// ([hideExplicit]), what is explicit and not at home; [skip] are ids
-/// already in the queue. The seed itself isn't in it.
+/// already in the queue, [skipKeys] their [kostvSongKey]s (the same song in
+/// its other version). The seed itself isn't in it. Throws when a source
+/// didn't answer and nothing came, so it is asked again.
 Future<List<AggregatedItem>> kostvStationOf({
   required KostvStreamRadio radio,
   required String serverId,
@@ -272,17 +296,25 @@ Future<List<AggregatedItem>> kostvStationOf({
   List<String> artistIds = const [],
   AggregatedItem? seed,
   Set<String> skip = const {},
+  Set<String> skipKeys = const {},
 }) async {
+  Object? failure;
   final mixing = homeMix == null
       ? Future.value(const <AggregatedItem>[])
-      : homeMix().catchError((Object _) => const <AggregatedItem>[]);
+      : homeMix().catchError((Object e) {
+          failure = e;
+          return const <AggregatedItem>[];
+        });
   final radioing = radio
       .songs(
         artists: artists,
         artistIds: artistIds,
         only: includeAway ? 'all' : 'available',
       )
-      .catchError((Object _) => const <StremfinSong>[]);
+      .catchError((Object e) {
+        failure = e;
+        return const <StremfinSong>[];
+      });
   final mix = await mixing;
   final found = dislikes.stremfinSongsIn(await radioing);
   // The radio's songs at home, as the home server's; the rest as songs that
@@ -295,6 +327,8 @@ Future<List<AggregatedItem>> kostvStationOf({
     ],
     hideExplicit: hideExplicit,
     homeItems: homeItems,
+    // Kos TV: only for someone with all the music and no limit.
+    streamWhenHomeFails: includeAway && !hideExplicit,
   );
   final radioHome = [
     for (final item in queued.items)
@@ -311,7 +345,15 @@ Future<List<AggregatedItem>> kostvStationOf({
   // The home server's own mix first, its songs from the radio after them.
   final home = [...mix, ...radioHome].where(keep).toList();
   final away = radioAway.where(keep).toList();
-  return kostvInterleaveRadio(home, away, skip: skipAll);
+  final station = kostvInterleaveRadio(
+    home,
+    away,
+    skip: skipAll,
+    skipKeys: skipKeys,
+  );
+  final failed = failure;
+  if (station.isEmpty && failed != null) throw failed;
+  return station;
 }
 
 /// Kos TV: the extra songs that aren't at home each daily mix (and the mix
@@ -322,8 +364,13 @@ Future<List<AggregatedItem>> kostvStationOf({
 /// the Music page), so the mix doesn't change every time it is opened and
 /// the radio is asked once a day for it at most, also when it gave
 /// nothing.
+///
+/// Kos TV: each mix keeps the day it was picked for (the daily mixes' day
+/// starts at 5:00, the moment's at midnight: neither undoes the other), and
+/// each person's are read from and kept in their own note ([who] is the
+/// person signed in now, whose note [load] and [save] go to).
 class KostvMixExtras {
-  KostvMixExtras({required this.radio, this.load, this.save});
+  KostvMixExtras({required this.radio, this.load, this.save, this.who});
 
   final KostvStreamRadio radio;
 
@@ -331,41 +378,73 @@ class KostvMixExtras {
   final Future<Object?> Function()? load;
   final void Function(Object value)? save;
 
-  /// The day kept and each mix's songs of it (as the queue takes them).
-  String? _day;
-  final _mixes = <String, List<Map<String, Object?>>>{};
-  Future<void>? _loaded;
+  /// The person signed in now (as [mixWith]'s `person`); null: whoever
+  /// [mixWith] is asked for.
+  final String Function()? who;
+
+  /// Each person's mixes: the day each was picked for and its songs (as
+  /// the queue takes them).
+  final _people = <String, Map<String, _KeptMix>>{};
+  final _loaded = <String, Future<void>>{};
   final _asking = <String, Future<void>>{};
 
   /// The note's name on the device.
   static const note = 'mix-extras';
 
-  Future<void> _ensureLoaded() => _loaded ??= () async {
+  Map<String, _KeptMix> _mixesOf(String person) =>
+      _people.putIfAbsent(person, () => {});
+
+  bool _isNow(String person) => who == null || who!() == person;
+
+  Future<void> _ensureLoaded(String person) => _loaded[person] ??= () async {
+    // Only the note of the person it is read for.
+    if (!_isNow(person)) return;
     try {
       final raw = await load?.call();
-      if (raw is Map && raw['day'] is String && raw['mixes'] is Map) {
-        _day = raw['day'] as String;
-        for (final entry in (raw['mixes'] as Map).entries) {
-          final list = entry.value;
-          if (list is! List) continue;
-          _mixes['${entry.key}'] = [
-            for (final song in list.whereType<Map>())
-              song.map((k, v) => MapEntry('$k', v)),
-          ];
-        }
+      if (raw is! Map || raw['mixes'] is! Map) return;
+      // A note of before kept one day for all its mixes.
+      final noteDay = raw['day'];
+      final mixes = _mixesOf(person);
+      for (final entry in (raw['mixes'] as Map).entries) {
+        final value = entry.value;
+        final day = value is Map ? value['day'] : noteDay;
+        final list = value is Map ? value['songs'] : value;
+        if (day is! String || list is! List) continue;
+        mixes.putIfAbsent(
+          '${entry.key}',
+          () => (
+            day: day,
+            songs: [
+              for (final song in list.whereType<Map>())
+                song.map((k, v) => MapEntry('$k', v)),
+            ],
+          ),
+        );
       }
     } catch (_) {}
   }();
 
-  void _keep() {
-    final day = _day;
-    if (day == null) return;
-    save?.call({'day': day, 'mixes': _mixes});
+  /// Keeps [person]'s mixes in their note: those of [day] and the day
+  /// before (the two ways of counting days), not older ones.
+  void _keep(String person, String day) {
+    if (!_isNow(person)) return;
+    final parsed = DateTime.tryParse(day);
+    final before = parsed == null
+        ? day
+        : kostvDayOf(parsed.subtract(const Duration(days: 1)));
+    final mixes = _mixesOf(person)
+      ..removeWhere((_, mix) => mix.day.compareTo(before) < 0);
+    save?.call({
+      'mixes': {
+        for (final MapEntry(:key, :value) in mixes.entries)
+          key: {'day': value.day, 'songs': value.songs},
+      },
+    });
   }
 
   /// [mix] (its [items] at home, by the artists [because]) with its extra
   /// songs for [day] spread through it. As it is when there is nothing to
-  /// add or the radio can't be asked.
+  /// add or the radio can't be asked. [person] is whose mix it is.
   Future<List<AggregatedItem>> mixWith({
     required String mixId,
     required String day,
@@ -374,26 +453,29 @@ class KostvMixExtras {
     required String serverId,
     required bool hideExplicit,
     KostvMusicDislikes dislikes = KostvMusicDislikes.empty,
+    String person = '',
   }) async {
     if (items.isEmpty) return items;
-    await _ensureLoaded();
-    if (_day != day) {
-      _day = day;
-      _mixes.clear();
-    }
-    if (!_mixes.containsKey(mixId) && because.isNotEmpty) {
-      await (_asking[mixId] ??=
+    await _ensureLoaded(person);
+    final mixes = _mixesOf(person);
+    if (mixes[mixId]?.day != day && because.isNotEmpty) {
+      final key = '$person|$mixId|$day';
+      await (_asking[key] ??=
           _pick(
+            person: person,
             mixId: mixId,
             day: day,
             because: because,
             items: items,
             serverId: serverId,
           ).whenComplete(() {
-            _asking.remove(mixId);
+            _asking.remove(key);
           }));
     }
-    final kept = _mixes[mixId] ?? const [];
+    final mix = mixes[mixId];
+    final kept = mix != null && mix.day == day
+        ? mix.songs
+        : const <Map<String, Object?>>[];
     final known = {for (final item in items) kostvSongKey(item)};
     final extras = <AggregatedItem>[];
     for (final raw in kept) {
@@ -408,6 +490,7 @@ class KostvMixExtras {
   }
 
   Future<void> _pick({
+    required String person,
     required String mixId,
     required String day,
     required List<String> because,
@@ -421,7 +504,6 @@ class KostvMixExtras {
       // Not answered: asked again next time (the radio rests a minute).
       return;
     }
-    if (_day != day) return;
     final known = {for (final item in items) kostvSongKey(item)};
     final wanted = kostvMixExtraCount(items.length);
     final picked = <Map<String, Object?>>[];
@@ -432,8 +514,8 @@ class KostvMixExtras {
       if (item == null || !known.add(kostvSongKey(item))) continue;
       picked.add({'id': item.id, 'raw': item.rawData});
     }
-    _mixes[mixId] = picked;
-    _keep();
+    _mixesOf(person)[mixId] = (day: day, songs: picked);
+    _keep(person, day);
   }
 
   static AggregatedItem? _itemOf(Map<String, Object?> raw, String serverId) {
@@ -449,9 +531,17 @@ class KostvMixExtras {
 
   @visibleForTesting
   void debugReset() {
-    _day = null;
-    _mixes.clear();
-    _loaded = null;
+    _people.clear();
+    _loaded.clear();
     _asking.clear();
   }
+}
+
+/// A mix's extra songs and the day they were picked for.
+typedef _KeptMix = ({String day, List<Map<String, Object?>> songs});
+
+/// Kos TV: [day] as the mixes write it (`2026-11-21`).
+String kostvDayOf(DateTime day) {
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${day.year}-${two(day.month)}-${two(day.day)}';
 }

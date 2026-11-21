@@ -72,6 +72,10 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   final _playFocus = FocusNode(debugLabel: 'NowPlayingPlay');
   final _ambientFocus = FocusNode(debugLabel: 'NowPlayingAmbient');
   final _lyricsButtonFocus = FocusNode(debugLabel: 'NowPlayingLyrics');
+  // Kos TV: ♥ and «No me gusta», which a song that isn't at home may not
+  // have: the remote on them goes to play/pause when they go.
+  final _favoriteFocus = FocusNode(debugLabel: 'NowPlayingFavorite');
+  final _dislikeFocus = FocusNode(debugLabel: 'NowPlayingDislike');
   // Kos TV: around the lyrics or the queue at the side, to know whether the
   // remote was in there when what it was on went away.
   final _panelFocus = FocusNode(
@@ -155,6 +159,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     _playFocus.dispose();
     _ambientFocus.dispose();
     _lyricsButtonFocus.dispose();
+    _favoriteFocus.dispose();
+    _dislikeFocus.dispose();
     _panelFocus.dispose();
     _queueRowsFocus.dispose();
     for (final node in _queueRowNodes) {
@@ -293,6 +299,20 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
         });
       }
       unawaited(_loadLyrics());
+      // Kos TV: ♥, «Letra» or «No me gusta» had the remote and the new song
+      // (one that isn't at home) has none: to play/pause, rather than
+      // wherever Flutter would send it.
+      final song = _music.item;
+      if (_tv &&
+          song != null &&
+          isKostvStream(song) &&
+          (_favoriteFocus.hasFocus ||
+              _lyricsButtonFocus.hasFocus ||
+              (_dislikeFocus.hasFocus && _dislikeOf(song) == null))) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _playFocus.canRequestFocus) _playFocus.requestFocus();
+        });
+      }
     }
     // Nothing sounds any more (stopped from the notification, the queue
     // ended…): the page goes, after a moment in case it is still starting.
@@ -464,6 +484,14 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     };
   }
 
+  /// Kos TV: whether «No me pongas a este artista» is offered from [item]:
+  /// its artist at home goes by the home id, which a plugin from before
+  /// «Toda la música» keeps too (unlike a song that isn't at home).
+  bool _canDislikeArtist(AggregatedItem item) =>
+      !_manager.isOfflinePlayback &&
+      item.type == 'Audio' &&
+      kostvMusicCanDislike(isKostvStream(item) ? null : item);
+
   void _next() {
     _direction = 1;
     _music.next();
@@ -528,7 +556,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     // plays by itself is the home server's), looked for a moment at most.
     final stream = KostvStreamInfo.of(item);
     var songArtist = kostvMusicSongArtist(item);
-    if (stream != null && _dislikeOf(item) != null) {
+    if (stream != null && _canDislikeArtist(item)) {
       final name = item.artists.firstOrNull ?? item.albumArtist;
       if (name != null) {
         try {
@@ -540,7 +568,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       if (!mounted) return;
     }
     final artistToDislike =
-        _dislikeOf(item) != null &&
+        _canDislikeArtist(item) &&
             songArtist != null &&
             !kostvMusicDisliked(songArtist.id, item)
         ? songArtist
@@ -852,6 +880,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
             view: _view,
             hasLyrics: _hasLyrics,
             lyricsFocus: _lyricsButtonFocus,
+            favoriteFocus: _favoriteFocus,
+            dislikeFocus: _dislikeFocus,
             onLyrics: () => _show(_View.lyrics),
             onQueue: () => _show(_View.queue),
             onMore: () => _showMore(item),
@@ -1922,6 +1952,8 @@ class _ActionsRow extends StatelessWidget {
     required this.onQueue,
     required this.onMore,
     this.lyricsFocus,
+    this.favoriteFocus,
+    this.dislikeFocus,
     this.disliked = false,
     this.onDislike,
     this.showLyrics = true,
@@ -1940,6 +1972,8 @@ class _ActionsRow extends StatelessWidget {
   final _View view;
   final bool hasLyrics;
   final FocusNode? lyricsFocus;
+  final FocusNode? favoriteFocus;
+  final FocusNode? dislikeFocus;
   final VoidCallback onLyrics;
   final VoidCallback onQueue;
   final VoidCallback onMore;
@@ -1959,6 +1993,7 @@ class _ActionsRow extends StatelessWidget {
                 ? l10n.kostvPlayerUnfavorite
                 : l10n.kostvPlayerFavorite,
             lit: favorite,
+            focusNode: favoriteFocus,
             onTap: onFavorite!,
           ),
         if (onDislike != null) ...[
@@ -1971,6 +2006,7 @@ class _ActionsRow extends StatelessWidget {
                 ? l10n.kostvMusicUndislike
                 : l10n.kostvMusicDislike,
             lit: disliked,
+            focusNode: dislikeFocus,
             onTap: onDislike!,
           ),
         ],

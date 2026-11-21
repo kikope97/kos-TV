@@ -59,13 +59,16 @@ Future<({List<AggregatedItem> items, int startIndex})> kostvStreamQueue(
       if (songs[i].way == KostvSongWay.home) start++;
     }
   }
+  final hideExplicit = _hidesExplicit();
   return kostvQueueOf(
     wanted,
     startIndex: start,
-    hideExplicit: _hidesExplicit(),
+    hideExplicit: hideExplicit,
     homeItems: (ids) => client == null
         ? Future.value(const <AggregatedItem>[])
         : KostvMusicService(client).songs(ids),
+    // Kos TV: only for someone with all the music and no limit.
+    streamWhenHomeFails: all && !hideExplicit,
   );
 }
 
@@ -137,9 +140,12 @@ List<KostvQueueSong> kostvQueueSongs(List<StremfinSong> songs) {
   return (songs: kept, index: at);
 }
 
-/// Kos TV: an album page's songs for [playKostvStreamSongs].
+/// Kos TV: an album page's songs for [playKostvStreamSongs]. Its songs
+/// don't say whether they are explicit: for someone with a limit, those
+/// that aren't at home don't sound (see [kostvTrackPlayable]).
 List<KostvQueueSong> kostvAlbumQueueSongs(StremfinAlbumDetail detail) {
   final server = _homeClient()?.baseUrl ?? '';
+  final hideExplicit = _hidesExplicit();
   return [
     for (final track in detail.songs)
       KostvQueueSong.ofTrack(
@@ -148,6 +154,7 @@ List<KostvQueueSong> kostvAlbumQueueSongs(StremfinAlbumDetail detail) {
         serverId: server,
         artistDeezerId: detail.artistDeezerId,
         genres: detail.genres,
+        explicit: hideExplicit,
       ),
   ];
 }
@@ -166,11 +173,13 @@ bool kostvSongPlayable(StremfinSong song) => switch (kostvSongWayOf(song)) {
   KostvSongWay.none => false,
 };
 
-/// Kos TV: [kostvSongPlayable] of an album's song.
+/// Kos TV: [kostvSongPlayable] of an album's song. An album's songs don't
+/// say whether they are explicit, so for someone with a limit one that
+/// isn't at home doesn't sound (its album can still be asked for).
 bool kostvTrackPlayable(StremfinAlbumTrack track) =>
     switch (kostvTrackWayOf(track)) {
       KostvSongWay.home => true,
-      KostvSongWay.stream => kostvMusicCatalogAll(),
+      KostvSongWay.stream => kostvMusicCatalogAll() && !_hidesExplicit(),
       KostvSongWay.none => false,
     };
 
@@ -208,10 +217,14 @@ bool kostvStationWantsRadio(AggregatedItem seed) =>
 /// requests service's radio of its artists when [kostvStationWantsRadio]
 /// (what isn't at home only with «Toda la música»); without what the
 /// person doesn't want to hear, nor what is in [skip]. [homeLimit] is how
-/// many the home server's mix gives.
+/// many the home server's mix gives. [skipKeys] are the [kostvSongKey]s of
+/// the songs in the queue, so the same song in its other version (at home
+/// or not) doesn't go in again. Throws when neither the home server's mix
+/// nor the radio answered and so nothing came (to be asked again).
 Future<List<AggregatedItem>> kostvStationFor(
   AggregatedItem seed, {
   Set<String> skip = const {},
+  Set<String> skipKeys = const {},
   int homeLimit = 60,
   MediaServerClient? client,
 }) async {
@@ -250,16 +263,8 @@ Future<List<AggregatedItem>> kostvStationFor(
     artistIds: artists.ids,
     seed: seed,
     skip: skip,
+    skipKeys: skipKeys,
   );
-}
-
-/// Kos TV: [song] of the requests service as the seed of a station: the
-/// home server's copy when it is at home, otherwise as a song that isn't.
-Future<AggregatedItem?> kostvStationSeedOf(StremfinSong song) async {
-  final queued = await kostvStreamQueue([
-    KostvQueueSong.ofSong(song, serverId: _homeClient()?.baseUrl ?? ''),
-  ], includeStream: true);
-  return queued.items.firstOrNull;
 }
 
 /// Kos TV: «Crear emisora» of [seed]: it plays, and its station after it.
@@ -352,6 +357,12 @@ KostvMixExtras kostvMixExtras = KostvMixExtras(
     if (!getIt.isRegistered<StremfinService>()) return;
     getIt<StremfinService>().keepMusicNote(KostvMixExtras.note, value);
   },
+  // Kos TV: the notes are the person signed in's: another's mixes aren't
+  // read from or kept in them.
+  who: () {
+    final client = _homeClient();
+    return client == null ? '' : '${client.baseUrl}|${client.userId}';
+  },
 );
 
 /// Kos TV: today, by this device's clock (`2026-11-21`).
@@ -380,16 +391,23 @@ Future<List<AggregatedItem>> kostvMixQueue({
     return items;
   }
   try {
+    // Kos TV: what the person doesn't want to hear, read now if it wasn't
+    // (just started, another person) rather than taken as nothing.
+    final dislikes = await KostvMusicDislikesStore.instance
+        .load(server)
+        .timeout(const Duration(seconds: 3))
+        .catchError((Object _) => KostvMusicDislikesStore.instance.of(server));
     return await kostvMixExtras
         .mixWith(
           // Kept apart for each person signed in on the device.
           mixId: '${server.userId}|$mixId',
+          person: '${server.baseUrl}|${server.userId}',
           day: day ?? kostvToday(),
           because: because,
           items: items,
           serverId: server.baseUrl,
           hideExplicit: _hidesExplicit(),
-          dislikes: KostvMusicDislikesStore.instance.of(server),
+          dislikes: dislikes,
         )
         .timeout(const Duration(seconds: 8));
   } catch (_) {

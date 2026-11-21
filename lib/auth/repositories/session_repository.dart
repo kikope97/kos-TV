@@ -35,6 +35,7 @@ import '../../data/models/aggregated_item.dart';
 import '../../data/services/carplay_service.dart';
 import '../../data/services/cast/cast_service.dart';
 import '../../data/services/crash_report_service.dart';
+import '../../data/services/kostv_music_catalog.dart';
 import '../../data/services/download_notification_service.dart';
 import '../../data/services/topshelf_service.dart';
 import '../../data/services/tv_channels_service.dart';
@@ -356,6 +357,9 @@ class SessionRepository {
     setActiveServerClient(client);
     resetUserScopedSingletons();
     setActiveStreamResolver(client);
+    // Kos TV: «Qué música enseñar» is the person's (their plugin's): read
+    // now, so «Solo la de casa» applies before any Music page is opened.
+    kostvReadMusicCatalog(client);
     _cancelSocketIdleTimer();
     // A headless boot has no UI to serve, and car browse, playback, and
     // progress reporting all go over REST, so skip the socket there and let

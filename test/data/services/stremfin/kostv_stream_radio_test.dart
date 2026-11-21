@@ -597,6 +597,226 @@ void main() {
       expect(dislikes.stremfinSongOut(_song('3', 'Rayo & Sol')), isTrue);
     });
   });
+
+  group('Kos TV: the audit of «Toda la música»', () {
+    Future<List<AggregatedItem>> homeItems(List<String> ids) async => [
+      for (final id in ids) _home(id, 'Casa $id'),
+    ];
+
+    test('a song already in the queue in its other version doesn\'t go in '
+        'again', () async {
+      final fake = _Radio([
+        _song('1', 'Lola', title: 'Canción q1'),
+        _song('2', 'Rayo'),
+      ]);
+      final queued = _home('q1', 'Lola');
+      final station = await kostvStationOf(
+        radio: KostvStreamRadio(fetch: fake.call),
+        serverId: _server,
+        includeAway: true,
+        hideExplicit: false,
+        homeItems: homeItems,
+        artists: ['Lola'],
+        skip: {queued.id},
+        skipKeys: {kostvSongKey(queued)},
+      );
+      expect(station.map((e) => e.id), ['stremfin:2']);
+      expect(
+        kostvInterleaveRadio(
+          const [],
+          [_away('9', 'Lola', name: 'Canción q1')],
+          skipKeys: {kostvSongKey(queued)},
+        ),
+        isEmpty,
+      );
+    });
+
+    test('neither the radio nor the home server answering: it says so, to be '
+        'asked again', () async {
+      final fake = _Radio()..error = StateError('down');
+      await expectLater(
+        kostvStationOf(
+          radio: KostvStreamRadio(fetch: fake.call),
+          serverId: _server,
+          includeAway: true,
+          hideExplicit: false,
+          homeItems: homeItems,
+          artistIds: ['ar1'],
+        ),
+        throwsA(isA<StateError>()),
+      );
+      // The radio answering nothing isn't a failure.
+      expect(
+        await kostvStationOf(
+          radio: KostvStreamRadio(fetch: _Radio().call),
+          serverId: _server,
+          includeAway: true,
+          hideExplicit: false,
+          homeItems: homeItems,
+          artistIds: ['ar1'],
+        ),
+        isEmpty,
+      );
+    });
+
+    test('a radio song at home the home server doesn\'t give is left out; '
+        'through the service only when the home server fails, with all the '
+        'music and no limit', () async {
+      final fake = _Radio([_song('1', 'Rayo', jellyfinId: 'j1')]);
+      Future<List<AggregatedItem>> station({
+        required bool includeAway,
+        required bool hideExplicit,
+        required Future<List<AggregatedItem>> Function(List<String>) home,
+      }) => kostvStationOf(
+        radio: KostvStreamRadio(fetch: fake.call),
+        serverId: _server,
+        includeAway: includeAway,
+        hideExplicit: hideExplicit,
+        homeItems: home,
+        artistIds: ['ar1'],
+      );
+      Future<List<AggregatedItem>> none(List<String> _) async => const [];
+      Future<List<AggregatedItem>> down(List<String> _) async =>
+          throw StateError('offline');
+      expect(
+        await station(includeAway: true, hideExplicit: false, home: none),
+        isEmpty,
+      );
+      expect(
+        await station(includeAway: false, hideExplicit: false, home: down),
+        isEmpty,
+      );
+      expect(
+        await station(includeAway: true, hideExplicit: true, home: down),
+        isEmpty,
+      );
+      expect(
+        (await station(
+          includeAway: true,
+          hideExplicit: false,
+          home: down,
+        )).map((e) => e.id),
+        ['stremfin:1'],
+      );
+    });
+
+    test('a radio kept is asked again after an hour', () async {
+      final fake = _Radio([_song('1', 'Rayo')]);
+      var now = DateTime(2026, 11, 21, 10);
+      final radio = KostvStreamRadio(fetch: fake.call, clock: () => now);
+      await radio.songs(artists: ['Lola']);
+      now = now.add(const Duration(minutes: 59));
+      await radio.songs(artists: ['Lola']);
+      expect(fake.asked, hasLength(1));
+      now = now.add(const Duration(minutes: 2));
+      await radio.songs(artists: ['Lola']);
+      expect(fake.asked, hasLength(2));
+    });
+
+    final mix = [
+      for (var i = 0; i < 9; i++) _home('h$i', i.isEven ? 'Lola' : 'Nube'),
+    ];
+
+    test('a daily mix and the moment\'s mix, each with its own day, don\'t '
+        'undo each other', () async {
+      final fake = _Radio([_song('1', 'Rayo'), _song('2', 'Sol')]);
+      final extras = KostvMixExtras(radio: KostvStreamRadio(fetch: fake.call));
+      Future<List<AggregatedItem>> play(String mixId, String day) =>
+          extras.mixWith(
+            mixId: mixId,
+            day: day,
+            because: const ['Lola'],
+            items: mix,
+            serverId: _server,
+            hideExplicit: false,
+          );
+      // Between midnight and 5:00: the daily mixes are still yesterday's.
+      await play('daily-1', '2026-11-20');
+      await play('morning', '2026-11-21');
+      await play('daily-1', '2026-11-20');
+      await play('morning', '2026-11-21');
+      expect(fake.asked, hasLength(1));
+    });
+
+    test(
+      'each person\'s mixes are read from and kept in their own note',
+      () async {
+        final fake = _Radio([_song('1', 'Rayo')]);
+        final notes = <String, Object?>{};
+        var who = 'casa|ana';
+        final extras = KostvMixExtras(
+          radio: KostvStreamRadio(fetch: fake.call, who: () => who),
+          load: () async => notes[who],
+          save: (value) => notes[who] = jsonDecode(jsonEncode(value)),
+          who: () => who,
+        );
+        Future<List<AggregatedItem>> play(String person) => extras.mixWith(
+          mixId: '${person.split('|').last}|daily-1',
+          person: person,
+          day: '2026-11-21',
+          because: const ['Lola'],
+          items: mix,
+          serverId: _server,
+          hideExplicit: false,
+        );
+        await play('casa|ana');
+        expect((notes['casa|ana']! as Map)['mixes'], contains('ana|daily-1'));
+        // Luis had his picked already today (another time the app was open).
+        notes['casa|luis'] = {
+          'mixes': {
+            'luis|daily-1': {
+              'day': '2026-11-21',
+              'songs': [
+                {'id': 'stremfin:7', 'raw': _away('7', 'Mar').rawData},
+              ],
+            },
+          },
+        };
+        who = 'casa|luis';
+        final luis = await play('casa|luis');
+        expect(luis.where(isKostvStream).map((e) => e.id), ['stremfin:7']);
+        expect(fake.asked, hasLength(1));
+        // Nothing of Ana's in Luis's note.
+        who = 'casa|luis';
+        await extras.mixWith(
+          mixId: 'luis|daily-2',
+          person: 'casa|luis',
+          day: '2026-11-21',
+          because: const ['Nube'],
+          items: mix,
+          serverId: _server,
+          hideExplicit: false,
+        );
+        final kept = (notes['casa|luis']! as Map)['mixes'] as Map;
+        expect(kept.keys, unorderedEquals(['luis|daily-1', 'luis|daily-2']));
+      },
+    );
+
+    test('a note of before (one day for all) is still read', () async {
+      final fake = _Radio([_song('1', 'Rayo')]);
+      final extras = KostvMixExtras(
+        radio: KostvStreamRadio(fetch: fake.call),
+        load: () async => {
+          'day': '2026-11-21',
+          'mixes': {
+            'daily-1': [
+              {'id': 'stremfin:7', 'raw': _away('7', 'Mar').rawData},
+            ],
+          },
+        },
+      );
+      final items = await extras.mixWith(
+        mixId: 'daily-1',
+        day: '2026-11-21',
+        because: const ['Lola'],
+        items: mix,
+        serverId: _server,
+        hideExplicit: false,
+      );
+      expect(items.where(isKostvStream).map((e) => e.id), ['stremfin:7']);
+      expect(fake.asked, isEmpty);
+    });
+  });
 }
 
 /// The plugin's «No me gusta» routes, with songs that aren't at home.

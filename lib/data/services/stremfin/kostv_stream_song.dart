@@ -255,8 +255,8 @@ class KostvQueueSong {
   final KostvSongWay way;
   final String? jellyfinId;
 
-  /// The out-of-home song, also when it is at home (in case its home copy
-  /// can't be found any more).
+  /// The out-of-home song, also when it is at home (in case the home server
+  /// can't be asked, see [kostvQueueOf]).
   final AggregatedItem? stream;
   final bool explicit;
 
@@ -268,12 +268,16 @@ class KostvQueueSong {
         explicit: song.explicit,
       );
 
+  /// Kos TV: an album's songs don't say whether they are explicit: with
+  /// [explicit] (someone with a limit) the unknown counts as explicit, so
+  /// what isn't at home doesn't sound for them.
   static KostvQueueSong ofTrack(
     StremfinAlbumTrack track,
     StremfinAlbum album, {
     required String serverId,
     String? artistDeezerId,
     List<String> genres = const [],
+    bool explicit = false,
   }) => KostvQueueSong(
     way: kostvTrackWayOf(track),
     jellyfinId: track.jellyfinId,
@@ -284,6 +288,7 @@ class KostvQueueSong {
       artistDeezerId: artistDeezerId,
       genres: genres,
     ),
+    explicit: explicit,
   );
 }
 
@@ -292,23 +297,31 @@ class KostvQueueSong {
 /// as out-of-home songs, in their order. Those that can't sound (no Deezer
 /// id, or explicit for someone with a limit) are left out, and the start
 /// moves with them: to the next one that can when the one picked can't.
+///
+/// Kos TV: a song at home the home server doesn't give is left out, never
+/// played through the service instead: the home server may be keeping it
+/// from the person (its parental control). Only when the home server
+/// couldn't be asked at all, and with [streamWhenHomeFails] (all the music,
+/// no limit), does it sound through the service.
 Future<({List<AggregatedItem> items, int startIndex})> kostvQueueOf(
   List<KostvQueueSong> songs, {
   int startIndex = 0,
   required bool hideExplicit,
   required Future<List<AggregatedItem>> Function(List<String> ids) homeItems,
+  bool streamWhenHomeFails = false,
 }) async {
   final homeIds = [
     for (final song in songs)
       if (song.way == KostvSongWay.home) song.jellyfinId!,
   ];
   var home = const <String, AggregatedItem>{};
+  var homeFailed = false;
   if (homeIds.isNotEmpty) {
     try {
       final found = await homeItems(homeIds.toSet().toList());
       home = {for (final item in found) _plain(item.id): item};
     } catch (_) {
-      // Without the home server, what can sound through the service does.
+      homeFailed = true;
     }
   }
   final items = <AggregatedItem>[];
@@ -317,6 +330,7 @@ Future<({List<AggregatedItem> items, int startIndex})> kostvQueueOf(
     AggregatedItem? item;
     if (song.way == KostvSongWay.home) {
       item = home[_plain(song.jellyfinId!)];
+      if (item == null && !(homeFailed && streamWhenHomeFails)) continue;
     }
     if (item == null &&
         song.stream != null &&
