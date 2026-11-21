@@ -147,6 +147,12 @@ class StremfinStreamResolver extends MediaStreamResolver
   /// passed by quickly (Next pressed again and again) aren't asked for.
   static const settleFor = Duration(milliseconds: 600);
 
+  /// Kos TV: the wait of [settleFor] only happens when another song was
+  /// asked for this recently (skipping quickly); a song put on its own
+  /// starts without it.
+  static const settleOnlyWithin = Duration(seconds: 2);
+  static DateTime? _lastAsked;
+
   /// Kos TV: [stream] is [home] on the home server (the service said so):
   /// it plays from there from now on.
   static void noteAtHome(AggregatedItem stream, AggregatedItem home) {
@@ -167,6 +173,7 @@ class StremfinStreamResolver extends MediaStreamResolver
     _gone.clear();
     _keptFor = null;
     wanted = null;
+    _lastAsked = null;
   }
 
   /// Kos TV: forgets what was kept for someone else than [person].
@@ -239,7 +246,12 @@ class StremfinStreamResolver extends MediaStreamResolver
       preparing.value = item.id;
       try {
         final stillWanted = wanted;
-        if (stillWanted != null) {
+        final now = DateTime.now();
+        final before = _lastAsked;
+        _lastAsked = now;
+        if (stillWanted != null &&
+            before != null &&
+            now.difference(before) < settleOnlyWithin) {
           await _settle(settleFor);
           if (!stillWanted(item)) throw const KostvStreamNotWanted();
         }

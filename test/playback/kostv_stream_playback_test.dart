@@ -1079,6 +1079,14 @@ void main() {
         address: (url) => url,
         settle: (wait) async => waited.add(wait),
       );
+      // Kos TV: a song put on its own doesn't wait.
+      want = true;
+      await resolver.resolve(_stream('9'));
+      expect(listens, 1);
+      expect(waited, isEmpty);
+      // Asked again right after (skipping quickly): it waits first.
+      want = false;
+      listens = 0;
       await expectLater(
         resolver.resolve(_stream('1')),
         throwsA(isA<KostvStreamNotWanted>()),
