@@ -7307,8 +7307,11 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
           kostvMusicCanDislike(item) &&
           shows(DetailButton.kostvDislikeArtist))
         DetailButton.kostvDislikeArtist: _DetailActionButton(
-          // Short, as it goes under an icon on the phone; lit when on.
-          label: l10n.kostvMusicDislike,
+          // Short, as it goes under an icon on the phone; lit when on, and
+          // then saying what it does (Kos TV).
+          label: kostvMusicDisliked(item.id, item)
+              ? l10n.kostvMusicUndislikeShort
+              : l10n.kostvMusicDislike,
           icon: Icons.person_off_outlined,
           onPressed: () => unawaited(
             kostvMusicDisliked(item.id, item)

@@ -36,8 +36,7 @@ import '../../widgets/player_volume_control.dart' show volumeIconFor;
 import '../playback/audiobook_player_view.dart';
 import 'kostv_music_links.dart';
 import 'kostv_music_widgets.dart' show kostvMusicColor;
-import 'kostv_music_actions.dart'
-    show kostvMusicArtistNameOf, kostvMusicFavoritesChanged;
+import 'kostv_music_actions.dart' show kostvMusicFavoritesChanged;
 import 'kostv_music_dislike.dart';
 
 /// Kos TV: «Reproduciendo», the music player. Its background takes the
@@ -509,12 +508,15 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     final artistId = _artistId(item);
     final offline = _manager.isOfflinePlayback;
     final sleepAt = _music.sleepAt;
-    // Kos TV: «No me pongas a …», when the server plugin keeps it.
+    // Kos TV: «No me pongas a …», when the server plugin keeps it: the
+    // song's own artist, not its album's (a compilation's song isn't by
+    // «Various Artists»), as the plugin leaves them out.
+    final songArtist = kostvMusicSongArtist(item);
     final artistToDislike =
         _dislikeOf(item) != null &&
-            artistId != null &&
-            !kostvMusicDisliked(artistId, item)
-        ? kostvMusicArtistNameOf(item)
+            songArtist != null &&
+            !kostvMusicDisliked(songArtist.id, item)
+        ? songArtist
         : null;
     final choice = await _showMenu<String>(
       title: item.name,
@@ -554,7 +556,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
           KostvMenuEntry(
             'dislikeArtist',
             Icons.person_off_outlined,
-            l10n.kostvMusicDislikeArtistNamed(artistToDislike),
+            l10n.kostvMusicDislikeArtistNamed(artistToDislike.name),
           ),
         KostvMenuEntry('stop', Icons.stop_circle_rounded, l10n.kostvPlayerStop),
       ],
@@ -606,8 +608,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       case 'dislikeArtist':
         await kostvDislikeArtist(
           context,
-          id: artistId!,
-          name: artistToDislike!,
+          id: artistToDislike!.id,
+          name: artistToDislike.name,
           from: item,
         );
       case 'stop':
@@ -2420,7 +2422,7 @@ class _QueuePanel extends StatelessWidget {
 
     Widget row(({int index, AggregatedItem item}) entry, int position) {
       final item = entry.item;
-      final fromAutoplay = music.autoplayIds.contains(item.id);
+      final fromAutoplay = music.autoplayItems.contains(item);
       final remote = onRemote;
       final tile = _Stop(
         key: touch ? ValueKey('queue-${item.id}-${entry.index}') : null,

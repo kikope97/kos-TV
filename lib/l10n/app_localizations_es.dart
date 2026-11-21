@@ -21528,4 +21528,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String kostvMusicBecauseMore(String first, String second) {
     return 'Con $first, $second y más';
   }
+
+  @override
+  String kostvMusicBecauseTwoE(String first, String second) {
+    return 'Con $first e $second';
+  }
+
+  @override
+  String get kostvMusicUndislikeShort => 'Quitar “No me gusta”';
 }
