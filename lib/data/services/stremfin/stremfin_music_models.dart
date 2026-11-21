@@ -149,6 +149,7 @@ class StremfinSong {
     this.albumJellyfinId,
     this.reason,
     this.because = const [],
+    this.listenReady = false,
   });
 
   /// Deezer's id, for its page. Null for a chart's song.
@@ -189,6 +190,10 @@ class StremfinSong {
   /// or the radio's, since 1.93.0).
   final List<String> because;
 
+  /// Kos TV: its sound is already kept by the service (since 1.97.0), so
+  /// «Escuchar mientras llega» starts it at once.
+  final bool listenReady;
+
   /// Kos TV: whether the home server has it (then it plays from there).
   bool get atHome => inJellyfin || jellyfinId != null;
 
@@ -217,6 +222,7 @@ class StremfinSong {
         albumJellyfinId: albumJellyfinId,
         reason: reason,
         because: because,
+        listenReady: listenReady,
       );
 
   static StremfinSong? fromJson(Object? raw) {
@@ -251,6 +257,7 @@ class StremfinSong {
       albumJellyfinId: _text(raw['album_jellyfin_id']?.toString()),
       reason: _text(raw['reason']),
       because: _texts(raw['because']),
+      listenReady: raw['listen_ready'] == true,
     );
   }
 }
@@ -393,6 +400,9 @@ class StremfinMusicSearch {
 class StremfinAlbumTrack {
   const StremfinAlbumTrack({
     required this.title,
+    this.deezerId,
+    this.listenReady = false,
+    this.albumJellyfinId,
     this.position,
     this.disc,
     this.artist,
@@ -413,6 +423,19 @@ class StremfinAlbumTrack {
   /// The song on the home server (since 1.91.0).
   final String? jellyfinId;
 
+  /// Kos TV: Deezer's id of the song (since 1.97.0), to listen to it while
+  /// its album comes; null when Deezer doesn't give one.
+  final String? deezerId;
+
+  /// Kos TV: its sound is already kept by the service (since 1.97.0).
+  final bool listenReady;
+
+  /// Kos TV: the album of the home server that has it (since 1.91.0).
+  final String? albumJellyfinId;
+
+  /// Kos TV: whether the home server has it (then it plays from there).
+  bool get atHome => inJellyfin || jellyfinId != null;
+
   static StremfinAlbumTrack? fromJson(Object? raw) {
     if (raw is! Map) return null;
     final title = _text(raw['title']);
@@ -426,6 +449,9 @@ class StremfinAlbumTrack {
       inJellyfin: raw['in_jellyfin'] == true,
       inAlbum: _text(raw['in_album']),
       jellyfinId: _text(raw['jellyfin_id']?.toString()),
+      deezerId: _text(raw['deezer_id']?.toString()),
+      listenReady: raw['listen_ready'] == true,
+      albumJellyfinId: _text(raw['album_jellyfin_id']?.toString()),
     );
   }
 }
@@ -633,3 +659,123 @@ List<({String name, String? deezerId})> _seeds(Object? seeds) => [
       if (_text(seed['name']) case final name?)
         (name: name, deezerId: _text(seed['deezer_id']?.toString())),
 ];
+
+/// Kos TV: «Escuchar mientras llega» (since 1.94.0): where to hear a song
+/// that isn't at home ([url], relative to the service, without the token:
+/// its key is the permission, for [expiresAt]), or, when it has arrived
+/// meanwhile, its song on the home server.
+@immutable
+class StremfinListen {
+  const StremfinListen({
+    required this.deezerId,
+    this.title,
+    this.artist,
+    this.duration,
+    this.inJellyfin = false,
+    this.jellyfinId,
+    this.url,
+    this.type,
+    this.expiresAt,
+    this.ready = false,
+    this.size,
+  });
+
+  final String deezerId;
+  final String? title;
+  final String? artist;
+
+  /// Seconds, Deezer's.
+  final int? duration;
+
+  /// The song is at home now: it plays from there ([jellyfinId]).
+  final bool inJellyfin;
+  final String? jellyfinId;
+
+  /// The sound, relative to the service's origin (`/api/v1/music/listen?k=…`).
+  final String? url;
+
+  /// `audio/mp4` (AAC) mostly, sometimes `audio/webm` (Opus).
+  final String? type;
+  final DateTime? expiresAt;
+
+  /// It was kept already, and the answer came at once.
+  final bool ready;
+
+  /// Bytes.
+  final int? size;
+
+  static StremfinListen? fromJson(Object? raw, {String? deezerId}) {
+    if (raw is! Map) return null;
+    final id = _text(raw['deezer_id']?.toString()) ?? deezerId;
+    if (id == null) return null;
+    return StremfinListen(
+      deezerId: id,
+      title: _text(raw['title']),
+      artist: _text(raw['artist']),
+      duration: _int(raw['duration']),
+      inJellyfin: raw['in_jellyfin'] == true,
+      jellyfinId: _text(raw['jellyfin_id']?.toString()),
+      url: _text(raw['url']),
+      type: _text(raw['type']),
+      expiresAt: _date(raw['expires_at']),
+      ready: raw['ready'] == true,
+      size: _int(raw['size']),
+    );
+  }
+}
+
+/// Kos TV: how a song asked for in advance (`prefetch`, since 1.95.0) is.
+enum StremfinPrefetchState {
+  /// Kept: it will start at once.
+  ready,
+  downloading,
+  queued,
+
+  /// At home now: it plays from there.
+  inJellyfin,
+
+  /// It can't be had (no video is it, or it failed less than a day ago).
+  unavailable,
+
+  /// A state this app doesn't know of.
+  unknown;
+
+  static StremfinPrefetchState parse(Object? raw) => switch (raw) {
+    'ready' => ready,
+    'downloading' => downloading,
+    'queued' => queued,
+    'in_jellyfin' => inJellyfin,
+    'unavailable' => unavailable,
+    _ => unknown,
+  };
+}
+
+/// Kos TV: the service's answer to a song asked for in advance.
+@immutable
+class StremfinPrefetch {
+  const StremfinPrefetch({
+    required this.deezerId,
+    required this.state,
+    this.paused,
+    this.pausedUntil,
+  });
+
+  final String deezerId;
+  final StremfinPrefetchState state;
+
+  /// Why the queue doesn't move now (`youtube`, `hour_cap`, `day_cap`).
+  final String? paused;
+  final DateTime? pausedUntil;
+
+  static StremfinPrefetch? fromJson(Object? raw, {String? deezerId}) {
+    if (raw is! Map) return null;
+    final id = _text(raw['deezer_id']?.toString()) ?? deezerId;
+    if (id == null) return null;
+    return StremfinPrefetch(
+      deezerId: id,
+      state: StremfinPrefetchState.parse(raw['state']),
+      paused: _text(raw['paused']),
+      pausedUntil: _date(raw['paused_until']),
+    );
+  }
+}

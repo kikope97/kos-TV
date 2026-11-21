@@ -34,6 +34,8 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
   @override
   void initState() {
     super.initState();
+    // Kos TV: «Qué música enseñar», kept by the plugin or the device.
+    KostvMusicCatalog.instance.addListener(_dislikesChanged);
     // Kos TV: «Lo que no quieres oír», when the plugin keeps it.
     KostvMusicDislikesStore.instance.addListener(_dislikesChanged);
     unawaited(_read());
@@ -51,6 +53,7 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
 
   @override
   void dispose() {
+    KostvMusicCatalog.instance.removeListener(_dislikesChanged);
     KostvMusicDislikesStore.instance.removeListener(_dislikesChanged);
     super.dispose();
   }
@@ -75,6 +78,39 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
     );
   }
 
+  /// Kos TV: «Qué música enseñar»: all the music or only what is at home.
+  /// Only with the requests service, which is where the rest comes from.
+  Widget? _catalogTile(AppLocalizations l10n) {
+    if (!hasKostvRequests) return null;
+    final catalog = KostvMusicCatalog.instance;
+    final all = catalog.all;
+    return _TvSettingsListTile(
+      leading: const Icon(Icons.library_music_rounded),
+      title: Text(l10n.kostvMusicCatalog),
+      subtitle: Text(
+        all ? l10n.kostvMusicCatalogAll : l10n.kostvMusicCatalogHome,
+      ),
+      onTap: () => unawaited(_pickCatalog(l10n, all)),
+    );
+  }
+
+  Future<void> _pickCatalog(AppLocalizations l10n, bool current) async {
+    final picked = await showSettingsPicker<bool>(
+      context,
+      title: l10n.kostvMusicCatalog,
+      values: const [true, false],
+      current: current,
+      labelOf: (all) =>
+          all ? l10n.kostvMusicCatalogAll : l10n.kostvMusicCatalogHome,
+      subtitleOf: (all) =>
+          all ? l10n.kostvMusicCatalogAllHint : l10n.kostvMusicCatalogHomeHint,
+    );
+    if (!mounted || picked == null || picked == current) return;
+    final done = await KostvMusicCatalog.instance.set(picked, _client);
+    if (!mounted) return;
+    if (!done) _say(l10n.kostvMusicCantChange);
+  }
+
   /// Who the section is for: an answer that lands after a switch of person
   /// (the same client, another session) isn't theirs.
   ({String? user, String? token}) _whoOf(MediaServerClient client) =>
@@ -87,6 +123,15 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
     if (_unanswered) setState(() => _busy = true);
     final answer = await KostvMusicPlugin.instance.settings(client);
     if (!mounted || _whoOf(client) != who) return;
+    // Kos TV: what it says of «Qué música enseñar» too.
+    if (answer.missing) {
+      KostvMusicCatalog.instance.take(
+        const KostvMusicLearnState(learn: false),
+        client,
+      );
+    } else {
+      KostvMusicCatalog.instance.take(answer.value, client);
+    }
     setState(() {
       _busy = false;
       if (answer.failed) {
@@ -194,14 +239,17 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
     final state = _state;
     final l10n = AppLocalizations.of(context);
     final dislikes = _dislikesTile(l10n);
+    final catalog = _catalogTile(l10n);
     if (state == null) {
       if (!_unanswered) {
-        if (dislikes == null) return const SizedBox.shrink();
+        if (dislikes == null && catalog == null) {
+          return const SizedBox.shrink();
+        }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _SectionHeader(l10n.kostvMusic),
-            adaptiveListSection(children: [dislikes]),
+            adaptiveListSection(children: [?catalog, ?dislikes]),
           ],
         );
       }
@@ -212,6 +260,7 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
           _SectionHeader(l10n.kostvMusic),
           adaptiveListSection(
             children: [
+              ?catalog,
               _TvSettingsListTile(
                 leading: const Icon(Icons.auto_awesome_rounded),
                 title: Text(l10n.kostvMusicLearn),
@@ -242,6 +291,7 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
         _SectionHeader(l10n.kostvMusic),
         adaptiveListSection(
           children: [
+            ?catalog,
             // Kos TV: the preview under the settings says what this is, as
             // it does for the other settings.
             SettingsPreviewReporter(

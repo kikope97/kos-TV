@@ -11,6 +11,7 @@ import 'package:rxdart/rxdart.dart';
 import '../data/models/aggregated_item.dart';
 import '../data/services/audiobook_resume_service.dart';
 import '../data/services/media_server_client_factory.dart';
+import '../data/services/stremfin/kostv_stream_song.dart';
 import '../l10n/current_app_localizations.dart';
 import '../util/audio_artwork_url.dart';
 import '../platform/pip_service.dart';
@@ -169,6 +170,11 @@ class MoonfinAudioHandler extends BaseAudioHandler
       artist: mediaItem.artist,
       artUri: mediaItem.artUri?.toString(),
       isAudiobook: current.isAudiobook,
+      // Kos TV: the songs that aren't at home go with what they were.
+      streamItems: {
+        for (final item in items)
+          if (isKostvStream(item)) item.id: item.rawData,
+      },
     )));
 
     if (current.isAudiobook && positionMs > 0) {

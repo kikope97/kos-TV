@@ -7,6 +7,7 @@ import 'package:server_core/server_core.dart';
 import '../data/models/aggregated_item.dart';
 import '../data/services/audiobook_resume_service.dart';
 import '../data/services/media_server_client_factory.dart';
+import '../data/services/stremfin/kostv_stream_song.dart';
 import '../l10n/app_localizations.dart';
 import '../l10n/current_app_localizations.dart';
 import 'car_artwork.dart';
@@ -724,6 +725,11 @@ class MediaBrowseService {
         final ctxKind = parts.elementAtOrNull(3);
         final ctxId = parts.elementAtOrNull(4);
         if (itemId == null) return null;
+        // Kos TV: a song that isn't at home is only in the last queue.
+        if (isKostvStreamId(itemId)) {
+          final last = await _lastSessionStore.load();
+          return last == null ? null : resolveLastSession(last);
+        }
         if (ctxKind == 'album' && ctxId != null && ctxId != '-') {
           return _siblingsRequest(
             client,
@@ -953,8 +959,18 @@ class MediaBrowseService {
     final ids = session.itemIds
         .sublist(start, (start + window).clamp(0, session.itemIds.length));
 
+    // Kos TV: a song that isn't at home comes back as it was kept (the home
+    // server doesn't have it); its sound is asked for again as it plays.
     final loaded = await Future.wait(
-      ids.map((id) => _getItem(clientForServer, session.serverId, id)),
+      ids.map((id) async {
+        if (isKostvStreamId(id)) {
+          final raw = session.streamItems[id];
+          return raw == null
+              ? null
+              : AggregatedItem(id: id, serverId: session.serverId, rawData: raw);
+        }
+        return _getItem(clientForServer, session.serverId, id);
+      }),
     );
     final items = loaded.whereType<AggregatedItem>().toList();
     if (items.isEmpty) return null;

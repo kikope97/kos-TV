@@ -21536,4 +21536,51 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMusicUndislikeShort => 'Quitar “No me gusta”';
+
+  @override
+  String get kostvStreamPreparing => 'Preparando la canción…';
+
+  @override
+  String get kostvStreamPreparingHint =>
+      'No está en casa: la estamos preparando para que la escuches. Tarda unos segundos';
+
+  @override
+  String get kostvStreamPreparingSlow => 'Está tardando más de lo normal';
+
+  @override
+  String get kostvStreamCantListen => 'Esta canción no se puede escuchar';
+
+  @override
+  String get kostvStreamUnavailableNow =>
+      'Ahora no se puede escuchar. Prueba más tarde';
+
+  @override
+  String get kostvStreamNotAtHome => 'No está en casa · en streaming';
+
+  @override
+  String get kostvStreamAskAlbum => 'Pedir álbum';
+
+  @override
+  String get kostvStreamOutOfHome => 'No está en casa';
+
+  @override
+  String get kostvStreamAlbumNote =>
+      'Este disco no está en casa · se escucha en streaming';
+
+  @override
+  String get kostvMusicCatalog => 'Qué música enseñar';
+
+  @override
+  String get kostvMusicCatalogAll => 'Toda la música';
+
+  @override
+  String get kostvMusicCatalogHome => 'Solo la de casa';
+
+  @override
+  String get kostvMusicCatalogAllHint =>
+      'También la que no está en casa: se escucha en streaming mientras llega';
+
+  @override
+  String get kostvMusicCatalogHomeHint =>
+      'Solo la que ya está en el servidor de casa, como siempre';
 }

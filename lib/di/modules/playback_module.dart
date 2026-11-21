@@ -21,6 +21,10 @@ import '../../data/services/remove_watched_planner.dart';
 import '../../data/services/remove_watched_service.dart';
 import '../../playback/local_aware_player_service.dart';
 import '../../playback/local_first_media_stream_resolver.dart';
+import '../../playback/kostv_stream_playback.dart';
+import '../../playback/stremfin_stream_resolver.dart';
+import '../../data/services/kostv_music.dart';
+import '../../data/services/stremfin/stremfin_service.dart';
 
 import '../../playback/hdr_stream_capability.dart';
 import '../../playback/headless_session_bootstrap.dart';
@@ -794,7 +798,7 @@ void setActiveStreamResolver(MediaServerClient client) {
   // Local-first: completed downloads play from disk instead of streaming,
   // with progress mirrored to the downloads DB (and to the server when
   // reachable).
-  final resolver = LocalFirstMediaStreamResolver(
+  final localFirst = LocalFirstMediaStreamResolver(
     inner: serverResolver,
     offline: _getIt<OfflineStreamResolver>(),
     streamFromServer: () => _getIt<PlaybackManager>().streamsFromServer,
@@ -803,6 +807,22 @@ void setActiveStreamResolver(MediaServerClient client) {
         await _getIt<DownloadService>().restoreMissingSubtitles(itemId);
       }
     },
+  );
+  // Kos TV: in front, the songs that aren't at home, heard through the
+  // requests service («Toda la música»).
+  final resolver = StremfinStreamResolver(
+    inner: localFirst,
+    listen: (deezerId) {
+      if (!_getIt.isRegistered<StremfinService>()) {
+        throw const KostvStreamException(KostvStreamFailure.unavailable);
+      }
+      return _getIt<StremfinService>().musicListen(deezerId);
+    },
+    address: (url) => _getIt.isRegistered<StremfinService>()
+        ? _getIt<StremfinService>().musicListenAddress(url)
+        : null,
+    homeItem: (jellyfinId) => KostvMusicService(client).item(jellyfinId),
+    probe: kostvStreamProbe,
   );
   final service = LocalAwarePlayerService(
     serverService,
@@ -814,6 +834,10 @@ void setActiveStreamResolver(MediaServerClient client) {
     // read at each report.
     userId: () => client.userId,
     onStopped: _onItemStopped,
+    // Kos TV: an out-of-home song goes to the server plugin, not to the
+    // home server.
+    onStreamStopped: KostvStreamPlayback.instance.stopped,
+    homeOf: StremfinStreamResolver.homeOf,
   );
 
   _getIt.registerSingleton<MediaStreamResolver>(resolver);

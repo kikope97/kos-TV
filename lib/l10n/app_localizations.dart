@@ -36386,6 +36386,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Remove “Dislike”'**
   String get kostvMusicUndislikeShort;
+
+  /// Kos TV «Toda la música»: Reproduciendo and the floating player while a song that isn't at home is being got ready by the requests service
+  ///
+  /// In en, this message translates to:
+  /// **'Getting the song ready…'**
+  String get kostvStreamPreparing;
+
+  /// Kos TV «Toda la música»: under «Preparando la canción…» in Reproduciendo
+  ///
+  /// In en, this message translates to:
+  /// **'It isn\'t at home: we\'re getting it ready for you to listen to. It takes a few seconds'**
+  String get kostvStreamPreparingHint;
+
+  /// Kos TV «Toda la música»: in place of the hint after 20 seconds of getting the song ready
+  ///
+  /// In en, this message translates to:
+  /// **'It\'s taking longer than usual'**
+  String get kostvStreamPreparingSlow;
+
+  /// Kos TV «Toda la música»: notice when a song that isn't at home can't be had (the player goes on to the next one); the song's name goes under it
+  ///
+  /// In en, this message translates to:
+  /// **'This song can\'t be played'**
+  String get kostvStreamCantListen;
+
+  /// Kos TV «Toda la música»: notice when the requests service or its sources don't answer; the song's name goes under it
+  ///
+  /// In en, this message translates to:
+  /// **'It can\'t be played right now. Try again later'**
+  String get kostvStreamUnavailableNow;
+
+  /// Kos TV «Toda la música»: the pill in Reproduciendo for a song heard through the requests service
+  ///
+  /// In en, this message translates to:
+  /// **'Not at home · streaming'**
+  String get kostvStreamNotAtHome;
+
+  /// Kos TV «Toda la música»: the button next to the pill in Reproduciendo: asks for the song's album to be brought home
+  ///
+  /// In en, this message translates to:
+  /// **'Request album'**
+  String get kostvStreamAskAlbum;
+
+  /// Kos TV «Toda la música»: tooltip of the small icon on the queue's songs that aren't at home
+  ///
+  /// In en, this message translates to:
+  /// **'Not at home'**
+  String get kostvStreamOutOfHome;
+
+  /// Kos TV «Toda la música»: on the page of an album that isn't at home, when it can be listened to
+  ///
+  /// In en, this message translates to:
+  /// **'This record isn\'t at home · it plays by streaming'**
+  String get kostvStreamAlbumNote;
+
+  /// Kos TV «Toda la música»: setting in Settings > Playback > Music
+  ///
+  /// In en, this message translates to:
+  /// **'Which music to show'**
+  String get kostvMusicCatalog;
+
+  /// Kos TV «Toda la música»: option of «Qué música enseñar»
+  ///
+  /// In en, this message translates to:
+  /// **'All the music'**
+  String get kostvMusicCatalogAll;
+
+  /// Kos TV «Toda la música»: option of «Qué música enseñar»
+  ///
+  /// In en, this message translates to:
+  /// **'Only what\'s at home'**
+  String get kostvMusicCatalogHome;
+
+  /// Kos TV «Toda la música»: under the option «Toda la música»
+  ///
+  /// In en, this message translates to:
+  /// **'Also what isn\'t at home: it plays by streaming until it arrives'**
+  String get kostvMusicCatalogAllHint;
+
+  /// Kos TV «Toda la música»: under the option «Solo la de casa»
+  ///
+  /// In en, this message translates to:
+  /// **'Only what\'s already on the home server, as before'**
+  String get kostvMusicCatalogHomeHint;
 }
 
 class _AppLocalizationsDelegate
