@@ -381,19 +381,35 @@ public sealed class KostvUpdates
                 var buffer = new byte[81920];
                 long written = 0;
                 int read;
-                while ((read = await body.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
+                try
                 {
-                    written += read;
-                    if (written > MaxChunkBytes || upload.Received + written > upload.Size)
+                    while ((read = await body.ReadAsync(buffer, cancellationToken).ConfigureAwait(false)) > 0)
                     {
-                        file.SetLength(upload.Received);
-                        throw new KostvUpdateException(413, "Ese trozo es más grande de lo que falta por subir.", upload.Received);
+                        written += read;
+                        if (written > MaxChunkBytes || upload.Received + written > upload.Size)
+                        {
+                            file.SetLength(upload.Received);
+                            throw new KostvUpdateException(413, "Ese trozo es más grande de lo que falta por subir.", upload.Received);
+                        }
+
+                        await file.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
                     }
 
-                    await file.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                    await file.FlushAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (IOException ex)
+                {
+                    // kOS TV: a chunk cut off on the way (the page closed, the proxy gave up) or
+                    // a disk with no room left: none of it counts, and the page is told where
+                    // it stands, in Spanish, instead of a bare 500.
+                    _logger?.LogWarning(ex, "kOS TV updates: chunk of upload {Id} at {Offset} not kept", id, offset);
+                    TryTruncate(file, upload.Received);
+                    throw new KostvUpdateException(
+                        507,
+                        "No se ha podido guardar ese trozo en el servidor. Si se repite, mira si queda espacio en su disco.",
+                        upload.Received);
                 }
 
-                await file.FlushAsync(cancellationToken).ConfigureAwait(false);
                 upload.Received += written;
             }
 
@@ -493,6 +509,13 @@ public sealed class KostvUpdates
             check.Errors.Add($"Este APK está firmado con otra clave (huella {Pretty(apk.SignerSha256)}). Las apps instaladas solo aceptan la de kOS TV ({Pretty(index.SignerSha256)}), así que no se puede publicar.");
         }
 
+        // kOS TV: a test build (1.21.0-prueba.3, code 102100003) is a code above its
+        // release's, so once published the release itself (102100000) couldn't follow it.
+        if (apk.VersionCode % 100 != 0 || apk.VersionName.Contains("prueba", StringComparison.OrdinalIgnoreCase))
+        {
+            check.Warnings.Add($"Es una versión de prueba ({apk.VersionName}, código {apk.VersionCode}). Si la publicas, la versión normal en la que se basa ya no se podrá publicar encima: tendrá que ser la siguiente.");
+        }
+
         var newest = index.Versions.FirstOrDefault();
         if (index.Versions.Any(v => v.VersionCode == apk.VersionCode))
         {
@@ -555,6 +578,18 @@ public sealed class KostvUpdates
             {
                 TryDelete(part);
             }
+        }
+    }
+
+    private static void TryTruncate(FileStream file, long length)
+    {
+        try
+        {
+            file.SetLength(length);
+        }
+        catch (IOException)
+        {
+            // The next chunk truncates it again before writing.
         }
     }
 

@@ -97,6 +97,12 @@ void main() {
     late List<MethodCall> calls;
     var redirect = false;
 
+    /// Kos TV: the first answer is cut off after this many bytes (null: never),
+    /// and whether a Range is answered with a 206 (false: the whole file).
+    int? cutAt;
+    var honoursRange = true;
+    late List<String?> ranges;
+
     setUpAll(() {
       // flutter_test answers every HttpClient request with a 400; these
       // tests talk to a real local server.
@@ -107,11 +113,44 @@ void main() {
       seen = [];
       calls = [];
       redirect = false;
+      cutAt = null;
+      honoursRange = true;
+      ranges = [];
+      updateResumeDelay = Duration.zero;
       signatureAnswer = true;
       dir = await Directory.systemTemp.createTemp('kostv_update_test');
       server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) async {
         seen.add(request.headers);
+        final range = request.headers.value(HttpHeaders.rangeHeader);
+        ranges.add(range);
+        final cut = cutAt;
+        if (cut != null && ranges.length == 1) {
+          // The connection drops halfway through the first answer.
+          request.response
+            ..contentLength = apk.length
+            ..headers.set(HttpHeaders.etagHeader, '"$apkSha"');
+          final socket = await request.response.detachSocket();
+          socket.add(apk.sublist(0, cut));
+          await socket.flush();
+          socket.destroy();
+          return;
+        }
+        if (range != null && honoursRange) {
+          final from = int.parse(
+            range.substring('bytes='.length).split('-')[0],
+          );
+          request.response
+            ..statusCode = HttpStatus.partialContent
+            ..headers.set(
+              HttpHeaders.contentRangeHeader,
+              'bytes $from-${apk.length - 1}/${apk.length}',
+            )
+            ..contentLength = apk.length - from
+            ..add(apk.sublist(from));
+          await request.response.close();
+          return;
+        }
         if (redirect) {
           request.response
             ..statusCode = HttpStatus.found
@@ -200,5 +239,44 @@ void main() {
       expect(seen, hasLength(1));
       expect(updateFailureMessage(l10n, error!), l10n.updateDownloadFailed);
     });
+
+    test('cut off halfway, it goes on from there with a Range, and the whole '
+        'file is checked', () async {
+      cutAt = 1500;
+      final file = File('${dir.path}/kostv-update.apk');
+      final error = await run(update(), file);
+      expect(error, isNull);
+      expect(ranges, [null, 'bytes=1500-']);
+      // The token goes with the second request too.
+      expect(seen.last.value('authorization'), 'MediaBrowser Token="t"');
+      expect(seen.last.value(HttpHeaders.ifRangeHeader), '"$apkSha"');
+      expect(await file.readAsBytes(), apk);
+    });
+
+    test('a server that sends the whole file again is not mixed in: it '
+        'fails', () async {
+      cutAt = 1500;
+      honoursRange = false;
+      final file = File('${dir.path}/kostv-update.apk');
+      final error = await run(update(), file);
+      expect(error, isNotNull);
+      expect(ranges, hasLength(2));
+      expect(updateFailureMessage(l10n, error!), l10n.updateDownloadFailed);
+      expect(calls.where((c) => c.method == 'apkSignatureMatches'), isEmpty);
+    });
+  });
+
+  test('a 206 goes on from the bytes already there', () {
+    expect(
+      rangeResumes('bytes 1500-4095/4096', from: 1500, total: 4096),
+      isTrue,
+    );
+    expect(rangeResumes('bytes 1500-4095/*', from: 1500, total: 4096), isTrue);
+    expect(rangeResumes('bytes 0-4095/4096', from: 1500, total: 4096), isFalse);
+    expect(
+      rangeResumes('bytes 1500-4095/9999', from: 1500, total: 4096),
+      isFalse,
+    );
+    expect(rangeResumes(null, from: 1500), isFalse);
   });
 }
