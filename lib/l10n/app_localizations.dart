@@ -36824,6 +36824,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When the queue ends, similar songs from home and from outside keep playing'**
   String get kostvPlayerAutoplayHintAll;
+
+  /// Kos TV update dialog: heading over the release notes the server plugin gives for the new version
+  ///
+  /// In en, this message translates to:
+  /// **'What\'s new'**
+  String get updateWhatsNew;
+
+  /// Kos TV in-app update: the downloaded APK is not signed with the same certificate as the installed app, so it is refused before the installer opens
+  ///
+  /// In en, this message translates to:
+  /// **'The downloaded update isn\'t signed as kOS TV, so it hasn\'t been installed. Let whoever runs the server know.'**
+  String get updateSignatureMismatch;
 }
 
 class _AppLocalizationsDelegate

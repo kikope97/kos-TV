@@ -6,8 +6,9 @@ import 'package:moonfin/ui/widgets/app_update_banner.dart';
 void main() {
   final update = DesktopUpdateInfo(
     version: '2.3.3',
-    downloadUri: Uri.parse('https://example.invalid/KosTV_AndroidTV.apk'),
-    releaseNotesUrl: 'https://example.invalid/notes',
+    downloadUri: Uri.parse(
+      'https://example.invalid/Moonfin/Kostv/Update/Download/a/tv.apk',
+    ),
   );
 
   const none = DesktopUpdateCheckResult(

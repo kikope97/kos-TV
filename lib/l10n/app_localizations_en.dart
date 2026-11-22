@@ -21458,4 +21458,11 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvPlayerAutoplayHintAll =>
       'When the queue ends, similar songs from home and from outside keep playing';
+
+  @override
+  String get updateWhatsNew => 'What\'s new';
+
+  @override
+  String get updateSignatureMismatch =>
+      'The downloaded update isn\'t signed as kOS TV, so it hasn\'t been installed. Let whoever runs the server know.';
 }

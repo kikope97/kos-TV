@@ -1,12 +1,15 @@
 import 'dart:convert';
-import 'dart:io';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../preference/user_preferences.dart';
 import '../../util/app_distribution.dart';
+import 'moonbase_endpoint.dart';
 
 enum DesktopUpdateCheckStatus {
   updateAvailable,
@@ -19,20 +22,17 @@ enum DesktopUpdateCheckStatus {
   alreadyNotified,
 }
 
-/// Kos TV: what GitHub's latest-release endpoint answered.
-enum LatestReleaseAnswer {
-  /// A published release came back.
-  release,
+/// Kos TV: what the server plugin's update route answered.
+enum PluginUpdateAnswer {
+  /// It answered with what it has (an update, or `Available: false`).
+  answered,
 
-  /// The repository has no published release yet. GitHub answers 404, and
-  /// pre-releases (the test builds) don't count: there is nothing to update to.
-  noRelease,
+  /// It answered, but has nothing to say: a plugin without the route (404)
+  /// or one that turned the request down (400). Nothing to update to, and
+  /// asking again soon would get the same.
+  noRoute,
 
-  /// GitHub answered, but turned the request down for its rate limit (403 or
-  /// 429). It did answer: asking again soon would only be turned down again.
-  rateLimited,
-
-  /// No usable answer: no network, a GitHub error.
+  /// No usable answer: no network, no session, a server error.
   failed,
 }
 
@@ -49,49 +49,76 @@ class DesktopUpdateCheckResult {
 class DesktopUpdateInfo {
   final String version;
 
-  /// Direct download link for the matching release asset, or the releases page
-  /// when there is no single asset to pick (e.g. Linux).
-  final Uri downloadUri;
-  final String releaseNotesUrl;
+  /// Kos TV: the Android version code of the update, as the plugin gives it.
+  final int? versionCode;
 
-  /// Kos TV: what GitHub says the download weighs and its SHA-256 (in hex),
-  /// when it says, so a download that doesn't match isn't installed.
+  /// Kos TV: where the APK is downloaded from, on the home server.
+  final Uri downloadUri;
+
+  /// Kos TV: the headers the download goes with (the Jellyfin session's
+  /// token): the plugin only serves the APK to a signed-in device.
+  final Map<String, String> downloadHeaders;
+
+  /// Kos TV: what is new in it, as written when it was published, if anything.
+  final String? notes;
+
+  /// Kos TV: what the plugin says the download weighs and its SHA-256 (in
+  /// hex), so a download that doesn't match isn't installed.
   final int? size;
   final String? sha256;
 
   const DesktopUpdateInfo({
     required this.version,
     required this.downloadUri,
-    required this.releaseNotesUrl,
+    this.versionCode,
+    this.downloadHeaders = const {},
+    this.notes,
     this.size,
     this.sha256,
   });
 }
 
 class AppUpdateService {
-  AppUpdateService(this._store, this._userPreferences);
+  /// Kos TV: [endpoint], [dio], [channel], [installedVersionCode] and
+  /// [storeInstalled] are for tests; they default to the signed-in server's
+  /// plugin, the build's channel and the installed package.
+  AppUpdateService(
+    this._store,
+    this._userPreferences, {
+    Future<MoonbaseEndpoint?> Function()? endpoint,
+    Dio? dio,
+    DistributionChannel? channel,
+    Future<int?> Function()? installedVersionCode,
+    Future<bool> Function()? storeInstalled,
+  }) : _dio =
+           dio ??
+           moonbaseDio(
+             BaseOptions(
+               connectTimeout: const Duration(seconds: 10),
+               receiveTimeout: const Duration(seconds: 10),
+             ),
+           ),
+       _endpointOverride = endpoint,
+       _channel = channel ?? AppDistribution.channel,
+       _installedVersionCode = installedVersionCode ?? _packageVersionCode,
+       _storeInstalledOverride = storeInstalled;
 
-  /// Kos TV: GitHub repository whose latest release is checked for updates, as
-  /// `owner/name` (Moonfin pointed at Moonfin-Client/Moonfin-Core). Empty
-  /// disables update checks entirely. A release offers the APK whose name has
-  /// "AndroidTV" to the TV build and the other APK to phones (see
-  /// [_selectAsset]); build.yml's release job uploads both.
-  static const String _releaseRepo = 'kikope97/kos-TV';
+  /// Kos TV: the server plugin's route that says whether there is a newer
+  /// APK for this kind of device (see docs/actualizaciones-servidor.md,
+  /// «Contrato app ↔ complemento»). The app asks nobody else: GitHub is not
+  /// asked any more.
+  static const updatePath = '/Moonfin/Kostv/Update';
 
-  static const _latestReleaseHost = 'api.github.com';
-  static const _latestReleasePath = '/repos/$_releaseRepo/releases/latest';
-
-  /// How often the automatic check may ask GitHub. Short enough that a new
-  /// release reaches the TVs the same day, and well inside GitHub's 60
-  /// unauthenticated requests an hour for a household on one address.
+  /// How often the automatic check may ask the plugin. Short enough that a new
+  /// version reaches the TVs the same day.
   static const _checkCooldown = Duration(hours: 6);
 
   /// Kos TV: after a check that got no answer (no network yet as the TV wakes
-  /// up, a GitHub error), the next one may go this soon, instead of waiting
-  /// the whole [_checkCooldown]. Long enough never to hammer GitHub.
+  /// up, a server error), the next one may go this soon, instead of waiting
+  /// the whole [_checkCooldown].
   static const _retryAfterFailure = Duration(minutes: 5);
 
-  /// When GitHub last answered a check.
+  /// When the plugin last answered a check.
   static const _lastCheckMsKey = 'app_update_last_check_ms';
 
   /// Kos TV: when a check last got no answer.
@@ -103,7 +130,7 @@ class AppUpdateService {
   /// Installers that deliver their own updates. The distribution channel only
   /// records which artifact a build came from, and stores that redistribute the
   /// sideload APK unchanged (the Amazon Appstore does) would otherwise offer a
-  /// GitHub download they can never install.
+  /// download they can never install.
   static const _storeInstallerPackages = <String>{
     'com.android.vending',
     'com.amazon.venezia',
@@ -121,6 +148,11 @@ class AppUpdateService {
 
   final PreferenceStore _store;
   final UserPreferences _userPreferences;
+  final Dio _dio;
+  final Future<MoonbaseEndpoint?> Function()? _endpointOverride;
+  final DistributionChannel _channel;
+  final Future<int?> Function() _installedVersionCode;
+  final Future<bool> Function()? _storeInstalledOverride;
 
   Future<DesktopUpdateInfo?> checkForUpdateIfDue() async {
     final result = await checkForUpdateIfDueDetailed();
@@ -159,7 +191,10 @@ class AppUpdateService {
     required bool respectNotificationPreference,
     required bool suppressIfAlreadyNotified,
   }) async {
-    if (_releaseRepo.isEmpty || !AppDistribution.supportsInAppUpdates) {
+    // Kos TV: only the Android sideload builds update themselves, through
+    // the plugin; the web and iOS have no updater.
+    final kind = updateKindFor(_channel);
+    if (kind == null) {
       return const DesktopUpdateCheckResult(
         status: DesktopUpdateCheckStatus.unsupportedPlatform,
       );
@@ -192,11 +227,12 @@ class AppUpdateService {
       );
     }
 
-    final fetched = await _fetchLatestRelease();
-    // Kos TV: the long wait starts once GitHub has answered. A check that got
-    // no answer (the wifi still coming back as the TV wakes up) only holds the
-    // next one back a few minutes.
-    if (fetched.answer == LatestReleaseAnswer.failed) {
+    final installedCode = await _installedVersionCode() ?? 0;
+    final fetched = await _fetchUpdate(kind, installedCode);
+    // Kos TV: the long wait starts once the plugin has answered. A check that
+    // got no answer (the wifi still coming back as the TV wakes up) only
+    // holds the next one back a few minutes.
+    if (fetched.answer == PluginUpdateAnswer.failed) {
       await _store.setInt(_lastFailedCheckMsKey, now.millisecondsSinceEpoch);
       return const DesktopUpdateCheckResult(
         status: DesktopUpdateCheckStatus.checkFailed,
@@ -204,32 +240,9 @@ class AppUpdateService {
     }
     await _store.setInt(_lastCheckMsKey, now.millisecondsSinceEpoch);
     await _store.remove(_lastFailedCheckMsKey);
-    if (fetched.answer == LatestReleaseAnswer.rateLimited) {
-      return const DesktopUpdateCheckResult(
-        status: DesktopUpdateCheckStatus.checkFailed,
-      );
-    }
-    final release = fetched.release;
-    if (release == null) {
-      // Kos TV: nothing published yet, so this build is the newest there is.
-      return const DesktopUpdateCheckResult(
-        status: DesktopUpdateCheckStatus.upToDate,
-      );
-    }
-
-    final currentVersion = await _currentAppVersion();
-    if (!_isNewerVersion(release.version, currentVersion)) {
-      return const DesktopUpdateCheckResult(
-        status: DesktopUpdateCheckStatus.upToDate,
-      );
-    }
-
-    final asset = _selectAsset(release.assets);
-    // Kos TV: an Android build only offers a release that carries its own APK.
-    // A release whose files are still uploading (or that has none for this
-    // build) is not an update yet, and isn't recorded as notified, so the
-    // next check offers it once the APK is there.
-    if (asset == null && _isAndroidApkChannel) {
+    final update = fetched.update;
+    if (update == null) {
+      // Kos TV: nothing newer published (or a plugin without the route).
       return const DesktopUpdateCheckResult(
         status: DesktopUpdateCheckStatus.upToDate,
       );
@@ -246,13 +259,13 @@ class AppUpdateService {
         DateTime.now().difference(lastAt) < _offerAgainAfter;
     if (suppressIfAlreadyNotified &&
         offeredLately &&
-        _normalizeVersion(lastNotified) == _normalizeVersion(release.version)) {
+        lastNotified?.trim() == update.version) {
       return const DesktopUpdateCheckResult(
         status: DesktopUpdateCheckStatus.alreadyNotified,
       );
     }
 
-    await _store.setString(_lastNotifiedVersionKey, release.version);
+    await _store.setString(_lastNotifiedVersionKey, update.version);
     await _store.setString(
       _lastNotifiedAtKey,
       DateTime.now().toIso8601String(),
@@ -260,19 +273,11 @@ class AppUpdateService {
 
     return DesktopUpdateCheckResult(
       status: DesktopUpdateCheckStatus.updateAvailable,
-      update: DesktopUpdateInfo(
-        version: release.version,
-        downloadUri: asset != null
-            ? Uri.parse(asset.downloadUrl)
-            : Uri.parse(release.releaseNotesUrl),
-        releaseNotesUrl: release.releaseNotesUrl,
-        size: asset?.size,
-        sha256: asset?.sha256,
-      ),
+      update: update,
     );
   }
 
-  /// Kos TV: whether the automatic check may ask GitHub at [now]: once
+  /// Kos TV: whether the automatic check may ask the plugin at [now]: once
   /// [_checkCooldown] has gone by since it last answered, and
   /// [_retryAfterFailure] since a check last got no answer.
   @visibleForTesting
@@ -293,19 +298,23 @@ class AppUpdateService {
         !within(lastFailedMs, _retryAfterFailure);
   }
 
-  static bool get _isAndroidApkChannel =>
-      AppDistribution.channel == DistributionChannel.apk ||
-      AppDistribution.channel == DistributionChannel.androidTvApk;
+  /// Kos TV: which APK the plugin is asked for: the TV build's (`tv`) or the
+  /// phone build's (`phone`). They share one application id, so each only
+  /// ever takes its own: installing the other would replace it. Null for
+  /// every build that doesn't update itself.
+  @visibleForTesting
+  static String? updateKindFor(DistributionChannel channel) =>
+      switch (channel) {
+        DistributionChannel.androidTvApk => 'tv',
+        DistributionChannel.apk => 'phone',
+        _ => null,
+      };
 
   /// Whether a store installed this copy. Only the Android APK channels can end
   /// up store-installed while still carrying the in-app updater.
   Future<bool> _isStoreInstalled() async {
-    final channel = AppDistribution.channel;
-    if (channel != DistributionChannel.apk &&
-        channel != DistributionChannel.androidTvApk) {
-      return false;
-    }
-
+    final override = _storeInstalledOverride;
+    if (override != null) return override();
     try {
       final packageInfo = await PackageInfo.fromPlatform();
       return isStoreInstaller(packageInfo.installerStore);
@@ -314,220 +323,158 @@ class AppUpdateService {
     }
   }
 
-  Future<String> _currentAppVersion() async {
+  /// Kos TV: the installed Android version code (`versionCode`), which the
+  /// plugin compares against.
+  static Future<int?> _packageVersionCode() async {
     try {
       final packageInfo = await PackageInfo.fromPlatform();
-      final version = packageInfo.version.trim();
-      if (version.isNotEmpty) {
-        return version;
-      }
-    } catch (_) {}
-    return '0.0.0';
+      return int.tryParse(packageInfo.buildNumber.trim());
+    } catch (_) {
+      return null;
+    }
   }
 
-  /// Kos TV: what a status code from the latest-release endpoint means.
+  /// Kos TV: what a status code from the plugin's update route means.
   @visibleForTesting
-  static LatestReleaseAnswer latestReleaseAnswerFor(int statusCode) =>
-      switch (statusCode) {
-        >= 200 && < 300 => LatestReleaseAnswer.release,
-        404 => LatestReleaseAnswer.noRelease,
-        403 || 429 => LatestReleaseAnswer.rateLimited,
-        _ => LatestReleaseAnswer.failed,
-      };
+  static PluginUpdateAnswer answerFor(int statusCode) => switch (statusCode) {
+    >= 200 && < 300 => PluginUpdateAnswer.answered,
+    // An older plugin has no such route; 400 is a kind it doesn't take.
+    404 || 400 => PluginUpdateAnswer.noRoute,
+    _ => PluginUpdateAnswer.failed,
+  };
 
-  static const _fetchFailed = (
-    answer: LatestReleaseAnswer.failed,
-    release: null,
-  );
+  Future<MoonbaseEndpoint?> _endpoint() {
+    final override = _endpointOverride;
+    if (override != null) return override();
+    final getIt = GetIt.instance;
+    if (!getIt.isRegistered<MediaServerClient>()) return Future.value();
+    return moonbaseEndpoint(getIt<MediaServerClient>(), _dio);
+  }
 
-  Future<({LatestReleaseAnswer answer, _LatestRelease? release})>
-  _fetchLatestRelease() async {
-    final client = HttpClient()
-      ..userAgent = 'KosTVUpdateChecker/1.0'
-      ..connectionTimeout = const Duration(seconds: 10);
+  static const _fetchFailed = (answer: PluginUpdateAnswer.failed, update: null);
 
+  Future<({PluginUpdateAnswer answer, DesktopUpdateInfo? update})>
+  _fetchUpdate(String kind, int installedCode) async {
     try {
-      final request = await client.getUrl(Uri.https(_latestReleaseHost, _latestReleasePath));
-      request.headers.set(HttpHeaders.acceptHeader, 'application/vnd.github+json');
-
-      final response = await request.close().timeout(const Duration(seconds: 10));
-      final answer = latestReleaseAnswerFor(response.statusCode);
-      if (answer != LatestReleaseAnswer.release) {
-        await response.drain<void>();
-        return (answer: answer, release: null);
-      }
-
-      final body = await response.transform(utf8.decoder).join();
-      final decoded = jsonDecode(body);
-      if (decoded is! Map<String, dynamic>) {
-        return _fetchFailed;
-      }
-
-      final tagName = decoded['tag_name']?.toString();
-      if (tagName == null || tagName.trim().isEmpty) {
-        return _fetchFailed;
-      }
-
-      final htmlUrl = decoded['html_url']?.toString() ??
-          'https://github.com/$_releaseRepo/releases/latest';
-
-      final assetsJson = decoded['assets'];
-      final assets = <_ReleaseAsset>[];
-      if (assetsJson is List) {
-        for (final asset in assetsJson) {
-          if (asset is! Map) {
-            continue;
-          }
-          final name = asset['name']?.toString();
-          final downloadUrl = asset['browser_download_url']?.toString();
-          if (name == null || name.isEmpty || downloadUrl == null || downloadUrl.isEmpty) {
-            continue;
-          }
-          final size = asset['size'];
-          assets.add(
-            _ReleaseAsset(
-              name: name,
-              downloadUrl: downloadUrl,
-              size: size is int && size > 0 ? size : null,
-              sha256: sha256FromDigest(asset['digest']?.toString()),
-            ),
-          );
-        }
-      }
-
-      return (
-        answer: LatestReleaseAnswer.release,
-        release: _LatestRelease(
-          version: tagName,
-          assets: assets,
-          releaseNotesUrl: htmlUrl,
+      // Kos TV: asked with the session of whoever is signed in to the home
+      // server; signed out there is no one to ask yet.
+      final ep = await _endpoint();
+      if (ep == null) return _fetchFailed;
+      final response = await _dio.get<dynamic>(
+        '${_trimSlash(ep.base)}$updatePath',
+        queryParameters: {'kind': kind, 'versionCode': '$installedCode'},
+        options: Options(
+          headers: ep.headers,
+          validateStatus: (_) => true,
+          responseType: ResponseType.json,
         ),
       );
-    } catch (_) {
+      final answer = answerFor(response.statusCode ?? 0);
+      if (answer != PluginUpdateAnswer.answered) {
+        return (answer: answer, update: null);
+      }
+      return (
+        answer: PluginUpdateAnswer.answered,
+        update: parseUpdate(
+          response.data,
+          serverBase: ep.base,
+          headers: ep.headers,
+          installedVersionCode: installedCode,
+        ),
+      );
+    } catch (e) {
+      debugPrint('[AppUpdateService] update check failed: $e');
       return _fetchFailed;
-    } finally {
-      client.close(force: true);
     }
   }
 
-  /// Asset to download for this build's channel, or null when none matched.
-  /// Kos TV: only the Android builds download their update; no desktop build
-  /// is made.
-  _ReleaseAsset? _selectAsset(List<_ReleaseAsset> assets) {
-    if (assets.isEmpty) return null;
-    final name = androidApkFor(
-      AppDistribution.channel,
-      [for (final asset in assets) asset.name],
+  /// Kos TV: the update the plugin's answer [data] offers, or null when it
+  /// offers none (`Available: false`) or what it offers can't be trusted: not
+  /// newer than [installedVersionCode], no SHA-256, or a download that isn't
+  /// an `.apk` path on the home server ([serverBase]). [headers] go with the
+  /// download.
+  @visibleForTesting
+  static DesktopUpdateInfo? parseUpdate(
+    Object? data, {
+    required String serverBase,
+    required Map<String, String> headers,
+    required int installedVersionCode,
+  }) {
+    var map = data;
+    if (map is String) {
+      try {
+        map = jsonDecode(map);
+      } catch (_) {
+        return null;
+      }
+    }
+    if (map is! Map) return null;
+    Object? field(String name) =>
+        map is Map
+            ? (map[name] ??
+                  map['${name[0].toLowerCase()}${name.substring(1)}'])
+            : null;
+
+    if (field('Available') != true) return null;
+    final versionName = field('VersionName')?.toString().trim() ?? '';
+    final code = field('VersionCode');
+    final versionCode = code is int ? code : int.tryParse('${code ?? ''}');
+    final sha = field('Sha256')?.toString().trim().toLowerCase() ?? '';
+    final url = field('Url')?.toString().trim() ?? '';
+    final size = field('Size');
+    final notes = field('Notes')?.toString().trim();
+    if (versionName.isEmpty ||
+        versionCode == null ||
+        versionCode <= installedVersionCode ||
+        !RegExp(r'^[0-9a-f]{64}$').hasMatch(sha)) {
+      return null;
+    }
+    final download = downloadUriFor(serverBase, url);
+    if (download == null) return null;
+    return DesktopUpdateInfo(
+      version: versionName,
+      versionCode: versionCode,
+      downloadUri: download,
+      downloadHeaders: Map.unmodifiable(headers),
+      notes: notes == null || notes.isEmpty ? null : notes,
+      size: size is int && size > 0 ? size : null,
+      sha256: sha,
     );
-    return name == null
-        ? null
-        : assets.firstWhere((asset) => asset.name == name);
   }
 
-  /// Kos TV: the hex SHA-256 in an asset's `digest` as GitHub gives it
-  /// (`sha256:…`), or null when it gives none or another kind.
+  /// Kos TV: where the APK at [url] (a path the plugin gives, relative to the
+  /// server) is on the home server at [serverBase], or null when it isn't
+  /// such a path: an address elsewhere would get the session's token, and
+  /// only an `.apk` is handed to the installer. Plain http only when the
+  /// server itself is reached that way (a household server on the LAN).
   @visibleForTesting
-  static String? sha256FromDigest(String? digest) {
-    final value = digest?.trim().toLowerCase() ?? '';
-    if (!value.startsWith('sha256:')) return null;
-    final hex = value.substring('sha256:'.length);
-    return RegExp(r'^[0-9a-f]{64}$').hasMatch(hex) ? hex : null;
+  static Uri? downloadUriFor(String serverBase, String url) {
+    if (!url.startsWith('/') || url.startsWith('//') || url.contains('\\')) {
+      return null;
+    }
+    final base = Uri.tryParse(_trimSlash(serverBase));
+    if (base == null ||
+        !(base.isScheme('https') || base.isScheme('http')) ||
+        base.host.isEmpty) {
+      return null;
+    }
+    final download = Uri.tryParse('${_trimSlash(serverBase)}$url');
+    if (download == null ||
+        download.scheme != base.scheme ||
+        download.host != base.host ||
+        download.port != base.port ||
+        download.path.split('/').contains('..') ||
+        !download.path.toLowerCase().endsWith('.apk')) {
+      return null;
+    }
+    return download;
   }
 
-  /// Kos TV: the release file the Android build on [channel] installs, or
-  /// null when the release carries none for it. The phone and TV builds share
-  /// one application id, so each only ever takes its own APK: installing the
-  /// other would replace it. "KosTV" itself contains "tv", hence "androidtv".
-  @visibleForTesting
-  static String? androidApkFor(
-    DistributionChannel channel,
-    Iterable<String> names,
-  ) {
-    final apks = names.where((n) => n.toLowerCase().endsWith('.apk'));
-    bool isTv(String name) => name.toLowerCase().contains('androidtv');
-    return switch (channel) {
-      DistributionChannel.androidTvApk => apks.where(isTv).firstOrNull,
-      DistributionChannel.apk => apks.where((n) => !isTv(n)).firstOrNull,
-      _ => null,
-    };
+  static String _trimSlash(String value) {
+    var out = value.trim();
+    while (out.endsWith('/')) {
+      out = out.substring(0, out.length - 1);
+    }
+    return out;
   }
-
-  bool _isNewerVersion(String candidate, String current) {
-    final candidateParts = _parseSemverCore(candidate);
-    final currentParts = _parseSemverCore(current);
-    final maxLength = candidateParts.length > currentParts.length
-        ? candidateParts.length
-        : currentParts.length;
-
-    for (var i = 0; i < maxLength; i++) {
-      final left = i < candidateParts.length ? candidateParts[i] : 0;
-      final right = i < currentParts.length ? currentParts[i] : 0;
-      if (left > right) {
-        return true;
-      }
-      if (left < right) {
-        return false;
-      }
-    }
-    return false;
-  }
-
-  List<int> _parseSemverCore(String raw) {
-    final normalized = _normalizeVersion(raw);
-    if (normalized.isEmpty) {
-      return const [0, 0, 0];
-    }
-
-    final core = normalized.split('-').first.split('+').first;
-    final pieces = core.split('.');
-    final numbers = <int>[];
-    for (final piece in pieces) {
-      final value = int.tryParse(piece.replaceAll(RegExp(r'[^0-9]'), ''));
-      numbers.add(value ?? 0);
-    }
-    while (numbers.length < 3) {
-      numbers.add(0);
-    }
-    return numbers;
-  }
-
-  String _normalizeVersion(String? raw) {
-    if (raw == null) {
-      return '';
-    }
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) {
-      return '';
-    }
-    if (trimmed.startsWith('v') || trimmed.startsWith('V')) {
-      return trimmed.substring(1);
-    }
-    return trimmed;
-  }
-}
-
-class _LatestRelease {
-  final String version;
-  final List<_ReleaseAsset> assets;
-  final String releaseNotesUrl;
-
-  const _LatestRelease({
-    required this.version,
-    required this.assets,
-    required this.releaseNotesUrl,
-  });
-}
-
-class _ReleaseAsset {
-  final String name;
-  final String downloadUrl;
-  final int? size;
-  final String? sha256;
-
-  const _ReleaseAsset({
-    required this.name,
-    required this.downloadUrl,
-    this.size,
-    this.sha256,
-  });
 }
