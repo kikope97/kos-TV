@@ -3051,76 +3051,10 @@
                         </div>
 
                         <div class="defaultsSubtabPanel" data-subtab="appearance">
-                            <h4 style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Barra de navegación</h4>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultNavbarPosition">Estilo de navegación</label>
-                                <select id="DefaultNavbarPosition" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="top">Barra superior</option>
-                                    <option value="left">Barra lateral izquierda</option>
-                                    <option value="bottom">Barra inferior</option>
-                                </select>
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultNavbarColor">Color de la barra de navegación</label>
-                                <select id="DefaultNavbarColor" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="black">Negro</option>
-                                    <option value="gray">Gris</option>
-                                    <option value="darkBlue">Azul oscuro</option>
-                                    <option value="purple">Púrpura</option>
-                                    <option value="teal">Verde azulado</option>
-                                    <option value="navy">Azul marino</option>
-                                    <option value="charcoal">Gris carbón</option>
-                                    <option value="brown">Marrón</option>
-                                    <option value="darkRed">Rojo oscuro</option>
-                                    <option value="darkGreen">Verde oscuro</option>
-                                    <option value="slate">Gris pizarra</option>
-                                    <option value="indigo">Índigo</option>
-                                    <option value="moonfinCyan">Cian kOS TV</option>
-                                    <option value="neonPulseMagenta">Magenta neón</option>
-                                </select>
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultNavbarOpacity">Opacidad de la barra de navegación</label>
-                                <div style="display:flex; align-items:center; gap: 12px; margin-top: 6px; max-width: 440px;">
-                                    <select id="DefaultNavbarOpacity_Set" is="emby-select" style="width: auto; min-width: 195px;">
-                                        <option value="unset">Sin fijar (lo decide cada persona)</option>
-                                        <option value="set">Fijar valor:</option>
-                                    </select>
-                                    <input type="range" id="DefaultNavbarOpacity" min="0" max="100" step="5" value="100" disabled style="flex: 1; accent-color: #00a4dc;" />
-                                    <span id="DefaultNavbarOpacity_Val" style="font-weight: 600; min-width: 40px; color: #00a4dc; text-align: right; font-size: 0.95em;">--</span>
-                                </div>
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultNavbarAlwaysExpanded">Expandir siempre las etiquetas de la barra de navegación</label>
-                                <select id="DefaultNavbarAlwaysExpanded" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="true">Sí</option>
-                                    <option value="false">No</option>
-                                </select>
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultBottomNavbarStyle">Estilo de la barra inferior</label>
-                                <select id="DefaultBottomNavbarStyle" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="dock">Dock</option>
-                                    <option value="split">Dividida</option>
-                                    <option value="strip">Franja</option>
-                                </select>
-                                <div class="fieldDescription">En móviles y tabletas con el estilo de navegación «Barra inferior».</div>
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultBottomNavbarTab1">Pestañas de la barra inferior</label>
-                                <div style="display:flex; gap: 8px; flex-wrap: wrap;">
-                                    <select id="DefaultBottomNavbarTab1" class="bottomNavbarTabSelect" is="emby-select" style="flex: 1; min-width: 140px;"></select>
-                                    <select id="DefaultBottomNavbarTab2" class="bottomNavbarTabSelect" is="emby-select" style="flex: 1; min-width: 140px;"></select>
-                                    <select id="DefaultBottomNavbarTab3" class="bottomNavbarTabSelect" is="emby-select" style="flex: 1; min-width: 140px;"></select>
-                                </div>
-                                <div class="fieldDescription">Hasta tres pestañas entre «Inicio» y «Tú». Si no las fijas, cada dispositivo las elige a partir de los botones de navegación de abajo, y todo lo demás aparece en el menú «Tú».</div>
-                            </div>
-
-                            <h4 style="margin: 1.5em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Botones de la barra de navegación</h4>
+                            <!-- kOS TV: el menú tiene un solo diseño, igual para todos
+                                 (decisión del 2026-11-22): sin posición, estilo, color,
+                                 opacidad ni pestañas que elegir. -->
+                            <h4 style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Botones de la barra de navegación</h4>
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultShowShuffleButton">Mostrar botón de aleatorio</label>
                                 <select id="DefaultShowShuffleButton" is="emby-select">
@@ -6932,8 +6866,6 @@
                 { parent: 'AnimeAudioMarkersEnabled', fields: ['AnimeAudioMarkersMovies', 'AnimeAudioSeparateDualAudio', 'AnimeAudioLabelStyle'] },
                 { parent: ['AnimeMarkersEnabled', 'AnimeAudioMarkersEnabled'], fields: ['AnimeMarkerLibraryPicker', 'AnimeAudioTrustSelectedLibraries', 'AnimeMarkerPlacement', 'AnimeMarkerDiagBtn', 'AnimeMarkerPreviewName', 'AnimeMarkerVerboseLogging', 'AnimeMarkerLogBtn'] },
                 { parent: 'GamesEnabled', fields: ['GameCoresStatus', 'GameCoresFile', 'GameLibraryPicker', 'GamesRommUrl', 'GamesRommToken', 'GamesRommLibraryId', 'GamesRommTestBtn'] },
-                { parent: 'DefaultNavbarPosition', off: ['top', 'left'], fields: ['DefaultBottomNavbarStyle', 'DefaultBottomNavbarTab1'] },
-                { parent: 'DefaultNavbarPosition', off: ['bottom'], fields: ['DefaultNavbarAlwaysExpanded'] },
                 { parent: 'DefaultShowShuffleButton', fields: ['DefaultShuffleContentType'] },
                 { parent: 'DefaultShowSeerrAvailabilityBadges', fields: ['DefaultSeerrBadgeStyle'] },
                 { parent: 'DefaultSeasonalSurprise', off: ['none'], fields: ['DefaultSeasonalDensity', 'DefaultSeasonalFollower'] },
@@ -7006,48 +6938,6 @@
             var MoonfinConfig = {
                 pluginUniqueId: '561f86df-fa00-4fca-aa4d-2fed0e332670'
             };
-
-            // Ids are the client's wire names for the pinnable tabs.
-            var BOTTOM_NAVBAR_TABS = [
-                ['search', 'Buscar'],
-                ['kostvDiscover', 'Descubrir'],
-                ['libraries', 'Bibliotecas'],
-                ['favorites', 'Favoritos'],
-                ['genres', 'Géneros'],
-                ['liveTv', 'TV en directo']
-            ];
-
-            function setBottomNavbarTabSelects(tabs) {
-                var selects = document.querySelectorAll('.bottomNavbarTabSelect');
-                for (var i = 0; i < selects.length; i++) {
-                    var select = selects[i];
-                    if (!select.options.length) {
-                        var unset = document.createElement('option');
-                        unset.value = '';
-                        unset.textContent = i === 0 ? 'Sin fijar (automático)' : 'Ninguna';
-                        select.appendChild(unset);
-                        BOTTOM_NAVBAR_TABS.forEach(function (tab) {
-                            var option = document.createElement('option');
-                            option.value = tab[0];
-                            option.textContent = tab[1];
-                            select.appendChild(option);
-                        });
-                    }
-                    setSelectValue('#' + select.id, tabs && tabs[i] ? tabs[i] : '', 'Pestaña configurada');
-                }
-            }
-
-            // Blank slots are skipped and repeats dropped, the same way the
-            // client reads the list. Nothing picked leaves it to each device.
-            function getBottomNavbarTabSelects() {
-                var picked = [];
-                var selects = document.querySelectorAll('.bottomNavbarTabSelect');
-                for (var i = 0; i < selects.length; i++) {
-                    var value = selects[i].value;
-                    if (value && picked.indexOf(value) === -1) picked.push(value);
-                }
-                return picked.length ? picked : null;
-            }
 
             // The switch says whether a card plays anything, and the mode says which kind. Defaults
             // saved before the mode existed only have the switch.
@@ -11470,7 +11360,6 @@
                 mediaBarMdblistRatingSources: 'DefaultMediaBarMdblistRatingSourcesList',
                 seerrRows: 'DefaultSeerrDiscoveryList',
                 mediaSegmentActions: 'DefaultSegmentActionIntro',
-                bottomNavbarTabs: 'DefaultBottomNavbarTab1',
                 seasonalRowHiddenHolidays: 'DefaultSeasonalRowHolidays'
             };
             var SETTING_FIELD_PATTERNS = [
@@ -12125,13 +12014,6 @@
                     setSelectValue('#DefaultLoadingAnimationSpeed', defaults.loadingAnimationSpeed, 'Velocidad configurada');
                     setNullableBoolSelect('#DefaultShowLoadingAnimationText', defaults.showLoadingAnimationText);
 
-                    setSelectValue('#DefaultNavbarPosition', defaults.navbarPosition, 'Posición configurada');
-                    setSelectValue('#DefaultNavbarColor', defaults.navbarColor, 'Color configurado');
-                    bindNullableRangeInput('#DefaultNavbarOpacity', '%');
-                    setNullableRangeInput('#DefaultNavbarOpacity', defaults.navbarOpacity, '%');
-                    setNullableBoolSelect('#DefaultNavbarAlwaysExpanded', defaults.navbarAlwaysExpanded);
-                    setSelectValue('#DefaultBottomNavbarStyle', defaults.bottomNavbarStyle, 'Estilo configurado');
-                    setBottomNavbarTabSelects(defaults.bottomNavbarTabs);
                     setNullableBoolSelect('#DefaultEnableFolderView', defaults.enableFolderView);
                     setNullableBoolSelect('#DefaultShowSeerrButton', defaults.showSeerrButton);
                     setNullableBoolSelect('#DefaultShowLiveTvButton', defaults.showLiveTvButton);
@@ -13197,12 +13079,6 @@
                     ds.loadingAnimationSpeed = document.querySelector('#DefaultLoadingAnimationSpeed').value || null;
                     ds.showLoadingAnimationText = getNullableBoolSelect('#DefaultShowLoadingAnimationText');
 
-                    ds.navbarPosition = document.querySelector('#DefaultNavbarPosition').value || null;
-                    ds.navbarColor = document.querySelector('#DefaultNavbarColor').value || null;
-                    ds.navbarOpacity = getNullableRangeInput('#DefaultNavbarOpacity');
-                    ds.navbarAlwaysExpanded = getNullableBoolSelect('#DefaultNavbarAlwaysExpanded');
-                    ds.bottomNavbarStyle = document.querySelector('#DefaultBottomNavbarStyle').value || null;
-                    ds.bottomNavbarTabs = getBottomNavbarTabSelects();
                     ds.enableFolderView = getNullableBoolSelect('#DefaultEnableFolderView');
                     ds.showSeerrButton = getNullableBoolSelect('#DefaultShowSeerrButton');
                     ds.showLiveTvButton = getNullableBoolSelect('#DefaultShowLiveTvButton');

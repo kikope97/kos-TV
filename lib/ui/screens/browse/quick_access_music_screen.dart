@@ -37,7 +37,7 @@ class _QuickAccessMusicScreenState
   /// Left past the content's first column: the rail on wide layouts, the
   /// sidebar otherwise.
   void _focusLeft() =>
-      wide ? node('rail:overview').requestFocus() : focusBookSidebar();
+      wide ? node('rail:overview').requestFocus() : stayAtBookLeftEdge();
 
   /// Albums from the songs played last, then playlists.
   List<_QuickItem> _quickItems() {
@@ -80,7 +80,6 @@ class _QuickAccessMusicScreenState
         ? Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(width: bookSidebarInset),
               _buildRail(context),
               Expanded(child: buildSectionList(_addSections)),
             ],
@@ -370,7 +369,7 @@ class _QuickAccessMusicScreenState
           ? () => NavigationLayout.focusNavbarNotifier.value?.call()
           : null,
       onNavigateDown: index == ids.length - 1 ? () {} : null,
-      onNavigateLeft: focusBookSidebar,
+      onNavigateLeft: stayAtBookLeftEdge,
       onNavigateRight: focusContent,
     );
 

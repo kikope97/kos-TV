@@ -20,13 +20,18 @@ void main() {
   group('Favourites on phones', () {
     const gates = BottomNavTabGates(showFavorites: false);
 
-    test('never on the bar, even pinned', () {
-      expect(BottomNavTabGates.pinnable(BottomNavTab.favorites), isFalse);
-      expect(gates.resolvePins('favorites,search'), [BottomNavTab.search]);
-      expect(gates.resolvePins(''), isNot(contains(BottomNavTab.favorites)));
+    test('never on the bar', () {
+      const nothingElse = BottomNavTabGates(
+        showLibraries: false,
+        showGenres: false,
+        showKostvMusic: false,
+        showCalendar: false,
+      );
+      expect(nothingElse.barTabs(), isNot(contains(BottomNavTab.favorites)));
+      expect(gates.barTabs(), isNot(contains(BottomNavTab.favorites)));
     });
 
-    test('always offered, so the You hub has it', () {
+    test('always offered, so «Tú» has it', () {
       expect(gates.offers(BottomNavTab.favorites), isTrue);
     });
   });

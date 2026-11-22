@@ -29,7 +29,6 @@ import '../../data/services/sponsorblock_service.dart';
 import '../../data/services/stremfin/kostv_trailers.dart';
 import '../../data/services/youtube_stream_resolver.dart';
 import '../../data/viewmodels/media_bar_view_model.dart';
-import '../../preference/preference_constants.dart';
 import '../../preference/user_preferences.dart';
 import '../navigation/app_router.dart';
 import '../navigation/destinations.dart';
@@ -252,14 +251,6 @@ class _MediaBarState extends State<MediaBar>
   /// Kos TV: whether the app went to the background (or the tab was hidden)
   /// and took the trailer with it, so coming back brings it back.
   bool _trailerStoppedByBackground = false;
-
-  // The left sidebar is drawn over the media bar, so content starts past it.
-  double get _sidebarInset =>
-      !PlatformDetection.useMobileUi &&
-          widget.prefs.get(UserPreferences.navbarPosition) ==
-              NavbarPosition.left
-      ? 56.0
-      : 0.0;
 
   /// Fades the backdrop out toward the bar's bottom edge, so the rows below
   /// it, or one peeking up into it, meet a soft fade instead of a hard line.
@@ -2027,22 +2018,12 @@ class _MediaBarState extends State<MediaBar>
     final isMobile = PlatformDetection.useMobileUi;
     final isTablet =
         isMobile && MediaQuery.of(context).size.shortestSide >= 600;
-    final hasLeftSidebar =
-        !isMobile &&
-        widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.left;
-    final logoLeftInset = 40.0 + (hasLeftSidebar ? 88.0 : 0.0);
+    const logoLeftInset = 40.0;
     // A peeking row lifts the info card level with the arrows, so it keeps
-    // clear of them the way it does beside the sidebar.
-    final infoHorizontalInset = hasLeftSidebar || widget.rowPeek > 0
+    // clear of them.
+    final infoHorizontalInset = widget.rowPeek > 0
         ? 72.0
         : (PlatformDetection.isTV ? 25.0 : 24.0);
-    final navbarAtTop =
-        isMobile &&
-        (widget.prefs.get(UserPreferences.navbarPosition) ==
-            NavbarPosition.top);
-    final toolbarInset = navbarAtTop
-        ? MediaQuery.of(context).padding.top + 60.0
-        : 0.0;
     final hasVisibleTrailerVideo =
         (_activeYouTubeVideoId != null ||
             _activeWebTrailerUrl != null ||
@@ -2061,10 +2042,8 @@ class _MediaBarState extends State<MediaBar>
         child: GestureDetector(
           onTap: () => _navigateToItem(context, items),
           onLongPress: () => _navigateToItemAndPlay(context, items),
-          child: Padding(
-            padding: EdgeInsets.only(top: toolbarInset),
-            child: SizedBox(
-              height: widget.height - toolbarInset,
+          child: SizedBox(
+              height: widget.height,
               width: double.infinity,
               child: Stack(
                 fit: StackFit.expand,
@@ -2220,12 +2199,10 @@ class _MediaBarState extends State<MediaBar>
                     ..._buildNavArrows(
                       context,
                       items.length,
-                      leftInset: _sidebarInset,
                     ),
                 ],
               ),
             ),
-          ),
         ),
       ),
     );
@@ -2243,7 +2220,7 @@ class _MediaBarState extends State<MediaBar>
   }) {
     final size = MediaQuery.sizeOf(context);
     final ground = AppColorScheme.background;
-    final left = widget.heroInset + _sidebarInset;
+    final left = widget.heroInset;
     final fadeHeight = widget.rowPeek + size.height * 0.26;
     return [
       AnimatedOpacity(
@@ -2349,7 +2326,7 @@ class _MediaBarState extends State<MediaBar>
         ),
       // A remote moves through the picks with left and right.
       if (items.length > 1 && !PlatformDetection.isTV)
-        ..._buildNavArrows(context, items.length, leftInset: _sidebarInset),
+        ..._buildNavArrows(context, items.length),
     ];
   }
 
@@ -2364,16 +2341,7 @@ class _MediaBarState extends State<MediaBar>
     final overlayColor = _mediaBarOverlayColor();
     final overlayOpacity = _mediaBarOverlayOpacity();
     final isMobile = PlatformDetection.useMobileUi;
-    final navbarAtTop =
-        isMobile &&
-        (widget.prefs.get(UserPreferences.navbarPosition) ==
-            NavbarPosition.top);
-    final toolbarInset = navbarAtTop
-        ? MediaQuery.of(context).padding.top + 60.0
-        : 0.0;
-    final effectiveTopInset = isMobile ? 0.0 : toolbarInset;
-    final visibleFraction =
-        1 - widget.rowPeek / (widget.height - effectiveTopInset);
+    final visibleFraction = 1 - widget.rowPeek / widget.height;
     final contentWidth = (MediaQuery.of(context).size.width * 0.42).clamp(
       280.0,
       560.0,
@@ -2406,10 +2374,8 @@ class _MediaBarState extends State<MediaBar>
                   }
                 }
               : null,
-          child: Padding(
-            padding: EdgeInsets.only(top: effectiveTopInset),
-            child: SizedBox(
-              height: widget.height - effectiveTopInset,
+          child: SizedBox(
+              height: widget.height,
               width: double.infinity,
               child: Stack(
                 fit: StackFit.expand,
@@ -2498,7 +2464,7 @@ class _MediaBarState extends State<MediaBar>
                     Builder(
                       builder: (context) {
                         final contentHeight =
-                            widget.height - effectiveTopInset - widget.rowPeek;
+                            widget.height - widget.rowPeek;
                         final screenWidth = MediaQuery.of(context).size.width;
                         final logoTop = contentHeight * 0.22;
                         final logoWidth = (screenWidth * 0.45).clamp(
@@ -2523,7 +2489,7 @@ class _MediaBarState extends State<MediaBar>
                               contentHeight * 0.56,
                             );
                         return Positioned(
-                          left: isMobile ? null : 50 + _sidebarInset,
+                          left: isMobile ? null : 50,
                           top: isMobile ? mobileLogoTop : logoTop,
                           child: AnimatedOpacity(
                             opacity: _isTrailerPlaying ? 0 : 1,
@@ -2609,7 +2575,7 @@ class _MediaBarState extends State<MediaBar>
                     ),
                   if (currentItem != null)
                     Positioned(
-                      left: isMobile ? 0 : 50 + _sidebarInset,
+                      left: isMobile ? 0 : 50,
                       right: isMobile ? 0 : null,
                       bottom: isMobile ? 24 : 20 + widget.rowPeek,
                       child: AnimatedOpacity(
@@ -2681,13 +2647,11 @@ class _MediaBarState extends State<MediaBar>
                     ..._buildNavArrows(
                       context,
                       items.length,
-                      leftInset: _sidebarInset,
                       rightInset: 44,
                     ),
                 ],
               ),
             ),
-          ),
         ),
       ),
     );
@@ -2831,7 +2795,6 @@ class _MediaBarState extends State<MediaBar>
             activeRatings: activeRatings,
             activeTrailer: activeTrailer,
             trailerActive: trailerVisible,
-            leftInset: _sidebarInset,
           );
 
     return MouseRegion(
@@ -2860,12 +2823,8 @@ class _MediaBarState extends State<MediaBar>
   }
 
   EdgeInsets _ayaMediaBarInsets() {
-    final navbarIsTop =
-        widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.top;
-
     final isMobile = PlatformDetection.useMobileUi;
-    final isTvTopNavbar = navbarIsTop && PlatformDetection.isTV && !isMobile;
-    final hasDesktopSidebar = !navbarIsTop && !isMobile;
+    final isTvTopNavbar = PlatformDetection.isTV && !isMobile;
 
     final safePadding = MediaQuery.paddingOf(context);
 
@@ -2873,13 +2832,11 @@ class _MediaBarState extends State<MediaBar>
     const mobileHorizontalPadding = 16.0;
     const mobileBottomPadding = 16.0;
     const tvTopNavbarHorizontalInset = 48.0;
-    const desktopSidebarInset = 56.0;
     const desktopToolbarVerticalPadding = 10.0;
 
     if (isMobile) {
-      final topInset =
-          safePadding.top +
-          (navbarIsTop ? TopToolbar.heightFor(context) + 12.0 : 16.0);
+      // Phones have their menu at the bottom.
+      final topInset = safePadding.top + 16.0;
 
       return EdgeInsets.fromLTRB(
         mobileHorizontalPadding + safePadding.left,
@@ -2891,20 +2848,17 @@ class _MediaBarState extends State<MediaBar>
 
     final leftInset = isTvTopNavbar
         ? tvTopNavbarHorizontalInset + contentPadding
-        : hasDesktopSidebar
-        ? desktopSidebarInset + contentPadding
         : contentPadding;
 
     final rightInset = isTvTopNavbar
         ? tvTopNavbarHorizontalInset + contentPadding
         : contentPadding;
 
-    final topInset = navbarIsTop
-        ? safePadding.top +
-              TopToolbar.heightFor(context) -
-              desktopToolbarVerticalPadding +
-              contentPadding
-        : contentPadding;
+    final topInset =
+        safePadding.top +
+        TopToolbar.heightFor(context) -
+        desktopToolbarVerticalPadding +
+        contentPadding;
 
     return EdgeInsets.fromLTRB(leftInset, topInset, rightInset, contentPadding);
   }

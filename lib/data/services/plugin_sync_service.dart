@@ -19,7 +19,6 @@ import 'server_messages_service.dart';
 import 'settings_stream_transport.dart';
 import 'storage_path_service.dart';
 import 'synced_fields.dart';
-import '../../ui/widgets/navigation_layout.dart';
 import '../../preference/home_section_config.dart';
 import '../../preference/preference_constants.dart' as prefs;
 import '../../preference/user_preferences.dart';
@@ -1428,13 +1427,6 @@ class PluginSyncService extends ChangeNotifier with WidgetsBindingObserver {
     ]) {
       await _prefs.removePreference(pref);
     }
-
-    // The nav chrome takes its position from this notifier rather than from
-    // the store, so it would sit in the old spot until the next launch.
-    final navbarPos = _prefs.get(UserPreferences.navbarPosition);
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      NavigationLayout.positionNotifier.value = navbarPos;
-    });
   }
 
   Future<Map<String, dynamic>?> _ping(MediaServerClient client) async {
@@ -1983,17 +1975,6 @@ class PluginSyncService extends ChangeNotifier with WidgetsBindingObserver {
     // carry a mode that disagrees with it.
     await _prefs.reconcileMediaPreviewMode();
     _prefs.notifyPreferenceChanged();
-
-    final currentNavbarPos = _prefs.get(UserPreferences.navbarPosition);
-    final navbarPos = NavigationLayout.sanitizeNavbarPosition(
-      currentNavbarPos,
-    );
-    if (currentNavbarPos != navbarPos) {
-      await _prefs.set(UserPreferences.navbarPosition, navbarPos);
-    }
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      NavigationLayout.positionNotifier.value = navbarPos;
-    });
   }
 
   Future<void> _applyFallbackHomeRows({

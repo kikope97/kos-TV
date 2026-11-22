@@ -19,7 +19,6 @@ import '../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../preference/detail_metadata_layout.dart';
 import '../../../../preference/detail_section_layout.dart';
-import '../../../../preference/preference_constants.dart';
 import '../../../../preference/user_preferences.dart';
 import '../upcoming_episode_badge.dart';
 import '../../../../util/overview_text.dart';
@@ -924,14 +923,7 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
         toggleFocusNode: _overviewFocusNode,
         onArrowDown: () => widget.initialFocusNode?.requestFocus(),
         onArrowUp: () => NavigationLayout.focusNavbarNotifier.value?.call(),
-        onArrowLeft: () {
-          final navbarPosition = widget.prefs.get(
-            UserPreferences.navbarPosition,
-          );
-          if (navbarPosition == NavbarPosition.left) {
-            NavigationLayout.focusNavbarNotifier.value?.call();
-          }
-        },
+        onArrowLeft: () {},
         onCollapse: widget.onCollapseBiography,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
           height: 1.45,

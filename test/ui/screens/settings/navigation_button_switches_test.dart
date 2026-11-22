@@ -108,24 +108,14 @@ void main() {
     expect(tester.takeException(), isNull);
   }
 
-  // Kos TV: in Settings the bar's color and its buttons wait behind «Más
-  // ajustes», and the navigation style shows straight away.
-  testWidgets('in Settings the buttons wait behind More settings', (
-    tester,
-  ) async {
+  // Kos TV: the menu has one design, so its screen is only the buttons'
+  // switches, shown straight away (no style, colour or labels to pick).
+  testWidgets('in Settings only the buttons, straight away', (tester) async {
     signIn(canDownload: true);
     final controller = SettingsMoreController();
     addTearDown(controller.dispose);
     await pump(tester, controller: controller);
-    expect(find.text(l10n.navigationStyle), findsOneWidget);
-    expect(find.text(l10n.kostvMoreSettings), findsOneWidget);
-    expect(find.text(l10n.navbarOpacity), findsNothing);
-    expect(find.text(l10n.showGenresButton), findsNothing);
-
-    await tester.tap(find.text(l10n.kostvMoreSettings));
-    await tester.pumpAndSettle();
-    expect(controller.isOpen('appearance.navigation'), isTrue);
-    expect(find.text(l10n.navbarOpacity), findsOneWidget);
+    expect(find.text(l10n.kostvMoreSettings), findsNothing);
     expect(find.text(l10n.showGenresButton), findsOneWidget);
     expect(find.text(l10n.showDownloadsButton), findsOneWidget);
     // Kos TV: Shuffle is at the end of Home, never in the navigation.

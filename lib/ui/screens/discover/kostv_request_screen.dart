@@ -13,8 +13,6 @@ import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../preference/preference_constants.dart';
-import '../../../preference/user_preferences.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
@@ -23,7 +21,6 @@ import '../../navigation/destinations.dart';
 import '../../widgets/baked_blur_image.dart';
 import '../../widgets/bottom_nav/bottom_navbar.dart';
 import '../../widgets/image_source.dart';
-import '../../widgets/left_sidebar.dart';
 import '../../widgets/navigation_layout.dart';
 import '../../widgets/top_toolbar.dart';
 import '../detail/detail_layout_metrics.dart';
@@ -191,10 +188,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
   KostvSeriesRequestController? get _series =>
       _c is KostvSeriesRequestController ? _c : null;
 
-  UserPreferences get _prefs => GetIt.instance<UserPreferences>();
-
-  bool get _navbarTop =>
-      _prefs.get(UserPreferences.navbarPosition) == NavbarPosition.top;
+  bool get _navbarTop => NavigationLayout.usesTopToolbar;
 
   @override
   void initState() {
@@ -254,10 +248,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
       if (!PlatformDetection.useMobileUi) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || _mainNode.hasFocus) return;
-          if (TopToolbar.isFocusedNotifier.value ||
-              LeftSidebar.isFocusedNotifier.value) {
-            return;
-          }
+          if (TopToolbar.isFocusedNotifier.value) return;
           _mainNode.requestFocus();
         });
       }
@@ -1392,7 +1383,6 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
         if (_c.loading && _c.title == null)
           const Center(child: CircularProgressIndicator()),
         FrostStage(
-          navbarTop: _navbarTop,
           child: MediaQuery.withClampedTextScaling(
             maxScaleFactor: 1.15,
             child: Stack(
@@ -1938,10 +1928,6 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
     if (_navbarTop) NavigationLayout.focusNavbarNotifier.value?.call();
   }
 
-  void _toSidebar() {
-    if (!_navbarTop) NavigationLayout.focusNavbarNotifier.value?.call();
-  }
-
   Widget _mainButton(
     _Main main, {
     required double height,
@@ -1960,7 +1946,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
       focusNode: _mainNode,
       autofocus: !PlatformDetection.useMobileUi,
       onSelect: main.onPressed,
-      onLeft: _toSidebar,
+      onLeft: () {},
       onRight: onRight,
       onUp: onUp,
       onDown: () {},
@@ -2240,7 +2226,7 @@ class _KostvRequestScreenState extends State<KostvRequestScreen>
       onDown: index + 1 < seasons.length
           ? _seasonNode(seasons[index + 1].number).requestFocus
           : _mainNode.requestFocus,
-      onLeft: _toSidebar,
+      onLeft: () {},
       onRight: () {},
       builder: (context, focused) {
         final lit = InputModeTracker.showFocusVisuals(context, focused);

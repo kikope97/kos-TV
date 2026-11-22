@@ -16,8 +16,6 @@ import '../../../util/language_codes.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
 import '../../theme/app_theme_controller.dart';
-import '../../widgets/bottom_nav/bottom_nav_destinations.dart';
-import '../../widgets/navigation_layout.dart';
 import '../../widgets/overlay_sheet.dart';
 import '../../widgets/settings/preference_tiles.dart';
 import 'setup_wizard_gate.dart';
@@ -54,14 +52,7 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
 
   List<SetupStep> _allSteps = const [];
 
-  // The style question comes and goes with the navbar answer. It can only
-  // change on the navbar step, which sits before it, so [_index] stays put.
-  List<SetupStep> get _steps => visibleSetupSteps(_allSteps, _effectiveNavbar);
-
-  NavbarPosition get _effectiveNavbar =>
-      NavigationLayout.sanitizeNavbarPosition(
-        _navbar ?? _prefs.get(UserPreferences.navbarPosition),
-      );
+  List<SetupStep> get _steps => _allSteps;
 
   int _index = 0;
   bool _ready = false;
@@ -70,8 +61,6 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
   // Held rather than written as they are chosen. Each write kicks off a full
   // profile push that the plugin then echoes back, so the answers across the
   // steps become one batch at the end.
-  NavbarPosition? _navbar;
-  BottomNavbarStyle? _navbarStyle;
   String? _mediaBar;
   HomeRowsStyle? _homeRows;
   DetailScreenStyle? _detailStyle;
@@ -149,17 +138,8 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
 
   Future<void> _finish() async {
     final client = _client;
-    final navbar = _navbar;
 
     await _prefs.batchNotifications(() async {
-      if (navbar != null) {
-        await _prefs.set(UserPreferences.navbarPosition, navbar);
-      }
-      // A style picked before switching away from Bottom isn't an answer.
-      final navbarStyle = _navbarStyle;
-      if (navbarStyle != null && _effectiveNavbar == NavbarPosition.bottom) {
-        await _prefs.set(UserPreferences.bottomNavbarStyle, navbarStyle);
-      }
       final mediaBar = _mediaBar;
       if (mediaBar != null) {
         await _prefs.set(UserPreferences.mediaBarMode, mediaBar);
@@ -198,13 +178,6 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
         );
       }
     });
-
-    // The chrome listens on this rather than the preference, so Home comes up
-    // with the bar where it was just asked to be.
-    if (navbar != null) {
-      NavigationLayout.positionNotifier.value =
-          NavigationLayout.sanitizeNavbarPosition(navbar);
-    }
 
     if (client != null) await _gate.markComplete(client);
     _goHome();
@@ -369,8 +342,6 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
   }
 
   String _questionFor(SetupStep step, AppLocalizations l10n) => switch (step) {
-    SetupStep.navbar => l10n.setupNavbarQuestion,
-    SetupStep.navbarStyle => l10n.setupNavbarStyleQuestion,
     SetupStep.mediaBar => l10n.setupMediaBarQuestion,
     SetupStep.homeRows => l10n.setupHomeRowsQuestion,
     SetupStep.detailStyle => l10n.setupDetailQuestion,
@@ -381,18 +352,6 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
   /// so the user knows where to go to change it later.
   List<String> _settingsPathFor(SetupStep step, AppLocalizations l10n) =>
       switch (step) {
-        SetupStep.navbar => [
-          l10n.settings,
-          l10n.appearance,
-          l10n.navigationBar,
-          l10n.navigationStyle,
-        ],
-        SetupStep.navbarStyle => [
-          l10n.settings,
-          l10n.appearance,
-          l10n.navigationBar,
-          l10n.bottomNavbarStyle,
-        ],
         SetupStep.mediaBar => [
           l10n.settings,
           l10n.appearance,
@@ -427,52 +386,11 @@ class _SetupWizardScreenState extends State<SetupWizardScreen> {
 
   List<_SetupOption> _optionsFor(SetupStep step, AppLocalizations l10n) =>
       switch (step) {
-        SetupStep.navbar => _navbarOptions(l10n),
-        SetupStep.navbarStyle => _navbarStyleOptions(l10n),
         SetupStep.mediaBar => _mediaBarOptions(l10n),
         SetupStep.homeRows => _homeRowsOptions(l10n),
         SetupStep.detailStyle => _detailStyleOptions(l10n),
         SetupStep.tour => _themeOptions(l10n),
       };
-
-  List<_SetupOption> _navbarOptions(AppLocalizations l10n) {
-    // The bottom bar is only offered where the app can actually draw one, so
-    // this list is two entries on a TV or desktop and three on a phone.
-    final selected = _effectiveNavbar;
-    return [
-      for (final position in NavigationLayout.availableNavbarPositions)
-        _SetupOption(
-          label: switch (position) {
-            NavbarPosition.top => l10n.topBar,
-            NavbarPosition.left => l10n.leftSidebar,
-            NavbarPosition.bottom => l10n.bottomBar,
-          },
-          hint: switch (position) {
-            NavbarPosition.top => l10n.setupNavbarTopHint,
-            NavbarPosition.left => l10n.setupNavbarLeftHint,
-            NavbarPosition.bottom => l10n.setupNavbarBottomHint,
-          },
-          selected: selected == position,
-          preview: () => navbarPreview(position),
-          onSelect: () => setState(() => _navbar = position),
-        ),
-    ];
-  }
-
-  List<_SetupOption> _navbarStyleOptions(AppLocalizations l10n) {
-    final selected =
-        _navbarStyle ?? _prefs.get(UserPreferences.bottomNavbarStyle);
-    return [
-      for (final style in BottomNavbarStyle.values)
-        _SetupOption(
-          label: bottomNavbarStyleLabel(l10n, style),
-          hint: bottomNavbarStyleHint(l10n, style),
-          selected: selected == style,
-          preview: () => bottomNavbarStylePreview(style),
-          onSelect: () => setState(() => _navbarStyle = style),
-        ),
-    ];
-  }
 
   List<_SetupOption> _mediaBarOptions(AppLocalizations l10n) {
     final modes = {

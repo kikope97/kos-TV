@@ -5,7 +5,6 @@ import '../../../data/models/aggregated_item.dart';
 import '../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/detail_section_layout.dart';
-import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/overview_text.dart';
 import '../../../util/playback_time_label.dart';
@@ -81,8 +80,7 @@ mixin DetailPage<T extends StatefulWidget> on State<T> {
     super.dispose();
   }
 
-  bool get navbarIsTop =>
-      pagePrefs.get(UserPreferences.navbarPosition) == NavbarPosition.top;
+  bool get navbarIsTop => NavigationLayout.usesTopToolbar;
 
   void _onScroll() {
     final shown = pageScroll.offset < 24;

@@ -7,14 +7,11 @@ import 'package:moonfin/data/services/stremfin/kostv_age_gate.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/preference/preference_constants.dart';
-import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/navigation/destinations.dart';
 import 'package:moonfin/ui/screens/detail/kostv/kostv_detail_buttons.dart'
     show kostvLight;
 import 'package:moonfin/ui/screens/discover/kostv_request_controller.dart';
 import 'package:moonfin/ui/screens/discover/kostv_request_screen.dart';
-import 'package:moonfin/ui/widgets/navigation_layout.dart';
 import 'package:moonfin/util/platform_detection.dart';
 
 import '../../widgets/bottom_nav/bottom_nav_fakes.dart';
@@ -38,12 +35,8 @@ void main() {
     required InterfaceLayout layout,
     required String location,
   }) async {
-    final setup = await setUpBottomNav();
+    await setUpBottomNav();
     PlatformDetection.setInterfaceLayout(layout);
-    final top = layout != InterfaceLayout.phone;
-    final position = top ? NavbarPosition.top : NavbarPosition.bottom;
-    await setup.prefs.set(UserPreferences.navbarPosition, position);
-    NavigationLayout.positionNotifier.value = position;
     if (layout == InterfaceLayout.phone) {
       usePhoneView(tester);
     } else {

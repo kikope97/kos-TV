@@ -6,9 +6,7 @@ import '../../../../../data/models/aggregated_item.dart';
 import '../../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../../l10n/app_localizations.dart';
 import '../../../../../preference/detail_section_layout.dart';
-import '../../../../../preference/preference_constants.dart';
 import '../../../../../preference/user_preferences.dart';
-import '../../../../widgets/navigation_layout.dart';
 import '../../../../widgets/focus/locked_focus_row.dart';
 import 'nouveau_discovery_card.dart';
 import 'nouveau_discovery_rail.dart';
@@ -285,13 +283,6 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
   bool get _relatedWaiting =>
       _showsBaseRelated && !_vm.similarInitialLoadComplete;
 
-  bool get _navbarIsLeft =>
-      widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.left;
-
-  void _handleLeftEdge() {
-    NavigationLayout.focusNavbarNotifier.value?.call();
-  }
-
   void _captureBaseRelatedIfAvailable() {
     if (_baseRelatedCaptured || _vm.similar.isEmpty) {
       return;
@@ -435,7 +426,6 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
         onTap: (item) {
           NouveauDiscoveryCard.openItem(context, item);
         },
-        onLeftEdge: _navbarIsLeft ? _handleLeftEdge : null,
         itemBuilder: (context, item, width, isFocused) {
           return NouveauDiscoveryCard(
             item: item,

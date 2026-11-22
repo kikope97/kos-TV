@@ -1,49 +1,42 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/preference/preference_constants.dart';
-import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/navigation/route_lifecycle_observer.dart';
-import 'package:moonfin/ui/widgets/bottom_nav/split_bar.dart';
 import 'package:moonfin/ui/widgets/navigation_layout.dart';
 
 import 'bottom_nav_fakes.dart';
 
-Widget _page({ScrollController? controller, bool withRow = false}) =>
-    ListView(
-      controller: controller,
-      children: [
-        if (withRow)
-          SizedBox(
-            key: const Key('row'),
-            height: 150,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                for (var i = 0; i < 30; i++)
-                  SizedBox(width: 100, child: Text('card $i')),
-              ],
-            ),
-          ),
-        for (var i = 0; i < 80; i++)
-          SizedBox(height: 60, child: Text('row $i')),
-      ],
-    );
+Widget _page({ScrollController? controller, bool withRow = false}) => ListView(
+  controller: controller,
+  children: [
+    if (withRow)
+      SizedBox(
+        key: const Key('row'),
+        height: 150,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          children: [
+            for (var i = 0; i < 30; i++)
+              SizedBox(width: 100, child: Text('card $i')),
+          ],
+        ),
+      ),
+    for (var i = 0; i < 80; i++) SizedBox(height: 60, child: Text('row $i')),
+  ],
+);
 
+/// Kos TV: the glass bar gathered (the page's tab in a circle, Search).
 bool _minimized(WidgetTester tester) =>
-    tester.widget<SplitBarView>(find.byType(SplitBarView)).minimized;
+    find.byKey(const ValueKey('kostvBarGathered')).evaluate().isNotEmpty;
 
 void main() {
-  late UserPreferences prefs;
-
-  setUp(() async {
-    prefs = (await setUpBottomNav(style: BottomNavbarStyle.split)).prefs;
-  });
+  setUp(setUpBottomNav);
 
   tearDown(tearDownBottomNav);
 
-  testWidgets('scrolling down shrinks the bar and scrolling up restores it',
-      (tester) async {
+  testWidgets('scrolling down shrinks the bar and scrolling up restores it', (
+    tester,
+  ) async {
     usePhoneView(tester);
     await tester.pumpWidget(bottomNavApp(child: _page()));
     await tester.pump();
@@ -74,8 +67,9 @@ void main() {
     expect(_minimized(tester), isFalse);
   });
 
-  testWidgets('a row of cards scrolling sideways leaves the bar alone',
-      (tester) async {
+  testWidgets('a row of cards scrolling sideways leaves the bar alone', (
+    tester,
+  ) async {
     usePhoneView(tester);
     await tester.pumpWidget(bottomNavApp(child: _page(withRow: true)));
     await tester.pump();
@@ -85,8 +79,9 @@ void main() {
     expect(_minimized(tester), isFalse);
   });
 
-  testWidgets('a scroll nobody dragged doesn\'t shrink the bar',
-      (tester) async {
+  testWidgets('a scroll nobody dragged doesn\'t shrink the bar', (
+    tester,
+  ) async {
     usePhoneView(tester);
     final controller = ScrollController();
     addTearDown(controller.dispose);
@@ -98,20 +93,9 @@ void main() {
     expect(_minimized(tester), isFalse);
   });
 
-  testWidgets('Dock never reacts to scrolling', (tester) async {
-    usePhoneView(tester);
-    await prefs.set(UserPreferences.bottomNavbarStyle, BottomNavbarStyle.dock);
-    await tester.pumpWidget(bottomNavApp(child: _page()));
-    await tester.pump();
-
-    await tester.drag(find.text('row 5'), const Offset(0, -300));
-    await tester.pumpAndSettle();
-    expect(find.byType(SplitBarView), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('coming back to a page brings the bar back whole',
-      (tester) async {
+  testWidgets('coming back to a page brings the bar back whole', (
+    tester,
+  ) async {
     usePhoneView(tester);
     final navigatorKey = GlobalKey<NavigatorState>();
     await tester.pumpWidget(

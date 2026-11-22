@@ -1,69 +1,43 @@
-import 'package:flutter/material.dart';
-
-import 'music/kostv_now_playing.dart';
-
-import 'package:flutter/rendering.dart';
-import 'package:get_it/get_it.dart';
-
-import '../../data/services/plugin_sync_service.dart';
-import '../../preference/preference_constants.dart';
-import '../../preference/user_preferences.dart';
-import '../../util/platform_detection.dart';
-import '../../util/overlay_color_palette.dart';
-import 'bottom_nav/bottom_navbar.dart';
-import 'download_progress_bar.dart';
-import 'left_sidebar.dart';
-import 'top_toolbar.dart';
-
 import 'dart:async';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
+import '../../util/platform_detection.dart';
 import '../navigation/destinations.dart';
 import '../navigation/route_lifecycle_observer.dart';
+import 'bottom_nav/bottom_navbar.dart';
+import 'download_progress_bar.dart';
+import 'music/kostv_now_playing.dart';
+import 'top_toolbar.dart';
 
+/// Kos TV: the menu around every page. There is one design, with no way to
+/// change it (the owner's decision, 2026-11-22): on a TV and on a computer
+/// the bar of named tabs at the top, which gathers into a small pill while
+/// the page is scrolled on a TV; on phones and tablets (and the web in a
+/// narrow window) the glass bar at the bottom (see [BottomNavbar]).
 class NavigationLayout extends StatefulWidget {
   final String? activeRoute;
   final Widget child;
   final bool showBackButton;
   final bool showNavigationChrome;
 
-  /// Keep the top toolbar fixed instead of letting it translate away as the
-  /// content scrolls. No effect off-TV, where the toolbar is already fixed.
+  /// Keep the top bar whole instead of gathering it into its pill as the
+  /// content scrolls. No effect off-TV, where the bar never gathers.
   final bool pinTopToolbar;
 
-  static bool get allowBottomNavbar =>
-      PlatformDetection.useMobileUi && !PlatformDetection.isWeb;
+  /// Whether the menu is the glass bar at the bottom: phones and tablets,
+  /// and the web in a narrow window.
+  static bool get usesBottomNavbar => PlatformDetection.useMobileUi;
 
-  static List<NavbarPosition> get availableNavbarPositions => <NavbarPosition>[
-    NavbarPosition.top,
-    NavbarPosition.left,
-    if (allowBottomNavbar) NavbarPosition.bottom,
-  ];
+  /// Whether the menu is the bar of tabs at the top: a TV and a computer.
+  static bool get usesTopToolbar => !usesBottomNavbar;
 
-  static NavbarPosition sanitizeNavbarPosition(NavbarPosition position) {
-    if (position == NavbarPosition.bottom && !allowBottomNavbar) {
-      return NavbarPosition.top;
-    }
-    return position;
-  }
-
-  static bool get usesBottomNavbar =>
-      sanitizeNavbarPosition(
-        GetIt.instance<UserPreferences>().get(UserPreferences.navbarPosition),
-      ) ==
-      NavbarPosition.bottom;
-
-  static final positionNotifier = ValueNotifier<NavbarPosition?>(
-    sanitizeNavbarPosition(
-      GetIt.instance<UserPreferences>().get(UserPreferences.navbarPosition),
-    ),
-  );
-
-  /// Focus roots of the navigation chrome, registered by the sidebar and
-  /// toolbar while mounted. The route focus observer refuses to land inside
-  /// these, so a fresh route waits for content instead of starting the d-pad
-  /// in the rail and popping it open before anything has loaded.
+  /// Focus roots of the navigation chrome, registered by the toolbar while
+  /// mounted. The route focus observer refuses to land inside these, so a
+  /// fresh route waits for content instead of starting the d-pad in the menu
+  /// before anything has loaded.
   static final Set<FocusNode> chromeFocusRoots = <FocusNode>{};
 
   static final focusNavbarNotifier = ValueNotifier<VoidCallback?>(null);
@@ -87,9 +61,9 @@ class NavigationLayout extends StatefulWidget {
     return true;
   }
 
-  /// True while a media bar trailer is playing. The toolbar and sidebar fade
-  /// out on TV and desktop, and focusing them cancels the trailer, which
-  /// fades them back in.
+  /// True while a media bar trailer is playing. The toolbar fades out on TV
+  /// and desktop, and focusing it cancels the trailer, which fades it back
+  /// in.
   static final trailerImmersiveNotifier = ValueNotifier<bool>(false);
 
   // Set for a few seconds after the mouse moves, so the chrome is there to
@@ -102,8 +76,8 @@ class NavigationLayout extends StatefulWidget {
     _trailerChromeWoken,
   ]);
 
-  /// Whether a playing trailer has the toolbar, sidebar and a peeking home
-  /// row out of its way.
+  /// Whether a playing trailer has the toolbar and a peeking home row out of
+  /// its way.
   static bool get trailerHidesChrome =>
       trailerImmersiveNotifier.value &&
       !PlatformDetection.useMobileUi &&
@@ -149,19 +123,15 @@ class NavigationLayout extends StatefulWidget {
 
 class _NavigationLayoutState extends State<NavigationLayout>
     with WidgetsBindingObserver, RouteAware {
-  final _prefs = GetIt.instance<UserPreferences>();
   final _contentFocusNode = FocusNode(debugLabel: 'NavigationContent');
   final _contentKey = GlobalKey(debugLabel: 'navigationLayoutContent');
-  final ValueNotifier<double> _toolbarScrollOffset = ValueNotifier<double>(0.0);
-  late NavbarPosition _position;
-  late BottomNavbarStyle _bottomStyle;
   bool _keyboardVisible = false;
 
-  // Kos TV: off the TV the top bar stays put, so a page scrolled under it
-  // runs its cards right behind the avatar and the buttons. A soft shade
-  // behind the bar comes in once the page leaves its top, and goes back at
-  // the top, where the banners and backdrops look as they always did. The
-  // vertical scrollables of the page that are past their top, by context.
+  // Kos TV: the vertical scrollables of the page that are past their top, by
+  // context. Off the TV the top bar stays put, so a page scrolled under it
+  // runs its cards right behind the avatar and the tabs: a soft shade comes
+  // in behind the bar once the page leaves its top. On the TV, the same
+  // gathers the bar into its pill.
   final _scrolledScrollables = <BuildContext>{};
   final _contentScrolled = ValueNotifier<bool>(false);
   late final Listenable _scrollShadeListenable = Listenable.merge([
@@ -169,8 +139,15 @@ class _NavigationLayoutState extends State<NavigationLayout>
     NavigationLayout.trailerChromeListenable,
   ]);
 
-  // Split shrinks while the user scrolls down and comes back on the way up.
-  // The flag only flips at the thresholds, so scrolling rebuilds nothing.
+  // Kos TV: the TV's bar gathers into its pill once the page is this far
+  // down, and while the focus is outside it.
+  final _toolbarCollapsed = ValueNotifier<bool>(false);
+  double _tvScrollOffset = 0;
+  static const _kCollapseAfter = 24.0;
+
+  // The bottom bar gathers while the user scrolls down and comes back on the
+  // way up. The flag only flips at the thresholds, so scrolling rebuilds
+  // nothing.
   final _bottomMinimized = ValueNotifier<bool>(false);
   bool _userScrolling = false;
   double _scrollTravel = 0;
@@ -179,31 +156,8 @@ class _NavigationLayoutState extends State<NavigationLayout>
   @override
   void initState() {
     super.initState();
-    final storedPosition = _prefs.get(UserPreferences.navbarPosition);
-    _position = NavigationLayout.sanitizeNavbarPosition(storedPosition);
-    if (_position != storedPosition) {
-      _prefs.set(UserPreferences.navbarPosition, _position);
-    }
-    _bottomStyle = _prefs.get(UserPreferences.bottomNavbarStyle);
-    _prefs.addListener(_onPrefsChanged);
-    // Kos TV: a switch of person changes whose preferences are read without
-    // writing any of them. The plugin sync announces each sign-in, reached
-    // or not, so the bar follows the new person's position from there.
-    if (GetIt.instance.isRegistered<PluginSyncService>()) {
-      GetIt.instance<PluginSyncService>().addListener(_onPrefsChanged);
-    }
     WidgetsBinding.instance.addObserver(this);
-    NavigationLayout.positionNotifier.addListener(_onPositionNotified);
-    // Kos TV: the details page reads the shared notifier, which may still
-    // hold the previous person's position.
-    if (NavigationLayout.positionNotifier.value != _position) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        if (NavigationLayout.positionNotifier.value != _position) {
-          NavigationLayout.positionNotifier.value = _position;
-        }
-      });
-    }
+    TopToolbar.isFocusedNotifier.addListener(_updateToolbarCollapsed);
   }
 
   @override
@@ -223,6 +177,11 @@ class _NavigationLayoutState extends State<NavigationLayout>
       _expandBottomBar();
       _scrolledScrollables.clear();
       _contentScrolled.value = false;
+      _tvScrollOffset = 0;
+      _updateToolbarCollapsed();
+    }
+    if (oldWidget.pinTopToolbar != widget.pinTopToolbar) {
+      _updateToolbarCollapsed();
     }
   }
 
@@ -244,6 +203,27 @@ class _NavigationLayoutState extends State<NavigationLayout>
     return false;
   }
 
+  bool _onTvContentScroll(ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    _tvScrollOffset = n.metrics.pixels - n.metrics.minScrollExtent;
+    _updateToolbarCollapsed();
+    return false;
+  }
+
+  /// Kos TV: the TV's bar is a pill while the page is scrolled down and the
+  /// focus is in the page; with the focus in the bar (Back or Up bring it
+  /// there) it is whole again.
+  void _updateToolbarCollapsed() {
+    final collapsed =
+        PlatformDetection.isTV &&
+        !widget.pinTopToolbar &&
+        !TopToolbar.isFocusedNotifier.value &&
+        _tvScrollOffset > _kCollapseAfter;
+    if (collapsed != _toolbarCollapsed.value) {
+      _toolbarCollapsed.value = collapsed;
+    }
+  }
+
   // Home stays mounted under whatever it pushes, so coming back to it, or
   // leaving it, starts the bar out whole again.
   @override
@@ -258,7 +238,6 @@ class _NavigationLayoutState extends State<NavigationLayout>
   }
 
   bool _onBottomScroll(ScrollNotification n) {
-    if (_bottomStyle != BottomNavbarStyle.split) return false;
     // Rows of cards scroll sideways and a nested list isn't the page.
     if (n.metrics.axis != Axis.vertical || n.depth > 1) return false;
 
@@ -293,60 +272,13 @@ class _NavigationLayoutState extends State<NavigationLayout>
   @override
   void dispose() {
     if (_observedRoute != null) routeLifecycleObserver.unsubscribe(this);
+    TopToolbar.isFocusedNotifier.removeListener(_updateToolbarCollapsed);
     _bottomMinimized.dispose();
+    _toolbarCollapsed.dispose();
     _contentScrolled.dispose();
-    _prefs.removeListener(_onPrefsChanged);
-    if (GetIt.instance.isRegistered<PluginSyncService>()) {
-      GetIt.instance<PluginSyncService>().removeListener(_onPrefsChanged);
-    }
-    NavigationLayout.positionNotifier.removeListener(_onPositionNotified);
     WidgetsBinding.instance.removeObserver(this);
     _contentFocusNode.dispose();
-    _toolbarScrollOffset.dispose();
     super.dispose();
-  }
-
-  void _onPositionNotified() {
-    final pos = NavigationLayout.positionNotifier.value;
-    if (pos != null && pos != _position && mounted) {
-      final normalized = NavigationLayout.sanitizeNavbarPosition(pos);
-      if (normalized != pos) {
-        NavigationLayout.positionNotifier.value = normalized;
-      }
-      if (_prefs.get(UserPreferences.navbarPosition) != normalized) {
-        _prefs.set(UserPreferences.navbarPosition, normalized);
-      }
-      if (normalized != _position) {
-        setState(() => _position = normalized);
-      }
-    }
-  }
-
-  // The bar's height, and with it the content inset, depends on the style.
-  void _onPrefsChanged() {
-    if (!mounted) return;
-    // Kos TV: a switch of person brings their own bar position, which no
-    // settings screen or server apply announces when the plugin can't be
-    // reached, so the bar (and the details page, which follows the notifier)
-    // would keep the previous person's.
-    final pos = NavigationLayout.sanitizeNavbarPosition(
-      _prefs.get(UserPreferences.navbarPosition),
-    );
-    if (pos != _position) {
-      setState(() => _position = pos);
-      if (NavigationLayout.positionNotifier.value != pos) {
-        NavigationLayout.positionNotifier.value = pos;
-      }
-    }
-    final style = _prefs.get(UserPreferences.bottomNavbarStyle);
-    if (style == _bottomStyle) return;
-    _expandBottomBar();
-    setState(() => _bottomStyle = style);
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refreshPosition();
   }
 
   // MediaQuery can't be used for this: the Scaffold strips view insets from
@@ -360,45 +292,29 @@ class _NavigationLayoutState extends State<NavigationLayout>
     if (visible != _keyboardVisible) setState(() => _keyboardVisible = visible);
   }
 
-  void _refreshPosition() {
-    final storedPosition = _prefs.get(UserPreferences.navbarPosition);
-    final pos = NavigationLayout.sanitizeNavbarPosition(storedPosition);
-    if (storedPosition != pos) {
-      _prefs.set(UserPreferences.navbarPosition, pos);
-      NavigationLayout.positionNotifier.value = pos;
-    }
-    if (pos != _position && mounted) setState(() => _position = pos);
-  }
-
   @override
   Widget build(BuildContext context) {
-    // Kos TV: the phone's bottom bar carries its own music player, so the
-    // floating one steps aside on its pages.
+    final bottom = NavigationLayout.usesBottomNavbar;
+    // Kos TV: the bottom bar carries its own music player, so the floating
+    // one steps aside on its pages.
     KostvNowPlayingRouteObserver.instance.setBottomBar(
       ModalRoute.of(context),
-      _position == NavbarPosition.bottom && NavigationLayout.allowBottomNavbar,
+      bottom,
     );
-    final layout = switch (_position) {
-      NavbarPosition.left => _buildSidebar(),
-      NavbarPosition.top => _buildToolbar(),
-      NavbarPosition.bottom =>
-        NavigationLayout.allowBottomNavbar
-            ? _buildBottomBar()
-            : _buildToolbar(),
-    };
+    final layout = bottom ? _buildBottomBar() : _buildToolbar();
     // Grouping only pays off when the tier draws real backdrop blurs, the
     // sheen tier never does.
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerHover: (_) => NavigationLayout._wakeTrailerChrome(),
-      child: AppColorScheme.isGlass && GlassSettings.blursBackdrop
+      child: GlassSettings.blursBackdrop
           ? BackdropGroup(child: layout)
           : layout,
     );
   }
 
-  /// Keyed so moving the navbar reparents the page that is already on screen
-  /// instead of tearing it down and building it again.
+  /// Keyed so the page that is already on screen is never torn down and built
+  /// again when the window changes between narrow and wide.
   Widget get _content => KeyedSubtree(
     key: _contentKey,
     child: Focus(
@@ -414,7 +330,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
       children: [
         Positioned.fill(
           child: BottomNavInsetScope(
-            height: BottomNavbar.heightFor(context, style: _bottomStyle),
+            height: BottomNavbar.heightFor(context),
             child: NotificationListener<ScrollNotification>(
               onNotification: _onBottomScroll,
               child: content,
@@ -460,8 +376,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
   }
 
   Widget _buildToolbar() {
-    final translateWithScroll = PlatformDetection.isTV && !widget.pinTopToolbar;
-    final shadeOnScroll = !PlatformDetection.isTV;
+    final isTV = PlatformDetection.isTV;
     final content = _content;
     final toolbar = ListenableBuilder(
       listenable: NavigationLayout.trailerChromeListenable,
@@ -479,87 +394,30 @@ class _NavigationLayoutState extends State<NavigationLayout>
           ),
         );
       },
-      // Its own layer: moved with the scroll on the TV without repainting.
+      // Its own layer: gathering into its pill doesn't repaint the page.
       child: RepaintBoundary(
         child: TopToolbar(
           activeRoute: widget.activeRoute,
           showBackButton: widget.showBackButton,
           contentFocusNode: _contentFocusNode,
+          collapsed: _toolbarCollapsed,
         ),
       ),
     );
-    final maxTranslate = TopToolbar.heightFor(context);
-    final body = translateWithScroll
-        ? NotificationListener<ScrollNotification>(
-            onNotification: (n) {
-              if (n.metrics.axis != Axis.vertical) return false;
-              final px = n.metrics.pixels.clamp(0.0, double.infinity);
-              if ((px - _toolbarScrollOffset.value).abs() > 0.5) {
-                _toolbarScrollOffset.value = px;
-              }
-              return false;
-            },
-            child: content,
-          )
-        : shadeOnScroll
-        ? NotificationListener<ScrollNotification>(
-            onNotification: _onToolbarContentScroll,
-            child: content,
-          )
-        : content;
-    final musicExtra = TopToolbar.musicBarExtraHeight();
-    final insetBody = (widget.pinTopToolbar && musicExtra > 0)
-        ? Padding(
-            padding: EdgeInsets.only(top: musicExtra),
-            child: body,
-          )
-        : body;
+    final body = NotificationListener<ScrollNotification>(
+      onNotification: isTV ? _onTvContentScroll : _onToolbarContentScroll,
+      child: content,
+    );
     return Column(
       children: [
         Expanded(
           child: Stack(
             children: [
-              Positioned.fill(child: insetBody),
-              if (shadeOnScroll) _buildScrollShade(maxTranslate),
-              if (translateWithScroll)
-                ValueListenableBuilder<bool>(
-                  valueListenable: TopToolbar.isFocusedNotifier,
-                  builder: (_, toolbarFocused, child) =>
-                      ValueListenableBuilder<double>(
-                        valueListenable: _toolbarScrollOffset,
-                        builder: (_, offset, child) {
-                          // A focused toolbar must be visible. Screens can hand
-                          // focus to it while the content is scrolled down, which
-                          // would leave focus in a toolbar translated off screen.
-                          final translate = !widget.showNavigationChrome
-                              ? maxTranslate
-                              : toolbarFocused
-                              ? 0.0
-                              : offset.clamp(0.0, maxTranslate);
-                          return Positioned(
-                            left: 0,
-                            right: 0,
-                            top: -translate,
-                            child: IgnorePointer(
-                              ignoring:
-                                  !widget.showNavigationChrome ||
-                                  translate >= maxTranslate,
-                              // Scrolled away, nothing in it keeps animating.
-                              child: TickerMode(
-                                enabled: translate < maxTranslate,
-                                child: child!,
-                              ),
-                            ),
-                          );
-                        },
-                        child: child,
-                      ),
-                  child: toolbar,
-                )
-              else
-                Positioned(left: 0, right: 0, top: 0, child: toolbar),
+              Positioned.fill(child: body),
+              if (!isTV) _buildScrollShade(TopToolbar.heightFor(context)),
+              Positioned(left: 0, right: 0, top: 0, child: toolbar),
               if (widget.showBackButton &&
-                  !PlatformDetection.isTV &&
+                  !isTV &&
                   !widget.showNavigationChrome)
                 Positioned(
                   top: 16,
@@ -624,82 +482,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
     );
   }
 
-  Widget _buildSidebar() {
-    final content = _content;
-
-    final sidebar = ListenableBuilder(
-      listenable: NavigationLayout.trailerChromeListenable,
-      builder: (context, child) {
-        final show =
-            widget.showNavigationChrome && !NavigationLayout.trailerHidesChrome;
-        return AnimatedOpacity(
-          opacity: show ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 200),
-          child: IgnorePointer(
-            ignoring: !show,
-            // Hidden (under a trailer), its animations (the requests'
-            // ring, the music bars) don't keep the screen redrawing.
-            child: TickerMode(enabled: show, child: child!),
-          ),
-        );
-      },
-      child: RepaintBoundary(
-        child: LeftSidebar(
-          activeRoute: widget.activeRoute,
-          contentFocusNode: _contentFocusNode,
-          showBackButton: widget.showBackButton,
-        ),
-      ),
-    );
-
-    if (PlatformDetection.isTV ||
-        (PlatformDetection.isDesktop ||
-            (PlatformDetection.isWeb && !PlatformDetection.useMobileUi))) {
-      return Column(
-        children: [
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned.fill(child: content),
-                Positioned(top: 0, left: 0, bottom: 0, child: sidebar),
-                if (widget.showBackButton && !PlatformDetection.isTV)
-                  Positioned(
-                    top: 16,
-                    left: 88,
-                    child: _buildFloatingBackButton(),
-                  ),
-              ],
-            ),
-          ),
-          const DownloadProgressBar(),
-        ],
-      );
-    }
-
-    return Column(
-      children: [
-        Expanded(
-          child: Stack(
-            children: [
-              Positioned.fill(child: content),
-              Positioned.fill(child: sidebar),
-            ],
-          ),
-        ),
-        const DownloadProgressBar(),
-      ],
-    );
-  }
-
   Widget _buildFloatingBackButton() {
-    final overlayColor = OverlayColorPalette.resolveColor(
-      _prefs.get(UserPreferences.navbarColor),
-    );
-    final opacity = _prefs.get(UserPreferences.navbarOpacity) / 100.0;
-    final backgroundColor = ThemeRegistry.active.transparentNavbarSurface
-        ? Colors.transparent
-        : overlayColor.withValues(alpha: opacity);
-
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -709,8 +492,9 @@ class _NavigationLayoutState extends State<NavigationLayout>
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: backgroundColor,
+            color: const Color(0xB31E1E26),
             shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.25),

@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/preference/preference_constants.dart';
-import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/navigation/destinations.dart';
 import 'package:moonfin/ui/screens/livetv/live_tv_screen.dart';
 import 'package:moonfin/ui/widgets/navigation_layout.dart';
@@ -13,10 +11,8 @@ import 'package:moonfin/util/platform_detection.dart';
 import '../../widgets/bottom_nav/bottom_nav_fakes.dart';
 
 Future<GoRouter> _open(WidgetTester tester, InterfaceLayout layout) async {
-  final setup = await setUpBottomNav();
+  await setUpBottomNav();
   PlatformDetection.setInterfaceLayout(layout);
-  await setup.prefs.set(UserPreferences.navbarPosition, NavbarPosition.top);
-  NavigationLayout.positionNotifier.value = NavbarPosition.top;
   tester.view.physicalSize = const Size(1920, 1080);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -70,7 +66,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byIcon(Icons.arrow_back));
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded));
     await tester.pumpAndSettle();
 
     expect(find.text('home page'), findsOneWidget);

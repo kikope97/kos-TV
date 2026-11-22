@@ -23,7 +23,6 @@ import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../data/services/voice_search_controller.dart';
 import '../../../data/viewmodels/search_view_model.dart';
-import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../navigation/destinations.dart';
 import '../../navigation/route_lifecycle_observer.dart';
@@ -539,9 +538,7 @@ class _SearchScreenState extends State<SearchScreen>
     if (key.isLeftKey) {
       if (column == 0) {
         if (event is KeyDownEvent) {
-          return _tryFocusSidebar()
-              ? KeyEventResult.handled
-              : KeyEventResult.ignored;
+          return KeyEventResult.ignored;
         }
         return KeyEventResult.ignored;
       }
@@ -572,18 +569,6 @@ class _SearchScreenState extends State<SearchScreen>
     return KeyEventResult.ignored;
   }
 
-  bool _tryFocusSidebar() {
-    if (_userPreferences.get(UserPreferences.navbarPosition) !=
-        NavbarPosition.left) {
-      return false;
-    }
-    final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-    if (focusNavbar != null) {
-      focusNavbar();
-      return true;
-    }
-    return FocusScope.of(context).previousFocus();
-  }
 
   bool _tryFocusNavbar() {
     final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
@@ -800,8 +785,7 @@ class _SearchScreenState extends State<SearchScreen>
       return KeyEventResult.ignored;
     }
     if (event.logicalKey.isUpKey) {
-      if (_userPreferences.get(UserPreferences.navbarPosition) ==
-          NavbarPosition.top) {
+      if (NavigationLayout.usesTopToolbar) {
         return _tryFocusNavbar()
             ? KeyEventResult.handled
             : KeyEventResult.ignored;
@@ -826,8 +810,7 @@ class _SearchScreenState extends State<SearchScreen>
       return KeyEventResult.ignored;
     }
     if (event.logicalKey.isUpKey) {
-      if (_userPreferences.get(UserPreferences.navbarPosition) ==
-          NavbarPosition.top) {
+      if (NavigationLayout.usesTopToolbar) {
         return _tryFocusNavbar()
             ? KeyEventResult.handled
             : KeyEventResult.ignored;
@@ -842,9 +825,7 @@ class _SearchScreenState extends State<SearchScreen>
       return KeyEventResult.handled;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-      return _tryFocusSidebar()
-          ? KeyEventResult.handled
-          : KeyEventResult.ignored;
+      return KeyEventResult.ignored;
     }
     if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
         VoiceSearchController.isSupported) {
@@ -873,8 +854,7 @@ class _SearchScreenState extends State<SearchScreen>
       return KeyEventResult.handled;
     }
     if (event.logicalKey.isUpKey) {
-      if (_userPreferences.get(UserPreferences.navbarPosition) ==
-          NavbarPosition.top) {
+      if (NavigationLayout.usesTopToolbar) {
         return _tryFocusNavbar()
             ? KeyEventResult.handled
             : KeyEventResult.ignored;
@@ -1015,9 +995,7 @@ class _SearchScreenState extends State<SearchScreen>
       if (_tabCount > 0) RowFocusEntry.node(_tabsFocusNode),
     ];
 
-    final topbar =
-        _userPreferences.get(UserPreferences.navbarPosition) ==
-        NavbarPosition.top;
+    final topbar = NavigationLayout.usesTopToolbar;
 
     final scaffold = Scaffold(
       backgroundColor: AppColorScheme.background,
@@ -1240,7 +1218,6 @@ class _SearchScreenState extends State<SearchScreen>
             selectedIndex: _selectedTab,
             onChanged: _selectTab,
             focusNode: _tabsFocusNode,
-            onExitLeft: _tryFocusSidebar,
             onVerticalNavigation: (isUp) {
               if (_moveVertical(tabsIndex, isUp)) return true;
               if (!isUp) {
@@ -1351,9 +1328,7 @@ class _SearchScreenState extends State<SearchScreen>
     if (key.isLeftKey) {
       if (col == 0) {
         if (event is KeyDownEvent) {
-          return _tryFocusSidebar()
-              ? KeyEventResult.handled
-              : KeyEventResult.ignored;
+          return KeyEventResult.ignored;
         }
         return KeyEventResult.ignored;
       }

@@ -1,8 +1,7 @@
 import 'user_preferences.dart';
 
-/// Destinations that can be pinned between Home and You on the mobile bottom
-/// navbar. The names are the wire format of [UserPreferences.bottomNavbarTabs],
-/// so renaming one breaks every synced profile that holds it.
+/// Destinations of the menu that can sit between Home and You on the phone's
+/// glass bar, or be reached from «Tú» and «Más».
 enum BottomNavTab {
   search,
 
@@ -21,53 +20,28 @@ enum BottomNavTab {
   kostvMusic,
 }
 
-const int kMaxPinnedBottomNavTabs = 3;
+/// Kos TV: how many tabs the glass bar shows between Home and You. Search
+/// has its own round button beside the bar.
+const int kBottomBarTabs = 2;
 
-// Libraries sits second so a user on default settings keeps it on the bar.
-// Kos TV: Discover goes before it, where the requests service lets the person
-// in. Favorites is never on the bar, only in the You hub (see [pinnable]).
-const List<BottomNavTab> _autoOrder = [
-  BottomNavTab.search,
+/// Kos TV: the bar's tabs, in the order they are taken: Descubrir and Música
+/// (the approved design: Inicio · Descubrir · Música · Tú). Where one of
+/// them is not offered (Kids Mode, a switch turned off, no requests service)
+/// the next destination on offer takes its place, so the bar always has its
+/// tabs. Favorites is never on the bar, only in «Tú».
+const List<BottomNavTab> _barOrder = [
   BottomNavTab.kostvDiscover,
+  BottomNavTab.kostvMusic,
   BottomNavTab.libraries,
   BottomNavTab.myList,
   BottomNavTab.liveTv,
   BottomNavTab.genres,
   BottomNavTab.calendar,
-  // Kos TV: Music last, so the bar keeps its usual tabs: it is in the You
-  // hub (and in the top bar on phones), and can be pinned.
-  BottomNavTab.kostvMusic,
 ];
 
-final Map<String, BottomNavTab> _byName = {
-  for (final tab in BottomNavTab.values) tab.name.toLowerCase(): tab,
-};
-
-/// Reads a stored pin list. Unknown names, which a newer client may have
-/// synced, are dropped along with duplicates and anything past the limit.
-List<BottomNavTab> parsePinnedBottomNavTabs(String raw) {
-  final pins = <BottomNavTab>[];
-  for (final part in raw.split(',')) {
-    final tab = _byName[part.trim().toLowerCase()];
-    if (tab == null || pins.contains(tab)) continue;
-    pins.add(tab);
-    if (pins.length == kMaxPinnedBottomNavTabs) break;
-  }
-  return pins;
-}
-
-String serializePinnedBottomNavTabs(Iterable<BottomNavTab> tabs) =>
-    tabs.take(kMaxPinnedBottomNavTabs).map((t) => t.name).join(',');
-
-/// Whether [raw] leaves the pins to be picked automatically. A list whose
-/// names are all unknown counts, so a profile from a newer client falls back
-/// to something sensible instead of an empty bar.
-bool isAutomaticBottomNavTabs(String raw) =>
-    parsePinnedBottomNavTabs(raw).isEmpty;
-
 /// The settings that decide whether a [BottomNavTab] is on offer at all. Only
-/// preferences and plugin state feed it, never loaded data, so the pins and
-/// their colours don't shift while libraries are still loading.
+/// preferences and plugin state feed it, never loaded data, so the tabs don't
+/// shift while libraries are still loading.
 class BottomNavTabGates {
   final bool kidsMode;
   final bool showLibraries;
@@ -122,10 +96,6 @@ class BottomNavTabGates {
     );
   }
 
-  /// Kos TV: whether [tab] can sit on the bar. Favorites lives in the You
-  /// hub only.
-  static bool pinnable(BottomNavTab tab) => tab != BottomNavTab.favorites;
-
   // Kids Mode drops Libraries (the My Media row stands in), Live TV (its route
   // bounces home) and the calendar.
   bool offers(BottomNavTab tab) => switch (tab) {
@@ -134,8 +104,7 @@ class BottomNavTabGates {
           !kidsMode && showKostvDiscover && kostvDiscoverAvailable,
         BottomNavTab.kostvMusic => !kidsMode && showKostvMusic,
         BottomNavTab.libraries => !kidsMode && showLibraries,
-        // Kos TV: always there, in the You hub (with «Mi lista» on the bar
-        // a Favorites tab too would only confuse).
+        // Kos TV: always there, in «Tú».
         BottomNavTab.favorites => true,
         BottomNavTab.myList => kostvMyListAvailable,
         BottomNavTab.genres => showGenres,
@@ -143,15 +112,12 @@ class BottomNavTabGates {
         BottomNavTab.calendar => !kidsMode && showCalendar && calendarAvailable,
       };
 
-  /// The tabs the bar shows between Home and You. Automatic pins follow the
-  /// nav button switches without anything being stored. Explicit pins are
-  /// only filtered, never topped up, so turning a button off doesn't slip an
-  /// unchosen tab onto the bar.
-  List<BottomNavTab> resolvePins(String raw) {
-    final explicit = parsePinnedBottomNavTabs(raw);
-    if (explicit.isNotEmpty) {
-      return explicit.where((t) => offers(t) && pinnable(t)).toList();
-    }
-    return _autoOrder.where(offers).take(kMaxPinnedBottomNavTabs).toList();
-  }
+  /// The tabs the glass bar shows between Home and You. [isAvailable] skips
+  /// a destination whose data isn't there, like Libraries before any library
+  /// has loaded, for the next one.
+  List<BottomNavTab> barTabs({bool Function(BottomNavTab tab)? isAvailable}) =>
+      _barOrder
+          .where((t) => offers(t) && (isAvailable?.call(t) ?? true))
+          .take(kBottomBarTabs)
+          .toList();
 }

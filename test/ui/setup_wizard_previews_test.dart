@@ -124,12 +124,8 @@ void main() {
         for (final mode in _mediaBarModes) {
           await pumpPreview(tester, mediaBarPreview(mode));
         }
-        for (final position in NavbarPosition.values) {
-          await pumpPreview(tester, navbarPreview(position));
-        }
-        for (final style in BottomNavbarStyle.values) {
-          await pumpPreview(tester, bottomNavbarStylePreview(style));
-        }
+        // Kos TV: Home with this device's one menu, as Settings draws it.
+        await pumpPreview(tester, settingsHomePreview());
         await pumpPreview(tester, homeRowsPreview(modern: false));
         await pumpPreview(tester, homeRowsPreview(modern: true));
         for (final style in DetailScreenStyle.values) {
@@ -172,12 +168,8 @@ void main() {
         for (final mode in _mediaBarModes) {
           await pumpPreview(tester, mediaBarPreview(mode));
         }
-        for (final position in NavbarPosition.values) {
-          await pumpPreview(tester, navbarPreview(position));
-        }
-        for (final style in BottomNavbarStyle.values) {
-          await pumpPreview(tester, bottomNavbarStylePreview(style));
-        }
+        // Kos TV: Home with this device's one menu, as Settings draws it.
+        await pumpPreview(tester, settingsHomePreview());
         await pumpPreview(tester, homeRowsPreview(modern: false));
         for (final style in DetailScreenStyle.values) {
           await pumpPreview(tester, detailStylePreview(style));

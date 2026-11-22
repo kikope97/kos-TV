@@ -30,7 +30,6 @@ import '../../widgets/focus/context_menu_sheet.dart';
 import '../../widgets/focus/focusable_wrapper.dart';
 import '../../widgets/focus/locked_focus_row.dart';
 import '../../widgets/focus/request_initial_focus.dart';
-import '../../widgets/left_sidebar.dart';
 import '../../widgets/media_card.dart';
 import '../../widgets/offline_aware_image.dart';
 import '../../widgets/settings/settings_preview_scope.dart';
@@ -130,7 +129,6 @@ class _ReadingRoomBookScreenState extends State<ReadingRoomBookScreen> {
         if (!mounted ||
             _vm.isLoading ||
             !canClaimInitialFocus(context) ||
-            LeftSidebar.isFocusedNotifier.value ||
             TopToolbar.isFocusedNotifier.value) {
           return;
         }
@@ -208,7 +206,7 @@ class _ReadingRoomBookScreenState extends State<ReadingRoomBookScreen> {
   List<Widget> _buildSections(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final wide = _wide;
-    final inset = (wide ? 48.0 : 16.0) + bookSidebarInset;
+    final inset = (wide ? 48.0 : 16.0);
     final resumeRow = _vm.resumeRow;
     final resume = resumeRow?.items ?? const <AggregatedItem>[];
     final recent = _vm.paneItems.take(20).toList();
@@ -331,7 +329,7 @@ class _ReadingRoomBookScreenState extends State<ReadingRoomBookScreen> {
         edges: BookNavEdges(
           up: () => _move(navIndex, true),
           down: () => _move(navIndex, false),
-          left: focusBookSidebar,
+          left: stayAtBookLeftEdge,
         ),
       ),
     );
@@ -352,7 +350,7 @@ class _ReadingRoomBookScreenState extends State<ReadingRoomBookScreen> {
       disableScale: true,
       onSelect: () =>
           context.push(Destinations.searchInLibrary(widget.libraryId)),
-      onNavigateLeft: focusBookSidebar,
+      onNavigateLeft: stayAtBookLeftEdge,
       onNavigateUp: () => _move(headerIndex, true),
       onNavigateDown: () => _move(headerIndex, false),
       onNavigateRight: () {},
@@ -443,7 +441,7 @@ class _ReadingRoomBookScreenState extends State<ReadingRoomBookScreen> {
         }
         return _move(entryIndex, isUp);
       },
-      onLeftEdge: focusBookSidebar,
+      onLeftEdge: stayAtBookLeftEdge,
       onFocusChange: (hasFocus) {
         if (!hasFocus && _onContinueButton) {
           setState(() => _onContinueButton = false);
@@ -501,7 +499,7 @@ class _ReadingRoomBookScreenState extends State<ReadingRoomBookScreen> {
       onSelect: _browseAll,
       onNavigateLeft: showScope
           ? _scopeFocusNode.requestFocus
-          : focusBookSidebar,
+          : stayAtBookLeftEdge,
       onNavigateUp: () => _move(entryIndex, true),
       onNavigateDown: () => _move(entryIndex, false),
       onNavigateRight: () {},
@@ -539,7 +537,7 @@ class _ReadingRoomBookScreenState extends State<ReadingRoomBookScreen> {
                 availableScopes: _vm.availableScopes,
                 focusNode: _scopeFocusNode,
                 onVerticalNavigation: (isUp) => _move(entryIndex, isUp),
-                onExitLeft: focusBookSidebar,
+                onExitLeft: stayAtBookLeftEdge,
                 onExitRight: showBrowseAll
                     ? _browseAllFocusNode.requestFocus
                     : null,
@@ -578,7 +576,7 @@ class _ReadingRoomBookScreenState extends State<ReadingRoomBookScreen> {
       onSelect: _openItem,
       onLongPress: _onItemLongPress,
       onVerticalNavigation: (isUp) => _move(entryIndex, isUp),
-      onLeftEdge: focusBookSidebar,
+      onLeftEdge: stayAtBookLeftEdge,
       itemBuilder: (context, item, index, focused) {
         final isAudio = _vm.isAudiobookItem(item);
         return Align(
@@ -626,7 +624,7 @@ class _ReadingRoomBookScreenState extends State<ReadingRoomBookScreen> {
       large: _wide,
       onSelect: _openItem,
       onVerticalNavigation: (isUp) => _move(entryIndex, isUp),
-      onLeftEdge: focusBookSidebar,
+      onLeftEdge: stayAtBookLeftEdge,
       itemBuilder: (context, item, index, focused) {
         final covers = _vm.seriesCoverUrls(item);
         final fallback = _vm.bookImageUrl(item);
@@ -695,7 +693,7 @@ class _ReadingRoomBookScreenState extends State<ReadingRoomBookScreen> {
                     authorsIndex,
                   ),
                   onNavigateLeft: i % authorColumns == 0
-                      ? focusBookSidebar
+                      ? stayAtBookLeftEdge
                       : null,
                 ),
             ],
@@ -736,7 +734,7 @@ class _ReadingRoomBookScreenState extends State<ReadingRoomBookScreen> {
                   ),
                   onNavigateLeft:
                       i % genreColumns == 0 && !genresBesideAuthors
-                      ? focusBookSidebar
+                      ? stayAtBookLeftEdge
                       : null,
                 ),
             ],

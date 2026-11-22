@@ -95,7 +95,7 @@ class _ImmersiveMusicScreenState
 
   void _addSections() {
     final l10n = AppLocalizations.of(context);
-    final inset = (wide ? 48.0 : 20.0) + bookSidebarInset;
+    final inset = (wide ? 48.0 : 20.0);
     final featured = vm.featuredItem;
 
     headerIndex = addStop(
@@ -146,7 +146,7 @@ class _ImmersiveMusicScreenState
         lastPlayed,
         title: l10n.lastPlayed,
         inset: inset,
-        onLeftEdge: focusBookSidebar,
+        onLeftEdge: stayAtBookLeftEdge,
       );
       if (vm.genres.isNotEmpty) {
         final index = addStop(
@@ -162,9 +162,9 @@ class _ImmersiveMusicScreenState
         lastPlayed,
         title: l10n.lastPlayed,
         inset: inset,
-        onLeftEdge: focusBookSidebar,
+        onLeftEdge: stayAtBookLeftEdge,
       );
-      addShelf(rowOf('latest_'), inset: inset, onLeftEdge: focusBookSidebar);
+      addShelf(rowOf('latest_'), inset: inset, onLeftEdge: stayAtBookLeftEdge);
     }
     for (final prefix in const [
       'albumartist_',
@@ -173,7 +173,7 @@ class _ImmersiveMusicScreenState
       'musicartist_',
       'musicalbum_',
     ]) {
-      addShelf(rowOf(prefix), inset: inset, onLeftEdge: focusBookSidebar);
+      addShelf(rowOf(prefix), inset: inset, onLeftEdge: stayAtBookLeftEdge);
     }
   }
 
@@ -257,7 +257,7 @@ class _ImmersiveMusicScreenState
           icon: Icons.play_arrow_rounded,
           onTap: _play,
           primary: true,
-          onNavigateLeft: focusBookSidebar,
+          onNavigateLeft: stayAtBookLeftEdge,
         ),
         const SizedBox(width: 10),
         pill(
@@ -441,7 +441,7 @@ class _ImmersiveMusicScreenState
       onOpen: (index) => context.push(categories[index - 1].route),
       focusNode: node('tabs'),
       onVerticalNavigation: (isUp) => move(headerIndex, isUp),
-      onExitLeft: focusBookSidebar,
+      onExitLeft: stayAtBookLeftEdge,
       onExitRight: node('search').requestFocus,
     );
 
@@ -669,7 +669,7 @@ class _ImmersiveMusicScreenState
                 columns: columns,
                 onLeaveUp: () => move(entryIndex, true),
                 onLeaveDown: () => move(entryIndex, false),
-                onLeaveLeft: focusBookSidebar,
+                onLeaveLeft: stayAtBookLeftEdge,
               ),
             ),
         ],
@@ -716,7 +716,7 @@ class _ImmersiveMusicScreenState
                       columns: columns,
                       onLeaveUp: () => move(entryIndex, true),
                       onLeaveDown: () => move(entryIndex, false),
-                      onLeaveLeft: focusBookSidebar,
+                      onLeaveLeft: stayAtBookLeftEdge,
                     ),
                     builder: (focused) => LayoutBuilder(
                       builder: (context, cell) => MediaCard(
@@ -791,7 +791,7 @@ class _ImmersiveMusicScreenState
                       columns: columns,
                       onLeaveUp: seeAll.requestFocus,
                       onLeaveDown: () => move(entryIndex, false),
-                      onLeaveLeft: focusBookSidebar,
+                      onLeaveLeft: stayAtBookLeftEdge,
                     ),
                   ),
               ],

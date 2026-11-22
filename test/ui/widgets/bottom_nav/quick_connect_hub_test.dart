@@ -34,11 +34,12 @@ void main() {
     usePhoneView(tester);
     await tester.pumpWidget(bottomNavApp());
     await tester.pump();
-    await tester.tap(find.text('You'));
+    // Kos TV: «Más», a long press on «Tú».
+    await tester.longPress(find.text('You'));
     await tester.pumpAndSettle();
   }
 
-  testWidgets('on Silo the hub offers "Approve a sign-in"', (tester) async {
+  testWidgets('on Silo «Más» offers "Approve a sign-in"', (tester) async {
     await openHubOn(tester, ServerType.silo);
 
     expect(find.text('Approve a sign-in'), findsOneWidget);

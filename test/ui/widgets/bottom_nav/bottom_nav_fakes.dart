@@ -11,7 +11,6 @@ import 'package:moonfin/data/services/media_server_client_factory.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/data/services/server_messages_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/preference/preference_constants.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/widgets/navigation_layout.dart';
 import 'package:moonfin/util/game_library.dart';
@@ -73,12 +72,10 @@ const testTrack = AggregatedItem(
   rawData: {'Id': 'a1', 'Name': 'A Song', 'Type': 'Audio'},
 );
 
-/// Registers what the bottom navbar reaches for, on a phone, with the bar
-/// along the bottom in [style].
+/// Registers what the menu reaches for, on a phone (where it is the glass
+/// bar along the bottom).
 Future<({UserPreferences prefs, FakePlaybackManager playback})>
-    setUpBottomNav({
-  BottomNavbarStyle style = BottomNavbarStyle.dock,
-}) async {
+    setUpBottomNav() async {
   SharedPreferences.setMockInitialValues({});
   final store = PreferenceStore();
   await store.init();
@@ -96,8 +93,6 @@ Future<({UserPreferences prefs, FakePlaybackManager playback})>
   getIt.registerSingleton<ServerMessagesService>(_FakeServerMessages());
   PlatformDetection.setInterfaceLayout(InterfaceLayout.phone);
   ThemeRegistry.setActiveById(ThemeRegistry.moonfinId);
-  await prefs.set(UserPreferences.navbarPosition, NavbarPosition.bottom);
-  await prefs.set(UserPreferences.bottomNavbarStyle, style);
   return (prefs: prefs, playback: playback);
 }
 

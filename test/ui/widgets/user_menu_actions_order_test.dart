@@ -102,25 +102,20 @@ void main() {
     l10n.signOut,
   ];
 
+  // Kos TV: requests, favourites and Ajustes are in «Tú»; switching person
+  // keeps only what «Tú» doesn't hold.
   testWidgets('on a desktop the app comes first and signing out last', (
     tester,
   ) async {
     PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
     expect(
       await shownActions(tester),
-      expected([
-        l10n.kostvMyFavorites,
-        l10n.settings,
-        l10n.quickConnect,
-        l10n.remoteControl,
-      ]),
+      expected([l10n.quickConnect, l10n.remoteControl]),
     );
   });
 
-  testWidgets('on a TV the same order, with only what the bar lacks', (
-    tester,
-  ) async {
+  testWidgets('on a TV only the account', (tester) async {
     PlatformDetection.setInterfaceLayout(InterfaceLayout.tv);
-    expect(await shownActions(tester), expected([l10n.kostvMyFavorites]));
+    expect(await shownActions(tester), expected(const []));
   });
 }

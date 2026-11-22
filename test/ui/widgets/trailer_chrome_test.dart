@@ -1,19 +1,14 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:moonfin/preference/preference_constants.dart';
-import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/widgets/navigation_layout.dart';
 import 'package:moonfin/util/platform_detection.dart';
 
 import 'bottom_nav/bottom_nav_fakes.dart';
 
 void main() {
-  late UserPreferences prefs;
-
   setUp(() async {
-    prefs = (await setUpBottomNav()).prefs;
+    await setUpBottomNav();
     PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
-    await prefs.set(UserPreferences.navbarPosition, NavbarPosition.top);
   });
 
   tearDown(() async {

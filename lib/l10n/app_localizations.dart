@@ -860,12 +860,6 @@ abstract class AppLocalizations {
   /// **'Phone'**
   String get interfaceLayoutPhone;
 
-  /// Label for the glass rendering quality setting
-  ///
-  /// In en, this message translates to:
-  /// **'Glass Quality'**
-  String get glassQuality;
-
   /// Label for the setting that deepens blacks and enriches artwork on OLED displays
   ///
   /// In en, this message translates to:
@@ -889,30 +883,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Vivid'**
   String get oledModeVivid;
-
-  /// Explanation under the glass quality setting
-  ///
-  /// In en, this message translates to:
-  /// **'Auto picks the best glass effect for this device. Full forces real blur; Reduced uses a lightweight glass that saves GPU power.'**
-  String get glassQualitySubtitle;
-
-  /// Glass quality option: per-device default
-  ///
-  /// In en, this message translates to:
-  /// **'Auto'**
-  String get glassQualityAuto;
-
-  /// Glass quality option: force real blur
-  ///
-  /// In en, this message translates to:
-  /// **'Full'**
-  String get glassQualityFull;
-
-  /// Glass quality option: lightweight zero-blur glass
-  ///
-  /// In en, this message translates to:
-  /// **'Reduced'**
-  String get glassQualityReduced;
 
   /// Label for the device performance setting
   ///
@@ -8060,23 +8030,11 @@ abstract class AppLocalizations {
   /// **'Clear All'**
   String get clearAll;
 
-  /// Setting for navigation style
-  ///
-  /// In en, this message translates to:
-  /// **'Navigation Style'**
-  String get navigationStyle;
-
   /// Navigation style: top bar
   ///
   /// In en, this message translates to:
   /// **'Top Bar'**
   String get topBar;
-
-  /// Navigation style: left sidebar
-  ///
-  /// In en, this message translates to:
-  /// **'Left Sidebar'**
-  String get leftSidebar;
 
   /// Setting for showing shuffle button
   ///
@@ -8125,24 +8083,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Show each library as its own button in the navigation bar instead of in the Libraries menu'**
   String get showLibrariesIndividuallySubtitle;
-
-  /// Setting to keep every top navbar heading's text label visible at all times, tvOS-style
-  ///
-  /// In en, this message translates to:
-  /// **'Always Expand Navbar Labels'**
-  String get navbarAlwaysExpanded;
-
-  /// Setting for navbar opacity
-  ///
-  /// In en, this message translates to:
-  /// **'Navbar Opacity'**
-  String get navbarOpacity;
-
-  /// Setting for navbar color
-  ///
-  /// In en, this message translates to:
-  /// **'Navbar Color'**
-  String get navbarColor;
 
   /// Color: gray
   ///
@@ -9901,12 +9841,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Focus color, watched indicators, backdrops'**
   String get focusColorWatchedIndicatorsBackdrops;
-
-  /// Navigation settings subtitle
-  ///
-  /// In en, this message translates to:
-  /// **'Navbar style, toolbar buttons, appearance'**
-  String get navbarStyleToolbarAppearance;
 
   /// Media bar settings subtitle
   ///
@@ -19820,12 +19754,6 @@ abstract class AppLocalizations {
   /// **'Show the libraries button in the navigation bar'**
   String get settingsShowLibrariesButtonInNavigation;
 
-  /// No description provided for @settingsAlwaysExpandNavbarLabels.
-  ///
-  /// In en, this message translates to:
-  /// **'Always show text labels in the top navigation bar'**
-  String get settingsAlwaysExpandNavbarLabels;
-
   /// No description provided for @settingsLibraryVisibilitySubtitle.
   ///
   /// In en, this message translates to:
@@ -20869,12 +20797,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Home Screen'**
   String get homeScreen;
-
-  /// No description provided for @bottomBar.
-  ///
-  /// In en, this message translates to:
-  /// **'Bottom Bar'**
-  String get bottomBar;
 
   /// No description provided for @homeRowsStyleClassic.
   ///
@@ -26075,12 +25997,6 @@ abstract class AppLocalizations {
   /// **'Skip setup'**
   String get setupSkip;
 
-  /// Setup question asking where the navigation bar should sit
-  ///
-  /// In en, this message translates to:
-  /// **'Where should navigation go?'**
-  String get setupNavbarQuestion;
-
   /// Setup wizard question for the media bar style
   ///
   /// In en, this message translates to:
@@ -26237,30 +26153,6 @@ abstract class AppLocalizations {
   /// **'The title in a glass window over its blurred art, with tabs under the buttons.'**
   String get setupDetailFrostHint;
 
-  /// Setup question asking which style the bottom navigation bar should use
-  ///
-  /// In en, this message translates to:
-  /// **'How should the bottom bar look?'**
-  String get setupNavbarStyleQuestion;
-
-  /// What the Dock bottom bar style gives you
-  ///
-  /// In en, this message translates to:
-  /// **'A floating pill with labels under every tab.'**
-  String get setupNavbarStyleDockHint;
-
-  /// What the Split bottom bar style gives you
-  ///
-  /// In en, this message translates to:
-  /// **'Search gets its own button, and the bar shrinks while you scroll.'**
-  String get setupNavbarStyleSplitHint;
-
-  /// What the Strip bottom bar style gives you
-  ///
-  /// In en, this message translates to:
-  /// **'A full-width bar along the bottom edge.'**
-  String get setupNavbarStyleStripHint;
-
   /// Label above the theme swatches on the final setup screen
   ///
   /// In en, this message translates to:
@@ -26410,24 +26302,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Up and down to preview · OK to choose · Back twice to skip'**
   String get setupTvHint;
-
-  /// What the Top Bar navigation position gives you
-  ///
-  /// In en, this message translates to:
-  /// **'Tabs across the top of the screen.'**
-  String get setupNavbarTopHint;
-
-  /// What the Left Sidebar navigation position gives you
-  ///
-  /// In en, this message translates to:
-  /// **'A slim rail of icons down the left side.'**
-  String get setupNavbarLeftHint;
-
-  /// What the Bottom Bar navigation position gives you on phones
-  ///
-  /// In en, this message translates to:
-  /// **'Tabs along the bottom edge, in easy reach of your thumb.'**
-  String get setupNavbarBottomHint;
 
   /// What the Moonfin media bar style looks like
   ///
@@ -27086,90 +26960,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'In landscape the camera housing covers one edge of the screen. This holds the picture back from it, which only changes anything for video wide enough to reach that far.'**
   String get keepVideoClearOfDynamicIslandDescription;
-
-  /// Settings title for choosing how the mobile bottom navigation bar looks
-  ///
-  /// In en, this message translates to:
-  /// **'Bottom Bar Style'**
-  String get bottomNavbarStyle;
-
-  /// Bottom bar style: a floating pill with labelled tabs
-  ///
-  /// In en, this message translates to:
-  /// **'Dock'**
-  String get bottomNavbarStyleDock;
-
-  /// Bottom bar style: tabs in one capsule with search as its own round button
-  ///
-  /// In en, this message translates to:
-  /// **'Split'**
-  String get bottomNavbarStyleSplit;
-
-  /// Bottom bar style: a full-width bar along the bottom edge
-  ///
-  /// In en, this message translates to:
-  /// **'Strip'**
-  String get bottomNavbarStyleStrip;
-
-  /// Settings title for choosing which tabs sit on the mobile bottom navigation bar
-  ///
-  /// In en, this message translates to:
-  /// **'Bottom Bar Tabs'**
-  String get bottomNavbarTabs;
-
-  /// Explains the bottom bar tabs screen
-  ///
-  /// In en, this message translates to:
-  /// **'Pin up to 3 tabs between Home and You. Everything else is in the bottom navbar hub.'**
-  String get bottomNavbarTabsDescription;
-
-  /// Shown when the bottom bar tabs are picked from the navigation button settings
-  ///
-  /// In en, this message translates to:
-  /// **'Automatic'**
-  String get bottomNavbarTabsAutomatic;
-
-  /// Section header for the tabs pinned to the bottom bar
-  ///
-  /// In en, this message translates to:
-  /// **'Pinned'**
-  String get bottomNavbarTabsPinned;
-
-  /// Section header for tabs that can be pinned to the bottom bar
-  ///
-  /// In en, this message translates to:
-  /// **'Available'**
-  String get bottomNavbarTabsAvailable;
-
-  /// Action that clears the pinned bottom bar tabs so they are picked automatically again
-  ///
-  /// In en, this message translates to:
-  /// **'Reset to Automatic'**
-  String get bottomNavbarTabsReset;
-
-  /// Hint shown when the maximum number of bottom bar tabs is already pinned
-  ///
-  /// In en, this message translates to:
-  /// **'You can pin up to 3 tabs. Remove one to pin another.'**
-  String get bottomNavbarTabsLimit;
-
-  /// Hint on a bottom bar tab that can't be pinned because its navigation button setting is off
-  ///
-  /// In en, this message translates to:
-  /// **'Turned off under Buttons'**
-  String get bottomNavbarTabTurnedOff;
-
-  /// Note on the bottom bar tabs screen about the Split style
-  ///
-  /// In en, this message translates to:
-  /// **'In the Split style, Search always has its own button.'**
-  String get bottomNavbarSplitSearchNote;
-
-  /// Note under the navigation buttons section while the bottom bar is in use
-  ///
-  /// In en, this message translates to:
-  /// **'These decide what shows in the bottom navbar hub and which tabs you can pin to the bottom bar. Tabs already on the bar aren\'t listed here.'**
-  String get bottomNavbarButtonsNote;
 
   /// Bottom bar tab that opens the user's own menu with their profile, extra destinations and settings
   ///
@@ -30501,12 +30291,6 @@ abstract class AppLocalizations {
   /// **'Decoding & Rendering'**
   String get kostvDecodingRenderingSection;
 
-  /// Kos TV: what the Navigation bar screen's More settings holds
-  ///
-  /// In en, this message translates to:
-  /// **'Bar color and opacity, labels and which buttons show'**
-  String get kostvMoreNavigationSummary;
-
   /// Kos TV: what the Media bar screen's More settings holds
   ///
   /// In en, this message translates to:
@@ -32192,12 +31976,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing of this kind in your favourites'**
   String get kostvFavoritesNoneOfKind;
-
-  /// Kos TV: profile menu entry when favourite series have news.
-  ///
-  /// In en, this message translates to:
-  /// **'{count, plural, =1{My favourites · 1 new} other{My favourites · {count} new}}'**
-  String kostvMyFavoritesWithNews(int count);
 
   /// Kos TV: favourites sorted by when they were marked.
   ///
@@ -36836,6 +36614,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The downloaded update isn\'t signed as kOS TV, so it hasn\'t been installed. Let whoever runs the server know.'**
   String get updateSignatureMismatch;
+
+  /// Kos TV menu (docs/diseno-menu): the person's requests tray, in «Tú» (the avatar's menu on TV/computer, the «Tú» page on phones)
+  ///
+  /// In en, this message translates to:
+  /// **'My requests'**
+  String get kostvMenuMyRequests;
+
+  /// Kos TV menu: how many news are waiting (requests, favourites), beside an entry of «Tú»
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 new} other{{count} new}}'**
+  String kostvMenuNews(int count);
+
+  /// Kos TV menu: in «Tú», opens the profiles to switch person
+  ///
+  /// In en, this message translates to:
+  /// **'Switch person'**
+  String get kostvMenuSwitchPerson;
+
+  /// Kos TV menu: line under the person's name at the top of «Tú»
+  ///
+  /// In en, this message translates to:
+  /// **'Family profile'**
+  String get kostvMenuFamilyProfile;
+
+  /// Kos TV «Tú» page (phones): heading over Bibliotecas, Géneros, TV en directo and Calendario
+  ///
+  /// In en, this message translates to:
+  /// **'At home'**
+  String get kostvMenuAtHome;
+
+  /// Kos TV «Tú» page (phones): short button beside the person's name to switch person
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get kostvMenuChange;
+
+  /// Kos TV «Tú» page: under «Mis peticiones» while something asked for is still coming
+  ///
+  /// In en, this message translates to:
+  /// **'Something\'s on its way'**
+  String get kostvMenuOnItsWay;
+
+  /// Kos TV phone glass bar: screen reader hint on «Tú»: a long press opens the «Más» sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Long press for «More»'**
+  String get kostvMenuYouHint;
+
+  /// Kos TV Settings > Appearance: under «Barra de navegación», which now only holds the switches of the menu's buttons (the menu itself has one design)
+  ///
+  /// In en, this message translates to:
+  /// **'Which buttons the menu shows'**
+  String get kostvMenuButtonsSubtitle;
 }
 
 class _AppLocalizationsDelegate

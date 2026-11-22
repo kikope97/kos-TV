@@ -3,22 +3,19 @@ import '../../navigation/destinations.dart';
 
 enum BottomNavItemKind { home, tab, you }
 
-/// One cell on the bar. [slot] is the cell's place among the offered items,
-/// which is what the theme's navbar colour cycle is keyed on.
+/// One tab of the glass bar.
 class BottomNavBarItem {
   final BottomNavItemKind kind;
   final BottomNavTab? tab;
-  final int slot;
 
-  const BottomNavBarItem._(this.kind, this.tab, this.slot);
+  const BottomNavBarItem._(this.kind, this.tab);
 
-  const BottomNavBarItem.home() : this._(BottomNavItemKind.home, null, 0);
+  const BottomNavBarItem.home() : this._(BottomNavItemKind.home, null);
 
-  const BottomNavBarItem.tab(BottomNavTab tab, int slot)
-      : this._(BottomNavItemKind.tab, tab, slot);
+  const BottomNavBarItem.tab(BottomNavTab tab)
+      : this._(BottomNavItemKind.tab, tab);
 
-  const BottomNavBarItem.you(int slot)
-      : this._(BottomNavItemKind.you, null, slot);
+  const BottomNavBarItem.you() : this._(BottomNavItemKind.you, null);
 
   String get id => switch (kind) {
         BottomNavItemKind.home => 'home',
@@ -28,42 +25,26 @@ class BottomNavBarItem {
 
   @override
   bool operator ==(Object other) =>
-      other is BottomNavBarItem &&
-      other.kind == kind &&
-      other.tab == tab &&
-      other.slot == slot;
+      other is BottomNavBarItem && other.kind == kind && other.tab == tab;
 
   @override
-  int get hashCode => Object.hash(kind, tab, slot);
+  int get hashCode => Object.hash(kind, tab);
 
   @override
-  String toString() => 'BottomNavBarItem($id, slot $slot)';
+  String toString() => 'BottomNavBarItem($id)';
 }
 
-/// Home, the pinned tabs and You, with slots handed out over the offered pins
-/// so a tab hidden for want of data doesn't recolour the ones after it.
-///
-/// [withoutSearch] is for Split, which gives Search a button of its own.
-/// [isAvailable] hides pins whose data isn't there, like Libraries before any
-/// library has loaded.
+/// Kos TV: Inicio, the bar's tabs (Descubrir and Música, see
+/// [BottomNavTabGates.barTabs]) and Tú. Search has its own round button.
 List<BottomNavBarItem> resolveBarItems(
-  BottomNavTabGates gates,
-  String rawPins, {
-  bool withoutSearch = false,
+  BottomNavTabGates gates, {
   bool Function(BottomNavTab tab)? isAvailable,
-}) {
-  final pins = gates
-      .resolvePins(rawPins)
-      .where((t) => !withoutSearch || t != BottomNavTab.search)
-      .toList();
-  final items = <BottomNavBarItem>[const BottomNavBarItem.home()];
-  for (var i = 0; i < pins.length; i++) {
-    if (isAvailable != null && !isAvailable(pins[i])) continue;
-    items.add(BottomNavBarItem.tab(pins[i], i + 1));
-  }
-  items.add(BottomNavBarItem.you(pins.length + 1));
-  return items;
-}
+}) => [
+  const BottomNavBarItem.home(),
+  for (final tab in gates.barTabs(isAvailable: isAvailable))
+    BottomNavBarItem.tab(tab),
+  const BottomNavBarItem.you(),
+];
 
 /// Where each tab's own screens live, for lighting it up as the active one.
 bool bottomNavTabMatchesRoute(BottomNavTab tab, String route) {
@@ -88,85 +69,16 @@ bool bottomNavTabMatchesRoute(BottomNavTab tab, String route) {
 
 /// The index of the item to highlight, or null when the screen belongs to
 /// none of them, like an item's detail page.
-int? activeBarIndex(
-  List<BottomNavBarItem> items,
-  String? activeRoute, {
-  required bool hubOpen,
-}) {
+int? activeBarIndex(List<BottomNavBarItem> items, String? activeRoute) {
   final route = activeRoute ?? '';
   for (var i = 0; i < items.length; i++) {
     final item = items[i];
     final active = switch (item.kind) {
-      BottomNavItemKind.you => hubOpen,
-      BottomNavItemKind.home => !hubOpen && route == Destinations.home,
-      BottomNavItemKind.tab =>
-        !hubOpen && bottomNavTabMatchesRoute(item.tab!, route),
+      BottomNavItemKind.you => route == Destinations.kostvYou,
+      BottomNavItemKind.home => route == Destinations.home,
+      BottomNavItemKind.tab => bottomNavTabMatchesRoute(item.tab!, route),
     };
     if (active) return i;
   }
   return null;
-}
-
-enum BottomNavHubAction {
-  saved,
-  shuffle,
-  syncPlay,
-  quickConnect,
-  remoteControl,
-}
-
-/// A tile in the bottom navbar hub: a destination that isn't pinned, or an
-/// action.
-class BottomNavHubTile {
-  final BottomNavTab? tab;
-  final BottomNavHubAction? action;
-
-  const BottomNavHubTile.tab(BottomNavTab this.tab) : action = null;
-  const BottomNavHubTile.action(BottomNavHubAction this.action) : tab = null;
-
-  @override
-  bool operator ==(Object other) =>
-      other is BottomNavHubTile && other.tab == tab && other.action == action;
-
-  @override
-  int get hashCode => Object.hash(tab, action);
-
-  @override
-  String toString() => 'BottomNavHubTile(${tab?.name ?? action?.name})';
-}
-
-/// Tiles for the bottom navbar hub, in the order they are drawn: saved media
-/// first because it matters most offline, then every destination that is
-/// offered but not on the bar, then the actions.
-///
-/// [alsoOnBar] names tabs the bar shows outside its tab row, like Split's
-/// search button.
-List<BottomNavHubTile> resolveHubTiles({
-  required BottomNavTabGates gates,
-  required List<BottomNavBarItem> barItems,
-  required bool Function(BottomNavTab tab) isAvailable,
-  required bool savedAvailable,
-  required bool shuffle,
-  required bool syncPlay,
-  required bool quickConnect,
-  bool remoteControl = true,
-  Set<BottomNavTab> alsoOnBar = const {},
-}) {
-  final onBar = {
-    ...alsoOnBar,
-    for (final item in barItems)
-      if (item.tab != null) item.tab!,
-  };
-  return [
-    if (savedAvailable) const BottomNavHubTile.action(BottomNavHubAction.saved),
-    for (final tab in BottomNavTab.values)
-      if (!onBar.contains(tab) && gates.offers(tab) && isAvailable(tab))
-        BottomNavHubTile.tab(tab),
-    if (shuffle) const BottomNavHubTile.action(BottomNavHubAction.shuffle),
-    if (syncPlay) const BottomNavHubTile.action(BottomNavHubAction.syncPlay),
-    if (quickConnect)
-      const BottomNavHubTile.action(BottomNavHubAction.quickConnect),
-    if (remoteControl)
-      const BottomNavHubTile.action(BottomNavHubAction.remoteControl),
-  ];
 }

@@ -79,9 +79,6 @@ class DetailScreenSkeleton extends StatelessWidget {
       );
     }
     return FrostStage(
-      navbarTop:
-          _effectivePrefs?.get(UserPreferences.navbarPosition) ==
-          NavbarPosition.top,
       child: Stack(
         children: [
           Positioned(
@@ -275,11 +272,7 @@ class DetailScreenSkeleton extends StatelessWidget {
       landscape: landscape,
     );
     final top = stageTopInset(context);
-    final side = stageLeadingInset(
-      context,
-      landscape: landscape,
-      prefs: _effectivePrefs,
-    );
+    final side = stageLeadingInset(context, landscape: landscape);
 
     final titleBlock = [
       SkeletonBox(
@@ -355,14 +348,12 @@ class DetailScreenSkeleton extends StatelessWidget {
     final size = MediaQuery.sizeOf(context);
     final userPrefs = _effectivePrefs;
     final scale = userPrefs?.get(UserPreferences.desktopUiScale).scaleFactor ?? 1.0;
-    final hasLeftSidebar =
-        userPrefs?.get(UserPreferences.navbarPosition) == NavbarPosition.left;
     final baseTopInset = TopToolbar.baseHeightFor(context);
     final isLandscape = detailUsesLandscapeLayout(context);
 
     // Portrait keeps the top of the page clear so the backdrop shows through,
     // where landscape starts the hero just under the toolbar.
-    final leftPadding = isLandscape ? (hasLeftSidebar ? 120.0 : 40.0) : 20.0;
+    final leftPadding = isLandscape ? 40.0 : 20.0;
     final rightPadding = isLandscape ? 40.0 : 20.0;
     final topPadding =
         isLandscape ? (baseTopInset - 12) / scale + (10 / scale) : 0.0;
@@ -492,9 +483,7 @@ class DetailScreenSkeleton extends StatelessWidget {
     final isLandscape = detailUsesLandscapeLayout(context);
     final userPrefs = _effectivePrefs;
     final scale = userPrefs?.get(UserPreferences.desktopUiScale).scaleFactor ?? 1.0;
-    final hasLeftSidebar =
-        userPrefs?.get(UserPreferences.navbarPosition) == NavbarPosition.left;
-    final leftPadding = isLandscape ? (hasLeftSidebar ? 120.0 : 40.0) : 20.0;
+    final leftPadding = isLandscape ? 40.0 : 20.0;
     final baseTopInset = TopToolbar.baseHeightFor(context);
     // Matches SpotlightLandscapeLayout padding calculations
     final topInset = isLandscape

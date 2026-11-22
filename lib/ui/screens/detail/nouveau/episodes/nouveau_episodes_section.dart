@@ -7,7 +7,6 @@ import 'package:moonfin/util/season_queue_context.dart';
 import '../../../../../data/models/aggregated_item.dart';
 import '../../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../../l10n/app_localizations.dart';
-import '../../../../../preference/preference_constants.dart';
 import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/focus/scroll_utils.dart';
 import '../../../../../util/item_watch_state.dart';
@@ -90,8 +89,6 @@ class NouveauEpisodesSectionState extends State<NouveauEpisodesSection> {
 
   bool get _isSeason => _vm.item?.type == 'Season';
 
-  bool get _navbarIsLeft =>
-      widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.left;
 
   bool _isCompactMobile(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
@@ -567,16 +564,6 @@ class NouveauEpisodesSectionState extends State<NouveauEpisodesSection> {
     );
   }
 
-  void _handleEpisodeLeftEdge() {
-    if (!_navbarIsLeft) {
-      return;
-    }
-
-    FocusManager.instance.primaryFocus?.focusInDirection(
-      TraversalDirection.left,
-    );
-  }
-
   void _handleEpisodeIndexChanged(int index, AggregatedItem episode) {
     _pendingSeasonEpisodeIndex = null;
 
@@ -949,7 +936,6 @@ class NouveauEpisodesSectionState extends State<NouveauEpisodesSection> {
                     return _seasonName(context, seasonNumber);
                   },
                   visible: true,
-                  allowLeftEdgeExit: _navbarIsLeft,
                   onNavigateUp: _handleSeasonNavigateUp,
                   onNavigateDown: () {
                     return _handleSeasonNavigateDown(episodes, layout);
@@ -1022,7 +1008,6 @@ class NouveauEpisodesSectionState extends State<NouveauEpisodesSection> {
               onVerticalNavigation: (isUp) {
                 return _handleEpisodeVerticalNavigation(isUp, episodes);
               },
-              onLeftEdge: _navbarIsLeft ? _handleEpisodeLeftEdge : null,
               itemBuilder: (context, episode, index, isFocused) {
                 final hasPrevious = index > 0;
 

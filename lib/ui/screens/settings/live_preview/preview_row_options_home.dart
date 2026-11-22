@@ -707,29 +707,26 @@ class _HomeFrame {
     // tries these, and the rows built from them are kept between builds.
     final modern = prefs.get(UserPreferences.homeRowsStyle) == HomeRowsStyle.v2;
     final desktopScale = prefs.get(UserPreferences.desktopUiScale).scaleFactor;
-    final navbarTop =
-        prefs.get(UserPreferences.navbarPosition) == NavbarPosition.top;
     final infoArea =
         !phone && !modern && prefs.get(UserPreferences.homeRowInfoOverlay);
-    // _ContentRows' rowLeftInset.
-    final rowLeftInset =
-        (!navbarTop && !phone ? 56.0 : (navbarTop && tv ? 48.0 : 0.0)) +
-        (phone ? 0.0 : 16.0);
+    // _ContentRows' rowLeftInset (Kos TV: the menu is the top bar on a TV
+    // and a computer, the glass bar at the bottom on phones).
+    final rowLeftInset = (tv ? 48.0 : 0.0) + (phone ? 0.0 : 16.0);
     // The band the InfoArea sits in, from _ContentRows' layout pass.
-    final infoNavbar = tv ? (navbarTop ? 45.0 : 15.0) : (phone ? 60.0 : 80.0);
+    final infoNavbar = tv ? 45.0 : (phone ? 60.0 : 80.0);
     final infoTop = infoNavbar + (!phone && infoNavbar == 0 ? 14.0 : 8.0);
     // _desktopRowFocusTargetTop, plus the room a TV opens around the
     // focused row when there's no InfoArea.
     final double focusTop;
     if (phone) {
       // The top of Home's list, where the row lands with Home scrolled to it.
-      focusTop = modern ? (navbarTop ? 60.0 : 80.0) + 8.0 : 56.0;
+      focusTop = modern ? 80.0 + 8.0 : 56.0;
     } else if (infoArea) {
       focusTop =
           infoTop +
           InfoArea.fixedHeight(isMobile: false, desktopScale: desktopScale);
     } else {
-      final navbar = navbarTop ? (tv ? 45.0 : 80.0) : 0.0;
+      final navbar = tv ? 45.0 : 80.0;
       focusTop =
           navbar +
           (tv ? 32.0 * desktopScale : 8.0) +

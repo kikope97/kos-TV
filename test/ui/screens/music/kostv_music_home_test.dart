@@ -959,7 +959,13 @@ void main() {
       // Only the accesses, without the heading (the design's).
       expect(find.text('Sigue escuchando'), findsNothing);
       expect(find.byType(KostvMusicQuickTile), findsWidgets);
-      await tester.tap(find.byTooltip('Buscar'));
+      // Music's own magnifier, not the one of the menu's glass bar.
+      await tester.tap(
+        find.descendant(
+          of: find.byType(KostvMusicScreen),
+          matching: find.byTooltip('Buscar'),
+        ).first,
+      );
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.byType(TextField), findsOneWidget);
       await tester.enterText(find.byType(TextField), 'luna');

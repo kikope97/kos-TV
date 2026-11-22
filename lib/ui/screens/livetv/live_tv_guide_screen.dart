@@ -1064,12 +1064,6 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
     // over it, and the guide under the menu.
     if (widget.withMenu && !widget.miniPlayerMode) {
       final chrome = calendarChromeInsets(context);
-      final leftMenu =
-          !PlatformDetection.useMobileUi &&
-          NavigationLayout.sanitizeNavbarPosition(
-                _prefs.get(UserPreferences.navbarPosition),
-              ) ==
-              NavbarPosition.left;
       final phone = PlatformDetection.useMobileUi;
       return Scaffold(
         backgroundColor: Colors.black,
@@ -1080,7 +1074,6 @@ class _LiveTvGuideScreenState extends State<LiveTvGuideScreen>
           child: Padding(
             padding: EdgeInsets.only(
               top: phone ? chrome.top - 8 : chrome.top - 16,
-              left: leftMenu ? chrome.left - guideContentLeftInset : 0,
               // Kos TV: with the menu at the top, the last channel still
               // clears the phone's own bar at the bottom.
               bottom: !phone

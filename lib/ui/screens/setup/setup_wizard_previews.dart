@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
 
@@ -17,8 +16,6 @@ import '../../../data/repositories/multi_server_repository.dart';
 import '../../../data/repositories/poster_badge_repository.dart';
 import '../../../data/repositories/user_views_repository.dart';
 import '../../../data/services/library_scope_service.dart';
-import '../../../data/services/installed_apps_service.dart'
-    show kostvAppsAvailable;
 import '../../../data/services/plugin_sync_service.dart';
 import '../../../data/services/stremfin/stremfin_service.dart'
     show StremfinService;
@@ -29,7 +26,6 @@ import '../../../preference/detail_metadata_layout.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/clock_format.dart';
-import '../../../util/game_library.dart' show libraryIcon;
 import '../../../util/live_tv_library.dart'
     show isLiveTvLibrary, librariesForNav;
 import '../../../util/overlay_color_palette.dart';
@@ -39,21 +35,17 @@ import '../../../util/tv_ui_scale.dart';
 import '../../widgets/bottom_nav/bottom_nav_destinations.dart';
 import '../../widgets/bottom_nav/bottom_nav_metrics.dart';
 import '../../widgets/bottom_nav/bottom_nav_model.dart';
-import '../../widgets/bottom_nav/bottom_nav_tab.dart';
-import '../../widgets/bottom_nav/bottom_nav_theme.dart';
-import '../../widgets/bottom_nav/dock_bar.dart';
-import '../../widgets/bottom_nav/split_bar.dart';
-import '../../widgets/bottom_nav/strip_bar.dart';
+import '../../widgets/kos_logo.dart';
+import '../../widgets/kostv_menu/kostv_glass.dart';
+import '../../widgets/kostv_menu/kostv_nav_avatar.dart';
+import '../../widgets/music/design/kostv_music_tokens.dart';
 import '../../widgets/bounded_network_image.dart';
-import '../../widgets/downloads_nav_slot.dart';
-import '../../widgets/friends_nav_slot.dart';
 import '../../widgets/info_area.dart';
 import '../../widgets/poster_badges.dart';
 import '../../widgets/mediabar/gallery_glow.dart';
 import '../../widgets/mediabar/media_bar_new_release_label.dart';
 import '../../widgets/rating_display.dart';
 import '../../widgets/settings/settings_preview_scope.dart';
-import '../../widgets/user_avatar_image.dart';
 import '../detail/detail_buttons.dart';
 import '../detail/detail_layout_metrics.dart';
 import '../detail/frost/frost_detail_content.dart' show frostStageSize;
@@ -1897,28 +1889,15 @@ Widget _ayaBar(BuildContext context, List<MediaBarSlideItem> items) {
 }
 
 // ---------------------------------------------------------------------------
-// Navbar positions
+// The menu (Kos TV: one design, docs/diseno-menu)
 // ---------------------------------------------------------------------------
 
-Widget navbarPreview(NavbarPosition position) => _liveOrFallback(
-  live: (context, items) => switch (position) {
-    NavbarPosition.top => _topNavbarPreview(context, items),
-    NavbarPosition.left => _leftNavbarPreview(context, items),
-    NavbarPosition.bottom =>
-      _bottomNavbarPreview(context, items, BottomNavbarStyle.dock),
-  },
-  fallback: _fallbackNavbar(position),
-);
-
-/// Home as the settings live preview draws it: the navbar where it's set, with
-/// its buttons, labels and clock, over the rows in their set style and size.
-/// Values a settings picker is trying stand in for the saved ones.
-/// [focusCard] holds the first card in focus in Classic rows too, so Focus
-/// Color has a ring to show on.
+/// Home as the settings live preview draws it: the menu of this device (the
+/// TV's or the computer's tabs on top, the phone's glass bar below), over the
+/// rows in their set style and size. Values a settings picker is trying stand
+/// in for the saved ones. [focusCard] holds the first card in focus in
+/// Classic rows too, so Focus Color has a ring to show on.
 Widget settingsHomePreview({bool focusCard = false}) {
-  final position = GetIt.instance.isRegistered<UserPreferences>()
-      ? GetIt.instance<UserPreferences>().get(UserPreferences.navbarPosition)
-      : NavbarPosition.top;
   return _liveOrFallback(
     live: (context, items) {
       final modern =
@@ -1927,30 +1906,19 @@ Widget settingsHomePreview({bool focusCard = false}) {
       // Modern rows hold the first card in focus, the way Home looks with a
       // row in focus, so the card's grown state and its details show.
       final focusFirst = modern || focusCard;
-      final home = switch (previewValue(
-        context,
-        UserPreferences.navbarPosition,
-      )) {
-        NavbarPosition.top => _topNavbarPreview(
-          context,
-          items,
-          modern: modern,
-          focusFirst: focusFirst,
-        ),
-        NavbarPosition.left => _leftNavbarPreview(
-          context,
-          items,
-          modern: modern,
-          focusFirst: focusFirst,
-        ),
-        NavbarPosition.bottom => _bottomNavbarPreview(
-          context,
-          items,
-          previewValue(context, UserPreferences.bottomNavbarStyle),
-          modern: modern,
-          focusFirst: focusFirst,
-        ),
-      };
+      final home = _phone
+          ? _bottomNavbarPreview(
+              context,
+              items,
+              modern: modern,
+              focusFirst: focusFirst,
+            )
+          : _topNavbarPreview(
+              context,
+              items,
+              modern: modern,
+              focusFirst: focusFirst,
+            );
       final backdrop = settingsHomeBackdropStyle(context);
       return Stack(
         fit: StackFit.expand,
@@ -1969,7 +1937,7 @@ Widget settingsHomePreview({bool focusCard = false}) {
         ],
       );
     },
-    fallback: _fallbackNavbar(position),
+    fallback: _fallbackNavbar(),
   );
 }
 
@@ -1991,50 +1959,33 @@ String settingsHomeBackdropStyle(BuildContext context) {
       : UserPreferences.homeBackdropOff;
 }
 
-/// [body] as a screen under the navbar the live preview draws over Home, for a
+/// [body] as a screen under the menu the live preview draws over Home, for a
 /// screen that keeps its own room for the bar.
 Widget settingsNavbarPreviewOver(Widget body) => _screen(
   Builder(
     builder: (context) {
       final items = SetupPreviewData.items;
-      return switch (previewValue(context, UserPreferences.navbarPosition)) {
-        NavbarPosition.top => _topNavbarPreview(context, items, body: body),
-        NavbarPosition.left => _leftNavbarPreview(context, items, body: body),
-        NavbarPosition.bottom => _bottomNavbarPreview(
-          context,
-          items,
-          previewValue(context, UserPreferences.bottomNavbarStyle),
-          body: body,
-        ),
-      };
+      return _phone
+          ? _bottomNavbarPreview(context, items, body: body)
+          : _topNavbarPreview(context, items, body: body);
     },
   ),
 );
-
-typedef _NavButton = ({
-  Widget Function(double size, Color color) icon,
-  String label,
-});
 
 bool get _calendarAvailable =>
     GetIt.instance.isRegistered<PluginSyncService>() &&
     GetIt.instance<PluginSyncService>().calendarAvailable;
 
 /// Kos TV: whether the requests service lets this person into Discover, as
-/// the real button checks (showKostvDiscoverButton).
+/// the real tab checks (showKostvDiscoverButton).
 bool get _discoverAllowed =>
     GetIt.instance.isRegistered<StremfinService>() &&
     GetIt.instance<StremfinService>().isAllowed;
 
-/// The real bar waits for something saved, so it never offers a way into an
-/// empty screen.
-bool get _downloadsAvailable =>
-    DownloadsNavSlot.isSupported() && DownloadsNavSlot.hasSavedMedia();
-
-/// The user's libraries for a navbar that lists them one by one, minus the
-/// ones the real navbar leaves out. Until they've loaded, stand-ins, one per
+/// The person's libraries for a menu that names them one by one, minus the
+/// ones the real menu leaves out. Until they've loaded, stand-ins, one per
 /// kind of title the preview has loaded.
-List<(IconData, String)> _navLibraries(
+List<String> _navLibraries(
   AppLocalizations l10n,
   List<MediaBarSlideItem> items, {
   required bool liveTvButton,
@@ -2048,93 +1999,59 @@ List<(IconData, String)> _navLibraries(
         liveTvButton,
         hideLiveTv: kids,
       ))
-        (libraryIcon(library), library.name),
+        library.name,
     ];
   }
   final series = items.any((item) => item.itemType == 'Series');
   return [
-    if (!series || items.any((item) => item.itemType == 'Movie'))
-      (Icons.movie_rounded, l10n.movies),
-    if (series) (Icons.tv_rounded, l10n.tvShows),
+    if (!series || items.any((item) => item.itemType == 'Movie')) l10n.movies,
+    if (series) l10n.tvShows,
   ];
 }
 
-/// The navbar's buttons in the top bar and sidebar's own order, with the
-/// icons and labels they draw. Each one waits on its switch and on the same
-/// gates the real one checks, such as the server offering the feature.
-List<_NavButton> _navButtons(
-  BuildContext context,
-  List<MediaBarSlideItem> items,
-) {
+/// The gates of the menu's destinations, read through the preview so a
+/// tried switch shows.
+BottomNavTabGates _previewGates(BuildContext context) => BottomNavTabGates(
+  kidsMode: previewValue(context, UserPreferences.kidsModeEnabled),
+  showLibraries: previewValue(context, UserPreferences.showLibrariesInToolbar),
+  showFavorites: previewValue(context, UserPreferences.showFavoritesButton),
+  showGenres: previewValue(context, UserPreferences.showGenresButton),
+  showLiveTv: previewValue(context, UserPreferences.showLiveTvButton),
+  showCalendar: previewValue(context, UserPreferences.showCalendarButton),
+  calendarAvailable: _calendarAvailable,
+  showKostvDiscover: previewValue(context, UserPreferences.showDiscoverButton),
+  kostvDiscoverAvailable: _discoverAllowed,
+  kostvMyListAvailable: previewValue(
+    context,
+    UserPreferences.kostvMyListAvailable,
+  ),
+  showKostvMusic: previewValue(context, UserPreferences.kostvShowMusicButton),
+);
+
+/// The top bar's named tabs, in the real bar's order.
+List<String> _navTabs(BuildContext context, List<MediaBarSlideItem> items) {
   final l10n = AppLocalizations.of(context);
-  bool on(Preference<bool> preference) => previewValue(context, preference);
-  _NavButton icon(IconData glyph, String label) => (
-    icon: (size, color) => Icon(glyph, size: size, color: color),
-    label: label,
-  );
-  _NavButton asset(String path, String label) => (
-    icon: (size, color) => Image.asset(
-      path,
-      width: size,
-      height: size,
-      color: color,
-      fit: BoxFit.contain,
-    ),
-    label: label,
-  );
-  final kids = on(UserPreferences.kidsModeEnabled);
-  final libraries = !kids && on(UserPreferences.showLibrariesInToolbar);
-  final liveTv =
-      !kids &&
-      on(UserPreferences.showLiveTvButton) &&
-      SetupPreviewData.hasLiveTv;
+  final gates = _previewGates(context);
+  final kids = gates.kidsMode;
+  final liveTv = gates.offers(BottomNavTab.liveTv) && SetupPreviewData.hasLiveTv;
   return [
-    icon(Icons.home_rounded, l10n.home),
-    icon(Icons.search_rounded, l10n.search),
-    // Kos TV: the buttons kOS TV adds to the bar, behind the same gates as
-    // the real ones (showKostvDiscoverButton, the plugin's list, Music and
-    // showKostvAppsButton), read through the preview so a tried switch shows.
-    if (!kids && _discoverAllowed && on(UserPreferences.showDiscoverButton))
-      icon(Icons.explore_rounded, l10n.kostvDiscover),
-    if (on(UserPreferences.showGenresButton))
-      asset('assets/icons/genres.png', l10n.genres),
-    if (on(UserPreferences.kostvMyListAvailable))
-      icon(Icons.bookmark_rounded, l10n.kostvMyList),
-    if (!kids && on(UserPreferences.kostvShowMusicButton))
-      icon(Icons.music_note_rounded, l10n.kostvMusic),
-    if (liveTv) icon(Icons.live_tv_rounded, l10n.liveTv),
-    if (!kids &&
-        on(UserPreferences.syncPlayEnabled) &&
-        on(UserPreferences.showSyncPlayButton))
-      icon(Icons.groups_rounded, l10n.watchParties),
-    if (!kids && on(UserPreferences.showCalendarButton) && _calendarAvailable)
-      icon(Icons.calendar_month_rounded, l10n.calendar),
-    if (kostvAppsAvailable() && on(UserPreferences.showAppsButton))
-      icon(Icons.apps_rounded, l10n.kostvAppsRow),
-    if (libraries && on(UserPreferences.showLibrariesIndividually))
-      for (final (glyph, label) in _navLibraries(
-        l10n,
-        items,
-        liveTvButton: liveTv,
-        kids: kids,
-      ))
-        icon(glyph, label)
-    else if (libraries)
-      asset('assets/icons/clapperboard.png', l10n.libraries),
-    // The real Downloads and Messages buttons also wait for something saved
-    // or posted. The preview leaves that out so their switches show a change.
-    if (on(UserPreferences.showDownloadsButton) && _downloadsAvailable)
-      icon(Icons.download_for_offline, l10n.savedMedia),
-    if (on(UserPreferences.showFriendsButton) && FriendsNavSlot.isAvailable())
-      icon(Icons.people_alt_rounded, l10n.friends),
-    if (on(UserPreferences.showServerMessagesButton))
-      icon(Icons.info_outline_rounded, l10n.serverMessages),
-    icon(Icons.settings_rounded, l10n.settings),
+    l10n.home,
+    if (gates.offers(BottomNavTab.kostvDiscover)) l10n.kostvDiscover,
+    if (gates.offers(BottomNavTab.kostvMusic)) l10n.kostvMusic,
+    if (gates.offers(BottomNavTab.myList)) l10n.kostvMyList,
+    if (gates.offers(BottomNavTab.libraries))
+      if (previewValue(context, UserPreferences.showLibrariesIndividually))
+        ..._navLibraries(l10n, items, liveTvButton: liveTv, kids: kids)
+      else
+        l10n.libraries,
+    if (liveTv) l10n.liveTv,
   ];
 }
 
 /// The toolbar clock as the clock settings have it, or null when it's off.
+/// Only on a TV: a computer has a clock of its own.
 String? _previewClock(BuildContext context) {
+  if (!_tv) return null;
   if (previewValue(context, UserPreferences.clockBehavior) ==
       ClockBehavior.never) {
     return null;
@@ -2145,29 +2062,11 @@ String? _previewClock(BuildContext context) {
   );
 }
 
-/// The nav slot colour when the theme cycles one, the resting grey otherwise,
-/// exactly as the real buttons resolve it.
-Color _navIconColor(int slot) =>
-    AppColorScheme.navColorForSlot(slot) ??
-    AppColorScheme.onSurface.withValues(alpha: 0.6);
-
-Color _navbarSurface(BuildContext context) =>
-    OverlayColorPalette.resolveColor(
-      previewValue(context, UserPreferences.navbarColor),
-    ).withValues(
-      alpha:
-          previewValue(
-            context,
-            UserPreferences.navbarOpacity,
-          ).toDouble().clamp(0.0, 100.0) /
-          100.0,
-    );
-
 String get _userName => GetIt.instance.isRegistered<UserRepository>()
     ? GetIt.instance<UserRepository>().currentUser?.name ?? ''
     : '';
 
-/// The signed-in user's picture, the one the real navbar asks the server for.
+/// The signed-in user's picture, the one the real menu asks the server for.
 String? _userImageUrl() {
   if (!GetIt.instance.isRegistered<UserRepository>() ||
       !GetIt.instance.isRegistered<MediaServerClient>()) {
@@ -2186,37 +2085,10 @@ String? _userImageUrl() {
   }
 }
 
-Widget _navAvatar() {
-  final name = _userName;
-  final fallback = Container(
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      shape: BoxShape.circle,
-      color: Colors.white.withValues(alpha: 0.1),
-    ),
-    child: Text(
-      name.isEmpty ? '?' : name[0].toUpperCase(),
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
-  );
-  return SizedBox(
-    width: 40,
-    height: 40,
-    child: ClipOval(
-      child: UserAvatarImage(
-        url: _userImageUrl(),
-        size: 40,
-        fallback: fallback,
-      ),
-    ),
-  );
-}
+Widget _navAvatar(double size) =>
+    KostvNavAvatar(size: size, imageUrl: _userImageUrl(), name: _userName);
 
-/// The rows every navbar preview sits around, packed tight so the chrome is
+/// The rows every menu preview sits around, packed tight so the chrome is
 /// judged against a full screen rather than empty space. [topInset] keeps the
 /// first row off whatever sits above it, chrome or the card's own edge.
 Widget _navbarRows(
@@ -2244,9 +2116,9 @@ Widget _navbarRows(
   );
 }
 
-/// The toolbar draws no band of its own. An avatar sits on the left, the
-/// buttons live in one translucent pill in the middle, and the clock keeps
-/// the right, all floating straight over the content.
+/// The TV's and the computer's bar: the avatar (or, on a computer, the
+/// logo), the named tabs with Home in white and the gradient line under it,
+/// «Más», and the clock on the TV.
 Widget _topNavbarPreview(
   BuildContext context,
   List<MediaBarSlideItem> items, {
@@ -2254,65 +2126,60 @@ Widget _topNavbarPreview(
   bool? modern,
   bool focusFirst = false,
 }) {
-  final toolbarHeight = _tv ? 95.0 : (_phone ? 60.0 : 80.0);
-  final hPad = _tv ? 48.0 : (_phone ? 12.0 : 32.0);
-  final vPad = _tv ? 27.0 : (_phone ? 8.0 : 10.0);
-  final buttonWidth = _phone ? 40.0 : (_tv ? 44.0 : 56.0);
-  final iconSize = _phone ? 22.0 : (_tv ? 24.0 : 30.0);
-  final buttons = _navButtons(context, items);
-  final expanded =
-      !_phone && previewValue(context, UserPreferences.navbarAlwaysExpanded);
+  final l10n = AppLocalizations.of(context);
+  final toolbarHeight = _tv ? 96.0 : 80.0;
+  final hPad = _tv ? 56.0 : 40.0;
+  final tabs = _navTabs(context, items);
   final clock = _previewClock(context);
+  final fontSize = _tv ? 18.0 : 15.0;
 
-  // The real pill scrolls its buttons once they outgrow the room it's given,
-  // so the preview clips them where they'd scroll.
-  final pill = Container(
-    clipBehavior: Clip.antiAlias,
-    decoration: BoxDecoration(
-      color: _navbarSurface(context),
-      borderRadius: AppRadius.circular(36),
+  Widget tab(String label, {required bool here}) => Padding(
+    padding: EdgeInsets.symmetric(horizontal: _tv ? 18 : 16),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: fontSize,
+            fontWeight: here ? FontWeight.w700 : FontWeight.w500,
+            color: KostvMusicTokens.ink.withValues(alpha: here ? 1 : 0.62),
+          ),
+        ),
+        const SizedBox(height: 4),
+        here && _tv ? const KostvHereMark() : const SizedBox(height: 3),
+      ],
     ),
-    child: SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const NeverScrollableScrollPhysics(),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var i = 0; i < buttons.length; i++)
-            if (expanded)
-              SizedBox(
-                height: buttonWidth,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      buttons[i].icon(iconSize, _navIconColor(i)),
-                      const SizedBox(width: 8),
-                      Text(
-                        buttons[i].label,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppColorScheme.onSurface.withValues(
-                            alpha: 0.8,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              SizedBox(
-                width: buttonWidth,
-                height: buttonWidth,
-                child: Center(
-                  child: buttons[i].icon(iconSize, _navIconColor(i)),
-                ),
-              ),
-        ],
-      ),
+  );
+
+  final row = SingleChildScrollView(
+    scrollDirection: Axis.horizontal,
+    physics: const NeverScrollableScrollPhysics(),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (_tv)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10),
+            child: Icon(
+              Icons.search_rounded,
+              size: 24,
+              color: Color(0x9EF3F5FA),
+            ),
+          ),
+        for (var i = 0; i < tabs.length; i++) tab(tabs[i], here: i == 0),
+        if (_tv)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 10),
+            child: Icon(
+              Icons.more_horiz_rounded,
+              size: 24,
+              color: Color(0x9EF3F5FA),
+            ),
+          )
+        else
+          tab('${l10n.more} ▾', here: false),
+      ],
     ),
   );
 
@@ -2321,39 +2188,39 @@ Widget _topNavbarPreview(
       SizedBox(
         height: toolbarHeight,
         child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
-          child: Stack(
-            alignment: Alignment.center,
+          padding: EdgeInsets.symmetric(horizontal: hPad),
+          child: Row(
             children: [
-              Align(alignment: Alignment.centerLeft, child: _navAvatar()),
-              // A phone's buttons can outgrow its bar, so its pill shrinks to
-              // fit.
-              if (_phone)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 48),
-                  child: FittedBox(fit: BoxFit.scaleDown, child: pill),
-                )
-              else
-                // The room the real bar keeps clear of the avatar and the
-                // clock on both sides, so its pill stays centered.
-                Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: (clock == null ? 44.0 : 96.0) + 14,
-                  ),
-                  child: pill,
+              if (_tv) _navAvatar(44) else const KosLogo(height: 34),
+              SizedBox(width: _tv ? 22 : 16),
+              Expanded(
+                child: Align(
+                  alignment: _tv ? Alignment.centerLeft : Alignment.center,
+                  child: _tv
+                      ? row
+                      : Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xA824242C),
+                            borderRadius: BorderRadius.circular(999),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.08),
+                            ),
+                          ),
+                          child: row,
+                        ),
                 ),
-              if (!_phone && clock != null)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    clock,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppColorScheme.onSurface.withValues(alpha: 0.8),
-                    ),
+              ),
+              if (clock != null)
+                Text(
+                  clock,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
+                    color: KostvMusicTokens.ink,
                   ),
                 ),
+              if (!_tv) _navAvatar(40),
             ],
           ),
         ),
@@ -2380,135 +2247,108 @@ Widget _topNavbarPreview(
   );
 }
 
-/// The collapsed rail is a bare 72 wide gutter of icons with no backdrop, so
-/// the preview keeps it transparent too and just moves the rows over.
-Widget _leftNavbarPreview(
+/// The phone's glass bar: Inicio, two destinations and Tú, with Search in
+/// its round button beside it. The card is the thing to tap, so the bar
+/// inside it neither takes touches nor reads out its tabs.
+Widget _bottomNavbarPreview(
   BuildContext context,
   List<MediaBarSlideItem> items, {
   Widget? body,
   bool? modern,
   bool focusFirst = false,
 }) {
-  final iconSize = _tv ? 24.0 : 28.0;
-  final itemHeight = _tv ? 40.0 : 44.0;
-  final buttons = _navButtons(context, items);
-  // Home starts its rows 56 in beside the rail where a TV's top bar takes 48,
-  // and the rows' own inset is the top bar one.
-  final railInset = _phone ? 0.0 : 56.0 - (_tv ? 48.0 : 0.0);
-  // The real rail only widens while it has focus, whatever Always Expand
-  // Navbar Labels says, and scrolls once its buttons outgrow the screen. It
-  // floats over the screen rather than pushing it aside.
-  return Stack(
-    children: [
-      Positioned.fill(
-        left: body == null ? railInset : 0,
-        child:
-            body ??
-            _navbarRows(
-              context,
-              items,
-              topInset: 24,
-              modern: modern,
-              focusFirst: focusFirst,
-            ),
+  final l10n = AppLocalizations.of(context);
+  final tabs = resolveBarItems(
+    _previewGates(context),
+    isAvailable: (tab) =>
+        tab != BottomNavTab.liveTv || SetupPreviewData.hasLiveTv,
+  );
+
+  Widget cell(BottomNavBarItem item, bool active) {
+    final color = active
+        ? Colors.white
+        : KostvMusicTokens.ink.withValues(alpha: 0.78);
+    final icon = switch (item.kind) {
+      BottomNavItemKind.home => Icon(
+        Icons.home_rounded,
+        size: BottomNavMetrics.iconSize,
+        color: color,
       ),
-      Positioned(
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: 72,
-        child: Center(
-          child: SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < buttons.length; i++)
-                  SizedBox(
-                    height: itemHeight,
-                    child: Center(
-                      child: buttons[i].icon(iconSize, _navIconColor(i)),
-                    ),
-                  ),
-              ],
+      BottomNavItemKind.tab => bottomNavTabIconWidget(
+        item.tab!,
+        active: active,
+        size: BottomNavMetrics.iconSize,
+        color: color,
+      ),
+      BottomNavItemKind.you => _navAvatar(BottomNavMetrics.avatarSize),
+    };
+    final label = switch (item.kind) {
+      BottomNavItemKind.home => l10n.home,
+      BottomNavItemKind.tab => bottomNavTabLabel(l10n, item.tab!),
+      BottomNavItemKind.you => l10n.navYou,
+    };
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        if (active) const Positioned.fill(child: KostvActivePill()),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            icon,
+            const SizedBox(height: 2),
+            Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 10.5,
+                color: color,
+                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  final bar = Padding(
+    padding: const EdgeInsets.fromLTRB(14, 0, 14, 24),
+    child: SizedBox(
+      height: BottomNavMetrics.barHeight,
+      child: Row(
+        children: [
+          Expanded(
+            child: KostvGlass(
+              allowBlur: false,
+              child: Padding(
+                padding: const EdgeInsets.all(5),
+                child: Row(
+                  children: [
+                    for (var i = 0; i < tabs.length; i++)
+                      Expanded(child: cell(tabs[i], i == 0)),
+                  ],
+                ),
+              ),
             ),
           ),
-        ),
+          const SizedBox(width: BottomNavMetrics.gap),
+          const SizedBox.square(
+            dimension: BottomNavMetrics.barHeight,
+            child: KostvGlass(
+              allowBlur: false,
+              child: Center(
+                child: Icon(
+                  Icons.search_rounded,
+                  size: 26,
+                  color: KostvMusicTokens.ink,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
-    ],
+    ),
   );
-}
-
-/// A floating pill above the bottom edge, its active tab held in a glowing
-/// chip, the way the real bar draws it. Content keeps running underneath.
-/// The real bottom navbar over the tabs a fresh install gets. The card is the
-/// thing to tap, so the bar inside it neither takes touches nor reads out its
-/// tabs.
-Widget _bottomNavbarPreview(
-  BuildContext context,
-  List<MediaBarSlideItem> items,
-  BottomNavbarStyle style, {
-  Widget? body,
-  bool? modern,
-  bool focusFirst = false,
-}) {
-  final l10n = AppLocalizations.of(context);
-  final theme = BottomNavTheme.resolve(context, preview: true);
-  final name = _userName;
-  final imageUrl = _userImageUrl();
-  // The tabs come from the same switches the top bar's buttons do.
-  final gates = BottomNavTabGates(
-    kidsMode: previewValue(context, UserPreferences.kidsModeEnabled),
-    showLibraries: previewValue(context, UserPreferences.showLibrariesInToolbar),
-    showFavorites: previewValue(context, UserPreferences.showFavoritesButton),
-    showGenres: previewValue(context, UserPreferences.showGenresButton),
-    showLiveTv: previewValue(context, UserPreferences.showLiveTvButton),
-    showCalendar: previewValue(context, UserPreferences.showCalendarButton),
-    calendarAvailable: _calendarAvailable,
-  );
-  final views = [
-    for (final item in resolveBarItems(
-      gates,
-      previewValue(context, UserPreferences.bottomNavbarTabs),
-      withoutSearch: style == BottomNavbarStyle.split,
-      isAvailable: (tab) =>
-          tab != BottomNavTab.liveTv || SetupPreviewData.hasLiveTv,
-    ))
-      bottomNavItemView(
-        item,
-        l10n,
-        avatar: (active, size, color) => BottomNavAvatar(
-          imageUrl: imageUrl,
-          name: name,
-          size: BottomNavMetrics.avatarSize,
-          ring: theme.onBar.withValues(alpha: 0.18),
-          fallbackColor: theme.onBar,
-        ),
-      ),
-  ];
-
-  const inset = 24.0;
-  final Widget bar = switch (style) {
-    BottomNavbarStyle.dock => DockBarView(
-        items: views,
-        activeIndex: 0,
-        theme: theme,
-        bottomInset: inset,
-      ),
-    BottomNavbarStyle.split => SplitBarView(
-        items: views,
-        activeIndex: 0,
-        theme: theme,
-        bottomInset: inset,
-        searchLabel: l10n.search,
-      ),
-    BottomNavbarStyle.strip => StripBarView(
-        items: views,
-        activeIndex: 0,
-        theme: theme,
-        bottomInset: inset,
-      ),
-  };
 
   return Stack(
     children: [
@@ -2531,81 +2371,6 @@ Widget _bottomNavbarPreview(
   );
 }
 
-Widget bottomNavbarStylePreview(BottomNavbarStyle style) => _liveOrFallback(
-  live: (context, items) => _bottomNavbarPreview(context, items, style),
-  fallback: _fallbackBottomNavbar(style),
-);
-
-/// Drawn stand-ins for the three styles: an inset pill, a pill beside a
-/// circle, and a full-width band with its tick.
-Widget _fallbackBottomNavbar(BottomNavbarStyle style) {
-  final surface = AppColorScheme.onSurface.withValues(alpha: 0.14);
-  Widget marks(int count) => Row(
-    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-    children: [for (var i = 0; i < count; i++) _bar(8, 3, _strong)],
-  );
-
-  final rows = _fallbackNavbarRows();
-
-  final Widget chrome = switch (style) {
-    BottomNavbarStyle.dock => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 0, 24, 6),
-        child: Container(
-          height: 14,
-          decoration: BoxDecoration(
-            color: surface,
-            borderRadius: AppRadius.circular(7),
-          ),
-          child: marks(5),
-        ),
-      ),
-    BottomNavbarStyle.split => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-        child: Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: 14,
-                decoration: BoxDecoration(
-                  color: surface,
-                  borderRadius: AppRadius.circular(7),
-                ),
-                child: marks(4),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Container(
-              width: 14,
-              height: 14,
-              decoration: BoxDecoration(
-                color: surface,
-                shape: AppColorScheme.isPixel
-                    ? BoxShape.rectangle
-                    : BoxShape.circle,
-              ),
-            ),
-          ],
-        ),
-      ),
-    BottomNavbarStyle.strip => Container(
-        height: 16,
-        color: surface,
-        child: Stack(
-          children: [
-            marks(5),
-            Positioned(
-              top: 0,
-              left: 22,
-              child: Container(width: 10, height: 2, color: AppColorScheme.accent),
-            ),
-          ],
-        ),
-      ),
-  };
-
-  return Column(children: [Expanded(child: rows), chrome]);
-}
-
 Widget _fallbackNavbarRows() => Padding(
   padding: const EdgeInsets.all(8),
   child: Column(
@@ -2622,44 +2387,53 @@ Widget _fallbackNavbarRows() => Padding(
   ),
 );
 
-Widget _fallbackNavbar(NavbarPosition position) {
-  Widget chrome({double? width, double? height}) => Container(
-    width: width,
-    height: height,
-    color: AppColorScheme.onSurface.withValues(alpha: 0.14),
-    child: Center(
-      child: width != null
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 5,
-              children: [for (var i = 0; i < 4; i++) _bar(8, 3, _strong)],
-            )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              spacing: 5,
-              children: [for (var i = 0; i < 4; i++) _bar(8, 3, _strong)],
-            ),
-    ),
+/// Drawn stand-ins for the menu: a row of tabs over the rows, or the phone's
+/// pill beside its circle under them.
+Widget _fallbackNavbar() {
+  final surface = AppColorScheme.onSurface.withValues(alpha: 0.14);
+  Widget marks(int count) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    mainAxisSize: MainAxisSize.min,
+    spacing: 5,
+    children: [for (var i = 0; i < count; i++) _bar(8, 3, _strong)],
   );
-
   final rows = _fallbackNavbarRows();
-
-  return switch (position) {
-    NavbarPosition.top => Column(
+  if (!_phone) {
+    return Column(
       children: [
-        chrome(height: 16),
+        Container(height: 16, color: surface, child: Center(child: marks(4))),
         Expanded(child: rows),
       ],
-    ),
-    NavbarPosition.left => Row(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        chrome(width: 16),
-        Expanded(child: rows),
-      ],
-    ),
-    NavbarPosition.bottom => _fallbackBottomNavbar(BottomNavbarStyle.dock),
-  };
+    );
+  }
+  return Column(
+    children: [
+      Expanded(child: rows),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 14,
+                decoration: BoxDecoration(
+                  color: surface,
+                  borderRadius: AppRadius.circular(7),
+                ),
+                child: Center(child: marks(4)),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(color: surface, shape: BoxShape.circle),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
 }
 
 // ---------------------------------------------------------------------------

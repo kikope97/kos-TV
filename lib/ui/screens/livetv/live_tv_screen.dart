@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../l10n/app_localizations.dart';
-import '../../../preference/preference_constants.dart';
 import '../../../util/focus/key_event_utils.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
@@ -36,18 +35,13 @@ class LiveTvScreen extends StatelessWidget {
 
   Widget _buildContent(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    // The navbar draws over the page, and a left or bottom one puts the back
+    // The menu draws over the page; the phone's, at the bottom, puts the back
     // button in the corner the title uses.
-    final position =
-        NavigationLayout.positionNotifier.value ?? NavbarPosition.top;
     final topInset = !_showNavbar
         ? 0.0
-        : position == NavbarPosition.top
+        : NavigationLayout.usesTopToolbar
         ? TopToolbar.heightFor(context)
         : 56.0;
-    final leftInset = _showNavbar && position == NavbarPosition.left
-        ? 72.0
-        : 0.0;
     final items = <({IconData icon, String title, VoidCallback onTap})>[
       (
         icon: Icons.tv,
@@ -98,7 +92,7 @@ class LiveTvScreen extends StatelessWidget {
                   constraints: const BoxConstraints(maxWidth: 1240),
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(
-                      32 + leftInset,
+                      32,
                       28 + topInset,
                       32,
                       bottomNavContentPadding(context, 32),

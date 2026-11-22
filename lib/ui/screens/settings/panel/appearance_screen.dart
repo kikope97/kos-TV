@@ -71,9 +71,9 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
               adaptiveListSection(
                 children: [
                   _TvSettingsListTile(
-                    leading: const Icon(Icons.view_sidebar),
+                    leading: const Icon(Icons.menu_rounded),
                     title: Text(l10n.navigationBar),
-                    subtitle: Text(l10n.navbarStyleToolbarAppearance),
+                    subtitle: Text(l10n.kostvMenuButtonsSubtitle),
                     onTap: () => context.pushSettingsScreen(
                       const _NavigationCategoryScreen(),
                     ),
@@ -215,19 +215,6 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
                             l10n.interfaceStyleMaterial,
                         },
                       ),
-                      if (AppColorScheme.isGlass)
-                        EnumPreferenceTile<GlassQualityMode>(
-                          preference: UserPreferences.glassQuality,
-                          title: l10n.glassQuality,
-                          description: l10n.glassQualitySubtitle,
-                          icon: Icons.blur_on,
-                          labelOf: (v) => switch (v) {
-                            GlassQualityMode.auto => l10n.glassQualityAuto,
-                            GlassQualityMode.full => l10n.glassQualityFull,
-                            GlassQualityMode.reduced =>
-                              l10n.glassQualityReduced,
-                          },
-                        ),
                       EnumPreferenceTile<AppTheme>(
                         preference: UserPreferences.focusColor,
                         title: l10n.focusBorderColor,

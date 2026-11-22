@@ -3,18 +3,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/bottom_nav_tabs.dart';
-import '../../../preference/preference_constants.dart';
 import '../../navigation/destinations.dart';
 import '../../navigation/home_refresh_bus.dart';
-import '../../screens/downloads/downloads_panel.dart';
-import '../../screens/watch_party/watch_together_route.dart';
-import '../adaptive/sf_symbol.dart';
-import '../remote_control_dialog.dart';
-import '../shuffle_overlay.dart';
-import '../user_menu_dialog.dart';
-import 'bottom_nav_model.dart';
-import 'bottom_nav_tab.dart';
 import '../../navigation/menu_preview.dart';
+import '../adaptive/sf_symbol.dart';
 
 String bottomNavTabLabel(AppLocalizations l10n, BottomNavTab tab) =>
     switch (tab) {
@@ -29,49 +21,8 @@ String bottomNavTabLabel(AppLocalizations l10n, BottomNavTab tab) =>
       BottomNavTab.calendar => l10n.calendar,
     };
 
-/// [silo]: the active server is Silo, which calls approving another
-/// device's code "Approve a sign-in".
-String bottomNavHubActionLabel(
-  AppLocalizations l10n,
-  BottomNavHubAction action, {
-  bool silo = false,
-}) =>
-    switch (action) {
-      BottomNavHubAction.saved => l10n.savedMedia,
-      BottomNavHubAction.shuffle => l10n.shuffle,
-      BottomNavHubAction.syncPlay => l10n.watchParties,
-      BottomNavHubAction.quickConnect =>
-        silo ? l10n.siloApproveSignIn : l10n.quickConnect,
-      BottomNavHubAction.remoteControl => l10n.remoteControl,
-    };
-
-String bottomNavbarStyleLabel(
-  AppLocalizations l10n,
-  BottomNavbarStyle style,
-) =>
-    switch (style) {
-      BottomNavbarStyle.dock => l10n.bottomNavbarStyleDock,
-      BottomNavbarStyle.split => l10n.bottomNavbarStyleSplit,
-      BottomNavbarStyle.strip => l10n.bottomNavbarStyleStrip,
-    };
-
-String bottomNavbarStyleHint(AppLocalizations l10n, BottomNavbarStyle style) =>
-    switch (style) {
-      BottomNavbarStyle.dock => l10n.setupNavbarStyleDockHint,
-      BottomNavbarStyle.split => l10n.setupNavbarStyleSplitHint,
-      BottomNavbarStyle.strip => l10n.setupNavbarStyleStripHint,
-    };
-
-IconData bottomNavHubActionIcon(BottomNavHubAction action) => switch (action) {
-      BottomNavHubAction.saved => Icons.download_for_offline,
-      BottomNavHubAction.shuffle => Icons.shuffle_rounded,
-      BottomNavHubAction.syncPlay => Icons.groups_rounded,
-      BottomNavHubAction.quickConnect => Icons.devices,
-      BottomNavHubAction.remoteControl => Icons.settings_remote_rounded,
-    };
-
 /// Filled when active and outlined when not, the way both platforms mark
-/// the current tab. Genres keeps the artwork the other navbars use, so only
+/// the current tab. Genres keeps the artwork the other menus use, so only
 /// its colour changes.
 Widget bottomNavTabIconWidget(
   BottomNavTab tab, {
@@ -109,60 +60,26 @@ Widget bottomNavTabIconWidget(
   };
 }
 
-/// What a bar style draws for [item]. The bar and the setup wizard's
-/// previews share it, so the previews show the real tabs.
-BottomNavItemView bottomNavItemView(
-  BottomNavBarItem item,
-  AppLocalizations l10n, {
-  required Widget Function(bool active, double size, Color color) avatar,
-  int badge = 0,
-}) {
-  return switch (item.kind) {
-    BottomNavItemKind.home => BottomNavItemView(
-        id: item.id,
-        label: l10n.home,
-        slot: item.slot,
-        icon: (active, size, color) => AdaptiveIcon(
-          active ? Icons.home_rounded : Icons.home_outlined,
-          size: size,
-          color: color,
-        ),
-      ),
-    BottomNavItemKind.tab => BottomNavItemView(
-        id: item.id,
-        label: bottomNavTabLabel(l10n, item.tab!),
-        slot: item.slot,
-        icon: (active, size, color) => bottomNavTabIconWidget(
-          item.tab!,
-          active: active,
-          size: size,
-          color: color,
-        ),
-      ),
-    BottomNavItemKind.you => BottomNavItemView(
-        id: item.id,
-        label: l10n.navYou,
-        slot: item.slot,
-        badge: badge,
-        icon: avatar,
-      ),
-  };
-}
+/// The route of [tab]'s page.
+String bottomNavTabRoute(BottomNavTab tab) => switch (tab) {
+  BottomNavTab.search => Destinations.search,
+  BottomNavTab.kostvDiscover => Destinations.kostvDiscover,
+  BottomNavTab.kostvMusic => Destinations.kostvMusic,
+  BottomNavTab.favorites => Destinations.allFavorites,
+  BottomNavTab.myList => Destinations.myList,
+  BottomNavTab.genres => Destinations.allGenres,
+  BottomNavTab.liveTv => Destinations.liveTvGuide,
+  BottomNavTab.calendar => Destinations.calendar,
+  // Kos TV: Libraries has a page of its own.
+  BottomNavTab.libraries => Destinations.kostvLibraries,
+};
 
 /// Opens [tab]'s screen.
-void openBottomNavTab(BuildContext context, BottomNavTab tab) {
-  final route = switch (tab) {
-    BottomNavTab.search => Destinations.search,
-    BottomNavTab.kostvDiscover => Destinations.kostvDiscover,
-    BottomNavTab.kostvMusic => Destinations.kostvMusic,
-    BottomNavTab.favorites => Destinations.allFavorites,
-    BottomNavTab.myList => Destinations.myList,
-    BottomNavTab.genres => Destinations.allGenres,
-    BottomNavTab.liveTv => Destinations.liveTvGuide,
-    BottomNavTab.calendar => Destinations.calendar,
-    // Kos TV: Libraries has a page of its own.
-    BottomNavTab.libraries => Destinations.kostvLibraries,
-  };
+void openBottomNavTab(BuildContext context, BottomNavTab tab) =>
+    openBottomNavPage(context, bottomNavTabRoute(tab));
+
+/// Opens one of the menu's pages from the glass bar, «Tú» or «Más».
+void openBottomNavPage(BuildContext context, String route) {
   // As the TV's menu does: one menu page takes the place of another, a page
   // opened inside one (a genre, an album) goes back to it, so Back always
   // goes to Home.
@@ -182,21 +99,4 @@ void openBottomNavHome(BuildContext context, {required bool alreadyHome}) {
   }
   homeRefreshBus.requestOnArrival();
   context.go(Destinations.home);
-}
-
-void runBottomNavHubAction(BuildContext context, BottomNavHubAction action) {
-  switch (action) {
-    case BottomNavHubAction.saved:
-      showDownloadsDialog(context);
-    case BottomNavHubAction.shuffle:
-      showShuffleOverlay(context);
-    case BottomNavHubAction.syncPlay:
-      Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => watchTogetherScreen()),
-      );
-    case BottomNavHubAction.quickConnect:
-      showQuickConnectCodeDialog(context);
-    case BottomNavHubAction.remoteControl:
-      showRemoteControlDialog(context);
-  }
 }

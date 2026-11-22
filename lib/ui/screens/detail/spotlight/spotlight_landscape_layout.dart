@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../preference/preference_constants.dart';
 import '../../../../preference/user_preferences.dart';
 import '../../../../util/platform_detection.dart';
 import '../../../widgets/bottom_nav/bottom_navbar.dart';
@@ -38,9 +37,7 @@ class SpotlightLandscapeLayout extends StatelessWidget {
     final size = MediaQuery.sizeOf(context);
     final scale = prefs.get(UserPreferences.desktopUiScale).scaleFactor;
     final heroWidth = heroWidthFor(size);
-    final hasLeftSidebar =
-        prefs.get(UserPreferences.navbarPosition) == NavbarPosition.left;
-    final leftPadding = hasLeftSidebar ? 120.0 : 40.0;
+    const leftPadding = 40.0;
 
     return Stack(
       fit: StackFit.expand,

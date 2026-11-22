@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
-import '../left_sidebar.dart';
 import '../top_toolbar.dart';
 import 'can_claim_initial_focus.dart';
 
@@ -45,11 +44,10 @@ class _RequestInitialFocusState extends State<RequestInitialFocus> {
         widget.targetNode != null) {
       // A target arriving late, usually once async content loads, is the
       // screen's preferred landing spot. By then the generic route focus
-      // grab may have parked focus in the sidebar or toolbar, so the target
+      // grab may have parked focus in the toolbar, so the target
       // still wins over chrome, just never over focused content.
       final isCurrent = ModalRoute.of(context)?.isCurrent ?? true;
-      final chromeHasFocus = LeftSidebar.isFocusedNotifier.value ||
-          TopToolbar.isFocusedNotifier.value;
+      final chromeHasFocus = TopToolbar.isFocusedNotifier.value;
       if (isCurrent && (!FocusScope.of(context).hasFocus || chromeHasFocus)) {
         _retryTimer?.cancel();
         _settled = false;

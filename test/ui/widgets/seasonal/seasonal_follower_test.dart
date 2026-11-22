@@ -275,7 +275,7 @@ void main() {
   }
 
   test(
-    'rests just under a top bar button and outside the whole side panel',
+    'rests just under a top bar button',
     () {
       const size = Size(960, 540);
       final top = SeasonalFollower(FollowerStyle.planchette);
@@ -288,16 +288,6 @@ void main() {
       // The tip, 24 above the center, sits 6 under the button.
       expect(top.position!.dx, 160);
       expect(top.position!.dy, 98);
-      final side = SeasonalFollower(FollowerStyle.planchette);
-      side.step(
-        0.03,
-        const Rect.fromLTWH(20, 80, 40, 48),
-        size,
-        landing: FollowerLanding.right,
-        navigationBounds: const Rect.fromLTWH(0, 0, 280, 540),
-      );
-      expect(side.position!.dx - 38, greaterThan(280));
-      expect(side.position!.dy, 104);
     },
   );
 
@@ -456,7 +446,7 @@ void main() {
     }
   });
 
-  test('the sleigh faces its card from the left and turns around for the sidebar', () {
+  test('the sleigh faces its card from the left', () {
     const size = Size(960, 540);
     final sleigh = SeasonalFollower(FollowerStyle.sleigh);
     const card = Rect.fromLTWH(200, 200, 150, 220);
@@ -465,17 +455,6 @@ void main() {
     }
     expect(sleigh.position!.dx, closeTo(card.left + 6 - 32, 0.1));
     expect(sleigh.position!.dy, closeTo(card.center.dy, 0.1));
-    expect(sleigh.angle.abs(), lessThan(0.01));
-
-    const item = Rect.fromLTWH(20, 140, 200, 44);
-    const panel = Rect.fromLTWH(0, 0, 280, 540);
-    var climbed = false;
-    for (var i = 0; i < 200; i++) {
-      sleigh.step(0.03, item, size, landing: FollowerLanding.right, navigationBounds: panel);
-      if (sleigh.angle.abs() > 0.05) climbed = true;
-    }
-    expect(climbed, isTrue, reason: 'it tips its nose on the way up');
-    expect(sleigh.position!.dx, closeTo(panel.right + 8 + 32, 0.1));
     expect(sleigh.angle.abs(), lessThan(0.01));
   });
 

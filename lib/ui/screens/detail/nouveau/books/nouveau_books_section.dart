@@ -6,9 +6,7 @@ import 'package:server_core/server_core.dart';
 import '../../../../../data/models/aggregated_item.dart';
 import '../../../../../l10n/app_localizations.dart';
 import '../../../../../preference/user_preferences.dart';
-import '../../../../../preference/preference_constants.dart';
 import '../../../../../util/platform_detection.dart';
-import '../../../../widgets/navigation_layout.dart';
 import '../../../../navigation/destinations.dart';
 import '../../../../widgets/focus/hub_focus_memory.dart';
 import '../../../../widgets/focus/locked_focus_row.dart';
@@ -67,12 +65,6 @@ class NouveauBooksSectionState extends State<NouveauBooksSection> {
   bool get canFocusTop =>
       mounted && widget.items.isNotEmpty && _rowKey.currentState != null;
 
-  bool get _navbarIsLeft =>
-      widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.left;
-
-  void _handleLeftEdge() {
-    NavigationLayout.focusNavbarNotifier.value?.call();
-  }
 
   bool focusTop() {
     if (!canFocusTop) {
@@ -223,7 +215,6 @@ class NouveauBooksSectionState extends State<NouveauBooksSection> {
                     onTap: (_, item) {
                       _openItem(item, widget.libraryId);
                     },
-                    onLeftEdge: _navbarIsLeft ? _handleLeftEdge : null,
                     itemBuilder: (context, item, index, isFocused) {
                       final title = item.name.trim();
 

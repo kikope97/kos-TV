@@ -18,18 +18,13 @@ import '../music/design/kostv_play_button.dart';
 import '../music/kostv_now_playing_capsule.dart' show KostvCapsuleHeart;
 import '../music/kostv_now_playing.dart';
 import '../offline_aware_image.dart';
-import 'bottom_nav_metrics.dart';
-import 'bottom_nav_theme.dart';
 
 enum BottomMiniPlayerVariant {
-  /// Its own floating pane above Dock or an expanded Split.
+  /// Kos TV: the glass bar's accessory, its own glass pane above the bar.
   capsule,
 
-  /// Squeezed between a minimised Split's two buttons.
+  /// Inside the gathered bar, between the page's tab and Search.
   inline,
-
-  /// A row inside Strip's surface.
-  row,
 }
 
 /// Whether the queue holds something the mini player shows. Video plays full
@@ -40,15 +35,14 @@ enum BottomMiniPlayerVariant {
 /// show it, or nothing does).
 bool bottomMiniPlayerHasTrack() => KostvNowPlaying.instance.item != null;
 
+/// Kos TV: the music that sounds, in the glass bar (docs/diseno-menu): the
+/// cover, the song and the artist, ♥, the brand's play button and «next»,
+/// with the progress in the gradient along its foot. The bar puts it on its
+/// own glass ([KostvGlass]).
 class BottomMiniPlayer extends StatefulWidget {
   final BottomMiniPlayerVariant variant;
-  final BottomNavTheme theme;
 
-  const BottomMiniPlayer({
-    super.key,
-    required this.variant,
-    required this.theme,
-  });
+  const BottomMiniPlayer({super.key, required this.variant});
 
   @override
   State<BottomMiniPlayer> createState() => _BottomMiniPlayerState();
@@ -100,7 +94,6 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
       return const SizedBox.shrink();
     }
 
-    final theme = widget.theme;
     final variant = widget.variant;
     final l10n = AppLocalizations.of(context);
     final playing = _manager.state.isPlaying;
@@ -108,16 +101,15 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
         ? item.artists.join(', ')
         : item.albumArtist ?? '';
     final compact = variant == BottomMiniPlayerVariant.inline;
-    // Kos TV: the music design's capsule: a round cover, a little bigger.
-    final artSize = compact ? 38.0 : 44.0;
+    // Kos TV: the glass accessory: the cover with rounded corners.
+    final artSize = compact ? 38.0 : 40.0;
 
     final row = Row(
       children: [
         _Artwork(
           url: _artUrl(item),
           size: artSize,
-          round: true,
-          color: theme.onBar,
+          color: KostvMusicTokens.ink,
         ),
         SizedBox(width: compact ? 10 : 12),
         Expanded(
@@ -129,23 +121,27 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
                 item.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: theme.labelStyle.copyWith(
-                  color: theme.onBar,
-                  fontSize: compact ? 13 : 15,
+                style: TextStyle(
+                  color: KostvMusicTokens.ink,
+                  fontSize: compact ? 13 : 14,
                   fontWeight: FontWeight.w500,
+                  height: 1.2,
+                  decoration: TextDecoration.none,
                 ),
               ),
               if (artist.isNotEmpty) ...[
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 // Kos TV: the same for a song that isn't at home.
                 Text(
                   artist,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.labelStyle.copyWith(
-                    color: theme.onBar.withValues(alpha: 0.62),
-                    fontSize: compact ? 11.5 : 13,
+                  style: TextStyle(
+                    color: KostvMusicTokens.ink.withValues(alpha: 0.7),
+                    fontSize: compact ? 11.5 : 12,
                     fontWeight: FontWeight.w400,
+                    height: 1.2,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ],
@@ -180,7 +176,7 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
           _TransportButton(
             icon: Icons.skip_next_rounded,
             tooltip: l10n.next,
-            color: theme.onBar.withValues(alpha: 0.85),
+            color: KostvMusicTokens.ink,
             // Kos TV: a skip the person chose, which «Al acabar la
             // canción» mustn't pause.
             onPressed: KostvNowPlaying.instance.next,
@@ -191,54 +187,18 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
     );
 
     final progress = RepaintBoundary(
-      child: _ProgressLine(state: _manager.state, theme: theme),
+      child: _ProgressLine(state: _manager.state),
     );
 
-    final Widget body = switch (variant) {
-      BottomMiniPlayerVariant.capsule => SizedBox(
-        height: BottomNavMetrics.capsulePlayerHeight,
-        child: BottomNavSurface(
-          theme: theme,
-          radius: BottomNavMetrics.capsulePlayerRadius,
-          child: Stack(
-            children: [
-              Padding(
-                padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 6, 0),
-                child: row,
-              ),
-              PositionedDirectional(
-                start: 18,
-                end: 18,
-                bottom: 0,
-                child: progress,
-              ),
-            ],
-          ),
+    final Widget body = Stack(
+      children: [
+        Padding(
+          padding: EdgeInsetsDirectional.fromSTEB(7, 0, compact ? 4 : 6, 0),
+          child: row,
         ),
-      ),
-      BottomMiniPlayerVariant.inline => Stack(
-        children: [
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 4, 0),
-            child: row,
-          ),
-          PositionedDirectional(start: 22, end: 22, bottom: 0, child: progress),
-        ],
-      ),
-      BottomMiniPlayerVariant.row => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          progress,
-          SizedBox(
-            height: BottomNavMetrics.rowPlayerHeight - 2,
-            child: Padding(
-              padding: const EdgeInsetsDirectional.fromSTEB(16, 0, 8, 0),
-              child: row,
-            ),
-          ),
-        ],
-      ),
-    };
+        PositionedDirectional(start: 22, end: 22, bottom: 3, child: progress),
+      ],
+    );
 
     return Semantics(
       container: true,
@@ -274,15 +234,9 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
 class _Artwork extends StatelessWidget {
   final String? url;
   final double size;
-  final bool round;
   final Color color;
 
-  const _Artwork({
-    required this.url,
-    required this.size,
-    required this.round,
-    required this.color,
-  });
+  const _Artwork({required this.url, required this.size, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -297,7 +251,7 @@ class _Artwork extends StatelessWidget {
       ),
     );
     return ClipRRect(
-      borderRadius: AppRadius.circular(round ? size / 2 : 10),
+      borderRadius: AppRadius.circular(10),
       child: SizedBox(
         width: size,
         height: size,
@@ -347,9 +301,8 @@ class _TransportButton extends StatelessWidget {
 
 class _ProgressLine extends StatefulWidget {
   final PlayerState state;
-  final BottomNavTheme theme;
 
-  const _ProgressLine({required this.state, required this.theme});
+  const _ProgressLine({required this.state});
 
   @override
   State<_ProgressLine> createState() => _ProgressLineState();
@@ -394,12 +347,15 @@ class _ProgressLineState extends State<_ProgressLine> {
         : 0.0;
     // Kos TV: what sounds in the brand's gradient, as everywhere in Music.
     return SizedBox(
-      height: 3,
+      height: 2,
       child: Stack(
         children: [
           Positioned.fill(
-            child: ColoredBox(
-              color: widget.theme.onBar.withValues(alpha: 0.10),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: KostvMusicTokens.ink.withValues(alpha: 0.14),
+                borderRadius: const BorderRadius.all(Radius.circular(2)),
+              ),
             ),
           ),
           FractionallySizedBox(

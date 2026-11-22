@@ -5,9 +5,7 @@ import 'package:server_core/server_core.dart';
 import '../../../../../data/models/aggregated_item.dart';
 import '../../../../../l10n/app_localizations.dart';
 import '../../../../../preference/user_preferences.dart';
-import '../../../../../preference/preference_constants.dart';
 import '../../../../../util/platform_detection.dart';
-import '../../../../widgets/navigation_layout.dart';
 import '../../../../widgets/focus/locked_focus_row.dart';
 import '../../detail_episode_images.dart';
 import '../shared/nouveau_media_rail_card.dart';
@@ -85,13 +83,6 @@ class NouveauChaptersSectionState extends State<NouveauChaptersSection> {
 
   bool focusBottom() => focusTop();
 
-  bool get _navbarIsLeft =>
-      GetIt.instance<UserPreferences>().get(UserPreferences.navbarPosition) ==
-      NavbarPosition.left;
-
-  void _handleLeftEdge() {
-    NavigationLayout.focusNavbarNotifier.value?.call();
-  }
 
   _ChaptersLayout _layoutFor(BuildContext context, double availableWidth) {
     final compact = _isCompactMobile(context);
@@ -189,7 +180,6 @@ class NouveauChaptersSectionState extends State<NouveauChaptersSection> {
                           ?.call() ??
                       false;
                 },
-                onLeftEdge: _navbarIsLeft ? _handleLeftEdge : null,
                 itemBuilder: (context, chapter, index, isFocused) {
                   final position = _chapterPosition(chapter);
 

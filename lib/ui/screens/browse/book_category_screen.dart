@@ -221,7 +221,7 @@ abstract class BookCategoryState<T extends StatefulWidget>
   BookNavPlace get place => (kind: _scope.kind, scope: vm.scope);
 
   double get inset =>
-      _nav == _BookNav.rail ? 32.0 : (wide ? 48.0 : 20.0) + bookSidebarInset;
+      _nav == _BookNav.rail ? 32.0 : (wide ? 48.0 : 20.0);
   double get endInset => wide ? 48.0 : 20.0;
   double get gridSpacing => wide ? 20 : 12;
 
@@ -282,7 +282,7 @@ abstract class BookCategoryState<T extends StatefulWidget>
 
   /// Left past the content's first column, onto the rail or the sidebar.
   void leaveLeft() =>
-      _nav == _BookNav.rail ? navNode.requestFocus() : focusBookSidebar();
+      _nav == _BookNav.rail ? navNode.requestFocus() : stayAtBookLeftEdge();
 
   void _select(BookNavPlace target) {
     if (target.kind == null) return openOverview();
@@ -336,7 +336,6 @@ abstract class BookCategoryState<T extends StatefulWidget>
           ? Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox(width: bookSidebarInset),
                 DecoratedBox(
                   decoration: BoxDecoration(
                     border: Border(
@@ -362,7 +361,7 @@ abstract class BookCategoryState<T extends StatefulWidget>
       sections: bookstoreNavSections(l10n, vm, place: place, onSelect: _select),
       focusNodeFor: (id) => node('nav:$id'),
       onNavigateRight: focusBody,
-      onNavigateLeft: focusBookSidebar,
+      onNavigateLeft: stayAtBookLeftEdge,
       topInset: topReserve,
     );
   }
@@ -386,7 +385,7 @@ abstract class BookCategoryState<T extends StatefulWidget>
           move(navIndex, isUp);
           return true;
         },
-        onExitLeft: focusBookSidebar,
+        onExitLeft: stayAtBookLeftEdge,
       ),
       _BookNav.iconChips => BookCategoryChips(
         entries: bookOverviewNavEntries(
@@ -396,7 +395,7 @@ abstract class BookCategoryState<T extends StatefulWidget>
           onSelect: _select,
         ),
         focusNodeFor: (id) => node('nav:$id'),
-        edges: BookNavEdges(up: up, down: down, left: focusBookSidebar),
+        edges: BookNavEdges(up: up, down: down, left: stayAtBookLeftEdge),
       ),
       _ => BookCategoryChips(
         icons: false,
@@ -410,7 +409,7 @@ abstract class BookCategoryState<T extends StatefulWidget>
             ...section.entries,
         ],
         focusNodeFor: (id) => node('nav:$id'),
-        edges: BookNavEdges(up: up, down: down, left: focusBookSidebar),
+        edges: BookNavEdges(up: up, down: down, left: stayAtBookLeftEdge),
       ),
     };
   }

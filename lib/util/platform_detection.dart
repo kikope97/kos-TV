@@ -11,6 +11,9 @@ class PlatformDetection {
 
   static const double _mobileFormFactorBreakpoint = 600;
 
+  /// Kos TV: the narrowest browser window that fits the computer's bar.
+  static const double _webDesktopBarMinWidth = 1100;
+
   static const bool isAppleTV = bool.fromEnvironment('MOONFIN_TVOS');
 
   /// True for the dedicated Android TV flavor produced by the Android TV
@@ -386,9 +389,15 @@ class PlatformDetection {
     if (_interfaceLayout == InterfaceLayout.desktop) return false;
     if (isDesktop) return false;
     if (isAndroid || isIOS) return true;
+    // Kos TV: a tablet's browser gets the touch menu (the glass bar, in
+    // its tablet form), as the Android app on that tablet would.
+    if (kIsWeb && _isMobilePlatformSignal) return true;
     final size = _screenLogicalSize;
     if (size == null) return _isMobilePlatformSignal;
     if (size.shortestSide <= 0) return _isMobilePlatformSignal;
+    // Kos TV: a browser window too narrow for the computer's bar (its tabs,
+    // search box and avatar in a row) gets the glass bar too.
+    if (kIsWeb && size.width < _webDesktopBarMinWidth) return true;
     return size.shortestSide < _mobileFormFactorBreakpoint;
   }
 

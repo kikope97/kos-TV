@@ -290,7 +290,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// A desktop window with the sidebar on the left.
+  /// A desktop window, with the bar of tabs at the top.
   Future<void> pumpWide(
     WidgetTester tester,
     MusicCategoryKind kind, {
@@ -300,7 +300,6 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
-    await prefs.set(UserPreferences.navbarPosition, NavbarPosition.left);
     await pumpCategory(tester, kind, show: show);
   }
 

@@ -22,7 +22,6 @@ import '../../data/services/media_server_client_factory.dart';
 import '../../l10n/app_localizations.dart';
 import '../../data/services/pin_guard.dart';
 import '../../data/services/server_pin_service.dart';
-import '../../data/services/kostv_favorites_news.dart';
 import '../../util/kostv_server.dart';
 import '../../util/platform_detection.dart';
 import '../../util/signed_in_server_features.dart';
@@ -30,15 +29,11 @@ import '../../util/silo_failure_message.dart';
 import '../navigation/destinations.dart';
 import 'adaptive/adaptive_dialog.dart';
 import '../screens/auth/silo_profile_unlock.dart';
-import '../screens/discover/kostv_requests_tray.dart';
-import '../screens/settings/settings_side_panel.dart';
 import 'kostv_kids_mode_gate.dart';
-import 'kostv_requests_tray_button.dart';
 import 'navigation_layout.dart';
 import 'overlay_sheet.dart';
 import 'pin_entry_dialog.dart';
 import 'remote_control_dialog.dart';
-import 'settings/settings_panel.dart';
 import 'profile_carousel.dart';
 
 enum _AccountDialogAction { quickConnect }
@@ -351,9 +346,10 @@ class _AccountDialogState extends State<_AccountDialog> {
     final activeIsSilo =
         GetIt.instance.isRegistered<MediaServerClient>() &&
         GetIt.instance<MediaServerClient>().serverType == ServerType.silo;
-    // The bottom navbar hub has these already.
-    final showAppActions =
-        !PlatformDetection.isTV && !NavigationLayout.usesBottomNavbar;
+    // Kos TV: on a computer, what «Tú» doesn't hold (phones have it in «Más»,
+    // a TV has neither).
+    final showAppActions = NavigationLayout.usesTopToolbar &&
+        !PlatformDetection.isTV;
 
     Widget action(
       String label,
@@ -369,43 +365,11 @@ class _AccountDialogState extends State<_AccountDialog> {
       focusColor: danger ? _danger : focusColor,
     );
 
-    // Kos TV: «Mis favoritos», on the profile rather than on the menu bar.
-    final favoritesNews =
-        GetIt.instance.isRegistered<KostvFavoritesNewsService>()
-        ? GetIt.instance<KostvFavoritesNewsService>().unseen
-        : 0;
-    Widget favorites() => action(
-      favoritesNews > 0
-          ? l10n.kostvMyFavoritesWithNews(favoritesNews)
-          : l10n.kostvMyFavorites,
-      () {
-      Navigator.of(context).pop();
-      if (!context.mounted) return;
-      context.navigateTopLevel(Destinations.allFavorites);
-    },
-      icon: Icons.favorite_rounded,
-    );
-
     // Kos TV: one order on every device: first what you do in the app, then
-    // the account, and signing out (the danger) last.
+    // the account, and signing out (the danger) last. Requests, favourites
+    // and Ajustes are in «Tú».
     return [
-      // Kos TV: on a TV the other app actions are on the bar, this one isn't.
-      if (PlatformDetection.isTV) favorites(),
       if (showAppActions) ...[
-        // Kos TV: the requests tray, always here (beside the avatar it only
-        // shows when there is news or something under way).
-        if (kostvRequestsTrayAvailable())
-          action(l10n.kostvTrayTitle, () {
-            Navigator.of(context).pop();
-            if (!context.mounted) return;
-            unawaited(showKostvRequestsTray(context));
-          }, icon: Icons.inbox_rounded),
-        favorites(),
-        action(l10n.settings, () async {
-          Navigator.of(context).pop();
-          if (!context.mounted) return;
-          await SettingsPanel.open(context, const SettingsSidePanel());
-        }),
         action(
           activeIsSilo ? l10n.siloApproveSignIn : l10n.quickConnect,
           () => Navigator.of(context).pop(_AccountDialogAction.quickConnect),

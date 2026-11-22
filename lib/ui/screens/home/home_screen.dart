@@ -77,7 +77,6 @@ import '../../../data/models/media_bar_state.dart';
 import '../../../data/viewmodels/media_bar_view_model.dart';
 import '../../widgets/grid_button_card.dart';
 import '../../widgets/info_area.dart';
-import '../../widgets/left_sidebar.dart';
 import '../../widgets/library_row.dart';
 import '../../widgets/media_bar.dart';
 import '../../widgets/mediabar/banner_media_bar.dart';
@@ -939,7 +938,7 @@ class _ContentRowsState extends State<_ContentRows>
   bool? _cachedExtentFullScreenRows;
   HomeRowsStyle? _cachedExtentHomeRowsStyle;
   bool? _cachedExtentShowInfoOverlay;
-  NavbarPosition? _cachedExtentNavbarPosition;
+  bool? _cachedExtentTopToolbar;
   double? _cachedExtentViewportHeight;
   int _cachedExtentPrefsVersion = -1;
   List<double>? _cachedRowExtents;
@@ -1025,7 +1024,6 @@ class _ContentRowsState extends State<_ContentRows>
   // _verticalNavInFlight or finishes a media bar handoff. That way a press
   // during a scroll takes over instead of being dropped.
   int _verticalNavGeneration = 0;
-  bool _holdMediaBarWhileSidebarFocused = false;
 
   String? _pendingPreviewKey;
 
@@ -1096,10 +1094,7 @@ class _ContentRowsState extends State<_ContentRows>
       _scheduleRowPrefetch();
     }
   }
-  bool get _isSidebarFocus => LeftSidebar.isFocusedNotifier.value;
-  bool _wasSidebarFocused = false;
   VoidCallback? _previousFocusContentFromNavbarCallback;
-  FocusNode? _lastGlobalPrimaryFocus;
   final _v2Expansion = ModernCardExpansion();
   final Set<String> _v2FocusPrefetchedUrls = <String>{};
 
@@ -1191,7 +1186,7 @@ class _ContentRowsState extends State<_ContentRows>
     }
     final safeTop = MediaQuery.of(context).padding.top;
     final navbarIsTop =
-        widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.top;
+        NavigationLayout.usesTopToolbar;
     final navbarHeight = navbarIsTop
         ? (PlatformDetection.isTV
             ? 45.0
@@ -1251,17 +1246,7 @@ class _ContentRowsState extends State<_ContentRows>
     final isMobileUi = PlatformDetection.useMobileUi;
     final primary = FocusManager.instance.primaryFocus;
     final onMediaBar = identical(primary, _mediaBarFocusNode);
-    final onSidebar = _isSidebarFocus;
-    final wasOnSidebar = _wasSidebarFocused;
-    if (onSidebar && !wasOnSidebar) {
-      _holdMediaBarWhileSidebarFocused = identical(
-        _lastGlobalPrimaryFocus,
-        _mediaBarFocusNode,
-      );
-    } else if (!onSidebar) {
-      _holdMediaBarWhileSidebarFocused = false;
-    }
-    final hasRowContext = _activeFocusedRowIndex != null || onSidebar;
+    final hasRowContext = _activeFocusedRowIndex != null;
     final onIdleFocus =
         primary == null ||
         primary is FocusScopeNode ||
@@ -1274,16 +1259,15 @@ class _ContentRowsState extends State<_ContentRows>
     // Focus rests there after launch and after a mouse scroll, so pausing for
     // it left the bar silent and still with no way back, while a preview the
     // user has just navigated away from should still end.
-    final chromePreviewActive = chromeFocusActive || onSidebar;
-    final chromeAudioActive = (chromeFocusActive && !onToolbar) || onSidebar;
+    final chromePreviewActive = chromeFocusActive;
+    final chromeAudioActive = chromeFocusActive && !onToolbar;
 
     final nextMediaBarVisible = isMobileUi
         ? true
         : (_isMediaBarIncluded() && _isBannerMode()) ||
               onMediaBar ||
-              _holdMediaBarWhileSidebarFocused ||
               (_verticalNavInFlight && _mediaBarVisible) ||
-              (!onSidebar && _activeFocusedRowIndex == null);
+              _activeFocusedRowIndex == null;
     final chromeChanged =
         _chromeFocusActiveNotifier.value != chromeFocusActive ||
         _chromeAudioActiveNotifier.value != chromeAudioActive;
@@ -1294,16 +1278,6 @@ class _ContentRowsState extends State<_ContentRows>
       _chromeAudioActive = chromeAudioActive;
     }
 
-    if (wasOnSidebar && !onSidebar && _activeFocusedRowIndex != null) {
-      final rowIndex = _activeFocusedRowIndex!;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!_mayRestoreHomeFocus()) return;
-        _requestRowFocusFromMemory(rowIndex);
-      });
-    }
-
-    _wasSidebarFocused = onSidebar;
-    _lastGlobalPrimaryFocus = primary;
 
     if (chromePreviewActive && (chromeChanged || _activePreviewKey != null)) {
       _finishSharedPreview(releaseResources: true);
@@ -1323,7 +1297,7 @@ class _ContentRowsState extends State<_ContentRows>
     if (!_infoRevealed) return;
     if (!_showHomeRowInfoOverlay()) return;
     if (!_isMediaBarIncluded() || _isBannerMode()) return;
-    if (_activeFocusedRowIndex != null || _isSidebarFocus) return;
+    if (_activeFocusedRowIndex != null) return;
     if (_verticalNavInFlight) return;
     if (OverlaySheetController.hasOpenSheet ||
         SettingsPanel.isOpenNotifier.value) {
@@ -1421,7 +1395,6 @@ class _ContentRowsState extends State<_ContentRows>
     _lastObservedPath = appRouter.routerDelegate.currentConfiguration.uri.path;
     FocusManager.instance.addListener(_onGlobalFocusChanged);
     SettingsPanel.isOpenNotifier.addListener(_onSettingsPanelOpenChanged);
-    LeftSidebar.isFocusedNotifier.addListener(_onGlobalFocusChanged);
     TopToolbar.isFocusedNotifier.addListener(_onGlobalFocusChanged);
     _lastMedia3PreviewPreference = _useMedia3InlinePreview();
     widget.prefs.addListener(_onPreviewPrefsChanged);
@@ -1653,7 +1626,7 @@ class _ContentRowsState extends State<_ContentRows>
     final bannerMode = _isBannerMode();
     final showInfoOverlay = _showHomeRowInfoOverlay();
     final safeTop = MediaQuery.of(context).padding.top;
-    final navbarIsTop = prefs.get(UserPreferences.navbarPosition) == NavbarPosition.top;
+    final navbarIsTop = NavigationLayout.usesTopToolbar;
     final fullScreenRows = _fullScreenRowsEnabled(prefs);
 
     final navbarHeight = PlatformDetection.isTV
@@ -1736,7 +1709,6 @@ class _ContentRowsState extends State<_ContentRows>
     WidgetsBinding.instance.removeObserver(this);
     FocusManager.instance.removeListener(_onGlobalFocusChanged);
     SettingsPanel.isOpenNotifier.removeListener(_onSettingsPanelOpenChanged);
-    LeftSidebar.isFocusedNotifier.removeListener(_onGlobalFocusChanged);
     TopToolbar.isFocusedNotifier.removeListener(_onGlobalFocusChanged);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
@@ -1843,12 +1815,7 @@ class _ContentRowsState extends State<_ContentRows>
     }
 
     final global = box.localToGlobal(Offset.zero);
-    final navbarPosition = widget.prefs.get(UserPreferences.navbarPosition);
-    final isTopNavbarFocus =
-        navbarPosition == NavbarPosition.top && global.dy < 140;
-    final isLeftSidebarFocus =
-        navbarPosition == NavbarPosition.left && global.dx < 240;
-    return isTopNavbarFocus || isLeftSidebarFocus;
+    return NavigationLayout.usesTopToolbar && global.dy < 140;
   }
 
   static bool _supportsPreview(AggregatedItem item, String mode) {
@@ -3122,18 +3089,13 @@ class _ContentRowsState extends State<_ContentRows>
       focusNavbar();
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        final navbarPosition = widget.prefs.get(UserPreferences.navbarPosition);
         final primary = FocusManager.instance.primaryFocus;
         final ctx = primary?.context;
         if (primary != null && ctx != null) {
           final box = ctx.findRenderObject();
           if (box is RenderBox) {
             final global = box.localToGlobal(Offset.zero);
-            final isTopNavbarFocus =
-                navbarPosition == NavbarPosition.top && global.dy < 120;
-            final isLeftSidebarFocus =
-                navbarPosition == NavbarPosition.left && global.dx < 220;
-            if (isTopNavbarFocus || isLeftSidebarFocus) {
+            if (NavigationLayout.usesTopToolbar && global.dy < 120) {
               return;
             }
           }
@@ -3788,10 +3750,7 @@ class _ContentRowsState extends State<_ContentRows>
     if (!mounted || PlatformDetection.useMobileUi) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_mayRestoreHomeFocus()) return;
-      if (TopToolbar.isFocusedNotifier.value ||
-          LeftSidebar.isFocusedNotifier.value) {
-        return;
-      }
+      if (TopToolbar.isFocusedNotifier.value) return;
       _realignScrollAfterReturn();
       // Last chance to use the anchor, so retire it either way.
       _returnScrollRowId = null;
@@ -4096,14 +4055,6 @@ class _ContentRowsState extends State<_ContentRows>
     return true;
   }
 
-  void _onRowLeftEdge() {
-    final navbarIsLeft =
-        widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.left;
-    if (!navbarIsLeft) return;
-    final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-    if (focusNavbar != null) focusNavbar();
-  }
-
   void _onRowFocusTracked(int rowIndex, bool focused) {
     if (!mounted) return;
     if (focused) {
@@ -4127,9 +4078,6 @@ class _ContentRowsState extends State<_ContentRows>
         setState(() => _mediaBarVisible = false);
       }
     } else if (_activeFocusedRowIndex == rowIndex) {
-      if (_isSidebarFocus) {
-        return;
-      }
       if (OverlaySheetController.hasOpenSheet || SettingsPanel.isOpenNotifier.value) {
         return;
       }
@@ -4411,7 +4359,6 @@ class _ContentRowsState extends State<_ContentRows>
     if (event is! KeyDownEvent) return false;
     if (!_isHomeRouteActive()) return false;
     if (SettingsPanel.isOpenNotifier.value || OverlaySheetController.hasOpenSheet) return false;
-    if (LeftSidebar.isFocusedNotifier.value) return false;
     // Let the focused top navbar handle its own d-pad keys.
     if (TopToolbar.isFocusedNotifier.value) return false;
 
@@ -4527,7 +4474,7 @@ class _ContentRowsState extends State<_ContentRows>
       final isRowsV2 = isHomeRowModern(row, prefs);
 
       final navbarIsTop =
-          prefs.get(UserPreferences.navbarPosition) == NavbarPosition.top;
+          NavigationLayout.usesTopToolbar;
       final navbarHeight = PlatformDetection.isTV
           ? 95.0
           : (navbarIsTop ? (PlatformDetection.useMobileUi ? 60.0 : 80.0) : 0.0);
@@ -4570,7 +4517,7 @@ class _ContentRowsState extends State<_ContentRows>
         prefs.get(UserPreferences.fullScreenRows);
     final homeRowsStyle = prefs.get(UserPreferences.homeRowsStyle);
     final showInfoOverlay = prefs.get(UserPreferences.homeRowInfoOverlay);
-    final navbarPosition = prefs.get(UserPreferences.navbarPosition);
+    final topToolbar = NavigationLayout.usesTopToolbar;
     final viewportHeight = MediaQuery.sizeOf(context).height;
 
     if (_cachedRowExtents != null &&
@@ -4580,7 +4527,7 @@ class _ContentRowsState extends State<_ContentRows>
         _cachedExtentFullScreenRows == fullScreenRows &&
         _cachedExtentHomeRowsStyle == homeRowsStyle &&
         _cachedExtentShowInfoOverlay == showInfoOverlay &&
-        _cachedExtentNavbarPosition == navbarPosition &&
+        _cachedExtentTopToolbar == topToolbar &&
         _cachedExtentViewportHeight == viewportHeight &&
         _cachedExtentPrefsVersion == _layoutPrefsVersion) {
       return _cachedRowExtents!;
@@ -4599,7 +4546,7 @@ class _ContentRowsState extends State<_ContentRows>
     _cachedExtentFullScreenRows = fullScreenRows;
     _cachedExtentHomeRowsStyle = homeRowsStyle;
     _cachedExtentShowInfoOverlay = showInfoOverlay;
-    _cachedExtentNavbarPosition = navbarPosition;
+    _cachedExtentTopToolbar = topToolbar;
     _cachedExtentViewportHeight = viewportHeight;
     _cachedExtentPrefsVersion = _layoutPrefsVersion;
     _cachedRowExtents = extents;
@@ -4856,7 +4803,7 @@ class _ContentRowsState extends State<_ContentRows>
     final desktopScale = _desktopUiScaleFactor();
     final isRowsV2 = _isHomeRowsStyleV2();
     final navbarIsTop =
-        prefs.get(UserPreferences.navbarPosition) == NavbarPosition.top;
+        NavigationLayout.usesTopToolbar;
     final tvTopNavbarInset =
         navbarIsTop && PlatformDetection.isTV && !PlatformDetection.useMobileUi
             ? 48.0
@@ -4972,7 +4919,7 @@ class _ContentRowsState extends State<_ContentRows>
         !PlatformDetection.useMobileUi &&
         prefs.get(UserPreferences.fullScreenRows);
     final navbarIsTop =
-        widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.top;
+        NavigationLayout.usesTopToolbar;
     final navbarIsLeft = !navbarIsTop;
     final navbarHeight = PlatformDetection.isTV
         ? (fullScreenRows ? 95.0 : (navbarIsTop ? 45.0 : 15.0))
@@ -5476,7 +5423,6 @@ class _ContentRowsState extends State<_ContentRows>
             rows: rows,
             isUp: isUp,
           ),
-          onLeftEdge: _onRowLeftEdge,
           onTap: (_, action) => context.push(action.destination),
           itemBuilder: (ctx, action, idx, isFocused) {
             return Align(
@@ -5570,7 +5516,6 @@ class _ContentRowsState extends State<_ContentRows>
           rows: rows,
           isUp: isUp,
         ),
-        onLeftEdge: _onRowLeftEdge,
         onTap: (_, card) => open(card),
         itemBuilder: (ctx, card, idx, isFocused) {
           final Widget body;
@@ -5734,7 +5679,6 @@ class _ContentRowsState extends State<_ContentRows>
           rows: rows,
           isUp: isUp,
         ),
-        onLeftEdge: _onRowLeftEdge,
         onTap: (_, app) => unawaited(open(app)),
         onLongPress: (_, app) => unawaited(showAppMenu(app)),
         itemBuilder: (ctx, app, idx, isFocused) => Align(
@@ -5800,7 +5744,6 @@ class _ContentRowsState extends State<_ContentRows>
             rows: rows,
             isUp: isUp,
           ),
-          onLeftEdge: _onRowLeftEdge,
           onTap: (_, item) => _navigateToLibrary(context, item),
           onLongPress: (_, item) =>
               showContextMenu(context, item, onChanged: () => setState(() {})),
@@ -5876,7 +5819,7 @@ class _ContentRowsState extends State<_ContentRows>
     final v2PortraitWidth = v2ImageHeight * v2PortraitAspect;
     final v2FocusedWidth = v2ImageHeight * v2FocusedAspect;
     final navbarIsTopV2 =
-        widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.top;
+        NavigationLayout.usesTopToolbar;
     final rowLeftInsetV2 =
         (navbarIsTopV2
             ? (PlatformDetection.isTV && !PlatformDetection.useMobileUi
@@ -6027,7 +5970,6 @@ class _ContentRowsState extends State<_ContentRows>
             rows: rows,
             isUp: isUp,
           ),
-          onLeftEdge: _onRowLeftEdge,
           onIndexChanged: (index, item) {
           if (identical(item, _seeAllItem)) {
             _finishSharedPreview();

@@ -77,16 +77,15 @@ Size frostStageSize(BoxConstraints room) {
 /// navigation leaves, under a top navbar, past the collapsed left sidebar or
 /// the back button a bottom navbar brings, and above that bar.
 class FrostStage extends StatelessWidget {
-  final bool navbarTop;
   final Widget child;
 
-  const FrostStage({super.key, required this.navbarTop, required this.child});
+  const FrostStage({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: EdgeInsets.only(
-      top: navbarTop ? TopToolbar.heightFor(context) : 0,
-      left: navbarTop ? 0 : 72,
+      top: NavigationLayout.usesTopToolbar ? TopToolbar.heightFor(context) : 0,
+      left: NavigationLayout.usesTopToolbar ? 0 : 72,
       bottom: BottomNavInsetScope.maybeOf(context) ?? 0,
     ),
     child: LayoutBuilder(
@@ -1004,7 +1003,6 @@ class _FrostDetailContentState extends State<FrostDetailContent>
       children: [
         _environment(item),
         FrostStage(
-          navbarTop: navbarIsTop,
           child: MediaQuery.withClampedTextScaling(
             maxScaleFactor: 1.15,
             child: Stack(

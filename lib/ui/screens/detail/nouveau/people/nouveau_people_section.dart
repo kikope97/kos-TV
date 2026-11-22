@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../../../l10n/app_localizations.dart';
-import '../../../../../preference/preference_constants.dart';
-import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/platform_detection.dart';
 import '../../../../widgets/focus/locked_focus_row.dart';
-import '../../../../widgets/navigation_layout.dart';
 import '../shared/nouveau_spacing.dart';
 import 'nouveau_people_card.dart';
 
@@ -76,14 +72,6 @@ class NouveauPeopleSectionState extends State<NouveauPeopleSection> {
     return widget.actors.isNotEmpty ||
         widget.directors.isNotEmpty ||
         widget.writers.isNotEmpty;
-  }
-
-  bool get _navbarIsLeft =>
-      GetIt.instance<UserPreferences>().get(UserPreferences.navbarPosition) ==
-      NavbarPosition.left;
-
-  void _handleLeftEdge() {
-    NavigationLayout.focusNavbarNotifier.value?.call();
   }
 
   bool focusTop() {
@@ -303,7 +291,6 @@ class NouveauPeopleSectionState extends State<NouveauPeopleSection> {
             height: layout.cardHeight,
             itemExtent: layout.itemExtent,
             clipBehavior: Clip.none,
-            onLeftEdge: _navbarIsLeft ? _handleLeftEdge : null,
             onVerticalNavigation: (isUp) {
               return (isUp ? widget.onNavigateUp : widget.onNavigateDown)
                       ?.call() ??

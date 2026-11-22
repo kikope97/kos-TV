@@ -736,38 +736,22 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
     );
 
     if (!PlatformDetection.isTV) {
-      final content = body;
-      body = ValueListenableBuilder<NavbarPosition?>(
-        valueListenable: NavigationLayout.positionNotifier,
-        builder: (context, position, child) {
-          void reveal() {
-            if (!_showNavbar && mounted) setState(() => _showNavbar = true);
-          }
+      void reveal() {
+        if (!_showNavbar && mounted) setState(() => _showNavbar = true);
+      }
 
-          return Stack(
-            children: [
-              Positioned.fill(child: child!),
-              if (!_showNavbar) ...[
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 90,
-                  child: _NavbarRevealZone(onReveal: reveal),
-                ),
-                if (position == NavbarPosition.left)
-                  Positioned(
-                    top: 0,
-                    left: 0,
-                    bottom: 0,
-                    width: 80,
-                    child: _NavbarRevealZone(onReveal: reveal),
-                  ),
-              ],
-            ],
-          );
-        },
-        child: content,
+      body = Stack(
+        children: [
+          Positioned.fill(child: body),
+          if (!_showNavbar)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: 90,
+              child: _NavbarRevealZone(onReveal: reveal),
+            ),
+        ],
       );
     }
 
@@ -1309,17 +1293,6 @@ class _DetailContentState extends State<_DetailContent> {
     return false;
   }
 
-  bool _tryFocusSidebar() {
-    if (prefs.get(UserPreferences.navbarPosition) != NavbarPosition.left) {
-      return false;
-    }
-    final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-    if (focusNavbar != null) {
-      focusNavbar();
-      return true;
-    }
-    return FocusScope.of(context).previousFocus();
-  }
 
   FocusNode? _headerOverviewFocusNode(AggregatedItem item) {
     if (hidesMediaDescription(
@@ -1483,7 +1456,6 @@ class _DetailContentState extends State<_DetailContent> {
             _requestSectionFocus(leftTarget);
             return KeyEventResult.handled;
           }
-          _tryFocusSidebar();
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -1858,7 +1830,7 @@ class _DetailContentState extends State<_DetailContent> {
                           };
                           _requestSectionFocus(targetNode);
                         },
-                        onArrowLeft: () => _tryFocusSidebar(),
+                        onArrowLeft: () {},
                         onCollapseBiography: () => setState(() {}),
                       ),
                     ),
@@ -2187,7 +2159,7 @@ class _DetailContentState extends State<_DetailContent> {
               : similarFocusNode != null
                   ? () => _requestSectionFocus(similarFocusNode)
                   : null,
-          onArrowLeft: () => _tryFocusSidebar(),
+          onArrowLeft: () {},
           onCollapse: () => setState(() {}),
           style: const TextStyle(
             color: Color(0xFFD7E8F6),
@@ -2487,7 +2459,6 @@ class _DetailContentState extends State<_DetailContent> {
               }
               if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
                 if (event is KeyDownEvent) {
-                  _tryFocusSidebar();
                   return KeyEventResult.handled;
                 }
                 return KeyEventResult.ignored;
@@ -2936,7 +2907,6 @@ class _DetailContentState extends State<_DetailContent> {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             onUp: () => _requestSectionFocus(links.up),
             onDown: () {},
-            onLeft: _tryFocusSidebar,
             onRecovered: focusFirstRowOnceIn,
           ),
         ),
@@ -2979,9 +2949,7 @@ class _DetailContentState extends State<_DetailContent> {
           onArrowDown: () {
             _requestSectionFocus(favoriteFocusNode);
           },
-          onArrowLeft: () {
-            _tryFocusSidebar();
-          },
+          onArrowLeft: () {},
           onCollapse: () => setState(() {}),
         ),
       ],
@@ -3013,9 +2981,7 @@ class _DetailContentState extends State<_DetailContent> {
                 onArrowRight: () {
                   _requestSectionFocus(displayFocusNode);
                 },
-                onArrowLeft: () {
-                  _tryFocusSidebar();
-                },
+                onArrowLeft: () {},
               ),
               const SizedBox(width: 16),
             ],
@@ -3037,8 +3003,6 @@ class _DetailContentState extends State<_DetailContent> {
               onArrowLeft: () {
                 if (canFavorite) {
                   _requestSectionFocus(favoriteFocusNode);
-                } else {
-                  _tryFocusSidebar();
                 }
               },
               onArrowRight: () {},
@@ -3129,7 +3093,7 @@ class _DetailContentState extends State<_DetailContent> {
           onArrowDown: firstRowFocusNode != null
               ? () => _requestSectionFocus(firstRowFocusNode)
               : null,
-          onArrowLeft: () => _tryFocusSidebar(),
+          onArrowLeft: () {},
           onCollapse: () => setState(() {}),
         ),
       ],
@@ -6278,29 +6242,10 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
     );
   }
 
-  bool _tryFocusSidebar() {
-    if (GetIt.instance<UserPreferences>().get(UserPreferences.navbarPosition) !=
-        NavbarPosition.left) {
-      return false;
-    }
-    final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-    if (focusNavbar != null) {
-      focusNavbar();
-      return true;
-    }
-    return FocusScope.of(context).previousFocus();
-  }
-
-  void _focusSidebar() {
-    _tryFocusSidebar();
-  }
 
   void _focusTarget(FocusNode? target, {double alignment = 0.2}) {
     if (target == null) {
-      if (GetIt.instance<UserPreferences>().get(
-            UserPreferences.navbarPosition,
-          ) ==
-          NavbarPosition.top) {
+      if (NavigationLayout.usesTopToolbar) {
         NavigationLayout.focusNavbarNotifier.value?.call();
       }
       return;
@@ -6315,10 +6260,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
     }
 
     if (target.context == null) {
-      if (GetIt.instance<UserPreferences>().get(
-            UserPreferences.navbarPosition,
-          ) ==
-          NavbarPosition.top) {
+      if (NavigationLayout.usesTopToolbar) {
         NavigationLayout.focusNavbarNotifier.value?.call();
       }
       return;
@@ -6994,7 +6936,9 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
                 ? _focusUpTarget
                 : null,
             onArrowDown: widget.downTarget != null ? _focusDownTarget : null,
-            onArrowLeft: _focusSidebar,
+            // Kos TV: left past the first button stays: the menu is never
+            // at the side.
+            onArrowLeft: () {},
             onArrowRight: () {
               _primaryFocusNode(1).requestFocus();
             },
@@ -7027,7 +6971,7 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
                   (widget.tvPlayFocusNode ?? _primaryFocusNode(0))
                       .requestFocus();
                 }
-              : _focusSidebar,
+              : () {},
           onArrowRight: widget.onArrowRightAtEnd ?? () {},
         ),
       ];
@@ -7583,7 +7527,9 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
             ? _focusUpTarget
             : null,
         onArrowDown: widget.downTarget != null ? _focusDownTarget : null,
-        onArrowLeft: _focusSidebar,
+        // Kos TV: left past the first button stays: the menu is never
+        // at the side.
+        onArrowLeft: () {},
         onArrowRight: secondaryNodes.isNotEmpty
             ? () => secondaryNodes.first.requestFocus()
             : widget.onArrowRightAtEnd,
@@ -7774,14 +7720,12 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
                   : null),
           onArrowLeft: () {
             final step = isRtl ? 1 : -1;
-            if (!_focusAdjacent(
+            _focusAdjacent(
               (i) => _primaryNodeAt(i, allButtons.length),
               index + step,
               step,
               allButtons.length,
-            )) {
-              _focusSidebar();
-            }
+            );
           },
           onArrowDown: widget.downTarget != null ? _focusDownTarget : null,
           onArrowRight: () {
@@ -7854,14 +7798,12 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
                   : null),
           onArrowLeft: () {
             final step = isRtl ? 1 : -1;
-            if (!_focusAdjacent(
+            _focusAdjacent(
               _primaryNodePlain,
               index + step,
               step,
               primaryButtons.length,
-            )) {
-              _focusSidebar();
-            }
+            );
           },
           onArrowRight: () {
             if (index == 0 && _rightFromPlayLeavesRow) {
@@ -7910,14 +7852,12 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
           onArrowDown: widget.downTarget != null ? _focusDownTarget : null,
           onArrowLeft: () {
             final step = isRtl ? 1 : -1;
-            if (!_focusAdjacent(
+            _focusAdjacent(
               _extraFocusNode,
               index + step,
               step,
               extraButtons.length,
-            )) {
-              _focusSidebar();
-            }
+            );
           },
           onArrowRight: () {
             final step = isRtl ? -1 : 1;
@@ -13482,18 +13422,6 @@ class _DetailActionButtonState extends State<_DetailActionButton>
     );
   }
 
-  bool _tryFocusSidebar() {
-    if (GetIt.instance<UserPreferences>().get(UserPreferences.navbarPosition) !=
-        NavbarPosition.left) {
-      return false;
-    }
-    final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-    if (focusNavbar != null) {
-      focusNavbar();
-      return true;
-    }
-    return FocusScope.of(context).previousFocus();
-  }
 
   void _scrollToTopOnFocus() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -13526,9 +13454,6 @@ class _DetailActionButtonState extends State<_DetailActionButton>
         ? FocusScope.of(context).nextFocus()
         : FocusScope.of(context).previousFocus();
     if (!moved) {
-      if (!forward) {
-        _tryFocusSidebar();
-      }
       return true;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -13543,8 +13468,6 @@ class _DetailActionButtonState extends State<_DetailActionButton>
       if (!inActionButtons) {
         if (forward) {
           current.requestFocus();
-        } else {
-          _tryFocusSidebar();
         }
       }
     });
@@ -16647,10 +16570,7 @@ class _ExpandableBiographyState extends State<ExpandableBiography> {
       return true;
     }
 
-    final navbarPosition = GetIt.instance<UserPreferences>().get(
-      UserPreferences.navbarPosition,
-    );
-    if (navbarPosition != NavbarPosition.top) {
+    if (NavigationLayout.usesBottomNavbar) {
       return true;
     }
 
