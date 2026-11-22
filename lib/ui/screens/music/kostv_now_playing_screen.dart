@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/gestures.dart' show PointerScrollEvent;
@@ -13,7 +14,6 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/models/lyrics.dart';
-import '../../../data/repositories/item_mutation_repository.dart';
 import '../../../data/services/kostv_music.dart';
 import '../../../data/services/kostv_music_away.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
@@ -26,24 +26,23 @@ import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
-import '../../widgets/baked_blur_image.dart';
 import '../../widgets/add_to_playlist_dialog.dart';
 import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/kostv_now_playing.dart';
 import '../../widgets/music/kostv_now_playing_capsule.dart'
     show KostvEqualizerBars;
+import '../../widgets/music/design/kostv_music_design.dart';
 import '../../widgets/music/kostv_queue_moves.dart';
 import '../../widgets/offline_aware_image.dart';
 import '../../widgets/player_volume_control.dart' show volumeIconFor;
 import '../playback/audiobook_player_view.dart';
 import 'kostv_music_links.dart';
-import 'kostv_music_widgets.dart' show kostvMusicColor;
-import 'kostv_music_actions.dart'
-    show kostvHomeArtistNamed, kostvMusicFavoritesChanged, kostvMusicSay;
+import 'kostv_music_actions.dart' show kostvHomeArtistNamed, kostvMusicSay;
 import '../../widgets/music/kostv_stream_play.dart'
     show kostvStationFor, kostvStationWantsRadio;
 import 'kostv_music_away_actions.dart';
 import 'kostv_music_dislike.dart';
+import 'kostv_song_love.dart';
 import 'kostv_stream_widgets.dart';
 
 /// Kos TV: «Reproduciendo», the music player. Its background takes the
@@ -104,8 +103,6 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   // Kos TV: the new song's lyrics are on their way. Not the same as having
   // none: the panel and the button stay until the answer says so.
   bool _lyricsLoading = false;
-  bool? _favorite;
-  String? _favoriteFor;
   bool _leaving = false;
 
   // Which way the cover slides when the song changes.
@@ -140,6 +137,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     // Kos TV: the ♥ of songs that aren't at home, kept by the plugin.
     KostvMusicAwayStore.instance.addListener(_rebuild);
     unawaited(kostvAwayReady(_music.item));
+    // Kos TV: a ♥ given from the floating player or a menu shows here too.
+    kostvSongLoveChanged.addListener(_rebuild);
     // The page opens on play/pause (the app would hand the remote the
     // first thing on it, the progress bar).
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -156,6 +155,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     _music.removeListener(_changed);
     KostvMusicDislikesStore.instance.removeListener(_rebuild);
     KostvMusicAwayStore.instance.removeListener(_rebuild);
+    kostvSongLoveChanged.removeListener(_rebuild);
     for (final sub in _subs) {
       sub.cancel();
     }
@@ -446,53 +446,80 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   );
 
   void _show(_View view) {
-    setState(() => _view = _view == view ? _View.cover : view);
+    // Kos TV: on the computer the panel stays open: its tabs only change.
+    setState(() => _view = _docked || _view != view ? view : _View.cover);
+  }
+
+  /// Kos TV: «Vaciar»: every song to come goes. With the remote on the
+  /// button (gone with them), to play/pause.
+  void _clearQueue() {
+    kostvClearUpcoming(_queue);
+    if (_tv) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && kostvFocusInTree(_playFocus)) _playFocus.requestFocus();
+      });
+    }
+  }
+
+  /// Kos TV: the phone's queue, in a sheet over the player.
+  Future<void> _openQueueSheet() async {
+    final height = MediaQuery.sizeOf(context).height;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.5),
+      builder: (sheet) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: height < 700 ? 0.85 : 0.72,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (context, controller) => DecoratedBox(
+          decoration: const BoxDecoration(
+            color: Color(0xFF15141B),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 10, bottom: 6),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: _LiveQueue(
+                  builder: (context) => _QueuePanel(
+                    scrollController: controller,
+                    onMenu: _queueMenu,
+                    onClear: _clearQueue,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // --- Actions ---
 
-  bool _isFavorite(AggregatedItem item) => isKostvStream(item)
-      ? kostvAwayLoved(item)
-      : _favoriteFor == item.id
-      ? (_favorite ?? item.isFavorite)
-      : item.isFavorite;
+  // Kos TV: the ♥ is the same everywhere the song shows (see
+  // kostv_song_love.dart): the home server's, or the plugin's for one that
+  // isn't at home.
+  bool _isFavorite(AggregatedItem item) => kostvSongLoved(item);
 
-  /// Kos TV: whether the song has a ♥ here: the home server's, or the
-  /// plugin's for one that isn't at home (when it keeps them).
-  bool _hasFavorite(AggregatedItem item) =>
-      !_manager.isOfflinePlayback &&
-      (!isKostvStream(item) || kostvAwayCanKeep(item));
+  bool _hasFavorite(AggregatedItem item) => kostvSongCanLove(item);
 
-  Future<void> _toggleFavorite(AggregatedItem item) async {
-    // Kos TV: one that isn't at home, the plugin's ♥ (with the offer to
-    // ask for its album).
-    if (isKostvStream(item)) {
-      await kostvAwayToggleLove(context, item);
-      if (mounted) setState(() {});
-      return;
-    }
-    final was = _isFavorite(item);
-    setState(() {
-      _favoriteFor = item.id;
-      _favorite = !was;
-    });
-    try {
-      await GetIt.instance<ItemMutationRepository>().setFavorite(
-        item.id,
-        isFavorite: !was,
-      );
-      // As the song's menu does: on the item too, for its menu, and
-      // «Tus favoritas» on the Music page hears of it.
-      final data = Map<String, dynamic>.from(
-        (item.rawData['UserData'] as Map?) ?? const {},
-      );
-      data['IsFavorite'] = !was;
-      item.rawData['UserData'] = data;
-      kostvMusicFavoritesChanged.value++;
-    } catch (_) {
-      if (mounted) setState(() => _favorite = was);
-    }
-  }
+  Future<void> _toggleFavorite(AggregatedItem item) =>
+      kostvToggleSongLove(context, item);
 
   /// Kos TV: «No me gusta» of the song sounding, when the server plugin
   /// keeps it (not with what is downloaded): it skips to the next one. On
@@ -780,6 +807,10 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
 
   // --- Building ---
 
+  /// Kos TV: on a wide computer screen, the queue and the lyrics stay open
+  /// in a panel at the side (the music design's «ordenador_reproductor_cola»).
+  bool _docked = false;
+
   @override
   Widget build(BuildContext context) {
     final isAudiobookRoute =
@@ -791,9 +822,12 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     final size = MediaQuery.sizeOf(context);
     final wide =
         _tv || PlatformDetection.useDesktopUi || size.width > size.height;
+    _docked = !_tv && wide && size.width >= 1100 && size.height >= 600;
 
     Widget body = item == null
         ? const SizedBox.shrink()
+        : _docked
+        ? _desktop(item, size)
         : wide
         ? _wide(item, size)
         : _phone(item, size);
@@ -808,11 +842,11 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     }
 
     final page = Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: KostvMusicTokens.background,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          _Backdrop(item: item),
+          _Backdrop(upright: !wide),
           AnimatedSwitcher(
             duration: const Duration(milliseconds: 700),
             child: KeyedSubtree(key: ValueKey(_ambient), child: body),
@@ -822,8 +856,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     );
     return PopScope(
       // Back leaves the quiet screen, then the lyrics or the queue, then
-      // the player.
-      canPop: !_ambient && _view == _View.cover,
+      // the player (on the computer, whose panel stays open, the player).
+      canPop: !_ambient && (_view == _View.cover || _docked),
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
         if (_ambient) {
@@ -836,129 +870,442 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     );
   }
 
-  /// The TV, the computer and a phone on its side: the cover and the
-  /// controls on one side, the lyrics or the queue on the other.
+  // --- The pieces every layout has ---
+
+  /// Kos TV: the cover, breathing with the music and gently beating while
+  /// the sound of a song that isn't at home is got ready.
+  Widget _cover(AggregatedItem item, double size) => KostvPulse(
+    active: _music.preparingShown,
+    child: _CoverArt(
+      item: item,
+      size: size,
+      playing: _music.playing || _music.preparing,
+      direction: _direction,
+    ),
+  );
+
+  /// Kos TV: the stops of the player's own pieces ([KostvStreamPill]'s,
+  /// the names' links), so the remote stays in the player.
+  Widget _stop(
+    VoidCallback? onTap,
+    Widget Function(BuildContext context, bool lit) builder,
+  ) => _Stop(onTap: onTap, builder: builder);
+
+  /// «Preparando la canción…», where the times are while it shows.
+  Widget? _preparingNote(double scale, {bool big = false}) =>
+      _music.preparingShown
+      ? KostvPreparingNote(
+          slow: _music.preparingSlow,
+          big: big,
+          centred: false,
+          scale: scale,
+        )
+      : null;
+
+  Widget _heart(
+    AggregatedItem item, {
+    required double size,
+    bool glass = false,
+  }) {
+    final l10n = AppLocalizations.of(context);
+    final loved = _isFavorite(item);
+    return _PlayerIcon(
+      icon: loved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+      tooltip: loved ? l10n.kostvPlayerUnfavorite : l10n.kostvPlayerFavorite,
+      size: size,
+      glass: glass,
+      color: loved ? KostvMusicTokens.pink : null,
+      focusNode: _favoriteFocus,
+      onTap: () => unawaited(_toggleFavorite(item)),
+    );
+  }
+
+  Widget? _dislike(
+    AggregatedItem item, {
+    required double size,
+    bool glass = false,
+  }) {
+    final onDislike = _dislikeOf(item);
+    if (onDislike == null) return null;
+    final l10n = AppLocalizations.of(context);
+    final disliked = kostvMusicDisliked(item.id, item);
+    return _PlayerIcon(
+      icon: disliked ? Icons.thumb_down_rounded : Icons.thumb_down_outlined,
+      tooltip: disliked ? l10n.kostvMusicUndislike : l10n.kostvMusicDislike,
+      size: size,
+      glass: glass,
+      active: disliked,
+      focusNode: _dislikeFocus,
+      onTap: onDislike,
+    );
+  }
+
+  _Transport _transport({
+    required double play,
+    required double skip,
+    required double side,
+    double? gap,
+  }) => _Transport(
+    state: _state,
+    playing: _music.playing,
+    playFocus: _playFocus,
+    onPrevious: _previous,
+    onNext: _next,
+    play: play,
+    skip: skip,
+    side: side,
+    gap: gap,
+  );
+
+  Widget _lyricsButton({required double size, bool glass = false}) =>
+      _PlayerIcon(
+        icon: Icons.notes_rounded,
+        tooltip: AppLocalizations.of(context).kostvPlayerLyrics,
+        size: size,
+        glass: glass,
+        active: _view == _View.lyrics,
+        enabled: _hasLyrics,
+        focusNode: _lyricsButtonFocus,
+        onTap: () => _show(_View.lyrics),
+      );
+
+  Widget _queueButton({
+    required double size,
+    bool glass = false,
+    VoidCallback? onTap,
+  }) => _PlayerIcon(
+    icon: Icons.queue_music_rounded,
+    tooltip: AppLocalizations.of(context).kostvPlayerQueue,
+    size: size,
+    glass: glass,
+    active: _view == _View.queue,
+    onTap: onTap ?? () => _show(_View.queue),
+  );
+
+  Widget _moreButton(
+    AggregatedItem item, {
+    required double size,
+    bool glass = false,
+  }) => _PlayerIcon(
+    icon: Icons.more_horiz_rounded,
+    tooltip: AppLocalizations.of(context).kostvPlayerMore,
+    size: size,
+    glass: glass,
+    onTap: () => _showMore(item),
+  );
+
+  Widget _hideButton({required double size, bool glass = false}) => _PlayerIcon(
+    icon: Icons.keyboard_arrow_down_rounded,
+    tooltip: AppLocalizations.of(context).kostvPlayerHide,
+    size: size,
+    glass: glass,
+    onTap: () => context.pop(),
+  );
+
+  Widget _queuePanel({bool big = false, double scale = 1}) => _QueuePanel(
+    big: big,
+    scale: scale,
+    rowsFocus: _queueRowsFocus,
+    rowFocus: _queueRowFocus,
+    onRemote: _queueMenu,
+    onMenu: _queueMenu,
+    onClear: _clearQueue,
+  );
+
+  /// The lyrics or the queue at the side, on a card of dark glass.
+  Widget _panelCard(Widget child, double s, {Widget? header}) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha: 0.32),
+      borderRadius: BorderRadius.circular(20 * s),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+    ),
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(12 * s, 20 * s, 12 * s, 8 * s),
+      child: Focus(
+        focusNode: _panelFocus,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ?header,
+            Expanded(child: child),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  /// Scaled down to fit (a short window, a phone on its side), never cut.
+  Widget _fit(Widget child, {Alignment alignment = Alignment.centerLeft}) =>
+      LayoutBuilder(
+        builder: (context, constraints) => FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignment,
+          child: SizedBox(width: constraints.maxWidth, child: child),
+        ),
+      );
+
+  // --- The TV, and a phone or a window on its side ---
+
+  /// The cover on the left and the song on the right, «A continuación» and
+  /// the round buttons along the bottom (the music design's
+  /// «tele_reproductor»). With the lyrics or the queue, those take the right
+  /// and the song goes under a smaller cover.
   Widget _wide(AggregatedItem item, Size size) {
+    final s =
+        (_tv
+                ? size.height / 720
+                : math.min(size.height / 720, size.width / 1280))
+            .clamp(0.55, 3.0);
     final panel = switch (_view) {
       _View.lyrics when _hasLyrics => _lyricsPanel(big: _tv),
-      _View.queue => _QueuePanel(
-        big: _tv,
-        rowsFocus: _queueRowsFocus,
-        rowFocus: _queueRowFocus,
-        onRemote: _queueMenu,
-      ),
+      _View.queue => _queuePanel(big: _tv, scale: _tv ? s : 1),
       _ => null,
     };
-    final height = size.height;
-    // The cover takes what the titles and the controls leave.
+    final info = _info(item, s, compact: panel != null);
+    final top = LayoutBuilder(
+      builder: (context, constraints) {
+        if (panel == null) {
+          final cover = math.min(400 * s, constraints.maxHeight);
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _cover(item, cover),
+              SizedBox(width: 64 * s),
+              Expanded(
+                child: SizedBox(height: cover, child: _fit(info)),
+              ),
+            ],
+          );
+        }
+        final cover = math.min(190 * s, constraints.maxHeight * 0.34);
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              flex: 5,
+              child: _fit(
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _cover(item, cover),
+                    SizedBox(height: 24 * s),
+                    info,
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(width: 48 * s),
+            Expanded(flex: 6, child: _panelCard(panel, s)),
+          ],
+        );
+      },
+    );
     final ownVolume = KostvNowPlaying.hasOwnVolume;
-    // Kos TV: a song that isn't at home has its pill (and, while it is
-    // prepared, why it takes a moment) under its titles.
-    final stream = isKostvStream(item);
-    final room =
-        height * 0.9 -
-        (_tv ? 360 : 320) -
-        (ownVolume ? 48 : 0) -
-        (stream ? (_tv ? 130 : 110) : 0);
-    final coverSize = room.clamp(150.0, panel == null ? 560.0 : 460.0);
-    final controls = SizedBox(
-      width: (coverSize * 1.25).clamp(320.0, 620.0),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+    final gap = SizedBox(width: 14 * s);
+    final bottom = SizedBox(
+      height: 52 * s,
+      child: Row(
         children: [
-          KostvPulse(
-            active: _music.preparing,
-            child: _CoverArt(
-              item: item,
-              size: coverSize,
-              playing: _music.playing || _music.preparing,
-              direction: _direction,
+          Expanded(child: _UpNext(scale: s)),
+          if (ownVolume) ...[
+            _MusicVolume(volume: _music.volume, onChanged: _music.setVolume),
+            gap,
+          ],
+          if (_hasFavorite(item)) ...[
+            _heart(item, size: 22 * s, glass: true),
+            gap,
+          ],
+          if (_dislike(item, size: 22 * s, glass: true)
+              case final dislike?) ...[
+            dislike,
+            gap,
+          ],
+          // Kos TV: no lyrics for a song that isn't at home.
+          if (!isKostvStream(item)) ...[
+            _lyricsButton(size: 22 * s, glass: true),
+            gap,
+          ],
+          _queueButton(size: 22 * s, glass: true),
+          gap,
+          _moreButton(item, size: 22 * s, glass: true),
+        ],
+      ),
+    );
+    return SafeArea(
+      child: Stack(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(96 * s, 88 * s, 96 * s, 36 * s),
+            child: Column(
+              children: [
+                Expanded(child: top),
+                SizedBox(height: 20 * s),
+                bottom,
+              ],
             ),
           ),
-          SizedBox(height: height * 0.045),
-          _TitleBlock(
-            item: item,
-            big: _tv,
-            centered: true,
-            artists: _artistLinks(item),
-            album: _albumLink(item),
+          if (!_tv)
+            Positioned(
+              top: 24 * s,
+              left: 32 * s,
+              child: _hideButton(size: 22 * s, glass: true),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// The song: «Sonando», its title, its artists and album, the line of one
+  /// that isn't at home, the progress and the controls.
+  Widget _info(AggregatedItem item, double s, {bool compact = false}) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Kicker(l10n.kostvPlayerSounding, size: 13 * s),
+        SizedBox(height: 8 * s),
+        _TitleBlock(
+          item: item,
+          titleSize: (compact ? 44 : 64) * s,
+          lineSize: (compact ? 20 : 24) * s,
+          gap: 8 * s,
+          artists: _artistLinks(item),
+          album: _albumLink(item),
+        ),
+        if (isKostvStream(item)) ...[
+          SizedBox(height: 20 * s),
+          KostvStreamPill(item: item, big: true, scale: s, stop: _stop),
+        ],
+        SizedBox(height: (compact ? 26 : 34) * s),
+        _Scrubber(scale: s, note: _preparingNote(s, big: true)),
+        SizedBox(height: 20 * s),
+        Center(
+          child: _transport(
+            play: 84 * s,
+            skip: 40 * s,
+            side: 28 * s,
+            gap: 34 * s,
           ),
-          if (stream) ...[
-            SizedBox(height: height * 0.02),
-            _streamSlot(item, big: _tv),
+        ),
+      ],
+    );
+  }
+
+  // --- The computer ---
+
+  /// The cover and the song on the left, the queue and the lyrics in a panel
+  /// on the right (the music design's «ordenador_reproductor_cola»).
+  Widget _desktop(AggregatedItem item, Size size) {
+    final l10n = AppLocalizations.of(context);
+    final s = math.min(size.height / 900, size.width / 1440).clamp(0.7, 1.6);
+    final stream = isKostvStream(item);
+    final lyrics = _view == _View.lyrics && _hasLyrics;
+    final dislike = _dislike(item, size: 24 * s);
+    final left = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _cover(item, 440 * s),
+        SizedBox(height: 30 * s),
+        Row(
+          children: [
+            Expanded(
+              child: _TitleBlock(
+                item: item,
+                titleSize: 40 * s,
+                lineSize: 19 * s,
+                gap: 4 * s,
+                maxLines: 1,
+                artists: _artistLinks(item),
+                album: _albumLink(item),
+              ),
+            ),
+            ?dislike,
+            if (_hasFavorite(item)) _heart(item, size: 28 * s),
           ],
-          SizedBox(height: height * 0.03),
-          const _Scrubber(),
-          SizedBox(height: height * 0.02),
-          _Transport(
-            state: _state,
-            playing: _music.playing,
-            playFocus: _playFocus,
-            onPrevious: _previous,
-            onNext: _next,
-            big: _tv,
+        ),
+        if (stream) ...[
+          SizedBox(height: 14 * s),
+          KostvStreamPill(item: item, big: true, scale: 0.9 * s, stop: _stop),
+        ],
+        SizedBox(height: 22 * s),
+        _Scrubber(scale: s, note: _preparingNote(s)),
+        SizedBox(height: 10 * s),
+        _transport(play: 70 * s, skip: 36 * s, side: 24 * s),
+        if (KostvNowPlaying.hasOwnVolume) ...[
+          SizedBox(height: 14 * s),
+          Center(
+            child: _MusicVolume(
+              volume: _music.volume,
+              onChanged: _music.setVolume,
+            ),
           ),
-          SizedBox(height: height * 0.025),
-          _ActionsRow(
-            favorite: _isFavorite(item),
-            // Kos TV: ♥ is the home server's, or the plugin's for one that
-            // isn't at home.
-            onFavorite: _hasFavorite(item) ? () => _toggleFavorite(item) : null,
-            showLyrics: !stream,
-            disliked: kostvMusicDisliked(item.id, item),
-            onDislike: _dislikeOf(item),
-            view: _view,
-            hasLyrics: _hasLyrics,
-            lyricsFocus: _lyricsButtonFocus,
-            favoriteFocus: _favoriteFocus,
-            dislikeFocus: _dislikeFocus,
-            onLyrics: () => _show(_View.lyrics),
-            onQueue: () => _show(_View.queue),
-            onMore: () => _showMore(item),
+        ],
+      ],
+    );
+    final tabs = Padding(
+      padding: EdgeInsets.symmetric(horizontal: 8 * s),
+      child: Row(
+        children: [
+          _Tab(
+            icon: Icons.queue_music_rounded,
+            label: l10n.kostvPlayerQueueTab,
+            on: !lyrics,
+            scale: s,
+            onTap: () => _show(_View.queue),
           ),
-          // Kos TV: on the web on a computer, the music's own volume.
-          if (ownVolume) ...[
-            SizedBox(height: height * 0.015),
-            _MusicVolume(volume: _music.volume, onChanged: _music.setVolume),
+          if (!stream) ...[
+            SizedBox(width: 8 * s),
+            _Tab(
+              icon: Icons.notes_rounded,
+              label: l10n.kostvPlayerLyrics,
+              on: lyrics,
+              scale: s,
+              onTap: _hasLyrics ? () => _show(_View.lyrics) : null,
+            ),
           ],
         ],
       ),
     );
-
     return SafeArea(
       child: Stack(
         children: [
-          if (!_tv)
-            Positioned(
-              top: 12,
-              left: 16,
-              child: _RoundButton(
-                icon: Icons.keyboard_arrow_down_rounded,
-                tooltip: AppLocalizations.of(context).kostvPlayerHide,
-                onTap: () => context.pop(),
-              ),
+          Positioned(
+            left: 96 * s,
+            top: 92 * s,
+            bottom: 24 * s,
+            width: 440 * s,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.topLeft,
+              child: SizedBox(width: 440 * s, child: left),
             ),
-          Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: size.width * 0.05,
-              vertical: height * 0.05,
-            ),
+          ),
+          Positioned(
+            top: 24 * s,
+            left: 32 * s,
             child: Row(
               children: [
-                Expanded(
-                  flex: panel == null ? 1 : 5,
-                  child: Center(
-                    child: FittedBox(fit: BoxFit.scaleDown, child: controls),
-                  ),
-                ),
-                if (panel != null) ...[
-                  SizedBox(width: size.width * 0.04),
-                  Expanded(
-                    flex: 6,
-                    child: Focus(focusNode: _panelFocus, child: panel),
-                  ),
-                ],
+                _hideButton(size: 22 * s, glass: true),
+                SizedBox(width: 12 * s),
+                _moreButton(item, size: 22 * s, glass: true),
               ],
+            ),
+          ),
+          Positioned(
+            right: 32 * s,
+            top: 32 * s,
+            bottom: 32 * s,
+            width: 520 * s,
+            child: _panelCard(
+              lyrics ? _lyricsPanel() : _queuePanel(),
+              s,
+              header: Padding(
+                padding: EdgeInsets.only(bottom: 8 * s),
+                child: tabs,
+              ),
             ),
           ),
         ],
@@ -966,139 +1313,91 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     );
   }
 
-  /// Kos TV: under the titles of a song that isn't at home: its pill, with
-  /// «Pedir álbum», and while it is prepared, why it takes a moment.
-  Widget _streamSlot(
-    AggregatedItem item, {
-    bool big = false,
-    bool centred = true,
-  }) => Column(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: centred
-        ? CrossAxisAlignment.center
-        : CrossAxisAlignment.start,
-    children: [
-      Align(
-        alignment: centred ? Alignment.center : Alignment.centerLeft,
-        child: KostvStreamPill(
-          item: item,
-          big: big,
-          centred: centred,
-          stop: (onTap, builder) => _Stop(onTap: onTap, builder: builder),
-        ),
-      ),
-      AnimatedSize(
-        duration: const Duration(milliseconds: 250),
-        alignment: Alignment.topCenter,
-        child: _music.preparing
-            ? Padding(
-                padding: EdgeInsets.only(top: big ? 14 : 10),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 520),
-                  child: KostvPreparingNote(
-                    slow: _music.preparingSlow,
-                    big: big,
-                    centred: centred,
-                  ),
-                ),
-              )
-            : const SizedBox(width: double.infinity),
-      ),
-    ],
-  );
+  // --- The phone upright ---
 
-  /// The phone upright: the big cover, or the lyrics or the queue in its
-  /// place under a small header; the controls always at the bottom.
+  /// The cover big at the top, the song and the controls under it (the
+  /// music design's «movil_reproductor»). The lyrics take the cover's place;
+  /// the queue comes up in a sheet.
   Widget _phone(AggregatedItem item, Size size) {
     final l10n = AppLocalizations.of(context);
     final padding = MediaQuery.paddingOf(context);
-    final panel = switch (_view) {
-      _View.lyrics when _hasLyrics => _lyricsPanel(),
-      _View.queue => const _QueuePanel(),
-      _ => null,
-    };
     final stream = isKostvStream(item);
-    final coverSize = (size.width - 56).clamp(
-      160.0,
-      size.height * (stream ? 0.4 : 0.46),
-    );
+    final lyrics = _view == _View.lyrics && _hasLyrics;
+    final album = _albumLink(item);
+    final dislike = _dislike(item, size: 24);
 
     final top = Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+      padding: const EdgeInsets.fromLTRB(6, 4, 6, 0),
       child: Row(
         children: [
-          _RoundButton(
-            icon: Icons.keyboard_arrow_down_rounded,
-            tooltip: l10n.kostvPlayerHide,
-            onTap: () => context.pop(),
-          ),
+          _hideButton(size: 30),
           Expanded(
-            child: Text(
-              l10n.kostvNowPlaying,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.75),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.4,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _Kicker(
+                  album == null
+                      ? l10n.kostvNowPlaying
+                      : l10n.kostvPlayerPlayingFrom,
+                  size: 11,
+                ),
+                if (album != null) ...[
+                  const SizedBox(height: 2),
+                  _Stop(
+                    onTap: album.onTap,
+                    builder: (context, lit) => Text(
+                      album.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: KostvMusicTokens.ink,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        decoration: lit && album.opens
+                            ? TextDecoration.underline
+                            : null,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
-          _RoundButton(
-            icon: Icons.more_horiz_rounded,
-            tooltip: l10n.kostvPlayerMore,
-            onTap: () => _showMore(item),
-          ),
+          _moreButton(item, size: 26),
         ],
       ),
     );
 
-    final Widget middle = panel == null
-        ? Center(
-            child: GestureDetector(
-              // Sideways on the cover, the next song or the one before.
-              onHorizontalDragEnd: (d) {
-                final v = d.primaryVelocity ?? 0;
-                if (v < -250) _next();
-                if (v > 250) _previous();
-              },
-              child: KostvPulse(
-                active: _music.preparing,
-                child: _CoverArt(
-                  item: item,
-                  size: coverSize,
-                  playing: _music.playing || _music.preparing,
-                  direction: _direction,
+    final Widget middle = lyrics
+        ? _lyricsPanel()
+        : LayoutBuilder(
+            builder: (context, constraints) => Center(
+              child: GestureDetector(
+                // Sideways on the cover, the next song or the one before.
+                onHorizontalDragEnd: (d) {
+                  final v = d.primaryVelocity ?? 0;
+                  if (v < -250) _next();
+                  if (v > 250) _previous();
+                },
+                child: _cover(
+                  item,
+                  math.max(
+                    120.0,
+                    math.min(
+                      constraints.maxWidth - 48,
+                      constraints.maxHeight - 24,
+                    ),
+                  ),
                 ),
               ),
             ),
-          )
-        : Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
-                child: Row(
-                  children: [
-                    _CoverThumb(item: item, size: 56),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: _TitleBlock(
-                        item: item,
-                        small: true,
-                        artists: _artistLinks(item),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(child: panel),
-            ],
           );
 
     return GestureDetector(
       // Down from the top, back to the floating player.
       onVerticalDragEnd: (d) {
-        if ((d.primaryVelocity ?? 0) > 500 && panel == null) context.pop();
+        if ((d.primaryVelocity ?? 0) > 500 && !lyrics) context.pop();
       },
       child: Padding(
         padding: EdgeInsets.only(top: padding.top, bottom: padding.bottom),
@@ -1107,79 +1406,46 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
             top,
             Expanded(child: middle),
             Padding(
-              padding: const EdgeInsets.fromLTRB(28, 8, 28, 0),
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (panel == null)
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _TitleBlock(
-                            item: item,
-                            artists: _artistLinks(item),
-                            album: _albumLink(item),
-                          ),
-                        ),
-                        if (_dislikeOf(item) case final onDislike?)
-                          _IconToggle(
-                            icon: kostvMusicDisliked(item.id, item)
-                                ? Icons.thumb_down_rounded
-                                : Icons.thumb_down_outlined,
-                            tooltip: kostvMusicDisliked(item.id, item)
-                                ? l10n.kostvMusicUndislike
-                                : l10n.kostvMusicDislike,
-                            lit: kostvMusicDisliked(item.id, item),
-                            onTap: onDislike,
-                          ),
-                        if (_hasFavorite(item))
-                          _IconToggle(
-                            icon: _isFavorite(item)
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            tooltip: _isFavorite(item)
-                                ? l10n.kostvPlayerUnfavorite
-                                : l10n.kostvPlayerFavorite,
-                            lit: _isFavorite(item),
-                            onTap: () => _toggleFavorite(item),
-                          ),
-                      ],
-                    ),
-                  if (stream) ...[
-                    const SizedBox(height: 12),
-                    _streamSlot(item, centred: false),
-                  ],
-                  const SizedBox(height: 14),
-                  const _Scrubber(),
-                  const SizedBox(height: 6),
-                  _Transport(
-                    state: _state,
-                    playing: _music.playing,
-                    playFocus: _playFocus,
-                    onPrevious: _previous,
-                    onNext: _next,
-                  ),
-                  const SizedBox(height: 10),
                   Row(
                     children: [
-                      // Kos TV: no lyrics for a song that isn't at home.
-                      if (!stream)
-                        _IconToggle(
-                          icon: Icons.lyrics_rounded,
-                          tooltip: l10n.kostvPlayerLyrics,
-                          lit: _view == _View.lyrics,
-                          enabled: _hasLyrics,
-                          onTap: () => _show(_View.lyrics),
+                      Expanded(
+                        child: _TitleBlock(
+                          item: item,
+                          titleSize: 28,
+                          lineSize: 17,
+                          gap: 4,
+                          maxLines: 1,
+                          artists: _artistLinks(item),
                         ),
-                      const Spacer(),
-                      _IconToggle(
-                        icon: Icons.queue_music_rounded,
-                        tooltip: l10n.kostvPlayerQueue,
-                        lit: _view == _View.queue,
-                        onTap: () => _show(_View.queue),
                       ),
+                      if (_hasFavorite(item)) _heart(item, size: 28),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  if (stream) ...[
+                    const SizedBox(height: 14),
+                    KostvStreamPill(item: item, short: true, stop: _stop),
+                  ],
+                  const SizedBox(height: 20),
+                  _Scrubber(note: _preparingNote(1)),
+                  const SizedBox(height: 12),
+                  _transport(play: 76, skip: 40, side: 26),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      ?dislike,
+                      const Spacer(),
+                      // Kos TV: no lyrics for a song that isn't at home.
+                      if (!stream) ...[
+                        _lyricsButton(size: 24),
+                        const SizedBox(width: 16),
+                      ],
+                      _queueButton(size: 26, onTap: _openQueueSheet),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -1197,93 +1463,84 @@ class _NoLyrics implements Exception {
 
 // --- The background ---
 
-/// The cover's colours, and the cover itself blurred into them.
+/// The cover's colours across the screen, as the music design's player
+/// has them: on the TV and the computer, the cover's colour from the top
+/// left and its darker one from the bottom right over Music's dark; on the
+/// phone, from the top down. Only gradients: nothing to work out on every
+/// frame of a slow TV.
 class _Backdrop extends StatelessWidget {
-  const _Backdrop({required this.item});
+  const _Backdrop({required this.upright});
 
-  final AggregatedItem? item;
+  final bool upright;
 
   @override
-  Widget build(BuildContext context) {
-    final item = this.item;
-    final image = item == null ? null : _coverImage(item, 300);
-    return RepaintBoundary(
-      child: ValueListenableBuilder<KostvCoverColors>(
-        valueListenable: KostvNowPlaying.instance.colors,
-        builder: (context, colors, _) => Stack(
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: ValueListenableBuilder<KostvCoverColors>(
+      valueListenable: KostvNowPlaying.instance.colors,
+      builder: (context, colors, _) {
+        // The brighter of the cover's colours, as it is seen on it.
+        final light = Color.lerp(colors.top, colors.accent, 0.35)!;
+        const duration = Duration(milliseconds: 900);
+        final layers = upright
+            ? [
+                AnimatedContainer(
+                  duration: duration,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        light.withValues(alpha: 0.8),
+                        colors.bottom,
+                        const Color(0xFF060A14),
+                      ],
+                      stops: const [0, 0.55, 1],
+                    ),
+                  ),
+                ),
+              ]
+            : [
+                AnimatedContainer(
+                  duration: duration,
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(-0.8, -0.6),
+                      radius: 1.0,
+                      colors: [
+                        light.withValues(alpha: 0.85),
+                        light.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+                AnimatedContainer(
+                  duration: duration,
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0.8, 1),
+                      radius: 1.0,
+                      colors: [
+                        colors.bottom,
+                        colors.bottom.withValues(alpha: 0),
+                      ],
+                    ),
+                  ),
+                ),
+              ];
+        return Stack(
           fit: StackFit.expand,
           children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 900),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [colors.top, colors.bottom],
-                ),
-              ),
-            ),
-            if (image != null)
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 900),
-                // Kos TV: the cover is drawn at 0.38 itself rather than under
-                // an Opacity, a layer the whole screen paid for at every tick
-                // of the progress bar.
-                child: KeyedSubtree(
-                  key: ValueKey(item!.id),
-                  // On the TV, a tiny copy of the cover, stretched: as soft
-                  // as a blur and nothing to work out on every frame (a
-                  // slow TV repainted a full-screen blur at every tick).
-                  // Elsewhere, the blur (the web's covers don't shrink).
-                  child: PlatformDetection.isTV
-                      ? Transform.scale(
-                          scale: 1.3,
-                          child: Image(
-                            image: ResizeImage(image, width: 12, height: 12),
-                            fit: BoxFit.cover,
-                            filterQuality: FilterQuality.medium,
-                            opacity: const AlwaysStoppedAnimation(0.38),
-                            width: double.infinity,
-                            height: double.infinity,
-                            errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                          ),
-                        )
-                      : Transform.scale(
-                          scale: 1.5,
-                          // Blurred once when the cover loads, not again on
-                          // every frame of the progress bar or the lyrics.
-                          // Kos TV: across the whole screen. The switcher
-                          // lays it out loose, so on its own the blurred copy
-                          // painted at its own small size: a lighter square
-                          // under the cover on the web and the phone.
-                          child: SizedBox.expand(
-                            child: BakedBlurImage(
-                              image: image,
-                              sigma: 70,
-                              opacity: 0.38,
-                            ),
-                          ),
-                        ),
-                ),
-              ),
-            // Darker at the bottom, where the controls are.
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.05),
-                    Colors.black.withValues(alpha: 0.45),
-                  ],
-                ),
-              ),
+            const ColoredBox(color: Color(0xFF07090C)),
+            ...layers,
+            // Calmer, so the white letters read on any cover.
+            ColoredBox(
+              color: Colors.black.withValues(alpha: upright ? 0.2 : 0.22),
             ),
           ],
-        ),
-      ),
-    );
-  }
+        );
+      },
+    ),
+  );
 }
 
 /// Whether a downloaded cover is there, asked once per file (not on every
@@ -1320,7 +1577,7 @@ class _CoverArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => AnimatedScale(
-    scale: playing ? 1 : 0.84,
+    scale: playing ? 1 : 0.88,
     duration: const Duration(milliseconds: 520),
     curve: playing ? Curves.easeOutBack : Curves.easeOutCubic,
     child: AnimatedSwitcher(
@@ -1344,26 +1601,27 @@ class _CoverArt extends StatelessWidget {
       child: DecoratedBox(
         key: ValueKey(item.id),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(size * 0.035 + 6),
+          borderRadius: BorderRadius.circular(size * 0.04),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: playing ? 0.5 : 0.3),
-              blurRadius: playing ? 50 : 24,
-              offset: Offset(0, playing ? 24 : 10),
+              color: Colors.black.withValues(alpha: playing ? 0.55 : 0.35),
+              blurRadius: playing ? size * 0.22 : size * 0.1,
+              offset: Offset(0, playing ? size * 0.1 : size * 0.04),
             ),
           ],
         ),
-        child: _CoverThumb(item: item, size: size),
+        child: _CoverThumb(item: item, size: size, radius: size * 0.04),
       ),
     ),
   );
 }
 
 class _CoverThumb extends StatelessWidget {
-  const _CoverThumb({required this.item, required this.size});
+  const _CoverThumb({required this.item, required this.size, this.radius});
 
   final AggregatedItem item;
   final double size;
+  final double? radius;
 
   @override
   Widget build(BuildContext context) {
@@ -1377,7 +1635,7 @@ class _CoverThumb extends StatelessWidget {
       ),
     );
     return ClipRRect(
-      borderRadius: BorderRadius.circular(size * 0.035 + 4),
+      borderRadius: BorderRadius.circular(radius ?? size * 0.035 + 4),
       child: SizedBox(
         width: size,
         height: size,
@@ -1396,19 +1654,48 @@ class _CoverThumb extends StatelessWidget {
 
 // --- Titles ---
 
+/// Kos TV: a small heading in capitals («SONANDO», «A CONTINUACIÓN»).
+class _Kicker extends StatelessWidget {
+  const _Kicker(this.text, {required this.size, this.color});
+
+  final String text;
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => Text(
+    text.toUpperCase(),
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: TextStyle(
+      color: color ?? Colors.white.withValues(alpha: 0.7),
+      fontSize: size,
+      fontWeight: FontWeight.w500,
+      letterSpacing: size * 0.08,
+      height: 1.2,
+    ),
+  );
+}
+
+/// The song's title in the brand's letters (Outfit) and, under it, its
+/// artists (and its album), each opening its page.
 class _TitleBlock extends StatelessWidget {
   const _TitleBlock({
     required this.item,
-    this.big = false,
-    this.small = false,
+    required this.titleSize,
+    required this.lineSize,
+    this.gap = 6,
+    this.maxLines = 2,
     this.centered = false,
     this.artists = const [],
     this.album,
   });
 
   final AggregatedItem item;
-  final bool big;
-  final bool small;
+  final double titleSize;
+  final double lineSize;
+  final double gap;
+  final int maxLines;
   final bool centered;
 
   /// Kos TV: the song's artists and its album, each opening its page (a
@@ -1419,22 +1706,21 @@ class _TitleBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final artist = KostvNowPlaying.instance.artistOf(item);
-    final album = item.album;
+    final albumName = item.album;
     final secondLine = [
       if (artist.isNotEmpty) artist,
-      if (!small && album != null && album.isNotEmpty) album,
+      if (album != null && albumName != null && albumName.isNotEmpty) albumName,
     ].join(' · ');
     final align = centered ? TextAlign.center : TextAlign.start;
     final style = TextStyle(
-      color: small
-          ? Colors.white.withValues(alpha: 0.7)
-          : Colors.white.withValues(alpha: 0.72),
-      fontSize: big ? 20 : (small ? 13.5 : 16),
-      fontWeight: FontWeight.w500,
+      color: Colors.white.withValues(alpha: 0.75),
+      fontSize: lineSize,
+      fontWeight: FontWeight.w400,
+      height: 1.2,
     );
     final links = [
       artists,
-      if (!small && this.album != null) [this.album!],
+      if (album case final a?) [a],
     ];
     final artistText = links.any((group) => group.any((link) => link.opens))
         ? KostvMusicLinkButtons(
@@ -1460,20 +1746,14 @@ class _TitleBlock extends StatelessWidget {
       children: [
         Text(
           item.name,
-          maxLines: small ? 1 : 2,
+          maxLines: maxLines,
           overflow: TextOverflow.ellipsis,
           textAlign: align,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: big ? 32 : (small ? 16 : 22),
-            fontWeight: FontWeight.w800,
-            height: 1.15,
-            letterSpacing: -0.2,
-          ),
+          style: KostvMusicType.title(titleSize).copyWith(height: 1.08),
         ),
         if (secondLine.isNotEmpty) ...[
           // The buttons' own room makes up the gap above them.
-          SizedBox(height: artistText is Text ? (small ? 2 : 6) : 2),
+          SizedBox(height: artistText is Text ? gap : math.max(0, gap - 4)),
           artistText,
         ],
       ],
@@ -1481,12 +1761,60 @@ class _TitleBlock extends StatelessWidget {
   }
 }
 
+/// Kos TV: «A continuación» at the bottom of the TV's player: the next
+/// song's cover, title and artist. Not a stop: the queue's button opens
+/// the whole list.
+class _UpNext extends StatelessWidget {
+  const _UpNext({required this.scale});
+
+  final double scale;
+
+  @override
+  Widget build(BuildContext context) {
+    final queue = GetIt.instance<PlaybackManager>().queueService;
+    final next = kostvUpcoming(queue).firstOrNull?.item;
+    if (next == null) return const SizedBox.shrink();
+    final s = scale;
+    final artist = KostvNowPlaying.instance.artistOf(next);
+    return Row(
+      children: [
+        _CoverThumb(item: next, size: 40 * s, radius: 6 * s),
+        SizedBox(width: 12 * s),
+        Flexible(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _Kicker(
+                AppLocalizations.of(context).kostvPlayerQueue,
+                size: 12 * s,
+                color: KostvMusicTokens.dim,
+              ),
+              SizedBox(height: 2 * s),
+              Text(
+                artist.isEmpty ? next.name : '${next.name} · $artist',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: KostvMusicType.body(15 * s),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 // --- The progress ---
 
-/// How far the song has gone, to drag or tap anywhere along; with the remote,
-/// left and right move ten seconds.
+/// How far the song has gone, in the brand's gradient, to drag or tap
+/// anywhere along; with the remote, left and right move ten seconds. While
+/// a song that isn't at home is got ready, [note] stands where the times are.
 class _Scrubber extends StatefulWidget {
-  const _Scrubber();
+  const _Scrubber({this.scale = 1, this.note});
+
+  final double scale;
+  final Widget? note;
 
   @override
   State<_Scrubber> createState() => _ScrubberState();
@@ -1558,19 +1886,19 @@ class _ScrubberState extends State<_Scrubber> {
 
   @override
   Widget build(BuildContext context) {
-    final lit =
-        _dragging != null ||
-        _hovered ||
-        InputModeTracker.showFocusVisuals(context, _focused);
+    final k = widget.scale;
+    final focused = InputModeTracker.showFocusVisuals(context, _focused);
+    final lit = _dragging != null || _hovered || focused;
     final total = _duration;
     final at = Duration(milliseconds: (_value * total.inMilliseconds).round());
     final left = total - at;
     final timeStyle = TextStyle(
-      color: Colors.white.withValues(alpha: 0.6),
-      fontSize: PlatformDetection.isTV ? 15 : 12,
-      fontWeight: FontWeight.w600,
+      color: KostvMusicTokens.muted,
+      fontSize: 13 * k,
       fontFeatures: const [FontFeature.tabularFigures()],
     );
+    final track = (lit ? 7.0 : 5.0) * k;
+    final knob = (focused ? 20.0 : (lit ? 15.0 : 13.0)) * k;
     return Focus(
       onFocusChange: (f) => setState(() => _focused = f),
       onKeyEvent: (node, event) {
@@ -1594,8 +1922,9 @@ class _ScrubberState extends State<_Scrubber> {
         onExit: (_) => setState(() => _hovered = false),
         child: LayoutBuilder(
           builder: (context, constraints) {
+            final width = constraints.maxWidth;
             double fractionAt(Offset local) =>
-                (local.dx / constraints.maxWidth).clamp(0.0, 1.0);
+                (local.dx / width).clamp(0.0, 1.0);
             return GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTapUp: (d) => _seekTo(fractionAt(d.localPosition)),
@@ -1612,70 +1941,73 @@ class _ScrubberState extends State<_Scrubber> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   SizedBox(
-                    height: 22,
+                    height: 22 * k,
                     child: Stack(
-                      alignment: Alignment.center,
+                      clipBehavior: Clip.none,
+                      alignment: Alignment.centerLeft,
                       children: [
                         AnimatedContainer(
                           duration: const Duration(milliseconds: 160),
-                          height: lit ? 9 : 5,
+                          height: track,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(6),
-                            color: Colors.white.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(track),
+                            color: Colors.white.withValues(alpha: 0.18),
                           ),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: FractionallySizedBox(
-                              widthFactor: _value,
-                              heightFactor: 1,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6),
-                                  color: Colors.white.withValues(
-                                    alpha: lit ? 1 : 0.85,
-                                  ),
-                                ),
-                              ),
+                        ),
+                        // What has sounded, in the brand's gradient.
+                        SizedBox(
+                          width: width * _value,
+                          height: track,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(track),
+                              gradient: KostvMusicTokens.gradient,
                             ),
                           ),
                         ),
-                        // The knob, while it is touched, pointed or chosen.
-                        if (lit)
-                          Align(
-                            alignment: Alignment(_value * 2 - 1, 0),
-                            child: Container(
-                              width: 18,
-                              height: 18,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white,
-                                border: PlatformDetection.isTV
-                                    ? Border.all(
-                                        color: kostvMusicColor,
-                                        width: 3,
-                                      )
-                                    : null,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.3),
-                                    blurRadius: 6,
-                                  ),
-                                ],
-                              ),
+                        Positioned(
+                          left: width * _value - knob / 2,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 160),
+                            width: knob,
+                            height: knob,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: KostvMusicTokens.ink,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: focused
+                                      ? KostvMusicTokens.violet.withValues(
+                                          alpha: 0.8,
+                                        )
+                                      : Colors.black.withValues(alpha: 0.3),
+                                  blurRadius: focused ? 18 : 6,
+                                ),
+                              ],
                             ),
                           ),
+                        ),
                       ],
                     ),
                   ),
-                  Row(
-                    children: [
-                      Text(_time(at), style: timeStyle),
-                      const Spacer(),
-                      Text(
-                        '-${_time(left.isNegative ? Duration.zero : left)}',
-                        style: timeStyle,
-                      ),
-                    ],
+                  SizedBox(height: 4 * k),
+                  SizedBox(
+                    height: 18 * k,
+                    child: widget.note != null
+                        ? Align(
+                            alignment: Alignment.centerLeft,
+                            child: widget.note,
+                          )
+                        : Row(
+                            children: [
+                              Text(_time(at), style: timeStyle),
+                              const Spacer(),
+                              Text(
+                                '-${_time(left.isNegative ? Duration.zero : left)}',
+                                style: timeStyle,
+                              ),
+                            ],
+                          ),
                   ),
                 ],
               ),
@@ -1705,16 +2037,21 @@ KeyEventResult _moveFocus(FocusNode node, KeyEvent event) {
   return KeyEventResult.handled;
 }
 
+/// The same, for a Music piece that asks first ([KostvPlayButton],
+/// [KostvSongRow]): from the stop that has the focus.
+KeyEventResult _moveFocusFromHere(KeyEvent event) {
+  final node = FocusManager.instance.primaryFocus;
+  return node == null ? KeyEventResult.ignored : _moveFocus(node, event);
+}
+
 // --- Buttons ---
 
 /// A stop of the remote, a tap and a click.
 class _Stop extends StatefulWidget {
   const _Stop({
-    super.key,
     required this.builder,
     required this.onTap,
     this.focusNode,
-    this.autofocus = false,
     this.tooltip,
     this.reveal = true,
   });
@@ -1726,7 +2063,6 @@ class _Stop extends StatefulWidget {
   final Widget Function(BuildContext context, bool lit) builder;
   final VoidCallback? onTap;
   final FocusNode? focusNode;
-  final bool autofocus;
   final String? tooltip;
 
   @override
@@ -1743,7 +2079,6 @@ class _StopState extends State<_Stop> {
         InputModeTracker.showFocusVisuals(context, _focused) || _hovered;
     Widget child = Focus(
       focusNode: widget.focusNode,
-      autofocus: widget.autofocus,
       canRequestFocus: widget.onTap != null,
       onFocusChange: (f) {
         setState(() => _focused = f);
@@ -1789,114 +2124,108 @@ class _StopState extends State<_Stop> {
   }
 }
 
-class _RoundButton extends StatelessWidget {
-  const _RoundButton({
+/// Kos TV: one of the player's icon buttons, in the music design's way:
+/// bare (the controls, the phone's) or in a round of glass ([glass], the
+/// TV's and the computer's). With the remote's focus or the mouse, white
+/// with a black icon and a little bigger. [active] (shuffle or repeat on,
+/// the lyrics open) lights it with a dot under it, or a brighter glass.
+class _PlayerIcon extends StatelessWidget {
+  const _PlayerIcon({
     required this.icon,
     required this.tooltip,
     required this.onTap,
-    this.size = 44,
-    this.iconSize = 28,
-    this.lit = false,
+    this.size = 24,
+    this.glass = false,
+    this.active = false,
     this.enabled = true,
-    this.filled = false,
+    this.color,
     this.focusNode,
-    this.autofocus = false,
   });
 
   final IconData icon;
   final String tooltip;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+
+  /// Of the icon; its round is about twice as big.
   final double size;
-  final double iconSize;
-  final bool lit;
+  final bool glass;
+  final bool active;
   final bool enabled;
-  final bool filled;
+  final Color? color;
   final FocusNode? focusNode;
-  final bool autofocus;
 
   @override
-  Widget build(BuildContext context) => _Stop(
-    tooltip: tooltip,
-    focusNode: focusNode,
-    autofocus: autofocus,
-    onTap: enabled ? onTap : null,
-    builder: (context, focused) {
-      final color = !enabled
-          ? Colors.white.withValues(alpha: 0.25)
-          : filled
-          ? Colors.black
-          : lit
-          ? kostvMusicColor
-          : Colors.white;
-      return AnimatedScale(
-        scale: focused ? 1.12 : 1,
-        duration: const Duration(milliseconds: 160),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          width: size,
-          height: size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: filled
-                ? Colors.white
-                : focused
-                ? Colors.white.withValues(alpha: 0.18)
-                : Colors.transparent,
-            // With the remote, the button it is on stands out clearly.
-            border: Border.all(
-              color: focused && PlatformDetection.isTV
-                  ? kostvMusicColor
-                  : Colors.transparent,
-              width: 3,
-            ),
-            boxShadow: filled && focused
-                ? [
-                    BoxShadow(
-                      color: Colors.white.withValues(alpha: 0.35),
-                      blurRadius: 24,
+  Widget build(BuildContext context) {
+    final diameter = size * (glass ? 2.18 : 1.75);
+    return _Stop(
+      tooltip: tooltip,
+      focusNode: focusNode,
+      onTap: enabled ? onTap : null,
+      builder: (context, lit) {
+        final ink = !enabled
+            ? Colors.white.withValues(alpha: 0.28)
+            : lit
+            ? KostvMusicTokens.background
+            : color ??
+                  (glass || active
+                      ? KostvMusicTokens.ink
+                      : KostvMusicTokens.ink.withValues(alpha: 0.75));
+        final background = lit
+            ? KostvMusicTokens.ink
+            : glass
+            ? KostvMusicTokens.glass(active ? 0.24 : 0.10)
+            : Colors.transparent;
+        return AnimatedScale(
+          scale: lit ? 1.1 : 1,
+          duration: KostvMusicTokens.focusDuration,
+          curve: KostvMusicTokens.focusCurve,
+          child: SizedBox.square(
+            dimension: diameter,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                AnimatedContainer(
+                  duration: KostvMusicTokens.focusDuration,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: background,
+                    boxShadow: lit
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.45),
+                              blurRadius: 24,
+                              offset: const Offset(0, 6),
+                            ),
+                          ]
+                        : null,
+                  ),
+                ),
+                Icon(icon, size: size, color: ink),
+                if (active && !glass)
+                  Positioned(
+                    bottom: diameter * 0.04,
+                    child: Container(
+                      width: 4,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: lit
+                            ? KostvMusicTokens.background
+                            : KostvMusicTokens.ink,
+                      ),
                     ),
-                  ]
-                : null,
+                  ),
+              ],
+            ),
           ),
-          alignment: Alignment.center,
-          child: Icon(icon, size: iconSize, color: color),
-        ),
-      );
-    },
-  );
+        );
+      },
+    );
+  }
 }
 
-/// A small toggle: lit in the music colour when on.
-class _IconToggle extends StatelessWidget {
-  const _IconToggle({
-    required this.icon,
-    required this.tooltip,
-    required this.lit,
-    required this.onTap,
-    this.enabled = true,
-    this.focusNode,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final bool lit;
-  final bool enabled;
-  final VoidCallback onTap;
-  final FocusNode? focusNode;
-
-  @override
-  Widget build(BuildContext context) => _RoundButton(
-    icon: icon,
-    tooltip: tooltip,
-    onTap: onTap,
-    lit: lit,
-    enabled: enabled,
-    focusNode: focusNode,
-    size: PlatformDetection.isTV ? 52 : 44,
-    iconSize: PlatformDetection.isTV ? 26 : 24,
-  );
-}
-
+/// Shuffle, the song before, play/pause (the brand's one play button), the
+/// next song and repeat: centred [gap] apart, or spread along the width.
 class _Transport extends StatelessWidget {
   const _Transport({
     required this.state,
@@ -1904,7 +2233,10 @@ class _Transport extends StatelessWidget {
     required this.playFocus,
     required this.onPrevious,
     required this.onNext,
-    this.big = false,
+    required this.play,
+    required this.skip,
+    required this.side,
+    this.gap,
   });
 
   final PlayerState state;
@@ -1912,162 +2244,176 @@ class _Transport extends StatelessWidget {
   final FocusNode playFocus;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
-  final bool big;
+
+  /// The play button's diameter, the skips' icons' and shuffle's and
+  /// repeat's.
+  final double play;
+  final double skip;
+  final double side;
+  final double? gap;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final manager = GetIt.instance<PlaybackManager>();
     final repeat = state.repeatMode;
-    final scale = big ? 1.15 : 1.0;
+    final children = [
+      _PlayerIcon(
+        icon: Icons.shuffle_rounded,
+        tooltip: l10n.shuffle,
+        active: state.isShuffled,
+        size: side,
+        onTap: manager.toggleShuffle,
+      ),
+      _PlayerIcon(
+        icon: Icons.skip_previous_rounded,
+        tooltip: l10n.kostvPlayerPrevious,
+        color: KostvMusicTokens.ink,
+        size: skip,
+        onTap: onPrevious,
+      ),
+      KostvPlayButton(
+        diameter: play,
+        pause: playing,
+        tooltip: playing ? l10n.pause : l10n.play,
+        focusNode: playFocus,
+        autofocus: true,
+        onKey: _moveFocusFromHere,
+        onTap: KostvNowPlaying.instance.playPause,
+      ),
+      _PlayerIcon(
+        icon: Icons.skip_next_rounded,
+        tooltip: l10n.next,
+        color: KostvMusicTokens.ink,
+        size: skip,
+        onTap: onNext,
+      ),
+      _PlayerIcon(
+        icon: repeat == RepeatMode.repeatOne
+            ? Icons.repeat_one_rounded
+            : Icons.repeat_rounded,
+        tooltip: repeat == RepeatMode.repeatOne
+            ? l10n.kostvPlayerRepeatOne
+            : l10n.kostvPlayerRepeat,
+        active: repeat != RepeatMode.none,
+        size: side,
+        onTap: manager.toggleRepeat,
+      ),
+    ];
+    final gap = this.gap;
+    if (gap == null) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: children,
+      );
+    }
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        _RoundButton(
-          icon: Icons.shuffle_rounded,
-          tooltip: l10n.shuffle,
-          lit: state.isShuffled,
-          size: 46 * scale,
-          iconSize: 24 * scale,
-          onTap: manager.toggleShuffle,
-        ),
-        _RoundButton(
-          icon: Icons.skip_previous_rounded,
-          tooltip: l10n.kostvPlayerPrevious,
-          size: 60 * scale,
-          iconSize: 44 * scale,
-          onTap: onPrevious,
-        ),
-        _RoundButton(
-          icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          tooltip: playing ? l10n.pause : l10n.play,
-          filled: true,
-          size: 76 * scale,
-          iconSize: 44 * scale,
-          focusNode: playFocus,
-          autofocus: true,
-          onTap: KostvNowPlaying.instance.playPause,
-        ),
-        _RoundButton(
-          icon: Icons.skip_next_rounded,
-          tooltip: l10n.next,
-          size: 60 * scale,
-          iconSize: 44 * scale,
-          onTap: onNext,
-        ),
-        _RoundButton(
-          icon: repeat == RepeatMode.repeatOne
-              ? Icons.repeat_one_rounded
-              : Icons.repeat_rounded,
-          tooltip: repeat == RepeatMode.repeatOne
-              ? l10n.kostvPlayerRepeatOne
-              : l10n.kostvPlayerRepeat,
-          lit: repeat != RepeatMode.none,
-          size: 46 * scale,
-          iconSize: 24 * scale,
-          onTap: manager.toggleRepeat,
-        ),
+        for (final (i, child) in children.indexed) ...[
+          if (i > 0) SizedBox(width: gap),
+          child,
+        ],
       ],
     );
   }
 }
 
-class _ActionsRow extends StatelessWidget {
-  const _ActionsRow({
-    required this.favorite,
-    required this.onFavorite,
-    required this.view,
-    required this.hasLyrics,
-    required this.onLyrics,
-    required this.onQueue,
-    required this.onMore,
-    this.lyricsFocus,
-    this.favoriteFocus,
-    this.dislikeFocus,
-    this.disliked = false,
-    this.onDislike,
-    this.showLyrics = true,
+/// Kos TV: a tab of the computer's panel («Cola», «Letra»): white while it
+/// is the one shown.
+class _Tab extends StatelessWidget {
+  const _Tab({
+    required this.icon,
+    required this.label,
+    required this.on,
+    required this.onTap,
+    this.scale = 1,
   });
 
-  /// Kos TV: off for a song that isn't at home (its lyrics are the home
-  /// server's).
-  final bool showLyrics;
-
-  final bool favorite;
-  final VoidCallback? onFavorite;
-
-  /// Kos TV: «No me gusta», next to ♥ (null: not offered).
-  final bool disliked;
-  final VoidCallback? onDislike;
-  final _View view;
-  final bool hasLyrics;
-  final FocusNode? lyricsFocus;
-  final FocusNode? favoriteFocus;
-  final FocusNode? dislikeFocus;
-  final VoidCallback onLyrics;
-  final VoidCallback onQueue;
-  final VoidCallback onMore;
+  final IconData icon;
+  final String label;
+  final bool on;
+  final VoidCallback? onTap;
+  final double scale;
 
   @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (onFavorite != null)
-          _IconToggle(
-            icon: favorite
-                ? Icons.favorite_rounded
-                : Icons.favorite_border_rounded,
-            tooltip: favorite
-                ? l10n.kostvPlayerUnfavorite
-                : l10n.kostvPlayerFavorite,
-            lit: favorite,
-            focusNode: favoriteFocus,
-            onTap: onFavorite!,
-          ),
-        if (onDislike != null) ...[
-          const SizedBox(width: 18),
-          _IconToggle(
-            icon: disliked
-                ? Icons.thumb_down_rounded
-                : Icons.thumb_down_outlined,
-            tooltip: disliked
-                ? l10n.kostvMusicUndislike
-                : l10n.kostvMusicDislike,
-            lit: disliked,
-            focusNode: dislikeFocus,
-            onTap: onDislike!,
-          ),
-        ],
-        if (showLyrics) ...[
-          const SizedBox(width: 18),
-          _IconToggle(
-            icon: Icons.lyrics_rounded,
-            tooltip: l10n.kostvPlayerLyrics,
-            lit: view == _View.lyrics,
-            enabled: hasLyrics,
-            focusNode: lyricsFocus,
-            onTap: onLyrics,
-          ),
-        ],
-        const SizedBox(width: 18),
-        _IconToggle(
-          icon: Icons.queue_music_rounded,
-          tooltip: l10n.kostvPlayerQueue,
-          lit: view == _View.queue,
-          onTap: onQueue,
+  Widget build(BuildContext context) => _Stop(
+    onTap: onTap,
+    builder: (context, lit) {
+      final k = scale;
+      final white = on || lit;
+      final ink = white
+          ? KostvMusicTokens.background
+          : (onTap == null
+                ? Colors.white.withValues(alpha: 0.3)
+                : KostvMusicTokens.muted);
+      return AnimatedContainer(
+        duration: KostvMusicTokens.focusDuration,
+        height: 32 * k,
+        padding: EdgeInsets.symmetric(horizontal: 14 * k),
+        decoration: BoxDecoration(
+          color: on
+              ? KostvMusicTokens.ink
+              : lit
+              ? KostvMusicTokens.ink.withValues(alpha: 0.85)
+              : KostvMusicTokens.glass(0.06),
+          borderRadius: BorderRadius.circular(999),
         ),
-        const SizedBox(width: 18),
-        _IconToggle(
-          icon: Icons.more_horiz_rounded,
-          tooltip: l10n.kostvPlayerMore,
-          lit: false,
-          onTap: onMore,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16 * k, color: ink),
+            SizedBox(width: 8 * k),
+            Text(
+              label,
+              style: TextStyle(
+                color: ink,
+                fontSize: 13 * k,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
         ),
-      ],
-    );
+      );
+    },
+  );
+}
+
+/// Kos TV: rebuilds the queue in the phone's sheet (a page of its own,
+/// which the player's rebuilds don't reach) as the queue changes.
+class _LiveQueue extends StatefulWidget {
+  const _LiveQueue({required this.builder});
+
+  final WidgetBuilder builder;
+
+  @override
+  State<_LiveQueue> createState() => _LiveQueueState();
+}
+
+class _LiveQueueState extends State<_LiveQueue> {
+  StreamSubscription<void>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = GetIt.instance<PlaybackManager>().queueService.queueChangedStream
+        .listen((_) => _changed());
+    KostvNowPlaying.instance.addListener(_changed);
   }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    unawaited(_sub?.cancel());
+    KostvNowPlaying.instance.removeListener(_changed);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context);
 }
 
 // --- Lyrics ---
@@ -2369,18 +2715,25 @@ class _KostvLyricsPanelState extends State<KostvLyricsPanel> {
       builder: (context, lit) => AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        // Kos TV: the music design's focus: a soft glass and a white edge.
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          color: lit
-              ? Colors.white.withValues(alpha: 0.12)
-              : Colors.transparent,
+          color: lit ? KostvMusicTokens.glass(0.10) : Colors.transparent,
+          border: PlatformDetection.isTV
+              ? Border.all(
+                  color: lit ? KostvMusicTokens.ink : Colors.transparent,
+                  width: 2,
+                )
+              : null,
         ),
         child: AnimatedDefaultTextStyle(
           duration: const Duration(milliseconds: 320),
+          // Kos TV: in the brand's letters, as the player's title.
           style: TextStyle(
+            fontFamily: KostvMusicType.titleFamily,
             fontSize: synced ? size : size * 0.72,
             height: 1.25,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             color: !synced
                 ? Colors.white.withValues(alpha: 0.9)
                 : active
@@ -2524,17 +2877,25 @@ class _MusicVolumeState extends State<_MusicVolume> {
 
 // --- What comes next ---
 
-/// What comes next: the songs left, to play, move and take away; and
-/// autoplay, to go on with similar songs from home when they run out.
+/// What comes next, in Music's rows: autoplay (to go on with similar songs
+/// from home when the queue runs out), the song sounding, and the songs to
+/// come, to play, move and take away, with «Vaciar». The same rows whether
+/// a song is at home or not (the music design: the queue doesn't say).
 class _QueuePanel extends StatelessWidget {
   const _QueuePanel({
     this.big = false,
+    this.scale = 1,
     this.rowsFocus,
     this.rowFocus,
     this.onRemote,
+    this.onMenu,
+    this.onClear,
+    this.scrollController,
   });
 
+  /// The TV's sizes.
   final bool big;
+  final double scale;
   final FocusNode? rowsFocus;
 
   /// Kos TV: on the TV, each row's stop by its place in the list, so the
@@ -2545,6 +2906,16 @@ class _QueuePanel extends StatelessWidget {
   /// it up or down, take it away) instead of playing it straight away.
   final void Function(AggregatedItem song)? onRemote;
 
+  /// Kos TV: the same menu with touch (a long press) and the mouse («⋯» or
+  /// a right click), where a tap plays the song.
+  final void Function(AggregatedItem song)? onMenu;
+
+  /// «Vaciar».
+  final VoidCallback? onClear;
+
+  /// The phone's sheet's, which it is dragged by.
+  final ScrollController? scrollController;
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -2553,215 +2924,261 @@ class _QueuePanel extends StatelessWidget {
     final queue = manager.queueService;
     final upcoming = kostvUpcoming(queue);
     final touch = !PlatformDetection.isTV;
+    final mobile = PlatformDetection.useMobileUi;
+    final k = big ? scale : 1.0;
+    final textSize = big ? 16 * k : 15.0;
+    final coverSize = big ? 48 * k : 48.0;
+    final current = music.item;
 
-    final header = Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 12, 8),
+    Widget kicker(String text, {Widget? trailing}) => Padding(
+      padding: EdgeInsets.fromLTRB(12, 18 * k, 8, 8 * k),
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              l10n.kostvPlayerQueue,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: big ? 28 : 20,
-                fontWeight: FontWeight.w800,
-              ),
+            child: _Kicker(
+              text,
+              size: 13 * k,
+              color: Colors.white.withValues(alpha: 0.62),
             ),
           ),
+          ?trailing,
         ],
       ),
     );
 
-    final autoplay = Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-      child: _Stop(
-        onTap: () => music.autoplay = !music.autoplay,
-        builder: (context, lit) => AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            color: Colors.white.withValues(alpha: lit ? 0.16 : 0.08),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.all_inclusive_rounded,
-                color: music.autoplay ? kostvMusicColor : Colors.white54,
-                size: big ? 30 : 24,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.kostvPlayerAutoplay,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: big ? 19 : 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      l10n.kostvPlayerAutoplayHint,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: big ? 15 : 12.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              IgnorePointer(
-                child: Switch(
-                  value: music.autoplay,
-                  activeThumbColor: Colors.white,
-                  activeTrackColor: kostvMusicColor,
-                  onChanged: (_) {},
-                ),
-              ),
-            ],
+    final autoplay = _Stop(
+      onTap: () => music.autoplay = !music.autoplay,
+      builder: (context, lit) => AnimatedContainer(
+        duration: KostvMusicTokens.focusDuration,
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        padding: EdgeInsets.fromLTRB(12, 8 * k, 6, 8 * k),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(KostvMusicTokens.radiusRow),
+          color: lit
+              ? KostvMusicTokens.glass(0.13)
+              : KostvMusicTokens.glass(0.05),
+          border: Border.all(
+            color: lit && !touch ? KostvMusicTokens.ink : Colors.transparent,
+            width: 2,
           ),
         ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.all_inclusive_rounded,
+              color: music.autoplay
+                  ? KostvMusicTokens.ink
+                  : KostvMusicTokens.muted,
+              size: 22 * k,
+            ),
+            SizedBox(width: 12 * k),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.kostvPlayerAutoplay,
+                    style: KostvMusicType.body(textSize - 1),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    l10n.kostvPlayerAutoplayHint,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: KostvMusicType.muted(textSize - 3),
+                  ),
+                ],
+              ),
+            ),
+            IgnorePointer(
+              child: Switch(
+                value: music.autoplay,
+                activeThumbColor: KostvMusicTokens.ink,
+                activeTrackColor: KostvMusicTokens.violet,
+                onChanged: (_) {},
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+
+    final sounding = current == null
+        ? null
+        : Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: KostvSongRowFace(
+              lit: false,
+              sound: music.playing
+                  ? KostvSongSound.playing
+                  : KostvSongSound.paused,
+              title: current.name,
+              subtitle: music.artistOf(current),
+              coverArt: _CoverThumb(
+                item: current,
+                size: coverSize,
+                radius: KostvMusicTokens.radiusSmallCover,
+              ),
+              showCover: true,
+              coverSize: coverSize,
+              textSize: textSize,
+              duration: kostvSongLength(current.runtime?.inSeconds),
+            ),
+          );
+
+    final clear = onClear == null || upcoming.isEmpty
+        ? null
+        : _Stop(
+            onTap: onClear,
+            builder: (context, lit) => AnimatedContainer(
+              duration: KostvMusicTokens.focusDuration,
+              padding: EdgeInsets.symmetric(
+                horizontal: 10 * k,
+                vertical: 4 * k,
+              ),
+              decoration: BoxDecoration(
+                color: lit ? KostvMusicTokens.ink : Colors.transparent,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                l10n.kostvPlayerClearQueue,
+                style: TextStyle(
+                  color: lit
+                      ? KostvMusicTokens.background
+                      : KostvMusicTokens.muted,
+                  fontSize: 13 * k,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          );
+
+    final header = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Downloaded music has no home server to ask for more.
+        if (!manager.isOfflinePlayback) autoplay,
+        if (sounding != null) ...[kicker(l10n.kostvPlayerSounding), sounding],
+        kicker(l10n.kostvPlayerQueue, trailing: clear),
+        if (upcoming.isEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+            child: Text(
+              l10n.kostvPlayerQueueEmpty,
+              style: KostvMusicType.muted(textSize - 1),
+            ),
+          ),
+      ],
     );
 
     Widget row(({int index, AggregatedItem item}) entry, int position) {
       final item = entry.item;
       final fromAutoplay = music.autoplayItems.contains(item);
       final remote = onRemote;
-      final tile = _Stop(
-        key: touch ? ValueKey('queue-${item.id}-${entry.index}') : null,
+      final menu = onMenu;
+      final marks = <Widget>[
+        // Kos TV: the queue doesn't mark the songs that aren't at home
+        // (the music design: the player says so when they come); only
+        // what autoplay brought.
+        if (fromAutoplay)
+          Tooltip(
+            message: l10n.kostvPlayerAutoplayAdded,
+            child: Icon(
+              Icons.all_inclusive_rounded,
+              size: 16 * k,
+              color: KostvMusicTokens.dim,
+            ),
+          ),
+        // On the phone, dragged by its handle.
+        if (touch && mobile)
+          ReorderableDragStartListener(
+            index: position,
+            child: const Padding(
+              padding: EdgeInsets.all(6),
+              child: Icon(
+                Icons.drag_handle_rounded,
+                size: 20,
+                color: KostvMusicTokens.dim,
+              ),
+            ),
+          ),
+      ];
+      Widget tile = KostvSongRow(
+        title: item.name,
+        subtitle: music.artistOf(item),
+        coverArt: _CoverThumb(
+          item: item,
+          size: coverSize,
+          radius: KostvMusicTokens.radiusSmallCover,
+        ),
+        coverSize: coverSize,
+        textSize: textSize,
+        duration: kostvSongLength(item.runtime?.inSeconds),
+        trailing: marks.isEmpty
+            ? null
+            : Row(mainAxisSize: MainAxisSize.min, children: marks),
         focusNode: touch ? null : rowFocus?.call(position),
+        onKey: touch ? null : _moveFocusFromHere,
         onTap: !touch && remote != null
             ? () => remote(item)
             : () {
                 KostvNowPlaying.instance.noteChosen();
                 unawaited(manager.playFromQueue(entry.index));
               },
-        builder: (context, lit) => AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: lit
-                ? Colors.white.withValues(alpha: 0.14)
-                : Colors.transparent,
-          ),
-          child: Row(
-            children: [
-              _CoverThumb(item: item, size: big ? 60 : 46),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: big ? 19 : 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      music.artistOf(item),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: big ? 15 : 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Kos TV: the queue doesn't mark the songs that aren't at
-              // home (the music design: the player says so when they come).
-              if (fromAutoplay)
-                Tooltip(
-                  message: l10n.kostvPlayerAutoplayAdded,
-                  child: Icon(
-                    Icons.all_inclusive_rounded,
-                    size: 18,
-                    color: Colors.white.withValues(alpha: 0.45),
-                  ),
-                ),
-              if (touch) ...[
-                IconButton(
-                  tooltip: l10n.kostvPlayerRemove,
-                  onPressed: () => queue.removeAt(entry.index),
-                  icon: Icon(
-                    Icons.remove_circle_outline_rounded,
-                    color: Colors.white.withValues(alpha: 0.55),
-                  ),
-                ),
-                ReorderableDragStartListener(
-                  index: position,
-                  child: Padding(
-                    padding: const EdgeInsets.all(6),
-                    child: Icon(
-                      Icons.drag_handle_rounded,
-                      color: Colors.white.withValues(alpha: 0.55),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+        onMenu: touch && menu != null ? () => menu(item) : null,
       );
+      // With the mouse, held down a moment and dragged.
+      if (touch && !mobile) {
+        tile = ReorderableDelayedDragStartListener(
+          index: position,
+          child: tile,
+        );
+      }
       return KeyedSubtree(
         // Kos TV: on the TV by place, so the row the remote is on keeps its
         // stop (and its light) while a song moves through it.
         key: touch
             ? ValueKey('q-${item.id}-${entry.index}')
             : ValueKey('q-at-$position'),
-        child: tile,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+          child: tile,
+        ),
       );
     }
 
-    final empty = Padding(
-      padding: const EdgeInsets.all(24),
-      child: Text(
-        l10n.kostvPlayerQueueEmpty,
-        style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
-      ),
-    );
-
+    if (touch) {
+      return ReorderableListView.builder(
+        scrollController: scrollController,
+        buildDefaultDragHandles: false,
+        header: header,
+        padding: const EdgeInsets.only(bottom: 24),
+        itemCount: upcoming.length,
+        proxyDecorator: (child, _, _) => Material(
+          color: KostvMusicTokens.glass(0.08),
+          borderRadius: BorderRadius.circular(KostvMusicTokens.radiusRow),
+          child: child,
+        ),
+        onReorderItem: (from, to) {
+          final a = upcoming[from].index;
+          final b = upcoming[to].index;
+          queue.reorder(a, b > a ? b + 1 : b);
+        },
+        itemBuilder: (context, i) => row(upcoming[i], i),
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         header,
-        // Downloaded music has no home server to ask for more.
-        if (!manager.isOfflinePlayback) autoplay,
         Expanded(
           child: upcoming.isEmpty
-              ? Align(alignment: Alignment.topLeft, child: empty)
-              : touch
-              ? ReorderableListView.builder(
-                  buildDefaultDragHandles: false,
-                  padding: const EdgeInsets.only(bottom: 24),
-                  itemCount: upcoming.length,
-                  proxyDecorator: (child, _, _) =>
-                      Material(color: Colors.transparent, child: child),
-                  onReorderItem: (from, to) {
-                    final a = upcoming[from].index;
-                    final b = upcoming[to].index;
-                    queue.reorder(a, b > a ? b + 1 : b);
-                  },
-                  itemBuilder: (context, i) => row(upcoming[i], i),
-                )
+              ? const SizedBox.shrink()
               : Focus(
                   focusNode: rowsFocus,
                   child: ListView.builder(
-                    padding: const EdgeInsets.only(bottom: 24),
+                    padding: EdgeInsets.fromLTRB(0, 4 * k, 0, 24),
                     itemCount: upcoming.length,
                     itemBuilder: (context, i) => row(upcoming[i], i),
                   ),
@@ -2785,6 +3202,7 @@ class _AmbientScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
+    final s = (size.height / 720).clamp(0.55, 3.0);
     final lyrics = this.lyrics;
     final withLyrics = lyrics != null && lyrics.isNotEmpty && lyrics.isSynced;
     final music = KostvNowPlaying.instance;
@@ -2797,49 +3215,59 @@ class _AmbientScreen extends StatelessWidget {
     final titles = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        KostvEqualizerBars(playing: music.playing, size: 26),
-        const SizedBox(width: 16),
-        Flexible(child: _TitleBlock(item: item, big: true)),
+        KostvEqualizerBars(
+          playing: music.playing,
+          size: 26 * s,
+          gradient: KostvMusicTokens.gradient,
+        ),
+        SizedBox(width: 16 * s),
+        Flexible(
+          child: _TitleBlock(
+            item: item,
+            titleSize: 34 * s,
+            lineSize: 18 * s,
+            gap: 6 * s,
+            maxLines: 1,
+            centered: !withLyrics,
+          ),
+        ),
       ],
     );
-    return ColoredBox(
-      color: Colors.black.withValues(alpha: 0.25),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: size.width * 0.07,
-          vertical: size.height * 0.09,
-        ),
-        child: withLyrics
-            ? Row(
-                children: [
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      cover,
-                      SizedBox(height: size.height * 0.05),
-                      SizedBox(width: size.height * 0.5, child: titles),
-                    ],
-                  ),
-                  SizedBox(width: size.width * 0.05),
-                  Expanded(
-                    child: IgnorePointer(
-                      child: ExcludeFocus(
-                        child: KostvLyricsPanel(lyrics: lyrics, big: true),
-                      ),
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: size.width * 0.075,
+        vertical: size.height * 0.09,
+      ),
+      child: withLyrics
+          ? Row(
+              children: [
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    cover,
+                    SizedBox(height: size.height * 0.05),
+                    SizedBox(width: size.height * 0.5, child: titles),
+                  ],
+                ),
+                SizedBox(width: size.width * 0.05),
+                Expanded(
+                  child: IgnorePointer(
+                    child: ExcludeFocus(
+                      child: KostvLyricsPanel(lyrics: lyrics, big: true),
                     ),
                   ),
-                ],
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  cover,
-                  SizedBox(height: size.height * 0.06),
-                  titles,
-                ],
-              ),
-      ),
+                ),
+              ],
+            )
+          : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                cover,
+                SizedBox(height: size.height * 0.06),
+                titles,
+              ],
+            ),
     );
   }
 }

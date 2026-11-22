@@ -156,19 +156,20 @@ void main() {
     return texts.join(' ');
   }
 
-  testWidgets('on the TV: «Preparando…», after 20 s «Está tardando…», the '
-      'line, and the remote reaches «Pedir el álbum»', (tester) async {
+  testWidgets('on the TV: «Preparando…» only after a moment, after 20 s '
+      '«Está tardando…», the line, and the remote reaches «Pedir el álbum»', (
+    tester,
+  ) async {
     PlatformDetection.setTvMode(true);
     StremfinStreamResolver.preparing.value = 'stremfin:1';
     await open(tester, const Size(1920, 1080));
+    // Kos TV: the music design: no flash of it for a song that starts at
+    // once (it shows after 1.5 s).
+    expect(find.text('Preparando la canción…'), findsNothing);
+    await tester.pump(const Duration(seconds: 1));
     expect(find.text('Preparando la canción…'), findsOneWidget);
-    expect(
-      find.text(
-        'No está en casa: la estamos preparando para que la escuches. '
-        'Tarda unos segundos',
-      ),
-      findsOneWidget,
-    );
+    // Calm: it doesn't say it isn't at home (the line does).
+    expect(find.textContaining('No está en casa'), findsNothing);
     expect(find.byType(KostvPulse), findsOneWidget);
     await tester.pump(const Duration(seconds: 21));
     expect(find.text('Está tardando más de lo normal'), findsOneWidget);
@@ -181,7 +182,7 @@ void main() {
     expect(find.byIcon(Icons.cloud_outlined), findsNothing);
     // ♥ and the lyrics are the home server's.
     expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
-    expect(find.byIcon(Icons.lyrics_rounded), findsNothing);
+    expect(find.byIcon(Icons.notes_rounded), findsNothing);
     // From play/pause up to the pill's button.
     for (var i = 0; i < 4 && !(focusedText() ?? '').contains('Pedir'); i++) {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
@@ -194,12 +195,15 @@ void main() {
       'that aren\'t at home', (tester) async {
     await open(tester, const Size(393, 852));
     await tester.pumpAndSettle();
-    expect(find.text('Suena en streaming · no está en casa'), findsOneWidget);
+    // Kos TV: the phone's shorter line.
+    expect(find.text('En streaming · no está en casa'), findsOneWidget);
     expect(find.text('Pedir el álbum'), findsOneWidget);
     expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
-    expect(find.byIcon(Icons.lyrics_rounded), findsNothing);
+    expect(find.byIcon(Icons.notes_rounded), findsNothing);
     await tester.tap(find.byIcon(Icons.queue_music_rounded));
     await tester.pumpAndSettle();
+    // Kos TV: the phone's queue comes up in a sheet.
+    expect(find.byType(DraggableScrollableSheet), findsOneWidget);
     expect(find.text('Canción h'), findsOneWidget);
     expect(find.text('Canción 2'), findsOneWidget);
     expect(find.byIcon(Icons.cloud_outlined), findsNothing);
@@ -211,7 +215,28 @@ void main() {
     await open(tester, const Size(1440, 900));
     await tester.pumpAndSettle();
     expect(find.text('Suena en streaming · no está en casa'), findsNothing);
-    expect(find.byIcon(Icons.lyrics_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.notes_rounded), findsOneWidget);
+  });
+
+  testWidgets('Kos TV: on the computer the queue stays open at the side, with '
+      'its tabs, the song sounding and «Vaciar»', (tester) async {
+    manager.queueService.setQueue([_home('h'), _stream('2'), _home('h3')]);
+    await open(tester, const Size(1440, 900));
+    await tester.pumpAndSettle();
+    expect(find.text('Cola'), findsOneWidget);
+    expect(find.text('Letra'), findsOneWidget);
+    expect(find.text('SONANDO'), findsOneWidget);
+    expect(find.text('A CONTINUACIÓN'), findsOneWidget);
+    // The song sounding is in the panel (and the player's title).
+    expect(find.text('Canción h'), findsNWidgets(2));
+    expect(find.text('Canción 2'), findsOneWidget);
+    expect(find.text('Canción h3'), findsOneWidget);
+    await tester.tap(find.text('Vaciar'));
+    await tester.pumpAndSettle();
+    expect(manager.queueService.items.length, 1);
+    expect(find.text('Canción 2'), findsNothing);
+    expect(find.text('No hay más canciones en la cola'), findsOneWidget);
+    expect(find.text('Vaciar'), findsNothing);
   });
 
   testWidgets('turned out to be at home: the home server\'s song takes its '
@@ -323,7 +348,7 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.lyrics_rounded));
+    await tester.tap(find.byIcon(Icons.notes_rounded));
     await tester.pumpAndSettle();
     Focus.of(tester.element(find.text('Línea 1'))).requestFocus();
     await tester.pump();
@@ -331,12 +356,12 @@ void main() {
     // The next one isn't at home: no lyrics, no «Letra».
     manager.queueService.next(manual: true);
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.lyrics_rounded), findsNothing);
+    expect(find.byIcon(Icons.notes_rounded), findsNothing);
     expect(FocusManager.instance.primaryFocus?.debugLabel, 'NowPlayingPlay');
     // One at home again: «Letra» is back, and the remote stays where it is.
     manager.queueService.next(manual: true);
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.lyrics_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.notes_rounded), findsOneWidget);
     expect(FocusManager.instance.primaryFocus?.debugLabel, 'NowPlayingPlay');
   });
 }

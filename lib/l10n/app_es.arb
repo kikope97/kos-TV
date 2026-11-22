@@ -16048,5 +16048,15 @@
     "kostvMusicDiscoveryKicker": "Cada lunes",
     "@kostvMusicDiscoveryKicker": {"description": "Kos TV Music home: small word over «Descubrimiento semanal» on its card (it changes every Monday)"},
     "kostvMusicSearchClose": "Cerrar la búsqueda",
-    "@kostvMusicSearchClose": {"description": "Kos TV Music on the phone: the ✕ of the search field (clears it and goes back to the tabs)"}
+    "@kostvMusicSearchClose": {"description": "Kos TV Music on the phone: the ✕ of the search field (clears it and goes back to the tabs)"},
+    "kostvMusicAwayPlayerLineShort": "En streaming · no está en casa",
+    "@kostvMusicAwayPlayerLineShort": {"description": "Kos TV music design: the player's small line on the phone (narrower than kostvMusicAwayPlayerLine); «Pedir el álbum» follows it"},
+    "kostvPlayerSounding": "Sonando",
+    "@kostvPlayerSounding": {"description": "Kos TV music design: small capital heading over the song's title in the player (TV), and over the song sounding in the queue"},
+    "kostvPlayerPlayingFrom": "Sonando desde",
+    "@kostvPlayerPlayingFrom": {"description": "Kos TV music design: small heading at the top of the phone's player, over the album the song belongs to"},
+    "kostvPlayerQueueTab": "Cola",
+    "@kostvPlayerQueueTab": {"description": "Kos TV music design: the tab of the player's side panel (computer) that shows the queue"},
+    "kostvPlayerClearQueue": "Vaciar",
+    "@kostvPlayerClearQueue": {"description": "Kos TV music design: button next to «A continuación» in the queue that takes away every song to come"}
 }

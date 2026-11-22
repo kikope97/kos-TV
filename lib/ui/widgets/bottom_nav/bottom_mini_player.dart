@@ -12,7 +12,9 @@ import '../../../l10n/app_localizations.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
 import '../adaptive/sf_symbol.dart';
+import '../music/design/kostv_music_tokens.dart';
 import '../music/design/kostv_play_button.dart';
+import '../music/kostv_now_playing_capsule.dart' show KostvCapsuleHeart;
 import '../music/kostv_now_playing.dart';
 import '../offline_aware_image.dart';
 import 'bottom_nav_metrics.dart';
@@ -105,14 +107,15 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
         ? item.artists.join(', ')
         : item.albumArtist ?? '';
     final compact = variant == BottomMiniPlayerVariant.inline;
-    final artSize = compact ? 38.0 : 42.0;
+    // Kos TV: the music design's capsule: a round cover, a little bigger.
+    final artSize = compact ? 38.0 : 44.0;
 
     final row = Row(
       children: [
         _Artwork(
           url: _artUrl(item),
           size: artSize,
-          round: compact,
+          round: true,
           color: theme.onBar,
         ),
         SizedBox(width: compact ? 10 : 12),
@@ -127,8 +130,8 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
                 overflow: TextOverflow.ellipsis,
                 style: theme.labelStyle.copyWith(
                   color: theme.onBar,
-                  fontSize: compact ? 13 : 14,
-                  fontWeight: FontWeight.w700,
+                  fontSize: compact ? 13 : 15,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               if (artist.isNotEmpty) ...[
@@ -139,15 +142,17 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.labelStyle.copyWith(
-                    color: theme.onBar.withValues(alpha: 0.6),
-                    fontSize: compact ? 11.5 : 12,
-                    fontWeight: FontWeight.w500,
+                    color: theme.onBar.withValues(alpha: 0.62),
+                    fontSize: compact ? 11.5 : 13,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
             ],
           ),
         ),
+        // Kos TV: the song's ♥, as in the floating player.
+        if (!compact) KostvCapsuleHeart(item: item),
         // Kos TV: the music design's one play button (the brand's).
         Tooltip(
           message: playing ? l10n.pause : l10n.play,
@@ -162,7 +167,7 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
                 height: 44,
                 child: Center(
                   child: KostvPlayFace(
-                    diameter: compact ? 34 : 38,
+                    diameter: compact ? 34 : 40,
                     pause: playing,
                   ),
                 ),
@@ -179,17 +184,8 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
             // canción» mustn't pause.
             onPressed: KostvNowPlaying.instance.next,
           ),
-        // Kos TV: the ✕ stops the music and takes the player away.
-        if (!compact)
-          _TransportButton(
-            icon: Icons.close_rounded,
-            tooltip: l10n.kostvNowPlayingClose,
-            color: theme.onBar.withValues(alpha: 0.6),
-            onPressed: () {
-              setState(() => _dismissedItemId = item.id);
-              KostvNowPlaying.instance.close();
-            },
-          ),
+        // Kos TV: the music design's capsule has no ✕: it is swiped away
+        // (sideways) to stop the music, as before.
       ],
     );
 
@@ -390,9 +386,9 @@ class _ProgressLineState extends State<_ProgressLine> {
     final value = maxMs > 0
         ? (_position.inMilliseconds.toDouble().clamp(0, maxMs) / maxMs)
         : 0.0;
-    final accent = widget.theme.accent;
+    // Kos TV: what sounds in the brand's gradient, as everywhere in Music.
     return SizedBox(
-      height: 2,
+      height: 3,
       child: Stack(
         children: [
           Positioned.fill(
@@ -404,17 +400,10 @@ class _ProgressLineState extends State<_ProgressLine> {
             widthFactor: value,
             alignment: AlignmentDirectional.centerStart,
             heightFactor: 1,
-            child: DecoratedBox(
+            child: const DecoratedBox(
               decoration: BoxDecoration(
-                color: accent,
-                boxShadow: AppColorScheme.isPixel
-                    ? null
-                    : [
-                        BoxShadow(
-                          color: accent.withValues(alpha: 0.6),
-                          blurRadius: 8,
-                        ),
-                      ],
+                borderRadius: BorderRadius.all(Radius.circular(3)),
+                gradient: KostvMusicTokens.gradient,
               ),
             ),
           ),

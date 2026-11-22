@@ -21532,5 +21532,10 @@
     "kostvMusicDiscoveryKicker": "Every Monday",
     "@kostvMusicDiscoveryKicker": {"description": "Kos TV Music home: small word over «Descubrimiento semanal» on its card (it changes every Monday)"},
     "kostvMusicSearchClose": "Close the search",
-    "@kostvMusicSearchClose": {"description": "Kos TV Music on the phone: the ✕ of the search field (clears it and goes back to the tabs)"}
+    "@kostvMusicSearchClose": {"description": "Kos TV Music on the phone: the ✕ of the search field (clears it and goes back to the tabs)"},
+    "kostvMusicAwayPlayerLineShort": "Streaming · not at home",
+    "kostvPlayerSounding": "Now playing",
+    "kostvPlayerPlayingFrom": "Playing from",
+    "kostvPlayerQueueTab": "Queue",
+    "kostvPlayerClearQueue": "Clear"
 }

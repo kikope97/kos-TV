@@ -355,8 +355,9 @@ class KostvMusicLinkButtons extends StatelessWidget {
               : Colors.white.withValues(alpha: 0.18),
           border: look == KostvMusicLinkLook.player
               ? Border.all(
+                  // Kos TV: the music design's white focus.
                   color: lit && PlatformDetection.isTV
-                      ? kostvMusicColor
+                      ? Colors.white
                       : Colors.transparent,
                   width: 2,
                 )
