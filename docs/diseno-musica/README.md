@@ -116,3 +116,20 @@ Hechas en la fase 1. Las fases 2–4 las usan tal cual (no se hacen otras pareci
 | `KostvEqualizerBars` | `kostv_now_playing_capsule.dart` | El ecualizador de siempre, ahora con `gradient` para pintarlo con la marca. Solo se mueve si suena y está a la vista. |
 
 Textos nuevos (al final de los `.arb`): `kostvMusicAwayNoteLead` y `kostvMusicAwayNoteRest` (la nota del álbum), `kostvMusicAwayPlayerLine` y `kostvMusicAwaySongNote` (la línea del reproductor), `kostvMusicAskTheAlbum`, `kostvMusicAskedNotify` y `kostvMusicAlreadyHome`.
+
+### Fase 2 · Álbum y artista (hecha)
+
+Piezas de página en `lib/ui/screens/music/kostv_music_page.dart` (usan las de arriba; la fase 2 solo añadió `revealFromTop` a `KostvPlayButton` y `textSize` a `KostvMusicTrackRow`):
+
+| Pieza | Qué es |
+|---|---|
+| `kostvPageForm` y `kostvPageInsets` | La forma de la página (`tv`, `wide` para el ordenador, `phone`) y sus márgenes (64, 56, 16; más si el menú lateral ocupa sitio). |
+| `KostvArtworkWash` | El fondo de Música bañado desde arriba con el color de una imagen (`KostvArtworkColors`, una vez por imagen y entre fotogramas); oscuro liso hasta que se sabe. |
+| `KostvAlbumPage` | La página de un álbum, igual en casa o fuera: portada grande, «ÁLBUM · 2026», título en Outfit, línea del artista (`KostvAlbumArtistLine`: foto, nombre que abre su página y datos), el botón de la marca y los redondos (aleatorio, ♥, ⋯), la nota de fuera y las canciones: dos columnas en la tele (`KostvTwoColumns`), tabla con cabecera en el ordenador y una columna en el móvil (con la nota en una tarjeta). |
+| `KostvAwayNote` | La nota tranquila del álbum que no está en casa y su acción («Pedir el álbum» y sus estados). |
+| `KostvRoundButton` y `KostvPillButton` | `KostvRoundIcon` y `KostvMusicPill` con su propia parada (mando, ratón y toque). |
+| `KostvArtistHero` | La cabecera del artista: su foto grande que se funde con la página, «ARTISTA», el nombre en Outfit enorme, sus datos y los botones (reproducir, una pastilla y redondos). |
+
+Páginas que las usan: el álbum de Stremfin (`kostv_music_album_screen.dart`), el álbum de casa (`kostv_home_album_view.dart`), el artista de Stremfin (`kostv_music_artist_screen.dart`, con «Populares», «Su último disco» en el ordenador, «Discografía» con el ▶ de cada disco y «Artistas parecidos») y el artista de casa (`kostv_home_artist_view.dart`, nuevo: el estilo kOS TV ya no usa la ficha genérica para los artistas). El ▶ de las tarjetas de disco: `kostv_music_album_play.dart`.
+
+Textos nuevos: `kostvMusicColumnTitle`, `kostvMusicColumnLength`, `kostvMusicArtistKicker`, `kostvMusicPopular`, `kostvMusicLatestRelease`, `kostvMusicAlbumCount` y `kostvMusicArtistSongs`.

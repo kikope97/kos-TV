@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
@@ -207,10 +208,33 @@ void main() {
     // Read meanwhile: the ask is the main button, and has the remote.
     expect(focused(), 'kostvMusicAsk');
     await answer(tester);
-    expect(find.text('Reproducir'), findsOneWidget);
+    expect(find.byTooltip('Reproducir'), findsOneWidget);
     expect(find.text('Pedir el álbum'), findsOneWidget);
+    // Kos TV: the music design: the calm note, the one place that says
+    // it isn't at home, with «Pedir el álbum» in it.
+    expect(
+      find.textContaining('Este disco no está en casa', findRichText: true),
+      findsOneWidget,
+    );
     expect(focused(), 'kostvMusicAlbumPlay');
     // The prefetch of resting on the page, let go.
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('on the TV, down from «Reproducir» goes to «Pedir el álbum» '
+      'in the note under it (not past it to the songs)', (tester) async {
+    PlatformDetection.setTvMode(true);
+    await open(tester);
+    await answer(tester);
+    expect(focused(), 'kostvMusicAlbumPlay');
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(focused(), 'kostvMusicAsk');
+    // And on, down to the songs.
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(focused(), isNot('kostvMusicAsk'));
+    expect(focused(), isNot('kostvMusicAlbumPlay'));
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -235,9 +259,15 @@ void main() {
     kids = true;
     await open(tester);
     await answer(tester);
-    expect(find.text('Reproducir'), findsNothing);
-    expect(find.text('Aleatorio'), findsNothing);
+    expect(find.byTooltip('Reproducir'), findsNothing);
+    expect(find.byTooltip('Aleatorio'), findsNothing);
     expect(find.text('Pedir el álbum'), findsOneWidget);
+    // It doesn't sound: no «suena en streaming», but why the whole album.
+    expect(
+      find.textContaining('Este disco no está en casa', findRichText: true),
+      findsNothing,
+    );
+    expect(find.textContaining('Se pide el álbum entero'), findsOneWidget);
     expect(focused(), 'kostvMusicAsk');
     const away = StremfinAlbumTrack(title: 'Trueno', deezerId: '1');
     expect(kostvTrackPlayable(away), isFalse);
@@ -273,13 +303,13 @@ void main() {
     await open(tester);
     await answer(tester);
     // Not known yet: as for someone with a limit.
-    expect(find.text('Reproducir'), findsNothing);
+    expect(find.byTooltip('Reproducir'), findsNothing);
     limit.complete(KostvAgeLimit.none);
     for (var i = 0; i < 5; i++) {
       await tester.runAsync(() => Future<void>.delayed(Duration.zero));
       await tester.pump(const Duration(milliseconds: 50));
     }
-    expect(find.text('Reproducir'), findsOneWidget);
+    expect(find.byTooltip('Reproducir'), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
     later.dispose();
   });

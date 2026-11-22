@@ -15992,5 +15992,19 @@
     "kostvMusicAlreadyHome": "Ya está en casa",
     "@kostvMusicAlreadyHome": {"description": "Kos TV music design: state of «Pedir el álbum» for a moment when the album has arrived home (then the note goes away)"},
     "kostvEpisodeInfo": "Información del episodio",
-    "@kostvEpisodeInfo": {"description": "Kos TV: in a series or season page an episode plays when picked; this opens its own page instead (in its menu, held OK or right-click, and the small info button on the card)"}
+    "@kostvEpisodeInfo": {"description": "Kos TV: in a series or season page an episode plays when picked; this opens its own page instead (in its menu, held OK or right-click, and the small info button on the card)"},
+    "kostvMusicColumnTitle": "Título",
+    "@kostvMusicColumnTitle": {"description": "Kos TV music design, phase 2: heading of the songs' title column in an album's table (web)"},
+    "kostvMusicColumnLength": "Duración",
+    "@kostvMusicColumnLength": {"description": "Kos TV music design, phase 2: heading of the songs' length column in an album's table (web)"},
+    "kostvMusicArtistKicker": "Artista",
+    "@kostvMusicArtistKicker": {"description": "Kos TV music design, phase 2: small label above an artist's name on their page"},
+    "kostvMusicPopular": "Populares",
+    "@kostvMusicPopular": {"description": "Kos TV music design, phase 2: an artist's most played songs, on their page"},
+    "kostvMusicLatestRelease": "Su último disco",
+    "@kostvMusicLatestRelease": {"description": "Kos TV music design, phase 2: an artist's newest album, beside «Populares» on a computer"},
+    "kostvMusicAlbumCount": "{count, plural, =1{1 álbum} other{{count} álbumes}}",
+    "@kostvMusicAlbumCount": {"description": "Kos TV music design, phase 2: how many albums an artist has, under their name", "placeholders": {"count": {"type": "int"}}},
+    "kostvMusicArtistSongs": "Sus canciones",
+    "@kostvMusicArtistSongs": {"description": "Kos TV music design, phase 2: an artist of the home server's songs, on their page"}
 }

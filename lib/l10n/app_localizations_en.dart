@@ -21329,4 +21329,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvEpisodeInfo => 'Episode info';
+
+  @override
+  String get kostvMusicColumnTitle => 'Title';
+
+  @override
+  String get kostvMusicColumnLength => 'Length';
+
+  @override
+  String get kostvMusicArtistKicker => 'Artist';
+
+  @override
+  String get kostvMusicPopular => 'Popular';
+
+  @override
+  String get kostvMusicLatestRelease => 'Latest release';
+
+  @override
+  String kostvMusicAlbumCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count albums',
+      one: '1 album',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvMusicArtistSongs => 'Their songs';
 }

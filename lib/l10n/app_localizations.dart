@@ -36614,6 +36614,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Episode info'**
   String get kostvEpisodeInfo;
+
+  /// No description provided for @kostvMusicColumnTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Title'**
+  String get kostvMusicColumnTitle;
+
+  /// No description provided for @kostvMusicColumnLength.
+  ///
+  /// In en, this message translates to:
+  /// **'Length'**
+  String get kostvMusicColumnLength;
+
+  /// No description provided for @kostvMusicArtistKicker.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist'**
+  String get kostvMusicArtistKicker;
+
+  /// No description provided for @kostvMusicPopular.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular'**
+  String get kostvMusicPopular;
+
+  /// No description provided for @kostvMusicLatestRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'Latest release'**
+  String get kostvMusicLatestRelease;
+
+  /// Kos TV music design, phase 2: how many albums an artist has, under their name
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 album} other{{count} albums}}'**
+  String kostvMusicAlbumCount(int count);
+
+  /// No description provided for @kostvMusicArtistSongs.
+  ///
+  /// In en, this message translates to:
+  /// **'Their songs'**
+  String get kostvMusicArtistSongs;
 }
 
 class _AppLocalizationsDelegate

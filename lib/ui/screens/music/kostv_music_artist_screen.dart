@@ -14,13 +14,16 @@ import '../../../l10n/app_localizations.dart';
 import '../../../playback/kostv_stream_playback.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
+import '../../widgets/music/design/kostv_music_design.dart';
+import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/kostv_stream_play.dart';
 import '../../widgets/navigation_layout.dart';
-import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
 import 'kostv_music_dislike.dart';
 import 'kostv_music_links.dart';
+import 'kostv_music_album_play.dart';
 import 'kostv_music_album_screen.dart' show KostvMusicButton;
+import 'kostv_music_page.dart';
 import 'kostv_music_widgets.dart';
 import '../../../util/kostv_browser_menu.dart';
 
@@ -97,19 +100,6 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
     ),
   );
 
-  /// Kos TV: «Crear emisora» of the artist: the requests service's radio of
-  /// them, what is at home from home.
-  Widget? _stationButton(AppLocalizations l10n, StremfinArtistDetail? detail) {
-    if (detail == null || !kostvMusicCatalogAll()) return null;
-    return KostvMusicButton(
-      icon: Icons.radio_rounded,
-      label: l10n.kostvMusicRadio,
-      onTap: () => unawaited(
-        kostvMusicOnce(() => playKostvArtistStation(context, detail.artist)),
-      ),
-    );
-  }
-
   Future<void> _load() async {
     final getIt = GetIt.instance;
     if (!getIt.isRegistered<StremfinService>()) {
@@ -154,35 +144,43 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
     } catch (_) {}
   }
 
-  Widget? _dislikeButton(AppLocalizations l10n) {
+  /// Kos TV: «⋯» of the artist: «No me pongas a este artista» (or undo it)
+  /// when the home server has them.
+  Future<void> _more(AppLocalizations l10n, String name) async {
     final home = _atHome;
-    if (home == null || !kostvMusicCanDislike(home)) return null;
+    if (home == null || !kostvMusicCanDislike(home)) return;
     final disliked = kostvMusicDisliked(home.id, home);
-    return KostvMusicButton(
-      icon: Icons.person_off_outlined,
-      label: disliked ? l10n.kostvMusicUndislike : l10n.kostvMusicDislikeArtist,
-      onTap: () => unawaited(
-        disliked
-            ? kostvUndislike(context, id: home.id, name: home.name, from: home)
-            : kostvDislikeArtist(
-                context,
-                id: home.id,
-                name: home.name,
-                from: home,
-              ),
-      ),
+    final choice = await showKostvMusicMenu<int>(
+      context,
+      title: name,
+      entries: [
+        KostvMenuEntry(
+          0,
+          Icons.person_off_outlined,
+          disliked ? l10n.kostvMusicUndislike : l10n.kostvMusicDislikeArtist,
+        ),
+      ],
+    );
+    if (choice != 0 || !mounted) return;
+    unawaited(
+      disliked
+          ? kostvUndislike(context, id: home.id, name: home.name, from: home)
+          : kostvDislikeArtist(
+              context,
+              id: home.id,
+              name: home.name,
+              from: home,
+            ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final dislike = _dislikeButton(l10n);
-    final insets = calendarChromeInsets(context);
-    final phone = KostvMusicSizes.phone;
+    final form = kostvPageForm(context);
+    final insets = kostvPageInsets(context);
     final detail = _detail;
     final all = kostvMusicCatalogAll();
-    final station = _stationButton(l10n, detail);
     // Kos TV: nothing explicit that isn't at home for someone with a limit.
     final hidesExplicit =
         !GetIt.instance.isRegistered<StremfinService>() ||
@@ -193,242 +191,345 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
     ];
     final topPlays = all && top.any(kostvSongPlayable);
     final artist = detail?.artist ?? widget.seed;
-    final theme = Theme.of(context);
+    final home = _atHome;
+    final canDislike = home != null && kostvMusicCanDislike(home);
+    final albums = detail?.total != null && detail!.total > 0
+        ? detail.total
+        : (artist?.albums ?? 0);
+    final station = detail != null && kostvMusicCatalogAll();
+    final width = MediaQuery.sizeOf(context).width;
+    final latest = form == KostvPageForm.wide && width >= 1180
+        ? _latest(detail)
+        : null;
+    final rows = [
+      for (final (i, song) in top.indexed)
+        KostvMusicSongRow(
+          // Kos TV: on the TV the remote starts on «Reproducir»; without it
+          // (nothing plays from here), on the first song.
+          autofocus: i == 0 && PlatformDetection.isTV && !topPlays,
+          title: song.title,
+          artist: song.albumTitle,
+          artistLinks: [
+            [?kostvStremfinAlbumLink(context, song)],
+          ],
+          cover: song.cover,
+          rank: i + 1,
+          atHome: song.inJellyfin,
+          away: all && kostvSongPlayable(song),
+          trailing: all && !song.atHome && !kostvSongPlayable(song)
+              ? const Icon(
+                  Icons.album_outlined,
+                  color: kostvMusicGrey,
+                  size: 22,
+                )
+              : null,
+          explicit: song.explicit,
+          duration: song.duration,
+          soundingId: kostvSongSoundingId(song),
+          onRest: all && !song.atHome && kostvSongPlayable(song)
+              ? (resting) =>
+                    resting ? kostvPrefetchSoon(song) : kostvPrefetchCancel()
+              : null,
+          onTap: () => all && kostvSongPlayable(song)
+              ? _playTop(top, index: i)
+              : unawaited(
+                  openKostvMusicSong(
+                    context,
+                    song,
+                    source: KostvMusicSource.artist,
+                  ),
+                ),
+          onLongPress: () => unawaited(
+            showKostvMusicSongMenu(
+              context,
+              song: song,
+              source: KostvMusicSource.artist,
+            ),
+          ),
+        ),
+    ];
+    final popular = rows.isEmpty
+        ? null
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              KostvShelfHeader(
+                title: l10n.kostvMusicPopular,
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+              ),
+              FocusTraversalGroup(
+                child: form == KostvPageForm.tv && rows.length >= 4
+                    ? KostvTwoColumns(rows: rows)
+                    : Column(children: rows),
+              ),
+            ],
+          );
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0B0D),
+      backgroundColor: KostvMusicTokens.background,
       body: NavigationLayout(
         activeRoute: Destinations.kostvMusic,
         showBackButton: true,
-        child: ListView(
-          padding: EdgeInsets.only(
-            top: insets.top + 12,
-            bottom:
-                MediaQuery.paddingOf(context).bottom +
-                (phone && NavigationLayout.usesBottomNavbar ? 110 : 40),
-          ),
-          children: [
-            if (artist != null)
-              Padding(
-                padding: EdgeInsets.only(
-                  left: insets.left,
-                  right: insets.right,
-                ),
-                child: Row(
-                  children: [
-                    KostvMusicCover(
-                      url: artist.picture,
-                      size: phone ? 110 : 170,
-                      circle: true,
-                      icon: Icons.person_rounded,
-                    ),
-                    const SizedBox(width: 24),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            artist.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.displaySmall?.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
-                              fontSize: phone ? 28 : 42,
-                              letterSpacing: -0.8,
+        child: KostvArtworkWash(
+          url: artist?.picture,
+          strength: 0.5,
+          at: const Alignment(0.6, -1.1),
+          child: ListView(
+            padding: EdgeInsets.only(bottom: kostvPageBottom(context)),
+            children: [
+              if (artist != null)
+                KostvArtistHero(
+                  name: artist.name,
+                  kicker: l10n.kostvMusicArtistKicker,
+                  picture: artist.picture,
+                  meta: albums > 0 ? l10n.kostvMusicAlbumCount(albums) : null,
+                  play: topPlays
+                      ? (diameter) => KostvPlayButton(
+                          revealFromTop: true,
+                          key: const ValueKey('kostvArtistPlay'),
+                          diameter: diameter,
+                          tooltip: l10n.play,
+                          autofocus: PlatformDetection.isTV,
+                          onTap: () => _playTop(top, picked: false),
+                        )
+                      : null,
+                  // Kos TV: «Crear emisora» of the artist: the requests
+                  // service's radio of them, what is at home from home.
+                  pill: station
+                      ? (size) => KostvPillButton(
+                          icon: Icons.radio_rounded,
+                          label: l10n.kostvMusicRadio,
+                          size: size,
+                          onTap: () => unawaited(
+                            kostvMusicOnce(
+                              () => playKostvArtistStation(
+                                context,
+                                detail.artist,
+                              ),
                             ),
                           ),
-                          if (detail != null && detail.total > 0)
-                            Text(
-                              l10n.kostvMusicArtistHave(
-                                detail.have,
-                                detail.total,
-                              ),
-                              style: const TextStyle(
-                                color: kostvMusicGrey,
-                                fontSize: 15,
-                              ),
-                            ),
-                          if (dislike != null || station != null) ...[
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: [?station, ?dislike],
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 28),
-            if (detail == null && _loading)
-              const Center(
-                child: CircularProgressIndicator(color: kostvMusicColor),
-              )
-            else if (detail == null)
-              // Kos TV: why, and a button to read it again, which the
-              // remote can reach (with neither picture nor name, the page
-              // has nothing else to go to).
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: insets.left),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _error == null
-                          ? l10n.kostvMusicUnavailable
-                          : kostvStremfinErrorText(
-                              l10n,
-                              _error!,
-                              fallback: l10n.kostvMusicUnavailable,
-                            ),
-                      style: const TextStyle(color: kostvMusicGrey),
-                    ),
-                    const SizedBox(height: 14),
-                    KostvMusicButton(
-                      icon: Icons.refresh_rounded,
-                      label: l10n.retry,
-                      autofocus: PlatformDetection.isTV,
-                      onTap: () => unawaited(_load()),
-                    ),
-                  ],
-                ),
-              ),
-            if (detail != null && top.isNotEmpty) ...[
-              KostvMusicHeading(
-                title: l10n.kostvMusicArtistTopSongs,
-                padding: EdgeInsets.fromLTRB(insets.left, 0, insets.right, 8),
-                // Kos TV: with «Toda la música», the list plays whole.
-                actions: [
-                  if (topPlays) ...[
-                    KostvMusicRowAction(
-                      icon: Icons.play_arrow_rounded,
-                      label: l10n.play,
-                      primary: true,
-                      onTap: () => _playTop(top, picked: false),
-                    ),
-                    if (top.length > 2)
-                      KostvMusicRowAction(
+                        )
+                      : null,
+                  round: [
+                    if (topPlays && top.length > 2)
+                      (diameter) => KostvRoundButton(
                         icon: Icons.shuffle_rounded,
-                        label: l10n.shuffle,
+                        tooltip: l10n.shuffle,
+                        diameter: diameter,
                         onTap: () => _playTop(top, shuffle: true),
                       ),
-                  ],
-                ],
-              ),
-              Padding(
-                padding: EdgeInsets.only(
-                  left: insets.left,
-                  right: insets.right,
-                ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 900),
-                    child: FocusTraversalGroup(
-                      child: Column(
-                        children: [
-                          for (final (i, song) in top.indexed)
-                            KostvMusicSongRow(
-                              autofocus: i == 0 && PlatformDetection.isTV,
-                              title: song.title,
-                              artist: song.albumTitle,
-                              artistLinks: [
-                                [?kostvStremfinAlbumLink(context, song)],
-                              ],
-                              cover: song.cover,
-                              rank: i + 1,
-                              atHome: song.inJellyfin,
-                              away: all && kostvSongPlayable(song),
-                              trailing:
-                                  all &&
-                                      !song.atHome &&
-                                      !kostvSongPlayable(song)
-                                  ? const Icon(
-                                      Icons.album_outlined,
-                                      color: kostvMusicGrey,
-                                      size: 22,
-                                    )
-                                  : null,
-                              explicit: song.explicit,
-                              duration: song.duration,
-                              soundingId: kostvSongSoundingId(song),
-                              onRest:
-                                  all && !song.atHome && kostvSongPlayable(song)
-                                  ? (resting) => resting
-                                        ? kostvPrefetchSoon(song)
-                                        : kostvPrefetchCancel()
-                                  : null,
-                              onTap: () => all && kostvSongPlayable(song)
-                                  ? _playTop(top, index: i)
-                                  : unawaited(
-                                      openKostvMusicSong(
-                                        context,
-                                        song,
-                                        source: KostvMusicSource.artist,
-                                      ),
-                                    ),
-                              onLongPress: () => unawaited(
-                                showKostvMusicSongMenu(
-                                  context,
-                                  song: song,
-                                  source: KostvMusicSource.artist,
-                                ),
-                              ),
-                            ),
-                        ],
+                    if (canDislike)
+                      (diameter) => KostvRoundButton(
+                        icon: Icons.more_horiz_rounded,
+                        tooltip: l10n.more,
+                        diameter: diameter,
+                        onTap: () => unawaited(_more(l10n, artist.name)),
                       ),
-                    ),
+                  ],
+                )
+              else
+                SizedBox(height: insets.top),
+              const SizedBox(height: 24),
+              if (detail == null && _loading)
+                const Center(
+                  child: CircularProgressIndicator(color: kostvMusicColor),
+                )
+              else if (detail == null)
+                // Kos TV: why, and a button to read it again, which the
+                // remote can reach (with neither picture nor name, the page
+                // has nothing else to go to).
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: insets.left),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _error == null
+                            ? l10n.kostvMusicUnavailable
+                            : kostvStremfinErrorText(
+                                l10n,
+                                _error!,
+                                fallback: l10n.kostvMusicUnavailable,
+                              ),
+                        style: const TextStyle(color: kostvMusicGrey),
+                      ),
+                      const SizedBox(height: 14),
+                      KostvMusicButton(
+                        icon: Icons.refresh_rounded,
+                        label: l10n.retry,
+                        autofocus: PlatformDetection.isTV,
+                        onTap: () => unawaited(_load()),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 30),
+              if (popular != null || latest != null) ...[
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    insets.left - 12,
+                    0,
+                    insets.right - 12,
+                    0,
+                  ),
+                  child: latest == null
+                      ? Align(
+                          alignment: Alignment.centerLeft,
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: form == KostvPageForm.tv
+                                  ? double.infinity
+                                  : 900,
+                            ),
+                            child: popular,
+                          ),
+                        )
+                      : Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: popular ?? const SizedBox.shrink(),
+                            ),
+                            const SizedBox(width: 32),
+                            Expanded(flex: 2, child: latest),
+                          ],
+                        ),
+                ),
+                const SizedBox(height: 30),
+              ],
+              if (detail != null && detail.albums.isNotEmpty) ...[
+                KostvMusicShelf(
+                  title: l10n.kostvMusicDiscography,
+                  insets: insets,
+                  children: [
+                    for (final (i, album) in detail.albums.indexed)
+                      KostvMusicAlbumTile(
+                        // Without songs of theirs, the remote starts here.
+                        autofocus:
+                            i == 0 &&
+                            top.isEmpty &&
+                            !topPlays &&
+                            PlatformDetection.isTV,
+                        title: album.title,
+                        subtitle: album.year?.toString(),
+                        cover: album.cover,
+                        // Kos TV: with «Toda la música», asking for it is
+                        // on its page.
+                        badge: all
+                            ? KostvMusicBadge.none
+                            : kostvMusicBadgeOf(album),
+                        // Kos TV: its ▶ plays it whole, without opening it.
+                        onPlay: kostvStremfinAlbumPlays(album)
+                            ? () => unawaited(
+                                playKostvStremfinAlbum(context, album),
+                              )
+                            : null,
+                        onTap: () =>
+                            unawaited(openKostvStremfinAlbum(context, album)),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 30),
+              ],
+              if (detail != null && detail.related.isNotEmpty)
+                KostvMusicShelf(
+                  title: l10n.kostvMusicSimilar,
+                  insets: insets,
+                  height: KostvMusicSizes.artist + 40,
+                  children: [
+                    for (final other in detail.related)
+                      KostvMusicAlbumTile(
+                        circle: true,
+                        size: KostvMusicSizes.artist,
+                        title: other.name,
+                        cover: other.picture,
+                        onTap: () => openKostvMusicArtist(context, other),
+                      ),
+                  ],
+                ),
             ],
-            if (detail != null && detail.albums.isNotEmpty) ...[
-              KostvMusicShelf(
-                title: l10n.kostvMusicDiscography,
-                insets: insets,
-                children: [
-                  for (final (i, album) in detail.albums.indexed)
-                    KostvMusicAlbumTile(
-                      // Without songs of theirs, the remote starts here.
-                      autofocus:
-                          i == 0 && top.isEmpty && PlatformDetection.isTV,
-                      title: album.title,
-                      subtitle: album.year?.toString(),
-                      cover: album.cover,
-                      // Kos TV: with «Toda la música», asking for it is on
-                      // its page.
-                      badge: all
-                          ? KostvMusicBadge.none
-                          : kostvMusicBadgeOf(album),
-                      onTap: () =>
-                          unawaited(openKostvStremfinAlbum(context, album)),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 30),
-            ],
-            if (detail != null && detail.related.isNotEmpty)
-              KostvMusicShelf(
-                title: l10n.kostvMusicSimilar,
-                insets: insets,
-                height: KostvMusicSizes.artist + 40,
-                children: [
-                  for (final other in detail.related)
-                    KostvMusicAlbumTile(
-                      circle: true,
-                      size: KostvMusicSizes.artist,
-                      title: other.name,
-                      cover: other.picture,
-                      onTap: () => openKostvMusicArtist(context, other),
-                    ),
-                ],
-              ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  /// Kos TV: «Su último disco» (a computer's page, beside «Populares»): the
+  /// newest of their albums, with its ▶.
+  Widget? _latest(StremfinArtistDetail? detail) {
+    if (detail == null || detail.albums.isEmpty) return null;
+    final sorted = [...detail.albums]
+      ..sort((a, b) => (b.releaseDate ?? '').compareTo(a.releaseDate ?? ''));
+    final album =
+        sorted.where((a) => a.kind == StremfinAlbumKind.album).firstOrNull ??
+        sorted.first;
+    final l10n = AppLocalizations.of(context);
+    final kicker = [
+      l10n.kostvMusicKindAlbum,
+      if (album.year != null) '${album.year}',
+    ].join(' · ');
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          KostvShelfHeader(
+            title: l10n.kostvMusicLatestRelease,
+            padding: const EdgeInsets.only(bottom: 14),
+          ),
+          KostvMusicPressable(
+            onTap: () => unawaited(openKostvStremfinAlbum(context, album)),
+            builder: (context, lit) => Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                KostvFocusFrame(
+                  lit: lit,
+                  radius: KostvMusicTokens.radiusCover,
+                  child: KostvMusicCover(url: album.cover, size: 150),
+                ),
+                const SizedBox(width: 18),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        kicker.toUpperCase(),
+                        style: const TextStyle(
+                          color: KostvMusicTokens.muted,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 1.04,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        album.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: KostvMusicType.title(26),
+                      ),
+                      if (album.tracks != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          l10n.kostvMusicTracks(album.tracks!),
+                          style: KostvMusicType.muted(14),
+                        ),
+                      ],
+                      if (kostvStremfinAlbumPlays(album)) ...[
+                        const SizedBox(height: 14),
+                        KostvPlayButton(
+                          diameter: 44,
+                          tooltip: l10n.play,
+                          onTap: () =>
+                              unawaited(playKostvStremfinAlbum(context, album)),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

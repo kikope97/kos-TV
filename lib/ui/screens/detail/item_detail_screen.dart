@@ -3,6 +3,7 @@ import 'dart:async';
 import 'kostv/kostv_detail_buttons.dart';
 import 'kostv/kostv_detail_content.dart';
 import '../music/kostv_home_album_view.dart';
+import '../music/kostv_home_artist_view.dart';
 import '../music/kostv_music_actions.dart'
     show KostvAwayListActions, kostvMusicSay, showKostvMusicSongMenu;
 import '../music/kostv_music_away_actions.dart'
@@ -1036,6 +1037,12 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
         // Kos TV: an album is a record, with its own page.
         DetailScreenStyle.kostv when _viewModel.item?.type == 'MusicAlbum' =>
           KostvHomeAlbumView(
+            viewModel: _viewModel,
+            initialFocusNode: _ensureInitialFocusNode(),
+          ),
+        // Kos TV: an artist too, as the music design's artist page.
+        DetailScreenStyle.kostv when _viewModel.item?.type == 'MusicArtist' =>
+          KostvHomeArtistView(
             viewModel: _viewModel,
             initialFocusNode: _ensureInitialFocusNode(),
           ),

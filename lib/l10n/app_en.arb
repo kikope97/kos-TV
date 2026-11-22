@@ -21482,5 +21482,13 @@
     "kostvMusicAskedNotify": "Asked · we'll let you know",
     "kostvMusicAlreadyHome": "Already at home",
   "kostvEpisodeInfo": "Episode info",
-  "@kostvEpisodeInfo": {"description": "Kos TV: in a series or season page an episode plays when picked; this opens its own page instead (in its menu, held OK or right-click, and the small info button on the card)"}
+  "@kostvEpisodeInfo": {"description": "Kos TV: in a series or season page an episode plays when picked; this opens its own page instead (in its menu, held OK or right-click, and the small info button on the card)"},
+    "kostvMusicColumnTitle": "Title",
+    "kostvMusicColumnLength": "Length",
+    "kostvMusicArtistKicker": "Artist",
+    "kostvMusicPopular": "Popular",
+    "kostvMusicLatestRelease": "Latest release",
+    "kostvMusicAlbumCount": "{count, plural, =1{1 album} other{{count} albums}}",
+    "@kostvMusicAlbumCount": {"description": "Kos TV music design, phase 2: how many albums an artist has, under their name", "placeholders": {"count": {"type": "int"}}},
+    "kostvMusicArtistSongs": "Their songs"
 }
