@@ -1,4 +1,14 @@
-# Plan: actualizaciones de kOS TV desde nuestro servidor (sin depender de GitHub)
+# Actualizaciones de la app por nuestro servidor
+
+## Decisiones del usuario (2026-11-22) — mandan sobre el plan de abajo
+
+- **La familia se actualiza solo por el complemento.** La app **no consulta GitHub** en absoluto (sin respaldo ni importación desde GitHub).
+- **GitHub queda como canal beta del dueño:** sigue compilando APK que él instala a mano para probar. Misma firma, así que se instalan encima.
+- **Versión «puente»:** la última publicada por GitHub como versión normal; las apps actuales la cogen solas y desde ella solo miran el complemento.
+- **Panel del complemento, apartado «Actualizaciones de la app»:** crear una actualización subiendo el APK de la tele y el del móvil con unas notas; el **número de versión se lee del propio APK** (versionName/versionCode); aviso si es menor que la última o si un APK va en el hueco equivocado; **firma comprobada** (la primera fija la huella; otra firma se rechaza); subida por trozos; **«Guardar las últimas N versiones»** (10 por defecto; las viejas se borran solas; un aparato muy atrasado salta a la última); **«Retirar»** una versión (deja de ofrecerse).
+- **Solo Android** (iOS irá por TestFlight; la web, por Docker Compose).
+- **Aparatos nuevos:** el panel da un enlace o QR temporal para descargar el APK desde el servidor.
+
 
 Fecha: 2026-11-22. Es solo un plan: no se ha tocado nada del repositorio.
 
