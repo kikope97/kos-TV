@@ -9,6 +9,27 @@
 - **Fuera lo de «parecido en casa»:** lo que se escucha seguido en casa no decide qué viene después en la radio ni en el ∞.
 - Antes de darla por buena, prueba a ciegas con 24 canciones de estilos distintos.
 
+## Contrato de la emisora (2026-11-22)
+
+Manda sobre la «Opción A» del estudio (que era con Last.fm como fuente principal).
+
+`GET /Moonfin/Kostv/Music/Station?seed=<itemId | stremfin:<DeezerId>>&title=…&artist=…&limit=50&away=true|false`
+(con la sesión de la persona; `title`/`artist` ayudan si la semilla es de fuera).
+
+Respuesta: `{ "Seed": { "Title", "Artist", "Mbid"? }, "Items": [ { "Card": <tarjeta de casa, la misma forma que en Taste/Mixes> | null, "Away": { "Title", "Artist", "Album"?, "DeezerId", "Explicit"? } | null, "Why": "listenbrainz" | "style" | "deezer" | "lastfm" } ], "Source": "listenbrainz" | "lastfm" | "fallback" }`.
+
+- **Receta (gratis):** canciones que la gente escucha junto a la semilla (ListenBrainz, sin clave) → **filtro de estilo**: solo artistas que sean el de la semilla, sus relacionados en Deezer o sus parecidos en ListenBrainz → si faltan, lo más escuchado de esos artistas parecidos → por último, la radio del artista en Deezer. Last.fm `track.getSimilar` se suma solo si hay clave en el panel.
+- **Variedad:** sin dos seguidas del mismo artista y como mucho 2 por artista en 25.
+- **Sin historial de casa:** lo que se escucha seguido en casa no cuenta.
+- **Filtros por persona:** control parental de Jellyfin (lo de casa que no ve, fuera; tampoco por streaming), «No me gusta» (canciones y artistas), explícito para quien tiene límite de edad.
+- **Casar:** primero con casa (MBID de `ProviderIds` o título+artista normalizados); si no está en casa, con Deezer (búsqueda pública) para tener `DeezerId`; sin ninguno, se descarta.
+- **`away=false`** («Solo la de casa»): solo `Card`.
+- **Caché en disco:** respuestas externas 30 días; la emisora calculada de una semilla, 1 día. Ritmo propio: ≤ 2 peticiones/s a cada servicio, ≤ 1/s a MusicBrainz, con User-Agent genérico del complemento.
+- **Panel (opcional, para toda la casa):** token de ListenBrainz y clave de Last.fm. Vacíos, funciona igual.
+- **Errores:** si las fuentes externas no contestan, `Source: "fallback"` con lo que haya (puede venir vacío); `404` en un complemento antiguo → la app usa lo de hoy con los arreglos de la fase 1.
+
+**La app:** «Crear emisora» (menú, ficha, Reproduciendo, artista de fuera) y el ∞ usan `Station`. El ∞ siembra con **la última canción elegida por la persona** (no con las que puso él), pide más cuando quedan pocas y no repite. Sin intercalar una a una casa/fuera: el orden es el de la emisora. Lo de fuera suena como siempre por Stremfin (`listen`).
+
 ## Estudio
 
 
