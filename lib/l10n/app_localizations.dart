@@ -36668,6 +36668,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Which buttons the menu shows'**
   String get kostvMenuButtonsSubtitle;
+
+  /// Kos TV page header (phones and tablets): round glass button that sends what plays to a TV (opens the remote control of the house's TVs)
+  ///
+  /// In en, this message translates to:
+  /// **'Send to TV'**
+  String get kostvMenuSendToTv;
+
+  /// Kos TV «Tú» page: under «Quiero verlo», how many titles are on the list
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 title} other{{count} titles}}'**
+  String kostvMenuTitlesCount(int count);
+
+  /// Kos TV «Más» sheet (phones): short name of the requests tray on its tile
+  ///
+  /// In en, this message translates to:
+  /// **'Requests'**
+  String get kostvMenuRequestsShort;
 }
 
 class _AppLocalizationsDelegate

@@ -23,9 +23,15 @@ class NavCapsule extends StatefulWidget {
     this.axis = Axis.horizontal,
     this.radius = 999,
     this.color = Colors.white,
+    this.flat = false,
   });
 
   final Widget child;
+
+  /// Kos TV: the look of the approved menu (docs/diseno-menu, `.tab.f`): a
+  /// flat capsule with a thin light along its top and a deep soft shadow,
+  /// instead of the lit glass one.
+  final bool flat;
 
   /// The way the buttons are laid out, and so the way the capsule travels.
   final Axis axis;
@@ -164,7 +170,23 @@ class NavCapsuleState extends State<NavCapsule>
     final box = _boxOf(button);
     if (now == null || box == null) return null;
     if (!now.outerRect.overlaps(box)) return null;
-    return now.shift(-box.topLeft);
+    // Kos TV: the button can be drawn bigger than it is laid out (the TV's
+    // focused tab grows a little): the shape back in its own coordinates.
+    final render = button.findRenderObject();
+    final size = render is RenderBox && render.hasSize ? render.size : null;
+    if (size == null || size.width <= 0 || box.width <= 0) {
+      return now.shift(-box.topLeft);
+    }
+    final kx = size.width / box.width;
+    final ky = size.height / box.height;
+    final r = now.outerRect;
+    return RRect.fromLTRBR(
+      (r.left - box.left) * kx,
+      (r.top - box.top) * ky,
+      (r.right - box.left) * kx,
+      (r.bottom - box.top) * ky,
+      Radius.circular(now.tlRadiusX * ky),
+    );
   }
 
   /// Whether a button of the menu has it (the menu is in use).
@@ -220,7 +242,11 @@ class NavCapsuleState extends State<NavCapsule>
       return null;
     }
     try {
-      return box.localToGlobal(Offset.zero, ancestor: me) & box.size;
+      // As drawn: a button that grows when focused takes it grown.
+      return MatrixUtils.transformRect(
+        box.getTransformTo(me),
+        Offset.zero & box.size,
+      );
     } catch (_) {
       // Somewhere between them is not laid out yet; next frame.
       return null;
@@ -376,6 +402,29 @@ class _CapsulePainter extends CustomPainter {
     final rect = shape.outerRect;
     final radius = shape.tlRadiusX;
     final color = capsule.widget.color;
+
+    if (capsule.widget.flat) {
+      // box-shadow: 0 10px 30px rgba(0,0,0,.55).
+      canvas.drawRRect(
+        shape.shift(const Offset(0, 10)),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.55 * o)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 15),
+      );
+      canvas.drawRRect(shape, Paint()..color = color.withValues(alpha: o));
+      // inset 0 1px 0 rgba(255,255,255,.9): a hairline of light on top.
+      canvas.save();
+      canvas.clipRRect(shape);
+      canvas.drawRRect(
+        shape.shift(const Offset(0, 1)),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2
+          ..color = Colors.white.withValues(alpha: 0.9 * o),
+      );
+      canvas.restore();
+      return;
+    }
 
     // A soft shadow lifts it off the bar.
     canvas.drawRRect(

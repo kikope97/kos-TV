@@ -1,9 +1,13 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/gallery_detail.dart';
 import '../../../data/models/media_bar_slide_item.dart';
 import '../bounded_network_image.dart';
+import '../kostv_menu/kostv_page_header.dart';
+import '../navigation_layout.dart';
 import 'gallery_active_card.dart';
 import 'gallery_glow.dart';
 
@@ -59,7 +63,11 @@ class GalleryLayout extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final totalHeight = constraints.maxHeight;
-        final topMargin = totalHeight * 0.09;
+        // Kos TV: under the menu's large header («Inicio») on the glass
+        // bar's pages.
+        final topMargin = NavigationLayout.usesBottomNavbar
+            ? math.max(totalHeight * 0.09, KostvPageHeader.room(context))
+            : totalHeight * 0.09;
         final bottomMargin = totalHeight * 0.03;
         final barHeight = totalHeight - topMargin - bottomMargin;
 

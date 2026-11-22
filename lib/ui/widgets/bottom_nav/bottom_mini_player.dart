@@ -14,8 +14,6 @@ import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
 import '../adaptive/sf_symbol.dart';
 import '../music/design/kostv_music_tokens.dart';
-import '../music/design/kostv_play_button.dart';
-import '../music/kostv_now_playing_capsule.dart' show KostvCapsuleHeart;
 import '../music/kostv_now_playing.dart';
 import '../offline_aware_image.dart';
 
@@ -35,14 +33,19 @@ enum BottomMiniPlayerVariant {
 /// show it, or nothing does).
 bool bottomMiniPlayerHasTrack() => KostvNowPlaying.instance.item != null;
 
-/// Kos TV: the music that sounds, in the glass bar (docs/diseno-menu): the
-/// cover, the song and the artist, ♥, the brand's play button and «next»,
-/// with the progress in the gradient along its foot. The bar puts it on its
-/// own glass ([KostvGlass]).
+/// Kos TV: the music that sounds, in the glass bar (docs/diseno-menu, the
+/// accessory `.acc`): the cover, the song and the artist, plain white pause
+/// and «next», with a thin line of progress in the gradient along its foot.
+/// The bar puts it on its own glass ([KostvGlass]); gathered, the same piece
+/// sits between the page's tab and Search.
 class BottomMiniPlayer extends StatefulWidget {
   final BottomMiniPlayerVariant variant;
 
-  const BottomMiniPlayer({super.key, required this.variant});
+  /// The accessory's height: 54 on the phone, 56 on a tablet, 60 on a
+  /// computer.
+  final double height;
+
+  const BottomMiniPlayer({super.key, required this.variant, this.height = 54});
 
   @override
   State<BottomMiniPlayer> createState() => _BottomMiniPlayerState();
@@ -94,15 +97,14 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
       return const SizedBox.shrink();
     }
 
-    final variant = widget.variant;
     final l10n = AppLocalizations.of(context);
     final playing = _manager.state.isPlaying;
     final artist = item.artists.isNotEmpty
         ? item.artists.join(', ')
         : item.albumArtist ?? '';
-    final compact = variant == BottomMiniPlayerVariant.inline;
-    // Kos TV: the glass accessory: the cover with rounded corners.
-    final artSize = compact ? 38.0 : 40.0;
+    // The cover is the accessory's height less 14 (40 on the phone's 54).
+    final height = widget.height;
+    final artSize = height - 14;
 
     final row = Row(
       children: [
@@ -111,7 +113,7 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
           size: artSize,
           color: KostvMusicTokens.ink,
         ),
-        SizedBox(width: compact ? 10 : 12),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -121,9 +123,9 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
                 item.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: const TextStyle(
                   color: KostvMusicTokens.ink,
-                  fontSize: compact ? 13 : 14,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                   height: 1.2,
                   decoration: TextDecoration.none,
@@ -138,7 +140,7 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: KostvMusicTokens.ink.withValues(alpha: 0.7),
-                    fontSize: compact ? 11.5 : 12,
+                    fontSize: 12,
                     fontWeight: FontWeight.w400,
                     height: 1.2,
                     decoration: TextDecoration.none,
@@ -148,39 +150,24 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
             ],
           ),
         ),
-        // Kos TV: the song's ♥, as in the floating player.
-        if (!compact) KostvCapsuleHeart(item: item),
-        // Kos TV: the music design's one play button (the brand's).
-        Tooltip(
-          message: playing ? l10n.pause : l10n.play,
-          child: Semantics(
-            button: true,
-            label: playing ? l10n.pause : l10n.play,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: playing ? _manager.pause : _manager.resume,
-              child: SizedBox(
-                width: 44,
-                height: 44,
-                child: Center(
-                  child: KostvPlayFace(
-                    diameter: compact ? 34 : 40,
-                    pause: playing,
-                  ),
-                ),
-              ),
-            ),
-          ),
+        const SizedBox(width: 10),
+        // Kos TV: plain white pause and «next», 26 px, 8 px apart.
+        _TransportButton(
+          icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
+          tooltip: playing ? l10n.pause : l10n.play,
+          color: Colors.white,
+          onPressed: playing ? _manager.pause : _manager.resume,
         ),
-        if (!compact)
-          _TransportButton(
-            icon: Icons.skip_next_rounded,
-            tooltip: l10n.next,
-            color: KostvMusicTokens.ink,
-            // Kos TV: a skip the person chose, which «Al acabar la
-            // canción» mustn't pause.
-            onPressed: KostvNowPlaying.instance.next,
-          ),
+        const SizedBox(width: 8),
+        _TransportButton(
+          icon: Icons.skip_next_rounded,
+          tooltip: l10n.next,
+          color: Colors.white,
+          // Kos TV: a skip the person chose, which «Al acabar la
+          // canción» mustn't pause.
+          onPressed: KostvNowPlaying.instance.next,
+        ),
+        const SizedBox(width: 6),
         // Kos TV: the music design's capsule has no ✕: it is swiped away
         // (sideways) to stop the music, as before.
       ],
@@ -193,7 +180,7 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
     final Widget body = Stack(
       children: [
         Padding(
-          padding: EdgeInsetsDirectional.fromSTEB(7, 0, compact ? 4 : 6, 0),
+          padding: const EdgeInsetsDirectional.fromSTEB(7, 0, 8, 0),
           child: row,
         ),
         PositionedDirectional(start: 22, end: 22, bottom: 3, child: progress),
@@ -285,14 +272,21 @@ class _TransportButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
-      child: InkResponse(
-        onTap: onPressed,
-        radius: 24,
-        child: Container(
-          width: 44,
-          height: 44,
-          alignment: Alignment.center,
-          child: AdaptiveIcon(icon, size: 24, color: color),
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        excludeSemantics: true,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onPressed,
+          child: SizedBox(
+            width: 26,
+            height: 44,
+            child: OverflowBox(
+              maxWidth: 26,
+              child: AdaptiveIcon(icon, size: 26, color: color),
+            ),
+          ),
         ),
       ),
     );

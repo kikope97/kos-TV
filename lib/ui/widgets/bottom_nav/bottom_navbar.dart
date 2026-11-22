@@ -24,19 +24,32 @@ import 'bottom_nav_model.dart';
 class BottomNavInsetScope extends InheritedWidget {
   final double height;
 
+  /// Kos TV: the page is one the bar leads to, whose tab tapped again takes
+  /// it back to its top (so it needs no floating button for that, which
+  /// would sit on the gathered bar).
+  final bool tabReturnsToTop;
+
   const BottomNavInsetScope({
     super.key,
     required this.height,
+    this.tabReturnsToTop = false,
     required super.child,
   });
 
-  static double? maybeOf(BuildContext context) => context
-      .dependOnInheritedWidgetOfExactType<BottomNavInsetScope>()
-      ?.height;
+  static double? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<BottomNavInsetScope>()?.height;
+
+  /// Whether the page's tab takes it back to its top.
+  static bool returnsToTop(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<BottomNavInsetScope>()
+          ?.tabReturnsToTop ??
+      false;
 
   @override
   bool updateShouldNotify(BottomNavInsetScope oldWidget) =>
-      height != oldWidget.height;
+      height != oldWidget.height ||
+      tabReturnsToTop != oldWidget.tabReturnsToTop;
 }
 
 /// How much of the bottom of the screen is covered. That's the bottom navbar
@@ -99,6 +112,13 @@ class BottomNavbar extends StatefulWidget {
   /// Asks the layout to open the gathered bar again.
   final VoidCallback? onExpand;
 
+  /// Takes the page back to its top (its tab tapped again).
+  final VoidCallback? onScrollToTop;
+
+  /// Kos TV: a page with a search of its own (Música), by route: the round
+  /// Search button opens it there.
+  static final pageSearch = <String, VoidCallback>{};
+
   const BottomNavbar({
     super.key,
     this.activeRoute,
@@ -106,6 +126,7 @@ class BottomNavbar extends StatefulWidget {
     this.header,
     this.minimized,
     this.onExpand,
+    this.onScrollToTop,
   });
 
   /// Room the bar takes along the bottom of the screen, system inset and mini
@@ -114,6 +135,7 @@ class BottomNavbar extends StatefulWidget {
       BottomNavMetrics.heightFor(
         bottomInset: MediaQuery.paddingOf(context).bottom,
         miniPlayer: miniPlayer ?? bottomMiniPlayerHasTrack(),
+        tablet: BottomNavMetrics.isTablet(MediaQuery.sizeOf(context)),
       );
 
   @override
@@ -165,6 +187,10 @@ class _BottomNavbarState extends State<BottomNavbar> {
   void _onTap(BottomNavBarItem item) {
     final route = widget.activeRoute ?? '';
     HapticFeedback.selectionClick();
+    final items = _menu.barItems();
+    if (activeBarIndex(items, widget.activeRoute) == items.indexOf(item)) {
+      widget.onScrollToTop?.call();
+    }
     switch (item.kind) {
       case BottomNavItemKind.home:
         openBottomNavHome(context, alreadyHome: route == Destinations.home);
@@ -181,6 +207,11 @@ class _BottomNavbarState extends State<BottomNavbar> {
 
   void _onSearch() {
     HapticFeedback.selectionClick();
+    final own = BottomNavbar.pageSearch[widget.activeRoute];
+    if (own != null) {
+      own();
+      return;
+    }
     if (widget.activeRoute != Destinations.search) {
       openBottomNavPage(context, Destinations.search);
     }
@@ -227,9 +258,13 @@ class _BottomNavbarState extends State<BottomNavbar> {
     final padding = MediaQuery.paddingOf(context);
     final size = MediaQuery.sizeOf(context);
     final tablet = BottomNavMetrics.isTablet(size);
-    final horizontalInset =
-        padding.left > padding.right ? padding.left : padding.right;
-    final bottom = BottomNavMetrics.floatingBottomGap(padding.bottom);
+    final horizontalInset = padding.left > padding.right
+        ? padding.left
+        : padding.right;
+    final bottom = BottomNavMetrics.floatingBottomGap(
+      padding.bottom,
+      tablet: tablet,
+    );
 
     Widget bar(bool minimized) => _GlassBarRow(
       items: items,
@@ -336,14 +371,20 @@ class _GlassBarRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gathered = minimized && tabsVisible;
+    // The accessory: 54 high on a phone, 56 on a tablet; gathered, as high
+    // as the circles beside it.
+    final accessory = gathered
+        ? BottomNavMetrics.collapsedSize
+        : tablet
+        ? BottomNavMetrics.tabletAccessoryHeight
+        : BottomNavMetrics.accessoryHeight;
     final player = hasTrack
         ? KostvGlass(
             key: const ValueKey('kostvBarPlayer'),
             child: SizedBox(
-              height: gathered
-                  ? BottomNavMetrics.collapsedSize
-                  : BottomNavMetrics.accessoryHeight,
+              height: accessory,
               child: BottomMiniPlayer(
+                height: accessory,
                 variant: gathered
                     ? BottomMiniPlayerVariant.inline
                     : BottomMiniPlayerVariant.capsule,
@@ -353,35 +394,48 @@ class _GlassBarRow extends StatelessWidget {
         : null;
 
     if (gathered) {
+      // compactBar(): the page's tab in a circle, the music, Search; 8 px
+      // apart.
       const s = BottomNavMetrics.collapsedSize;
       final index = active ?? 0;
       final item = items[index];
       return Row(
         key: const ValueKey('kostvBarGathered'),
         children: [
-          _RoundGlassButton(
+          KostvGlassRoundButton(
             key: const ValueKey('kostvBarGatheredTab'),
             size: s,
             label: labelOf(item),
             onTap: onExpand,
-            child: iconOf(item, true, 25, KostvMusicTokens.ink),
+            child: iconOf(item, true, 25, Colors.white),
           ),
           const SizedBox(width: 8),
           Expanded(child: player ?? const SizedBox.shrink()),
           const SizedBox(width: 8),
-          _RoundGlassButton(
+          KostvGlassRoundButton(
             size: s,
             label: searchLabel,
             onTap: onSearch,
             child: AdaptiveIcon(
               Icons.search_rounded,
               size: 25,
-              color: KostvMusicTokens.ink,
+              color: Colors.white,
             ),
           ),
         ],
       );
     }
+
+    Widget tab(int i) => _GlassTab(
+      key: ValueKey('kostvBarTab-${items[i].id}'),
+      label: labelOf(items[i]),
+      active: i == active,
+      tablet: tablet,
+      icon: (on, size, color) => iconOf(items[i], on, size, color),
+      hint: items[i].kind == BottomNavItemKind.you ? youHint : null,
+      onTap: () => onTap(i),
+      onLongPress: items[i].kind == BottomNavItemKind.you ? onMore : null,
+    );
 
     final tabs = Row(
       children: [
@@ -391,35 +445,28 @@ class _GlassBarRow extends StatelessWidget {
               height: BottomNavMetrics.barHeight,
               child: Padding(
                 padding: const EdgeInsets.all(5),
-                child: Row(
-                  children: [
-                    for (var i = 0; i < items.length; i++)
-                      Expanded(
-                        child: _GlassTab(
-                          key: ValueKey('kostvBarTab-${items[i].id}'),
-                          label: labelOf(items[i]),
-                          active: i == active,
-                          tablet: tablet,
-                          icon: (on, size, color) =>
-                              iconOf(items[i], on, size, color),
-                          hint: items[i].kind == BottomNavItemKind.you
-                              ? youHint
-                              : null,
-                          onTap: () => onTap(i),
-                          onLongPress:
-                              items[i].kind == BottomNavItemKind.you
-                              ? onMore
-                              : null,
-                        ),
+                // A phone shares the bar out; a tablet's tabs keep to their
+                // size, spread along it.
+                child: tablet
+                    ? Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          for (var i = 0; i < items.length; i++)
+                            Flexible(child: tab(i)),
+                        ],
+                      )
+                    : Row(
+                        children: [
+                          for (var i = 0; i < items.length; i++)
+                            Expanded(child: tab(i)),
+                        ],
                       ),
-                  ],
-                ),
               ),
             ),
           ),
         ),
         const SizedBox(width: BottomNavMetrics.gap),
-        _RoundGlassButton(
+        KostvGlassRoundButton(
           key: const ValueKey('kostvBarSearch'),
           size: BottomNavMetrics.barHeight,
           label: searchLabel,
@@ -429,7 +476,7 @@ class _GlassBarRow extends StatelessWidget {
             Icons.search_rounded,
             size: 26,
             color: searchActive
-                ? KostvMusicTokens.ink
+                ? Colors.white
                 : KostvMusicTokens.ink.withValues(alpha: 0.9),
           ),
         ),
@@ -442,7 +489,9 @@ class _GlassBarRow extends StatelessWidget {
       children: [
         if (player != null) ...[
           player,
-          const SizedBox(height: BottomNavMetrics.gap),
+          SizedBox(
+            height: tablet ? BottomNavMetrics.tabletGap : BottomNavMetrics.gap,
+          ),
         ],
         AnimatedOpacity(
           opacity: tabsVisible ? 1 : 0,
@@ -484,28 +533,30 @@ class _GlassTab extends StatelessWidget {
         : KostvMusicTokens.ink.withValues(alpha: 0.78);
     // Names share a narrow cell, so a large text setting shrinks them to fit
     // rather than pushing the icon out of the bar.
-    final textScaler = MediaQuery.textScalerOf(
-      context,
-    ).clamp(maxScaleFactor: 1.15);
+    final textScaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: 1.15);
     final text = Text(
       label,
       maxLines: 1,
       textScaler: textScaler,
       style: TextStyle(
         color: color,
-        fontSize: tablet ? 14 : 10.5,
-        height: 1.1,
+        fontSize: tablet ? 14.5 : 10.5,
+        height: 1.15,
         fontWeight: active ? FontWeight.w700 : FontWeight.w500,
         decoration: TextDecoration.none,
       ),
     );
+    // .tbi.t: icon and name in a line, 8 px apart, 18 px in from the pill.
     final face = tablet
         ? Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              icon(active, 22, color),
-              const SizedBox(width: 7),
-              Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: text)),
+              icon(active, BottomNavMetrics.iconSize, color),
+              const SizedBox(width: 8),
+              Flexible(
+                child: FittedBox(fit: BoxFit.scaleDown, child: text),
+              ),
             ],
           )
         : Column(
@@ -527,95 +578,30 @@ class _GlassTab extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         onLongPress: onLongPress,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (active)
-              Positioned.fill(
-                child: tablet
-                    ? Center(
-                        child: SizedBox(
-                          height: 52,
-                          child: _PillAround(child: face),
-                        ),
-                      )
-                    : const KostvActivePill(),
-              ),
-            if (!(active && tablet))
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 2),
-                child: face,
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The tablet's active pill, hugging the tab's icon and name.
-class _PillAround extends StatelessWidget {
-  const _PillAround({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        const Positioned.fill(child: KostvActivePill()),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 18),
-          child: Center(widthFactor: 1, child: child),
-        ),
-      ],
-    );
-  }
-}
-
-/// A round glass button: Search, and the gathered bar's tab.
-class _RoundGlassButton extends StatelessWidget {
-  const _RoundGlassButton({
-    super.key,
-    required this.size,
-    required this.label,
-    required this.child,
-    this.onTap,
-    this.selected = false,
-  });
-
-  final double size;
-  final String label;
-  final Widget child;
-  final VoidCallback? onTap;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: label,
-      excludeSemantics: true,
-      child: Tooltip(
-        message: label,
-        excludeFromSemantics: true,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
-          child: SizedBox(
-            width: size,
-            height: size,
-            child: KostvGlass(
-              child: Stack(
+        child: tablet
+            ? SizedBox(
+                height: 52,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (active) const Positioned.fill(child: KostvActivePill()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      child: face,
+                    ),
+                  ],
+                ),
+              )
+            : Stack(
+                alignment: Alignment.center,
                 children: [
-                  if (selected) const Positioned.fill(child: KostvActivePill()),
-                  Center(child: child),
+                  if (active) const Positioned.fill(child: KostvActivePill()),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: face,
+                  ),
                 ],
               ),
-            ),
-          ),
-        ),
       ),
     );
   }

@@ -794,6 +794,7 @@ class _HomeShellState extends State<_HomeShell>
               !PlatformDetection.isTV,
           child: NavigationLayout(
             activeRoute: Destinations.home,
+            largeHeader: true,
             child: QuickReturnWrapper(
               isAtStart: _isScrolledToTopNotifier,
               onReturn: () => _contentRowsKey.currentState?.returnToTop(),
@@ -4941,7 +4942,12 @@ class _ContentRowsState extends State<_ContentRows>
         (navbarIsLeft && !PlatformDetection.useMobileUi
             ? 56.0
             : tvTopNavbarInset) +
-        (!PlatformDetection.useMobileUi ? 16.0 : 0.0);
+        (!PlatformDetection.useMobileUi ? 16.0 : 0.0) +
+        // Kos TV: a tablet's rows start 32 px in, as its header (tableta_*).
+        (PlatformDetection.useMobileUi &&
+                MediaQuery.sizeOf(context).shortestSide >= 600
+            ? 16.0
+            : 0.0);
     final infoTopBasePadding =
         (!PlatformDetection.useMobileUi && navbarHeight == 0) ? 14.0 : 8.0;
     final infoTopPadding = safeTop + navbarHeight + infoTopBasePadding;

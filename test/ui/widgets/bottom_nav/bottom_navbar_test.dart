@@ -24,26 +24,41 @@ void main() {
   tearDown(tearDownBottomNav);
 
   Finder tab(String id) => find.byKey(ValueKey('kostvBarTab-$id'));
+  // The bar's own words (the page's header names the page too).
+  Finder inBar(String text) =>
+      find.descendant(of: find.byType(BottomNavbar), matching: find.text(text));
   final search = find.byKey(const ValueKey('kostvBarSearch'));
 
   group('heights', () {
     test('the bar, its float above the edge and the mini player', () {
+      // 24 px above the edge (the mockup's), or just over the system's
+      // own inset where that is taller.
       expect(
         BottomNavMetrics.heightFor(bottomInset: 34, miniPlayer: false),
-        62 + 34 + 8,
+        62 + 34 + 4,
       );
       expect(
         BottomNavMetrics.heightFor(bottomInset: 0, miniPlayer: false),
-        62 + 16,
+        62 + 24,
       );
       expect(
         BottomNavMetrics.heightFor(bottomInset: 0, miniPlayer: true),
-        62 + 16 + 54 + 10,
+        62 + 24 + 54 + 10,
+      );
+      // A tablet: 26 above the edge, a 56 high player 12 above the bar.
+      expect(
+        BottomNavMetrics.heightFor(
+          bottomInset: 0,
+          miniPlayer: true,
+          tablet: true,
+        ),
+        62 + 26 + 56 + 12,
       );
     });
 
-    testWidgets('the content under the bar is told how much it covers',
-        (tester) async {
+    testWidgets('the content under the bar is told how much it covers', (
+      tester,
+    ) async {
       usePhoneView(tester);
       double? seen;
       await tester.pumpWidget(
@@ -57,12 +72,13 @@ void main() {
         ),
       );
       await tester.pump();
-      expect(seen, 62 + 16);
+      expect(seen, 62 + 24);
     });
   });
 
-  testWidgets('Inicio, the bar\'s tabs and Tú, named, with Search apart',
-      (tester) async {
+  testWidgets('Inicio, the bar\'s tabs and Tú, named, with Search apart', (
+    tester,
+  ) async {
     usePhoneView(tester);
     await tester.pumpWidget(bottomNavApp());
     await tester.pump();
@@ -71,7 +87,7 @@ void main() {
     // next destination take its place (no library on the fake server, so
     // Genres).
     for (final label in ['Home', 'Music', 'Genres', 'You']) {
-      expect(find.text(label), findsOneWidget, reason: label);
+      expect(inBar(label), findsOneWidget, reason: label);
     }
     expect(tab('home'), findsOneWidget);
     expect(tab('you'), findsOneWidget);
@@ -86,8 +102,9 @@ void main() {
     expect(find.text('My favourites'), findsNothing);
   });
 
-  testWidgets('the page on screen sits in the pill with the gradient rim',
-      (tester) async {
+  testWidgets('the page on screen sits in the pill with the gradient rim', (
+    tester,
+  ) async {
     usePhoneView(tester);
     await tester.pumpWidget(bottomNavApp());
     await tester.pump();
@@ -113,7 +130,30 @@ void main() {
     expect(find.text('A Song'), findsOneWidget);
     expect(
       tester.getBottomLeft(player).dy,
-      lessThan(tester.getTopLeft(find.text('Home')).dy),
+      lessThan(tester.getTopLeft(tab('home')).dy),
+    );
+    // The accessory: plain pause and next, no heart nor round play button.
+    // Not playing in the fake: the plain «play» in the pause's place.
+    expect(
+      find.descendant(
+        of: player,
+        matching: find.byIcon(Icons.play_arrow_rounded),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: player,
+        matching: find.byIcon(Icons.skip_next_rounded),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: player,
+        matching: find.byIcon(Icons.favorite_border_rounded),
+      ),
+      findsNothing,
     );
     expect(
       tester.widget<BottomMiniPlayer>(player).variant,
@@ -121,8 +161,9 @@ void main() {
     );
   });
 
-  testWidgets('gathered: the page\'s tab, the music and Search in a row',
-      (tester) async {
+  testWidgets('gathered: the page\'s tab, the music and Search in a row', (
+    tester,
+  ) async {
     usePhoneView(tester);
     playback.queueService.setQueue([testTrack]);
     final minimized = ValueNotifier<bool>(true);
@@ -155,17 +196,15 @@ void main() {
       BottomMiniPlayerVariant.inline,
     );
     final circle = find.byKey(const ValueKey('kostvBarGatheredTab'));
-    expect(
-      tester.getCenter(circle).dx,
-      lessThan(tester.getCenter(player).dx),
-    );
+    expect(tester.getCenter(circle).dx, lessThan(tester.getCenter(player).dx));
 
     await tester.tap(circle);
     expect(expanded, 1);
   });
 
-  testWidgets('hidden chrome drops the tabs and keeps the player',
-      (tester) async {
+  testWidgets('hidden chrome drops the tabs and keeps the player', (
+    tester,
+  ) async {
     usePhoneView(tester);
     playback.queueService.setQueue([testTrack]);
     await tester.pumpWidget(bottomNavApp(chrome: false));
@@ -174,7 +213,10 @@ void main() {
     expect(find.byType(BottomMiniPlayer), findsOneWidget);
     final opacity = tester.widget<AnimatedOpacity>(
       find
-          .ancestor(of: find.text('Home'), matching: find.byType(AnimatedOpacity))
+          .ancestor(
+            of: find.text('Home'),
+            matching: find.byType(AnimatedOpacity),
+          )
           .first,
     );
     expect(opacity.opacity, 0);
@@ -191,12 +233,14 @@ void main() {
     expect(find.text('More'), findsOneWidget);
     expect(find.text('Switch person'), findsOneWidget);
     expect(find.text('Settings'), findsOneWidget);
-    // What isn't on the bar: Libraries waits for a library to exist.
-    expect(find.text('My favourites'), findsOneWidget);
+    // The places that aren't on the bar (movil_cristal_hoja); what is each
+    // person's (their favourites) is on the «Tú» page.
+    expect(find.text('My favourites'), findsNothing);
   });
 
-  testWidgets('a tablet\'s bar is compact and centred, names beside icons',
-      (tester) async {
+  testWidgets('a tablet\'s bar is compact and centred, names beside icons', (
+    tester,
+  ) async {
     usePhoneView(tester, size: const Size(834, 1194));
     playback.queueService.setQueue([testTrack]);
     await tester.pumpWidget(bottomNavApp());
@@ -211,17 +255,19 @@ void main() {
     // Centred: as much room on either side of the bar and Search together.
     expect(bar.left, closeTo(834 - searchRect.right, 0.5));
     // Icon and name side by side.
-    final homeLabel = tester.getCenter(find.text('Home'));
+    final homeLabel = tester.getCenter(inBar('Home'));
     final homeIcon = tester.getCenter(
       find.descendant(of: tab('home'), matching: find.byType(Icon)).first,
     );
     expect(homeLabel.dy, closeTo(homeIcon.dy, 2));
     // The mini player above, as wide as the bar and Search.
     final player = tester.getRect(
-      find.ancestor(
-        of: find.byType(BottomMiniPlayer),
-        matching: find.byType(KostvGlass),
-      ).first,
+      find
+          .ancestor(
+            of: find.byType(BottomMiniPlayer),
+            matching: find.byType(KostvGlass),
+          )
+          .first,
     );
     expect(player.width, closeTo(searchRect.right - bar.left, 0.5));
   });
@@ -244,8 +290,9 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('a TV and a computer have the bar of tabs at the top instead',
-      (tester) async {
+  testWidgets('a TV and a computer have the bar of tabs at the top instead', (
+    tester,
+  ) async {
     PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
     tester.view.physicalSize = const Size(1440, 900);
     tester.view.devicePixelRatio = 1;
@@ -254,5 +301,54 @@ void main() {
     await tester.pump();
     expect(find.byType(BottomNavbar), findsNothing);
     expect(find.byType(TopToolbar), findsOneWidget);
+  });
+
+  testWidgets('the page\'s large header: its name, then small as it scrolls', (
+    tester,
+  ) async {
+    usePhoneView(tester);
+    final scroll = ScrollController();
+    addTearDown(scroll.dispose);
+    await tester.pumpWidget(
+      bottomNavApp(
+        largeHeader: true,
+        child: ListView(
+          controller: scroll,
+          children: [for (var i = 0; i < 40; i++) SizedBox(height: 80)],
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final large = find.byKey(const ValueKey('kostvPageHeaderLarge'));
+    expect(large, findsOneWidget);
+    expect(
+      find.descendant(of: large, matching: find.text('Home')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('kostvPageHeaderSmall')), findsNothing);
+
+    scroll.jumpTo(300);
+    await tester.pump();
+    expect(large, findsNothing);
+    final small = find.byKey(const ValueKey('kostvPageHeaderSmall'));
+    expect(
+      find.descendant(of: small, matching: find.text('Home')),
+      findsOneWidget,
+    );
+
+    // Tapping the page's own tab takes it back to the top.
+    await tester.tap(tab('home'));
+    await tester.pumpAndSettle();
+    expect(scroll.offset, 0);
+    expect(large, findsOneWidget);
+  });
+
+  testWidgets('a page opened inside one (an album in Música) has no large '
+      'header', (tester) async {
+    usePhoneView(tester);
+    await tester.pumpWidget(bottomNavApp(activeRoute: '/musica'));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('kostvPageHeaderLarge')), findsNothing);
   });
 }

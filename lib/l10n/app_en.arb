@@ -21408,5 +21408,11 @@
     "kostvMenuYouHint": "Long press for «More»",
     "@kostvMenuYouHint": {"description": "Kos TV phone glass bar: screen reader hint on «Tú»: a long press opens the «Más» sheet"},
     "kostvMenuButtonsSubtitle": "Which buttons the menu shows",
-    "@kostvMenuButtonsSubtitle": {"description": "Kos TV Settings > Appearance: under «Barra de navegación», which now only holds the switches of the menu's buttons (the menu itself has one design)"}
+    "@kostvMenuButtonsSubtitle": {"description": "Kos TV Settings > Appearance: under «Barra de navegación», which now only holds the switches of the menu's buttons (the menu itself has one design)"},
+    "kostvMenuSendToTv": "Send to TV",
+    "@kostvMenuSendToTv": {"description": "Kos TV page header (phones and tablets): round glass button that sends what plays to a TV (opens the remote control of the house's TVs)"},
+    "kostvMenuTitlesCount": "{count, plural, =1{1 title} other{{count} titles}}",
+    "@kostvMenuTitlesCount": {"description": "Kos TV «Tú» page: under «Quiero verlo», how many titles are on the list", "placeholders": {"count": {"type": "int"}}},
+    "kostvMenuRequestsShort": "Requests",
+    "@kostvMenuRequestsShort": {"description": "Kos TV «Más» sheet (phones): short name of the requests tray on its tile"}
 }
