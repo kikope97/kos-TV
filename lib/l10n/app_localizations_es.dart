@@ -21606,7 +21606,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvAwayAddedAskAlbum =>
-      'Añadida. ¿Pedir el álbum para tenerla en casa?';
+      'Añadida a la lista. ¿Pedir el álbum para tenerla en casa?';
 
   @override
   String get kostvAwayAdded => 'Añadida a la lista';
@@ -21625,4 +21625,16 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvAwayFavoritesFull =>
       'Ya tienes 2000 favoritas que no están en casa: quita alguna para añadir más';
+
+  @override
+  String get kostvAwayLovedAskAlbum =>
+      'Añadida a tus favoritas. ¿Pedir el álbum para tenerla en casa?';
+
+  @override
+  String get kostvAwayNoneAtHome =>
+      'Ninguna de estas canciones está en casa: con «Solo la de casa» no suenan';
+
+  @override
+  String get kostvAwayLoadFailed =>
+      'No se han podido cargar las canciones que no están en casa';
 }

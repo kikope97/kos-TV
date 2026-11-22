@@ -1179,34 +1179,82 @@ class KostvMusicPlugin {
     );
   }
 
+  /// Kos TV: what came of a change to a playlist's songs that aren't at
+  /// home (a 403: the person can't change it).
+  static KostvAwayEdit _edit(
+    ({bool ok, bool missing, Object? data, int? status}) reply,
+  ) => reply.status == 403
+      ? KostvAwayEdit.forbidden
+      : reply.ok
+      ? KostvAwayEdit.done
+      : KostvAwayEdit.failed;
+
   /// Takes the out-of-home song [deezerId] out of the playlist.
-  Future<bool> removeAwayFromPlaylist(
+  Future<KostvAwayEdit> removeAwayFromPlaylist(
     MediaServerClient client,
     String playlistId,
     String deezerId,
   ) async {
-    if (playlistId.isEmpty || deezerId.isEmpty) return false;
+    if (playlistId.isEmpty || deezerId.isEmpty) return KostvAwayEdit.failed;
     final route =
         '${_playlistRoute(playlistId)}/${Uri.encodeComponent(deezerId)}';
-    return (await _call(client, 'DELETE', route, keepMissing: false)).ok;
+    return _edit(
+      await _call(
+        client,
+        'DELETE',
+        route,
+        answers: const {403},
+        keepMissing: false,
+      ),
+    );
   }
 
   /// The whole order of the playlist [playlistId] ([ids]: Jellyfin's and
   /// `stremfin:<DeezerId>`), for the plugin to place its songs again.
-  Future<bool> orderAwayPlaylist(
+  Future<KostvAwayEdit> orderAwayPlaylist(
     MediaServerClient client,
     String playlistId,
     List<String> ids,
   ) async {
-    if (playlistId.isEmpty || ids.isEmpty) return false;
+    if (playlistId.isEmpty || ids.isEmpty) return KostvAwayEdit.failed;
+    return _edit(
+      await _call(
+        client,
+        'POST',
+        '${_playlistRoute(playlistId)}/Order',
+        body: {'Ids': ids},
+        answers: const {403},
+        keepMissing: false,
+      ),
+    );
+  }
+
+  /// Kos TV: which of the playlists [ids] the person may change (theirs, or
+  /// shared with them to edit), as Jellyfin's ids without dashes in lower
+  /// case; null when it isn't known (a plugin from before it, or no
+  /// answer).
+  Future<Set<String>?> editableAwayPlaylists(
+    MediaServerClient client,
+    List<String> ids,
+  ) async {
+    final asked = [
+      for (final id in ids)
+        if (id.isNotEmpty) id,
+    ];
+    if (asked.isEmpty) return <String>{};
     final reply = await _call(
       client,
       'POST',
-      '${_playlistRoute(playlistId)}/Order',
-      body: {'Ids': ids},
-      keepMissing: false,
+      'Away/Playlists/Editable',
+      body: {'Ids': asked},
     );
-    return reply.ok;
+    final data = reply.data;
+    final list = reply.ok && data is Map ? data['Ids'] : null;
+    if (list is! List) return null;
+    return {
+      for (final id in list)
+        if (id != null) id.toString().replaceAll('-', '').toLowerCase(),
+    };
   }
 
   /// The person's out-of-home ♥, the latest first. [KostvMusicAnswer
@@ -1252,6 +1300,15 @@ class KostvMusicPlugin {
     body: {'DeezerId': deezerId, 'JellyfinId': jellyfinId},
     keepMissing: false,
   )).ok;
+}
+
+/// Kos TV: what came of a change to a playlist's songs that aren't at home.
+enum KostvAwayEdit {
+  done,
+
+  /// The person can't change the playlist (shared with them only to see).
+  forbidden,
+  failed,
 }
 
 /// Kos TV: the plugin didn't answer (or failed): what is shown stays.

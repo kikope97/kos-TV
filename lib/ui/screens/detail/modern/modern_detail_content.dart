@@ -4,6 +4,8 @@ import 'dart:ui' show ImageFilter;
 import 'package:collection/collection.dart';
 import '../../../widgets/offline_aware_image.dart';
 import '../../../widgets/anime_marker_badge.dart';
+import '../../music/kostv_music_away_actions.dart'
+    show kostvAwaySayNothingToPlay;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -3894,6 +3896,11 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
     final play = _vm.item?.type == 'Playlist'
         ? kostvPlaylistToPlay(tracks, startIndex: index)
         : (tracks: tracks, startIndex: index);
+    if (play.tracks.isEmpty) {
+      // Kos TV: nothing can sound: why, rather than nothing at all.
+      kostvAwaySayNothingToPlay(context, tracks);
+      return;
+    }
     await launchPlayerWhilePreparing(
       context,
       manager: manager,

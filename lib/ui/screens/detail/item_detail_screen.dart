@@ -5,6 +5,8 @@ import 'kostv/kostv_detail_content.dart';
 import '../music/kostv_home_album_view.dart';
 import '../music/kostv_music_actions.dart'
     show KostvAwayListActions, kostvMusicSay, showKostvMusicSongMenu;
+import '../music/kostv_music_away_actions.dart'
+    show kostvAwaySayNothingToPlay, kostvAwayShowLoadFailed;
 import '../music/kostv_music_dislike.dart';
 import '../music/kostv_stream_widgets.dart' show KostvStreamMark;
 import '../music/kostv_music_links.dart';
@@ -371,6 +373,10 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
     );
     _viewModel.addListener(_onChanged);
     _viewModel.onActionFailed = _showActionFailed;
+    // Kos TV: a playlist's songs that aren't at home couldn't be read.
+    _viewModel.onAwayFailed = () {
+      if (mounted) kostvAwayShowLoadFailed(context, _viewModel.retryAwayTracks);
+    };
     _sectionVisibility = DetailSectionVisibility.of(_prefs);
     _prefs.addListener(_onPrefsChanged);
     GetIt.instance<PluginSyncService>().addListener(_onPrefsChanged);
@@ -511,6 +517,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
           DetailActionFailure.markPlayed => l10n.kostvMarkPlayedFailed,
           DetailActionFailure.markUnplayed => l10n.kostvMarkUnplayedFailed,
           DetailActionFailure.favorite => l10n.kostvFavoriteChangeFailed,
+          DetailActionFailure.playlistNotAllowed => l10n.kostvAwayNotAllowed,
         }),
       ),
     );
@@ -3159,13 +3166,18 @@ class _DetailContentState extends State<_DetailContent> {
           )
         : viewModel.tracks;
 
+    // Kos TV: a playlist downloads its songs at home: those that aren't
+    // can't be (Jellyfin doesn't have them).
+    final downloadable = isPlaylist
+        ? displayedTracks.where((t) => !isKostvStream(t)).toList()
+        : displayedTracks;
     final canDownloadAll =
         userCanDownload() &&
         (item.type == 'MusicAlbum' ||
             item.type == 'AudioBook' ||
             (item.type == 'Playlist' &&
-                displayedTracks.isNotEmpty &&
-                displayedTracks.every(_isAudioItem)));
+                downloadable.isNotEmpty &&
+                downloadable.every(_isAudioItem)));
 
     final isDefaultPlaylistOrder =
         _playlistSortBy == LibrarySortBy.playlistOrder &&
@@ -3216,7 +3228,7 @@ class _DetailContentState extends State<_DetailContent> {
             ? () => _downloadTrackList(
                 context,
                 item.name,
-                displayedTracks,
+                downloadable,
                 itemLabel: isAudiobook ? 'chapters' : 'tracks',
               )
             : null,
@@ -3438,7 +3450,13 @@ class _DetailContentState extends State<_DetailContent> {
                     final play = isPlaylist
                         ? kostvPlaylistToPlay(displayedTracks, startIndex: index)
                         : (tracks: displayedTracks, startIndex: index);
-                    if (play.tracks.isEmpty) return false;
+                    if (play.tracks.isEmpty) {
+                      // Kos TV: and why, rather than nothing at all.
+                      if (context.mounted) {
+                        kostvAwaySayNothingToPlay(context, displayedTracks);
+                      }
+                      return false;
+                    }
                     await runPlaybackStart(
                       launchSession,
                       () => manager.playItems(
@@ -10020,10 +10038,13 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
 
             // Kos TV: without what can't sound and what the person doesn't
             // want to hear.
-            tracks = kostvPlaylistToPlay(tracks, picked: false).tracks;
-            if (tracks.isEmpty) {
+            final playable = kostvPlaylistToPlay(tracks, picked: false).tracks;
+            if (playable.isEmpty) {
+              // Kos TV: and why, rather than nothing at all.
+              if (context.mounted) kostvAwaySayNothingToPlay(context, tracks);
               throw PlaybackStartupRecoveryAbortedException();
             }
+            tracks = playable;
 
             // Start at the first unwatched item, or resume the one left partway
             // through, instead of always restarting from the top.
@@ -17250,7 +17271,11 @@ class _AlbumActions extends StatelessWidget {
             final play = item.type == 'Playlist'
                 ? kostvPlaylistToPlay(queue, picked: false).tracks
                 : queue;
-            if (play.isEmpty) return false;
+            if (play.isEmpty) {
+              // Kos TV: and why, rather than nothing at all.
+              if (context.mounted) kostvAwaySayNothingToPlay(context, queue);
+              return false;
+            }
             await runPlaybackStart(
               launchSession,
               () => manager.playItems(play),

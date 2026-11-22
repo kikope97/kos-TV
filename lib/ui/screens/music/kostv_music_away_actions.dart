@@ -16,7 +16,7 @@ import 'kostv_stream_widgets.dart';
 /// Kos TV: «Añadir a una lista» and ♥ of a song that isn't at home, which
 /// the server plugin keeps for Jellyfin («Listas y ♥ con canciones de
 /// fuera»). Neither asks for its album by itself: the notice after offers
-/// it («Añadida. ¿Pedir el álbum para tenerla en casa?»).
+/// it («Añadida a tus favoritas. ¿Pedir el álbum para tenerla en casa?»).
 
 /// How long the notice offers to ask for the album.
 const kostvAwayOfferTime = Duration(seconds: 8);
@@ -28,14 +28,17 @@ bool kostvAwayCanKeep(AggregatedItem? stream) =>
     KostvMusicAwayStore.instance.supported(kostvMusicClientOf(stream));
 
 /// Kos TV: reads whether [item]'s server keeps them, and the person's ♥,
-/// if it wasn't read lately: for a menu or a page about to offer it.
+/// if it wasn't read lately: for a menu or a page about to offer it. A
+/// plugin that failed or was too slow a moment ago isn't waited for again
+/// (see [KostvMusicAwayStore.downFor]).
 Future<void> kostvAwayReady([AggregatedItem? item]) async {
   final client = kostvMusicClientOf(item);
   if (client == null) return;
+  final store = KostvMusicAwayStore.instance;
   try {
-    await KostvMusicAwayStore.instance
-        .load(client)
-        .timeout(const Duration(seconds: 3));
+    await store.load(client).timeout(const Duration(seconds: 3));
+  } on TimeoutException {
+    store.tooSlow(client);
   } catch (_) {}
 }
 
@@ -74,7 +77,12 @@ Future<void> kostvAwayToggleLove(
   if (!done) {
     _say(messenger, failed);
   } else if (on) {
-    kostvAwayOfferAlbum(context, stream, done: l10n.kostvMusicLoved);
+    kostvAwayOfferAlbum(
+      context,
+      stream,
+      done: l10n.kostvMusicLoved,
+      ask: l10n.kostvAwayLovedAskAlbum,
+    );
   } else {
     _say(messenger, l10n.kostvMusicUnloved);
   }
@@ -106,13 +114,15 @@ void _say(ScaffoldMessengerState? messenger, String message) => messenger
   ..showSnackBar(SnackBar(content: Text(message)));
 
 /// Kos TV: what was done with [stream] said, with «Pedir álbum» when its
-/// album can be asked for («Añadida. ¿Pedir el álbum para tenerla en
-/// casa?»); otherwise just [done]. With a remote the button takes the
-/// focus, and any other key gives it back to where it was.
+/// album can be asked for ([ask], by default «Añadida a la lista. ¿Pedir
+/// el álbum para tenerla en casa?»); otherwise just [done]. With a remote
+/// the button takes the focus, and any other key gives it back to where it
+/// was.
 void kostvAwayOfferAlbum(
   BuildContext context,
   AggregatedItem stream, {
   required String done,
+  String? ask,
 }) {
   final l10n = AppLocalizations.of(context);
   final info = KostvStreamInfo.of(stream);
@@ -141,7 +151,7 @@ void kostvAwayOfferAlbum(
 
     showKostvUndoToastOn(
       overlay,
-      message: l10n.kostvAwayAddedAskAlbum,
+      message: ask ?? l10n.kostvAwayAddedAskAlbum,
       undoLabel: l10n.kostvStreamAskAlbum,
       icon: Icons.album_rounded,
       duration: kostvAwayOfferTime,
@@ -162,4 +172,54 @@ void kostvAwayOfferAlbum(
       onLeave: backToWhereItWas,
     );
   });
+}
+
+/// Kos TV: says why a playlist ([tracks]) has nothing to play: with «Solo
+/// la de casa», its songs that aren't at home don't sound; otherwise what
+/// is left is what the person doesn't want to hear.
+void kostvAwaySayNothingToPlay(
+  BuildContext context,
+  List<AggregatedItem> tracks,
+) {
+  if (!context.mounted) return;
+  final l10n = AppLocalizations.of(context);
+  final homeOnly = tracks.any(
+    (track) => isKostvStream(track) && !kostvAwayPlayable(track),
+  );
+  _say(
+    ScaffoldMessenger.maybeOf(context),
+    homeOnly ? l10n.kostvAwayNoneAtHome : l10n.noItemsFound,
+  );
+}
+
+/// Kos TV: the notice that a playlist's songs that aren't at home couldn't
+/// be read (it shows those at home), with «Reintentar» ([onRetry]). With a
+/// remote the button takes the focus, and any other key gives it back to
+/// where it was.
+void kostvAwayShowLoadFailed(BuildContext context, VoidCallback onRetry) {
+  if (!context.mounted) return;
+  final l10n = AppLocalizations.of(context);
+  final overlay = Overlay.of(context, rootOverlay: true);
+  final remote = InputModeTracker.of(context) == InputMode.keyboard;
+  final before = FocusManager.instance.primaryFocus;
+  void backToWhereItWas() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (kostvFocusInTree(before)) before!.requestFocus();
+    });
+  }
+
+  showKostvUndoToastOn(
+    overlay,
+    message: l10n.kostvAwayLoadFailed,
+    undoLabel: l10n.retry,
+    icon: Icons.refresh_rounded,
+    duration: kostvAwayOfferTime,
+    countdown: false,
+    takeFocus: remote,
+    onUndo: () {
+      if (remote) backToWhereItWas();
+      onRetry();
+    },
+    onLeave: backToWhereItWas,
+  );
 }

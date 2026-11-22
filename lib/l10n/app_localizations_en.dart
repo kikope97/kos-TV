@@ -21263,7 +21263,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvAwayAddedAskAlbum =>
-      'Added. Ask for the album to have it at home?';
+      'Added to the playlist. Ask for the album to have it at home?';
 
   @override
   String get kostvAwayAdded => 'Added to the playlist';
@@ -21282,4 +21282,16 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvAwayFavoritesFull =>
       'You already have 2000 favourites that aren\'t at home: remove some to add more';
+
+  @override
+  String get kostvAwayLovedAskAlbum =>
+      'Added to your favourites. Ask for the album to have it at home?';
+
+  @override
+  String get kostvAwayNoneAtHome =>
+      'None of these songs are at home: with «Only what\'s at home» they don\'t play';
+
+  @override
+  String get kostvAwayLoadFailed =>
+      'Couldn\'t load the songs that aren\'t at home';
 }

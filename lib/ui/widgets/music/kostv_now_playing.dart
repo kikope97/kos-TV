@@ -446,24 +446,28 @@ class KostvNowPlaying extends ChangeNotifier {
     // Kos TV: the server plugin moves it into the person's playlists and ♥
     // (told once for each song this session).
     final deezerId = kostvStreamDeezerId(found.stream);
+    final client = _clientOf(found.home);
+    final store = KostvMusicAwayStore.instance;
+    // Kos TV: with the person's ♥ given while it wasn't at home, it shows
+    // on the home one at once (read before the plugin made it Jellyfin's).
+    final loved = deezerId != null && store.isFavorite(client, deezerId);
     if (deezerId != null) {
-      KostvMusicAwayStore.instance.arrived(
-        _clientOf(found.home),
-        deezerId,
-        found.home.id,
-      );
+      unawaited(store.arrived(client, deezerId, found.home.id));
     }
     final manager = _manager;
     if (manager == null) return;
     final queue = manager.queueService;
     final items = queue.items;
+    final rawData = loved
+        ? _withFavorite(found.home.rawData)
+        : found.home.rawData;
     for (var i = 0; i < items.length; i++) {
       final entry = items[i];
       if (entry is! AggregatedItem || entry.id != found.stream.id) continue;
       final home = AggregatedItem(
         id: found.home.id,
         serverId: found.home.serverId,
-        rawData: found.home.rawData,
+        rawData: rawData,
       );
       if (autoplayItems.remove(entry)) autoplayItems.add(home);
       if (automaticItems.remove(entry)) automaticItems.add(home);
@@ -472,6 +476,18 @@ class KostvNowPlaying extends ChangeNotifier {
       if (i == queue.currentIndex) _itemId = home.id;
       queue.replaceAt(i, home);
     }
+  }
+
+  /// Kos TV: [rawData] of a song with the person's ♥.
+  static Map<String, dynamic> _withFavorite(Map<String, dynamic> rawData) {
+    final data = rawData['UserData'];
+    return {
+      ...rawData,
+      'UserData': {
+        if (data is Map) ...data.cast<String, dynamic>(),
+        'IsFavorite': true,
+      },
+    };
   }
 
   /// Kos TV: the client of [item]'s server (the one signed in otherwise).

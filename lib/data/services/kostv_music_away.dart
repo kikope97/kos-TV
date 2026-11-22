@@ -278,6 +278,11 @@ List<AggregatedItem> kostvMergeAway(
 /// before it shows Jellyfin's alone.
 const kostvAwayWait = Duration(seconds: 8);
 
+/// Kos TV: a playlist's songs as the page shows them, and whether those
+/// that aren't at home couldn't be read ([awayFailed]: the plugin failed or
+/// was too slow; the page offers to try again).
+typedef KostvPlaylistSongs = ({List<AggregatedItem> tracks, bool awayFailed});
+
 /// Kos TV: [home] (the songs of [client]'s playlist [playlistId] in
 /// Jellyfin) with the ones that aren't at home merged in ([kostvMergeAway],
 /// as [serverId]'s). As it was for a playlist that isn't of music
@@ -290,28 +295,60 @@ Future<List<AggregatedItem>> kostvPlaylistWithAway(
   String? serverId,
   Object? mediaType,
   KostvMusicAwayStore? store,
+}) async => (await kostvPlaylistSongs(
+  client,
+  playlistId,
+  Future.value(home),
+  serverId: serverId,
+  mediaType: mediaType,
+  store: store,
+)).tracks;
+
+/// Kos TV: [kostvPlaylistWithAway] with Jellyfin's songs on their way
+/// ([home]): the plugin is asked at the same time, not after them (the
+/// same [kostvAwayWait] at most). [retry]: asked again even when the plugin
+/// failed a moment ago. A failure of [home] is thrown.
+Future<KostvPlaylistSongs> kostvPlaylistSongs(
+  MediaServerClient client,
+  String playlistId,
+  Future<List<AggregatedItem>> home, {
+  String? serverId,
+  Object? mediaType,
+  KostvMusicAwayStore? store,
+  bool retry = false,
 }) async {
   if (mediaType != null && mediaType != 'Audio' && mediaType != 'Unknown') {
-    return home;
+    return (tracks: await home, awayFailed: false);
   }
-  if (home.any((t) => t.type != 'Audio')) return home;
   final away = store ?? KostvMusicAwayStore.instance;
   // Whether the plugin keeps them at all, for the songs' menus.
   unawaited(away.load(client).then((_) {}, onError: (Object _) {}));
-  try {
-    final entries = await away
-        .playlist(client, playlistId)
-        .timeout(kostvAwayWait);
-    if (entries == null || entries.isEmpty) return home;
-    return kostvMergeAway(
-      home,
+  final asked = away
+      .playlist(client, playlistId, retry: retry)
+      .timeout(kostvAwayWait)
+      .then(
+        (answer) => answer,
+        onError: (Object _) =>
+            const KostvMusicAnswer<List<KostvAwayEntry>>.failed(),
+      );
+  final songs = await home;
+  if (songs.any((t) => t.type != 'Audio')) {
+    return (tracks: songs, awayFailed: false);
+  }
+  final answer = await asked;
+  final entries = answer.value;
+  if (entries == null || entries.isEmpty) {
+    return (tracks: songs, awayFailed: answer.failed);
+  }
+  return (
+    tracks: kostvMergeAway(
+      songs,
       entries,
       serverId: serverId ?? client.baseUrl,
       hideExplicit: kostvAwayHidesExplicit(),
-    );
-  } catch (_) {
-    return home;
-  }
+    ),
+    awayFailed: false,
+  );
 }
 
 /// Kos TV: [entry] as one of its playlist's songs (see [kostvMergeAway]).
@@ -420,19 +457,29 @@ MediaServerClient? _signedIn() =>
 /// them, by when they were last played) with the out-of-home ones [away]
 /// (the latest ♥ first), merged by date when the home ones have one (their
 /// last play; Jellyfin doesn't say when a ♥ was given), otherwise after
-/// them. Explicit ones aren't there for someone with a limit
-/// ([hideExplicit]).
+/// them; one without a date of its own, after those. Explicit ones aren't
+/// there for someone with a limit ([hideExplicit]). Kos TV: no more than
+/// [limit] in all (as many as the home ones read), the latest kept.
 List<AggregatedItem> kostvMergeFavorites(
   List<AggregatedItem> home,
   List<KostvAwayFavorite> away, {
   required String serverId,
   bool hideExplicit = false,
+  int limit = kostvFavoritesShown,
 }) {
-  final shown = [
+  final kept = [
     for (final f in away)
       if (!(hideExplicit && f.song.explicit)) f,
   ];
-  if (shown.isEmpty) return home;
+  if (kept.isEmpty) return home;
+  // Those with a date first, in their order, so one without doesn't hold
+  // back the rest.
+  final shown = [
+    for (final f in kept)
+      if (f.added != null) f,
+    for (final f in kept)
+      if (f.added == null) f,
+  ];
   DateTime? dateOf(AggregatedItem item) {
     final data = item.rawData['UserData'];
     final raw = data is Map ? data['LastPlayedDate'] : null;
@@ -463,11 +510,15 @@ List<AggregatedItem> kostvMergeFavorites(
     }
     out.add(item);
   }
-  while (a < shown.length) {
+  while (a < shown.length && out.length < limit) {
     out.add(itemOf(shown[a++]));
   }
-  return out;
+  return out.length > limit ? out.sublist(0, limit) : out;
 }
+
+/// Kos TV: how many songs «Tus favoritas» shows at most (as many as it
+/// reads of the home server's).
+const kostvFavoritesShown = 60;
 
 // ---------------------------------------------------------------- the store
 
@@ -495,9 +546,32 @@ class KostvMusicAwayStore extends ChangeNotifier {
   /// Per server: whether its plugin has the routes (null: not known yet).
   final Map<String, bool> _supported = {};
 
-  /// Kos TV: the arrivals already told, this session, for [_arrivedFor].
+  /// Kos TV: how long a plugin that failed isn't asked again (a menu
+  /// doesn't wait for it each time).
+  static const downFor = Duration(seconds: 30);
+
+  /// Per server: when its plugin last failed to answer.
+  final Map<String, DateTime> _downAt = {};
+
+  /// Kos TV: the arrivals already told, this session, for [_arrivedFor];
+  /// [_arriving], those on their way.
   final Set<String> _arrived = {};
+  final Set<String> _arriving = {};
   String? _arrivedFor;
+
+  /// Whether [client]'s plugin failed a moment ago ([downFor]).
+  bool down(MediaServerClient client) {
+    final at = _downAt[client.baseUrl];
+    return at != null && DateTime.now().difference(at) < downFor;
+  }
+
+  void _answered(MediaServerClient client, {required bool failed}) {
+    if (failed) {
+      _downAt[client.baseUrl] = DateTime.now();
+    } else {
+      _downAt.remove(client.baseUrl);
+    }
+  }
 
   static String _who(MediaServerClient client) =>
       '${client.baseUrl}|${client.userId}|${client.accessToken}';
@@ -522,7 +596,7 @@ class KostvMusicAwayStore extends ChangeNotifier {
 
   /// Reads the person's out-of-home ♥ (and so whether the plugin keeps
   /// them) unless it was read lately; [force] always. A failure keeps what
-  /// was known.
+  /// was known (and isn't asked again for [downFor]).
   Future<List<KostvAwayFavorite>> load(
     MediaServerClient client, {
     bool force = false,
@@ -535,6 +609,7 @@ class KostvMusicAwayStore extends ChangeNotifier {
         DateTime.now().difference(at) < fresh) {
       return _favorites;
     }
+    if (!force && down(client)) return favoritesOf(client);
     if (!force && _for == who && _reading != null) {
       await _reading;
       return favoritesOf(client);
@@ -552,6 +627,7 @@ class KostvMusicAwayStore extends ChangeNotifier {
   Future<void> _read(MediaServerClient client, String who) async {
     final changes = _changes;
     final answer = await plugin.awayFavorites(client);
+    _answered(client, failed: answer.failed);
     // Another person signed in meanwhile: not theirs.
     if (_who(client) != who) return;
     if (answer.missing) {
@@ -571,6 +647,7 @@ class KostvMusicAwayStore extends ChangeNotifier {
     if (_for != who) {
       _readAt = null;
       _arrived.clear();
+      _arriving.clear();
       _arrivedFor = who;
     }
     _for = who;
@@ -619,16 +696,56 @@ class KostvMusicAwayStore extends ChangeNotifier {
     return (done: done, full: full);
   }
 
-  /// The out-of-home songs of the playlist [playlistId], or null when there
-  /// are none to show (a plugin from before it, one that can't be read, or
-  /// the person can't see it).
-  Future<List<KostvAwayEntry>?> playlist(
+  /// Kos TV: [client]'s plugin was too slow to answer: not waited for again
+  /// for [downFor] (an answer after all clears it).
+  void tooSlow(MediaServerClient client) => _answered(client, failed: true);
+
+  /// The out-of-home songs of the playlist [playlistId]: [KostvMusicAnswer
+  /// .missing] when there are none to show (a plugin from before it, or the
+  /// person can't see it), [KostvMusicAnswer.failed] when they couldn't be
+  /// read (also, unless [retry], while the plugin is [down]).
+  Future<KostvMusicAnswer<List<KostvAwayEntry>>> playlist(
     MediaServerClient client,
-    String playlistId,
-  ) async {
-    if (knownMissing(client)) return null;
+    String playlistId, {
+    bool retry = false,
+  }) async {
+    if (knownMissing(client)) return const KostvMusicAnswer.missing();
+    if (!retry && down(client)) return const KostvMusicAnswer.failed();
     final answer = await plugin.awayPlaylist(client, playlistId);
-    return answer.value;
+    _answered(client, failed: answer.failed);
+    return answer;
+  }
+
+  /// Kos TV: which of the playlists [ids] the person may change, as ids
+  /// without dashes in lower case; null when it isn't known (a plugin from
+  /// before it, or one that failed or was too slow).
+  Future<Set<String>?> editable(
+    MediaServerClient client,
+    List<String> ids, {
+    Duration wait = const Duration(seconds: 3),
+  }) async {
+    if (ids.isEmpty) return <String>{};
+    if (knownMissing(client) || down(client)) return null;
+    try {
+      final found = await plugin
+          .editableAwayPlaylists(client, ids)
+          .timeout(wait);
+      if (found == null) return null;
+      _answered(client, failed: false);
+      return found;
+    } on TimeoutException {
+      tooSlow(client);
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Kos TV: whether the playlist [playlistId] may be changed by the
+  /// person, as far as is known ([editable]; null: not known).
+  Future<bool?> canEdit(MediaServerClient client, String playlistId) async {
+    final found = await editable(client, [playlistId]);
+    return found?.contains(playlistId.replaceAll('-', '').toLowerCase());
   }
 
   /// Adds [songs] at the end of the playlist [playlistId]: its entries
@@ -650,14 +767,14 @@ class KostvMusicAwayStore extends ChangeNotifier {
   );
 
   /// Takes the out-of-home song [deezerId] out of the playlist.
-  Future<bool> removeFromPlaylist(
+  Future<KostvAwayEdit> removeFromPlaylist(
     MediaServerClient client,
     String playlistId,
     String deezerId,
   ) => plugin.removeAwayFromPlaylist(client, playlistId, deezerId);
 
   /// Tells the plugin the whole order of the playlist.
-  Future<bool> order(
+  Future<KostvAwayEdit> order(
     MediaServerClient client,
     String playlistId,
     List<AggregatedItem> tracks,
@@ -666,24 +783,39 @@ class KostvMusicAwayStore extends ChangeNotifier {
   /// Kos TV: the out-of-home song [deezerId] is at home now as [jellyfinId]
   /// (the requests service said so): the plugin is told, once for each
   /// song this session (for the person signed in), so it moves it into
-  /// Jellyfin's lists and ♥. Its ♥ here goes (it is Jellyfin's now).
-  /// Nothing with a plugin from before it.
-  void arrived(MediaServerClient? client, String deezerId, String jellyfinId) {
-    if (client == null || deezerId.isEmpty || jellyfinId.isEmpty) return;
-    if (knownMissing(client)) return;
+  /// Jellyfin's lists and ♥. Kos TV: only once the plugin took it is it
+  /// counted as told and its ♥ here goes (it is Jellyfin's now); if not, it
+  /// stays and is told again the next time. Nothing with a plugin from
+  /// before it. Whether the plugin took it.
+  Future<bool> arrived(
+    MediaServerClient? client,
+    String deezerId,
+    String jellyfinId,
+  ) async {
+    if (client == null || deezerId.isEmpty || jellyfinId.isEmpty) return false;
+    if (knownMissing(client)) return false;
     final who = _who(client);
     if (_arrivedFor != who) {
       _arrived.clear();
+      _arriving.clear();
       _arrivedFor = who;
     }
-    if (!_arrived.add(deezerId)) return;
-    unawaited(
-      plugin.sendAwayArrived(
+    if (_arrived.contains(deezerId) || !_arriving.add(deezerId)) return false;
+    bool told;
+    try {
+      told = await plugin.sendAwayArrived(
         client,
         deezerId: deezerId,
         jellyfinId: jellyfinId,
-      ),
-    );
+      );
+    } catch (_) {
+      told = false;
+    }
+    // Another person signed in meanwhile: not theirs.
+    if (_arrivedFor != who) return false;
+    _arriving.remove(deezerId);
+    if (!told) return false;
+    _arrived.add(deezerId);
     if (_for == who && isFavorite(client, deezerId)) {
       _changes++;
       _set(who, [
@@ -691,6 +823,7 @@ class KostvMusicAwayStore extends ChangeNotifier {
           if (f.song.deezerId != deezerId) f,
       ]);
     }
+    return true;
   }
 
   /// Forgets everything. Only for tests.
@@ -702,7 +835,9 @@ class KostvMusicAwayStore extends ChangeNotifier {
     _reading = null;
     _changes = 0;
     _supported.clear();
+    _downAt.clear();
     _arrived.clear();
+    _arriving.clear();
     _arrivedFor = null;
   }
 }

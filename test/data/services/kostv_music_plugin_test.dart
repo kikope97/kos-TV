@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
+import 'package:moonfin/data/services/kostv_music_away.dart';
 import 'package:moonfin/data/services/kostv_music_plugin.dart';
 import 'package:moonfin/data/services/media_server_client_factory.dart';
 import 'package:moonfin/data/services/stremfin/kostv_age_gate.dart';
@@ -145,6 +146,7 @@ void main() {
   tearDown(() async {
     await GetIt.instance.reset();
     KostvMusicPlugin.instance = KostvMusicPlugin();
+    KostvMusicAwayStore.instance.reset();
   });
 
   KostvMusicPlugin pluginWith(_Plugin plugin) =>
@@ -1448,10 +1450,14 @@ void main() {
         'GET /Users/ana/Items',
         'POST /Playlists/list/Items',
       ]);
-      expect(routes.asked.single.body, {
-        'Type': 'playlist_add',
-        'ItemIds': ['1'],
-      });
+      // Kos TV: (it also asks which playlists may be changed.)
+      expect(
+        routes.asked.singleWhere((r) => r.path.endsWith('/Event')).body,
+        {
+          'Type': 'playlist_add',
+          'ItemIds': ['1'],
+        },
+      );
       never.complete();
       for (var i = 0; i < 5; i++) {
         await tester.pump(const Duration(milliseconds: 10));
@@ -1487,7 +1493,11 @@ void main() {
       await tester.tap(find.text('Mi lista'));
       await tester.pumpAndSettle();
       expect(home.asked.last.path, '/Playlists/list/Items');
-      expect(routes.asked, isEmpty);
+      // Kos TV: only which playlists may be changed is asked.
+      expect(
+        routes.asked.where((r) => !r.path.endsWith('/Away/Playlists/Editable')),
+        isEmpty,
+      );
     });
   });
 }

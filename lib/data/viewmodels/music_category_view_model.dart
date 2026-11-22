@@ -134,13 +134,16 @@ class MusicLibraryQueries {
     ),
   ).items;
 
-  /// Kos TV: with its songs that aren't at home in their places.
+  /// Kos TV: with its songs that aren't at home in their places (the server
+  /// plugin asked at the same time as Jellyfin).
   Future<List<AggregatedItem>> playlistTracks(String playlistId) async =>
-      kostvPlaylistWithAway(
+      (await kostvPlaylistSongs(
         client,
         playlistId,
-        _page(await client.itemsApi.getPlaylistItems(playlistId)).items,
-      );
+        client.itemsApi
+            .getPlaylistItems(playlistId)
+            .then((data) => _page(data).items),
+      )).tracks;
 
   /// The library's genres with how many albums each holds.
   Future<List<AggregatedItem>> genres() async => _page(

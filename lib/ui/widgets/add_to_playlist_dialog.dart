@@ -1,5 +1,9 @@
+import 'dart:async';
+
 import 'package:custom_tv_text_field/custom_tv_text_field.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart';
@@ -96,25 +100,55 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
     super.dispose();
   }
 
+  /// Kos TV: songs go only into playlists of music (Jellyfin's of no kind
+  /// said too): one of videos wouldn't show them.
+  bool get _forSongs => widget.songs != null || widget.awaySongs.isNotEmpty;
+
+  static bool _ofMusic(Map<String, dynamic> raw) {
+    final kind = raw['MediaType'];
+    return kind == null || kind == 'Audio' || kind == 'Unknown';
+  }
+
   Future<void> _loadPlaylists() async {
     if (_loadFailed) setState(() => _loadFailed = false);
     try {
       final data = await _client.itemsApi.getPlaylists();
-      final items = (data['Items'] as List?) ?? [];
+      final items = ((data['Items'] as List?) ?? [])
+          .cast<Map<String, dynamic>>()
+          .where((raw) => !_forSongs || _ofMusic(raw))
+          .toList();
+      // Kos TV: only those the person may change (theirs, or shared with
+      // them to edit), when the server plugin says which; otherwise all,
+      // and a refusal says so.
+      final editable = await KostvMusicAwayStore.instance.editable(_client, [
+        for (final raw in items) ?raw['Id']?.toString(),
+      ]);
       if (mounted) {
         setState(() {
-          _playlists = items.cast<Map<String, dynamic>>().map((raw) {
-            return _PlaylistEntry(
-              id: raw['Id']?.toString() ?? '',
-              name: raw['Name'] as String? ?? '',
-            );
-          }).toList();
+          _playlists = [
+            for (final raw in items)
+              if (editable == null ||
+                  editable.contains(
+                    (raw['Id']?.toString() ?? '')
+                        .replaceAll('-', '')
+                        .toLowerCase(),
+                  ))
+                _PlaylistEntry(
+                  id: raw['Id']?.toString() ?? '',
+                  name: raw['Name'] as String? ?? '',
+                ),
+          ];
         });
       }
     } catch (_) {
       if (mounted) setState(() => _loadFailed = true);
     }
   }
+
+  /// Kos TV: the playlist turned the songs down because the person can't
+  /// change it (a 403 of Jellyfin's).
+  static bool _forbidden(Object error) =>
+      error is DioException && error.response?.statusCode == 403;
 
   /// Kos TV: the songs that aren't at home go to the server plugin; false
   /// (and said) when they couldn't.
@@ -160,11 +194,14 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
       );
       _tellPlugin();
       if (mounted) Navigator.pop(context, true);
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
+        final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(AppLocalizations.of(context).playlistAddFailed),
+            content: Text(
+              _forbidden(e) ? l10n.kostvAwayNotAllowed : l10n.playlistAddFailed,
+            ),
           ),
         );
       }
@@ -204,7 +241,20 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
         );
         final id = made['Id']?.toString();
         if (id == null || id.isEmpty) throw StateError('no playlist');
-        if (await _addAway(id) && mounted) Navigator.pop(context, true);
+        // Made, so it is told as any new playlist is (with no songs of
+        // Jellyfin's in it).
+        ItemMembershipService.instance.notifyItemAddedToPlaylist(
+          widget.serverId ?? '',
+          id,
+          const [],
+        );
+        if (await _addAway(id)) {
+          if (mounted) Navigator.pop(context, true);
+        } else if (mounted) {
+          // The playlist is there, empty: shown, to pick it rather than
+          // make another one of the same name.
+          unawaited(_loadPlaylists());
+        }
         return;
       }
       final result = await _client.itemsApi.createPlaylist(
@@ -340,27 +390,56 @@ class _AddToPlaylistDialogState extends State<AddToPlaylistDialog> {
                         onSubmitted: (_) => _submitCreate(ctx),
                       ),
                     const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: Text(
-                            AppLocalizations.of(ctx).cancel,
-                            style: TextStyle(
-                              color: AppColorScheme.onSurface.withValues(
-                                alpha: 0.6,
+                    // Kos TV: the arrows go from button to button (and up
+                    // to the name) here too on the web, whose arrows
+                    // scroll instead; on Android they did already.
+                    Focus(
+                      canRequestFocus: false,
+                      skipTraversal: true,
+                      onKeyEvent: (_, event) {
+                        if (event is! KeyDownEvent &&
+                            event is! KeyRepeatEvent) {
+                          return KeyEventResult.ignored;
+                        }
+                        final direction = switch (event.logicalKey) {
+                          LogicalKeyboardKey.arrowLeft =>
+                            TraversalDirection.left,
+                          LogicalKeyboardKey.arrowRight =>
+                            TraversalDirection.right,
+                          LogicalKeyboardKey.arrowUp => TraversalDirection.up,
+                          _ => null,
+                        };
+                        final focused = FocusManager.instance.primaryFocus;
+                        if (direction == null || focused == null) {
+                          return KeyEventResult.ignored;
+                        }
+                        focused.focusInDirection(direction);
+                        return KeyEventResult.handled;
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text(
+                              AppLocalizations.of(ctx).cancel,
+                              style: TextStyle(
+                                color: AppColorScheme.onSurface.withValues(
+                                  alpha: 0.6,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        FilledButton(
-                          focusNode: _createFocusNode,
-                          onPressed: () => _submitCreate(ctx),
-                          child: Text(AppLocalizations.of(ctx).playlistCreate),
-                        ),
-                      ],
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            focusNode: _createFocusNode,
+                            onPressed: () => _submitCreate(ctx),
+                            child: Text(
+                              AppLocalizations.of(ctx).playlistCreate,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

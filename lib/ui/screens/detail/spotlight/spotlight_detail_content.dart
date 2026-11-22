@@ -11,6 +11,8 @@ import 'package:playback_core/playback_core.dart';
 
 import '../../../../data/models/aggregated_item.dart';
 import '../../../../data/services/kostv_music_away.dart';
+import '../../music/kostv_music_away_actions.dart'
+    show kostvAwaySayNothingToPlay;
 import '../../../../data/repositories/tmdb_repository.dart';
 import '../../../../data/services/plugin_sync_service.dart';
 import '../../../../data/viewmodels/item_detail_view_model.dart';
@@ -311,6 +313,11 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
         final play = _vm.item?.type == 'Playlist'
             ? kostvPlaylistToPlay(_vm.tracks, startIndex: index)
             : (tracks: _vm.tracks, startIndex: index);
+        if (play.tracks.isEmpty) {
+          // Kos TV: nothing can sound: why, rather than nothing at all.
+          kostvAwaySayNothingToPlay(context, _vm.tracks);
+          return;
+        }
         unawaited(_playItems(play.tracks, play.startIndex));
       }),
       playPlaylistTrack: (index) =>

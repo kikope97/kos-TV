@@ -125,128 +125,155 @@ class _KostvUndoToastState extends State<KostvUndoToast>
     final theme = Theme.of(context);
     final ink = AppColorScheme.onSurface;
     final seconds = widget.duration.inSeconds;
+    // The seconds left, in a ring that empties.
+    final Widget lead = !widget.countdown
+        ? Icon(
+            Icons.cloud_off_rounded,
+            size: 26,
+            color: ink.withValues(alpha: 0.8),
+          )
+        : AnimatedBuilder(
+            animation: _clock,
+            builder: (context, _) {
+              final left = (seconds * (1 - _clock.value)).ceil().clamp(
+                0,
+                seconds,
+              );
+              return SizedBox.square(
+                dimension: 30,
+                child: CustomPaint(
+                  painter: _RingPainter(
+                    left: 1 - _clock.value,
+                    color: AppColorScheme.accent,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '$left',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        color: ink,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+    Widget message(int lines) => Text(
+      widget.message,
+      maxLines: lines,
+      overflow: TextOverflow.ellipsis,
+      style: theme.textTheme.bodyMedium?.copyWith(color: ink),
+    );
+    final button = _buildButton(theme, ink);
     return Material(
       color: Colors.transparent,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 560),
-        padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1F2430),
-          borderRadius: AppRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black54,
-              blurRadius: 24,
-              offset: Offset(0, 8),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // Kos TV: on a narrow screen (a phone, the web on one) the button
+          // goes under the text, which would be cut short beside it.
+          final narrow = constraints.maxWidth < kostvUndoToastNarrow;
+          return Container(
+            constraints: const BoxConstraints(maxWidth: 560),
+            padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1F2430),
+              borderRadius: AppRadius.circular(16),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black54,
+                  blurRadius: 24,
+                  offset: Offset(0, 8),
+                ),
+              ],
             ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // The seconds left, in a ring that empties.
-            if (!widget.countdown)
-              Icon(
-                Icons.cloud_off_rounded,
-                size: 26,
-                color: ink.withValues(alpha: 0.8),
-              )
-            else
-              AnimatedBuilder(
-                animation: _clock,
-                builder: (context, _) {
-                  final left = (seconds * (1 - _clock.value)).ceil().clamp(
-                    0,
-                    seconds,
-                  );
-                  return SizedBox.square(
-                    dimension: 30,
-                    child: CustomPaint(
-                      painter: _RingPainter(
-                        left: 1 - _clock.value,
-                        color: AppColorScheme.accent,
+            child: narrow
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          lead,
+                          const SizedBox(width: 12),
+                          Flexible(child: message(3)),
+                        ],
                       ),
-                      child: Center(
-                        child: Text(
-                          '$left',
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            color: ink,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                widget.message,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(color: ink),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Focus(
-              focusNode: _button,
-              onKeyEvent: _onKey,
-              child: Builder(
-                builder: (context) {
-                  final focused = Focus.of(context).hasFocus;
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 120),
-                    decoration: BoxDecoration(
-                      color: focused
-                          ? AppColorScheme.accent
-                          : AppColorScheme.accent.withValues(alpha: 0.16),
-                      borderRadius: AppRadius.circular(999),
-                      border: Border.all(
-                        color: focused ? Colors.white : Colors.transparent,
-                        width: 2,
-                      ),
-                    ),
-                    child: InkWell(
-                      borderRadius: AppRadius.circular(999),
-                      canRequestFocus: false,
-                      onTap: _undo,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              widget.icon,
-                              size: 18,
-                              color: focused ? Colors.white : ink,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              widget.undoLabel,
-                              style: theme.textTheme.labelLarge?.copyWith(
-                                color: focused ? Colors.white : ink,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+                      const SizedBox(height: 8),
+                      button,
+                    ],
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      lead,
+                      const SizedBox(width: 12),
+                      Flexible(child: message(2)),
+                      const SizedBox(width: 12),
+                      button,
+                    ],
+                  ),
+          );
+        },
       ),
     );
   }
+
+  Widget _buildButton(ThemeData theme, Color ink) => Focus(
+    focusNode: _button,
+    onKeyEvent: _onKey,
+    child: Builder(
+      builder: (context) {
+        final focused = Focus.of(context).hasFocus;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          decoration: BoxDecoration(
+            color: focused
+                ? AppColorScheme.accent
+                : AppColorScheme.accent.withValues(alpha: 0.16),
+            borderRadius: AppRadius.circular(999),
+            border: Border.all(
+              color: focused ? Colors.white : Colors.transparent,
+              width: 2,
+            ),
+          ),
+          child: InkWell(
+            borderRadius: AppRadius.circular(999),
+            canRequestFocus: false,
+            onTap: _undo,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    widget.icon,
+                    size: 18,
+                    color: focused ? Colors.white : ink,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    widget.undoLabel,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: focused ? Colors.white : ink,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  );
 }
+
+/// Kos TV: below this width (the room the notice has) its button goes under
+/// the text.
+const kostvUndoToastNarrow = 480.0;
 
 class _RingPainter extends CustomPainter {
   _RingPainter({required this.left, required this.color});

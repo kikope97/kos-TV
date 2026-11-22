@@ -271,6 +271,63 @@ public static class KostvAwayOrder
     }
 
     /// <summary>
+    /// kOS TV: the songs not at home whose element is no longer in the list (taken out of it here
+    /// or in another app) placed again after the nearest element before it that is still there, as
+    /// the whole list was last seen (<paramref name="lastOrder"/>, as <see cref="Merged"/> gave
+    /// it), so they keep their place instead of going to the end; with none before it, the first.
+    /// Those whose element was never seen stay as they are. Whether any was placed again.
+    /// </summary>
+    public static bool Reanchor(List<KostvAwaySong> entries, IReadOnlyList<string> jellyfin, IReadOnlyList<string>? lastOrder)
+    {
+        if (lastOrder == null || lastOrder.Count == 0 || entries.Count == 0)
+        {
+            return false;
+        }
+
+        var present = new HashSet<string>(jellyfin, StringComparer.Ordinal);
+        foreach (var entry in entries)
+        {
+            present.Add(entry.Key);
+        }
+
+        var at = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < lastOrder.Count; i++)
+        {
+            at.TryAdd(lastOrder[i], i);
+        }
+
+        var changed = false;
+        foreach (var entry in entries)
+        {
+            if (entry.After == null || present.Contains(entry.After) || !at.TryGetValue(entry.After, out var gone))
+            {
+                continue;
+            }
+
+            // Only from where it was before it (a loop written by hand isn't followed).
+            if (at.TryGetValue(entry.Key, out var own) && own < gone)
+            {
+                continue;
+            }
+
+            string? instead = null;
+            for (var i = gone - 1; i >= 0; i--)
+            {
+                if (lastOrder[i] != entry.Key && present.Contains(lastOrder[i]))
+                {
+                    instead = lastOrder[i];
+                    break;
+                }
+            }
+
+            entry.After = instead;
+            changed = true;
+        }
+
+        return changed;
+    }
+
+    /// <summary>
     /// Where the song <paramref name="deezerId"/> goes among the server's elements of the list once
     /// it is at home: how many of them are before it in the whole list.
     /// </summary>
@@ -348,6 +405,10 @@ public sealed class KostvAwayStore
     {
         [JsonPropertyName("entries")]
         public List<KostvAwaySong>? Entries { get; set; }
+
+        /// <summary>kOS TV: the whole list as last seen, to keep the places of what follows an element taken out.</summary>
+        [JsonPropertyName("order")]
+        public List<string>? Order { get; set; }
     }
 
     private sealed class FavoritesList
@@ -398,14 +459,27 @@ public sealed class KostvAwayStore
     // ---------------------------------------------------------------- playlists
 
     /// <summary>The songs not at home of <paramref name="playlistId"/>, in the order kept (a copy).</summary>
-    public List<KostvAwaySong> Entries(Guid playlistId) =>
-        Valid(AtomicFile.ReadWithRecovery(PlaylistPath(playlistId), Parse<PlaylistFile>)?.Entries);
+    public List<KostvAwaySong> Entries(Guid playlistId) => Read(playlistId).Entries;
+
+    /// <summary>
+    /// kOS TV: the songs not at home of <paramref name="playlistId"/> (a copy) and the whole list as
+    /// last seen with them (null, never seen).
+    /// </summary>
+    public (List<KostvAwaySong> Entries, List<string>? Order) Read(Guid playlistId)
+    {
+        var file = AtomicFile.ReadWithRecovery(PlaylistPath(playlistId), Parse<PlaylistFile>);
+        return (Valid(file?.Entries), file?.Order?.Where(id => !string.IsNullOrEmpty(id)).ToList());
+    }
+
+    /// <summary>kOS TV: whether songs not at home of <paramref name="playlistId"/> are kept.</summary>
+    public bool Has(Guid playlistId) => File.Exists(PlaylistPath(playlistId));
 
     /// <summary>
     /// Stores <paramref name="entries"/> as <paramref name="playlistId"/>'s songs not at home (none,
-    /// the file goes). Under its lock. False when not stored.
+    /// the file goes), with the whole list as it is seen now (<paramref name="order"/>; null keeps
+    /// the one stored). Under its lock. False when not stored.
     /// </summary>
-    public bool SaveEntries(Guid playlistId, List<KostvAwaySong> entries)
+    public bool SaveEntries(Guid playlistId, List<KostvAwaySong> entries, IReadOnlyList<string>? order = null)
     {
         try
         {
@@ -416,8 +490,9 @@ public sealed class KostvAwayStore
             }
             else
             {
+                var kept = order?.ToList() ?? Read(playlistId).Order;
                 Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                AtomicFile.WriteAllText(path, JsonSerializer.Serialize(new PlaylistFile { Entries = entries }, KostvMusicStore.LineOptions));
+                AtomicFile.WriteAllText(path, JsonSerializer.Serialize(new PlaylistFile { Entries = entries, Order = kept }, KostvMusicStore.LineOptions));
             }
 
             Interlocked.Increment(ref _version);
@@ -430,16 +505,31 @@ public sealed class KostvAwayStore
         }
     }
 
-    /// <summary>Forgets the songs not at home of <paramref name="playlistId"/> (the playlist was deleted).</summary>
+    /// <summary>
+    /// Forgets the songs not at home of <paramref name="playlistId"/> (the playlist was deleted).
+    /// kOS TV: what was kept stays as its <c>.bak</c>, so a playlist taken for deleted by mistake
+    /// gets them back the next time it is read.
+    /// </summary>
     public async Task DeletePlaylistAsync(Guid playlistId)
     {
         var gate = PlaylistLock(playlistId);
         await gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (File.Exists(PlaylistPath(playlistId)) || File.Exists(AtomicFile.BackupPath(PlaylistPath(playlistId))))
+            var path = PlaylistPath(playlistId);
+            if (File.Exists(path))
             {
-                SaveEntries(playlistId, []);
+                try
+                {
+                    File.Copy(path, AtomicFile.BackupPath(path), overwrite: true);
+                    File.Delete(path);
+                    File.Delete(path + ".tmp");
+                    Interlocked.Increment(ref _version);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    _logger?.LogWarning(ex, "kOS TV music: the songs not at home of a deleted playlist could not be forgotten");
+                }
             }
         }
         finally
@@ -799,7 +889,12 @@ public sealed class KostvMusicAway
 
     // The songs not at home kept, by title and artist, as of the store's version.
     private readonly object _indexSync = new();
-    private (int Version, Dictionary<string, List<KostvAwaySong>> ByName)? _index;
+    // kOS TV: and where each is kept, by its Deezer id, so a song said to come home that isn't kept
+    // anywhere reads nothing from the disk.
+    private (int Version, Dictionary<string, List<KostvAwaySong>> ByName, Dictionary<string, KostvAwayStore.Pending> ById)? _index;
+
+    // kOS TV: the playlists not there on the last daily round (see RoundAsync).
+    private readonly ConcurrentDictionary<Guid, bool> _absent = new();
 
     // The arrivals on their way (see Detect).
     private readonly ConcurrentDictionary<string, Task> _pending = new(StringComparer.Ordinal);
@@ -858,18 +953,132 @@ public sealed class KostvMusicAway
 
     // ---------------------------------------------------------------- playlists
 
-    /// <summary>The server's playlist <paramref name="playlistId"/>, or null.</summary>
-    public Playlist? PlaylistOf(Guid playlistId)
+    /// <summary>The server's playlist <paramref name="playlistId"/>, or null (also when it could not be read).</summary>
+    public Playlist? PlaylistOf(Guid playlistId) => TryPlaylistOf(playlistId, out var playlist) ? playlist : null;
+
+    /// <summary>
+    /// kOS TV: the server's playlist <paramref name="playlistId"/> (null: the server says there is
+    /// none). False when it could not be read (the server busy, say): not known whether it is there,
+    /// so nothing of it is forgotten.
+    /// </summary>
+    public bool TryPlaylistOf(Guid playlistId, out Playlist? playlist)
     {
+        playlist = null;
         try
         {
-            return playlistId == Guid.Empty ? null : _library.GetItemById(playlistId) as Playlist;
+            playlist = playlistId == Guid.Empty ? null : _library.GetItemById(playlistId) as Playlist;
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "kOS TV music: a playlist could not be read");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// kOS TV: whether <paramref name="playlist"/> may hold songs: one of music, or of no kind said
+    /// (read by name: the type of its kind isn't the same on every server version).
+    /// </summary>
+    public static bool IsForMusic(Playlist playlist)
+    {
+        string? kind = null;
+        foreach (var name in new[] { "PlaylistMediaType", "MediaType" })
+        {
+            try
+            {
+                if (playlist.GetType().GetProperties().FirstOrDefault(p => p.Name == name && p.GetIndexParameters().Length == 0) is { } property)
+                {
+                    kind = property.GetValue(playlist)?.ToString();
+                    break;
+                }
+            }
+            catch
+            {
+                // As one of no kind said.
+            }
+        }
+
+        return string.IsNullOrEmpty(kind) || kind is "Audio" or "Unknown";
+    }
+
+    /// <summary>
+    /// kOS TV: <paramref name="entries"/> (of <paramref name="playlist"/>, read with the whole list
+    /// as last seen, <paramref name="lastOrder"/>) with those whose element is gone placed again
+    /// (<see cref="KostvAwayOrder.Reanchor"/>), and the whole list as it is now; whether it is to be
+    /// stored again (something placed again, or the list changed since).
+    /// </summary>
+    public static (List<string> Order, bool Changed) Refresh(Playlist playlist, List<KostvAwaySong> entries, IReadOnlyList<string>? lastOrder)
+    {
+        var jellyfin = JellyfinIdsOf(playlist);
+        var moved = KostvAwayOrder.Reanchor(entries, jellyfin, lastOrder);
+        var order = KostvAwayOrder.Merged(jellyfin, entries);
+        return (order, moved || lastOrder == null || !order.SequenceEqual(lastOrder, StringComparer.Ordinal));
+    }
+
+    /// <summary>
+    /// kOS TV: the songs not at home of <paramref name="playlist"/> as they are to be shown: those
+    /// whose element was taken out (also in another app) in their place again, stored so (and the
+    /// whole list as seen now) when anything changed.
+    /// </summary>
+    public async Task<List<KostvAwaySong>> EntriesOfAsync(Playlist playlist, CancellationToken token = default)
+    {
+        var id = playlist.Id;
+        var (entries, lastOrder) = _store.Read(id);
+        if (entries.Count == 0 || !Refresh(playlist, entries, lastOrder).Changed)
+        {
+            return entries;
+        }
+
+        var gate = _store.PlaylistLock(id);
+        await gate.WaitAsync(token).ConfigureAwait(false);
+        try
+        {
+            // Read again under the lock: what is in it now.
+            (entries, lastOrder) = _store.Read(id);
+            if (entries.Count > 0)
+            {
+                var (order, changed) = Refresh(playlist, entries, lastOrder);
+                if (changed)
+                {
+                    _store.SaveEntries(id, entries, order);
+                }
+            }
+
+            return entries;
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// kOS TV: the server's playlist <paramref name="playlistId"/> changed (an element taken out or
+    /// moved, maybe in another app): its songs not at home are placed again, apart. The task, or
+    /// null when it has none.
+    /// </summary>
+    public Task? PlaylistChanged(Guid playlistId)
+    {
+        if (!_store.Has(playlistId))
+        {
             return null;
         }
+
+        return Task.Run(async () =>
+        {
+            try
+            {
+                if (TryPlaylistOf(playlistId, out var playlist) && playlist != null)
+                {
+                    await EntriesOfAsync(playlist).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "kOS TV music: the songs not at home of a changed playlist could not be placed again");
+            }
+        });
     }
 
     /// <summary>
@@ -967,7 +1176,7 @@ public sealed class KostvMusicAway
         }
 
         var changed = 0;
-        var where = _store.All().GetValueOrDefault(deezerId);
+        var where = WhereKept(deezerId);
         foreach (var playlistId in where?.Playlists ?? [])
         {
             try
@@ -1007,19 +1216,21 @@ public sealed class KostvMusicAway
         await gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            var entries = _store.Entries(playlistId);
+            var (entries, lastOrder) = _store.Read(playlistId);
             if (!entries.Any(e => e.DeezerId == deezerId))
             {
                 return false;
             }
 
-            var playlist = PlaylistOf(playlistId);
-            if (playlist == null)
+            // kOS TV: not there (or not read): left as it is; the daily round forgets the songs of
+            // a playlist deleted once the server says so twice.
+            if (PlaylistOf(playlistId) is not { } playlist)
             {
-                // Deleted: what was kept of it goes too.
-                _store.SaveEntries(playlistId, []);
                 return false;
             }
+
+            // Those after an element taken out, in their place again before it is placed.
+            KostvAwayOrder.Reanchor(entries, JellyfinIdsOf(playlist), lastOrder);
 
             // As its owner adds it: only a song its owner may see.
             var ownerId = playlist.OwnerUserId;
@@ -1065,7 +1276,8 @@ public sealed class KostvMusicAway
                 KostvAwayOrder.Remove(entries, deezerId);
             }
 
-            _store.SaveEntries(playlistId, entries);
+            var now = PlaylistOf(playlistId) ?? playlist;
+            _store.SaveEntries(playlistId, entries, KostvAwayOrder.Merged(JellyfinIdsOf(now), entries));
             return true;
         }
         finally
@@ -1177,19 +1389,25 @@ public sealed class KostvMusicAway
         return true;
     }
 
-    private Dictionary<string, List<KostvAwaySong>> Index()
+    private Dictionary<string, List<KostvAwaySong>> Index() => Indexes().ByName;
+
+    /// <summary>kOS TV: where the song not at home <paramref name="deezerId"/> is kept, or null when nowhere.</summary>
+    public KostvAwayStore.Pending? WhereKept(string deezerId) => Indexes().ById.GetValueOrDefault(deezerId);
+
+    private (Dictionary<string, List<KostvAwaySong>> ByName, Dictionary<string, KostvAwayStore.Pending> ById) Indexes()
     {
         var version = _store.Version;
         lock (_indexSync)
         {
             if (_index is { } known && known.Version == version)
             {
-                return known.ByName;
+                return (known.ByName, known.ById);
             }
         }
 
+        var all = _store.All();
         var byName = new Dictionary<string, List<KostvAwaySong>>(StringComparer.Ordinal);
-        foreach (var pending in _store.All().Values)
+        foreach (var pending in all.Values)
         {
             var key = NameKey(pending.Song.Title, pending.Song.Artist);
             if (!byName.TryGetValue(key, out var list))
@@ -1202,10 +1420,10 @@ public sealed class KostvMusicAway
 
         lock (_indexSync)
         {
-            _index = (version, byName);
+            _index = (version, byName, all);
         }
 
-        return byName;
+        return (byName, all);
     }
 
     /// <summary>The song not at home kept that <paramref name="item"/> is, if any.</summary>
@@ -1299,6 +1517,12 @@ public sealed class KostvMusicAway
     /// <summary><see cref="ArriveAsync"/>, one at a time.</summary>
     public async Task<int> ArriveOnceAsync(string deezerId, BaseItem item)
     {
+        // kOS TV: kept nowhere (the app tells of every song it finds at home): nothing to wait for.
+        if (WhereKept(deezerId) == null)
+        {
+            return 0;
+        }
+
         await _arrivals.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -1317,10 +1541,22 @@ public sealed class KostvMusicAway
     /// </summary>
     public async Task<int> RoundAsync(CancellationToken token = default)
     {
+        // kOS TV: only once the server has said on two rounds in a row that it isn't there (never
+        // when it could not be read): a slip of the server doesn't lose a playlist's songs.
         foreach (var playlistId in _store.Playlists())
         {
-            if (PlaylistOf(playlistId) == null)
+            if (!TryPlaylistOf(playlistId, out var playlist))
             {
+                continue;
+            }
+
+            if (playlist != null)
+            {
+                _absent.TryRemove(playlistId, out _);
+            }
+            else if (!_absent.TryAdd(playlistId, true))
+            {
+                _absent.TryRemove(playlistId, out _);
                 await _store.DeletePlaylistAsync(playlistId).ConfigureAwait(false);
             }
         }
@@ -1468,6 +1704,11 @@ public sealed class KostvMusicAwayWatcher : IHostedService
         if (e.Item is Audio item)
         {
             _away.Detect(item);
+        }
+        else if (e.Item is Playlist playlist)
+        {
+            // kOS TV: an element taken out (maybe in another app): what followed it keeps its place.
+            _away.PlaylistChanged(playlist.Id);
         }
     }
 

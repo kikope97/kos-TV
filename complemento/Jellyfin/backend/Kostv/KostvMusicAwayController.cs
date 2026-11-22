@@ -1,5 +1,6 @@
 using System.Text.Json;
 using MediaBrowser.Controller.Entities.Audio;
+using MediaBrowser.Controller.Playlists;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -26,6 +27,9 @@ public class KostvMusicAwayController : ControllerBase
 
     /// <summary>The most elements the whole order of a playlist may name.</summary>
     public const int MaxOrderIds = 20000;
+
+    /// <summary>kOS TV: the most playlists asked about at once (which may be changed).</summary>
+    public const int MaxEditableIds = 1000;
 
     private static readonly JsonSerializerOptions OutputOptions = new()
     {
@@ -102,19 +106,74 @@ public class KostvMusicAwayController : ControllerBase
     [Authorize]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public ActionResult GetPlaylist([FromRoute] string playlistId)
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult> GetPlaylist([FromRoute] string playlistId)
     {
         if (Caller() is not { } caller)
         {
             return NotSignedIn();
         }
 
-        if (!Guid.TryParse(playlistId, out var id) || _away.PlaylistOf(id) is not { } playlist || KostvMusicAway.AccessOf(playlist, caller.Id) == KostvPlaylistAccess.None)
+        if (!Guid.TryParse(playlistId, out var id))
         {
             return NotFound(new { Error = "Playlist not found." });
         }
 
-        return Json(EntriesOf(KostvMusicAway.JellyfinIdsOf(playlist), Store.Entries(id)));
+        // kOS TV: the server couldn't say (busy): not «not there», so the app says it failed.
+        if (!_away.TryPlaylistOf(id, out var playlist))
+        {
+            return Unavailable();
+        }
+
+        if (playlist == null || KostvMusicAway.AccessOf(playlist, caller.Id) == KostvPlaylistAccess.None)
+        {
+            return NotFound(new { Error = "Playlist not found." });
+        }
+
+        // kOS TV: those after an element taken out (also in another app) in their place again.
+        var entries = await _away.EntriesOfAsync(playlist, HttpContext.RequestAborted).ConfigureAwait(false);
+        return Json(EntriesOf(KostvMusicAway.JellyfinIdsOf(playlist), entries));
+    }
+
+    private ObjectResult Unavailable() => StatusCode(StatusCodes.Status503ServiceUnavailable, new { Error = "The playlist could not be read now." });
+
+    /// <summary>
+    /// kOS TV: which of the server's playlists <c>{ "Ids": [...] }</c> the caller may change (theirs,
+    /// or shared with them to edit), as <c>{ "Ids": [...] }</c> (without dashes), so the app offers
+    /// to add, take out and move only in those. Up to <see cref="MaxEditableIds"/>.
+    /// </summary>
+    [HttpPost("Playlists/Editable")]
+    [Authorize]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public ActionResult EditablePlaylists([FromBody] JsonElement body)
+    {
+        if (Caller() is not { } caller)
+        {
+            return NotSignedIn();
+        }
+
+        if (Property(body, "Ids") is not { ValueKind: JsonValueKind.Array } list || list.GetArrayLength() > MaxEditableIds)
+        {
+            return BadRequest(new { Error = $"Ids is a list of up to {MaxEditableIds} ids." });
+        }
+
+        var editable = new List<string>();
+        foreach (var element in list.EnumerateArray())
+        {
+            if (element.ValueKind != JsonValueKind.String || !Guid.TryParse(element.GetString(), out var id) || id == Guid.Empty)
+            {
+                return BadRequest(new { Error = "Each of Ids is an id." });
+            }
+
+            var key = id.ToString("N");
+            if (!editable.Contains(key) && KostvMusicAway.AccessOf(_away.PlaylistOf(id), caller.Id) == KostvPlaylistAccess.Edit)
+            {
+                editable.Add(key);
+            }
+        }
+
+        return Json(new { Ids = editable });
     }
 
     /// <summary>
@@ -184,8 +243,15 @@ public class KostvMusicAwayController : ControllerBase
                 return NotFound(new { Error = "Playlist not found." });
             }
 
+            // kOS TV: songs only in a playlist of music: one of videos wouldn't show them.
+            if (!KostvMusicAway.IsForMusic(playlist))
+            {
+                return BadRequest(new { Error = "Songs not at home go only in a playlist of music." });
+            }
+
             var jellyfin = KostvMusicAway.JellyfinIdsOf(playlist);
-            var entries = Store.Entries(id);
+            var (entries, lastOrder) = Store.Read(id);
+            KostvAwayOrder.Reanchor(entries, jellyfin, lastOrder);
             switch (KostvAwayOrder.Insert(entries, jellyfin, songs, afterSaid, after, Store.Now))
             {
                 case KostvAwayOrder.InsertRefusal.TooMany:
@@ -194,7 +260,7 @@ public class KostvMusicAwayController : ControllerBase
                     return BadRequest(new { Error = "After can't be one of the songs added." });
             }
 
-            if (!Store.SaveEntries(id, entries))
+            if (!Store.SaveEntries(id, entries, KostvAwayOrder.Merged(jellyfin, entries)))
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, new { Error = "The songs could not be stored." });
             }
@@ -222,7 +288,7 @@ public class KostvMusicAwayController : ControllerBase
             return NotSignedIn();
         }
 
-        if (Editable(playlistId, caller.Id, out var id) is { } refused)
+        if (Editable(playlistId, caller.Id, out var id, out var playlist) is { } refused)
         {
             return refused;
         }
@@ -236,8 +302,10 @@ public class KostvMusicAwayController : ControllerBase
         await gate.WaitAsync(HttpContext.RequestAborted).ConfigureAwait(false);
         try
         {
-            var entries = Store.Entries(id);
-            if (KostvAwayOrder.Remove(entries, song) && !Store.SaveEntries(id, entries))
+            var (entries, lastOrder) = Store.Read(id);
+            var jellyfin = KostvMusicAway.JellyfinIdsOf(playlist!);
+            KostvAwayOrder.Reanchor(entries, jellyfin, lastOrder);
+            if (KostvAwayOrder.Remove(entries, song) && !Store.SaveEntries(id, entries, KostvAwayOrder.Merged(jellyfin, entries)))
             {
                 return StatusCode(StatusCodes.Status500InternalServerError, new { Error = "The song could not be taken out." });
             }
@@ -269,7 +337,7 @@ public class KostvMusicAwayController : ControllerBase
             return NotSignedIn();
         }
 
-        if (Editable(playlistId, caller.Id, out var id) is { } refused)
+        if (Editable(playlistId, caller.Id, out var id, out var playlist) is { } refused)
         {
             return refused;
         }
@@ -301,7 +369,9 @@ public class KostvMusicAwayController : ControllerBase
             }
 
             KostvAwayOrder.Reorder(entries, ids);
-            return Store.SaveEntries(id, entries)
+            // kOS TV: the whole list as it is now, for what follows an element taken out later.
+            var now = _away.PlaylistOf(id) ?? playlist!;
+            return Store.SaveEntries(id, entries, KostvAwayOrder.Merged(KostvMusicAway.JellyfinIdsOf(now), entries))
                 ? NoContent()
                 : StatusCode(StatusCodes.Status500InternalServerError, new { Error = "The order could not be stored." });
         }
@@ -312,14 +382,23 @@ public class KostvMusicAwayController : ControllerBase
     }
 
     /// <summary>Null when <paramref name="userId"/> may change the playlist; otherwise why not (<c>404</c> or <c>403</c>).</summary>
-    private ActionResult? Editable(string playlistId, Guid userId, out Guid id)
+    private ActionResult? Editable(string playlistId, Guid userId, out Guid id) => Editable(playlistId, userId, out id, out _);
+
+    private ActionResult? Editable(string playlistId, Guid userId, out Guid id, out Playlist? playlist)
     {
+        playlist = null;
         if (!Guid.TryParse(playlistId, out id) || id == Guid.Empty)
         {
             return NotFound(new { Error = "Playlist not found." });
         }
 
-        return KostvMusicAway.AccessOf(_away.PlaylistOf(id), userId) switch
+        // kOS TV: the server couldn't say (busy): not «not there».
+        if (!_away.TryPlaylistOf(id, out playlist))
+        {
+            return Unavailable();
+        }
+
+        return KostvMusicAway.AccessOf(playlist, userId) switch
         {
             KostvPlaylistAccess.Edit => null,
             KostvPlaylistAccess.Read => StatusCode(StatusCodes.Status403Forbidden, new { Error = "Only who may change the playlist." }),
