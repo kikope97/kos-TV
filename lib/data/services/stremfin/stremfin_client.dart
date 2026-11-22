@@ -416,6 +416,52 @@ class StremfinClient {
     );
   }
 
+  /// Kos TV: the radio of the song [deezerId] (8.40, since 1.101.0): songs
+  /// like that very song, [only] `all` (the service's default), `missing`
+  /// or `available`, [limit] 1–100. The first time of a song takes a few
+  /// seconds (5 to 15), so it waits [songRadioTimeout]. `404 not_found`
+  /// when Deezer doesn't have the song, and from a service before it.
+  /// Never kept on the device (every station and ∞ asks for one).
+  Future<StremfinSongRadio> musicSongRadio(
+    String deezerId, {
+    String? only,
+    int? limit,
+  }) async => StremfinSongRadio.fromJson(
+    await _get('/music/songs/${Uri.encodeComponent(deezerId)}/radio', {
+      'only': ?only,
+      if (limit != null) 'limit': limit.clamp(1, 100),
+    }, songRadioTimeout),
+  );
+
+  /// Kos TV: Deezer's song of each of [songs] (8.39, since 1.100.0; up to
+  /// fifty, the rest left out): its title, artist and, when known, ISRC.
+  /// New ones take a while (fifty, about seven seconds), so it waits
+  /// [songRadioTimeout].
+  Future<StremfinSongMatch> musicSongsMatch(
+    List<({String title, String artist, String? isrc})> songs,
+  ) async {
+    final response = await _send(
+      'POST',
+      '/music/songs/match',
+      data: {
+        'songs': [
+          for (final song in songs.take(50))
+            {
+              'title': song.title,
+              'artist': song.artist,
+              if (song.isrc != null && song.isrc!.isNotEmpty) 'isrc': song.isrc,
+            },
+        ],
+      },
+      receiveTimeout: songRadioTimeout,
+    );
+    return StremfinSongMatch.fromJson(_body(response));
+  }
+
+  /// Kos TV: how long a song's radio and matching are waited for (the
+  /// service's own advice).
+  static const songRadioTimeout = Duration(seconds: 30);
+
   /// The latest and announced records of the artists [deezerIds] (up to
   /// twenty).
   Future<List<StremfinAlbum>> musicArtistReleases(

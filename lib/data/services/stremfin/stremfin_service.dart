@@ -825,6 +825,36 @@ class StremfinService extends ChangeNotifier {
   Future<StremfinPrefetch> musicPrefetch(String deezerId) =>
       _client.musicPrefetch(deezerId);
 
+  /// Kos TV: the radio of the song [deezerId] (see
+  /// [StremfinClient.musicSongRadio]), without the songs the person isn't
+  /// shown ([cleanMusicSongs]).
+  Future<StremfinSongRadio> musicSongRadio(
+    String deezerId, {
+    String? only,
+    int? limit,
+  }) async {
+    final found = await _client.musicSongRadio(
+      deezerId,
+      only: only,
+      limit: limit,
+    );
+    return StremfinSongRadio(
+      seed: found.seed,
+      only: found.only,
+      songs: cleanMusicSongs(found.songs),
+      failed: found.failed,
+    );
+  }
+
+  /// Kos TV: Deezer's song of each of [songs] (see
+  /// [StremfinClient.musicSongsMatch]).
+  Future<StremfinSongMatch> musicSongsMatch(
+    List<({String title, String artist, String? isrc})> songs,
+  ) => _client.musicSongsMatch(songs);
+
+  /// Kos TV: the service's version as it last said (`/me`), or null.
+  String? get serverVersion => _me?.serverVersion;
+
   /// Kos TV: the player's address for a [musicListen] `url`.
   String? musicListenAddress(String url) => _client.listenAddress(url);
 

@@ -398,6 +398,7 @@ class StremfinMe {
     this.pending,
     this.dailyLeft,
     this.atLimit = false,
+    this.serverVersion,
   });
 
   /// `admin`, `member` or `none`.
@@ -422,6 +423,11 @@ class StremfinMe {
   /// They can't ask for more right now.
   final bool atLimit;
 
+  /// Kos TV: the service's version (`1.101.0`; null when it doesn't say,
+  /// as for someone without access), to tell a route it doesn't have yet
+  /// from a 404 of something that doesn't exist.
+  final String? serverVersion;
+
   /// What they ask for waits for the administrator's answer.
   bool get needsApproval => mode == 'review';
 
@@ -436,6 +442,7 @@ class StremfinMe {
         ? user['role'] as String
         : 'none';
     final a = access is Map ? access : const {};
+    final server = raw['server'];
     return StremfinMe(
       role: role,
       canRequest: a['can_request'] == true,
@@ -445,8 +452,30 @@ class StremfinMe {
       pending: _int(a['pending']),
       dailyLeft: _int(a['daily_left']),
       atLimit: a['at_limit'] == true,
+      serverVersion: server is Map ? _text(server['version']) : null,
     );
   }
+}
+
+/// Kos TV: whether the service's [version] (`1.101.0`) is [least] or later;
+/// null when it isn't known or doesn't read as one.
+bool? kostvServiceAtLeast(String? version, String least) {
+  List<int>? parts(String? v) {
+    if (v == null) return null;
+    final numbers = v.trim().split('-').first.split('.');
+    final read = [for (final n in numbers) int.tryParse(n)];
+    if (read.isEmpty || read.contains(null)) return null;
+    return [for (final n in read) n!];
+  }
+
+  final have = parts(version);
+  final want = parts(least);
+  if (have == null || want == null) return null;
+  for (var i = 0; i < want.length; i++) {
+    final h = i < have.length ? have[i] : 0;
+    if (h != want[i]) return h > want[i];
+  }
+  return true;
 }
 
 int? _int(Object? raw) => switch (raw) {

@@ -32,7 +32,29 @@ Respuesta: `{ "Seed": { "Title", "Artist", "Mbid"? }, "Items": [ { "Card": <tarj
   - `Partial: true` mientras la emisora se está calculando (la respuesta rápida de los primeros segundos); `false` cuando ya está entera. Una emisora entera hecha solo con la radio de Deezer (reguetón, infantil…) dice `Source: "fallback"` y `Partial: false`: no hay nada más que esperar. Sin el campo (un complemento de antes), la app toma `fallback` como «sin terminar».
   - Al casar con Deezer, se recorre la emisora en su orden: lo que se escucha junto a la semilla se casa antes que el relleno (que ya trae su `DeezerId`). Si el tiempo de cálculo se acaba con al menos 60 que pueden sonar, la emisora se da por entera con esas. Al apagar el servidor, lo que se está calculando se deja (no se guarda a medias).
 
-**La app:** «Crear emisora» (menú, ficha, Reproduciendo, artista de fuera) y el ∞ usan `Station`. El ∞ siembra con **la última canción elegida por la persona** (no con las que puso él), pide más cuando quedan pocas y no repite. Sin intercalar una a una casa/fuera: el orden es el de la emisora. Lo de fuera suena como siempre por Stremfin (`listen`).
+**La app:** «Crear emisora» (menú, ficha, Reproduciendo, artista de fuera) y el ∞ usan `Station` (con «Toda la música», detrás de la radio de la canción de Stremfin: ver «Orden de las fuentes»). El ∞ siembra con **la última canción elegida por la persona** (no con las que puso él), pide más cuando quedan pocas y no repite. Sin intercalar una a una casa/fuera: el orden es el de la emisora. Lo de fuera suena como siempre por Stremfin (`listen`).
+
+## Orden de las fuentes (2026-11-22, con Stremfin 1.101.0)
+
+Decisión del usuario: usar **las dos**, la radio de una canción de Stremfin (`docs/stremfin-api.md` 8.40) y la emisora del complemento.
+
+**Con «Toda la música»** («Crear emisora» de una canción, de un artista desde su canción, el «⋯» de Reproduciendo y el ∞):
+
+1. **Radio de la canción en Stremfin** (`GET /music/songs/{deezer_id}/radio?only=all&limit=50`). La semilla necesita su id de Deezer: una de fuera ya lo tiene; una de casa se casa con `POST /music/songs/match` (8.39: título, primer artista y el ISRC si Jellyfin lo tiene en `ProviderIds`), una vez por canción (guardado 7 días; «Deezer no la tiene», 6 horas; si Deezer no contestó, `failed`, se vuelve a intentar otra vez). Lo que una radio dice que está en casa (`jellyfin_id` + `deezer_id`) queda casado sin llamada, y la canción de un artista de Stremfin desde la que sale su emisora también.
+   - Cada canción: con `jellyfin_id`, la de Jellyfin (se pide a Jellyfin con la sesión de la persona; si no la da, es su control parental: **fuera, nunca por streaming**); sin él, la de fuera por Stremfin (`listen`).
+   - Filtros de la app: «No me gusta» (canción y artista), lo explícito de fuera para quien tiene límite, la semilla, lo que ya está en la cola y sin dos seguidas del mismo artista (Stremfin ya pone como mucho 2 por artista cada 25).
+2. **Emisora del complemento** (`Station`, el contrato de arriba), si la de Stremfin falla: no contesta en 30 s, `503`, `429`, `404` de una canción que Deezer no tiene, un Stremfin anterior a la 1.101.0, o no queda nada que pueda sonar para esa persona.
+3. **Lo de antes** (la radio de los artistas de Stremfin y la mezcla de Jellyfin detrás), si tampoco hay complemento.
+
+**Con «Solo la de casa»**: la emisora del complemento con `away=false`, como hasta ahora; luego lo de antes.
+
+**Un Stremfin sin la ruta.** El `404` de una ruta que no existe y el de una canción que Deezer no tiene dicen lo mismo (`not_found`). Los separa la versión que da `/me` (`server.version`): por debajo de 1.101.0 (1.100.0 para casar) no se pide y, si contesta 404, se deja 30 minutos (como las rutas que faltan del complemento). Sin versión conocida, dos 404 seguidos de canciones distintas cuentan como «no la tiene».
+
+**El límite de 10 por minuto** (compartido con `/music/recommendations` y `/music/radio`): una llamada por emisora y por cada vez que el ∞ añade, nunca más. La radio de cada canción se guarda una hora en la app (Stremfin la guarda un día). Tras un `429` no se pide hasta pasado su `Retry-After` (y la radio de artistas tampoco, que cuenta en lo mismo); tras otro fallo, un minuto; una canción sin radio, 6 horas. Casar cuenta en los 60 por minuto, aparte.
+
+**El ∞** siembra con la última canción que eligió la persona (3.2). Su radio ya está guardada desde que empezó la emisora, así que no cuesta llamada; cuando ya no da nada que no esté en la cola, pide **la radio de la última canción que sonó** (lo que aconseja la API), con su única llamada de esa vez. Si la de la semilla hubo que pedirla y no dio nada nuevo, no se hace otra llamada: va la del complemento.
+
+**Lo de los 75 s** (volver a pedir la emisora cuando el complemento la da a medias, `Partial`) sigue solo para la del complemento: la de Stremfin llega entera a la primera.
 
 ## Estudio
 

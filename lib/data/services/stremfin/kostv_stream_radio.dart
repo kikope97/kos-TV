@@ -295,6 +295,15 @@ class KostvStreamRadio {
     return _asking[key] = future;
   }
 
+  /// Kos TV: the service said «too many» to another call of the same ten a
+  /// minute (a song's radio): this one isn't asked either until [after]
+  /// has gone by.
+  void restFor(Duration after) {
+    final until = _clock().add(after);
+    final quietUntil = _quietUntil;
+    if (quietUntil == null || quietUntil.isBefore(until)) _quietUntil = until;
+  }
+
   /// How many radios are kept (for tests).
   @visibleForTesting
   int get debugKeptCount => _kept.length;

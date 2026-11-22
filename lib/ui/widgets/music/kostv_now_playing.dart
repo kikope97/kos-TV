@@ -1075,6 +1075,10 @@ class KostvNowPlaying extends ChangeNotifier {
         skipKeys: {...songs.map(kostvSongKey), kostvSongKey(seed)},
         homeLimit: 25,
         client: client,
+        // Kos TV: when the song radio of the seed has nothing left, that of
+        // the song sounding (`docs/musica-radio.md`, «Orden de las
+        // fuentes»).
+        then: current,
       );
       // Kos TV: nor what went into the queue while it was asked (a station
       // being completed meanwhile).
