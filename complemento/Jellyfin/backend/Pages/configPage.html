@@ -2735,6 +2735,11 @@
                 display: none !important;
             }
 
+            /* kOS TV: the labels' preview and test file are not settings, so a search hides them. */
+            #MoonfinConfigPage.moonfin-searching .labelsSide {
+                display: none !important;
+            }
+
             /* kOS TV: sin Seerr (ni su calendario ni sus descargas atascadas). La página
                sigue buscando sus campos por id, así que se ocultan en vez de borrarse. */
             #MoonfinConfigPage .kostvSinSeerr {
@@ -2776,7 +2781,7 @@
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="integrations">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">extension</span>
-                            <span class="moonfinNavText"><span class="moonfinNavLabel">Integraciones</span><span class="moonfinNavSub">MDBList, TMDB, ListenBrainz, Last.fm</span></span>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Integraciones</span><span class="moonfinNavSub">Claves, recomendaciones y música</span></span>
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="games">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">sports_esports</span>
@@ -2816,11 +2821,11 @@
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="appUpdates">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">system_update</span>
-                            <span class="moonfinNavText"><span class="moonfinNavLabel">Actualizaciones de la app</span><span class="moonfinNavSub">Versiones para la tele y el móvil</span></span>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Actualizaciones de la app</span><span class="moonfinNavSub">Versiones e instalaciones</span></span>
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="help">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">help_outline</span>
-                            <span class="moonfinNavText"><span class="moonfinNavLabel">Ayuda</span><span class="moonfinNavSub">Estado del complemento web</span></span>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Ayuda</span><span class="moonfinNavSub">La web de kOS TV</span></span>
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="syncs">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">download</span>
@@ -2862,34 +2867,6 @@
                                 <code>https://</code>, así que el servicio tiene que contestar por <code>https</code>.
                             </div>
                             <div class="fieldDescription" id="KostvRequestsUrlStatus" style="display:none;"></div>
-                        </div>
-                        <div class="inputContainer kostvNoSeUsa">
-                            <label class="inputLabel inputLabelUnfocused" for="WebDefaultServerUrl">URL del servidor por defecto (opcional)</label>
-                            <input type="url" id="WebDefaultServerUrl" is="emby-input" placeholder="https://jellyfin.example.com" />
-                            <div class="fieldDescription">
-                                Rellena de antemano la ventana «Añadir servidor» de kOS TV Web.
-                                Déjala vacía para rellenarla con la dirección actual de Jellyfin.
-                                Usa la URL base de Jellyfin (por ejemplo, <code>http://192.168.1.10:8096</code>), no la de <code>/web</code>.
-                            </div>
-                        </div>
-                        <div class="inputContainer kostvNoSeUsa">
-                            <label class="inputLabel inputLabelUnfocused" for="WebForcedServerUrl">URL del servidor fija (opcional)</label>
-                            <input type="url" id="WebForcedServerUrl" is="emby-input" placeholder="https://jellyfin.example.com" />
-                            <div class="fieldDescription">
-                                Hace que kOS TV Web se conecte solo a esta URL al abrirse.
-                                Déjala vacía para que se conecte como siempre a través del complemento.
-                                Usa la URL base de Jellyfin, sin <code>/web</code> al final.
-                            </div>
-                        </div>
-                        <div class="checkboxContainer checkboxContainer-withDescription kostvNoSeUsa">
-                            <label class="emby-checkbox-label">
-                                <input type="checkbox" id="WebEnableWebRtcScan" is="emby-checkbox" />
-                                <span>Activar la búsqueda en la red local con WebRTC</span>
-                            </label>
-                            <div class="fieldDescription">
-                                Permite que kOS TV Web busque servidores en las direcciones de tu red local con las pistas
-                                de WebRTC. Desactívalo si tu navegador bloquea o limita WebRTC.
-                            </div>
                         </div>
                     </div>
                     </section>
@@ -3473,7 +3450,7 @@
                             </button>
                             <button type="button" class="moonfinProfileBtn" data-profile="desktop" aria-pressed="false">
                                 <span class="material-icons" aria-hidden="true">desktop_windows</span>
-                                <span class="moonfinProfileText"><span class="moonfinProfileLabel">Escritorio</span><span class="moonfinProfileSub">Ordenadores</span></span>
+                                <span class="moonfinProfileText"><span class="moonfinProfileLabel">Escritorio</span><span class="moonfinProfileSub">Ordenadores (web)</span></span>
                                 <span class="moonfinProfileCount"></span>
                             </button>
                             <button type="button" class="moonfinProfileBtn" data-profile="mobile" aria-pressed="false">
@@ -3567,27 +3544,12 @@
                         <div class="defaultsSubtabPanel" data-subtab="appearance">
                             <!-- kOS TV: el menú tiene un solo diseño, igual para todos
                                  (decisión del 2026-11-22): sin posición, estilo, color,
-                                 opacidad ni pestañas que elegir. -->
-                            <h4 style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Botones de la barra de navegación</h4>
+                                 opacidad ni pestañas que elegir. Aquí solo queda qué sale en él;
+                                 Favoritos está siempre (en «Tú») y no hay botón de aleatorio. -->
+                            <h4 style="margin: 1em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Qué sale en el menú</h4>
+                            <div class="fieldDescription" style="margin-bottom: 1em;">El menú es igual para todos: pestañas arriba en la tele y en el ordenador, y la barra de abajo con «Más» en el móvil. Aquí se elige solo qué páginas salen en él; «Mis favoritos» está siempre, en «Tú».</div>
                             <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowShuffleButton">Mostrar botón de aleatorio</label>
-                                <select id="DefaultShowShuffleButton" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="true">Sí</option>
-                                    <option value="false">No</option>
-                                </select>
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShuffleContentType">Contenido del modo aleatorio</label>
-                                <select id="DefaultShuffleContentType" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="both">Películas y series</option>
-                                    <option value="movies">Películas</option>
-                                    <option value="shows">Series</option>
-                                </select>
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowGenresButton">Mostrar botón de géneros</label>
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowGenresButton">Mostrar Géneros en el menú</label>
                                 <select id="DefaultShowGenresButton" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
                                     <option value="true">Sí</option>
@@ -3595,15 +3557,7 @@
                                 </select>
                             </div>
                             <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowFavoritesButton">Mostrar botón de favoritos</label>
-                                <select id="DefaultShowFavoritesButton" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="true">Sí</option>
-                                    <option value="false">No</option>
-                                </select>
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowLiveTvButton">Mostrar botón de TV en directo</label>
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowLiveTvButton">Mostrar TV en directo en el menú</label>
                                 <select id="DefaultShowLiveTvButton" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
                                     <option value="true">Sí</option>
@@ -3611,7 +3565,7 @@
                                 </select>
                             </div>
                             <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowDiscoverButton">Mostrar botón Descubrir</label>
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowDiscoverButton">Mostrar Descubrir en el menú</label>
                                 <select id="DefaultShowDiscoverButton" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
                                     <option value="true">Sí</option>
@@ -3619,7 +3573,7 @@
                                 </select>
                             </div>
                             <div class="inputContainer kostvSinSeerr">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowCalendarButton">Mostrar botón de calendario</label>
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowCalendarButton">Mostrar Calendario en el menú</label>
                                 <select id="DefaultShowCalendarButton" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
                                     <option value="true">Sí</option>
@@ -3627,7 +3581,7 @@
                                 </select>
                             </div>
                             <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowLibrariesInToolbar">Mostrar bibliotecas en la barra de herramientas</label>
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowLibrariesInToolbar">Mostrar Bibliotecas en el menú</label>
                                 <select id="DefaultShowLibrariesInToolbar" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
                                     <option value="true">Sí</option>
@@ -3641,10 +3595,10 @@
                                     <option value="true">Sí</option>
                                     <option value="false">No</option>
                                 </select>
-                                <div class="fieldDescription">Muestra cada biblioteca como un botón propio en la barra de navegación, en lugar de dentro del menú «Bibliotecas».</div>
+                                <div class="fieldDescription">En la tele y en el ordenador, cada biblioteca sale como una pestaña propia del menú, en lugar de dentro de «Bibliotecas». En el móvil, Bibliotecas sigue siendo una sola página.</div>
                             </div>
                             <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowSyncPlayButton">Mostrar botón de Ver juntos</label>
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowSyncPlayButton">Mostrar Ver juntos en el menú</label>
                                 <select id="DefaultShowSyncPlayButton" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
                                     <option value="true">Sí</option>
@@ -3652,16 +3606,8 @@
                                 </select>
                                 <div class="fieldDescription">Solo aparece si «Ver juntos» está activado en «Reproducción».</div>
                             </div>
-                            <div class="inputContainer kostvNoSeUsa">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultEnableFolderView">Activar la vista de carpetas</label>
-                                <select id="DefaultEnableFolderView" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="true">Sí</option>
-                                    <option value="false">No</option>
-                                </select>
-                            </div>
                             <div class="inputContainer kostvSinSeerr">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowSeerrButton">Mostrar botón de Seerr</label>
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowSeerrButton">Mostrar Seerr en el menú</label>
                                 <select id="DefaultShowSeerrButton" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
                                     <option value="true">Sí</option>
@@ -3669,7 +3615,7 @@
                                 </select>
                             </div>
                             <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowDownloadsButton">Mostrar botón de Descargas</label>
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowDownloadsButton">Mostrar Descargas en el menú</label>
                                 <select id="DefaultShowDownloadsButton" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
                                     <option value="true">Sí</option>
@@ -3677,7 +3623,7 @@
                                 </select>
                             </div>
                             <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowServerMessagesButton">Mostrar el botón de mensajes</label>
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowServerMessagesButton">Mostrar Mensajes en el menú</label>
                                 <select id="DefaultShowServerMessagesButton" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
                                     <option value="true">Sí</option>
@@ -3685,7 +3631,7 @@
                                 </select>
                             </div>
                             <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowFriendsButton">Mostrar botón de amigos</label>
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShowFriendsButton">Mostrar Amigos en el menú</label>
                                 <select id="DefaultShowFriendsButton" is="emby-select">
                                     <option value="">Sin fijar (lo decide cada persona)</option>
                                     <option value="true">Sí</option>
@@ -3854,7 +3800,7 @@
                                     <option value="true">Sí</option>
                                     <option value="false">No</option>
                                 </select>
-                                <div class="fieldDescription">Una pieza festiva, como la plancheta de ouija de Halloween, sigue lo que se selecciona en Inicio. En el diseño de escritorio sustituye al puntero del ratón.</div>
+                                <div class="fieldDescription">Una pieza festiva, como la plancheta de ouija de Halloween, sigue lo que se selecciona en Inicio. En el ordenador sustituye al puntero del ratón.</div>
                             </div>
 
                             <h4 style="margin: 1.5em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Animación de carga</h4>
@@ -4082,6 +4028,16 @@
                                 </div>
                             </div>
                             <h4 style="margin: 1.5em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Opciones de las filas</h4>
+                            <div class="inputContainer">
+                                <label class="inputLabel inputLabelUnfocused" for="DefaultShuffleContentType">Contenido de la fila Aleatorio</label>
+                                <select id="DefaultShuffleContentType" is="emby-select">
+                                    <option value="">Sin fijar (lo decide cada persona)</option>
+                                    <option value="both">Películas y series</option>
+                                    <option value="movies">Películas</option>
+                                    <option value="shows">Series</option>
+                                </select>
+                                <div class="fieldDescription">Lo que sale en la fila Aleatorio del final de Inicio y en su ventana.</div>
+                            </div>
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultMergeContinueWatchingNextUp">Fusionar Continuar viendo y A continuación</label>
                                 <select id="DefaultMergeContinueWatchingNextUp" is="emby-select">
@@ -4496,38 +4452,6 @@
                                     <option value="90">90 días</option>
                                 </select>
                                 <div class="fieldDescription">Cuánto tiempo después de emitirse un episodio sigue contando como nuevo, para el aviso y para la fuente «Nuevas temporadas y episodios».</div>
-                            </div>
-                            <div class="inputContainer kostvNoSeUsa">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarNewReleaseKinds">Etiquetas de novedades</label>
-                                <select id="DefaultMediaBarNewReleaseKinds" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="newSeries,newSeason,newEpisodes,newMovie">Series y películas</option>
-                                    <option value="newSeries,newSeason,newEpisodes">Solo series</option>
-                                    <option value="newMovie">Solo películas</option>
-                                </select>
-                                <div class="fieldDescription">Qué títulos llevan etiqueta: series nuevas, temporadas y episodios nuevos, películas nuevas.</div>
-                            </div>
-                            <div class="inputContainer kostvNoSeUsa">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarNewMovieDays">Periodo de película nueva</label>
-                                <select id="DefaultMediaBarNewMovieDays" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="30">30 días</option>
-                                    <option value="60">60 días</option>
-                                    <option value="90">90 días</option>
-                                    <option value="120">120 días</option>
-                                    <option value="180">180 días</option>
-                                    <option value="365">365 días</option>
-                                </select>
-                                <div class="fieldDescription">Cuánto tiempo después de su estreno sigue contando una película como nueva. Los estrenos de cine llegan a los servidores meses después, así que es más largo que el de las series.</div>
-                            </div>
-                            <div class="inputContainer kostvNoSeUsa">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultMediaBarNewMovieDetail">Lema de la película nueva</label>
-                                <select id="DefaultMediaBarNewMovieDetail" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="true">Sí</option>
-                                    <option value="false">No</option>
-                                </select>
-                                <div class="fieldDescription">Debajo de la etiqueta de película nueva, el lema de la película en el idioma de los metadatos del servidor. Si no tiene, la etiqueta va sola.</div>
                             </div>
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused">Géneros excluidos</label>
@@ -5007,17 +4931,6 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
-                            <div class="inputContainer kostvNoSeUsa">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultMergeLibrariesByType">Unir las bibliotecas de películas y de series</label>
-                                <select id="DefaultMergeLibrariesByType" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="true">Sí</option>
-                                    <option value="false">No</option>
-                                </select>
-                                <div class="fieldDescription">
-                                    Con las bibliotecas de varios servidores activadas, muestra una sola biblioteca de películas y una de series para todos los servidores. Un título que tienen varios servidores sale una vez.
-                                </div>
-                            </div>
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultShowBookDiscoverTab">Mostrar Descubrir de Open Library en las bibliotecas de libros</label>
                                 <select id="DefaultShowBookDiscoverTab" is="emby-select">
@@ -5126,22 +5039,6 @@
                                     <option value="false">No</option>
                                 </select>
                             </div>
-                            <div class="inputContainer kostvNoSeUsa">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultHideLibraryWatchProgress">Ocultar el progreso en las bibliotecas</label>
-                                <select id="DefaultHideLibraryWatchProgress" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="true">Sí</option>
-                                    <option value="false">No</option>
-                                </select>
-                            </div>
-                            <div class="inputContainer kostvNoSeUsa">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultHideLibraryUnwatchedCount">Ocultar los «sin ver» en las bibliotecas</label>
-                                <select id="DefaultHideLibraryUnwatchedCount" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="true">Sí</option>
-                                    <option value="false">No</option>
-                                </select>
-                            </div>
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultLibraryPosterSize">Tamaño de tarjeta en las bibliotecas</label>
                                 <select id="DefaultLibraryPosterSize" is="emby-select">
@@ -5160,23 +5057,6 @@
                                     <option value="medium">Mediano</option>
                                     <option value="large">Grande</option>
                                     <option value="extraLarge">Muy grande</option>
-                                </select>
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultFavoritesViewStyle">Vista de Favoritos</label>
-                                <select id="DefaultFavoritesViewStyle" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="home">Filas de inicio</option>
-                                    <option value="library">Cuadrícula de biblioteca</option>
-                                </select>
-                            </div>
-                            <div class="inputContainer">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultAllGenresImageType">Tipo de imagen de la página de géneros</label>
-                                <select id="DefaultAllGenresImageType" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="poster">Póster</option>
-                                    <option value="thumb">Miniatura</option>
-                                    <option value="banner">Banner</option>
                                 </select>
                             </div>
                             <h4 style="margin: 1.5em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Biblioteca de música</h4>
@@ -5451,14 +5331,6 @@
                                 </select>
                             </div>
                             <h4 style="margin: 1.5em 0 0.5em; font-size: 0.95em; color: #00a4dc;">Páginas de personas</h4>
-                            <div class="inputContainer kostvNoSeUsa">
-                                <label class="inputLabel inputLabelUnfocused" for="DefaultPersonPageGroupItems">Agrupar la página de la persona por tipo</label>
-                                <select id="DefaultPersonPageGroupItems" is="emby-select">
-                                    <option value="">Sin fijar (lo decide cada persona)</option>
-                                    <option value="true">Sí</option>
-                                    <option value="false">No</option>
-                                </select>
-                            </div>
                             <div class="inputContainer">
                                 <label class="inputLabel inputLabelUnfocused" for="DefaultPersonPageSortOption">Orden de la página de la persona</label>
                                 <select id="DefaultPersonPageSortOption" is="emby-select">
@@ -6325,8 +6197,8 @@
                     <div class="verticalSection">
                         <h3 class="sectionTitle">Mensajes</h3>
                         <div class="fieldDescription" style="margin-bottom: 0.8em;">
-                            Escribe novedades, avisos o advertencias para tus usuarios. Los leen desde el botón de mensajes
-                            del menú de la app. Los mensajes se guardan, así que los ven aunque tuvieran la app
+                            Escribe novedades, avisos o advertencias para tus usuarios. Los leen en «Mensajes», dentro de
+                            «Más» en el menú de la app. Los mensajes se guardan, así que los ven aunque tuvieran la app
                             cerrada cuando los publicaste.
                         </div>
 
@@ -6354,17 +6226,17 @@
                                 <option value="yellow">Amarillo</option>
                                 <option value="red">Rojo</option>
                             </select>
-                            <div class="fieldDescription">Da color al mensaje en la app. El botón del menú no cambia de color.</div>
+                            <div class="fieldDescription">Da color al mensaje en la app. «Mensajes» no cambia de color en el menú.</div>
                         </div>
 
                         <div class="selectContainer">
                             <label class="selectLabel" for="MessageDelivery">Cómo mostrarlo</label>
                             <select is="emby-select" id="MessageDelivery">
-                                <option value="inbox">Avisar en el botón del menú</option>
+                                <option value="inbox">Avisar en el menú</option>
                                 <option value="popup">Abrir el mensaje en la app</option>
                             </select>
                             <div class="fieldDescription">
-                                «Avisar» suma el mensaje a los no leídos del botón del menú. «Abrir» hace que la ventana
+                                «Avisar» suma el mensaje a los no leídos de «Mensajes» (el número sale en «Más»). «Abrir» hace que la ventana
                                 del mensaje salga sola, una vez. «Abrir» también manda un aviso al móvil, si
                                 este servidor tiene configuradas las notificaciones push.
                             </div>
@@ -6816,28 +6688,19 @@
                     </div>
                     </section>
                     <section class="moonfinTabPanel" data-tab="help">
+                    <div class="moonfinPageHead">
+                        <h3 class="moonfinPageTitle">Ayuda</h3>
+                        <p class="moonfinPageLead">La web de kOS TV y lo que este complemento añade a Jellyfin Web.</p>
+                    </div>
                     <div class="verticalSection">
-                        <h3 class="sectionTitle">Estado del complemento web</h3>
+                        <h3 class="sectionTitle">La web de kOS TV</h3>
                         <div class="fieldDescription" style="margin-bottom: 1em;">
-                            <p>kOS TV usa el complemento
+                            <p>La web de kOS TV va aparte, en su propio contenedor (la imagen de Docker), y no necesita nada
+                                de este complemento: solo la dirección de este servidor.</p>
+                            <p style="margin-top: 0.5em;">Este complemento no lleva la web dentro, así que no añade ningún botón a
+                                la cabecera de Jellyfin Web. El complemento
                                 <a href="https://github.com/IAmParadox27/jellyfin-plugin-file-transformation" target="_blank">File Transformation</a>
-                                para añadir un botón en la cabecera de Jellyfin Web.
-                            </p>
-                            <p style="margin-top: 0.5em;">
-                                <strong>Qué hace:</strong> el botón añadido abre la app web de kOS TV en <code>/Moonfin/Web/</code>.
-                            </p>
-                            <p style="margin-top: 0.5em;">
-                                <strong>Cómo se instala:</strong>
-                            </p>
-                            <ol style="margin-left: 1.5em;">
-                                <li>Instala el complemento <strong>File Transformation</strong> (añade <code>https://www.iamparadox.dev/jellyfin/plugins/manifest.json</code> a tus repositorios de complementos)</li>
-                                <li>Reinicia Jellyfin</li>
-                                <li>Fuerza la recarga del navegador (Ctrl+Mayús+R)</li>
-                            </ol>
-                            <p style="margin-top: 0.5em;">
-                                <strong>¿No carga la interfaz?</strong> Ve a <em>Panel de control &gt; Tareas programadas</em> y ejecuta una vez la tarea
-                                <strong>kOS TV: arranque</strong>; luego recarga el navegador.
-                            </p>
+                                no hace falta para las apps de la tele, del móvil ni para la web.</p>
                         </div>
                     </div>
 
@@ -6851,7 +6714,7 @@
                                 porque ya aparecen en el panel de control de Jellyfin.
                             </div>
                             <div class="paperList" id="MoonfinActiveSyncsList" style="margin-top:1em; display:flex; flex-direction:column; gap:10px;">
-                                <div style="padding:16px; text-align:center; color:rgba(255,255,255,0.5);">Cargando...</div>
+                                <div style="padding:16px; text-align:center; color:rgba(255,255,255,0.5);">Cargando…</div>
                             </div>
                         </div>
                     </section>
@@ -7383,22 +7246,56 @@
                     }
                 });
 
+                var FIELD_SELECTOR = '.inputContainer, .checkboxContainer, .selectContainer';
                 var fields = Array.prototype.slice.call(
                     page.querySelectorAll('.moonfinTabPanel .inputContainer, .moonfinTabPanel .checkboxContainer, .moonfinTabPanel .selectContainer')
                 );
+                // kOS TV: the parts with no fields of their own (the versions, the installations,
+                // the open rooms...) are searched as a whole.
+                var sections = Array.prototype.slice.call(page.querySelectorAll('.moonfinTabPanel .verticalSection'));
+                var blocks = fields.concat(sections.filter(function(section) {
+                    return !section.querySelector(FIELD_SELECTOR) && !section.querySelector('.verticalSection');
+                }));
+
+                // The heading a field sits under: its section's title and the subheading before it.
+                function headingsOf(block) {
+                    var text = '';
+                    var section = block.closest('.verticalSection');
+                    var title = section && section.querySelector('.sectionTitle');
+                    if (title && title !== block) text += ' ' + title.textContent;
+                    for (var el = block.previousElementSibling; el; el = el.previousElementSibling) {
+                        if (el.tagName === 'H4' || el.tagName === 'H3') {
+                            text += ' ' + el.textContent;
+                            break;
+                        }
+                    }
+                    return text;
+                }
+
+                var searchText = blocks.map(function(block) {
+                    return ((block.textContent || '') + headingsOf(block)).toLowerCase();
+                });
 
                 input.addEventListener('input', function() {
                     var query = (input.value || '').trim().toLowerCase();
                     if (!query) {
                         page.classList.remove('moonfin-searching');
-                        fields.forEach(function(field) { field.classList.remove('moonfin-hidden-by-search'); });
+                        blocks.concat(sections).forEach(function(block) { block.classList.remove('moonfin-hidden-by-search'); });
                         return;
                     }
 
                     page.classList.add('moonfin-searching');
-                    fields.forEach(function(field) {
-                        var text = (field.textContent || '').toLowerCase();
-                        field.classList.toggle('moonfin-hidden-by-search', text.indexOf(query) === -1);
+                    blocks.forEach(function(block, i) {
+                        block.classList.toggle('moonfin-hidden-by-search', searchText[i].indexOf(query) === -1);
+                    });
+                    // A section with nothing that matches goes, title and all.
+                    sections.forEach(function(section) {
+                        if (blocks.indexOf(section) !== -1) return;
+                        var inner = Array.prototype.slice.call(section.querySelectorAll(FIELD_SELECTOR + ', .verticalSection'))
+                            .filter(function(el) { return blocks.indexOf(el) !== -1; });
+                        section.classList.toggle('moonfin-hidden-by-search', inner.length > 0 && inner.every(function(el) {
+                            return el.classList.contains('moonfin-hidden-by-search');
+                        }));
                     });
                 });
             }
@@ -7420,7 +7317,6 @@
                 { parent: 'AnimeAudioMarkersEnabled', fields: ['AnimeAudioMarkersMovies', 'AnimeAudioSeparateDualAudio', 'AnimeAudioLabelStyle'] },
                 { parent: ['AnimeMarkersEnabled', 'AnimeAudioMarkersEnabled'], fields: ['AnimeMarkerLibraryPicker', 'AnimeAudioTrustSelectedLibraries', 'AnimeMarkerPlacement', 'AnimeMarkerDiagBtn', 'AnimeMarkerPreviewName', 'AnimeMarkerVerboseLogging', 'AnimeMarkerLogBtn'] },
                 { parent: 'GamesEnabled', fields: ['GameCoresStatus', 'GameCoresFile', 'GameLibraryPicker', 'GamesRommUrl', 'GamesRommToken', 'GamesRommLibraryId', 'GamesRommTestBtn'] },
-                { parent: 'DefaultShowShuffleButton', fields: ['DefaultShuffleContentType'] },
                 { parent: 'DefaultShowSeerrAvailabilityBadges', fields: ['DefaultSeerrBadgeStyle'] },
                 { parent: 'DefaultSeasonalSurprise', off: ['none'], fields: ['DefaultSeasonalDensity', 'DefaultSeasonalFollower'] },
                 { parent: 'DefaultLoadingAnimationImage', off: ['none'], fields: ['DefaultLoadingAnimationPosition', 'DefaultLoadingAnimationSize', 'DefaultLoadingAnimationSpeed', 'DefaultShowLoadingAnimationText'] },
@@ -7436,10 +7332,9 @@
                 { parent: 'DefaultDisplaySinceYouWatchedRows', fields: ['DefaultSinceYouWatchedSource', 'DefaultSinceYouWatchedSourceType', 'DefaultSinceYouWatchedSourceItem', 'DefaultSinceYouWatched1Enabled', 'DefaultSinceYouWatched2Enabled', 'DefaultSinceYouWatched3Enabled', 'DefaultSinceYouWatched4Enabled', 'DefaultSinceYouWatched5Enabled'] },
                 { parent: 'DefaultSinceYouWatchedSource', off: ['online'], fields: ['DefaultSinceYouWatchedIncludeWatched'] },
                 { parent: 'DefaultDisplayStudiosRows', fields: ['DefaultStudiosRowSortBy', 'DefaultStudiosRowSortOrder'] },
-                { parent: 'DefaultMediaBarMode', off: ['off'], fields: ['DefaultMediaBarContentType', 'DefaultMediaBarItemCount', 'DefaultMediaBarSourceType', 'DefaultMediaBarNewReleaseBanner', 'DefaultMediaBarNewReleaseDays', 'DefaultMediaBarNewReleaseKinds', 'DefaultMediaBarNewMovieDays', 'DefaultMediaBarNewMovieDetail', 'DefaultCollectionPickerSection', 'DefaultLibraryPickerSection', 'DefaultGenrePicker', 'DefaultMediaBarAutoAdvance', 'DefaultMediaBarOpacity', 'DefaultMediaBarOverlayColor', 'DefaultMediaBarRowPeek', 'DefaultMediaBarTrailerPreview'] },
+                { parent: 'DefaultMediaBarMode', off: ['off'], fields: ['DefaultMediaBarContentType', 'DefaultMediaBarItemCount', 'DefaultMediaBarSourceType', 'DefaultMediaBarNewReleaseBanner', 'DefaultMediaBarNewReleaseDays', 'DefaultCollectionPickerSection', 'DefaultLibraryPickerSection', 'DefaultGenrePicker', 'DefaultMediaBarAutoAdvance', 'DefaultMediaBarOpacity', 'DefaultMediaBarOverlayColor', 'DefaultMediaBarRowPeek', 'DefaultMediaBarTrailerPreview'] },
                 { parent: 'DefaultMediaBarMode', off: ['off', 'bookshelf', 'aya'], fields: ['DefaultMediaBarRatingsHeading', 'DefaultMediaBarMdblistEnabled', 'DefaultMediaBarMdblistRatingSourcesList', 'DefaultMediaBarMdblistShowRatingNames', 'DefaultMediaBarMdblistShowRatingBadges'] },
                 { parent: 'DefaultMediaBarAutoAdvance', fields: ['DefaultMediaBarIntervalMs'] },
-                { parent: 'DefaultMediaBarNewReleaseBanner', fields: ['DefaultMediaBarNewReleaseKinds'] },
                 { parent: 'DefaultMediaBarTrailerPreview', fields: ['DefaultMediaBarTrailerAudio', 'DefaultTrailerVolume', 'DefaultMediaBarTrailerCaptions'] },
                 { parent: 'DefaultHomeRowsStyle', off: ['v1'], fields: ['DefaultModernCardsOnMyMediaRow', 'DefaultModernHomeRowsPadding'] },
                 { parent: 'DefaultHomeRowsStyle', off: ['v2', 'carousel'], fields: ['DefaultClassicHomeRowsPadding', 'DefaultHomeRowInfoOverlay', 'DefaultHomeImageTypeContinueWatching', 'DefaultHomeRowsImageTypeOverride'] },
@@ -7763,7 +7658,7 @@
             function loadAdminGenrePicker(selectedIds) {
                 var picker = document.querySelector('#DefaultGenrePicker');
                 if (!picker) return;
-                picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando...</div>';
+                picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando…</div>';
                 // A profile switch can refill the form before this answers, and its rows would belong to the old profile.
                 var generation = defaultsState.generation;
 
@@ -7813,7 +7708,7 @@
             function loadMediaLibraryPicker(pickerSelector, checkboxClass, selectedIds) {
                 var picker = document.querySelector(pickerSelector);
                 if (!picker) return;
-                picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando...</div>';
+                picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando…</div>';
                 var generation = defaultsState.generation;
 
                 var userId = ApiClient.getCurrentUserId();
@@ -7836,7 +7731,7 @@
             function loadScreensaverCollectionPicker(selectedIds) {
                 var picker = document.querySelector('#DefaultScreensaverCollectionPicker');
                 if (!picker) return;
-                picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando...</div>';
+                picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando…</div>';
                 var generation = defaultsState.generation;
 
                 var userId = ApiClient.getCurrentUserId();
@@ -7863,7 +7758,7 @@
             function loadScreensaverGenrePicker(selectedNames) {
                 var picker = document.querySelector('#DefaultScreensaverGenrePicker');
                 if (!picker) return;
-                picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando...</div>';
+                picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando…</div>';
                 var generation = defaultsState.generation;
 
                 var serverUrl = ApiClient.serverAddress ? ApiClient.serverAddress() : '';
@@ -11785,6 +11680,31 @@
             }
 
             var DEFAULTS_PROFILE_NAMES = ['global', 'tv', 'desktop', 'mobile'];
+
+            // kOS TV: settings the apps no longer read: the old menus (position, style, colour,
+            // opacity, labels, the bottom bar and its tabs, glass quality, the shuffle and
+            // favourites buttons) and others from the original. A value stored before is cleared
+            // when the defaults load, so it isn't counted, applied nor copied, and goes on the next
+            // «Guardar». The server keeps the fields only so old stored settings still read.
+            var KOSTV_RETIRED_SETTINGS = {
+                navbarEnabled: true, navbarPosition: true, navbarColor: true, navbarOpacity: true,
+                navbarAlwaysExpanded: true, bottomNavbarStyle: true, bottomNavbarTabs: true,
+                glassQuality: true, showShuffleButton: true, showFavoritesButton: true,
+                showCastButton: true, enableFolderView: true, mediaBarNewReleaseKinds: true,
+                mediaBarNewMovieDays: true, mediaBarNewMovieDetail: true, mergeLibrariesByType: true,
+                hideLibraryWatchProgress: true, hideLibraryUnwatchedCount: true,
+                personPageGroupItems: true, favoritesViewStyle: true, allGenresImageType: true,
+                detailsBackdropOpacity: true, detailsBackdropBlur: true, desktopMediaBarProvider: true,
+                seerrRows: true
+            };
+
+            function withoutRetiredSettings(profile) {
+                var clean = Object.assign({}, profile || {});
+                Object.keys(clean).forEach(function(key) {
+                    if (KOSTV_RETIRED_SETTINGS[key]) clean[key] = null;
+                });
+                return clean;
+            }
             var DEFAULTS_PROFILE_LABELS = { global: 'Global', tv: 'TV', desktop: 'Escritorio', mobile: 'Móvil' };
 
             // profiles holds each profile's defaults as the form last read them. baseline is what an
@@ -11964,10 +11884,12 @@
                 var personal = { seerrApiKey: true, mdblistApiKey: true, tmdbApiKey: true, hiddenContinueWatchingItems: true, hiddenNextUpSeries: true };
                 entries.forEach(function(entry) {
                     Object.keys(entry.profile || {}).forEach(function(key) {
-                        if (personal[key] || !isSetDefault(entry.profile[key])) return;
+                        if (personal[key] || KOSTV_RETIRED_SETTINGS[key] || !isSetDefault(entry.profile[key])) return;
                         var id = settingFieldId(key);
                         var el = document.getElementById(id);
-                        var rowId = el ? id : 'key:' + key;
+                        // kOS TV: what this page has no field for (subtitles, downloads, the
+                        // player...) is set in the apps; it goes in one row, by count.
+                        var rowId = el ? id : 'key:otros';
                         var row = rows[rowId];
                         if (!row) {
                             var panel = el && el.closest('.defaultsSubtabPanel');
@@ -11975,13 +11897,22 @@
                             row = rows[rowId] = {
                                 id: rowId,
                                 el: el,
-                                label: settingFieldLabel(el, key),
+                                label: el ? settingFieldLabel(el, key) : 'Otros ajustes de la app (sin campo en esta página)',
                                 group: tab ? tab.textContent.trim() : 'Otros',
                                 keys: [],
                                 values: []
                             };
                         }
                         if (row.keys.indexOf(key) === -1) row.keys.push(key);
+                        if (!el) {
+                            // One count per profile: how many of these it holds.
+                            row.counts = row.counts || {};
+                            row.counts[entry.label] = (row.counts[entry.label] || 0) + 1;
+                            row.values = Object.keys(row.counts).map(function(label) {
+                                return label + ': ' + plural(row.counts[label], 'ajuste');
+                            });
+                            return;
+                        }
                         var valueText = entry.label + ': ' + settingValueText(el, entry.profile[key]);
                         if (row.values.every(function(v) { return v.indexOf(entry.label + ':') !== 0; })) {
                             row.values.push(valueText);
@@ -12482,9 +12413,6 @@
                     document.querySelector('#AnimeMarkerVerboseLogging').checked = config.AnimeMarkerVerboseLogging === true;
                     loadLibraryPicker('#AnimeMarkerLibraryPicker', 'animeMarkerLibraryCb', config.AnimeMarkerLibraryIds || []);
                     setPosterBadgeRules(config.PosterBadgeRules, config.PosterBadgeDefaults);
-                    document.querySelector('#WebDefaultServerUrl').value = config.WebDefaultServerUrl || '';
-                    document.querySelector('#WebForcedServerUrl').value = config.WebForcedServerUrl || '';
-                    document.querySelector('#WebEnableWebRtcScan').checked = config.WebEnableWebRtcScan !== false;
 
                     loadLibraryPicker('#DefaultHiddenLibraryPicker', 'defaultHiddenLibraryCb', config.DefaultHiddenLibraryIds || []);
                     loadLibraryPicker('#DefaultHiddenFromLatestLibraryPicker', 'defaultHiddenFromLatestLibraryCb', config.DefaultHiddenFromLatestLibraryIds || []);
@@ -12500,7 +12428,7 @@
 
                     var deviceDefaults = config.DefaultDeviceSettings || {};
                     DEFAULTS_PROFILE_NAMES.forEach(function(name) {
-                        defaultsState.profiles[name] = (name === 'global' ? config.DefaultUserSettings : deviceDefaults[name]) || {};
+                        defaultsState.profiles[name] = withoutRetiredSettings(name === 'global' ? config.DefaultUserSettings : deviceDefaults[name]);
                     });
                     defaultsState.active = 'global';
                     fillUploadedThemes(config.UploadedThemes);
@@ -12568,7 +12496,6 @@
                     setSelectValue('#DefaultLoadingAnimationSpeed', defaults.loadingAnimationSpeed, 'Velocidad configurada');
                     setNullableBoolSelect('#DefaultShowLoadingAnimationText', defaults.showLoadingAnimationText);
 
-                    setNullableBoolSelect('#DefaultEnableFolderView', defaults.enableFolderView);
                     setNullableBoolSelect('#DefaultShowSeerrButton', defaults.showSeerrButton);
                     setNullableBoolSelect('#DefaultShowLiveTvButton', defaults.showLiveTvButton);
                     setNullableBoolSelect('#DefaultShowDiscoverButton', defaults.showDiscoverButton);
@@ -12588,9 +12515,6 @@
                     setNullableBoolSelect('#DefaultMediaBarRowPeek', defaults.mediaBarRowPeek);
                     setNullableBoolSelect('#DefaultMediaBarNewReleaseBanner', defaults.mediaBarNewReleaseBanner);
                     setSelectValue('#DefaultMediaBarNewReleaseDays', defaults.mediaBarNewReleaseDays, 'Plazo configurado');
-                    setSelectValue('#DefaultMediaBarNewReleaseKinds', defaults.mediaBarNewReleaseKinds, 'Etiquetas configuradas');
-                    setSelectValue('#DefaultMediaBarNewMovieDays', defaults.mediaBarNewMovieDays, 'Plazo configurado');
-                    setNullableBoolSelect('#DefaultMediaBarNewMovieDetail', defaults.mediaBarNewMovieDetail);
                     setNullableBoolSelect('#DefaultMediaBarTrailerPreview', defaults.mediaBarTrailerPreview);
                     setNullableBoolSelect('#DefaultMediaBarTrailerAudio', defaults.mediaBarTrailerAudio);
                     bindNullableRangeInput('#DefaultTrailerVolume', '%');
@@ -12642,7 +12566,6 @@
                     setSelectValue('#DefaultNextUpMaxDays', defaults.nextUpMaxDays, 'Máximo de días configurado');
 
                     setNullableBoolSelect('#DefaultEnableMultiServerLibraries', defaults.enableMultiServerLibraries);
-                    setNullableBoolSelect('#DefaultMergeLibrariesByType', defaults.mergeLibrariesByType);
                     setNullableBoolSelect('#DefaultHideWatchedInRecentRows', defaults.hideWatchedInRecentRows);
                     setNullableBoolSelect('#DefaultMergeRecentRowsByType', defaults.mergeRecentRowsByType);
                     setSelectValue('#DefaultRecentlyReleasedSeriesType', defaults.recentlyReleasedSeriesType, 'Orden configurado');
@@ -12651,12 +12574,8 @@
                     setNullableBoolSelect('#DefaultLibraryCardTitles', defaults.libraryCardTitles);
                     setNullableBoolSelect('#DefaultUseDetailedSubHeadings', defaults.useDetailedSubHeadings);
                     setNullableBoolSelect('#DefaultHideBackdropsInLibraries', defaults.hideBackdropsInLibraries);
-                    setNullableBoolSelect('#DefaultHideLibraryWatchProgress', defaults.hideLibraryWatchProgress);
-                    setNullableBoolSelect('#DefaultHideLibraryUnwatchedCount', defaults.hideLibraryUnwatchedCount);
 
-                    setNullableBoolSelect('#DefaultShowShuffleButton', defaults.showShuffleButton);
                     setNullableBoolSelect('#DefaultShowGenresButton', defaults.showGenresButton);
-                    setNullableBoolSelect('#DefaultShowFavoritesButton', defaults.showFavoritesButton);
                     setNullableBoolSelect('#DefaultShowSyncPlayButton', defaults.showSyncPlayButton);
                     setNullableBoolSelect('#DefaultSyncPlayEnabled', defaults.syncPlayEnabled);
                     setSelectValue('#DefaultWatchPartyService', defaults.watchPartyService, 'Servicio configurado');
@@ -12746,7 +12665,6 @@
                     setNullableBoolSelect('#DefaultHideDetailsMediaDescription', defaults.hideDetailsMediaDescription);
                     setNullableBoolSelect('#DefaultDetailTrailersExternal', defaults.detailTrailersExternal);
                     setNullableBoolSelect('#DefaultDetailUseSeriesThumbnails', defaults.detailUseSeriesThumbnails);
-                    setNullableBoolSelect('#DefaultPersonPageGroupItems', defaults.personPageGroupItems);
                     setNullableBoolSelect('#DefaultHomeRowsImageTypeOverride', defaults.homeRowsImageTypeOverride);
                     setNullableBoolSelect('#DefaultHideHomeMediaDescription', defaults.hideHomeMediaDescription);
                     setNullableBoolSelect('#DefaultHideHomeWatchProgress', defaults.hideHomeWatchProgress);
@@ -12807,8 +12725,6 @@
                     setSelectValue('#DefaultMusicLibraryStyle', defaults.musicLibraryStyle, 'Estilo configurado');
                     setSelectValue('#DefaultLibraryPosterSize', defaults.libraryPosterSize, 'Tamaño configurado');
                     setSelectValue('#DefaultPlaylistPosterSize', defaults.playlistPosterSize, 'Tamaño configurado');
-                    setSelectValue('#DefaultFavoritesViewStyle', defaults.favoritesViewStyle, 'Vista configurada');
-                    setSelectValue('#DefaultAllGenresImageType', defaults.allGenresImageType, 'Tipo de imagen configurado');
                     setSelectValue('#DefaultAudioSortOption', defaults.audioSortOption, 'Orden configurado');
                     setSelectValue('#DefaultLiveTvChannelSortBy', defaults.liveTvChannelSortBy, 'Orden configurado');
                     setSelectValue('#DefaultEpgMobileView', defaults.epgMobileView, 'Vista configurada');
@@ -12828,7 +12744,7 @@
                 function loadAdminCollectionPicker(selectedIds) {
                     var picker = document.querySelector('#DefaultCollectionPicker');
                     if (!picker) return;
-                    picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando...</div>';
+                    picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando…</div>';
                     var generation = defaultsState.generation;
 
                     var userId = ApiClient.getCurrentUserId();
@@ -12871,7 +12787,7 @@
                 function loadAdminLibraryPicker(selectedIds) {
                     var picker = document.querySelector('#DefaultLibraryPicker');
                     if (!picker) return;
-                    picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando...</div>';
+                    picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando…</div>';
                     var generation = defaultsState.generation;
 
                     var userId = ApiClient.getCurrentUserId();
@@ -12956,7 +12872,7 @@
                 function loadLibraryPicker(pickerSelector, checkboxClass, selectedIds) {
                     var picker = document.querySelector(pickerSelector);
                     if (!picker) return;
-                    picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando...</div>';
+                    picker.innerHTML = '<div style="padding:8px;color:rgba(255,255,255,0.5);font-size:0.9em;">Cargando…</div>';
 
                     var userId = ApiClient.getCurrentUserId();
                     // Hidden ones too, or a library the admin hid from their own home would drop out of the saved list.
@@ -13345,7 +13261,7 @@
                         loadWebhookProvisioningStatus();
                     }).catch(function() {
                         if (note) {
-                            note.textContent = 'Re-provisioning failed.';
+                            note.textContent = 'No se ha podido volver a configurar el webhook.';
                         }
                     }).then(function() {
                         if (btn) {
@@ -13489,9 +13405,6 @@
                         ).map(function (cb) { return cb.getAttribute('data-id'); });
                         config.PosterBadgeRules = getPosterBadgeRules();
                         config.PosterBadgeDefaults = getPosterBadgeDefaults();
-                        config.WebDefaultServerUrl = document.querySelector('#WebDefaultServerUrl').value || null;
-                        config.WebForcedServerUrl = document.querySelector('#WebForcedServerUrl').value || null;
-                        config.WebEnableWebRtcScan = document.querySelector('#WebEnableWebRtcScan').checked;
 
                         if (document.querySelector('.defaultHiddenLibraryCb') != null) {
                             config.DefaultHiddenLibraryIds = Array.prototype.slice.call(
@@ -13633,7 +13546,6 @@
                     ds.loadingAnimationSpeed = document.querySelector('#DefaultLoadingAnimationSpeed').value || null;
                     ds.showLoadingAnimationText = getNullableBoolSelect('#DefaultShowLoadingAnimationText');
 
-                    ds.enableFolderView = getNullableBoolSelect('#DefaultEnableFolderView');
                     ds.showSeerrButton = getNullableBoolSelect('#DefaultShowSeerrButton');
                     ds.showLiveTvButton = getNullableBoolSelect('#DefaultShowLiveTvButton');
                     ds.showDiscoverButton = getNullableBoolSelect('#DefaultShowDiscoverButton');
@@ -13659,9 +13571,6 @@
                     ds.mediaBarRowPeek = getNullableBoolSelect('#DefaultMediaBarRowPeek');
                     ds.mediaBarNewReleaseBanner = getNullableBoolSelect('#DefaultMediaBarNewReleaseBanner');
                     ds.mediaBarNewReleaseDays = getNullableIntInput('#DefaultMediaBarNewReleaseDays');
-                    ds.mediaBarNewReleaseKinds = document.querySelector('#DefaultMediaBarNewReleaseKinds').value || null;
-                    ds.mediaBarNewMovieDays = getNullableIntInput('#DefaultMediaBarNewMovieDays');
-                    ds.mediaBarNewMovieDetail = getNullableBoolSelect('#DefaultMediaBarNewMovieDetail');
                     ds.mediaBarTrailerPreview = getNullableBoolSelect('#DefaultMediaBarTrailerPreview');
                     ds.mediaBarTrailerAudio = getNullableBoolSelect('#DefaultMediaBarTrailerAudio');
                     ds.trailerVolume = getNullableRangeInput('#DefaultTrailerVolume');
@@ -13769,7 +13678,6 @@
                     ds.nextUpMaxDays = getNullableIntInput('#DefaultNextUpMaxDays');
 
                     ds.enableMultiServerLibraries = getNullableBoolSelect('#DefaultEnableMultiServerLibraries');
-                    ds.mergeLibrariesByType = getNullableBoolSelect('#DefaultMergeLibrariesByType');
                     ds.hideWatchedInRecentRows = getNullableBoolSelect('#DefaultHideWatchedInRecentRows');
                     ds.mergeRecentRowsByType = getNullableBoolSelect('#DefaultMergeRecentRowsByType');
                     ds.recentlyReleasedSeriesType = document.querySelector('#DefaultRecentlyReleasedSeriesType').value || null;
@@ -13778,12 +13686,8 @@
                     ds.libraryCardTitles = getNullableBoolSelect('#DefaultLibraryCardTitles');
                     ds.useDetailedSubHeadings = getNullableBoolSelect('#DefaultUseDetailedSubHeadings');
                     ds.hideBackdropsInLibraries = getNullableBoolSelect('#DefaultHideBackdropsInLibraries');
-                    ds.hideLibraryWatchProgress = getNullableBoolSelect('#DefaultHideLibraryWatchProgress');
-                    ds.hideLibraryUnwatchedCount = getNullableBoolSelect('#DefaultHideLibraryUnwatchedCount');
 
-                    ds.showShuffleButton = getNullableBoolSelect('#DefaultShowShuffleButton');
                     ds.showGenresButton = getNullableBoolSelect('#DefaultShowGenresButton');
-                    ds.showFavoritesButton = getNullableBoolSelect('#DefaultShowFavoritesButton');
                     ds.showSyncPlayButton = getNullableBoolSelect('#DefaultShowSyncPlayButton');
                     ds.syncPlayEnabled = getNullableBoolSelect('#DefaultSyncPlayEnabled');
                     ds.watchPartyService = document.querySelector('#DefaultWatchPartyService').value || null;
@@ -13809,10 +13713,9 @@
                     ds.seerrShowMissingCollectionItems = getNullableBoolSelect('#DefaultSeerrShowMissingCollectionItems');
                     ds.showSeerrAvailabilityBadges = getNullableBoolSelect('#DefaultShowSeerrAvailabilityBadges');
                     ds.seerrBadgeStyle = document.querySelector('#DefaultSeerrBadgeStyle').value || null;
-                    // seerrRows carries more than the ordering, so merge rather than replace.
-                    var seerrRows = Object.assign({}, ds.seerrRows || {});
-                    seerrRows.rowOrder = getSeerrDiscoveryRowOrder();
-                    ds.seerrRows = seerrRows;
+                    // kOS TV: without Seerr its rows are never set: the hidden picker would
+                    // otherwise save its starting layout as a default on every «Guardar».
+                    ds.seerrRows = null;
                     ds.seerrRowsSortBy = document.querySelector('#DefaultSeerrRowsSortBy').value || null;
                     ds.seerrRowsSortOrder = document.querySelector('#DefaultSeerrRowsSortOrder').value || null;
                     ds.calendarStyle = document.querySelector('#DefaultCalendarStyle').value || null;
@@ -13842,7 +13745,6 @@
                     ds.hideDetailsMediaDescription = getNullableBoolSelect('#DefaultHideDetailsMediaDescription');
                     ds.detailTrailersExternal = getNullableBoolSelect('#DefaultDetailTrailersExternal');
                     ds.detailUseSeriesThumbnails = getNullableBoolSelect('#DefaultDetailUseSeriesThumbnails');
-                    ds.personPageGroupItems = getNullableBoolSelect('#DefaultPersonPageGroupItems');
                     ds.homeRowsImageTypeOverride = getNullableBoolSelect('#DefaultHomeRowsImageTypeOverride');
                     ds.hideHomeMediaDescription = getNullableBoolSelect('#DefaultHideHomeMediaDescription');
                     ds.hideHomeWatchProgress = getNullableBoolSelect('#DefaultHideHomeWatchProgress');
@@ -13900,8 +13802,6 @@
                     ds.musicLibraryStyle = document.querySelector('#DefaultMusicLibraryStyle').value || null;
                     ds.libraryPosterSize = document.querySelector('#DefaultLibraryPosterSize').value || null;
                     ds.playlistPosterSize = document.querySelector('#DefaultPlaylistPosterSize').value || null;
-                    ds.favoritesViewStyle = document.querySelector('#DefaultFavoritesViewStyle').value || null;
-                    ds.allGenresImageType = document.querySelector('#DefaultAllGenresImageType').value || null;
                     ds.audioSortOption = document.querySelector('#DefaultAudioSortOption').value || null;
                     ds.liveTvChannelSortBy = document.querySelector('#DefaultLiveTvChannelSortBy').value || null;
                     ds.epgMobileView = document.querySelector('#DefaultEpgMobileView').value || null;
@@ -14077,7 +13977,7 @@
                         root.querySelector('#CopyToChips').innerHTML = userChipsHtml('copy', state.to, state.from);
                         var fromText = root.querySelector('#CopyFromProfiles');
                         var saved = entries.filter(function(entry) { return entry.count > 0; }).map(function(entry) { return entry.label; });
-                        fromText.textContent = !state.from ? '' : state.loading ? 'Cargando sus ajustes...'
+                        fromText.textContent = !state.from ? '' : state.loading ? 'Cargando sus ajustes…'
                             : saved.length ? 'Tiene ajustes guardados en ' + joinWithAnd(saved) + (saved.length > 1 ? '.' : '.')
                             : 'Aún no tiene nada guardado, así que no hay nada que copiar.';
                     }
@@ -14120,7 +14020,7 @@
                         var from = state.from ? userName(state.from) : '';
                         var to = joinWithAnd(state.to.map(userName));
                         if (!from) { text = 'Elige de quién copiar.'; ok = false; }
-                        else if (state.loading) { text = 'Cargando sus ajustes...'; ok = false; }
+                        else if (state.loading) { text = 'Cargando sus ajustes…'; ok = false; }
                         else if (!on.length) { text = 'Elige al menos un perfil.'; ok = false; }
                         else if (!state.to.length) { text = 'Añade al menos un usuario al que copiar.'; ok = false; }
                         else if (pick && !summary.count) { text = 'Elige al menos un ajuste.'; ok = false; }

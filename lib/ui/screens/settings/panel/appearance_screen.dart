@@ -37,8 +37,8 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
       appBar: buildSettingsAppBar(context, Text(l10n.appearance)),
       body: FocusScope(
         node: _appearanceScope,
-        // Rebuild on preference changes so the Glass Quality tile appears or
-        // disappears the moment the glass theme is selected or replaced.
+        // Rebuild on preference changes so the tiles that depend on another
+        // setting (or on the poster labels being there) follow it at once.
         child: ListenableBuilder(
           listenable: Listenable.merge([
             GetIt.instance<UserPreferences>(),

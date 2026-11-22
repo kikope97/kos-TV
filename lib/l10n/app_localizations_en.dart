@@ -4620,14 +4620,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showDownloadsButton => 'Show Downloads Button';
 
   @override
-  String get showLibrariesInToolbar => 'Show Libraries in Toolbar';
+  String get showLibrariesInToolbar => 'Show Libraries in the menu';
 
   @override
   String get showLibrariesIndividually => 'Show Libraries Individually';
 
   @override
   String get showLibrariesIndividuallySubtitle =>
-      'Show each library as its own button in the navigation bar instead of in the Libraries menu';
+      'Show each library as its own tab in the menu instead of inside Libraries';
 
   @override
   String get gray => 'Gray';
@@ -11184,8 +11184,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show the shuffle button in the navigation bar';
 
   @override
-  String get settingsShowGenresButtonInNavigation =>
-      'Show the genres button in the navigation bar';
+  String get settingsShowGenresButtonInNavigation => 'Show Genres in the menu';
 
   @override
   String get settingsShowFavoritesButtonInNavigation =>
@@ -11193,11 +11192,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsShowLiveTvButtonInNavigation =>
-      'Show the Live TV button in the navigation bar when the server has a Live TV library';
+      'Show Live TV in the menu when the server has a Live TV library';
 
   @override
   String get settingsShowLibrariesButtonInNavigation =>
-      'Show the libraries button in the navigation bar';
+      'Show Libraries in the menu';
 
   @override
   String get settingsLibraryVisibilitySubtitle =>
@@ -11567,8 +11566,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsSyncplayButton => 'Watch Parties button';
 
   @override
-  String get settingsSyncplayButtonSubtitle =>
-      'Show the Watch Parties button on the navigation bar';
+  String get settingsSyncplayButtonSubtitle => 'Show Watch Parties in the menu';
 
   @override
   String get settingsSyncplayAdvancedCorrection => 'Advanced correction';
@@ -15513,7 +15511,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Server plugin sync and customization profiles';
 
   @override
-  String get navigationBar => 'Navigation Bar';
+  String get navigationBar => 'Menu';
 
   @override
   String get homeRows => 'Rows';
@@ -16724,7 +16722,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get showCalendarButtonSubtitle =>
-      'Show the calendar of upcoming episodes and movies in the navigation bar';
+      'Show the calendar of upcoming episodes and movies in the menu';
 
   @override
   String get calendarFullCalendar => 'Full calendar';

@@ -8069,7 +8069,7 @@ abstract class AppLocalizations {
   /// Setting for showing libraries in toolbar
   ///
   /// In en, this message translates to:
-  /// **'Show Libraries in Toolbar'**
+  /// **'Show Libraries in the menu'**
   String get showLibrariesInToolbar;
 
   /// Setting that puts each library in the navigation bar as its own button instead of grouping them under the Libraries menu
@@ -8081,7 +8081,7 @@ abstract class AppLocalizations {
   /// Subtitle for the Show Libraries Individually setting
   ///
   /// In en, this message translates to:
-  /// **'Show each library as its own button in the navigation bar instead of in the Libraries menu'**
+  /// **'Show each library as its own tab in the menu instead of inside Libraries'**
   String get showLibrariesIndividuallySubtitle;
 
   /// Color: gray
@@ -19733,7 +19733,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsShowGenresButtonInNavigation.
   ///
   /// In en, this message translates to:
-  /// **'Show the genres button in the navigation bar'**
+  /// **'Show Genres in the menu'**
   String get settingsShowGenresButtonInNavigation;
 
   /// No description provided for @settingsShowFavoritesButtonInNavigation.
@@ -19745,13 +19745,13 @@ abstract class AppLocalizations {
   /// No description provided for @settingsShowLiveTvButtonInNavigation.
   ///
   /// In en, this message translates to:
-  /// **'Show the Live TV button in the navigation bar when the server has a Live TV library'**
+  /// **'Show Live TV in the menu when the server has a Live TV library'**
   String get settingsShowLiveTvButtonInNavigation;
 
   /// No description provided for @settingsShowLibrariesButtonInNavigation.
   ///
   /// In en, this message translates to:
-  /// **'Show the libraries button in the navigation bar'**
+  /// **'Show Libraries in the menu'**
   String get settingsShowLibrariesButtonInNavigation;
 
   /// No description provided for @settingsLibraryVisibilitySubtitle.
@@ -20399,7 +20399,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsSyncplayButtonSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Show the Watch Parties button on the navigation bar'**
+  /// **'Show Watch Parties in the menu'**
   String get settingsSyncplayButtonSubtitle;
 
   /// No description provided for @settingsSyncplayAdvancedCorrection.
@@ -27006,7 +27006,7 @@ abstract class AppLocalizations {
   /// Settings screen for the navigation bar style and buttons
   ///
   /// In en, this message translates to:
-  /// **'Navigation Bar'**
+  /// **'Menu'**
   String get navigationBar;
 
   /// Settings entry and screen for turning Home rows on or off and ordering them
@@ -28860,7 +28860,7 @@ abstract class AppLocalizations {
   /// Subtitle of the Show Calendar Button setting
   ///
   /// In en, this message translates to:
-  /// **'Show the calendar of upcoming episodes and movies in the navigation bar'**
+  /// **'Show the calendar of upcoming episodes and movies in the menu'**
   String get showCalendarButtonSubtitle;
 
   /// Button on the calendar that opens the month grid

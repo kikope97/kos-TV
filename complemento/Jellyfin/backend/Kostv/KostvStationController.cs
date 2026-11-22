@@ -66,7 +66,7 @@ public class KostvStationController : ControllerBase
         var user = userId.HasValue ? UserReflection.ResolveUser(HttpContext.RequestServices, userId.Value) : null;
         if (!userId.HasValue || user == null)
         {
-            return Unauthorized(new { Error = "User not authenticated" });
+            return Unauthorized(new { Error = "No has iniciado sesión." });
         }
 
         title = Clean(title);
@@ -88,7 +88,7 @@ public class KostvStationController : ControllerBase
         }
         else
         {
-            return BadRequest(new { Error = "seed is a song's id, or stremfin:<DeezerId>." });
+            return BadRequest(new { Error = "seed es el identificador de una canción o stremfin:<DeezerId>." });
         }
 
         // Kos TV: a song that can't be told is an empty station, not a 404 (which says the plugin is old).
