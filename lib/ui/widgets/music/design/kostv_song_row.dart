@@ -56,9 +56,14 @@ class KostvSongRow extends StatelessWidget {
     this.height,
     this.textSize,
     this.coverSize,
+    this.menuAlways = false,
   });
 
   final String title;
+
+  /// Kos TV: «⋯» always at hand, not only with the focus or the mouse over
+  /// it (a phone's queue: the row's menu is how a song is taken out).
+  final bool menuAlways;
 
   /// The line under it (artist, album).
   final String? subtitle;
@@ -141,6 +146,7 @@ class KostvSongRow extends StatelessWidget {
         picked: picked,
         trailing: trailing,
         onMenu: onMenu,
+        menuAlways: menuAlways,
         height: height,
         textSize: textSize,
         coverSize: coverSize,
@@ -149,16 +155,57 @@ class KostvSongRow extends StatelessWidget {
     if (sound != null || soundingId == null) {
       return row(sound ?? KostvSongSound.none);
     }
-    final music = KostvNowPlaying.instance;
-    return ListenableBuilder(
-      listenable: music,
-      builder: (context, _) => row(
-        music.item?.id != soundingId
-            ? KostvSongSound.none
-            : (music.playing ? KostvSongSound.playing : KostvSongSound.paused),
-      ),
-    );
+    return _SoundingRow(id: soundingId, builder: row);
   }
+}
+
+/// Kos TV: a row that follows the player for its own song: redrawn only
+/// when that song starts, stops or pauses, not on every change of the
+/// player (nor when another song starts, unless this one was sounding).
+class _SoundingRow extends StatefulWidget {
+  const _SoundingRow({required this.id, required this.builder});
+
+  final String id;
+  final Widget Function(KostvSongSound sound) builder;
+
+  @override
+  State<_SoundingRow> createState() => _SoundingRowState();
+}
+
+class _SoundingRowState extends State<_SoundingRow> {
+  late KostvSongSound _sound = _now();
+
+  KostvSongSound _now() {
+    final now = KostvNowPlaying.instance.sounding.value;
+    if (now.id != widget.id) return KostvSongSound.none;
+    return now.playing ? KostvSongSound.playing : KostvSongSound.paused;
+  }
+
+  void _changed() {
+    final sound = _now();
+    if (sound != _sound) setState(() => _sound = sound);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    KostvNowPlaying.instance.sounding.addListener(_changed);
+  }
+
+  @override
+  void didUpdateWidget(_SoundingRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.id != widget.id) _sound = _now();
+  }
+
+  @override
+  void dispose() {
+    KostvNowPlaying.instance.sounding.removeListener(_changed);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(_sound);
 }
 
 /// Kos TV: how [KostvSongRow] looks, told whether it is [lit].
@@ -179,10 +226,14 @@ class KostvSongRowFace extends StatelessWidget {
     this.picked = false,
     this.trailing,
     this.onMenu,
+    this.menuAlways = false,
     this.height,
     this.textSize,
     this.coverSize,
   });
+
+  /// See [KostvSongRow.menuAlways].
+  final bool menuAlways;
 
   final bool lit;
   final KostvSongSound sound;
@@ -281,7 +332,7 @@ class KostvSongRowFace extends StatelessWidget {
     final menu = onMenu;
     // «⋯» only where there is a pointer or a remote: on the phone the row
     // is long-pressed.
-    final showMenu = lit && menu != null;
+    final showMenu = (lit || menuAlways) && menu != null;
     // A wide row (an album's, the web's) grows by a few pixels at most,
     // not 2 % of its width: its number and time would move too much.
     return LayoutBuilder(

@@ -13,6 +13,9 @@ import 'package:moonfin/data/services/media_server_client_factory.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/user_preferences.dart';
+import 'package:moonfin/data/models/aggregated_item.dart';
+import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
+import 'package:moonfin/ui/screens/music/kostv_music_album_play.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_home_parts.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_screen.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_widgets.dart';
@@ -62,6 +65,18 @@ class _FakePlaybackManager extends Fake implements PlaybackManager {
 
   @override
   final QueueService queueService = QueueService();
+
+  /// Kos TV: what was put on to play.
+  final played = <List<dynamic>>[];
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) {
+    if (invocation.memberName == #playItems) {
+      played.add(invocation.positionalArguments.first as List<dynamic>);
+      return Future<void>.value();
+    }
+    return super.noSuchMethod(invocation);
+  }
 }
 
 class _FakeClientFactory extends Fake implements MediaServerClientFactory {}
@@ -77,6 +92,12 @@ Map<String, dynamic> _album(String id, String name, String artist) => {
 /// two ♥ songs and a playlist.
 class _Items implements ItemsApi {
   final calls = <Map<Symbol, dynamic>>[];
+
+  /// Kos TV: more albums at home after the three (a big house), and parts
+  /// that fail to be read.
+  int extraAlbums = 0;
+  bool failPlaylists = false;
+  bool failAlbums = false;
 
   static final _albums = [
     _album('al1', 'Faroles', 'Los Faroleros'),
@@ -112,8 +133,14 @@ class _Items implements ItemsApi {
     },
   ];
 
-  Map<String, dynamic> _page(List<Map<String, dynamic>> items) => {
-    'Items': items,
+  Map<String, dynamic> _page(
+    List<Map<String, dynamic>> items, {
+    int? start,
+    int? limit,
+  }) => {
+    'Items': start == null
+        ? items
+        : items.skip(start).take(limit ?? items.length).toList(),
     'TotalRecordCount': items.length,
   };
 
@@ -127,8 +154,17 @@ class _Items implements ItemsApi {
     final types = (args[#includeItemTypes] as List<String>?) ?? const [];
     final term = (args[#searchTerm] as String?)?.toLowerCase();
     final ids = args[#ids] as List<String>?;
+    if (types.contains('Playlist') && failPlaylists) {
+      return Future<Map<String, dynamic>>.error(Exception('no lists'));
+    }
+    if (types.contains('MusicAlbum') && ids == null && failAlbums) {
+      return Future<Map<String, dynamic>>.error(Exception('no albums'));
+    }
     List<Map<String, dynamic>> pool = [
       if (types.contains('MusicAlbum')) ..._albums,
+      if (types.contains('MusicAlbum'))
+        for (var i = 0; i < extraAlbums; i++)
+          _album('x$i', 'Zeta ${i.toString().padLeft(3, '0')}', 'Otra'),
       if (types.contains('MusicArtist')) ..._artists,
       if (types.contains('Audio')) ..._songs,
       if (types.contains('Playlist'))
@@ -152,7 +188,13 @@ class _Items implements ItemsApi {
           if (ids.contains(item['Id'])) item,
       ];
     }
-    return Future.value(_page(pool));
+    return Future.value(
+      _page(
+        pool,
+        start: args[#startIndex] as int?,
+        limit: args[#limit] as int?,
+      ),
+    );
   }
 }
 
@@ -435,6 +477,123 @@ void main() {
       expect(focused(), 'kostvMusicTab-albums');
       await press(tester, LogicalKeyboardKey.arrowRight);
       expect(focused(), 'kostvMusicSearch');
+      await leave(tester);
+    });
+
+    testWidgets('Kos TV: «Álbumes» goes on past the first page as it is '
+        'scrolled, and what was played lately stays first', (tester) async {
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
+      items.extraAlbums = 450;
+      await open(tester);
+      await tester.tap(find.text('Álbumes').first);
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      List<Map<Symbol, dynamic>> pages() => [
+        for (final call in items.calls)
+          if ((call[#includeItemTypes] as List?)?.contains('MusicAlbum') ==
+                  true &&
+              call[#startIndex] != null)
+            call,
+      ];
+      expect(pages().map((c) => c[#startIndex]), [0]);
+      // Played lately first, even before the rest is read.
+      final first = [
+        for (final tile in tester.widgetList<KostvMusicAlbumTile>(
+          find.byType(KostvMusicAlbumTile),
+        ))
+          tile.title,
+      ];
+      expect(first.take(2), ['Faroles', 'Brillo']);
+      // Down to the end of what it has: the next pages come.
+      for (var i = 0; i < 80 && find.text('Zeta 449').evaluate().isEmpty; i++) {
+        await tester.drag(
+          find.byType(CustomScrollView).first,
+          const Offset(0, -3000),
+        );
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('Zeta 449'), findsOneWidget);
+      expect(pages().map((c) => c[#startIndex]), [0, 200, 400]);
+      await leave(tester);
+    });
+
+    testWidgets('Kos TV: «Tus listas» that fail to be read say so, with '
+        '«Reintentar»', (tester) async {
+      items.failPlaylists = true;
+      await open(tester);
+      await tester.tap(find.text('Tus listas').first);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('No se han podido cargar tus listas.'), findsOneWidget);
+      expect(find.textContaining('Aún no tienes listas'), findsNothing);
+      items.failPlaylists = false;
+      await tester.tap(find.text('Reintentar'));
+      for (var i = 0; i < 4; i++) {
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('Para la cena'), findsOneWidget);
+      expect(find.text('No se han podido cargar tus listas.'), findsNothing);
+      await leave(tester);
+    });
+
+    testWidgets('Kos TV: «Álbumes» that fail to be read have «Reintentar», '
+        'for the remote too', (tester) async {
+      PlatformDetection.setTvMode(true);
+      items.failAlbums = true;
+      await open(tester);
+      final albums = FocusManager.instance.rootScope.descendants.firstWhere(
+        (n) => n.debugLabel == 'kostvMusicTab-albums',
+      );
+      albums.requestFocus();
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.select);
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('Reintentar'), findsOneWidget);
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      expect(focused(), 'kostvMusicFirst');
+      items.failAlbums = false;
+      await press(tester, LogicalKeyboardKey.select);
+      for (var i = 0; i < 6; i++) {
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(find.text('Reintentar'), findsNothing);
+      expect(find.text('Verano'), findsWidgets);
+      await leave(tester);
+    });
+
+    testWidgets('Kos TV: the ▶ of a card of the service\'s album that is at '
+        'home plays it from home, without the requests service', (
+      tester,
+    ) async {
+      await open(tester);
+      final manager = GetIt.instance<PlaybackManager>() as _FakePlaybackManager;
+      final context = tester.element(find.byType(KostvMusicScreen));
+      const album = StremfinAlbum(
+        title: 'Faroles',
+        artist: 'Los Faroleros',
+        inJellyfin: true,
+      );
+      expect(kostvStremfinAlbumPlays(album), isTrue);
+      await tester.runAsync(() async {
+        try {
+          await playKostvStremfinAlbum(context, album);
+        } catch (_) {
+          // The player's page: no router here.
+        }
+      });
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(manager.played, hasLength(1));
+      expect(manager.played.single.map((s) => (s as AggregatedItem).id), [
+        's1',
+        's2',
+      ]);
       await leave(tester);
     });
 

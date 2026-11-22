@@ -216,4 +216,65 @@ void main() {
     await tester.pumpAndSettle();
     expect(upcoming(), ['c', 'd']);
   });
+
+  testWidgets('Kos TV: «Vaciar» empties it at once, and «Deshacer» puts '
+      'every song back where it was', (tester) async {
+    await openQueue(tester);
+    await key(tester, LogicalKeyboardKey.escape);
+    var changes = 0;
+    final sub = manager.queueService.queueChangedStream.listen(
+      (_) => changes++,
+    );
+    addTearDown(sub.cancel);
+    await tester.tap(find.text('Vaciar'));
+    for (var i = 0; i < 4; i++) {
+      tester.binding.scheduleFrame();
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(upcoming(), isEmpty);
+    expect(changes, 1, reason: 'one change of the queue, not one per song');
+    expect(find.text('Has vaciado la cola: 3 canciones'), findsOneWidget);
+    expect(find.text('Deshacer'), findsOneWidget);
+    await tester.tap(find.text('Deshacer'));
+    await tester.pumpAndSettle();
+    expect(upcoming(), ['b', 'c', 'd']);
+    expect(manager.queueService.currentItem, same(songs[0]));
+  });
+
+  testWidgets('Kos TV: «Vaciar» left alone: after a few seconds it stays '
+      'empty', (tester) async {
+    await openQueue(tester);
+    await key(tester, LogicalKeyboardKey.escape);
+    await tester.tap(find.text('Vaciar'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+    expect(find.text('Deshacer'), findsNothing);
+    expect(upcoming(), isEmpty);
+  });
+
+  testWidgets('Kos TV: up from the first song, «Vaciar»; OK on it can be '
+      'taken back', (tester) async {
+    await openQueue(tester);
+    await key(tester, LogicalKeyboardKey.escape);
+    expect(focusedSong(), 'Canción b');
+    await key(tester, LogicalKeyboardKey.arrowUp);
+    final focused = FocusManager.instance.primaryFocus?.context;
+    expect(
+      find.descendant(
+        of: find.byWidget(focused!.widget),
+        matching: find.text('Vaciar'),
+      ),
+      findsOneWidget,
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.select);
+    for (var i = 0; i < 4; i++) {
+      tester.binding.scheduleFrame();
+      await tester.pump(const Duration(milliseconds: 50));
+    }
+    expect(upcoming(), isEmpty);
+    expect(find.text('Deshacer'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 7));
+    await tester.pumpAndSettle();
+  });
 }

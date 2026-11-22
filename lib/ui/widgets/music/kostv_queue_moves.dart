@@ -57,13 +57,34 @@ int? kostvRemoveUpcoming(QueueService queue, AggregatedItem song) {
   return at;
 }
 
-/// Kos TV: «Vaciar»: takes away every song to come (the one sounding goes
-/// on). Gives back how many went.
-int kostvClearUpcoming(QueueService queue) {
-  final upcoming = kostvUpcoming(queue);
-  // From the last, so the places of the rest don't move.
-  for (final entry in upcoming.reversed) {
-    queue.removeAt(entry.index);
-  }
-  return upcoming.length;
+/// Kos TV: what «Vaciar» took away: the songs to come, in their order, and
+/// the entry sounding then (for «Deshacer»).
+typedef KostvClearedQueue = ({List<dynamic> gone, Object? sounding});
+
+/// Kos TV: «Vaciar»: takes every song to come away (the one sounding goes
+/// on), as one change of the queue. Gives back what went, for
+/// [kostvPutBackUpcoming].
+KostvClearedQueue kostvClearUpcoming(QueueService queue) {
+  final sounding = queue.currentItem;
+  return (gone: queue.removeUpcoming(), sounding: sounding);
+}
+
+/// Kos TV: «Deshacer» of «Vaciar»: the songs that went come back right
+/// after the one that was sounding, in their order, ahead of anything added
+/// since. What [addedBySelf] says came by itself meanwhile (autoplay, which
+/// fills an empty queue) goes, so the queue is as it was. Nothing when that
+/// song isn't in the queue any more (another queue was put on). Gives back
+/// whether they came back.
+bool kostvPutBackUpcoming(
+  QueueService queue,
+  KostvClearedQueue cleared, {
+  bool Function(Object? item)? addedBySelf,
+}) {
+  if (cleared.gone.isEmpty) return false;
+  if (!queue.items.any((e) => identical(e, cleared.sounding))) return false;
+  if (addedBySelf != null) queue.removeUpcomingWhere(addedBySelf);
+  final at = queue.items.indexWhere((e) => identical(e, cleared.sounding));
+  if (at < 0) return false;
+  queue.insertAllAfter(at, cleared.gone);
+  return true;
 }

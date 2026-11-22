@@ -182,6 +182,53 @@ class QueueService {
     _queueChangedController.add(null);
   }
 
+  /// Kos TV: «Vaciar»: takes every item after the current one away as one
+  /// change (one notice, not one per item: each notice rebuilds the system
+  /// queue and saves the session). Gives back what went, in its order.
+  List<dynamic> removeUpcoming() {
+    final from = _currentIndex + 1;
+    if (from <= 0 || from >= _items.length) return const [];
+    final gone = _items.sublist(from);
+    _items.removeRange(from, _items.length);
+    final goneSet = Set<dynamic>.identity()..addAll(gone);
+    _originalOrder.removeWhere(goneSet.contains);
+    _queueChangedController.add(null);
+    return gone;
+  }
+
+  /// Kos TV: the items after the current one that [test] says, taken away
+  /// as one change. Gives back how many went.
+  int removeUpcomingWhere(bool Function(dynamic item) test) {
+    final from = _currentIndex + 1;
+    if (from <= 0 || from >= _items.length) return 0;
+    final gone = Set<dynamic>.identity();
+    for (var i = from; i < _items.length; i++) {
+      if (test(_items[i])) gone.add(_items[i]);
+    }
+    if (gone.isEmpty) return 0;
+    _items.removeWhere(gone.contains);
+    _originalOrder.removeWhere(gone.contains);
+    _queueChangedController.add(null);
+    return gone.length;
+  }
+
+  /// Kos TV: [items] back right after the entry at [index] (the «Deshacer» of
+  /// [removeUpcoming]), in their order and as one change. [currentIndex]
+  /// stays on the same item.
+  void insertAllAfter(int index, List<dynamic> items) {
+    if (items.isEmpty || index < 0 || index >= _items.length) return;
+    final anchor = _items[index];
+    _items.insertAll(index + 1, items);
+    final original = _originalOrder.indexWhere((e) => identical(e, anchor));
+    if (original >= 0) {
+      _originalOrder.insertAll(original + 1, items);
+    } else {
+      _originalOrder.addAll(items);
+    }
+    if (_currentIndex > index) _currentIndex += items.length;
+    _queueChangedController.add(null);
+  }
+
   void toggleRepeat() {
     switch (_repeatMode) {
       case RepeatMode.none:

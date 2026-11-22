@@ -56,7 +56,7 @@ Future<void> playKostvStremfinAlbum(
   final service = GetIt.instance.isRegistered<StremfinService>()
       ? GetIt.instance<StremfinService>()
       : null;
-  if (home == null && (id == null || service == null)) {
+  if (home == null && !album.inJellyfin && (id == null || service == null)) {
     await openKostvStremfinAlbum(context, album);
     return;
   }
@@ -81,8 +81,24 @@ Future<void> playKostvStremfinAlbum(
       return;
     }
     if (album.inJellyfin) {
-      // At home under an id the service doesn't give: found by its name.
-      open = !await playKostvArrivedAlbum(context, id!);
+      // At home under an id the service doesn't give: found by its name at
+      // home first (the service may not answer), then through it.
+      final closeLoading = showMusicLoading(context);
+      var songs = const <AggregatedItem>[];
+      try {
+        final match = await kostvHomeAlbumOf(album);
+        if (match != null)
+          songs = await kostvMusicService().albumSongs(match.id);
+      } catch (_) {
+        songs = const [];
+      }
+      closeLoading();
+      if (!context.mounted) return;
+      if (songs.isNotEmpty) {
+        await playMusicTracks(context, songs, source: KostvMusicSource.album);
+        return;
+      }
+      open = id == null || !await playKostvArrivedAlbum(context, id);
       return;
     }
     final closeLoading = showMusicLoading(context);

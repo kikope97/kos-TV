@@ -73,10 +73,71 @@ void main() {
 
   test('Kos TV: «Vaciar» takes every song to come away, not the one '
       'sounding nor those gone', () {
-    expect(kostvClearUpcoming(queue), 3);
+    expect(kostvClearUpcoming(queue).gone, [songs[2], songs[3], songs[4]]);
     expect(upcomingIds(), isEmpty);
     expect(queue.currentItem, same(songs[1]));
     expect(queue.items, [songs[0], songs[1]]);
-    expect(kostvClearUpcoming(queue), 0);
+    expect(kostvClearUpcoming(queue).gone, isEmpty);
+  });
+
+  test(
+    'Kos TV: «Vaciar» is one change of the queue, not one per song',
+    () async {
+      var changes = 0;
+      final sub = queue.queueChangedStream.listen((_) => changes++);
+      kostvClearUpcoming(queue);
+      await Future<void>.delayed(Duration.zero);
+      expect(changes, 1);
+      await sub.cancel();
+    },
+  );
+
+  test('Kos TV: «Deshacer» puts the songs back right after the one sounding, '
+      'in their order, ahead of what was added since', () async {
+    final cleared = kostvClearUpcoming(queue);
+    final added = _song('z');
+    queue.addToQueue(added);
+    var changes = 0;
+    final sub = queue.queueChangedStream.listen((_) => changes++);
+    expect(kostvPutBackUpcoming(queue, cleared), isTrue);
+    await Future<void>.delayed(Duration.zero);
+    expect(changes, 1);
+    expect(upcomingIds(), ['c', 'd', 'e', 'z']);
+    expect(queue.currentItem, same(songs[1]));
+    // Shuffle off again keeps them in their place too.
+    queue
+      ..toggleShuffle()
+      ..toggleShuffle();
+    expect(queue.items.map((s) => (s as AggregatedItem).id), [
+      'a',
+      'b',
+      'c',
+      'd',
+      'e',
+      'z',
+    ]);
+    await sub.cancel();
+  });
+
+  test('Kos TV: «Deshacer» leaves out what autoplay brought meanwhile', () {
+    final cleared = kostvClearUpcoming(queue);
+    final brought = _song('auto');
+    queue.addToQueue(brought);
+    expect(
+      kostvPutBackUpcoming(
+        queue,
+        cleared,
+        addedBySelf: (item) => identical(item, brought),
+      ),
+      isTrue,
+    );
+    expect(upcomingIds(), ['c', 'd', 'e']);
+  });
+
+  test('Kos TV: no «Deshacer» into another queue', () {
+    final cleared = kostvClearUpcoming(queue);
+    queue.setQueue([_song('x'), _song('y')]);
+    expect(kostvPutBackUpcoming(queue, cleared), isFalse);
+    expect(upcomingIds(), ['y']);
   });
 }

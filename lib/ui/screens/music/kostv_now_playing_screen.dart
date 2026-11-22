@@ -71,6 +71,11 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   final _music = KostvNowPlaying.instance;
   final _subs = <StreamSubscription<dynamic>>[];
   final _playFocus = FocusNode(debugLabel: 'NowPlayingPlay');
+
+  /// Kos TV: «Pedir el álbum» of the line of a song heard in streaming: one
+  /// node whatever it says, so asking (it turns into «Pedido») keeps the
+  /// remote on it.
+  final _streamFocus = FocusNode(debugLabel: 'NowPlayingAskAlbum');
   final _ambientFocus = FocusNode(debugLabel: 'NowPlayingAmbient');
   final _lyricsButtonFocus = FocusNode(debugLabel: 'NowPlayingLyrics');
   // Kos TV: ♥ and «No me gusta», which a song that isn't at home may not
@@ -163,6 +168,7 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     _gone?.cancel();
     if (_tv) HardwareKeyboard.instance.removeHandler(_onAnyKey);
     _playFocus.dispose();
+    _streamFocus.dispose();
     _ambientFocus.dispose();
     _lyricsButtonFocus.dispose();
     _favoriteFocus.dispose();
@@ -317,11 +323,14 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
       final song = _music.item;
       if (isKostvStream(song)) unawaited(kostvAwayReady(song));
       if (_tv &&
-          song != null &&
-          isKostvStream(song) &&
-          ((_favoriteFocus.hasFocus && !kostvAwayCanKeep(song)) ||
-              _lyricsButtonFocus.hasFocus ||
-              (_dislikeFocus.hasFocus && _dislikeOf(song) == null))) {
+          ((song != null &&
+                  isKostvStream(song) &&
+                  ((_favoriteFocus.hasFocus && !kostvAwayCanKeep(song)) ||
+                      _lyricsButtonFocus.hasFocus ||
+                      (_dislikeFocus.hasFocus && _dislikeOf(song) == null))) ||
+              // Kos TV: «Pedir el álbum» had it and the new song is at home
+              // (the line goes).
+              (_streamFocus.hasFocus && !isKostvStream(song)))) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (mounted && _playFocus.canRequestFocus) _playFocus.requestFocus();
         });
@@ -450,10 +459,29 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
     setState(() => _view = _docked || _view != view ? view : _View.cover);
   }
 
-  /// Kos TV: «Vaciar»: every song to come goes. With the remote on the
-  /// button (gone with them), to play/pause.
+  /// Kos TV: «Vaciar»: every song to come goes, as one change, with a few
+  /// seconds to take it back («Deshacer», as «No me gusta»). With the remote
+  /// on the button (gone with them), to play/pause.
   void _clearQueue() {
-    kostvClearUpcoming(_queue);
+    final queue = _queue;
+    final cleared = kostvClearUpcoming(queue);
+    if (cleared.gone.isEmpty) return;
+    kostvMusicOfferUndo(
+      context,
+      message: AppLocalizations.of(context)
+          .kostvPlayerQueueCleared(cleared.gone.length),
+      orElse: _playFocus,
+      // Kos TV: what autoplay brought to the emptied queue meanwhile goes:
+      // the queue is as it was.
+      undo: () => kostvPutBackUpcoming(
+        queue,
+        cleared,
+        addedBySelf: (item) =>
+            item is AggregatedItem &&
+            KostvNowPlaying.instance.autoplayItems.contains(item) &&
+            !cleared.gone.any((gone) => identical(gone, item)),
+      ),
+    );
     if (_tv) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && kostvFocusInTree(_playFocus)) _playFocus.requestFocus();
@@ -886,10 +914,18 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
 
   /// Kos TV: the stops of the player's own pieces ([KostvStreamPill]'s,
   /// the names' links), so the remote stays in the player.
+  /// Kos TV: the stop of the streaming line's «Pedir el álbum»: still a
+  /// stop of the remote once asked («Pedido», «De camino», with nothing to
+  /// do), so the remote stays on it rather than being let go.
   Widget _stop(
     VoidCallback? onTap,
     Widget Function(BuildContext context, bool lit) builder,
-  ) => _Stop(onTap: onTap, builder: builder);
+  ) => _Stop(
+    onTap: onTap,
+    focusNode: _streamFocus,
+    focusable: _tv,
+    builder: builder,
+  );
 
   /// «Preparando la canción…», where the times are while it shows.
   Widget? _preparingNote(double scale, {bool big = false}) =>
@@ -1005,7 +1041,9 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
   Widget _queuePanel({bool big = false, double scale = 1}) => _QueuePanel(
     big: big,
     scale: scale,
-    rowsFocus: _queueRowsFocus,
+    // Kos TV: the remote's stops only on the TV (the computer's rows go by
+    // the mouse and touch).
+    rowsFocus: _tv ? _queueRowsFocus : null,
     rowFocus: _queueRowFocus,
     onRemote: _queueMenu,
     onMenu: _queueMenu,
@@ -2054,7 +2092,12 @@ class _Stop extends StatefulWidget {
     this.focusNode,
     this.tooltip,
     this.reveal = true,
+    this.focusable,
   });
+
+  /// Kos TV: whether the remote can stop on it; by default, when it does
+  /// something ([onTap]).
+  final bool? focusable;
 
   /// Whether the focus brings it into view in the list it is in. Kos TV: the
   /// synced lyrics bring their lines into view themselves.
@@ -2079,7 +2122,7 @@ class _StopState extends State<_Stop> {
         InputModeTracker.showFocusVisuals(context, _focused) || _hovered;
     Widget child = Focus(
       focusNode: widget.focusNode,
-      canRequestFocus: widget.onTap != null,
+      canRequestFocus: widget.focusable ?? widget.onTap != null,
       onFocusChange: (f) {
         setState(() => _focused = f);
         if (!f || !widget.reveal) return;
@@ -3090,8 +3133,9 @@ class _QueuePanel extends StatelessWidget {
               color: KostvMusicTokens.dim,
             ),
           ),
-        // On the phone, dragged by its handle.
-        if (touch && mobile)
+        // Dragged by its handle (Kos TV: with the mouse too, as before: the
+        // row held down is its menu).
+        if (touch)
           ReorderableDragStartListener(
             index: position,
             child: const Padding(
@@ -3104,7 +3148,7 @@ class _QueuePanel extends StatelessWidget {
             ),
           ),
       ];
-      Widget tile = KostvSongRow(
+      final tile = KostvSongRow(
         title: item.name,
         subtitle: music.artistOf(item),
         coverArt: _CoverThumb(
@@ -3127,14 +3171,10 @@ class _QueuePanel extends StatelessWidget {
                 unawaited(manager.playFromQueue(entry.index));
               },
         onMenu: touch && menu != null ? () => menu(item) : null,
+        // Kos TV: on the phone «⋯» stays at hand: its menu is how a song is
+        // taken out of the queue (nothing hovers there).
+        menuAlways: touch && mobile,
       );
-      // With the mouse, held down a moment and dragged.
-      if (touch && !mobile) {
-        tile = ReorderableDelayedDragStartListener(
-          index: position,
-          child: tile,
-        );
-      }
       return KeyedSubtree(
         // Kos TV: on the TV by place, so the row the remote is on keeps its
         // stop (and its light) while a song moves through it.

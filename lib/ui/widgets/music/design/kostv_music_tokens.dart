@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../util/focus/input_mode_tracker.dart';
 import '../../../../util/platform_detection.dart';
 
 /// Kos TV: the measures, colours and letters of Music's design
@@ -68,6 +69,13 @@ abstract final class KostvMusicTokens {
 
   static bool get _phone => PlatformDetection.useMobileUi;
   static bool get _tv => PlatformDetection.isTV;
+
+  /// Kos TV: whether what shows only with the focus or the mouse over it
+  /// (a card's ▶, the capsule's ✕) must show by itself: on the phone, and
+  /// on the web while a finger is used (nothing hovers there). Listen to
+  /// [InputModeTracker.touchInUse] to follow the web's change.
+  static bool get touchFirst =>
+      !_tv && (_phone || InputModeTracker.touchInUse.value);
 
   /// The page's side margins: 64 on the TV, 56 on the web, 16 on the phone.
   static double get margin => _phone ? 16 : (_tv ? 64 : 56);

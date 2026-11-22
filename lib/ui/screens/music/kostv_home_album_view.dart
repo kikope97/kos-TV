@@ -255,7 +255,9 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
     if (_vm.state == ItemDetailState.loading) {
       return const Padding(
         padding: EdgeInsets.all(30),
-        child: Center(child: CircularProgressIndicator(color: kostvMusicColor)),
+        child: Center(
+          child: CircularProgressIndicator(color: KostvMusicTokens.violet),
+        ),
       );
     }
     // Kos TV: the songs failed to load: said, with a way to try again.

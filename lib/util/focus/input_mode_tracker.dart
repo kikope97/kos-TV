@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
@@ -43,6 +44,11 @@ class InputModeTracker extends StatefulWidget {
 
   static _InputModeTrackerState? _instance;
 
+  /// Kos TV: whether the last pointer was a finger (a touch screen on the
+  /// web, where nothing hovers): what only shows with the mouse over it has
+  /// to show by itself then. A mouse or a key turns it off.
+  static final touchInUse = ValueNotifier<bool>(false);
+
   @override
   State<InputModeTracker> createState() => _InputModeTrackerState();
 }
@@ -71,6 +77,7 @@ class _InputModeTrackerState extends State<InputModeTracker> {
 
   bool _onHardwareKey(KeyEvent event) {
     if (event is KeyDownEvent || event is KeyRepeatEvent) {
+      InputModeTracker.touchInUse.value = false;
       _setPointerLive(false);
       _setMode(InputMode.keyboard);
     }
@@ -78,6 +85,9 @@ class _InputModeTrackerState extends State<InputModeTracker> {
   }
 
   void _onPointer(PointerEvent event) {
+    // Kos TV: a hover only comes from a mouse (or a pen over the screen).
+    InputModeTracker.touchInUse.value =
+        event.kind == PointerDeviceKind.touch && event is PointerDownEvent;
     _setPointerLive(true);
     _setMode(InputMode.pointer);
   }

@@ -32907,12 +32907,6 @@ abstract class AppLocalizations {
   /// **'Songs'**
   String get kostvMusicSongs;
 
-  /// Kos TV Music: search results.
-  ///
-  /// In en, this message translates to:
-  /// **'Albums at home'**
-  String get kostvMusicAlbumsAtHome;
-
   /// Kos TV Music: search results that aren't at home.
   ///
   /// In en, this message translates to:
@@ -32930,12 +32924,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Nothing for «{query}»'**
   String kostvMusicNoResults(String query);
-
-  /// Kos TV Music: badge of what the home server has.
-  ///
-  /// In en, this message translates to:
-  /// **'At home'**
-  String get kostvMusicAtHome;
 
   /// Kos TV Music: badge of what can be asked for.
   ///
@@ -32966,12 +32954,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stop'**
   String get kostvMusicStop;
-
-  /// Kos TV Music: the button of an album's page.
-  ///
-  /// In en, this message translates to:
-  /// **'Ask for the album'**
-  String get kostvMusicAskAlbum;
 
   /// Kos TV Music: why the whole album is asked for a song.
   ///
@@ -33063,23 +33045,11 @@ abstract class AppLocalizations {
   /// **'Discography'**
   String get kostvMusicDiscography;
 
-  /// Kos TV Music: an artist's top songs.
-  ///
-  /// In en, this message translates to:
-  /// **'Their most played songs'**
-  String get kostvMusicArtistTopSongs;
-
   /// Kos TV Music: similar artists.
   ///
   /// In en, this message translates to:
   /// **'Similar artists'**
   String get kostvMusicSimilar;
-
-  /// Kos TV Music: how many of an artist's albums are at home.
-  ///
-  /// In en, this message translates to:
-  /// **'You have {have} of {total} albums'**
-  String kostvMusicArtistHave(int have, int total);
 
   /// Kos TV Music: a chart's song said to be at home but not found.
   ///
@@ -36081,12 +36051,6 @@ abstract class AppLocalizations {
   /// **'Daily Mix {number}'**
   String kostvMusicDailyMix(int number);
 
-  /// Kos TV Music page: the small label on a daily mix's cover.
-  ///
-  /// In en, this message translates to:
-  /// **'Daily Mix'**
-  String get kostvMusicDailyMixLabel;
-
   /// Kos TV Music page: said after a daily mix is put next in the queue.
   ///
   /// In en, this message translates to:
@@ -36393,12 +36357,6 @@ abstract class AppLocalizations {
   /// **'Getting the song ready…'**
   String get kostvStreamPreparing;
 
-  /// Kos TV «Toda la música»: under «Preparando la canción…» in Reproduciendo
-  ///
-  /// In en, this message translates to:
-  /// **'It isn\'t at home: we\'re getting it ready for you to listen to. It takes a few seconds'**
-  String get kostvStreamPreparingHint;
-
   /// Kos TV «Toda la música»: in place of the hint after 20 seconds of getting the song ready
   ///
   /// In en, this message translates to:
@@ -36417,12 +36375,6 @@ abstract class AppLocalizations {
   /// **'It can\'t be played right now. Try again later'**
   String get kostvStreamUnavailableNow;
 
-  /// Kos TV «Toda la música»: the pill in Reproduciendo for a song heard through the requests service
-  ///
-  /// In en, this message translates to:
-  /// **'Not at home · streaming'**
-  String get kostvStreamNotAtHome;
-
   /// Kos TV «Toda la música»: the button next to the pill in Reproduciendo: asks for the song's album to be brought home
   ///
   /// In en, this message translates to:
@@ -36434,12 +36386,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not at home'**
   String get kostvStreamOutOfHome;
-
-  /// Kos TV «Toda la música»: on the page of an album that isn't at home, when it can be listened to
-  ///
-  /// In en, this message translates to:
-  /// **'This record isn\'t at home · it plays by streaming'**
-  String get kostvStreamAlbumNote;
 
   /// Kos TV «Toda la música»: setting in Settings > Playback > Music
   ///
@@ -36470,18 +36416,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Only what\'s already on the home server, as before'**
   String get kostvMusicCatalogHomeHint;
-
-  /// Kos TV «Toda la música»: search shelf of albums that are not at home
-  ///
-  /// In en, this message translates to:
-  /// **'More albums'**
-  String get kostvStreamMoreAlbums;
-
-  /// Kos TV «Toda la música»: under «Más álbumes» in the search
-  ///
-  /// In en, this message translates to:
-  /// **'Not at home: they play by streaming'**
-  String get kostvStreamMoreAlbumsWhy;
 
   /// Kos TV «Toda la música»: a disliked song that is not at home, in Settings
   ///
@@ -36536,12 +36470,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You already have 2000 favourites that aren\'t at home: remove some to add more'**
   String get kostvAwayFavoritesFull;
-
-  /// Kos TV «Toda la música»: the artist line of a song that isn't at home in the phone's notification, the lock screen, the car and the browser's media controls
-  ///
-  /// In en, this message translates to:
-  /// **'{artist} · streaming'**
-  String kostvStreamArtistLine(String artist);
 
   /// Kos TV «Toda la música»: the same line when the song that isn't at home has no artist
   ///
@@ -36812,6 +36740,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Clear'**
   String get kostvPlayerClearQueue;
+
+  /// Kos TV music: notice after «Vaciar» in the queue, with «Deshacer» to put the songs back
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Queue cleared: 1 song} other{Queue cleared: {count} songs}}'**
+  String kostvPlayerQueueCleared(int count);
+
+  /// Kos TV Music home: «Tus listas» tab when reading the playlists failed (with «Reintentar»)
+  ///
+  /// In en, this message translates to:
+  /// **'Your playlists couldn\'t be loaded.'**
+  String get kostvMusicListsFailed;
+
+  /// Kos TV Music search: line under a song that is the top result when it has no artist (kostvMusicKindSong otherwise)
+  ///
+  /// In en, this message translates to:
+  /// **'Song'**
+  String get kostvMusicKindSongAlone;
 }
 
 class _AppLocalizationsDelegate

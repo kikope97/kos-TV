@@ -29,7 +29,10 @@ import '../../widgets/music/kostv_stream_play.dart';
 import '../../widgets/music/music_navigation.dart';
 import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
+import 'kostv_music_album_play.dart';
+import 'kostv_music_album_screen.dart' show KostvMusicButton;
 import 'kostv_music_actions.dart';
+import 'kostv_music_away_actions.dart' show kostvAwaySayNothingToPlay;
 import 'kostv_music_home_parts.dart';
 import 'kostv_music_links.dart';
 import 'kostv_music_widgets.dart';
@@ -122,13 +125,25 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     true: FocusNode(debugLabel: 'kostvMusicSortName'),
   };
 
-  /// Kos TV: what is at home for the tabs, read the first time one opens.
+  /// Kos TV: what is at home for the tabs, read the first time one opens:
+  /// a page at a time by name (the next one as the grid comes near its end),
+  /// and what was played lately on its own (first in «Escuchado hace poco
+  /// primero», whichever page it is on).
   List<AggregatedItem>? _libraryAlbums;
   List<AggregatedItem>? _libraryArtists;
+  List<AggregatedItem> _recentAlbums = const [];
+  List<AggregatedItem> _recentArtists = const [];
   List<String> _recentAlbumIds = const [];
   List<String> _recentArtistIds = const [];
+  bool _albumsMore = false;
+  bool _artistsMore = false;
+  bool _albumsPaging = false;
+  bool _artistsPaging = false;
   bool _libraryLoading = false;
   bool _libraryFailed = false;
+
+  /// Kos TV: the person's playlists couldn't be read (not «no tienes»).
+  bool _playlistsFailed = false;
 
   /// The section [_firstStop] is in.
   String? _firstOwner;
@@ -456,7 +471,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     final home = Future.wait([
       part(() async => _recent = await _music.recentAlbums()),
       part(() async => _favorites = await _favoriteSongs()),
-      part(() async => _playlists = await _music.playlists(limit: 200)),
+      part(_loadPlaylists),
       part(() async => _newAtHome = await _music.newAlbums()),
       part(() async => _taste = await _tasteLoad),
       _loadPluginRows(),
@@ -1017,18 +1032,24 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     });
     try {
       final found = await Future.wait<Object>([
-        _music.albums(),
-        _music.artists(),
+        _music.albumsPage(),
+        _music.artistsPage(),
         _music.recentAlbums(max: 40),
         _music.recentArtistIds(),
       ]);
+      final recentArtistIds = found[3] as List<String>;
+      final recentArtists = await _music.artistsById(recentArtistIds);
       if (!_stillFor(who)) return;
-      _libraryAlbums = found[0] as List<AggregatedItem>;
-      _libraryArtists = found[1] as List<AggregatedItem>;
-      _recentAlbumIds = [
-        for (final album in found[2] as List<AggregatedItem>) album.id,
-      ];
-      _recentArtistIds = found[3] as List<String>;
+      final albums = found[0] as KostvMusicLibraryPage;
+      final artists = found[1] as KostvMusicLibraryPage;
+      _libraryAlbums = albums.items;
+      _albumsMore = albums.more;
+      _libraryArtists = artists.items;
+      _artistsMore = artists.more;
+      _recentAlbums = found[2] as List<AggregatedItem>;
+      _recentAlbumIds = [for (final album in _recentAlbums) album.id];
+      _recentArtists = recentArtists;
+      _recentArtistIds = recentArtistIds;
     } catch (e) {
       debugPrint('[Music] The library failed: $e');
       _libraryFailed = true;
@@ -1038,6 +1059,77 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     }
   }
 
+  /// Kos TV: the next page of the «Artistas» ([artists]) or «Álbumes» tab,
+  /// when the grid comes near the end of what it has. A page that fails is
+  /// asked for again the next time.
+  Future<void> _loadMoreLibrary({required bool artists}) async {
+    final have = artists ? _libraryArtists : _libraryAlbums;
+    if (have == null) return;
+    if (artists
+        ? (!_artistsMore || _artistsPaging)
+        : (!_albumsMore || _albumsPaging)) {
+      return;
+    }
+    final who = _whoNow();
+    if (artists) {
+      _artistsPaging = true;
+    } else {
+      _albumsPaging = true;
+    }
+    try {
+      final page = artists
+          ? await _music.artistsPage(start: have.length)
+          : await _music.albumsPage(start: have.length);
+      if (!_stillFor(who)) return;
+      final seen = {for (final item in have) item.id};
+      final more = [
+        ...have,
+        for (final item in page.items)
+          if (seen.add(item.id)) item,
+      ];
+      setState(() {
+        if (artists) {
+          _libraryArtists = more;
+          _artistsMore = page.more;
+        } else {
+          _libraryAlbums = more;
+          _albumsMore = page.more;
+        }
+      });
+    } catch (e) {
+      debugPrint('[Music] The next page of the library failed: $e');
+    } finally {
+      if (artists) {
+        _artistsPaging = false;
+      } else {
+        _albumsPaging = false;
+      }
+    }
+  }
+
+  /// Kos TV: the person's playlists, for «Tus listas» (and its shelf); a
+  /// failure is told as one, not as «no tienes listas».
+  Future<void> _loadPlaylists() async {
+    try {
+      _playlists = await _music.playlists(limit: 200);
+      _playlistsFailed = false;
+    } catch (_) {
+      _playlistsFailed = true;
+      rethrow;
+    }
+  }
+
+  /// Kos TV: «Reintentar» on «Tus listas».
+  Future<void> _retryPlaylists() async {
+    final who = _whoNow();
+    try {
+      await _loadPlaylists();
+    } catch (e) {
+      debugPrint('[Music] The playlists failed again: $e');
+    }
+    if (_stillFor(who)) _refresh();
+  }
+
   /// Kos TV: «Nueva lista»: asks its name, makes it and shows it among the
   /// person's playlists.
   Future<void> _newPlaylist() => kostvMusicOnce(() async {
@@ -1045,10 +1137,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     final id = await showKostvNewPlaylist(context, _client);
     if (id == null || !mounted) return;
     kostvMusicSay(context, l10n.kostvMusicListMade);
-    try {
-      _playlists = await _music.playlists(limit: 200);
-      _refresh();
-    } catch (_) {}
+    // Kos TV: if it can't be read again, «Tus listas» says so and offers
+    // «Reintentar» (the list was made all the same).
+    await _retryPlaylists();
   });
 
   /// Kos TV: the phone's search button: the field, ready to type.
@@ -1862,7 +1953,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                 subtitle: album.albumArtist,
                 cover: kostvMusicImageOf(album),
                 onTap: () => openMusicItem(context, album),
-                onPlay: () => _playHomeAlbum(album),
+                onPlay: () => unawaited(playKostvHomeAlbum(context, album)),
               ),
           ],
         ),
@@ -1875,7 +1966,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
             padding: EdgeInsets.fromLTRB(insets.left, 40, insets.right, 0),
             child: Center(
               child: _loading
-                  ? const CircularProgressIndicator(color: kostvMusicColor)
+                  ? const CircularProgressIndicator(
+                      color: KostvMusicTokens.violet,
+                    )
                   : Text(
                       _failed
                           ? l10n.kostvMusicUnavailable
@@ -1984,6 +2077,12 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         return;
       }
       final play = kostvPlaylistToPlay(songs, startIndex: i);
+      if (play.tracks.isEmpty) {
+        // Kos TV: none of them sounds («Solo la de casa» and none at home):
+        // said, rather than nothing happening.
+        kostvAwaySayNothingToPlay(context, songs);
+        return;
+      }
       await playMusicTracks(
         context,
         play.tracks,
@@ -1998,68 +2097,14 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   /// lines (and [extra] for a third).
   double _shelfHeight([double extra = 0]) => KostvMusicTokens.card + 64 + extra;
 
-  /// Kos TV: plays a home album from its card's ▶ (in its order).
-  void _playHomeAlbum(AggregatedItem album) => unawaited(
-    kostvMusicOnce(() async {
-      final l10n = AppLocalizations.of(context);
-      final closeLoading = showMusicLoading(context);
-      List<AggregatedItem> songs;
-      try {
-        songs = await _music.albumSongs(album.id);
-      } catch (_) {
-        songs = const [];
-      } finally {
-        closeLoading();
-      }
-      if (!mounted) return;
-      if (songs.isEmpty) {
-        kostvMusicSay(context, l10n.kostvMusicCantPlay);
-        return;
-      }
-      await playMusicTracks(
-        context,
-        songs,
-        source: KostvMusicSource.album,
-        picked: false,
-      );
-    }),
-  );
-
-  /// Kos TV: the ▶ of a card of the requests service's album: its songs at
-  /// home from home and (with «Toda la música») the rest through the
-  /// service, as its page's «Reproducir». With «Solo la de casa», only one
-  /// at home has it.
-  VoidCallback? _albumPlay(StremfinAlbum album) {
-    final id = album.deezerId;
-    final stremfin = _stremfin;
-    if (id == null || stremfin == null) return null;
-    if (!kostvMusicCatalogAll() && !album.inJellyfin) return null;
-    return () => unawaited(
-      kostvMusicOnce(() async {
-        final l10n = AppLocalizations.of(context);
-        final closeLoading = showMusicLoading(context);
-        StremfinAlbumDetail? detail;
-        try {
-          detail = await stremfin.musicAlbum(id);
-        } catch (_) {
-          detail = null;
-        } finally {
-          closeLoading();
-        }
-        if (!mounted) return;
-        if (detail == null) {
-          kostvMusicSay(context, l10n.kostvMusicCantPlay);
-          return;
-        }
-        await playKostvStreamSongs(
-          context,
-          kostvAlbumQueueSongs(detail),
-          source: KostvMusicSource.album,
-          picked: false,
-        );
-      }),
-    );
-  }
+  /// Kos TV: the ▶ of a card of the requests service's album (see
+  /// [playKostvStremfinAlbum]): at home from home, otherwise (with «Toda la
+  /// música») through the service. With «Solo la de casa», only one at home
+  /// has it.
+  VoidCallback? _albumPlay(StremfinAlbum album) =>
+      kostvStremfinAlbumPlays(album)
+      ? () => unawaited(playKostvStremfinAlbum(context, album))
+      : null;
 
   /// Kos TV: a daily mix played in its order (with «Toda la música», its
   /// songs that aren't at home too).
@@ -2378,7 +2423,16 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       0.0,
       rowHeight * perColumn - 8,
     );
-    final lead = source == KostvMusicSource.discovery
+    // Kos TV: the discovery's card plays it all: with «Solo la de casa»,
+    // only when some of it is at home (what it plays then); with none, no
+    // card that would only say it can't, as the heading has no «Reproducir»
+    // either.
+    final cardPlays =
+        playable ||
+        songs.any(
+          (song) => song.inJellyfin || (albumOf(song)?.inJellyfin ?? false),
+        );
+    final lead = source == KostvMusicSource.discovery && cardPlays
         ? Padding(
             padding: const EdgeInsets.only(top: 4),
             child: Semantics(
@@ -2634,7 +2688,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
             subtitle: album.albumArtist,
             cover: kostvMusicImageOf(album),
             onTap: () => openMusicItem(context, album),
-            onPlay: () => _playHomeAlbum(album),
+            onPlay: () => unawaited(playKostvHomeAlbum(context, album)),
           ),
       ],
     );
@@ -2891,6 +2945,39 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     ),
   ];
 
+  /// Kos TV: «Canción · Artista» under a song that is the top result, or
+  /// just «Canción» when it has no artist.
+  static String _songKind(AppLocalizations l10n, String? artist) =>
+      artist == null || artist.trim().isEmpty
+      ? l10n.kostvMusicKindSongAlone
+      : l10n.kostvMusicKindSong(artist);
+
+  /// Kos TV: how many cards before the end of what the «Artistas» and
+  /// «Álbumes» tabs have the next page is asked for.
+  static const _libraryAhead = 24;
+
+  /// Kos TV: a tab's note of a failure with its «Reintentar» (for the remote
+  /// too, with [focusNode] when it is the page's first stop).
+  Widget _retryNote(
+    String text,
+    Future<void> Function() retry, {
+    FocusNode? focusNode,
+  }) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(text, style: _noteStyle),
+      const SizedBox(height: 14),
+      KostvMusicButton(
+        key: const ValueKey('kostv-music-tab-retry'),
+        icon: Icons.refresh_rounded,
+        label: AppLocalizations.of(context).retry,
+        focusNode: focusNode,
+        onTap: () => unawaited(retry()),
+      ),
+    ],
+  );
+
   static const _noteStyle = TextStyle(
     color: KostvMusicTokens.muted,
     fontSize: 16,
@@ -2966,7 +3053,12 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           );
         },
       ),
-      if (lists.isEmpty && !_loading)
+      if (_playlistsFailed)
+        ..._tabNote(
+          insets,
+          _retryNote(l10n.kostvMusicListsFailed, _retryPlaylists),
+        )
+      else if (lists.isEmpty && !_loading)
         ..._tabNote(insets, Text(l10n.kostvMusicNoLists, style: _noteStyle)),
     ];
   }
@@ -2986,10 +3078,15 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           if (mounted) unawaited(_loadLibrary());
         });
       }
+      if (_libraryFailed) _firstStopShown = true;
       return _tabNote(
         insets,
         _libraryFailed
-            ? Text(l10n.kostvMusicUnavailable, style: _noteStyle)
+            ? _retryNote(
+                l10n.kostvMusicUnavailable,
+                _loadLibrary,
+                focusNode: _firstStop,
+              )
             : const Center(
                 child: CircularProgressIndicator(
                   color: KostvMusicTokens.violet,
@@ -2997,13 +3094,15 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
               ),
       );
     }
+    // Kos TV: what was played lately first even when it is on a page not
+    // read yet (it was read on its own).
     final items = _byName
         ? all
-        : kostvRecentFirst(
-            artists ? _recentArtistIds : _recentAlbumIds,
-            all,
-            (item) => item.id,
-          );
+        : kostvRecentFirst(artists ? _recentArtistIds : _recentAlbumIds, [
+            ...(artists ? _recentArtists : _recentAlbums),
+            ...all,
+          ], (item) => item.id);
+    final more = artists ? _artistsMore : _albumsMore;
     final sort = Padding(
       padding: EdgeInsets.fromLTRB(insets.left, 0, insets.right, 20),
       child: KostvMusicChoiceRow<bool>(
@@ -3033,6 +3132,13 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           count: items.length,
           circles: artists,
           card: (i, size) {
+            // Kos TV: near the end of what it has (scrolling, or the remote
+            // going down), the next page.
+            if (more && i >= items.length - _libraryAhead) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) unawaited(_loadMoreLibrary(artists: artists));
+              });
+            }
             final item = items[i];
             return KostvMusicAlbumTile(
               key: ValueKey('library-${item.id}'),
@@ -3042,7 +3148,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
               subtitle: artists ? null : item.albumArtist,
               cover: kostvMusicImageOf(item),
               onTap: () => openMusicItem(context, item),
-              onPlay: artists ? null : () => _playHomeAlbum(item),
+              onPlay: artists
+                  ? null
+                  : () => unawaited(playKostvHomeAlbum(context, item)),
             );
           },
         ),
@@ -3145,7 +3253,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         ].join(' · '),
         cover: kostvMusicImageOf(a),
         onTap: () => openMusicItem(context, a),
-        onPlay: () => _playHomeAlbum(a),
+        onPlay: () => unawaited(playKostvHomeAlbum(context, a)),
       ),
       final StremfinAlbum a => KostvMusicAlbumTile(
         key: ValueKey('search-album-away-${a.deezerId ?? a.title}'),
@@ -3371,7 +3479,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
             ].join(' · '),
             cover: kostvMusicImageOf(a),
             onTap: () => openMusicItem(context, a),
-            onPlay: () => _playHomeAlbum(a),
+            onPlay: () => unawaited(playKostvHomeAlbum(context, a)),
           ),
         final AggregatedItem a when top.kind == KostvTopKind.list =>
           KostvTopResultCard(
@@ -3394,7 +3502,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           playFocusNode: _topPlay,
           playOnKey: playKey,
           title: s.name,
-          subtitle: l10n.kostvMusicKindSong([...s.artists.take(2)].join(', ')),
+          subtitle: _songKind(l10n, [...s.artists.take(2)].join(', ')),
           cover: kostvMusicImageOf(s),
           onTap: () => playHomeSong(s),
           onPlay: () => playHomeSong(s),
@@ -3441,7 +3549,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           playFocusNode: _topPlay,
           playOnKey: playKey,
           title: s.title,
-          subtitle: l10n.kostvMusicKindSong(s.artist ?? ''),
+          subtitle: _songKind(l10n, s.artist),
           cover: s.cover,
           onTap: () => openAwaySong(s),
           onPlay: all && kostvSongPlayable(s) ? () => openAwaySong(s) : null,

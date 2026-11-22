@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:playback_core/playback_core.dart';
@@ -242,6 +243,11 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
     return Semantics(
       container: true,
       label: l10n.nowPlaying,
+      // Kos TV: the swipe that stops the music, for a screen reader too.
+      customSemanticsActions: {
+        CustomSemanticsAction(label: l10n.kostvNowPlayingClose):
+            KostvNowPlaying.instance.close,
+      },
       child: Dismissible(
         key: ValueKey('bottom-mini-player-${item.id}'),
         direction: DismissDirection.horizontal,

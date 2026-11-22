@@ -193,7 +193,6 @@ class KostvStreamPill extends StatefulWidget {
     required this.item,
     required this.stop,
     this.big = false,
-    this.centred = true,
     this.short = false,
     this.scale = 1,
   });
@@ -203,9 +202,6 @@ class KostvStreamPill extends StatefulWidget {
 
   /// The TV's and the computer's sizes (the phone's otherwise).
   final bool big;
-
-  /// Kos TV: kept for the callers that centre it; the chip is one piece.
-  final bool centred;
 
   /// «En streaming · no está en casa», for the phone's narrow width.
   final bool short;

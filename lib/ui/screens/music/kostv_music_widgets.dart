@@ -16,6 +16,7 @@ import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../widgets/bounded_network_image.dart';
 import '../../widgets/music/design/kostv_music_design.dart';
+import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/navigation_layout.dart';
 import 'kostv_music_links.dart';
 
@@ -582,18 +583,48 @@ class KostvMusicAlbumTile extends StatelessWidget {
   /// still opens it ([onTap]).
   final VoidCallback? onPlay;
 
+  /// Kos TV: the menu of a card that plays and has none of its own (on the
+  /// TV, OK opens it: «Reproducir» is here, with OK held down).
+  Future<void> _playMenu(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final choice = await showKostvMusicMenu<int>(
+      context,
+      title: title,
+      subtitle: subtitle,
+      entries: [KostvMenuEntry(0, Icons.play_arrow_rounded, l10n.play)],
+    );
+    if (choice == 0) onPlay?.call();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final playable = !circle && badge == KostvMusicBadge.none;
+    if (playable && onPlay != null && !PlatformDetection.isTV) {
+      // Kos TV: a finger on the web shows the ▶ by itself.
+      return ValueListenableBuilder<bool>(
+        valueListenable: InputModeTracker.touchInUse,
+        builder: (context, _, _) => _build(context, playable),
+      );
+    }
+    return _build(context, playable);
+  }
+
+  Widget _build(BuildContext context, bool playable) {
     final size = this.size ?? KostvMusicSizes.cover;
     final radius = KostvMusicTokens.radiusCover;
     final phone = KostvMusicSizes.phone;
+    // Kos TV: with a finger nothing lights a card up: a smaller ▶ stays on
+    // it to be tapped.
+    final touch = onPlay != null && KostvMusicTokens.touchFirst;
     return SizedBox(
       width: size,
       child: KostvMusicPressable(
         focusNode: focusNode,
         autofocus: autofocus,
         onTap: onTap,
-        onLongPress: onLongPress,
+        onLongPress:
+            onLongPress ??
+            (onPlay != null && playable ? () => _playMenu(context) : null),
         onKey: onKey,
         builder: (context, lit) => Column(
           crossAxisAlignment: circle
@@ -644,20 +675,27 @@ class KostvMusicAlbumTile extends StatelessWidget {
                         ),
                       ),
                     ),
-                  if (!circle && badge == KostvMusicBadge.none)
+                  if (playable)
                     Positioned(
-                      right: 8,
-                      bottom: 8,
+                      right: touch ? 4 : 8,
+                      bottom: touch ? 4 : 8,
                       child: IgnorePointer(
-                        ignoring: !lit || onPlay == null,
+                        ignoring: !(lit || touch) || onPlay == null,
                         child: AnimatedOpacity(
-                          opacity: lit ? 1 : 0,
+                          opacity: lit || touch ? 1 : 0,
                           duration: KostvMusicTokens.focusDuration,
                           child: GestureDetector(
+                            key: const ValueKey('kostv-card-play'),
                             behavior: HitTestBehavior.opaque,
                             onTap: onPlay,
-                            child: KostvPlayFace(
-                              diameter: (size * 0.26).clamp(32, 48),
+                            // Kos TV: a finger's room around the smaller ▶.
+                            child: Padding(
+                              padding: EdgeInsets.all(touch ? 4 : 0),
+                              child: KostvPlayFace(
+                                diameter: touch
+                                    ? (size * 0.2).clamp(28, 36)
+                                    : (size * 0.26).clamp(32, 48),
+                              ),
                             ),
                           ),
                         ),
