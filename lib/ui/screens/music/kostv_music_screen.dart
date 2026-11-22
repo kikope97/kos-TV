@@ -15,7 +15,6 @@ import '../../../data/services/kostv_music_away.dart';
 import '../../../data/services/kostv_music_catalog.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
-import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../playback/kostv_stream_playback.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
@@ -32,7 +31,6 @@ import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
 import 'kostv_music_links.dart';
-import 'kostv_stream_widgets.dart' show KostvStreamMark;
 import 'kostv_music_widgets.dart';
 import '../../../util/kostv_browser_menu.dart';
 
@@ -1596,13 +1594,11 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                           ].join(' · '),
                           artistLinks: _homeSongLinks(context, songs[i]),
                           cover: kostvMusicImageOf(songs[i]),
-                          atHome: !isKostvStream(songs[i]),
-                          // Kos TV: the cloud of one that isn't at home.
-                          trailing: isKostvStream(songs[i])
-                              ? KostvStreamMark(
-                                  size: KostvMusicSizes.phone ? 22 : 24,
-                                )
-                              : null,
+                          // Kos TV: one that isn't at home looks the same
+                          // (with «Solo la de casa» it is greyed out).
+                          atHome: true,
+                          duration: songs[i].runtime?.inSeconds,
+                          soundingId: songs[i].id,
                           onTap: () => unawaited(
                             kostvMusicOnce(() async {
                               if (!kostvAwayPlayable(songs[i])) {
@@ -1869,6 +1865,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                                 null => KostvMusicBadge.none,
                               },
                         trailing: _noAsk(all, songs[i], albumOf(songs[i])),
+                        duration: songs[i].duration,
+                        soundingId: kostvSongSoundingId(songs[i]),
                         onRest: _restOn(songs[i]),
                         onTap: () => all && kostvSongPlayable(songs[i])
                             ? _playList(list, source, index: i)
@@ -2022,7 +2020,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
             art: KostvMusicMixArt(
               name: artist.name,
               index: i,
-              size: size - 6,
+              size: size,
               picture: _client.imageApi.getPrimaryImageUrl(
                 artist.id,
                 maxWidth: 400,
@@ -2068,7 +2066,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
               subtitleLines: 2,
               art: KostvDailyMixArt(
                 number: i + 1,
-                size: size - 6,
+                size: size,
                 pictures: _mixPictures(mix),
               ),
               onTap: () => unawaited(
@@ -2225,6 +2223,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                         artistLinks: _homeSongLinks(context, songs[i]),
                         cover: kostvMusicImageOf(songs[i]),
                         atHome: true,
+                        duration: songs[i].runtime?.inSeconds,
+                        soundingId: songs[i].id,
                         onTap: () => unawaited(_playMoment(moment, i, source)),
                         onLongPress: () => unawaited(
                           showKostvMusicSongMenu(
@@ -2347,6 +2347,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         bool explicit = false,
         bool away = false,
         Widget? trailing,
+        int? duration,
+        String? soundingId,
         ValueChanged<bool>? onRest,
         required VoidCallback onTap,
         required VoidCallback onMenu,
@@ -2363,6 +2365,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           atHome: atHome,
           away: away,
           trailing: trailing,
+          duration: duration,
+          soundingId: soundingId,
           onRest: onRest,
           explicit: explicit,
           onTap: onTap,
@@ -2399,6 +2403,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                             artistLinks: _homeSongLinks(context, song),
                             cover: kostvMusicImageOf(song),
                             atHome: true,
+                            duration: song.runtime?.inSeconds,
+                            soundingId: song.id,
                             onTap: () => unawaited(
                               playMusicTrack(
                                 context,
@@ -2436,6 +2442,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                             atHome: false,
                             away: all && kostvSongPlayable(song),
                             trailing: _noAsk(all, song, song.album),
+                            duration: song.duration,
+                            soundingId: kostvSongSoundingId(song),
                             onRest: _restOn(song),
                             explicit: song.explicit,
                             onTap: () => unawaited(
@@ -2488,9 +2496,9 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         'to-ask',
         KostvMusicShelf(
           title: all ? l10n.kostvStreamMoreAlbums : l10n.kostvMusicToAsk,
-          subtitle: all
-              ? l10n.kostvStreamMoreAlbumsWhy
-              : l10n.kostvMusicToAskWhy,
+          // Kos TV: with «Toda la música», nothing about streaming here (the
+          // album's page says it).
+          subtitle: all ? null : l10n.kostvMusicToAskWhy,
           insets: insets,
           children: [
             for (final album in askable)

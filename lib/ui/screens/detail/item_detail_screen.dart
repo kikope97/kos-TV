@@ -8,7 +8,6 @@ import '../music/kostv_music_actions.dart'
 import '../music/kostv_music_away_actions.dart'
     show kostvAwaySayNothingToPlay, kostvAwayShowLoadFailed;
 import '../music/kostv_music_dislike.dart';
-import '../music/kostv_stream_widgets.dart' show KostvStreamMark;
 import '../music/kostv_music_links.dart';
 import '../../theme/focus_foreground.dart';
 import '../../widgets/bounded_network_image.dart';
@@ -18057,11 +18056,6 @@ class _TrackTileState extends State<TrackTile> with FocusStateMixin {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                          // Kos TV: the cloud on a song that isn't at home.
-                          if (away) ...[
-                            const SizedBox(width: 6),
-                            const KostvStreamMark(size: 15),
-                          ],
                         ],
                       ),
                       // Kos TV: a song's artists (and album) open their pages

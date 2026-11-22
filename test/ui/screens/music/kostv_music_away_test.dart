@@ -20,8 +20,6 @@ import 'package:moonfin/ui/screens/detail/item_detail_screen.dart'
     show DetailTrackList;
 import 'package:moonfin/ui/screens/music/kostv_music_actions.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_away_actions.dart';
-import 'package:moonfin/ui/screens/music/kostv_stream_widgets.dart'
-    show KostvStreamMark;
 import 'package:moonfin/util/platform_detection.dart';
 import 'package:server_core/server_core.dart';
 import 'package:server_jellyfin/server_jellyfin.dart';
@@ -294,10 +292,12 @@ void main() {
       return played;
     }
 
-    testWidgets('the cloud on the song not at home; it plays', (tester) async {
+    testWidgets('the song not at home looks like the rest (no cloud); it '
+        'plays', (tester) async {
       await prefs.set(UserPreferences.kostvMusicCatalogAll, true);
       final played = await list(tester);
-      expect(find.byType(KostvStreamMark), findsOneWidget);
+      expect(find.byIcon(Icons.cloud_outlined), findsNothing);
+      expect(find.byTooltip('No está en casa'), findsNothing);
       await tester.tap(find.text('Lejos'));
       await tester.pump();
       expect(played, [1]);

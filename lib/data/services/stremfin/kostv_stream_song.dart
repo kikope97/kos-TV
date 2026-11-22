@@ -33,22 +33,6 @@ bool isKostvStreamId(String? id) =>
 /// The id in the queue of the out-of-home song [deezerId].
 String kostvStreamId(String deezerId) => '$kostvStreamIdPrefix$deezerId';
 
-/// Kos TV: the artist line of [item] where the app can only show text (the
-/// phone's notification and lock screen, the car, the browser's media
-/// controls): for a song that isn't at home, [artist] marked as heard in
-/// streaming («Los Faroleros · en streaming», with [withArtist]; [alone]
-/// with no artist); for one at home, [artist] as it is.
-String? kostvStreamMarkedArtist(
-  AggregatedItem item,
-  String? artist, {
-  required String Function(String artist) withArtist,
-  required String alone,
-}) {
-  if (!isKostvStream(item)) return artist;
-  final name = artist?.trim() ?? '';
-  return name.isEmpty ? alone : withArtist(name);
-}
-
 /// What the requests service knows of an out-of-home song in the queue.
 @immutable
 class KostvStreamInfo {

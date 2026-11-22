@@ -6,7 +6,6 @@ import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/services/media_server_client_factory.dart';
 import 'package:moonfin/data/services/stremfin/kostv_stream_song.dart';
-import 'package:moonfin/l10n/current_app_localizations.dart';
 import 'package:moonfin/platform/pip_service.dart';
 import 'package:moonfin/playback/aether_backend.dart';
 import 'package:moonfin/playback/audio_handler.dart';
@@ -111,38 +110,39 @@ void main() {
     expect(engine.shown, contains('Song by Artist'));
   });
 
-  // Kos TV: the notification, the lock screen and the car tell a song that
-  // isn't at home by its artist line.
-  test('a song that isn\'t at home says «en streaming» after its artist; '
-      'one at home, as before', () async {
-    // In the app's language («Los Faroleros · en streaming» in Spanish).
-    final marked = currentAppLocalizations().kostvStreamArtistLine(
-      'Los Faroleros',
-    );
-    expect(marked, isNot('Los Faroleros'));
-    final handler = MoonfinAudioHandler(
-      manager,
-      _FakeClientFactory(),
-      _FakeBrowse(),
-      _FakeSessionStore(),
-    );
-    final away = kostvStreamItem(
-      deezerId: '9',
-      title: 'Farolillo',
-      serverId: 'server',
-      artist: 'Los Faroleros',
-    );
-    manager.queueService.setQueue([away, _song]);
-    await pumpEventQueue();
-    expect(handler.mediaItem.value?.title, 'Farolillo');
-    expect(handler.mediaItem.value?.artist, marked);
-    expect(engine.shown, contains('Farolillo by $marked'));
-    expect(handler.queue.value.map((item) => item.artist), [marked, 'Artist']);
+  // Kos TV: the music design: the notification, the lock screen and the car
+  // show only the song and its artist, whether it is at home or not.
+  test(
+    'a song that isn\'t at home shows just its artist, as one at home',
+    () async {
+      const marked = 'Los Faroleros';
+      final handler = MoonfinAudioHandler(
+        manager,
+        _FakeClientFactory(),
+        _FakeBrowse(),
+        _FakeSessionStore(),
+      );
+      final away = kostvStreamItem(
+        deezerId: '9',
+        title: 'Farolillo',
+        serverId: 'server',
+        artist: 'Los Faroleros',
+      );
+      manager.queueService.setQueue([away, _song]);
+      await pumpEventQueue();
+      expect(handler.mediaItem.value?.title, 'Farolillo');
+      expect(handler.mediaItem.value?.artist, marked);
+      expect(engine.shown, contains('Farolillo by $marked'));
+      expect(handler.queue.value.map((item) => item.artist), [
+        marked,
+        'Artist',
+      ]);
 
-    manager.queueService.next(manual: true);
-    await pumpEventQueue();
-    expect(handler.mediaItem.value?.artist, 'Artist');
-  });
+      manager.queueService.next(manual: true);
+      await pumpEventQueue();
+      expect(handler.mediaItem.value?.artist, 'Artist');
+    },
+  );
 
   test('presses on the engine session drive playback', () async {
     manager.queueService.setQueue([_song]);

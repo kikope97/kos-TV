@@ -9,13 +9,14 @@ import 'package:flutter/services.dart';
 import 'package:moonfin_design/moonfin_design.dart' show GlassSettings;
 
 import '../../../data/models/aggregated_item.dart';
-import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
 import '../../screens/music/kostv_stream_widgets.dart';
 import '../offline_aware_image.dart';
+import 'design/kostv_music_tokens.dart';
+import 'design/kostv_play_button.dart';
 import 'kostv_now_playing.dart';
 
 /// Kos TV: the floating player. While a song sounds and the person moves
@@ -471,13 +472,24 @@ class _TouchCapsuleState extends State<_TouchCapsule> {
                   Expanded(
                     child: KostvCapsuleTitles(item: item, artist: artist),
                   ),
-                  _CapsuleButton(
-                    icon: music.playing
-                        ? Icons.pause_rounded
-                        : Icons.play_arrow_rounded,
-                    tooltip: music.playing ? l10n.pause : l10n.play,
-                    big: true,
-                    onTap: music.playPause,
+                  // Kos TV: the music design's one play button.
+                  Tooltip(
+                    message: music.playing ? l10n.pause : l10n.play,
+                    child: Semantics(
+                      button: true,
+                      label: music.playing ? l10n.pause : l10n.play,
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: music.playPause,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: KostvPlayFace(
+                            diameter: 40,
+                            pause: music.playing,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                   _CapsuleButton(
                     icon: Icons.skip_next_rounded,
@@ -665,20 +677,17 @@ class KostvCapsuleTitles extends StatelessWidget {
         ),
       ] else if (artist.isNotEmpty) ...[
         const SizedBox(height: 3),
-        // Kos TV: the small cloud of a song that isn't at home.
-        KostvStreamMarked(
-          stream: isKostvStream(item),
-          size: big ? 15 : 13,
-          child: Text(
-            artist,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.68),
-              fontSize: big ? 14 : 12.5,
-              fontWeight: FontWeight.w500,
-              height: 1.15,
-            ),
+        // Kos TV: the same for a song that isn't at home (the player says
+        // so, not the floating player).
+        Text(
+          artist,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.68),
+            fontSize: big ? 14 : 12.5,
+            fontWeight: FontWeight.w500,
+            height: 1.15,
           ),
         ),
       ],
@@ -691,14 +700,12 @@ class _CapsuleButton extends StatelessWidget {
     required this.icon,
     required this.tooltip,
     required this.onTap,
-    this.big = false,
     this.small = false,
   });
 
   final IconData icon;
   final String tooltip;
   final VoidCallback onTap;
-  final bool big;
   final bool small;
 
   @override
@@ -712,7 +719,7 @@ class _CapsuleButton extends StatelessWidget {
         height: 44,
         child: Icon(
           icon,
-          size: big ? 30 : (small ? 20 : 26),
+          size: small ? 20 : 26,
           color: Colors.white.withValues(alpha: small ? 0.7 : 1),
         ),
       ),
@@ -811,12 +818,13 @@ class _KostvCapsuleProgressState extends State<KostvCapsuleProgress> {
     final value = total > 0
         ? (_position.inMilliseconds / total).clamp(0.0, 1.0)
         : 0.0;
+    // Kos TV: the music design: what sounds in the brand's gradient.
     return RepaintBoundary(
       child: SizedBox(
-        height: 2.5,
-        child: ValueListenableBuilder<KostvCoverColors>(
-          valueListenable: KostvNowPlaying.instance.colors,
-          builder: (context, colors, _) => Stack(
+        height: 3,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(3),
+          child: Stack(
             children: [
               Positioned.fill(
                 child: ColoredBox(color: Colors.white.withValues(alpha: 0.12)),
@@ -825,7 +833,11 @@ class _KostvCapsuleProgressState extends State<KostvCapsuleProgress> {
                 widthFactor: value,
                 heightFactor: 1,
                 alignment: AlignmentDirectional.centerStart,
-                child: ColoredBox(color: colors.accent),
+                child: const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: KostvMusicTokens.gradient,
+                  ),
+                ),
               ),
             ],
           ),
@@ -846,12 +858,17 @@ class KostvEqualizerBars extends StatefulWidget {
     this.size = 20,
     this.color = Colors.white,
     this.animated = true,
+    this.gradient,
   });
 
   final bool playing;
   final double size;
   final Color color;
   final bool animated;
+
+  /// Kos TV: painted with it instead of [color] (the brand's, for the song
+  /// that sounds in a list).
+  final Gradient? gradient;
 
   @override
   State<KostvEqualizerBars> createState() => _KostvEqualizerBarsState();
@@ -944,6 +961,7 @@ class _KostvEqualizerBarsState extends State<KostvEqualizerBars> {
           still: widget.animated ? null : 0.1,
           playing: widget.playing,
           color: widget.color,
+          gradient: widget.gradient,
         ),
       ),
     ),
@@ -956,12 +974,14 @@ class _BarsPainter extends CustomPainter {
     required this.still,
     required this.playing,
     required this.color,
+    this.gradient,
   }) : super(repaint: t);
 
   final ValueListenable<double> t;
   final double? still;
   final bool playing;
   final Color color;
+  final Gradient? gradient;
 
   static const _phases = [0.0, 0.55, 0.25, 0.8];
   // Whole turns per loop, so the bars don't jump when it starts again.
@@ -973,6 +993,9 @@ class _BarsPainter extends CustomPainter {
     final gap = size.width * 0.12;
     final width = (size.width - gap * (count - 1)) / count;
     final paint = Paint()..color = color;
+    if (gradient case final gradient?) {
+      paint.shader = gradient.createShader(Offset.zero & size);
+    }
     final t = still ?? this.t.value;
     for (var i = 0; i < count; i++) {
       final wave = playing
@@ -995,5 +1018,6 @@ class _BarsPainter extends CustomPainter {
       old.t != t ||
       old.still != still ||
       old.playing != playing ||
-      old.color != color;
+      old.color != color ||
+      old.gradient != gradient;
 }

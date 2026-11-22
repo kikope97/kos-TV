@@ -3,9 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/services/stremfin/kostv_stream_song.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/playback/kostv_stream_artist_line.dart';
 import 'package:moonfin/ui/screens/music/kostv_stream_widgets.dart';
-import 'package:moonfin/ui/widgets/music/kostv_music_menu.dart';
 import 'package:moonfin/ui/widgets/music/kostv_now_playing_capsule.dart';
 
 AggregatedItem _away({String? artist = 'Los Faroleros'}) => kostvStreamItem(
@@ -28,8 +26,8 @@ const _home = AggregatedItem(
   },
 );
 
-Widget _app(Widget child, {Locale locale = const Locale('es')}) => MaterialApp(
-  locale: locale,
+Widget _app(Widget child) => MaterialApp(
+  locale: const Locale('es'),
   localizationsDelegates: AppLocalizations.localizationsDelegates,
   supportedLocales: AppLocalizations.supportedLocales,
   home: Scaffold(
@@ -37,14 +35,17 @@ Widget _app(Widget child, {Locale locale = const Locale('es')}) => MaterialApp(
   ),
 );
 
-/// Kos TV: wherever a song shows or sounds, whether it is at home: the small
-/// cloud of one that isn't (the floating player, the menus) and «· en
-/// streaming» where only text fits (the notification, the browser).
+/// Kos TV: the music design: everything looks the same whether it is at
+/// home or sounds in streaming. The floating player shows no mark (only the
+/// album's page and «Reproduciendo» say it); the system's media controls
+/// are tested in `test/playback/audio_handler_engine_now_playing_test.dart`.
 void main() {
   group('the floating player', () {
     for (final big in [false, true]) {
       testWidgets('${big ? 'on the TV' : 'on the phone and the web'}: the '
-          'cloud after the artist of one that isn\'t at home', (tester) async {
+          'same for one that isn\'t at home as for one that is', (
+        tester,
+      ) async {
         await tester.pumpWidget(
           _app(
             KostvCapsuleTitles(
@@ -54,27 +55,22 @@ void main() {
             ),
           ),
         );
+        expect(find.text('Farolillo'), findsOneWidget);
         expect(find.text('Los Faroleros'), findsOneWidget);
-        expect(find.byType(KostvStreamMark), findsOneWidget);
-        expect(find.byTooltip('No está en casa'), findsOneWidget);
-        final artist = tester.getRect(find.text('Los Faroleros'));
-        final cloud = tester.getRect(find.byType(KostvStreamMark));
-        expect(cloud.left, greaterThanOrEqualTo(artist.right));
-        expect(cloud.center.dy, closeTo(artist.center.dy, 4));
+        expect(find.byIcon(Icons.cloud_outlined), findsNothing);
+        expect(find.byTooltip('No está en casa'), findsNothing);
+        expect(find.textContaining('streaming'), findsNothing);
+        final away = tester.getRect(find.text('Los Faroleros'));
+        await tester.pumpWidget(
+          _app(
+            KostvCapsuleTitles(item: _home, artist: 'Los Faroleros', big: big),
+          ),
+        );
+        expect(tester.getRect(find.text('Los Faroleros')), away);
       });
     }
 
-    testWidgets('a song at home, as before: no cloud', (tester) async {
-      await tester.pumpWidget(
-        _app(const KostvCapsuleTitles(item: _home, artist: 'Lola Brisa')),
-      );
-      expect(find.text('Lola Brisa'), findsOneWidget);
-      expect(find.byType(KostvStreamMark), findsNothing);
-    });
-
-    testWidgets('a long artist is cut short and the cloud still shows', (
-      tester,
-    ) async {
+    testWidgets('a long artist is cut short, with no overflow', (tester) async {
       final long = 'Los Faroleros de la Verbena ' * 6;
       await tester.pumpWidget(
         _app(
@@ -85,68 +81,34 @@ void main() {
         ),
       );
       expect(tester.takeException(), isNull);
-      expect(find.byType(KostvStreamMark), findsOneWidget);
-      final cloud = tester.getRect(find.byType(KostvStreamMark));
-      expect(
-        cloud.right,
-        lessThanOrEqualTo(
-          tester.getRect(find.byType(KostvCapsuleTitles)).right + 0.5,
-        ),
-      );
     });
   });
 
-  testWidgets('a menu with a mark after its subtitle', (tester) async {
+  testWidgets('«Reproduciendo»\'s line is calm: no cloud, the wave', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _app(
-        const KostvMusicMenu<int>(
-          title: 'Farolillo',
-          subtitle: 'Los Faroleros · No está en casa',
-          subtitleMark: KostvStreamMark(),
-          entries: [KostvMenuEntry(1, Icons.radio_rounded, 'Crear emisora')],
+        KostvStreamPill(
+          item: _away(),
+          stop: (onTap, builder) =>
+              Builder(builder: (context) => builder(context, false)),
         ),
       ),
     );
-    expect(find.text('Los Faroleros · No está en casa'), findsOneWidget);
-    expect(find.byType(KostvStreamMark), findsOneWidget);
+    expect(find.text('Suena en streaming · no está en casa'), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_outlined), findsNothing);
+    expect(find.byIcon(Icons.graphic_eq_rounded), findsOneWidget);
+    // Nothing for a song at home.
     await tester.pumpWidget(
       _app(
-        const KostvMusicMenu<int>(
-          title: 'Verano',
-          subtitle: 'Lola Brisa',
-          entries: [KostvMenuEntry(1, Icons.radio_rounded, 'Crear emisora')],
+        KostvStreamPill(
+          item: _home,
+          stop: (onTap, builder) =>
+              Builder(builder: (context) => builder(context, false)),
         ),
       ),
     );
-    expect(find.byType(KostvStreamMark), findsNothing);
-  });
-
-  group('the line of the system\'s media controls', () {
-    final es = lookupAppLocalizations(const Locale('es'));
-    final en = lookupAppLocalizations(const Locale('en'));
-
-    test('one that isn\'t at home: «· en streaming» after its artist', () {
-      expect(
-        kostvStreamArtistLine(_away(), 'Los Faroleros', es),
-        'Los Faroleros · en streaming',
-      );
-      expect(
-        kostvStreamArtistLine(_away(), 'Los Faroleros', en),
-        'Los Faroleros · streaming',
-      );
-    });
-
-    test('with no artist, just that it is in streaming', () {
-      expect(
-        kostvStreamArtistLine(_away(artist: null), null, es),
-        'En streaming',
-      );
-      expect(kostvStreamArtistLine(_away(artist: null), '  ', en), 'Streaming');
-    });
-
-    test('one at home, unchanged', () {
-      expect(kostvStreamArtistLine(_home, 'Lola Brisa', es), 'Lola Brisa');
-      expect(kostvStreamArtistLine(_home, null, es), isNull);
-    });
+    expect(find.text('Suena en streaming · no está en casa'), findsNothing);
   });
 }

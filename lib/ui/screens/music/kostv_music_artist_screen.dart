@@ -353,6 +353,8 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                                     )
                                   : null,
                               explicit: song.explicit,
+                              duration: song.duration,
+                              soundingId: kostvSongSoundingId(song),
                               onRest:
                                   all && !song.atHome && kostvSongPlayable(song)
                                   ? (resting) => resting

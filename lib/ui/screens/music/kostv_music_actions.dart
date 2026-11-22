@@ -18,7 +18,6 @@ import '../../../data/services/stremfin/stremfin_error_text.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/add_to_playlist_dialog.dart';
 import '../../widgets/music/kostv_music_menu.dart';
@@ -828,9 +827,9 @@ Future<void> _streamSongMenu(
   final choice = await showKostvMusicMenu<_StreamChoice>(
     context,
     title: stream.name,
-    subtitle: [?artistName, l10n.kostvStreamOutOfHome].join(' · '),
-    // Kos TV: the same cloud as in the lists and the queue.
-    subtitleMark: KostvStreamMark(size: PlatformDetection.isTV ? 16 : 14),
+    // Kos TV: the same as a song at home (whether it is is said on its
+    // album's page and in the player).
+    subtitle: artistName,
     entries: [
       if (playable) ...[
         KostvMenuEntry(

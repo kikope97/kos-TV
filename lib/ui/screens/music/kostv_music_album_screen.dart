@@ -19,15 +19,13 @@ import '../../navigation/destinations.dart';
 import '../../widgets/bounded_network_image.dart';
 import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
-import '../../widgets/music/kostv_now_playing_capsule.dart'
-    show KostvEqualizerBars;
+import '../../widgets/music/design/kostv_music_design.dart';
 import '../../widgets/music/kostv_stream_play.dart';
 import '../../../playback/kostv_stream_playback.dart';
 import '../../../data/services/kostv_music_catalog.dart';
 import 'kostv_music_actions.dart';
 import 'kostv_music_links.dart';
 import 'kostv_music_widgets.dart';
-import 'kostv_stream_widgets.dart' show KostvStreamMark;
 import '../../../util/kostv_browser_menu.dart';
 
 /// Kos TV: an album that isn't at home, as Apple Music shows an album: its
@@ -500,6 +498,8 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
               ),
           ],
         ),
+        // Kos TV: the music design's calm note, the one place (with the
+        // player) that says it isn't at home.
         if (_streamable(detail)) ...[
           const SizedBox(height: 14),
           ConstrainedBox(
@@ -510,27 +510,37 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
                   const WidgetSpan(
                     alignment: PlaceholderAlignment.middle,
                     child: Padding(
-                      padding: EdgeInsets.only(right: 8),
+                      padding: EdgeInsets.only(right: 10),
                       child: Icon(
-                        Icons.cloud_outlined,
-                        color: kostvMusicGrey,
+                        Icons.graphic_eq_rounded,
+                        color: KostvMusicTokens.dim,
                         size: 18,
                       ),
                     ),
                   ),
-                  TextSpan(text: l10n.kostvStreamAlbumNote),
+                  TextSpan(
+                    text: '${l10n.kostvMusicAwayNoteLead} ',
+                    style: const TextStyle(
+                      color: KostvMusicTokens.ink,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  TextSpan(text: l10n.kostvMusicAwayNoteRest),
                 ],
               ),
               textAlign: textAlign,
               style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
+                color: KostvMusicTokens.muted,
+                fontSize: 15,
+                height: 1.35,
               ),
             ),
           ),
         ],
-        if (!album.inJellyfin) ...[
+        // Kos TV: with the note above, only what it doesn't say (that the
+        // song it came from is asked for with its whole album).
+        if (!album.inJellyfin &&
+            (!_streamable(detail) || (whole && song != null))) ...[
           const SizedBox(height: 14),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
@@ -932,121 +942,47 @@ class KostvMusicTrackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final length = duration == null
-        ? null
-        : '${duration! ~/ 60}:${(duration! % 60).toString().padLeft(2, '0')}';
+    // Kos TV: the music design's song row ([KostvSongRow]): no mark of
+    // whether it is at home, the number turning into ▶ with the focus or
+    // the mouse, and the equalizer on the one that sounds.
+    final sound = !sounding
+        ? KostvSongSound.none
+        : (soundingPlays ? KostvSongSound.playing : KostvSongSound.paused);
+    final links = artistLinks;
+    final subtitleBuilder = links != null && links.isNotEmpty
+        ? (TextStyle style) => KostvMusicLinks(groups: [links], style: style)
+        : null;
+    final number = disc == null ? '${this.number}' : '$disc·${this.number}';
+    final length = kostvSongLength(duration);
     final onTap = this.onTap;
     // One not at home plays nothing; with a remote or keys (a TV, the web on
     // a computer) it still takes the focus, or the list couldn't be gone
     // down to read the rest.
     if (onTap == null && PlatformDetection.useMobileUi) {
-      return _row(context, l10n, length, lit: false);
+      return KostvSongRowFace(
+        lit: false,
+        sound: sound,
+        title: title,
+        subtitle: artist,
+        subtitleBuilder: subtitleBuilder,
+        number: number,
+        duration: length,
+        picked: picked,
+      );
     }
-    return KostvMusicPressable(
+    return KostvSongRow(
       focusNode: focusNode,
       autofocus: autofocus,
       onTap: onTap ?? () {},
-      onLongPress: onMenu,
+      onMenu: onMenu,
       onRest: onRest,
-      builder: (context, lit) => _row(context, l10n, length, lit: lit),
-    );
-  }
-
-  Widget _row(
-    BuildContext context,
-    AppLocalizations l10n,
-    String? length, {
-    required bool lit,
-  }) {
-    final color = lit
-        ? Colors.black
-        : (picked || sounding ? kostvMusicColor : Colors.white);
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 150),
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
-      decoration: BoxDecoration(
-        color: lit ? Colors.white : Colors.transparent,
-        borderRadius: lit ? AppRadius.circular(8) : null,
-        border: const Border(bottom: BorderSide(color: Color(0x22FFFFFF))),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 34,
-            child: sounding
-                ? Align(
-                    alignment: Alignment.centerLeft,
-                    child: KostvEqualizerBars(
-                      playing: soundingPlays,
-                      size: 16,
-                      color: lit ? Colors.black : kostvMusicColor,
-                    ),
-                  )
-                : Text(
-                    disc == null ? '$number' : '$disc·$number',
-                    style: TextStyle(
-                      color: picked ? kostvMusicColor : kostvMusicGrey,
-                      fontSize: 15,
-                    ),
-                  ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: color,
-                    fontSize: 16,
-                    fontWeight: picked ? FontWeight.w700 : FontWeight.w500,
-                  ),
-                ),
-                if (artistLinks case final links? when links.isNotEmpty)
-                  KostvMusicLinks(
-                    groups: [links],
-                    style: const TextStyle(color: kostvMusicGrey, fontSize: 13),
-                  )
-                else if (artist != null)
-                  Text(
-                    artist!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: kostvMusicGrey, fontSize: 13),
-                  ),
-              ],
-            ),
-          ),
-          if (atHome)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: Tooltip(
-                message: l10n.kostvMusicAtHome,
-                child: const Icon(
-                  Icons.check_circle_rounded,
-                  color: Color(0xFF30D158),
-                  size: 18,
-                ),
-              ),
-            )
-          else if (away)
-            Padding(
-              padding: const EdgeInsets.only(right: 12),
-              child: KostvStreamMark(
-                size: 18,
-                color: lit ? Colors.black45 : null,
-              ),
-            ),
-          if (length != null)
-            Text(
-              length,
-              style: const TextStyle(color: kostvMusicGrey, fontSize: 14),
-            ),
-        ],
-      ),
+      sound: sound,
+      title: title,
+      subtitle: artist,
+      subtitleBuilder: subtitleBuilder,
+      number: number,
+      duration: length,
+      picked: picked,
     );
   }
 }

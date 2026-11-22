@@ -329,9 +329,8 @@ class _MusicPlaylistsScreenState
               imageUrl: musicImageUrl(_tracks[i], maxHeight: 120),
               trailing: musicRunTime(_tracks[i]),
               focusNode: node('detailTrack:$i'),
-              // Kos TV: a song that isn't at home, with its cloud (in grey
-              // when it can't sound now) and its menu.
-              away: isKostvStream(_tracks[i]),
+              // Kos TV: a song that isn't at home looks the same (in grey
+              // when it can't sound now, «Solo la de casa»), with its menu.
               dimmed: !kostvAwayPlayable(_tracks[i]),
               onLongPress: isKostvStream(_tracks[i])
                   ? () => unawaited(

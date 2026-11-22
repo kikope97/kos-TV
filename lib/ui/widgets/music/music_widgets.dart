@@ -376,9 +376,6 @@ class MusicTrackTile extends StatefulWidget {
   final VoidCallback? onNavigateRight;
   final VoidCallback? onFocus;
 
-  /// Kos TV: a song that isn't at home: the cloud after its title.
-  final bool away;
-
   /// Kos TV: one that can't sound now («Solo la de casa»): in grey.
   final bool dimmed;
 
@@ -399,7 +396,6 @@ class MusicTrackTile extends StatefulWidget {
     this.edges = const MusicGridEdges(),
     this.onNavigateRight,
     this.onFocus,
-    this.away = false,
     this.dimmed = false,
     this.onLongPress,
   });
@@ -507,11 +503,6 @@ class _MusicTrackTileState extends State<MusicTrackTile> {
                           ),
                         ),
                       ),
-                      // Kos TV: the cloud of a song that isn't at home.
-                      if (widget.away) ...[
-                        const SizedBox(width: 6),
-                        Icon(Icons.cloud_outlined, size: 15, color: muted),
-                      ],
                     ],
                   ),
                   if (widget.subtitle.isNotEmpty)

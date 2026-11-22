@@ -21302,4 +21302,28 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvAwayLoadFailed =>
       'Couldn\'t load the songs that aren\'t at home';
+
+  @override
+  String get kostvMusicAwayNoteLead =>
+      'This record isn\'t at home: it\'s streaming.';
+
+  @override
+  String get kostvMusicAwayNoteRest =>
+      'Ask for it to have it at home in better quality.';
+
+  @override
+  String get kostvMusicAwaySongNote =>
+      'This song isn\'t at home: it\'s streaming. Ask for its album to have it at home in better quality.';
+
+  @override
+  String get kostvMusicAwayPlayerLine => 'Streaming · not at home';
+
+  @override
+  String get kostvMusicAskTheAlbum => 'Ask for the album';
+
+  @override
+  String get kostvMusicAskedNotify => 'Asked · we\'ll let you know';
+
+  @override
+  String get kostvMusicAlreadyHome => 'Already at home';
 }
