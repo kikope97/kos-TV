@@ -634,6 +634,123 @@
             #MoonfinConfigPage .moonfinAdminMain:has(.moonfinTabPanel[data-tab="appUpdates"].is-active) .moonfinSaveBar {
                 display: none;
             }
+            /* kOS TV: «Instalaciones (últimos 14 días)». */
+            #MoonfinConfigPage .kostvInstHead {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px 16px;
+                margin-bottom: 10px;
+            }
+            #MoonfinConfigPage .kostvInstHead .raised {
+                margin: 0;
+            }
+            #MoonfinConfigPage .kostvInstSummary {
+                font-size: 1.1em;
+                font-weight: 600;
+            }
+            #MoonfinConfigPage .kostvInstSummary.is-all {
+                color: #52b54b;
+            }
+            #MoonfinConfigPage .kostvInstSummary.is-behind {
+                color: #f5c26b;
+            }
+            #MoonfinConfigPage .kostvInstWrap {
+                border-radius: 10px;
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                background: rgba(0, 0, 0, 0.2);
+                overflow-x: auto;
+            }
+            #MoonfinConfigPage .kostvInstTable {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            #MoonfinConfigPage .kostvInstTable th,
+            #MoonfinConfigPage .kostvInstTable td {
+                padding: 10px 14px;
+                text-align: left;
+                vertical-align: middle;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            }
+            #MoonfinConfigPage .kostvInstTable tr:last-child td {
+                border-bottom: 0;
+            }
+            #MoonfinConfigPage .kostvInstTable th {
+                font-size: .8em;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: .04em;
+                color: rgba(255, 255, 255, 0.55);
+                background: rgba(255, 255, 255, 0.03);
+            }
+            #MoonfinConfigPage .kostvInstTable td.kostvInstAction {
+                text-align: right;
+                width: 1%;
+                white-space: nowrap;
+            }
+            #MoonfinConfigPage .kostvInstTable .raised {
+                margin: 0;
+                padding: .35em .9em;
+                font-size: .9em;
+            }
+            #MoonfinConfigPage .kostvInstDevice {
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
+            #MoonfinConfigPage .kostvInstDevice .kostvUpdBadge {
+                white-space: nowrap;
+            }
+            #MoonfinConfigPage .kostvInstTable .kostvUpdBadge.is-behind {
+                display: inline-block;
+                line-height: 1.4;
+                border-radius: 10px;
+            }
+            #MoonfinConfigPage .kostvInstWhen {
+                white-space: nowrap;
+            }
+            #MoonfinConfigPage .kostvUpdBadge.is-behind {
+                background: rgba(245, 194, 107, 0.18);
+                color: #f5c26b;
+            }
+            /* Narrow screens (the dashboard on a phone): each device is a small card. */
+            @media (max-width: 720px) {
+                #MoonfinConfigPage .kostvInstTable thead {
+                    display: none;
+                }
+                #MoonfinConfigPage .kostvInstTable,
+                #MoonfinConfigPage .kostvInstTable tbody,
+                #MoonfinConfigPage .kostvInstTable tr,
+                #MoonfinConfigPage .kostvInstTable td {
+                    display: block;
+                    width: auto;
+                }
+                #MoonfinConfigPage .kostvInstTable tr {
+                    padding: 10px 14px;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+                }
+                #MoonfinConfigPage .kostvInstTable tr:last-child {
+                    border-bottom: 0;
+                }
+                #MoonfinConfigPage .kostvInstTable td {
+                    padding: 3px 0;
+                    border: 0;
+                }
+                #MoonfinConfigPage .kostvInstTable td[data-label]::before {
+                    content: attr(data-label) ": ";
+                    color: rgba(255, 255, 255, 0.55);
+                    font-size: .9em;
+                }
+                #MoonfinConfigPage .kostvInstTable td.kostvInstPerson {
+                    font-weight: 600;
+                    font-size: 1.05em;
+                }
+                #MoonfinConfigPage .kostvInstTable td.kostvInstAction {
+                    text-align: left;
+                    padding-top: 8px;
+                }
+            }
             #MoonfinConfigPage .kostvUpdSigner {
                 font-family: monospace;
                 white-space: pre-wrap;
@@ -6140,6 +6257,21 @@
                             Android no deja volver a una versión anterior encima de una nueva: para arreglar una versión mala, publica otra más nueva.
                         </div>
                         <div id="KostvUpdList" class="kostvUpdList"></div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Instalaciones (últimos 14 días)</h3>
+                        <div class="fieldDescription" style="margin-bottom:.8em;">
+                            Las teles y los móviles que han buscado actualizaciones en los últimos 14 días, con la versión que tiene cada uno;
+                            el que pasa 14 días sin aparecer (un móvil que se ha cambiado) sale solo de la lista. Las apps anteriores a la 1.21.0 no avisan.
+                        </div>
+                        <div class="kostvInstHead">
+                            <div id="KostvInstSummary" class="kostvInstSummary" role="status"></div>
+                            <button is="emby-button" type="button" id="KostvInstRefresh" class="raised">
+                                <span>Actualizar la lista</span>
+                            </button>
+                        </div>
+                        <div id="KostvInstList" class="kostvInstWrap"></div>
                     </div>
 
                     <div class="verticalSection">
@@ -14496,6 +14628,8 @@
                     tab.querySelector('#KostvUpdSigner').textContent = state.SignerFingerprint
                         ? state.SignerFingerprint + (state.SignerSubject ? '\n' + state.SignerSubject : '')
                         : 'Aún no hay ninguna: la fijará la primera versión que publiques.';
+                    // Publishing, retiring or deleting changes who is up to date.
+                    loadInstallations();
                 }
 
                 function load() {
@@ -14503,6 +14637,76 @@
                         tab.querySelector('#KostvUpdList').textContent = 'No se han podido leer las versiones: ' + error.message;
                     });
                 }
+
+                // «Instalaciones (últimos 14 días)»: which device has which version.
+                function ago(iso) {
+                    var then = new Date(iso).getTime();
+                    if (isNaN(then)) return iso || '';
+                    var seconds = Math.round((then - Date.now()) / 1000);
+                    if (Math.abs(seconds) < 60) return 'ahora mismo';
+                    var units = [['day', 86400], ['hour', 3600], ['minute', 60]];
+                    try {
+                        var rtf = new Intl.RelativeTimeFormat('es-ES', { numeric: 'auto' });
+                        for (var i = 0; i < units.length; i++) {
+                            if (Math.abs(seconds) >= units[i][1]) {
+                                return rtf.format(Math.round(seconds / units[i][1]), units[i][0]);
+                            }
+                        }
+                    } catch (e) {}
+                    return date(iso);
+                }
+
+                function renderInstallations(state) {
+                    var list = tab.querySelector('#KostvInstList');
+                    var summary = tab.querySelector('#KostvInstSummary');
+                    var items = state.Installations || [];
+                    summary.classList.remove('is-all', 'is-behind');
+                    if (!items.length) {
+                        summary.textContent = '';
+                        list.innerHTML = '<div class="kostvUpdEmpty">Aún no se ha visto ningún aparato. Aparecen aquí cuando la app busca actualizaciones (al abrirse, como mucho cada 6 horas).</div>';
+                        return;
+                    }
+
+                    summary.textContent = state.UpToDate + ' de ' + state.Total + ' al día';
+                    summary.classList.add(state.UpToDate === state.Total ? 'is-all' : 'is-behind');
+                    list.innerHTML = '<table class="kostvInstTable"><thead><tr>' +
+                        '<th>Persona</th><th>Aparato</th><th>Versión</th><th>Visto por última vez</th><th>Estado</th><th aria-label="Acciones"></th>' +
+                        '</tr></thead><tbody>' + items.map(function(i) {
+                            var person = i.UserName || '(sin nombre)';
+                            var device = i.DeviceName || (i.Kind === 'tv' ? 'Tele sin nombre' : 'Móvil sin nombre');
+                            var status = i.UpToDate
+                                ? '<span class="kostvUpdBadge is-offered">Al día</span>'
+                                : '<span class="kostvUpdBadge is-behind">Pendiente: tiene ' + esc(i.VersionName) + ', hay ' + esc(i.LatestVersionName) + '</span>';
+                            return '<tr>' +
+                                '<td class="kostvInstPerson">' + esc(person) + '</td>' +
+                                '<td data-label="Aparato"><span class="kostvInstDevice"><span class="kostvUpdBadge">' + (i.Kind === 'tv' ? 'TV' : 'Móvil') + '</span>' + esc(device) + '</span></td>' +
+                                '<td data-label="Versión">' + esc(i.VersionName) + '</td>' +
+                                '<td data-label="Visto" class="kostvInstWhen" title="' + esc(date(i.LastSeen)) + '">' + esc(ago(i.LastSeen)) + '</td>' +
+                                '<td data-label="Estado">' + status + '</td>' +
+                                '<td class="kostvInstAction"><button type="button" is="emby-button" class="raised" data-inst-remove="' + esc(i.Id) + '" data-inst-name="' + esc(device + ' de ' + person) + '"><span>Quitar</span></button></td>' +
+                                '</tr>';
+                        }).join('') + '</tbody></table>';
+                }
+
+                function loadInstallations() {
+                    return call('GET', base + '/Installations').then(renderInstallations, function(error) {
+                        tab.querySelector('#KostvInstSummary').textContent = '';
+                        tab.querySelector('#KostvInstList').innerHTML = '<div class="kostvUpdEmpty">No se ha podido leer la lista: ' + esc(error.message) + '</div>';
+                    });
+                }
+
+                tab.querySelector('#KostvInstRefresh').addEventListener('click', loadInstallations);
+                tab.querySelector('#KostvInstList').addEventListener('click', function(e) {
+                    var remove = e.target.closest('[data-inst-remove]');
+                    if (!remove) {
+                        return;
+                    }
+                    if (!confirm('¿Quitar «' + remove.getAttribute('data-inst-name') + '» de la lista? Si la app vuelve a buscar actualizaciones, volverá a salir.')) {
+                        return;
+                    }
+                    call('DELETE', base + '/Installations/' + encodeURIComponent(remove.getAttribute('data-inst-remove')))
+                        .then(renderInstallations, function(error) { alert(error.message); });
+                });
 
                 function refreshPublish() {
                     var ok = slots.tv && slots.tv.check && slots.tv.check.Ok &&
