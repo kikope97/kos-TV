@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/services/media_server_client_factory.dart';
+import 'package:moonfin/data/services/stremfin/kostv_stream_song.dart';
+import 'package:moonfin/l10n/current_app_localizations.dart';
 import 'package:moonfin/platform/pip_service.dart';
 import 'package:moonfin/playback/aether_backend.dart';
 import 'package:moonfin/playback/audio_handler.dart';
@@ -69,7 +71,11 @@ class _FakeSessionStore extends Fake implements LastPlaybackSessionStore {
 const _song = AggregatedItem(
   id: 'song',
   serverId: 'server',
-  rawData: {'Type': 'Audio', 'Name': 'Song', 'Artists': ['Artist']},
+  rawData: {
+    'Type': 'Audio',
+    'Name': 'Song',
+    'Artists': ['Artist'],
+  },
 );
 
 void main() {
@@ -105,6 +111,39 @@ void main() {
     expect(engine.shown, contains('Song by Artist'));
   });
 
+  // Kos TV: the notification, the lock screen and the car tell a song that
+  // isn't at home by its artist line.
+  test('a song that isn\'t at home says «en streaming» after its artist; '
+      'one at home, as before', () async {
+    // In the app's language («Los Faroleros · en streaming» in Spanish).
+    final marked = currentAppLocalizations().kostvStreamArtistLine(
+      'Los Faroleros',
+    );
+    expect(marked, isNot('Los Faroleros'));
+    final handler = MoonfinAudioHandler(
+      manager,
+      _FakeClientFactory(),
+      _FakeBrowse(),
+      _FakeSessionStore(),
+    );
+    final away = kostvStreamItem(
+      deezerId: '9',
+      title: 'Farolillo',
+      serverId: 'server',
+      artist: 'Los Faroleros',
+    );
+    manager.queueService.setQueue([away, _song]);
+    await pumpEventQueue();
+    expect(handler.mediaItem.value?.title, 'Farolillo');
+    expect(handler.mediaItem.value?.artist, marked);
+    expect(engine.shown, contains('Farolillo by $marked'));
+    expect(handler.queue.value.map((item) => item.artist), [marked, 'Artist']);
+
+    manager.queueService.next(manual: true);
+    await pumpEventQueue();
+    expect(handler.mediaItem.value?.artist, 'Artist');
+  });
+
   test('presses on the engine session drive playback', () async {
     manager.queueService.setQueue([_song]);
     await pumpEventQueue();
@@ -120,6 +159,12 @@ void main() {
     }
     await pumpEventQueue();
 
-    expect(manager.calls, ['resume', 'pause', 'seek 42000', 'next', 'previous']);
+    expect(manager.calls, [
+      'resume',
+      'pause',
+      'seek 42000',
+      'next',
+      'previous',
+    ]);
   });
 }

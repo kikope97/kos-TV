@@ -23,12 +23,17 @@ Future<T?> showKostvMusicMenu<T>(
   BuildContext context, {
   required String title,
   String? subtitle,
+  Widget? subtitleMark,
   required List<KostvMenuEntry<T>> entries,
 }) => showDialog<T>(
   context: context,
   barrierColor: Colors.black.withValues(alpha: 0.55),
-  builder: (context) =>
-      KostvMusicMenu<T>(title: title, subtitle: subtitle, entries: entries),
+  builder: (context) => KostvMusicMenu<T>(
+    title: title,
+    subtitle: subtitle,
+    subtitleMark: subtitleMark,
+    entries: entries,
+  ),
 );
 
 class KostvMusicMenu<T> extends StatelessWidget {
@@ -37,10 +42,15 @@ class KostvMusicMenu<T> extends StatelessWidget {
     required this.title,
     required this.entries,
     this.subtitle,
+    this.subtitleMark,
   });
 
   final String title;
   final String? subtitle;
+
+  /// Kos TV: a small mark right after [subtitle] (the cloud of a song that
+  /// isn't at home).
+  final Widget? subtitleMark;
   final List<KostvMenuEntry<T>> entries;
 
   @override
@@ -78,14 +88,24 @@ class KostvMusicMenu<T> extends StatelessWidget {
                         ),
                       ),
                       if (subtitle != null && subtitle!.isNotEmpty)
-                        Text(
-                          subtitle!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.55),
-                            fontSize: big ? 15 : 13,
-                          ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                subtitle!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.55),
+                                  fontSize: big ? 15 : 13,
+                                ),
+                              ),
+                            ),
+                            if (subtitleMark case final mark?) ...[
+                              const SizedBox(width: 6),
+                              mark,
+                            ],
+                          ],
                         ),
                     ],
                   ),

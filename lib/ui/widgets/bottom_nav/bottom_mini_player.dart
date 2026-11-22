@@ -7,10 +7,12 @@ import 'package:playback_core/playback_core.dart';
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/media_server_client_factory.dart';
+import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../util/audio_artwork_url.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
+import '../../screens/music/kostv_stream_widgets.dart' show KostvStreamMarked;
 import '../adaptive/sf_symbol.dart';
 import '../music/kostv_now_playing.dart';
 import '../offline_aware_image.dart';
@@ -132,14 +134,20 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
               ),
               if (artist.isNotEmpty) ...[
                 const SizedBox(height: 3),
-                Text(
-                  artist,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.labelStyle.copyWith(
-                    color: theme.onBar.withValues(alpha: 0.6),
-                    fontSize: compact ? 11.5 : 12,
-                    fontWeight: FontWeight.w500,
+                // Kos TV: the small cloud of a song that isn't at home.
+                KostvStreamMarked(
+                  stream: isKostvStream(item),
+                  size: compact ? 12 : 13,
+                  color: theme.onBar.withValues(alpha: 0.5),
+                  child: Text(
+                    artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.labelStyle.copyWith(
+                      color: theme.onBar.withValues(alpha: 0.6),
+                      fontSize: compact ? 11.5 : 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],

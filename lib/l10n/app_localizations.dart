@@ -36536,6 +36536,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You already have 2000 favourites that aren\'t at home: remove some to add more'**
   String get kostvAwayFavoritesFull;
+
+  /// Kos TV «Toda la música»: the artist line of a song that isn't at home in the phone's notification, the lock screen, the car and the browser's media controls
+  ///
+  /// In en, this message translates to:
+  /// **'{artist} · streaming'**
+  String kostvStreamArtistLine(String artist);
+
+  /// Kos TV «Toda la música»: the same line when the song that isn't at home has no artist
+  ///
+  /// In en, this message translates to:
+  /// **'Streaming'**
+  String get kostvStreamOnlyLine;
 }
 
 class _AppLocalizationsDelegate

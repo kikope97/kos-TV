@@ -21282,4 +21282,12 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvAwayFavoritesFull =>
       'You already have 2000 favourites that aren\'t at home: remove some to add more';
+
+  @override
+  String kostvStreamArtistLine(String artist) {
+    return '$artist · streaming';
+  }
+
+  @override
+  String get kostvStreamOnlyLine => 'Streaming';
 }

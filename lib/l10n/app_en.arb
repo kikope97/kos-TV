@@ -21463,5 +21463,9 @@
     "kostvAwayPlaylistFull": "This playlist already has 500 songs that aren't at home: no more fit",
     "@kostvAwayPlaylistFull": {"description": "Kos TV «Toda la música»: the server plugin keeps at most 500 songs that are not at home per playlist"},
     "kostvAwayFavoritesFull": "You already have 2000 favourites that aren't at home: remove some to add more",
-    "@kostvAwayFavoritesFull": {"description": "Kos TV «Toda la música»: the server plugin keeps at most 2000 ♥ of songs that are not at home per person"}
+    "@kostvAwayFavoritesFull": {"description": "Kos TV «Toda la música»: the server plugin keeps at most 2000 ♥ of songs that are not at home per person"},
+    "kostvStreamArtistLine": "{artist} · streaming",
+    "@kostvStreamArtistLine": {"description": "Kos TV «Toda la música»: the artist line of a song that isn't at home in the phone's notification, the lock screen, the car and the browser's media controls", "placeholders": {"artist": {"type": "String"}}},
+    "kostvStreamOnlyLine": "Streaming",
+    "@kostvStreamOnlyLine": {"description": "Kos TV «Toda la música»: the same line when the song that isn't at home has no artist"}
 }

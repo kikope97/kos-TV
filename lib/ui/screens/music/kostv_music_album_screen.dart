@@ -27,6 +27,7 @@ import '../../../data/services/kostv_music_catalog.dart';
 import 'kostv_music_actions.dart';
 import 'kostv_music_links.dart';
 import 'kostv_music_widgets.dart';
+import 'kostv_stream_widgets.dart' show KostvStreamMark;
 import '../../../util/kostv_browser_menu.dart';
 
 /// Kos TV: an album that isn't at home, as Apple Music shows an album: its
@@ -702,6 +703,8 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
               : null,
           duration: song.duration,
           atHome: song.inJellyfin,
+          // Kos TV: the small cloud of one that sounds through the service.
+          away: _streamable(detail) && !song.atHome && kostvTrackPlayable(song),
           picked: isPicked(song.title),
           // At home (Stremfin 1.91 says which it is): it plays. Kos TV: with
           // «Toda la música», the rest too, through the service, the album
@@ -886,6 +889,7 @@ class KostvMusicTrackRow extends StatelessWidget {
     this.artistLinks,
     this.duration,
     this.atHome = false,
+    this.away = false,
     this.picked = false,
     this.onTap,
     this.onMenu,
@@ -919,6 +923,11 @@ class KostvMusicTrackRow extends StatelessWidget {
   final List<KostvMusicLink>? artistLinks;
   final int? duration;
   final bool atHome;
+
+  /// Kos TV: it isn't at home but sounds through the requests service
+  /// («Toda la música»): the small cloud where the home ones have their
+  /// tick.
+  final bool away;
   final bool picked;
 
   @override
@@ -1021,6 +1030,14 @@ class KostvMusicTrackRow extends StatelessWidget {
                   color: Color(0xFF30D158),
                   size: 18,
                 ),
+              ),
+            )
+          else if (away)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: KostvStreamMark(
+                size: 18,
+                color: lit ? Colors.black45 : null,
               ),
             ),
           if (length != null)

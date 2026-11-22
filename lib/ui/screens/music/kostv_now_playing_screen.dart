@@ -1404,12 +1404,17 @@ class _TitleBlock extends StatelessWidget {
     this.centered = false,
     this.artists = const [],
     this.album,
+    this.streamMark = false,
   });
 
   final AggregatedItem item;
   final bool big;
   final bool small;
   final bool centered;
+
+  /// Kos TV: the small cloud after the artist line of a song that isn't at
+  /// home, where its pill doesn't show (the quiet screen).
+  final bool streamMark;
 
   /// Kos TV: the song's artists and its album, each opening its page (a
   /// tap, a click, or a stop of the remote with OK).
@@ -1474,7 +1479,12 @@ class _TitleBlock extends StatelessWidget {
         if (secondLine.isNotEmpty) ...[
           // The buttons' own room makes up the gap above them.
           SizedBox(height: artistText is Text ? (small ? 2 : 6) : 2),
-          artistText,
+          KostvStreamMarked(
+            stream: streamMark && isKostvStream(item),
+            size: big ? 20 : 16,
+            centred: centered,
+            child: artistText,
+          ),
         ],
       ],
     );
@@ -2803,7 +2813,7 @@ class _AmbientScreen extends StatelessWidget {
       children: [
         KostvEqualizerBars(playing: music.playing, size: 26),
         const SizedBox(width: 16),
-        Flexible(child: _TitleBlock(item: item, big: true)),
+        Flexible(child: _TitleBlock(item: item, big: true, streamMark: true)),
       ],
     );
     return ColoredBox(
