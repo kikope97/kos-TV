@@ -270,7 +270,7 @@ class _KostvStreamPillState extends State<KostvStreamPill> {
     final l10n = AppLocalizations.of(context);
     final k = widget.scale;
     final big = widget.big;
-    final fontSize = (big ? 15.0 : 12.5) * k;
+    final fontSize = (big ? 15.0 : 12.0) * k;
     final height = (big ? 40.0 : 34.0) * k;
     // What the album button says: to ask for it, or how it is once asked.
     final state = kostvStreamAlbumState(
@@ -426,7 +426,8 @@ class _KostvStreamPillState extends State<KostvStreamPill> {
               ConstrainedBox(
                 constraints: BoxConstraints(
                   maxWidth: math.min(
-                    _labelWidth(context, label!, fontSize, can) + 56 * k,
+                    _labelWidth(context, label!, fontSize, can) +
+                        (big ? 50 : 43) * k,
                     room * 0.7,
                   ),
                 ),
