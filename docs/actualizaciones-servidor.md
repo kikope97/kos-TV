@@ -24,6 +24,34 @@ Todo bajo `/Moonfin/Kostv/Update`, con la sesión de Jellyfin de la persona (cab
 - Cuándo pregunta la app: como ahora (al abrir y al volver a primer plano, como mucho cada 6 h; nunca durante la apertura ni reproduciendo). Ninguna llamada a GitHub.
 - Enlace temporal para aparatos nuevos (no lo usa la app): `GET /Moonfin/Kostv/Update/Install/<token>/<kind>.apk`, sin sesión, válido 30 min, generado en el panel.
 
+Detalles añadidos al implementarlo en el complemento (no cambian nada de lo de arriba):
+
+- `versionCode` es opcional (si falta, cuenta como 0). Sin sesión, las dos rutas responden `401`.
+- Lo ofrecido es siempre **la más nueva no retirada**: un aparato muy atrasado salta directamente a ella. Si la más nueva está retirada, se ofrece la anterior no retirada (solo a quien tenga una más vieja).
+- `<id>` es el `VersionCode`. `Date` va en UTC con `Z`. `Notes` puede ser `""`.
+- `/Moonfin/Ping` devuelve además `kostvUpdates: true` (informativo; la app puede fiarse solo del `404`).
+- Los errores llevan `{ "Error": "texto en español" }`.
+
+### Rutas del panel (solo administradores, `RequiresElevation`)
+
+Todas bajo `/Moonfin/Kostv/Update/Admin`, JSON con campos en PascalCase y errores `{ "Error": "…" }` (en una subida fuera de sitio, también `Received`).
+
+| Ruta | Qué hace |
+|---|---|
+| `GET Admin` | `{ Keep, SignerSha256, SignerFingerprint, SignerSubject, PackageName, ChunkSize, MaxSize, Versions: [{ Id, VersionName, VersionCode, Notes, Date, Retired, Offered, TvSize, TvSha256, PhoneSize, PhoneSha256 }] }`, la más nueva primero |
+| `POST Admin/Uploads` `{ Kind: "tv"\|"phone", Size }` | Empieza una subida → `{ UploadId, Size, Received: 0, ChunkSize }`. `413` si pasa de 300 MB |
+| `GET Admin/Uploads/{id}` | Cuánto tiene ya el servidor (`Received`), para reanudar |
+| `PUT Admin/Uploads/{id}?offset=N` | Un trozo, como cuerpo en bruto (`application/octet-stream`), de 8 MB (límite de la ruta: 17 MB, por debajo de los 30 MB de Kestrel). `offset` tiene que ser `Received`; si no, `409` con `Received` para seguir desde ahí. Un trozo cortado no cuenta |
+| `POST Admin/Uploads/{id}/Finish` | Comprueba el archivo → `{ UploadId, Kind, Size, Sha256, PackageName, VersionName, VersionCode, BuildKind, SignerSha256, SignerSubject, Errors: [], Warnings: [], Ok }`. Errores: no es un APK, firma no válida o de depuración, otra clave que la guardada, otra aplicación, APK de la tele en el hueco del móvil (o al revés), versión ya guardada o más antigua que la última |
+| `DELETE Admin/Uploads/{id}` | Cancela una subida |
+| `POST Admin/Versions` `{ TvUploadId, PhoneUploadId, Notes }` | Publica (los dos APK de la misma versión, firma y aplicación) y borra las más viejas que pasen de `Keep` (nunca la más nueva ni la que se ofrece) → como `GET Admin` |
+| `POST Admin/Versions/{id}/Retire` `{ Retired: true\|false }` | Retira o vuelve a ofrecer |
+| `DELETE Admin/Versions/{id}` | Borra una versión con sus APK |
+| `POST Admin/Settings` `{ Keep?, SignerSha256? }` | Cuántas guardar (1-50, 10 por defecto) y, para corregir una primera subida equivocada, la huella a mano |
+| `POST Admin/InstallLink` | `{ Expires, TvPath, PhonePath, Available }`: el enlace temporal (30 min, 30 peticiones; 10 fallos por minuto y dirección → `429`) |
+
+Almacén: `<carpeta de datos del complemento>/kostv-updates/` con `index.json`, `versions/<VersionCode>/tv.apk` y `phone.apk`, y `uploads/` (las subidas a medias se borran a las 24 horas). La versión, el tipo (tele: `uses-feature android.software.leanback` obligatorio; el móvil lo declara no obligatorio) y la firma se leen del propio APK: manifiesto binario y bloque de firma v2/v3, con la firma y el resumen del archivo comprobados de verdad.
+
 ## En pocas palabras (para leer primero)
 
 **Qué pasa hoy.** Cada versión se compila en GitHub, que la firma con la clave de

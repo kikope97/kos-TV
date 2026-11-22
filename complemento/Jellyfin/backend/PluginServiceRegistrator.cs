@@ -63,6 +63,11 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvFavoriteDates>();
         serviceCollection.AddHostedService<Moonfin.Server.Kostv.KostvFavoritesWatcher>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvHomeService>();
+        // kOS TV: the app's updates, handed out by the plugin instead of GitHub.
+        serviceCollection.AddSingleton(services => new Moonfin.Server.Kostv.KostvUpdates(
+            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), Moonfin.Server.Kostv.KostvUpdates.FolderName),
+            logger: services.GetService<ILogger<Moonfin.Server.Kostv.KostvUpdates>>()));
+        serviceCollection.AddSingleton(_ => new Moonfin.Server.Kostv.KostvInstallLinks());
         // kOS TV: what each person listens to, and the music worked out from it.
         // The home's time zone is the plugin's setting, read each time (Madrid unless changed).
         serviceCollection.AddSingleton(services => new Moonfin.Server.Kostv.KostvMusicStore(
