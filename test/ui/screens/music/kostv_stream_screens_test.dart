@@ -17,9 +17,12 @@ import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_actions.dart';
+import 'package:moonfin/ui/screens/music/kostv_music_album_screen.dart'
+    show KostvMusicTrackRow;
+import 'package:moonfin/ui/screens/music/kostv_music_links.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_widgets.dart';
 import 'package:moonfin/ui/screens/music/kostv_stream_widgets.dart'
-    show KostvPulse, KostvStreamPill, kostvStreamAlbumState;
+    show KostvPulse, KostvStreamMark, KostvStreamPill, kostvStreamAlbumState;
 import 'package:moonfin/ui/widgets/music/kostv_stream_play.dart';
 import 'package:moonfin/util/focus/input_mode_tracker.dart';
 import 'package:moonfin/util/platform_detection.dart';
@@ -122,6 +125,77 @@ void main() {
       expect(find.text('Pedir'), findsOneWidget);
       await row(tester, atHome: true);
       expect(find.byIcon(Icons.play_circle_fill_rounded), findsOneWidget);
+    });
+
+    // Kos TV: whether it is at home shows on every row that can be either.
+    testWidgets('one that sounds in streaming has the small cloud after its '
+        'artist, with «No está en casa»; one at home, none', (tester) async {
+      await row(tester, away: true);
+      expect(find.byType(KostvStreamMark), findsOneWidget);
+      expect(find.byTooltip('No está en casa'), findsOneWidget);
+      // Right after the artist line, on the same line.
+      final artist = tester.getRect(find.text('Rayo'));
+      final cloud = tester.getRect(find.byType(KostvStreamMark));
+      expect(cloud.left, greaterThanOrEqualTo(artist.right));
+      expect(cloud.center.dy, closeTo(artist.center.dy, 4));
+      await row(tester, atHome: true);
+      expect(find.byType(KostvStreamMark), findsNothing);
+      // A chart's song with its album at home is played from home.
+      await row(tester, atHome: true, away: true);
+      expect(find.byType(KostvStreamMark), findsNothing);
+      // With «Solo la de casa» it has its «Pedir» and doesn't sound.
+      await row(tester);
+      expect(find.byType(KostvStreamMark), findsNothing);
+    });
+
+    testWidgets('with its links (the artist and the album that open), the '
+        'cloud too', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          KostvMusicSongRow(
+            title: 'Lejos',
+            artistLinks: [
+              [KostvMusicLink('Rayo', () {})],
+              [KostvMusicLink('Tormenta', () {})],
+            ],
+            away: true,
+            onTap: () {},
+          ),
+        ),
+      );
+      expect(find.byType(KostvStreamMark), findsOneWidget);
+    });
+  });
+
+  group('a song of an album\'s page', () {
+    Future<void> track(
+      WidgetTester tester, {
+      bool atHome = false,
+      bool away = false,
+    }) => tester.pumpWidget(
+      _app(
+        KostvMusicTrackRow(
+          number: 1,
+          title: 'Lejos',
+          duration: 200,
+          atHome: atHome,
+          away: away,
+          onTap: () {},
+        ),
+      ),
+    );
+
+    testWidgets('in streaming, the cloud where one at home has its tick', (
+      tester,
+    ) async {
+      await track(tester, away: true);
+      expect(find.byType(KostvStreamMark), findsOneWidget);
+      expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
+      await track(tester, atHome: true);
+      expect(find.byType(KostvStreamMark), findsNothing);
+      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
+      await track(tester);
+      expect(find.byType(KostvStreamMark), findsNothing);
     });
   });
 
@@ -265,6 +339,8 @@ void main() {
       await open(tester, showKostvMusicSongMenu(context, item: _away()));
       expect(find.text('Lejos'), findsOneWidget);
       expect(find.text('Rayo · No está en casa'), findsOneWidget);
+      // Kos TV: the same cloud as in the lists, after it.
+      expect(find.byType(KostvStreamMark), findsOneWidget);
       for (final entry in [
         'Reproducir a continuación',
         'Añadir al final de la cola',

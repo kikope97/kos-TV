@@ -14,6 +14,7 @@ import '../../../util/platform_detection.dart';
 import '../../widgets/bounded_network_image.dart';
 import '../../widgets/navigation_layout.dart';
 import 'kostv_music_links.dart';
+import 'kostv_stream_widgets.dart' show KostvStreamMarked;
 
 /// Kos TV: the colour of Music, Apple Music's red-pink.
 const kostvMusicColor = Color(0xFFFA2D55);
@@ -819,21 +820,27 @@ class KostvMusicSongRow extends StatelessWidget {
                   ),
                   if (artistLinks case final links?
                       when links.any((group) => group.isNotEmpty))
-                    KostvMusicLinks(
-                      groups: links,
-                      style: TextStyle(
-                        color: lit ? Colors.black54 : kostvMusicGrey,
-                        fontSize: phone ? 13 : 14,
+                    _marked(
+                      lit,
+                      KostvMusicLinks(
+                        groups: links,
+                        style: TextStyle(
+                          color: lit ? Colors.black54 : kostvMusicGrey,
+                          fontSize: phone ? 13 : 14,
+                        ),
                       ),
                     )
                   else if (artist != null)
-                    Text(
-                      artist!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: lit ? Colors.black54 : kostvMusicGrey,
-                        fontSize: phone ? 13 : 14,
+                    _marked(
+                      lit,
+                      Text(
+                        artist!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: lit ? Colors.black54 : kostvMusicGrey,
+                          fontSize: phone ? 13 : 14,
+                        ),
                       ),
                     ),
                 ],
@@ -869,6 +876,15 @@ class KostvMusicSongRow extends StatelessWidget {
       ),
     );
   }
+
+  /// Kos TV: the artist line, with the small cloud of one that isn't at
+  /// home and sounds through the requests service.
+  Widget _marked(bool lit, Widget line) => KostvStreamMarked(
+    stream: away && !atHome,
+    size: KostvMusicSizes.phone ? 14 : 15,
+    color: lit ? Colors.black45 : null,
+    child: line,
+  );
 }
 
 /// A row of tiles that scrolls sideways, under its heading.

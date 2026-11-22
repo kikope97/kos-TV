@@ -503,11 +503,16 @@ class _KostvPulseState extends State<KostvPulse>
   );
 }
 
-/// Kos TV: the small mark of a queue's song that isn't at home.
+/// Kos TV: the small mark of a song that isn't at home (the queue's, the
+/// lists', the floating player's): a cloud, with «No está en casa» for the
+/// mouse's pointer and the screen reader.
 class KostvStreamMark extends StatelessWidget {
-  const KostvStreamMark({super.key, this.size = 16});
+  const KostvStreamMark({super.key, this.size = 16, this.color});
 
   final double size;
+
+  /// Of the cloud; a soft white by default (on a dark background).
+  final Color? color;
 
   @override
   Widget build(BuildContext context) => Tooltip(
@@ -515,7 +520,44 @@ class KostvStreamMark extends StatelessWidget {
     child: Icon(
       Icons.cloud_outlined,
       size: size,
-      color: Colors.white.withValues(alpha: 0.5),
+      color: color ?? Colors.white.withValues(alpha: 0.5),
     ),
   );
+}
+
+/// Kos TV: [child] (a song's artist line) with [KostvStreamMark] right after
+/// it when [stream] (the song isn't at home); just [child] when it is.
+class KostvStreamMarked extends StatelessWidget {
+  const KostvStreamMarked({
+    super.key,
+    required this.stream,
+    required this.child,
+    this.size = 14,
+    this.color,
+    this.centred = false,
+  });
+
+  final bool stream;
+  final Widget child;
+  final double size;
+  final Color? color;
+
+  /// Kos TV: centred under a centred title, rather than from the start.
+  final bool centred;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!stream) return child;
+    return Row(
+      mainAxisSize: centred ? MainAxisSize.min : MainAxisSize.max,
+      mainAxisAlignment: centred
+          ? MainAxisAlignment.center
+          : MainAxisAlignment.start,
+      children: [
+        Flexible(child: child),
+        SizedBox(width: size * 0.4),
+        KostvStreamMark(size: size, color: color),
+      ],
+    );
+  }
 }

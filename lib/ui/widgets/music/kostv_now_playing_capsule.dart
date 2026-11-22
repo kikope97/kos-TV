@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:moonfin_design/moonfin_design.dart' show GlassSettings;
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/app_router.dart';
@@ -468,7 +469,7 @@ class _TouchCapsuleState extends State<_TouchCapsule> {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _Titles(item: item, artist: artist),
+                    child: KostvCapsuleTitles(item: item, artist: artist),
                   ),
                   _CapsuleButton(
                     icon: music.playing
@@ -595,7 +596,11 @@ class _TvCapsule extends StatelessWidget {
                     if (!compact) ...[
                       const SizedBox(width: 14),
                       Expanded(
-                        child: _Titles(item: item, artist: artist, big: true),
+                        child: KostvCapsuleTitles(
+                          item: item,
+                          artist: artist,
+                          big: true,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       KostvEqualizerBars(playing: music.playing, size: 22),
@@ -619,8 +624,15 @@ class _TvCapsule extends StatelessWidget {
   }
 }
 
-class _Titles extends StatelessWidget {
-  const _Titles({required this.item, required this.artist, this.big = false});
+/// Kos TV: the floating player's title and artist line (or, while a song
+/// that isn't at home is prepared, «Preparando…»); its own for the tests.
+class KostvCapsuleTitles extends StatelessWidget {
+  const KostvCapsuleTitles({
+    super.key,
+    required this.item,
+    required this.artist,
+    this.big = false,
+  });
 
   final AggregatedItem item;
   final String artist;
@@ -653,15 +665,20 @@ class _Titles extends StatelessWidget {
         ),
       ] else if (artist.isNotEmpty) ...[
         const SizedBox(height: 3),
-        Text(
-          artist,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.68),
-            fontSize: big ? 14 : 12.5,
-            fontWeight: FontWeight.w500,
-            height: 1.15,
+        // Kos TV: the small cloud of a song that isn't at home.
+        KostvStreamMarked(
+          stream: isKostvStream(item),
+          size: big ? 15 : 13,
+          child: Text(
+            artist,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.68),
+              fontSize: big ? 14 : 12.5,
+              fontWeight: FontWeight.w500,
+              height: 1.15,
+            ),
           ),
         ),
       ],
