@@ -16,7 +16,7 @@ Manda sobre la «Opción A» del estudio (que era con Last.fm como fuente princi
 `GET /Moonfin/Kostv/Music/Station?seed=<itemId | stremfin:<DeezerId>>&title=…&artist=…&limit=50&away=true|false`
 (con la sesión de la persona; `title`/`artist` ayudan si la semilla es de fuera).
 
-Respuesta: `{ "Seed": { "Title", "Artist", "Mbid"? }, "Items": [ { "Card": <tarjeta de casa, la misma forma que en Taste/Mixes> | null, "Away": { "Title", "Artist", "Album"?, "DeezerId", "Explicit"? } | null, "Why": "listenbrainz" | "style" | "deezer" | "lastfm" } ], "Source": "listenbrainz" | "lastfm" | "fallback" }`.
+Respuesta: `{ "Seed": { "Title", "Artist", "Mbid"? }, "Items": [ { "Card": <tarjeta de casa, la misma forma que en Taste/Mixes> | null, "Away": { "Title", "Artist", "Album"?, "DeezerId", "Explicit"?, "Cover"?, "Duration"?, "AlbumDeezerId"?, "ArtistDeezerId"? } | null, "Why": "listenbrainz" | "style" | "deezer" | "lastfm" } ], "Source": "listenbrainz" | "lastfm" | "fallback", "Partial"? }` (los campos de `Away` desde `Cover` y `Partial`, añadidos después: ver «Añadido» más abajo).
 
 - **Receta (gratis):** canciones que la gente escucha junto a la semilla (ListenBrainz, sin clave) → **filtro de estilo**: solo artistas que sean el de la semilla, sus relacionados en Deezer o sus parecidos en ListenBrainz → si faltan, lo más escuchado de esos artistas parecidos → por último, la radio del artista en Deezer. Last.fm `track.getSimilar` se suma solo si hay clave en el panel.
 - **Variedad:** sin dos seguidas del mismo artista y como mucho 2 por artista en 25.
@@ -27,6 +27,10 @@ Respuesta: `{ "Seed": { "Title", "Artist", "Mbid"? }, "Items": [ { "Card": <tarj
 - **Caché en disco:** respuestas externas 30 días; la emisora calculada de una semilla, 1 día. Ritmo propio: ≤ 2 peticiones/s a cada servicio, ≤ 1/s a MusicBrainz, con User-Agent genérico del complemento.
 - **Panel (opcional, para toda la casa):** token de ListenBrainz y clave de Last.fm. Vacíos, funciona igual.
 - **Errores:** si las fuentes externas no contestan, `Source: "fallback"` con lo que haya (puede venir vacío); `404` en un complemento antiguo → la app usa lo de hoy con los arreglos de la fase 1.
+- **Añadido (2026-11-22, tras la auditoría; solo campos nuevos, lo de antes no cambia):**
+  - `Away` lleva también `Cover` (portada del disco en Deezer, 500 px, solo `https://`), `Duration` (segundos), `AlbumDeezerId` y `ArtistDeezerId`, de los datos de Deezer de la canción; y `Explicit` sale de su `explicit_lyrics` (las de ListenBrainz, al casarlas con Deezer). Cualquiera puede faltar (`null`) si Deezer no lo dice. Así lo de fuera sale con su carátula en la cola, y quien tiene límite de edad sigue teniendo canciones de fuera no explícitas (`Explicit: false`).
+  - `Partial: true` mientras la emisora se está calculando (la respuesta rápida de los primeros segundos); `false` cuando ya está entera. Una emisora entera hecha solo con la radio de Deezer (reguetón, infantil…) dice `Source: "fallback"` y `Partial: false`: no hay nada más que esperar. Sin el campo (un complemento de antes), la app toma `fallback` como «sin terminar».
+  - Al casar con Deezer, se recorre la emisora en su orden: lo que se escucha junto a la semilla se casa antes que el relleno (que ya trae su `DeezerId`). Si el tiempo de cálculo se acaba con al menos 60 que pueden sonar, la emisora se da por entera con esas. Al apagar el servidor, lo que se está calculando se deja (no se guarda a medias).
 
 **La app:** «Crear emisora» (menú, ficha, Reproduciendo, artista de fuera) y el ∞ usan `Station`. El ∞ siembra con **la última canción elegida por la persona** (no con las que puso él), pide más cuando quedan pocas y no repite. Sin intercalar una a una casa/fuera: el orden es el de la emisora. Lo de fuera suena como siempre por Stremfin (`listen`).
 

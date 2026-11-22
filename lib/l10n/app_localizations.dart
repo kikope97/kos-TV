@@ -36818,6 +36818,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Stations use public data from ListenBrainz and Deezer (and from Last.fm when it is set up).'**
   String get kostvMusicStationsCredit;
+
+  /// Kos TV music player, «A continuación»: line under «Reproducción automática ∞» with «Toda la música» (similar songs at home and not); with «Solo la de casa», kostvPlayerAutoplayHint
+  ///
+  /// In en, this message translates to:
+  /// **'When the queue ends, similar songs from home and from outside keep playing'**
+  String get kostvPlayerAutoplayHintAll;
 }
 
 class _AppLocalizationsDelegate

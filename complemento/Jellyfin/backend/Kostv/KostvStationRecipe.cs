@@ -51,6 +51,17 @@ public sealed class KostvStationEntry
     /// <summary>Whether it is explicit, as Deezer says; null when Deezer wasn't asked.</summary>
     public bool? Explicit { get; set; }
 
+    /// <summary>Kos TV: its album's cover on Deezer (https), so it shows in the queue.</summary>
+    public string? Cover { get; set; }
+
+    /// <summary>Kos TV: how long it lasts on Deezer, in seconds.</summary>
+    public int? Duration { get; set; }
+
+    /// <summary>Kos TV: its album and its artist on Deezer (to open their pages).</summary>
+    public string? AlbumDeezerId { get; set; }
+
+    public string? ArtistDeezerId { get; set; }
+
     /// <summary>See <see cref="KostvStationWhy"/>.</summary>
     public string Why { get; set; } = KostvStationWhy.Deezer;
 
@@ -71,7 +82,10 @@ public sealed record KostvStationTrack(
     string? DeezerId = null,
     bool? Explicit = null,
     double Score = 0,
-    string? ArtistDeezerId = null);
+    string? ArtistDeezerId = null,
+    string? Cover = null,
+    int? Duration = null,
+    string? AlbumDeezerId = null);
 
 /// <summary>kOS TV: what MusicBrainz (through ListenBrainz) knows of a recording.</summary>
 public sealed record KostvStationRecordingInfo(
@@ -472,6 +486,10 @@ public static class KostvStationRecipe
                 Mbid = track.Mbid,
                 DeezerId = track.DeezerId,
                 Explicit = track.Explicit,
+                Cover = track.Cover,
+                Duration = track.Duration,
+                AlbumDeezerId = track.AlbumDeezerId,
+                ArtistDeezerId = track.ArtistDeezerId,
                 Why = why,
                 Score = Math.Round(weighed, 4),
                 Isrcs = info?.Isrcs ?? []
@@ -499,6 +517,10 @@ public static class KostvStationRecipe
             Mbid = track.Mbid,
             DeezerId = track.DeezerId,
             Explicit = track.Explicit,
+            Cover = track.Cover,
+            Duration = track.Duration,
+            AlbumDeezerId = track.AlbumDeezerId,
+            ArtistDeezerId = track.ArtistDeezerId,
             Why = why,
             Score = score
         };

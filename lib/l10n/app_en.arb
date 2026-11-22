@@ -21531,5 +21531,7 @@
     "kostvMusicRadioKicker": "Radio",
     "@kostvMusicRadioKicker": {"description": "Kos TV Music home: small word over the artist's name on the card of their station"},
     "kostvMusicStationsCredit": "Stations use public data from ListenBrainz and Deezer (and from Last.fm when it is set up).",
-    "@kostvMusicStationsCredit": {"description": "Kos TV Settings > Music: small line under the Music settings crediting where the stations (Crear emisora, endless play) take their data from; Last.fm's terms ask for it to be named"}
+    "@kostvMusicStationsCredit": {"description": "Kos TV Settings > Music: small line under the Music settings crediting where the stations (Crear emisora, endless play) take their data from; Last.fm's terms ask for it to be named"},
+    "kostvPlayerAutoplayHintAll": "When the queue ends, similar songs from home and from outside keep playing",
+    "@kostvPlayerAutoplayHintAll": {"description": "Kos TV music player, «A continuación»: line under «Reproducción automática ∞» with «Toda la música» (similar songs at home and not); with «Solo la de casa», kostvPlayerAutoplayHint"}
 }

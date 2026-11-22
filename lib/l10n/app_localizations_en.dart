@@ -21454,4 +21454,8 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvMusicStationsCredit =>
       'Stations use public data from ListenBrainz and Deezer (and from Last.fm when it is set up).';
+
+  @override
+  String get kostvPlayerAutoplayHintAll =>
+      'When the queue ends, similar songs from home and from outside keep playing';
 }

@@ -291,9 +291,10 @@ String? _seedArtist(AggregatedItem seed) =>
 /// [skipKeys] (see [kostvStationFromPlugin]).
 ///
 /// Kos TV: the first time a seed is asked for, the plugin answers at once
-/// with what it has (`Source: fallback`, Deezer's radio) and works the
-/// whole station out meanwhile: [onPartial] is told then, so the queue can
-/// be completed with it later ([KostvNowPlaying.completeStationLater]).
+/// with what it has (`Partial`, or `Source: fallback` from a plugin that
+/// doesn't say it: Deezer's radio) and works the whole station out
+/// meanwhile: [onPartial] is told then, so the queue can be completed with
+/// it later ([KostvNowPlaying.completeStationLater]).
 Future<List<AggregatedItem>?> kostvPluginStationFor(
   AggregatedItem seed, {
   required MediaServerClient client,
@@ -341,7 +342,7 @@ Future<List<AggregatedItem>?> kostvPluginStationFor(
     skip: skip,
     skipKeys: skipKeys,
   );
-  if (station.source == 'fallback') onPartial?.call();
+  if (station.unfinished) onPartial?.call();
   return items.isEmpty ? null : items;
 }
 

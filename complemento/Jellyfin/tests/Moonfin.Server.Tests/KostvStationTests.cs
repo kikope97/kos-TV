@@ -629,6 +629,7 @@ public sealed class KostvStationTests : IDisposable
         Assert.Equal("Vetusta Morla", json.GetProperty("Seed").GetProperty("Artist").GetString());
         Assert.Equal("11111111-2222-4333-8444-555555555555", json.GetProperty("Seed").GetProperty("Mbid").GetString());
         Assert.Equal(KostvStationSource.ListenBrainz, json.GetProperty("Source").GetString());
+        Assert.False(json.GetProperty("Partial").GetBoolean());
         var items = json.GetProperty("Items").EnumerateArray().ToList();
         Assert.Equal(5, items.Count);
         Assert.All(items, i =>
@@ -638,6 +639,10 @@ public sealed class KostvStationTests : IDisposable
             Assert.False(string.IsNullOrEmpty(away.GetProperty("DeezerId").GetString()));
             Assert.False(string.IsNullOrEmpty(away.GetProperty("Title").GetString()));
             Assert.True(away.TryGetProperty("Explicit", out _));
+            Assert.StartsWith("https://", away.GetProperty("Cover").GetString(), StringComparison.Ordinal);
+            Assert.True(away.GetProperty("Duration").GetInt32() > 0);
+            Assert.False(string.IsNullOrEmpty(away.GetProperty("AlbumDeezerId").GetString()));
+            Assert.False(string.IsNullOrEmpty(away.GetProperty("ArtistDeezerId").GetString()));
             Assert.Contains(i.GetProperty("Why").GetString(), new[] { "listenbrainz", "style", "deezer", "lastfm" });
         });
 
@@ -645,6 +650,164 @@ public sealed class KostvStationTests : IDisposable
         var away2 = JsonDocument.Parse(Assert.IsType<ContentResult>(await controller.Station("stremfin:3165861441", "Tití Me Preguntó", "Bad Bunny", 3, false)).Content!).RootElement;
         Assert.Equal("Bad Bunny", away2.GetProperty("Seed").GetProperty("Artist").GetString());
         Assert.Empty(away2.GetProperty("Items").EnumerateArray());
+    }
+
+    // ---------------------------------------------------------------- the audit's follow-ups
+
+    [Fact]
+    public async Task WhatIsNotAtHomeComesWithItsCoverLengthAlbumAndArtistAndWhetherItIsExplicit()
+    {
+        var rig = Make();
+        var result = await Ask(rig, _ana, Copenhague, limit: 100);
+
+        // Deezer's radio and tops, and those by listening once matched to Deezer.
+        foreach (var why in new[] { KostvStationWhy.ListenBrainz, KostvStationWhy.Deezer })
+        {
+            var some = result.Items.Where(i => i.Why == why).Select(i => i.Away!).ToList();
+            Assert.NotEmpty(some);
+            Assert.All(some, a =>
+            {
+                Assert.StartsWith("https://", a.Cover, StringComparison.Ordinal);
+                Assert.True(a.Duration > 0);
+                Assert.True(KostvMusicEvent.IsDeezerId(a.AlbumDeezerId));
+                Assert.True(KostvMusicEvent.IsDeezerId(a.ArtistDeezerId));
+                Assert.NotNull(a.Explicit);
+            });
+        }
+
+        // Only an https cover is given (the app shows nothing else).
+        var plain = KostvStationWeb.DeezerTrack(JsonDocument.Parse(
+            """{"id":5,"title":"T","duration":"x","artist":{"id":7,"name":"A"},"album":{"id":9,"title":"D","cover_big":"http://inseguro/a.jpg","cover_medium":"https://seguro/a.jpg"}}""").RootElement)!;
+        Assert.Equal("https://seguro/a.jpg", plain.Cover);
+        Assert.Null(plain.Duration);
+        Assert.Equal("9", plain.AlbumDeezerId);
+        Assert.Equal("7", plain.ArtistDeezerId);
+        Assert.Null(plain.Explicit);
+
+        // And what was kept for the day keeps them.
+        var again = await Ask(Make(new StationHttp()), _ana, Copenhague, limit: 100);
+        Assert.Equal(result.Items.Select(i => i.Away!.Cover), again.Items.Select(i => i.Away!.Cover));
+    }
+
+    [Fact]
+    public void ALiveSeedIsAnotherStationThanTheStudioOne()
+    {
+        var studio = KostvMusicStation.KeyOf(new KostvStationSeed("Copenhague", "Vetusta Morla"));
+        Assert.Equal(studio, KostvMusicStation.KeyOf(new KostvStationSeed("COPENHAGUE (Remastered)", "Vetusta Morla feat. Nadie")));
+        Assert.NotEqual(studio, KostvMusicStation.KeyOf(new KostvStationSeed("Copenhague (En Directo)", "Vetusta Morla")));
+    }
+
+    [Fact]
+    public async Task TheSongsHeardWithTheSeedLeadAndAreMatchedBeforeTheFiller()
+    {
+        var result = await Ask(Make(), _ana, Copenhague, limit: 100);
+        // Matched in the station's order: the filler (with its Deezer id already) doesn't stand
+        // in for the songs heard with the seed.
+        Assert.True(result.Items.Count(i => i.Why == KostvStationWhy.ListenBrainz) >= 40);
+    }
+
+    [Fact]
+    public async Task AStationBeingWorkedOutSaysSoAndOneOfOnlyDeezersRadioDoesnt()
+    {
+        var http = StationHttp.FromPacks("radio0");
+        http.Slow[KostvStationHosts.ListenBrainzLabs] = TimeSpan.FromSeconds(1);
+        var rig = Make(http);
+        rig.Station.Deadline = TimeSpan.FromMilliseconds(300);
+        var quick = await Ask(rig, _ana, Copenhague);
+        Assert.True(quick.Partial);
+
+        rig.Station.Deadline = TimeSpan.FromSeconds(60);
+        Assert.False((await Ask(rig, _ana, Copenhague)).Partial);
+        Assert.False((await Ask(rig, _ana, Copenhague)).Partial);
+
+        // Whole, and only of Deezer's radio: «fallback», not partial (nothing more to wait for).
+        var taza = await Ask(rig, _ana, Taza);
+        Assert.Equal(KostvStationSource.Fallback, taza.Source);
+        Assert.False(taza.Partial);
+    }
+
+    [Fact]
+    public async Task TwoPeopleAskingForTheSameSeedAtOnceShareOneStationWorkedOut()
+    {
+        var alone = Make();
+        await Ask(alone, _ana, Copenhague);
+        var once = alone.Http.Requests.Count;
+
+        Dispose();
+        var http = StationHttp.FromPacks("radio0");
+        http.Slow[KostvStationHosts.Deezer] = TimeSpan.FromMilliseconds(5);
+        var rig = Make(http);
+        var both = await Task.WhenAll(Ask(rig, _ana, Copenhague), Ask(rig, _leo, Copenhague, away: false));
+        Assert.Equal(once, http.Requests.Count);
+        Assert.Equal(50, both[0].Items.Count);
+        Assert.All(both[1].Items, i => Assert.Null(i.Away));
+    }
+
+    [Fact]
+    public async Task ASeedDeezerDoesntHaveTakesTheArtistsRadioButNotAnotherSongsRecordings()
+    {
+        var http = new StationHttp();
+        var search = KostvStationWeb.DeezerBase + "/search/track?";
+        http.Add(search + KostvStationWeb.Query(("q", "artist:\"Ana\" track:\"Una que no está\""), ("limit", "10")), 200,
+            """{"data":[{"id":11,"title":"Otra de Juana","isrc":"ES0000000001","artist":{"id":21,"name":"Juana"},"album":{"title":"X"}}]}""");
+        http.Add(search + KostvStationWeb.Query(("q", "Ana Una que no está"), ("limit", "10")), 200,
+            """{"data":[{"id":12,"title":"Otra de Ana","isrc":"ES0000000002","release_date":"1990-01-01","artist":{"id":22,"name":"Ana"},"album":{"title":"Y"}}]}""");
+        http.Add(KostvStationWeb.DeezerBase + "/artist/22/radio?limit=50", 200,
+            """{"data":[{"id":31,"title":"De la radio","explicit_lyrics":false,"artist":{"id":23,"name":"Otra artista"},"album":{"id":41,"title":"Z","cover_big":"https://c/z.jpg"}}]}""");
+        var rig = Make(http);
+
+        var result = await Ask(rig, _ana, new KostvStationSeed("Una que no está", "Ana"));
+        // The radio of Ana (not of Juana, whose name has hers inside)...
+        Assert.Contains(result.Items, i => i.Away?.DeezerId == "31");
+        Assert.DoesNotContain(http.Requests, r => r.RequestUri!.AbsolutePath.StartsWith("/artist/21", StringComparison.Ordinal));
+        // ... but not the recordings of another of her songs as the seed's.
+        Assert.DoesNotContain(http.Requests, r => r.RequestUri!.Host == KostvStationHosts.MusicBrainz);
+    }
+
+    [Fact]
+    public async Task TheWaitForItsTurnIsNotTheTimeTheServiceHasToAnswer()
+    {
+        var http = new StationHttp();
+        for (var i = 0; i < 3; i++)
+        {
+            http.Add(KostvStationWeb.DeezerBase + "/track/" + (i + 1), 200, """{"id":1,"title":"T","artist":{"id":2,"name":"A"}}""");
+        }
+
+        var web = new KostvStationWeb(new StationHttpFactory(http), new KostvStationDiskCache(_root, () => _now), NullLogger.Instance)
+        {
+            RequestTimeout = TimeSpan.FromMilliseconds(400)
+        };
+        web.GateOf(KostvStationHosts.Deezer).Interval = TimeSpan.FromMilliseconds(300);
+        var answers = await Task.WhenAll(Enumerable.Range(1, 3).Select(i => web.DeezerTrackAsync(i.ToString(System.Globalization.CultureInfo.InvariantCulture), CancellationToken.None)));
+        Assert.All(answers, a =>
+        {
+            Assert.False(a.Failed);
+            Assert.NotNull(a.Track);
+        });
+    }
+
+    [Fact]
+    public async Task TheServerStoppingLetsGoOfWhatIsBeingWorkedOut()
+    {
+        var http = StationHttp.FromPacks("radio0");
+        http.Slow[KostvStationHosts.ListenBrainzLabs] = TimeSpan.FromSeconds(30);
+        var rig = Make(http);
+        rig.Station.Deadline = TimeSpan.FromMilliseconds(200);
+        var first = await Ask(rig, _ana, Copenhague);
+        Assert.True(first.Partial);
+
+        var clock = Stopwatch.StartNew();
+        rig.Station.Dispose();
+        // Once stopped, nothing new is started and nothing half done is kept for the day.
+        var after = await Ask(rig, _ana, Titi);
+        Assert.Empty(after.Items);
+        while (clock.Elapsed < TimeSpan.FromSeconds(5) && (await Ask(rig, _ana, Copenhague)).Partial)
+        {
+            await Task.Delay(50);
+        }
+
+        Assert.True(clock.Elapsed < TimeSpan.FromSeconds(5), clock.Elapsed.ToString());
+        Assert.False(Directory.Exists(Path.Combine(_root, "emisoras")));
     }
 
     private sealed class StationServices(object users) : IServiceProvider

@@ -135,6 +135,71 @@ void main() {
       expect(station.entries.first.card!.serverId, _server);
     });
 
+    test('what isn\'t at home comes with its cover, length, album and '
+        'artist; Partial says whether it is still being worked out', () async {
+      final routes = _Plugin({
+        ..._answer,
+        'Items': [
+          {
+            'Away': {
+              ..._away('9', 'Rayo'),
+              'Cover': 'https://cdn.example/9.jpg',
+              'Duration': 201,
+              'AlbumDeezerId': '90',
+              'ArtistDeezerId': '91',
+            },
+            'Why': 'listenbrainz',
+          },
+          {
+            'Away': {..._away('10', 'Nube'), 'Cover': 'http://inseguro/10.jpg'},
+          },
+        ],
+        'Source': 'fallback',
+        'Partial': false,
+      });
+      final station = (await pluginWith(
+        routes,
+      ).station(client, seed: 'seed', away: true)).value!;
+      final away = station.entries.first.away!;
+      expect(away.cover, 'https://cdn.example/9.jpg');
+      expect(away.duration, 201);
+      expect(away.albumDeezerId, '90');
+      expect(away.artistDeezerId, '91');
+      expect(station.entries[1].away!.cover, isNull);
+      // Whole, of Deezer's radio only: nothing more to wait for.
+      expect(station.partial, isFalse);
+      expect(station.unfinished, isFalse);
+
+      final item = kostvStationFromPlugin(
+        station,
+        serverId: _server,
+        includeAway: true,
+        hideExplicit: false,
+      ).first;
+      final info = KostvStreamInfo.of(item)!;
+      expect(info.cover, 'https://cdn.example/9.jpg');
+      expect(info.albumDeezerId, '90');
+      expect(info.artistDeezerId, '91');
+      expect(item.rawData['RunTimeTicks'], 201 * 10000000);
+
+      expect(
+        KostvMusicStation.fromJson({
+          'Items': const [],
+          'Source': 'listenbrainz',
+          'Partial': true,
+        }, _server)!.unfinished,
+        isTrue,
+      );
+      // A plugin that doesn't say: «fallback» is taken as not finished.
+      expect(
+        KostvMusicStation.fromJson({
+          'Items': const [],
+          'Source': 'fallback',
+        }, _server)!.unfinished,
+        isTrue,
+      );
+    });
+
     test('a plugin from before it: missing, and left alone a while', () async {
       final routes = _Plugin();
       final plugin = pluginWith(routes);
@@ -235,6 +300,30 @@ void main() {
         plugin: pluginWith(routes),
       );
       expect(items!.map((e) => e.id), ['h1', 'stremfin:7']);
+    });
+
+    test('it is told when the station is still being worked out, and only '
+        'then', () async {
+      Future<bool> told(Map<String, Object?> answer) async {
+        var partial = false;
+        await kostvPluginStationFor(
+          _seed(),
+          client: client,
+          includeAway: true,
+          hideExplicit: false,
+          plugin: pluginWith(_Plugin(answer)),
+          onPartial: () => partial = true,
+        );
+        return partial;
+      }
+
+      expect(await told({..._answer, 'Partial': true}), isTrue);
+      expect(await told({..._answer, 'Source': 'fallback'}), isTrue);
+      expect(
+        await told({..._answer, 'Source': 'fallback', 'Partial': false}),
+        isFalse,
+      );
+      expect(await told(_answer), isFalse);
     });
 
     test('404, or nothing that can sound: none (the app makes it as '
