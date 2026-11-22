@@ -2809,7 +2809,12 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
             itemCount: columns + (lead == null ? 0 : 1),
             separatorBuilder: (_, _) => const SizedBox(width: 18),
             itemBuilder: (context, at) {
-              if (lead != null && at == 0) return lead;
+              // Kos TV: the row is as tall as four songs; the card keeps its
+              // own size at the top, so its focus frame hugs it and isn't
+              // stretched down to the row's height.
+              if (lead != null && at == 0) {
+                return Align(alignment: Alignment.topLeft, child: lead);
+              }
               final column = lead == null ? at : at - 1;
               return SizedBox(
                 width: kostvMusicSongColumn(context),
