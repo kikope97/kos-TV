@@ -156,6 +156,8 @@ public class MoonfinController : ControllerBase
             KostvMyList = true,
             // kOS TV: favourites newest marked first, news of favourite series, watch again.
             KostvFavorites = true,
+            // kOS TV: the app's updates come from here (Moonfin/Kostv/Update).
+            KostvUpdates = true,
             PushSupported = config?.PushEnabled ?? false,
             DefaultSettings = _settingsService.AdminDefaultsFor(profile)
         });
@@ -1807,6 +1809,10 @@ public class MoonfinPingResponse
     /// </summary>
     [JsonPropertyName("kostvFavorites")]
     public bool? KostvFavorites { get; set; }
+
+    /// <summary>kOS TV: this plugin hands out the app's updates (Moonfin/Kostv/Update).</summary>
+    [JsonPropertyName("kostvUpdates")]
+    public bool? KostvUpdates { get; set; }
 
     [JsonPropertyName("mdblistAvailable")]
     public bool? MdblistAvailable { get; set; }

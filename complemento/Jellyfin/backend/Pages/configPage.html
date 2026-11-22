@@ -487,6 +487,160 @@
                 opacity: 0.5;
             }
 
+            /* kOS TV: «Actualizaciones de la app». */
+            #MoonfinConfigPage .kostvUpdSlots {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                gap: 14px;
+            }
+            #MoonfinConfigPage .kostvUpdSlot {
+                padding: 14px;
+                border-radius: 10px;
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                background: rgba(0, 0, 0, 0.18);
+                min-width: 0;
+            }
+            #MoonfinConfigPage .kostvUpdSlot .inputLabel {
+                display: block;
+                margin-bottom: .5em;
+                font-weight: 600;
+            }
+            #MoonfinConfigPage .kostvUpdSlot input[type="file"] {
+                max-width: 100%;
+            }
+            #MoonfinConfigPage .kostvUpdBar {
+                height: 8px;
+                margin-top: .8em;
+                border-radius: 4px;
+                background: rgba(255, 255, 255, 0.1);
+                overflow: hidden;
+            }
+            #MoonfinConfigPage .kostvUpdBarFill {
+                height: 100%;
+                width: 0;
+                background: #00a4dc;
+                transition: width .2s ease;
+            }
+            #MoonfinConfigPage .kostvUpdInfo {
+                margin-top: .6em;
+                overflow-wrap: anywhere;
+            }
+            #MoonfinConfigPage .kostvUpdError,
+            #MoonfinConfigPage .kostvUpdIsError {
+                color: #ff6b6b;
+            }
+            #MoonfinConfigPage .kostvUpdWarning {
+                color: #f5c26b;
+            }
+            #MoonfinConfigPage .kostvUpdOk {
+                color: #52b54b;
+            }
+            #MoonfinConfigPage .kostvUpdList {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            #MoonfinConfigPage .kostvUpdEmpty {
+                padding: 16px;
+                text-align: center;
+                color: rgba(255, 255, 255, 0.5);
+            }
+            #MoonfinConfigPage .kostvUpdItem {
+                padding: 14px 16px;
+                border-radius: 10px;
+                border: 1px solid rgba(255, 255, 255, 0.06);
+                background: rgba(0, 0, 0, 0.2);
+            }
+            #MoonfinConfigPage .kostvUpdItemHead {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 8px 12px;
+            }
+            #MoonfinConfigPage .kostvUpdItemHead strong {
+                font-size: 1.1em;
+            }
+            #MoonfinConfigPage .kostvUpdMeta {
+                color: rgba(255, 255, 255, 0.6);
+                font-size: .9em;
+            }
+            #MoonfinConfigPage .kostvUpdBadge {
+                padding: 2px 10px;
+                border-radius: 12px;
+                font-size: .8em;
+                font-weight: 600;
+                background: rgba(255, 255, 255, 0.1);
+            }
+            #MoonfinConfigPage .kostvUpdBadge.is-offered {
+                background: rgba(82, 181, 75, 0.2);
+                color: #52b54b;
+            }
+            #MoonfinConfigPage .kostvUpdBadge.is-retired {
+                background: rgba(255, 107, 107, 0.18);
+                color: #ff6b6b;
+            }
+            #MoonfinConfigPage .kostvUpdNotes {
+                margin-top: .6em;
+                white-space: pre-wrap;
+                color: rgba(255, 255, 255, 0.85);
+            }
+            #MoonfinConfigPage .kostvUpdActions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-top: .8em;
+            }
+            #MoonfinConfigPage .kostvUpdActions .raised {
+                margin: 0;
+            }
+            #MoonfinConfigPage .kostvUpdInstall {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 18px;
+                margin-top: 1em;
+            }
+            #MoonfinConfigPage .kostvUpdInstall[hidden] {
+                display: none;
+            }
+            #MoonfinConfigPage .kostvUpdInstallItem {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                max-width: 100%;
+            }
+            #MoonfinConfigPage .kostvUpdInstallTitle {
+                font-weight: 600;
+            }
+            #MoonfinConfigPage .kostvUpdQr {
+                width: 232px;
+                height: 232px;
+                max-width: 100%;
+                image-rendering: pixelated;
+                border-radius: 6px;
+                background: #fff;
+            }
+            #MoonfinConfigPage .kostvUpdLink {
+                color: #00a4dc;
+                max-width: 320px;
+                overflow-wrap: anywhere;
+                font-family: monospace;
+                font-size: .9em;
+            }
+            #MoonfinConfigPage .kostvUpdInstall .fieldDescription {
+                flex-basis: 100%;
+            }
+            /* The tab saves on its own buttons, so the settings' save bar would only confuse. */
+            #MoonfinConfigPage .moonfinAdminMain:has(.moonfinTabPanel[data-tab="appUpdates"].is-active) .moonfinSaveBar {
+                display: none;
+            }
+            #MoonfinConfigPage .kostvUpdSigner {
+                font-family: monospace;
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+                margin-bottom: .4em;
+            }
+
             #MoonfinConfigPage .moonfinPageHead {
                 margin: 2px 2px 16px;
             }
@@ -2045,6 +2199,10 @@
                         <button type="button" class="moonfinNavItem" data-tab="actions">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">campaign</span>
                             <span class="moonfinNavText"><span class="moonfinNavLabel">Acciones</span><span class="moonfinNavSub">Aplicar valores y enviar mensajes</span></span>
+                        </button>
+                        <button type="button" class="moonfinNavItem" data-tab="appUpdates">
+                            <span class="material-icons moonfinNavIcon" aria-hidden="true">system_update</span>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Actualizaciones de la app</span><span class="moonfinNavSub">Versiones para la tele y el móvil</span></span>
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="help">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">help_outline</span>
@@ -5935,6 +6093,107 @@
                         <div id="BroadcastMessageResult" class="fieldDescription" style="display:none; margin-top:0.8em;"></div>
                     </div>
 
+                    </section>
+                    <section class="moonfinTabPanel" data-tab="appUpdates">
+                    <div class="moonfinPageHead">
+                        <h3 class="moonfinPageTitle">Actualizaciones de la app</h3>
+                        <p class="moonfinPageLead">Las versiones nuevas de kOS TV para las teles y los móviles Android de casa. Las apps las piden a este servidor al abrirse (como mucho cada 6 horas) y se las bajan de aquí.</p>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Nueva actualización</h3>
+                        <div class="fieldDescription" style="margin-bottom:.8em;">
+                            Elige el APK de la tele (<code>KosTV_AndroidTV…apk</code>) y el del móvil (<code>KosTV_Android…apk</code>) de la misma versión.
+                            El número de versión, si es el de la tele o el del móvil y la firma se leen de los propios archivos:
+                            antes de publicar verás qué versión es y si hay algo que no cuadra. Se suben por trozos de 8 MB, así que
+                            valen también desde fuera de casa por el proxy; si se corta, sigue por donde iba.
+                        </div>
+                        <div class="kostvUpdSlots">
+                            <div class="kostvUpdSlot" data-kind="tv">
+                                <label class="inputLabel" for="KostvUpdFileTv">APK de la tele</label>
+                                <input type="file" id="KostvUpdFileTv" accept=".apk,application/vnd.android.package-archive" />
+                                <div class="kostvUpdBar" hidden><div class="kostvUpdBarFill"></div></div>
+                                <div class="kostvUpdInfo fieldDescription" role="status"></div>
+                            </div>
+                            <div class="kostvUpdSlot" data-kind="phone">
+                                <label class="inputLabel" for="KostvUpdFilePhone">APK del móvil</label>
+                                <input type="file" id="KostvUpdFilePhone" accept=".apk,application/vnd.android.package-archive" />
+                                <div class="kostvUpdBar" hidden><div class="kostvUpdBarFill"></div></div>
+                                <div class="kostvUpdInfo fieldDescription" role="status"></div>
+                            </div>
+                        </div>
+                        <div class="inputContainer" style="margin-top:1em;">
+                            <label class="inputLabel inputLabelUnfocused" for="KostvUpdNotes">Notas de la versión</label>
+                            <textarea id="KostvUpdNotes" is="emby-textarea" rows="5" maxlength="4000" style="width:100%;box-sizing:border-box;font-family:inherit;" placeholder="Qué trae, en pocas líneas. Las apps lo enseñan al ofrecer la actualización."></textarea>
+                        </div>
+                        <button is="emby-button" type="button" id="KostvUpdPublish" class="raised button-submit" disabled>
+                            <span>Publicar la actualización</span>
+                        </button>
+                        <div id="KostvUpdPublishResult" class="fieldDescription" role="status" style="margin-top:.8em;white-space:pre-wrap;"></div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Versiones guardadas</h3>
+                        <div class="fieldDescription" style="margin-bottom:.8em;">
+                            Las apps reciben siempre la más nueva que no esté retirada, aunque vayan varias versiones atrás.
+                            <strong>Retirar</strong> una versión hace que deje de ofrecerse (los aparatos que no la tenían se quedan donde están).
+                            Android no deja volver a una versión anterior encima de una nueva: para arreglar una versión mala, publica otra más nueva.
+                        </div>
+                        <div id="KostvUpdList" class="kostvUpdList"></div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Instalar en un aparato nuevo</h3>
+                        <div class="fieldDescription" style="margin-bottom:.8em;">
+                            Crea un enlace para descargar la última versión sin iniciar sesión, para una tele o un móvil que aún no tiene la app.
+                            Vale 30 minutos y solo da el APK. En el móvil, escanea el código QR; en la tele, escribe la dirección en una app
+                            de descargas (por ejemplo, Downloader). Usa la «URL pública del servidor» de la pestaña Direcciones si está puesta.
+                        </div>
+                        <button is="emby-button" type="button" id="KostvUpdInstallLink" class="raised">
+                            <span>Crear el enlace</span>
+                        </button>
+                        <div id="KostvUpdInstall" class="kostvUpdInstall" hidden>
+                            <div class="kostvUpdInstallItem">
+                                <div class="kostvUpdInstallTitle">Móvil</div>
+                                <canvas id="KostvUpdQrPhone" class="kostvUpdQr" width="1" height="1" role="img" aria-label="Código QR del enlace del móvil"></canvas>
+                                <a id="KostvUpdLinkPhone" class="kostvUpdLink" href="#" target="_blank" rel="noopener"></a>
+                            </div>
+                            <div class="kostvUpdInstallItem">
+                                <div class="kostvUpdInstallTitle">Tele</div>
+                                <canvas id="KostvUpdQrTv" class="kostvUpdQr" width="1" height="1" role="img" aria-label="Código QR del enlace de la tele"></canvas>
+                                <a id="KostvUpdLinkTv" class="kostvUpdLink" href="#" target="_blank" rel="noopener"></a>
+                            </div>
+                            <div id="KostvUpdInstallExpires" class="fieldDescription"></div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Ajustes</h3>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="KostvUpdKeep">Guardar las últimas N versiones</label>
+                            <input type="number" id="KostvUpdKeep" is="emby-input" min="1" max="50" step="1" value="10" />
+                            <div class="fieldDescription">
+                                Cada versión ocupa unos 250 MB (los dos APK). Al publicar una nueva, las más viejas se borran solas;
+                                la más nueva y la que se está ofreciendo no se borran nunca.
+                            </div>
+                        </div>
+                        <button is="emby-button" type="button" id="KostvUpdKeepSave" class="raised">
+                            <span>Guardar</span>
+                        </button>
+                        <div class="inputContainer" style="margin-top:1.4em;">
+                            <label class="inputLabel">Huella de la firma de kOS TV</label>
+                            <div id="KostvUpdSigner" class="kostvUpdSigner"></div>
+                            <div class="fieldDescription">
+                                La primera versión publicada fija la firma: desde entonces solo se aceptan APK firmados con la misma clave,
+                                porque las apps instaladas no pueden actualizarse con otra. Es el SHA-256 del certificado, el mismo que da
+                                <code>apksigner verify --print-certs</code>.
+                            </div>
+                            <button is="emby-button" type="button" id="KostvUpdSignerChange" class="raised" style="margin-top:.6em;">
+                                <span>Cambiar la huella a mano</span>
+                            </button>
+                        </div>
+                        <div id="KostvUpdSettingsResult" class="fieldDescription" role="status" style="margin-top:.8em;white-space:pre-wrap;"></div>
+                    </div>
                     </section>
                     <section class="moonfinTabPanel" data-tab="help">
                     <div class="verticalSection">
@@ -13792,6 +14051,699 @@
                     }
                 });
             }
+
+            // kOS TV: a small QR encoder (byte mode, error correction M), so the install link
+            // needs nothing from the internet. Follows the published QR algorithm (ISO 18004).
+            // kostv-qr:start
+            var kostvQr = (function() {
+                var ECC = [-1, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24, 24, 28, 28, 26, 26, 26, 26, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28];
+                var BLOCKS = [-1, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5, 5, 8, 9, 9, 10, 10, 11, 13, 14, 16, 17, 17, 18, 20, 21, 23, 25, 26, 28, 29, 31, 33, 35, 37, 38, 40, 43, 45, 47, 49];
+
+                function rawModules(ver) {
+                    var result = (16 * ver + 128) * ver + 64;
+                    if (ver >= 2) {
+                        var n = Math.floor(ver / 7) + 2;
+                        result -= (25 * n - 10) * n - 55;
+                        if (ver >= 7) {
+                            result -= 36;
+                        }
+                    }
+                    return result;
+                }
+
+                function dataCodewords(ver) {
+                    return Math.floor(rawModules(ver) / 8) - ECC[ver] * BLOCKS[ver];
+                }
+
+                function gfMul(x, y) {
+                    var z = 0;
+                    for (var i = 7; i >= 0; i--) {
+                        z = (z << 1) ^ ((z >>> 7) * 0x11D);
+                        z ^= ((y >>> i) & 1) * x;
+                    }
+                    return z & 0xFF;
+                }
+
+                function rsDivisor(degree) {
+                    var result = [];
+                    for (var i = 0; i < degree - 1; i++) {
+                        result.push(0);
+                    }
+                    result.push(1);
+                    var root = 1;
+                    for (var k = 0; k < degree; k++) {
+                        for (var j = 0; j < result.length; j++) {
+                            result[j] = gfMul(result[j], root);
+                            if (j + 1 < result.length) {
+                                result[j] ^= result[j + 1];
+                            }
+                        }
+                        root = gfMul(root, 0x02);
+                    }
+                    return result;
+                }
+
+                function rsRemainder(data, divisor) {
+                    var result = divisor.map(function() { return 0; });
+                    data.forEach(function(b) {
+                        var factor = b ^ result.shift();
+                        result.push(0);
+                        divisor.forEach(function(coef, i) {
+                            result[i] ^= gfMul(coef, factor);
+                        });
+                    });
+                    return result;
+                }
+
+                function bit(x, i) {
+                    return ((x >>> i) & 1) !== 0;
+                }
+
+                function encode(text) {
+                    var bytes = [];
+                    var utf8 = unescape(encodeURIComponent(text));
+                    for (var c = 0; c < utf8.length; c++) {
+                        bytes.push(utf8.charCodeAt(c));
+                    }
+
+                    var ver;
+                    var capacity = 0;
+                    var countBits = 8;
+                    for (ver = 1; ver <= 40; ver++) {
+                        capacity = dataCodewords(ver) * 8;
+                        countBits = ver <= 9 ? 8 : 16;
+                        if (4 + countBits + bytes.length * 8 <= capacity) {
+                            break;
+                        }
+                    }
+                    if (ver > 40) {
+                        return null;
+                    }
+
+                    var bits = [];
+                    function append(value, length) {
+                        for (var i = length - 1; i >= 0; i--) {
+                            bits.push((value >>> i) & 1);
+                        }
+                    }
+                    append(0x4, 4);
+                    append(bytes.length, countBits);
+                    bytes.forEach(function(b) { append(b, 8); });
+                    append(0, Math.min(4, capacity - bits.length));
+                    append(0, (8 - bits.length % 8) % 8);
+                    for (var pad = 0xEC; bits.length < capacity; pad ^= 0xEC ^ 0x11) {
+                        append(pad, 8);
+                    }
+                    var data = [];
+                    for (var b = 0; b < bits.length; b += 8) {
+                        var value = 0;
+                        for (var t = 0; t < 8; t++) {
+                            value = (value << 1) | bits[b + t];
+                        }
+                        data.push(value);
+                    }
+
+                    // Error correction, in blocks, interleaved.
+                    var numBlocks = BLOCKS[ver];
+                    var blockEcc = ECC[ver];
+                    var raw = Math.floor(rawModules(ver) / 8);
+                    var numShort = numBlocks - raw % numBlocks;
+                    var shortLen = Math.floor(raw / numBlocks);
+                    var divisor = rsDivisor(blockEcc);
+                    var blocks = [];
+                    for (var bi = 0, k = 0; bi < numBlocks; bi++) {
+                        var dat = data.slice(k, k + shortLen - blockEcc + (bi < numShort ? 0 : 1));
+                        k += dat.length;
+                        var ecc = rsRemainder(dat, divisor);
+                        if (bi < numShort) {
+                            dat.push(0);
+                        }
+                        blocks.push(dat.concat(ecc));
+                    }
+                    var codewords = [];
+                    for (var ci = 0; ci < blocks[0].length; ci++) {
+                        for (var bj = 0; bj < blocks.length; bj++) {
+                            if (ci !== shortLen - blockEcc || bj >= numShort) {
+                                codewords.push(blocks[bj][ci]);
+                            }
+                        }
+                    }
+
+                    var size = ver * 4 + 17;
+                    var modules = [];
+                    var isFunction = [];
+                    for (var y = 0; y < size; y++) {
+                        modules.push(new Array(size).fill(false));
+                        isFunction.push(new Array(size).fill(false));
+                    }
+                    function setFunction(x, y, dark) {
+                        modules[y][x] = dark;
+                        isFunction[y][x] = true;
+                    }
+
+                    for (var i = 0; i < size; i++) {
+                        setFunction(6, i, i % 2 === 0);
+                        setFunction(i, 6, i % 2 === 0);
+                    }
+                    [[3, 3], [size - 4, 3], [3, size - 4]].forEach(function(p) {
+                        for (var dy = -4; dy <= 4; dy++) {
+                            for (var dx = -4; dx <= 4; dx++) {
+                                var dist = Math.max(Math.abs(dx), Math.abs(dy));
+                                var xx = p[0] + dx;
+                                var yy = p[1] + dy;
+                                if (xx >= 0 && xx < size && yy >= 0 && yy < size) {
+                                    setFunction(xx, yy, dist !== 2 && dist !== 4);
+                                }
+                            }
+                        }
+                    });
+                    if (ver > 1) {
+                        var numAlign = Math.floor(ver / 7) + 2;
+                        var step = Math.floor((ver * 8 + numAlign * 3 + 5) / (numAlign * 4 - 4)) * 2;
+                        var positions = [6];
+                        for (var pi = numAlign - 1, pos = size - 7; pi >= 1; pi--, pos -= step) {
+                            positions.splice(1, 0, pos);
+                        }
+                        for (var ai = 0; ai < numAlign; ai++) {
+                            for (var aj = 0; aj < numAlign; aj++) {
+                                if ((ai === 0 && aj === 0) || (ai === 0 && aj === numAlign - 1) || (ai === numAlign - 1 && aj === 0)) {
+                                    continue;
+                                }
+                                for (var ady = -2; ady <= 2; ady++) {
+                                    for (var adx = -2; adx <= 2; adx++) {
+                                        setFunction(positions[ai] + adx, positions[aj] + ady, Math.max(Math.abs(adx), Math.abs(ady)) !== 1);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    function drawFormat(mask) {
+                        var fdata = (0 << 3) | mask; // error correction M is 00
+                        var rem = fdata;
+                        for (var r = 0; r < 10; r++) {
+                            rem = (rem << 1) ^ ((rem >>> 9) * 0x537);
+                        }
+                        var fbits = ((fdata << 10) | rem) ^ 0x5412;
+                        for (var f = 0; f <= 5; f++) {
+                            setFunction(8, f, bit(fbits, f));
+                        }
+                        setFunction(8, 7, bit(fbits, 6));
+                        setFunction(8, 8, bit(fbits, 7));
+                        setFunction(7, 8, bit(fbits, 8));
+                        for (var g = 9; g < 15; g++) {
+                            setFunction(14 - g, 8, bit(fbits, g));
+                        }
+                        for (var h = 0; h < 8; h++) {
+                            setFunction(size - 1 - h, 8, bit(fbits, h));
+                        }
+                        for (var m = 8; m < 15; m++) {
+                            setFunction(8, size - 15 + m, bit(fbits, m));
+                        }
+                        setFunction(8, size - 8, true);
+                    }
+                    drawFormat(0);
+
+                    if (ver >= 7) {
+                        var vrem = ver;
+                        for (var vr = 0; vr < 12; vr++) {
+                            vrem = (vrem << 1) ^ ((vrem >>> 11) * 0x1F25);
+                        }
+                        var vbits = (ver << 12) | vrem;
+                        for (var vi = 0; vi < 18; vi++) {
+                            var vb = bit(vbits, vi);
+                            var va = size - 11 + vi % 3;
+                            var vc = Math.floor(vi / 3);
+                            setFunction(va, vc, vb);
+                            setFunction(vc, va, vb);
+                        }
+                    }
+
+                    var index = 0;
+                    for (var right = size - 1; right >= 1; right -= 2) {
+                        if (right === 6) {
+                            right = 5;
+                        }
+                        for (var vert = 0; vert < size; vert++) {
+                            for (var j = 0; j < 2; j++) {
+                                var x = right - j;
+                                var upward = ((right + 1) & 2) === 0;
+                                var yy2 = upward ? size - 1 - vert : vert;
+                                if (!isFunction[yy2][x] && index < codewords.length * 8) {
+                                    modules[yy2][x] = bit(codewords[index >>> 3], 7 - (index & 7));
+                                    index++;
+                                }
+                            }
+                        }
+                    }
+
+                    function masked(mask, x, y) {
+                        switch (mask) {
+                            case 0: return (x + y) % 2 === 0;
+                            case 1: return y % 2 === 0;
+                            case 2: return x % 3 === 0;
+                            case 3: return (x + y) % 3 === 0;
+                            case 4: return (Math.floor(x / 3) + Math.floor(y / 2)) % 2 === 0;
+                            case 5: return x * y % 2 + x * y % 3 === 0;
+                            case 6: return (x * y % 2 + x * y % 3) % 2 === 0;
+                            default: return ((x + y) % 2 + x * y % 3) % 2 === 0;
+                        }
+                    }
+                    function applyMask(mask) {
+                        for (var my = 0; my < size; my++) {
+                            for (var mx = 0; mx < size; mx++) {
+                                if (!isFunction[my][mx] && masked(mask, mx, my)) {
+                                    modules[my][mx] = !modules[my][mx];
+                                }
+                            }
+                        }
+                    }
+                    // A light penalty (runs, 2x2 blocks, balance) is enough to pick a readable mask.
+                    function penalty() {
+                        var score = 0;
+                        var dark = 0;
+                        for (var py = 0; py < size; py++) {
+                            var runRow = 1;
+                            var runCol = 1;
+                            for (var px = 0; px < size; px++) {
+                                if (modules[py][px]) {
+                                    dark++;
+                                }
+                                if (px > 0) {
+                                    if (modules[py][px] === modules[py][px - 1]) {
+                                        runRow++;
+                                        if (runRow === 5) score += 3; else if (runRow > 5) score++;
+                                    } else {
+                                        runRow = 1;
+                                    }
+                                    if (modules[px][py] === modules[px - 1][py]) {
+                                        runCol++;
+                                        if (runCol === 5) score += 3; else if (runCol > 5) score++;
+                                    } else {
+                                        runCol = 1;
+                                    }
+                                }
+                                if (px > 0 && py > 0) {
+                                    var v = modules[py][px];
+                                    if (v === modules[py][px - 1] && v === modules[py - 1][px] && v === modules[py - 1][px - 1]) {
+                                        score += 3;
+                                    }
+                                }
+                            }
+                        }
+                        var total = size * size;
+                        score += (Math.ceil(Math.abs(dark * 20 - total * 10) / total) - 1) * 10;
+                        return score;
+                    }
+                    var best = 0;
+                    var bestScore = Infinity;
+                    for (var mk = 0; mk < 8; mk++) {
+                        applyMask(mk);
+                        drawFormat(mk);
+                        var s = penalty();
+                        if (s < bestScore) {
+                            bestScore = s;
+                            best = mk;
+                        }
+                        applyMask(mk);
+                    }
+                    applyMask(best);
+                    drawFormat(best);
+                    return modules;
+                }
+
+                function draw(canvas, text) {
+                    var modules = encode(text);
+                    if (!modules) {
+                        return false;
+                    }
+                    var border = 4;
+                    var scale = Math.max(3, Math.floor(232 / (modules.length + border * 2)));
+                    var pixels = (modules.length + border * 2) * scale;
+                    canvas.width = pixels;
+                    canvas.height = pixels;
+                    var ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, pixels, pixels);
+                    ctx.fillStyle = '#000000';
+                    for (var y = 0; y < modules.length; y++) {
+                        for (var x = 0; x < modules.length; x++) {
+                            if (modules[y][x]) {
+                                ctx.fillRect((x + border) * scale, (y + border) * scale, scale, scale);
+                            }
+                        }
+                    }
+                    return true;
+                }
+
+                return { encode: encode, draw: draw };
+            })();
+            // kostv-qr:end
+
+            // kOS TV: «Actualizaciones de la app», the versions the plugin hands out to the
+            // family's TVs and phones.
+            (function() {
+                var tab = document.querySelector('#MoonfinConfigPage .moonfinTabPanel[data-tab="appUpdates"]');
+                var nav = document.querySelector('.moonfinNavItem[data-tab="appUpdates"]');
+                if (!tab || !nav) {
+                    return;
+                }
+
+                var base = 'Moonfin/Kostv/Update/Admin';
+                var slots = { tv: null, phone: null };
+                var busy = false;
+
+                function url(path) {
+                    return ApiClient.getUrl(path);
+                }
+
+                function esc(value) {
+                    return String(value == null ? '' : value).replace(/[&<>"']/g, function(c) {
+                        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+                    });
+                }
+
+                function headers(json) {
+                    var token = ApiClient.accessToken ? ApiClient.accessToken() : '';
+                    var h = {};
+                    if (json) {
+                        h['Content-Type'] = 'application/json';
+                    }
+                    if (token) {
+                        h.Authorization = 'MediaBrowser Token="' + token + '"';
+                    }
+                    return h;
+                }
+
+                function call(method, path, body) {
+                    return fetch(url(path), {
+                        method: method,
+                        headers: headers(body !== undefined),
+                        body: body !== undefined ? JSON.stringify(body) : undefined
+                    }).then(function(response) {
+                        return response.text().then(function(text) {
+                            var payload = {};
+                            try { payload = text ? JSON.parse(text) : {}; } catch (e) { payload = {}; }
+                            if (!response.ok) {
+                                var error = new Error(payload.Error || ('El servidor ha respondido ' + response.status + '.'));
+                                error.status = response.status;
+                                error.payload = payload;
+                                throw error;
+                            }
+                            return payload;
+                        });
+                    });
+                }
+
+                function size(bytes) {
+                    if (!bytes && bytes !== 0) return '';
+                    return (bytes / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB';
+                }
+
+                function date(iso) {
+                    try {
+                        return new Date(iso).toLocaleString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    } catch (e) {
+                        return iso || '';
+                    }
+                }
+
+                function render(state) {
+                    var list = tab.querySelector('#KostvUpdList');
+                    var versions = state.Versions || [];
+                    if (!versions.length) {
+                        list.innerHTML = '<div class="kostvUpdEmpty">Todavía no hay ninguna versión guardada.</div>';
+                    } else {
+                        list.innerHTML = versions.map(function(v) {
+                            var status = v.Retired
+                                ? '<span class="kostvUpdBadge is-retired">Retirada</span>'
+                                : (v.Offered ? '<span class="kostvUpdBadge is-offered">Se ofrece</span>' : '<span class="kostvUpdBadge">Anterior</span>');
+                            return '<div class="kostvUpdItem">' +
+                                '<div class="kostvUpdItemHead"><strong>' + esc(v.VersionName) + '</strong>' + status +
+                                '<span class="kostvUpdMeta">' + esc(date(v.Date)) + ' · tele ' + size(v.TvSize) + ' · móvil ' + size(v.PhoneSize) + ' · código ' + esc(String(v.VersionCode)) + '</span></div>' +
+                                (v.Notes ? '<div class="kostvUpdNotes">' + esc(v.Notes) + '</div>' : '') +
+                                '<div class="kostvUpdActions">' +
+                                '<button type="button" is="emby-button" class="raised" data-upd-retire="' + esc(v.Id) + '" data-upd-retired="' + (v.Retired ? '1' : '0') + '"><span>' + (v.Retired ? 'Volver a ofrecer' : 'Retirar') + '</span></button>' +
+                                '<button type="button" is="emby-button" class="raised" data-upd-delete="' + esc(v.Id) + '" data-upd-name="' + esc(v.VersionName) + '"><span>Borrar</span></button>' +
+                                '</div></div>';
+                        }).join('');
+                    }
+
+                    var keep = tab.querySelector('#KostvUpdKeep');
+                    if (document.activeElement !== keep) {
+                        keep.value = state.Keep || 10;
+                    }
+                    tab.querySelector('#KostvUpdSigner').textContent = state.SignerFingerprint
+                        ? state.SignerFingerprint + (state.SignerSubject ? '\n' + state.SignerSubject : '')
+                        : 'Aún no hay ninguna: la fijará la primera versión que publiques.';
+                }
+
+                function load() {
+                    return call('GET', base).then(render, function(error) {
+                        tab.querySelector('#KostvUpdList').textContent = 'No se han podido leer las versiones: ' + error.message;
+                    });
+                }
+
+                function refreshPublish() {
+                    var ok = slots.tv && slots.tv.check && slots.tv.check.Ok &&
+                        slots.phone && slots.phone.check && slots.phone.check.Ok;
+                    var mismatch = ok && slots.tv.check.VersionCode !== slots.phone.check.VersionCode;
+                    tab.querySelector('#KostvUpdPublish').disabled = !ok || mismatch || busy;
+                    var out = tab.querySelector('#KostvUpdPublishResult');
+                    if (mismatch) {
+                        out.textContent = 'El APK de la tele (' + slots.tv.check.VersionName + ') y el del móvil (' +
+                            slots.phone.check.VersionName + ') no son de la misma versión.';
+                        out.classList.add('kostvUpdIsError');
+                    } else if (ok) {
+                        out.textContent = 'Lista para publicar: versión ' + slots.tv.check.VersionName + '.';
+                        out.classList.remove('kostvUpdIsError');
+                    }
+                }
+
+                function showCheck(slotEl, check) {
+                    var info = slotEl.querySelector('.kostvUpdInfo');
+                    var lines = [];
+                    if (check.VersionName) {
+                        lines.push('<div>Versión <strong>' + esc(check.VersionName) + '</strong> (código ' + esc(String(check.VersionCode)) + '), ' +
+                            (check.BuildKind === 'tv' ? 'de la tele' : 'del móvil') + ' · ' + size(check.Size) + '</div>');
+                    }
+                    (check.Errors || []).forEach(function(e) { lines.push('<div class="kostvUpdError">' + esc(e) + '</div>'); });
+                    (check.Warnings || []).forEach(function(w) { lines.push('<div class="kostvUpdWarning">' + esc(w) + '</div>'); });
+                    if (check.Ok && !(check.Warnings || []).length) {
+                        lines.push('<div class="kostvUpdOk">Firma de kOS TV comprobada.</div>');
+                    }
+                    info.innerHTML = lines.join('');
+                }
+
+                function upload(kind, file, slotEl) {
+                    var bar = slotEl.querySelector('.kostvUpdBar');
+                    var fill = slotEl.querySelector('.kostvUpdBarFill');
+                    var info = slotEl.querySelector('.kostvUpdInfo');
+                    var state = { file: file, id: null, check: null };
+                    if (slots[kind] && slots[kind].id) {
+                        call('DELETE', base + '/Uploads/' + slots[kind].id).catch(function() {});
+                    }
+                    slots[kind] = state;
+                    refreshPublish();
+                    bar.hidden = false;
+                    fill.style.width = '0%';
+                    info.textContent = 'Subiendo… 0 %';
+                    var retries = 0;
+
+                    function progress(received) {
+                        var pct = file.size ? Math.floor(received * 100 / file.size) : 100;
+                        fill.style.width = pct + '%';
+                        info.textContent = 'Subiendo… ' + pct + ' % (' + size(received) + ' de ' + size(file.size) + ')';
+                    }
+
+                    function send(offset, chunk) {
+                        if (slots[kind] !== state) {
+                            return Promise.resolve();
+                        }
+                        if (offset >= file.size) {
+                            info.textContent = 'Comprobando el APK…';
+                            return call('POST', base + '/Uploads/' + state.id + '/Finish').then(function(check) {
+                                state.check = check;
+                                bar.hidden = true;
+                                showCheck(slotEl, check);
+                                refreshPublish();
+                            });
+                        }
+                        var piece = file.slice(offset, Math.min(file.size, offset + chunk));
+                                return fetch(ApiClient.getUrl(base + '/Uploads/' + state.id, { offset: offset }), {
+                            method: 'PUT',
+                            headers: Object.assign(headers(false), { 'Content-Type': 'application/octet-stream' }),
+                            body: piece
+                        }).then(function(response) {
+                            return response.text().then(function(text) {
+                                var payload = {};
+                                try { payload = text ? JSON.parse(text) : {}; } catch (e) { payload = {}; }
+                                if (response.ok) {
+                                    retries = 0;
+                                    progress(payload.Received);
+                                    return send(payload.Received, chunk);
+                                }
+                                if (response.status === 409 && typeof payload.Received === 'number') {
+                                    return send(payload.Received, chunk);
+                                }
+                                throw new Error(payload.Error || ('El servidor ha respondido ' + response.status + '.'));
+                            });
+                        }, function() {
+                            // The connection dropped: ask where the server got to and go on.
+                            if (++retries > 5) {
+                                throw new Error('Se ha cortado la conexión varias veces seguidas.');
+                            }
+                            info.textContent = 'Se ha cortado la subida; reintentando…';
+                            return new Promise(function(resolve) { setTimeout(resolve, 2000 * retries); }).then(function() {
+                                return call('GET', base + '/Uploads/' + state.id);
+                            }).then(function(status) {
+                                return send(status.Received, chunk);
+                            });
+                        });
+                    }
+
+                    return call('POST', base + '/Uploads', { Kind: kind, Size: file.size }).then(function(started) {
+                        state.id = started.UploadId;
+                        return send(0, started.ChunkSize || 8 * 1024 * 1024);
+                    }).catch(function(error) {
+                        bar.hidden = true;
+                        info.innerHTML = '<div class="kostvUpdError">' + esc(error.message) + '</div>';
+                        if (slots[kind] === state) {
+                            slots[kind] = null;
+                        }
+                        refreshPublish();
+                    });
+                }
+
+                ['tv', 'phone'].forEach(function(kind) {
+                    var slotEl = tab.querySelector('.kostvUpdSlot[data-kind="' + kind + '"]');
+                    var input = slotEl.querySelector('input[type="file"]');
+                    input.addEventListener('change', function() {
+                        if (input.files && input.files[0]) {
+                            tab.querySelector('#KostvUpdPublishResult').textContent = '';
+                            upload(kind, input.files[0], slotEl);
+                        }
+                    });
+                });
+
+                tab.querySelector('#KostvUpdPublish').addEventListener('click', function() {
+                    if (!slots.tv || !slots.phone || busy) {
+                        return;
+                    }
+                    var name = slots.tv.check.VersionName;
+                    if (!confirm('¿Publicar la versión ' + name + '? Las teles y los móviles de casa la recibirán la próxima vez que se abran.')) {
+                        return;
+                    }
+                    busy = true;
+                    refreshPublish();
+                    var out = tab.querySelector('#KostvUpdPublishResult');
+                    out.classList.remove('kostvUpdIsError');
+                    out.textContent = 'Publicando…';
+                    call('POST', base + '/Versions', {
+                        TvUploadId: slots.tv.id,
+                        PhoneUploadId: slots.phone.id,
+                        Notes: tab.querySelector('#KostvUpdNotes').value
+                    }).then(function(state) {
+                        out.textContent = 'Publicada la versión ' + name + '.';
+                        slots.tv = null;
+                        slots.phone = null;
+                        tab.querySelectorAll('.kostvUpdSlot').forEach(function(slotEl) {
+                            slotEl.querySelector('input[type="file"]').value = '';
+                            slotEl.querySelector('.kostvUpdInfo').textContent = '';
+                        });
+                        tab.querySelector('#KostvUpdNotes').value = '';
+                        render(state);
+                    }, function(error) {
+                        out.textContent = error.message;
+                        out.classList.add('kostvUpdIsError');
+                    }).then(function() {
+                        busy = false;
+                        refreshPublish();
+                    });
+                });
+
+                tab.querySelector('#KostvUpdList').addEventListener('click', function(e) {
+                    var retire = e.target.closest('[data-upd-retire]');
+                    var remove = e.target.closest('[data-upd-delete]');
+                    if (retire) {
+                        var retired = retire.getAttribute('data-upd-retired') === '1';
+                        if (!retired && !confirm('¿Retirar esta versión? Dejará de ofrecerse a las teles y los móviles.')) {
+                            return;
+                        }
+                        call('POST', base + '/Versions/' + encodeURIComponent(retire.getAttribute('data-upd-retire')) + '/Retire', { Retired: !retired })
+                            .then(render, function(error) { alert(error.message); });
+                    } else if (remove) {
+                        if (!confirm('¿Borrar la versión ' + remove.getAttribute('data-upd-name') + ' y sus dos APK del servidor?')) {
+                            return;
+                        }
+                        call('DELETE', base + '/Versions/' + encodeURIComponent(remove.getAttribute('data-upd-delete')))
+                            .then(render, function(error) { alert(error.message); });
+                    }
+                });
+
+                tab.querySelector('#KostvUpdKeepSave').addEventListener('click', function() {
+                    var out = tab.querySelector('#KostvUpdSettingsResult');
+                    var keep = parseInt(tab.querySelector('#KostvUpdKeep').value, 10);
+                    call('POST', base + '/Settings', { Keep: keep }).then(function(state) {
+                        render(state);
+                        out.classList.remove('kostvUpdIsError');
+                        out.textContent = 'Guardado: se guardan las últimas ' + state.Keep + ' versiones.';
+                    }, function(error) {
+                        out.classList.add('kostvUpdIsError');
+                        out.textContent = error.message;
+                    });
+                });
+
+                tab.querySelector('#KostvUpdSignerChange').addEventListener('click', function() {
+                    var out = tab.querySelector('#KostvUpdSettingsResult');
+                    var value = prompt('Escribe la huella SHA-256 nueva (64 caracteres, con o sin «:»).\n\n' +
+                        'Cuidado: las apps ya instaladas solo se actualizan con APK firmados con su clave de siempre. ' +
+                        'Cambiarla solo sirve para corregir una primera subida equivocada.');
+                    if (!value) {
+                        return;
+                    }
+                    call('POST', base + '/Settings', { SignerSha256: value }).then(function(state) {
+                        render(state);
+                        out.classList.remove('kostvUpdIsError');
+                        out.textContent = 'Huella cambiada.';
+                    }, function(error) {
+                        out.classList.add('kostvUpdIsError');
+                        out.textContent = error.message;
+                    });
+                });
+
+                tab.querySelector('#KostvUpdInstallLink').addEventListener('click', function() {
+                    var box = tab.querySelector('#KostvUpdInstall');
+                    call('POST', base + '/InstallLink').then(function(link) {
+                        if (!link.Available) {
+                            box.hidden = true;
+                            alert('Aún no hay ninguna versión publicada que instalar.');
+                            return;
+                        }
+                        var publicUrl = document.querySelector('#PublicServerUrl');
+                        var origin = (publicUrl && publicUrl.value.trim()) || (ApiClient.serverAddress ? ApiClient.serverAddress() : '') || window.location.origin;
+                        origin = origin.replace(/\/+$/, '');
+                        [['Phone', link.PhonePath], ['Tv', link.TvPath]].forEach(function(item) {
+                            var full = origin + item[1];
+                            var a = tab.querySelector('#KostvUpdLink' + item[0]);
+                            a.href = full;
+                            a.textContent = full;
+                            kostvQr.draw(tab.querySelector('#KostvUpdQr' + item[0]), full);
+                        });
+                        tab.querySelector('#KostvUpdInstallExpires').textContent = 'Caduca: ' + date(link.Expires) + '.';
+                        box.hidden = false;
+                    }, function(error) {
+                        alert(error.message);
+                    });
+                });
+
+                nav.addEventListener('click', load);
+                try {
+                    if (window.localStorage.getItem('moonfinAdminActiveTab') === 'appUpdates') {
+                        setTimeout(load, 100);
+                    }
+                } catch (e) {}
+            })();
 
             // Start polling right away when a page reload lands back on this tab.
             try {
