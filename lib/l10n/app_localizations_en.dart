@@ -21302,4 +21302,7 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvAwayLoadFailed =>
       'Couldn\'t load the songs that aren\'t at home';
+
+  @override
+  String get kostvEpisodeInfo => 'Episode info';
 }

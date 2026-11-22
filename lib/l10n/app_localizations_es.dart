@@ -21645,4 +21645,7 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get kostvAwayLoadFailed =>
       'No se han podido cargar las canciones que no están en casa';
+
+  @override
+  String get kostvEpisodeInfo => 'Información del episodio';
 }

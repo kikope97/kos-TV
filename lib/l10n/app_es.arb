@@ -15976,5 +15976,7 @@
     "kostvAwayNoneAtHome": "Ninguna de estas canciones está en casa: con «Solo la de casa» no suenan",
     "@kostvAwayNoneAtHome": {"description": "Kos TV «Toda la música»: «Reproducir» or «Aleatorio» of a playlist whose songs are all not at home, with «Solo la de casa»"},
     "kostvAwayLoadFailed": "No se han podido cargar las canciones que no están en casa",
-    "@kostvAwayLoadFailed": {"description": "Kos TV «Toda la música»: a playlist shows only the songs at home because the server plugin failed to give the others; a «Reintentar» button follows"}
+    "@kostvAwayLoadFailed": {"description": "Kos TV «Toda la música»: a playlist shows only the songs at home because the server plugin failed to give the others; a «Reintentar» button follows"},
+    "kostvEpisodeInfo": "Información del episodio",
+    "@kostvEpisodeInfo": {"description": "Kos TV: in a series or season page an episode plays when picked; this opens its own page instead (in its menu, held OK or right-click, and the small info button on the card)"}
 }
