@@ -117,7 +117,7 @@ class KostvGlass extends StatelessWidget {
     // rgba(20,20,28,.20) under the blur; .heavy rgba(18,18,26,.42); .nob
     // rgba(30,30,40,.90).
     final base = light
-        ? (heavy ? const Color(0x6B12121A) : const Color(0x3314141C))
+        ? (heavy ? const Color(0x6B12121A) : const Color(0x24FFFFFF))
         : (heavy ? const Color(0xF2181820) : const Color(0xE61E1E28));
     final List<Color> sheen;
     final List<double> stops;
@@ -135,9 +135,9 @@ class KostvGlass extends StatelessWidget {
       stops = const [0, 0.4];
     } else {
       sheen = [
-        Colors.white.withValues(alpha: 0.14),
-        Colors.white.withValues(alpha: 0.04),
-        Colors.white.withValues(alpha: 0.07),
+        Colors.white.withValues(alpha: 0.18),
+        Colors.white.withValues(alpha: 0.06),
+        Colors.white.withValues(alpha: 0.10),
       ];
       stops = const [0, 0.55, 1];
     }
@@ -176,7 +176,7 @@ class KostvGlass extends StatelessWidget {
       ],
     );
     if (blurs) {
-      final sigma = heavy ? 22.0 : 10.0;
+      final sigma = heavy ? 22.0 : 18.0;
       body = BackdropFilter.grouped(
         filter: ui.ImageFilter.compose(
           outer: ui.ImageFilter.blur(sigmaX: sigma, sigmaY: sigma),
@@ -334,10 +334,12 @@ class KostvGlassRimPainter extends CustomPainter {
                   ? const LinearGradient(
                       begin: Alignment(-0.87, -0.5),
                       end: Alignment(0.87, 0.5),
+                      // Softened: a white rim with only a hint of the
+                      // brand (the owner found the full colour too loud).
                       colors: [
-                        Color(0xC34FD8FF),
-                        Color(0x778F6BFF),
-                        Color(0xC3FF5CCF),
+                        Color(0x8CC8F3FF),
+                        Color(0x40FFFFFF),
+                        Color(0x8CFFD0F0),
                       ],
                     )
                   // linear-gradient(135deg, .65, .10 28%, 0 50%, .10 72%,
@@ -378,7 +380,7 @@ class KostvActivePill extends StatelessWidget {
       foregroundPainter: KostvGlassRimPainter(radius: radius, brand: true),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.17),
+          color: Colors.white.withValues(alpha: 0.22),
           borderRadius: shape,
           // 0 4px 14px rgba(0,0,0,.18).
           boxShadow: const [

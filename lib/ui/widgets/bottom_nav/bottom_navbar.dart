@@ -592,15 +592,21 @@ class _GlassTab extends StatelessWidget {
                   ],
                 ),
               )
-            : Stack(
-                alignment: Alignment.center,
-                children: [
-                  if (active) const Positioned.fill(child: KostvActivePill()),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: face,
-                  ),
-                ],
+            // .tbi: the whole cell (52 px high, full width) is the pill.
+            : SizedBox(
+                height: 52,
+                width: double.infinity,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (active)
+                      const Positioned.fill(child: KostvActivePill()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: face,
+                    ),
+                  ],
+                ),
               ),
       ),
     );
