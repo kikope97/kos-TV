@@ -36608,6 +36608,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Already at home'**
   String get kostvMusicAlreadyHome;
+
+  /// Kos TV: in a series or season page an episode plays when picked; this opens its own page instead (in its menu, held OK or right-click, and the small info button on the card)
+  ///
+  /// In en, this message translates to:
+  /// **'Episode info'**
+  String get kostvEpisodeInfo;
 }
 
 class _AppLocalizationsDelegate

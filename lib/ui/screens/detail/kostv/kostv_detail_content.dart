@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../../data/models/aggregated_item.dart';
@@ -11,6 +13,7 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../../preference/detail_section_layout.dart';
 import '../../../../preference/user_preferences.dart';
 import '../../../../util/platform_detection.dart';
+import '../../../navigation/destinations.dart';
 import '../../../widgets/bottom_nav/bottom_navbar.dart';
 import '../../../widgets/fullscreen_backdrop_switcher.dart';
 import '../../../widgets/live_tv/incomplete_recording.dart';
@@ -735,6 +738,20 @@ class _KostvDetailContentState extends State<KostvDetailContent>
     );
   }
 
+  /// Kos TV: an episode picked in the page's list plays as Play does on its
+  /// own page (its season as the queue, from where it was left). Should the
+  /// buttons not be there, its page plays it.
+  void _playEpisode(AggregatedItem episode) {
+    final actions = actionsKey.currentState;
+    if (actions != null) {
+      unawaited(actions.playEpisodeFromList(context, episode));
+      return;
+    }
+    context.push(
+      Destinations.item(episode.id, serverId: episode.serverId, autoPlay: true),
+    );
+  }
+
   Widget _buildActions(bool landscape) {
     final kidsMode = widget.prefs.get(UserPreferences.kidsModeEnabled);
     // Left on Auto, a TV would line up every button it has. Play, four
@@ -830,6 +847,7 @@ class _KostvDetailContentState extends State<KostvDetailContent>
               isUp ? moveUp(node) : moveDown(node);
               return true;
             },
+            onPlayEpisode: _playEpisode,
           ),
           // On the page itself, without a frame: the season names are
           // its heading on a big screen.

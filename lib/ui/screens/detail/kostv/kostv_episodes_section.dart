@@ -12,8 +12,10 @@ import '../../../../data/services/stremfin/kostv_series_gaps.dart';
 import '../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../preference/user_preferences.dart';
+import '../../../../util/focus/input_mode_tracker.dart';
 import '../../../../util/playback_time_label.dart';
 import '../../../navigation/destinations.dart';
+import '../../../widgets/focus/context_action.dart';
 import '../../../widgets/focus/context_menu_sheet.dart';
 import '../../../widgets/focus/focusable_wrapper.dart';
 import '../../../widgets/focus/hub_focus_memory.dart';
@@ -51,6 +53,11 @@ class KostvEpisodesSection extends StatefulWidget {
   final FocusNode? episodesFocusNode;
   final bool Function(bool isUp)? onVerticalNavigation;
 
+  /// Plays an episode picked on a series or season page, as on any
+  /// streaming service. Its own page is a menu or the ⓘ away. Without it the
+  /// episode's page opens, as before.
+  final void Function(AggregatedItem episode)? onPlayEpisode;
+
   const KostvEpisodesSection({
     super.key,
     required this.viewModel,
@@ -59,6 +66,7 @@ class KostvEpisodesSection extends StatefulWidget {
     this.maxHeight,
     this.episodesFocusNode,
     this.onVerticalNavigation,
+    this.onPlayEpisode,
   });
 
   @override
@@ -200,11 +208,24 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
   static const _phonePage = 30;
   int _phoneShown = _phonePage;
 
+  /// Whether picking an episode plays it: on a series or season page. An
+  /// episode's own page keeps opening the others' pages.
+  bool get _picksPlay => !_isEpisode && widget.onPlayEpisode != null;
+
   void _openEpisode(BuildContext context, AggregatedItem episode) {
     if (episode.id == _vm.item?.id) {
       playItemOnScreen(context);
       return;
     }
+    if (_picksPlay) {
+      widget.onPlayEpisode!(episode);
+      return;
+    }
+    _openEpisodeDetails(context, episode);
+  }
+
+  /// The episode's own page.
+  void _openEpisodeDetails(BuildContext context, AggregatedItem episode) {
     final location = Destinations.item(
       episode.id,
       serverId: episode.serverId,
@@ -226,12 +247,24 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
 
   void _entryMenu(BuildContext context, KostvEpisodeEntry entry) {
     if (entry.episode case final episode?) {
+      final l10n = AppLocalizations.of(context);
       showContextMenu(
         context,
         episode,
         onChanged: () {
           if (mounted) setState(() {});
         },
+        // Picking it plays it, so its page is offered here, after playing.
+        extraActions: [
+          if (_picksPlay)
+            ItemContextAction(
+              icon: Icons.info_outline_rounded,
+              label: l10n.kostvEpisodeInfo,
+              onSelect: () async {
+                if (context.mounted) _openEpisodeDetails(context, episode);
+              },
+            ),
+        ],
       );
     } else {
       _openEntry(context, entry);
@@ -636,6 +669,10 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
                         text: episode.overview,
                         onTap: () => _openEpisode(context, episode),
                         onLongPress: () => _entryMenu(context, entry),
+                        onInfo: _picksPlay
+                            ? () => _openEpisodeDetails(context, episode)
+                            : null,
+                        infoLabel: l10n.kostvEpisodeInfo,
                       );
                     },
                   ),
@@ -735,6 +772,10 @@ class _KostvEpisodesSectionState extends State<KostvEpisodesSection> {
               text: entry.episode!.overview,
               onTap: () => _openEpisode(context, entry.episode!),
               onLongPress: () => _entryMenu(context, entry),
+              onInfo: _picksPlay
+                  ? () => _openEpisodeDetails(context, entry.episode!)
+                  : null,
+              infoLabel: l10n.kostvEpisodeInfo,
             ),
         if (v.entries.length > shown) ...[
           const SizedBox(height: 8),
@@ -1334,7 +1375,19 @@ class _GhostStill extends StatelessWidget {
   }
 }
 
+/// How far the focus frame sits out from a still, and how thick it is: the
+/// same as the cards of Home, so the frame reads as the one of the app.
+const kostvEpisodeRingGap = 5.0;
+const kostvEpisodeRingWidth = 3.0;
+
 /// A card of the row: what lifts with focus, and the words under it.
+///
+/// Kos TV: the one with the remote's (or the keyboard's) focus also wears a
+/// white frame with a soft glow, as on Netflix, so it's plain which one OK
+/// will play even on a still as bright as the frame. The frame sits a little
+/// out from the picture, over the page's dark, never on the picture itself.
+/// Under the mouse it's a fainter one, and a small ⓘ opens the episode's
+/// page.
 class _Card extends StatefulWidget {
   const _Card({
     required this.width,
@@ -1345,6 +1398,8 @@ class _Card extends StatefulWidget {
     required this.onTap,
     this.text,
     this.onLongPress,
+    this.onInfo,
+    this.infoLabel,
     this.dim = false,
   });
 
@@ -1356,6 +1411,8 @@ class _Card extends StatefulWidget {
   final String? text;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onInfo;
+  final String? infoLabel;
   final bool dim;
 
   @override
@@ -1368,7 +1425,13 @@ class _CardState extends State<_Card> {
   @override
   Widget build(BuildContext context) {
     final lit = widget.isFocused || _hovered;
+    // The full frame only where focus is what's being used (always on a
+    // TV): a click leaves the focus behind it without asking for a frame.
+    final framed = InputModeTracker.showFocusVisuals(context, widget.isFocused);
+    final ring = framed ? _Ring.focus : (_hovered ? _Ring.hover : _Ring.none);
     final text = widget.text?.trim();
+    const radius = 12.0;
+    final ringRadius = AppRadius.circular(radius + kostvEpisodeRingGap);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _hovered = true),
@@ -1376,6 +1439,8 @@ class _CardState extends State<_Card> {
       child: GestureDetector(
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
+        // A right-click opens the same menu as holding OK.
+        onSecondaryTap: widget.onLongPress,
         child: SizedBox(
           width: widget.width,
           child: Column(
@@ -1385,22 +1450,85 @@ class _CardState extends State<_Card> {
               AnimatedScale(
                 scale: lit ? 1.06 : 1,
                 duration: _fast,
-                child: AnimatedContainer(
-                  duration: _fast,
-                  width: widget.width,
-                  height: widget.width * 9 / 16,
-                  decoration: BoxDecoration(
-                    borderRadius: AppRadius.circular(12),
-                    boxShadow: [
-                      if (lit)
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.6),
-                          blurRadius: 30,
-                          offset: const Offset(0, 14),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // The glow goes under the still, so it only shows
+                    // around it.
+                    if (ring == _Ring.focus)
+                      Positioned(
+                        left: -kostvEpisodeRingGap,
+                        top: -kostvEpisodeRingGap,
+                        right: -kostvEpisodeRingGap,
+                        bottom: -kostvEpisodeRingGap,
+                        child: IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: ringRadius,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.white.withValues(alpha: 0.28),
+                                  blurRadius: 22,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                    ],
-                  ),
-                  child: widget.still,
+                      ),
+                    AnimatedContainer(
+                      duration: _fast,
+                      width: widget.width,
+                      height: widget.width * 9 / 16,
+                      decoration: BoxDecoration(
+                        borderRadius: AppRadius.circular(radius),
+                        boxShadow: [
+                          if (lit)
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.6),
+                              blurRadius: 30,
+                              offset: const Offset(0, 14),
+                            ),
+                        ],
+                      ),
+                      child: widget.still,
+                    ),
+                    if (ring != _Ring.none)
+                      Positioned(
+                        left: -kostvEpisodeRingGap,
+                        top: -kostvEpisodeRingGap,
+                        right: -kostvEpisodeRingGap,
+                        bottom: -kostvEpisodeRingGap,
+                        child: IgnorePointer(
+                          child: DecoratedBox(
+                            key: ring == _Ring.focus
+                                ? const ValueKey('kostv-episode-focus-ring')
+                                : const ValueKey('kostv-episode-hover-ring'),
+                            decoration: BoxDecoration(
+                              borderRadius: ringRadius,
+                              border: Border.all(
+                                color: ring == _Ring.focus
+                                    ? Colors.white
+                                    : Colors.white.withValues(alpha: 0.55),
+                                width: ring == _Ring.focus
+                                    ? kostvEpisodeRingWidth
+                                    : 2,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    if (_hovered && widget.onInfo != null)
+                      Positioned(
+                        left: 6,
+                        top: 6,
+                        child: _InfoButton(
+                          label: widget.infoLabel,
+                          onPressed: widget.onInfo!,
+                          size: 38,
+                        ),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: 14),
@@ -1448,6 +1576,8 @@ class _Line extends StatelessWidget {
     required this.onTap,
     this.text,
     this.onLongPress,
+    this.onInfo,
+    this.infoLabel,
     this.dim = false,
   });
 
@@ -1457,6 +1587,11 @@ class _Line extends StatelessWidget {
   final String? text;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+
+  /// Kos TV: the ⓘ at the end of the line, to the episode's page, when a
+  /// tap plays it.
+  final VoidCallback? onInfo;
+  final String? infoLabel;
   final bool dim;
 
   @override
@@ -1466,6 +1601,7 @@ class _Line extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       onLongPress: onLongPress,
+      onSecondaryTap: onLongPress,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 9),
         child: Row(
@@ -1505,7 +1641,73 @@ class _Line extends StatelessWidget {
                 ],
               ),
             ),
+            if (onInfo != null)
+              _InfoButton(
+                label: infoLabel,
+                onPressed: onInfo!,
+                size: 36,
+                plain: true,
+              ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+enum _Ring { none, hover, focus }
+
+/// Kos TV: the small ⓘ to an episode's own page, on a dark round so it
+/// reads on any still; [plain], beside the words of a phone's line, it's
+/// only the quiet icon.
+class _InfoButton extends StatelessWidget {
+  const _InfoButton({
+    required this.label,
+    required this.onPressed,
+    required this.size,
+    this.plain = false,
+  });
+
+  final String? label;
+  final VoidCallback onPressed;
+  final double size;
+  final bool plain;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tooltip(
+        message: label ?? '',
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: GestureDetector(
+            key: const ValueKey('kostv-episode-info'),
+            behavior: HitTestBehavior.opaque,
+            onTap: onPressed,
+            child: SizedBox(
+              width: size,
+              height: size,
+              child: Center(
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: plain
+                      ? null
+                      : BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          shape: BoxShape.circle,
+                        ),
+                  child: Icon(
+                    Icons.info_outline_rounded,
+                    size: plain ? 22 : 20,
+                    color: plain ? _muted : _ink.withValues(alpha: 0.9),
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

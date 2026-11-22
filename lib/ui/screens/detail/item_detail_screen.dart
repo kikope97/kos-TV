@@ -50,6 +50,7 @@ import '../../../data/services/kostv_my_list.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/kostv_music_away.dart';
+import '../../../data/services/user_data_sync.dart';
 import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../data/services/stremfin/kostv_trailers.dart';
 import '../../../data/services/youtube_stream_resolver.dart';
@@ -8821,6 +8822,30 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
     );
   }
 
+  bool _episodeFromListInFlight = false;
+
+  /// Kos TV: an episode picked in a series or season page's list plays at
+  /// once, as on any streaming service: from where it was left when it's
+  /// part way through, else from the start, like its own page's Play. The
+  /// list only carries a light copy, so the full one is read first, which
+  /// brings its streams (for the audio and subtitles the person prefers)
+  /// and the newest resume point.
+  Future<void> playEpisodeFromList(
+    BuildContext context,
+    AggregatedItem episode,
+  ) async {
+    if (_playLaunchInFlight || _episodeFromListInFlight) return;
+    _episodeFromListInFlight = true;
+    AggregatedItem target;
+    try {
+      target = await _ensureHydrated(userDataSync.apply(episode));
+    } finally {
+      _episodeFromListInFlight = false;
+    }
+    if (!mounted || !context.mounted) return;
+    await _play(context, target, resume: watchStateOf(target).hasProgress);
+  }
+
   void _shuffle(BuildContext context, AggregatedItem item) async {
     if (_playLaunchInFlight) return;
     _playLaunchInFlight = true;
@@ -9708,8 +9733,14 @@ class DetailActionButtonsState extends State<DetailActionButtons> {
             if (episodes.isEmpty || !episodes.any((e) => e.id == item.id)) {
               final seriesId = item.seriesId;
               // Matches the list on screen, which for an inlined special is the
-              // season being browsed rather than Specials.
-              final seasonId = viewModel.effectiveSeasonId ?? item.seasonId;
+              // season being browsed rather than Specials. Kos TV: from a
+              // series page it's the episode's own season, as from its page,
+              // not the whole series.
+              final seasonId = episodeQueueSeasonId(
+                pageType: viewModel.item?.type,
+                pageSeasonId: viewModel.effectiveSeasonId,
+                episodeSeasonId: item.seasonId,
+              );
               if (seriesId != null && seriesId.isNotEmpty) {
                 try {
                   const episodeQueueFields = 'Overview,RunTimeTicks,UserData';
@@ -11325,6 +11356,19 @@ Future<bool> _anyItemHasCompletedDownload(
   }
   return false;
 }
+
+/// Kos TV: the season whose episodes are the queue when an episode plays:
+/// the one the page shows ([pageSeasonId]), or the episode's own when it's
+/// picked on a series page, so it plays on as it would from its own page
+/// and not through the whole series. Public for its tests.
+@visibleForTesting
+String? episodeQueueSeasonId({
+  required String? pageType,
+  required String? pageSeasonId,
+  required String? episodeSeasonId,
+}) => pageType == 'Series'
+    ? episodeSeasonId
+    : (pageSeasonId ?? episodeSeasonId);
 
 /// [queue] with [parts] playing right after [target], or unchanged when the
 /// target isn't the item at [startIndex]. Public for its tests. Every

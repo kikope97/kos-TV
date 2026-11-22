@@ -15990,5 +15990,7 @@
     "kostvMusicAskedNotify": "Pedido · te avisamos",
     "@kostvMusicAskedNotify": {"description": "Kos TV music design: state of «Pedir el álbum» once asked for (the service will tell when it arrives)"},
     "kostvMusicAlreadyHome": "Ya está en casa",
-    "@kostvMusicAlreadyHome": {"description": "Kos TV music design: state of «Pedir el álbum» for a moment when the album has arrived home (then the note goes away)"}
+    "@kostvMusicAlreadyHome": {"description": "Kos TV music design: state of «Pedir el álbum» for a moment when the album has arrived home (then the note goes away)"},
+    "kostvEpisodeInfo": "Información del episodio",
+    "@kostvEpisodeInfo": {"description": "Kos TV: in a series or season page an episode plays when picked; this opens its own page instead (in its menu, held OK or right-click, and the small info button on the card)"}
 }

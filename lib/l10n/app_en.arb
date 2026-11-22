@@ -21480,5 +21480,7 @@
     "kostvMusicAwayPlayerLine": "Streaming · not at home",
     "kostvMusicAskTheAlbum": "Ask for the album",
     "kostvMusicAskedNotify": "Asked · we'll let you know",
-    "kostvMusicAlreadyHome": "Already at home"
+    "kostvMusicAlreadyHome": "Already at home",
+  "kostvEpisodeInfo": "Episode info",
+  "@kostvEpisodeInfo": {"description": "Kos TV: in a series or season page an episode plays when picked; this opens its own page instead (in its menu, held OK or right-click, and the small info button on the card)"}
 }

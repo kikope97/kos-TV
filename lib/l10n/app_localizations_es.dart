@@ -21669,4 +21669,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMusicAlreadyHome => 'Ya está en casa';
+
+  @override
+  String get kostvEpisodeInfo => 'Información del episodio';
 }

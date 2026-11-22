@@ -21326,4 +21326,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvMusicAlreadyHome => 'Already at home';
+
+  @override
+  String get kostvEpisodeInfo => 'Episode info';
 }
