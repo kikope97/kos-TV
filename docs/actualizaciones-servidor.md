@@ -31,6 +31,7 @@ Detalles añadidos al implementarlo en el complemento (no cambian nada de lo de 
 - `<id>` es el `VersionCode`. `Date` va en UTC con `Z`. `Notes` puede ser `""`.
 - `/Moonfin/Ping` devuelve además `kostvUpdates: true` (informativo; la app puede fiarse solo del `404`).
 - Los errores llevan `{ "Error": "texto en español" }`.
+- Cada `GET /Moonfin/Kostv/Update` (con `kind` válido) apunta la instalación para la lista del panel: persona (id y nombre de la sesión), aparato (`DeviceId` y nombre, de los *claims* de la sesión `Jellyfin-DeviceId`/`Jellyfin-Device` o, si faltan, de la cabecera `MediaBrowser … Device="…", DeviceId="…"`), `kind`, `versionCode` y la hora (UTC). Una entrada por aparato y tipo; si otro perfil usa el mismo aparato, se queda el último. Lo que pasa 14 días sin preguntar se olvida. Se guarda en `kostv-updates/installations.json` (escritura atómica; si solo cambia la hora, como mucho una vez por hora) y nunca hace fallar ni esperar la respuesta. La app no cambia: ya manda todo eso; las anteriores a la 1.21.0 no preguntan aquí y no salen.
 - El enlace temporal tiene también una forma corta, que es la que enseña el panel (más fácil de escribir con el mando y sin el nombre interno): `GET /KosTV/Instalar/<código>/tele.apk` o `movil.apk`. El código son 8 letras y cifras sin confusiones (sin 0/O ni 1/I/L), sin distinguir mayúsculas.
 
 ### Rutas del panel (solo administradores, `RequiresElevation`)
@@ -49,6 +50,8 @@ Todas bajo `/Moonfin/Kostv/Update/Admin`, JSON con campos en PascalCase y errore
 | `POST Admin/Versions/{id}/Retire` `{ Retired: true\|false }` | Retira o vuelve a ofrecer |
 | `DELETE Admin/Versions/{id}` | Borra una versión con sus APK |
 | `POST Admin/Settings` `{ Keep?, SignerSha256? }` | Cuántas guardar (1-50, 10 por defecto) y, para corregir una primera subida equivocada, la huella a mano |
+| `GET Admin/Installations` | Los aparatos vistos en los últimos 14 días → `{ Days: 14, Total, UpToDate, Installations: [{ Id, UserId, UserName, DeviceName, Kind, VersionCode, VersionName, LastSeen, UpToDate, LatestVersionCode, LatestVersionName }] }`. `VersionName` sale del código (`1.21.0`, `1.21.0 (prueba 3)`, `1000000` = `1.0.0`; `desconocida` si es 0). `UpToDate`: tiene la más nueva no retirada de su tipo (o una prueba encima); sin ninguna ofrecida, siempre `true` y `Latest…` a `null` |
+| `DELETE Admin/Installations/{id}` | Quita un aparato a mano → como `GET Admin/Installations`; `404` si ya no estaba. Vuelve a salir si la app pregunta otra vez |
 | `POST Admin/InstallLink` | `{ Expires, TvPath, PhonePath, Available }`: el enlace temporal en su forma corta (`/KosTV/Instalar/<código>/tele.apk`, `…/movil.apk`); 30 min, 30 peticiones; 10 fallos por minuto y dirección → `429`. El panel lo junta con la «URL pública del servidor» (o la dirección del panel) y dibuja el QR en la página |
 
 Almacén: `<carpeta de datos del complemento>/kostv-updates/` con `index.json`, `versions/<VersionCode>/tv.apk` y `phone.apk`, y `uploads/` (las subidas a medias se borran a las 24 horas). La versión, el tipo (tele: `uses-feature android.software.leanback` obligatorio; el móvil lo declara no obligatorio) y la firma se leen del propio APK: manifiesto binario y bloque de firma v2/v3, con la firma y el resumen del archivo comprobados de verdad.

@@ -1,9 +1,11 @@
 using System.Globalization;
+using System.Security.Claims;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
+using Moonfin.Server.Api;
 
 namespace Moonfin.Server.Kostv;
 
@@ -21,11 +23,13 @@ public class KostvUpdatesController : ControllerBase
 
     private readonly KostvUpdates _updates;
     private readonly KostvInstallLinks _links;
+    private readonly KostvInstallations _installations;
 
-    public KostvUpdatesController(KostvUpdates updates, KostvInstallLinks links)
+    public KostvUpdatesController(KostvUpdates updates, KostvInstallLinks links, KostvInstallations installations)
     {
         _updates = updates;
         _links = links;
+        _installations = installations;
     }
 
     public static string DownloadPath(KostvUpdateVersion version, string kind) =>
@@ -54,6 +58,7 @@ public class KostvUpdatesController : ControllerBase
             return BadRequest(new ErrorDto { Error = "kind tiene que ser «tv» o «phone»." });
         }
 
+        RecordInstallation(kind!, versionCode);
         var version = _updates.Latest(kind!, versionCode);
         if (version == null)
         {
@@ -72,6 +77,90 @@ public class KostvUpdatesController : ControllerBase
             Sha256 = file.Sha256,
             Url = DownloadPath(version, kind!)
         });
+    }
+
+    /// <summary>
+    /// Notes who asked, from which device, with which version, for the panel's list of
+    /// installations. The session's claims carry the device (Jellyfin 10.10 to 12.x); the
+    /// authorization header is the fallback. Never gets in the way of the answer.
+    /// </summary>
+    private void RecordInstallation(string kind, long versionCode)
+    {
+        try
+        {
+            var header = AuthorizationHeader();
+            var deviceId = Claim("Jellyfin-DeviceId") ?? AuthorizationValue(header, "DeviceId");
+            var deviceName = Claim("Jellyfin-Device") ?? AuthorizationValue(header, "Device");
+            var userName = Claim(ClaimTypes.Name);
+            _installations.Record(this.GetUserIdFromClaims()?.ToString("N"), userName, deviceId, deviceName, kind, versionCode);
+        }
+        catch (Exception)
+        {
+            // Only for the panel's list: the app gets its answer all the same.
+        }
+    }
+
+    private string? Claim(string type)
+    {
+        var value = User?.FindFirst(type)?.Value;
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    private string? AuthorizationHeader()
+    {
+        var headers = HttpContext?.Request.Headers;
+        if (headers == null)
+        {
+            return null;
+        }
+
+        foreach (var name in new[] { "Authorization", "X-Emby-Authorization" })
+        {
+            var value = headers[name].ToString();
+            if (value.StartsWith("MediaBrowser", StringComparison.OrdinalIgnoreCase)
+                || value.StartsWith("Emby", StringComparison.OrdinalIgnoreCase))
+            {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// A field of a <c>MediaBrowser Client="…", Device="…", DeviceId="…"</c> header (values
+    /// URL-encoded), or null.
+    /// </summary>
+    public static string? AuthorizationValue(string? header, string field)
+    {
+        if (string.IsNullOrEmpty(header))
+        {
+            return null;
+        }
+
+        var space = header.IndexOf(' ', StringComparison.Ordinal);
+        var rest = space >= 0 ? header[(space + 1)..] : header;
+        foreach (var part in rest.Split(','))
+        {
+            var equals = part.IndexOf('=', StringComparison.Ordinal);
+            if (equals <= 0 || !part[..equals].Trim().Equals(field, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var value = part[(equals + 1)..].Trim().Trim('"');
+            try
+            {
+                value = Uri.UnescapeDataString(value);
+            }
+            catch (UriFormatException)
+            {
+            }
+
+            return string.IsNullOrWhiteSpace(value) ? null : value;
+        }
+
+        return null;
     }
 
     /// <summary>The APK of a version still offered, resumable with Range.</summary>
@@ -172,6 +261,64 @@ public class KostvUpdatesController : ControllerBase
                 PhoneSize = v.Phone.Size,
                 PhoneSha256 = v.Phone.Sha256
             }).ToList()
+        };
+    }
+
+    /// <summary>
+    /// The devices that asked for an update in the last 14 days, with the version each one has
+    /// and whether it is the newest on offer for its kind.
+    /// </summary>
+    [HttpGet("Admin/Installations")]
+    [Authorize(Policy = "RequiresElevation")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public ActionResult<InstallationsDto> Installations() => Ok(ToInstallations());
+
+    /// <summary>Forgets a device by hand («Quitar»); it comes back if it asks again.</summary>
+    [HttpDelete("Admin/Installations/{id}")]
+    [Authorize(Policy = "RequiresElevation")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public ActionResult<InstallationsDto> RemoveInstallation([FromRoute] string id)
+    {
+        if (!_installations.Remove(id ?? string.Empty))
+        {
+            return NotFound(new ErrorDto { Error = "Ese aparato ya no está en la lista." });
+        }
+
+        return Ok(ToInstallations());
+    }
+
+    private InstallationsDto ToInstallations()
+    {
+        var latest = new Dictionary<string, KostvUpdateVersion?>
+        {
+            [KostvUpdates.KindTv] = _updates.Latest(KostvUpdates.KindTv, 0),
+            [KostvUpdates.KindPhone] = _updates.Latest(KostvUpdates.KindPhone, 0)
+        };
+        var list = _installations.List().Select(e =>
+        {
+            var newest = latest.GetValueOrDefault(e.Kind);
+            return new InstallationDto
+            {
+                Id = e.Id,
+                UserId = e.UserId,
+                UserName = e.UserName,
+                DeviceName = e.DeviceName,
+                Kind = e.Kind,
+                VersionCode = e.VersionCode,
+                VersionName = KostvInstallations.VersionName(e.VersionCode),
+                LastSeen = Iso(e.LastSeen),
+                UpToDate = KostvInstallations.IsUpToDate(e.VersionCode, newest?.VersionCode),
+                LatestVersionCode = newest?.VersionCode,
+                LatestVersionName = newest?.VersionName
+            };
+        }).ToList();
+        return new InstallationsDto
+        {
+            Days = (int)KostvInstallations.KeepFor.TotalDays,
+            Total = list.Count,
+            UpToDate = list.Count(i => i.UpToDate),
+            Installations = list
         };
     }
 
@@ -446,6 +593,59 @@ public class KostvUpdatesController : ControllerBase
 
         [JsonPropertyName("PhoneSha256")]
         public string PhoneSha256 { get; set; } = string.Empty;
+    }
+
+    public sealed class InstallationsDto
+    {
+        /// <summary>How many days a device stays on the list without asking.</summary>
+        [JsonPropertyName("Days")]
+        public int Days { get; set; }
+
+        [JsonPropertyName("Total")]
+        public int Total { get; set; }
+
+        [JsonPropertyName("UpToDate")]
+        public int UpToDate { get; set; }
+
+        [JsonPropertyName("Installations")]
+        public List<InstallationDto> Installations { get; set; } = [];
+    }
+
+    public sealed class InstallationDto
+    {
+        [JsonPropertyName("Id")]
+        public string Id { get; set; } = string.Empty;
+
+        [JsonPropertyName("UserId")]
+        public string UserId { get; set; } = string.Empty;
+
+        [JsonPropertyName("UserName")]
+        public string UserName { get; set; } = string.Empty;
+
+        [JsonPropertyName("DeviceName")]
+        public string DeviceName { get; set; } = string.Empty;
+
+        [JsonPropertyName("Kind")]
+        public string Kind { get; set; } = string.Empty;
+
+        [JsonPropertyName("VersionCode")]
+        public long VersionCode { get; set; }
+
+        [JsonPropertyName("VersionName")]
+        public string VersionName { get; set; } = string.Empty;
+
+        [JsonPropertyName("LastSeen")]
+        public string LastSeen { get; set; } = string.Empty;
+
+        /// <summary>It has the newest version on offer for its kind (or there is none).</summary>
+        [JsonPropertyName("UpToDate")]
+        public bool UpToDate { get; set; }
+
+        [JsonPropertyName("LatestVersionCode")]
+        public long? LatestVersionCode { get; set; }
+
+        [JsonPropertyName("LatestVersionName")]
+        public string? LatestVersionName { get; set; }
     }
 
     public sealed class UploadDto

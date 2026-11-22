@@ -375,7 +375,7 @@ public class KostvUpdatesTests : IDisposable
     // ------------------------------------------------------------------ routes
 
     private KostvUpdatesController Controller(KostvInstallLinks? links = null) =>
-        new(_store, links ?? new KostvInstallLinks(() => _now))
+        new(_store, links ?? new KostvInstallLinks(() => _now), new KostvInstallations(_root, () => _now, background: false))
         {
             ControllerContext = new ControllerContext { HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext() }
         };
@@ -450,6 +450,117 @@ public class KostvUpdatesTests : IDisposable
         _now = _now.AddMinutes(31);
         Assert.IsType<NotFoundObjectResult>(controller.Install(token, "tv"));
     }
+
+    private static void SignIn(KostvUpdatesController controller, string userId, string name, string? deviceId, string? device, string? header = null)
+    {
+        var claims = new List<System.Security.Claims.Claim>
+        {
+            new("Jellyfin-UserId", userId),
+            new(System.Security.Claims.ClaimTypes.Name, name)
+        };
+        if (deviceId != null)
+        {
+            claims.Add(new("Jellyfin-DeviceId", deviceId));
+        }
+
+        if (device != null)
+        {
+            claims.Add(new("Jellyfin-Device", device));
+        }
+
+        var context = new Microsoft.AspNetCore.Http.DefaultHttpContext
+        {
+            User = new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity(claims, "Custom"))
+        };
+        if (header != null)
+        {
+            context.Request.Headers.Authorization = header;
+        }
+
+        controller.ControllerContext = new ControllerContext { HttpContext = context };
+    }
+
+    [Fact]
+    public async Task UpdateRoute_RecordsTheInstallation_AndThePanelListsIt()
+    {
+        var mother = Guid.NewGuid();
+        var son = Guid.NewGuid();
+        var controller = Controller();
+
+        // Nothing published yet: everyone counts as up to date.
+        SignIn(controller, mother.ToString(), "Mamá", "tv-salon", "Tele del salón");
+        Assert.IsType<OkObjectResult>(controller.Get("tv", KostvApkFixtures.RealVersionCode).Result);
+        var empty = Assert.IsType<OkObjectResult>(controller.Installations().Result).Value as KostvUpdatesController.InstallationsDto;
+        var only = Assert.Single(empty!.Installations);
+        Assert.True(only.UpToDate);
+        Assert.Null(only.LatestVersionName);
+
+        await PublishVersion(102100000, "1.21.0");
+        _now = _now.AddMinutes(1);
+        // A device the claims don't name: the authorization header tells it (values URL-encoded).
+        SignIn(controller, son.ToString(), "Kiko", null, null,
+            "MediaBrowser Client=\"kOS TV\", Device=\"Pixel%208\", DeviceId=\"pixel-1\", Version=\"1.21.0\", Token=\"x\"");
+        Assert.IsType<OkObjectResult>(controller.Get("phone", 102100000).Result);
+        // The wrong kind is turned down and not recorded.
+        Assert.IsType<BadRequestObjectResult>(controller.Get("ios", 102100000).Result);
+
+        var state = Assert.IsType<OkObjectResult>(controller.Installations().Result).Value as KostvUpdatesController.InstallationsDto;
+        Assert.Equal(14, state!.Days);
+        Assert.Equal(2, state.Total);
+        Assert.Equal(1, state.UpToDate);
+
+        var tv = state.Installations.Single(i => i.Kind == "tv");
+        Assert.Equal(mother.ToString("N"), tv.UserId);
+        Assert.Equal("Mamá", tv.UserName);
+        Assert.Equal("Tele del salón", tv.DeviceName);
+        Assert.Equal("1.20.0", tv.VersionName);
+        Assert.Equal("2026-11-22T10:00:00Z", tv.LastSeen);
+        Assert.False(tv.UpToDate);
+        Assert.Equal("1.21.0", tv.LatestVersionName);
+        Assert.Equal(102100000, tv.LatestVersionCode);
+
+        var phone = state.Installations.Single(i => i.Kind == "phone");
+        Assert.Equal("Kiko", phone.UserName);
+        Assert.Equal("Pixel 8", phone.DeviceName);
+        Assert.True(phone.UpToDate);
+
+        // Retiring the newest compares with the one offered now.
+        _store.SetRetired("102100000", true);
+        state = Assert.IsType<OkObjectResult>(controller.Installations().Result).Value as KostvUpdatesController.InstallationsDto;
+        Assert.Equal(2, state!.UpToDate);
+
+        // «Quitar».
+        var removed = Assert.IsType<OkObjectResult>(controller.RemoveInstallation(tv.Id).Result).Value as KostvUpdatesController.InstallationsDto;
+        Assert.Equal("phone", Assert.Single(removed!.Installations).Kind);
+        Assert.IsType<NotFoundObjectResult>(controller.RemoveInstallation(tv.Id).Result);
+    }
+
+    [Fact]
+    public void UpdateRoute_AnswersEvenIfTheListCannotBeWritten()
+    {
+        // The data folder is a file: nothing can be written there.
+        Directory.CreateDirectory(Path.GetDirectoryName(_root)!);
+        File.WriteAllText(_root, "no soy una carpeta");
+        try
+        {
+            var controller = new KostvUpdatesController(_store, new KostvInstallLinks(() => _now), new KostvInstallations(_root, () => _now, background: false));
+            SignIn(controller, Guid.NewGuid().ToString(), "Mamá", "tv-salon", "Tele");
+            var answer = Assert.IsType<OkObjectResult>(controller.Get("tv", 5).Result);
+            Assert.Equal("{\"Available\":false}", JsonOf(answer.Value));
+        }
+        finally
+        {
+            File.Delete(_root);
+        }
+    }
+
+    [Theory]
+    [InlineData("MediaBrowser Client=\"kOS TV\", Device=\"Tele%20sal%C3%B3n\", DeviceId=\"abc\"", "Device", "Tele salón")]
+    [InlineData("MediaBrowser Client=\"kOS TV\", Device=\"Tele\", DeviceId=\"abc\"", "DeviceId", "abc")]
+    [InlineData("MediaBrowser Token=\"x\"", "DeviceId", null)]
+    [InlineData("", "Device", null)]
+    public void AuthorizationValue_ReadsTheHeader(string header, string field, string? expected) =>
+        Assert.Equal(expected, KostvUpdatesController.AuthorizationValue(header, field));
 
     [Fact]
     public void Routes_HaveTheRightAuthorization()
