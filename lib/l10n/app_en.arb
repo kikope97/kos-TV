@@ -21480,5 +21480,13 @@
     "kostvMusicAwayPlayerLine": "Streaming · not at home",
     "kostvMusicAskTheAlbum": "Ask for the album",
     "kostvMusicAskedNotify": "Asked · we'll let you know",
-    "kostvMusicAlreadyHome": "Already at home"
+    "kostvMusicAlreadyHome": "Already at home",
+    "kostvMusicColumnTitle": "Title",
+    "kostvMusicColumnLength": "Length",
+    "kostvMusicArtistKicker": "Artist",
+    "kostvMusicPopular": "Popular",
+    "kostvMusicLatestRelease": "Latest release",
+    "kostvMusicAlbumCount": "{count, plural, =1{1 album} other{{count} albums}}",
+    "@kostvMusicAlbumCount": {"description": "Kos TV music design, phase 2: how many albums an artist has, under their name", "placeholders": {"count": {"type": "int"}}},
+    "kostvMusicArtistSongs": "Their songs"
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:server_core/server_core.dart' show MediaServerClient;
@@ -16,15 +17,15 @@ import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
-import '../../widgets/bounded_network_image.dart';
 import '../../widgets/navigation_layout.dart';
-import '../calendar/calendar_common.dart';
 import '../../widgets/music/design/kostv_music_design.dart';
+import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/kostv_stream_play.dart';
 import '../../../playback/kostv_stream_playback.dart';
 import '../../../data/services/kostv_music_catalog.dart';
 import 'kostv_music_actions.dart';
 import 'kostv_music_links.dart';
+import 'kostv_music_page.dart';
 import 'kostv_music_widgets.dart';
 import '../../../util/kostv_browser_menu.dart';
 
@@ -49,6 +50,18 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
   // Kos TV: «Reproducir» of an album that sounds through the service.
   final _playFocus = FocusNode(debugLabel: 'kostvMusicAlbumPlay');
   StremfinAlbumDetail? _detail;
+
+  /// Kos TV: the ask keeps its element (and the remote's focus) when it
+  /// moves from the buttons to the note, as the album comes.
+  final _askKey = GlobalKey(debugLabel: 'kostvAlbumAsk');
+
+  /// Kos TV: the small picture of its artist, once the service says it.
+  String? _artistPicture;
+
+  /// Kos TV: it has just arrived home while the page was open: «Ya está en
+  /// casa» a moment, then the note goes.
+  bool _arrived = false;
+  Timer? _arrivedTimer;
 
   /// The single it was opened as, when the album asked for is another,
   /// and the song of it that is on that album.
@@ -85,6 +98,7 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     _preview
       ..removeListener(_onPreview)
       ..dispose();
+    _arrivedTimer?.cancel();
     _askFocus.dispose();
     _playFocus.dispose();
     super.dispose();
@@ -130,14 +144,31 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
           _detail == null &&
           !_asking &&
           _askFocus.hasFocus;
+      final arrived =
+          _detail != null &&
+          !_detail!.album.inJellyfin &&
+          detail.album.inJellyfin;
       setState(() {
         _detail = detail;
         _loading = false;
         _error = null;
+        if (arrived) _arrived = true;
       });
+      if (arrived) {
+        _arrivedTimer?.cancel();
+        _arrivedTimer = Timer(const Duration(seconds: 4), () {
+          if (mounted) setState(() => _arrived = false);
+        });
+      }
+      unawaited(_readArtistPicture(detail.artistDeezerId));
       if (toPlay && _streamable(detail)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _askFocus.hasFocus && _playFocus.canRequestFocus) {
+          // Still on the ask (or nowhere, had it moved): «Reproducir».
+          final now = FocusManager.instance.primaryFocus;
+          final lost = now == null || now is FocusScopeNode;
+          if (mounted &&
+              (_askFocus.hasFocus || lost) &&
+              _playFocus.canRequestFocus) {
             _playFocus.requestFocus();
           }
         });
@@ -158,6 +189,20 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
         });
       }
     }
+  }
+
+  /// Kos TV: the artist's small picture under the title, from what the
+  /// service keeps of them (no wait: the page is drawn without it first).
+  Future<void> _readArtistPicture(String? deezerId) async {
+    final stremfin = _stremfin;
+    if (stremfin == null || deezerId == null || _artistPicture != null) return;
+    try {
+      final artist = await stremfin.musicArtist(deezerId, keep: true);
+      final picture = artist.artist.picture;
+      if (mounted && picture != null) {
+        setState(() => _artistPicture = picture);
+      }
+    } catch (_) {}
   }
 
   /// Kos TV: whether the album's songs that aren't at home can be heard
@@ -253,126 +298,32 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final insets = calendarChromeInsets(context);
-    final phone = KostvMusicSizes.phone;
     final seed = widget.seed?.album;
     final album = _detail?.album ?? seed;
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0B0D),
+      backgroundColor: KostvMusicTokens.background,
       body: NavigationLayout(
         activeRoute: Destinations.kostvMusic,
         showBackButton: true,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            // The cover, blurred and dark, behind the top of the page.
-            if (album?.cover != null)
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: phone ? 420 : 520,
-                // Blurred once when it loads, and its own layer: the list
-                // scrolling over it doesn't blur it again on every frame.
-                child: RepaintBoundary(
-                  child: ClipRect(
-                    // Kos TV: faded into the page's colour by a gradient of that
-                    // colour over it, the same picture the mask gave, without
-                    // the mask's layer on every frame.
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        BoundedNetworkImage(
-                          imageUrl: album!.cover!,
-                          fit: BoxFit.cover,
-                          maxWidth: 300,
-                          blurSigma: 50,
-                          errorBuilder: (context, _, _) =>
-                              const SizedBox.shrink(),
-                        ),
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Color(0x990B0B0D), Color(0xFF0B0B0D)],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            if (album == null && _loading)
-              const Center(
+        child: album == null && _loading
+            ? const Center(
                 child: CircularProgressIndicator(color: kostvMusicColor),
               )
-            else if (album == null)
-              Center(child: _retry(context, autofocus: PlatformDetection.isTV))
-            else
-              ListView(
-                padding: EdgeInsets.fromLTRB(
-                  insets.left,
-                  insets.top + 12,
-                  insets.right,
-                  MediaQuery.paddingOf(context).bottom +
-                      (phone && NavigationLayout.usesBottomNavbar ? 110 : 40),
-                ),
-                children: [
-                  phone || MediaQuery.sizeOf(context).width < 900
-                      ? _headerStacked(context, album)
-                      : _headerSideBySide(context, album),
-                  const SizedBox(height: 26),
-                  ..._tracks(context),
-                ],
-              ),
-          ],
-        ),
+            : album == null
+            ? Center(child: _retry(context, autofocus: PlatformDetection.isTV))
+            : _page(context, album),
       ),
     );
   }
 
-  Widget _headerSideBySide(BuildContext context, StremfinAlbum album) => Row(
-    crossAxisAlignment: CrossAxisAlignment.end,
-    children: [
-      _cover(album, 300),
-      const SizedBox(width: 36),
-      Expanded(child: _info(context, album, centred: false)),
-    ],
-  );
-
-  Widget _headerStacked(BuildContext context, StremfinAlbum album) => Column(
-    children: [
-      _cover(album, MediaQuery.sizeOf(context).width * 0.66),
-      const SizedBox(height: 20),
-      _info(context, album, centred: true),
-    ],
-  );
-
-  Widget _cover(StremfinAlbum album, double size) => DecoratedBox(
-    decoration: BoxDecoration(
-      borderRadius: AppRadius.circular(14),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0xAA000000),
-          blurRadius: 30,
-          offset: Offset(0, 14),
-        ),
-      ],
-    ),
-    child: KostvMusicCover(url: album.cover, size: size, radius: 14),
-  );
-
-  Widget _info(
-    BuildContext context,
-    StremfinAlbum album, {
-    required bool centred,
-  }) {
+  /// Kos TV: the music design's album page ([KostvAlbumPage]), the same as
+  /// one at home: only the note under its header says it isn't, with
+  /// «Pedir el álbum» and how that stands.
+  Widget _page(BuildContext context, StremfinAlbum album) {
     final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
     final detail = _detail;
-    final phone = KostvMusicSizes.phone;
+    final form = kostvPageForm(context);
+    final streamable = _streamable(detail);
     final kind = switch (album.kind) {
       StremfinAlbumKind.ep => l10n.kostvMusicKindEp,
       StremfinAlbumKind.single => l10n.kostvMusicKindSingle,
@@ -381,13 +332,12 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     final minutes = detail?.duration == null
         ? null
         : (detail!.duration! / 60).round();
-    final meta = [
-      kind,
-      if (album.year != null) '${album.year}',
+    final kicker = [kind, if (album.year != null) '${album.year}'].join(' · ');
+    final counts = [
       if (detail != null && detail.songs.isNotEmpty)
         l10n.kostvMusicTracks(detail.songs.length),
       if (minutes != null && minutes > 0) l10n.kostvMusicMinutes(minutes),
-    ].join(' · ');
+    ];
     final song = widget.seed?.song ?? _singleSong;
     final whole =
         _single != null ||
@@ -395,188 +345,208 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     final why = whole && song != null
         ? l10n.kostvMusicAskWholeAlbum(song, album.title)
         : l10n.kostvMusicAskAlbumWhy;
-    final align = centred
-        ? CrossAxisAlignment.center
-        : CrossAxisAlignment.start;
-    final textAlign = centred ? TextAlign.center : TextAlign.start;
     final preview = widget.seed?.preview;
-    final artistStyle = theme.textTheme.titleMedium?.copyWith(
-      color: kostvMusicColor,
-      fontWeight: FontWeight.w600,
-      fontSize: phone ? 18 : 22,
+    final link = kostvStremfinArtistLink(
+      context,
+      album.artist,
+      detail?.artistDeezerId,
     );
-    return Column(
-      crossAxisAlignment: align,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          album.title,
-          textAlign: textAlign,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.headlineMedium?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
-            fontSize: phone ? 24 : 34,
-            letterSpacing: -0.5,
-          ),
-        ),
-        if (album.artist != null)
-          // Kos TV: the artist opens their page, with the remote too.
-          switch (kostvStremfinArtistLink(
-            context,
-            album.artist,
-            detail?.artistDeezerId,
-          )) {
-            final link? when link.opens => KostvMusicLinkButtons(
-              groups: [
-                [link],
-              ],
-              style: artistStyle ?? const TextStyle(color: kostvMusicColor),
-              centred: centred,
-            ),
-            _ => Text(album.artist!, textAlign: textAlign, style: artistStyle),
-          },
-        const SizedBox(height: 6),
-        Text(
-          meta,
-          textAlign: textAlign,
-          style: const TextStyle(color: kostvMusicGrey, fontSize: 14),
-        ),
-        if (detail != null && detail.songsHave > 0 && !album.inJellyfin) ...[
-          const SizedBox(height: 4),
-          Text(
-            l10n.kostvMusicSongsHave(detail.songsHave, detail.songs.length),
-            textAlign: textAlign,
-            style: const TextStyle(color: kostvMusicGrey, fontSize: 14),
-          ),
-        ],
-        const SizedBox(height: 18),
-        Wrap(
-          spacing: 12,
-          runSpacing: 10,
-          alignment: centred ? WrapAlignment.center : WrapAlignment.start,
-          children: [
-            // Kos TV: an album that isn't at home plays through the service.
-            // Kos TV: each with its own key, so the ask keeps its element
-            // (and the remote) when «Reproducir» comes in front of it.
-            if (_streamable(detail)) ...[
-              KostvMusicButton(
-                key: const ValueKey('kostvAlbumPlay'),
-                focusNode: _playFocus,
-                icon: Icons.play_arrow_rounded,
-                label: l10n.play,
-                primary: true,
-                autofocus: PlatformDetection.isTV,
-                onTap: () => unawaited(_play()),
-              ),
-              KostvMusicButton(
-                key: const ValueKey('kostvAlbumShuffle'),
-                icon: Icons.shuffle_rounded,
-                label: l10n.shuffle,
-                onTap: () => unawaited(_play(shuffle: true)),
-              ),
-            ],
-            KeyedSubtree(
-              key: const ValueKey('kostvAlbumAsk'),
-              child: _askButton(
-                context,
-                album,
-                focusFirst: !_streamable(detail),
-              ),
-            ),
-            if (preview != null)
-              KostvMusicButton(
-                key: const ValueKey('kostvAlbumPreview'),
-                icon: _preview.isPlaying(preview)
-                    ? Icons.stop_rounded
-                    : Icons.play_arrow_rounded,
-                label: _preview.isPlaying(preview)
-                    ? l10n.kostvMusicStop
-                    : l10n.kostvMusicListen,
-                onTap: () => unawaited(_preview.toggle(preview)),
-              ),
-          ],
-        ),
-        // Kos TV: the music design's calm note, the one place (with the
-        // player) that says it isn't at home.
-        if (_streamable(detail)) ...[
-          const SizedBox(height: 14),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Text.rich(
-              TextSpan(
-                children: [
-                  const WidgetSpan(
-                    alignment: PlaceholderAlignment.middle,
-                    child: Padding(
-                      padding: EdgeInsets.only(right: 10),
-                      child: Icon(
-                        Icons.graphic_eq_rounded,
-                        color: KostvMusicTokens.dim,
-                        size: 18,
-                      ),
+    final have = detail != null && detail.songsHave > 0 && !album.inJellyfin
+        ? l10n.kostvMusicSongsHave(detail.songsHave, detail.songs.length)
+        : null;
+    final previewPill = preview == null
+        ? null
+        : KostvPillButton(
+            key: const ValueKey('kostvAlbumPreview'),
+            icon: _preview.isPlaying(preview)
+                ? Icons.stop_rounded
+                : Icons.graphic_eq_rounded,
+            label: _preview.isPlaying(preview)
+                ? l10n.kostvMusicStop
+                : l10n.kostvMusicListen,
+            size: form == KostvPageForm.phone
+                ? KostvPillSize.s
+                : KostvPillSize.m,
+            onTap: () => unawaited(_preview.toggle(preview)),
+          );
+    final arrived = _arrived && album.inJellyfin;
+    // Kos TV: on the TV, down from the header's buttons goes to «Pedir el
+    // álbum» in the note under them (it is to their right: the remote
+    // would skip it for the songs).
+    KeyEventResult toAsk(KeyEvent event) {
+      if (form != KostvPageForm.tv ||
+          !(streamable || arrived) ||
+          event.logicalKey != LogicalKeyboardKey.arrowDown ||
+          _askFocus.context == null ||
+          !_askFocus.canRequestFocus) {
+        return KeyEventResult.ignored;
+      }
+      _askFocus.requestFocus();
+      return KeyEventResult.handled;
+    }
+
+    // Not at home and not heard through the service («Solo la de casa», a
+    // limit): asking for it is what the page offers, as today.
+    final askOnly = !album.inJellyfin && !streamable;
+    return KostvAlbumPage(
+      cover: album.cover,
+      kicker: kicker,
+      title: album.title,
+      phoneMeta: [kicker, ...counts].join(' · '),
+      artist: album.artist == null
+          ? null
+          : (form) => KostvAlbumArtistLine(
+              form: form,
+              picture: _artistPicture,
+              meta: form == KostvPageForm.phone ? null : counts.join(' · '),
+              name: (style) => link != null && link.opens
+                  ? KostvMusicLinkButtons(
+                      groups: [
+                        [link],
+                      ],
+                      style: style,
+                      oneLine: true,
+                    )
+                  : Text(
+                      album.artist!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: style,
                     ),
-                  ),
-                  TextSpan(
-                    text: '${l10n.kostvMusicAwayNoteLead} ',
-                    style: const TextStyle(
-                      color: KostvMusicTokens.ink,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  TextSpan(text: l10n.kostvMusicAwayNoteRest),
-                ],
-              ),
-              textAlign: textAlign,
-              style: const TextStyle(
-                color: KostvMusicTokens.muted,
-                fontSize: 15,
-                height: 1.35,
-              ),
             ),
+      play: album.inJellyfin
+          // At home: it plays there (its page at home).
+          ? (diameter) => KostvPlayButton(
+              revealFromTop: true,
+              key: const ValueKey('kostvAlbumPlayAtHome'),
+              diameter: diameter,
+              tooltip: l10n.kostvMusicPlayAtHome,
+              autofocus: PlatformDetection.isTV,
+              onTap: () {
+                unawaited(_preview.stop());
+                // Kos TV: from its own page: one found at home under no
+                // name of its own plays there, rather than this page
+                // opening again.
+                unawaited(
+                  openKostvStremfinAlbum(context, album, shown: _detail),
+                );
+              },
+            )
+          : streamable
+          // Kos TV: each with its own key, so the ask keeps its element
+          // (and the remote) when «Reproducir» comes in front of it.
+          ? (diameter) => KostvPlayButton(
+              revealFromTop: true,
+              key: const ValueKey('kostvAlbumPlay'),
+              focusNode: _playFocus,
+              diameter: diameter,
+              tooltip: l10n.play,
+              autofocus: PlatformDetection.isTV,
+              onKey: toAsk,
+              onTap: () => unawaited(_play()),
+            )
+          : null,
+      shuffle: streamable && (detail?.songs.length ?? 0) > 1
+          ? (diameter) => KostvRoundButton(
+              key: const ValueKey('kostvAlbumShuffle'),
+              icon: Icons.shuffle_rounded,
+              tooltip: l10n.shuffle,
+              diameter: diameter,
+              onKey: toAsk,
+              onTap: () => unawaited(_play(shuffle: true)),
+            )
+          : null,
+      more: link != null && link.opens
+          ? (diameter) => KostvRoundButton(
+              icon: Icons.more_horiz_rounded,
+              tooltip: l10n.more,
+              diameter: diameter,
+              onKey: toAsk,
+              onTap: () => unawaited(_more(album, link)),
+            )
+          : null,
+      extras: [
+        if (askOnly)
+          KeyedSubtree(
+            key: _askKey,
+            child: _askAction(context, album, primary: true),
           ),
-        ],
-        // Kos TV: with the note above, only what it doesn't say (that the
-        // song it came from is asked for with its whole album).
-        if (!album.inJellyfin &&
-            (!_streamable(detail) || (whole && song != null))) ...[
-          const SizedBox(height: 14),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Text(
-              why,
-              textAlign: textAlign,
-              style: const TextStyle(
-                color: kostvMusicGrey,
-                fontSize: 14,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
+        ?previewPill,
       ],
+      note: streamable || arrived
+          ? (compact) => KostvAwayNote(
+              lead: l10n.kostvMusicAwayNoteLead,
+              rest: l10n.kostvMusicAwayNoteRest,
+              extra: have,
+              compact: compact,
+              fontSize: compact ? 13 : 15,
+              action: KeyedSubtree(
+                key: _askKey,
+                child: _askAction(context, album, compact: compact),
+              ),
+            )
+          : null,
+      // Kos TV: with the note, only what it doesn't say (that the song it
+      // came from is asked for with its whole album); without (it can only
+      // be asked for), why the whole album.
+      under: askOnly || (streamable && whole && song != null)
+          ? _quiet([why, if (askOnly && have != null) have].join('\n'))
+          : null,
+      tracks: _tracks(context, form),
+      body: _detail == null ? _waiting(context) : null,
     );
   }
 
-  Widget _askButton(
+  Widget _quiet(String text) => ConstrainedBox(
+    constraints: const BoxConstraints(maxWidth: 620),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: KostvMusicTokens.muted,
+        fontSize: 14,
+        height: 1.4,
+      ),
+    ),
+  );
+
+  /// Kos TV: «⋯» of an album that isn't at home: its artist.
+  Future<void> _more(StremfinAlbum album, KostvMusicLink artist) async {
+    final l10n = AppLocalizations.of(context);
+    final choice = await showKostvMusicMenu<int>(
+      context,
+      title: album.title,
+      subtitle: album.artist,
+      entries: [
+        KostvMenuEntry(0, Icons.person_rounded, l10n.kostvPlayerGoToArtist),
+      ],
+    );
+    if (choice == 0 && mounted) artist.onTap?.call();
+  }
+
+  /// Kos TV: «Pedir el álbum» and how it stands: «Pedido · te avisamos»,
+  /// «De camino», «Ya está en casa» a moment, and «Avísame cuando llegue»
+  /// when someone else asked for it. [primary] when it is what the page
+  /// offers (it doesn't play: «Solo la de casa»).
+  Widget _askAction(
     BuildContext context,
     StremfinAlbum album, {
-    bool focusFirst = true,
+    bool primary = false,
+    bool compact = false,
   }) {
     final l10n = AppLocalizations.of(context);
-    if (album.inJellyfin) {
-      return KostvMusicButton(
-        icon: Icons.play_arrow_rounded,
-        label: l10n.kostvMusicPlayAtHome,
-        primary: true,
-        autofocus: PlatformDetection.isTV && focusFirst,
-        onTap: () {
-          unawaited(_preview.stop());
-          // Kos TV: from its own page: one found at home under no name of
-          // its own plays there, rather than this page opening again.
-          unawaited(openKostvStremfinAlbum(context, album, shown: _detail));
-        },
+    final size = compact
+        ? KostvPillSize.s
+        : (primary ? KostvPillSize.l : KostvPillSize.m);
+    // With «Reproducir» first, the remote starts there, not here.
+    final first = PlatformDetection.isTV && primary;
+    if (_arrived && album.inJellyfin) {
+      return KostvPillButton(
+        focusNode: _askFocus,
+        kind: KostvPillKind.quiet,
+        size: size,
+        icon: Icons.home_rounded,
+        label: l10n.kostvMusicAlreadyHome,
+        onTap: () {},
       );
     }
     // Someone else asked for it, or it is coming down already: the person
@@ -587,15 +557,16 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
         : Wrap(
             spacing: 12,
             runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               status,
-              KostvMusicButton(
+              KostvPillButton(
                 focusNode: _askFocus,
                 icon: Icons.notifications_active_rounded,
                 label: l10n.kostvMusicNotifyMe,
-                primary: true,
+                size: size,
                 busy: _asking,
-                autofocus: PlatformDetection.isTV && focusFirst,
+                autofocus: first,
                 onTap: () => unawaited(_ask()),
               ),
             ],
@@ -603,18 +574,20 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     final download = album.download;
     if (download != null) {
       return withJoin(
-        KostvMusicButton(
+        KostvPillButton(
+          kind: KostvPillKind.quiet,
+          size: size,
           // Kos TV: a download that failed doesn't show as coming down.
           icon: download.failed
               ? Icons.error_outline_rounded
-              : Icons.downloading_rounded,
+              : Icons.local_shipping_outlined,
           label: [
             download.label ?? l10n.kostvMusicOnItsWay,
             if (download.percent != null) '${download.percent} %',
           ].join(' · '),
           // The same node as the ask it took the place of: the focus stays.
           focusNode: join ? null : _askFocus,
-          autofocus: PlatformDetection.isTV && !join && focusFirst,
+          autofocus: first && !join,
           onTap: () {},
         ),
       );
@@ -622,28 +595,45 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     final request = album.request;
     if (request != null) {
       return withJoin(
-        KostvMusicButton(
+        KostvPillButton(
+          kind: KostvPillKind.quiet,
+          size: size,
           icon: Icons.check_rounded,
-          label: request.statusLabel ?? l10n.kostvMusicAsked,
+          label: request.mine
+              ? l10n.kostvMusicAskedNotify
+              : (request.statusLabel ?? l10n.kostvMusicAsked),
           // The same node as the ask it took the place of: the focus stays.
           focusNode: join ? null : _askFocus,
-          autofocus: PlatformDetection.isTV && !join && focusFirst,
+          autofocus: first && !join,
           onTap: () {},
         ),
       );
     }
-    return KostvMusicButton(
+    return KostvPillButton(
       focusNode: _askFocus,
-      icon: Icons.add_rounded,
-      label: l10n.kostvMusicAskAlbum,
-      // Kos TV: next to «Reproducir», not the main one.
-      primary: focusFirst,
+      icon: Icons.download_rounded,
+      label: l10n.kostvMusicAskTheAlbum,
+      size: size,
       busy: _asking,
-      autofocus: PlatformDetection.isTV && focusFirst,
+      autofocus: first,
       onTap: album.canRequest || _detail == null
           ? () => unawaited(_ask())
           : () => kostvMusicSay(context, l10n.kostvMusicCantAsk),
     );
+  }
+
+  /// While the songs come, or why they didn't.
+  Widget? _waiting(BuildContext context) {
+    if (_loading) {
+      return const Padding(
+        padding: EdgeInsets.all(30),
+        child: Center(child: CircularProgressIndicator(color: kostvMusicColor)),
+      );
+    }
+    if (_error != null) {
+      return Align(alignment: Alignment.centerLeft, child: _retry(context));
+    }
+    return const SizedBox.shrink();
   }
 
   /// Kos TV: «No disponible» with what failed, as a button that reads the
@@ -676,21 +666,9 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
     );
   }
 
-  List<Widget> _tracks(BuildContext context) {
+  List<Widget> _tracks(BuildContext context, KostvPageForm form) {
     final detail = _detail;
-    if (detail == null) {
-      return [
-        if (_loading)
-          const Padding(
-            padding: EdgeInsets.all(30),
-            child: Center(
-              child: CircularProgressIndicator(color: kostvMusicColor),
-            ),
-          )
-        else if (_error != null)
-          Align(alignment: Alignment.centerLeft, child: _retry(context)),
-      ];
-    }
+    if (detail == null) return const [];
     final picked = widget.seed?.song ?? _single?.contains;
     // Kos TV: the song it came from is the one of the same title; only if
     // none is, the one of that title without what is in brackets («Canción
@@ -708,9 +686,12 @@ class _KostvMusicAlbumScreenState extends State<KostvMusicAlbumScreen> {
           number: song.position ?? i + 1,
           disc: multiDisc ? song.disc : null,
           title: song.title,
+          // Kos TV: its artist under it off the TV (the design's table and
+          // the phone's list), on the TV only when it isn't the album's.
           artist: song.artist != null && song.artist != detail.album.artist
               ? song.artist
-              : null,
+              : (form == KostvPageForm.tv ? null : detail.album.artist),
+          textSize: form == KostvPageForm.tv ? 17 : null,
           duration: song.duration,
           atHome: song.inJellyfin,
           // Kos TV: the small cloud of one that sounds through the service.
@@ -908,7 +889,12 @@ class KostvMusicTrackRow extends StatelessWidget {
     this.focusNode,
     this.autofocus = false,
     this.onRest,
+    this.textSize,
   });
+
+  /// Kos TV: the size of its title (the TV's album: 17); the design's by
+  /// default.
+  final double? textSize;
 
   /// Kos TV: see [KostvMusicPressable.onRest].
   final ValueChanged<bool>? onRest;
@@ -968,6 +954,7 @@ class KostvMusicTrackRow extends StatelessWidget {
         number: number,
         duration: length,
         picked: picked,
+        textSize: textSize,
       );
     }
     return KostvSongRow(
@@ -983,6 +970,7 @@ class KostvMusicTrackRow extends StatelessWidget {
       number: number,
       duration: length,
       picked: picked,
+      textSize: textSize,
     );
   }
 }

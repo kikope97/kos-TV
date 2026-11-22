@@ -44,6 +44,7 @@ class KostvPlayButton extends StatefulWidget {
     this.autofocus = false,
     this.onKey,
     this.lit = false,
+    this.revealFromTop = false,
   });
 
   final KostvPlaySize size;
@@ -61,6 +62,10 @@ class KostvPlayButton extends StatefulWidget {
 
   /// Drawn as focused (only without [onTap]).
   final bool lit;
+
+  /// Kos TV: in a page's header (an album's, an artist's): the focus on it
+  /// keeps the page at its top (see [KostvMusicPressable.revealFromTop]).
+  final bool revealFromTop;
 
   @override
   State<KostvPlayButton> createState() => _KostvPlayButtonState();
@@ -86,6 +91,7 @@ class _KostvPlayButtonState extends State<KostvPlayButton> {
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
         onKey: widget.onKey,
+        revealFromTop: widget.revealFromTop,
         onTap: onTap,
         builder: (context, lit) => Listener(
           onPointerDown: (_) => setState(() => _pressed = true),

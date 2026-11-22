@@ -21669,4 +21669,33 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMusicAlreadyHome => 'Ya está en casa';
+
+  @override
+  String get kostvMusicColumnTitle => 'Título';
+
+  @override
+  String get kostvMusicColumnLength => 'Duración';
+
+  @override
+  String get kostvMusicArtistKicker => 'Artista';
+
+  @override
+  String get kostvMusicPopular => 'Populares';
+
+  @override
+  String get kostvMusicLatestRelease => 'Su último disco';
+
+  @override
+  String kostvMusicAlbumCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count álbumes',
+      one: '1 álbum',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvMusicArtistSongs => 'Sus canciones';
 }

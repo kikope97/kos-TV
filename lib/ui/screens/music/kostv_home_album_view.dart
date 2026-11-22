@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
-import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/download_service.dart';
@@ -13,16 +12,15 @@ import '../../../l10n/app_localizations.dart';
 import '../../../util/download_utils.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
-import '../../widgets/bounded_network_image.dart';
+import '../../widgets/music/design/kostv_music_design.dart';
 import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/kostv_now_playing.dart';
 import '../../widgets/music/music_navigation.dart';
 import '../../widgets/add_to_playlist_dialog.dart';
-import '../../widgets/navigation_layout.dart';
-import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
 import 'kostv_music_album_screen.dart';
 import 'kostv_music_links.dart';
+import 'kostv_music_page.dart';
 import 'kostv_music_widgets.dart';
 import '../../../util/kostv_browser_menu.dart';
 
@@ -149,119 +147,18 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
   Widget build(BuildContext context) {
     final album = _vm.item;
     if (album == null) return const SizedBox.shrink();
-    final insets = calendarChromeInsets(context);
-    final phone = KostvMusicSizes.phone;
-    final cover = _coverUrl(album, 300);
-    return ColoredBox(
-      color: const Color(0xFF0B0B0D),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          // The cover, blurred and dark, behind the top of the page.
-          if (cover != null)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: phone ? 420 : 520,
-              child: RepaintBoundary(
-                child: ClipRect(
-                  // Kos TV: faded into the page's colour by a gradient of that
-                  // colour over it, the same picture the mask gave, without
-                  // the mask's layer on every frame.
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      BoundedNetworkImage(
-                        imageUrl: cover,
-                        fit: BoxFit.cover,
-                        maxWidth: 300,
-                        blurSigma: 50,
-                        errorBuilder: (context, _, _) =>
-                            const SizedBox.shrink(),
-                      ),
-                      const DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Color(0x990B0B0D), Color(0xFF0B0B0D)],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ListView(
-            padding: EdgeInsets.fromLTRB(
-              insets.left,
-              insets.top + 12,
-              insets.right,
-              MediaQuery.paddingOf(context).bottom +
-                  (phone && NavigationLayout.usesBottomNavbar ? 110 : 40),
-            ),
-            children: [
-              phone || MediaQuery.sizeOf(context).width < 900
-                  ? Column(
-                      children: [
-                        _cover(album, MediaQuery.sizeOf(context).width * 0.66),
-                        const SizedBox(height: 20),
-                        _info(context, album, centred: true),
-                      ],
-                    )
-                  : Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        _cover(album, 300),
-                        const SizedBox(width: 36),
-                        Expanded(child: _info(context, album, centred: false)),
-                      ],
-                    ),
-              const SizedBox(height: 26),
-              ..._tracks(context, album),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _cover(AggregatedItem album, double size) => DecoratedBox(
-    decoration: BoxDecoration(
-      borderRadius: AppRadius.circular(14),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0xAA000000),
-          blurRadius: 30,
-          offset: Offset(0, 14),
-        ),
-      ],
-    ),
-    child: KostvMusicCover(
-      url: _coverUrl(album, (size * 2).round()),
-      size: size,
-      radius: 14,
-    ),
-  );
-
-  Widget _info(
-    BuildContext context,
-    AggregatedItem album, {
-    required bool centred,
-  }) {
     final l10n = AppLocalizations.of(context);
-    final theme = Theme.of(context);
-    final phone = KostvMusicSizes.phone;
+    final form = kostvPageForm(context);
     final tracks = _vm.tracks;
     final minutes = _minutes(tracks);
-    final meta = [
+    final kicker = [
       l10n.kostvMusicKindAlbum,
       if (album.productionYear != null) '${album.productionYear}',
+    ].join(' · ');
+    final counts = [
       if (tracks.isNotEmpty) l10n.kostvMusicTracks(tracks.length),
       if (minutes != null && minutes > 0) l10n.kostvMusicMinutes(minutes),
-    ].join(' · ');
+    ];
     final artist =
         album.albumArtist ??
         (album.artists.isNotEmpty ? album.artists.join(', ') : null);
@@ -271,128 +168,74 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
       albumArtists: true,
       open: (location) => unawaited(context.push(location)),
     );
-    final artistStyle = theme.textTheme.titleMedium?.copyWith(
-      color: kostvMusicColor,
-      fontWeight: FontWeight.w600,
-      fontSize: phone ? 18 : 22,
-    );
-    final align = centred
-        ? CrossAxisAlignment.center
-        : CrossAxisAlignment.start;
-    final textAlign = centred ? TextAlign.center : TextAlign.start;
+    final artistId = kostvMusicArtistIdOf(album);
     final favorite = album.isFavorite;
-    return Column(
-      crossAxisAlignment: align,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          album.name,
-          textAlign: textAlign,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.headlineMedium?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w900,
-            fontSize: phone ? 24 : 34,
-            letterSpacing: -0.5,
-          ),
+    void play({bool shuffle = false}) => unawaited(
+      kostvMusicOnce(
+        () => playMusicTracks(
+          context,
+          shuffle ? (List<AggregatedItem>.of(tracks)..shuffle()) : tracks,
+          source: KostvMusicSource.album,
         ),
-        if (artistLinks.any((link) => link.opens))
-          KostvMusicLinkButtons(
-            groups: [artistLinks],
-            style: artistStyle ?? const TextStyle(color: kostvMusicColor),
-            centred: centred,
-          )
-        else if (artist != null)
-          Text(artist, textAlign: textAlign, style: artistStyle),
-        const SizedBox(height: 6),
-        Text(
-          meta,
-          textAlign: textAlign,
-          style: const TextStyle(color: kostvMusicGrey, fontSize: 14),
-        ),
-        const SizedBox(height: 18),
-        _buttons(
-          phone: phone,
-          centred: centred,
-          children: [
-            KostvMusicButton(
-              focusNode: widget.initialFocusNode ?? _playFocus,
-              expand: phone,
-              icon: Icons.play_arrow_rounded,
-              label: l10n.play,
-              primary: true,
-              autofocus: PlatformDetection.isTV,
-              onTap: tracks.isEmpty
-                  ? () => _nothingToPlay(context)
-                  : () => unawaited(
-                      kostvMusicOnce(
-                        () => playMusicTracks(
-                          context,
-                          tracks,
-                          source: KostvMusicSource.album,
-                        ),
-                      ),
-                    ),
-            ),
-            if (tracks.length > 1)
-              KostvMusicButton(
-                expand: phone,
-                icon: Icons.shuffle_rounded,
-                label: l10n.shuffle,
-                onTap: () => unawaited(
-                  kostvMusicOnce(
-                    () => playMusicTracks(
-                      context,
-                      List<AggregatedItem>.of(tracks)..shuffle(),
-                      source: KostvMusicSource.album,
-                    ),
-                  ),
-                ),
-              ),
-            KostvMusicButton(
-              icon: favorite
-                  ? Icons.favorite_rounded
-                  : Icons.favorite_border_rounded,
-              iconColor: favorite ? kostvMusicColor : null,
-              label: '',
-              onTap: () => unawaited(_vm.toggleFavorite()),
-            ),
-            KostvMusicButton(
-              icon: Icons.more_horiz_rounded,
-              label: '',
-              onTap: () => unawaited(_more(context, album)),
-            ),
-          ],
-        ),
-      ],
+      ),
     );
-  }
-
-  /// On a phone, Play and Shuffle share the width with ♥ and … at the end,
-  /// in one line; elsewhere they sit side by side.
-  Widget _buttons({
-    required bool phone,
-    required bool centred,
-    required List<Widget> children,
-  }) {
-    if (!phone) {
-      return Wrap(
-        spacing: 12,
-        runSpacing: 10,
-        alignment: centred ? WrapAlignment.center : WrapAlignment.start,
-        children: children,
-      );
-    }
-    return Row(
-      spacing: 8,
-      children: [
-        for (final child in children)
-          if (child is KostvMusicButton && child.expand)
-            Expanded(child: child)
-          else
-            child,
-      ],
+    return KostvAlbumPage(
+      cover: _coverUrl(album, 600),
+      kicker: kicker,
+      title: album.name,
+      phoneMeta: [kicker, ...counts].join(' · '),
+      artist: artist == null && artistLinks.isEmpty
+          ? null
+          : (form) => KostvAlbumArtistLine(
+              form: form,
+              picture: artistId == null
+                  ? null
+                  : _vm.imageApi.getPrimaryImageUrl(artistId, maxWidth: 96),
+              meta: form == KostvPageForm.phone ? null : counts.join(' · '),
+              name: (style) => artistLinks.any((link) => link.opens)
+                  ? KostvMusicLinkButtons(
+                      groups: [artistLinks],
+                      style: style,
+                      oneLine: true,
+                    )
+                  : Text(
+                      artist ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: style,
+                    ),
+            ),
+      play: (diameter) => KostvPlayButton(
+        revealFromTop: true,
+        focusNode: widget.initialFocusNode ?? _playFocus,
+        diameter: diameter,
+        tooltip: l10n.play,
+        autofocus: PlatformDetection.isTV,
+        onTap: tracks.isEmpty ? () => _nothingToPlay(context) : play,
+      ),
+      shuffle: tracks.length > 1
+          ? (diameter) => KostvRoundButton(
+              icon: Icons.shuffle_rounded,
+              tooltip: l10n.shuffle,
+              diameter: diameter,
+              onTap: () => play(shuffle: true),
+            )
+          : null,
+      like: (diameter) => KostvRoundButton(
+        icon: favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+        color: favorite ? KostvMusicTokens.pink : KostvMusicTokens.ink,
+        tooltip: l10n.favorite,
+        diameter: diameter,
+        onTap: () => unawaited(_vm.toggleFavorite()),
+      ),
+      more: (diameter) => KostvRoundButton(
+        icon: Icons.more_horiz_rounded,
+        tooltip: l10n.more,
+        diameter: diameter,
+        onTap: () => unawaited(_more(context, album)),
+      ),
+      tracks: _tracks(context, album, form),
+      body: tracks.isEmpty ? _empty(context) : null,
     );
   }
 
@@ -406,40 +249,46 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
     );
   }
 
-  List<Widget> _tracks(BuildContext context, AggregatedItem album) {
-    final tracks = _vm.tracks;
-    if (tracks.isEmpty) {
-      final l10n = AppLocalizations.of(context);
-      return [
-        if (_vm.state == ItemDetailState.loading)
-          const Padding(
-            padding: EdgeInsets.all(30),
-            child: Center(
-              child: CircularProgressIndicator(color: kostvMusicColor),
-            ),
-          )
-        // Kos TV: the songs failed to load: said, with a way to try again.
-        else if (_vm.tracksFailed)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  l10n.kostvMusicTracksFailed,
-                  style: const TextStyle(color: kostvMusicGrey),
-                ),
-                const SizedBox(height: 14),
-                KostvMusicButton(
-                  icon: Icons.refresh_rounded,
-                  label: l10n.retry,
-                  onTap: () => unawaited(_vm.retryTracks()),
-                ),
-              ],
-            ),
-          ),
-      ];
+  /// No songs yet: coming, or why not with a way to try again.
+  Widget _empty(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    if (_vm.state == ItemDetailState.loading) {
+      return const Padding(
+        padding: EdgeInsets.all(30),
+        child: Center(child: CircularProgressIndicator(color: kostvMusicColor)),
+      );
     }
+    // Kos TV: the songs failed to load: said, with a way to try again.
+    if (_vm.tracksFailed) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.kostvMusicTracksFailed,
+              style: const TextStyle(color: kostvMusicGrey),
+            ),
+            const SizedBox(height: 14),
+            KostvMusicButton(
+              icon: Icons.refresh_rounded,
+              label: l10n.retry,
+              onTap: () => unawaited(_vm.retryTracks()),
+            ),
+          ],
+        ),
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
+  List<Widget> _tracks(
+    BuildContext context,
+    AggregatedItem album,
+    KostvPageForm form,
+  ) {
+    final tracks = _vm.tracks;
+    if (tracks.isEmpty) return const [];
     final multiDisc =
         tracks.map((t) => t.parentIndexNumber ?? 1).toSet().length > 1;
     final albumArtist = album.albumArtist;
@@ -451,7 +300,12 @@ class _KostvHomeAlbumViewState extends State<KostvHomeAlbumView> {
           number: track.indexNumber ?? i + 1,
           disc: multiDisc ? track.parentIndexNumber : null,
           title: track.name,
-          artist: _otherArtist(track, albumArtist),
+          // Kos TV: its artist under it off the TV (the design's table and
+          // the phone's list), on the TV only when it isn't the album's.
+          artist:
+              _otherArtist(track, albumArtist) ??
+              (form == KostvPageForm.tv ? null : albumArtist),
+          textSize: form == KostvPageForm.tv ? 17 : null,
           artistLinks: _otherArtist(track, albumArtist) == null
               ? null
               : kostvHomeArtistLinks(
