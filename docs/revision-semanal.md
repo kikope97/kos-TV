@@ -31,8 +31,8 @@ Se actualiza al terminar cada revisión. La siguiente empieza justo aquí.
 | Copia original de kOS TV | upstream `3d87996d2` (2026-11-10): Moonfin 3.0.0 más 658 commits posteriores sin publicar |
 | Último commit de upstream revisado | `a1fa0f9f1` (2026-11-20; revisión corta del 2026-11-21) |
 | Última versión del complemento oficial revisada | 3.1.1.0 (2026-11-19, etiqueta `3.1.1`, commit `afb2e7356`): traída a nuestra copia |
-| Nuestro complemento | «kOS TV» 3.1.1.6, basado en la 3.1.1, publicado el 2026-11-22 antes que la app 1.21.0 (desde la rama de trabajo) |
-| Complemento instalado en el servidor de casa | el nuestro, en Jellyfin 12.4.0; la última publicada es la 3.1.1.6 |
+| Nuestro complemento | «kOS TV» 3.1.1.7, basado en la 3.1.1, publicado el 2026-11-22 (la app va por la 1.21.0) |
+| Complemento instalado en el servidor de casa | el nuestro, en Jellyfin 12.4.0; la última publicada es la 3.1.1.7 |
 | Última revisión | 2026-11-20 |
 | Próxima revisión | a partir del 2026-11-27 |
 
@@ -243,4 +243,10 @@ Copiar este bloque arriba del registro y rellenarlo:
 - Publicada la app 1.21.0 (commit `762699bbc`), la versión puente: busca sus actualizaciones en el complemento (3.1.1.6), menú nuevo único (tele A, móvil y tableta con barra de cristal, ordenador), sin los diseños antiguos ni sus opciones, radio de canción con Stremfin y arreglo del marco de «Descubrimiento semanal».
 - Desde ahora la familia se actualiza subiendo los APK en *Panel > Complementos > kOS TV > Actualizaciones de la app*; GitHub queda como canal beta.
 - Pendiente de publicar: complemento 3.1.1.7 (panel: ListenBrainz y Last.fm en «Integraciones», «Nueva actualización» rediseñada), cuando el usuario lo diga.
+- La siguiente revisión del original sigue empezando en `a1fa0f9f1` y el complemento oficial 3.1.1.0.
+
+## 2026-11-22 · Complemento 3.1.1.7 (fuera de la revisión semanal)
+
+- Publicado el complemento 3.1.1.7 (commit `357cd9e30`) tras una revisión a fondo: ListenBrainz y Last.fm en «Integraciones», «Música de cada persona», «Nueva actualización» rediseñada, fuera los restos de los menús antiguos y las opciones que la app ya no usa, buscador del panel mejorado y arreglos en la subida de APK.
+- Pendiente de decidir: quitar del todo lo oculto de Seerr y qué hacer con «Ocultar lo visto en las filas recientes» (oculto, pero el servidor lo aplica).
 - La siguiente revisión del original sigue empezando en `a1fa0f9f1` y el complemento oficial 3.1.1.0.
