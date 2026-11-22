@@ -1642,7 +1642,12 @@ class _Line extends StatelessWidget {
               ),
             ),
             if (onInfo != null)
-              _InfoButton(label: infoLabel, onPressed: onInfo!, size: 40),
+              _InfoButton(
+                label: infoLabel,
+                onPressed: onInfo!,
+                size: 36,
+                plain: true,
+              ),
           ],
         ),
       ),
@@ -1653,17 +1658,20 @@ class _Line extends StatelessWidget {
 enum _Ring { none, hover, focus }
 
 /// Kos TV: the small ⓘ to an episode's own page, on a dark round so it
-/// reads on any still.
+/// reads on any still; [plain], beside the words of a phone's line, it's
+/// only the quiet icon.
 class _InfoButton extends StatelessWidget {
   const _InfoButton({
     required this.label,
     required this.onPressed,
     required this.size,
+    this.plain = false,
   });
 
   final String? label;
   final VoidCallback onPressed;
   final double size;
+  final bool plain;
 
   @override
   Widget build(BuildContext context) {
@@ -1685,14 +1693,16 @@ class _InfoButton extends StatelessWidget {
                 child: Container(
                   width: 30,
                   height: 30,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: plain
+                      ? null
+                      : BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          shape: BoxShape.circle,
+                        ),
                   child: Icon(
                     Icons.info_outline_rounded,
-                    size: 20,
-                    color: _ink.withValues(alpha: 0.9),
+                    size: plain ? 22 : 20,
+                    color: plain ? _muted : _ink.withValues(alpha: 0.9),
                   ),
                 ),
               ),
