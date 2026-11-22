@@ -218,6 +218,24 @@ inteligente, ver juntos, avisos, PIN de perfiles…
     por título, artista y disco, y duración ±3 s), entra en la lista de Jellyfin en su sitio
     (como la dueña de la lista, si puede verla), se quita el hueco y el ♥ pasa a ser el de
     Jellyfin para quien puede verla. Al borrar una lista se van sus huecos.
+  - **La emisora de una canción** (`GET /Moonfin/Kostv/Music/Station?seed=<id | stremfin:<DeezerId>>&title=…&artist=…&limit=50&away=true|false`,
+    contrato en `docs/musica-radio.md`): con fuentes gratis, desde el servidor y sin historial
+    de casa. Canciones que la gente escucha junto a esa (ListenBrainz Labs, sus dos conjuntos: el
+    reciente y MLHD; hasta 6 grabaciones de MusicBrainz de la semilla, por nombre, búsqueda e
+    ISRC), solo de su estilo (su artista, sus relacionados en Deezer y, de los parecidos de
+    ListenBrainz, solo los que también son relacionados de los relacionados en Deezer o comparten
+    una etiqueta de estilo fuerte en MusicBrainz); detrás, la radio del artista en Deezer (que va
+    delante si pasan menos de 10) y lo más escuchado de los relacionados. Fuera versiones (en
+    directo, remezclas, karaoke…, salvo que la semilla lo sea) y villancicos fuera de diciembre;
+    pesa menos lo de más de 15 años de distancia. Por persona: lo de casa que ve (por MBID o
+    título y artista), si no el `DeezerId` de Deezer (por ISRC o búsqueda); lo de casa que no ve
+    no sale tampoco de fuera; sin su «No me gusta»; a quien tiene edad máxima en Jellyfin, solo la
+    radio de Deezer y nada explícito de fuera; nunca dos seguidas del mismo artista, como mucho 2
+    por artista cada 25 y el de la semilla de vuelta cada 8. Ritmo propio (2 peticiones/s a cada
+    servicio, 1/s a MusicBrainz, User-Agent `kOS-TV-complemento/<versión>`); respuestas guardadas 30
+    días y la emisora del día, 1 día, en `kostv-emisoras/` (64 MB como mucho). Contesta en 5 s
+    como mucho: si no está, lo que haya con `Source: "fallback"` y la termina por detrás. En el
+    panel, opcionales: token de ListenBrainz y clave de Last.fm (`track.getSimilar` solo con ella).
 - **El botón Descubrir se sincroniza** como los demás (`showDiscoverButton`), con
   su valor por defecto en la página.
 - **La marca del paso a la ficha de kOS TV se sincroniza** junto al estilo de la

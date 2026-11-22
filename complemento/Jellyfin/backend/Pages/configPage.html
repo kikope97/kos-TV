@@ -2126,6 +2126,27 @@
                             <div id="KostvMusicCompareResult" class="fieldDescription" style="margin-top:.8em;white-space:pre-wrap"></div>
                         </div>
                         <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="KostvListenBrainzToken">Token de ListenBrainz para las emisoras (opcional)</label>
+                            <input type="password" id="KostvListenBrainzToken" is="emby-input" autocomplete="off" placeholder="Déjalo vacío si no tienes" />
+                            <div class="fieldDescription">
+                                Las emisoras («Crear emisora» y la reproducción continua ∞) se hacen aquí, en el servidor, con lo que
+                                escucha la gente en general junto a cada canción (ListenBrainz) y con artistas parecidos de Deezer,
+                                sin claves y sin que nadie configure nada en su app. Este token es solo para tener más margen con
+                                ListenBrainz: lo sacas de tu cuenta en <a href="https://listenbrainz.org/settings/" target="_blank">listenbrainz.org</a>.
+                                Vacío, las emisoras funcionan igual. Se queda en este servidor: las apps nunca lo ven.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="KostvLastFmApiKey">Clave de la API de Last.fm para las emisoras (opcional)</label>
+                            <input type="password" id="KostvLastFmApiKey" is="emby-input" autocomplete="off" placeholder="Déjala vacía si no tienes" />
+                            <div class="fieldDescription">
+                                Con una <a href="https://www.last.fm/api/account/create" target="_blank">clave de Last.fm</a>, las emisoras
+                                también tienen en cuenta sus canciones parecidas a cada una. Sin ella no se usa Last.fm para nada y todo
+                                funciona igual. Se queda en este servidor: las apps nunca la ven. Si la clave deja de valer, las
+                                emisoras siguen sin Last.fm.
+                            </div>
+                        </div>
+                        <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused">Inicio con recomendaciones</label>
                             <div class="fieldDescription">
                                 El Inicio de las apps de kOS TV se monta para cada persona con lo que ha visto: «Porque viste…»,
@@ -11520,6 +11541,9 @@
                     // kOS TV: which engine scores the music.
                     var kostvEngine = (config.KostvMusicEngine || 'actual').toLowerCase();
                     document.querySelector('#KostvMusicEngine').value = ['actual', 'nuevo', 'alterno'].indexOf(kostvEngine) >= 0 ? kostvEngine : 'actual';
+                    // kOS TV: the stations' optional keys, for the whole home.
+                    document.querySelector('#KostvListenBrainzToken').value = config.KostvListenBrainzToken || '';
+                    document.querySelector('#KostvLastFmApiKey').value = config.KostvLastFmApiKey || '';
                     // kOS TV: how often each engine's first songs were heard whole, summed up by person.
                     var kostvCompare = document.querySelector('#KostvMusicCompare');
                     if (kostvCompare && !kostvCompare.dataset.ready) {
@@ -12582,6 +12606,9 @@
                         config.KostvRequestsUrl = (document.querySelector('#KostvRequestsUrl').value || '').trim() || null;
                         config.KostvMusicTimeZone = (document.querySelector('#KostvMusicTimeZone').value || '').trim() || 'Europe/Madrid';
                         config.KostvMusicEngine = document.querySelector('#KostvMusicEngine').value || 'actual';
+                        // Trimmed, so a stray space doesn't make the key fail.
+                        config.KostvListenBrainzToken = (document.querySelector('#KostvListenBrainzToken').value || '').trim() || null;
+                        config.KostvLastFmApiKey = (document.querySelector('#KostvLastFmApiKey').value || '').trim() || null;
                         config.CalendarAdminsOnly = document.querySelector('#CalendarAdminsOnly').value === 'true';
                         config.CalendarDaysBack = wholeNumberIn(document.querySelector('#CalendarDaysBack').value, 0, 365, 14);
                         config.CalendarDaysAhead = wholeNumberIn(document.querySelector('#CalendarDaysAhead').value, 0, 730, 90);

@@ -75,6 +75,18 @@ public class PluginConfiguration : BasePluginConfiguration, IGamesConfig
     public string? KostvMusicEngine { get; set; } = Kostv.KostvMusicEngineMode.Current;
 
     /// <summary>
+    /// kOS TV: the household's ListenBrainz token, optional, for the stations (more margin with
+    /// its API). Only on the server: the apps never see it. Empty, the stations work the same.
+    /// </summary>
+    public string? KostvListenBrainzToken { get; set; }
+
+    /// <summary>
+    /// kOS TV: the household's Last.fm API key, optional: with it, the stations also use Last.fm's
+    /// songs like each one (<c>track.getSimilar</c>). Only on the server. Empty, not used at all.
+    /// </summary>
+    public string? KostvLastFmApiKey { get; set; }
+
+    /// <summary>
     /// Keeps the Sonarr and Radarr calendar to server admins.
     /// </summary>
     public bool CalendarAdminsOnly { get; set; }

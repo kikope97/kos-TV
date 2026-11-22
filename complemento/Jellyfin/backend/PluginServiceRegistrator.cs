@@ -77,6 +77,35 @@ public class PluginServiceRegistrator : IPluginServiceRegistrator
         serviceCollection.AddHostedService<Moonfin.Server.Kostv.KostvMusicAwayWatcher>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvMusicContext>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvMusicService>();
+        // Kos TV: the station of a song, from free outside sources, kept in its own folder.
+        serviceCollection.AddSingleton(services => new Moonfin.Server.Kostv.KostvStationDiskCache(
+            Path.Combine(MoonfinPlugin.ResolveDataFolderPath(), Moonfin.Server.Kostv.KostvStationDiskCache.FolderName),
+            logger: services.GetService<ILogger<Moonfin.Server.Kostv.KostvStationDiskCache>>()));
+        serviceCollection.AddSingleton(services => new Moonfin.Server.Kostv.KostvStationWeb(
+            services.GetRequiredService<IHttpClientFactory>(),
+            services.GetRequiredService<Moonfin.Server.Kostv.KostvStationDiskCache>(),
+            services.GetRequiredService<ILogger<Moonfin.Server.Kostv.KostvStationWeb>>()));
+        serviceCollection.AddSingleton<Moonfin.Server.Kostv.IKostvStationLibrary>(services => new Moonfin.Server.Kostv.KostvStationLibrary(
+            services.GetRequiredService<MediaBrowser.Controller.Library.ILibraryManager>(),
+            services.GetRequiredService<Moonfin.Server.Kostv.KostvMusicService>(),
+            services.GetRequiredService<ILogger<Moonfin.Server.Kostv.KostvStationLibrary>>()));
+        serviceCollection.AddSingleton(services =>
+        {
+            var store = services.GetRequiredService<Moonfin.Server.Kostv.KostvMusicStore>();
+            var music = services.GetRequiredService<Moonfin.Server.Kostv.KostvMusicService>();
+            var ratings = services.GetRequiredService<ServerRatingLimitService>();
+            return new Moonfin.Server.Kostv.KostvMusicStation(
+                services.GetRequiredService<Moonfin.Server.Kostv.KostvStationWeb>(),
+                services.GetRequiredService<Moonfin.Server.Kostv.IKostvStationLibrary>(),
+                services.GetRequiredService<Moonfin.Server.Kostv.KostvStationDiskCache>(),
+                services.GetRequiredService<ILogger<Moonfin.Server.Kostv.KostvMusicStation>>())
+            {
+                Now = () => store.Now,
+                Zone = () => store.Zone,
+                DislikesOf = music.DislikeSetOf,
+                AgeLimitedOf = userId => ratings.ForUser(userId).HasLimit
+            };
+        });
         // The stop report says when a playback failed, the server's event doesn't: read as it arrives.
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvPlaybackFailures>();
         serviceCollection.AddSingleton<Moonfin.Server.Kostv.KostvPlaybackFailureFilter>();
