@@ -137,9 +137,7 @@ class KostvMusicService {
     );
     return [
       for (final list in found)
-        if (list.rawData['MediaType'] == null ||
-            list.rawData['MediaType'] == 'Audio')
-          list,
+        if (_isMusicList(list)) list,
     ].take(limit).toList();
   }
 
@@ -157,17 +155,74 @@ class KostvMusicService {
       _items(await _client.instantMixApi.getInstantMix(itemId, limit: limit));
 
   /// Songs, albums and artists of the home server matching [query].
+  /// Kos TV: and the person's playlists of music (the search's «Listas»).
   Future<KostvMusicAtHome> search(String query) async {
     final results = await Future.wait([
       _get(types: const ['Audio'], searchTerm: query, limit: 12),
       _get(types: const ['MusicAlbum'], searchTerm: query, limit: 16),
       _get(types: const ['MusicArtist'], searchTerm: query, limit: 8),
+      _get(
+        types: const ['Playlist'],
+        searchTerm: query,
+        limit: 24,
+      ).catchError((Object _) => const <AggregatedItem>[]),
     ]);
     return KostvMusicAtHome(
       songs: results[0],
       albums: results[1],
       artists: results[2],
+      playlists: [
+        for (final list in results[3])
+          if (_isMusicList(list)) list,
+      ].take(8).toList(),
     );
+  }
+
+  static bool _isMusicList(AggregatedItem list) =>
+      list.rawData['MediaType'] == null || list.rawData['MediaType'] == 'Audio';
+
+  /// Kos TV: the albums at home by name (Music's «Álbumes» tab).
+  Future<List<AggregatedItem>> albums({int limit = 600}) => _get(
+    types: const ['MusicAlbum'],
+    sortBy: 'SortName',
+    limit: limit,
+    fields:
+        'PrimaryImageAspectRatio,SortName,ProductionYear,AlbumArtist,'
+        'AlbumArtists,ChildCount',
+  );
+
+  /// Kos TV: the artists at home by name (Music's «Artistas» tab).
+  Future<List<AggregatedItem>> artists({int limit = 600}) => _get(
+    types: const ['MusicArtist'],
+    sortBy: 'SortName',
+    limit: limit,
+    fields: 'PrimaryImageAspectRatio,SortName',
+  );
+
+  /// Kos TV: the ids of the artists of what the person played lately, the
+  /// latest first (the album's artists of each song, then its own).
+  Future<List<String>> recentArtistIds({int max = 40}) async {
+    final songs = await _get(
+      types: const ['Audio'],
+      sortBy: 'DatePlayed',
+      descending: true,
+      filters: const ['IsPlayed'],
+      limit: 200,
+      fields: 'AlbumArtists,ArtistItems',
+      artwork: false,
+    );
+    final ids = <String>[];
+    for (final song in songs) {
+      for (final key in const ['AlbumArtists', 'ArtistItems']) {
+        for (final artist
+            in ((song.rawData[key] as List?) ?? const []).whereType<Map>()) {
+          final id = artist['Id']?.toString();
+          if (id != null && id.isNotEmpty && !ids.contains(id)) ids.add(id);
+        }
+      }
+      if (ids.length >= max) break;
+    }
+    return ids.take(max).toList();
   }
 
   /// The home server's copy of a song known by its [title] and [artist]
@@ -278,13 +333,18 @@ class KostvMusicAtHome {
     this.songs = const [],
     this.albums = const [],
     this.artists = const [],
+    this.playlists = const [],
   });
 
   final List<AggregatedItem> songs;
   final List<AggregatedItem> albums;
   final List<AggregatedItem> artists;
 
-  bool get isEmpty => songs.isEmpty && albums.isEmpty && artists.isEmpty;
+  /// Kos TV: the person's playlists of music matching it.
+  final List<AggregatedItem> playlists;
+
+  bool get isEmpty =>
+      songs.isEmpty && albums.isEmpty && artists.isEmpty && playlists.isEmpty;
 }
 
 /// Kos TV: the charts' genre for one of the home server's genre names

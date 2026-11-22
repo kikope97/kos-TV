@@ -36656,6 +36656,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Their songs'**
   String get kostvMusicArtistSongs;
+
+  /// Kos TV Music home: first tab, the personalised recommendations
+  ///
+  /// In en, this message translates to:
+  /// **'For you'**
+  String get kostvMusicTabForYou;
+
+  /// Kos TV Music home: tab with the albums at home (also a search filter)
+  ///
+  /// In en, this message translates to:
+  /// **'Albums'**
+  String get kostvMusicTabAlbums;
+
+  /// Kos TV Music home: heading of the quick accesses at the top (what the person played lately, favourites, a mix, a playlist)
+  ///
+  /// In en, this message translates to:
+  /// **'Keep listening'**
+  String get kostvMusicKeepListening;
+
+  /// Kos TV Music home: line under an album in «Sigue escuchando»
+  ///
+  /// In en, this message translates to:
+  /// **'Album · {artist}'**
+  String kostvMusicQuickAlbum(String artist);
+
+  /// Kos TV Music home: line under a playlist (or the favourites) in «Sigue escuchando»; tracks is «12 canciones»
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist · {tracks}'**
+  String kostvMusicQuickList(String tracks);
+
+  /// Kos TV Music home: line under a playlist in «Sigue escuchando» when its size is unknown
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist'**
+  String get kostvMusicQuickListAlone;
+
+  /// Kos TV Music home: first card of «Tus listas» and title of its dialog: makes a new playlist
+  ///
+  /// In en, this message translates to:
+  /// **'New playlist'**
+  String get kostvMusicNewList;
+
+  /// Kos TV Music home: notice after making a playlist with «Nueva lista»
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist created'**
+  String get kostvMusicListMade;
+
+  /// Kos TV Music home: «Tus listas» tab with none
+  ///
+  /// In en, this message translates to:
+  /// **'You have no playlists yet: make the first one with «New playlist».'**
+  String get kostvMusicNoLists;
+
+  /// Kos TV Music home: «Artistas» tab with none
+  ///
+  /// In en, this message translates to:
+  /// **'There are no artists at home yet.'**
+  String get kostvMusicNoArtists;
+
+  /// Kos TV Music home: «Álbumes» tab with none
+  ///
+  /// In en, this message translates to:
+  /// **'There are no albums at home yet.'**
+  String get kostvMusicNoAlbums;
+
+  /// Kos TV Music home: order of the «Artistas» and «Álbumes» tabs, what was played lately first
+  ///
+  /// In en, this message translates to:
+  /// **'Recently played'**
+  String get kostvMusicSortRecent;
+
+  /// Kos TV Music home: alphabetical order of the «Artistas» and «Álbumes» tabs
+  ///
+  /// In en, this message translates to:
+  /// **'A–Z'**
+  String get kostvMusicSortAz;
+
+  /// Kos TV Music search: the big card of the best match
+  ///
+  /// In en, this message translates to:
+  /// **'Top result'**
+  String get kostvMusicTopResult;
+
+  /// Kos TV Music search: filter pill that shows every kind of result
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get kostvMusicFilterAll;
+
+  /// Kos TV Music search: filter pill and shelf of the playlists found
+  ///
+  /// In en, this message translates to:
+  /// **'Playlists'**
+  String get kostvMusicFilterLists;
+
+  /// Kos TV Music search on the TV: one shelf with the artists and albums found
+  ///
+  /// In en, this message translates to:
+  /// **'Artists and albums'**
+  String get kostvMusicArtistsAndAlbums;
+
+  /// Kos TV Music search: line under an artist (the top result, an artist card)
+  ///
+  /// In en, this message translates to:
+  /// **'Artist'**
+  String get kostvMusicKindArtist;
+
+  /// Kos TV Music search: line under a song that is the top result
+  ///
+  /// In en, this message translates to:
+  /// **'Song · {artist}'**
+  String kostvMusicKindSong(String artist);
+
+  /// Kos TV Music home: small word over «Descubrimiento semanal» on its card (it changes every Monday)
+  ///
+  /// In en, this message translates to:
+  /// **'Every Monday'**
+  String get kostvMusicDiscoveryKicker;
+
+  /// Kos TV Music on the phone: the ✕ of the search field (clears it and goes back to the tabs)
+  ///
+  /// In en, this message translates to:
+  /// **'Close the search'**
+  String get kostvMusicSearchClose;
 }
 
 class _AppLocalizationsDelegate
