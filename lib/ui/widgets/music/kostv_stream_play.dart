@@ -14,6 +14,7 @@ import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
+import 'kostv_now_playing.dart';
 import 'music_navigation.dart';
 
 /// Kos TV: the building blocks the Music pages play the requests service's
@@ -220,9 +221,10 @@ bool kostvStationWantsRadio(AggregatedItem seed) =>
   return (names: names, ids: const []);
 }
 
-/// Kos TV: the songs of a station around [seed] (not the seed itself):
-/// the home server's mix of it when it is at home, mixed in turns with the
-/// requests service's radio of its artists (what isn't at home only with
+/// Kos TV: the songs of a station around [seed] (not the seed itself), as
+/// the app makes it without the server plugin's ([kostvSongStation]): the
+/// requests service's radio of its artists in its order and, after it, the
+/// home server's mix of it when it is at home (what isn't at home only with
 /// «Toda la música»; asked only when [kostvStationWantsRadio], which its
 /// callers check: otherwise the home server's mix alone); without what the
 /// person doesn't want to hear, nor what is in [skip]. [homeLimit] is how
@@ -239,11 +241,7 @@ Future<List<AggregatedItem>> kostvStationFor(
 }) async {
   final server = client ?? _homeClient();
   final music = server == null ? null : KostvMusicService(server);
-  final dislikes = server == null
-      ? KostvMusicDislikes.empty
-      : await KostvMusicDislikesStore.instance
-            .load(server)
-            .catchError((Object _) => KostvMusicDislikes.empty);
+  final dislikes = await _dislikesOf(server);
   Future<List<AggregatedItem>> Function()? homeMix;
   if (!isKostvStream(seed) && music != null) {
     homeMix = () => music.mix(seed.id, limit: homeLimit);
@@ -267,16 +265,157 @@ Future<List<AggregatedItem>> kostvStationFor(
   );
 }
 
-/// Kos TV: «Crear emisora» of [seed]: it plays, and its station after it.
-/// Without anything to go after it, the seed plays on its own, and the
-/// person is told.
+/// Kos TV: what the person doesn't want to hear, as the plugin keeps it
+/// (read now if it wasn't; nothing when it can't be read).
+Future<KostvMusicDislikes> _dislikesOf(MediaServerClient? server) =>
+    server == null
+    ? Future.value(KostvMusicDislikes.empty)
+    : KostvMusicDislikesStore.instance
+          .load(server)
+          .catchError((Object _) => KostvMusicDislikes.empty);
+
+/// Kos TV: the artist a station's seed is told to the plugin with: the
+/// song's own first one.
+String? _seedArtist(AggregatedItem seed) =>
+    kostvMusicArtistNames(seed).firstOrNull ??
+    seed.artists.where((a) => a.trim().isNotEmpty).firstOrNull ??
+    seed.albumArtist;
+
+/// Kos TV: the station of the song [seed] as the server plugin makes it
+/// (`GET Music/Station`, `docs/musica-radio.md`): what people in general
+/// listen to with it, at home and (with «Toda la música») not, already in
+/// its order. Null when the plugin can't give one: from before it (404),
+/// not answering, or nothing in it that can sound for the person; the app
+/// then makes the station as before ([kostvSongStation]). Without what the
+/// person doesn't want to hear ([dislikes]) nor what is in [skip] and
+/// [skipKeys] (see [kostvStationFromPlugin]).
+///
+/// Kos TV: the first time a seed is asked for, the plugin answers at once
+/// with what it has (`Source: fallback`, Deezer's radio) and works the
+/// whole station out meanwhile: [onPartial] is told then, so the queue can
+/// be completed with it later ([KostvNowPlaying.completeStationLater]).
+Future<List<AggregatedItem>?> kostvPluginStationFor(
+  AggregatedItem seed, {
+  required MediaServerClient client,
+  KostvMusicDislikes dislikes = KostvMusicDislikes.empty,
+  Set<String> skip = const {},
+  Set<String> skipKeys = const {},
+  int limit = 50,
+  bool? includeAway,
+  bool? hideExplicit,
+  KostvMusicPlugin? plugin,
+  void Function()? onPartial,
+}) async {
+  if (seed.type != 'Audio' || seed.isAudiobook) return null;
+  final String id;
+  if (isKostvStream(seed)) {
+    final deezerId = kostvStreamDeezerId(seed);
+    if (deezerId == null || deezerId.isEmpty) return null;
+    id = 'stremfin:$deezerId';
+  } else {
+    id = seed.id;
+  }
+  final all = includeAway ?? kostvMusicCatalogAll();
+  final KostvMusicAnswer<KostvMusicStation> answer;
+  try {
+    answer = await (plugin ?? KostvMusicPlugin.instance).station(
+      client,
+      seed: id,
+      title: seed.name,
+      artist: _seedArtist(seed),
+      limit: limit,
+      away: all,
+    );
+  } catch (_) {
+    return null;
+  }
+  final station = answer.value;
+  if (station == null) return null;
+  final items = kostvStationFromPlugin(
+    station,
+    serverId: client.baseUrl,
+    includeAway: all,
+    hideExplicit: hideExplicit ?? _hidesExplicit(),
+    dislikes: dislikes,
+    seed: seed,
+    skip: skip,
+    skipKeys: skipKeys,
+  );
+  if (station.source == 'fallback') onPartial?.call();
+  return items.isEmpty ? null : items;
+}
+
+/// Kos TV: the songs of the station of the song [seed] (not the seed
+/// itself), for «Crear emisora» and the endless play (∞): the server
+/// plugin's ([kostvPluginStationFor]) when it has it; otherwise as before,
+/// with the requests service's radio of its artists in its order and the
+/// home server's mix after it ([kostvStationFor], when
+/// [kostvStationWantsRadio]) or, with «Solo la de casa» and a seed at home,
+/// the home server's mix alone ([homeLimit] of it). Throws when nothing
+/// answered and so nothing came (to be asked again). [onPartial]: the
+/// plugin's station isn't whole yet (see [kostvPluginStationFor]).
+Future<List<AggregatedItem>> kostvSongStation(
+  AggregatedItem seed, {
+  Set<String> skip = const {},
+  Set<String> skipKeys = const {},
+  int homeLimit = 60,
+  MediaServerClient? client,
+  void Function()? onPartial,
+}) async {
+  final server = client ?? _homeClient();
+  final dislikes = await _dislikesOf(server);
+  if (server != null) {
+    final fromPlugin = await kostvPluginStationFor(
+      seed,
+      client: server,
+      dislikes: dislikes,
+      skip: skip,
+      skipKeys: skipKeys,
+      onPartial: onPartial,
+    );
+    if (fromPlugin != null) return fromPlugin;
+  }
+  if (kostvStationWantsRadio(seed)) {
+    return kostvStationFor(
+      seed,
+      skip: skip,
+      skipKeys: skipKeys,
+      homeLimit: homeLimit,
+      client: server,
+    );
+  }
+  if (server == null) return const [];
+  final mix = await KostvMusicService(server).mix(seed.id, limit: homeLimit);
+  final seedKey = kostvSongKey(seed);
+  return kostvRadioInOrder(
+    [
+      for (final song in mix)
+        if (!dislikes.songOut(song) && kostvSongKey(song) != seedKey) song,
+    ],
+    skip: {...skip, seed.id},
+    skipKeys: skipKeys,
+  );
+}
+
+/// Kos TV: «Crear emisora» of [seed]: it plays, and its station after it
+/// ([kostvSongStation]). Without anything to go after it, the seed plays
+/// on its own, and the person is told. An artist at home (the search's top
+/// result) gets their station ([playKostvHomeArtistStation]).
 Future<void> playKostvStation(BuildContext context, AggregatedItem seed) async {
+  if (seed.type == 'MusicArtist') {
+    return playKostvHomeArtistStation(
+      context,
+      artistId: seed.id,
+      name: seed.name,
+    );
+  }
   final l10n = AppLocalizations.of(context);
   final messenger = ScaffoldMessenger.maybeOf(context);
   final closeLoading = showMusicLoading(context);
   List<AggregatedItem> station;
+  var partial = false;
   try {
-    station = await kostvStationFor(seed);
+    station = await kostvSongStation(seed, onPartial: () => partial = true);
   } catch (_) {
     station = const [];
   } finally {
@@ -287,6 +426,9 @@ Future<void> playKostvStation(BuildContext context, AggregatedItem seed) async {
     seed,
     ...station,
   ], source: KostvMusicSource.radio);
+  // Kos TV: what plays now is the plugin's first answer; the whole
+  // station goes after it once worked out.
+  if (partial) KostvNowPlaying.instance.completeStationLater(seed);
   if (station.isEmpty) {
     messenger
       ?..hideCurrentSnackBar()
@@ -294,35 +436,104 @@ Future<void> playKostvStation(BuildContext context, AggregatedItem seed) async {
   }
 }
 
+/// Kos TV: the song an artist's station starts from, for the server
+/// plugin's station of it: the first of [songs] (the artist's own, the
+/// most listened first) that can sound for the person and they don't
+/// mind hearing, as the queue takes it. Null when none can.
+Future<AggregatedItem?> kostvArtistSeedSong(
+  List<StremfinSong> songs,
+  KostvMusicDislikes dislikes, {
+  required Future<List<AggregatedItem>> Function(List<String> ids) homeItems,
+  required String serverId,
+}) async {
+  for (final song in songs.take(5)) {
+    if (dislikes.stremfinSongOut(song) || !kostvSongPlayable(song)) continue;
+    final queue = await kostvQueueOf(
+      [KostvQueueSong.ofSong(song, serverId: serverId)],
+      hideExplicit: _hidesExplicit(),
+      homeItems: homeItems,
+    );
+    final item = queue.items.firstOrNull;
+    if (item != null && !dislikes.songOut(item)) return item;
+  }
+  return null;
+}
+
+/// Kos TV: an artist's station made by the server plugin from [seed] (one
+/// of the artist's songs): the seed first, its station after it. Null when
+/// the plugin can't give one (the app's own station then).
+Future<List<AggregatedItem>?> _pluginArtistStation(
+  AggregatedItem? seed,
+  MediaServerClient? server,
+  KostvMusicDislikes dislikes, {
+  void Function()? onPartial,
+}) async {
+  if (seed == null || server == null) return null;
+  final station = await kostvPluginStationFor(
+    seed,
+    client: server,
+    dislikes: dislikes,
+    onPartial: onPartial,
+  );
+  return station == null ? null : [seed, ...station];
+}
+
 /// Kos TV: «Crear emisora» of an artist of the requests service (their
-/// page): the radio of them, what is at home from home.
+/// page, [topSongs] its songs; the search's top result reads them): the
+/// server plugin's station of their most listened song when it has it;
+/// otherwise the radio of them, what is at home from home.
 Future<void> playKostvArtistStation(
   BuildContext context,
-  StremfinArtist artist,
-) async {
+  StremfinArtist artist, {
+  List<StremfinSong>? topSongs,
+}) async {
   final l10n = AppLocalizations.of(context);
   final messenger = ScaffoldMessenger.maybeOf(context);
   final server = _homeClient();
   final music = server == null ? null : KostvMusicService(server);
   final closeLoading = showMusicLoading(context);
   List<AggregatedItem> station;
+  AggregatedItem? partialSeed;
   try {
-    final dislikes = server == null
-        ? KostvMusicDislikes.empty
-        : await KostvMusicDislikesStore.instance
-              .load(server)
-              .catchError((Object _) => KostvMusicDislikes.empty);
-    station = await kostvStationOf(
-      radio: KostvStreamRadio.instance,
-      serverId: server?.baseUrl ?? '',
-      includeAway: kostvMusicCatalogAll(),
-      hideExplicit: _hidesExplicit(),
-      homeItems: (ids) => music == null
-          ? Future.value(const <AggregatedItem>[])
-          : music.songs(ids),
-      dislikes: dislikes,
-      artistIds: [artist.deezerId],
-    );
+    final dislikes = await _dislikesOf(server);
+    Future<List<AggregatedItem>> homeItems(List<String> ids) => music == null
+        ? Future.value(const <AggregatedItem>[])
+        : music.songs(ids);
+    var top = topSongs;
+    if (top == null &&
+        server != null &&
+        !KostvMusicPlugin.instance.knownMissing(server, 'Station') &&
+        GetIt.instance.isRegistered<StremfinService>()) {
+      top = await GetIt.instance<StremfinService>()
+          .musicArtist(artist.deezerId, keep: true)
+          .then((detail) => detail.topSongs)
+          .timeout(const Duration(seconds: 8))
+          .catchError((Object _) => const <StremfinSong>[]);
+    }
+    final seed = top == null || server == null
+        ? null
+        : await kostvArtistSeedSong(
+            top,
+            dislikes,
+            homeItems: homeItems,
+            serverId: server.baseUrl,
+          ).catchError((Object _) => null);
+    station =
+        await _pluginArtistStation(
+          seed,
+          server,
+          dislikes,
+          onPartial: () => partialSeed = seed,
+        ) ??
+        await kostvStationOf(
+          radio: KostvStreamRadio.instance,
+          serverId: server?.baseUrl ?? '',
+          includeAway: kostvMusicCatalogAll(),
+          hideExplicit: _hidesExplicit(),
+          homeItems: homeItems,
+          dislikes: dislikes,
+          artistIds: [artist.deezerId],
+        );
   } catch (_) {
     station = const [];
   } finally {
@@ -341,14 +552,18 @@ Future<void> playKostvArtistStation(
     source: KostvMusicSource.radio,
     picked: false,
   );
+  final seed = partialSeed;
+  if (seed != null) KostvNowPlaying.instance.completeStationLater(seed);
 }
 
 /// Kos TV: the station of an artist at home (Music's «Radios de tus
-/// artistas»), as «Crear emisora» makes one: the home server's mix of them
-/// and, with «Toda la música» ([kostvStationWantsRadio]'s rule), mixed in
-/// turns with the requests service's radio of them; without what the
-/// person doesn't want to hear, nor what is explicit and not at home for
-/// someone with a limit. Nothing found: the person is told.
+/// artistas»), as «Crear emisora» makes one: the server plugin's station
+/// of the artist's song the person plays most, when it has it; otherwise
+/// the requests service's radio of them (with «Toda la música»,
+/// [kostvStationWantsRadio]'s rule) and the home server's mix of them
+/// after it; without what the person doesn't want to hear, nor what is
+/// explicit and not at home for someone with a limit. Nothing found: the
+/// person is told.
 Future<void> playKostvHomeArtistStation(
   BuildContext context, {
   required String artistId,
@@ -360,27 +575,41 @@ Future<void> playKostvHomeArtistStation(
   final music = server == null ? null : KostvMusicService(server);
   final closeLoading = showMusicLoading(context);
   List<AggregatedItem> station;
+  AggregatedItem? partialSeed;
   try {
-    final dislikes = server == null
-        ? KostvMusicDislikes.empty
-        : await KostvMusicDislikesStore.instance
-              .load(server)
-              .catchError((Object _) => KostvMusicDislikes.empty);
+    final dislikes = await _dislikesOf(server);
     final all = kostvMusicCatalogAll();
-    station = await kostvStationOf(
-      radio: KostvStreamRadio.instance,
-      serverId: server?.baseUrl ?? '',
-      includeAway: all,
-      hideExplicit: _hidesExplicit(),
-      homeItems: (ids) => music == null
-          ? Future.value(const <AggregatedItem>[])
-          : music.songs(ids),
-      dislikes: dislikes,
-      homeMix: music == null ? null : () => music.mix(artistId),
-      // Kos TV: with «Solo la de casa», the home server's mix alone, as
-      // «Crear emisora» of what is at home.
-      artists: all ? [name] : const [],
-    );
+    final seed =
+        music == null ||
+            KostvMusicPlugin.instance.knownMissing(server!, 'Station')
+        ? null
+        : await music
+              .artistSongs(artistId)
+              .then(
+                (songs) => songs.where((s) => !dislikes.songOut(s)).firstOrNull,
+              )
+              .catchError((Object _) => null);
+    station =
+        await _pluginArtistStation(
+          seed,
+          server,
+          dislikes,
+          onPartial: () => partialSeed = seed,
+        ) ??
+        await kostvStationOf(
+          radio: KostvStreamRadio.instance,
+          serverId: server?.baseUrl ?? '',
+          includeAway: all,
+          hideExplicit: _hidesExplicit(),
+          homeItems: (ids) => music == null
+              ? Future.value(const <AggregatedItem>[])
+              : music.songs(ids),
+          dislikes: dislikes,
+          homeMix: music == null ? null : () => music.mix(artistId),
+          // Kos TV: with «Solo la de casa», the home server's mix alone, as
+          // «Crear emisora» of what is at home.
+          artists: all ? [name] : const [],
+        );
   } catch (_) {
     station = const [];
   } finally {
@@ -399,6 +628,8 @@ Future<void> playKostvHomeArtistStation(
     source: KostvMusicSource.radio,
     picked: false,
   );
+  final seed = partialSeed;
+  if (seed != null) KostvNowPlaying.instance.completeStationLater(seed);
 }
 
 /// Kos TV: the extra songs of the mixes, kept on the device with the Music

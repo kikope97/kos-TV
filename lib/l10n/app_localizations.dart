@@ -36812,6 +36812,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Radio'**
   String get kostvMusicRadioKicker;
+
+  /// Kos TV Settings > Music: small line under the Music settings crediting where the stations (Crear emisora, endless play) take their data from; Last.fm's terms ask for it to be named
+  ///
+  /// In en, this message translates to:
+  /// **'Stations use public data from ListenBrainz and Deezer (and from Last.fm when it is set up).'**
+  String get kostvMusicStationsCredit;
 }
 
 class _AppLocalizationsDelegate

@@ -21529,5 +21529,7 @@
     "kostvMusicRadioOf": "{name} Radio",
     "@kostvMusicRadioOf": {"description": "Kos TV Music home: name under the card of an artist's station in «Radios de tus artistas»", "placeholders": {"name": {"type": "String"}}},
     "kostvMusicRadioKicker": "Radio",
-    "@kostvMusicRadioKicker": {"description": "Kos TV Music home: small word over the artist's name on the card of their station"}
+    "@kostvMusicRadioKicker": {"description": "Kos TV Music home: small word over the artist's name on the card of their station"},
+    "kostvMusicStationsCredit": "Stations use public data from ListenBrainz and Deezer (and from Last.fm when it is set up).",
+    "@kostvMusicStationsCredit": {"description": "Kos TV Settings > Music: small line under the Music settings crediting where the stations (Crear emisora, endless play) take their data from; Last.fm's terms ask for it to be named"}
 }

@@ -648,22 +648,11 @@ Future<void> _songMenu(
         kostvMusicSay(context, l10n.kostvMusicAddedLast);
       }
     case _SongChoice.radio:
-      final seed = home!;
-      // Kos TV: with «Toda la música», the requests service's radio of its
-      // artists too, mixed in turns with the home server's mix.
-      if (kostvStationWantsRadio(seed)) {
-        await playKostvStation(context, seed);
-        return;
-      }
-      final mix = await kostvMusicService()
-          .mix(seed.id)
-          .catchError((Object _) => const <AggregatedItem>[]);
-      if (!context.mounted) return;
-      await playMusicTracks(context, [
-        seed,
-        for (final other in mix)
-          if (other.id != seed.id) other,
-      ], source: KostvMusicSource.radio);
+      // Kos TV: the server plugin's station when it has it; otherwise, with
+      // «Toda la música», the requests service's radio of its artists and
+      // the home server's mix after it, or the home server's mix alone
+      // (`kostvSongStation`).
+      await playKostvStation(context, home!);
     case _SongChoice.love:
       try {
         await GetIt.instance<ItemMutationRepository>().setFavorite(
