@@ -4,152 +4,57 @@ import 'package:moonfin/ui/widgets/bottom_nav/bottom_nav_model.dart';
 
 void main() {
   group('resolveBarItems', () {
-    test('Home, the pins and You, with slots in order', () {
-      final items = resolveBarItems(const BottomNavTabGates(), '');
+    test('Inicio, Descubrir, Música and Tú', () {
+      final items = resolveBarItems(
+        const BottomNavTabGates(kostvDiscoverAvailable: true),
+      );
       expect(items, const [
         BottomNavBarItem.home(),
-        BottomNavBarItem.tab(BottomNavTab.search, 1),
-        BottomNavBarItem.tab(BottomNavTab.libraries, 2),
-        BottomNavBarItem.tab(BottomNavTab.genres, 3),
-        BottomNavBarItem.you(4),
+        BottomNavBarItem.tab(BottomNavTab.kostvDiscover),
+        BottomNavBarItem.tab(BottomNavTab.kostvMusic),
+        BottomNavBarItem.you(),
       ]);
     });
 
-    test('a pin waiting on its data keeps the slots after it', () {
+    test('a destination waiting on its data gives way to the next one', () {
       final items = resolveBarItems(
         const BottomNavTabGates(),
-        '',
         isAvailable: (tab) => tab != BottomNavTab.libraries,
       );
-      expect(items, const [
-        BottomNavBarItem.home(),
-        BottomNavBarItem.tab(BottomNavTab.search, 1),
-        BottomNavBarItem.tab(BottomNavTab.genres, 3),
-        BottomNavBarItem.you(4),
+      expect(items.map((i) => i.id), [
+        'home',
+        'kostvMusic',
+        'genres',
+        'you',
       ]);
-    });
-
-    test('Split leaves Search to its own button', () {
-      final items = resolveBarItems(
-        const BottomNavTabGates(),
-        '',
-        withoutSearch: true,
-      );
-      expect(items.map((i) => i.id), ['home', 'libraries', 'genres', 'you']);
     });
   });
 
   group('activeBarIndex', () {
     final items = resolveBarItems(
-      const BottomNavTabGates(),
-      'search,libraries,genres',
+      const BottomNavTabGates(kostvDiscoverAvailable: true),
     );
 
-    int? active(String? route, {bool hubOpen = false}) =>
-        activeBarIndex(items, route, hubOpen: hubOpen);
-
     test('matches each tab on its own screens', () {
-      expect(active('/home'), 0);
-      expect(active('/search'), 1);
-      expect(active('/library/abc'), 2);
-      expect(active('/music/abc'), 2);
-      expect(active('/books/abc'), 2);
-      expect(active('/folder/xyz'), 2);
-      expect(active('/genres'), 3);
-      // Kos TV: Favorites is in the You hub, so its page lights no tab.
-      expect(active('/favorites'), isNull);
+      expect(activeBarIndex(items, '/home'), 0);
+      expect(activeBarIndex(items, '/discover'), 1);
+      expect(activeBarIndex(items, '/musica'), 2);
+      expect(activeBarIndex(items, '/musica/album/12'), 2);
+      // Kos TV: «Tú» is a page of its own.
+      expect(activeBarIndex(items, '/tu'), 3);
     });
 
     test('lights nothing on a screen that belongs to no tab', () {
-      expect(active('/item/123'), isNull);
-      expect(active(null), isNull);
-    });
-
-    test('You takes over while the hub is open', () {
-      expect(active('/home', hubOpen: true), items.length - 1);
+      expect(activeBarIndex(items, '/item/abc'), isNull);
+      expect(activeBarIndex(items, null), isNull);
     });
 
     test('a route that only starts with a tab name doesn\'t match it', () {
-      expect(bottomNavTabMatchesRoute(BottomNavTab.libraries, '/library-x'),
-          isFalse);
+      expect(activeBarIndex(items, '/musicas'), isNull);
     });
 
     test('Kos TV: Discover lights up on its own screen only', () {
-      expect(bottomNavTabMatchesRoute(BottomNavTab.kostvDiscover, '/discover'),
-          isTrue);
-      expect(
-          bottomNavTabMatchesRoute(BottomNavTab.kostvDiscover, '/discover-x'),
-          isFalse);
-    });
-  });
-
-  group('resolveHubTiles', () {
-    List<BottomNavHubTile> tiles({
-      BottomNavTabGates gates = const BottomNavTabGates(),
-      String pins = '',
-      bool saved = false,
-      bool shuffle = true,
-      bool syncPlay = false,
-      bool quickConnect = false,
-      bool remoteControl = true,
-      Set<BottomNavTab> alsoOnBar = const {},
-    }) =>
-        resolveHubTiles(
-          gates: gates,
-          barItems: resolveBarItems(gates, pins),
-          isAvailable: (_) => true,
-          savedAvailable: saved,
-          shuffle: shuffle,
-          syncPlay: syncPlay,
-          quickConnect: quickConnect,
-          remoteControl: remoteControl,
-          alsoOnBar: alsoOnBar,
-        );
-
-    test('holds everything offered that isn\'t on the bar', () {
-      expect(tiles(saved: true, syncPlay: true, quickConnect: true), const [
-        BottomNavHubTile.action(BottomNavHubAction.saved),
-        BottomNavHubTile.tab(BottomNavTab.favorites),
-        // Kos TV: Music, when it isn't on the bar.
-        BottomNavHubTile.tab(BottomNavTab.kostvMusic),
-        BottomNavHubTile.action(BottomNavHubAction.shuffle),
-        BottomNavHubTile.action(BottomNavHubAction.syncPlay),
-        BottomNavHubTile.action(BottomNavHubAction.quickConnect),
-        BottomNavHubTile.action(BottomNavHubAction.remoteControl),
-      ]);
-    });
-
-    test('no remote control tile for a server without it (Silo)', () {
-      expect(
-        tiles(remoteControl: false),
-        isNot(contains(
-          const BottomNavHubTile.action(BottomNavHubAction.remoteControl),
-        )),
-      );
-    });
-
-    test('Kids Mode keeps what children may use', () {
-      final kids = tiles(
-        gates: const BottomNavTabGates(
-          kidsMode: true,
-          showLiveTv: true,
-          kostvDiscoverAvailable: true,
-        ),
-        saved: true,
-      );
-      expect(kids.map((t) => t.tab), isNot(contains(BottomNavTab.libraries)));
-      expect(kids.map((t) => t.tab), isNot(contains(BottomNavTab.liveTv)));
-      expect(
-        kids.map((t) => t.tab),
-        isNot(contains(BottomNavTab.kostvDiscover)),
-      );
-      expect(kids,
-          contains(const BottomNavHubTile.action(BottomNavHubAction.saved)));
-    });
-
-    test('Split doesn\'t repeat Search in the hub', () {
-      final split = tiles(pins: 'libraries', alsoOnBar: {BottomNavTab.search});
-      expect(split.map((t) => t.tab), isNot(contains(BottomNavTab.search)));
+      expect(activeBarIndex(items, '/discover/movie/12'), isNull);
     });
   });
 }

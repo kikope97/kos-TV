@@ -12,7 +12,6 @@ class NouveauSeasonSelector extends StatefulWidget {
   final ValueChanged<int> onSeasonActivated;
   final bool Function()? onNavigateUp;
   final bool Function()? onNavigateDown;
-  final bool allowLeftEdgeExit;
   final bool visible;
 
   const NouveauSeasonSelector({
@@ -23,7 +22,6 @@ class NouveauSeasonSelector extends StatefulWidget {
     required this.onSeasonActivated,
     required this.onNavigateUp,
     required this.onNavigateDown,
-    required this.allowLeftEdgeExit,
     required this.visible,
   });
 
@@ -413,7 +411,6 @@ class NouveauSeasonSelectorState extends State<NouveauSeasonSelector>
         onValueActivated: widget.onSeasonActivated,
         onNavigateUp: widget.onNavigateUp,
         onNavigateDown: widget.onNavigateDown,
-        allowLeftEdgeExit: widget.allowLeftEdgeExit,
         selectOnFocus: true,
       ),
     );

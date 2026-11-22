@@ -626,16 +626,12 @@ class UserPreferences extends ChangeNotifier {
     'prefer_external_subtitles',
     'app_theme_id',
     'pref_custom_theme_id',
-    'pref_glass_quality',
     'pref_oled_mode',
     'pref_kids_mode',
     // The other half of parental controls, kept beside Kids Mode because the
     // two get set together and have the same reason to be scoped.
     'blocked_ratings',
     'blocked_series_ids',
-    'pref_navbar_position',
-    'pref_bottom_navbar_style',
-    'pref_bottom_navbar_tabs',
     'focus_color',
     'pref_watched_indicator_behavior',
     'pref_show_poster_labels',
@@ -678,7 +674,6 @@ class UserPreferences extends ChangeNotifier {
     'pref_show_downloads_button',
     'pref_show_libraries_in_toolbar',
     'pref_show_libraries_individually',
-    'pref_navbar_always_expanded',
     'pref_shuffle_content_type',
     'pref_merge_continue_watching_next_up',
     'pref_next_up_max_days',
@@ -700,8 +695,6 @@ class UserPreferences extends ChangeNotifier {
     'mediaBarNewReleaseDays',
     'mediaBarOverlayOpacity',
     'mediaBarOverlayColor',
-    'navbarOpacity',
-    'navbarColor',
     'mediaBarAutoAdvance',
     'mediaBarIntervalMs',
     'mediaBarRowPeek',
@@ -1795,12 +1788,6 @@ class UserPreferences extends ChangeNotifier {
     values: InterfaceLayout.values,
   );
 
-  static final glassQuality = EnumPreference(
-    key: 'pref_glass_quality',
-    defaultValue: GlassQualityMode.auto,
-    values: GlassQualityMode.values,
-  );
-
   /// How much this device is asked to spend on decoded images and inline
   /// video. Auto on every platform: the variation belongs in the resolver, not
   /// in the default. Deliberately neither scoped nor synced, because it is a
@@ -2139,11 +2126,6 @@ class UserPreferences extends ChangeNotifier {
     defaultValue: false,
   );
 
-  static final navbarAlwaysExpanded = Preference(
-    key: 'pref_navbar_always_expanded',
-    defaultValue: false,
-  );
-
   /// Off by default. An admin who wants it on for everyone can set it in the
   /// Moonbase default settings.
   static final showServerMessagesButton = Preference(
@@ -2183,27 +2165,6 @@ class UserPreferences extends ChangeNotifier {
   static final bookLibraryListView = Preference(
     key: 'pref_book_library_list_view',
     defaultValue: false,
-  );
-
-  static final navbarPosition = EnumPreference(
-    key: 'pref_navbar_position',
-    defaultValue: NavbarPosition.top,
-    values: NavbarPosition.values,
-  );
-
-  // Anyone on the bottom navbar before these styles has nothing stored here,
-  // so they land on Dock. That's the whole migration.
-  static final bottomNavbarStyle = EnumPreference(
-    key: 'pref_bottom_navbar_style',
-    defaultValue: BottomNavbarStyle.dock,
-    values: BottomNavbarStyle.values,
-  );
-
-  /// Comma separated [BottomNavTab] names pinned between Home and You. Empty
-  /// means automatic, resolved from the nav button toggles.
-  static final bottomNavbarTabs = Preference(
-    key: 'pref_bottom_navbar_tabs',
-    defaultValue: '',
   );
 
   static final shuffleContentType = Preference(
@@ -3328,16 +3289,6 @@ class UserPreferences extends ChangeNotifier {
   static final mediaBarNewReleaseDays = Preference(
     key: 'mediaBarNewReleaseDays',
     defaultValue: 30,
-  );
-
-  static final navbarOpacity = Preference(
-    key: 'navbarOpacity',
-    defaultValue: 50,
-  );
-
-  static final navbarColor = Preference(
-    key: 'navbarColor',
-    defaultValue: 'gray',
   );
 
   static final mediaBarOverlayOpacity = Preference(

@@ -36,18 +36,16 @@ void main() {
       expect(const BottomNavTabGates().offers(BottomNavTab.myList), isFalse);
     });
 
-    // Kos TV: with Favorites in the You menu, the list takes its place on
-    // the bar.
-    test('pinned by default, where Favorites was', () {
-      expect(gates.resolvePins(''), contains(BottomNavTab.myList));
-      expect(gates.resolvePins(''), isNot(contains(BottomNavTab.favorites)));
-    });
-
-    test('it can be pinned to the bar', () {
-      expect(parsePinnedBottomNavTabs('search,myList'), [
-        BottomNavTab.search,
-        BottomNavTab.myList,
-      ]);
+    // Kos TV: the bar's tabs are Descubrir and Música; where they aren't
+    // offered the list takes a place on the bar.
+    test('on the bar when Discover and Music are not', () {
+      const noDiscoverNoMusic = BottomNavTabGates(
+        kostvMyListAvailable: true,
+        showKostvMusic: false,
+        showLibraries: false,
+      );
+      expect(noDiscoverNoMusic.barTabs(), contains(BottomNavTab.myList));
+      expect(gates.barTabs(), isNot(contains(BottomNavTab.favorites)));
     });
   });
 }

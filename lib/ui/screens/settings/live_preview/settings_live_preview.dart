@@ -61,6 +61,7 @@ import '../../playback/osd_buttons.dart';
 import '../../setup/setup_wizard_previews.dart';
 import 'preview_row_options_home.dart';
 import '../../../widgets/kos_logo.dart';
+import '../../../widgets/navigation_layout.dart';
 
 String settingsPreviewSceneName(
   AppLocalizations l10n,
@@ -330,11 +331,6 @@ class _SettingsLivePreviewState extends State<SettingsLivePreview> {
             modern:
                 previewValue(context, UserPreferences.homeRowsStyle) ==
                 HomeRowsStyle.v2,
-          ),
-        ),
-        'pref_bottom_navbar_style' => Builder(
-          builder: (context) => bottomNavbarStylePreview(
-            previewValue(context, UserPreferences.bottomNavbarStyle),
           ),
         ),
         'seasonal_surprise' || 'seasonal_density' =>
@@ -1937,9 +1933,7 @@ class _SettingsSearchPreviewState extends State<SettingsSearchPreview> {
         ],
       ),
     );
-    final topNavbar =
-        previewValue(context, UserPreferences.navbarPosition) ==
-        NavbarPosition.top;
+    final topNavbar = NavigationLayout.usesTopToolbar;
 
     final results = Row(
       children: [

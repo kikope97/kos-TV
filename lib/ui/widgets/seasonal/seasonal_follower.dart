@@ -6,7 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'seasonal_follower_art.dart';
 import 'seasonal_simulation.dart';
 
-enum FollowerLanding { card, below, right }
+enum FollowerLanding { card, below }
 
 /// What follows focus on TV Home for an effect, or takes the mouse pointer's place in
 /// the desktop layout. [extent] is the drawing's size, and
@@ -144,7 +144,6 @@ class SeasonalFollower {
     Rect? focus,
     Size size, {
     FollowerLanding landing = FollowerLanding.card,
-    Rect? navigationBounds,
   }) {
     final elapsed = dt.clamp(0.0, 0.05);
     _phase = (_phase + elapsed) % (math.pi * 20);
@@ -161,7 +160,7 @@ class SeasonalFollower {
     opacity = (opacity + (valid ? elapsed * 2 : -elapsed * 3)).clamp(0.0, 1.0);
     if (!valid || elapsed == 0) return;
 
-    final target = _clamp(_spotFor(focus, landing, navigationBounds), size);
+    final target = _clamp(_spotFor(focus, landing), size);
     final appearing = position == null;
     position ??= target;
     if (appearing) width = focus.width;
@@ -221,8 +220,7 @@ class SeasonalFollower {
     }
   }
 
-  Offset _spotFor(Rect focus, FollowerLanding landing, Rect? navigationBounds) {
-    final side = (navigationBounds ?? focus).right;
+  Offset _spotFor(Rect focus, FollowerLanding landing) {
     if (style.points) {
       return switch (landing) {
         // Home parks the focused card at the start of its row, under the row
@@ -237,7 +235,6 @@ class SeasonalFollower {
           focus.center.dx,
           focus.bottom + 6 + _reach,
         ),
-        FollowerLanding.right => Offset(side + 48, focus.center.dy),
       };
     }
     return switch (style) {
@@ -250,10 +247,6 @@ class SeasonalFollower {
           focus.center.dx,
           focus.bottom + 6 + style.extent * 0.3,
         ),
-        FollowerLanding.right => Offset(
-          side + 8 + style.extent / 2,
-          focus.center.dy,
-        ),
       },
       FollowerStyle.bunnyEars => Offset(
         focus.right - math.min(focus.width * 0.3, 40),
@@ -262,7 +255,6 @@ class SeasonalFollower {
       FollowerStyle.lantern => switch (landing) {
         FollowerLanding.card => Offset(focus.left - 24, focus.top + 2),
         FollowerLanding.below => Offset(focus.center.dx, focus.bottom + 2),
-        FollowerLanding.right => Offset(side + 40, focus.top),
       },
       FollowerStyle.diya || FollowerStyle.easterEgg => switch (landing) {
         FollowerLanding.card => Offset(focus.left - 26, focus.bottom),
@@ -270,7 +262,6 @@ class SeasonalFollower {
           focus.center.dx,
           focus.bottom + 6 + style.extent,
         ),
-        FollowerLanding.right => Offset(side + 40, focus.center.dy + 20),
       },
       _ => Offset(focus.center.dx, focus.bottom + 6),
     };
@@ -332,7 +323,6 @@ class SeasonalFollower {
   void _fly(FollowerLanding landing, bool appearing, double elapsed) {
     final resting = switch (landing) {
       FollowerLanding.card => 1.0,
-      FollowerLanding.right => -1.0,
       FollowerLanding.below => _facing < 0 ? -1.0 : 1.0,
     };
     final heading = _velocity.dx.abs() > 40 ? _velocity.dx.sign : resting;

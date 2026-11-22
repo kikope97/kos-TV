@@ -62,16 +62,6 @@ void main() {
       expect(find.byType(BookCard), findsNWidgets(5));
     });
 
-    testWidgets('the sidebar moves the rail past it', (tester) async {
-      await prefs.set(UserPreferences.navbarPosition, NavbarPosition.left);
-      await pumpWideBookScreen(tester);
-
-      expect(
-        tester.getTopLeft(find.byType(BookLibraryRail)).dx,
-        closeTo(52, 1.0),
-      );
-    });
-
     testWidgets('the rail offers Discover behind its setting', (tester) async {
       await pumpWideBookScreen(tester);
       final discover = find.descendant(

@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../preference/preference_constants.dart';
-import '../../../preference/user_preferences.dart';
 import '../../../util/focus/row_focus_coordinator.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
@@ -135,18 +132,10 @@ bool moveBookFocus(RowFocusCoordinator coordinator, int fromIndex, bool isUp) {
   return true;
 }
 
-bool get _sidebarIsLeft =>
-    GetIt.instance<UserPreferences>().get(UserPreferences.navbarPosition) ==
-    NavbarPosition.left;
-
-/// Left past a book library's first item, onto the sidebar when there's one.
-void focusBookSidebar() {
-  if (_sidebarIsLeft) NavigationLayout.focusNavbarNotifier.value?.call();
-}
-
-/// The sidebar draws over a wide book library, so its content starts past it.
-double get bookSidebarInset =>
-    _sidebarIsLeft && !PlatformDetection.useMobileUi ? 52 : 0;
+/// Left past a book library's first item stays where it is: the menu is
+/// never at the side (Kos TV: one menu design), and the key mustn't wander
+/// into what isn't to the left.
+void stayAtBookLeftEdge() {}
 
 /// Nothing has focus, or it fell back to a scope because the focused node
 /// left the tree.

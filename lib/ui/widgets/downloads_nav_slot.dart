@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import '../../data/services/saved_media_presence.dart';
@@ -6,20 +5,11 @@ import '../../preference/user_preferences.dart';
 import '../../util/download_utils.dart';
 import '../../util/platform_detection.dart';
 
-/// Wraps the downloads button for a nav bar.
-///
-/// Renders nothing where downloads make no sense, where the user turned the
-/// button off, or where there is nothing saved, so the menu never offers a way
-/// into an empty screen.
-class DownloadsNavSlot extends StatelessWidget {
-  const DownloadsNavSlot({super.key, required this.builder});
-
-  final WidgetBuilder builder;
-
-  /// Whether the entry could ever show here, which is the question a nav bar
-  /// asks when it hands out its colours. The runtime half is deliberately not
-  /// part of this: a slot given up when the last download goes would recolour
-  /// every entry below it.
+/// Downloads in the menu (Kos TV: in «Más» and «Tú»): offered where
+/// downloads make sense and the person left the button on, shown only while
+/// something is saved, so the menu never offers a way into an empty screen.
+abstract final class DownloadsNavSlot {
+  /// Whether the entry could ever show here.
   static bool isOffered() =>
       GetIt.instance<UserPreferences>().get(
         UserPreferences.showDownloadsButton,
@@ -37,18 +27,5 @@ class DownloadsNavSlot extends StatelessWidget {
   static bool hasSavedMedia() {
     if (!GetIt.instance.isRegistered<SavedMediaPresence>()) return false;
     return GetIt.instance<SavedMediaPresence>().hasSavedMedia;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!isOffered() || !GetIt.instance.isRegistered<SavedMediaPresence>()) {
-      return const SizedBox.shrink();
-    }
-    final presence = GetIt.instance<SavedMediaPresence>();
-    return ListenableBuilder(
-      listenable: presence,
-      builder: (context, _) =>
-          presence.hasSavedMedia ? builder(context) : const SizedBox.shrink(),
-    );
   }
 }

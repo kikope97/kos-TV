@@ -10,7 +10,6 @@ import 'package:moonfin_design/moonfin_design.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
@@ -414,16 +413,7 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
     _platformRowKey.currentState?.requestFocusAt(index < 0 ? 0 : index);
   }
 
-  bool get _navbarOnTop =>
-      NavigationLayout.sanitizeNavbarPosition(
-        _prefs.get(UserPreferences.navbarPosition),
-      ) ==
-      NavbarPosition.top;
-
-  void _onLeftEdge() {
-    if (_navbarOnTop) return;
-    NavigationLayout.focusNavbarNotifier.value?.call();
-  }
+  bool get _navbarOnTop => !NavigationLayout.usesBottomNavbar;
 
   void _openTitle(StremfinTitle title) => kostvOpenTitle(context, title);
 
@@ -1104,7 +1094,6 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
       },
       onTap: (_, p) => _selectPlatform(p),
       onVerticalNavigation: _onPlatformVertical,
-      onLeftEdge: _onLeftEdge,
       itemBuilder: (context, platform, index, focused) => Center(
         child: KostvPlatformPill(
           platform: platform,
@@ -1191,7 +1180,6 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
                 ),
                 onIndexChanged: (_, title) => _spotlight(spec, title),
                 onVerticalNavigation: (isUp) => _onRowVertical(spec, isUp),
-                onLeftEdge: _onLeftEdge,
                 onTap: (_, title) => _openTitle(title),
                 itemBuilder: (context, title, index, focused) => MediaCard(
                   title: title.title,

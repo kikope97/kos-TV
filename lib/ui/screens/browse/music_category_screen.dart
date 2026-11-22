@@ -160,7 +160,7 @@ abstract class MusicCategoryState<T extends StatefulWidget>
   bool get _railNav =>
       _nav == _MusicNav.quickRail || _nav == _MusicNav.classicRail;
 
-  double get inset => _railNav ? 32.0 : (wide ? 48.0 : 20.0) + bookSidebarInset;
+  double get inset => _railNav ? 32.0 : (wide ? 48.0 : 20.0);
   double get endInset => wide ? 48.0 : 20.0;
 
   MusicCategoryScope get _scope =>
@@ -189,7 +189,7 @@ abstract class MusicCategoryState<T extends StatefulWidget>
   }
 
   /// Left past the content's first column, onto the rail or the sidebar.
-  void leaveLeft() => _railNav ? _navNode.requestFocus() : focusBookSidebar();
+  void leaveLeft() => _railNav ? _navNode.requestFocus() : stayAtBookLeftEdge();
 
   @override
   void initState() {
@@ -255,7 +255,6 @@ abstract class MusicCategoryState<T extends StatefulWidget>
         ? Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SizedBox(width: bookSidebarInset),
               if (_nav == _MusicNav.quickRail)
                 _buildRail()
               else
@@ -266,7 +265,7 @@ abstract class MusicCategoryState<T extends StatefulWidget>
                   topPadding: topReserve,
                   onNavigateUp: () =>
                       NavigationLayout.focusNavbarNotifier.value?.call(),
-                  onNavigateLeft: focusBookSidebar,
+                  onNavigateLeft: stayAtBookLeftEdge,
                   onNavigateRight: _focusBody,
                 ),
               Expanded(child: content()),
@@ -325,7 +324,7 @@ abstract class MusicCategoryState<T extends StatefulWidget>
           ? () => NavigationLayout.focusNavbarNotifier.value?.call()
           : null,
       onNavigateDown: index == count - 1 ? () {} : null,
-      onNavigateLeft: focusBookSidebar,
+      onNavigateLeft: stayAtBookLeftEdge,
       onNavigateRight: _focusBody,
     );
 

@@ -215,19 +215,6 @@ class _AppearanceScreenState extends State<_AppearanceScreen> {
                             l10n.interfaceStyleMaterial,
                         },
                       ),
-                      if (AppColorScheme.isGlass)
-                        EnumPreferenceTile<GlassQualityMode>(
-                          preference: UserPreferences.glassQuality,
-                          title: l10n.glassQuality,
-                          description: l10n.glassQualitySubtitle,
-                          icon: Icons.blur_on,
-                          labelOf: (v) => switch (v) {
-                            GlassQualityMode.auto => l10n.glassQualityAuto,
-                            GlassQualityMode.full => l10n.glassQualityFull,
-                            GlassQualityMode.reduced =>
-                              l10n.glassQualityReduced,
-                          },
-                        ),
                       EnumPreferenceTile<AppTheme>(
                         preference: UserPreferences.focusColor,
                         title: l10n.focusBorderColor,

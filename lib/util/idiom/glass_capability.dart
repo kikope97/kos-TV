@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:moonfin_design/moonfin_design.dart'
     show AppColorScheme, GlassQuality, GlassSettings, GlassTier;
 
-import '../../preference/preference_constants.dart';
 import '../platform_detection.dart';
 import 'app_ui_idiom.dart';
 
@@ -34,22 +33,18 @@ class GlassCapability {
       AppUiIdiomResolver.isApple ||
       AppUiIdiomResolver.current == AppUiIdiom.tvosLeanback;
 
-  /// Resolves the glass rendering tier from platform capability and the
-  /// Glass Quality preference. This only decides how glass is drawn; whether
-  /// a call site draws glass at all is gated there (glass theme or Apple
-  /// idiom).
-  static GlassTier resolve(GlassQualityMode quality) {
-    if (quality == GlassQualityMode.reduced) return GlassTier.sheen;
+  /// Resolves the glass rendering tier from platform capability alone: the
+  /// quality is automatic, not a setting (Kos TV: the owner's decision,
+  /// 2026-11-22). This only decides how glass is drawn; whether a call site
+  /// draws glass at all is gated there (glass theme or Apple idiom). Weak
+  /// devices still drop to sheen through the adaptive scope.
+  static GlassTier resolve() {
     // CanvasKit backdrop blur across the shell is a known jank source.
     if (kIsWeb) return GlassTier.sheen;
     if (PlatformDetection.isAppleTV) return GlassTier.frost;
     // TV boxes are the weakest GPUs we ship to and default to Skia, where
-    // BackdropFilter is most expensive, so real blur is opt-in via full.
-    if (PlatformDetection.isTV) {
-      return quality == GlassQualityMode.full
-          ? GlassTier.frost
-          : GlassTier.sheen;
-    }
+    // BackdropFilter is most expensive, so they never blur.
+    if (PlatformDetection.isTV) return GlassTier.sheen;
     if ((PlatformDetection.isIOS || PlatformDetection.isMacOS) &&
         PlatformDetection.osMajor >= 26) {
       return GlassTier.liquid;
@@ -59,16 +54,16 @@ class GlassCapability {
   }
 
   /// Recomputes the tier and pushes it into the design package. Called at
-  /// startup (after TV-mode detection) and whenever the Glass Quality or
-  /// interface-style preference changes.
-  static void apply(GlassQualityMode quality) {
-    final tier = resolve(quality);
+  /// startup (after TV-mode detection) and whenever the interface-style
+  /// preference changes.
+  static void apply() {
+    final tier = resolve();
     GlassSettings.tier = tier;
     // Blur-capable tiers delegate their frosted layer to the
     // liquid_glass_widgets renderer, governed by the app-shell adaptive
     // scope. Sheen and solid keep the hand-rolled zero-blur path, which is
     // cheaper than anything the package offers, so it stays the floor for
-    // weak TV boxes, web, and the reduced preference.
+    // weak TV boxes and web.
     GlassSettings.usePackageRenderer = !useLegacyGlass &&
         (tier == GlassTier.liquid || tier == GlassTier.frost);
   }

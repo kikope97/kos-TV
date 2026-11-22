@@ -16058,5 +16058,21 @@
     "updateWhatsNew": "Novedades",
     "@updateWhatsNew": {"description": "Kos TV update dialog: heading over the release notes the server plugin gives for the new version"},
     "updateSignatureMismatch": "La actualización descargada no está firmada como kOS TV, así que no se ha instalado. Avisa a quien lleva el servidor.",
-    "@updateSignatureMismatch": {"description": "Kos TV in-app update: the downloaded APK is not signed with the same certificate as the installed app, so it is refused before the installer opens"}
+    "@updateSignatureMismatch": {"description": "Kos TV in-app update: the downloaded APK is not signed with the same certificate as the installed app, so it is refused before the installer opens"},
+    "kostvMenuMyRequests": "Mis peticiones",
+    "@kostvMenuMyRequests": {"description": "Kos TV menu (docs/diseno-menu): the person's requests tray, in «Tú» (the avatar's menu on TV/computer, the «Tú» page on phones)"},
+    "kostvMenuNews": "{count, plural, =1{1 novedad} other{{count} novedades}}",
+    "@kostvMenuNews": {"description": "Kos TV menu: how many news are waiting (requests, favourites), beside an entry of «Tú»", "placeholders": {"count": {"type": "int"}}},
+    "kostvMenuSwitchPerson": "Cambiar de persona",
+    "@kostvMenuSwitchPerson": {"description": "Kos TV menu: in «Tú», opens the profiles to switch person"},
+    "kostvMenuFamilyProfile": "Perfil de la familia",
+    "@kostvMenuFamilyProfile": {"description": "Kos TV menu: line under the person's name at the top of «Tú»"},
+    "kostvMenuAtHome": "En casa",
+    "@kostvMenuAtHome": {"description": "Kos TV «Tú» page (phones): heading over Bibliotecas, Géneros, TV en directo and Calendario"},
+    "kostvMenuChange": "Cambiar",
+    "@kostvMenuChange": {"description": "Kos TV «Tú» page (phones): short button beside the person's name to switch person"},
+    "kostvMenuOnItsWay": "Hay algo en camino",
+    "@kostvMenuOnItsWay": {"description": "Kos TV «Tú» page: under «Mis peticiones» while something asked for is still coming"},
+    "kostvMenuYouHint": "Mantén pulsado para ver «Más»",
+    "@kostvMenuYouHint": {"description": "Kos TV phone glass bar: screen reader hint on «Tú»: a long press opens the «Más» sheet"}
 }

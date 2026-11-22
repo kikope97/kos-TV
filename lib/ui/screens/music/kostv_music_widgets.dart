@@ -2,15 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/services/stremfin/kostv_stream_song.dart'
     show kostvStreamId;
 import '../../../data/services/stremfin/stremfin_models.dart' show StremfinSong;
 import '../../../l10n/app_localizations.dart';
-import '../../../preference/preference_constants.dart';
-import '../../../preference/user_preferences.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
@@ -281,14 +278,8 @@ class _KostvMusicPressableState extends State<KostvMusicPressable> {
         };
         if (direction == null) return KeyEventResult.ignored;
         if (node.focusInDirection(direction)) return KeyEventResult.handled;
-        // Nothing further up, or left with the menu at the side: the menu.
-        final side =
-            GetIt.instance<UserPreferences>().get(
-              UserPreferences.navbarPosition,
-            ) ==
-            NavbarPosition.left;
-        if (direction == TraversalDirection.up ||
-            (direction == TraversalDirection.left && side)) {
+        // Nothing further up: the menu.
+        if (direction == TraversalDirection.up) {
           NavigationLayout.focusNavbarNotifier.value?.call();
         }
         return KeyEventResult.handled;

@@ -31,11 +31,7 @@ class SkeletonLibraryGrid extends StatelessWidget {
   }
 
   Widget _buildSongsSkeleton(BuildContext context) {
-    final prefs = GetIt.instance.isRegistered<UserPreferences>()
-        ? GetIt.instance<UserPreferences>()
-        : null;
-    final hasLeftSidebar = prefs?.get(UserPreferences.navbarPosition) == NavbarPosition.left;
-    final hPad = hasLeftSidebar ? 120.0 : 40.0;
+    const hPad = 40.0;
 
     return ListView.builder(
       padding: EdgeInsets.fromLTRB(hPad, 8, hPad, 32),
@@ -73,8 +69,7 @@ class SkeletonLibraryGrid extends StatelessWidget {
         final prefs = GetIt.instance.isRegistered<UserPreferences>()
             ? GetIt.instance<UserPreferences>()
             : null;
-        final hasLeftSidebar = prefs?.get(UserPreferences.navbarPosition) == NavbarPosition.left;
-        final horizontalPadding = hasLeftSidebar ? 120.0 : 40.0;
+        const horizontalPadding = 40.0;
         final scale = (prefs?.get(UserPreferences.desktopUiScale) ?? DesktopUiScale.medium).scaleFactor;
         final posterSize = prefs?.get(UserPreferences.posterSize).upToExtraLarge ?? PosterSize.medium;
         final defaultWidth = (posterSize.portraitHeight * aspectRatio) * scale;
@@ -142,8 +137,7 @@ class SkeletonLibraryGrid extends StatelessWidget {
         final prefs = GetIt.instance.isRegistered<UserPreferences>()
             ? GetIt.instance<UserPreferences>()
             : null;
-        final hasLeftSidebar = prefs?.get(UserPreferences.navbarPosition) == NavbarPosition.left;
-        final horizontalPadding = hasLeftSidebar ? 120.0 : 40.0;
+        const horizontalPadding = 40.0;
         final scale = (prefs?.get(UserPreferences.desktopUiScale) ?? DesktopUiScale.medium).scaleFactor;
         final posterSize = prefs?.get(UserPreferences.posterSize).upToExtraLarge ?? PosterSize.medium;
         final defaultWidth = (posterSize.portraitHeight * aspectRatio) * scale;

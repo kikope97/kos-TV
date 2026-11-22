@@ -23,15 +23,16 @@ void main() {
   setUp(setUpBottomNav);
   tearDown(tearDownBottomNav);
 
+  /// Kos TV: «Más», a long press on «Tú».
   Future<void> openHub(WidgetTester tester) async {
     usePhoneView(tester);
     await tester.pumpWidget(bottomNavApp());
     await tester.pump();
-    await tester.tap(find.text('You'));
+    await tester.longPress(find.text('You'));
     await tester.pumpAndSettle();
   }
 
-  testWidgets('the bottom navbar hub lists Friends with what is waiting', (
+  testWidgets('«Más» lists Friends with what is waiting', (
     tester,
   ) async {
     await GetIt.instance<UserPreferences>().set(
@@ -44,11 +45,11 @@ void main() {
     await openHub(tester);
 
     expect(find.text('Friends'), findsOneWidget);
-    // Once on the avatar and once on the row.
-    expect(find.text('2'), findsNWidgets(2));
+    // On its tile (the avatar on the bar has a dot for «Tú»'s own news).
+    expect(find.text('2'), findsOneWidget);
   });
 
-  testWidgets('Friends stays out of the hub until it\'s turned on', (
+  testWidgets('Friends stays out of «Más» until it\'s turned on', (
     tester,
   ) async {
     GetIt.instance.registerSingleton<AchievementsService>(

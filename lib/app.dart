@@ -130,7 +130,7 @@ class _MoonfinAppState extends State<MoonfinApp> {
     _themeController = AppThemeController.fromPreferences(_prefs);
     _lastResolvedLocale = _resolveLocale();
     AppUiIdiomResolver.setOverride(_prefs.get(UserPreferences.interfaceStyle));
-    GlassCapability.apply(_prefs.get(UserPreferences.glassQuality));
+    GlassCapability.apply();
     _prefs.addListener(_syncThemeFromPrefs);
     _prefs.addListener(_syncLocaleFromPrefs);
     _prefs.addListener(_syncIdiomFromPrefs);
@@ -198,7 +198,7 @@ class _MoonfinAppState extends State<MoonfinApp> {
   void _syncGlassFromPrefs() {
     final beforeTier = GlassSettings.tier;
     final beforePackage = GlassSettings.usePackageRenderer;
-    GlassCapability.apply(_prefs.get(UserPreferences.glassQuality));
+    GlassCapability.apply();
     if ((GlassSettings.tier != beforeTier ||
             GlassSettings.usePackageRenderer != beforePackage) &&
         mounted) {

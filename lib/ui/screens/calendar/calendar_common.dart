@@ -17,7 +17,6 @@ import '../../widgets/bounded_network_image.dart';
 import '../../widgets/focus/focus_theme.dart';
 import '../../widgets/focus/focusable_wrapper.dart';
 import '../../widgets/navigation_layout.dart';
-import '../../widgets/top_toolbar.dart';
 import 'calendar_controller.dart';
 
 const calendarMovieColor = Color(0xFFF2A93B);
@@ -26,20 +25,11 @@ const calendarMissingColor = Color(0xFFE0A15A);
 
 UserPreferences get _prefs => GetIt.instance<UserPreferences>();
 
-/// Content insets that clear the top bar or the collapsed left rail.
+/// Content insets that clear the top bar (phones have theirs at the bottom).
 EdgeInsets calendarChromeInsets(BuildContext context) {
   final top = MediaQuery.paddingOf(context).top;
-  if (PlatformDetection.useMobileUi) {
-    final bar = NavigationLayout.usesBottomNavbar
-        ? 0.0
-        : TopToolbar.heightFor(context);
-    return EdgeInsets.only(top: top + 8 + bar, left: 16, right: 16);
-  }
-  final position = NavigationLayout.sanitizeNavbarPosition(
-    _prefs.get(UserPreferences.navbarPosition),
-  );
-  if (position == NavbarPosition.left) {
-    return EdgeInsets.only(top: top + 28, left: 104, right: 48);
+  if (NavigationLayout.usesBottomNavbar) {
+    return EdgeInsets.only(top: top + 8, left: 16, right: 16);
   }
   return EdgeInsets.only(
     top: top + (PlatformDetection.isTV ? 95 : 80),

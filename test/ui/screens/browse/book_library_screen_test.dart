@@ -22,7 +22,7 @@ import 'package:moonfin/ui/screens/browse/classic_book_browse_screen.dart';
 import 'package:moonfin/ui/screens/browse/reading_room_book_screen.dart';
 import 'package:moonfin/ui/widgets/book/reading_room/reading_room_continue_card.dart';
 import 'package:moonfin/ui/widgets/book/book_category_nav.dart';
-import 'package:moonfin/ui/widgets/left_sidebar.dart';
+import 'package:moonfin/ui/widgets/top_toolbar.dart';
 import 'package:moonfin/ui/widgets/navigation_layout.dart';
 import 'package:moonfin/util/game_library.dart';
 import 'package:moonfin/util/platform_detection.dart';
@@ -253,34 +253,11 @@ void main() {
       expect(find.text('/books/lib-1/titles'), findsOneWidget);
     });
 
-    testWidgets('the sidebar moves the strip past it on wide layouts', (
-      tester,
-    ) async {
-      PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
-      await prefs.set(UserPreferences.navbarPosition, NavbarPosition.left);
-      await pumpScreen(tester);
-
-      expect(
-        tester.getTopLeft(find.byType(BookCategoryStrip)).dx,
-        closeTo(16 + 52, 1.0),
-      );
-    });
-
-    testWidgets('phones keep the strip at the edge with the sidebar on', (
-      tester,
-    ) async {
-      await prefs.set(UserPreferences.navbarPosition, NavbarPosition.left);
-      await pumpScreen(tester);
-
-      expect(tester.getTopLeft(find.byType(BookCategoryStrip)).dx, 16);
-    });
-
     group('focus on wide layouts', () {
       Future<void> pumpWithBook(WidgetTester tester) async {
         when(() => GetIt.instance<MediaServerClient>().itemsApi)
             .thenReturn(_OneBookItemsApi());
         PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
-        await prefs.set(UserPreferences.navbarPosition, NavbarPosition.left);
         await pumpScreen(tester);
       }
 
@@ -291,13 +268,13 @@ void main() {
         await tester.pumpAndSettle();
       }
 
-      testWidgets('the content takes focus once it loads, not the sidebar', (
+      testWidgets('the content takes focus once it loads, not the menu', (
         tester,
       ) async {
         await pumpWithBook(tester);
 
         expect(focused(), 'bookHeroCta');
-        expect(LeftSidebar.isFocusedNotifier.value, isFalse);
+        expect(TopToolbar.isFocusedNotifier.value, isFalse);
       });
 
       testWidgets('an update leaves focus where the viewer put it', (
@@ -368,7 +345,6 @@ void main() {
         when(() => GetIt.instance<MediaServerClient>().itemsApi)
             .thenReturn(_OneBookItemsApi());
         PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
-        await prefs.set(UserPreferences.navbarPosition, NavbarPosition.left);
         await pumpScreen(tester);
       }
 
@@ -382,21 +358,12 @@ void main() {
       ReadingRoomContinueCard card(WidgetTester tester) =>
           tester.widget(find.byType(ReadingRoomContinueCard));
 
-      testWidgets('the sidebar moves the content past it', (tester) async {
-        await pumpWithBook(tester);
-
-        expect(
-          tester.getTopLeft(find.text('Continue Reading')).dx,
-          closeTo(48 + 52, 1.0),
-        );
-      });
-
       testWidgets('focus lands on Continue and walks every section', (
         tester,
       ) async {
         await pumpWithBook(tester);
         expect(focused(), 'LockedFocusRow:books_lib-1_continue');
-        expect(LeftSidebar.isFocusedNotifier.value, isFalse);
+        expect(TopToolbar.isFocusedNotifier.value, isFalse);
 
         await press(tester, LogicalKeyboardKey.arrowDown);
         expect(card(tester).buttonFocused, isTrue);

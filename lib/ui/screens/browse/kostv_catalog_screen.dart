@@ -501,14 +501,6 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen>
     return null;
   }
 
-  /// Whether the menu is the side bar (not the top bar).
-  bool get _sideMenu =>
-      !PlatformDetection.useMobileUi &&
-      NavigationLayout.sanitizeNavbarPosition(
-            _prefs.get(UserPreferences.navbarPosition),
-          ) ==
-          NavbarPosition.left;
-
   bool get _hasMore => _total != null && _fetched < _total!;
 
   void _onScroll() {
@@ -811,14 +803,10 @@ class _KostvCatalogScreenState extends State<KostvCatalogScreen>
               NavigationLayout.focusNavbarNotifier.value?.call();
               return KeyEventResult.handled;
             }
-            // Left from the first pill: to the side menu, if there is one,
-            // never down into the posters.
+            // Left from the first pill stays: never down into the posters.
             if (event is KeyDownEvent &&
                 event.logicalKey == LogicalKeyboardKey.arrowLeft &&
                 _pillFocus.hasPrimaryFocus) {
-              if (_sideMenu) {
-                NavigationLayout.focusNavbarNotifier.value?.call();
-              }
               return KeyEventResult.handled;
             }
             // Right from the last pill stays: nothing of the row is

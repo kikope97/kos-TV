@@ -6,30 +6,14 @@ import '../../../auth/repositories/session_repository.dart';
 import '../../../data/services/connectivity_service.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/services/plugin_sync_service.dart';
-import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
-import '../../widgets/navigation_layout.dart';
 
 /// Which questions the first-run wizard still has to ask, in the order shown.
 ///
-/// [navbar] leads because it is the frame everything after it sits in.
-/// [navbarStyle] follows it and only shows once Bottom has been picked, see
-/// [visibleSetupSteps]. [tour] is never suppressed, since it asks nothing
-/// that could already have been answered.
-enum SetupStep { navbar, navbarStyle, mediaBar, homeRows, detailStyle, tour }
-
-/// [steps] as the user sees them, given the navbar position in effect. The
-/// style question only means something for the bottom navbar.
-List<SetupStep> visibleSetupSteps(
-  List<SetupStep> steps,
-  NavbarPosition effectivePosition,
-) =>
-    [
-      for (final step in steps)
-        if (step != SetupStep.navbarStyle ||
-            effectivePosition == NavbarPosition.bottom)
-          step,
-    ];
+/// Kos TV: the menu isn't asked about: there is one design, with no way to
+/// change it (the owner's decision, 2026-11-22). [tour] is never suppressed,
+/// since it asks nothing that could already have been answered.
+enum SetupStep { mediaBar, homeRows, detailStyle, tour }
 
 /// Decides whether the wizard runs, and for which steps.
 ///
@@ -131,27 +115,14 @@ class SetupWizardGate {
   /// frame. A deliberate re-run asks everything, because going looking for it
   /// says more than the stored values do.
   List<SetupStep> remainingSteps() {
-    final offerStyle = NavigationLayout.allowBottomNavbar;
     if (_rerunning) {
       return [
         for (final step in SetupStep.values)
-          if ((step != SetupStep.navbarStyle || offerStyle) &&
-              (step != SetupStep.tour || includeTour))
-            step,
+          if (step != SetupStep.tour || includeTour) step,
       ];
     }
 
-    final askNavbar = !_prefs.containsPreference(
-      UserPreferences.navbarPosition,
-    );
     final steps = <SetupStep>[
-      if (askNavbar) SetupStep.navbar,
-      // Tied to the navbar question: a user whose other answers came over
-      // from another device would otherwise get a wizard asking only this.
-      if (askNavbar &&
-          offerStyle &&
-          !_prefs.containsPreference(UserPreferences.bottomNavbarStyle))
-        SetupStep.navbarStyle,
       if (!_prefs.containsPreference(UserPreferences.mediaBarMode))
         SetupStep.mediaBar,
       if (!_prefs.containsPreference(UserPreferences.homeRowsStyle))

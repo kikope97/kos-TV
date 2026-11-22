@@ -22,7 +22,7 @@ import 'package:moonfin/ui/screens/browse/immersive_music_screen.dart';
 import 'package:moonfin/ui/screens/browse/music_browse_screen.dart';
 import 'package:moonfin/ui/screens/browse/music_library_screen.dart';
 import 'package:moonfin/ui/screens/browse/quick_access_music_screen.dart';
-import 'package:moonfin/ui/widgets/left_sidebar.dart';
+import 'package:moonfin/ui/widgets/top_toolbar.dart';
 import 'package:moonfin/ui/widgets/music/music_widgets.dart';
 import 'package:moonfin/ui/widgets/navigation_layout.dart';
 import 'package:moonfin/ui/widgets/sliding_pill_tabs.dart';
@@ -215,13 +215,12 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// A desktop window with the sidebar on the left.
+  /// A desktop window, with the bar of tabs at the top.
   Future<void> pumpWide(WidgetTester tester) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
-    await prefs.set(UserPreferences.navbarPosition, NavbarPosition.left);
     await pumpScreen(tester);
   }
 
@@ -281,7 +280,7 @@ void main() {
       ) async {
         await pumpWide(tester);
         expect(focused(), 'music:play');
-        expect(LeftSidebar.isFocusedNotifier.value, isFalse);
+        expect(TopToolbar.isFocusedNotifier.value, isFalse);
 
         await press(tester, LogicalKeyboardKey.arrowRight);
         expect(focused(), 'music:shuffle');
@@ -410,7 +409,7 @@ void main() {
         'rail and every section', (tester) async {
       await pumpWide(tester);
       expect(focused(), 'music:quick:0');
-      expect(LeftSidebar.isFocusedNotifier.value, isFalse);
+      expect(TopToolbar.isFocusedNotifier.value, isFalse);
 
       await press(tester, LogicalKeyboardKey.arrowLeft);
       expect(focused(), 'music:rail:overview');

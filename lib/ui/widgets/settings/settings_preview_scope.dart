@@ -52,9 +52,6 @@ class SettingsPreviewController extends ChangeNotifier {
   static const _sceneByKey = <String, SettingsPreviewScene>{
     'pref_clock_behavior': SettingsPreviewScene.home,
     'pref_use_24_hour_clock': SettingsPreviewScene.home,
-    'pref_navbar_position': SettingsPreviewScene.home,
-    'pref_bottom_navbar_style': SettingsPreviewScene.home,
-    'pref_navbar_always_expanded': SettingsPreviewScene.home,
     'pref_show_shuffle_button': SettingsPreviewScene.home,
     'pref_show_genres_button': SettingsPreviewScene.home,
     'pref_show_favorites_button': SettingsPreviewScene.home,
@@ -66,8 +63,6 @@ class SettingsPreviewController extends ChangeNotifier {
     'pref_show_downloads_button': SettingsPreviewScene.home,
     'pref_show_friends_button': SettingsPreviewScene.home,
     'pref_show_server_messages_button': SettingsPreviewScene.home,
-    'navbarColor': SettingsPreviewScene.home,
-    'navbarOpacity': SettingsPreviewScene.home,
     'focus_color': SettingsPreviewScene.home,
     'pref_home_rows_style': SettingsPreviewScene.home,
     'pref_home_rows_fullscreen': SettingsPreviewScene.home,

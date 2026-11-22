@@ -11,8 +11,6 @@ import 'package:moonfin/data/services/stremfin/stremfin_client.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/preference/preference_constants.dart';
-import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/navigation/destinations.dart';
 import 'package:moonfin/ui/screens/discover/kostv_discover_hero.dart';
 import 'package:moonfin/ui/screens/discover/kostv_discover_parts.dart';
@@ -20,7 +18,6 @@ import 'package:moonfin/ui/screens/discover/kostv_discover_screen.dart';
 import 'package:moonfin/ui/screens/discover/kostv_discover_spotlight.dart';
 import 'package:moonfin/ui/widgets/focus/hub_focus_memory.dart';
 import 'package:moonfin/ui/widgets/media_card.dart';
-import 'package:moonfin/ui/widgets/navigation_layout.dart';
 import 'package:moonfin/util/platform_detection.dart';
 
 import '../../../data/services/stremfin/fake_stremfin_adapter.dart';
@@ -139,13 +136,10 @@ void main() {
     calls = [];
     KostvSpotlightDetails.clear();
     HubFocusMemory.clearAll();
-    final setup = await setUpBottomNav();
+    await setUpBottomNav();
     PlatformDetection.setInterfaceLayout(
       phone ? InterfaceLayout.phone : InterfaceLayout.tv,
     );
-    final position = phone ? NavbarPosition.bottom : NavbarPosition.top;
-    await setup.prefs.set(UserPreferences.navbarPosition, position);
-    NavigationLayout.positionNotifier.value = position;
     if (phone) {
       usePhoneView(tester);
     } else {

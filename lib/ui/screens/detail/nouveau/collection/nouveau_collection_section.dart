@@ -8,7 +8,6 @@ import '../../../../../data/models/aggregated_item.dart';
 import '../../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../../l10n/app_localizations.dart';
 import '../../../../../preference/detail_section_layout.dart';
-import '../../../../../preference/preference_constants.dart';
 import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/item_watch_state.dart';
 import '../../../../../util/platform_detection.dart';
@@ -18,7 +17,6 @@ import '../../../../widgets/focus/context_menu_sheet.dart';
 import '../../../../widgets/focus/focusable_wrapper.dart';
 import '../../../../widgets/focus/hub_focus_memory.dart';
 import '../../../../widgets/focus/locked_focus_row.dart';
-import '../../../../widgets/navigation_layout.dart';
 import '../../../../widgets/overlay_sheet.dart';
 import '../../item_detail_screen.dart';
 import '../shared/nouveau_landscape_media_card.dart';
@@ -135,8 +133,6 @@ class NouveauCollectionSectionState
       _sortFocusNode.canRequestFocus &&
       (_sortFocusNode.context?.mounted ?? false);
 
-  bool get _navbarIsLeft =>
-      widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.left;
 
   bool _isCompactMobile(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
@@ -756,28 +752,6 @@ class NouveauCollectionSectionState
     _captureStableItems();
   }
 
-  void _handleLeftEdge() {
-    if (!_navbarIsLeft) {
-      return;
-    }
-
-    FocusManager.instance.primaryFocus?.focusInDirection(
-      TraversalDirection.left,
-    );
-  }
-
-  void _handleSortLeftEdge() {
-    if (!_navbarIsLeft) {
-      return;
-    }
-
-    final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-
-    if (focusNavbar != null) {
-      focusNavbar();
-    }
-  }
-
   Future<void> _openSortDialog(BuildContext context) async {
     if (_sortInProgress) {
       return;
@@ -1182,7 +1156,6 @@ class NouveauCollectionSectionState
                       onIndexChanged: onIndexChanged ?? _handleCollectionIndexChanged,
                       onVerticalNavigation: onVerticalNavigation ??
                           _handleCollectionVerticalNavigation,
-                      onLeftEdge: _navbarIsLeft ? _handleLeftEdge : null,
                       itemBuilder: (context, item, index, isFocused) {
                         final hasNext = index < items.length - 1;
 
@@ -1278,7 +1251,6 @@ class NouveauCollectionSectionState
               onSelect: () {
                 unawaited(_openSortDialog(context));
               },
-              onNavigateLeft: _navbarIsLeft ? _handleSortLeftEdge : null,
               onNavigateRight: () {},
               // The rail refuses focus when it is empty or not laid out yet, so
               // fall through to the section's own callbacks.
@@ -1453,7 +1425,6 @@ class NouveauCollectionSectionState
                   _revealPlaylistSection();
                 },
                 onVerticalNavigation: _handlePlaylistArtworkVerticalNavigation,
-                onLeftEdge: _navbarIsLeft ? _handleLeftEdge : null,
                 itemBuilder: (context, item, index, isFocused) {
                   final hasPrevious = index > 0;
 

@@ -123,11 +123,7 @@ class _StageDetailContentState extends State<StageDetailContent>
     final actions = _buildActions(landscape, posterWidth);
     final header = _buildHeader(item, landscape, sections, overview);
     final top = stageTopInset(context);
-    final side = stageLeadingInset(
-      context,
-      landscape: landscape,
-      prefs: widget.prefs,
-    );
+    final side = stageLeadingInset(context, landscape: landscape);
 
     final Widget page;
     if (landscape) {

@@ -6,8 +6,8 @@ import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
 import '../../screens/discover/fake_stremfin_life.dart';
 import 'bottom_nav_fakes.dart';
 
-/// Kos TV: the requests tray in the bottom navbar hub, with its news on the
-/// row and on the avatar.
+/// Kos TV: the requests tray in «Más» (a long press on «Tú»), with its news
+/// on its tile and a dot on the avatar.
 void main() {
   setUp(setUpBottomNav);
   tearDown(tearDownBottomNav);
@@ -18,7 +18,7 @@ void main() {
     }
   }
 
-  testWidgets('the hub lists the requests tray with its news', (tester) async {
+  testWidgets('«Más» lists the requests tray with its news', (tester) async {
     final fake = FakeStremfinLife(mode: 'review');
     fake.answer('POST', '/requests', {'type': 'movie', 'tmdb_id': 920});
     final service = fake.service();
@@ -33,13 +33,12 @@ void main() {
     service.inbox.sync();
     await settle(tester);
 
-    await tester.tap(find.text('You'));
+    await tester.longPress(find.text('You'));
     await tester.pump(const Duration(milliseconds: 500));
     await settle(tester);
 
-    expect(find.text('Requests'), findsOneWidget);
-    // Once on the avatar and once on the row.
-    expect(find.text('1'), findsNWidgets(2));
+    expect(find.text('My requests'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
@@ -50,9 +49,9 @@ void main() {
     usePhoneView(tester);
     await tester.pumpWidget(bottomNavApp());
     await tester.pump();
-    await tester.tap(find.text('You'));
+    await tester.longPress(find.text('You'));
     await tester.pumpAndSettle();
-    expect(find.text('Requests'), findsNothing);
+    expect(find.text('My requests'), findsNothing);
     expect(find.text('Settings'), findsOneWidget);
   });
 }

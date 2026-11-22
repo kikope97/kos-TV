@@ -13,7 +13,6 @@ import 'media_bar_title.dart';
 import '../../../data/models/media_bar_state.dart';
 import '../../../data/viewmodels/media_bar_view_model.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/platform_detection.dart';
 import '../../util/outside_library_title.dart';
@@ -256,11 +255,8 @@ class _BannerMediaBarState extends State<BannerMediaBar> {
       if (state is! MediaBarLoading && state is! MediaBarError) {
         return const SizedBox.shrink();
       }
-      final navbarAtTop =
-          widget.prefs.get(UserPreferences.navbarPosition) ==
-          NavbarPosition.top;
       final topInset = PlatformDetection.useMobileUi
-          ? MediaQuery.paddingOf(context).top + (navbarAtTop ? 60.0 : 0.0)
+          ? MediaQuery.paddingOf(context).top
           : 0.0;
       if (state is MediaBarLoading) {
         final loadingHeight = (widget.height - topInset - 12.0).clamp(
@@ -321,18 +317,12 @@ class _BannerMediaBarState extends State<BannerMediaBar> {
     final isMobile = PlatformDetection.useMobileUi;
     // A phone's bar is about 2:1, where a banner would be a thin strip.
     final bannerUrl = isMobile ? null : item.bannerUrl;
-    final navbarPosition = widget.prefs.get(UserPreferences.navbarPosition);
-    final navbarAtTop = navbarPosition == NavbarPosition.top;
-    final topInset = isMobile
-        ? MediaQuery.paddingOf(context).top + (navbarAtTop ? 60.0 : 0.0)
-        : 0.0;
-    // The left sidebar is drawn over the banner, so the banner starts past it.
-    final sidebarInset =
-        !isMobile && navbarPosition == NavbarPosition.left ? 56.0 : 0.0;
+    // Phones have their menu at the bottom, so only the status bar is above.
+    final topInset = isMobile ? MediaQuery.paddingOf(context).top : 0.0;
     final showArrows = items.length > 1 && PlatformDetection.useDesktopUi;
 
     return Padding(
-      padding: EdgeInsets.fromLTRB(16 + sidebarInset, topInset, 16, 8),
+      padding: EdgeInsets.fromLTRB(16, topInset, 16, 8),
       child: Focus(
         focusNode: widget.focusNode,
         autofocus: widget.focusNode == null && PlatformDetection.useLeanbackUi,

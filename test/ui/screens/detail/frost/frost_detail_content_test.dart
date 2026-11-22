@@ -18,6 +18,7 @@ import 'package:moonfin/ui/screens/detail/frost/frost_detail_content.dart';
 import 'package:moonfin/ui/screens/detail/item_detail_screen.dart';
 import 'package:moonfin/ui/widgets/bottom_nav/bottom_navbar.dart';
 import 'package:moonfin/ui/widgets/rating_display.dart';
+import 'package:moonfin/util/platform_detection.dart';
 import 'package:moonfin/ui/theme/app_theme.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 import 'package:playback_core/playback_core.dart';
@@ -345,12 +346,17 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     tester.view.physicalSize = const Size(1280, 720);
     addTearDown(tester.view.reset);
+    // A phone (or a tablet): the menu is the glass bar at the bottom.
+    PlatformDetection.setInterfaceLayout(InterfaceLayout.phone);
+    addTearDown(
+      () => PlatformDetection.setInterfaceLayout(InterfaceLayout.automatic),
+    );
     const stage = Key('stage');
     await tester.pumpWidget(
       const MaterialApp(
         home: BottomNavInsetScope(
           height: 100,
-          child: FrostStage(navbarTop: false, child: SizedBox(key: stage)),
+          child: FrostStage(child: SizedBox(key: stage)),
         ),
       ),
     );

@@ -3,12 +3,10 @@ import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../../../data/repositories/tmdb_repository.dart';
 import '../../../../../l10n/app_localizations.dart';
-import '../../../../../preference/preference_constants.dart';
 import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/platform_detection.dart';
 import '../../../../widgets/detail_reviews.dart';
 import '../../../../widgets/focus/locked_focus_row.dart';
-import '../../../../widgets/navigation_layout.dart';
 import '../shared/nouveau_spacing.dart';
 
 class NouveauReviewsSection extends StatefulWidget {
@@ -64,12 +62,6 @@ class NouveauReviewsSectionState extends State<NouveauReviewsSection> {
   bool get canFocusTop =>
       mounted && widget.reviews.isNotEmpty && _rowKey.currentState != null;
 
-  bool get _navbarIsLeft =>
-      widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.left;
-
-  void _handleLeftEdge() {
-    NavigationLayout.focusNavbarNotifier.value?.call();
-  }
 
   bool focusTop() {
     if (!canFocusTop) {
@@ -146,7 +138,6 @@ class NouveauReviewsSectionState extends State<NouveauReviewsSection> {
                 onTap: (_, review) {
                   showReviewDialog(context, review);
                 },
-                onLeftEdge: _navbarIsLeft ? _handleLeftEdge : null,
                 itemBuilder: (context, review, index, isFocused) {
                   final hasNext = index < reviews.length - 1;
 

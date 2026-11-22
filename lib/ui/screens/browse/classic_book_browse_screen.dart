@@ -30,7 +30,6 @@ import '../../widgets/skeleton/skeleton_library_grid.dart';
 import '../../widgets/focus/locked_focus_row.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../../widgets/bottom_nav/bottom_navbar.dart';
-import '../../widgets/left_sidebar.dart';
 import '../../widgets/top_toolbar.dart';
 import 'library_page_state.dart';
 
@@ -108,7 +107,6 @@ class _ClassicBookBrowseScreenState extends State<ClassicBookBrowseScreen> {
         if (!mounted ||
             _vm.isLoading ||
             !canClaimInitialFocus(context) ||
-            LeftSidebar.isFocusedNotifier.value ||
             TopToolbar.isFocusedNotifier.value) {
           return;
         }
@@ -265,7 +263,7 @@ class _ClassicBookBrowseScreenState extends State<ClassicBookBrowseScreen> {
 
     final nav = Padding(
       key: _navContainerKey,
-      padding: EdgeInsets.fromLTRB(16 + bookSidebarInset, 6, 16, 10),
+      padding: EdgeInsets.fromLTRB(16, 6, 16, 10),
       child: BookCategoryStrip(
         title: _vm.libraryName.isNotEmpty ? _vm.libraryName : l10n.books,
         entries: bookOverviewNavEntries(
@@ -277,7 +275,7 @@ class _ClassicBookBrowseScreenState extends State<ClassicBookBrowseScreen> {
         focusNode: _navFocusNode,
         fontSize: PlatformDetection.useMobileUi ? 20 : 24,
         onVerticalNavigation: (isUp) => _moveVertical(navIndex, isUp),
-        onExitLeft: focusBookSidebar,
+        onExitLeft: stayAtBookLeftEdge,
       ),
     );
 
@@ -298,10 +296,7 @@ class _ClassicBookBrowseScreenState extends State<ClassicBookBrowseScreen> {
         SizedBox(height: topReserve),
         nav,
       ],
-      Padding(
-        padding: EdgeInsets.only(left: bookSidebarInset),
-        child: BookStatsBand(stats: _stats(l10n)),
-      ),
+      BookStatsBand(stats: _stats(l10n)),
       if (showScope)
         Padding(
           key: _scopeContainerKey,
@@ -357,7 +352,6 @@ class _ClassicBookBrowseScreenState extends State<ClassicBookBrowseScreen> {
       imageUrl: _vm.bookImageUrl(featured),
       progress: started ? (pct / 100).clamp(0.0, 1.0) : null,
       topInset: topReserve,
-      leftInset: bookSidebarInset,
       onPrimary: () =>
           readOrListenBook(context, featured, isAudiobook: isAudio),
       ctaFocusNode: _heroCtaFocusNode,
@@ -376,10 +370,10 @@ class _ClassicBookBrowseScreenState extends State<ClassicBookBrowseScreen> {
       rowKey: _rowKey(row.id),
       containerKey: _rowContainerKey(row.id),
       cardWidth: _cardWidth,
-      leadingInset: 16 + bookSidebarInset,
+      leadingInset: 16,
       showFormatBadges: _vm.rowCanMixFormats(row),
       onVerticalNavigation: (isUp) => _moveVertical(entryIndex, isUp),
-      onLeftEdge: focusBookSidebar,
+      onLeftEdge: stayAtBookLeftEdge,
       onItemTap: (item) => _onItemTap(item, row),
       onItemLongPress: _onItemLongPress,
       onSeeAll: variant == BookShelfVariant.avatar ? null : () => _onSeeAll(row),

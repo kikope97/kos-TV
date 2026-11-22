@@ -12,14 +12,11 @@ import '../../../../../data/viewmodels/item_detail_view_model.dart';
 import '../../../../../data/services/book_reader_service.dart';
 import '../../../../../l10n/app_localizations.dart';
 import '../../../../../preference/detail_section_layout.dart';
-import '../../../../../preference/preference_constants.dart';
-import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/detail_playback_info.dart';
 import '../../../../../util/detail_track_highlight.dart';
 import '../../../../../util/play_method_label.dart';
 import '../../../../navigation/destinations.dart';
 import '../../../../widgets/focus/focusable_wrapper.dart';
-import '../../../../widgets/navigation_layout.dart';
 import '../../item_detail_screen.dart' show selectedMediaSourceForItem;
 import '../shared/nouveau_spacing.dart';
 
@@ -92,9 +89,6 @@ class NouveauDetailsSectionState extends State<NouveauDetailsSection> {
   String? _focusedStudioKey;
   String? _lastFocusedStudioKey;
 
-  bool get _navbarIsLeft =>
-      GetIt.instance<UserPreferences>().get(UserPreferences.navbarPosition) ==
-      NavbarPosition.left;
 
   ItemDetailViewModel get _vm => widget.viewModel;
 
@@ -308,11 +302,7 @@ class NouveauDetailsSectionState extends State<NouveauDetailsSection> {
           return KeyEventResult.handled;
         }
 
-        if (!_navbarIsLeft) return KeyEventResult.ignored;
-
-        return NavigationLayout.focusNavbar()
-            ? KeyEventResult.handled
-            : KeyEventResult.ignored;
+        return KeyEventResult.ignored;
       }
 
       if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
@@ -1213,15 +1203,6 @@ class NouveauDetailsSectionState extends State<NouveauDetailsSection> {
                           final moved = widget.onNavigateUp?.call() ?? false;
 
                           return moved
-                              ? KeyEventResult.handled
-                              : KeyEventResult.ignored;
-                        }
-
-                        // Nothing sits to the left of this, so a left press
-                        // can only be a way out to a navbar on that side.
-                        if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-                            _navbarIsLeft) {
-                          return NavigationLayout.focusNavbar()
                               ? KeyEventResult.handled
                               : KeyEventResult.ignored;
                         }

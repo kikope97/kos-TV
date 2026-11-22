@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../../../../data/models/aggregated_item.dart';
-import '../../../../../preference/preference_constants.dart';
 import '../../../../../preference/user_preferences.dart';
 import '../../../../../util/platform_detection.dart';
-import '../../../../widgets/navigation_layout.dart';
 import '../../../../widgets/focus/locked_focus_row.dart';
 import '../shared/nouveau_spacing.dart';
 import 'nouveau_filmography_card.dart';
@@ -63,12 +61,6 @@ class NouveauFilmographySectionState
 
   double get _aspectRatio => _isEpisodeRow ? 16 / 9 : 2 / 3;
 
-  bool get _navbarIsLeft =>
-      widget.prefs.get(UserPreferences.navbarPosition) == NavbarPosition.left;
-
-  void _handleLeftEdge() {
-    NavigationLayout.focusNavbarNotifier.value?.call();
-  }
 
   @override
   void initState() {
@@ -226,7 +218,6 @@ class NouveauFilmographySectionState
             height: layout.railHeight,
             itemExtent: layout.itemExtent,
             clipBehavior: Clip.none,
-            onLeftEdge: _navbarIsLeft ? _handleLeftEdge : null,
             onTap: (_, item) {
               NouveauFilmographyCard.openItem(context, item);
             },

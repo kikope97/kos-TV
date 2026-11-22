@@ -1,12 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
-import 'package:playback_core/playback_core.dart';
 
-import '../../../preference/preference_constants.dart';
-import '../../../preference/user_preferences.dart';
 import '../../../util/focus/row_focus_coordinator.dart';
 import '../../../util/platform_detection.dart';
 import '../../widgets/book/book_navigation.dart';
@@ -14,7 +10,6 @@ import '../../widgets/bottom_nav/bottom_navbar.dart';
 import '../../widgets/focus/can_claim_initial_focus.dart';
 import '../../widgets/focus/locked_focus_row.dart';
 import '../../widgets/focus/request_initial_focus.dart';
-import '../../widgets/left_sidebar.dart';
 import '../../widgets/navigation_layout.dart';
 import '../../widgets/settings/settings_preview_scope.dart';
 import '../../widgets/top_toolbar.dart';
@@ -68,41 +63,17 @@ abstract class LibraryPageState<T extends StatefulWidget> extends State<T> {
   List<Widget> _sections = [];
   final _rowKeys = <String, GlobalKey<LockedFocusRowState>>{};
   final _sectionKeys = <String, GlobalKey>{};
-  StreamSubscription<void>? _queueSub;
-  double _musicBarHeight = TopToolbar.musicBarExtraHeight();
 
   bool get wide => !PlatformDetection.useMobileUi;
 
-  /// Where the page's own header starts, below the top navbar and the music
-  /// pill under it while music plays.
+  /// Where the page's own header starts: below the top bar on a TV and a
+  /// computer, below the status bar on phones (whose bar is at the bottom).
   double get topReserve =>
       MediaQuery.paddingOf(context).top +
-      (NavigationLayout.sanitizeNavbarPosition(
-                GetIt.instance<UserPreferences>().get(
-                  UserPreferences.navbarPosition,
-                ),
-              ) ==
-              NavbarPosition.top
-          ? TopToolbar.heightFor(context)
-          : 56);
-
-  @override
-  void initState() {
-    super.initState();
-    _queueSub = GetIt.instance<PlaybackManager>()
-        .queueService
-        .queueChangedStream
-        .listen((_) {
-          final height = TopToolbar.musicBarExtraHeight();
-          if (height != _musicBarHeight && mounted) {
-            setState(() => _musicBarHeight = height);
-          }
-        });
-  }
+      (NavigationLayout.usesBottomNavbar ? 56 : TopToolbar.heightFor(context));
 
   @override
   void dispose() {
-    _queueSub?.cancel();
     scrollController.dispose();
     initialFocusNode.dispose();
     for (final node in _nodes.values) {
@@ -120,7 +91,6 @@ abstract class LibraryPageState<T extends StatefulWidget> extends State<T> {
       if (!mounted ||
           isLoading ||
           !canClaimInitialFocus(context) ||
-          LeftSidebar.isFocusedNotifier.value ||
           TopToolbar.isFocusedNotifier.value) {
         return;
       }

@@ -1,56 +1,52 @@
-import '../../../preference/preference_constants.dart';
+import 'package:flutter/widgets.dart';
 
-/// Sizes shared by the three bottom navbar styles and everything that has to
-/// leave room for them.
+/// Kos TV: sizes of the glass bar (docs/diseno-menu, the phone's «cristal
+/// líquido» and the tablet's compact bar) and of everything that has to
+/// leave room for it.
 abstract final class BottomNavMetrics {
-  /// Side inset of the floating styles, and their float gap above the screen
-  /// edge where the system reports no inset of its own.
-  static const double floatingInset = 12;
+  /// Side inset of the bar on a phone.
+  static const double side = 14;
 
-  static const double dockHeight = 64;
-  static const double dockRadius = 26;
-  static const double dockMaxWidth = 560;
+  /// The bar's height, and the round Search button's size beside it.
+  static const double barHeight = 62;
 
-  static const double splitHeight = 62;
-  static const double splitMinimizedSize = 54;
-  static const double splitGap = 10;
+  /// Between the bar and Search, and between the mini player and the bar.
+  static const double gap = 10;
 
-  static const double stripHeight = 60;
-  static const double stripMaxWidth = 600;
+  /// The gathered bar: the page's tab and Search are circles this size.
+  static const double collapsedSize = 54;
 
-  static const double capsulePlayerHeight = 58;
-  static const double capsulePlayerRadius = 22;
-  static const double capsulePlayerGap = 8;
-  static const double rowPlayerHeight = 56;
+  /// The mini player above the open bar.
+  static const double accessoryHeight = 54;
 
-  static const double indicatorWidth = 62;
-  static const double indicatorHeight = 52;
-  static const double indicatorRadius = 20;
+  /// Above the screen's edge where the system reports no inset of its own.
+  static const double floatingInset = 16;
 
-  static const double hubRadius = 28;
-  static const double iconSize = 24;
-  static const double avatarSize = 26;
+  static const double iconSize = 23;
+  static const double avatarSize = 24;
+
+  /// Kos TV: a tablet (the shortest side of the window at least this wide)
+  /// has a compact bar, centred, with each tab's icon and name side by side.
+  static const double tabletBreakpoint = 600;
+
+  /// The tablet's bar, without Search.
+  static const double tabletBarWidth = 560;
+
+  /// Whether the window is a tablet's.
+  static bool isTablet(Size size) => size.shortestSide >= tabletBreakpoint;
 
   static double floatingBottomGap(double bottomInset) =>
-      bottomInset > 0 ? bottomInset : floatingInset;
+      bottomInset > 0 ? bottomInset + 8 : floatingInset;
 
-  /// Room the bar takes along the bottom of the screen, system inset included.
-  ///
-  /// Split reports its expanded height even while minimised, so content padded
-  /// by it doesn't jump every time the user changes scroll direction.
-  static double heightFor(
-    BottomNavbarStyle style, {
+  /// Room the bar takes along the bottom of the screen, system inset and mini
+  /// player included. The bar reports its open height even while gathered,
+  /// so content padded by it doesn't jump every time the person changes
+  /// scroll direction.
+  static double heightFor({
     required double bottomInset,
     required bool miniPlayer,
-  }) {
-    final gap = floatingBottomGap(bottomInset);
-    const capsule = capsulePlayerHeight + capsulePlayerGap;
-    return switch (style) {
-      BottomNavbarStyle.dock => dockHeight + gap + (miniPlayer ? capsule : 0),
-      BottomNavbarStyle.split =>
-        splitHeight + gap + (miniPlayer ? capsule : 0),
-      BottomNavbarStyle.strip =>
-        stripHeight + bottomInset + (miniPlayer ? rowPlayerHeight : 0),
-    };
-  }
+  }) =>
+      barHeight +
+      floatingBottomGap(bottomInset) +
+      (miniPlayer ? accessoryHeight + gap : 0);
 }

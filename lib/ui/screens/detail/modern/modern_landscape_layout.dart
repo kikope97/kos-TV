@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
-import '../../../../preference/preference_constants.dart';
 import '../../../../preference/user_preferences.dart';
 import '../../../../util/platform_detection.dart';
 import '../../../widgets/bottom_nav/bottom_navbar.dart';
@@ -54,8 +53,7 @@ class ModernLandscapeLayout extends StatelessWidget {
     final scale = GetIt.instance<UserPreferences>().get(UserPreferences.desktopUiScale).scaleFactor;
     final heroWidth = heroWidthFor(size, hasUpNext: hasUpNext, isBoxSet: isBoxSet);
 
-    final hasLeftSidebar = GetIt.instance<UserPreferences>().get(UserPreferences.navbarPosition) == NavbarPosition.left;
-    final leftPadding = hasLeftSidebar ? 120.0 : 40.0;
+    const leftPadding = 40.0;
 
     return Stack(
       fit: StackFit.expand,

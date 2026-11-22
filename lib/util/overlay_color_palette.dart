@@ -34,23 +34,6 @@ abstract final class OverlayColorPalette {
     'neon_pulse_magenta': 'neonPulseMagenta',
   };
 
-  static const pickerSwatches = <String, int>{
-    'gray': 0xFF6B7280,
-    'black': 0xFF111827,
-    'dark_blue': 0xFF1E3A8A,
-    'purple': 0xFF6D28D9,
-    'teal': 0xFF0F766E,
-    'navy': 0xFF1E293B,
-    'charcoal': 0xFF374151,
-    'brown': 0xFF7C4A2D,
-    'dark_red': 0xFF7F1D1D,
-    'dark_green': 0xFF14532D,
-    'slate': 0xFF334155,
-    'indigo': 0xFF4338CA,
-    'moonfinCyan': 0xFF00A4DC,
-    'neonPulseMagenta': 0xFFFF2E92,
-  };
-
   static String normalizeKey(String? colorName) {
     final raw = colorName?.trim();
     if (raw == null || raw.isEmpty) {

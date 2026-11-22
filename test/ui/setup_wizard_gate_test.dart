@@ -90,8 +90,8 @@ void main() {
     // tests are about the wizard as it works when they are on.
     SetupWizardGate.runAfterSignIn = true;
     SetupWizardGate.includeTour = true;
-    // Tests run as Android, which would offer the bottom navbar. Most of these
-    // are about the gate itself, so they run as a device without one.
+    // Tests run as Android, which is a phone. These are about the gate
+    // itself, so they run as a computer.
     PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
   });
 
@@ -104,7 +104,6 @@ void main() {
   group('what the wizard still has to ask', () {
     test('a fresh sign-in is asked everything, and ends on the tour', () {
       expect(gate.remainingSteps(), [
-        SetupStep.navbar,
         SetupStep.mediaBar,
         SetupStep.homeRows,
         SetupStep.detailStyle,
@@ -120,7 +119,6 @@ void main() {
       );
 
       expect(gate.remainingSteps(), [
-        SetupStep.navbar,
         SetupStep.homeRows,
         SetupStep.detailStyle,
         SetupStep.tour,
@@ -132,7 +130,6 @@ void main() {
     test(
       'an account that has answered everything is not shown the wizard',
       () async {
-        await prefs.set(UserPreferences.navbarPosition, NavbarPosition.left);
         await prefs.set(
           UserPreferences.mediaBarMode,
           UserPreferences.mediaBarModeGallery,
@@ -149,7 +146,6 @@ void main() {
     );
 
     test('the tour never shows up on its own', () async {
-      await prefs.set(UserPreferences.navbarPosition, NavbarPosition.top);
       await prefs.set(
         UserPreferences.mediaBarMode,
         UserPreferences.mediaBarModeOff,
@@ -199,12 +195,9 @@ void main() {
       gate.beginRerun();
 
       expect(gate.shouldRun(client), isTrue);
-      // Everything this device can show. There is no bottom bar here, so no
-      // question about its style.
-      expect(
-        gate.remainingSteps(),
-        SetupStep.values.where((s) => s != SetupStep.navbarStyle),
-      );
+      // Everything there is to ask (Kos TV: nothing about the menu, which
+      // has one design).
+      expect(gate.remainingSteps(), SetupStep.values);
     });
 
     test('finishing a re-run puts it away again', () async {
@@ -215,54 +208,18 @@ void main() {
     });
   });
 
-  group('the bottom navbar style question', () {
-    setUp(() => PlatformDetection.setInterfaceLayout(InterfaceLayout.phone));
-
-    test('a phone asks it right after where navigation goes', () {
-      expect(gate.remainingSteps(), [
-        SetupStep.navbar,
-        SetupStep.navbarStyle,
-        SetupStep.mediaBar,
-        SetupStep.homeRows,
-        SetupStep.detailStyle,
-        SetupStep.tour,
-      ]);
-    });
-
-    test('isn\'t asked on its own when the navbar came from elsewhere',
-        () async {
-      await prefs.set(UserPreferences.navbarPosition, NavbarPosition.bottom);
-
-      expect(gate.remainingSteps(), isNot(contains(SetupStep.navbarStyle)));
-    });
-
-    test('isn\'t asked again once answered', () async {
-      await prefs.set(
-        UserPreferences.bottomNavbarStyle,
-        BottomNavbarStyle.split,
-      );
-
-      expect(gate.remainingSteps(), isNot(contains(SetupStep.navbarStyle)));
-    });
-
-    test('a re-run on a phone includes it', () {
-      gate.beginRerun();
-
-      expect(gate.remainingSteps(), SetupStep.values);
-    });
-
-    test('only shows once Bottom is picked', () {
-      final steps = gate.remainingSteps();
-
-      expect(
-        visibleSetupSteps(steps, NavbarPosition.top),
-        isNot(contains(SetupStep.navbarStyle)),
-      );
-      expect(
-        visibleSetupSteps(steps, NavbarPosition.bottom),
-        contains(SetupStep.navbarStyle),
-      );
-    });
+  // Kos TV: the menu has one design, so the wizard never asks about it, on
+  // a phone either (where it is the glass bar at the bottom).
+  test('a phone is not asked about the menu', () {
+    PlatformDetection.setInterfaceLayout(InterfaceLayout.phone);
+    expect(gate.remainingSteps(), [
+      SetupStep.mediaBar,
+      SetupStep.homeRows,
+      SetupStep.detailStyle,
+      SetupStep.tour,
+    ]);
+    gate.beginRerun();
+    expect(gate.remainingSteps(), SetupStep.values);
   });
 
   group('giving up without answering', () {
@@ -361,7 +318,6 @@ void main() {
 
       expect(gate.shouldRun(client), isTrue);
       expect(gate.remainingSteps(), [
-        SetupStep.navbar,
         SetupStep.mediaBar,
         SetupStep.homeRows,
         SetupStep.detailStyle,

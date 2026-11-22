@@ -115,6 +115,11 @@ class Destinations {
   // Kos TV: what's on the streaming platforms (requests service).
   static const kostvDiscover = '/discover';
 
+  /// Kos TV: «Tú», the page of what is each person's (their requests,
+  /// favourites, downloads, switching person and Ajustes) on phones and
+  /// tablets. On a TV and a computer it is the avatar's menu.
+  static const kostvYou = '/tu';
+
   /// Kos TV: Music, the page of its own: search, charts and what goes with
   /// what the person listens to.
   static const kostvMusic = '/musica';
@@ -143,6 +148,7 @@ class Destinations {
     liveTvGuide,
     calendar,
     apps,
+    kostvYou,
   };
 
   /// Whether [path] is one of the [menuPages].

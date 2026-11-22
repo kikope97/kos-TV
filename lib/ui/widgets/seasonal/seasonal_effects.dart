@@ -10,7 +10,6 @@ import 'package:get_it/get_it.dart';
 import '../../../preference/user_preferences.dart';
 import '../../screensaver/screensaver_controller.dart';
 import '../focus/locked_focus_row.dart';
-import '../left_sidebar.dart';
 import '../top_toolbar.dart';
 import 'seasonal_follower.dart';
 import 'seasonal_simulation.dart';
@@ -273,7 +272,6 @@ class _SeasonalEffectsLayerState extends State<SeasonalEffectsLayer>
   ModalRoute<Object?>? _route;
   FocusNode? _primary;
   LockedFocusRowState? _row;
-  RenderBox? _sidebar;
   var _landing = FollowerLanding.card;
   var _focusOnRoute = false;
   RenderObject? _focusedRoot;
@@ -395,14 +393,9 @@ class _SeasonalEffectsLayerState extends State<SeasonalEffectsLayer>
               : focusedRoot;
         }
         final focused = _focused;
-        final sidebar = _sidebar;
         final target =
             focused is RenderBox && focused.attached && focused.hasSize
             ? _boundsIn(overlay, focused)
-            : null;
-        final navigationBounds =
-            sidebar != null && sidebar.attached && sidebar.hasSize
-            ? _boundsIn(overlay, sidebar)
             : null;
         for (final follower in _followers) {
           follower.step(
@@ -410,7 +403,6 @@ class _SeasonalEffectsLayerState extends State<SeasonalEffectsLayer>
             target,
             overlay.size,
             landing: _landing,
-            navigationBounds: navigationBounds,
           );
         }
       }
@@ -421,7 +413,6 @@ class _SeasonalEffectsLayerState extends State<SeasonalEffectsLayer>
   void _resolveFocus(FocusNode? primary) {
     _primary = primary;
     _row = null;
-    _sidebar = null;
     _landing = FollowerLanding.card;
     final subtree = _route?.subtreeContext;
     _focusOnRoute = _route == null;
@@ -434,11 +425,6 @@ class _SeasonalEffectsLayerState extends State<SeasonalEffectsLayer>
       }
       if (_landing == FollowerLanding.card) {
         if (widget is TopToolbar) _landing = FollowerLanding.below;
-        if (widget is LeftSidebar) {
-          _landing = FollowerLanding.right;
-          final box = element.findRenderObject();
-          if (box is RenderBox) _sidebar = box;
-        }
       }
       // Reaching Home's own page means focus isn't in a dialog or sheet on top.
       if (identical(element, subtree)) {

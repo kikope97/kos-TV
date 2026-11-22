@@ -8,10 +8,8 @@ import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/media_server_client_factory.dart';
 import '../../../data/viewmodels/folder_browse_view_model.dart';
 import '../../../preference/user_preferences.dart';
-import '../../../preference/preference_constants.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/game_library.dart';
-import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
 import '../../widgets/focus/request_initial_focus.dart';
 import '../../widgets/media_card.dart';
@@ -224,14 +222,6 @@ class _FolderBrowseScreenState extends State<FolderBrowseScreen> {
     }
   }
 
-  // The sidebar draws over the screen, so content moves past it to 60
-  double get _sidebarInset {
-    final prefs = GetIt.instance<UserPreferences>();
-    final sidebar =
-        prefs.get(UserPreferences.navbarPosition) == NavbarPosition.left;
-    return sidebar && !PlatformDetection.useMobileUi ? 60 : 0;
-  }
-
   @override
   Widget build(BuildContext context) => RequestInitialFocus(
         targetNode: _vm.items.isNotEmpty
@@ -252,8 +242,6 @@ class _FolderBrowseScreenState extends State<FolderBrowseScreen> {
           scrollController: _scrollController,
           topFocusNode: _vm.items.isNotEmpty ? _getGridItemFocusNode(0) : null,
           child: SafeArea(
-            child: Padding(
-              padding: EdgeInsets.only(left: _sidebarInset),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -266,7 +254,6 @@ class _FolderBrowseScreenState extends State<FolderBrowseScreen> {
                   Expanded(child: _buildBody()),
                 ],
               ),
-            ),
           ),
         ),
       ),

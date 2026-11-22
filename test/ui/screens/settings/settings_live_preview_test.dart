@@ -27,7 +27,6 @@ import 'package:moonfin/data/services/connectivity_service.dart';
 import 'package:moonfin/data/services/media_server_client_factory.dart';
 import 'package:moonfin/data/services/row_data_source.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
-import 'package:moonfin/data/services/saved_media_presence.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/playback/subtitle_fonts.dart';
@@ -69,7 +68,6 @@ import 'package:moonfin/ui/widgets/settings/settings_preview_scope.dart';
 import 'package:moonfin/ui/widgets/settings/settings_section_header.dart';
 import 'package:moonfin/ui/widgets/sliding_pill_tabs.dart';
 import 'package:moonfin/ui/widgets/user_avatar_image.dart';
-import 'package:moonfin/util/overlay_color_palette.dart';
 import 'package:moonfin/util/platform_detection.dart';
 import 'package:playback_core/playback_core.dart'
     show PlaybackManager, QueueService;
@@ -78,8 +76,6 @@ import 'package:server_core/server_core.dart'
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _Users extends Mock implements UserRepository {}
-
-class _Saved extends Mock implements SavedMediaPresence {}
 
 class _Client extends Mock implements MediaServerClient {}
 
@@ -219,8 +215,6 @@ void main() {
         for (final pref in settings.all)
           if (pref != settings.episodeRatings) pref.key: scene,
       for (final pref in [
-        UserPreferences.navbarColor,
-        UserPreferences.navbarOpacity,
         UserPreferences.mediaBarOverlayColor,
         UserPreferences.mediaBarOverlayOpacity,
       ])
@@ -599,18 +593,18 @@ void main() {
     );
 
     expect(
-      previewValue(context, UserPreferences.navbarPosition),
-      NavbarPosition.top,
+      previewValue(context, UserPreferences.clockBehavior),
+      ClockBehavior.always,
     );
-    controller.tryValue('pref_navbar_position', NavbarPosition.left);
+    controller.tryValue('pref_clock_behavior', ClockBehavior.inMenus);
     expect(
-      previewValue(context, UserPreferences.navbarPosition),
-      NavbarPosition.left,
+      previewValue(context, UserPreferences.clockBehavior),
+      ClockBehavior.inMenus,
     );
-    controller.clearTry('pref_navbar_position');
+    controller.clearTry('pref_clock_behavior');
     expect(
-      previewValue(context, UserPreferences.navbarPosition),
-      NavbarPosition.top,
+      previewValue(context, UserPreferences.clockBehavior),
+      ClockBehavior.always,
     );
   });
 
@@ -652,14 +646,9 @@ void main() {
         await pump();
       }
 
-      for (final position in NavbarPosition.values) {
-        controller.tryValue('pref_navbar_position', position);
-        controller.tryValue('pref_navbar_always_expanded', true);
-        controller.tryValue('navbarColor', 'dark_red');
-        controller.tryValue('navbarOpacity', 100);
-        controller.showScene(SettingsPreviewScene.home);
-        await pump();
-      }
+      // Kos TV: Home with this device's one menu.
+      controller.showScene(SettingsPreviewScene.home);
+      await pump();
       for (final size in PosterSize.values) {
         controller.tryValue('poster_size', size);
         await pump();
@@ -796,30 +785,33 @@ void main() {
     await tester.pumpWidget(
       host(
         controller,
-        EnumPreferenceTile<NavbarPosition>(
-          preference: UserPreferences.navbarPosition,
-          title: 'Navigation Style',
+        EnumPreferenceTile<ClockBehavior>(
+          preference: UserPreferences.clockBehavior,
+          title: 'Clock',
           labelOf: (value) => value.name,
         ),
       ),
     );
 
-    await tester.tap(find.text('Navigation Style'));
+    await tester.tap(find.text('Clock'));
     await tester.pumpAndSettle();
     // The current option takes focus when the picker opens.
-    expect(controller.tryingValue('pref_navbar_position'), NavbarPosition.top);
+    expect(controller.tryingValue('pref_clock_behavior'), ClockBehavior.always);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pumpAndSettle();
-    expect(controller.tryingValue('pref_navbar_position'), NavbarPosition.left);
-    expect(controller.tryingIndex('pref_navbar_position'), 1);
-
-    await tester.tap(find.text('left').last);
-    await tester.pumpAndSettle();
-    expect(controller.isTrying('pref_navbar_position'), isFalse);
     expect(
-      GetIt.instance<UserPreferences>().get(UserPreferences.navbarPosition),
-      NavbarPosition.left,
+      controller.tryingValue('pref_clock_behavior'),
+      ClockBehavior.inMenus,
+    );
+    expect(controller.tryingIndex('pref_clock_behavior'), 1);
+
+    await tester.tap(find.text('inMenus').last);
+    await tester.pumpAndSettle();
+    expect(controller.isTrying('pref_clock_behavior'), isFalse);
+    expect(
+      GetIt.instance<UserPreferences>().get(UserPreferences.clockBehavior),
+      ClockBehavior.inMenus,
     );
   });
 
@@ -952,16 +944,10 @@ void main() {
           prefKey: 'pref_home_rows_style',
         ),
       );
-      for (final position in [
-        NavbarPosition.top,
-        NavbarPosition.left,
-        if (layout == InterfaceLayout.phone) NavbarPosition.bottom,
-      ]) {
-        controller.tryValue('pref_navbar_position', position);
-        await pump();
-        expect(focusRing, findsOneWidget, reason: '$position');
-        expectUnclipped(tester, focusRing, reason: '$position');
-      }
+      // Kos TV: under this device's one menu.
+      await pump();
+      expect(focusRing, findsOneWidget);
+      expectUnclipped(tester, focusRing, reason: 'row type');
       debugDefaultTargetPlatformOverride = null;
     });
   }
@@ -989,30 +975,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(tester.takeException(), isNull);
     }
-
-    testWidgets('a tried navbar color draws on the navbar', (tester) async {
-      final controller = SettingsPreviewController()
-        ..focus(
-          const SettingsPreviewEntry(title: 'Color', prefKey: 'navbarColor'),
-        )
-        ..tryValue('pref_navbar_position', NavbarPosition.top)
-        ..tryValue('navbarColor', 'dark_red')
-        ..tryValue('navbarOpacity', 80);
-      await pumpPreview(tester, controller);
-
-      final tried = OverlayColorPalette.resolveColor(
-        'dark_red',
-      ).withValues(alpha: 0.8);
-      bool paints(Widget widget) =>
-          widget is Container &&
-          (widget.decoration as BoxDecoration?)?.color == tried;
-      expect(find.byWidgetPredicate(paints), findsOneWidget);
-
-      controller.clearTry('navbarColor');
-      await pumpPreview(tester, controller);
-      expect(find.byWidgetPredicate(paints), findsNothing);
-      debugDefaultTargetPlatformOverride = null;
-    });
 
     testWidgets('a tried focus color rings the focused card', (tester) async {
       final controller = SettingsPreviewController()
@@ -1161,7 +1123,7 @@ void main() {
           (widget.image as AssetImage).assetName == name,
     );
 
-    testWidgets('the navbar draws every button its switches turn on', (
+    testWidgets('the menu draws every tab its switches turn on', (
       tester,
     ) async {
       final controller = SettingsPreviewController()
@@ -1170,18 +1132,17 @@ void main() {
             title: 'Genres',
             prefKey: 'pref_show_genres_button',
           ),
-        )
-        ..tryValue('pref_navbar_position', NavbarPosition.top);
+        );
       await pumpPreview(tester, controller);
-      expect(asset('assets/icons/genres.png'), findsOneWidget);
-      expect(asset('assets/icons/clapperboard.png'), findsOneWidget);
-      expect(find.byIcon(Icons.live_tv_rounded), findsNothing);
-      expect(find.byIcon(Icons.groups_rounded), findsNothing);
+      // Kos TV: named tabs; Genres lives in «Más», not on the bar.
+      expect(find.text(l10n.libraries), findsOneWidget);
+      expect(find.text(l10n.liveTv), findsNothing);
+      expect(asset('assets/icons/genres.png'), findsNothing);
 
-      // Live TV waits for a Live TV library, as the real button does.
+      // Live TV waits for a Live TV library, as the real tab does.
       controller.tryValue('pref_show_live_tv_button', true);
       await pumpPreview(tester, controller);
-      expect(find.byIcon(Icons.live_tv_rounded), findsNothing);
+      expect(find.text(l10n.liveTv), findsNothing);
 
       SetupPreviewData.libraries.value = [
         for (final (name, type) in [('Films', 'movies'), ('TV', 'livetv')])
@@ -1192,19 +1153,14 @@ void main() {
             serverId: 'server',
           ),
       ];
-      controller
-        ..tryValue('pref_show_genres_button', false)
-        ..tryValue('pref_syncplay_enabled', true)
-        ..tryValue('pref_show_syncplay_button', true)
-        ..tryValue('pref_show_libraries_individually', true);
+      controller.tryValue('pref_show_libraries_individually', true);
       await pumpPreview(tester, controller);
-      expect(asset('assets/icons/genres.png'), findsNothing);
-      expect(asset('assets/icons/clapperboard.png'), findsNothing);
+      expect(find.text(l10n.libraries), findsNothing);
+      expect(find.text('Films'), findsOneWidget);
       // Kos TV: Music is on out of the box. Discover waits for the requests
       // service to let the person in, and My list for the plugin to keep it.
-      expect(find.byIcon(Icons.music_note_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.explore_rounded), findsNothing);
-      expect(find.byIcon(Icons.bookmark_rounded), findsNothing);
+      expect(find.text(l10n.kostvDiscover), findsNothing);
+      expect(find.text(l10n.kostvMyList), findsNothing);
 
       final stremfin = _Stremfin();
       when(() => stremfin.isAllowed).thenReturn(true);
@@ -1212,49 +1168,22 @@ void main() {
       controller.tryValue('kostv_my_list_available', true);
       await pumpPreview(tester, controller);
 
-      // Laid out in the real navbar's order.
+      // Laid out in the real bar's order.
       final order = [
-        Icons.home_rounded,
-        Icons.search_rounded,
-        Icons.explore_rounded,
-        Icons.bookmark_rounded,
-        Icons.music_note_rounded,
-        Icons.live_tv_rounded,
-        Icons.groups_rounded,
-        Icons.movie_rounded,
-        Icons.settings_rounded,
-      ].map((icon) => tester.getCenter(find.byIcon(icon)).dx).toList();
+        l10n.home,
+        l10n.kostvDiscover,
+        l10n.kostvMusic,
+        l10n.kostvMyList,
+        'Films',
+        l10n.liveTv,
+      ].map((label) => tester.getCenter(find.text(label).first).dx).toList();
       for (var i = 1; i < order.length; i++) {
         expect(order[i], greaterThan(order[i - 1]));
       }
 
-      // Messages shows with its switch though the server has none right now.
-      // Friends still needs the server's friends feature, and Downloads
-      // something saved, as on the real bar.
-      controller
-        ..tryValue('pref_show_downloads_button', true)
-        ..tryValue('pref_show_server_messages_button', true)
-        ..tryValue('pref_show_friends_button', true)
-        ..tryValue('pref_show_libraries_in_toolbar', false);
+      controller.tryValue('pref_show_libraries_in_toolbar', false);
       await pumpPreview(tester, controller);
-      expect(find.byIcon(Icons.info_outline_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.people_alt_rounded), findsNothing);
-      expect(find.byIcon(Icons.download_for_offline), findsNothing);
-      expect(find.byIcon(Icons.movie_rounded), findsNothing);
-
-      final saved = _Saved();
-      when(() => saved.hasSavedMedia).thenReturn(true);
-      GetIt.instance.registerSingleton<SavedMediaPresence>(saved);
-      controller.tryValue('pref_show_downloads_button', true);
-      await pumpPreview(tester, controller);
-      expect(find.byIcon(Icons.download_for_offline), findsOneWidget);
-
-      controller
-        ..tryValue('pref_show_downloads_button', false)
-        ..tryValue('pref_show_server_messages_button', false);
-      await pumpPreview(tester, controller);
-      expect(find.byIcon(Icons.download_for_offline), findsNothing);
-      expect(find.byIcon(Icons.info_outline_rounded), findsNothing);
+      expect(find.text('Films'), findsNothing);
       debugDefaultTargetPlatformOverride = null;
     });
 
@@ -1298,17 +1227,10 @@ void main() {
 
       // Modern tried in the picker grows the first card with its details.
       controller.tryValue('pref_home_rows_style', HomeRowsStyle.v2);
-      for (final position in [NavbarPosition.top, NavbarPosition.left]) {
-        controller.tryValue('pref_navbar_position', position);
-        await pumpPreview(tester, controller);
-        expect(focusRing, findsOneWidget, reason: '$position');
-        expect(find.byType(RatingsRow), findsOneWidget, reason: '$position');
-        expect(
-          find.text(_fakeItems().first.overview!),
-          findsOneWidget,
-          reason: '$position',
-        );
-      }
+      await pumpPreview(tester, controller);
+      expect(focusRing, findsOneWidget);
+      expect(find.byType(RatingsRow), findsOneWidget);
+      expect(find.text(_fakeItems().first.overview!), findsOneWidget);
 
       // Canceling the picker goes back to the saved Classic rows.
       controller.clearTry('pref_home_rows_style');
@@ -1373,8 +1295,7 @@ void main() {
         ),
       );
       GetIt.instance.registerSingleton<UserRepository>(users);
-      final controller = SettingsPreviewController()
-        ..tryValue('pref_navbar_position', NavbarPosition.top);
+      final controller = SettingsPreviewController();
 
       await pumpPreview(tester, controller);
       expect(tester.widget<UserAvatarImage>(find.byType(UserAvatarImage)).url,
@@ -1620,82 +1541,6 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     });
 
-    testWidgets('the sidebar stays a rail whatever Always Expand says', (
-      tester,
-    ) async {
-      final controller = SettingsPreviewController()
-        ..tryValue('pref_navbar_position', NavbarPosition.left)
-        ..tryValue('pref_navbar_always_expanded', true);
-      await pumpPreview(tester, controller);
-      expect(find.byIcon(Icons.search_rounded), findsOneWidget);
-      expect(find.text(l10n.search), findsNothing);
-      debugDefaultTargetPlatformOverride = null;
-    });
-
-    testWidgets('expanded labels and the user\'s libraries stay in the bar', (
-      tester,
-    ) async {
-      SetupPreviewData.libraries.value = [
-        for (final (name, type) in [
-          ('Films', 'movies'),
-          ('Series', 'tvshows'),
-          ('Tunes', 'music'),
-          ('Reading', 'books'),
-          ('Home Videos', 'homevideos'),
-          ('Playlists', 'playlists'),
-        ])
-          AggregatedLibrary(
-            id: name,
-            name: name,
-            collectionType: type,
-            serverId: 'server',
-          ),
-      ];
-      final controller = SettingsPreviewController()
-        ..tryValue('pref_navbar_position', NavbarPosition.top)
-        ..tryValue('pref_clock_behavior', ClockBehavior.always)
-        ..tryValue('pref_show_libraries_individually', true)
-        ..tryValue('pref_navbar_always_expanded', true)
-        // Kos TV: Music's own button shares the music library's note.
-        ..tryValue('kostv_show_music_button', false);
-      await pumpPreview(tester, controller);
-
-      // Every library, not one stand-in per kind of title.
-      expect(find.text('Films'), findsOneWidget);
-      expect(find.text('Tunes'), findsOneWidget);
-      expect(find.byIcon(Icons.music_note_rounded), findsOneWidget);
-      expect(find.text(l10n.movies), findsNothing);
-
-      // Too many to fit, so the pill keeps clear of the avatar and the clock
-      // and clips the rest, as the real bar scrolls them.
-      final pill = tester.getRect(
-        find
-            .ancestor(
-              of: find.byIcon(Icons.home_rounded),
-              matching: find.byType(SingleChildScrollView),
-            )
-            .first,
-      );
-      final clock = find.byWidgetPredicate(
-        (widget) =>
-            widget is Text &&
-            RegExp(r'^\d{1,2}:\d{2}').hasMatch(widget.data ?? ''),
-      );
-      final avatar = tester.getRect(find.byType(UserAvatarImage));
-      expect(pill.left, greaterThan(avatar.right));
-      // The same room on both sides, as the real bar keeps it, so the pill
-      // stays centered.
-      expect(
-        pill.left - avatar.left,
-        closeTo(tester.getRect(clock).right - pill.right, 0.5),
-      );
-      expect(
-        tester.getRect(find.text('Playlists')).right,
-        greaterThan(pill.right),
-      );
-      debugDefaultTargetPlatformOverride = null;
-    });
-
     testWidgets('following the scrub moves the thumbnail off center', (
       tester,
     ) async {
@@ -1881,7 +1726,6 @@ void main() {
           prefKey: 'pref_show_genres_button',
         ),
       )
-      ..tryValue('pref_navbar_position', NavbarPosition.bottom)
       // Kos TV: Live TV is on by default and would take the freed slot
       // before Genres.
       ..tryValue('pref_show_live_tv_button', false);
@@ -1903,13 +1747,19 @@ void main() {
           (widget.image as AssetImage).assetName == 'assets/icons/genres.png',
     );
 
-    // Kos TV: Favorites is never on the bar (it is in the You hub), so
-    // Genres takes the slot after Search and Libraries.
+    // Kos TV: the glass bar's tabs are Música and the next destination on
+    // offer (Libraries here; no Discover without the requests service).
+    // Favorites is never on the bar (it is in «Tú»).
     await pump();
     expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
+    expect(genres(), findsNothing);
+
+    // Music off frees its tab for Genres.
+    controller.tryValue('kostv_show_music_button', false);
+    await pump();
     expect(genres(), findsOneWidget);
 
-    // Genres off frees its slot.
+    // Genres off frees it again.
     controller.tryValue('pref_show_genres_button', false);
     await pump();
     expect(genres(), findsNothing);
@@ -1921,7 +1771,6 @@ void main() {
     PlatformDetection.setInterfaceLayout(InterfaceLayout.phone);
     SetupPreviewData.debugOverride = ValueNotifier(_fakeItems());
     final controller = SettingsPreviewController()
-      ..tryValue('pref_navbar_position', NavbarPosition.top)
       ..tryValue('pref_home_rows_fullscreen', true);
     await tester.pumpWidget(
       host(
@@ -2054,7 +1903,7 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('the sidebar floats over Home and Search keeps its field', (
+  testWidgets('Search keeps its field over the docked keyboard', (
     tester,
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
@@ -2072,35 +1921,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
       expect(tester.takeException(), isNull);
     }
-
-    double rowsLeft(NavbarPosition position) {
-      controller
-        ..tryValue('pref_navbar_position', position)
-        ..showScene(SettingsPreviewScene.home);
-      return tester.getTopLeft(find.text(l10n.continueWatching)).dx;
-    }
-
-    controller.tryValue('pref_navbar_position', NavbarPosition.top);
-    await pump();
-    final underTopBar = rowsLeft(NavbarPosition.top);
-    await pump();
-    rowsLeft(NavbarPosition.left);
-    await pump();
-    // Home's rows start 56 in beside the rail against 48 under a TV's top
-    // bar, rather than after the rail's whole width.
-    final scale =
-        tester
-            .getRect(
-              find.byWidgetPredicate(
-                (widget) => widget is SizedBox && widget.width == 1150,
-              ),
-            )
-            .width /
-        1150;
-    expect(
-      tester.getTopLeft(find.text(l10n.continueWatching)).dx - underTopBar,
-      closeTo(8 * scale, 0.5),
-    );
 
     // The docked keyboard opens under the field rather than in its place, and
     // its action key searches.
@@ -2814,14 +2634,6 @@ void main() {
             ? TargetPlatform.linux
             : TargetPlatform.android;
         PlatformDetection.setInterfaceLayout(layout);
-        // A phone's top bar asks the player for its height, so the bottom bar
-        // keeps that out of the test.
-        if (layout == InterfaceLayout.phone) {
-          await GetIt.instance<UserPreferences>().set(
-            UserPreferences.navbarPosition,
-            NavbarPosition.bottom,
-          );
-        }
         SetupPreviewData.debugOverride = ValueNotifier(_fakeItems());
         // The test font's glyphs are a full em wide, so the calendar's header
         // chips only run out of room here. Anything else still fails.
@@ -2854,15 +2666,11 @@ void main() {
         expect(find.byType(CalendarAgendaView), findsOneWidget);
         expect(find.text('Upcoming Show'), findsWidgets);
 
-        for (final position in NavbarPosition.values) {
-          controller
-            ..tryValue('pref_navbar_position', position)
-            ..tryValue('pref_calendar_style', CalendarStyle.countdown);
-          await tester.pump(const Duration(milliseconds: 300));
-          expect(find.byType(CalendarCountdownView), findsOneWidget);
-          expect(find.byType(CalendarAgendaView), findsNothing);
-          expect(tester.takeException(), isNull);
-        }
+        controller.tryValue('pref_calendar_style', CalendarStyle.countdown);
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byType(CalendarCountdownView), findsOneWidget);
+        expect(find.byType(CalendarAgendaView), findsNothing);
+        expect(tester.takeException(), isNull);
 
         controller.clearTry('pref_calendar_style');
         await tester.pump(const Duration(milliseconds: 300));

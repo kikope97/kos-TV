@@ -217,12 +217,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
     icon: Icons.navigation,
     open: () => push(const _NavigationCategoryScreen()),
   );
-  final bottomNavTabs = _SearchSection(
-    slug: 'bottom-nav-tabs',
-    path: [l10n.appearance, l10n.navigationBar, l10n.bottomNavbarTabs],
-    icon: Icons.push_pin_outlined,
-    open: () => push(const _BottomNavTabsScreen()),
-  );
   // Kos TV: Launcher mode, on a TV.
   final launcher = _SearchSection(
     slug: 'launcher',
@@ -623,11 +617,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
         'force',
       ]),
     themes.screen(keywords: ['theme', 'color scheme', 'glass', 'neon']),
-    if (AppColorScheme.isGlass)
-      style.leaf('pref_glass_quality', l10n.glassQuality, keywords: [
-        'blur',
-        'performance',
-      ]),
     themeStore.screen(keywords: ['download themes', 'community']),
     savedThemes.screen(keywords: ['custom themes', 'manage']),
     style.leaf('focus_color', l10n.focusBorderColor, keywords: [
@@ -839,32 +828,7 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       'social media',
     ]),
 
-    navigation.screen(keywords: ['navbar', 'toolbar', 'sidebar']),
-    navigation.leaf('pref_navbar_position', l10n.navigationStyle, keywords: [
-      'navbar position',
-      'top',
-      'left',
-      'bottom',
-    ]),
-    // Device gate only: the entries stay findable while another position is
-    // picked, like every other setting here.
-    if (NavigationLayout.allowBottomNavbar) ...[
-      navigation.leaf(
-        'pref_bottom_navbar_style',
-        l10n.bottomNavbarStyle,
-        keywords: ['dock', 'split', 'strip', 'bottom bar', 'tab bar'],
-      ),
-      bottomNavTabs.screen(keywords: [
-        'pin',
-        'tabs',
-        'bottom bar',
-        'reorder',
-      ]),
-    ],
-    navigation.leaf('navbarColor', l10n.navbarColor),
-    navigation.leaf('navbarOpacity', l10n.navbarOpacity, keywords: [
-      'transparency',
-    ]),
+    navigation.screen(keywords: ['navbar', 'toolbar', 'menu']),
     navigation.leaf(
       'pref_show_genres_button',
       l10n.showGenresButton,
@@ -891,12 +855,6 @@ List<_SettingsSearchEntry> _buildSettingsSearchIndex({
       'pref_show_syncplay_button',
       l10n.settingsSyncplayButton,
       subtitle: l10n.settingsSyncplayButtonSubtitle,
-    ),
-    navigation.leaf(
-      'pref_navbar_always_expanded',
-      l10n.navbarAlwaysExpanded,
-      subtitle: l10n.settingsAlwaysExpandNavbarLabels,
-      keywords: ['labels'],
     ),
     // Kos TV: its own buttons.
     if (kostvDiscoverAllowed())

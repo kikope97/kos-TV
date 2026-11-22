@@ -46,6 +46,7 @@ import '../screens/calendar/calendar_screen.dart';
 
 import '../screens/browse/kostv_favorites_screen.dart';
 import '../screens/browse/kostv_my_list_screen.dart';
+import '../screens/you/kostv_you_screen.dart';
 import '../screens/browse/folder_browse_screen.dart';
 import '../screens/browse/library_browse_screen.dart';
 
@@ -545,6 +546,11 @@ final appRouter = GoRouter(
     GoRoute(
       path: Destinations.myList,
       builder: (context, state) => const KostvMyListScreen(),
+    ),
+    // Kos TV: «Tú», the person's page on phones and tablets.
+    GoRoute(
+      path: Destinations.kostvYou,
+      builder: (context, state) => const KostvYouScreen(),
     ),
     GoRoute(
       path: Destinations.folderBrowse,

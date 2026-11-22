@@ -4,44 +4,45 @@ import 'package:flutter/foundation.dart';
 import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
-import '../../../auth/repositories/server_repository.dart';
-import '../../../auth/repositories/session_repository.dart';
-import '../../../auth/repositories/user_repository.dart';
-import '../../../data/models/aggregated_library.dart';
-import '../../../data/utils/user_avatar_url.dart';
-import '../../../data/repositories/multi_server_repository.dart';
-import '../../../data/repositories/user_views_repository.dart';
-import '../../../data/services/kostv_favorites_news.dart';
-import '../../../data/services/achievements_service.dart';
-import '../../../data/services/library_scope_service.dart';
-import '../../../data/services/plugin_sync_service.dart';
-import '../../../data/services/saved_media_presence.dart';
-import '../../../data/services/server_messages_service.dart';
-import '../../../data/services/stremfin/stremfin_service.dart';
-import '../../../preference/bottom_nav_tabs.dart';
-import '../../../preference/preference_constants.dart';
-import '../../../preference/user_preferences.dart';
-import '../../../util/game_library.dart';
-import '../../navigation/nav_libraries_memory.dart';
-import '../../../util/live_tv_library.dart';
-import '../../../util/signed_in_server_features.dart';
-import '../downloads_nav_slot.dart';
-import '../friends_nav_slot.dart';
-import '../kostv_requests_tray_button.dart';
-import 'bottom_nav_model.dart';
+import '../../auth/repositories/user_repository.dart';
+import '../../data/models/aggregated_library.dart';
+import '../../data/repositories/multi_server_repository.dart';
+import '../../data/repositories/user_views_repository.dart';
+import '../../data/services/achievements_service.dart';
+import '../../data/services/installed_apps_service.dart';
+import '../../data/services/kostv_favorites_news.dart';
+import '../../data/services/library_scope_service.dart';
+import '../../data/services/plugin_sync_service.dart';
+import '../../data/services/saved_media_presence.dart';
+import '../../data/services/server_messages_service.dart';
+import '../../data/services/stremfin/stremfin_service.dart';
+import '../../data/utils/user_avatar_url.dart';
+import '../../preference/bottom_nav_tabs.dart';
+import '../../preference/user_preferences.dart';
+import '../../util/game_library.dart';
+import '../../util/live_tv_library.dart';
+import '../../util/platform_detection.dart';
+import '../../util/signed_in_server_features.dart';
+import '../widgets/bottom_nav/bottom_nav_model.dart';
+import '../widgets/downloads_nav_slot.dart';
+import '../widgets/friends_nav_slot.dart';
+import '../widgets/kostv_requests_tray_button.dart';
+import 'nav_libraries_memory.dart';
 
-/// Everything the bottom navbar knows beyond its own layout: which tabs are
-/// on offer, the libraries behind the Libraries tab, the signed in user and
-/// the unread count. Each bar owns one.
-class BottomNavController extends ChangeNotifier {
-  BottomNavController() {
+/// Kos TV: everything the menu knows beyond its own layout, the same for the
+/// TV's and the computer's top bar and the phone's glass bar: which
+/// destinations are on offer (on the bar, in «Más» and in «Tú»), the
+/// libraries, the signed-in person and the counts on the avatar. Each bar
+/// owns one.
+class KostvMenuController extends ChangeNotifier {
+  KostvMenuController() {
     _prefs.addListener(_onPrefsChanged);
     _viewsRepo.addListener(_scheduleLibrariesReload);
     _pluginSync?.addListener(_onPrefsChanged);
     _stremfin?.addListener(notifyListeners);
-    // Kos TV: of the tray the bar only shows its news, while a download
-    // makes it notify every few seconds.
-    _inboxNews = _stremfin?.inbox.newsCount ?? 0;
+    // Of the tray the menu only shows its news and whether something is
+    // under way, while a download makes it notify every few seconds.
+    _inboxState = _readInbox();
     _stremfin?.inbox.addListener(_onInboxChanged);
     _favoritesNews?.addListener(notifyListeners);
     _messages?.addListener(notifyListeners);
@@ -68,62 +69,26 @@ class BottomNavController extends ChangeNotifier {
   final KostvFavoritesNewsService? _favoritesNews =
       _maybe<KostvFavoritesNewsService>();
 
-  /// Kos TV: favourite series with news not seen yet, on «Mis favoritos».
-  int get favoritesNews => _favoritesNews?.unseen ?? 0;
-
   static T? _maybe<T extends Object>() =>
       GetIt.instance.isRegistered<T>() ? GetIt.instance<T>() : null;
-
-  /// Whether the active server approves other devices' sign-in codes
-  /// (Jellyfin's Quick Connect, Silo's device sign-in). No hub tile without
-  /// a server.
-  static bool get _activeServerHasQuickConnect {
-    final client = _maybe<MediaServerClient>();
-    return client != null && client.features.supportsQuickConnect;
-  }
-
-  /// Whether the active server is Silo, whose words for Quick Connect differ
-  /// ("Approve a sign-in").
-  static bool get activeServerIsSilo =>
-      _maybe<MediaServerClient>()?.serverType == ServerType.silo;
 
   StreamSubscription? _userSub;
   Timer? _librariesReloadDebounce;
   String _signature = '';
-  int _inboxNews = 0;
+  (int, bool, bool) _inboxState = (0, false, false);
   late bool _multiServer;
   bool _disposed = false;
 
-  // Kos TV: the last libraries the menu had for this person, so the Live TV
-  // tab is in place from the bar's first frame (see NavLibrariesMemory).
+  // The last libraries the menu had for this person, so the Live TV and
+  // Libraries entries are in place from the menu's first frame (see
+  // NavLibrariesMemory).
   List<AggregatedLibrary> _libraries = NavLibrariesMemory.forActiveUser();
   String? _userImageUrl;
   String _userName = '';
-  bool _hubOpen = false;
 
   String? get userImageUrl => _userImageUrl;
   String get userName => _userName;
 
-  /// Name of the server the user is signed in to, when it is known.
-  String? get serverName {
-    try {
-      final serverId = _maybe<SessionRepository>()?.activeServerId;
-      if (serverId == null) return null;
-      for (final server in _maybe<ServerRepository>()?.servers ?? const []) {
-        if (server.id == serverId) return server.name;
-      }
-    } catch (_) {}
-    return null;
-  }
-
-  bool get hubOpen => _hubOpen;
-  set hubOpen(bool value) {
-    if (_hubOpen == value) return;
-    _hubOpen = value;
-    notifyListeners();
-  }
-
-  BottomNavbarStyle get style => _prefs.get(UserPreferences.bottomNavbarStyle);
   bool get kidsMode => _prefs.get(UserPreferences.kidsModeEnabled);
 
   BottomNavTabGates get gates => BottomNavTabGates.fromPreferences(
@@ -134,8 +99,8 @@ class BottomNavController extends ChangeNotifier {
 
   bool get _hasLiveTvLibrary => _libraries.any(isLiveTvLibrary);
 
-  /// The libraries behind the Libraries tab. Live TV drops out of the list
-  /// once it has a tab or tile of its own.
+  /// The libraries behind Bibliotecas. Live TV drops out of the list once it
+  /// has an entry of its own.
   List<AggregatedLibrary> get navLibraries => librariesForNav(
         _libraries,
         gates.offers(BottomNavTab.liveTv) && _hasLiveTvLibrary,
@@ -149,73 +114,89 @@ class BottomNavController extends ChangeNotifier {
         _ => true,
       };
 
-  List<BottomNavBarItem> barItems() => resolveBarItems(
-        gates,
-        _prefs.get(UserPreferences.bottomNavbarTabs),
-        withoutSearch: style == BottomNavbarStyle.split,
-        isAvailable: isAvailable,
-      );
+  /// Whether [tab] is on offer and has what it needs.
+  bool shows(BottomNavTab tab) => gates.offers(tab) && isAvailable(tab);
 
-  List<BottomNavHubTile> hubTiles() {
-    final syncPlay = !kidsMode &&
-        _prefs.get(UserPreferences.syncPlayEnabled) &&
-        _prefs.get(UserPreferences.showSyncPlayButton);
-    return resolveHubTiles(
-      gates: gates,
-      barItems: barItems(),
-      isAvailable: isAvailable,
-      savedAvailable:
-          DownloadsNavSlot.isOffered() && DownloadsNavSlot.hasSavedMedia(),
-      // Kos TV: shuffle lives at the end of Home, not in the navigation.
-      shuffle: false,
-      syncPlay: syncPlay,
-      quickConnect: _activeServerHasQuickConnect,
-      remoteControl: activeServerSupports((f) => f.supportsRemoteControl),
-      alsoOnBar: style == BottomNavbarStyle.split
-          ? const {BottomNavTab.search}
-          : const {},
-    );
+  /// The glass bar's tabs: Inicio, two destinations and Tú.
+  List<BottomNavBarItem> barItems() =>
+      resolveBarItems(gates, isAvailable: isAvailable);
+
+  /// Whether the libraries are each a tab of their own on the top bar
+  /// («Mostrar las bibliotecas por separado»).
+  bool get librariesIndividually =>
+      _prefs.get(UserPreferences.showLibrariesIndividually);
+
+  /// «Ver juntos»: the person turned watch parties and their button on.
+  bool get showSyncPlay =>
+      !kidsMode &&
+      _prefs.get(UserPreferences.syncPlayEnabled) &&
+      _prefs.get(UserPreferences.showSyncPlayButton);
+
+  /// The TV's apps, on a TV with apps to list (only on the TV).
+  bool get showApps => PlatformDetection.isTV && showKostvAppsButton(_prefs);
+
+  /// Saved downloads, while there is something saved.
+  bool get savedVisible =>
+      DownloadsNavSlot.isOffered() && DownloadsNavSlot.hasSavedMedia();
+
+  /// Whether the active server approves other devices' sign-in codes.
+  bool get quickConnectVisible {
+    final client = _maybe<MediaServerClient>();
+    return client != null && client.features.supportsQuickConnect;
   }
 
-  /// Whether the bottom navbar hub lists server messages: the user turned the
-  /// button on and the server has something to say.
+  /// Whether the active server is Silo, whose words for Quick Connect differ
+  /// ("Approve a sign-in").
+  static bool get activeServerIsSilo =>
+      _maybe<MediaServerClient>()?.serverType == ServerType.silo;
+
+  bool get remoteControlVisible =>
+      activeServerSupports((f) => f.supportsRemoteControl);
+
+  /// Whether the menu lists server messages: the person turned the button
+  /// on and the server has something to say.
   bool get messagesVisible =>
       _prefs.get(UserPreferences.showServerMessagesButton) &&
       (_messages?.messages.isNotEmpty ?? false);
 
-  /// Unread count for the avatar and the hub row. Zero while the messages
-  /// entry is hidden, so the avatar never nags about something unreachable.
   int get unreadMessages =>
       messagesVisible ? (_messages?.unreadCount ?? 0) : 0;
 
-  /// Whether the bottom navbar hub lists Friends: the user left the button on
-  /// and the server's Achievement Badges plugin has friends turned on.
+  /// Whether the menu lists Friends: the person left the button on and the
+  /// server's Achievement Badges plugin has friends turned on.
   bool get friendsVisible =>
       FriendsNavSlot.isOffered() && (_achievements?.socialAvailable ?? false);
 
-  /// Friend requests and unread chats. Zero while Friends is hidden.
   int get friendsBadge =>
       friendsVisible ? (_achievements?.socialBadgeCount ?? 0) : 0;
 
-  /// Kos TV: whether the hub lists the requests tray: the requests service
-  /// lets the person in, outside kids mode.
+  /// Whether «Tú» lists the requests tray: the requests service lets the
+  /// person in, outside kids mode.
   bool get requestsVisible => kostvRequestsTrayAvailable();
 
-  /// Kos TV: news in the requests tray the person hasn't seen.
-  int get requestsNews =>
-      requestsVisible ? (_stremfin?.inbox.newsCount ?? 0) : 0;
+  /// News in the requests tray the person hasn't seen.
+  int get requestsNews => requestsVisible ? _inboxState.$1 : 0;
 
-  /// What the avatar counts: everything waiting behind the bottom navbar hub.
-  int get hubBadge =>
-      unreadMessages + friendsBadge + requestsNews + favoritesNews;
+  /// Something asked for is on its way (the avatar's ring turns while it
+  /// comes down).
+  bool get requestsActive => requestsVisible && _inboxState.$2;
+  bool get requestsWorking => requestsVisible && _inboxState.$3;
 
-  // Rebuilding the bar on every preference write in the app would be wasted
-  // work, so only the settings the bar reads are compared.
+  /// Favourite series with news not seen yet.
+  int get favoritesNews => _favoritesNews?.unseen ?? 0;
+
+  /// What the avatar counts: the news behind «Tú».
+  int get youBadge => requestsNews + favoritesNews;
+
+  /// What «Más» counts: unread messages and friends' news.
+  int get moreBadge => unreadMessages + friendsBadge;
+
+  // Rebuilding the menu on every preference write in the app would be
+  // wasted work, so only the settings the menu reads are compared.
   String _prefsSignature() => [
-        _prefs.get(UserPreferences.bottomNavbarStyle).name,
-        _prefs.get(UserPreferences.bottomNavbarTabs),
         _prefs.get(UserPreferences.kidsModeEnabled),
         _prefs.get(UserPreferences.showLibrariesInToolbar),
+        _prefs.get(UserPreferences.showLibrariesIndividually),
         _prefs.get(UserPreferences.showFavoritesButton),
         _prefs.get(UserPreferences.showGenresButton),
         _prefs.get(UserPreferences.showLiveTvButton),
@@ -226,20 +207,26 @@ class BottomNavController extends ChangeNotifier {
         _prefs.get(UserPreferences.showFriendsButton),
         _prefs.get(UserPreferences.showDownloadsButton),
         _prefs.get(UserPreferences.enableMultiServerLibraries),
-        _prefs.get(UserPreferences.navbarColor),
-        _prefs.get(UserPreferences.navbarOpacity),
-        // Kos TV: the tabs' own switches (BottomNavTabGates reads them).
         _prefs.get(UserPreferences.showDiscoverButton),
         _prefs.get(UserPreferences.kostvShowMusicButton),
         _prefs.get(UserPreferences.kostvMyListAvailable),
+        _prefs.get(UserPreferences.use24HourClock),
+        _prefs.get(UserPreferences.clockBehavior),
+        showKostvAppsButton(_prefs),
         _pluginSync?.calendarAvailable ?? false,
       ].join('|');
 
-  /// Kos TV: the tray changed. Only a change to its news reaches the bar.
+  (int, bool, bool) _readInbox() {
+    final inbox = _stremfin?.inbox;
+    if (inbox == null) return (0, false, false);
+    return (inbox.newsCount, inbox.hasActive, inbox.isWorking);
+  }
+
+  /// The tray changed. Only a change to what the menu shows reaches it.
   void _onInboxChanged() {
-    final news = _stremfin?.inbox.newsCount ?? 0;
-    if (news == _inboxNews) return;
-    _inboxNews = news;
+    final state = _readInbox();
+    if (state == _inboxState) return;
+    _inboxState = state;
     notifyListeners();
   }
 

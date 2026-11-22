@@ -21807,4 +21807,36 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get updateSignatureMismatch =>
       'La actualización descargada no está firmada como kOS TV, así que no se ha instalado. Avisa a quien lleva el servidor.';
+
+  @override
+  String get kostvMenuMyRequests => 'Mis peticiones';
+
+  @override
+  String kostvMenuNews(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count novedades',
+      one: '1 novedad',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvMenuSwitchPerson => 'Cambiar de persona';
+
+  @override
+  String get kostvMenuFamilyProfile => 'Perfil de la familia';
+
+  @override
+  String get kostvMenuAtHome => 'En casa';
+
+  @override
+  String get kostvMenuChange => 'Cambiar';
+
+  @override
+  String get kostvMenuOnItsWay => 'Hay algo en camino';
+
+  @override
+  String get kostvMenuYouHint => 'Mantén pulsado para ver «Más»';
 }

@@ -15,9 +15,9 @@ import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/data/services/saved_media_presence.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
 import 'package:moonfin/preference/user_preferences.dart';
-import 'package:moonfin/ui/widgets/left_sidebar.dart';
 import 'package:moonfin/ui/widgets/navigation_layout.dart';
-import 'package:moonfin/ui/widgets/top_toolbar.dart';
+import 'package:moonfin/ui/navigation/kostv_menu_controller.dart';
+import 'package:moonfin/ui/widgets/kostv_menu/kostv_menu_entries.dart';
 import 'package:moonfin/util/game_library.dart';
 import 'package:moonfin/util/platform_detection.dart';
 import 'package:playback_core/playback_core.dart';
@@ -122,11 +122,21 @@ DownloadedItem _seriesShell() => DownloadedItem(
   posterPath: '/tmp/poster.jpg',
 );
 
-Widget _host(Widget chrome) => MaterialApp(
-  localizationsDelegates: AppLocalizations.localizationsDelegates,
-  supportedLocales: AppLocalizations.supportedLocales,
-  home: Scaffold(body: chrome),
-);
+/// Kos TV: what «Más» lists once the saved media has been looked at.
+Future<List<String>> _moreIds(WidgetTester tester) async {
+  final menu = KostvMenuController();
+  addTearDown(menu.dispose);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+  return [
+    for (final entry in kostvMoreEntries(
+      lookupAppLocalizations(const Locale('es')),
+      menu,
+      openPage: (_, _) {},
+    ))
+      entry.id,
+  ];
+}
 
 void main() {
   setUp(() async {
@@ -162,34 +172,23 @@ void main() {
     );
   }
 
-  final downloads = find.byKey(const ValueKey('toolbar-downloads'));
-  final sidebarDownloads = find.byKey(const ValueKey('sidebar-downloads'));
-
-  group('the downloads nav entry', () {
+  // Kos TV: downloads are in «Más» (on phones also in «Tú»).
+  group('the downloads entry of «Más»', () {
     testWidgets('stays away while nothing is saved', (tester) async {
       registerPresence();
-      await tester.pumpWidget(_host(const TopToolbar()));
-      await tester.pumpAndSettle();
-
-      expect(downloads, findsNothing);
+      expect(await _moreIds(tester), isNot(contains('saved')));
     });
 
     testWidgets('appears once something is saved', (tester) async {
       registerPresence(rows: [_savedMovie()]);
-      await tester.pumpWidget(_host(const TopToolbar()));
-      await tester.pumpAndSettle();
-
-      expect(downloads, findsOneWidget);
+      expect(await _moreIds(tester), contains('saved'));
     });
 
     testWidgets('ignores rows that hold no file', (tester) async {
       // Saving an episode writes Series and Season rows that count as
       // complete. On their own they would open an empty screen.
       registerPresence(rows: [_seriesShell()]);
-      await tester.pumpWidget(_host(const TopToolbar()));
-      await tester.pumpAndSettle();
-
-      expect(downloads, findsNothing);
+      expect(await _moreIds(tester), isNot(contains('saved')));
     });
 
     testWidgets('appears for a download still running', (tester) async {
@@ -203,26 +202,7 @@ void main() {
           ),
         },
       );
-      await tester.pumpWidget(_host(const TopToolbar()));
-      await tester.pumpAndSettle();
-
-      expect(downloads, findsOneWidget);
-    });
-
-    testWidgets('holds off on the sidebar too', (tester) async {
-      registerPresence();
-      await tester.pumpWidget(_host(const LeftSidebar()));
-      await tester.pumpAndSettle();
-
-      expect(sidebarDownloads, findsNothing);
-    });
-
-    testWidgets('shows on the sidebar once something is saved', (tester) async {
-      registerPresence(rows: [_savedMovie()]);
-      await tester.pumpWidget(_host(const LeftSidebar()));
-      await tester.pumpAndSettle();
-
-      expect(sidebarDownloads, findsOneWidget);
+      expect(await _moreIds(tester), contains('saved'));
     });
   });
 

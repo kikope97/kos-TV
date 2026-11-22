@@ -1,13 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
-import 'package:moonfin/ui/widgets/bottom_nav/bottom_nav_controller.dart';
+import 'package:moonfin/ui/navigation/kostv_menu_controller.dart';
 
 import '../../screens/discover/fake_stremfin_life.dart';
 import 'bottom_nav_fakes.dart';
 
 /// Kos TV: the requests tray notifies every few seconds while something
-/// downloads; the bar only shows its news, so only those reach it.
+/// downloads; the menu only shows its news and whether something is on its
+/// way, so only those reach it.
 void main() {
   setUp(setUpBottomNav);
   tearDown(tearDownBottomNav);
@@ -22,7 +23,7 @@ void main() {
     service.onUserChanged('kiko');
     await tester.pump(const Duration(milliseconds: 300));
 
-    final controller = BottomNavController();
+    final controller = KostvMenuController();
     await tester.pump(const Duration(milliseconds: 300));
     var rebuilds = 0;
     controller.addListener(() => rebuilds++);

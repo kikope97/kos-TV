@@ -1,5 +1,8 @@
 part of '../settings_side_panel.dart';
 
+/// Kos TV: what the menu offers. Its design has no settings: there is one,
+/// the same for everyone (the owner's decision, 2026-11-22); what is left
+/// here are the switches of the destinations it shows.
 class _NavigationCategoryScreen extends StatefulWidget {
   const _NavigationCategoryScreen();
 
@@ -10,7 +13,6 @@ class _NavigationCategoryScreen extends StatefulWidget {
 
 class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
   late final PluginSyncService _syncService;
-  bool _navbarNormalizeQueued = false;
 
   @override
   void initState() {
@@ -30,281 +32,119 @@ class _NavigationCategoryScreenState extends State<_NavigationCategoryScreen> {
     if (mounted) setState(() {});
   }
 
-  List<BottomNavTab> _barTabs(UserPreferences prefs) =>
-      BottomNavTabGates.fromPreferences(
-        prefs,
-        calendarAvailable: _syncService.calendarAvailable,
-        kostvDiscoverAvailable: kostvDiscoverAllowed(),
-      ).resolvePins(prefs.get(UserPreferences.bottomNavbarTabs));
-
-  String _bottomTabsSummary(AppLocalizations l10n, UserPreferences prefs) {
-    final labels =
-        _barTabs(prefs).map((t) => bottomNavTabLabel(l10n, t)).join(', ');
-    final raw = prefs.get(UserPreferences.bottomNavbarTabs);
-    if (!isAutomaticBottomNavTabs(raw)) return labels;
-    return [l10n.bottomNavbarTabsAutomatic, if (labels.isNotEmpty) labels]
-        .join(' · ');
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final availableNavbarPositions = NavigationLayout.availableNavbarPositions;
     final prefs = GetIt.instance<UserPreferences>();
-    final currentNavbarPosition = prefs.get(UserPreferences.navbarPosition);
-    if (!NavigationLayout.allowBottomNavbar &&
-        currentNavbarPosition == NavbarPosition.bottom &&
-        !_navbarNormalizeQueued) {
-      _navbarNormalizeQueued = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _navbarNormalizeQueued = false;
-        if (!mounted) return;
-        prefs.set(UserPreferences.navbarPosition, NavbarPosition.top);
-        NavigationLayout.positionNotifier.value = NavbarPosition.top;
-        _pushPersonalizationSync();
-      });
-    }
     return Scaffold(
       appBar: buildSettingsAppBar(context, Text(l10n.navigationBar)),
       body: ListView(
         children: [
-          _SectionHeader(l10n.appearance),
-          adaptiveListSection(
-            children: [
-              EnumPreferenceTile<NavbarPosition>(
-                preference: UserPreferences.navbarPosition,
-                title: l10n.navigationStyle,
-                icon: Icons.view_sidebar,
-                values: availableNavbarPositions,
-                labelOf: (v) => switch (v) {
-                  NavbarPosition.top => l10n.topBar,
-                  NavbarPosition.left => l10n.leftSidebar,
-                  NavbarPosition.bottom => l10n.bottomBar,
-                },
-                onChanged: () {
-                  final pos = GetIt.instance<UserPreferences>().get(
-                    UserPreferences.navbarPosition,
-                  );
-                  NavigationLayout.positionNotifier.value = pos;
-                  _pushPersonalizationSync();
-                },
-              ),
-              // The picker above writes through its own binding, so this
-              // watches the preferences to follow it.
-              ListenableBuilder(
-                listenable: prefs,
-                builder: (context, _) => !NavigationLayout.usesBottomNavbar
-                    ? const SizedBox.shrink()
-                    : Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          EnumPreferenceTile<BottomNavbarStyle>(
-                            preference: UserPreferences.bottomNavbarStyle,
-                            title: l10n.bottomNavbarStyle,
-                            icon: Icons.space_bar_rounded,
-                            labelOf: (v) => bottomNavbarStyleLabel(l10n, v),
-                            dialogSubtitleOf: (v) =>
-                                bottomNavbarStyleHint(l10n, v),
-                            onChanged: _pushPersonalizationSync,
-                          ),
-                          _TvSettingsListTile(
-                            leading: const Icon(Icons.push_pin_outlined),
-                            title: Text(l10n.bottomNavbarTabs),
-                            subtitle: Text(_bottomTabsSummary(l10n, prefs)),
-                            onTap: () => context.pushSettingsScreen(
-                              const _BottomNavTabsScreen(),
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ],
-          ),
-          // Kos TV: the bar's color, its labels and its buttons, behind
-          // «Más ajustes».
-          ...settingsMore(
-            context,
-            id: 'appearance.navigation',
-            summary: l10n.kostvMoreNavigationSummary,
-            children: [
-              _SectionHeader(l10n.appearance),
-              adaptiveListSection(
-                children: [
-                  _NavbarColorPickerTile(onChanged: _pushPersonalizationSync),
-                  SliderPreferenceTile(
-                    preference: UserPreferences.navbarOpacity,
-                    title: l10n.navbarOpacity,
-                    icon: Icons.opacity,
-                    min: 0,
-                    max: 100,
-                    divisions: 20,
-                    labelOf: (v) => '$v%',
+          _SectionHeader(l10n.navButtons),
+          // The switches write through their own bindings, so this watches
+          // the preferences to follow them, and the libraries to offer Live
+          // TV once it turns out to be set up.
+          ListenableBuilder(
+            listenable: Listenable.merge([prefs, SetupPreviewData.libraries]),
+            builder: (context, _) => adaptiveListSection(
+              children: [
+                SwitchPreferenceTile(
+                  preference: UserPreferences.showGenresButton,
+                  title: l10n.showGenresButton,
+                  subtitle: l10n.settingsShowGenresButtonInNavigation,
+                  icon: Icons.theater_comedy,
+                  onChanged: _pushPersonalizationSync,
+                ),
+                if (SetupPreviewData.hasLiveTv)
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.showLiveTvButton,
+                    title: l10n.showLiveTvButton,
+                    subtitle: l10n.settingsShowLiveTvButtonInNavigation,
+                    icon: Icons.live_tv,
+                    onChanged: _pushPersonalizationSync,
                   ),
-                  // The bottom navbar always labels its tabs.
-                  ListenableBuilder(
-                    listenable: prefs,
-                    builder: (context, _) => NavigationLayout.usesBottomNavbar
-                        ? const SizedBox.shrink()
-                        : SwitchPreferenceTile(
-                            preference: UserPreferences.navbarAlwaysExpanded,
-                            title: l10n.navbarAlwaysExpanded,
-                            subtitle: l10n.settingsAlwaysExpandNavbarLabels,
-                            icon: Icons.unfold_more,
-                            onChanged: _pushPersonalizationSync,
-                          ),
+                SwitchPreferenceTile(
+                  preference: UserPreferences.showLibrariesInToolbar,
+                  title: l10n.showLibrariesInToolbar,
+                  subtitle: l10n.settingsShowLibrariesButtonInNavigation,
+                  icon: Icons.video_library,
+                  onChanged: _pushPersonalizationSync,
+                ),
+                // The phone's bar keeps Bibliotecas as one page, so this
+                // only applies to the bar of tabs at the top.
+                if (NavigationLayout.usesTopToolbar &&
+                    prefs.get(UserPreferences.showLibrariesInToolbar))
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.showLibrariesIndividually,
+                    title: l10n.showLibrariesIndividually,
+                    subtitle: l10n.showLibrariesIndividuallySubtitle,
+                    icon: Icons.video_library,
+                    onChanged: _pushPersonalizationSync,
                   ),
-                ],
-              ),
-              _SectionHeader(l10n.navButtons),
-              ListenableBuilder(
-                listenable: prefs,
-                builder: (context, _) {
-                  if (!NavigationLayout.usesBottomNavbar) {
-                    return const SizedBox.shrink();
-                  }
-                  final theme = Theme.of(context);
-                  return Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                    child: Text(
-                      l10n.bottomNavbarButtonsNote,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  );
-                },
-              ),
-              // The switches write through their own bindings, so this
-              // watches the preferences to show the shuffle picker and follow
-              // the pins, and the libraries to offer Live TV once it turns out
-              // to be set up.
-              ListenableBuilder(
-                listenable: Listenable.merge([
-                  prefs,
-                  SetupPreviewData.libraries,
-                ]),
-                builder: (context, _) {
-                  // Tabs on the bottom bar are set from the tab pins, so this
-                  // only lists what the bottom navbar hub holds.
-                  final onBar = NavigationLayout.usesBottomNavbar
-                      ? _barTabs(prefs).toSet()
-                      : const <BottomNavTab>{};
-                  return adaptiveListSection(
-                    children: [
-                      if (!onBar.contains(BottomNavTab.genres))
-                        SwitchPreferenceTile(
-                          key: const ValueKey(BottomNavTab.genres),
-                          preference: UserPreferences.showGenresButton,
-                          title: l10n.showGenresButton,
-                          subtitle: l10n.settingsShowGenresButtonInNavigation,
-                          icon: Icons.theater_comedy,
-                          onChanged: _pushPersonalizationSync,
-                        ),
-                      if (SetupPreviewData.hasLiveTv &&
-                          !onBar.contains(BottomNavTab.liveTv))
-                        SwitchPreferenceTile(
-                          key: const ValueKey(BottomNavTab.liveTv),
-                          preference: UserPreferences.showLiveTvButton,
-                          title: l10n.showLiveTvButton,
-                          subtitle: l10n.settingsShowLiveTvButtonInNavigation,
-                          icon: Icons.live_tv,
-                          onChanged: _pushPersonalizationSync,
-                        ),
-                      if (!onBar.contains(BottomNavTab.libraries))
-                        SwitchPreferenceTile(
-                          key: const ValueKey(BottomNavTab.libraries),
-                          preference: UserPreferences.showLibrariesInToolbar,
-                          title: l10n.showLibrariesInToolbar,
-                          subtitle:
-                              l10n.settingsShowLibrariesButtonInNavigation,
-                          icon: Icons.video_library,
-                          onChanged: _pushPersonalizationSync,
-                        ),
-                      // The bottom navbar keeps its Libraries sheet, so this
-                      // only applies to the top bar and the sidebar.
-                      if (!NavigationLayout.usesBottomNavbar &&
-                          prefs.get(UserPreferences.showLibrariesInToolbar))
-                        SwitchPreferenceTile(
-                          preference: UserPreferences.showLibrariesIndividually,
-                          title: l10n.showLibrariesIndividually,
-                          subtitle: l10n.showLibrariesIndividuallySubtitle,
-                          icon: Icons.video_library,
-                          onChanged: _pushPersonalizationSync,
-                        ),
-                      if (prefs.get(UserPreferences.syncPlayEnabled))
-                        SwitchPreferenceTile(
-                          preference: UserPreferences.showSyncPlayButton,
-                          title: l10n.settingsSyncplayButton,
-                          subtitle: l10n.settingsSyncplayButtonSubtitle,
-                          icon: Icons.groups,
-                          onChanged: _pushPersonalizationSync,
-                        ),
-                      // Kos TV: the Apps button lives in Launcher mode.
-                      // Kos TV: the Discover button, for a person the requests
-                      // service lets in.
-                      if (kostvDiscoverAllowed() &&
-                          !onBar.contains(BottomNavTab.kostvDiscover))
-                        SwitchPreferenceTile(
-                          key: const ValueKey(BottomNavTab.kostvDiscover),
-                          preference: UserPreferences.showDiscoverButton,
-                          title: l10n.kostvShowDiscoverButton,
-                          icon: Icons.explore_rounded,
-                          onChanged: _pushPersonalizationSync,
-                        ),
-                      // Kos TV: Music, the page of its own.
-                      if (!onBar.contains(BottomNavTab.kostvMusic))
-                        SwitchPreferenceTile(
-                          key: const ValueKey(BottomNavTab.kostvMusic),
-                          preference: UserPreferences.kostvShowMusicButton,
-                          title: l10n.kostvMusicShowButton,
-                          subtitle: l10n.kostvMusicShowButtonSubtitle,
-                          icon: Icons.music_note_rounded,
-                          onChanged: _pushPersonalizationSync,
-                        ),
-                      if (_syncService.calendarAvailable &&
-                          !onBar.contains(BottomNavTab.calendar))
-                        SwitchPreferenceTile(
-                          key: const ValueKey(BottomNavTab.calendar),
-                          preference: UserPreferences.showCalendarButton,
-                          title: l10n.showCalendarButton,
-                          subtitle: l10n.showCalendarButtonSubtitle,
-                          icon: Icons.calendar_month_rounded,
-                          onChanged: _pushPersonalizationSync,
-                        ),
-                      // Saved downloads keep the button even after
-                      // downloading is turned off
-                      if (DownloadsNavSlot.isAvailable() ||
-                          DownloadsNavSlot.hasSavedMedia())
-                        SwitchPreferenceTile(
-                          preference: UserPreferences.showDownloadsButton,
-                          title: l10n.showDownloadsButton,
-                          icon: Icons.download_for_offline,
-                          onChanged: _pushPersonalizationSync,
-                        ),
-                      // Server messages come from the Moonfin plugin.
-                      if (moonfinPluginOnAnySignedInServer())
-                        SwitchPreferenceTile(
-                          preference: UserPreferences.showServerMessagesButton,
-                          title: l10n.serverMessagesShowButton,
-                          subtitle: l10n.serverMessagesShowButtonSubtitle,
-                          icon: Icons.info_outline_rounded,
-                          onChanged: _pushPersonalizationSync,
-                        ),
-                      // Only where the plugin has friends on, so nobody is
-                      // offered a button that would never show.
-                      if (GetIt.instance<AchievementsService>().socialAvailable)
-                        SwitchPreferenceTile(
-                          preference: UserPreferences.showFriendsButton,
-                          title: l10n.friendsShowButton,
-                          subtitle: l10n.friendsShowButtonSubtitle,
-                          icon: Icons.people_alt_rounded,
-                          onChanged: _pushPersonalizationSync,
-                        ),
-                    ],
-                  );
-                },
-              ),
-            ],
+                if (prefs.get(UserPreferences.syncPlayEnabled))
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.showSyncPlayButton,
+                    title: l10n.settingsSyncplayButton,
+                    subtitle: l10n.settingsSyncplayButtonSubtitle,
+                    icon: Icons.groups,
+                    onChanged: _pushPersonalizationSync,
+                  ),
+                // Kos TV: the Discover button, for a person the requests
+                // service lets in.
+                if (kostvDiscoverAllowed())
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.showDiscoverButton,
+                    title: l10n.kostvShowDiscoverButton,
+                    icon: Icons.explore_rounded,
+                    onChanged: _pushPersonalizationSync,
+                  ),
+                // Kos TV: Music, the page of its own.
+                SwitchPreferenceTile(
+                  preference: UserPreferences.kostvShowMusicButton,
+                  title: l10n.kostvMusicShowButton,
+                  subtitle: l10n.kostvMusicShowButtonSubtitle,
+                  icon: Icons.music_note_rounded,
+                  onChanged: _pushPersonalizationSync,
+                ),
+                if (_syncService.calendarAvailable)
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.showCalendarButton,
+                    title: l10n.showCalendarButton,
+                    subtitle: l10n.showCalendarButtonSubtitle,
+                    icon: Icons.calendar_month_rounded,
+                    onChanged: _pushPersonalizationSync,
+                  ),
+                // Saved downloads keep the button even after downloading is
+                // turned off.
+                if (DownloadsNavSlot.isAvailable() ||
+                    DownloadsNavSlot.hasSavedMedia())
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.showDownloadsButton,
+                    title: l10n.showDownloadsButton,
+                    icon: Icons.download_for_offline,
+                    onChanged: _pushPersonalizationSync,
+                  ),
+                // Server messages come from the server plugin.
+                if (moonfinPluginOnAnySignedInServer())
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.showServerMessagesButton,
+                    title: l10n.serverMessagesShowButton,
+                    subtitle: l10n.serverMessagesShowButtonSubtitle,
+                    icon: Icons.info_outline_rounded,
+                    onChanged: _pushPersonalizationSync,
+                  ),
+                // Only where the plugin has friends on, so nobody is offered
+                // a button that would never show.
+                if (GetIt.instance<AchievementsService>().socialAvailable)
+                  SwitchPreferenceTile(
+                    preference: UserPreferences.showFriendsButton,
+                    title: l10n.friendsShowButton,
+                    subtitle: l10n.friendsShowButtonSubtitle,
+                    icon: Icons.people_alt_rounded,
+                    onChanged: _pushPersonalizationSync,
+                  ),
+              ],
+            ),
           ),
         ],
       ),

@@ -436,36 +436,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
   void initState() {
     super.initState();
     
-    KeyEventResult leftToSidebarHandler(FocusNode node, KeyEvent event) {
-      if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-        final navbarPosition = widget.prefs.get(UserPreferences.navbarPosition);
-        if (navbarPosition == NavbarPosition.left) {
-          final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-          if (focusNavbar != null) {
-            focusNavbar();
-            return KeyEventResult.handled;
-          }
-        }
-      }
-      return KeyEventResult.ignored;
-    }
-
-    _castFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _crewFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _studiosFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _chaptersFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _similarFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _reviewsFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _seasonsFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _episodesFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _booksFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _personMoviesFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _personSeriesFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _gridFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _moviesFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _seriesFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _otherFirstFocusNode.onKeyEvent = leftToSidebarHandler;
-    _collectionFirstFocusNode.onKeyEvent = leftToSidebarHandler;
 
     void attachAutoScroll(FocusNode node) {
       node.addListener(() {
@@ -486,7 +456,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
 
     for (final cat in extraCategoriesOrder) {
       final node = FocusNode(debugLabel: 'modernFeatureFirst_$cat');
-      node.onKeyEvent = leftToSidebarHandler;
       _featuresFirstFocusNodes[cat] = node;
     }
     _collectionSortFocusNode.onKeyEvent = (node, event) {
@@ -500,7 +469,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
           return KeyEventResult.handled;
         }
       }
-      return leftToSidebarHandler(node, event);
+      return KeyEventResult.ignored;
     };
 
     _vm.addListener(_onViewModelChanged);
@@ -778,13 +747,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
       large: _landscape,
       onUp: () => widget.initialFocusNode?.requestFocus(),
       onDown: () {},
-      onLeft: () {
-        final navbarPosition = widget.prefs.get(UserPreferences.navbarPosition);
-        final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-        if (navbarPosition == NavbarPosition.left && focusNavbar != null) {
-          focusNavbar();
-        }
-      },
+      onLeft: () {},
       onRecovered: () {
         final item = _vm.item;
         if (!mounted || item == null) return;
@@ -1989,15 +1952,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
                 );
               }
             },
-            onNavigateLeft: () {
-              final navbarPosition = widget.prefs.get(UserPreferences.navbarPosition);
-              if (navbarPosition == NavbarPosition.left) {
-                final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-                if (focusNavbar != null) {
-                  focusNavbar();
-                }
-              }
-            },
+            onNavigateLeft: () {},
             onNavigateRight: () {}, // Cap on right
             onNavigateUp: () {
               if (i == 0) {
@@ -2107,14 +2062,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
                         headingNode.requestFocus();
                         return KeyEventResult.handled;
                       } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft && index == 0) {
-                        final navbarPosition = widget.prefs.get(UserPreferences.navbarPosition);
-                        if (navbarPosition == NavbarPosition.left) {
-                          final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-                          if (focusNavbar != null) {
-                            focusNavbar();
-                            return KeyEventResult.handled;
-                          }
-                        }
                         return KeyEventResult.handled; // Cap on left
                       } else if (event.logicalKey == LogicalKeyboardKey.arrowRight && index == childActors.length - 1) {
                         return KeyEventResult.handled; // Cap on right
@@ -2240,15 +2187,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
                 );
               }
             },
-            onNavigateLeft: () {
-              final navbarPosition = widget.prefs.get(UserPreferences.navbarPosition);
-              if (navbarPosition == NavbarPosition.left) {
-                final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-                if (focusNavbar != null) {
-                  focusNavbar();
-                }
-              }
-            },
+            onNavigateLeft: () {},
             onNavigateRight: () {}, // Cap on right
             onNavigateUp: () {
               if (i == 0) {
@@ -2358,14 +2297,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
                         headingNode.requestFocus();
                         return KeyEventResult.handled;
                       } else if (event.logicalKey == LogicalKeyboardKey.arrowLeft && index == 0) {
-                        final navbarPosition = widget.prefs.get(UserPreferences.navbarPosition);
-                        if (navbarPosition == NavbarPosition.left) {
-                          final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-                          if (focusNavbar != null) {
-                            focusNavbar();
-                            return KeyEventResult.handled;
-                          }
-                        }
                         return KeyEventResult.handled; // Cap on left
                       } else if (event.logicalKey == LogicalKeyboardKey.arrowRight && index == childCrew.length - 1) {
                         return KeyEventResult.handled; // Cap on right
@@ -2749,19 +2680,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
                       firstItemFocusNode: rowFocusNode,
                       onItemKeyEvent: (itemIndex, event) {
                         if (event is KeyDownEvent) {
-                          if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-                              itemIndex == 0) {
-                            final navbarPosition =
-                                widget.prefs.get(UserPreferences.navbarPosition);
-                            if (navbarPosition == NavbarPosition.left) {
-                              final focusNavbar =
-                                  NavigationLayout.focusNavbarNotifier.value;
-                              if (focusNavbar != null) {
-                                focusNavbar();
-                                return KeyEventResult.handled;
-                              }
-                            }
-                          }
                           if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
                               itemIndex == items.length - 1) {
                             return KeyEventResult.handled;
@@ -3969,12 +3887,7 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
         onArrowUp: () {
           NavigationLayout.focusNavbarNotifier.value?.call();
         },
-        onArrowLeft: () {
-          final navbarPosition = widget.prefs.get(UserPreferences.navbarPosition);
-          if (navbarPosition == NavbarPosition.left) {
-            NavigationLayout.focusNavbarNotifier.value?.call();
-          }
-        },
+        onArrowLeft: () {},
         onArrowRight: onArrowRight,
         onCollapse: widget.onCollapseBiography,
         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -5245,14 +5158,6 @@ class _ModernDetailContentState extends State<ModernDetailContent> {
           // If More row is open, go to first extra button (Watched/Unwatched)
           _extraFirstFocusNode.requestFocus();
           return;
-        }
-        final navbarPosition = widget.prefs.get(UserPreferences.navbarPosition);
-        if (navbarPosition == NavbarPosition.left) {
-          final focusNavbar = NavigationLayout.focusNavbarNotifier.value;
-          if (focusNavbar != null) {
-            focusNavbar();
-            return;
-          }
         }
         // Default: focus Play/Resume button
         widget.initialFocusNode?.requestFocus();

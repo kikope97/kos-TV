@@ -36836,6 +36836,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The downloaded update isn\'t signed as kOS TV, so it hasn\'t been installed. Let whoever runs the server know.'**
   String get updateSignatureMismatch;
+
+  /// Kos TV menu (docs/diseno-menu): the person's requests tray, in «Tú» (the avatar's menu on TV/computer, the «Tú» page on phones)
+  ///
+  /// In en, this message translates to:
+  /// **'My requests'**
+  String get kostvMenuMyRequests;
+
+  /// Kos TV menu: how many news are waiting (requests, favourites), beside an entry of «Tú»
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 new} other{{count} new}}'**
+  String kostvMenuNews(int count);
+
+  /// Kos TV menu: in «Tú», opens the profiles to switch person
+  ///
+  /// In en, this message translates to:
+  /// **'Switch person'**
+  String get kostvMenuSwitchPerson;
+
+  /// Kos TV menu: line under the person's name at the top of «Tú»
+  ///
+  /// In en, this message translates to:
+  /// **'Family profile'**
+  String get kostvMenuFamilyProfile;
+
+  /// Kos TV «Tú» page (phones): heading over Bibliotecas, Géneros, TV en directo and Calendario
+  ///
+  /// In en, this message translates to:
+  /// **'At home'**
+  String get kostvMenuAtHome;
+
+  /// Kos TV «Tú» page (phones): short button beside the person's name to switch person
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get kostvMenuChange;
+
+  /// Kos TV «Tú» page: under «Mis peticiones» while something asked for is still coming
+  ///
+  /// In en, this message translates to:
+  /// **'Something\'s on its way'**
+  String get kostvMenuOnItsWay;
+
+  /// Kos TV phone glass bar: screen reader hint on «Tú»: a long press opens the «Más» sheet
+  ///
+  /// In en, this message translates to:
+  /// **'Long press for «More»'**
+  String get kostvMenuYouHint;
 }
 
 class _AppLocalizationsDelegate

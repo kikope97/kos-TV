@@ -112,20 +112,6 @@ enum MaxVideoResolution {
   final int height;
 }
 
-enum NavbarPosition {
-  top,
-  left,
-  bottom,
-}
-
-/// How the mobile bottom navbar is drawn. Only read while [NavbarPosition.bottom]
-/// is in effect, which is phones and tablets only.
-enum BottomNavbarStyle {
-  dock,
-  split,
-  strip,
-}
-
 enum NextUpBehavior {
   extended,
   minimal,
@@ -307,11 +293,6 @@ enum GestureIndicatorPlacement {
   same,
   inverted,
 }
-
-/// Glass rendering budget. `auto` picks per-device (real blur on capable
-/// hardware, zero-blur sheen on TV boxes/web); `full` forces real blur;
-/// `reduced` forces the zero-blur sheen everywhere.
-enum GlassQualityMode { auto, full, reduced }
 
 /// How much this device is asked to spend on decoded images and inline video.
 /// [DevicePerformanceMode.auto] measures the device, the other two pin it.

@@ -924,8 +924,6 @@ Future<void> _bootstrap({
     _bindAppServices();
   }
 
-  final prefs = GetIt.instance<UserPreferences>();
-
   // Register Theme Store themes before the active theme is resolved so a
   // store-saved theme applies on launch.
   await ThemeStoreService(
@@ -964,9 +962,7 @@ Future<void> _bootstrap({
   // Same tier the app shell applies on its first build. If it later moves
   // to a blur tier the warm-up has long finished, and the package loads any
   // missing shader on first use anyway.
-  final glassTier = GlassCapability.resolve(
-    prefs.get(UserPreferences.glassQuality),
-  );
+  final glassTier = GlassCapability.resolve();
   if (!GlassCapability.useLegacyGlass &&
       (glassTier == GlassTier.liquid || glassTier == GlassTier.frost)) {
     await glassWarmUp;

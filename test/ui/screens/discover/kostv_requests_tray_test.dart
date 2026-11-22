@@ -6,9 +6,7 @@ import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
-import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/screens/discover/kostv_requests_tray.dart';
-import 'package:moonfin/ui/widgets/kostv_requests_tray_button.dart';
 import 'package:moonfin/util/platform_detection.dart';
 
 import '../../widgets/bottom_nav/bottom_nav_fakes.dart';
@@ -217,61 +215,6 @@ void main() {
     await settle(tester);
     expect(fake.requests, hasLength(1));
     expect(FocusManager.instance.primaryFocus?.debugLabel, other);
-    await finish(tester);
-  });
-
-  testWidgets('the button: hidden at once when kids mode comes on', (
-    tester,
-  ) async {
-    await start(tester, phone: false);
-    await settle(tester);
-    service.createRequest(type: StremfinTitleType.movie, tmdbId: 920);
-    await settle(tester);
-    await tester.pumpWidget(
-      app(
-        KostvRequestsTraySlot(
-          revealed: false,
-          builder: (_) => KostvRequestsTrayButton(size: 40, onPressed: () {}),
-        ),
-      ),
-    );
-    await settle(tester);
-    expect(find.byType(KostvRequestsTrayButton), findsOneWidget);
-
-    await GetIt.instance<UserPreferences>().set(
-      UserPreferences.kidsModeEnabled,
-      true,
-    );
-    await settle(tester);
-    expect(find.byType(KostvRequestsTrayButton), findsNothing);
-    await finish(tester);
-  });
-
-  testWidgets('the button: hidden with nothing going on, out when revealed '
-      'or when something is under way', (tester) async {
-    await start(tester, phone: false);
-    await settle(tester);
-    Widget slot({required bool revealed}) => app(
-      KostvRequestsTraySlot(
-        revealed: revealed,
-        builder: (_) => KostvRequestsTrayButton(size: 40, onPressed: () {}),
-      ),
-    );
-
-    await tester.pumpWidget(slot(revealed: false));
-    await settle(tester);
-    expect(find.byType(KostvRequestsTrayButton), findsNothing);
-
-    await tester.pumpWidget(slot(revealed: true));
-    await settle(tester);
-    expect(find.byType(KostvRequestsTrayButton), findsOneWidget);
-
-    // Something under way: out without being revealed, with its ring.
-    service.createRequest(type: StremfinTitleType.movie, tmdbId: 920);
-    await tester.pumpWidget(slot(revealed: false));
-    await settle(tester);
-    expect(find.byType(KostvRequestsTrayButton), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
     await finish(tester);
   });
 }

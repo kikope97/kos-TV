@@ -5,7 +5,6 @@ import 'package:jellyfin_preference/jellyfin_preference.dart';
 import '../../playback/subtitle_fonts.dart';
 import '../../preference/preference_constants.dart' as prefs;
 import '../../preference/user_preferences.dart';
-import '../../ui/widgets/navigation_layout.dart';
 import '../../util/idiom/app_ui_idiom.dart';
 
 /// How a value is carried on the wire relative to how it is stored locally.
@@ -98,9 +97,6 @@ final List<SyncedField> syncedFields = <SyncedField>[
   SyncedField('visualTheme', UserPreferences.visualTheme, SyncCodec.enumName, enumValues: prefs.VisualThemeId.values),
   SyncedField('customThemeId', UserPreferences.customThemeId, SyncCodec.text),
   SyncedField('oledMode', UserPreferences.oledMode, SyncCodec.enumName, enumValues: prefs.OledMode.values),
-  SyncedField('navbarPosition', UserPreferences.navbarPosition, SyncCodec.enumName, enumValues: NavigationLayout.availableNavbarPositions),
-  SyncedField('bottomNavbarStyle', UserPreferences.bottomNavbarStyle, SyncCodec.enumName, enumValues: prefs.BottomNavbarStyle.values),
-  SyncedField('bottomNavbarTabs', UserPreferences.bottomNavbarTabs, SyncCodec.csvList),
   SyncedField('focusColor', UserPreferences.focusColor, SyncCodec.enumName, enumValues: prefs.AppTheme.values),
   SyncedField('watchedIndicator', UserPreferences.watchedIndicatorBehavior, SyncCodec.enumName, enumValues: prefs.WatchedIndicatorBehavior.values),
   SyncedField('showPosterLabels', UserPreferences.showPosterLabels, SyncCodec.boolean),
@@ -184,9 +180,6 @@ final List<SyncedField> syncedFields = <SyncedField>[
   SyncedField('mediaBarNewReleaseDays', UserPreferences.mediaBarNewReleaseDays, SyncCodec.integer),
   SyncedField('mediaBarOpacity', UserPreferences.mediaBarOverlayOpacity, SyncCodec.integer),
   SyncedField('mediaBarOverlayColor', UserPreferences.mediaBarOverlayColor, SyncCodec.text),
-  SyncedField('navbarOpacity', UserPreferences.navbarOpacity, SyncCodec.integer),
-  SyncedField('navbarColor', UserPreferences.navbarColor, SyncCodec.text),
-  SyncedField('navbarAlwaysExpanded', UserPreferences.navbarAlwaysExpanded, SyncCodec.boolean),
   SyncedField('mediaBarAutoAdvance', UserPreferences.mediaBarAutoAdvance, SyncCodec.boolean),
   SyncedField('mediaBarIntervalMs', UserPreferences.mediaBarIntervalMs, SyncCodec.integer),
   SyncedField('mediaBarRowPeek', UserPreferences.mediaBarRowPeek, SyncCodec.boolean),
@@ -291,7 +284,6 @@ final List<SyncedField> syncedFields = <SyncedField>[
   SyncedField('fallbackAudioLanguage', UserPreferences.fallbackAudioLanguage, SyncCodec.text),
   SyncedField('fallbackSubtitleLanguage', UserPreferences.fallbackSubtitleLanguage, SyncCodec.text),
   SyncedField('favoritesViewStyle', UserPreferences.favoritesViewStyle, SyncCodec.enumName, enumValues: prefs.FavoritesViewStyle.values),
-  SyncedField('glassQuality', UserPreferences.glassQuality, SyncCodec.enumName, enumValues: prefs.GlassQualityMode.values),
   SyncedField('groupItemsIntoCollections', UserPreferences.groupItemsIntoCollections, SyncCodec.boolean),
   SyncedField('hideBackdropsInLibraries', UserPreferences.hideBackdropsInLibraries, SyncCodec.boolean),
   SyncedField('homeRowInfoOverlay', UserPreferences.homeRowInfoOverlay, SyncCodec.boolean),

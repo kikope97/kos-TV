@@ -14,10 +14,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
-import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/platform_detection.dart';
 import '../../widgets/top_toolbar.dart';
+import '../../widgets/navigation_layout.dart';
 import 'nouveau/shared/nouveau_spacing.dart';
 
 const double _kCompactBreakpoint = 600.0;
@@ -32,12 +32,9 @@ double detailDesktopScale({UserPreferences? prefs}) =>
     _resolvePrefs(prefs)?.get(UserPreferences.desktopUiScale).scaleFactor ??
     1.0;
 
-/// A bottom navbar leaves the hero as much room as a left one does, so the
-/// three way preference collapses to the one question the layouts ask.
-bool _navbarIsTop({UserPreferences? prefs}) =>
-    (_resolvePrefs(prefs)?.get(UserPreferences.navbarPosition) ??
-        NavbarPosition.top) ==
-    NavbarPosition.top;
+/// Kos TV: the menu is the top bar on a TV and a computer, the bottom one on
+/// phones and tablets.
+bool get _navbarIsTop => NavigationLayout.usesTopToolbar;
 
 bool detailIsCompact(BuildContext context) =>
     !PlatformDetection.isTV &&
@@ -152,7 +149,7 @@ double nouveauHeroScale(Size size) {
 /// a fifth of the screen, with the toolbar it sits under as the floor. Taller
 /// screens keep the inset they had.
 double nouveauHeroTop(BuildContext context, {UserPreferences? prefs}) {
-  final navbarIsTop = _navbarIsTop(prefs: prefs);
+  final navbarIsTop = _navbarIsTop;
 
   final size = MediaQuery.sizeOf(context);
   final scale = nouveauHeroScale(size);
@@ -191,18 +188,10 @@ double stagePosterWidth(Size size, {required bool landscape}) => landscape
     ? (size.height * 0.36).clamp(140.0, 300.0)
     : (size.width * 0.46).clamp(150.0, 230.0);
 
-/// How far the Stage page sits in from the leading edge. A left sidebar takes
-/// more room than a toolbar along the top.
-double stageLeadingInset(
-  BuildContext context, {
-  required bool landscape,
-  UserPreferences? prefs,
-}) {
+/// How far the Stage page sits in from the leading edge.
+double stageLeadingInset(BuildContext context, {required bool landscape}) {
   if (!landscape) return detailIsCompact(context) ? 20.0 : 36.0;
-  final sidebar =
-      _resolvePrefs(prefs)?.get(UserPreferences.navbarPosition) ==
-      NavbarPosition.left;
-  return sidebar ? 120.0 : 48.0;
+  return 48.0;
 }
 
 /// Where the Stage page starts, clear of the toolbar.
