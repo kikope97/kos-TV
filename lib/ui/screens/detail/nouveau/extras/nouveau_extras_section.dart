@@ -63,7 +63,6 @@ class NouveauExtrasSectionState extends State<NouveauExtrasSection> {
   bool get canFocusTop =>
       mounted && widget.items.isNotEmpty && _rowKey.currentState != null;
 
-
   bool focusTop() {
     if (!canFocusTop) {
       return false;

@@ -62,11 +62,7 @@ class _KostvYouScreenState extends State<KostvYouScreen> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
     final menu = _menu;
-    final more = kostvPhoneMoreEntries(
-      l10n,
-      menu,
-      openPage: openBottomNavPage,
-    );
+    final more = kostvPhoneMoreEntries(l10n, menu, openPage: openBottomNavPage);
     // What «En casa» and the quick tiles don't already show.
     const shownHere = {
       'libraries',

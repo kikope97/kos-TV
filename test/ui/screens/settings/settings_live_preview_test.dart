@@ -1176,7 +1176,8 @@ void main() {
         l10n.kostvMyList,
         'Films',
         l10n.liveTv,
-      ].map((label) => tester.getCenter(find.text(label).first).dx).toList();
+      // The last of each: the panel above the preview names Home too.
+      ].map((label) => tester.getCenter(find.text(label).last).dx).toList();
       for (var i = 1; i < order.length; i++) {
         expect(order[i], greaterThan(order[i - 1]));
       }

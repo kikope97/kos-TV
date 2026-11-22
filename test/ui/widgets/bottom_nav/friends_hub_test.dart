@@ -32,9 +32,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('«Más» lists Friends with what is waiting', (
-    tester,
-  ) async {
+  testWidgets('«Más» lists Friends with what is waiting', (tester) async {
     await GetIt.instance<UserPreferences>().set(
       UserPreferences.showFriendsButton,
       true,

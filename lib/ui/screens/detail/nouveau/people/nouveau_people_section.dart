@@ -74,7 +74,6 @@ class NouveauPeopleSectionState extends State<NouveauPeopleSection> {
         widget.writers.isNotEmpty;
   }
 
-
   bool focusTop() {
     if (!canFocusTop) {
       return false;

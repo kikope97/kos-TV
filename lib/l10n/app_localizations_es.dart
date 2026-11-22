@@ -534,9 +534,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get interfaceLayoutPhone => 'Teléfono';
 
   @override
-  String get glassQuality => 'Calidad del cristal';
-
-  @override
   String get oledMode => 'Modo OLED';
 
   @override
@@ -548,19 +545,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get oledModeVivid => 'Vívido';
-
-  @override
-  String get glassQualitySubtitle =>
-      'Automático elige el mejor efecto de cristal para este dispositivo. Completo fuerza el desenfoque real; Reducido usa un cristal ligero que ahorra GPU.';
-
-  @override
-  String get glassQualityAuto => 'Automático';
-
-  @override
-  String get glassQualityFull => 'Completo';
-
-  @override
-  String get glassQualityReduced => 'Reducido';
 
   @override
   String get performanceMode => 'Rendimiento';
@@ -4673,13 +4657,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get clearAll => 'Borrar todo';
 
   @override
-  String get navigationStyle => 'Estilo de navegación';
-
-  @override
   String get topBar => 'Barra superior';
-
-  @override
-  String get leftSidebar => 'Barra lateral izquierda';
 
   @override
   String get showShuffleButton => 'Mostrar botón de aleatorio';
@@ -4706,16 +4684,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get showLibrariesIndividuallySubtitle =>
       'Muestra cada biblioteca como un botón propio en la barra de navegación en lugar de en el menú Bibliotecas';
-
-  @override
-  String get navbarAlwaysExpanded =>
-      'Expandir siempre las etiquetas de la barra de navegación';
-
-  @override
-  String get navbarOpacity => 'Opacidad de la barra de navegación';
-
-  @override
-  String get navbarColor => 'Color de la barra de navegación';
 
   @override
   String get gray => 'Gris';
@@ -5709,10 +5677,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get focusColorWatchedIndicatorsBackdrops =>
       'Color de enfoque, indicadores de visto, imágenes de fondo';
-
-  @override
-  String get navbarStyleToolbarAppearance =>
-      'Estilo de la barra de navegación, botones de la barra de herramientas, apariencia';
 
   @override
   String get featuredContentAppearance => 'Contenido destacado, apariencia';
@@ -11462,10 +11426,6 @@ class AppLocalizationsEs extends AppLocalizations {
       'Mostrar el botón de bibliotecas en la barra de navegación';
 
   @override
-  String get settingsAlwaysExpandNavbarLabels =>
-      'Mostrar siempre las etiquetas de texto en la barra de navegación superior';
-
-  @override
   String get settingsLibraryVisibilitySubtitle =>
       'Muestra u oculta cada biblioteca en la página de inicio. Reinicia kOS TV para aplicar los cambios.';
 
@@ -12089,9 +12049,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get homeScreen => 'Pantalla de inicio';
-
-  @override
-  String get bottomBar => 'Barra inferior';
 
   @override
   String get homeRowsStyleClassic => 'Clásico';
@@ -15187,9 +15144,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get setupSkip => 'Saltar la configuración';
 
   @override
-  String get setupNavbarQuestion => '¿Dónde quieres la navegación?';
-
-  @override
   String get setupMediaBarQuestion =>
       '¿Cómo quieres que se vea la parte de arriba de Inicio?';
 
@@ -15279,21 +15233,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get setupDetailFrostHint =>
       'El título en una ventana de cristal sobre su imagen desenfocada, con pestañas bajo los botones.';
-
-  @override
-  String get setupNavbarStyleQuestion => '¿Cómo quieres la barra inferior?';
-
-  @override
-  String get setupNavbarStyleDockHint =>
-      'Una cápsula flotante con etiquetas bajo cada pestaña.';
-
-  @override
-  String get setupNavbarStyleSplitHint =>
-      'Buscar tiene su propio botón y la barra se encoge mientras te desplazas.';
-
-  @override
-  String get setupNavbarStyleStripHint =>
-      'Una barra a todo lo ancho del borde inferior.';
 
   @override
   String get setupPickALook => 'Elige un aspecto';
@@ -15388,18 +15327,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get setupTvHint =>
       'Arriba y abajo para previsualizar · OK para elegir · Atrás dos veces para saltar';
-
-  @override
-  String get setupNavbarTopHint =>
-      'Pestañas en la parte de arriba de la pantalla.';
-
-  @override
-  String get setupNavbarLeftHint =>
-      'Una barra estrecha de iconos en el lado izquierdo.';
-
-  @override
-  String get setupNavbarBottomHint =>
-      'Pestañas en el borde inferior, al alcance del pulgar.';
 
   @override
   String get setupMediaBarMoonfinHint =>
@@ -15851,52 +15778,6 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get keepVideoClearOfDynamicIslandDescription =>
       'En horizontal, la cámara tapa un borde de la pantalla. Esto aparta la imagen de esa zona, y solo cambia algo en los vídeos lo bastante anchos para llegar hasta allí.';
-
-  @override
-  String get bottomNavbarStyle => 'Estilo de la barra inferior';
-
-  @override
-  String get bottomNavbarStyleDock => 'Dock';
-
-  @override
-  String get bottomNavbarStyleSplit => 'Dividida';
-
-  @override
-  String get bottomNavbarStyleStrip => 'Franja';
-
-  @override
-  String get bottomNavbarTabs => 'Pestañas de la barra inferior';
-
-  @override
-  String get bottomNavbarTabsDescription =>
-      'Fija hasta 3 pestañas entre Inicio y Tú. Todo lo demás está en el panel de la barra inferior.';
-
-  @override
-  String get bottomNavbarTabsAutomatic => 'Automático';
-
-  @override
-  String get bottomNavbarTabsPinned => 'Fijadas';
-
-  @override
-  String get bottomNavbarTabsAvailable => 'Disponibles';
-
-  @override
-  String get bottomNavbarTabsReset => 'Volver a automático';
-
-  @override
-  String get bottomNavbarTabsLimit =>
-      'Puedes fijar hasta 3 pestañas. Quita una para fijar otra.';
-
-  @override
-  String get bottomNavbarTabTurnedOff => 'Desactivada en Botones';
-
-  @override
-  String get bottomNavbarSplitSearchNote =>
-      'Con el estilo Dividida, Buscar siempre tiene su propio botón.';
-
-  @override
-  String get bottomNavbarButtonsNote =>
-      'Estos botones deciden qué aparece en el panel de la barra inferior y qué pestañas puedes fijar en ella. Las pestañas que ya están en la barra no aparecen aquí.';
 
   @override
   String get navYou => 'Tú';
@@ -17978,10 +17859,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get kostvDecodingRenderingSection => 'Decodificación y renderizado';
 
   @override
-  String get kostvMoreNavigationSummary =>
-      'Color y opacidad de la barra, etiquetas y qué botones salen';
-
-  @override
   String get kostvMoreMediaBarSummary =>
       'Qué títulos salen y de dónde, valoraciones, avance automático…';
 
@@ -19000,17 +18877,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvFavoritesNoneOfKind => 'No tienes de esto en favoritos';
-
-  @override
-  String kostvMyFavoritesWithNews(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'Mis favoritos · $count novedades',
-      one: 'Mis favoritos · 1 novedad',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get kostvSortFavorited => 'Añadidos a favoritos';
@@ -21839,4 +21705,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMenuYouHint => 'Mantén pulsado para ver «Más»';
+
+  @override
+  String get kostvMenuButtonsSubtitle => 'Qué botones salen en el menú';
 }

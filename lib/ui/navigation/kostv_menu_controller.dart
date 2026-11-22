@@ -92,27 +92,27 @@ class KostvMenuController extends ChangeNotifier {
   bool get kidsMode => _prefs.get(UserPreferences.kidsModeEnabled);
 
   BottomNavTabGates get gates => BottomNavTabGates.fromPreferences(
-        _prefs,
-        calendarAvailable: _pluginSync?.calendarAvailable ?? false,
-        kostvDiscoverAvailable: _stremfin?.isAllowed ?? false,
-      );
+    _prefs,
+    calendarAvailable: _pluginSync?.calendarAvailable ?? false,
+    kostvDiscoverAvailable: _stremfin?.isAllowed ?? false,
+  );
 
   bool get _hasLiveTvLibrary => _libraries.any(isLiveTvLibrary);
 
   /// The libraries behind Bibliotecas. Live TV drops out of the list once it
   /// has an entry of its own.
   List<AggregatedLibrary> get navLibraries => librariesForNav(
-        _libraries,
-        gates.offers(BottomNavTab.liveTv) && _hasLiveTvLibrary,
-        hideLiveTv: kidsMode,
-      );
+    _libraries,
+    gates.offers(BottomNavTab.liveTv) && _hasLiveTvLibrary,
+    hideLiveTv: kidsMode,
+  );
 
   /// Offered is decided by settings alone, available also needs the data.
   bool isAvailable(BottomNavTab tab) => switch (tab) {
-        BottomNavTab.libraries => navLibraries.isNotEmpty,
-        BottomNavTab.liveTv => _hasLiveTvLibrary,
-        _ => true,
-      };
+    BottomNavTab.libraries => navLibraries.isNotEmpty,
+    BottomNavTab.liveTv => _hasLiveTvLibrary,
+    _ => true,
+  };
 
   /// Whether [tab] is on offer and has what it needs.
   bool shows(BottomNavTab tab) => gates.offers(tab) && isAvailable(tab);
@@ -159,8 +159,7 @@ class KostvMenuController extends ChangeNotifier {
       _prefs.get(UserPreferences.showServerMessagesButton) &&
       (_messages?.messages.isNotEmpty ?? false);
 
-  int get unreadMessages =>
-      messagesVisible ? (_messages?.unreadCount ?? 0) : 0;
+  int get unreadMessages => messagesVisible ? (_messages?.unreadCount ?? 0) : 0;
 
   /// Whether the menu lists Friends: the person left the button on and the
   /// server's Achievement Badges plugin has friends turned on.
@@ -194,27 +193,27 @@ class KostvMenuController extends ChangeNotifier {
   // Rebuilding the menu on every preference write in the app would be
   // wasted work, so only the settings the menu reads are compared.
   String _prefsSignature() => [
-        _prefs.get(UserPreferences.kidsModeEnabled),
-        _prefs.get(UserPreferences.showLibrariesInToolbar),
-        _prefs.get(UserPreferences.showLibrariesIndividually),
-        _prefs.get(UserPreferences.showFavoritesButton),
-        _prefs.get(UserPreferences.showGenresButton),
-        _prefs.get(UserPreferences.showLiveTvButton),
-        _prefs.get(UserPreferences.showCalendarButton),
-        _prefs.get(UserPreferences.syncPlayEnabled),
-        _prefs.get(UserPreferences.showSyncPlayButton),
-        _prefs.get(UserPreferences.showServerMessagesButton),
-        _prefs.get(UserPreferences.showFriendsButton),
-        _prefs.get(UserPreferences.showDownloadsButton),
-        _prefs.get(UserPreferences.enableMultiServerLibraries),
-        _prefs.get(UserPreferences.showDiscoverButton),
-        _prefs.get(UserPreferences.kostvShowMusicButton),
-        _prefs.get(UserPreferences.kostvMyListAvailable),
-        _prefs.get(UserPreferences.use24HourClock),
-        _prefs.get(UserPreferences.clockBehavior),
-        showKostvAppsButton(_prefs),
-        _pluginSync?.calendarAvailable ?? false,
-      ].join('|');
+    _prefs.get(UserPreferences.kidsModeEnabled),
+    _prefs.get(UserPreferences.showLibrariesInToolbar),
+    _prefs.get(UserPreferences.showLibrariesIndividually),
+    _prefs.get(UserPreferences.showFavoritesButton),
+    _prefs.get(UserPreferences.showGenresButton),
+    _prefs.get(UserPreferences.showLiveTvButton),
+    _prefs.get(UserPreferences.showCalendarButton),
+    _prefs.get(UserPreferences.syncPlayEnabled),
+    _prefs.get(UserPreferences.showSyncPlayButton),
+    _prefs.get(UserPreferences.showServerMessagesButton),
+    _prefs.get(UserPreferences.showFriendsButton),
+    _prefs.get(UserPreferences.showDownloadsButton),
+    _prefs.get(UserPreferences.enableMultiServerLibraries),
+    _prefs.get(UserPreferences.showDiscoverButton),
+    _prefs.get(UserPreferences.kostvShowMusicButton),
+    _prefs.get(UserPreferences.kostvMyListAvailable),
+    _prefs.get(UserPreferences.use24HourClock),
+    _prefs.get(UserPreferences.clockBehavior),
+    showKostvAppsButton(_prefs),
+    _pluginSync?.calendarAvailable ?? false,
+  ].join('|');
 
   (int, bool, bool) _readInbox() {
     final inbox = _stremfin?.inbox;
@@ -278,7 +277,7 @@ class KostvMenuController extends ChangeNotifier {
       );
       final libs = useMultiServer
           ? await GetIt.instance<MultiServerRepository>()
-              .getAggregatedLibraries()
+                .getAggregatedLibraries()
           : await _viewsRepo.getUserViews();
 
       if (GetIt.instance.isRegistered<GameLibraryRegistry>()) {
@@ -286,8 +285,9 @@ class KostvMenuController extends ChangeNotifier {
       }
 
       final filtered = useMultiServer
-          ? await GetIt.instance<LibraryScopeService>()
-              .withoutHiddenLibraries(libs)
+          ? await GetIt.instance<LibraryScopeService>().withoutHiddenLibraries(
+              libs,
+            )
           : libs;
 
       NavLibrariesMemory.remember(userId, filtered);

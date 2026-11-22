@@ -283,7 +283,6 @@ class NouveauDiscoverySectionState extends State<NouveauDiscoverySection>
   bool get _relatedWaiting =>
       _showsBaseRelated && !_vm.similarInitialLoadComplete;
 
-
   void _captureBaseRelatedIfAvailable() {
     if (_baseRelatedCaptured || _vm.similar.isEmpty) {
       return;

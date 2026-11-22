@@ -97,10 +97,7 @@ class KostvMoreSheet extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          l10n.more,
-                          style: KostvMusicType.title(24),
-                        ),
+                        child: Text(l10n.more, style: KostvMusicType.title(24)),
                       ),
                       Semantics(
                         button: true,
@@ -153,9 +150,7 @@ class KostvMoreSheet extends StatelessWidget {
                       children: [
                         for (var i = 0; i < entries.rows.length; i++)
                           KostvGlassRow(
-                            key: ValueKey(
-                              'kostv-more-${entries.rows[i].id}',
-                            ),
+                            key: ValueKey('kostv-more-${entries.rows[i].id}'),
                             entry: entries.rows[i],
                             divider: i > 0,
                             onTap: () => onSelected(entries.rows[i]),
@@ -183,9 +178,8 @@ class _Tile extends StatelessWidget {
   Widget build(BuildContext context) {
     // Capped so a large text setting can't stretch a two-line label's row
     // far past the others.
-    final textScaler = MediaQuery.textScalerOf(
-      context,
-    ).clamp(maxScaleFactor: 1.3);
+    final textScaler = MediaQuery.textScalerOf(context)
+        .clamp(maxScaleFactor: 1.3);
     return Semantics(
       button: true,
       label: entry.label,
@@ -277,10 +271,7 @@ class KostvGlassRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              entry.iconWidget(
-                21,
-                KostvMusicTokens.ink.withValues(alpha: 0.9),
-              ),
+              entry.iconWidget(21, KostvMusicTokens.ink.withValues(alpha: 0.9)),
               const SizedBox(width: 14),
               Expanded(
                 child: Text(

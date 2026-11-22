@@ -152,12 +152,13 @@ void main() {
     await settle(tester);
   }
 
+  // Kos TV: four steps; the menu has one design and is never asked about.
   Future<void> toLastStep(WidgetTester tester) async {
-    for (var step = 1; step < 5; step++) {
+    for (var step = 1; step < 4; step++) {
       await press(tester, LogicalKeyboardKey.arrowRight);
       await press(tester, LogicalKeyboardKey.enter);
     }
-    expect(find.text('Step 5 of 5'), findsOneWidget);
+    expect(find.text('Step 4 of 4'), findsOneWidget);
   }
 
   // TV runs first: the media bar's default is read once per test run, and on
@@ -170,42 +171,23 @@ void main() {
     ) async {
       await pumpWizard(tester);
 
-      expect(find.text('Step 1 of 5'), findsOneWidget);
+      expect(find.text('Step 1 of 4'), findsOneWidget);
       // The chip and the last step of the settings path.
-      expect(find.text('Navigation Style'), findsNWidgets(2));
-      expect(find.text('Navigation Bar'), findsOneWidget);
-      expect(_focusLabel(), 'setupOption navbar 0');
-      expect(find.text('Tabs across the top of the screen.'), findsOneWidget);
-
-      await press(tester, LogicalKeyboardKey.arrowDown);
-      expect(_focusLabel(), 'setupOption navbar 1');
-      expect(
-        find.text('A slim rail of icons down the left side.'),
-        findsOneWidget,
-      );
-      // Looking at an option isn't choosing it.
-      expect(find.text('Current'), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.ancestor(
-            of: find.text('Top Bar'),
-            matching: find.byType(Row),
-          ),
-          matching: find.text('Current'),
-        ),
-        findsOneWidget,
-      );
-
-      await press(tester, LogicalKeyboardKey.arrowDown);
-      expect(_focusLabel(), 'setupWizardNext');
-
-      await press(tester, LogicalKeyboardKey.enter);
-      expect(find.text('Step 2 of 5'), findsOneWidget);
       expect(find.text('Media Bar Style'), findsNWidgets(2));
       expect(_focusLabel(), 'setupOption mediaBar 0');
 
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      expect(_focusLabel(), 'setupOption mediaBar 1');
+      // Looking at an option isn't choosing it.
+      expect(find.text('Current'), findsOneWidget);
+
+      await press(tester, LogicalKeyboardKey.arrowUp);
       await press(tester, LogicalKeyboardKey.arrowUp);
       expect(_focusLabel(), 'setupWizardSkip');
+
+      await tester.tap(find.text('Next'));
+      await settle(tester);
+      expect(find.text('Step 2 of 4'), findsOneWidget);
     });
 
     testWidgets('the stage scales up to fill a screen larger than it', (
@@ -224,14 +206,14 @@ void main() {
     testWidgets('a step opens with only its chosen row lit', (tester) async {
       await pumpWizard(tester);
       await press(tester, LogicalKeyboardKey.arrowDown);
-      expect(_focusLabel(), 'setupOption navbar 1');
+      expect(_focusLabel(), 'setupOption mediaBar 1');
       expect(_litRows(tester), 1);
 
       // A pointer press leaves focus on the row it came from.
       await tester.tap(find.text('Next'));
       await settle(tester);
-      expect(find.text('Step 2 of 5'), findsOneWidget);
-      expect(_focusLabel(), 'setupOption mediaBar 0');
+      expect(find.text('Step 2 of 4'), findsOneWidget);
+      expect(_focusLabel(), startsWith('setupOption homeRows'));
       expect(_litRows(tester), 1);
     });
 
@@ -239,15 +221,12 @@ void main() {
       tester,
     ) async {
       await pumpWizard(tester);
-      await press(tester, LogicalKeyboardKey.arrowRight);
-      expect(_focusLabel(), 'setupWizardNext');
-      await press(tester, LogicalKeyboardKey.enter);
-      expect(find.text('Step 2 of 5'), findsOneWidget);
+      expect(find.text('Step 1 of 4'), findsOneWidget);
 
       await press(tester, LogicalKeyboardKey.arrowDown);
       expect(_focusLabel(), 'setupOption mediaBar 1');
       await press(tester, LogicalKeyboardKey.enter);
-      expect(find.text('Step 2 of 5'), findsOneWidget);
+      expect(find.text('Step 1 of 4'), findsOneWidget);
       expect(
         find.descendant(
           of: find.ancestor(of: find.text('MakD'), matching: find.byType(Row)),
@@ -256,11 +235,11 @@ void main() {
         findsWidgets,
       );
 
-      for (var step = 2; step < 5; step++) {
+      for (var step = 1; step < 4; step++) {
         await press(tester, LogicalKeyboardKey.arrowRight);
         await press(tester, LogicalKeyboardKey.enter);
       }
-      expect(find.text('Step 5 of 5'), findsOneWidget);
+      expect(find.text('Step 4 of 4'), findsOneWidget);
       expect(find.text('App Theme'), findsNWidgets(2));
       expect(find.text('Done'), findsOneWidget);
 
@@ -310,42 +289,20 @@ void main() {
   group('on a phone', () {
     setUp(() => PlatformDetection.setInterfaceLayout(InterfaceLayout.phone));
 
-    testWidgets('chips and swipes pick, and Next moves on', (tester) async {
+    testWidgets('Next moves on, and the menu is never asked about', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(390 * 3, 844 * 3);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.reset);
 
       await pumpWizard(tester);
-      expect(find.text('Step 1 of 5'), findsOneWidget);
-      expect(find.text('Navigation Style'), findsNWidgets(2));
-
-      await tester.ensureVisible(find.text('Bottom Bar'));
-      await tester.tap(find.text('Bottom Bar'));
-      await settle(tester);
-      // Bottom brings its style question along.
-      expect(find.text('Step 1 of 6'), findsOneWidget);
-      expect(
-        find.text('Tabs along the bottom edge, in easy reach of your thumb.'),
-        findsOneWidget,
-      );
-
-      await tester.fling(
-        find.byType(SetupPreview).last,
-        const Offset(300, 0),
-        1500,
-        warnIfMissed: false,
-      );
-      await settle(tester);
-      expect(find.text('Step 1 of 5'), findsOneWidget);
-      expect(
-        find.text('A slim rail of icons down the left side.'),
-        findsOneWidget,
-      );
+      expect(find.text('Step 1 of 4'), findsOneWidget);
+      expect(find.text('Media Bar Style'), findsNWidgets(2));
 
       await tester.tap(find.text('Next'));
       await settle(tester);
-      expect(find.text('Step 2 of 5'), findsOneWidget);
-      expect(find.text('Media Bar Style'), findsNWidgets(2));
+      expect(find.text('Step 2 of 4'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

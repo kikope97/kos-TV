@@ -70,7 +70,10 @@ void main() {
       body: NavigationLayout(
         activeRoute: location,
         child: const Center(
-          child: Focus(debugLabel: 'content', child: SizedBox(width: 50, height: 50)),
+          child: Focus(
+            debugLabel: 'content',
+            child: SizedBox(width: 50, height: 50),
+          ),
         ),
       ),
     );
@@ -113,8 +116,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
   }
 
-  testWidgets('the toolbar registers its focus root only while mounted',
-      (tester) async {
+  testWidgets('the toolbar registers its focus root only while mounted', (
+    tester,
+  ) async {
     await pumpBar(tester);
     expect(NavigationLayout.chromeFocusRoots, hasLength(1));
 
@@ -122,8 +126,9 @@ void main() {
     expect(NavigationLayout.chromeFocusRoots, isEmpty);
   });
 
-  testWidgets('TV: the magnifier, the named tabs in order and «Más»',
-      (tester) async {
+  testWidgets('TV: the magnifier, the named tabs in order and «Más»', (
+    tester,
+  ) async {
     await pumpBar(tester);
 
     final order = [
@@ -149,8 +154,9 @@ void main() {
     );
   });
 
-  testWidgets('the page on screen is marked with the gradient line',
-      (tester) async {
+  testWidgets('the page on screen is marked with the gradient line', (
+    tester,
+  ) async {
     await pumpBar(tester, route: Destinations.kostvMusic);
     Finder markOn(String key) => find.descendant(
       of: find.byKey(ValueKey(key)),
@@ -278,7 +284,10 @@ void main() {
     await GetIt.instance.unregister<GameLibraryRegistry>();
     await tester.tap(find.text('Shows'));
     await tester.pumpAndSettle();
-    expect(router.routerDelegate.currentConfiguration.last.matchedLocation, '/library/shows');
+    expect(
+      router.routerDelegate.currentConfiguration.last.matchedLocation,
+      '/library/shows',
+    );
   });
 
   testWidgets('kids mode leaves Music out', (tester) async {

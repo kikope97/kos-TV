@@ -58,20 +58,20 @@ class KostvGlass extends StatelessWidget {
     Widget body = ColoredBox(
       color: base,
       child: DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.white.withValues(alpha: heavy ? 0.12 : 0.14),
-            Colors.white.withValues(alpha: heavy ? 0.03 : 0.04),
-            Colors.white.withValues(alpha: heavy ? 0.03 : 0.07),
-          ],
-          stops: const [0, 0.55, 1],
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.white.withValues(alpha: heavy ? 0.12 : 0.14),
+              Colors.white.withValues(alpha: heavy ? 0.03 : 0.04),
+              Colors.white.withValues(alpha: heavy ? 0.03 : 0.07),
+            ],
+            stops: const [0, 0.55, 1],
+          ),
         ),
+        child: const SizedBox.expand(),
       ),
-      child: const SizedBox.expand(),
-    ),
     );
     body = Stack(
       fit: StackFit.passthrough,
@@ -150,33 +150,37 @@ class KostvGlassRimPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     final r = radius.clamp(0.0, size.shortestSide / 2);
-    final rrect = RRect.fromRectAndRadius(rect.deflate(0.6), Radius.circular(r));
+    final rrect = RRect.fromRectAndRadius(
+      rect.deflate(0.6),
+      Radius.circular(r),
+    );
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = brand ? 1.3 : 1
-      ..shader = (brand
-              ? const LinearGradient(
-                  begin: Alignment(-1, -0.6),
-                  end: Alignment(1, 0.6),
-                  colors: [
-                    Color(0xE64FD8FF),
-                    Color(0x8C8F6BFF),
-                    Color(0xE6FF5CCF),
-                  ],
-                )
-              : const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xA6FFFFFF),
-                    Color(0x1AFFFFFF),
-                    Color(0x00FFFFFF),
-                    Color(0x1AFFFFFF),
-                    Color(0x73FFFFFF),
-                  ],
-                  stops: [0, 0.28, 0.5, 0.72, 1],
-                ))
-          .createShader(rect);
+      ..shader =
+          (brand
+                  ? const LinearGradient(
+                      begin: Alignment(-1, -0.6),
+                      end: Alignment(1, 0.6),
+                      colors: [
+                        Color(0xE64FD8FF),
+                        Color(0x8C8F6BFF),
+                        Color(0xE6FF5CCF),
+                      ],
+                    )
+                  : const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Color(0xA6FFFFFF),
+                        Color(0x1AFFFFFF),
+                        Color(0x00FFFFFF),
+                        Color(0x1AFFFFFF),
+                        Color(0x73FFFFFF),
+                      ],
+                      stops: [0, 0.28, 0.5, 0.72, 1],
+                    ))
+              .createShader(rect);
     canvas.drawRRect(rrect, paint);
   }
 

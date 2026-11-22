@@ -534,9 +534,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get interfaceLayoutPhone => 'Phone';
 
   @override
-  String get glassQuality => 'Glass Quality';
-
-  @override
   String get oledMode => 'OLED Mode';
 
   @override
@@ -548,19 +545,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get oledModeVivid => 'Vivid';
-
-  @override
-  String get glassQualitySubtitle =>
-      'Auto picks the best glass effect for this device. Full forces real blur; Reduced uses a lightweight glass that saves GPU power.';
-
-  @override
-  String get glassQualityAuto => 'Auto';
-
-  @override
-  String get glassQualityFull => 'Full';
-
-  @override
-  String get glassQualityReduced => 'Reduced';
 
   @override
   String get performanceMode => 'Performance';
@@ -4618,13 +4602,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clearAll => 'Clear All';
 
   @override
-  String get navigationStyle => 'Navigation Style';
-
-  @override
   String get topBar => 'Top Bar';
-
-  @override
-  String get leftSidebar => 'Left Sidebar';
 
   @override
   String get showShuffleButton => 'Show Shuffle Button';
@@ -4650,15 +4628,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get showLibrariesIndividuallySubtitle =>
       'Show each library as its own button in the navigation bar instead of in the Libraries menu';
-
-  @override
-  String get navbarAlwaysExpanded => 'Always Expand Navbar Labels';
-
-  @override
-  String get navbarOpacity => 'Navbar Opacity';
-
-  @override
-  String get navbarColor => 'Navbar Color';
 
   @override
   String get gray => 'Gray';
@@ -5636,10 +5605,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get focusColorWatchedIndicatorsBackdrops =>
       'Focus color, watched indicators, backdrops';
-
-  @override
-  String get navbarStyleToolbarAppearance =>
-      'Navbar style, toolbar buttons, appearance';
 
   @override
   String get featuredContentAppearance => 'Featured content, appearance';
@@ -11235,10 +11200,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Show the libraries button in the navigation bar';
 
   @override
-  String get settingsAlwaysExpandNavbarLabels =>
-      'Always show text labels in the top navigation bar';
-
-  @override
   String get settingsLibraryVisibilitySubtitle =>
       'Toggle home page visibility per library. Restart kOS TV for changes to take effect.';
 
@@ -11845,9 +11806,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get homeScreen => 'Home Screen';
-
-  @override
-  String get bottomBar => 'Bottom Bar';
 
   @override
   String get homeRowsStyleClassic => 'Classic';
@@ -14910,9 +14868,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get setupSkip => 'Skip setup';
 
   @override
-  String get setupNavbarQuestion => 'Where should navigation go?';
-
-  @override
   String get setupMediaBarQuestion =>
       'How should the top of your Home screen look?';
 
@@ -15001,21 +14956,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'The title in a glass window over its blurred art, with tabs under the buttons.';
 
   @override
-  String get setupNavbarStyleQuestion => 'How should the bottom bar look?';
-
-  @override
-  String get setupNavbarStyleDockHint =>
-      'A floating pill with labels under every tab.';
-
-  @override
-  String get setupNavbarStyleSplitHint =>
-      'Search gets its own button, and the bar shrinks while you scroll.';
-
-  @override
-  String get setupNavbarStyleStripHint =>
-      'A full-width bar along the bottom edge.';
-
-  @override
   String get setupPickALook => 'Pick a look';
 
   @override
@@ -15101,16 +15041,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get setupTvHint =>
       'Up and down to preview · OK to choose · Back twice to skip';
-
-  @override
-  String get setupNavbarTopHint => 'Tabs across the top of the screen.';
-
-  @override
-  String get setupNavbarLeftHint => 'A slim rail of icons down the left side.';
-
-  @override
-  String get setupNavbarBottomHint =>
-      'Tabs along the bottom edge, in easy reach of your thumb.';
 
   @override
   String get setupMediaBarMoonfinHint =>
@@ -15558,52 +15488,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get keepVideoClearOfDynamicIslandDescription =>
       'In landscape the camera housing covers one edge of the screen. This holds the picture back from it, which only changes anything for video wide enough to reach that far.';
-
-  @override
-  String get bottomNavbarStyle => 'Bottom Bar Style';
-
-  @override
-  String get bottomNavbarStyleDock => 'Dock';
-
-  @override
-  String get bottomNavbarStyleSplit => 'Split';
-
-  @override
-  String get bottomNavbarStyleStrip => 'Strip';
-
-  @override
-  String get bottomNavbarTabs => 'Bottom Bar Tabs';
-
-  @override
-  String get bottomNavbarTabsDescription =>
-      'Pin up to 3 tabs between Home and You. Everything else is in the bottom navbar hub.';
-
-  @override
-  String get bottomNavbarTabsAutomatic => 'Automatic';
-
-  @override
-  String get bottomNavbarTabsPinned => 'Pinned';
-
-  @override
-  String get bottomNavbarTabsAvailable => 'Available';
-
-  @override
-  String get bottomNavbarTabsReset => 'Reset to Automatic';
-
-  @override
-  String get bottomNavbarTabsLimit =>
-      'You can pin up to 3 tabs. Remove one to pin another.';
-
-  @override
-  String get bottomNavbarTabTurnedOff => 'Turned off under Buttons';
-
-  @override
-  String get bottomNavbarSplitSearchNote =>
-      'In the Split style, Search always has its own button.';
-
-  @override
-  String get bottomNavbarButtonsNote =>
-      'These decide what shows in the bottom navbar hub and which tabs you can pin to the bottom bar. Tabs already on the bar aren\'t listed here.';
 
   @override
   String get navYou => 'You';
@@ -17664,10 +17548,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get kostvDecodingRenderingSection => 'Decoding & Rendering';
 
   @override
-  String get kostvMoreNavigationSummary =>
-      'Bar color and opacity, labels and which buttons show';
-
-  @override
   String get kostvMoreMediaBarSummary =>
       'Which titles show and where from, ratings, auto-advance…';
 
@@ -18677,17 +18557,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get kostvFavoritesNoneOfKind =>
       'Nothing of this kind in your favourites';
-
-  @override
-  String kostvMyFavoritesWithNews(int count) {
-    String _temp0 = intl.Intl.pluralLogic(
-      count,
-      locale: localeName,
-      other: 'My favourites · $count new',
-      one: 'My favourites · 1 new',
-    );
-    return '$_temp0';
-  }
 
   @override
   String get kostvSortFavorited => 'Added to favourites';
@@ -21497,4 +21366,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvMenuYouHint => 'Long press for «More»';
+
+  @override
+  String get kostvMenuButtonsSubtitle => 'Which buttons the menu shows';
 }

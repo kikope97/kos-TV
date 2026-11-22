@@ -34,6 +34,9 @@ import 'navigation_layout.dart';
 
 const _kToolbarHeightTV = 96.0;
 const _kToolbarHeightDesktop = 80.0;
+// The top room pages keep on phones, under the status bar, for their own
+// back button and title (their menu is the glass bar at the bottom).
+const _kTopRoomMobile = 60.0;
 const _kOverscanH = 56.0;
 const _kDesktopH = 40.0;
 const _kTabHeightTV = 44.0;
@@ -73,9 +76,13 @@ class TopToolbar extends StatefulWidget {
   });
 
   /// Height of the toolbar for the current platform.
+  /// On phones, where there is no top bar, the room pages keep at the top
+  /// all the same.
   static double baseHeightFor(BuildContext context) =>
       PlatformDetection.useLeanbackUi
       ? _kToolbarHeightTV
+      : PlatformDetection.useMobileUi
+      ? _kTopRoomMobile
       : _kToolbarHeightDesktop;
 
   /// Total laid-out height of the toolbar for the current platform.

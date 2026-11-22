@@ -62,7 +62,6 @@ class NouveauReviewsSectionState extends State<NouveauReviewsSection> {
   bool get canFocusTop =>
       mounted && widget.reviews.isNotEmpty && _rowKey.currentState != null;
 
-
   bool focusTop() {
     if (!canFocusTop) {
       return false;

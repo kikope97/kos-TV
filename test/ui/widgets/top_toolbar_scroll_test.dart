@@ -144,15 +144,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(TopToolbar.isFocusedNotifier.value, isTrue);
       expect(_pillOpacity(tester), 0);
-      expect(
-        FocusManager.instance.primaryFocus?.debugLabel,
-        'TopToolbarHome',
-      );
+      expect(FocusManager.instance.primaryFocus?.debugLabel, 'TopToolbarHome');
     });
 
-    testWidgets('a page that keeps its menu never gathers it', (
-      tester,
-    ) async {
+    testWidgets('a page that keeps its menu never gathers it', (tester) async {
       tv(tester);
       final controller = ScrollController();
       addTearDown(controller.dispose);

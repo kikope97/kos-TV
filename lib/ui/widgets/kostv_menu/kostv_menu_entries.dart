@@ -110,41 +110,42 @@ List<KostvMenuEntry> kostvMoreEntries(
   ..._extras(l10n, menu),
 ];
 
-List<KostvMenuEntry> _extras(AppLocalizations l10n, KostvMenuController menu) =>
-    [
-      if (menu.showSyncPlay)
-        KostvMenuEntry(
-          id: 'watchParties',
-          label: l10n.watchParties,
-          icon: Icons.groups_rounded,
-          onSelected: (c) => Navigator.of(c).push(
-            MaterialPageRoute<void>(builder: (_) => watchTogetherScreen()),
-          ),
-        ),
-      if (menu.savedVisible)
-        KostvMenuEntry(
-          id: 'saved',
-          label: l10n.savedMedia,
-          icon: Icons.download_for_offline_rounded,
-          onSelected: showDownloadsDialog,
-        ),
-      if (menu.friendsVisible)
-        KostvMenuEntry(
-          id: 'friends',
-          label: l10n.friends,
-          icon: Icons.people_alt_rounded,
-          count: menu.friendsBadge,
-          onSelected: FriendsNavSlot.open,
-        ),
-      if (menu.messagesVisible)
-        KostvMenuEntry(
-          id: 'messages',
-          label: l10n.serverMessages,
-          icon: Icons.info_outline_rounded,
-          count: menu.unreadMessages,
-          onSelected: showServerMessagesDialog,
-        ),
-    ];
+List<KostvMenuEntry> _extras(
+  AppLocalizations l10n,
+  KostvMenuController menu,
+) => [
+  if (menu.showSyncPlay)
+    KostvMenuEntry(
+      id: 'watchParties',
+      label: l10n.watchParties,
+      icon: Icons.groups_rounded,
+      onSelected: (c) => Navigator.of(c)
+          .push(MaterialPageRoute<void>(builder: (_) => watchTogetherScreen())),
+    ),
+  if (menu.savedVisible)
+    KostvMenuEntry(
+      id: 'saved',
+      label: l10n.savedMedia,
+      icon: Icons.download_for_offline_rounded,
+      onSelected: showDownloadsDialog,
+    ),
+  if (menu.friendsVisible)
+    KostvMenuEntry(
+      id: 'friends',
+      label: l10n.friends,
+      icon: Icons.people_alt_rounded,
+      count: menu.friendsBadge,
+      onSelected: FriendsNavSlot.open,
+    ),
+  if (menu.messagesVisible)
+    KostvMenuEntry(
+      id: 'messages',
+      label: l10n.serverMessages,
+      icon: Icons.info_outline_rounded,
+      count: menu.unreadMessages,
+      onSelected: showServerMessagesDialog,
+    ),
+];
 
 KostvMenuEntry _requests(AppLocalizations l10n, KostvMenuController menu) =>
     KostvMenuEntry(

@@ -650,10 +650,6 @@
     "@interfaceLayoutPhone": {
         "description": "Interface layout option: phone layout"
     },
-    "glassQuality": "Calidad del cristal",
-    "@glassQuality": {
-        "description": "Label for the glass rendering quality setting"
-    },
     "oledMode": "Modo OLED",
     "@oledMode": {
         "description": "Label for the setting that deepens blacks and enriches artwork on OLED displays"
@@ -669,22 +665,6 @@
     "oledModeVivid": "Vívido",
     "@oledModeVivid": {
         "description": "OLED Mode level that uses pure black surfaces and the strongest artwork enrichment"
-    },
-    "glassQualitySubtitle": "Automático elige el mejor efecto de cristal para este dispositivo. Completo fuerza el desenfoque real; Reducido usa un cristal ligero que ahorra GPU.",
-    "@glassQualitySubtitle": {
-        "description": "Explanation under the glass quality setting"
-    },
-    "glassQualityAuto": "Automático",
-    "@glassQualityAuto": {
-        "description": "Glass quality option: per-device default"
-    },
-    "glassQualityFull": "Completo",
-    "@glassQualityFull": {
-        "description": "Glass quality option: force real blur"
-    },
-    "glassQualityReduced": "Reducido",
-    "@glassQualityReduced": {
-        "description": "Glass quality option: lightweight zero-blur glass"
     },
     "performanceMode": "Rendimiento",
     "@performanceMode": {
@@ -5435,17 +5415,9 @@
     "@clearAll": {
         "description": "Button to clear all"
     },
-    "navigationStyle": "Estilo de navegación",
-    "@navigationStyle": {
-        "description": "Setting for navigation style"
-    },
     "topBar": "Barra superior",
     "@topBar": {
         "description": "Navigation style: top bar"
-    },
-    "leftSidebar": "Barra lateral izquierda",
-    "@leftSidebar": {
-        "description": "Navigation style: left sidebar"
     },
     "showShuffleButton": "Mostrar botón de aleatorio",
     "@showShuffleButton": {
@@ -5467,18 +5439,6 @@
     },
     "showLibrariesIndividually": "Mostrar bibliotecas por separado",
     "showLibrariesIndividuallySubtitle": "Muestra cada biblioteca como un botón propio en la barra de navegación en lugar de en el menú Bibliotecas",
-    "navbarAlwaysExpanded": "Expandir siempre las etiquetas de la barra de navegación",
-    "@navbarAlwaysExpanded": {
-        "description": "Setting to keep every top navbar heading's text label visible at all times, tvOS-style"
-    },
-    "navbarOpacity": "Opacidad de la barra de navegación",
-    "@navbarOpacity": {
-        "description": "Setting for navbar opacity"
-    },
-    "navbarColor": "Color de la barra de navegación",
-    "@navbarColor": {
-        "description": "Setting for navbar color"
-    },
     "gray": "Gris",
     "@gray": {
         "description": "Color: gray"
@@ -6347,10 +6307,6 @@
     "focusColorWatchedIndicatorsBackdrops": "Color de enfoque, indicadores de visto, imágenes de fondo",
     "@focusColorWatchedIndicatorsBackdrops": {
         "description": "Appearance settings subtitle on desktop"
-    },
-    "navbarStyleToolbarAppearance": "Estilo de la barra de navegación, botones de la barra de herramientas, apariencia",
-    "@navbarStyleToolbarAppearance": {
-        "description": "Navigation settings subtitle"
     },
     "featuredContentAppearance": "Contenido destacado, apariencia",
     "@featuredContentAppearance": {
@@ -9194,7 +9150,6 @@
     "settingsShowFavoritesButtonInNavigation": "Mostrar el botón de favoritos en la barra de navegación",
     "settingsShowLiveTvButtonInNavigation": "Mostrar el botón de TV en directo en la barra de navegación cuando el servidor tenga una biblioteca de TV en directo",
     "settingsShowLibrariesButtonInNavigation": "Mostrar el botón de bibliotecas en la barra de navegación",
-    "settingsAlwaysExpandNavbarLabels": "Mostrar siempre las etiquetas de texto en la barra de navegación superior",
     "settingsLibraryVisibilitySubtitle": "Muestra u oculta cada biblioteca en la página de inicio. Reinicia kOS TV para aplicar los cambios.",
     "settingsMediaBarAndLocalPreviews": "Barra multimedia y vistas previas locales",
     "settingsVisualOverlays": "Superposiciones visuales",
@@ -9516,7 +9471,6 @@
     "themeEditor": "Editor de temas",
     "themeEditorSubtitle": "Abre el editor de temas en tu navegador",
     "homeScreen": "Pantalla de inicio",
-    "bottomBar": "Barra inferior",
     "homeRowsStyleClassic": "Clásico",
     "homeRowsStyleModern": "Moderno",
     "homeRowsSection": "Filas de inicio",
@@ -10684,7 +10638,6 @@
     "hideHomeUnwatchedCountSubtitle": "Oculta la insignia que indica cuántos episodios te quedan por ver.",
     "continueWatchingAndNextUpHeader": "Seguir viendo y A continuación",
     "setupSkip": "Saltar la configuración",
-    "setupNavbarQuestion": "¿Dónde quieres la navegación?",
     "setupMediaBarQuestion": "¿Cómo quieres que se vea la parte de arriba de Inicio?",
     "setupHomeRowsQuestion": "¿Cómo quieres que se vean las filas?",
     "setupDetailQuestion": "¿Cómo quieres que se vea una película o serie al abrirla?",
@@ -10711,10 +10664,6 @@
     "setupDetailQuickLookHint": "Un panel sobre la pantalla en la que estabas, con el botón de reproducir y lo básico, y la página completa a una pulsación.",
     "setupStyleFrost": "Escarcha",
     "setupDetailFrostHint": "El título en una ventana de cristal sobre su imagen desenfocada, con pestañas bajo los botones.",
-    "setupNavbarStyleQuestion": "¿Cómo quieres la barra inferior?",
-    "setupNavbarStyleDockHint": "Una cápsula flotante con etiquetas bajo cada pestaña.",
-    "setupNavbarStyleSplitHint": "Buscar tiene su propio botón y la barra se encoge mientras te desplazas.",
-    "setupNavbarStyleStripHint": "Una barra a todo lo ancho del borde inferior.",
     "setupPickALook": "Elige un aspecto",
     "setupTourMoreHeader": "Hay más esperándote en Ajustes",
     "setupTourBulletSyncPlay": "Ver juntos con SyncPlay",
@@ -10740,9 +10689,6 @@
     "moonbaseFeatureMessages": "Mensajes del administrador de tu servidor",
     "setupMoonbaseInstallFailed": "No se pudo instalar el complemento del servidor. {error}",
     "setupTvHint": "Arriba y abajo para previsualizar · OK para elegir · Atrás dos veces para saltar",
-    "setupNavbarTopHint": "Pestañas en la parte de arriba de la pantalla.",
-    "setupNavbarLeftHint": "Una barra estrecha de iconos en el lado izquierdo.",
-    "setupNavbarBottomHint": "Pestañas en el borde inferior, al alcance del pulgar.",
     "setupMediaBarMoonfinHint": "Imágenes grandes con el título, los detalles y la sinopsis encima.",
     "setupMediaBarMakdHint": "Imágenes grandes encabezadas por el logotipo del título en grande.",
     "setupMediaBarBookshelfHint": "Títulos colocados como lomos de libros en una estantería, con el destacado de frente.",
@@ -10852,20 +10798,6 @@
     "topShelfAppBanner": "Banner de kOS TV",
     "keepVideoClearOfDynamicIsland": "Apartar el vídeo de la Dynamic Island",
     "keepVideoClearOfDynamicIslandDescription": "En horizontal, la cámara tapa un borde de la pantalla. Esto aparta la imagen de esa zona, y solo cambia algo en los vídeos lo bastante anchos para llegar hasta allí.",
-    "bottomNavbarStyle": "Estilo de la barra inferior",
-    "bottomNavbarStyleDock": "Dock",
-    "bottomNavbarStyleSplit": "Dividida",
-    "bottomNavbarStyleStrip": "Franja",
-    "bottomNavbarTabs": "Pestañas de la barra inferior",
-    "bottomNavbarTabsDescription": "Fija hasta 3 pestañas entre Inicio y Tú. Todo lo demás está en el panel de la barra inferior.",
-    "bottomNavbarTabsAutomatic": "Automático",
-    "bottomNavbarTabsPinned": "Fijadas",
-    "bottomNavbarTabsAvailable": "Disponibles",
-    "bottomNavbarTabsReset": "Volver a automático",
-    "bottomNavbarTabsLimit": "Puedes fijar hasta 3 pestañas. Quita una para fijar otra.",
-    "bottomNavbarTabTurnedOff": "Desactivada en Botones",
-    "bottomNavbarSplitSearchNote": "Con el estilo Dividida, Buscar siempre tiene su propio botón.",
-    "bottomNavbarButtonsNote": "Estos botones deciden qué aparece en el panel de la barra inferior y qué pestañas puedes fijar en ella. Las pestañas que ya están en la barra no aparecen aquí.",
     "navYou": "Tú",
     "cinemaSkipPrerolls": "Botón Saltar en el modo cine",
     "cinemaSkipPrerollsDescription": "Muestra un botón Saltar durante los tráileres, anuncios y otros vídeos previos del modo cine.",
@@ -11551,10 +11483,6 @@
     "kostvDecodingRenderingSection": "Decodificación y renderizado",
     "@kostvDecodingRenderingSection": {
         "description": "Kos TV: Quality and decoding settings section with hardware decoding, display and renderer options"
-    },
-    "kostvMoreNavigationSummary": "Color y opacidad de la barra, etiquetas y qué botones salen",
-    "@kostvMoreNavigationSummary": {
-        "description": "Kos TV: what the Navigation bar screen's More settings holds"
     },
     "kostvMoreMediaBarSummary": "Qué títulos salen y de dónde, valoraciones, avance automático…",
     "@kostvMoreMediaBarSummary": {
@@ -12886,15 +12814,6 @@
     "kostvFavoritesNoneOfKind": "No tienes de esto en favoritos",
     "@kostvFavoritesNoneOfKind": {
         "description": "Kos TV: favourites filtered to a kind with nothing left."
-    },
-    "kostvMyFavoritesWithNews": "{count, plural, =1{Mis favoritos · 1 novedad} other{Mis favoritos · {count} novedades}}",
-    "@kostvMyFavoritesWithNews": {
-        "description": "Kos TV: profile menu entry when favourite series have news.",
-        "placeholders": {
-            "count": {
-                "type": "int"
-            }
-        }
     },
     "kostvSortFavorited": "Añadidos a favoritos",
     "@kostvSortFavorited": {
@@ -16074,5 +15993,7 @@
     "kostvMenuOnItsWay": "Hay algo en camino",
     "@kostvMenuOnItsWay": {"description": "Kos TV «Tú» page: under «Mis peticiones» while something asked for is still coming"},
     "kostvMenuYouHint": "Mantén pulsado para ver «Más»",
-    "@kostvMenuYouHint": {"description": "Kos TV phone glass bar: screen reader hint on «Tú»: a long press opens the «Más» sheet"}
+    "@kostvMenuYouHint": {"description": "Kos TV phone glass bar: screen reader hint on «Tú»: a long press opens the «Más» sheet"},
+    "kostvMenuButtonsSubtitle": "Qué botones salen en el menú",
+    "@kostvMenuButtonsSubtitle": {"description": "Kos TV Settings > Appearance: under «Barra de navegación», which now only holds the switches of the menu's buttons (the menu itself has one design)"}
 }
