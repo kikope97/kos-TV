@@ -21480,5 +21480,10 @@
     "kostvMusicAwayPlayerLine": "Streaming · not at home",
     "kostvMusicAskTheAlbum": "Ask for the album",
     "kostvMusicAskedNotify": "Asked · we'll let you know",
-    "kostvMusicAlreadyHome": "Already at home"
+    "kostvMusicAlreadyHome": "Already at home",
+    "kostvMusicAwayPlayerLineShort": "Streaming · not at home",
+    "kostvPlayerSounding": "Now playing",
+    "kostvPlayerPlayingFrom": "Playing from",
+    "kostvPlayerQueueTab": "Queue",
+    "kostvPlayerClearQueue": "Clear"
 }

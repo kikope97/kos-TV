@@ -40,6 +40,7 @@ class KostvSongRow extends StatelessWidget {
     this.subtitleBuilder,
     this.number,
     this.cover,
+    this.coverArt,
     this.showCover,
     this.duration,
     this.explicit = false,
@@ -70,8 +71,12 @@ class KostvSongRow extends StatelessWidget {
   final String? number;
   final String? cover;
 
+  /// Instead of [cover]'s picture, a cover of its own (a downloaded file's,
+  /// the player's queue). Square, [coverSize] across.
+  final Widget? coverArt;
+
   /// Whether there is a cover (with no [cover], its placeholder). By
-  /// default, when [cover] is given.
+  /// default, when [cover] or [coverArt] is given.
   final bool? showCover;
 
   /// «3:09».
@@ -129,7 +134,8 @@ class KostvSongRow extends StatelessWidget {
         subtitleBuilder: subtitleBuilder,
         number: number,
         cover: cover,
-        showCover: showCover ?? cover != null,
+        coverArt: coverArt,
+        showCover: showCover ?? (cover != null || coverArt != null),
         duration: duration,
         explicit: explicit,
         picked: picked,
@@ -166,6 +172,7 @@ class KostvSongRowFace extends StatelessWidget {
     this.subtitleBuilder,
     this.number,
     this.cover,
+    this.coverArt,
     this.showCover = false,
     this.duration,
     this.explicit = false,
@@ -184,6 +191,7 @@ class KostvSongRowFace extends StatelessWidget {
   final Widget Function(TextStyle style)? subtitleBuilder;
   final String? number;
   final String? cover;
+  final Widget? coverArt;
   final bool showCover;
   final String? duration;
   final bool explicit;
@@ -231,11 +239,12 @@ class KostvSongRowFace extends StatelessWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            KostvMusicCover(
-              url: cover,
-              size: coverSize,
-              radius: KostvMusicTokens.radiusSmallCover,
-            ),
+            coverArt ??
+                KostvMusicCover(
+                  url: cover,
+                  size: coverSize,
+                  radius: KostvMusicTokens.radiusSmallCover,
+                ),
             if (overlay)
               DecoratedBox(
                 decoration: BoxDecoration(

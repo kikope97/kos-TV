@@ -70,4 +70,13 @@ void main() {
     expect(queue.currentItem, same(songs[1]));
     expect(kostvRemoveUpcoming(queue, songs[3]), isNull);
   });
+
+  test('Kos TV: «Vaciar» takes every song to come away, not the one '
+      'sounding nor those gone', () {
+    expect(kostvClearUpcoming(queue), 3);
+    expect(upcomingIds(), isEmpty);
+    expect(queue.currentItem, same(songs[1]));
+    expect(queue.items, [songs[0], songs[1]]);
+    expect(kostvClearUpcoming(queue), 0);
+  });
 }

@@ -13,6 +13,9 @@ import '../../../l10n/app_localizations.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
+import '../../../data/services/stremfin/kostv_stream_song.dart';
+import '../../screens/music/kostv_music_away_actions.dart' show kostvAwayReady;
+import '../../screens/music/kostv_song_love.dart';
 import '../../screens/music/kostv_stream_widgets.dart';
 import '../offline_aware_image.dart';
 import 'design/kostv_music_tokens.dart';
@@ -140,8 +143,8 @@ class KostvCapsuleVisibility extends ChangeNotifier {
 
 abstract final class _Sizes {
   static const mobileHeight = 62.0;
-  static const webHeight = 68.0;
-  static const webWidth = 380.0;
+  static const webHeight = 66.0;
+  static const webWidth = 420.0;
   static const webMargin = 20.0;
   static const tvHeight = 76.0;
   static const tvWidth = 420.0;
@@ -348,7 +351,8 @@ class _KostvNowPlayingHostState extends State<KostvNowPlayingHost> {
 
 void _openPlayer() => appRouter.push(Destinations.audioPlayer);
 
-/// The glass of the capsule, tinted with its cover's colours.
+/// The capsule's glass: the music design's, dark and nearly opaque so what
+/// is behind doesn't show through, with a thin light edge.
 class _CapsuleGlass extends StatelessWidget {
   const _CapsuleGlass({required this.child, required this.radius});
 
@@ -356,51 +360,37 @@ class _CapsuleGlass extends StatelessWidget {
   final double radius;
 
   @override
-  Widget build(BuildContext context) =>
-      ValueListenableBuilder<KostvCoverColors>(
-        valueListenable: KostvNowPlaying.instance.colors,
-        builder: (context, colors, _) => DecoratedBox(
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(radius),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.55),
+          blurRadius: 40,
+          offset: const Offset(0, 14),
+        ),
+      ],
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(radius),
+      child: _MaybeBlur(
+        child: DecoratedBox(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(radius),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.45),
-                blurRadius: 28,
-                offset: const Offset(0, 10),
-              ),
-            ],
+            color: KostvMusicTokens.capsule,
+            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(radius),
-            child: _MaybeBlur(
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 600),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(radius),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      colors.top.withValues(alpha: 0.86),
-                      colors.bottom.withValues(alpha: 0.92),
-                    ],
-                  ),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.14),
-                  ),
-                ),
-                child: child,
-              ),
-            ),
-          ),
+          child: child,
         ),
-      );
+      ),
+    ),
+  );
 }
 
 /// The glass's blur only where the app's glass blurs (the phone's frosted
 /// glass), like the rest of its panes: not on the TV or the web, where a
-/// live blur over a scrolling page stutters; the tinted colours, nearly
-/// opaque, already read well there.
+/// live blur over a scrolling page stutters; the colour, nearly opaque,
+/// already reads well there.
 class _MaybeBlur extends StatelessWidget {
   const _MaybeBlur({required this.child});
 
@@ -419,7 +409,9 @@ class _MaybeBlur extends StatelessWidget {
         );
 }
 
-/// The phone's and the web's: touch and mouse.
+/// The phone's and the web's: touch and mouse. The music design's capsule:
+/// the round cover, the song, ♥, the brand's play button and the next song,
+/// with the progress along its bottom edge.
 class _TouchCapsule extends StatefulWidget {
   const _TouchCapsule({required this.item, required this.mobile});
 
@@ -433,6 +425,7 @@ class _TouchCapsule extends StatefulWidget {
 class _TouchCapsuleState extends State<_TouchCapsule> {
   // Swiped away: gone at once, while the music is still being closed.
   String? _dismissed;
+  bool _hovered = false;
 
   @override
   Widget build(BuildContext context) {
@@ -442,7 +435,7 @@ class _TouchCapsuleState extends State<_TouchCapsule> {
     final l10n = AppLocalizations.of(context);
     final music = KostvNowPlaying.instance;
     final height = mobile ? _Sizes.mobileHeight : _Sizes.webHeight;
-    final radius = mobile ? 18.0 : height / 2;
+    final radius = height / 2;
     final artist = music.artistOf(item);
 
     final body = _CapsuleGlass(
@@ -452,26 +445,22 @@ class _TouchCapsuleState extends State<_TouchCapsule> {
         child: Stack(
           children: [
             Padding(
-              padding: EdgeInsetsDirectional.fromSTEB(
-                mobile ? 8 : 10,
-                0,
-                mobile ? 4 : 10,
-                0,
-              ),
+              padding: const EdgeInsetsDirectional.fromSTEB(8, 0, 6, 0),
               child: Row(
                 children: [
                   KostvPulse(
-                    active: music.preparing,
+                    active: music.preparingShown,
                     child: KostvCapsuleCover(
                       item: item,
                       size: height - 16,
-                      round: !mobile,
+                      round: true,
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: KostvCapsuleTitles(item: item, artist: artist),
                   ),
+                  KostvCapsuleHeart(item: item),
                   // Kos TV: the music design's one play button.
                   Tooltip(
                     message: music.playing ? l10n.pause : l10n.play,
@@ -484,7 +473,7 @@ class _TouchCapsuleState extends State<_TouchCapsule> {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 4),
                           child: KostvPlayFace(
-                            diameter: 40,
+                            diameter: height - 22,
                             pause: music.playing,
                           ),
                         ),
@@ -496,12 +485,23 @@ class _TouchCapsuleState extends State<_TouchCapsule> {
                     tooltip: l10n.next,
                     onTap: music.next,
                   ),
-                  _CapsuleButton(
-                    icon: Icons.close_rounded,
-                    tooltip: l10n.kostvNowPlayingClose,
-                    small: true,
-                    onTap: music.close,
-                  ),
+                  // Kos TV: on the computer, the ✕ that stops the music
+                  // shows with the mouse over the capsule (the phone's is
+                  // swiped away).
+                  if (!mobile)
+                    AnimatedOpacity(
+                      opacity: _hovered ? 1 : 0,
+                      duration: const Duration(milliseconds: 160),
+                      child: IgnorePointer(
+                        ignoring: !_hovered,
+                        child: _CapsuleButton(
+                          icon: Icons.close_rounded,
+                          tooltip: l10n.kostvNowPlayingClose,
+                          small: true,
+                          onTap: music.close,
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -522,6 +522,8 @@ class _TouchCapsuleState extends State<_TouchCapsule> {
       label: '${l10n.kostvNowPlaying}: ${item.name}',
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: _openPlayer,
@@ -549,9 +551,10 @@ class _TouchCapsuleState extends State<_TouchCapsule> {
   }
 }
 
-/// The TV's: not a stop of the remote, it shows what sounds and shrinks to
-/// its cover when the remote rests. «Reproduciendo» in the menu opens the
-/// player.
+/// The TV's: not a stop of the remote, it shows what sounds (the music
+/// design's capsule, its ♥, play/pause and next only shown: the remote's
+/// own keys and «Reproduciendo» do them) and shrinks to its cover when the
+/// remote rests.
 class _TvCapsule extends StatelessWidget {
   const _TvCapsule({required this.item, required this.compact});
 
@@ -582,7 +585,7 @@ class _TvCapsule extends StatelessWidget {
                       alignment: Alignment.center,
                       children: [
                         KostvPulse(
-                          active: music.preparing,
+                          active: music.preparingShown,
                           child: KostvCapsuleCover(
                             item: item,
                             size: height - 16,
@@ -601,6 +604,7 @@ class _TvCapsule extends StatelessWidget {
                             child: KostvEqualizerBars(
                               playing: music.playing,
                               size: 24,
+                              gradient: KostvMusicTokens.gradient,
                             ),
                           ),
                       ],
@@ -614,9 +618,19 @@ class _TvCapsule extends StatelessWidget {
                           big: true,
                         ),
                       ),
+                      KostvCapsuleHeart(item: item, big: true, shown: true),
+                      const SizedBox(width: 6),
+                      KostvPlayFace(
+                        diameter: height - 24,
+                        pause: music.playing,
+                      ),
+                      const SizedBox(width: 10),
+                      const Icon(
+                        Icons.skip_next_rounded,
+                        size: 30,
+                        color: KostvMusicTokens.ink,
+                      ),
                       const SizedBox(width: 12),
-                      KostvEqualizerBars(playing: music.playing, size: 22),
-                      const SizedBox(width: 18),
                     ],
                   ],
                 ),
@@ -634,6 +648,76 @@ class _TvCapsule extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Kos TV: the floating player's ♥ of the song sounding (the same as the
+/// player's: the home server's, or the plugin's for one that isn't at
+/// home). Nothing when it has none (downloaded, or a plugin that doesn't
+/// keep them). With [shown], only drawn (the TV's).
+class KostvCapsuleHeart extends StatefulWidget {
+  const KostvCapsuleHeart({
+    super.key,
+    required this.item,
+    this.big = false,
+    this.shown = false,
+  });
+
+  final AggregatedItem item;
+  final bool big;
+  final bool shown;
+
+  @override
+  State<KostvCapsuleHeart> createState() => _KostvCapsuleHeartState();
+}
+
+class _KostvCapsuleHeartState extends State<KostvCapsuleHeart> {
+  @override
+  void initState() {
+    super.initState();
+    _ready();
+  }
+
+  @override
+  void didUpdateWidget(KostvCapsuleHeart old) {
+    super.didUpdateWidget(old);
+    if (old.item.id != widget.item.id) _ready();
+  }
+
+  /// Whether the plugin keeps ♥ of songs that aren't at home, read once.
+  void _ready() {
+    if (isKostvStream(widget.item)) unawaited(kostvAwayReady(widget.item));
+  }
+
+  @override
+  Widget build(BuildContext context) => KostvSongLoveBuilder(
+    builder: (context) {
+      final item = widget.item;
+      if (!kostvSongCanLove(item)) return const SizedBox.shrink();
+      final l10n = AppLocalizations.of(context);
+      final loved = kostvSongLoved(item);
+      final icon = Icon(
+        loved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+        size: widget.big ? 24 : 22,
+        color: loved
+            ? KostvMusicTokens.pink
+            : KostvMusicTokens.ink.withValues(alpha: 0.8),
+      );
+      if (widget.shown) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: icon,
+        );
+      }
+      return Tooltip(
+        message: loved ? l10n.kostvPlayerUnfavorite : l10n.kostvPlayerFavorite,
+        child: InkResponse(
+          onTap: () => unawaited(kostvToggleSongLove(context, item)),
+          radius: 22,
+          child: SizedBox(width: 40, height: 44, child: Center(child: icon)),
+        ),
+      );
+    },
+  );
 }
 
 /// Kos TV: the floating player's title and artist line (or, while a song
@@ -660,14 +744,15 @@ class KostvCapsuleTitles extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: Colors.white,
-          fontSize: big ? 17 : 14.5,
-          fontWeight: FontWeight.w700,
+          color: KostvMusicTokens.ink,
+          fontSize: big ? 17 : 15,
+          fontWeight: FontWeight.w500,
           height: 1.15,
         ),
       ),
-      // Kos TV: a song that isn't at home, while it is prepared.
-      if (KostvNowPlaying.instance.preparing) ...[
+      // Kos TV: a song that isn't at home, once its sound has taken a
+      // moment to get ready.
+      if (KostvNowPlaying.instance.preparingShown) ...[
         const SizedBox(height: 3),
         KostvPreparingNote(
           slow: KostvNowPlaying.instance.preparingSlow,
@@ -684,9 +769,9 @@ class KostvCapsuleTitles extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.68),
-            fontSize: big ? 14 : 12.5,
-            fontWeight: FontWeight.w500,
+            color: KostvMusicTokens.muted,
+            fontSize: big ? 14 : 13,
+            fontWeight: FontWeight.w400,
             height: 1.15,
           ),
         ),

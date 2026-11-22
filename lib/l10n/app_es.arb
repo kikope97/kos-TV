@@ -15990,5 +15990,15 @@
     "kostvMusicAskedNotify": "Pedido · te avisamos",
     "@kostvMusicAskedNotify": {"description": "Kos TV music design: state of «Pedir el álbum» once asked for (the service will tell when it arrives)"},
     "kostvMusicAlreadyHome": "Ya está en casa",
-    "@kostvMusicAlreadyHome": {"description": "Kos TV music design: state of «Pedir el álbum» for a moment when the album has arrived home (then the note goes away)"}
+    "@kostvMusicAlreadyHome": {"description": "Kos TV music design: state of «Pedir el álbum» for a moment when the album has arrived home (then the note goes away)"},
+    "kostvMusicAwayPlayerLineShort": "En streaming · no está en casa",
+    "@kostvMusicAwayPlayerLineShort": {"description": "Kos TV music design: the player's small line on the phone (narrower than kostvMusicAwayPlayerLine); «Pedir el álbum» follows it"},
+    "kostvPlayerSounding": "Sonando",
+    "@kostvPlayerSounding": {"description": "Kos TV music design: small capital heading over the song's title in the player (TV), and over the song sounding in the queue"},
+    "kostvPlayerPlayingFrom": "Sonando desde",
+    "@kostvPlayerPlayingFrom": {"description": "Kos TV music design: small heading at the top of the phone's player, over the album the song belongs to"},
+    "kostvPlayerQueueTab": "Cola",
+    "@kostvPlayerQueueTab": {"description": "Kos TV music design: the tab of the player's side panel (computer) that shows the queue"},
+    "kostvPlayerClearQueue": "Vaciar",
+    "@kostvPlayerClearQueue": {"description": "Kos TV music design: button next to «A continuación» in the queue that takes away every song to come"}
 }

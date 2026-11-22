@@ -36608,6 +36608,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Already at home'**
   String get kostvMusicAlreadyHome;
+
+  /// No description provided for @kostvMusicAwayPlayerLineShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Streaming · not at home'**
+  String get kostvMusicAwayPlayerLineShort;
+
+  /// No description provided for @kostvPlayerSounding.
+  ///
+  /// In en, this message translates to:
+  /// **'Now playing'**
+  String get kostvPlayerSounding;
+
+  /// No description provided for @kostvPlayerPlayingFrom.
+  ///
+  /// In en, this message translates to:
+  /// **'Playing from'**
+  String get kostvPlayerPlayingFrom;
+
+  /// No description provided for @kostvPlayerQueueTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Queue'**
+  String get kostvPlayerQueueTab;
+
+  /// No description provided for @kostvPlayerClearQueue.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get kostvPlayerClearQueue;
 }
 
 class _AppLocalizationsDelegate

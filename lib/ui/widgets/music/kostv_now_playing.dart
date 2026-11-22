@@ -146,6 +146,9 @@ class KostvNowPlaying extends ChangeNotifier {
     _slowPreparing?.cancel();
     _slowPreparing = null;
     _preparingSlow = false;
+    _showPreparing?.cancel();
+    _showPreparing = null;
+    _preparingShown = false;
     _preparingId = null;
     _streamRetried.clear();
     _queueSource = null;
@@ -413,6 +416,18 @@ class KostvNowPlaying extends ChangeNotifier {
   /// Kos TV: [preparing] has gone on for [slowPreparing].
   bool get preparingSlow => preparing && _preparingSlow;
 
+  /// Kos TV: how long [preparing] lasts before the player and the floating
+  /// player say so (the music design: no flash of «Preparando…» for a song
+  /// that starts at once).
+  static const preparingShowsAfter = Duration(milliseconds: 1500);
+
+  Timer? _showPreparing;
+  bool _preparingShown = false;
+
+  /// Kos TV: [preparing] has gone on for [preparingShowsAfter]: what shows
+  /// «Preparando la canción…» (and the cover's gentle beat).
+  bool get preparingShown => preparing && _preparingShown;
+
   /// Kos TV: the song sounding whose sound [_slowPreparing] times, if any.
   String? _preparingId;
 
@@ -430,7 +445,15 @@ class KostvNowPlaying extends ChangeNotifier {
     _slowPreparing?.cancel();
     _slowPreparing = null;
     _preparingSlow = false;
+    _showPreparing?.cancel();
+    _showPreparing = null;
+    _preparingShown = false;
     if (id != null) {
+      _showPreparing = Timer(preparingShowsAfter, () {
+        _showPreparing = null;
+        _preparingShown = true;
+        notifyListeners();
+      });
       _slowPreparing = Timer(slowPreparing, () {
         _slowPreparing = null;
         _preparingSlow = true;

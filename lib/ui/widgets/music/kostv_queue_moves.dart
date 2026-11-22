@@ -56,3 +56,14 @@ int? kostvRemoveUpcoming(QueueService queue, AggregatedItem song) {
   queue.removeAt(upcoming[at].index);
   return at;
 }
+
+/// Kos TV: «Vaciar»: takes away every song to come (the one sounding goes
+/// on). Gives back how many went.
+int kostvClearUpcoming(QueueService queue) {
+  final upcoming = kostvUpcoming(queue);
+  // From the last, so the places of the rest don't move.
+  for (final entry in upcoming.reversed) {
+    queue.removeAt(entry.index);
+  }
+  return upcoming.length;
+}

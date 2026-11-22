@@ -21669,4 +21669,19 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMusicAlreadyHome => 'Ya está en casa';
+
+  @override
+  String get kostvMusicAwayPlayerLineShort => 'En streaming · no está en casa';
+
+  @override
+  String get kostvPlayerSounding => 'Sonando';
+
+  @override
+  String get kostvPlayerPlayingFrom => 'Sonando desde';
+
+  @override
+  String get kostvPlayerQueueTab => 'Cola';
+
+  @override
+  String get kostvPlayerClearQueue => 'Vaciar';
 }
