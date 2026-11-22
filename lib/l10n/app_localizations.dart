@@ -36758,6 +36758,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Song'**
   String get kostvMusicKindSongAlone;
+
+  /// Kos TV Music home («Para ti»): the one section of the charts, with a pill for each list (España, Latino, the person's genre, México, EE. UU., Álbumes)
+  ///
+  /// In en, this message translates to:
+  /// **'Charts'**
+  String get kostvMusicCharts;
+
+  /// Kos TV Music home: pill of «Listas de éxitos» with the chart of Spain
+  ///
+  /// In en, this message translates to:
+  /// **'Spain'**
+  String get kostvMusicChartSpain;
+
+  /// Kos TV Music home: pill of «Listas de éxitos» with the Latin chart
+  ///
+  /// In en, this message translates to:
+  /// **'Latin'**
+  String get kostvMusicChartLatino;
+
+  /// Kos TV Music home: pill of «Listas de éxitos» with the chart of the United States (short)
+  ///
+  /// In en, this message translates to:
+  /// **'USA'**
+  String get kostvMusicChartUsa;
+
+  /// Kos TV Music home: title of a row of albums recommended because the person listens to an artist
+  ///
+  /// In en, this message translates to:
+  /// **'Because you listen to {name}'**
+  String kostvMusicBecauseListen(String name);
+
+  /// Kos TV Music home: shelf with a station for each of the artists the person listens to most
+  ///
+  /// In en, this message translates to:
+  /// **'Your artists\' radios'**
+  String get kostvMusicArtistRadios;
+
+  /// Kos TV Music home: line under «Radios de tus artistas»
+  ///
+  /// In en, this message translates to:
+  /// **'Non-stop music based on what you listen to most'**
+  String get kostvMusicArtistRadiosWhy;
+
+  /// Kos TV Music home: name under the card of an artist's station in «Radios de tus artistas»
+  ///
+  /// In en, this message translates to:
+  /// **'{name} Radio'**
+  String kostvMusicRadioOf(String name);
+
+  /// Kos TV Music home: small word over the artist's name on the card of their station
+  ///
+  /// In en, this message translates to:
+  /// **'Radio'**
+  String get kostvMusicRadioKicker;
 }
 
 class _AppLocalizationsDelegate

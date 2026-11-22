@@ -21418,4 +21418,36 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvMusicKindSongAlone => 'Song';
+
+  @override
+  String get kostvMusicCharts => 'Charts';
+
+  @override
+  String get kostvMusicChartSpain => 'Spain';
+
+  @override
+  String get kostvMusicChartLatino => 'Latin';
+
+  @override
+  String get kostvMusicChartUsa => 'USA';
+
+  @override
+  String kostvMusicBecauseListen(String name) {
+    return 'Because you listen to $name';
+  }
+
+  @override
+  String get kostvMusicArtistRadios => 'Your artists\' radios';
+
+  @override
+  String get kostvMusicArtistRadiosWhy =>
+      'Non-stop music based on what you listen to most';
+
+  @override
+  String kostvMusicRadioOf(String name) {
+    return '$name Radio';
+  }
+
+  @override
+  String get kostvMusicRadioKicker => 'Radio';
 }

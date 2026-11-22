@@ -811,3 +811,123 @@ class KostvMiniMixArt extends StatelessWidget {
     );
   }
 }
+
+// ------------------------------------------------------------- «Para ti»
+
+/// Kos TV: the places of «Para ti», in the owner's order
+/// (`docs/diseno-musica/README.md`, «Orden de Para ti»): what the person
+/// listens to first, then the charts in one section, and the rest after.
+/// For someone who hasn't listened to anything yet ([newListener]), the
+/// charts come right after «Sigue escuchando», so the page isn't empty.
+List<String> kostvForYouOrder({bool newListener = false}) {
+  const order = [
+    'quick',
+    'moment',
+    'mixes',
+    'charts',
+    'because',
+    'radios',
+    'discovery',
+    'your-news',
+    'more-of',
+    'foryou-songs',
+    'new-at-home',
+    'recent',
+    'favorites',
+    'playlists',
+    'releases',
+    'requested',
+  ];
+  if (!newListener) return order;
+  return [
+    'quick',
+    'charts',
+    ...order.where((p) => p != 'quick' && p != 'charts'),
+  ];
+}
+
+/// Kos TV: the lists of «Listas de éxitos»: the chart of the person's
+/// genre, España, Latino, México, EE. UU. and the albums of the moment.
+enum KostvChartList { genre, spain, latino, mexico, usa, albums }
+
+/// Kos TV: the list «Listas de éxitos» opens with: the one of the genre
+/// the person listens to most ([firstGenre], the charts' genre of their
+/// first genre) when it is there, otherwise España (or the first there is).
+KostvChartList? kostvDefaultChart({
+  required String? firstGenre,
+  required List<KostvChartList> available,
+}) {
+  if (available.isEmpty) return null;
+  final mine = switch (firstGenre) {
+    null => null,
+    'latino' => KostvChartList.latino,
+    _ => KostvChartList.genre,
+  };
+  if (mine != null && available.contains(mine)) return mine;
+  if (available.contains(KostvChartList.spain)) return KostvChartList.spain;
+  return available.first;
+}
+
+/// Kos TV: whether [name] is said in [text] as a whole name (accents and
+/// case aside): «Porque escuchas a Ana y Rosalía» says «Ana», not «An».
+bool kostvSaysName(String text, String name) {
+  final t = kostvFold(text);
+  final n = kostvFold(name);
+  if (n.isEmpty) return false;
+  bool letter(int at) {
+    if (at < 0 || at >= t.length) return false;
+    final c = t[at];
+    return c.toUpperCase() != c.toLowerCase() ||
+        (c.codeUnitAt(0) >= 48 && c.codeUnitAt(0) <= 57);
+  }
+
+  var from = 0;
+  while (true) {
+    final at = t.indexOf(n, from);
+    if (at < 0) return false;
+    if (!letter(at - 1) && !letter(at + n.length)) return true;
+    from = at + 1;
+  }
+}
+
+/// Kos TV: the rows of «Porque escuchas a …»: one for each of the person's
+/// [artists] (in their order: those they listen to most first) with what
+/// the service recommends because of them (an item goes with the first of
+/// them its `reason` names); then what names none of them, by its reason
+/// as before (null for none: «Discos para ti»). [max] rows at most; an
+/// artist with nothing has no row.
+List<({String? artist, String? reason, List<T> items})> kostvBecauseRows<T>(
+  List<T> items,
+  String? Function(T item) reasonOf,
+  List<String> artists, {
+  int max = 5,
+}) {
+  final names = <String>[];
+  for (final name in artists) {
+    final n = name.trim();
+    if (n.isNotEmpty && !names.any((x) => kostvFold(x) == kostvFold(n))) {
+      names.add(n);
+    }
+  }
+  final byArtist = <String, List<T>>{};
+  final byReason = <String?, List<T>>{};
+  for (final item in items) {
+    final reason = reasonOf(item);
+    final r = reason == null || reason.trim().isEmpty ? null : reason;
+    final artist = r == null
+        ? null
+        : names.where((n) => kostvSaysName(r, n)).firstOrNull;
+    if (artist != null) {
+      byArtist.putIfAbsent(artist, () => []).add(item);
+    } else {
+      byReason.putIfAbsent(r, () => []).add(item);
+    }
+  }
+  return [
+    for (final name in names)
+      if (byArtist[name] case final found?)
+        (artist: name, reason: null, items: found),
+    for (final entry in byReason.entries)
+      (artist: null, reason: entry.key, items: entry.value),
+  ].take(max).toList();
+}

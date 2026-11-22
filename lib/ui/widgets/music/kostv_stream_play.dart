@@ -343,6 +343,64 @@ Future<void> playKostvArtistStation(
   );
 }
 
+/// Kos TV: the station of an artist at home (Music's «Radios de tus
+/// artistas»), as «Crear emisora» makes one: the home server's mix of them
+/// and, with «Toda la música» ([kostvStationWantsRadio]'s rule), mixed in
+/// turns with the requests service's radio of them; without what the
+/// person doesn't want to hear, nor what is explicit and not at home for
+/// someone with a limit. Nothing found: the person is told.
+Future<void> playKostvHomeArtistStation(
+  BuildContext context, {
+  required String artistId,
+  required String name,
+}) async {
+  final l10n = AppLocalizations.of(context);
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  final server = _homeClient();
+  final music = server == null ? null : KostvMusicService(server);
+  final closeLoading = showMusicLoading(context);
+  List<AggregatedItem> station;
+  try {
+    final dislikes = server == null
+        ? KostvMusicDislikes.empty
+        : await KostvMusicDislikesStore.instance
+              .load(server)
+              .catchError((Object _) => KostvMusicDislikes.empty);
+    final all = kostvMusicCatalogAll();
+    station = await kostvStationOf(
+      radio: KostvStreamRadio.instance,
+      serverId: server?.baseUrl ?? '',
+      includeAway: all,
+      hideExplicit: _hidesExplicit(),
+      homeItems: (ids) => music == null
+          ? Future.value(const <AggregatedItem>[])
+          : music.songs(ids),
+      dislikes: dislikes,
+      homeMix: music == null ? null : () => music.mix(artistId),
+      // Kos TV: with «Solo la de casa», the home server's mix alone, as
+      // «Crear emisora» of what is at home.
+      artists: all ? [name] : const [],
+    );
+  } catch (_) {
+    station = const [];
+  } finally {
+    closeLoading();
+  }
+  if (!context.mounted) return;
+  if (station.isEmpty) {
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(l10n.kostvStreamStationEmpty)));
+    return;
+  }
+  await playMusicTracks(
+    context,
+    station,
+    source: KostvMusicSource.radio,
+    picked: false,
+  );
+}
+
 /// Kos TV: the extra songs of the mixes, kept on the device with the Music
 /// page's notes of the person.
 KostvMixExtras kostvMixExtras = KostvMixExtras(
