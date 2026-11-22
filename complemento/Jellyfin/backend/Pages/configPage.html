@@ -488,42 +488,481 @@
             }
 
             /* kOS TV: «Actualizaciones de la app». */
+            #MoonfinConfigPage .kostvUpdNew {
+                --kostv-upd-accent: #00a4dc;
+                --kostv-upd-accent-2: #37d3e6;
+                --kostv-upd-ok: #52b54b;
+                --kostv-upd-warn: #f5c26b;
+                --kostv-upd-error: #ff6b6b;
+                padding-bottom: 22px;
+            }
+            #MoonfinConfigPage .kostvUpdNewHead {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                margin: 18px 0 18px;
+            }
+            #MoonfinConfigPage .kostvUpdNewHead .sectionTitle {
+                margin: 0 0 2px;
+                font-size: 1.12em;
+                font-weight: 600;
+                color: #f0f6fc;
+            }
+            #MoonfinConfigPage .kostvUpdNewLead {
+                margin: 0;
+                color: rgba(255, 255, 255, 0.62);
+                font-size: .92em;
+                line-height: 1.4;
+            }
+            #MoonfinConfigPage .kostvUpdNewIcon {
+                box-sizing: border-box;
+                flex-shrink: 0;
+                width: 44px;
+                height: 44px;
+                padding: 10px;
+                border: 1px solid rgba(0, 164, 220, 0.42);
+                border-radius: 12px;
+                background: rgba(0, 164, 220, 0.12);
+                color: #37d3e6;
+                font-size: 22px;
+            }
             #MoonfinConfigPage .kostvUpdSlots {
                 display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
                 gap: 14px;
             }
             #MoonfinConfigPage .kostvUpdSlot {
-                padding: 14px;
-                border-radius: 10px;
-                border: 1px solid rgba(255, 255, 255, 0.08);
-                background: rgba(0, 0, 0, 0.18);
+                position: relative;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                min-width: 0;
+                border-radius: 14px;
+                border: 1.5px dashed rgba(255, 255, 255, 0.2);
+                background: rgba(255, 255, 255, 0.025);
+                transition: border-color .15s ease, background-color .15s ease;
+            }
+            #MoonfinConfigPage .kostvUpdSlot:not([data-state="empty"]) {
+                border-style: solid;
+                border-color: rgba(255, 255, 255, 0.1);
+                background: rgba(0, 0, 0, 0.22);
+            }
+            #MoonfinConfigPage .kostvUpdSlot[data-state="empty"]:hover,
+            #MoonfinConfigPage .kostvUpdSlot.is-dragover {
+                border-style: dashed;
+                border-color: #37d3e6;
+                background: rgba(0, 164, 220, 0.1);
+            }
+            #MoonfinConfigPage .kostvUpdSlot[data-state="uploading"] {
+                border-color: rgba(0, 164, 220, 0.45);
+            }
+            #MoonfinConfigPage .kostvUpdSlot[data-state="ok"] {
+                border-color: rgba(82, 181, 75, 0.45);
+            }
+            #MoonfinConfigPage .kostvUpdSlot[data-state="warning"] {
+                border-color: rgba(245, 194, 107, 0.5);
+            }
+            #MoonfinConfigPage .kostvUpdSlot[data-state="error"] {
+                border-color: rgba(255, 107, 107, 0.55);
+                background: rgba(255, 107, 107, 0.05);
+            }
+            /* The real file input stays usable by keyboard and screen readers, but out of sight. */
+            #MoonfinConfigPage .kostvUpdFileInput {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                margin: -1px;
+                padding: 0;
+                overflow: hidden;
+                clip: rect(0 0 0 0);
+                white-space: nowrap;
+                border: 0;
+            }
+            #MoonfinConfigPage .kostvUpdDrop {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                min-height: 96px;
+                box-sizing: border-box;
+                padding: 16px;
+                border-radius: 12px;
+                cursor: pointer;
+            }
+            #MoonfinConfigPage .kostvUpdFileInput:focus-visible + .kostvUpdDrop {
+                outline: 2px solid #37d3e6;
+                outline-offset: 2px;
+            }
+            #MoonfinConfigPage .kostvUpdSlot:not([data-state="empty"]) .kostvUpdDrop {
+                min-height: 0;
+            }
+            #MoonfinConfigPage .kostvUpdProgress,
+            #MoonfinConfigPage .kostvUpdInfo {
+                margin: -4px 16px 16px;
+            }
+            #MoonfinConfigPage .kostvUpdDropIcon {
+                box-sizing: border-box;
+                flex-shrink: 0;
+                width: 48px;
+                height: 48px;
+                padding: 12px;
+                border-radius: 12px;
+                background: rgba(0, 164, 220, 0.14);
+                color: #37d3e6;
+                font-size: 24px;
+            }
+            #MoonfinConfigPage .kostvUpdSlot[data-state="ok"] .kostvUpdDropIcon {
+                background: rgba(82, 181, 75, 0.16);
+                color: #52b54b;
+            }
+            #MoonfinConfigPage .kostvUpdSlot[data-state="warning"] .kostvUpdDropIcon {
+                background: rgba(245, 194, 107, 0.16);
+                color: #f5c26b;
+            }
+            #MoonfinConfigPage .kostvUpdSlot[data-state="error"] .kostvUpdDropIcon {
+                background: rgba(255, 107, 107, 0.16);
+                color: #ff6b6b;
+            }
+            #MoonfinConfigPage .kostvUpdDropText {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                flex: 1 1 auto;
                 min-width: 0;
             }
-            #MoonfinConfigPage .kostvUpdSlot .inputLabel {
-                display: block;
-                margin-bottom: .5em;
+            #MoonfinConfigPage .kostvUpdDropTitle {
                 font-weight: 600;
+                font-size: 1.02em;
+                color: #f0f6fc;
             }
-            #MoonfinConfigPage .kostvUpdSlot input[type="file"] {
-                max-width: 100%;
+            #MoonfinConfigPage .kostvUpdDropHint {
+                color: rgba(255, 255, 255, 0.58);
+                font-size: .88em;
+                line-height: 1.4;
+            }
+            #MoonfinConfigPage .kostvUpdDropHint code {
+                display: block;
+                margin-top: 2px;
+                font-size: .95em;
+                color: rgba(255, 255, 255, 0.72);
+                overflow-wrap: anywhere;
+            }
+            #MoonfinConfigPage .kostvUpdSlot:not([data-state="empty"]) .kostvUpdDropHint,
+            #MoonfinConfigPage .kostvUpdSlot[data-state="empty"] .kostvUpdFileName {
+                display: none;
+            }
+            #MoonfinConfigPage .kostvUpdFileName {
+                display: flex;
+                align-items: baseline;
+                gap: 8px;
+                min-width: 0;
+                font-size: .9em;
+            }
+            #MoonfinConfigPage .kostvUpdFileText {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                font-family: monospace;
+                font-size: 1.02em;
+                color: rgba(255, 255, 255, 0.85);
+            }
+            #MoonfinConfigPage .kostvUpdFileSize {
+                flex-shrink: 0;
+                color: rgba(255, 255, 255, 0.55);
+            }
+            #MoonfinConfigPage .kostvUpdPick {
+                flex-shrink: 0;
+                padding: 7px 14px;
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                font-size: .88em;
+                font-weight: 600;
+                color: #f0f6fc;
+            }
+            #MoonfinConfigPage .kostvUpdDrop:hover .kostvUpdPick {
+                background: rgba(0, 164, 220, 0.22);
+                border-color: rgba(0, 164, 220, 0.5);
+            }
+            #MoonfinConfigPage .kostvUpdSlot:not([data-state="empty"]) .kostvUpdPick {
+                font-size: 0;
+            }
+            #MoonfinConfigPage .kostvUpdSlot:not([data-state="empty"]) .kostvUpdPick::after {
+                content: 'Cambiar';
+                font-size: .88rem;
+            }
+            #MoonfinConfigPage .kostvUpdProgress[hidden] {
+                display: none;
+            }
+            #MoonfinConfigPage .kostvUpdProgressText {
+                display: flex;
+                justify-content: space-between;
+                gap: 12px;
+                margin-bottom: 7px;
+                font-size: .88em;
+                color: rgba(255, 255, 255, 0.7);
+            }
+            #MoonfinConfigPage .kostvUpdProgressPct {
+                font-weight: 600;
+                color: #37d3e6;
+                font-variant-numeric: tabular-nums;
             }
             #MoonfinConfigPage .kostvUpdBar {
-                height: 8px;
-                margin-top: .8em;
-                border-radius: 4px;
-                background: rgba(255, 255, 255, 0.1);
+                position: relative;
+                height: 10px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.08);
                 overflow: hidden;
             }
             #MoonfinConfigPage .kostvUpdBarFill {
                 height: 100%;
                 width: 0;
-                background: #00a4dc;
-                transition: width .2s ease;
+                border-radius: inherit;
+                background: linear-gradient(90deg, #00a4dc, #37d3e6);
+                box-shadow: 0 0 12px rgba(55, 211, 230, 0.45);
+                transition: width .25s ease;
             }
             #MoonfinConfigPage .kostvUpdInfo {
-                margin-top: .6em;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
                 overflow-wrap: anywhere;
+            }
+            #MoonfinConfigPage .kostvUpdInfo:empty {
+                display: none;
+            }
+            #MoonfinConfigPage .kostvUpdFacts {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            #MoonfinConfigPage .kostvUpdChip {
+                padding: 3px 10px;
+                border-radius: 999px;
+                font-size: .82em;
+                font-weight: 600;
+                background: rgba(255, 255, 255, 0.08);
+                color: rgba(255, 255, 255, 0.85);
+                white-space: nowrap;
+            }
+            #MoonfinConfigPage .kostvUpdChip.is-version {
+                background: rgba(0, 164, 220, 0.18);
+                color: #37d3e6;
+            }
+            #MoonfinConfigPage .kostvUpdChip.is-muted {
+                font-weight: 400;
+                color: rgba(255, 255, 255, 0.6);
+            }
+            #MoonfinConfigPage .kostvUpdLine {
+                display: flex;
+                align-items: flex-start;
+                gap: 8px;
+                font-size: .9em;
+                line-height: 1.4;
+            }
+            #MoonfinConfigPage .kostvUpdLine .material-icons,
+            #MoonfinConfigPage .kostvUpdNotice .material-icons {
+                flex-shrink: 0;
+                font-size: 18px;
+                line-height: 1.1;
+            }
+            #MoonfinConfigPage .kostvUpdLine.is-ok {
+                color: #52b54b;
+            }
+            #MoonfinConfigPage .kostvUpdLine.is-warning {
+                color: #f5c26b;
+            }
+            #MoonfinConfigPage .kostvUpdLine.is-error {
+                color: #ff8080;
+            }
+            #MoonfinConfigPage .kostvUpdHint {
+                display: flex;
+                align-items: flex-start;
+                gap: 8px;
+                margin: 14px 2px 0;
+                color: rgba(255, 255, 255, 0.55);
+                font-size: .86em;
+                line-height: 1.45;
+            }
+            #MoonfinConfigPage .kostvUpdHint .material-icons {
+                flex-shrink: 0;
+                font-size: 17px;
+                line-height: 1.2;
+                color: rgba(255, 255, 255, 0.45);
+            }
+            #MoonfinConfigPage .kostvUpdNotesField {
+                margin-top: 20px;
+            }
+            #MoonfinConfigPage .kostvUpdLabel {
+                display: block;
+                margin-bottom: 8px;
+                font-weight: 600;
+                color: #f0f6fc;
+            }
+            #MoonfinConfigPage .kostvUpdNotesField textarea {
+                display: block;
+                width: 100%;
+                min-height: 7.5em;
+                box-sizing: border-box;
+                padding: 12px 14px;
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                border-radius: 10px;
+                background: rgba(0, 0, 0, 0.25);
+                color: inherit;
+                font: inherit;
+                line-height: 1.5;
+                resize: vertical;
+            }
+            #MoonfinConfigPage .kostvUpdNotesField textarea:focus {
+                outline: none;
+                border-color: #00a4dc;
+                box-shadow: 0 0 0 3px rgba(0, 164, 220, 0.2);
+            }
+            #MoonfinConfigPage .kostvUpdNotesFoot {
+                display: flex;
+                justify-content: space-between;
+                gap: 12px;
+                margin-top: 6px;
+                color: rgba(255, 255, 255, 0.5);
+                font-size: .84em;
+            }
+            #MoonfinConfigPage .kostvUpdCount {
+                flex-shrink: 0;
+                font-variant-numeric: tabular-nums;
+            }
+            #MoonfinConfigPage .kostvUpdFoot {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: flex-end;
+                gap: 12px 16px;
+                margin-top: 20px;
+                padding-top: 18px;
+                border-top: 1px solid rgba(255, 255, 255, 0.07);
+            }
+            #MoonfinConfigPage .kostvUpdNotice {
+                display: flex;
+                align-items: flex-start;
+                gap: 8px;
+                flex: 1 1 280px;
+                min-width: 0;
+                margin: 0;
+                padding: 10px 12px;
+                border-radius: 10px;
+                font-size: .92em;
+                line-height: 1.4;
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+                background: rgba(255, 255, 255, 0.05);
+            }
+            #MoonfinConfigPage .kostvUpdNotice:empty {
+                visibility: hidden;
+                padding: 0;
+            }
+            #MoonfinConfigPage .kostvUpdNotice.is-ok {
+                background: rgba(82, 181, 75, 0.12);
+                color: #6fd068;
+            }
+            #MoonfinConfigPage .kostvUpdNotice.is-error {
+                background: rgba(255, 107, 107, 0.12);
+                color: #ff8a8a;
+            }
+            #MoonfinConfigPage .kostvUpdNotice.is-warning {
+                background: rgba(245, 194, 107, 0.12);
+                color: #f5c26b;
+            }
+            #MoonfinConfigPage .kostvUpdNotice.is-busy {
+                background: rgba(0, 164, 220, 0.12);
+                color: #37d3e6;
+            }
+            #MoonfinConfigPage .kostvUpdButtons {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+                margin-left: auto;
+            }
+            #MoonfinConfigPage .moonfinTabPanel .kostvUpdButtons .raised {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                width: auto;
+                min-height: 42px;
+                margin: 0;
+                padding: 0 20px;
+            }
+            #MoonfinConfigPage .moonfinTabPanel .kostvUpdPrimary {
+                min-width: 150px;
+            }
+            #MoonfinConfigPage .kostvUpdPrimary .material-icons {
+                font-size: 20px;
+            }
+            #MoonfinConfigPage .moonfinTabPanel .raised.kostvUpdSecondary {
+                background: transparent;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                color: #f0f6fc;
+            }
+            #MoonfinConfigPage .moonfinTabPanel .raised.kostvUpdSecondary:hover:not([disabled]) {
+                background: rgba(255, 255, 255, 0.06);
+                border-color: rgba(255, 255, 255, 0.32);
+            }
+            #MoonfinConfigPage .moonfinTabPanel .raised.kostvUpdDanger {
+                background: transparent;
+                border: 1px solid rgba(255, 107, 107, 0.4);
+                color: #ff8a8a;
+            }
+            #MoonfinConfigPage .moonfinTabPanel .raised.kostvUpdDanger:hover:not([disabled]) {
+                background: rgba(255, 107, 107, 0.12);
+            }
+            #MoonfinConfigPage .moonfinTabPanel .kostvUpdButtons .raised[disabled] {
+                opacity: .4;
+                cursor: not-allowed;
+            }
+            @media (max-width: 560px) {
+                #MoonfinConfigPage .kostvUpdSlots {
+                    grid-template-columns: 1fr;
+                }
+                #MoonfinConfigPage .kostvUpdDrop {
+                    padding: 14px;
+                    gap: 12px;
+                }
+                #MoonfinConfigPage .kostvUpdProgress,
+                #MoonfinConfigPage .kostvUpdInfo {
+                    margin: -4px 14px 14px;
+                }
+                #MoonfinConfigPage .kostvUpdFileName {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    gap: 2px;
+                }
+                #MoonfinConfigPage .kostvUpdFileText {
+                    max-width: 100%;
+                    white-space: normal;
+                    overflow-wrap: anywhere;
+                }
+                #MoonfinConfigPage .kostvUpdDropIcon {
+                    width: 42px;
+                    height: 42px;
+                    padding: 10px;
+                    font-size: 22px;
+                }
+                #MoonfinConfigPage .kostvUpdNotice {
+                    flex-basis: 100%;
+                }
+                #MoonfinConfigPage .kostvUpdNotice:empty {
+                    display: none;
+                }
+                #MoonfinConfigPage .kostvUpdButtons {
+                    width: 100%;
+                    margin-left: 0;
+                }
+                #MoonfinConfigPage .moonfinTabPanel .kostvUpdButtons .raised {
+                    flex: 1 1 0;
+                    min-width: 0;
+                }
+                #MoonfinConfigPage .moonfinTabPanel .kostvUpdButtons .kostvUpdPrimary {
+                    flex-grow: 2;
+                }
             }
             #MoonfinConfigPage .kostvUpdError,
             #MoonfinConfigPage .kostvUpdIsError {
@@ -535,21 +974,42 @@
             #MoonfinConfigPage .kostvUpdOk {
                 color: #52b54b;
             }
+            /* «Versiones guardadas». */
             #MoonfinConfigPage .kostvUpdList {
                 display: flex;
                 flex-direction: column;
                 gap: 10px;
             }
             #MoonfinConfigPage .kostvUpdEmpty {
-                padding: 16px;
+                padding: 22px 16px;
+                border: 1px dashed rgba(255, 255, 255, 0.12);
+                border-radius: 12px;
                 text-align: center;
-                color: rgba(255, 255, 255, 0.5);
+                color: rgba(255, 255, 255, 0.55);
             }
             #MoonfinConfigPage .kostvUpdItem {
-                padding: 14px 16px;
-                border-radius: 10px;
-                border: 1px solid rgba(255, 255, 255, 0.06);
+                display: flex;
+                align-items: flex-start;
+                gap: 12px 20px;
+                padding: 14px 16px 14px 18px;
+                border-radius: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.07);
+                border-left: 3px solid rgba(255, 255, 255, 0.14);
                 background: rgba(0, 0, 0, 0.2);
+            }
+            #MoonfinConfigPage .kostvUpdItem.is-offered {
+                border-left-color: #52b54b;
+                background: rgba(82, 181, 75, 0.05);
+            }
+            #MoonfinConfigPage .kostvUpdItem.is-retired {
+                border-left-color: rgba(255, 107, 107, 0.7);
+            }
+            #MoonfinConfigPage .kostvUpdItem.is-retired .kostvUpdItemMain {
+                opacity: .7;
+            }
+            #MoonfinConfigPage .kostvUpdItemMain {
+                flex: 1 1 0;
+                min-width: 0;
             }
             #MoonfinConfigPage .kostvUpdItemHead {
                 display: flex;
@@ -557,12 +1017,29 @@
                 align-items: center;
                 gap: 8px 12px;
             }
-            #MoonfinConfigPage .kostvUpdItemHead strong {
-                font-size: 1.1em;
+            #MoonfinConfigPage .kostvUpdItemVersion {
+                font-size: 1.2em;
+                font-weight: 700;
+                color: #f0f6fc;
+                font-variant-numeric: tabular-nums;
             }
             #MoonfinConfigPage .kostvUpdMeta {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px 16px;
+                margin-top: 6px;
                 color: rgba(255, 255, 255, 0.6);
-                font-size: .9em;
+                font-size: .88em;
+            }
+            #MoonfinConfigPage .kostvUpdMetaItem {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                white-space: nowrap;
+            }
+            #MoonfinConfigPage .kostvUpdMetaItem .material-icons {
+                font-size: 16px;
+                opacity: .7;
             }
             #MoonfinConfigPage .kostvUpdBadge {
                 padding: 2px 10px;
@@ -580,18 +1057,38 @@
                 color: #ff6b6b;
             }
             #MoonfinConfigPage .kostvUpdNotes {
-                margin-top: .6em;
+                margin-top: 10px;
+                padding: 8px 12px;
+                border-left: 2px solid rgba(255, 255, 255, 0.12);
+                border-radius: 0 8px 8px 0;
+                background: rgba(255, 255, 255, 0.03);
                 white-space: pre-wrap;
-                color: rgba(255, 255, 255, 0.85);
+                line-height: 1.45;
+                color: rgba(255, 255, 255, 0.82);
+                font-size: .92em;
             }
             #MoonfinConfigPage .kostvUpdActions {
                 display: flex;
                 flex-wrap: wrap;
+                flex-shrink: 0;
                 gap: 8px;
-                margin-top: .8em;
             }
-            #MoonfinConfigPage .kostvUpdActions .raised {
+            #MoonfinConfigPage .moonfinTabPanel .kostvUpdActions .raised {
                 margin: 0;
+                min-height: 36px;
+                padding: 0 14px;
+                font-size: .9em;
+            }
+            @media (max-width: 640px) {
+                #MoonfinConfigPage .kostvUpdItem {
+                    flex-direction: column;
+                }
+                #MoonfinConfigPage .kostvUpdActions {
+                    width: 100%;
+                }
+                #MoonfinConfigPage .moonfinTabPanel .kostvUpdActions .raised {
+                    flex: 1 1 0;
+                }
             }
             #MoonfinConfigPage .kostvUpdInstall {
                 display: flex;
@@ -2279,7 +2776,7 @@
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="integrations">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">extension</span>
-                            <span class="moonfinNavText"><span class="moonfinNavLabel">Integraciones</span><span class="moonfinNavSub">MDBList, TMDB</span></span>
+                            <span class="moonfinNavText"><span class="moonfinNavLabel">Integraciones</span><span class="moonfinNavSub">MDBList, TMDB, ListenBrainz, Last.fm</span></span>
                         </button>
                         <button type="button" class="moonfinNavItem" data-tab="games">
                             <span class="material-icons moonfinNavIcon" aria-hidden="true">sports_esports</span>
@@ -2338,7 +2835,7 @@
                     <section class="moonfinTabPanel" data-tab="webClient">
                     <div class="moonfinPageHead">
                         <h3 class="moonfinPageTitle">Direcciones</h3>
-                        <p class="moonfinPageLead">Dónde encuentran las apps de kOS TV este servidor y el servicio de peticiones, y la hora de casa.</p>
+                        <p class="moonfinPageLead">Dónde encuentran las apps de kOS TV este servidor y el servicio de peticiones.</p>
                     </div>
 
                     <div class="verticalSection">
@@ -2365,75 +2862,6 @@
                                 <code>https://</code>, así que el servicio tiene que contestar por <code>https</code>.
                             </div>
                             <div class="fieldDescription" id="KostvRequestsUrlStatus" style="display:none;"></div>
-                        </div>
-                        <div class="inputContainer">
-                            <label class="inputLabel inputLabelUnfocused" for="KostvMusicTimeZone">Zona horaria de casa</label>
-                            <input type="text" id="KostvMusicTimeZone" is="emby-input" placeholder="Europe/Madrid" autocomplete="off" spellcheck="false" />
-                            <div class="fieldDescription">
-                                La hora de casa para la música de cada persona: las mezclas de la mañana, la tarde y la noche,
-                                el «Mix diario», que cambia a las 5:00, y la semana del «Descubrimiento semanal». Escribe el nombre
-                                de la zona horaria, como <code>Europe/Madrid</code> o <code>Atlantic/Canary</code>. Hace falta porque
-                                el servidor suele ir con la hora universal (UTC) cuando está en un contenedor. Si la dejas vacía,
-                                se usa <code>Europe/Madrid</code>.
-                            </div>
-                            <div class="fieldDescription" id="KostvMusicTimeZoneStatus" style="display:none;"></div>
-                        </div>
-                        <div class="inputContainer">
-                            <label class="inputLabel inputLabelUnfocused" for="KostvMusicEngine">Cómo se puntúa la música</label>
-                            <select is="emby-select" id="KostvMusicEngine">
-                                <option value="actual">Como hasta ahora</option>
-                                <option value="nuevo">Lo nuevo: aprende de todo lo que hace cada persona</option>
-                                <option value="alterno">Un día cada uno, para comparar</option>
-                            </select>
-                            <div class="fieldDescription">
-                                Con qué cálculo se hacen el «Mix diario», la Mezcla del momento y las semillas del «Descubrimiento semanal».
-                                «Lo nuevo» usa todo lo que se apunta de cada persona (si la oyó entera, si la saltó y desde dónde la puso,
-                                los ♥, las listas y las peticiones) y pasa poco a poco de lo que sabe Jellyfin a lo aprendido según lo que
-                                escucha cada uno. Con cualquiera de los tres, las mezclas no repiten artista ni disco seguidos ni lo de los
-                                tres días anteriores, y nunca llevan lo que alguien marcó con «No me gusta». El que no se usa se calcula
-                                igualmente para comparar al día siguiente cuál habría acertado más.
-                                Si lo cambias, se nota desde el día siguiente (a las 5:00, hora de casa): la música de hoy ya está hecha
-                                y no cambia a media jornada.
-                            </div>
-                            <button is="emby-button" type="button" id="KostvMusicCompare" class="raised" style="margin-top:.6em">
-                                <span>Ver qué cálculo acierta más</span>
-                            </button>
-                            <div id="KostvMusicCompareResult" class="fieldDescription" style="margin-top:.8em;white-space:pre-wrap"></div>
-                        </div>
-                        <div class="inputContainer">
-                            <label class="inputLabel inputLabelUnfocused" for="KostvListenBrainzToken">Token de ListenBrainz para las emisoras (opcional)</label>
-                            <input type="password" id="KostvListenBrainzToken" is="emby-input" autocomplete="off" placeholder="Déjalo vacío si no tienes" />
-                            <div class="fieldDescription">
-                                Las emisoras («Crear emisora» y la reproducción continua ∞) se hacen aquí, en el servidor, con lo que
-                                escucha la gente en general junto a cada canción (ListenBrainz) y con artistas parecidos de Deezer,
-                                sin claves y sin que nadie configure nada en su app. Este token es solo para tener más margen con
-                                ListenBrainz: lo sacas de tu cuenta en <a href="https://listenbrainz.org/settings/" target="_blank">listenbrainz.org</a>.
-                                Vacío, las emisoras funcionan igual. Se queda en este servidor: las apps nunca lo ven.
-                            </div>
-                        </div>
-                        <div class="inputContainer">
-                            <label class="inputLabel inputLabelUnfocused" for="KostvLastFmApiKey">Clave de la API de Last.fm para las emisoras (opcional)</label>
-                            <input type="password" id="KostvLastFmApiKey" is="emby-input" autocomplete="off" placeholder="Déjala vacía si no tienes" />
-                            <div class="fieldDescription">
-                                Con una <a href="https://www.last.fm/api/account/create" target="_blank">clave de Last.fm</a>, las emisoras
-                                también tienen en cuenta sus canciones parecidas a cada una. Sin ella no se usa Last.fm para nada y todo
-                                funciona igual. Se queda en este servidor: las apps nunca la ven. Si la clave deja de valer, las
-                                emisoras siguen sin Last.fm.
-                            </div>
-                        </div>
-                        <div class="inputContainer">
-                            <label class="inputLabel inputLabelUnfocused">Inicio con recomendaciones</label>
-                            <div class="fieldDescription">
-                                El Inicio de las apps de kOS TV se monta para cada persona con lo que ha visto: «Porque viste…»,
-                                «Recomendado para ti» y demás, siempre con títulos que están en este servidor y que no ha visto.
-                                Las recomendaciones salen de TMDB, así que hace falta la clave de TMDB de más arriba; sin ella solo
-                                salen las filas por género y las mejor valoradas. Pulsa para ver cuántas filas le salen a cada persona
-                                (una fila necesita al menos 6 títulos).
-                            </div>
-                            <button is="emby-button" type="button" id="KostvHomeCheck" class="raised" style="margin-top:.6em">
-                                <span>Comprobar el Inicio de cada persona</span>
-                            </button>
-                            <div id="KostvHomeResult" class="fieldDescription" style="margin-top:.8em;white-space:pre-wrap"></div>
                         </div>
                         <div class="inputContainer kostvNoSeUsa">
                             <label class="inputLabel inputLabelUnfocused" for="WebDefaultServerUrl">URL del servidor por defecto (opcional)</label>
@@ -2466,6 +2894,11 @@
                     </div>
                     </section>
                     <section class="moonfinTabPanel" data-tab="integrations">
+                    <div class="moonfinPageHead">
+                        <h3 class="moonfinPageTitle">Integraciones</h3>
+                        <p class="moonfinPageLead">Las claves de los servicios de fuera que usa el servidor (valoraciones, recomendaciones, logotipos y emisoras) y cómo se hace la música de cada persona.</p>
+                    </div>
+
                     <div class="verticalSection kostvSinSeerr">
                         <h3 class="sectionTitle">Seerr Integration</h3>
                         <div class="checkboxContainer checkboxContainer-withDescription">
@@ -2691,6 +3124,20 @@
                                 devolverle los títulos similares al servidor. Las apps de kOS TV funcionan igual en los dos casos.
                             </div>
                         </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused">Inicio con recomendaciones</label>
+                            <div class="fieldDescription">
+                                El Inicio de las apps de kOS TV se monta para cada persona con lo que ha visto: «Porque viste…»,
+                                «Recomendado para ti» y demás, siempre con títulos que están en este servidor y que no ha visto.
+                                Las recomendaciones salen de TMDB, así que hace falta la clave de TMDB (en «Integración con TMDB», más abajo); sin ella solo
+                                salen las filas por género y las mejor valoradas. Pulsa para ver cuántas filas le salen a cada persona
+                                (una fila necesita al menos 6 títulos).
+                            </div>
+                            <button is="emby-button" type="button" id="KostvHomeCheck" class="raised" style="margin-top:.6em">
+                                <span>Comprobar el Inicio de cada persona</span>
+                            </button>
+                            <div id="KostvHomeResult" class="fieldDescription" style="margin-top:.8em;white-space:pre-wrap"></div>
+                        </div>
                     </div>
 
                     <div class="verticalSection">
@@ -2727,6 +3174,73 @@
                                 Quien ponga su propia clave en los ajustes de su app de kOS TV usará la suya.
                                 Vale tanto una clave de la API v3 como un token Bearer v4.
                             </div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Integración con ListenBrainz</h3>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="KostvListenBrainzToken">Token de ListenBrainz para las emisoras (opcional)</label>
+                            <input type="password" id="KostvListenBrainzToken" is="emby-input" autocomplete="off" placeholder="Déjalo vacío si no tienes" />
+                            <div class="fieldDescription">
+                                Las emisoras («Crear emisora» y la reproducción continua ∞) se hacen aquí, en el servidor, con lo que
+                                escucha la gente en general junto a cada canción (ListenBrainz) y con artistas parecidos de Deezer,
+                                sin claves y sin que nadie configure nada en su app. Este token es solo para tener más margen con
+                                ListenBrainz: lo sacas de tu cuenta en <a href="https://listenbrainz.org/settings/" target="_blank">listenbrainz.org</a>.
+                                Vacío, las emisoras funcionan igual. Se queda en este servidor: las apps nunca lo ven.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Integración con Last.fm</h3>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="KostvLastFmApiKey">Clave de la API de Last.fm para las emisoras (opcional)</label>
+                            <input type="password" id="KostvLastFmApiKey" is="emby-input" autocomplete="off" placeholder="Déjala vacía si no tienes" />
+                            <div class="fieldDescription">
+                                Con una <a href="https://www.last.fm/api/account/create" target="_blank">clave de Last.fm</a>, las emisoras
+                                también tienen en cuenta sus canciones parecidas a cada una. Sin ella no se usa Last.fm para nada y todo
+                                funciona igual. Se queda en este servidor: las apps nunca la ven. Si la clave deja de valer, las
+                                emisoras siguen sin Last.fm.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="verticalSection">
+                        <h3 class="sectionTitle">Música de cada persona</h3>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="KostvMusicTimeZone">Zona horaria de casa</label>
+                            <input type="text" id="KostvMusicTimeZone" is="emby-input" placeholder="Europe/Madrid" autocomplete="off" spellcheck="false" />
+                            <div class="fieldDescription">
+                                La hora de casa para la música de cada persona: las mezclas de la mañana, la tarde y la noche,
+                                el «Mix diario», que cambia a las 5:00, y la semana del «Descubrimiento semanal». Escribe el nombre
+                                de la zona horaria, como <code>Europe/Madrid</code> o <code>Atlantic/Canary</code>. Hace falta porque
+                                el servidor suele ir con la hora universal (UTC) cuando está en un contenedor. Si la dejas vacía,
+                                se usa <code>Europe/Madrid</code>.
+                            </div>
+                            <div class="fieldDescription" id="KostvMusicTimeZoneStatus" style="display:none;"></div>
+                        </div>
+                        <div class="inputContainer">
+                            <label class="inputLabel inputLabelUnfocused" for="KostvMusicEngine">Cómo se puntúa la música</label>
+                            <select is="emby-select" id="KostvMusicEngine">
+                                <option value="actual">Como hasta ahora</option>
+                                <option value="nuevo">Lo nuevo: aprende de todo lo que hace cada persona</option>
+                                <option value="alterno">Un día cada uno, para comparar</option>
+                            </select>
+                            <div class="fieldDescription">
+                                Con qué cálculo se hacen el «Mix diario», la Mezcla del momento y las semillas del «Descubrimiento semanal».
+                                «Lo nuevo» usa todo lo que se apunta de cada persona (si la oyó entera, si la saltó y desde dónde la puso,
+                                los ♥, las listas y las peticiones) y pasa poco a poco de lo que sabe Jellyfin a lo aprendido según lo que
+                                escucha cada uno. Con cualquiera de los tres, las mezclas no repiten artista ni disco seguidos ni lo de los
+                                tres días anteriores, y nunca llevan lo que alguien marcó con «No me gusta». El que no se usa se calcula
+                                igualmente para comparar al día siguiente cuál habría acertado más.
+                                Si lo cambias, se nota desde el día siguiente (a las 5:00, hora de casa): la música de hoy ya está hecha
+                                y no cambia a media jornada.
+                            </div>
+                            <button is="emby-button" type="button" id="KostvMusicCompare" class="raised" style="margin-top:.6em">
+                                <span>Ver qué cálculo acierta más</span>
+                            </button>
+                            <div id="KostvMusicCompareResult" class="fieldDescription" style="margin-top:.8em;white-space:pre-wrap"></div>
                         </div>
                     </div>
 
@@ -6151,36 +6665,76 @@
                         <p class="moonfinPageLead">Las versiones nuevas de kOS TV para las teles y los móviles Android de casa. Las apps las piden a este servidor al abrirse (como mucho cada 6 horas) y se las bajan de aquí.</p>
                     </div>
 
-                    <div class="verticalSection">
-                        <h3 class="sectionTitle">Nueva actualización</h3>
-                        <div class="fieldDescription" style="margin-bottom:.8em;">
-                            Elige el APK de la tele (<code>KosTV_AndroidTV…apk</code>) y el del móvil (<code>KosTV_Android…apk</code>) de la misma versión.
-                            El número de versión, si es el de la tele o el del móvil y la firma se leen de los propios archivos:
-                            antes de publicar verás qué versión es y si hay algo que no cuadra. Se suben por trozos de 8 MB, así que
-                            valen también desde fuera de casa por el proxy; si se corta, sigue por donde iba.
+                    <div class="verticalSection kostvUpdNew">
+                        <div class="kostvUpdNewHead">
+                            <span class="material-icons kostvUpdNewIcon" aria-hidden="true">cloud_upload</span>
+                            <div>
+                                <h3 class="sectionTitle">Nueva actualización</h3>
+                                <p class="kostvUpdNewLead">Sube los dos APK de la misma versión: el de la tele y el del móvil.</p>
+                            </div>
                         </div>
                         <div class="kostvUpdSlots">
-                            <div class="kostvUpdSlot" data-kind="tv">
-                                <label class="inputLabel" for="KostvUpdFileTv">APK de la tele</label>
-                                <input type="file" id="KostvUpdFileTv" accept=".apk,application/vnd.android.package-archive" />
-                                <div class="kostvUpdBar" hidden><div class="kostvUpdBarFill"></div></div>
-                                <div class="kostvUpdInfo fieldDescription" role="status"></div>
+                            <div class="kostvUpdSlot" data-kind="tv" data-state="empty">
+                                <input type="file" id="KostvUpdFileTv" class="kostvUpdFileInput" accept=".apk,application/vnd.android.package-archive" />
+                                <label class="kostvUpdDrop" for="KostvUpdFileTv">
+                                    <span class="material-icons kostvUpdDropIcon" aria-hidden="true">tv</span>
+                                    <span class="kostvUpdDropText">
+                                        <span class="kostvUpdDropTitle">APK de la tele</span>
+                                        <span class="kostvUpdDropHint">Arrástralo aquí o pulsa Elegir <code>KosTV_AndroidTV…apk</code></span>
+                                        <span class="kostvUpdFileName"></span>
+                                    </span>
+                                    <span class="kostvUpdPick" aria-hidden="true">Elegir</span>
+                                </label>
+                                <div class="kostvUpdProgress" hidden>
+                                    <div class="kostvUpdProgressText"><span class="kostvUpdProgressLabel"></span><span class="kostvUpdProgressPct"></span></div>
+                                    <div class="kostvUpdBar"><div class="kostvUpdBarFill"></div></div>
+                                </div>
+                                <div class="kostvUpdInfo" role="status"></div>
                             </div>
-                            <div class="kostvUpdSlot" data-kind="phone">
-                                <label class="inputLabel" for="KostvUpdFilePhone">APK del móvil</label>
-                                <input type="file" id="KostvUpdFilePhone" accept=".apk,application/vnd.android.package-archive" />
-                                <div class="kostvUpdBar" hidden><div class="kostvUpdBarFill"></div></div>
-                                <div class="kostvUpdInfo fieldDescription" role="status"></div>
+                            <div class="kostvUpdSlot" data-kind="phone" data-state="empty">
+                                <input type="file" id="KostvUpdFilePhone" class="kostvUpdFileInput" accept=".apk,application/vnd.android.package-archive" />
+                                <label class="kostvUpdDrop" for="KostvUpdFilePhone">
+                                    <span class="material-icons kostvUpdDropIcon" aria-hidden="true">smartphone</span>
+                                    <span class="kostvUpdDropText">
+                                        <span class="kostvUpdDropTitle">APK del móvil</span>
+                                        <span class="kostvUpdDropHint">Arrástralo aquí o pulsa Elegir <code>KosTV_Android…apk</code></span>
+                                        <span class="kostvUpdFileName"></span>
+                                    </span>
+                                    <span class="kostvUpdPick" aria-hidden="true">Elegir</span>
+                                </label>
+                                <div class="kostvUpdProgress" hidden>
+                                    <div class="kostvUpdProgressText"><span class="kostvUpdProgressLabel"></span><span class="kostvUpdProgressPct"></span></div>
+                                    <div class="kostvUpdBar"><div class="kostvUpdBarFill"></div></div>
+                                </div>
+                                <div class="kostvUpdInfo" role="status"></div>
                             </div>
                         </div>
-                        <div class="inputContainer" style="margin-top:1em;">
-                            <label class="inputLabel inputLabelUnfocused" for="KostvUpdNotes">Notas de la versión</label>
-                            <textarea id="KostvUpdNotes" is="emby-textarea" rows="5" maxlength="4000" style="width:100%;box-sizing:border-box;font-family:inherit;" placeholder="Qué trae, en pocas líneas. Las apps lo enseñan al ofrecer la actualización."></textarea>
+                        <p class="kostvUpdHint">
+                            <span class="material-icons" aria-hidden="true">info</span>
+                            <span>La versión, si es de la tele o del móvil y la firma se leen de los propios archivos, así que antes de publicar
+                            verás qué versión es y si hay algo que no cuadra. Se suben por trozos de 8 MB: vale también desde fuera de casa
+                            y, si se corta, sigue por donde iba.</span>
+                        </p>
+                        <div class="kostvUpdNotesField">
+                            <label class="kostvUpdLabel" for="KostvUpdNotes">Notas de la versión</label>
+                            <textarea id="KostvUpdNotes" is="emby-textarea" rows="5" maxlength="4000" placeholder="Qué trae, en pocas líneas."></textarea>
+                            <div class="kostvUpdNotesFoot">
+                                <span>Las apps las enseñan al ofrecer la actualización.</span>
+                                <span id="KostvUpdNotesCount" class="kostvUpdCount">0 / 4000</span>
+                            </div>
                         </div>
-                        <button is="emby-button" type="button" id="KostvUpdPublish" class="raised button-submit" disabled>
-                            <span>Publicar la actualización</span>
-                        </button>
-                        <div id="KostvUpdPublishResult" class="fieldDescription" role="status" style="margin-top:.8em;white-space:pre-wrap;"></div>
+                        <div class="kostvUpdFoot">
+                            <div id="KostvUpdPublishResult" class="kostvUpdNotice" role="status"></div>
+                            <div class="kostvUpdButtons">
+                                <button is="emby-button" type="button" id="KostvUpdReset" class="raised kostvUpdSecondary" disabled>
+                                    <span>Vaciar</span>
+                                </button>
+                                <button is="emby-button" type="button" id="KostvUpdPublish" class="raised button-submit kostvUpdPrimary" disabled>
+                                    <span class="material-icons" aria-hidden="true">publish</span>
+                                    <span>Publicar</span>
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="verticalSection">
@@ -14486,13 +15040,23 @@
                             var status = v.Retired
                                 ? '<span class="kostvUpdBadge is-retired">Retirada</span>'
                                 : (v.Offered ? '<span class="kostvUpdBadge is-offered">Se ofrece</span>' : '<span class="kostvUpdBadge">Anterior</span>');
-                            return '<div class="kostvUpdItem">' +
-                                '<div class="kostvUpdItemHead"><strong>' + esc(v.VersionName) + '</strong>' + status +
-                                '<span class="kostvUpdMeta">' + esc(date(v.Date)) + ' · tele ' + size(v.TvSize) + ' · móvil ' + size(v.PhoneSize) + ' · código ' + esc(String(v.VersionCode)) + '</span></div>' +
+                            var meta = function(icon, text, label) {
+                                return '<span class="kostvUpdMetaItem"' + (label ? ' title="' + label + '"' : '') + '><span class="material-icons" aria-hidden="true">' + icon + '</span>' + text + '</span>';
+                            };
+                            return '<div class="kostvUpdItem' + (v.Retired ? ' is-retired' : (v.Offered ? ' is-offered' : '')) + '">' +
+                                '<div class="kostvUpdItemMain">' +
+                                '<div class="kostvUpdItemHead"><strong class="kostvUpdItemVersion">' + esc(v.VersionName) + '</strong>' + status + '</div>' +
+                                '<div class="kostvUpdMeta">' +
+                                meta('event', esc(date(v.Date))) +
+                                meta('tv', 'Tele ' + size(v.TvSize), 'APK de la tele') +
+                                meta('smartphone', 'Móvil ' + size(v.PhoneSize), 'APK del móvil') +
+                                meta('code', 'Código ' + esc(String(v.VersionCode))) +
+                                '</div>' +
                                 (v.Notes ? '<div class="kostvUpdNotes">' + esc(v.Notes) + '</div>' : '') +
+                                '</div>' +
                                 '<div class="kostvUpdActions">' +
-                                '<button type="button" is="emby-button" class="raised" data-upd-retire="' + esc(v.Id) + '" data-upd-retired="' + (v.Retired ? '1' : '0') + '"><span>' + (v.Retired ? 'Volver a ofrecer' : 'Retirar') + '</span></button>' +
-                                '<button type="button" is="emby-button" class="raised" data-upd-delete="' + esc(v.Id) + '" data-upd-name="' + esc(v.VersionName) + '"><span>Borrar</span></button>' +
+                                '<button type="button" is="emby-button" class="raised kostvUpdSecondary" data-upd-retire="' + esc(v.Id) + '" data-upd-retired="' + (v.Retired ? '1' : '0') + '"><span>' + (v.Retired ? 'Volver a ofrecer' : 'Retirar') + '</span></button>' +
+                                '<button type="button" is="emby-button" class="raised kostvUpdDanger" data-upd-delete="' + esc(v.Id) + '" data-upd-name="' + esc(v.VersionName) + '"><span>Borrar</span></button>' +
                                 '</div></div>';
                         }).join('');
                     }
@@ -14584,56 +15148,106 @@
                         .then(renderInstallations, function(error) { alert(error.message); });
                 });
 
-                function refreshPublish() {
+                var noticeIcons = { ok: 'check_circle', error: 'error', warning: 'warning', busy: 'hourglass_empty' };
+
+                // The message under the form: kind is ok, error, warning, busy or '' (plain).
+                function notice(el, kind, text) {
+                    el.className = 'kostvUpdNotice' + (kind ? ' is-' + kind : '');
+                    el.innerHTML = text
+                        ? (noticeIcons[kind] ? '<span class="material-icons" aria-hidden="true">' + noticeIcons[kind] + '</span>' : '') +
+                            '<span>' + esc(text) + '</span>'
+                        : '';
+                }
+
+                function slotEls() {
+                    return Array.prototype.slice.call(tab.querySelectorAll('.kostvUpdSlot'));
+                }
+
+                function refreshPublish(keepNotice) {
                     var ok = slots.tv && slots.tv.check && slots.tv.check.Ok &&
                         slots.phone && slots.phone.check && slots.phone.check.Ok;
                     var mismatch = ok && slots.tv.check.VersionCode !== slots.phone.check.VersionCode;
                     tab.querySelector('#KostvUpdPublish').disabled = !ok || mismatch || busy;
+                    tab.querySelector('#KostvUpdReset').disabled = busy || !slotEls().some(function(slotEl) {
+                        return slotEl.getAttribute('data-state') !== 'empty';
+                    });
                     var out = tab.querySelector('#KostvUpdPublishResult');
-                    if (mismatch) {
-                        out.textContent = 'El APK de la tele (' + slots.tv.check.VersionName + ') y el del móvil (' +
-                            slots.phone.check.VersionName + ') no son de la misma versión.';
-                        out.classList.add('kostvUpdIsError');
-                    } else if (ok) {
-                        out.textContent = 'Lista para publicar: versión ' + slots.tv.check.VersionName + '.';
-                        out.classList.remove('kostvUpdIsError');
+                    if (keepNotice) {
+                        return;
                     }
+                    if (mismatch) {
+                        notice(out, 'error', 'El APK de la tele (' + slots.tv.check.VersionName + ') y el del móvil (' +
+                            slots.phone.check.VersionName + ') no son de la misma versión.');
+                    } else if (ok && !busy) {
+                        notice(out, 'ok', 'Lista para publicar: versión ' + slots.tv.check.VersionName + '.');
+                    }
+                }
+
+                function fileLine(slotEl, name, bytes) {
+                    slotEl.querySelector('.kostvUpdFileName').innerHTML = name
+                        ? '<span class="kostvUpdFileText">' + esc(name) + '</span><span class="kostvUpdFileSize">' + size(bytes) + '</span>'
+                        : '';
+                }
+
+                function resetSlot(slotEl) {
+                    slotEl.setAttribute('data-state', 'empty');
+                    slotEl.querySelector('input[type="file"]').value = '';
+                    slotEl.querySelector('.kostvUpdProgress').hidden = true;
+                    slotEl.querySelector('.kostvUpdInfo').innerHTML = '';
+                    fileLine(slotEl, '');
+                }
+
+                function line(kind, icon, text) {
+                    return '<div class="kostvUpdLine is-' + kind + '"><span class="material-icons" aria-hidden="true">' + icon + '</span><span>' + text + '</span></div>';
                 }
 
                 function showCheck(slotEl, check) {
                     var info = slotEl.querySelector('.kostvUpdInfo');
+                    var errors = check.Errors || [];
+                    var warnings = check.Warnings || [];
                     var lines = [];
                     if (check.VersionName) {
-                        lines.push('<div>Versión <strong>' + esc(check.VersionName) + '</strong> (código ' + esc(String(check.VersionCode)) + '), ' +
-                            (check.BuildKind === 'tv' ? 'de la tele' : 'del móvil') + ' · ' + size(check.Size) + '</div>');
+                        lines.push('<div class="kostvUpdFacts">' +
+                            '<span class="kostvUpdChip is-version">Versión ' + esc(check.VersionName) + '</span>' +
+                            '<span class="kostvUpdChip">' + (check.BuildKind === 'tv' ? 'De la tele' : 'Del móvil') + '</span>' +
+                            '<span class="kostvUpdChip is-muted">Código ' + esc(String(check.VersionCode)) + '</span>' +
+                            '</div>');
                     }
-                    (check.Errors || []).forEach(function(e) { lines.push('<div class="kostvUpdError">' + esc(e) + '</div>'); });
-                    (check.Warnings || []).forEach(function(w) { lines.push('<div class="kostvUpdWarning">' + esc(w) + '</div>'); });
-                    if (check.Ok && !(check.Warnings || []).length) {
-                        lines.push('<div class="kostvUpdOk">Firma de kOS TV comprobada.</div>');
+                    errors.forEach(function(e) { lines.push(line('error', 'error', esc(e))); });
+                    warnings.forEach(function(w) { lines.push(line('warning', 'warning', esc(w))); });
+                    if (check.Ok && !warnings.length) {
+                        lines.push(line('ok', 'verified_user', 'Firma de kOS TV comprobada.'));
                     }
                     info.innerHTML = lines.join('');
+                    slotEl.setAttribute('data-state', !check.Ok || errors.length ? 'error' : (warnings.length ? 'warning' : 'ok'));
                 }
 
                 function upload(kind, file, slotEl) {
-                    var bar = slotEl.querySelector('.kostvUpdBar');
+                    var bar = slotEl.querySelector('.kostvUpdProgress');
                     var fill = slotEl.querySelector('.kostvUpdBarFill');
+                    var label = slotEl.querySelector('.kostvUpdProgressLabel');
+                    var pctEl = slotEl.querySelector('.kostvUpdProgressPct');
                     var info = slotEl.querySelector('.kostvUpdInfo');
                     var state = { file: file, id: null, check: null };
                     if (slots[kind] && slots[kind].id) {
                         call('DELETE', base + '/Uploads/' + slots[kind].id).catch(function() {});
                     }
                     slots[kind] = state;
+                    slotEl.setAttribute('data-state', 'uploading');
+                    fileLine(slotEl, file.name, file.size);
+                    info.innerHTML = '';
                     refreshPublish();
                     bar.hidden = false;
                     fill.style.width = '0%';
-                    info.textContent = 'Subiendo… 0 %';
+                    label.textContent = 'Subiendo…';
+                    pctEl.textContent = '0 %';
                     var retries = 0;
 
                     function progress(received) {
                         var pct = file.size ? Math.floor(received * 100 / file.size) : 100;
                         fill.style.width = pct + '%';
-                        info.textContent = 'Subiendo… ' + pct + ' % (' + size(received) + ' de ' + size(file.size) + ')';
+                        label.textContent = 'Subiendo… ' + size(received) + ' de ' + size(file.size);
+                        pctEl.textContent = pct + ' %';
                     }
 
                     function send(offset, chunk) {
@@ -14641,8 +15255,13 @@
                             return Promise.resolve();
                         }
                         if (offset >= file.size) {
-                            info.textContent = 'Comprobando el APK…';
+                            fill.style.width = '100%';
+                            label.textContent = 'Comprobando el APK…';
+                            pctEl.textContent = '100 %';
                             return call('POST', base + '/Uploads/' + state.id + '/Finish').then(function(check) {
+                                if (slots[kind] !== state) {
+                                    return;
+                                }
                                 state.check = check;
                                 bar.hidden = true;
                                 showCheck(slotEl, check);
@@ -14679,7 +15298,7 @@
                             if (++retries > 5) {
                                 throw new Error('Se ha cortado la conexión varias veces seguidas.');
                             }
-                            info.textContent = 'Se ha cortado la subida; reintentando…';
+                            label.textContent = 'Se ha cortado la subida; reintentando…';
                             return new Promise(function(resolve) { setTimeout(resolve, 2000 * retries); }).then(function() {
                                 return call('GET', base + '/Uploads/' + state.id);
                             }).then(function(status) {
@@ -14692,24 +15311,86 @@
                         state.id = started.UploadId;
                         return send(0, started.ChunkSize || 8 * 1024 * 1024);
                     }).catch(function(error) {
-                        bar.hidden = true;
-                        info.innerHTML = '<div class="kostvUpdError">' + esc(error.message) + '</div>';
-                        if (slots[kind] === state) {
-                            slots[kind] = null;
+                        if (slots[kind] !== state) {
+                            return;
                         }
+                        bar.hidden = true;
+                        info.innerHTML = line('error', 'error', esc(error.message));
+                        slotEl.setAttribute('data-state', 'error');
+                        slots[kind] = null;
                         refreshPublish();
                     });
+                }
+
+                function pickFile(kind, file, slotEl) {
+                    notice(tab.querySelector('#KostvUpdPublishResult'), '', '');
+                    upload(kind, file, slotEl);
                 }
 
                 ['tv', 'phone'].forEach(function(kind) {
                     var slotEl = tab.querySelector('.kostvUpdSlot[data-kind="' + kind + '"]');
                     var input = slotEl.querySelector('input[type="file"]');
+                    var drop = slotEl.querySelector('.kostvUpdDrop');
                     input.addEventListener('change', function() {
                         if (input.files && input.files[0]) {
-                            tab.querySelector('#KostvUpdPublishResult').textContent = '';
-                            upload(kind, input.files[0], slotEl);
+                            pickFile(kind, input.files[0], slotEl);
                         }
                     });
+                    // Dropping the APK on the box does the same as choosing it.
+                    ['dragenter', 'dragover'].forEach(function(type) {
+                        drop.addEventListener(type, function(e) {
+                            e.preventDefault();
+                            if (!busy) {
+                                slotEl.classList.add('is-dragover');
+                            }
+                        });
+                    });
+                    drop.addEventListener('dragleave', function() {
+                        slotEl.classList.remove('is-dragover');
+                    });
+                    drop.addEventListener('drop', function(e) {
+                        e.preventDefault();
+                        slotEl.classList.remove('is-dragover');
+                        var file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+                        if (!file || busy) {
+                            return;
+                        }
+                        if (!/\.apk$/i.test(file.name)) {
+                            if (slots[kind] && slots[kind].id) {
+                                call('DELETE', base + '/Uploads/' + slots[kind].id).catch(function() {});
+                            }
+                            slots[kind] = null;
+                            slotEl.querySelector('.kostvUpdProgress').hidden = true;
+                            slotEl.setAttribute('data-state', 'error');
+                            fileLine(slotEl, file.name, file.size);
+                            slotEl.querySelector('.kostvUpdInfo').innerHTML = line('error', 'error', 'Eso no es un APK: el archivo tiene que acabar en .apk.');
+                            refreshPublish();
+                            return;
+                        }
+                        input.value = '';
+                        pickFile(kind, file, slotEl);
+                    });
+                });
+
+                var notes = tab.querySelector('#KostvUpdNotes');
+                function countNotes() {
+                    tab.querySelector('#KostvUpdNotesCount').textContent = notes.value.length + ' / 4000';
+                }
+                notes.addEventListener('input', countNotes);
+
+                tab.querySelector('#KostvUpdReset').addEventListener('click', function() {
+                    if (busy) {
+                        return;
+                    }
+                    ['tv', 'phone'].forEach(function(kind) {
+                        if (slots[kind] && slots[kind].id) {
+                            call('DELETE', base + '/Uploads/' + slots[kind].id).catch(function() {});
+                        }
+                        slots[kind] = null;
+                    });
+                    slotEls().forEach(resetSlot);
+                    notice(tab.querySelector('#KostvUpdPublishResult'), '', '');
+                    refreshPublish();
                 });
 
                 tab.querySelector('#KostvUpdPublish').addEventListener('click', function() {
@@ -14723,28 +15404,25 @@
                     busy = true;
                     refreshPublish();
                     var out = tab.querySelector('#KostvUpdPublishResult');
-                    out.classList.remove('kostvUpdIsError');
-                    out.textContent = 'Publicando…';
+                    notice(out, 'busy', 'Publicando la versión ' + name + '…');
                     call('POST', base + '/Versions', {
                         TvUploadId: slots.tv.id,
                         PhoneUploadId: slots.phone.id,
                         Notes: tab.querySelector('#KostvUpdNotes').value
                     }).then(function(state) {
-                        out.textContent = 'Publicada la versión ' + name + '.';
                         slots.tv = null;
                         slots.phone = null;
-                        tab.querySelectorAll('.kostvUpdSlot').forEach(function(slotEl) {
-                            slotEl.querySelector('input[type="file"]').value = '';
-                            slotEl.querySelector('.kostvUpdInfo').textContent = '';
-                        });
-                        tab.querySelector('#KostvUpdNotes').value = '';
+                        slotEls().forEach(resetSlot);
+                        notes.value = '';
+                        countNotes();
                         render(state);
+                        notice(out, 'ok', 'Publicada la versión ' + name + '.');
                     }, function(error) {
-                        out.textContent = error.message;
-                        out.classList.add('kostvUpdIsError');
+                        notice(out, 'error', error.message);
                     }).then(function() {
                         busy = false;
-                        refreshPublish();
+                        // Keeps the message: published, or why it couldn't be.
+                        refreshPublish(true);
                     });
                 });
 
