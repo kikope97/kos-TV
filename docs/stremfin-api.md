@@ -1,6 +1,6 @@
 # API de Stremfin para la app de Jellyfin de casa
 
-> Versión de la API: **v1** · Stremfin 1.98.1 · documento generado el 21/11/2026
+> Versión de la API: **v1** · Stremfin 1.101.0 · documento generado el 2026-11-22
 >
 > Dirección base: **`https://stremfin.ejemplo.com/api/v1`**
 
@@ -197,8 +197,8 @@ Los de validación añaden `fields` con el detalle de cada campo:
 
 - **300 llamadas por minuto** por usuario de Jellyfin. Pasado eso, `429 too_many_requests` con `Retry-After` (segundos).
 - **120 búsquedas por minuto** (`/search`, `/discover`, `/people/{id}`, `/music/search`, `/music/songs`, `/music/artists`), dentro de las 300, con su propia cuenta: buscar mientras se escribe no gasta las demás.
-- **60 por minuto** de las que más cuestan (`/series/{id}`, `/movies/{id}/availability`, `/upcoming`, `/music/artists/{id}`, `/music/artists/releases`, `/music/albums/{id}`, `/music/songs/{id}`, `/music/charts/{id}`), también dentro de las 300 y con su propia cuenta.
-- **10 recomendaciones por minuto** (`/music/recommendations`, desde 1.91.0, y `/music/radio`, desde 1.93.0, que comparten la cuenta), con su propia cuenta: cada lista nueva de artistas cuesta muchas consultas a Deezer. La respuesta se guarda una hora: pídela al abrir la pantalla, no en bucle.
+- **60 por minuto** de las que más cuestan (`/series/{id}`, `/movies/{id}/availability`, `/upcoming`, `/music/artists/{id}`, `/music/artists/releases`, `/music/albums/{id}`, `/music/songs/{id}`, `/music/charts/{id}`, `POST /music/songs/match` desde 1.100.0), también dentro de las 300 y con su propia cuenta.
+- **10 recomendaciones por minuto** (`/music/recommendations`, desde 1.91.0, `/music/radio`, desde 1.93.0, y `/music/songs/{id}/radio`, desde 1.101.0, que comparten la cuenta), con su propia cuenta: cada lista nueva de artistas cuesta muchas consultas a Deezer. La respuesta se guarda una hora: pídela al abrir la pantalla, no en bucle.
 - **30 canciones por minuto** para reproducir mientras llega (`GET /music/songs/{id}/listen`, desde 1.94.0) y **60 por minuto** para adelantar (`POST /music/songs/{id}/prefetch`, desde 1.95.0), cada una con su propia cuenta. La dirección del audio ([8.36](#836-get-musiclisten)) no cuenta aquí: tiene su propio límite por dirección IP (240 por minuto), de sobra para saltar adelante y atrás. Además, el servidor tiene sus propios topes para no cansar a YouTube ([8.38](#838-escuchar-mientras-llega-cómo-funciona)): no son errores, solo hacen esperar a lo adelantado.
 - **30 por minuto** para pedir, retirar y avisar de problemas (`POST /requests`, `DELETE /requests/{id}`, `POST /problems`), con su propia cuenta.
 - Los límites son **por minuto**: no se acumulan. Si llegas a uno, en menos de un minuto (lo dice `Retry-After`) vuelves a tener todo.
@@ -445,7 +445,7 @@ Lo devuelven `/music/search`, `/music/new`, `/music/artists/{id}`, `/music/album
 
 ### 7.7 Canción
 
-Desde 1.84.0. Lo devuelven `/music/search` (`songs`), `/music/songs`, `/music/songs/{id}`, `top_songs` de un artista, `songs` de `/music/recommendations` y (desde 1.93.0, con `album` como Álbum entero) `songs` de `/music/radio`.
+Desde 1.84.0. Lo devuelven `/music/search` (`songs`), `/music/songs`, `/music/songs/{id}`, `top_songs` de un artista, `songs` de `/music/recommendations`, (desde 1.93.0, con `album` como Álbum entero) `songs` de `/music/radio` (desde 1.100.0) `songs` de `POST /music/songs/match` y (desde 1.101.0, con `album` como Álbum entero) `seed` y `songs` de `/music/songs/{id}/radio`.
 
 ```json
 {
@@ -505,6 +505,8 @@ Todas empiezan por `https://stremfin.ejemplo.com/api/v1` y llevan el token. Las 
 | GET 🔒 | `/music/radio` | «Descubrimiento semanal»: canciones de la radio de los artistas que escuchas |
 | GET 🔒 | `/music/songs/{deezer_id}/listen` | «Escuchar mientras llega»: reproducir ya una canción que no está en Jellyfin (la dirección del audio para el reproductor) |
 | POST 🔒 | `/music/songs/{deezer_id}/prefetch` | «Quizás la escuche»: que el servidor la vaya descargando por si acaso |
+| GET 🔒 | `/music/songs/{deezer_id}/radio` | Radio de una canción: canciones parecidas a esa canción (no a su artista) |
+| POST 🔒 | `/music/songs/match` | Casar canciones de otras fuentes (título y artista, o ISRC) con su canción de Deezer, hasta 50 a la vez |
 | GET | `/music/listen?k=…` | La dirección del audio: el archivo, sin token (la clave es el permiso) |
 | GET 🔒 | `/music/artists` | Buscar artistas |
 | GET 🔒 | `/music/artists/{deezer_id}` | Un artista: sus discos, sus canciones más escuchadas y artistas parecidos |
@@ -554,7 +556,7 @@ Authorization: Bearer <token>
     "music": true,
     "platforms": ["netflix", "disney", "prime"]
   },
-  "server": { "name": "Stremfin", "version": "1.98.1", "api_version": 1 }
+  "server": { "name": "Stremfin", "version": "1.101.0", "api_version": 1 }
 }
 ```
 
@@ -1648,8 +1650,8 @@ Pon un tiempo de espera de lectura de al menos **60 segundos** en esta llamada (
 
 | Error | Cuándo | Qué hacer |
 |---|---|---|
-| `404 not_found` | La canción no existe en Deezer, ningún vídeo es ella (no se vuelve a buscar en un día) o el administrador lo ha apagado en *Ajustes → Música* | Quitar el botón de escuchar de esa canción |
-| `503 source_unavailable` | Deezer o YouTube no responden, o la descarga ha fallado (se reintenta pasado un día; antes, 8.37 dice `unavailable`) | «Ahora no se puede escuchar»; probar más tarde |
+| `404 not_found` | La canción no existe en Deezer, ni el servicio de descarga ni YouTube la tienen ahora (en YouTube no se vuelve a buscar en un día; el servicio se prueba cada vez) o el administrador lo ha apagado en *Ajustes → Música* | Quitar el botón de escuchar de esa canción |
+| `503 source_unavailable` | Deezer o YouTube no responden, o la descarga ha fallado también tras un segundo intento (desde 1.98.2; 8.37 dice `unavailable` durante una hora, luego se vuelve a intentar) | «Ahora no se puede escuchar»; probar más tarde |
 | `429 too_many_requests` | Más de 30 por minuto | Respetar `Retry-After` |
 
 ### 8.36 `GET /music/listen`
@@ -1674,7 +1676,7 @@ Desde 1.95.0. **«Quizás la escuche»**: la app cree que una canción que no es
 
 | Campo | Valores |
 |---|---|
-| `state` | `ready`: ya está guardada (8.35 responderá al momento). `downloading`: se está descargando ahora. `queued`: en la cola, esperando turno. `in_jellyfin`: ya está en Jellyfin (no se descarga; ponla desde Jellyfin). `unavailable`: no se puede (ningún vídeo es ella, o falló hace menos de un día) |
+| `state` | `ready`: ya está guardada (8.35 responderá al momento). `downloading`: se está descargando ahora. `queued`: en la cola, esperando turno. `in_jellyfin`: ya está en Jellyfin (no se descarga; ponla desde Jellyfin). `unavailable`: no se puede ahora (no la encontró ni el servicio de descarga ni YouTube, o falló; desde 1.98.2 se vuelve a intentar pasada una hora, antes un día) |
 | `paused` | Solo con `queued`: por qué la cola no avanza ahora. `null` (avanza), `youtube` (YouTube ha pedido esperar), `hour_cap` o `day_cap` (se ha llegado al tope de adelantadas por hora o por día de *Ajustes → Música*). Pausada o no, **8.35 sigue funcionando** |
 | `paused_until` | Con `paused: "youtube"`, hasta cuándo (ISO 8601); si no, `null` |
 
@@ -1721,6 +1723,8 @@ En cuanto la canción entra en Jellyfin (porque llegó su álbum), se borra de a
 | **Listas de éxitos** | `items[]` de las listas de canciones de `/music/charts/{id}` ([8.29](#829-get-musicchartsid)); `deezer_id` puede ser `null` si Deezer no tiene esa canción igual |
 | Para ti | `songs` de `/music/recommendations` ([8.33](#833-get-musicrecommendations)) |
 | Descubrimiento semanal | `songs` de `/music/radio` ([8.34](#834-get-musicradio)) |
+| Radio de una canción | `songs` de `/music/songs/{id}/radio` ([8.40](#840-get-musicsongsdeezer_idradio)) |
+| Canciones de otras fuentes casadas con Deezer | `songs` de `POST /music/songs/match` ([8.39](#839-post-musicsongsmatch)) |
 
 Regla única para la app: **`in_jellyfin: true` → desde Jellyfin con `jellyfin_id`; si no, y `deezer_id` no es `null` → «Escuchar mientras llega» con `deezer_id`; si `deezer_id` es `null` → no se puede escuchar (solo pedir el álbum)**. Con `listen_ready: true`, sonará al momento; si no, adelántala con 8.37 cuando sea probable que suene.
 
@@ -1734,6 +1738,110 @@ Regla única para la app: **`in_jellyfin: true` → desde Jellyfin con `jellyfin
 - **Lista de éxitos**: cada canción trae su `deezer_id` (o `null`). Al reproducir la lista en orden o aleatorio, igual que una cola: 8.35 para la que suena y 8.37 para la siguiente; las de `deezer_id: null`, sáltalas.
 - **Llegó el álbum mientras se escuchaba**: la siguiente vez, 8.35/8.37 dicen `in_jellyfin`; cambia a Jellyfin.
 - **Dirección caducada** (más de 12 horas, por ejemplo una cola guardada de ayer): `404` en 8.36 → `GET …/listen` otra vez.
+
+### 8.39 `POST /music/songs/match`
+
+Desde 1.100.0. **Casar canciones**: para canciones que la app saca de otro sitio (por ejemplo, una radio que monta ella con otras fuentes), dice qué canción de Deezer es cada una, con todo lo de la Canción (7.7): si está en casa (`in_jellyfin`, `jellyfin_id`), si es explícita, su álbum con portada, su duración y si se puede escuchar mientras llega. Hasta 50 canciones por llamada, en vez de buscar una a una.
+
+```http
+POST /api/v1/music/songs/match
+Content-Type: application/json
+
+{
+  "songs": [
+    { "title": "Harder, Better, Faster, Stronger", "artist": "Daft Punk", "isrc": "GBDUW0000059" },
+    { "title": "Despechá", "artist": "ROSALÍA" },
+    { "title": "Una que no existe", "artist": "Nadie" }
+  ]
+}
+```
+
+| Campo | Obligatorio | Notas |
+|---|---|---|
+| `songs` | sí | Lista de 1 a 50 canciones. Más → `422 invalid` |
+| `songs[].title` | sí | El título como lo tengas (hasta 300 caracteres). «(feat. …)» y lo que nombra la edición no molestan |
+| `songs[].artist` | sí | El artista o los artistas («Bad Bunny & Jhay Cortez», «A, B», «A feat. B»): se usa el primero |
+| `songs[].isrc` | no | El ISRC, si lo sabes (con o sin guiones, mayúsculas o minúsculas). Si Deezer lo conoce, **manda el ISRC** aunque el título no coincida; si no lo conoce o no es un ISRC válido, se busca por título y artista |
+
+```json
+{
+  "songs": [
+    { "deezer_id": "3135556", "title": "Harder, Better, Faster, Stronger", "artist": "Daft Punk", "artist_deezer_id": "27", "duration": 224, "preview": "https://…/….mp3", "explicit": false,
+      "album": { "deezer_id": "302127", "title": "Discovery", "cover": "https://…/500x500.jpg" },
+      "in_jellyfin": true, "in_album": "Discovery", "jellyfin_id": "8f3c…", "album_jellyfin_id": "1a2b…", "listen_ready": false },
+    { "deezer_id": "1858491887", "title": "DESPECHÁ", "artist": "ROSALÍA", … },
+    null
+  ],
+  "failed": []
+}
+```
+
+| Campo | Notas |
+|---|---|
+| `songs` | **Mismo orden y mismo número** que lo que mandaste. Cada una es una Canción (7.7, con `album` corto: `deezer_id`, `title`, `cover`) o `null` si Deezer no tiene esa canción |
+| `failed` | Las **posiciones** (desde 0) por las que Deezer no respondió ahora mismo: en `songs` vienen `null`, pero no es que no exista. Vuelve a mandar solo esas más tarde (unos minutos). Casi siempre `[]` |
+
+- **Cómo se casa**: con ISRC, la canción de Deezer de ese ISRC. Sin él (o si Deezer no lo conoce), la canción de Deezer con **el mismo título** (sin «feat.», sin lo que nombra la edición: «- Remastered 2011», «(Radio Edit)»…, y sin mirar tildes ni mayúsculas) **y el mismo primer artista**. Si no hay una así, `null`: nunca otra canción parecida ni otra versión de otro artista. Es la misma regla que usan las listas de éxitos (`deezer_id` en [8.29](#829-get-musicchartsid)).
+- **Qué se guarda**: lo encontrado, una semana; lo que Deezer no tiene, 6 horas; lo que Deezer no respondió, nada (por eso sale en `failed`). La canción en sí (portada, `preview`…) 6 horas, porque `preview` caduca. `in_jellyfin`, `jellyfin_id` y `listen_ready` siempre están al día. Mandar la misma lista otra vez no vuelve a preguntar a Deezer.
+- **Cuánto tarda**: lo ya casado, al momento. Lo nuevo se pregunta a Deezer de 8 en 8 y como mucho 8 por segundo (Deezer limita cuántas preguntas acepta): **50 canciones nuevas, unos 7 segundos**. Pon un tiempo de espera de lectura de 30 s.
+- Si Deezer no responde para ninguna, `503 source_unavailable`. Si responde para unas y no para otras, `200` con esas en `failed`.
+- Cuenta en el límite de **60 por minuto** de las consultas que más cuestan ([6](#6-límites)). Una emisora de 100 canciones son 2 llamadas.
+- Lo que mandas solo se usa para buscar en Deezer; Stremfin no lo guarda con tu usuario ni lo escribe en sus registros.
+- No sirve para pedir: se pide un disco (el `album.deezer_id`, con [8.12](#812-get-musicalbumsdeezer_id) y [8.15](#815-post-requests)).
+
+### 8.40 `GET /music/songs/{deezer_id}/radio`
+
+Desde 1.101.0. **Radio de una canción**: canciones parecidas **a esa canción concreta**, no a su artista. Una balada y un tema de baile del mismo artista dan emisoras distintas. Para «Crear emisora» desde una canción y para la reproducción continua (∞) a partir de la que suena.
+
+| Parámetro | Obligatorio | Valores |
+|---|---|---|
+| `only` | no | `all` (**por defecto**: lo de casa también, para ponerlo desde Jellyfin), `missing` (lo que no está en Jellyfin), `available` (solo lo de casa) |
+| `limit` | no | 1–100 (por defecto 50) |
+
+```json
+{
+  "seed": { "deezer_id": "3135556", "title": "Harder, Better, Faster, Stronger", "artist": "Daft Punk", …Canción (7.7)… },
+  "only": "all",
+  "songs": [
+    {
+      "deezer_id": "…", "title": "D.A.N.C.E.", "artist": "Justice", "artist_deezer_id": "…", "duration": 242, "preview": "https://…/….mp3", "explicit": false,
+      "album": { Álbum…, "contains": "D.A.N.C.E.", "rank": null },
+      "in_jellyfin": true, "in_album": "†", "jellyfin_id": "…", "album_jellyfin_id": "…", "listen_ready": false,
+      "reason": "Se escucha junto a «Harder, Better, Faster, Stronger»",
+      "source": "together"
+    }
+  ],
+  "failed": []
+}
+```
+
+| Campo | Notas |
+|---|---|
+| `seed` | La canción de la que sale la radio (7.7, `album` corto) |
+| `songs` | Canciones (7.7) con `album` como **el Álbum entero** (7.6, con `library`, `request`, `download`, `can_request`, más `contains` y `rank: null`), igual que en [8.34](#834-get-musicradio). Nunca está la propia canción |
+| `songs[].source` | De dónde sale: `together` (lo que la gente escucha junto a esa canción), `artist_radio` (la radio de Deezer de su artista) o `related` (lo más escuchado de un artista parecido) |
+| `songs[].reason` | El texto para enseñar: «Se escucha junto a «X»», «De la radio de Y», «De Z, parecido a Y» |
+| `failed` | Fuentes que no respondieron ahora mismo: `listenbrainz` (lo que se escucha junto a ella), `deezer_radio`, `deezer_related`. La lista trae lo demás (por ejemplo, sin `listenbrainz` es casi la radio del artista). Casi siempre `[]` |
+
+**Cómo se monta** (en este orden):
+
+1. **Lo que se escucha junto a esa canción**: los datos públicos de ListenBrainz (canciones que la gente pone en las mismas sesiones), con sus dos conjuntos: el reciente y MLHD, que conoce mucho mejor la música en español. Va primero lo que sale alto en los dos.
+2. **Filtro de estilo**: de eso, solo las canciones del propio artista o de sus artistas relacionados en Deezer (sin él se cuelan éxitos de la misma época de otros estilos). Cada una se casa con su canción de Deezer como en [8.39](#839-post-musicsongsmatch).
+3. **Si quedan pocas** (urbano, infantil, artistas pequeños): la radio de Deezer de su artista y, después, lo más escuchado de sus artistas relacionados.
+4. **Reglas de la lista**:
+   - sin otras versiones (en directo, remix, acústica, karaoke, instrumental, *sped up*…), salvo que la canción de partida lo sea;
+   - sin villancicos fuera de diciembre;
+   - cada canción una vez;
+   - **nunca dos seguidas del mismo artista** y **como mucho 2 de un artista cada 25**.
+
+   Por eso la lista puede salir **más corta** que `limit` (un artista sin parecidos en Deezer da pocas): cuando se acabe, pide la radio de otra canción (por ejemplo, la última que sonó).
+
+- **Igual en el día**: la radio de cada canción se guarda un día (si alguna fuente falló, 10 minutos). Para «otra» emisora el mismo día, siembra con otra canción de la lista. `in_jellyfin`, `jellyfin_id`, `listen_ready` y lo del álbum siempre están al día.
+- **Cuánto tarda**: la primera vez de una canción, unos segundos (de 5 a 15: hay que casar con Deezer lo que sale de ListenBrainz); después, al momento. Pon un tiempo de espera de lectura de 30 s.
+- `404 not_found` si Deezer no tiene esa canción. `503 source_unavailable` si Deezer no responde para la propia canción, o si no sale nada porque no respondió ninguna fuente.
+- Cuenta en el límite de **10 por minuto** de las recomendaciones, con `/music/recommendations` y `/music/radio` ([6](#6-límites)).
+- A ListenBrainz solo le llega el artista y el título de la canción de partida (y su identificador de MusicBrainz): nada de quién escucha. Stremfin no guarda nada por persona.
+- `explicit` viene en cada canción: el filtro de cada persona lo hace la app.
 
 ---
 
@@ -1909,6 +2017,8 @@ Las fases salen de lo que el servicio dice de su cola (se mira como mucho cada p
 - **«Para ti»** (1.91.0): saca de Jellyfin los artistas que más escucha esa persona (por ejemplo, `/Users/{userId}/Items?IncludeItemTypes=Audio&SortBy=PlayCount&SortOrder=Descending`, o sus artistas favoritos) y llama a `GET /music/recommendations?artists=A,B,C` con hasta 10 nombres. Cada tarjeta enseña `reason` debajo («Porque escuchas a Bad Bunny»). Con `only=missing` (por defecto) solo sale lo que no tiene. Guarda la respuesta un rato: el servidor la guarda una hora.
 - **«Escuchar mientras llega»** (1.94.0; adelantar desde 1.95.0): en cualquier canción con `in_jellyfin: false` (búsqueda, listas, radio, «Para ti», ficha de álbum), un botón «Escuchar» que llama a `GET /music/songs/{deezer_id}/listen` y da `url` (con el origen del servidor delante) al reproductor, como cualquier otra canción de la cola. Para que suene al momento, adelanta con `POST /music/songs/{deezer_id}/prefetch` la que probablemente sonará (la ficha en la que el usuario se para, la siguiente de la cola). Junto a «Escuchar», «Pedir el álbum»: lo que se escucha aquí no se queda en Jellyfin. Con `in_jellyfin: true`, reproduce desde Jellyfin con `jellyfin_id`. Si responde `404`, quita el botón de esa canción; si es `503`, «Ahora no se puede escuchar». Todos los casos, en [8.38](#838-escuchar-mientras-llega-cómo-funciona).
 - **«Descubrimiento semanal»** (1.93.0): con los mismos artistas que «Para ti», `GET /music/radio?artists=A,B,C` (o `artist_ids`) da canciones de su radio de Deezer, mezcladas y con `reason` debajo de cada una. Una fila de canciones con botón de escucha (`preview`, o «Reproducir» con `jellyfin_id`) y, al pulsar, la ficha de su álbum (`album.deezer_id`) con «Pedir el álbum» si `album.can_request`. Para que sea «de la semana», pídela una vez a la semana (por ejemplo el lunes) y guárdala en la app: el mismo día el servidor da la misma; otro día, otra. Con `exclude_seed_artists=true`, solo artistas nuevos para esa persona.
+- **«Crear emisora» y reproducción continua (∞)** (1.101.0): desde una canción, `GET /music/songs/{deezer_id}/radio` da la cola (por defecto con lo de casa: `in_jellyfin: true` → desde Jellyfin con `jellyfin_id`; si no → «Escuchar mientras llega» con `deezer_id`, adelantando la siguiente con 8.37). Enseña `reason` debajo de cada una y filtra `explicit` según la persona. Si se acaba, pide la radio de la última que sonó.
+- **Radio o listas propias** (1.100.0): si la app monta su propia lista con otras fuentes (lo que se escucha junto a una canción, etc.), manda las canciones de 50 en 50 a `POST /music/songs/match` y quédate con las que no son `null`: ya traen `in_jellyfin`/`jellyfin_id` para reproducir desde casa, `explicit` para el filtro de cada persona y `deezer_id` para escucharlas mientras llegan. Si viene algo en `failed`, reintenta esas posiciones unos minutos después (o sigue sin ellas).
 - **«Novedades de tus artistas»** (1.91.0): con los mismos artistas pasados a ids de Deezer (`seeds[].deezer_id` de la llamada anterior, o `GET /music/artists?q=…`), `GET /music/artists/releases?ids=…` da lo que acaban de sacar y lo anunciado (`upcoming`), sin depender de los artistas que sigue la casa.
 - **Listas de otro país** (1.91.0): `GET /music/charts?country=MX` y `GET /music/charts/{id}?country=MX`; por defecto, España. Un selector de país en la pantalla de listas, con `ES` elegido.
 - Cada álbum: `library.in_jellyfin` → «En Jellyfin»; `library.song_in_album` → «Ya la tienes en {álbum}»; `download` → su `label` con barra si hay `percent`; `request` → «Pedido» (o «Pedido por ti»).
@@ -2026,6 +2136,14 @@ interface StremfinApi {
     @GET("music/songs/{id}/listen") suspend fun musicListen(@Path("id") deezerId: String): ListenLink
     // 1.95.0: «quizás la escuche» (adelantar). Responde al momento; idempotente.
     @POST("music/songs/{id}/prefetch") suspend fun musicPrefetch(@Path("id") deezerId: String): PrefetchState
+    // 1.101.0: radio de una canción (no de su artista). Timeout de lectura ≥ 30 s la primera vez.
+    @GET("music/songs/{id}/radio") suspend fun musicSongRadio(
+        @Path("id") deezerId: String,
+        @Query("only") only: String? = null,              // por defecto "all"
+        @Query("limit") limit: Int? = null,               // 1–100, por defecto 50
+    ): SongRadio
+    // 1.100.0: casar hasta 50 canciones de otras fuentes. Timeout de lectura ≥ 30 s (lo nuevo, unos 7 s por 50).
+    @POST("music/songs/match") suspend fun musicMatch(@Body body: MatchBody): MatchResult
     @GET("music/artists/{id}") suspend fun musicArtist(@Path("id") deezerId: String, @Query("kind") kind: String? = null, @Query("only") only: String? = null): ArtistPage
     @GET("music/albums/{id}") suspend fun musicAlbum(@Path("id") deezerId: String): AlbumPage
     @GET("requests") suspend fun requests(
@@ -2176,6 +2294,35 @@ interface StremfinApi {
     val songs: List<RadioSong>,
     val skipped: List<String> = emptyList(),
     val failed: List<String> = emptyList(),
+)
+@Serializable data class SongRadio(
+    val seed: MusicSong,
+    val only: String,
+    val songs: List<SongRadioSong>,
+    val failed: List<String> = emptyList(),
+)
+@Serializable data class SongRadioSong(           // RadioSong sin `because`, con `source`
+    @SerialName("deezer_id") val deezerId: String,
+    val title: String,
+    val artist: String,
+    @SerialName("artist_deezer_id") val artistDeezerId: String? = null,
+    val duration: Int? = null,
+    val preview: String? = null,
+    val explicit: Boolean = false,
+    val album: Album? = null,
+    @SerialName("in_jellyfin") val inJellyfin: Boolean = false,
+    @SerialName("in_album") val inAlbum: String? = null,
+    @SerialName("jellyfin_id") val jellyfinId: String? = null,
+    @SerialName("album_jellyfin_id") val albumJellyfinId: String? = null,
+    @SerialName("listen_ready") val listenReady: Boolean = false,
+    val reason: String,
+    val source: String,                              // together | artist_radio | related
+)
+@Serializable data class MatchBody(val songs: List<MatchSong>)
+@Serializable data class MatchSong(val title: String, val artist: String, val isrc: String? = null)
+@Serializable data class MatchResult(
+    val songs: List<MusicSong?>,               // mismo orden que lo mandado; null = Deezer no la tiene
+    val failed: List<Int> = emptyList(),       // posiciones sin respuesta de Deezer: reintentar luego
 )
 @Serializable data class ListenLink(
     @SerialName("deezer_id") val deezerId: String,
@@ -2583,6 +2730,9 @@ curl -s -H "$AUTH" "http://localhost:8000/api/v1/music/charts?country=MX"
 curl -s -H "$AUTH" http://localhost:8000/api/v1/music/songs/3135556/listen   # y luego: curl -s -o cancion.m4a "http://localhost:8000<url>"
 curl -s -X POST -H "$AUTH" http://localhost:8000/api/v1/music/songs/3135556/prefetch
 curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+     -d '{"songs":[{"title":"x","artist":"Los Picos","isrc":"ESFAK0070102"},{"title":"Nada","artist":"Nadie"}]}' http://localhost:8000/api/v1/music/songs/match
+curl -s -H "$AUTH" "http://localhost:8000/api/v1/music/songs/70101/radio?only=all"
+curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
      -d '{"type":"movie","tmdb_id":920}' http://localhost:8000/api/v1/requests
 
 # Descubrir, Próximamente, avisos y problemas
@@ -2600,7 +2750,7 @@ curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
 curl -i -X OPTIONS http://localhost:8000/api/v1/requests -H "Origin: https://tv.ejemplo.com" -H "Access-Control-Request-Method: POST"
 ```
 
-El servidor falso no tiene las listas de Apple: `/music/charts/{id}` las lee de Apple de verdad (hace falta Internet; sin ella, `503 source_unavailable`). Tampoco tiene canciones de Deezer: `/music/songs` y `songs` vienen vacíos, y `top_songs` y `related` de un artista también (por eso `/music/recommendations` viene vacío: no hay artistas parecidos; y `/music/radio` da `503 source_unavailable` o viene vacío: no tiene radios). Tampoco tiene YouTube: `/music/songs/{id}/listen` da `404` (Deezer falso sin esa canción) o `503 source_unavailable` (sin yt-dlp en el equipo), y `/prefetch` dice `queued` pero nunca avanza si no corre `php artisan music:listen-worker`. Tampoco tiene todo lo de TMDB (parecidos, géneros, explorar, tráiler o calificaciones pueden venir vacíos o dar `503 source_unavailable`): para eso, prueba contra un Stremfin real.
+El servidor falso no tiene las listas de Apple: `/music/charts/{id}` las lee de Apple de verdad (hace falta Internet; sin ella, `503 source_unavailable`). Tampoco tiene canciones de Deezer: `/music/songs` y `songs` vienen vacíos (`/music/songs/{id}/radio` da una sola canción: solo tiene un artista y no se ponen dos seguidas del mismo; `POST /music/songs/match` solo casa por ISRC: `ESFAK` + el id de la canción en 7 cifras, como `ESFAK0070102`), y `top_songs` y `related` de un artista también (por eso `/music/recommendations` viene vacío: no hay artistas parecidos; y `/music/radio` da `503 source_unavailable` o viene vacío: no tiene radios). Tampoco tiene YouTube: `/music/songs/{id}/listen` da `404` (Deezer falso sin esa canción) o `503 source_unavailable` (sin yt-dlp en el equipo), y `/prefetch` dice `queued` pero nunca avanza si no corre `php artisan music:listen-worker`. Tampoco tiene todo lo de TMDB (parecidos, géneros, explorar, tráiler o calificaciones pueden venir vacíos o dar `503 source_unavailable`): para eso, prueba contra un Stremfin real.
 
 ---
 
@@ -2654,3 +2804,10 @@ El servidor falso no tiene las listas de Apple: `/music/charts/{id}` las lee de 
 | 1.97.0 | v1 | Todo es **añadido**: ningún campo cambia ni se quita. **Nuevo**: `deezer_id` en cada canción de la ficha de un álbum (`/music/albums/{id}`, `songs[]`) y en cada canción de las listas de éxitos (`/music/charts/{id}`, `items[]`, `null` si Deezer no la tiene igual), para escucharlas mientras llegan; `listen_ready` en todas las canciones (7.7, ficha de álbum, listas): su audio ya está guardado y suena al momento. En [8.38](#838-escuchar-mientras-llega-cómo-funciona), de dónde sale cada canción que se puede escuchar y la regla única para la app. **Cambia**: la primera vez que se pide una lista de canciones tarda unos segundos más (busca cada canción en Deezer; se guarda una semana). |
 | 1.98.0 | v1 | **Sin cambios en campos ni direcciones.** **Cambia** (solo valores y tiempos): «Escuchar mientras llega» saca la canción primero del servicio de descarga de la casa (la misma de Deezer, MP3 128) y, si está ocupado o no la trae en 20 s, de YouTube; por eso `type` de `/music/songs/{id}/listen` suele ser `audio/mpeg` (antes `audio/mp4`), y una canción nueva suele sonar en unos pocos segundos en vez de 8–12. |
 | 1.98.1 | v1 | **Sin cambios en campos ni direcciones.** **Nuevo**: `Content-Length`, `Content-Range` y `Accept-Ranges` en `Access-Control-Expose-Headers` (toda la API, para las webs de *Acceso desde fuera*). **Cambia**: `type` de `/music/songs/{id}/listen` es solo `audio/mpeg` o `audio/mp4` (lo que llegaba en WebM se convierte a AAC); `/music/listen` responde `Cache-Control: max-age=3600, private` (antes, por un fallo, `public`). Confirmado y documentado en [8.36](#836-get-musiclisten): CORS en todas sus respuestas, `HEAD`, rangos, varias peticiones a la vez y que nunca se sirve un archivo a medias. |
+| 1.98.2 | v1 | **Sin cambios en campos ni direcciones.** Tras una revisión a fondo de «Escuchar mientras llega»: una canción que no se pudo bajar se vuelve a intentar pasada **una hora** (antes un día) y la descarga de YouTube se reintenta una vez sola; volver a escuchar una canción que el servicio de descarga ya trajo antes vuelve a salir de él (antes iba a YouTube tras 20 s); si el servicio no la tiene, se pasa a YouTube enseguida. |
+| 1.99.0 | v1 | **Sin cambios para la app.** Solo en el panel: *Música → Escuchas* tiene «Probar» (buscar una canción y medir de dónde sale y cuánto tarda cada paso). Lo que se prueba ahí no cuenta como escucha. |
+| 1.99.1 | v1 | **Sin cambios en campos ni direcciones.** Una canción nueva que sale del servicio de descarga de la casa suele estar lista algo antes (menos llamadas al servicio y consultas más frecuentes al principio). |
+| 1.99.2 | v1 | **Sin cambios en campos ni direcciones.** Si una canción se borra en el panel justo mientras la app la pide, `/music/songs/{id}/listen` responde `503 source_unavailable` (antes podía dar un error 500). |
+| 1.99.3 | v1 | **Sin cambios para la app.** Con Dual como primer idioma del perfil, una descarga automática (también las peticiones de casa) pasa sola a un enlace en Castellano si fallan los Dual, en vez de quedarse en *Requiere atención*. |
+| 1.100.0 | v1 | Todo es **añadido**: nada cambia de nombre, de tipo ni de valores. **Nuevo**: `POST /music/songs/match` ([8.39](#839-post-musicsongsmatch)): hasta 50 canciones `{title, artist, isrc?}` → la Canción de Deezer de cada una (7.7) o `null`, en el mismo orden, y `failed` (posiciones sin respuesta de Deezer). Cuenta en el límite de 60 por minuto. |
+| 1.101.0 | v1 | Todo es **añadido**: nada cambia de nombre, de tipo ni de valores. **Nuevo**: `GET /music/songs/{id}/radio` ([8.40](#840-get-musicsongsdeezer_idradio)): radio de una canción (lo que se escucha junto a ella en ListenBrainz, filtrado por estilo con los artistas relacionados de Deezer y completado con la radio del artista y lo más escuchado de sus parecidos; sin versiones, sin villancicos fuera de diciembre, nunca dos seguidas del mismo artista, como mucho 2 por artista cada 25). Misma forma que `/music/radio` con `seed` (canción), `source` y sin `because`; `only` por defecto `all`. Comparte el límite de 10 por minuto. |
