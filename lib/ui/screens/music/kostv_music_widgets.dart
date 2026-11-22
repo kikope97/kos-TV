@@ -1137,3 +1137,182 @@ class KostvDailyMixArt extends StatelessWidget {
     );
   }
 }
+
+/// Kos TV: the cover of an artist's radio («Radios de tus artistas»): the
+/// artist's picture in a circle, with rings of the brand's gradient around
+/// it like a station's waves, on the page's dark tinted with the colour of
+/// a mix, and «RADIO» and the name at the foot in the brand's letters.
+class KostvArtistRadioArt extends StatelessWidget {
+  const KostvArtistRadioArt({
+    super.key,
+    required this.name,
+    required this.index,
+    required this.size,
+    this.picture,
+  });
+
+  final String name;
+  final int index;
+  final double size;
+  final String? picture;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final tint = kostvMixColors(index).last;
+    final d = size * 0.50;
+    final shadow = [
+      Shadow(color: Colors.black.withValues(alpha: 0.45), blurRadius: 12),
+    ];
+    final empty = ColoredBox(
+      color: Colors.white.withValues(alpha: 0.08),
+      child: Icon(
+        Icons.person_rounded,
+        size: d * 0.6,
+        color: Colors.white.withValues(alpha: 0.35),
+      ),
+    );
+    return MediaQuery.withNoTextScaling(
+      child: ClipRRect(
+        borderRadius: AppRadius.circular(KostvMusicTokens.radiusCover),
+        child: SizedBox.square(
+          dimension: size,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: const Alignment(0, -0.35),
+                      radius: 0.9,
+                      colors: [
+                        Color.lerp(tint, Colors.white, 0.12)!,
+                        Color.lerp(tint, KostvMusicTokens.background, 0.72)!,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _KostvRadioWaves(
+                    center: Offset(size / 2, size * 0.38),
+                    radius: d / 2,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: (size - d) / 2,
+                top: size * 0.38 - d / 2,
+                child: Container(
+                  width: d,
+                  height: d,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        blurRadius: d * 0.2,
+                        offset: Offset(0, d * 0.05),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: picture == null || picture!.isEmpty
+                        ? empty
+                        : BoundedNetworkImage(
+                            imageUrl: picture!,
+                            fit: BoxFit.cover,
+                            maxWidth: 400,
+                            errorBuilder: (context, _, _) => empty,
+                          ),
+                  ),
+                ),
+              ),
+              Positioned(
+                left: size * 0.09,
+                // Kos TV: clear of the card's ▶, always shown on the phone.
+                right: size * 0.27,
+                bottom: size * 0.09,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        KostvGradientText(
+                          child: Icon(
+                            Icons.sensors_rounded,
+                            size: size * 0.085,
+                            color: Colors.white,
+                          ),
+                        ),
+                        SizedBox(width: size * 0.025),
+                        Flexible(
+                          child: Text(
+                            l10n.kostvMusicRadioKicker.toUpperCase(),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: KostvMusicType.titleFamily,
+                              fontWeight: FontWeight.w300,
+                              color: Colors.white.withValues(alpha: 0.9),
+                              fontSize: size * 0.065,
+                              letterSpacing: size * 0.012,
+                              shadows: shadow,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: KostvMusicType.title(
+                        size * 0.12,
+                        color: Colors.white,
+                      ).copyWith(shadows: shadow),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Kos TV: the rings of an artist's radio cover, in the brand's gradient,
+/// fainter as they go out.
+class _KostvRadioWaves extends CustomPainter {
+  const _KostvRadioWaves({required this.center, required this.radius});
+
+  final Offset center;
+  final double radius;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromCircle(center: center, radius: radius * 2.2);
+    for (final (i, alpha) in const [0.85, 0.45, 0.2].indexed) {
+      final r = radius + radius * 0.16 + i * radius * 0.26;
+      final paint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = (radius * 0.05).clamp(1.5, 4)
+        ..shader = KostvMusicTokens.gradient.createShader(rect)
+        ..color = Colors.white.withValues(alpha: alpha);
+      canvas.saveLayer(
+        rect,
+        Paint()..color = Colors.white.withValues(alpha: alpha),
+      );
+      canvas.drawCircle(center, r, paint);
+      canvas.restore();
+    }
+  }
+
+  @override
+  bool shouldRepaint(_KostvRadioWaves old) =>
+      old.center != center || old.radius != radius;
+}

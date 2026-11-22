@@ -164,6 +164,30 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   StremfinChartPage? _mexico;
   StremfinChartPage? _unitedStates;
 
+  /// Kos TV: «Listas de éxitos»: the list picked (null: the one it opens
+  /// with, [kostvDefaultChart]) and the remote's node of each pill.
+  KostvChartList? _chartPick;
+  final _chartNodes = {
+    for (final list in KostvChartList.values)
+      list: FocusNode(debugLabel: 'kostvMusicChart-${list.name}'),
+  };
+
+  /// Kos TV: the lists of «Listas de éxitos» that are only asked of the
+  /// service when picked (what was kept of them on the device shows at
+  /// once): the opening asks for no more than before.
+  static const _lazyCharts = {
+    KostvChartList.mexico: 'mexico',
+    KostvChartList.usa: 'usa',
+    KostvChartList.albums: 'albums',
+  };
+  final _chartsAsked = <String>{};
+
+  /// Kos TV: the service's parts whose last asking failed.
+  final _partFailed = <String>{};
+
+  /// Kos TV: the person's taste was read (so a new listener is known).
+  bool _tasteKnown = false;
+
   /// «Para ti», from the requests service, and what is new of the person's
   /// artists.
   StremfinRecommendations? _forYou;
@@ -395,6 +419,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     for (final node in [
       ..._tabNodes.values,
       ..._sortNodes.values,
+      ..._chartNodes.values,
       _topPlay,
       _firstSong,
     ]) {
@@ -473,7 +498,10 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       part(() async => _favorites = await _favoriteSongs()),
       part(_loadPlaylists),
       part(() async => _newAtHome = await _music.newAlbums()),
-      part(() async => _taste = await _tasteLoad),
+      part(() async {
+        _taste = await _tasteLoad;
+        _tasteKnown = true;
+      }),
       _loadPluginRows(),
     ]);
     final access = await _allowedStremfin();
@@ -701,9 +729,11 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   }
 
   /// The service's parts, now or as it answered last time ([remembered]).
+  /// Kos TV: [only] those named (a list of «Listas de éxitos» picked).
   Future<void> _loadStremfin(
     StremfinService stremfin, {
     required bool remembered,
+    Set<String>? only,
   }) async {
     Future<void> part(
       String name,
@@ -715,6 +745,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           if (_fresh.contains(name) || _stremfinGone) return;
         } else {
           _fresh.add(name);
+          _partFailed.remove(name);
         }
         if (!mounted) return;
         apply();
@@ -722,76 +753,96 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       } catch (e) {
         if (!remembered) {
           _failed = true;
+          _partFailed.add(name);
           debugPrint('[Music] $name failed: $e');
+          _refresh();
         }
       }
+    }
+
+    // Kos TV: a part asked now: all of them (but the lists of «Listas de
+    // éxitos» not picked yet, of which only what was kept is read), or
+    // only those of [only].
+    bool wants(String name) {
+      if (only != null) return only.contains(name);
+      if (remembered || !_lazyCharts.containsValue(name)) return true;
+      return _chartsAsked.contains(name);
     }
 
     Future<StremfinChartPage> chart(String id, {String? country}) =>
         stremfin.musicChart(id, country: country, remembered: remembered);
 
     await Future.wait([
-      part('top', () async {
-        final page = await chart('top-songs');
-        return () => _topSongs = page;
-      }),
-      part('latino', () async {
-        final page = await chart('latino-songs');
-        return () => _latino = page;
-      }),
-      part('albums', () async {
-        final page = await chart('top-albums');
-        return () => _topAlbums = page;
-      }),
-      part('requested', () async {
-        final found = await stremfin.musicRequested(remembered: remembered);
-        return () => _requested = found;
-      }),
-      part('mexico', () async {
-        final page = await chart('top-songs', country: 'MX');
-        return () => _mexico = page;
-      }),
-      part('usa', () async {
-        final page = await chart('top-songs', country: 'US');
-        return () => _unitedStates = page;
-      }),
-      part('releases', () async {
-        final found = await stremfin.musicReleases(remembered: remembered);
-        return () => _releases = found;
-      }),
-      part(_discoveryNote, () async {
-        if (!remembered) return _weeklyDiscovery(stremfin);
-        final found = await _keptDiscovery(stremfin);
-        if (found == null) return () {};
-        return () {
-          _discovery = found;
-          _discoveryWeek = kostvIsoWeek(DateTime.now());
-        };
-      }),
-      () async {
-        // What was asked last time, so the rows that go with the person's
-        // taste don't wait for it to be worked out again; now, the real one.
-        final who = _whoNow();
-        KostvMusicTaste? taste;
-        // Kos TV: whether the taste now is really known (it didn't fail).
-        var known = true;
-        if (remembered) {
-          taste = KostvMusicTaste.fromJson(
-            await stremfin.rememberedMusicNote('taste'),
-          );
-        } else {
-          try {
-            taste = await _tasteLoad;
-          } catch (_) {
-            taste = const KostvMusicTaste();
-            known = false;
+      if (wants('top'))
+        part('top', () async {
+          final page = await chart('top-songs');
+          return () => _topSongs = page;
+        }),
+      if (wants('latino'))
+        part('latino', () async {
+          final page = await chart('latino-songs');
+          return () => _latino = page;
+        }),
+      if (wants('albums'))
+        part('albums', () async {
+          final page = await chart('top-albums');
+          return () => _topAlbums = page;
+        }),
+      if (wants('requested'))
+        part('requested', () async {
+          final found = await stremfin.musicRequested(remembered: remembered);
+          return () => _requested = found;
+        }),
+      if (wants('mexico'))
+        part('mexico', () async {
+          final page = await chart('top-songs', country: 'MX');
+          return () => _mexico = page;
+        }),
+      if (wants('usa'))
+        part('usa', () async {
+          final page = await chart('top-songs', country: 'US');
+          return () => _unitedStates = page;
+        }),
+      if (wants('releases'))
+        part('releases', () async {
+          final found = await stremfin.musicReleases(remembered: remembered);
+          return () => _releases = found;
+        }),
+      if (wants(_discoveryNote))
+        part(_discoveryNote, () async {
+          if (!remembered) return _weeklyDiscovery(stremfin);
+          final found = await _keptDiscovery(stremfin);
+          if (found == null) return () {};
+          return () {
+            _discovery = found;
+            _discoveryWeek = kostvIsoWeek(DateTime.now());
+          };
+        }),
+      if (only == null)
+        () async {
+          // What was asked last time, so the rows that go with the person's
+          // taste don't wait for it to be worked out again; now, the real one.
+          final who = _whoNow();
+          KostvMusicTaste? taste;
+          // Kos TV: whether the taste now is really known (it didn't fail).
+          var known = true;
+          if (remembered) {
+            taste = KostvMusicTaste.fromJson(
+              await stremfin.rememberedMusicNote('taste'),
+            );
+          } else {
+            try {
+              taste = await _tasteLoad;
+            } catch (_) {
+              taste = const KostvMusicTaste();
+              known = false;
+            }
           }
-        }
-        // Kos TV: not kept for whoever the session is now, if it changed.
-        if (taste == null || !_stillFor(who)) return;
-        if (!remembered) stremfin.keepMusicNote('taste', taste.toJson());
-        await _loadForTaste(stremfin, taste, part, remembered, known: known);
-      }(),
+          // Kos TV: not kept for whoever the session is now, if it changed.
+          if (taste == null || !_stillFor(who)) return;
+          if (!remembered) stremfin.keepMusicNote('taste', taste.toJson());
+          await _loadForTaste(stremfin, taste, part, remembered, known: known);
+        }(),
     ]);
   }
 
@@ -1723,6 +1774,186 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       return _firstStop;
     }
 
+    // Kos TV: each place of «Para ti» ([kostvForYouOrder]) and how to build
+    // its sections; built in that order, so the first stop goes to the
+    // first one there is.
+    final quick = _keepListening(context);
+    final plugin = kostvMusicPluginRows(
+      mixes: _shownMixes,
+      discovery: _shownDiscovery,
+      moment: _shownMoment,
+    );
+    final forYou = _shownForYou;
+    final places = <String, List<(String, Widget?)> Function()>{
+      // «Sigue escuchando» at the top: the albums played lately with the
+      // favourites, a mix and a playlist; the albums that don't fit stay
+      // in «Escuchado hace poco», further down.
+      'quick': () => [
+        (
+          'quick',
+          _quickShelf(
+            context,
+            quick.picks,
+            firstNode('quick', quick.picks.isNotEmpty),
+          ),
+        ),
+      ],
+      // What the plugin works out from what the person listens to replaces
+      // the rows that did its job before, only when it answers. The mix of
+      // the time of day first: it is about what to put on now.
+      'moment': () => [
+        if (plugin.moment)
+          ('moment', _momentShelf(context, insets, firstNode('moment', true)))
+        else if (_momentHeld)
+          ('moment', _momentPlace(context, insets)),
+      ],
+      // The same section either way, so the page doesn't jump when the
+      // daily mixes take the place of «Tus mezclas».
+      'mixes': () => [
+        (
+          'mixes',
+          plugin.dailyMixes
+              ? _dailyMixShelf(context, insets, firstNode('mixes', true))
+              : _mixShelf(
+                  context,
+                  insets,
+                  firstNode('mixes', _taste.artists.isNotEmpty),
+                ),
+        ),
+      ],
+      // Kos TV: «Listas de éxitos»: the charts in one section, a pill for
+      // each list.
+      'charts': () => [('charts', _chartsSection(context, insets, firstNode))],
+      // «Porque escuchas a …»: a row for each of the person's artists.
+      'because': () => [
+        if (forYou != null)
+          for (final row in kostvBecauseRows(
+            forYou.albums,
+            (album) => album.reason,
+            [
+              for (final seed in forYou.seeds) seed.name,
+              for (final artist in _taste.artists) artist.name,
+            ],
+          ))
+            (
+              'foryou-reason-${row.artist ?? row.reason ?? ''}',
+              _albumShelf(
+                context,
+                row.artist != null
+                    ? l10n.kostvMusicBecauseListen(row.artist!)
+                    : row.reason ?? l10n.kostvMusicForYouAlbums,
+                l10n.kostvMusicForYouWhy,
+                row.items,
+                insets,
+              ),
+            ),
+      ],
+      'radios': () => [('radios', _radioShelf(context, insets))],
+      // Kos TV: «Descubrimiento semanal» in the place of «Canciones para
+      // ti» when the plugin gives it.
+      'discovery': () => [
+        if (plugin.discovery)
+          (
+            'foryou-songs',
+            _chartSongs(
+              context,
+              null,
+              l10n.kostvMusicDiscovery,
+              l10n.kostvMusicDiscoveryWhy,
+              insets,
+              null,
+              songs: _shownDiscovery,
+              ranked: false,
+              source: KostvMusicSource.discovery,
+              fresh: true,
+            ),
+          ),
+      ],
+      'your-news': () => [
+        (
+          'your-news',
+          _albumShelf(
+            context,
+            l10n.kostvMusicNewFromYours,
+            l10n.kostvMusicNewFromYoursWhy,
+            _shownYourNews,
+            insets,
+          ),
+        ),
+      ],
+      'more-of': () => [
+        if (_moreOf case final moreOf?)
+          (
+            'more-of',
+            _albumShelf(
+              context,
+              l10n.kostvMusicMoreOf(moreOf.name),
+              l10n.kostvMusicMoreOfWhy(moreOf.name),
+              moreOf.albums,
+              insets,
+            ),
+          ),
+      ],
+      'foryou-songs': () => [
+        if (!plugin.discovery && forYou != null)
+          (
+            'foryou-songs',
+            _chartSongs(
+              context,
+              null,
+              l10n.kostvMusicForYouSongs,
+              l10n.kostvMusicForYouWhy,
+              insets,
+              null,
+              songs: forYou.songs,
+              ranked: false,
+              source: KostvMusicSource.other,
+            ),
+          ),
+      ],
+      'new-at-home': () => [('new-at-home', _newAtHomeShelf(context, insets))],
+      'recent': () {
+        final rest = _recent.skip(quick.albumsUsed).toList();
+        return [
+          (
+            'recent',
+            _recentShelf(
+              context,
+              rest,
+              insets,
+              firstNode('recent', rest.isNotEmpty),
+            ),
+          ),
+        ];
+      },
+      'favorites': () => [('favorites', _favoritesShelf(context, insets))],
+      'playlists': () => [('playlists', _playlistsShelf(context, insets))],
+      'releases': () => [
+        (
+          'releases',
+          _albumShelf(
+            context,
+            l10n.kostvMusicReleases,
+            null,
+            _releases,
+            insets,
+          ),
+        ),
+      ],
+      'requested': () => [
+        (
+          'requested',
+          _albumShelf(
+            context,
+            l10n.kostvMusicRequested,
+            null,
+            _requested,
+            insets,
+          ),
+        ),
+      ],
+    };
+
     final parts = <Widget>[];
     // Each section keeps who it is as others arrive around it, so the one
     // being looked at is never rebuilt as another (and the focus with it).
@@ -1733,231 +1964,13 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         ..add(SizedBox(key: ValueKey('music-$id-gap'), height: 34));
     }
 
-    // Kos TV: «Sigue escuchando» at the top: the albums played lately with
-    // the favourites, a mix and a playlist; the albums that don't fit stay
-    // in «Escuchado hace poco», in its place.
-    final quick = _keepListening(context);
-    add(
-      'quick',
-      _quickShelf(
-        context,
-        quick.picks,
-        firstNode('quick', quick.picks.isNotEmpty),
-      ),
-    );
-    add(
-      'top',
-      _chartSongs(
-        context,
-        _topSongs,
-        l10n.kostvMusicTopSongs,
-        l10n.kostvMusicTopSongsWhy,
-        insets,
-        firstNode('top', _topSongs?.songs.isNotEmpty ?? false),
-      ),
-    );
-    add(
-      'latino',
-      _chartSongs(
-        context,
-        _latino,
-        l10n.kostvMusicTopLatino,
-        l10n.kostvMusicChartSoldWhy,
-        insets,
-        firstNode('latino', _latino?.songs.isNotEmpty ?? false),
-      ),
-    );
-    final recentRest = _recent.skip(quick.albumsUsed).toList();
-    add(
-      'recent',
-      _recentShelf(
-        context,
-        recentRest,
-        insets,
-        firstNode('recent', recentRest.isNotEmpty),
-      ),
-    );
-    // Kos TV: what the plugin works out from what the person listens to
-    // replaces the rows that did its job before, only when it answers.
-    final plugin = kostvMusicPluginRows(
-      mixes: _shownMixes,
-      discovery: _shownDiscovery,
-      moment: _shownMoment,
-    );
-    // The mix of the time of day right under what was played lately: both
-    // are about what to put on now, before the rows that stay the same all
-    // day.
-    if (plugin.moment) {
-      add('moment', _momentShelf(context, insets, firstNode('moment', true)));
-    } else if (_momentHeld) {
-      add('moment', _momentPlace(context, insets));
-    }
-    add('favorites', _favoritesShelf(context, insets));
-    add('playlists', _playlistsShelf(context, insets));
-    // The same section either way, so the page doesn't jump when the daily
-    // mixes take the place of «Tus mezclas».
-    add(
-      'mixes',
-      plugin.dailyMixes
-          ? _dailyMixShelf(context, insets, firstNode('mixes', true))
-          : _mixShelf(
-              context,
-              insets,
-              firstNode('mixes', _taste.artists.isNotEmpty),
-            ),
-    );
-    // «Para ti»: a row for each «Porque escuchas a …», then its songs.
-    final forYou = _shownForYou;
-    if (forYou != null) {
-      final byReason = <String, List<StremfinAlbum>>{};
-      for (final album in forYou.albums) {
-        byReason.putIfAbsent(album.reason ?? '', () => []).add(album);
+    // Kos TV: someone who hasn't listened to anything yet gets the charts
+    // right after «Sigue escuchando», so the page isn't empty.
+    final newListener = _tasteKnown && _taste.isEmpty && _recent.isEmpty;
+    for (final place in kostvForYouOrder(newListener: newListener)) {
+      for (final (id, part) in places[place]!()) {
+        add(id, part);
       }
-      for (final entry in byReason.entries.take(3)) {
-        add(
-          'foryou-reason-${entry.key}',
-          _albumShelf(
-            context,
-            entry.key.isEmpty ? l10n.kostvMusicForYouAlbums : entry.key,
-            l10n.kostvMusicForYouWhy,
-            entry.value,
-            insets,
-          ),
-        );
-      }
-    }
-    // Kos TV: «Descubrimiento semanal» in the place of «Canciones para ti»
-    // when the plugin gives it; the «Porque escuchas a …» rows stay.
-    if (plugin.discovery) {
-      add(
-        'foryou-songs',
-        _chartSongs(
-          context,
-          null,
-          l10n.kostvMusicDiscovery,
-          l10n.kostvMusicDiscoveryWhy,
-          insets,
-          null,
-          songs: _shownDiscovery,
-          ranked: false,
-          source: KostvMusicSource.discovery,
-          fresh: true,
-        ),
-      );
-    } else if (forYou != null) {
-      add(
-        'foryou-songs',
-        _chartSongs(
-          context,
-          null,
-          l10n.kostvMusicForYouSongs,
-          l10n.kostvMusicForYouWhy,
-          insets,
-          null,
-          songs: forYou.songs,
-          ranked: false,
-          source: KostvMusicSource.other,
-        ),
-      );
-    }
-    add(
-      'your-news',
-      _albumShelf(
-        context,
-        l10n.kostvMusicNewFromYours,
-        l10n.kostvMusicNewFromYoursWhy,
-        _shownYourNews,
-        insets,
-      ),
-    );
-    add(
-      'albums',
-      _chartAlbums(context, _topAlbums, l10n.kostvMusicTopAlbums, insets),
-    );
-    add(
-      'mexico',
-      _chartSongs(
-        context,
-        _mexico,
-        l10n.kostvMusicTopCountry(l10n.kostvMusicMexico),
-        l10n.kostvMusicTopCountryWhy(l10n.kostvMusicMexico),
-        insets,
-        null,
-      ),
-    );
-    final moreOf = _moreOf;
-    if (moreOf != null) {
-      add(
-        'more-of',
-        _albumShelf(
-          context,
-          l10n.kostvMusicMoreOf(moreOf.name),
-          l10n.kostvMusicMoreOfWhy(moreOf.name),
-          moreOf.albums,
-          insets,
-        ),
-      );
-    }
-    final genre = _genreChart;
-    if (genre != null) {
-      add(
-        'genre',
-        _chartSongs(
-          context,
-          genre,
-          l10n.kostvMusicTopGenre(
-            _genreName(l10n, genre.chart.id.replaceFirst('-songs', '')) ??
-                genre.chart.name
-                    .split('·')
-                    .first
-                    .replaceFirst('Top ', '')
-                    .trim(),
-          ),
-          l10n.kostvMusicChartSoldWhy,
-          insets,
-          null,
-        ),
-      );
-    }
-    add(
-      'usa',
-      _chartSongs(
-        context,
-        _unitedStates,
-        l10n.kostvMusicTopCountry(l10n.kostvMusicUnitedStates),
-        l10n.kostvMusicTopCountryWhy(l10n.kostvMusicUnitedStates),
-        insets,
-        null,
-      ),
-    );
-    add(
-      'releases',
-      _albumShelf(context, l10n.kostvMusicReleases, null, _releases, insets),
-    );
-    add(
-      'requested',
-      _albumShelf(context, l10n.kostvMusicRequested, null, _requested, insets),
-    );
-    if (_newAtHome.isNotEmpty) {
-      add(
-        'new-at-home',
-        KostvMusicShelf(
-          title: l10n.kostvMusicNewAtHome,
-          insets: insets,
-          height: _shelfHeight(),
-          children: [
-            for (final album in _newAtHome)
-              KostvMusicAlbumTile(
-                size: KostvMusicTokens.card,
-                title: album.name,
-                subtitle: album.albumArtist,
-                cover: kostvMusicImageOf(album),
-                onTap: () => openMusicItem(context, album),
-                onPlay: () => unawaited(playKostvHomeAlbum(context, album)),
-              ),
-          ],
-        ),
-      );
     }
     if (parts.isEmpty) {
       return [
@@ -1992,6 +2005,265 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         ),
       ),
     ];
+  }
+
+  /// «Nuevo en casa»: the albums that arrived at home lately.
+  Widget? _newAtHomeShelf(BuildContext context, EdgeInsets insets) {
+    if (_newAtHome.isEmpty) return null;
+    return KostvMusicShelf(
+      title: AppLocalizations.of(context).kostvMusicNewAtHome,
+      insets: insets,
+      height: _shelfHeight(),
+      children: [
+        for (final album in _newAtHome)
+          KostvMusicAlbumTile(
+            size: KostvMusicTokens.card,
+            title: album.name,
+            subtitle: album.albumArtist,
+            cover: kostvMusicImageOf(album),
+            onTap: () => openMusicItem(context, album),
+            onPlay: () => unawaited(playKostvHomeAlbum(context, album)),
+          ),
+      ],
+    );
+  }
+
+  /// Kos TV: «Radios de tus artistas»: a station for each of the artists
+  /// the person listens to most, as «Crear emisora» makes one (without
+  /// what they don't want to hear; with «Solo la de casa», only what is at
+  /// home).
+  Widget? _radioShelf(BuildContext context, EdgeInsets insets) {
+    final artists = _taste.artists.take(6).toList();
+    if (artists.isEmpty) return null;
+    final l10n = AppLocalizations.of(context);
+    final size = KostvMusicTokens.card;
+    return KostvMusicShelf(
+      title: l10n.kostvMusicArtistRadios,
+      subtitle: l10n.kostvMusicArtistRadiosWhy,
+      insets: insets,
+      height: _shelfHeight(),
+      children: [
+        for (final (i, artist) in artists.indexed)
+          KostvMusicAlbumTile(
+            key: ValueKey('artist-radio-${artist.id}'),
+            size: size,
+            title: l10n.kostvMusicRadioOf(artist.name),
+            art: KostvArtistRadioArt(
+              name: artist.name,
+              index: i,
+              size: size,
+              picture: _client.imageApi.getPrimaryImageUrl(
+                artist.id,
+                maxWidth: 400,
+              ),
+            ),
+            onTap: () => _playArtistRadio(artist),
+            onPlay: () => _playArtistRadio(artist),
+          ),
+      ],
+    );
+  }
+
+  void _playArtistRadio(({String id, String name}) artist) => unawaited(
+    kostvMusicOnce(
+      () => playKostvHomeArtistStation(
+        context,
+        artistId: artist.id,
+        name: artist.name,
+      ),
+    ),
+  );
+
+  /// Kos TV: the lists of «Listas de éxitos» there are, in the pills'
+  /// order: the person's own first (their genre's, or Latino), then
+  /// España and the rest. Those asked for only when picked are there
+  /// while the service can be asked, before anything of them is known.
+  List<KostvChartList> _chartLists() {
+    bool songs(StremfinChartPage? page) => page?.songs.isNotEmpty ?? false;
+    bool lazy(StremfinChartPage? page, bool Function(StremfinChartPage) has) =>
+        page == null ? _stremfin != null : has(page);
+    final latinoFirst = _firstGenre() == 'latino';
+    return [
+      if (latinoFirst && songs(_latino)) KostvChartList.latino,
+      if (songs(_genreChart)) KostvChartList.genre,
+      if (songs(_topSongs)) KostvChartList.spain,
+      if (!latinoFirst && songs(_latino)) KostvChartList.latino,
+      if (lazy(_mexico, (p) => p.songs.isNotEmpty)) KostvChartList.mexico,
+      if (lazy(_unitedStates, (p) => p.songs.isNotEmpty)) KostvChartList.usa,
+      if (lazy(_topAlbums, (p) => p.albums.isNotEmpty)) KostvChartList.albums,
+    ];
+  }
+
+  /// Kos TV: the charts' genre of the genre the person listens to most.
+  String? _firstGenre() {
+    final genre = _taste.genres.firstOrNull;
+    return genre == null ? null : kostvChartGenreOf(genre);
+  }
+
+  StremfinChartPage? _chartPage(KostvChartList list) => switch (list) {
+    KostvChartList.genre => _genreChart,
+    KostvChartList.spain => _topSongs,
+    KostvChartList.latino => _latino,
+    KostvChartList.mexico => _mexico,
+    KostvChartList.usa => _unitedStates,
+    KostvChartList.albums => _topAlbums,
+  };
+
+  String _chartLabel(AppLocalizations l10n, KostvChartList list) =>
+      switch (list) {
+        KostvChartList.genre => _genreLabel(l10n, _genreChart),
+        KostvChartList.spain => l10n.kostvMusicChartSpain,
+        KostvChartList.latino => l10n.kostvMusicChartLatino,
+        KostvChartList.mexico => l10n.kostvMusicMexico,
+        KostvChartList.usa => l10n.kostvMusicChartUsa,
+        KostvChartList.albums => l10n.kostvMusicTabAlbums,
+      };
+
+  /// The name of the genre of the chart of the person's genre («Pop»).
+  String _genreLabel(AppLocalizations l10n, StremfinChartPage? genre) {
+    if (genre == null) return '';
+    return _genreName(l10n, genre.chart.id.replaceFirst('-songs', '')) ??
+        genre.chart.name.split('·').first.replaceFirst('Top ', '').trim();
+  }
+
+  /// The «why» of each list, as each top said it.
+  String _chartWhy(AppLocalizations l10n, KostvChartList list) =>
+      switch (list) {
+        KostvChartList.spain ||
+        KostvChartList.albums => l10n.kostvMusicTopSongsWhy,
+        KostvChartList.genre ||
+        KostvChartList.latino => l10n.kostvMusicChartSoldWhy,
+        KostvChartList.mexico => l10n.kostvMusicTopCountryWhy(
+          l10n.kostvMusicMexico,
+        ),
+        KostvChartList.usa => l10n.kostvMusicTopCountryWhy(
+          l10n.kostvMusicUnitedStates,
+        ),
+      };
+
+  /// Kos TV: a list of «Listas de éxitos» picked (OK, a tap or a click):
+  /// one asked for only when picked is asked now (again, if it failed).
+  void _pickChart(KostvChartList list) {
+    if (list != _chartPick) setState(() => _chartPick = list);
+    _askChart(list);
+  }
+
+  /// Kos TV: [list] asked of the service now, if it is one asked only when
+  /// shown and it wasn't yet (or it failed).
+  void _askChart(KostvChartList list) {
+    final name = _lazyCharts[list];
+    if (name == null) return;
+    if (_chartsAsked.contains(name) && !_partFailed.contains(name)) return;
+    _chartsAsked.add(name);
+    final stremfin = _stremfin;
+    if (stremfin == null) return;
+    setState(() => _partFailed.remove(name));
+    unawaited(_loadStremfin(stremfin, remembered: false, only: {name}));
+  }
+
+  /// Kos TV: «Listas de éxitos»: España, Latino, the chart of the person's
+  /// genre, México, EE. UU. and the albums of the moment in one section,
+  /// with a pill for each (the person's own picked at first): the list
+  /// picked in columns of songs (or the albums in cards), with its «why»,
+  /// «Reproducir» and «Aleatorio». With the remote, the pills are reached
+  /// from above, OK picks one and down goes to its songs.
+  Widget? _chartsSection(
+    BuildContext context,
+    EdgeInsets insets,
+    FocusNode? Function(String id, bool shows) firstNodeOf,
+  ) {
+    final lists = _chartLists();
+    final shown = lists.contains(_chartPick)
+        ? _chartPick!
+        : kostvDefaultChart(firstGenre: _firstGenre(), available: lists);
+    if (shown == null) return null;
+    final l10n = AppLocalizations.of(context);
+    final firstNode = firstNodeOf('charts', true);
+    final title = l10n.kostvMusicCharts;
+    final why = _chartWhy(l10n, shown);
+    final pills = lists.length < 2
+        ? null
+        : Padding(
+            padding: EdgeInsets.fromLTRB(insets.left, 2, insets.right, 14),
+            child: KostvMusicChoiceRow<KostvChartList>(
+              key: const ValueKey('kostvMusicCharts'),
+              values: lists,
+              selected: shown,
+              label: (list) => _chartLabel(l10n, list),
+              onSelect: _pickChart,
+              nodes: {
+                for (final (i, list) in lists.indexed)
+                  list: i == 0 && firstNode != null
+                      ? firstNode
+                      : _chartNodes[list]!,
+              },
+              // Kos TV: up from the pills of the page's first section, the
+              // tabs.
+              onKey: firstNode == null ? null : (_, event) => _upToTabs(event),
+            ),
+          );
+    final page = _chartPage(shown);
+    final lazy = _lazyCharts[shown];
+    // Kos TV: one asked only when picked that is shown without being picked
+    // (the only lists there are): asked now.
+    if (lazy != null && page == null && !_chartsAsked.contains(lazy)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _askChart(shown);
+      });
+    }
+    Widget heading = KostvMusicHeading(
+      title: title,
+      subtitle: why,
+      padding: EdgeInsets.fromLTRB(insets.left, 0, insets.right, 10),
+    );
+    Widget? rows;
+    if (page != null && shown == KostvChartList.albums) {
+      rows = _chartAlbumRow(context, page, insets);
+    } else if (page != null) {
+      final parts = _songColumnsParts(
+        context,
+        page.songs,
+        title,
+        why,
+        insets,
+        null,
+        true,
+        KostvMusicSource.charts,
+        false,
+        upToTabs: firstNode != null,
+      );
+      if (parts != null) {
+        heading = parts.heading;
+        rows = parts.rows;
+      }
+    }
+    // Kos TV: a list picked that is still coming (or that failed, or came
+    // empty): its place, with the pills to pick another.
+    if (rows == null) {
+      final failed = lazy == null || page != null || _partFailed.contains(lazy);
+      rows = SizedBox(
+        height: _songRowHeight(context, KostvMusicSizes.phone) * 4 + 8,
+        child: Center(
+          child: failed
+              ? Text(
+                  l10n.kostvMusicUnavailable,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: kostvMusicGrey),
+                )
+              : const CircularProgressIndicator(color: KostvMusicTokens.violet),
+        ),
+      );
+    }
+    // The heading and the pills stay where they are as the list changes
+    // (the remote stays on the pill picked); the list's own songs are new.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        heading,
+        pills ?? const SizedBox.shrink(),
+        KeyedSubtree(key: ValueKey('chart-${shown.name}'), child: rows),
+      ],
+    );
   }
 
   /// «Tus favoritas»: the ♥ songs, in columns of four like the charts; a
@@ -2394,6 +2666,40 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
     String source,
     bool fresh,
   ) {
+    final parts = _songColumnsParts(
+      context,
+      songs,
+      title,
+      why,
+      insets,
+      firstNode,
+      ranked,
+      source,
+      fresh,
+    );
+    if (parts == null) return null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [parts.heading, parts.rows],
+    );
+  }
+
+  /// Kos TV: a list of songs in columns: its heading (with «Reproducir» and
+  /// «Aleatorio») and its columns, apart, for «Listas de éxitos» to put its
+  /// pills between them. [upToTabs]: up from the heading's buttons, the
+  /// tabs (the page's first section).
+  ({Widget heading, Widget rows})? _songColumnsParts(
+    BuildContext context,
+    List<StremfinSong> songs,
+    String title,
+    String why,
+    EdgeInsets insets,
+    FocusNode? firstNode,
+    bool ranked,
+    String source,
+    bool fresh, {
+    bool upToTabs = false,
+  }) {
     // Kos TV: with «Toda la música» every song plays (through the requests
     // service those that aren't at home), the list whole from its heading;
     // nothing explicit that isn't at home for someone with a limit.
@@ -2466,125 +2772,120 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
           )
         : null;
     // Kos TV: up from the heading's buttons of the first list, the tabs.
-    final headingKey = firstNode != null ? _upToTabs : null;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        KostvMusicHeading(
-          title: title,
-          subtitle: why,
-          padding: EdgeInsets.fromLTRB(insets.left, 0, insets.right, 10),
-          actions: [
-            if (playable) ...[
+    final headingKey = firstNode != null || upToTabs ? _upToTabs : null;
+    return (
+      heading: KostvMusicHeading(
+        title: title,
+        subtitle: why,
+        padding: EdgeInsets.fromLTRB(insets.left, 0, insets.right, 10),
+        actions: [
+          if (playable) ...[
+            KostvMusicRowAction(
+              icon: Icons.play_arrow_rounded,
+              label: l10n.play,
+              primary: true,
+              onKey: headingKey,
+              onTap: () => _playList(list, source, picked: false),
+            ),
+            if (songs.length > 2)
               KostvMusicRowAction(
-                icon: Icons.play_arrow_rounded,
-                label: l10n.play,
-                primary: true,
+                icon: Icons.shuffle_rounded,
+                label: l10n.shuffle,
                 onKey: headingKey,
-                onTap: () => _playList(list, source, picked: false),
+                onTap: () => _playList(list, source, shuffle: true),
               ),
-              if (songs.length > 2)
-                KostvMusicRowAction(
-                  icon: Icons.shuffle_rounded,
-                  label: l10n.shuffle,
-                  onKey: headingKey,
-                  onTap: () => _playList(list, source, shuffle: true),
-                ),
-            ],
           ],
-        ),
-        SizedBox(
-          height: rowHeight * perColumn + 8,
-          child: FocusTraversalGroup(
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              clipBehavior: Clip.none,
-              padding: EdgeInsets.only(left: insets.left, right: insets.right),
-              // Kos TV: «Descubrimiento semanal» opens with its own card,
-              // which plays it all.
-              itemCount: columns + (lead == null ? 0 : 1),
-              separatorBuilder: (_, _) => const SizedBox(width: 18),
-              itemBuilder: (context, at) {
-                if (lead != null && at == 0) return lead;
-                final column = lead == null ? at : at - 1;
-                return SizedBox(
-                  width: kostvMusicSongColumn(context),
-                  child: Column(
-                    children: [
-                      for (
-                        var i = column * perColumn;
-                        i < songs.length && i < (column + 1) * perColumn;
-                        i++
-                      )
-                        KostvMusicSongRow(
-                          focusNode: i == 0 && lead == null ? firstNode : null,
-                          // Kos TV: with the heading's buttons, up from the
-                          // first line goes to them, and from them to the
-                          // search.
-                          onKey:
-                              i % perColumn == 0 &&
-                                  firstNode != null &&
-                                  !playable
-                              ? _upToTabs
-                              : null,
-                          title: songs[i].title,
-                          artist: songs[i].artist,
-                          artistLinks: [
-                            [
-                              ?kostvStremfinArtistLink(
-                                context,
-                                songs[i].artist,
-                                songs[i].artistDeezerId,
-                              ),
-                            ],
-                          ],
-                          cover: songs[i].cover,
-                          rank: ranked ? songs[i].rank ?? i + 1 : null,
-                          atHome:
-                              songs[i].inJellyfin ||
-                              (albumOf(songs[i])?.inJellyfin ?? false),
-                          away: all && kostvSongPlayable(songs[i]),
-                          badge: all
-                              ? KostvMusicBadge.none
-                              : switch (albumOf(songs[i])) {
-                                  final album? => kostvMusicBadgeOf(album),
-                                  null => KostvMusicBadge.none,
-                                },
-                          trailing: _noAsk(all, songs[i], albumOf(songs[i])),
-                          duration: songs[i].duration,
-                          soundingId: kostvSongSoundingId(songs[i]),
-                          onRest: _restOn(songs[i]),
-                          onTap: () => all && kostvSongPlayable(songs[i])
-                              ? _playList(list, source, index: i)
-                              : unawaited(
-                                  openKostvMusicSong(
-                                    context,
-                                    songs[i],
-                                    source: source,
-                                    refresh: fresh && _needsNow(songs[i])
-                                        ? _songNow
-                                        : null,
-                                  ),
-                                ),
-                          onLongPress: () => unawaited(
-                            showKostvMusicSongMenu(
+        ],
+      ),
+      rows: SizedBox(
+        height: rowHeight * perColumn + 8,
+        child: FocusTraversalGroup(
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            padding: EdgeInsets.only(left: insets.left, right: insets.right),
+            // Kos TV: «Descubrimiento semanal» opens with its own card,
+            // which plays it all.
+            itemCount: columns + (lead == null ? 0 : 1),
+            separatorBuilder: (_, _) => const SizedBox(width: 18),
+            itemBuilder: (context, at) {
+              if (lead != null && at == 0) return lead;
+              final column = lead == null ? at : at - 1;
+              return SizedBox(
+                width: kostvMusicSongColumn(context),
+                child: Column(
+                  children: [
+                    for (
+                      var i = column * perColumn;
+                      i < songs.length && i < (column + 1) * perColumn;
+                      i++
+                    )
+                      KostvMusicSongRow(
+                        focusNode: i == 0 && lead == null ? firstNode : null,
+                        // Kos TV: with the heading's buttons, up from the
+                        // first line goes to them, and from them to the
+                        // search.
+                        onKey:
+                            i % perColumn == 0 && firstNode != null && !playable
+                            ? _upToTabs
+                            : null,
+                        title: songs[i].title,
+                        artist: songs[i].artist,
+                        artistLinks: [
+                          [
+                            ?kostvStremfinArtistLink(
                               context,
-                              song: songs[i],
-                              source: source,
-                              refresh: fresh && _needsNow(songs[i])
-                                  ? _songNow
-                                  : null,
+                              songs[i].artist,
+                              songs[i].artistDeezerId,
                             ),
+                          ],
+                        ],
+                        cover: songs[i].cover,
+                        rank: ranked ? songs[i].rank ?? i + 1 : null,
+                        atHome:
+                            songs[i].inJellyfin ||
+                            (albumOf(songs[i])?.inJellyfin ?? false),
+                        away: all && kostvSongPlayable(songs[i]),
+                        badge: all
+                            ? KostvMusicBadge.none
+                            : switch (albumOf(songs[i])) {
+                                final album? => kostvMusicBadgeOf(album),
+                                null => KostvMusicBadge.none,
+                              },
+                        trailing: _noAsk(all, songs[i], albumOf(songs[i])),
+                        duration: songs[i].duration,
+                        soundingId: kostvSongSoundingId(songs[i]),
+                        onRest: _restOn(songs[i]),
+                        onTap: () => all && kostvSongPlayable(songs[i])
+                            ? _playList(list, source, index: i)
+                            : unawaited(
+                                openKostvMusicSong(
+                                  context,
+                                  songs[i],
+                                  source: source,
+                                  refresh: fresh && _needsNow(songs[i])
+                                      ? _songNow
+                                      : null,
+                                ),
+                              ),
+                        onLongPress: () => unawaited(
+                          showKostvMusicSongMenu(
+                            context,
+                            song: songs[i],
+                            source: source,
+                            refresh: fresh && _needsNow(songs[i])
+                                ? _songNow
+                                : null,
                           ),
                         ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                      ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -2607,32 +2908,46 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   KostvMusicBadge _badgeOf(StremfinAlbum album) =>
       kostvMusicCatalogAll() ? KostvMusicBadge.none : kostvMusicBadgeOf(album);
 
-  Widget? _chartAlbums(
+  /// Kos TV: the cards of the albums of the moment («Listas de éxitos»,
+  /// «Álbumes»), as a shelf's row (its heading is the section's).
+  Widget? _chartAlbumRow(
     BuildContext context,
-    StremfinChartPage? page,
-    String title,
+    StremfinChartPage page,
     EdgeInsets insets,
   ) {
-    final albums = page?.albums ?? const <StremfinAlbum>[];
+    final albums = page.albums;
     if (albums.isEmpty) return null;
-    return KostvMusicShelf(
-      title: title,
-      subtitle: AppLocalizations.of(context).kostvMusicTopSongsWhy,
-      insets: insets,
-      height: _shelfHeight(),
-      children: [
-        for (final album in albums.take(30))
-          KostvMusicAlbumTile(
-            size: KostvMusicTokens.card,
-            title: album.title,
-            subtitle: album.artist,
-            cover: album.cover,
-            rank: album.rank,
-            badge: _badgeOf(album),
-            onTap: () => unawaited(openKostvStremfinAlbum(context, album)),
-            onPlay: _albumPlay(album),
+    // The lines under the covers grow with the device's text size, as a
+    // shelf's do.
+    final grown = MediaQuery.textScalerOf(context).scale(40) - 40;
+    return SizedBox(
+      height: _shelfHeight() + (grown > 0 ? grown : 0),
+      child: FocusTraversalGroup(
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
+          padding: EdgeInsets.only(
+            left: insets.left,
+            right: insets.right,
+            top: 6,
           ),
-      ],
+          itemCount: albums.length.clamp(0, 30),
+          separatorBuilder: (_, _) => SizedBox(width: KostvMusicSizes.gap),
+          itemBuilder: (context, i) {
+            final album = albums[i];
+            return KostvMusicAlbumTile(
+              size: KostvMusicTokens.card,
+              title: album.title,
+              subtitle: album.artist,
+              cover: album.cover,
+              rank: album.rank,
+              badge: _badgeOf(album),
+              onTap: () => unawaited(openKostvStremfinAlbum(context, album)),
+              onPlay: _albumPlay(album),
+            );
+          },
+        ),
+      ),
     );
   }
 

@@ -1,8 +1,10 @@
 import 'package:custom_tv_text_field/custom_tv_text_field.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin/auth/models/user.dart';
 import 'package:moonfin/auth/repositories/user_repository.dart';
@@ -12,9 +14,12 @@ import 'package:moonfin/data/services/kostv_music_catalog.dart';
 import 'package:moonfin/data/services/media_server_client_factory.dart';
 import 'package:moonfin/data/services/plugin_sync_service.dart';
 import 'package:moonfin/l10n/app_localizations.dart';
+import 'package:moonfin/ui/navigation/destinations.dart';
 import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
+import 'package:moonfin/data/services/stremfin/stremfin_client.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
+import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_album_play.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_home_parts.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_screen.dart';
@@ -25,6 +30,8 @@ import 'package:moonfin/util/platform_detection.dart';
 import 'package:playback_core/playback_core.dart';
 import 'package:server_core/server_core.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../../data/services/stremfin/fake_stremfin_adapter.dart';
 
 // ---------------------------------------------------------------- fakes
 
@@ -99,6 +106,10 @@ class _Items implements ItemsApi {
   bool failPlaylists = false;
   bool failAlbums = false;
 
+  /// Kos TV: the songs of another person (what they listened to), instead
+  /// of the two of these.
+  List<Map<String, dynamic>>? songs;
+
   static final _albums = [
     _album('al1', 'Faroles', 'Los Faroleros'),
     _album('al2', 'Brillo', 'Clara Vega'),
@@ -166,7 +177,7 @@ class _Items implements ItemsApi {
         for (var i = 0; i < extraAlbums; i++)
           _album('x$i', 'Zeta ${i.toString().padLeft(3, '0')}', 'Otra'),
       if (types.contains('MusicArtist')) ..._artists,
-      if (types.contains('Audio')) ..._songs,
+      if (types.contains('Audio')) ...(songs ?? _songs),
       if (types.contains('Playlist'))
         {
           'Id': 'pl1',
@@ -198,6 +209,142 @@ class _Items implements ItemsApi {
   }
 }
 
+/// Kos TV: a song a person listened to [plays] times, of [genre].
+Map<String, dynamic> _played(
+  String id,
+  String albumId,
+  String artistId,
+  String artist,
+  String genre,
+  int plays,
+) => {
+  'Id': id,
+  'Name': 'Canción $id',
+  'Type': 'Audio',
+  'AlbumId': albumId,
+  'Artists': [artist],
+  'AlbumArtists': [
+    {'Id': artistId, 'Name': artist},
+  ],
+  'Genres': [genre],
+  'UserData': {'Played': true, 'PlayCount': plays},
+};
+
+/// Kos TV: the home server's mix of an artist (their station).
+class _Mixes implements InstantMixApi {
+  final asked = <String>[];
+
+  @override
+  Future<Map<String, dynamic>> getInstantMix(
+    String itemId, {
+    int? limit,
+  }) async {
+    asked.add(itemId);
+    return {
+      'Items': [
+        for (final id in ['m1', 'm2', 'm3'])
+          {'Id': id, 'Name': 'Mezcla $id', 'Type': 'Audio'},
+      ],
+    };
+  }
+}
+
+/// Kos TV: the requests service of the Music page: the charts (each its
+/// own songs: «ES 1», «LAT 1», «POP 1», «MX 1», «US 1») and «Para ti» with
+/// an album for each artist asked about, and what it was asked.
+class _Requests {
+  final calls = <String>[];
+
+  late final adapter = FakeStremfinAdapter(answer);
+
+  StremfinService service() => StremfinService(
+    StremfinClient(
+      dio: Dio()..httpClientAdapter = adapter,
+      baseUrl: 'https://requests.example.org/api/v1',
+      token: () => 'token',
+    ),
+    watchLifecycle: false,
+  );
+
+  static Map<String, Object?> _songsChart(String id, String tag) => {
+    'id': id,
+    'name': 'Top $tag · Canciones',
+    'kind': 'songs',
+    'items': [
+      for (var i = 1; i <= 6; i++)
+        {
+          'rank': i,
+          'title': '$tag $i',
+          'artist': 'Artista $tag',
+          'deezer_id': '$tag-$i',
+          'in_jellyfin': false,
+          'album': {'deezer_id': 'al-$tag-$i', 'title': 'Disco $tag $i'},
+        },
+    ],
+  };
+
+  ({int status, Object? body, Map<String, String> headers}) answer(
+    String path,
+    Map<String, String> query,
+  ) {
+    final country = query['country'];
+    calls.add(country == null ? path : '$path?$country');
+    ({int status, Object? body, Map<String, String> headers}) ok(
+      Object? body,
+    ) => (status: 200, body: body, headers: const {});
+    switch (path) {
+      case '/me':
+        return ok({
+          'user': {'name': 'Kiko', 'role': 'member'},
+          'access': {'can_request': true, 'mode': 'direct'},
+        });
+      case '/music/charts/top-songs':
+        return ok(_songsChart('top-songs', country ?? 'ES'));
+      case '/music/charts/latino-songs':
+        return ok(_songsChart('latino-songs', 'LAT'));
+      case '/music/charts/pop-songs':
+        return ok(_songsChart('pop-songs', 'POP'));
+      case '/music/charts/top-albums':
+        return ok({
+          'id': 'top-albums',
+          'name': 'Top España · Álbumes',
+          'kind': 'albums',
+          'items': [
+            for (var i = 1; i <= 4; i++)
+              {'deezer_id': 'ta$i', 'title': 'Álbum top $i', 'rank': i},
+          ],
+        });
+      case '/music/recommendations':
+        final names = (query['artists'] ?? '')
+            .split(',')
+            .where((n) => n.isNotEmpty)
+            .toList();
+        return ok({
+          'seeds': [
+            for (final (i, n) in names.indexed) {'name': n, 'deezer_id': 'd$i'},
+          ],
+          'items': [
+            for (final (i, n) in names.indexed)
+              {
+                'deezer_id': 'rec$i',
+                'title': 'Parecido a $n',
+                'artist': 'Otro $i',
+                'reason': 'Porque escuchas a $n',
+              },
+          ],
+          'songs': const [],
+        });
+    }
+    return (
+      status: 404,
+      body: {
+        'error': {'code': 'not_found', 'message': 'No.'},
+      },
+      headers: const {},
+    );
+  }
+}
+
 class _Images implements ImageApi {
   @override
   dynamic noSuchMethod(Invocation invocation) => '';
@@ -207,9 +354,13 @@ class _Client implements MediaServerClient {
   _Client(this.items);
 
   final _Items items;
+  final mixes = _Mixes();
 
   @override
   ItemsApi get itemsApi => items;
+
+  @override
+  InstantMixApi get instantMixApi => mixes;
 
   @override
   ImageApi get imageApi => _Images();
@@ -306,6 +457,111 @@ void main() {
     });
   });
 
+  group('«Para ti»: its order', () {
+    test('what the person listens to first, then «Listas de éxitos», '
+        '«Porque escuchas a …» and the radios of their artists', () {
+      final order = kostvForYouOrder();
+      expect(order.take(7), [
+        'quick',
+        'moment',
+        'mixes',
+        'charts',
+        'because',
+        'radios',
+        'discovery',
+      ]);
+      // Then the news and «Más de …», the songs and what is new at home,
+      // and the rest in its order of before.
+      expect(order.skip(7), [
+        'your-news',
+        'more-of',
+        'foryou-songs',
+        'new-at-home',
+        'recent',
+        'favorites',
+        'playlists',
+        'releases',
+        'requested',
+      ]);
+    });
+
+    test('someone new: the charts right after «Sigue escuchando»', () {
+      final order = kostvForYouOrder(newListener: true);
+      expect(order.take(3), ['quick', 'charts', 'moment']);
+      expect(order.toSet(), kostvForYouOrder().toSet());
+      expect(order, hasLength(kostvForYouOrder().length));
+    });
+
+    test('«Listas de éxitos» opens with the list of the person\'s genre, '
+        'otherwise España', () {
+      const all = KostvChartList.values;
+      expect(
+        kostvDefaultChart(firstGenre: 'latino', available: all),
+        KostvChartList.latino,
+      );
+      expect(
+        kostvDefaultChart(firstGenre: 'pop', available: all),
+        KostvChartList.genre,
+      );
+      expect(
+        kostvDefaultChart(firstGenre: null, available: all),
+        KostvChartList.spain,
+      );
+      // Their genre's list isn't there (yet): España.
+      expect(
+        kostvDefaultChart(
+          firstGenre: 'pop',
+          available: const [KostvChartList.spain, KostvChartList.latino],
+        ),
+        KostvChartList.spain,
+      );
+      expect(
+        kostvDefaultChart(
+          firstGenre: null,
+          available: const [KostvChartList.mexico],
+        ),
+        KostvChartList.mexico,
+      );
+      expect(kostvDefaultChart(firstGenre: null, available: const []), isNull);
+    });
+
+    test('«Porque escuchas a …»: a row for each artist, in the person\'s '
+        'order, then what names none of them', () {
+      final rows = kostvBecauseRows<String>(
+        [
+          'a: Porque escuchas a Rosalía y Bad Bunny',
+          'b: Porque escuchas a Bad Bunny',
+          'c: Porque escuchas a Ana',
+          'd: Porque escuchas a Anabel',
+          'e',
+        ],
+        (item) => item.length > 3 ? item.substring(3) : null,
+        ['Bad Bunny', 'Rosalía', 'Ana', 'Nadie'],
+      );
+      // Each goes with the first of the person's artists its reason names:
+      // Rosalía, with nothing of her own, has no row.
+      expect(
+        [for (final r in rows) r.artist],
+        ['Bad Bunny', 'Ana', null, null],
+      );
+      expect(rows[0].items, [
+        'a: Porque escuchas a Rosalía y Bad Bunny',
+        'b: Porque escuchas a Bad Bunny',
+      ]);
+      expect(rows[1].items, ['c: Porque escuchas a Ana']);
+      // «Anabel» isn't «Ana»: its own reason; without one, «Discos para ti».
+      expect(rows[2].reason, 'Porque escuchas a Anabel');
+      expect(rows[3].reason, isNull);
+      // Five rows at most.
+      final many = kostvBecauseRows<String>(
+        [for (var i = 0; i < 8; i++) 'Porque escuchas a A$i'],
+        (i) => i,
+        [for (var i = 0; i < 8; i++) 'A$i'],
+      );
+      expect([for (final r in many) r.artist], ['A0', 'A1', 'A2', 'A3', 'A4']);
+    });
+  });
+
   // -------------------------------------------------------------- pieces
 
   Widget app(Widget child) => MaterialApp(
@@ -380,17 +636,36 @@ void main() {
       await GetIt.instance.reset();
     });
 
-    Future<void> open(WidgetTester tester) async {
+    Future<void> open(WidgetTester tester, {bool router = false}) async {
       tester.view.physicalSize = const Size(1280, 720);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
-        MaterialApp(
-          locale: const Locale('es'),
-          localizationsDelegates: AppLocalizations.localizationsDelegates,
-          supportedLocales: AppLocalizations.supportedLocales,
-          home: const KostvMusicScreen(),
-        ),
+        router
+            // Kos TV: with the player's page to go to once a song plays.
+            ? MaterialApp.router(
+                locale: const Locale('es'),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                routerConfig: GoRouter(
+                  routes: [
+                    GoRoute(
+                      path: '/',
+                      builder: (_, _) => const KostvMusicScreen(),
+                    ),
+                    GoRoute(
+                      path: Destinations.audioPlayer,
+                      builder: (_, _) => const SizedBox(),
+                    ),
+                  ],
+                ),
+              )
+            : MaterialApp(
+                locale: const Locale('es'),
+                localizationsDelegates: AppLocalizations.localizationsDelegates,
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: const KostvMusicScreen(),
+              ),
       );
       for (var i = 0; i < 12; i++) {
         await tester.runAsync(() => Future<void>.delayed(Duration.zero));
@@ -690,6 +965,249 @@ void main() {
       expect(find.byType(TextField), findsNothing);
       expect(find.text('Para ti'), findsOneWidget);
       expect(find.text('Lo mejor'), findsNothing);
+      await leave(tester);
+    });
+
+    // ------------------------------------------------ «Para ti» per person
+
+    /// Kos TV: the page with the requests service too (its charts and «Para
+    /// ti»), for the person whose songs are [songs] (none: someone new).
+    Future<_Requests> openFor(
+      WidgetTester tester,
+      List<Map<String, dynamic>> songs, {
+      bool router = false,
+    }) async {
+      items.songs = songs;
+      final requests = _Requests();
+      final service = requests.service();
+      GetIt.instance.registerSingleton<StremfinService>(service);
+      addTearDown(service.dispose);
+      await open(tester, router: router);
+      for (var i = 0; i < 20; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 5)),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      return requests;
+    }
+
+    Future<void> settle(WidgetTester tester) async {
+      for (var i = 0; i < 10; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 5)),
+        );
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    /// Kos TV: a pill of «Listas de éxitos» clicked.
+    Future<void> pick(WidgetTester tester, String label) async {
+      final pill = find.descendant(
+        of: find.byType(KostvMusicChoiceRow<KostvChartList>),
+        matching: find.text(label),
+      );
+      await tester.ensureVisible(pill);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(pill);
+    }
+
+    /// The sections of «Para ti», top to bottom.
+    List<String> sections(WidgetTester tester) => [
+      for (final part in tester.widgetList<KeyedSubtree>(
+        find.byWidgetPredicate(
+          (w) =>
+              w is KeyedSubtree &&
+              w.key is ValueKey<String> &&
+              (w.key! as ValueKey<String>).value.startsWith('music-') &&
+              !(w.key! as ValueKey<String>).value.endsWith('-gap'),
+          skipOffstage: false,
+        ),
+      ))
+        (part.key! as ValueKey<String>).value.substring('music-'.length),
+    ];
+
+    // Someone who listens to Latin music, Lola Brisa most.
+    final latina = [
+      for (var i = 0; i < 4; i++)
+        _played('l$i', 'al3', 'ar9', 'Lola Brisa', 'Latin', 20 - i),
+      _played('l9', 'al1', 'ar2', 'Los Faroleros', 'Latin', 3),
+    ];
+    // Someone who listens to pop, Clara Vega most.
+    final pop = [
+      for (var i = 0; i < 4; i++)
+        _played('p$i', 'al2', 'ar1', 'Clara Vega', 'Pop', 30 - i),
+    ];
+
+    testWidgets('«Para ti» of someone who listens to Latin music: their '
+        'mixes, «Listas de éxitos» on Latino, «Porque escuchas a» their '
+        'artists and their radios, then the rest', (tester) async {
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
+      final requests = await openFor(tester, latina);
+      final order = sections(tester);
+      expect(order.take(5), [
+        'quick',
+        'mixes',
+        'charts',
+        'foryou-reason-Lola Brisa',
+        'foryou-reason-Los Faroleros',
+      ]);
+      expect(order.indexOf('radios'), 5);
+      expect(
+        order.indexOf('recent') > order.indexOf('radios') ||
+            !order.contains('recent'),
+        isTrue,
+      );
+      expect(order.indexOf('favorites'), greaterThan(order.indexOf('radios')));
+      // One section of the charts: Latino first and picked.
+      expect(find.text('Listas de éxitos'), findsOneWidget);
+      expect(find.text('Top España'), findsNothing);
+      expect(find.text('LAT 1'), findsOneWidget);
+      expect(find.text('ES 1'), findsNothing);
+      final pills = tester.widget<KostvMusicChoiceRow<KostvChartList>>(
+        find.byType(KostvMusicChoiceRow<KostvChartList>),
+      );
+      expect(pills.values, [
+        KostvChartList.latino,
+        KostvChartList.spain,
+        KostvChartList.mexico,
+        KostvChartList.usa,
+        KostvChartList.albums,
+      ]);
+      expect(pills.selected, KostvChartList.latino);
+      expect(find.text('Porque escuchas a Lola Brisa'), findsOneWidget);
+      expect(find.text('Radio de Lola Brisa'), findsOneWidget);
+      // Nothing more asked at the opening than before: México, EE. UU.
+      // and the albums only when picked.
+      expect(requests.calls, isNot(contains('/music/charts/top-songs?MX')));
+      expect(requests.calls, isNot(contains('/music/charts/top-albums')));
+      await pick(tester, 'México');
+      await settle(tester);
+      expect(requests.calls, contains('/music/charts/top-songs?MX'));
+      expect(find.text('MX 1'), findsOneWidget);
+      expect(find.text('LAT 1'), findsNothing);
+      // Picked again, it isn't asked again.
+      await pick(tester, 'Latino');
+      await settle(tester);
+      await pick(tester, 'México');
+      await settle(tester);
+      expect(
+        requests.calls.where((c) => c == '/music/charts/top-songs?MX'),
+        hasLength(1),
+      );
+      await leave(tester);
+    });
+
+    testWidgets('«Para ti» of someone who listens to pop: the chart of their '
+        'genre first, and their own artists', (tester) async {
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
+      await openFor(tester, pop);
+      final order = sections(tester);
+      expect(order.take(4), [
+        'quick',
+        'mixes',
+        'charts',
+        'foryou-reason-Clara Vega',
+      ]);
+      expect(find.text('POP 1'), findsOneWidget);
+      final pills = tester.widget<KostvMusicChoiceRow<KostvChartList>>(
+        find.byType(KostvMusicChoiceRow<KostvChartList>),
+      );
+      expect(pills.values.first, KostvChartList.genre);
+      expect(pills.selected, KostvChartList.genre);
+      expect(find.text('Pop'), findsOneWidget);
+      expect(find.text('Porque escuchas a Clara Vega'), findsOneWidget);
+      expect(find.text('Porque escuchas a Lola Brisa'), findsNothing);
+      expect(find.text('Radio de Clara Vega'), findsOneWidget);
+      await leave(tester);
+    });
+
+    testWidgets('«Para ti» of someone new: «Listas de éxitos» right after '
+        '«Sigue escuchando», on España', (tester) async {
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
+      await openFor(tester, const []);
+      final order = sections(tester);
+      expect(order.take(2), ['quick', 'charts']);
+      expect(order, isNot(contains('mixes')));
+      expect(order, isNot(contains('radios')));
+      expect(find.text('ES 1'), findsOneWidget);
+      await leave(tester);
+    });
+
+    testWidgets('on the TV, «Listas de éxitos»: down from the tabs to its '
+        'pills, along them and OK picks one, down to its songs', (
+      tester,
+    ) async {
+      PlatformDetection.setTvMode(true);
+      // Someone new without lists: the charts are the first section.
+      items.failPlaylists = true;
+      await openFor(tester, const []);
+      expect(sections(tester).first, 'charts');
+      final search = FocusManager.instance.rootScope.descendants.firstWhere(
+        (n) => n.debugLabel == 'kostvMusicSearch',
+      );
+      search.requestFocus();
+      await tester.pump();
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      expect(focused(), 'kostvMusicTab-forYou');
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      // The first pill (España) is the page's first stop.
+      expect(focused(), 'kostvMusicFirst');
+      await press(tester, LogicalKeyboardKey.arrowRight);
+      expect(focused(), 'kostvMusicChart-latino');
+      // The arrows don't change the list; OK does, and the remote stays.
+      expect(find.text('ES 1'), findsOneWidget);
+      await press(tester, LogicalKeyboardKey.select);
+      await settle(tester);
+      expect(find.text('LAT 1'), findsOneWidget);
+      expect(find.text('ES 1'), findsNothing);
+      expect(focused(), 'kostvMusicChart-latino');
+      // Down to its songs, and up to the pills again.
+      await press(tester, LogicalKeyboardKey.arrowDown);
+      final row = FocusManager.instance.primaryFocus?.context;
+      expect(row, isNotNull);
+      expect(
+        row!.findAncestorWidgetOfExactType<KostvMusicSongRow>(),
+        isNotNull,
+      );
+      await press(tester, LogicalKeyboardKey.arrowUp);
+      expect(focused(), startsWith('kostvMusic'));
+      expect(
+        FocusManager.instance.primaryFocus?.context
+            ?.findAncestorWidgetOfExactType<
+              KostvMusicChoiceRow<KostvChartList>
+            >(),
+        isNotNull,
+      );
+      // Up from the pills, the tabs.
+      await press(tester, LogicalKeyboardKey.arrowLeft);
+      expect(focused(), 'kostvMusicFirst');
+      await press(tester, LogicalKeyboardKey.arrowUp);
+      expect(focused(), 'kostvMusicTab-forYou');
+      await leave(tester);
+    });
+
+    testWidgets('«Radios de tus artistas»: a card starts the station of the '
+        'artist, from the home server\'s mix of them', (tester) async {
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
+      await openFor(tester, latina, router: true);
+      final manager = GetIt.instance<PlaybackManager>() as _FakePlaybackManager;
+      final client = GetIt.instance<MediaServerClient>() as _Client;
+      final card = find.text('Radio de Lola Brisa');
+      await tester.ensureVisible(card);
+      await tester.pump();
+      await tester.tap(card);
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await settle(tester);
+      expect(client.mixes.asked, ['ar9']);
+      expect(manager.played, hasLength(1));
+      expect(manager.played.single.map((s) => (s as AggregatedItem).id), [
+        'm1',
+        'm2',
+        'm3',
+      ]);
       await leave(tester);
     });
   });
