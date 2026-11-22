@@ -769,8 +769,10 @@ class KostvMusicPlugin {
     String method,
     String route, {
     Object? body,
+    Map<String, Object?>? query,
     Set<int> answers = const {},
     bool keepMissing = true,
+    Duration? receiveTimeout,
   }) async {
     const failed = (ok: false, missing: false, data: null, status: null);
     const missing = (ok: false, missing: true, data: null, status: null);
@@ -783,9 +785,11 @@ class KostvMusicPlugin {
       final response = await _dio.request<dynamic>(
         '${ep.base}$_base/$route',
         data: body,
+        queryParameters: query,
         options: Options(
           method: method,
           headers: ep.headers,
+          receiveTimeout: receiveTimeout,
           validateStatus: (status) =>
               status != null &&
               (status >= 200 && status < 300 || answers.contains(status)),
@@ -1111,6 +1115,47 @@ class KostvMusicPlugin {
     );
   }
 
+  /// Kos TV: the station of a song (`GET Music/Station`,
+  /// `docs/musica-radio.md`, «Contrato de la emisora»): what people in
+  /// general listen to with it, in the plugin's order. [seed] is the home
+  /// id of a song at home or `stremfin:<DeezerId>` of one that isn't
+  /// ([title] and [artist] help the plugin with that one); [away] false
+  /// («Solo la de casa») asks only for what is at home. A plugin from
+  /// before it answers 404 ([KostvMusicAnswer.missing], kept for a while):
+  /// the app makes the station as before then.
+  Future<KostvMusicAnswer<KostvMusicStation>> station(
+    MediaServerClient client, {
+    required String seed,
+    String? title,
+    String? artist,
+    int limit = 50,
+    required bool away,
+  }) async {
+    if (seed.isEmpty) return const KostvMusicAnswer.failed();
+    final reply = await _call(
+      client,
+      'GET',
+      'Station',
+      query: {
+        'seed': seed,
+        'title': ?_short(title),
+        'artist': ?_short(artist),
+        'limit': limit,
+        'away': away,
+      },
+      // Kos TV: a new seed is worked out from the outside sources when
+      // asked; a slow one gives way to the app's own station.
+      receiveTimeout: const Duration(seconds: 20),
+    );
+    if (reply.missing) return const KostvMusicAnswer.missing();
+    final value = reply.ok
+        ? KostvMusicStation.fromJson(reply.data, client.baseUrl)
+        : null;
+    return value == null
+        ? const KostvMusicAnswer.failed()
+        : KostvMusicAnswer(value);
+  }
+
   // Kos TV: songs that aren't at home in playlists and ♥ (plan section 8).
 
   static String _playlistRoute(String playlistId) =>
@@ -1309,6 +1354,126 @@ enum KostvAwayEdit {
   /// The person can't change the playlist (shared with them only to see).
   forbidden,
   failed,
+}
+
+/// Kos TV: a song of a station that isn't at home (`Away` of
+/// `GET Music/Station`): to sound through the requests service
+/// («Escuchar mientras llega») by its Deezer id.
+@immutable
+class KostvStationAway {
+  const KostvStationAway({
+    required this.title,
+    required this.deezerId,
+    this.artist,
+    this.album,
+    this.explicit,
+    this.cover,
+    this.duration,
+    this.artistDeezerId,
+    this.albumDeezerId,
+  });
+
+  final String title;
+  final String deezerId;
+  final String? artist;
+  final String? album;
+
+  /// Null when the plugin didn't say.
+  final bool? explicit;
+
+  /// Kos TV: what the contract doesn't promise but a plugin may give.
+  final String? cover;
+  final int? duration;
+  final String? artistDeezerId;
+  final String? albumDeezerId;
+
+  static KostvStationAway? fromJson(Object? raw) {
+    if (raw is! Map) return null;
+    final title = _text(raw['Title']);
+    final deezerId = _text(raw['DeezerId']);
+    if (title == null || deezerId == null) return null;
+    final explicit = raw['Explicit'];
+    final duration = raw['Duration'];
+    final cover = _text(raw['Cover']);
+    return KostvStationAway(
+      title: title,
+      deezerId: deezerId,
+      artist: _text(raw['Artist']),
+      album: _text(raw['Album']),
+      explicit: explicit is bool ? explicit : null,
+      cover: cover != null && cover.startsWith('https://') ? cover : null,
+      duration: duration is num ? duration.round() : null,
+      artistDeezerId: _text(raw['ArtistDeezerId']),
+      albumDeezerId: _text(raw['AlbumDeezerId']),
+    );
+  }
+
+  /// As the requests service's song (not at home), for the queue.
+  StremfinSong toSong() => StremfinSong(
+    title: title,
+    deezerId: deezerId,
+    artist: artist,
+    albumTitle: album,
+    explicit: explicit ?? false,
+    cover: cover,
+    duration: duration,
+    artistDeezerId: artistDeezerId,
+    albumDeezerId: albumDeezerId,
+  );
+}
+
+/// Kos TV: one song of a station: at home ([card], the plugin's card as
+/// the app's item) or not ([away]); [why] is the source it came from.
+@immutable
+class KostvStationEntry {
+  const KostvStationEntry({this.card, this.away, this.why});
+
+  final AggregatedItem? card;
+  final KostvStationAway? away;
+  final String? why;
+}
+
+/// Kos TV: a song's station as the plugin made it (`GET Music/Station`):
+/// its songs in order and where they came from ([source]: `listenbrainz`,
+/// `lastfm` or `fallback`).
+@immutable
+class KostvMusicStation {
+  const KostvMusicStation({
+    this.entries = const [],
+    this.source,
+    this.seedTitle,
+    this.seedArtist,
+  });
+
+  final List<KostvStationEntry> entries;
+  final String? source;
+  final String? seedTitle;
+  final String? seedArtist;
+
+  static KostvMusicStation? fromJson(Object? raw, String serverId) {
+    if (raw is! Map) return null;
+    final items = raw['Items'];
+    if (items is! List) return null;
+    final seed = raw['Seed'];
+    return KostvMusicStation(
+      source: _text(raw['Source']),
+      seedTitle: seed is Map ? _text(seed['Title']) : null,
+      seedArtist: seed is Map ? _text(seed['Artist']) : null,
+      entries: [
+        for (final item in items.whereType<Map>())
+          if ((
+                kostvMusicCards([?item['Card']], serverId).firstOrNull,
+                KostvStationAway.fromJson(item['Away']),
+              )
+              case (final card, final away) when card != null || away != null)
+            KostvStationEntry(
+              card: card,
+              away: card == null ? away : null,
+              why: _text(item['Why']),
+            ),
+      ],
+    );
+  }
 }
 
 /// Kos TV: the plugin didn't answer (or failed): what is shown stays.

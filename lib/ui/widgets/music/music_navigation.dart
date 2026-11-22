@@ -182,7 +182,11 @@ Future<void> playMusicTrack(
     }
 
     KostvNowPlaying.instance.noteChosen();
-    KostvNowPlaying.instance.noteQueueSource(source, tracks);
+    KostvNowPlaying.instance.noteQueueSource(
+      source,
+      tracks,
+      startIndex: startIndex,
+    );
     kostvTellMusicSource(
       () => _clientOf(item),
       source,
@@ -325,7 +329,11 @@ Future<void> playMusicTracks(
     startIndex = kept.startIndex;
   }
   KostvNowPlaying.instance.noteChosen();
-  KostvNowPlaying.instance.noteQueueSource(source, tracks);
+  KostvNowPlaying.instance.noteQueueSource(
+    source,
+    tracks,
+    startIndex: startIndex,
+  );
   kostvTellMusicSource(
     () => _clientOf(tracks.first),
     source,

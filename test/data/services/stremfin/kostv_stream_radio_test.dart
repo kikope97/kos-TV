@@ -96,48 +96,189 @@ final _mix9 = [
 ];
 
 void main() {
-  group('mixing what is at home with what is not', () {
-    test('takes them in turns, each once, never the same artist twice', () {
-      final home = [
+  group('a station in its own order (no taking turns)', () {
+    test('keeps the order, each once, never the same artist twice', () {
+      final mixed = kostvRadioInOrder([
         _home('h1', 'Lola'),
         _home('h2', 'Lola'),
         _home('h3', 'Nube'),
-      ];
-      final away = [
         _away('1', 'Rayo'),
         _away('2', 'Lola'),
-        _away('3', 'Rayo'),
         // The same song as one at home: once.
         _away('4', 'Nube', name: 'Canción h3'),
-      ];
-      final mixed = kostvInterleaveRadio(home, away);
+      ]);
       expect(mixed.map((e) => e.id), [
         'h1',
-        'stremfin:1',
-        'h2',
-        // Not «Lola» right after «Lola»: the next one of Rayo first.
-        'stremfin:3',
+        // Not «Lola» right after «Lola»: the next one by someone else first.
         'h3',
+        'h2',
+        'stremfin:1',
         'stremfin:2',
       ]);
       expect(_noTwoInARow(mixed), isTrue);
     });
 
+    test('home and away are not taken in turns', () {
+      final mixed = kostvRadioInOrder([
+        _home('h1', 'Lola'),
+        _home('h2', 'Nube'),
+        _home('h3', 'Rayo'),
+        _away('1', 'Sol'),
+        _away('2', 'Luna'),
+      ]);
+      expect(mixed.map((e) => e.id), [
+        'h1',
+        'h2',
+        'h3',
+        'stremfin:1',
+        'stremfin:2',
+      ]);
+    });
+
     test('what is in the queue already is skipped', () {
-      final mixed = kostvInterleaveRadio(
-        [_home('h1', 'Lola'), _home('h2', 'Nube')],
-        [_away('1', 'Rayo')],
+      final mixed = kostvRadioInOrder(
+        [_home('h1', 'Lola'), _home('h2', 'Nube'), _away('1', 'Rayo')],
         skip: {'h1'},
+        skipKeys: {kostvSongKey(_away('9', 'Rayo', name: 'Fuera 1'))},
       );
-      expect(mixed.map((e) => e.id), ['h2', 'stremfin:1']);
+      expect(mixed.map((e) => e.id), ['h2']);
     });
 
     test('only one artist left: it still goes on', () {
-      final mixed = kostvInterleaveRadio([
+      final mixed = kostvRadioInOrder([
         _home('h1', 'Lola'),
         _home('h2', 'Lola'),
-      ], const []);
+      ]);
       expect(mixed.map((e) => e.id), ['h1', 'h2']);
+    });
+  });
+
+  group('the server plugin\'s station', () {
+    Map<String, Object?> card(String id, String artist) => {
+      'Id': id,
+      'Name': 'Canción $id',
+      'Type': 'Audio',
+      'Artists': [artist],
+      'ArtistItems': [
+        {'Id': 'id-$artist', 'Name': artist},
+      ],
+    };
+    Map<String, Object?> away(
+      String deezerId,
+      String artist, {
+      Object? explicit = false,
+    }) => {
+      'Title': 'Fuera $deezerId',
+      'Artist': artist,
+      'Album': 'Disco $deezerId',
+      'DeezerId': deezerId,
+      'Explicit': ?explicit,
+    };
+    KostvMusicStation station(List<Map<String, Object?>> items) =>
+        KostvMusicStation.fromJson({
+          'Seed': {'Title': 'Semilla', 'Artist': 'Lola'},
+          'Items': items,
+          'Source': 'listenbrainz',
+        }, _server)!;
+
+    test('Card is the home server\'s song, Away one that sounds through '
+        'the requests service, in the station\'s order', () {
+      final items = kostvStationFromPlugin(
+        station([
+          {'Card': card('h1', 'Nube'), 'Away': null, 'Why': 'listenbrainz'},
+          {'Card': null, 'Away': away('7', 'Rayo'), 'Why': 'style'},
+          {'Card': card('h2', 'Sol'), 'Why': 'deezer'},
+        ]),
+        serverId: _server,
+        includeAway: true,
+        hideExplicit: false,
+      );
+      expect(items.map((e) => e.id), ['h1', 'stremfin:7', 'h2']);
+      final out = items[1];
+      expect(isKostvStream(out), isTrue);
+      expect(kostvStreamDeezerId(out), '7');
+      expect(out.name, 'Fuera 7');
+      expect(out.serverId, _server);
+    });
+
+    test('«Solo la de casa»: only what is at home', () {
+      final items = kostvStationFromPlugin(
+        station([
+          {'Card': card('h1', 'Nube')},
+          {'Away': away('7', 'Rayo')},
+        ]),
+        serverId: _server,
+        includeAway: false,
+        hideExplicit: false,
+      );
+      expect(items.map((e) => e.id), ['h1']);
+    });
+
+    test('for someone with a limit, nothing from away that is explicit or '
+        'doesn\'t say', () {
+      final items = kostvStationFromPlugin(
+        station([
+          {'Away': away('1', 'Rayo')},
+          {'Away': away('2', 'Sol', explicit: true)},
+          {'Away': away('3', 'Luna', explicit: null)},
+          {'Card': card('h1', 'Nube')},
+        ]),
+        serverId: _server,
+        includeAway: true,
+        hideExplicit: true,
+      );
+      expect(items.map((e) => e.id), ['stremfin:1', 'h1']);
+    });
+
+    test('without what the person doesn\'t want to hear, the seed or what '
+        'is already in the queue', () {
+      final dislikes = KostvMusicDislikes.fromJson({
+        'Songs': [
+          {'Id': 'h2'},
+          {'Id': kostvStreamId('8')},
+        ],
+        'Artists': [
+          {'Id': 'id-Feo', 'Name': 'Feo'},
+        ],
+      })!;
+      final items = kostvStationFromPlugin(
+        station([
+          {'Card': card('seed', 'Lola')},
+          {'Card': card('h1', 'Nube')},
+          {'Card': card('h2', 'Sol')},
+          {'Card': card('h3', 'Feo')},
+          {'Away': away('8', 'Rayo')},
+          {'Away': away('9', 'Feo')},
+          {'Card': card('h4', 'Luna')},
+          {'Away': away('5', 'Mar')},
+        ]),
+        serverId: _server,
+        includeAway: true,
+        hideExplicit: false,
+        dislikes: dislikes,
+        seed: _home('seed', 'Lola'),
+        skip: {'h4'},
+      );
+      expect(items.map((e) => e.id), ['h1', 'stremfin:5']);
+    });
+
+    test('an entry with neither, or an Away without its Deezer id, is left '
+        'out', () {
+      final parsed = station([
+        {'Card': null, 'Away': null, 'Why': 'style'},
+        {
+          'Away': {'Title': 'Sin id', 'Artist': 'Rayo'},
+        },
+        {'Card': card('h1', 'Nube')},
+      ]);
+      expect(parsed.entries, hasLength(1));
+      expect(parsed.source, 'listenbrainz');
+      expect(parsed.seedArtist, 'Lola');
+    });
+
+    test('an answer that isn\'t a station is none', () {
+      expect(KostvMusicStation.fromJson({'Seed': {}}, _server), isNull);
+      expect(KostvMusicStation.fromJson('nope', _server), isNull);
     });
   });
 
@@ -236,36 +377,34 @@ void main() {
       for (final id in ids) _home(id, 'Casa $id'),
     ];
 
-    test(
-      'mixes the home server\'s mix with the radio, home ones by id',
-      () async {
-        final fake = _Radio([
-          _song('1', 'Rayo'),
-          _song('2', 'Brisa', jellyfinId: 'j2'),
-          _song('3', 'Sol'),
-        ]);
-        final seed = _home('seed', 'Lola');
-        final station = await kostvStationOf(
-          radio: KostvStreamRadio(fetch: fake.call),
-          serverId: _server,
-          includeAway: true,
-          hideExplicit: false,
-          homeItems: homeItems,
-          homeMix: () async => [seed, _home('m1', 'Lola'), _home('m2', 'Nube')],
-          artists: ['Lola'],
-          seed: seed,
-        );
-        expect(fake.asked.single.only, 'all');
-        expect(station.map((e) => e.id), [
-          'm1',
-          'stremfin:1',
-          'm2',
-          'stremfin:3',
-          'j2',
-        ]);
-        expect(_noTwoInARow(station), isTrue);
-      },
-    );
+    test('the radio in its order, home ones by id, and the home server\'s mix '
+        'after it (no taking turns)', () async {
+      final fake = _Radio([
+        _song('1', 'Rayo'),
+        _song('2', 'Brisa', jellyfinId: 'j2'),
+        _song('3', 'Sol'),
+      ]);
+      final seed = _home('seed', 'Lola');
+      final station = await kostvStationOf(
+        radio: KostvStreamRadio(fetch: fake.call),
+        serverId: _server,
+        includeAway: true,
+        hideExplicit: false,
+        homeItems: homeItems,
+        homeMix: () async => [seed, _home('m1', 'Lola'), _home('m2', 'Nube')],
+        artists: ['Lola'],
+        seed: seed,
+      );
+      expect(fake.asked.single.only, 'all');
+      expect(station.map((e) => e.id), [
+        'stremfin:1',
+        'j2',
+        'stremfin:3',
+        'm1',
+        'm2',
+      ]);
+      expect(_noTwoInARow(station), isTrue);
+    });
 
     test('with «Solo la de casa», only what the radio has at home', () async {
       final fake = _Radio([
@@ -626,8 +765,7 @@ void main() {
       );
       expect(station.map((e) => e.id), ['stremfin:2']);
       expect(
-        kostvInterleaveRadio(
-          const [],
+        kostvRadioInOrder(
           [_away('9', 'Lola', name: 'Canción q1')],
           skipKeys: {kostvSongKey(queued)},
         ),

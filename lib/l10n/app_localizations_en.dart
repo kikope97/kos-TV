@@ -21450,4 +21450,8 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvMusicRadioKicker => 'Radio';
+
+  @override
+  String get kostvMusicStationsCredit =>
+      'Stations use public data from ListenBrainz and Deezer (and from Last.fm when it is set up).';
 }

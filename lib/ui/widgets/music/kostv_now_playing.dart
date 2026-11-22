@@ -26,7 +26,8 @@ import '../../screens/playback/osd_buttons.dart'
 import '../floating_notification.dart';
 import 'design/kostv_artwork_colors.dart';
 import 'kostv_now_playing_web_session.dart';
-import 'kostv_stream_play.dart' show kostvStationFor, kostvStationWantsRadio;
+import 'kostv_stream_play.dart'
+    show kostvPluginStationFor, kostvSongStation, kostvStationWantsRadio;
 
 /// Kos TV: the music sounding in the app, for the floating player and the
 /// «Reproduciendo» page: which song, whether it plays, and the colours of
@@ -140,6 +141,9 @@ class KostvNowPlaying extends ChangeNotifier {
     _persistVolume = null;
     autoplayItems.clear();
     automaticItems.clear();
+    _queueStart = null;
+    _stationLater?.cancel();
+    _stationLater = null;
     _autoplayRetry?.cancel();
     _autoplayRetry = null;
     StremfinStreamResolver.preparing.removeListener(_preparingChanged);
@@ -175,6 +179,9 @@ class KostvNowPlaying extends ChangeNotifier {
         _autoplaySeed = null;
         autoplayItems.clear();
         automaticItems.clear();
+        _queueStart = null;
+        _stationLater?.cancel();
+        _stationLater = null;
       } else if (_sleepAfterSong && before != null && !_personChose()) {
         // «Al acabar la canción»: the next one doesn't go on. One the person
         // chose (skipped to, or another album put on) isn't the song ending:
@@ -510,6 +517,7 @@ class KostvNowPlaying extends ChangeNotifier {
       );
       if (autoplayItems.remove(entry)) autoplayItems.add(home);
       if (automaticItems.remove(entry)) automaticItems.add(home);
+      if (identical(_queueStart, entry)) _queueStart = home;
       // The song sounding changing its id isn't the person choosing another
       // one, nor the last one ending («Al acabar la canción»).
       if (i == queue.currentIndex) _itemId = home.id;
@@ -773,14 +781,56 @@ class KostvNowPlaying extends ChangeNotifier {
   bool cameByItself(AggregatedItem song) =>
       autoplayItems.contains(song) || automaticItems.contains(song);
 
-  /// Kos TV: [tracks] were put on from [source] ([KostvMusicSource]): kept
-  /// when they came by themselves; another queue of the person's choosing
-  /// isn't.
-  void noteQueueSource(String source, List<AggregatedItem> tracks) {
+  /// Kos TV: the song the queue was put on with (the one picked, or the
+  /// first of what plays by itself): what the endless play goes on from
+  /// when all of the queue came by itself ([autoplaySeedOf]).
+  AggregatedItem? _queueStart;
+
+  @visibleForTesting
+  AggregatedItem? get debugQueueStart => _queueStart;
+
+  /// Kos TV: [tracks] were put on from [source] ([KostvMusicSource]),
+  /// starting at [startIndex]: kept when they came by themselves; another
+  /// queue of the person's choosing isn't.
+  void noteQueueSource(
+    String source,
+    List<AggregatedItem> tracks, {
+    int startIndex = 0,
+  }) {
     _queueSource = source;
     automaticItems.clear();
     autoplayItems.clear();
+    // Kos TV: another queue: the last one's station isn't completed.
+    _stationLater?.cancel();
+    _stationLater = null;
+    _queueStart = tracks.isEmpty
+        ? null
+        : tracks[startIndex.clamp(0, tracks.length - 1)];
     if (KostvMusicSource.automatic(source)) automaticItems.addAll(tracks);
+  }
+
+  /// Kos TV: the song the endless play (∞) goes on from
+  /// (`docs/musica-radio.md` 3.2): the last song in [queue] the person
+  /// chose (put on or added by hand: not come by itself, [cameByItself]),
+  /// never one the ∞ (or a station) added, so it doesn't drift from what
+  /// they wanted. When all of it came by itself (a station, a mix), the
+  /// song it was put on with ([start]); without one, [current].
+  @visibleForTesting
+  static AggregatedItem? autoplaySeedOf(
+    List<Object?> queue, {
+    required bool Function(AggregatedItem song) cameByItself,
+    AggregatedItem? start,
+    AggregatedItem? current,
+  }) {
+    bool music(AggregatedItem song) =>
+        song.type == 'Audio' && !song.isAudiobook;
+    for (final entry in queue.reversed) {
+      if (entry is AggregatedItem && music(entry) && !cameByItself(entry)) {
+        return entry;
+      }
+    }
+    if (start != null && music(start)) return start;
+    return current;
   }
 
   /// Kos TV: takes out of what is still to play (after the song sounding;
@@ -847,14 +897,91 @@ class KostvNowPlaying extends ChangeNotifier {
     unawaited(manager.playFromQueue(at).catchError((_) {}));
   }
 
+  @visibleForTesting
+  Future<void> debugAutoplay() => _maybeAutoplay();
+
+  /// Kos TV: completes a station the server plugin gave in part
+  /// ([kostvPluginStationFor]'s `onPartial`).
+  Timer? _stationLater;
+
+  /// How long the plugin is given to work the whole station out.
+  @visibleForTesting
+  static Duration stationLaterAfter = const Duration(seconds: 75);
+
+  /// Kos TV: the plugin answered the station of [seed] with only its first
+  /// songs (`Source: fallback`) while it works the whole one out (up to a
+  /// minute and a half): asked again once, a while later, quietly, and
+  /// what wasn't in the queue goes at its end, as songs that came by
+  /// themselves (the ∞'s with [byAutoplay]). Nothing when the queue
+  /// changed meanwhile (another one put on, the seed no longer in it).
+  void completeStationLater(AggregatedItem seed, {bool byAutoplay = false}) {
+    _stationLater?.cancel();
+    _stationLater = Timer(stationLaterAfter, () {
+      _stationLater = null;
+      unawaited(_completeStation(seed, byAutoplay).catchError((Object _) {}));
+    });
+  }
+
+  @visibleForTesting
+  Future<void> debugCompleteStation(
+    AggregatedItem seed, {
+    bool byAutoplay = false,
+  }) => _completeStation(seed, byAutoplay);
+
+  Future<void> _completeStation(AggregatedItem seed, bool byAutoplay) async {
+    final manager = _manager;
+    if (manager == null) return;
+    final queue = manager.queueService;
+    bool stillThere() =>
+        queue.items.any((e) => e is AggregatedItem && e.id == seed.id);
+    if (!stillThere()) return;
+    final client =
+        GetIt.instance<MediaServerClientFactory>().getClientIfExists(
+          seed.serverId,
+        ) ??
+        GetIt.instance<MediaServerClient>();
+    final dislikes = await KostvMusicDislikesStore.instance
+        .load(client)
+        .catchError((Object _) => KostvMusicDislikes.empty);
+    final songs = queue.items.whereType<AggregatedItem>().toList();
+    final more = await kostvPluginStationFor(
+      seed,
+      client: client,
+      dislikes: dislikes,
+      skip: {...songs.map((e) => e.id), seed.id},
+      skipKeys: {...songs.map(kostvSongKey), kostvSongKey(seed)},
+    );
+    if (more == null || more.isEmpty || !stillThere()) return;
+    // What was put in the queue meanwhile isn't put again.
+    final now = queue.items.whereType<AggregatedItem>();
+    final ids = {...now.map((e) => e.id)};
+    final keys = {...now.map(kostvSongKey)};
+    final added = [
+      for (final song in more)
+        if (ids.add(song.id) && keys.add(kostvSongKey(song))) song,
+    ];
+    if (added.isEmpty) return;
+    (byAutoplay ? autoplayItems : automaticItems).addAll(added);
+    queue.addItems(added);
+  }
+
   /// Near the end of the queue (and with nothing on repeat), similar songs
-  /// from home are added after it, so the music goes on by itself. Whether
-  /// the player's page is open or not.
+  /// are added after it, so the music goes on by itself. Whether the
+  /// player's page is open or not.
+  ///
+  /// Kos TV: asked once for each song sounding near the end, around the
+  /// last song the person chose ([autoplaySeedOf]), not the one sounding
+  /// (which the ∞ itself may have added): the server plugin's station of
+  /// it when it has one, otherwise as before (`kostvSongStation`). Nothing
+  /// already in the queue comes again, so each time it is asked it gives
+  /// what wasn't added yet.
   Future<void> _maybeAutoplay() async {
     if (_autoplayBusy) return;
-    final seed = item;
-    if (seed == null || seed.isAudiobook || seed.type != 'Audio') return;
-    if (_autoplaySeed == seed.id || !autoplay) return;
+    final current = item;
+    if (current == null || current.isAudiobook || current.type != 'Audio') {
+      return;
+    }
+    if (_autoplaySeed == current.id || !autoplay) return;
     final manager = _manager;
     if (manager == null) return;
     final queue = manager.queueService;
@@ -867,9 +994,17 @@ class KostvNowPlaying extends ChangeNotifier {
     }
     final items = queue.items;
     _autoplayBusy = true;
-    _autoplaySeed = seed.id;
+    _autoplaySeed = current.id;
     _autoplayRetry?.cancel();
     _autoplayRetry = null;
+    final seed =
+        autoplaySeedOf(
+          items,
+          cameByItself: cameByItself,
+          start: _queueStart,
+          current: current,
+        ) ??
+        current;
     var radio = false;
     try {
       final client =
@@ -877,50 +1012,26 @@ class KostvNowPlaying extends ChangeNotifier {
             seed.serverId,
           ) ??
           GetIt.instance<MediaServerClient>();
-      final known = items.whereType<AggregatedItem>().map((e) => e.id).toSet();
-      // Kos TV: with «Toda la música», or after a song that isn't at home
-      // (the home server has no mix of it), the requests service's radio
-      // of its artists too, mixed in turns with the home server's mix.
-      if (kostvStationWantsRadio(seed)) {
-        radio = true;
-        final station = await kostvStationFor(
-          seed,
-          skip: known,
-          // Kos TV: nor the same song in its other version (at home or not).
-          skipKeys: items.whereType<AggregatedItem>().map(kostvSongKey).toSet(),
-          homeLimit: 25,
-          client: client,
-        );
-        final added = station.take(25).toList();
-        if (added.isNotEmpty && autoplay && item?.id == seed.id) {
-          autoplayItems.addAll(added);
-          queue.addItems(added);
-        }
-        return;
-      }
-      final data = await client.instantMixApi.getInstantMix(seed.id, limit: 25);
-      // Kos TV: without what the person doesn't want to hear (read now if
-      // it wasn't; a plugin without it leaves nothing out).
-      final dislikes = await KostvMusicDislikesStore.instance
-          .load(client)
-          .catchError((Object _) => KostvMusicDislikes.empty);
-      final added = <AggregatedItem>[];
-      for (final raw in (data['Items'] as List?) ?? const []) {
-        if (raw is! Map) continue;
-        final map = Map<String, dynamic>.from(raw);
-        final id = map['Id']?.toString();
-        if (id == null || !known.add(id)) continue;
-        final song = AggregatedItem(
-          id: id,
-          serverId: map['ServerId']?.toString() ?? seed.serverId,
-          rawData: map,
-        );
-        if (!dislikes.songOut(song)) added.add(song);
-      }
+      // Kos TV: asked again once the radio has rested when it goes through
+      // it too.
+      radio = kostvStationWantsRadio(seed);
+      final songs = items.whereType<AggregatedItem>();
+      var partial = false;
+      final station = await kostvSongStation(
+        seed,
+        onPartial: () => partial = true,
+        skip: {...songs.map((e) => e.id), seed.id},
+        // Kos TV: nor the same song in its other version (at home or not).
+        skipKeys: {...songs.map(kostvSongKey), kostvSongKey(seed)},
+        homeLimit: 25,
+        client: client,
+      );
+      final added = station.take(25).toList();
       // Still the same song, and the person didn't change their mind.
-      if (added.isNotEmpty && autoplay && item?.id == seed.id) {
+      if (added.isNotEmpty && autoplay && item?.id == current.id) {
         autoplayItems.addAll(added);
         queue.addItems(added);
+        if (partial) completeStationLater(seed, byAutoplay: true);
       }
     } catch (_) {
       _autoplaySeed = null;
@@ -936,7 +1047,7 @@ class KostvNowPlaying extends ChangeNotifier {
     } finally {
       _autoplayBusy = false;
       // The song changed while it was asked: asked again for the new one.
-      if (item?.id != seed.id) unawaited(_maybeAutoplay());
+      if (item?.id != current.id) unawaited(_maybeAutoplay());
     }
   }
 

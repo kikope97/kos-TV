@@ -14,7 +14,6 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/models/lyrics.dart';
-import '../../../data/services/kostv_music.dart';
 import '../../../data/services/kostv_music_away.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
@@ -39,7 +38,7 @@ import '../playback/audiobook_player_view.dart';
 import 'kostv_music_links.dart';
 import 'kostv_music_actions.dart' show kostvHomeArtistNamed, kostvMusicSay;
 import '../../widgets/music/kostv_stream_play.dart'
-    show kostvStationFor, kostvStationWantsRadio;
+    show kostvSongStation, kostvStationWantsRadio;
 import 'kostv_music_away_actions.dart';
 import 'kostv_music_dislike.dart';
 import 'kostv_song_love.dart';
@@ -741,16 +740,16 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
               item.serverId,
             ) ??
             GetIt.instance<MediaServerClient>();
-        // Kos TV: with «Toda la música» (or of one that isn't at home), the
-        // requests service's radio of its artists too, mixed in turns.
-        final mix = kostvStationWantsRadio(item)
-            ? await kostvStationFor(
-                item,
-                client: client,
-              ).catchError((Object _) => const <AggregatedItem>[])
-            : await KostvMusicService(client)
-                  .mix(item.id)
-                  .catchError((Object _) => const <AggregatedItem>[]);
+        // Kos TV: the server plugin's station when it has it; otherwise,
+        // with «Toda la música» (or of one that isn't at home), the requests
+        // service's radio of its artists and the home server's mix after
+        // it, or the home server's mix alone (`kostvSongStation`).
+        var partial = false;
+        final mix = await kostvSongStation(
+          item,
+          client: client,
+          onPartial: () => partial = true,
+        ).catchError((Object _) => const <AggregatedItem>[]);
         if (!mounted) return;
         if (mix.isEmpty) {
           if (kostvStationWantsRadio(item)) {
@@ -779,6 +778,8 @@ class _KostvNowPlayingScreenState extends State<KostvNowPlayingScreen> {
           queue,
         );
         await _manager.playItems(queue);
+        // Kos TV: the whole station after the plugin's first answer.
+        if (partial) KostvNowPlaying.instance.completeStationLater(item);
       case 'dislikeArtist':
         await kostvDislikeArtist(
           context,

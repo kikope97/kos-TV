@@ -6,7 +6,7 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../models/aggregated_item.dart';
 import '../kostv_music_dislikes.dart';
-import '../kostv_music_plugin.dart' show KostvMusicDislikes;
+import '../kostv_music_plugin.dart' show KostvMusicDislikes, KostvMusicStation;
 import 'kostv_stream_song.dart';
 import 'stremfin_models.dart';
 import 'stremfin_service.dart';
@@ -39,48 +39,74 @@ String kostvSongArtistKey(AggregatedItem item) {
 String kostvSongKey(AggregatedItem item) =>
     '${item.name.trim().toLowerCase()}|${kostvSongArtistKey(item)}';
 
-/// Kos TV: [home] and [away] taken in turns (one of home, one from away…),
-/// each song once (by id, and by title and artist), never two of the same
-/// artist in a row when another can go there instead. What is left of one
-/// when the other runs out goes after, with the same care. [skip] are ids
-/// and [skipKeys] [kostvSongKey]s already in the queue.
-List<AggregatedItem> kostvInterleaveRadio(
-  List<AggregatedItem> home,
-  List<AggregatedItem> away, {
+/// Kos TV: [songs] of a station in their own order (home and away as the
+/// station puts them, never taken in turns: `docs/musica-radio.md`, fase
+/// 1), each song once (by id, and by title and artist), and never two of
+/// the same artist in a row when another can go there instead: the first
+/// one after it by someone else goes first, the rest keep their order.
+/// [skip] are ids and [skipKeys] [kostvSongKey]s already in the queue.
+List<AggregatedItem> kostvRadioInOrder(
+  List<AggregatedItem> songs, {
   Set<String> skip = const {},
   Set<String> skipKeys = const {},
 }) {
   final seenIds = {...skip};
   final seenKeys = {...skipKeys};
-  List<AggregatedItem> fresh(List<AggregatedItem> list) => [
-    for (final item in list)
+  final left = [
+    for (final item in songs)
       if (seenIds.add(item.id) && seenKeys.add(kostvSongKey(item))) item,
   ];
-  final lists = [fresh(home), fresh(away)];
   final result = <AggregatedItem>[];
-  var turn = lists[0].isNotEmpty ? 0 : 1;
   String? last;
-  while (lists[0].isNotEmpty || lists[1].isNotEmpty) {
-    AggregatedItem? picked;
-    for (final which in [turn, 1 - turn]) {
-      final list = lists[which];
-      final at = list.indexWhere((s) => kostvSongArtistKey(s) != last);
-      if (at >= 0) {
-        picked = list.removeAt(at);
-        turn = 1 - which;
-        break;
-      }
-    }
-    if (picked == null) {
-      // Only that artist left: it goes on anyway.
-      final list = lists[turn].isNotEmpty ? lists[turn] : lists[1 - turn];
-      picked = list.removeAt(0);
-      turn = 1 - turn;
-    }
+  while (left.isNotEmpty) {
+    final at = left.indexWhere((s) => kostvSongArtistKey(s) != last);
+    // Only that artist left: it goes on anyway.
+    final picked = left.removeAt(at < 0 ? 0 : at);
     result.add(picked);
     last = kostvSongArtistKey(picked);
   }
   return result;
+}
+
+/// Kos TV: the songs of a station the server plugin made ([station],
+/// `GET Music/Station`) as the queue takes them: each `Card` as the home
+/// server's song, each `Away` (with «Toda la música», [includeAway]) as a
+/// song that isn't at home, sounding through the requests service. The
+/// plugin leaves out what the person can't or doesn't want to hear; this
+/// keeps the app's own guard too: nothing of [dislikes], and for someone
+/// with a limit ([hideExplicit]) nothing from away that is explicit or
+/// doesn't say. Without the seed and what is in the queue ([skip] ids,
+/// [skipKeys] [kostvSongKey]s), in the station's order ([kostvRadioInOrder]).
+List<AggregatedItem> kostvStationFromPlugin(
+  KostvMusicStation station, {
+  required String serverId,
+  required bool includeAway,
+  required bool hideExplicit,
+  KostvMusicDislikes dislikes = KostvMusicDislikes.empty,
+  AggregatedItem? seed,
+  Set<String> skip = const {},
+  Set<String> skipKeys = const {},
+}) {
+  final seedKey = seed == null ? null : kostvSongKey(seed);
+  final songs = <AggregatedItem>[];
+  for (final entry in station.entries) {
+    AggregatedItem? item = entry.card;
+    final away = entry.away;
+    if (item == null && away != null && includeAway) {
+      if (hideExplicit && away.explicit != false) continue;
+      final song = away.toSong();
+      if (dislikes.stremfinSongOut(song)) continue;
+      item = kostvStreamItemFromSong(song, serverId: serverId);
+    }
+    if (item == null || dislikes.songOut(item)) continue;
+    if (kostvSongKey(item) == seedKey) continue;
+    songs.add(item);
+  }
+  return kostvRadioInOrder(
+    songs,
+    skip: {...skip, ?seed?.id},
+    skipKeys: skipKeys,
+  );
 }
 
 /// Kos TV: how many songs that aren't at home go into a mix of [homeSongs]
@@ -282,10 +308,11 @@ class KostvStreamRadio {
   }
 }
 
-/// Kos TV: a station around a seed, mixing the home server's own mix
-/// ([homeMix], Jellyfin's InstantMix of a song at home; none for one that
-/// isn't) with the requests service's radio of the seed's artists
-/// ([artists] by name, [artistIds] by Deezer's id). With [includeAway] (the
+/// Kos TV: a station around a seed, as the app makes it when the server
+/// plugin can't ([kostvStationFromPlugin]): the requests service's radio of
+/// the seed's artists ([artists] by name, [artistIds] by Deezer's id), in
+/// its order, and after it the home server's own mix ([homeMix],
+/// Jellyfin's InstantMix of a song at home; none for one that isn't). With [includeAway] (the
 /// person listens to all the music) the radio's songs that aren't at home
 /// go in too; otherwise only those of it that are at home. Without what the
 /// person doesn't want to hear ([dislikes]) nor, for someone with a limit
@@ -339,24 +366,16 @@ Future<List<AggregatedItem>> kostvStationOf({
     // Kos TV: only for someone with all the music and no limit.
     streamWhenHomeFails: includeAway && !hideExplicit,
   );
-  final radioHome = [
-    for (final item in queued.items)
-      if (!isKostvStream(item)) item,
-  ];
-  final radioAway = [
-    for (final item in queued.items)
-      if (isKostvStream(item)) item,
-  ];
   final skipAll = {...skip, ?seed?.id};
   final seedKey = seed == null ? null : kostvSongKey(seed);
   bool keep(AggregatedItem item) =>
       !dislikes.songOut(item) && kostvSongKey(item) != seedKey;
-  // The home server's own mix first, its songs from the radio after them.
-  final home = [...mix, ...radioHome].where(keep).toList();
-  final away = radioAway.where(keep).toList();
-  final station = kostvInterleaveRadio(
-    home,
-    away,
+  // Kos TV: the radio in its own order (what is at home and what isn't as
+  // it gives them, not taken in turns), and the home server's own mix,
+  // random within the genre, only after it: the last resort
+  // (`docs/musica-radio.md`, fase 1).
+  final station = kostvRadioInOrder(
+    [...queued.items, ...mix].where(keep).toList(),
     skip: skipAll,
     skipKeys: skipKeys,
   );

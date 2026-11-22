@@ -250,6 +250,7 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
           children: [
             _SectionHeader(l10n.kostvMusic),
             adaptiveListSection(children: [?catalog, ?dislikes]),
+            _stationsCredit(context, l10n),
           ],
         );
       }
@@ -278,6 +279,7 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
               ?dislikes,
             ],
           ),
+          _stationsCredit(context, l10n),
         ],
       );
     }
@@ -347,7 +349,24 @@ class _KostvMusicLearnSectionState extends State<KostvMusicLearnSection> {
             ?dislikes,
           ],
         ),
+        _stationsCredit(context, l10n),
       ],
     );
   }
+
+  /// Kos TV: where the stations («Crear emisora», ∞) take their data from,
+  /// as Last.fm's terms ask when its key is set in the server plugin: a
+  /// small line under the section, not something to pick.
+  Widget _stationsCredit(BuildContext context, AppLocalizations l10n) =>
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+        child: Text(
+          l10n.kostvMusicStationsCredit,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurface
+                .withValues(alpha: 0.6),
+          ),
+        ),
+      );
 }

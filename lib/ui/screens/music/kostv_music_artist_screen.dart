@@ -304,6 +304,7 @@ class _KostvMusicArtistScreenState extends State<KostvMusicArtistScreen> {
                               () => playKostvArtistStation(
                                 context,
                                 detail.artist,
+                                topSongs: detail.topSongs,
                               ),
                             ),
                           ),

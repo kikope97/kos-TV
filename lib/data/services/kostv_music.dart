@@ -154,6 +154,18 @@ class KostvMusicService {
   Future<List<AggregatedItem>> mix(String itemId, {int limit = 60}) async =>
       _items(await _client.instantMixApi.getInstantMix(itemId, limit: limit));
 
+  /// Kos TV: a few songs of the artist [artistId], the ones the person
+  /// plays most first (any of them when they haven't played them): what an
+  /// artist's station starts from.
+  Future<List<AggregatedItem>> artistSongs(String artistId, {int limit = 5}) =>
+      _get(
+        types: const ['Audio'],
+        artistIds: [artistId],
+        sortBy: 'PlayCount,Random',
+        descending: true,
+        limit: limit,
+      );
+
   /// Songs, albums and artists of the home server matching [query].
   /// Kos TV: and the person's playlists of music (the search's «Listas»).
   Future<KostvMusicAtHome> search(String query) async {
