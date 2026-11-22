@@ -12,7 +12,7 @@ import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
 import '../../../l10n/app_localizations.dart';
 import 'kostv_music_actions.dart' show kostvMusicSay;
-import 'kostv_music_widgets.dart' show kostvMusicColor;
+import '../../widgets/music/design/kostv_music_design.dart';
 
 /// Kos TV: how a page's own stop of the remote is made (the player's, so
 /// the remote moves through the pill as through the rest of the page).
@@ -162,19 +162,23 @@ Future<bool> kostvStreamAskAlbum(
         download.label ?? l10n.kostvMusicOnItsWay,
         if (download.percent != null) '${download.percent} %',
       ].join(' · '),
-      icon: Icons.downloading_rounded,
+      icon: Icons.local_shipping_rounded,
       can: false,
     );
   }
   if (album?.request case final request?) {
     return (
-      label: request.statusLabel ?? l10n.kostvMusicAsked,
+      label: request.statusLabel ?? l10n.kostvMusicAskedNotify,
       icon: Icons.check_rounded,
       can: false,
     );
   }
   if (album != null && !album.canRequest) return null;
-  return (label: l10n.kostvStreamAskAlbum, icon: Icons.add_rounded, can: true);
+  return (
+    label: l10n.kostvMusicAskTheAlbum,
+    icon: Icons.download_rounded,
+    can: true,
+  );
 }
 
 /// Kos TV: «No está en casa · en streaming», the pill of «Reproduciendo»
@@ -256,37 +260,42 @@ class _KostvStreamPillState extends State<KostvStreamPill> {
     final big = widget.big;
     final album = _album;
     final fontSize = big ? 16.0 : 13.0;
-    final pill = Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: big ? 16 : 12,
-        vertical: big ? 9 : 7,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(40),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.cloud_outlined,
-            size: big ? 20 : 16,
-            color: Colors.white.withValues(alpha: 0.85),
-          ),
-          SizedBox(width: big ? 8 : 6),
-          Flexible(
-            child: Text(
-              l10n.kostvStreamNotAtHome,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.9),
-                fontSize: fontSize,
-                fontWeight: FontWeight.w600,
+    // Kos TV: the music design's small line («Suena en streaming · no está
+    // en casa»), calm: no cloud, no colour.
+    final pill = Tooltip(
+      message: l10n.kostvMusicAwaySongNote,
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: big ? 16 : 12,
+          vertical: big ? 9 : 7,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.28),
+          borderRadius: BorderRadius.circular(40),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.graphic_eq_rounded,
+              size: big ? 20 : 16,
+              color: KostvMusicTokens.muted,
+            ),
+            SizedBox(width: big ? 8 : 6),
+            Flexible(
+              child: Text(
+                l10n.kostvMusicAwayPlayerLine,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: KostvMusicTokens.muted,
+                  fontSize: fontSize,
+                  fontWeight: FontWeight.w400,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
     // What the album button says: to ask for it, or how it is once asked.
@@ -302,55 +311,15 @@ class _KostvStreamPillState extends State<KostvStreamPill> {
         ? null
         : widget.stop(
             can ? () => unawaited(_ask()) : null,
-            (context, lit) => AnimatedContainer(
-              duration: const Duration(milliseconds: 160),
-              padding: EdgeInsets.symmetric(
-                horizontal: big ? 16 : 12,
-                vertical: big ? 9 : 7,
-              ),
-              decoration: BoxDecoration(
-                color: lit
-                    ? Colors.white
-                    : (can
-                          ? kostvMusicColor
-                          : Colors.white.withValues(alpha: 0.12)),
-                borderRadius: BorderRadius.circular(40),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (_asking)
-                    SizedBox.square(
-                      dimension: big ? 18 : 14,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: lit ? Colors.black : Colors.white,
-                      ),
-                    )
-                  else
-                    Icon(
-                      icon,
-                      size: big ? 20 : 16,
-                      color: lit ? Colors.black : Colors.white,
-                    ),
-                  SizedBox(width: big ? 8 : 6),
-                  // Kos TV: a long label (what the service says, with its
-                  // percentage) or big system text is cut short, rather
-                  // than overflowing on a narrow phone.
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: lit ? Colors.black : Colors.white,
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            // Kos TV: a secondary pill (see-through, white with the
+            // focus), its state quiet once asked.
+            (context, lit) => KostvMusicPill(
+              label: label,
+              icon: icon,
+              lit: lit,
+              busy: _asking,
+              kind: can ? KostvPillKind.ghost : KostvPillKind.quiet,
+              size: big ? KostvPillSize.m : KostvPillSize.s,
             ),
           );
     return Wrap(
@@ -501,63 +470,4 @@ class _KostvPulseState extends State<KostvPulse>
     },
     child: widget.child,
   );
-}
-
-/// Kos TV: the small mark of a song that isn't at home (the queue's, the
-/// lists', the floating player's): a cloud, with «No está en casa» for the
-/// mouse's pointer and the screen reader.
-class KostvStreamMark extends StatelessWidget {
-  const KostvStreamMark({super.key, this.size = 16, this.color});
-
-  final double size;
-
-  /// Of the cloud; a soft white by default (on a dark background).
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) => Tooltip(
-    message: AppLocalizations.of(context).kostvStreamOutOfHome,
-    child: Icon(
-      Icons.cloud_outlined,
-      size: size,
-      color: color ?? Colors.white.withValues(alpha: 0.5),
-    ),
-  );
-}
-
-/// Kos TV: [child] (a song's artist line) with [KostvStreamMark] right after
-/// it when [stream] (the song isn't at home); just [child] when it is.
-class KostvStreamMarked extends StatelessWidget {
-  const KostvStreamMarked({
-    super.key,
-    required this.stream,
-    required this.child,
-    this.size = 14,
-    this.color,
-    this.centred = false,
-  });
-
-  final bool stream;
-  final Widget child;
-  final double size;
-  final Color? color;
-
-  /// Kos TV: centred under a centred title, rather than from the start.
-  final bool centred;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!stream) return child;
-    return Row(
-      mainAxisSize: centred ? MainAxisSize.min : MainAxisSize.max,
-      mainAxisAlignment: centred
-          ? MainAxisAlignment.center
-          : MainAxisAlignment.start,
-      children: [
-        Flexible(child: child),
-        SizedBox(width: size * 0.4),
-        KostvStreamMark(size: size, color: color),
-      ],
-    );
-  }
 }

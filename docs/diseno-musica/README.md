@@ -91,3 +91,24 @@ Todo texto nuevo va en `lib/l10n/app_es.arb` y `app_en.arb`. Cada fase se prueba
 Nada de esto toca el complemento del servidor ni las llamadas a Stremfin: es solo presentación.
 
 Fuentes: [Spotify rediseña su app de Apple TV (MacRumors, 2025)](https://www.macrumors.com/2025/10/28/spotify-redesigned-apple-tv-app/), [Spotify en las teles (Spotify Newsroom, 2023)](https://newsroom.spotify.com/2023-11-09/find-your-favorite-audio-more-easily-with-the-redesigned-spotify-on-tv-experience/), [tvOS 26 a fondo (AppleInsider)](https://appleinsider.com/articles/25/06/18/tvos-26-hands-on-sleek-liquid-glass-redesign-new-control-center-and-more), [Apple Music en iOS 26 (AppleInsider)](https://forums.appleinsider.com/discussion/240889).
+
+## Piezas en la app
+
+Hechas en la fase 1. Las fases 2–4 las usan tal cual (no se hacen otras parecidas). Todas están en `lib/ui/widgets/music/design/` y se importan juntas con `kostv_music_design.dart`.
+
+| Pieza | Dónde | Qué es |
+|---|---|---|
+| `KostvMusicTokens` | `kostv_music_tokens.dart` | Colores (fondo `#0B0B0F`, tinta, apagado, cian, violeta, rosa y el degradado de la marca), radios, el foco (marco 3 px separado 3 px, +7 %) y las medidas por pantalla: márgenes 64/56/16, tarjeta 172/190/150, filas, accesos y títulos. |
+| `KostvMusicType` | `kostv_music_tokens.dart` | Letras: `title(tamaño)` en Outfit Bold para títulos; `body` y `muted` para lo demás. `KostvGradientText` pinta un texto con el degradado (lo que suena). |
+| `KostvPlayButton` | `kostv_play_button.dart` | El único botón de reproducir: círculo con el degradado e icono negro. Tamaños `KostvPlaySize.player` (84), `album` (64), `card` (44), `row` (32), o `diameter`. `pause: true` para ⏸. Con `onTap` es una parada propia (foco con marco blanco y +10 %, ratón encima y pulsado); sin él solo se dibuja. `KostvPlayFace` es su dibujo, para meterlo en algo que se pulsa entero (la cápsula, una tarjeta). |
+| `KostvSongRow` | `kostv_song_row.dart` | La fila de canción: número → ▶ con el foco o el ratón (sin número, el ▶ va sobre la portada), ecualizador con el degradado si suena (`sound` o `soundingId`, que sigue al reproductor), título, artista (`subtitle` o `subtitleBuilder` para enlaces), duración (`kostvSongLength`) y «⋯» con el foco o el ratón (abre `onMenu`). Marco blanco de 2 px y +2 % con el foco. `trailing` solo para el estado de petición con «Solo la de casa». `KostvSongRowFace` es su dibujo sin parada. |
+| `KostvMusicSongRow` y `KostvMusicTrackRow` | `kostv_music_widgets.dart`, `kostv_music_album_screen.dart` | Las filas de siempre de las listas y del álbum, ahora hechas con `KostvSongRow` (mismos parámetros, más `duration` y `soundingId`). `kostvSongSoundingId(StremfinSong)` da el id de la cola. |
+| `KostvMusicAlbumTile` | `kostv_music_widgets.dart` | La tarjeta cuadrada (y el círculo de artista): `KostvFocusFrame` y, en discos, mezclas y listas, el ▶ de la marca abajo a la derecha con el foco o el ratón. `onPlay` hace que ese ▶ reproduzca con ratón o toque; el resto de la tarjeta sigue abriendo. |
+| `KostvFocusFrame` | `kostv_focus_frame.dart` | El foco de la tele para cualquier pieza: marco blanco de 3 px separado `gap`, sombra y `scale` (1,07 por defecto). |
+| `KostvMusicQuickTile` | `kostv_music_tiles.dart` | Acceso rápido de «Sigue escuchando»: portada a la izquierda, nombre y línea, fondo de cristal; con el foco, marco y +5 %. `art` para el corazón de favoritas o el arte de una mezcla. |
+| `KostvShelfHeader` | `kostv_music_tiles.dart` | Cabecera de estante: título en Outfit, línea debajo, `onPlay` (▶ pequeño junto al título), `actions` y `more` a la derecha. `KostvMusicHeading` (la de siempre) ya usa la misma letra. |
+| `KostvMusicPill` y `KostvRoundIcon` | `kostv_music_pills.dart` | Pastilla secundaria (`ghost`, de contorno: «Pedir el álbum»; `quiet`: «Pedido · te avisamos», «De camino», «Ya está en casa») y botón redondo de cristal (aleatorio, me gusta, ⋯). Blancos con el foco. |
+| `KostvArtworkColors` | `kostv_artwork_colors.dart` | Color de la portada, calculado una vez por imagen (a partir de una copia de 48 px, entre fotogramas) y guardado (las últimas 96). `cached(url)` al momento, `of(url)` si no; `wash(color)` da el fondo difuminado del álbum, el artista y el reproductor. El reproductor ya lo usa. |
+| `KostvEqualizerBars` | `kostv_now_playing_capsule.dart` | El ecualizador de siempre, ahora con `gradient` para pintarlo con la marca. Solo se mueve si suena y está a la vista. |
+
+Textos nuevos (al final de los `.arb`): `kostvMusicAwayNoteLead` y `kostvMusicAwayNoteRest` (la nota del álbum), `kostvMusicAwayPlayerLine` y `kostvMusicAwaySongNote` (la línea del reproductor), `kostvMusicAskTheAlbum`, `kostvMusicAskedNotify` y `kostvMusicAlreadyHome`.

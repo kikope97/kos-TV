@@ -22,7 +22,8 @@ import 'package:moonfin/ui/screens/music/kostv_music_album_screen.dart'
 import 'package:moonfin/ui/screens/music/kostv_music_links.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_widgets.dart';
 import 'package:moonfin/ui/screens/music/kostv_stream_widgets.dart'
-    show KostvPulse, KostvStreamMark, KostvStreamPill, kostvStreamAlbumState;
+    show KostvPulse, KostvStreamPill, kostvStreamAlbumState;
+import 'package:moonfin/ui/widgets/music/design/kostv_music_design.dart';
 import 'package:moonfin/ui/widgets/music/kostv_stream_play.dart';
 import 'package:moonfin/util/focus/input_mode_tracker.dart';
 import 'package:moonfin/util/platform_detection.dart';
@@ -114,42 +115,42 @@ void main() {
       ),
     );
 
-    testWidgets('with «Toda la música»: it plays, no «Pedir»', (tester) async {
-      await row(tester, away: true);
+    // Kos TV: the music design: a row looks the same whether its song is at
+    // home or sounds in streaming; no button, cloud or tick of its own.
+    void looksPlain(WidgetTester tester) {
       expect(find.text('Pedir'), findsNothing);
-      expect(find.byIcon(Icons.play_circle_outline_rounded), findsOneWidget);
-    });
+      expect(find.byType(KostvMusicBadgePill), findsNothing);
+      expect(find.byIcon(Icons.cloud_outlined), findsNothing);
+      expect(find.byIcon(Icons.play_circle_outline_rounded), findsNothing);
+      expect(find.byIcon(Icons.play_circle_fill_rounded), findsNothing);
+      expect(find.byTooltip('No está en casa'), findsNothing);
+    }
 
-    testWidgets('with «Solo la de casa»: «Pedir», as before', (tester) async {
-      await row(tester);
-      expect(find.text('Pedir'), findsOneWidget);
-      await row(tester, atHome: true);
-      expect(find.byIcon(Icons.play_circle_fill_rounded), findsOneWidget);
-    });
-
-    // Kos TV: whether it is at home shows on every row that can be either.
-    testWidgets('one that sounds in streaming has the small cloud after its '
-        'artist, with «No está en casa»; one at home, none', (tester) async {
+    testWidgets('with «Toda la música»: it plays, and looks like one at home', (
+      tester,
+    ) async {
       await row(tester, away: true);
-      expect(find.byType(KostvStreamMark), findsOneWidget);
-      expect(find.byTooltip('No está en casa'), findsOneWidget);
-      // Right after the artist line, on the same line.
-      final artist = tester.getRect(find.text('Rayo'));
-      final cloud = tester.getRect(find.byType(KostvStreamMark));
-      expect(cloud.left, greaterThanOrEqualTo(artist.right));
-      expect(cloud.center.dy, closeTo(artist.center.dy, 4));
+      looksPlain(tester);
+      final away = tester.getRect(find.text('Rayo'));
       await row(tester, atHome: true);
-      expect(find.byType(KostvStreamMark), findsNothing);
+      looksPlain(tester);
+      // The same place for its artist line: nothing after it either way.
+      expect(tester.getRect(find.text('Rayo')), away);
       // A chart's song with its album at home is played from home.
       await row(tester, atHome: true, away: true);
-      expect(find.byType(KostvStreamMark), findsNothing);
-      // With «Solo la de casa» it has its «Pedir» and doesn't sound.
-      await row(tester);
-      expect(find.byType(KostvStreamMark), findsNothing);
+      looksPlain(tester);
     });
 
-    testWidgets('with its links (the artist and the album that open), the '
-        'cloud too', (tester) async {
+    testWidgets('with «Solo la de casa»: its «Pedir», as before (quiet)', (
+      tester,
+    ) async {
+      await row(tester);
+      expect(find.text('Pedir'), findsOneWidget);
+      expect(find.byType(KostvMusicBadgePill), findsOneWidget);
+    });
+
+    testWidgets('with its links (the artist and the album that open), no '
+        'mark either', (tester) async {
       await tester.pumpWidget(
         _app(
           KostvMusicSongRow(
@@ -163,7 +164,8 @@ void main() {
           ),
         ),
       );
-      expect(find.byType(KostvStreamMark), findsOneWidget);
+      expect(find.textContaining('Rayo', findRichText: true), findsWidgets);
+      looksPlain(tester);
     });
   });
 
@@ -185,17 +187,20 @@ void main() {
       ),
     );
 
-    testWidgets('in streaming, the cloud where one at home has its tick', (
+    testWidgets('the same in streaming as at home: no cloud and no tick', (
       tester,
     ) async {
-      await track(tester, away: true);
-      expect(find.byType(KostvStreamMark), findsOneWidget);
-      expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
-      await track(tester, atHome: true);
-      expect(find.byType(KostvStreamMark), findsNothing);
-      expect(find.byIcon(Icons.check_circle_rounded), findsOneWidget);
-      await track(tester);
-      expect(find.byType(KostvStreamMark), findsNothing);
+      for (final (atHome, away) in [
+        (false, true),
+        (true, false),
+        (false, false),
+      ]) {
+        await track(tester, atHome: atHome, away: away);
+        expect(find.text('1'), findsOneWidget);
+        expect(find.text('3:20'), findsOneWidget);
+        expect(find.byIcon(Icons.cloud_outlined), findsNothing);
+        expect(find.byIcon(Icons.check_circle_rounded), findsNothing);
+      }
     });
   });
 
@@ -225,8 +230,11 @@ void main() {
         ),
       ),
     );
-    await tester.tap(find.text('Reproducir'));
-    await tester.tap(find.text('Aleatorio'));
+    // Kos TV: the music design's play button and a round one; their words
+    // in the tooltip (and for the screen reader).
+    expect(find.byType(KostvPlayButton), findsOneWidget);
+    await tester.tap(find.byTooltip('Reproducir'));
+    await tester.tap(find.byTooltip('Aleatorio'));
     expect((played, shuffled), (1, 1));
   });
 
@@ -338,16 +346,18 @@ void main() {
       await host(tester);
       await open(tester, showKostvMusicSongMenu(context, item: _away()));
       expect(find.text('Lejos'), findsOneWidget);
-      expect(find.text('Rayo · No está en casa'), findsOneWidget);
-      // Kos TV: the same cloud as in the lists, after it.
-      expect(find.byType(KostvStreamMark), findsOneWidget);
+      // Kos TV: the same as one at home (the music design): nothing about
+      // being out of home in its heading.
+      expect(find.text('Rayo'), findsOneWidget);
+      expect(find.textContaining('No está en casa'), findsNothing);
+      expect(find.byIcon(Icons.cloud_outlined), findsNothing);
       for (final entry in [
         'Reproducir a continuación',
         'Añadir al final de la cola',
         'Crear emisora',
         'Ir al álbum',
         'Ir al artista',
-        'Pedir álbum',
+        'Pedir el álbum',
       ]) {
         expect(find.text(entry), findsOneWidget, reason: entry);
       }
@@ -452,7 +462,7 @@ void main() {
     });
   });
 
-  test('«Pedir álbum» says how its album stands', () async {
+  test('«Pedir el álbum» says how its album stands', () async {
     final l10n = await AppLocalizations.delegate.load(const Locale('es'));
     expect(
       kostvStreamAlbumState(
@@ -464,7 +474,7 @@ void main() {
         ),
         hasAlbum: true,
       ),
-      (label: 'Pedir álbum', icon: Icons.add_rounded, can: true),
+      (label: 'Pedir el álbum', icon: Icons.download_rounded, can: true),
     );
     // Not known yet: it can be asked for (the service says if not).
     expect(kostvStreamAlbumState(l10n, null, hasAlbum: true)?.can, isTrue);
@@ -590,7 +600,7 @@ void main() {
       expect(await beating(), isFalse);
     });
 
-    testWidgets('«Pedir álbum» is cut short on a narrow phone with big '
+    testWidgets('«Pedir el álbum» is cut short on a narrow phone with big '
         'text, rather than overflowing', (tester) async {
       tester.view.physicalSize = const Size(300, 700);
       tester.view.devicePixelRatio = 1;
@@ -612,7 +622,7 @@ void main() {
       );
       await tester.pump();
       expect(tester.takeException(), isNull);
-      expect(find.text('Pedir álbum'), findsOneWidget);
+      expect(find.text('Pedir el álbum'), findsOneWidget);
     });
   });
 }

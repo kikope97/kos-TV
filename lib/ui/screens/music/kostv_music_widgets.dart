@@ -5,6 +5,9 @@ import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
+import '../../../data/services/stremfin/kostv_stream_song.dart'
+    show kostvStreamId;
+import '../../../data/services/stremfin/stremfin_models.dart' show StremfinSong;
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/preference_constants.dart';
 import '../../../preference/user_preferences.dart';
@@ -12,9 +15,9 @@ import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../widgets/bounded_network_image.dart';
+import '../../widgets/music/design/kostv_music_design.dart';
 import '../../widgets/navigation_layout.dart';
 import 'kostv_music_links.dart';
-import 'kostv_stream_widgets.dart' show KostvStreamMarked;
 
 /// Kos TV: the colour of Music, Apple Music's red-pink.
 const kostvMusicColor = Color(0xFFFA2D55);
@@ -374,7 +377,6 @@ class KostvMusicHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final phone = KostvMusicSizes.phone;
     return Padding(
       padding: padding,
@@ -389,12 +391,8 @@ class KostvMusicHeading extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: phone ? 21 : 24,
-                    letterSpacing: -0.3,
-                  ),
+                  // Kos TV: the brand's letters for titles (Outfit).
+                  style: KostvMusicType.title(KostvMusicTokens.shelfTitle),
                 ),
               ),
               for (final action in actions) ...[
@@ -404,13 +402,13 @@ class KostvMusicHeading extends StatelessWidget {
             ],
           ),
           if (subtitle != null)
-            Text(
-              subtitle!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: kostvMusicGrey,
-                fontSize: phone ? 13 : 14,
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(
+                subtitle!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: KostvMusicType.muted(phone ? 13 : 14),
               ),
             ),
         ],
@@ -420,7 +418,7 @@ class KostvMusicHeading extends StatelessWidget {
 }
 
 /// Kos TV: a small button of a list's heading («Reproducir», «Aleatorio»):
-/// a pill with its icon and, but on a narrow phone, its word.
+/// the play button, or a round one with its icon (its word in the tooltip).
 class KostvMusicRowAction extends StatelessWidget {
   const KostvMusicRowAction({
     super.key,
@@ -441,54 +439,45 @@ class KostvMusicRowAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final phone = KostvMusicSizes.phone;
-    // On a narrow phone, only the icon (the word goes in the tooltip).
-    final words = !phone || MediaQuery.sizeOf(context).width >= 420;
-    final pill = KostvMusicPressable(
-      focusNode: focusNode,
-      onTap: onTap,
-      onKey: onKey,
-      builder: (context, lit) => AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        padding: EdgeInsets.symmetric(
-          horizontal: words ? (phone ? 12 : 14) : 9,
-          vertical: phone ? 6 : 7,
-        ),
-        decoration: BoxDecoration(
-          color: lit
-              ? Colors.white
-              : (primary ? kostvMusicColor : const Color(0xFF2C2C2E)),
-          borderRadius: AppRadius.circular(999),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: phone ? 18 : 20,
-              color: lit ? Colors.black : Colors.white,
-            ),
-            if (words) ...[
-              const SizedBox(width: 6),
-              Text(
-                label,
-                maxLines: 1,
-                style: TextStyle(
-                  color: lit ? Colors.black : Colors.white,
-                  fontSize: phone ? 13 : 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ],
+    // Kos TV: the music design's pieces: «Reproducir» is the one play
+    // button (the brand's gradient), the rest round glass buttons; their
+    // words go in the tooltip and to the screen reader.
+    if (primary && icon == Icons.play_arrow_rounded) {
+      return KostvPlayButton(
+        size: KostvPlaySize.row,
+        diameter: KostvMusicSizes.phone ? 34 : 38,
+        tooltip: label,
+        focusNode: focusNode,
+        onKey: onKey,
+        onTap: onTap,
+      );
+    }
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: label,
+        child: KostvMusicPressable(
+          focusNode: focusNode,
+          onTap: onTap,
+          onKey: onKey,
+          builder: (context, lit) => KostvRoundIcon(
+            icon: icon,
+            lit: lit,
+            diameter: KostvMusicSizes.phone ? 34 : 38,
+          ),
         ),
       ),
     );
-    return words ? pill : Tooltip(message: label, child: pill);
   }
 }
 
-/// The small pill on a cover: «Pedir», «Pedido», «De camino», «Falló».
+/// The small pill of how a record stands: «Pedir», «Pedido», «De camino»,
+/// «Falló». Kos TV: only with «Solo la de casa» (what isn't at home doesn't
+/// play then); with «Toda la música» everything looks the same and asking
+/// for an album is on its page. In the music design's quiet language: a
+/// see-through pill, not a coloured chip.
 class KostvMusicBadgePill extends StatelessWidget {
   const KostvMusicBadgePill({super.key, required this.badge});
 
@@ -497,48 +486,45 @@ class KostvMusicBadgePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    final (label, color, icon) = switch (badge) {
-      KostvMusicBadge.ask => (
-        l10n.kostvMusicAsk,
-        kostvMusicColor,
-        Icons.add_rounded,
-      ),
-      KostvMusicBadge.asked => (
-        l10n.kostvMusicAsked,
-        const Color(0xFF636366),
-        Icons.check_rounded,
-      ),
+    final (label, icon) = switch (badge) {
+      KostvMusicBadge.ask => (l10n.kostvMusicAsk, Icons.download_rounded),
+      KostvMusicBadge.asked => (l10n.kostvMusicAsked, Icons.check_rounded),
       KostvMusicBadge.onItsWay => (
         l10n.kostvMusicOnItsWay,
-        const Color(0xFF0A84FF),
-        Icons.downloading_rounded,
+        Icons.local_shipping_rounded,
       ),
       KostvMusicBadge.failed => (
         l10n.kostvMusicDownloadFailedBadge,
-        const Color(0xFFC0392B),
         Icons.error_outline_rounded,
       ),
-      KostvMusicBadge.none => ('', Colors.transparent, Icons.circle),
+      KostvMusicBadge.none => ('', Icons.circle),
     };
     if (badge == KostvMusicBadge.none) return const SizedBox.shrink();
+    final ink = badge == KostvMusicBadge.ask
+        ? KostvMusicTokens.ink
+        : KostvMusicTokens.muted;
     return Container(
-      padding: const EdgeInsets.fromLTRB(6, 3, 8, 3),
+      padding: const EdgeInsets.fromLTRB(8, 4, 10, 4),
       decoration: BoxDecoration(
-        color: color,
+        color: const Color(0xCC1A1822),
         borderRadius: AppRadius.circular(999),
-        boxShadow: const [BoxShadow(color: Colors.black54, blurRadius: 6)],
+        border: Border.all(
+          color: Colors.white.withValues(
+            alpha: badge == KostvMusicBadge.ask ? 0.28 : 0.10,
+          ),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: Colors.white),
-          const SizedBox(width: 3),
+          Icon(icon, size: 14, color: ink),
+          const SizedBox(width: 4),
           Text(
             label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+            style: TextStyle(
+              color: ink,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
               height: 1.1,
             ),
           ),
@@ -567,6 +553,7 @@ class KostvMusicAlbumTile extends StatelessWidget {
     this.art,
     this.onLongPress,
     this.subtitleLines = 1,
+    this.onPlay,
   });
 
   final String title;
@@ -590,9 +577,16 @@ class KostvMusicAlbumTile extends StatelessWidget {
   /// Drawn instead of [cover] (a mix's own art).
   final Widget? art;
 
+  /// Kos TV: plays it from the ▶ that shows on its cover with the focus
+  /// or the mouse over it (a click or a tap on it); the rest of the card
+  /// still opens it ([onTap]).
+  final VoidCallback? onPlay;
+
   @override
   Widget build(BuildContext context) {
     final size = this.size ?? KostvMusicSizes.cover;
+    final radius = KostvMusicTokens.radiusCover;
+    final phone = KostvMusicSizes.phone;
     return SizedBox(
       width: size,
       child: KostvMusicPressable(
@@ -607,91 +601,94 @@ class KostvMusicAlbumTile extends StatelessWidget {
               : CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            AnimatedScale(
-              scale: lit ? 1.06 : 1,
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOutCubic,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                decoration: BoxDecoration(
-                  shape: circle ? BoxShape.circle : BoxShape.rectangle,
-                  borderRadius: circle ? null : AppRadius.circular(12),
-                  border: Border.all(
-                    color: lit ? Colors.white : Colors.transparent,
-                    width: 3,
-                  ),
-                  boxShadow: lit
-                      ? const [
-                          BoxShadow(
-                            color: Color(0x99000000),
-                            blurRadius: 18,
-                            offset: Offset(0, 8),
-                          ),
-                        ]
-                      : null,
-                ),
-                child: Stack(
-                  children: [
-                    art ??
-                        KostvMusicCover(
-                          url: cover,
-                          size: size - 6,
-                          circle: circle,
-                          icon: circle
-                              ? Icons.person_rounded
-                              : Icons.album_rounded,
-                        ),
-                    if (badge != KostvMusicBadge.none)
-                      Positioned(
-                        right: 6,
-                        top: 6,
-                        child: KostvMusicBadgePill(badge: badge),
+            // Kos TV: the music design's focus (a white frame apart from
+            // the cover, 7 % bigger) and, on a record, the play button.
+            KostvFocusFrame(
+              lit: lit,
+              circle: circle,
+              radius: radius,
+              alignment: const Alignment(0, -0.2),
+              child: Stack(
+                children: [
+                  art ??
+                      KostvMusicCover(
+                        url: cover,
+                        size: size,
+                        circle: circle,
+                        radius: radius,
+                        icon: circle
+                            ? Icons.person_rounded
+                            : Icons.album_rounded,
                       ),
-                    if (rank != null)
-                      Positioned(
-                        left: 8,
-                        bottom: 6,
-                        child: Text(
-                          '$rank',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 30,
-                            fontWeight: FontWeight.w900,
-                            height: 1,
-                            shadows: [
-                              Shadow(color: Colors.black87, blurRadius: 10),
-                            ],
-                          ),
+                  if (badge != KostvMusicBadge.none)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: KostvMusicBadgePill(badge: badge),
+                    ),
+                  if (rank != null)
+                    Positioned(
+                      left: 8,
+                      bottom: 6,
+                      child: Text(
+                        '$rank',
+                        style: const TextStyle(
+                          fontFamily: KostvMusicType.titleFamily,
+                          color: Colors.white,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w700,
+                          height: 1,
+                          shadows: [
+                            Shadow(color: Colors.black87, blurRadius: 10),
+                          ],
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                  if (!circle && badge == KostvMusicBadge.none)
+                    Positioned(
+                      right: 8,
+                      bottom: 8,
+                      child: IgnorePointer(
+                        ignoring: !lit || onPlay == null,
+                        child: AnimatedOpacity(
+                          opacity: lit ? 1 : 0,
+                          duration: KostvMusicTokens.focusDuration,
+                          child: GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: onPlay,
+                            child: KostvPlayFace(
+                              diameter: (size * 0.26).clamp(32, 48),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: lit ? 14 : 10),
             Text(
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: circle ? TextAlign.center : TextAlign.start,
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: KostvMusicSizes.phone ? 13.5 : 15,
-                fontWeight: FontWeight.w600,
+              style: KostvMusicType.body(
+                phone ? 14 : 15,
+                color: lit ? Colors.white : KostvMusicTokens.ink,
               ),
             ),
             if (subtitle != null)
-              Text(
-                subtitle!,
-                maxLines: subtitleLines,
-                // Kos TV: wrapped even where the text around says not to
-                // (the TV's).
-                softWrap: subtitleLines > 1 ? true : null,
-                overflow: TextOverflow.ellipsis,
-                textAlign: circle ? TextAlign.center : TextAlign.start,
-                style: TextStyle(
-                  color: kostvMusicGrey,
-                  fontSize: KostvMusicSizes.phone ? 12.5 : 13.5,
+              Padding(
+                padding: const EdgeInsets.only(top: 3),
+                child: Text(
+                  subtitle!,
+                  maxLines: subtitleLines,
+                  // Kos TV: wrapped even where the text around says not to
+                  // (the TV's).
+                  softWrap: subtitleLines > 1 ? true : null,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: circle ? TextAlign.center : TextAlign.start,
+                  style: KostvMusicType.muted(phone ? 12.5 : 13),
                 ),
               ),
           ],
@@ -701,8 +698,11 @@ class KostvMusicAlbumTile extends StatelessWidget {
   }
 }
 
-/// A song as a row: its cover, its place in a chart, title and artist, and
-/// at the end whether it is at home or can be asked for.
+/// A song as a row: its place in a chart, its cover, title and artist.
+/// Kos TV: the music design's [KostvSongRow], with no button of its own and
+/// the same whether the song is at home or not; only with «Solo la de
+/// casa», one that isn't (it doesn't play then) says how its request
+/// stands.
 class KostvMusicSongRow extends StatelessWidget {
   const KostvMusicSongRow({
     super.key,
@@ -722,16 +722,18 @@ class KostvMusicSongRow extends StatelessWidget {
     this.artistLinks,
     this.onRest,
     this.away = false,
+    this.duration,
+    this.soundingId,
   });
 
-  /// The song's menu (OK held down, a long press or a right click).
+  /// The song's menu (OK held down, a long press, a right click or «⋯»).
   final VoidCallback? onLongPress;
 
   /// Kos TV: see [KostvMusicPressable.onRest].
   final ValueChanged<bool>? onRest;
 
   /// Kos TV: it isn't at home but plays all the same, through the requests
-  /// service («Toda la música»): the play mark, with no «Pedir».
+  /// service («Toda la música»): it looks like one at home.
   final bool away;
 
   final String title;
@@ -744,148 +746,68 @@ class KostvMusicSongRow extends StatelessWidget {
   final String? cover;
   final int? rank;
   final bool atHome;
+
+  /// Kos TV: how its request stands, shown only for one that is neither at
+  /// home nor [away] («Solo la de casa»): «Pedir» when none is given.
   final KostvMusicBadge badge;
   final bool explicit;
   final VoidCallback onTap;
   final FocusNode? focusNode;
   final bool autofocus;
   final KeyEventResult Function(KeyEvent event)? onKey;
+
+  /// Kos TV: shown before the time instead of the request's state.
   final Widget? trailing;
+
+  /// Kos TV: its length in seconds.
+  final int? duration;
+
+  /// Kos TV: its id in the player's queue, for the equalizer while it
+  /// sounds.
+  final String? soundingId;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
     final phone = KostvMusicSizes.phone;
-    return KostvMusicPressable(
+    final links = artistLinks;
+    final hasLinks = links != null && links.any((group) => group.isNotEmpty);
+    return KostvSongRow(
       focusNode: focusNode,
       autofocus: autofocus,
       onTap: onTap,
-      onLongPress: onLongPress,
+      onMenu: onLongPress,
       onKey: onKey,
       onRest: onRest,
-      builder: (context, lit) => AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        height: kostvMusicSongRowHeight(context, phone),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        decoration: BoxDecoration(
-          color: lit ? Colors.white : Colors.transparent,
-          borderRadius: AppRadius.circular(10),
-        ),
-        child: Row(
-          children: [
-            KostvMusicCover(url: cover, size: phone ? 48 : 54, radius: 6),
-            if (rank != null)
-              SizedBox(
-                width: phone ? 34 : 40,
-                child: Text(
-                  '$rank',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: lit ? Colors.black : Colors.white,
-                    fontSize: phone ? 16 : 18,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              )
-            else
-              const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: lit ? Colors.black : Colors.white,
-                            fontSize: phone ? 15 : 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      if (explicit) ...[
-                        const SizedBox(width: 6),
-                        Icon(
-                          Icons.explicit_rounded,
-                          size: 16,
-                          color: lit ? Colors.black54 : kostvMusicGrey,
-                        ),
-                      ],
-                    ],
-                  ),
-                  if (artistLinks case final links?
-                      when links.any((group) => group.isNotEmpty))
-                    _marked(
-                      lit,
-                      KostvMusicLinks(
-                        groups: links,
-                        style: TextStyle(
-                          color: lit ? Colors.black54 : kostvMusicGrey,
-                          fontSize: phone ? 13 : 14,
-                        ),
-                      ),
-                    )
-                  else if (artist != null)
-                    _marked(
-                      lit,
-                      Text(
-                        artist!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: lit ? Colors.black54 : kostvMusicGrey,
-                          fontSize: phone ? 13 : 14,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            trailing ??
-                (atHome
-                    ? Tooltip(
-                        message: l10n.kostvMusicAtHome,
-                        child: Icon(
-                          Icons.play_circle_fill_rounded,
-                          color: lit ? Colors.black : kostvMusicColor,
-                          size: phone ? 26 : 28,
-                        ),
-                      )
-                    : away
-                    ? Tooltip(
-                        message: l10n.kostvStreamNotAtHome,
-                        child: Icon(
-                          Icons.play_circle_outline_rounded,
-                          color: lit ? Colors.black : Colors.white70,
-                          size: phone ? 26 : 28,
-                        ),
-                      )
-                    : KostvMusicBadgePill(
-                        badge: badge == KostvMusicBadge.none
-                            ? KostvMusicBadge.ask
-                            : badge,
-                      )),
-          ],
-        ),
-      ),
+      height: kostvMusicSongRowHeight(context, phone),
+      title: title,
+      number: rank == null ? null : '$rank',
+      cover: cover,
+      showCover: true,
+      explicit: explicit,
+      duration: kostvSongLength(duration),
+      soundingId: soundingId,
+      subtitle: artist,
+      subtitleBuilder: hasLinks
+          ? (style) => KostvMusicLinks(groups: links, style: style)
+          : null,
+      trailing:
+          trailing ??
+          (atHome || away
+              ? null
+              : KostvMusicBadgePill(
+                  badge: badge == KostvMusicBadge.none
+                      ? KostvMusicBadge.ask
+                      : badge,
+                )),
     );
   }
-
-  /// Kos TV: the artist line, with the small cloud of one that isn't at
-  /// home and sounds through the requests service.
-  Widget _marked(bool lit, Widget line) => KostvStreamMarked(
-    stream: away && !atHome,
-    size: KostvMusicSizes.phone ? 14 : 15,
-    color: lit ? Colors.black45 : null,
-    child: line,
-  );
 }
+
+/// Kos TV: the id [song] has in the player's queue (the home server's, or
+/// the one of a song that isn't at home), for its row's equalizer.
+String? kostvSongSoundingId(StremfinSong song) =>
+    song.jellyfinId ??
+    (song.deezerId == null ? null : kostvStreamId(song.deezerId!));
 
 /// A row of tiles that scrolls sideways, under its heading.
 class KostvMusicShelf extends StatelessWidget {

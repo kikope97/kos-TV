@@ -15976,5 +15976,19 @@
     "kostvAwayNoneAtHome": "Ninguna de estas canciones está en casa: con «Solo la de casa» no suenan",
     "@kostvAwayNoneAtHome": {"description": "Kos TV «Toda la música»: «Reproducir» or «Aleatorio» of a playlist whose songs are all not at home, with «Solo la de casa»"},
     "kostvAwayLoadFailed": "No se han podido cargar las canciones que no están en casa",
-    "@kostvAwayLoadFailed": {"description": "Kos TV «Toda la música»: a playlist shows only the songs at home because the server plugin failed to give the others; a «Reintentar» button follows"}
+    "@kostvAwayLoadFailed": {"description": "Kos TV «Toda la música»: a playlist shows only the songs at home because the server plugin failed to give the others; a «Reintentar» button follows"},
+    "kostvMusicAwayNoteLead": "Este disco no está en casa: suena en streaming.",
+    "@kostvMusicAwayNoteLead": {"description": "Kos TV music design: first (bold) sentence of the calm note on the page of an album that isn't at home and is heard in streaming"},
+    "kostvMusicAwayNoteRest": "Pídelo para tenerlo en casa con más calidad.",
+    "@kostvMusicAwayNoteRest": {"description": "Kos TV music design: second sentence of the album's note, after kostvMusicAwayNoteLead"},
+    "kostvMusicAwaySongNote": "Esta canción no está en casa: suena en streaming. Pide su álbum para tenerla en casa con más calidad.",
+    "@kostvMusicAwaySongNote": {"description": "Kos TV music design: what the player's small line means, for the screen reader and the mouse's pointer (a song that isn't at home)"},
+    "kostvMusicAwayPlayerLine": "Suena en streaming · no está en casa",
+    "@kostvMusicAwayPlayerLine": {"description": "Kos TV music design: the small line under the artist in «Reproduciendo» for a song that isn't at home; «Pedir el álbum» follows it"},
+    "kostvMusicAskTheAlbum": "Pedir el álbum",
+    "@kostvMusicAskTheAlbum": {"description": "Kos TV music design: the secondary button of an album (and the player's line) that isn't at home: asks for it to be brought home"},
+    "kostvMusicAskedNotify": "Pedido · te avisamos",
+    "@kostvMusicAskedNotify": {"description": "Kos TV music design: state of «Pedir el álbum» once asked for (the service will tell when it arrives)"},
+    "kostvMusicAlreadyHome": "Ya está en casa",
+    "@kostvMusicAlreadyHome": {"description": "Kos TV music design: state of «Pedir el álbum» for a moment when the album has arrived home (then the note goes away)"}
 }

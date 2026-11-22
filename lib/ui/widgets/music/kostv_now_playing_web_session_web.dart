@@ -2,7 +2,6 @@ import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
 
-import '../../../playback/kostv_stream_artist_line.dart';
 import 'kostv_now_playing.dart';
 
 bool _attached = false;
@@ -56,9 +55,8 @@ void attachKostvWebMediaSession(KostvNowPlaying music) {
         session.metadata = web.MediaMetadata(
           web.MediaMetadataInit(
             title: item.name,
-            // Kos TV: «· en streaming» after the artist of a song that
-            // isn't at home.
-            artist: kostvStreamArtistLine(item, music.artistOf(item)) ?? '',
+            // Kos TV: only the artist, at home or not.
+            artist: music.artistOf(item),
             album: item.album ?? '',
             artwork: <web.MediaImage>[
               if (art != null) web.MediaImage(src: art, sizes: '512x512'),

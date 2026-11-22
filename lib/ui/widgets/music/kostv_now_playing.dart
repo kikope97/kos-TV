@@ -24,6 +24,7 @@ import '../../navigation/app_router.dart';
 import '../../screens/playback/osd_buttons.dart'
     show playerVolumeIgnoredByBrowser;
 import '../floating_notification.dart';
+import 'design/kostv_artwork_colors.dart';
 import 'kostv_now_playing_web_session.dart';
 import 'kostv_stream_play.dart' show kostvStationFor, kostvStationWantsRadio;
 
@@ -905,7 +906,6 @@ class KostvNowPlaying extends ChangeNotifier {
 
   /// The colours of the cover sounding (kOS TV pink until they are known).
   final colors = ValueNotifier<KostvCoverColors>(KostvCoverColors.fallback);
-  final _colorCache = <String, KostvCoverColors>{};
 
   Future<void> _loadColors(AggregatedItem? item) async {
     if (item == null) return;
@@ -914,14 +914,15 @@ class KostvNowPlaying extends ChangeNotifier {
       colors.value = KostvCoverColors.fallback;
       return;
     }
-    final cached = _colorCache[url];
+    // Kos TV: Music's shared cache of covers' colours (the album's and
+    // the artist's pages use it too).
+    final cached = KostvArtworkColors.cached(url);
     if (cached != null) {
       colors.value = cached;
       return;
     }
     try {
-      final found = await KostvCoverColors.of(NetworkImage(url));
-      _colorCache[url] = found;
+      final found = await KostvArtworkColors.of(url);
       if (_itemId == item.id) colors.value = found;
     } catch (_) {
       if (_itemId == item.id) colors.value = KostvCoverColors.fallback;

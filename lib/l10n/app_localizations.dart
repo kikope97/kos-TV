@@ -36566,6 +36566,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t load the songs that aren\'t at home'**
   String get kostvAwayLoadFailed;
+
+  /// No description provided for @kostvMusicAwayNoteLead.
+  ///
+  /// In en, this message translates to:
+  /// **'This record isn\'t at home: it\'s streaming.'**
+  String get kostvMusicAwayNoteLead;
+
+  /// No description provided for @kostvMusicAwayNoteRest.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask for it to have it at home in better quality.'**
+  String get kostvMusicAwayNoteRest;
+
+  /// No description provided for @kostvMusicAwaySongNote.
+  ///
+  /// In en, this message translates to:
+  /// **'This song isn\'t at home: it\'s streaming. Ask for its album to have it at home in better quality.'**
+  String get kostvMusicAwaySongNote;
+
+  /// No description provided for @kostvMusicAwayPlayerLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Streaming · not at home'**
+  String get kostvMusicAwayPlayerLine;
+
+  /// No description provided for @kostvMusicAskTheAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Ask for the album'**
+  String get kostvMusicAskTheAlbum;
+
+  /// No description provided for @kostvMusicAskedNotify.
+  ///
+  /// In en, this message translates to:
+  /// **'Asked · we\'ll let you know'**
+  String get kostvMusicAskedNotify;
+
+  /// No description provided for @kostvMusicAlreadyHome.
+  ///
+  /// In en, this message translates to:
+  /// **'Already at home'**
+  String get kostvMusicAlreadyHome;
 }
 
 class _AppLocalizationsDelegate

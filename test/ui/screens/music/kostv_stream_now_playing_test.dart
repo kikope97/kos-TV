@@ -100,8 +100,8 @@ AggregatedItem _home(String id) => AggregatedItem(
 );
 
 /// Kos TV: «Reproduciendo» with a song that isn't at home: «Preparando la
-/// canción…» while its sound is got ready, the pill with «Pedir álbum», no ♥
-/// nor lyrics, and the mark of the queue's songs that aren't at home.
+/// canción…» while its sound is got ready, the line with «Pedir el álbum»,
+/// no ♥ nor lyrics, and (the music design) no mark in the queue.
 void main() {
   late _Manager manager;
 
@@ -157,7 +157,7 @@ void main() {
   }
 
   testWidgets('on the TV: «Preparando…», after 20 s «Está tardando…», the '
-      'pill, and the remote reaches «Pedir álbum»', (tester) async {
+      'line, and the remote reaches «Pedir el álbum»', (tester) async {
     PlatformDetection.setTvMode(true);
     StremfinStreamResolver.preparing.value = 'stremfin:1';
     await open(tester, const Size(1920, 1080));
@@ -175,8 +175,10 @@ void main() {
     StremfinStreamResolver.preparing.value = null;
     await tester.pumpAndSettle();
     expect(find.text('Preparando la canción…'), findsNothing);
-    expect(find.text('No está en casa · en streaming'), findsOneWidget);
-    expect(find.text('Pedir álbum'), findsOneWidget);
+    expect(find.text('Suena en streaming · no está en casa'), findsOneWidget);
+    expect(find.text('Pedir el álbum'), findsOneWidget);
+    // Calm: no cloud anywhere.
+    expect(find.byIcon(Icons.cloud_outlined), findsNothing);
     // ♥ and the lyrics are the home server's.
     expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
     expect(find.byIcon(Icons.lyrics_rounded), findsNothing);
@@ -185,29 +187,30 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
       await tester.pumpAndSettle();
     }
-    expect(focusedText(), contains('Pedir álbum'));
+    expect(focusedText(), contains('Pedir el álbum'));
   });
 
-  testWidgets('on the phone: the pill, and the queue marks the songs that '
-      'aren\'t at home', (tester) async {
+  testWidgets('on the phone: the line, and the queue doesn\'t mark the songs '
+      'that aren\'t at home', (tester) async {
     await open(tester, const Size(393, 852));
     await tester.pumpAndSettle();
-    expect(find.text('No está en casa · en streaming'), findsOneWidget);
-    expect(find.text('Pedir álbum'), findsOneWidget);
+    expect(find.text('Suena en streaming · no está en casa'), findsOneWidget);
+    expect(find.text('Pedir el álbum'), findsOneWidget);
     expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
     expect(find.byIcon(Icons.lyrics_rounded), findsNothing);
     await tester.tap(find.byIcon(Icons.queue_music_rounded));
     await tester.pumpAndSettle();
     expect(find.text('Canción h'), findsOneWidget);
     expect(find.text('Canción 2'), findsOneWidget);
-    expect(find.byType(KostvStreamMark), findsOneWidget);
+    expect(find.byIcon(Icons.cloud_outlined), findsNothing);
+    expect(find.byTooltip('No está en casa'), findsNothing);
   });
 
   testWidgets('a song at home has none of it', (tester) async {
     manager.queueService.setQueue([_home('h'), _stream('2')]);
     await open(tester, const Size(1440, 900));
     await tester.pumpAndSettle();
-    expect(find.text('No está en casa · en streaming'), findsNothing);
+    expect(find.text('Suena en streaming · no está en casa'), findsNothing);
     expect(find.byIcon(Icons.lyrics_rounded), findsOneWidget);
   });
 
@@ -221,7 +224,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect((manager.queueService.currentItem as AggregatedItem).id, 'j1');
-    expect(find.text('No está en casa · en streaming'), findsNothing);
+    expect(find.text('Suena en streaming · no está en casa'), findsNothing);
   });
 
   group('a song that can\'t start', () {

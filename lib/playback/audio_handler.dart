@@ -21,7 +21,6 @@ import '../ui/widgets/music/kostv_now_playing.dart';
 import 'aether_backend.dart';
 import 'car_artwork.dart';
 import 'headless_session_bootstrap.dart';
-import 'kostv_stream_artist_line.dart';
 import 'last_playback_session_store.dart';
 import 'media_browse_service.dart';
 
@@ -473,12 +472,11 @@ class MoonfinAudioHandler extends BaseAudioHandler
             : currentAppLocalizations().kostvMediaSessionMovie;
       }
     } else {
-      // Kos TV: a song that isn't at home says so after its artist
-      // («· en streaming»), as the app's own players show its cloud.
-      artistName = kostvStreamArtistLine(
-        item,
-        item.artists.isNotEmpty ? item.artists.join(', ') : item.albumArtist,
-      );
+      // Kos TV: only the song and its artist, at home or not (the music
+      // design: the notification isn't the place to explain streaming).
+      artistName = item.artists.isNotEmpty
+          ? item.artists.join(', ')
+          : item.albumArtist;
     }
 
     // Wrapped like the browse art, for the car host (and notification

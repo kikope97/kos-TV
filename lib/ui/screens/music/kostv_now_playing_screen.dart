@@ -1404,17 +1404,12 @@ class _TitleBlock extends StatelessWidget {
     this.centered = false,
     this.artists = const [],
     this.album,
-    this.streamMark = false,
   });
 
   final AggregatedItem item;
   final bool big;
   final bool small;
   final bool centered;
-
-  /// Kos TV: the small cloud after the artist line of a song that isn't at
-  /// home, where its pill doesn't show (the quiet screen).
-  final bool streamMark;
 
   /// Kos TV: the song's artists and its album, each opening its page (a
   /// tap, a click, or a stop of the remote with OK).
@@ -1479,12 +1474,7 @@ class _TitleBlock extends StatelessWidget {
         if (secondLine.isNotEmpty) ...[
           // The buttons' own room makes up the gap above them.
           SizedBox(height: artistText is Text ? (small ? 2 : 6) : 2),
-          KostvStreamMarked(
-            stream: streamMark && isKostvStream(item),
-            size: big ? 20 : 16,
-            centred: centered,
-            child: artistText,
-          ),
+          artistText,
         ],
       ],
     );
@@ -2692,12 +2682,8 @@ class _QueuePanel extends StatelessWidget {
                   ],
                 ),
               ),
-              // Kos TV: the songs that aren't at home, marked.
-              if (isKostvStream(item))
-                Padding(
-                  padding: const EdgeInsets.only(left: 6, right: 4),
-                  child: KostvStreamMark(size: big ? 20 : 16),
-                ),
+              // Kos TV: the queue doesn't mark the songs that aren't at
+              // home (the music design: the player says so when they come).
               if (fromAutoplay)
                 Tooltip(
                   message: l10n.kostvPlayerAutoplayAdded,
@@ -2813,7 +2799,7 @@ class _AmbientScreen extends StatelessWidget {
       children: [
         KostvEqualizerBars(playing: music.playing, size: 26),
         const SizedBox(width: 16),
-        Flexible(child: _TitleBlock(item: item, big: true, streamMark: true)),
+        Flexible(child: _TitleBlock(item: item, big: true)),
       ],
     );
     return ColoredBox(

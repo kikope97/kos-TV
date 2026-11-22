@@ -7,13 +7,12 @@ import 'package:playback_core/playback_core.dart';
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/media_server_client_factory.dart';
-import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../util/audio_artwork_url.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../navigation/app_router.dart';
 import '../../navigation/destinations.dart';
-import '../../screens/music/kostv_stream_widgets.dart' show KostvStreamMarked;
 import '../adaptive/sf_symbol.dart';
+import '../music/design/kostv_play_button.dart';
 import '../music/kostv_now_playing.dart';
 import '../offline_aware_image.dart';
 import 'bottom_nav_metrics.dart';
@@ -134,32 +133,42 @@ class _BottomMiniPlayerState extends State<BottomMiniPlayer> {
               ),
               if (artist.isNotEmpty) ...[
                 const SizedBox(height: 3),
-                // Kos TV: the small cloud of a song that isn't at home.
-                KostvStreamMarked(
-                  stream: isKostvStream(item),
-                  size: compact ? 12 : 13,
-                  color: theme.onBar.withValues(alpha: 0.5),
-                  child: Text(
-                    artist,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.labelStyle.copyWith(
-                      color: theme.onBar.withValues(alpha: 0.6),
-                      fontSize: compact ? 11.5 : 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                // Kos TV: the same for a song that isn't at home.
+                Text(
+                  artist,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.labelStyle.copyWith(
+                    color: theme.onBar.withValues(alpha: 0.6),
+                    fontSize: compact ? 11.5 : 12,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
             ],
           ),
         ),
-        _TransportButton(
-          icon: playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-          tooltip: playing ? l10n.pause : l10n.play,
-          color: theme.onBar,
-          filled: variant == BottomMiniPlayerVariant.capsule,
-          onPressed: playing ? _manager.pause : _manager.resume,
+        // Kos TV: the music design's one play button (the brand's).
+        Tooltip(
+          message: playing ? l10n.pause : l10n.play,
+          child: Semantics(
+            button: true,
+            label: playing ? l10n.pause : l10n.play,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: playing ? _manager.pause : _manager.resume,
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Center(
+                  child: KostvPlayFace(
+                    diameter: compact ? 34 : 38,
+                    pause: playing,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
         if (!compact)
           _TransportButton(
@@ -307,7 +316,6 @@ class _TransportButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final Color color;
-  final bool filled;
   final VoidCallback onPressed;
 
   const _TransportButton({
@@ -315,7 +323,6 @@ class _TransportButton extends StatelessWidget {
     required this.tooltip,
     required this.color,
     required this.onPressed,
-    this.filled = false,
   });
 
   @override
@@ -329,14 +336,6 @@ class _TransportButton extends StatelessWidget {
           width: 44,
           height: 44,
           alignment: Alignment.center,
-          decoration: filled
-              ? BoxDecoration(
-                  shape: AppColorScheme.isPixel
-                      ? BoxShape.rectangle
-                      : BoxShape.circle,
-                  color: color.withValues(alpha: 0.10),
-                )
-              : null,
           child: AdaptiveIcon(icon, size: 24, color: color),
         ),
       ),

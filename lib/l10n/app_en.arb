@@ -21473,5 +21473,12 @@
     "kostvAwayNoneAtHome": "None of these songs are at home: with «Only what's at home» they don't play",
     "@kostvAwayNoneAtHome": {"description": "Kos TV «Toda la música»: «Reproducir» or «Aleatorio» of a playlist whose songs are all not at home, with «Solo la de casa»"},
     "kostvAwayLoadFailed": "Couldn't load the songs that aren't at home",
-    "@kostvAwayLoadFailed": {"description": "Kos TV «Toda la música»: a playlist shows only the songs at home because the server plugin failed to give the others; a «Reintentar» button follows"}
+    "@kostvAwayLoadFailed": {"description": "Kos TV «Toda la música»: a playlist shows only the songs at home because the server plugin failed to give the others; a «Reintentar» button follows"},
+    "kostvMusicAwayNoteLead": "This record isn't at home: it's streaming.",
+    "kostvMusicAwayNoteRest": "Ask for it to have it at home in better quality.",
+    "kostvMusicAwaySongNote": "This song isn't at home: it's streaming. Ask for its album to have it at home in better quality.",
+    "kostvMusicAwayPlayerLine": "Streaming · not at home",
+    "kostvMusicAskTheAlbum": "Ask for the album",
+    "kostvMusicAskedNotify": "Asked · we'll let you know",
+    "kostvMusicAlreadyHome": "Already at home"
 }
