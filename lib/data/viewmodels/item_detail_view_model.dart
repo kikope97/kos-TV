@@ -15,6 +15,7 @@ import '../models/lyrics.dart';
 import '../services/blocked_content_gate.dart';
 import '../services/kostv_collections.dart';
 import '../services/kostv_music_away.dart';
+import '../services/kostv_music_plugin.dart' show KostvAwayEdit;
 import '../services/stremfin/kostv_stream_song.dart';
 import '../services/row_data_source.dart';
 import '../services/series_track_sync.dart';
@@ -80,7 +81,15 @@ enum ItemDetailState { loading, ready, blocked, error }
 
 /// Kos TV: a change the person asked for on the page that the server didn't
 /// take (it refused or couldn't be reached), for the page to say so.
-enum DetailActionFailure { markPlayed, markUnplayed, favorite }
+enum DetailActionFailure {
+  markPlayed,
+  markUnplayed,
+  favorite,
+
+  /// Kos TV: the person can't change this playlist (shared with them only to
+  /// see it).
+  playlistNotAllowed,
+}
 
 /// Why a delete request failed.
 ///
@@ -553,10 +562,31 @@ class ItemDetailViewModel extends ChangeNotifier {
   /// the server on the other.
   bool _playedInFlight = false;
 
+  /// Kos TV: called when a playlist's songs that aren't at home couldn't be
+  /// read (it shows those at home), for the page to offer to try again
+  /// ([retryAwayTracks]).
+  VoidCallback? onAwayFailed;
+
+  /// Kos TV: whether the person may change this playlist (theirs, or shared
+  /// with them to edit), as the server plugin says; null when not known
+  /// (then it is offered, and a refusal says so and takes it away).
+  bool? _playlistEditable;
+
   bool get canManagePlaylistTracks =>
       _item?.type == 'Playlist' &&
+      _playlistEditable != false &&
       _tracks.isNotEmpty &&
       _tracks.every(hasPlaylistEntryId);
+
+  /// Kos TV: each read of [tracks] counts, so one that ends after a later
+  /// one (or after a change to the list) doesn't put older songs back.
+  int _tracksRead = 0;
+
+  /// Kos TV: the changes to the playlist's songs go one after the other.
+  Future<void> _playlistEdits = Future.value();
+  int _playlistEditsPending = 0;
+  bool _reloadAfterEdits = false;
+  bool _reloadItemAfterEdits = false;
 
   final String? _serverId;
   final String? _libraryId;
@@ -1083,6 +1113,7 @@ class ItemDetailViewModel extends ChangeNotifier {
       futures.add(_loadSimilar());
     } else if (type == 'MusicAlbum' || type == 'Playlist') {
       futures.add(forActions(_loadTracks()));
+      if (type == 'Playlist') unawaited(_loadPlaylistEditable());
     } else if (type == 'AudioBook') {
       futures.add(_loadRatings());
       futures.add(_loadSimilar());
@@ -1359,11 +1390,50 @@ class ItemDetailViewModel extends ChangeNotifier {
   Future<void> retryTracks() =>
       _loadTracks(artistId: _item?.type == 'MusicArtist' ? itemId : null);
 
-  Future<void> _loadTracks({String? artistId}) async {
+  /// Kos TV: reads a playlist's songs again, asking the server plugin for
+  /// those that aren't at home even if it failed a moment ago (the page's
+  /// «Reintentar»).
+  Future<void> retryAwayTracks() => _loadTracks(retryAway: true);
+
+  /// Kos TV: whether the person may change the playlist, from the server
+  /// plugin (left unknown without an answer).
+  Future<void> _loadPlaylistEditable() async {
     try {
-      final data = _item?.type == 'Playlist'
-          ? await _client.itemsApi.getPlaylistItems(itemId)
-          : artistId != null
+      final editable = await KostvMusicAwayStore.instance.canEdit(
+        _client,
+        itemId,
+      );
+      if (editable == null || editable == _playlistEditable) return;
+      _playlistEditable = editable;
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  Future<void> _loadTracks({String? artistId, bool retryAway = false}) async {
+    final read = ++_tracksRead;
+    try {
+      // Kos TV: a playlist's songs with those that aren't at home in their
+      // places (the server plugin keeps them for Jellyfin), both asked at
+      // once.
+      if (_item?.type == 'Playlist') {
+        final songs = await kostvPlaylistSongs(
+          _client,
+          itemId,
+          _client.itemsApi
+              .getPlaylistItems(itemId)
+              .then((data) => _mapItems((data['Items'] as List?) ?? [])),
+          serverId: _serverId ?? _client.baseUrl,
+          mediaType: _item?.rawData['MediaType'],
+          retry: retryAway,
+        );
+        if (read != _tracksRead) return;
+        _tracks = songs.tracks;
+        _tracksFailed = false;
+        notifyListeners();
+        if (songs.awayFailed) onAwayFailed?.call();
+        return;
+      }
+      final data = artistId != null
           ? await _client.itemsApi.getItems(
               artistIds: [artistId],
               includeItemTypes: ['Audio'],
@@ -1378,31 +1448,18 @@ class ItemDetailViewModel extends ChangeNotifier {
               fields: 'PrimaryImageAspectRatio,BasicSyncInfo',
             );
       final items = (data['Items'] as List?) ?? [];
-      var tracks = _mapItems(items);
-      // Kos TV: a music playlist's songs that aren't at home, in their
-      // places (the server plugin keeps them for Jellyfin).
-      if (_item?.type == 'Playlist') tracks = await _withAway(tracks);
-      _tracks = tracks;
+      if (read != _tracksRead) return;
+      _tracks = _mapItems(items);
       _tracksFailed = false;
       notifyListeners();
     } catch (_) {
+      if (read != _tracksRead) return;
       if (!_tracksFailed) {
         _tracksFailed = true;
         notifyListeners();
       }
     }
   }
-
-  /// Kos TV: [home] (a playlist's songs in Jellyfin) with the ones that
-  /// aren't at home merged in, by the server plugin's `After`.
-  Future<List<AggregatedItem>> _withAway(List<AggregatedItem> home) =>
-      kostvPlaylistWithAway(
-        _client,
-        itemId,
-        home,
-        serverId: _serverId ?? _client.baseUrl,
-        mediaType: _item?.rawData['MediaType'],
-      );
 
   Future<void> _loadLyrics() async {
     try {
@@ -1418,6 +1475,75 @@ class ItemDetailViewModel extends ChangeNotifier {
   String? _playlistEntryId(AggregatedItem track) =>
       track.rawData['PlaylistItemId']?.toString();
 
+  /// Kos TV: a refusal of the server because the person can't change the
+  /// playlist.
+  static bool _forbidden(Object error) =>
+      error is DioException && error.response?.statusCode == 403;
+
+  /// Kos TV: one change to the playlist's songs ([send]; the list showed
+  /// [before] until it was made), after those still on their way, so their
+  /// orders reach the server in the order they were made. What the server
+  /// holds is read again once the last of them is done ([reload]); one that
+  /// fails puts back what showed before it when it is the only one,
+  /// otherwise the list is read again at the end. A refusal because the
+  /// person can't change the playlist says so and takes the changes away.
+  Future<void> _editPlaylist(
+    List<AggregatedItem> before,
+    Future<({bool ok, bool forbidden, bool reload, bool reloadItem})>
+    Function()
+    send,
+  ) async {
+    _playlistEditsPending++;
+    // A read on its way is older than this change: it doesn't put it back.
+    _tracksRead++;
+    final previous = _playlistEdits;
+    final finished = Completer<void>();
+    _playlistEdits = finished.future;
+    try {
+      await previous;
+      ({bool ok, bool forbidden, bool reload, bool reloadItem}) result;
+      try {
+        result = await send();
+      } catch (e) {
+        result = (
+          ok: false,
+          forbidden: _forbidden(e),
+          reload: false,
+          reloadItem: false,
+        );
+      }
+      final last = _playlistEditsPending == 1;
+      if (result.ok) {
+        _reloadAfterEdits |= result.reload;
+        _reloadItemAfterEdits |= result.reloadItem;
+      } else {
+        if (result.forbidden) {
+          _playlistEditable = false;
+          notifyListeners();
+          onActionFailed?.call(DetailActionFailure.playlistNotAllowed);
+        }
+        if (last) {
+          _tracks = before;
+          notifyListeners();
+          if (result.reload) _reloadAfterEdits = true;
+        } else {
+          _reloadAfterEdits = true;
+        }
+      }
+      if (last) {
+        final reload = _reloadAfterEdits;
+        final reloadItem = _reloadItemAfterEdits;
+        _reloadAfterEdits = false;
+        _reloadItemAfterEdits = false;
+        if (reload) await _loadTracks();
+        if (reloadItem) await _reload();
+      }
+    } finally {
+      _playlistEditsPending--;
+      finished.complete();
+    }
+  }
+
   Future<void> removeTrackFromPlaylist(AggregatedItem track) async {
     if (_item?.type != 'Playlist') return;
     final entryId = _playlistEntryId(track);
@@ -1430,30 +1556,28 @@ class ItemDetailViewModel extends ChangeNotifier {
       return !(sameId && sameEntry);
     }).toList();
     notifyListeners();
+    final left = _tracks;
 
-    // Kos TV: one that isn't at home is the server plugin's.
+    final store = KostvMusicAwayStore.instance;
     final deezerId = kostvStreamDeezerId(track);
-    if (deezerId != null) {
-      final done = await KostvMusicAwayStore.instance.removeFromPlaylist(
-        _client,
-        itemId,
-        deezerId,
-      );
-      if (!done) {
-        _tracks = previousTracks;
-        notifyListeners();
+    await _editPlaylist(previousTracks, () async {
+      // Kos TV: one that isn't at home is the server plugin's.
+      if (deezerId != null) {
+        final done = await store.removeFromPlaylist(_client, itemId, deezerId);
+        return (
+          ok: done == KostvAwayEdit.done,
+          forbidden: done == KostvAwayEdit.forbidden,
+          reload: false,
+          reloadItem: false,
+        );
       }
-      return;
-    }
-
-    try {
       await _client.itemsApi.removeFromPlaylist(itemId, [entryId]);
-      await _loadTracks();
-      await _reload();
-    } catch (_) {
-      _tracks = previousTracks;
-      notifyListeners();
-    }
+      // Kos TV: with songs that aren't at home in it, the plugin is told
+      // the whole order without it, so those that followed it keep their
+      // place (should this fail, the plugin places them so by itself).
+      if (left.any(isKostvStream)) await store.order(_client, itemId, left);
+      return (ok: true, forbidden: false, reload: true, reloadItem: true);
+    });
   }
 
   Future<void> reorderPlaylistTrack(int oldIndex, int newIndex) async {
@@ -1480,30 +1604,46 @@ class ItemDetailViewModel extends ChangeNotifier {
     // Kos TV: with songs that aren't at home in it, Jellyfin moves its own
     // among its own, and the server plugin is told the whole order.
     final away = reordered.any(isKostvStream);
-    try {
-      if (!isKostvStream(moved)) {
-        final homeBefore = kostvHomeIndexAt(previousTracks, oldIndex);
-        final homeAfter = away
-            ? kostvHomeIndexAt(reordered, targetIndex)
-            : targetIndex;
-        if (!away || homeAfter != homeBefore) {
-          await _client.itemsApi.movePlaylistItem(itemId, entryId, homeAfter);
+    await _editPlaylist(previousTracks, () async {
+      try {
+        if (!isKostvStream(moved)) {
+          final homeBefore = kostvHomeIndexAt(previousTracks, oldIndex);
+          final homeAfter = away
+              ? kostvHomeIndexAt(reordered, targetIndex)
+              : targetIndex;
+          if (!away || homeAfter != homeBefore) {
+            await _client.itemsApi.movePlaylistItem(
+              itemId,
+              entryId,
+              homeAfter,
+            );
+          }
         }
-      }
-      if (away &&
-          !await KostvMusicAwayStore.instance.order(
+        if (away) {
+          final kept = await KostvMusicAwayStore.instance.order(
             _client,
             itemId,
             reordered,
-          )) {
-        throw StateError('the order was not kept');
+          );
+          if (kept != KostvAwayEdit.done) {
+            return (
+              ok: false,
+              forbidden: kept == KostvAwayEdit.forbidden,
+              reload: true,
+              reloadItem: false,
+            );
+          }
+        }
+        return (ok: true, forbidden: false, reload: true, reloadItem: false);
+      } catch (e) {
+        return (
+          ok: false,
+          forbidden: _forbidden(e),
+          reload: away,
+          reloadItem: false,
+        );
       }
-      await _loadTracks();
-    } catch (_) {
-      _tracks = previousTracks;
-      notifyListeners();
-      if (away) unawaited(_loadTracks());
-    }
+    });
   }
 
   Future<void> renamePlaylist(String name) async {

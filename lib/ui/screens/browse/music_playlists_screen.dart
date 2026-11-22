@@ -13,6 +13,8 @@ import '../../../l10n/app_localizations.dart';
 import '../../../util/focus/row_focus_coordinator.dart';
 import '../../../util/playback_time_label.dart';
 import '../../navigation/destinations.dart';
+import '../music/kostv_music_away_actions.dart'
+    show kostvAwaySayNothingToPlay;
 import '../music/kostv_music_actions.dart'
     show kostvMusicSay, showKostvMusicSongMenu;
 import '../../widgets/music/music_navigation.dart';
@@ -118,6 +120,11 @@ class _MusicPlaylistsScreenState
       startIndex: picked ? index : 0,
       picked: picked,
     );
+    if (play.tracks.isEmpty) {
+      // Kos TV: nothing can sound: why, rather than nothing at all.
+      kostvAwaySayNothingToPlay(context, _tracks);
+      return;
+    }
     unawaited(
       playMusicTracks(
         context,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:moonfin/ui/screens/home/kostv_undo_toast.dart';
@@ -113,4 +114,60 @@ void main() {
     expect(calls, ['retry']);
     expect(find.text('Reintentar'), findsNothing);
   });
+
+  // Kos TV: on a narrow screen the button goes under the text, which is
+  // then read whole («Añadida a tus favoritas. ¿Pedir el álbum…?»).
+  for (final (width, narrow) in [
+    (360.0, true),
+    (412.0, true),
+    (1280.0, false),
+  ]) {
+    testWidgets('${width.toInt()} wide: the button '
+        '${narrow ? 'under' : 'beside'} the text', (tester) async {
+      tester.view.physicalSize = Size(width, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showKostvUndoToast(
+                  context,
+                  message:
+                      'Añadida a tus favoritas. ¿Pedir el álbum para tenerla '
+                      'en casa?',
+                  undoLabel: 'Pedir álbum',
+                  icon: Icons.album_rounded,
+                  duration: const Duration(seconds: 8),
+                  onUndo: () {},
+                ),
+                child: const Text('abrir'),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.text('abrir'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      final text = find.textContaining('Añadida a tus favoritas');
+      final textBox = tester.getRect(text);
+      final buttonBox = tester.getRect(find.text('Pedir álbum'));
+      if (narrow) {
+        expect(buttonBox.top, greaterThanOrEqualTo(textBox.bottom));
+        // The whole width for the text, and a line more. (The test font is
+        // far wider than the app's, so the lines it takes aren't counted.)
+        final paragraph = tester.renderObject<RenderParagraph>(text);
+        expect(paragraph.maxLines, 3);
+        expect(textBox.width, greaterThan(width - 120));
+      } else {
+        expect(buttonBox.left, greaterThanOrEqualTo(textBox.right));
+        expect(tester.renderObject<RenderParagraph>(text).maxLines, 2);
+      }
+      expect(tester.takeException(), isNull);
+      await tester.pump(const Duration(seconds: 9));
+      await tester.pumpAndSettle();
+    });
+  }
 }

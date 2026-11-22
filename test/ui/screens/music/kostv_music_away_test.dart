@@ -194,6 +194,15 @@ void main() {
       await host(tester);
       await open(tester, showKostvMusicSongMenu(context, item: _away()));
       await tester.tap(find.text('Me gusta'));
+      // Kos TV: the notice says it went to the favourites (looked for
+      // before its seconds run out).
+      final loved = find.text(
+        'Añadida a tus favoritas. ¿Pedir el álbum para tenerla en casa?',
+      );
+      for (var i = 0; i < 30 && loved.evaluate().isEmpty; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(loved, findsOneWidget);
       await tester.pumpAndSettle();
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 100)),
@@ -211,7 +220,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
       expect(
-        find.text('Añadida. ¿Pedir el álbum para tenerla en casa?'),
+        find.text('Añadida a la lista. ¿Pedir el álbum para tenerla en casa?'),
         findsOneWidget,
       );
       expect(find.text('Pedir álbum'), findsOneWidget);
@@ -225,6 +234,24 @@ void main() {
       );
       await tester.pump();
       expect(find.text('Hecho'), findsOneWidget);
+    });
+
+    testWidgets('a playlist with nothing that sounds says why', (tester) async {
+      await prefs.set(UserPreferences.kostvMusicCatalogAll, false);
+      await host(tester);
+      kostvAwaySayNothingToPlay(context, [_away()]);
+      await tester.pump();
+      expect(
+        find.text(
+          'Ninguna de estas canciones está en casa: con «Solo la de casa» no '
+          'suenan',
+        ),
+        findsOneWidget,
+      );
+      await prefs.set(UserPreferences.kostvMusicCatalogAll, true);
+      kostvAwaySayNothingToPlay(context, [_home('a')]);
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('No se encontraron elementos'), findsOneWidget);
     });
 
     testWidgets('from a playlist, its own actions', (tester) async {

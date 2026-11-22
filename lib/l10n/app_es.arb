@@ -15955,8 +15955,8 @@
     "@kostvStreamStationEmpty": {"description": "Kos TV «Toda la música»: «Crear emisora» found nothing"},
     "kostvSyncPlayErrorOutOfHomeSong": "Lo que suena no está en casa, y las canciones que no están en casa no se pueden escuchar juntos.",
     "@kostvSyncPlayErrorOutOfHomeSong": {"description": "Kos TV Watch together: the song playing is not on the home server (heard through the requests service), so it is not shared with the group"},
-    "kostvAwayAddedAskAlbum": "Añadida. ¿Pedir el álbum para tenerla en casa?",
-    "@kostvAwayAddedAskAlbum": {"description": "Kos TV «Toda la música»: a song that is not at home was added to a playlist or got a ♥; the notice offers to ask for its album"},
+    "kostvAwayAddedAskAlbum": "Añadida a la lista. ¿Pedir el álbum para tenerla en casa?",
+    "@kostvAwayAddedAskAlbum": {"description": "Kos TV «Toda la música»: a song that is not at home was added to a playlist; the notice offers to ask for its album"},
     "kostvAwayAdded": "Añadida a la lista",
     "@kostvAwayAdded": {"description": "Kos TV «Toda la música»: a song that is not at home was added to a playlist (its album can't be asked for)"},
     "kostvAwayHomeOnly": "No está en casa: con «Solo la de casa» no suena",
@@ -15970,5 +15970,11 @@
     "kostvStreamArtistLine": "{artist} · en streaming",
     "@kostvStreamArtistLine": {"description": "Kos TV «Toda la música»: the artist line of a song that isn't at home in the phone's notification, the lock screen, the car and the browser's media controls", "placeholders": {"artist": {"type": "String"}}},
     "kostvStreamOnlyLine": "En streaming",
-    "@kostvStreamOnlyLine": {"description": "Kos TV «Toda la música»: the same line when the song that isn't at home has no artist"}
+    "@kostvStreamOnlyLine": {"description": "Kos TV «Toda la música»: the same line when the song that isn't at home has no artist"},
+    "kostvAwayLovedAskAlbum": "Añadida a tus favoritas. ¿Pedir el álbum para tenerla en casa?",
+    "@kostvAwayLovedAskAlbum": {"description": "Kos TV «Toda la música»: a song that is not at home got a ♥ (it went to the person's favourites); the notice offers to ask for its album"},
+    "kostvAwayNoneAtHome": "Ninguna de estas canciones está en casa: con «Solo la de casa» no suenan",
+    "@kostvAwayNoneAtHome": {"description": "Kos TV «Toda la música»: «Reproducir» or «Aleatorio» of a playlist whose songs are all not at home, with «Solo la de casa»"},
+    "kostvAwayLoadFailed": "No se han podido cargar las canciones que no están en casa",
+    "@kostvAwayLoadFailed": {"description": "Kos TV «Toda la música»: a playlist shows only the songs at home because the server plugin failed to give the others; a «Reintentar» button follows"}
 }

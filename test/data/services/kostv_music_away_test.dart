@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -21,6 +22,19 @@ class _Server implements HttpClientAdapter {
   /// The status a POST answers with (403, 400…), when set.
   int? postStatus;
 
+  /// Kos TV: the status of the others, when set: a DELETE, a GET of the
+  /// ♥ or of a playlist, an arrival.
+  int? deleteStatus;
+  int? favoritesStatus;
+  int? playlistStatus;
+  int? arrivedStatus;
+
+  /// Kos TV: a playlist's GET waits for this, when set.
+  Completer<void>? playlistGate;
+
+  /// Kos TV: the playlists the person may change (`Away/Playlists/Editable`).
+  List<String> editable = const [];
+
   final asked = <({String method, String path, Object? body})>[];
   final favorites = <Map<String, Object?>>[];
   final entries = <Map<String, Object?>>[];
@@ -41,13 +55,29 @@ class _Server implements HttpClientAdapter {
     if (!hasRoutes) return ResponseBody.fromString('', 404);
     const base = '/Moonfin/Kostv/Music/Away';
     final method = options.method;
+    if (method == 'POST' && path == '$base/Playlists/Editable') {
+      return _json({'Ids': editable});
+    }
+    if (method == 'POST' && path == '$base/Arrived' && arrivedStatus != null) {
+      return ResponseBody.fromString('', arrivedStatus!);
+    }
     if (method == 'POST' && postStatus != null) {
       return ResponseBody.fromString('', postStatus!);
     }
+    if (method == 'DELETE' && deleteStatus != null) {
+      return ResponseBody.fromString('', deleteStatus!);
+    }
     if (method == 'GET' && path == '$base/Favorites') {
+      if (favoritesStatus != null) {
+        return ResponseBody.fromString('', favoritesStatus!);
+      }
       return _json({'Songs': favorites});
     }
     if (method == 'GET' && path.startsWith('$base/Playlist/')) {
+      await playlistGate?.future;
+      if (playlistStatus != null) {
+        return ResponseBody.fromString('', playlistStatus!);
+      }
       return _json({'Entries': entries});
     }
     if (method == 'POST' &&
@@ -414,7 +444,7 @@ void main() {
       expect(store.supported(client), isFalse);
       expect(store.knownMissing(client), isTrue);
       server.asked.clear();
-      expect(await store.playlist(client, 'pl'), isNull);
+      expect((await store.playlist(client, 'pl')).missing, isTrue);
       expect(server.asked, isEmpty);
     });
 
@@ -492,5 +522,168 @@ void main() {
       store: store,
     );
     expect(_ids(video), ['a']);
+  });
+
+  group('Kos TV: what the review of it found', () {
+    test('«Tus favoritas»: one without a date doesn\'t hold back the rest, '
+        'and no more than the limit', () {
+      final home = [
+        _home('a', lastPlayed: '2026-11-20T10:00:00Z'),
+        _home('b', lastPlayed: '2026-11-10T10:00:00Z'),
+      ];
+      final away = [
+        const KostvAwayFavorite(
+          song: KostvAwaySong(deezerId: '1', title: 'U'),
+        ),
+        KostvAwayFavorite(
+          song: const KostvAwaySong(deezerId: '2', title: 'D'),
+          added: DateTime.utc(2026, 11, 15),
+        ),
+      ];
+      expect(_ids(kostvMergeFavorites(home, away, serverId: 's')), [
+        'a',
+        'stremfin:2',
+        'b',
+        'stremfin:1',
+      ]);
+      expect(_ids(kostvMergeFavorites(home, away, serverId: 's', limit: 3)), [
+        'a',
+        'stremfin:2',
+        'b',
+      ]);
+      final many = [
+        for (var i = 0; i < 100; i++)
+          KostvAwayFavorite(
+            song: KostvAwaySong(deezerId: '$i', title: 'T$i'),
+            added: DateTime.utc(2026, 11, 21),
+          ),
+      ];
+      expect(
+        kostvMergeFavorites(home, many, serverId: 's'),
+        hasLength(kostvFavoritesShown),
+      );
+    });
+
+    test('a playlist\'s songs: the plugin is asked at the same time as '
+        'Jellyfin', () async {
+      final server = _Server()
+        ..entries.add({'DeezerId': '9', 'Title': 'Nueve', 'After': 'a'});
+      final store = KostvMusicAwayStore(pluginWith(server));
+      final home = Completer<List<AggregatedItem>>();
+      final songs = kostvPlaylistSongs(client, 'pl', home.future, store: store);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(
+        server.asked.where((a) => a.path.contains('/Away/Playlist/')),
+        hasLength(1),
+      );
+      home.complete([_home('a')]);
+      final got = await songs;
+      expect(_ids(got.tracks), ['a', 'stremfin:9']);
+      expect(got.awayFailed, isFalse);
+    });
+
+    test('a plugin that fails: Jellyfin\'s alone, and said; not asked again '
+        'for a while, but for «Reintentar»', () async {
+      final server = _Server()
+        ..playlistStatus = 500
+        ..favoritesStatus = 500;
+      final store = KostvMusicAwayStore(pluginWith(server));
+      Future<KostvPlaylistSongs> read({bool retry = false}) =>
+          kostvPlaylistSongs(
+            client,
+            'pl',
+            Future.value([_home('a')]),
+            store: store,
+            retry: retry,
+          );
+      final first = await read();
+      expect(first.awayFailed, isTrue);
+      expect(_ids(first.tracks), ['a']);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      server.asked.clear();
+      final again = await read();
+      expect(again.awayFailed, isTrue);
+      expect(server.asked.where((a) => a.path.contains('/Playlist/')), isEmpty);
+      server
+        ..playlistStatus = null
+        ..entries.add({'DeezerId': '9', 'Title': 'Nueve', 'After': 'a'});
+      final retried = await read(retry: true);
+      expect(retried.awayFailed, isFalse);
+      expect(_ids(retried.tracks), ['a', 'stremfin:9']);
+      // A plugin from before it isn't a failure.
+      final old = KostvMusicAwayStore(pluginWith(_Server(hasRoutes: false)));
+      final plain = await kostvPlaylistSongs(
+        client,
+        'pl',
+        Future.value([_home('a')]),
+        store: old,
+      );
+      expect(plain.awayFailed, isFalse);
+    });
+
+    test('a menu doesn\'t wait again for a plugin that just failed', () async {
+      final server = _Server()..favoritesStatus = 500;
+      final store = KostvMusicAwayStore(pluginWith(server));
+      await store.load(client);
+      expect(store.down(client), isTrue);
+      server.asked.clear();
+      await store.load(client);
+      expect(server.asked, isEmpty);
+      server.favoritesStatus = null;
+      await store.load(client, force: true);
+      expect(server.asked, hasLength(1));
+      expect(store.down(client), isFalse);
+    });
+
+    test(
+      'an arrival the plugin didn\'t take keeps its ♥ and is told again',
+      () async {
+        final server = _Server()
+          ..favorites.add({'DeezerId': '77', 'Title': 'Lejos'})
+          ..arrivedStatus = 500;
+        final store = KostvMusicAwayStore(pluginWith(server));
+        await store.load(client);
+        expect(await store.arrived(client, '77', 'j1'), isFalse);
+        expect(store.isFavorite(client, '77'), isTrue);
+        server.arrivedStatus = null;
+        expect(await store.arrived(client, '77', 'j1'), isTrue);
+        expect(store.isFavorite(client, '77'), isFalse);
+        // Told once it was taken.
+        expect(await store.arrived(client, '77', 'j1'), isFalse);
+        expect(
+          server.asked.where((a) => a.path.endsWith('/Arrived')),
+          hasLength(2),
+        );
+      },
+    );
+
+    test('which playlists may be changed, and a refusal said', () async {
+      final server = _Server()..editable = ['abcd'];
+      final store = KostvMusicAwayStore(pluginWith(server));
+      expect(await store.editable(client, ['AB-CD', 'ef']), {'abcd'});
+      expect(server.asked.last.body, {
+        'Ids': ['AB-CD', 'ef'],
+      });
+      expect(await store.canEdit(client, 'AB-CD'), isTrue);
+      expect(await store.canEdit(client, 'ef'), isFalse);
+      server.deleteStatus = 403;
+      expect(
+        await store.removeFromPlaylist(client, 'pl', '77'),
+        KostvAwayEdit.forbidden,
+      );
+      server.postStatus = 403;
+      expect(await store.order(client, 'pl', [away]), KostvAwayEdit.forbidden);
+      server
+        ..deleteStatus = 500
+        ..postStatus = null;
+      expect(
+        await store.removeFromPlaylist(client, 'pl', '77'),
+        KostvAwayEdit.failed,
+      );
+      expect(await store.order(client, 'pl', [away]), KostvAwayEdit.done);
+      // A plugin from before it: not known.
+      final old = KostvMusicAwayStore(pluginWith(_Server(hasRoutes: false)));
+      expect(await old.canEdit(client, 'ef'), isNull);
+    });
   });
 }

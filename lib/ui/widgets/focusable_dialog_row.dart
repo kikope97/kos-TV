@@ -91,7 +91,22 @@ class _FocusableDialogRowState extends State<FocusableDialogRow> {
     return Focus(
       focusNode: _focusNode,
       autofocus: widget.autofocus,
-      onKeyEvent: (_, event) {
+      onKeyEvent: (node, event) {
+        // Kos TV: up and down move along the rows here. On the web the
+        // app's arrows scroll instead (Flutter's web shortcuts), so a
+        // keyboard or a remote there couldn't leave the first row; on
+        // Android this is what the arrows did already.
+        if (event is KeyDownEvent || event is KeyRepeatEvent) {
+          final direction = switch (event.logicalKey) {
+            LogicalKeyboardKey.arrowUp => TraversalDirection.up,
+            LogicalKeyboardKey.arrowDown => TraversalDirection.down,
+            _ => null,
+          };
+          if (direction != null) {
+            node.focusInDirection(direction);
+            return KeyEventResult.handled;
+          }
+        }
         if (!event.logicalKey.isSelectKey) {
           return KeyEventResult.ignored;
         }

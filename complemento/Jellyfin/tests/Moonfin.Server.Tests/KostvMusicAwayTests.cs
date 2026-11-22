@@ -31,6 +31,9 @@ public sealed class KostvMusicAwayTests : IDisposable
     private int _adds;
     private int _moves;
 
+    // kOS TV: the server failing to read its items (busy, say).
+    private bool _libraryFails;
+
     public void Dispose()
     {
         if (Directory.Exists(_root))
@@ -70,7 +73,7 @@ public sealed class KostvMusicAwayTests : IDisposable
 
     private ILibraryManager Library() => RecordingHostProxy.Create<ILibraryManager>((method, args) => method.Name switch
     {
-        "GetItemById" when args is [Guid id] => _items.GetValueOrDefault(id),
+        "GetItemById" when args is [Guid id] => _libraryFails ? throw new InvalidOperationException("busy") : _items.GetValueOrDefault(id),
         "GetItemsResult" => new QueryResult<BaseItem>(_items.Values
             .Where(i => i is Audio && ((InternalItemsQuery)args![0]!).SearchTerm is { } term && i.Name.Contains(term, StringComparison.OrdinalIgnoreCase))
             .ToList()),
@@ -273,37 +276,37 @@ public sealed class KostvMusicAwayTests : IDisposable
         Assert.Equal(JsonValueKind.Null, byLuis.GetProperty("Entries")[0].GetProperty("After").ValueKind);
 
         // Shared to see: sees it, may not change it.
-        Assert.Equal(["3", "1", "2"], Keys(Json(Controller(away, eva).GetPlaylist(playlist.Id.ToString()))));
+        Assert.Equal(["3", "1", "2"], Keys(Json(await Controller(away, eva).GetPlaylist(playlist.Id.ToString()))));
         Assert.Equal(403, Assert.IsType<ObjectResult>(await Controller(away, eva).AddToPlaylist(playlist.Id.ToString(), Body(new { Songs = new[] { Away("4") } }))).StatusCode);
         Assert.Equal(403, Assert.IsType<ObjectResult>(await Controller(away, eva).RemoveFromPlaylist(playlist.Id.ToString(), "1")).StatusCode);
         Assert.Equal(403, Assert.IsType<ObjectResult>(await Controller(away, eva).OrderPlaylist(playlist.Id.ToString(), Body(new { Ids = Array.Empty<string>() }))).StatusCode);
 
         // Not shared: as if it weren't there.
-        Assert.IsType<NotFoundObjectResult>(Controller(away, pepe).GetPlaylist(playlist.Id.ToString()));
+        Assert.IsType<NotFoundObjectResult>(await Controller(away, pepe).GetPlaylist(playlist.Id.ToString()));
         Assert.IsType<NotFoundObjectResult>(await Controller(away, pepe).AddToPlaylist(playlist.Id.ToString(), Body(new { Songs = new[] { Away("4") } })));
-        Assert.IsType<NotFoundObjectResult>(Controller(away, ana).GetPlaylist(Guid.NewGuid().ToString()));
-        Assert.IsType<NotFoundObjectResult>(Controller(away, ana).GetPlaylist("lista"));
+        Assert.IsType<NotFoundObjectResult>(await Controller(away, ana).GetPlaylist(Guid.NewGuid().ToString()));
+        Assert.IsType<NotFoundObjectResult>(await Controller(away, ana).GetPlaylist("lista"));
         // Not a playlist.
-        Assert.IsType<NotFoundObjectResult>(Controller(away, ana).GetPlaylist(home.Id.ToString()));
+        Assert.IsType<NotFoundObjectResult>(await Controller(away, ana).GetPlaylist(home.Id.ToString()));
 
         // Open to all: anyone sees it, only its owner (and who it's shared with to edit) changes it.
         var open = List(ana, open: true);
         await Controller(away, ana).AddToPlaylist(open.Id.ToString(), Body(new { Songs = new[] { Away("9") } }));
-        Assert.Equal(["9"], Keys(Json(Controller(away, pepe).GetPlaylist(open.Id.ToString()))));
+        Assert.Equal(["9"], Keys(Json(await Controller(away, pepe).GetPlaylist(open.Id.ToString()))));
         Assert.Equal(403, Assert.IsType<ObjectResult>(await Controller(away, pepe).RemoveFromPlaylist(open.Id.ToString(), "9")).StatusCode);
 
         // Taken out (also when it wasn't in it), as a Deezer id or stremfin:<id>.
         Assert.IsType<NoContentResult>(await Controller(away, luis).RemoveFromPlaylist(playlist.Id.ToString(), "stremfin:1"));
         Assert.IsType<NoContentResult>(await Controller(away, ana).RemoveFromPlaylist(playlist.Id.ToString(), "1"));
         Assert.IsType<BadRequestObjectResult>(await Controller(away, ana).RemoveFromPlaylist(playlist.Id.ToString(), "uno"));
-        var now = Json(Controller(away, ana).GetPlaylist(playlist.Id.ToString()));
+        var now = Json(await Controller(away, ana).GetPlaylist(playlist.Id.ToString()));
         Assert.Equal(["3", "2"], Keys(now));
         // What was after it, after what it was after.
         Assert.Equal(N(home), now.GetProperty("Entries")[1].GetProperty("After").GetString());
 
         // The order as the app has it now.
         Assert.IsType<NoContentResult>(await Controller(away, ana).OrderPlaylist(playlist.Id.ToString(), Body(new { Ids = new[] { home.Id.ToString(), "stremfin:2", "stremfin:3" } })));
-        Assert.Equal(["2", "3"], Keys(Json(Controller(away, ana).GetPlaylist(playlist.Id.ToString()))));
+        Assert.Equal(["2", "3"], Keys(Json(await Controller(away, ana).GetPlaylist(playlist.Id.ToString()))));
         Assert.IsType<BadRequestObjectResult>(await Controller(away, ana).OrderPlaylist(playlist.Id.ToString(), Body(new { Ids = new[] { "otra" } })));
         Assert.IsType<BadRequestObjectResult>(await Controller(away, ana).OrderPlaylist(playlist.Id.ToString(), Body(new { })));
 
@@ -381,11 +384,166 @@ public sealed class KostvMusicAwayTests : IDisposable
 
         Assert.Equal([stays.Id], store.Playlists());
 
-        // One the server deleted while the plugin was off: gone in the daily round.
+        // One the server deleted while the plugin was off: gone once two daily rounds say so
+        // (kOS TV: one slip of the server doesn't lose them), what was kept left as its .bak.
         _items.Remove(stays.Id);
         await away.RoundAsync();
+        Assert.Equal([stays.Id], store.Playlists());
+        await away.RoundAsync();
         Assert.Empty(store.Playlists());
-        Assert.False(File.Exists(AtomicBackup(stays.Id)));
+        Assert.True(File.Exists(AtomicBackup(stays.Id)));
+        Assert.True(File.Exists(AtomicBackup(gone.Id)));
+    }
+
+    [Fact]
+    public async Task APlaylistTheServerCannotReadKeepsItsSongsNotAtHome()
+    {
+        var ana = Person("ana");
+        var playlist = List(ana);
+        var store = NewStore();
+        var away = NewAway(store);
+        await Controller(away, ana).AddToPlaylist(playlist.Id.ToString(), Body(new { Songs = new[] { Away("1") } }));
+        // (Not one the daily round would take for it: the song is told by the app.)
+        var one = Song("Otra", "Otro", "Otro disco");
+
+        // The server fails to read it (busy): it is not taken for deleted, on any round.
+        _libraryFails = true;
+        for (var i = 0; i < 3; i++)
+        {
+            await away.RoundAsync();
+        }
+
+        Assert.Equal([playlist.Id], store.Playlists());
+        Assert.False(away.TryPlaylistOf(playlist.Id, out _));
+        // Asked for it meanwhile: it failed, not «not there».
+        Assert.Equal(503, Assert.IsType<ObjectResult>(await Controller(away, ana).GetPlaylist(playlist.Id.ToString())).StatusCode);
+        Assert.Equal(503, Assert.IsType<ObjectResult>(await Controller(away, ana).RemoveFromPlaylist(playlist.Id.ToString(), "1")).StatusCode);
+        // A song come home meanwhile leaves it as it was.
+        Assert.Equal(0, await away.ArriveOnceAsync("1", one));
+        Assert.Single(store.Entries(playlist.Id));
+
+        // Read again: all there. Not there on one round only, and back: kept too.
+        _libraryFails = false;
+        _items.Remove(playlist.Id);
+        await away.RoundAsync();
+        _items[playlist.Id] = playlist;
+        await away.RoundAsync();
+        _items.Remove(playlist.Id);
+        await away.RoundAsync();
+        Assert.Equal([playlist.Id], store.Playlists());
+
+        // A playlist taken for deleted by mistake gets them back when it is read again.
+        await away.RoundAsync();
+        Assert.Empty(store.Playlists());
+        _items[playlist.Id] = playlist;
+        Assert.Equal(["1"], Keys(Json(await Controller(away, ana).GetPlaylist(playlist.Id.ToString()))));
+    }
+
+    [Fact]
+    public void WhatFollowedAnElementTakenOutKeepsItsPlace()
+    {
+        // a, 1, b, 2, 3, c as last seen; then a and b taken out (in another app).
+        var last = new List<string> { "a", S("1"), "b", S("2"), S("3"), "c" };
+        var entries = new List<KostvAwaySong> { Entry("1", "a"), Entry("2", "b"), Entry("3", S("2")) };
+        Assert.True(KostvAwayOrder.Reanchor(entries, ["c"], last));
+        Assert.Equal([S("1"), S("2"), S("3"), "c"], KostvAwayOrder.Merged(["c"], entries));
+        Assert.Null(entries[0].After);
+        Assert.Equal(S("1"), entries[1].After);
+
+        // Only b taken out: after what was before it.
+        entries = [Entry("1", "a"), Entry("2", "b"), Entry("3", S("2"))];
+        Assert.True(KostvAwayOrder.Reanchor(entries, ["a", "c"], last));
+        Assert.Equal(["a", S("1"), S("2"), S("3"), "c"], KostvAwayOrder.Merged(["a", "c"], entries));
+
+        // Nothing gone, an element never seen, or nothing seen yet: as they were.
+        entries = [Entry("1", "a"), Entry("2", "x")];
+        Assert.False(KostvAwayOrder.Reanchor(entries, ["a"], last));
+        Assert.False(KostvAwayOrder.Reanchor(entries, ["c"], null));
+        Assert.Equal("x", entries[1].After);
+    }
+
+    [Fact]
+    public async Task ASongTakenOutOfThePlaylistElsewhereLeavesWhatFollowedItInItsPlace()
+    {
+        var ana = Person("ana");
+        var a = Song("A", "Artista", "Disco");
+        var b = Song("B", "Artista", "Disco");
+        var c = Song("C", "Artista", "Disco");
+        var playlist = List(ana, [a, b, c]);
+        var store = NewStore();
+        var away = NewAway(store);
+        // a, 1, 2, b, c, 3.
+        await Controller(away, ana).AddToPlaylist(playlist.Id.ToString(), Body(new { Songs = new[] { Away("1"), Away("2") }, After = a.Id.ToString() }));
+        await Controller(away, ana).AddToPlaylist(playlist.Id.ToString(), Body(new { Songs = new[] { Away("3") }, After = c.Id.ToString() }));
+
+        // a taken out in Jellyfin's own app: 1 and 2 stay first, not at the end.
+        playlist.LinkedChildren = playlist.LinkedChildren.Where(ch => ch.ItemId != a.Id).ToArray();
+        var seen = Json(await Controller(away, ana).GetPlaylist(playlist.Id.ToString()));
+        Assert.Equal(["1", "2", "3"], Keys(seen));
+        Assert.Equal([S("1"), S("2"), N(b), N(c), S("3")], KostvAwayOrder.Merged(KostvMusicAway.JellyfinIdsOf(playlist), store.Entries(playlist.Id)));
+
+        // c taken out, and the server says the playlist changed: 3 after b, kept so.
+        playlist.LinkedChildren = playlist.LinkedChildren.Where(ch => ch.ItemId != c.Id).ToArray();
+        var watcher = new KostvMusicAwayWatcher(Library(), away, new KostvMusicStore(_root, () => _now), NullLogger<KostvMusicAwayWatcher>.Instance);
+        watcher.OnItemChanged(null, new ItemChangeEventArgs { Item = playlist });
+        for (var i = 0; i < 100 && store.Entries(playlist.Id).Single(e => e.DeezerId == "3").After != N(b); i++)
+        {
+            await Task.Delay(20);
+        }
+
+        Assert.Equal(N(b), store.Entries(playlist.Id).Single(e => e.DeezerId == "3").After);
+        // A playlist without songs not at home: nothing to do.
+        Assert.Null(away.PlaylistChanged(List(ana).Id));
+    }
+
+    [Fact]
+    public async Task SongsNotAtHomeGoOnlyInAPlaylistOfMusic()
+    {
+        var ana = Person("ana");
+        var luis = Person("luis");
+        var videos = List(ana);
+        videos.PlaylistMediaType = Jellyfin.Data.Enums.MediaType.Video;
+        var unknown = List(ana);
+        unknown.PlaylistMediaType = Jellyfin.Data.Enums.MediaType.Unknown;
+        var music = List(ana, shares: [(luis, false)]);
+        music.PlaylistMediaType = Jellyfin.Data.Enums.MediaType.Audio;
+        var away = NewAway();
+
+        Assert.IsType<BadRequestObjectResult>(await Controller(away, ana).AddToPlaylist(videos.Id.ToString(), Body(new { Songs = new[] { Away("1") } })));
+        Assert.Empty(away.Store.Entries(videos.Id));
+        Assert.IsType<ContentResult>(await Controller(away, ana).AddToPlaylist(unknown.Id.ToString(), Body(new { Songs = new[] { Away("1") } })));
+        Assert.IsType<ContentResult>(await Controller(away, ana).AddToPlaylist(music.Id.ToString(), Body(new { Songs = new[] { Away("1") } })));
+
+        // Which of them each one may change.
+        var ids = new[] { videos.Id.ToString(), music.Id.ToString("N"), Guid.NewGuid().ToString(), music.Id.ToString() };
+        List<string> Editable(Guid user) =>
+            Json(Controller(away, user).EditablePlaylists(Body(new { Ids = ids }))).GetProperty("Ids").EnumerateArray().Select(e => e.GetString()!).ToList();
+        Assert.Equal([N(videos), N(music)], Editable(ana));
+        Assert.Empty(Editable(luis));
+        Assert.IsType<BadRequestObjectResult>(Controller(away, ana).EditablePlaylists(Body(new { Ids = new[] { "lista" } })));
+        Assert.IsType<BadRequestObjectResult>(Controller(away, ana).EditablePlaylists(Body(new { })));
+    }
+
+    [Fact]
+    public async Task ASongComeHomeIsLookedUpByItsDeezerIdWithoutReadingEveryList()
+    {
+        var ana = Person("ana");
+        var playlist = List(ana);
+        var away = NewAway();
+        Assert.Null(away.WhereKept("1"));
+        await Controller(away, ana).AddToPlaylist(playlist.Id.ToString(), Body(new { Songs = new[] { Away("1") } }));
+        Controller(away, ana).AddFavorite(Body(Away("2")));
+        Assert.Equal([playlist.Id], away.WhereKept("1")!.Playlists);
+        Assert.Equal([ana], away.WhereKept("2")!.Users);
+
+        // One kept nowhere: nothing done.
+        var other = Song("Otra", "Otro", "Otro disco");
+        Assert.Equal(0, await away.ArriveOnceAsync("9", other));
+        Assert.Equal(0, _adds);
+
+        // Taken out: no longer kept.
+        await Controller(away, ana).RemoveFromPlaylist(playlist.Id.ToString(), "1");
+        Assert.Null(away.WhereKept("1"));
     }
 
     private string AtomicBackup(Guid playlistId) => Path.Combine(_root, KostvAwayStore.PlaylistsFolder, playlistId.ToString("N") + ".json.bak");

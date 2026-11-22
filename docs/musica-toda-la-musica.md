@@ -154,16 +154,24 @@ añadir canciones de fuera, el complemento guarda «huecos» en las listas de
 Jellyfin y un ♥ propio; cuando la canción llega a casa, la pasa a Jellyfin sola.
 
 Decisiones: las listas siguen siendo las de Jellyfin; añadir o dar ♥ **no pide el
-álbum solo** (se ofrece: «Añadida. ¿Pedir el álbum para tenerla en casa?»); en
-otras apps la lista se ve solo con lo de casa; entra en la 1.19.0.
+álbum solo** (se ofrece: «Añadida a la lista. ¿Pedir el álbum para tenerla en
+casa?», y tras un ♥ «Añadida a tus favoritas. ¿Pedir el álbum…?»); en otras
+apps la lista se ve solo con lo de casa; entra en la 1.19.0.
 
 ### Qué ve la familia
 
 - En el menú de una canción de fuera (y en Reproduciendo): «Añadir a una lista»
-  (las listas de siempre y «Nueva lista») y ♥.
+  (las listas de música que la persona puede cambiar y «Nueva lista») y ♥.
+  Para canciones (de casa o de fuera) solo salen las listas de música.
 - La lista se ve entera, en su orden, con la nube en las de fuera; al ponerla
-  suena todo (lo de fuera en streaming). Se quitan y se mueven como las demás.
-- «Tus favoritas» lleva también las de fuera con ♥.
+  suena todo (lo de fuera en streaming). Se quitan y se mueven como las demás
+  (solo en las listas que la persona puede cambiar; en una compartida solo
+  para ver no se ofrece y, si no se sabe, al intentarlo sale «No puedes cambiar
+  esta lista»). «Descargar todo» baja solo las de casa.
+- Si el complemento falla o tarda al leer lo de fuera, la lista se ve con lo de
+  casa y un aviso «No se han podido cargar las canciones que no están en casa»
+  con «Reintentar».
+- «Tus favoritas» lleva también las de fuera con ♥ (60 en total, como antes).
 - Niños: lo explícito de fuera no sale. «No me gusta»: se salta al ponerla.
   «Solo la de casa»: las de fuera salen en gris y no suenan, pero no se borran.
 - Cuando la canción llega a casa, pasa a ser una canción normal de la lista (en
@@ -177,10 +185,11 @@ Textos recortados a 200; `DeezerId` solo cifras (≤ 32).
 
 | Ruta | Qué hace |
 |---|---|
-| `GET Away/Playlist/{playlistId}` | `{ "Entries": [ { …AwaySong, "After": "<id>" \| null, "Added": fecha } ] }`. `After` es el id del elemento que la precede en la lista completa: un id de Jellyfin o `stremfin:<DeezerId>`; `null` = la primera. La app las coloca recorriendo la lista de Jellyfin; si su `After` ya no está, van al final. Quien puede ver la lista de Jellyfin puede leerla; si no, `404`. |
+| `GET Away/Playlist/{playlistId}` | `{ "Entries": [ { …AwaySong, "After": "<id>" \| null, "Added": fecha } ] }`. `After` es el id del elemento que la precede en la lista completa: un id de Jellyfin o `stremfin:<DeezerId>`; `null` = la primera. La app las coloca recorriendo la lista de Jellyfin; si su `After` ya no está, van al final. Quien puede ver la lista de Jellyfin puede leerla; si no, `404`. Si Jellyfin no puede leer la lista en ese momento, `503` (no es «no está»). |
 | `POST Away/Playlist/{playlistId}` | Cuerpo `{ "Songs": [AwaySong…], "After": "<id>" \| null }` (`After` ausente = al final). Solo quien puede cambiar la lista (su dueña o con permiso de edición). Repetida (mismo `DeezerId`) no se duplica. `200` con la lista como en el `GET`; `403` sin permiso; `400` mal formado. Tope: 500 canciones de fuera por lista. |
 | `DELETE Away/Playlist/{playlistId}/{deezerId}` | Quita una. `204` (también si no estaba). |
 | `POST Away/Playlist/{playlistId}/Order` | Cuerpo `{ "Ids": [ …el orden completo, ids de Jellyfin y stremfin:<id> ] }`: recalcula los `After` de las de fuera. Lo de Jellyfin lo mueve la app con la API de Jellyfin, como ahora. `204`. |
+| `POST Away/Playlists/Editable` | (Añadida el 2026-11-22.) Cuerpo `{ "Ids": [ ids de listas de Jellyfin ] }` (hasta 1000): `{ "Ids": [ las que quien llama puede cambiar, sin guiones ] }` (suyas o compartidas con permiso de edición). La app solo ofrece añadir, quitar y mover en esas; con un complemento sin esta ruta (`404`) lo ofrece todo y, si Jellyfin o el complemento dicen `403`, avisa «No puedes cambiar esta lista». |
 | `GET Away/Favorites` | `{ "Songs": [ { …AwaySong, "Added": fecha } ] }` de la persona, lo último primero. |
 | `POST Away/Favorites` | Cuerpo `AwaySong`. `204`. Cuenta para el gusto como un ♥ (desde el día siguiente). Tope 2000. |
 | `DELETE Away/Favorites/{deezerId}` | `204`. |
@@ -221,3 +230,30 @@ lista» ni ♥ en canciones de fuera.
   nada más.
 - Al borrar una lista de Jellyfin se borran sus huecos (y, si el complemento
   estaba apagado, en la ronda diaria).
+
+**Cambios del 2026-11-22** (revisión de la función; precisan lo de arriba):
+
+- **Los huecos no pierden su sitio.** El complemento guarda, con los huecos de
+  cada lista, el último orden completo que vio. Si el `After` de un hueco ya no
+  está (se quitó esa canción, también desde otra app como la web de Jellyfin),
+  al leer la lista (`GET`), al cambiarla y cuando Jellyfin avisa de que la lista
+  cambió, lo vuelve a anclar al elemento anterior más cercano que siga en ella
+  (o lo pone el primero si no queda ninguno), en vez de mandarlo al final. Solo
+  van al final los que apuntan a algo que nunca vio (listas de antes de esto).
+  Aun así, al quitar una canción de casa, la app sigue mandando `Order` con la
+  lista ya sin ella.
+- `POST Away/Playlist/{id}`: solo en listas de música (o sin tipo): en una de
+  vídeo, `400`. La app tampoco las ofrece para canciones.
+- `POST Away/Arrived`: el complemento busca la canción en un índice por
+  `DeezerId` (se rehace solo cuando cambia algo); si no está en ninguna lista ni
+  ♥, contesta sin leer nada. La app solo da por contada la llegada (y quita su ♥
+  de fuera) cuando el complemento contesta bien; si no, lo vuelve a intentar la
+  siguiente vez.
+- Una lista que Jellyfin no puede leer (error, no «no existe») nunca se da por
+  borrada: sus rutas dan `503` y la llegada la deja como está. En la ronda
+  diaria solo se borran los huecos de una lista que Jellyfin dice que no existe
+  en dos rondas seguidas, y lo guardado queda en su `.bak`: si la lista vuelve a
+  aparecer, se recupera al leerla.
+- La app pide los huecos a la vez que la lista de Jellyfin (con el mismo tope de
+  8 s) y, si el complemento acaba de fallar o tardar, no lo espera durante 30 s
+  en los menús.

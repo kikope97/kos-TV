@@ -36501,10 +36501,10 @@ abstract class AppLocalizations {
   /// **'What\'s playing isn\'t at home, and songs that aren\'t at home can\'t be listened to together.'**
   String get kostvSyncPlayErrorOutOfHomeSong;
 
-  /// Kos TV «Toda la música»: a song that is not at home was added to a playlist or got a ♥; the notice offers to ask for its album
+  /// Kos TV «Toda la música»: a song that is not at home was added to a playlist; the notice offers to ask for its album
   ///
   /// In en, this message translates to:
-  /// **'Added. Ask for the album to have it at home?'**
+  /// **'Added to the playlist. Ask for the album to have it at home?'**
   String get kostvAwayAddedAskAlbum;
 
   /// Kos TV «Toda la música»: a song that is not at home was added to a playlist (its album can't be asked for)
@@ -36548,6 +36548,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Streaming'**
   String get kostvStreamOnlyLine;
+
+  /// Kos TV «Toda la música»: a song that is not at home got a ♥ (it went to the person's favourites); the notice offers to ask for its album
+  ///
+  /// In en, this message translates to:
+  /// **'Added to your favourites. Ask for the album to have it at home?'**
+  String get kostvAwayLovedAskAlbum;
+
+  /// Kos TV «Toda la música»: «Reproducir» or «Aleatorio» of a playlist whose songs are all not at home, with «Solo la de casa»
+  ///
+  /// In en, this message translates to:
+  /// **'None of these songs are at home: with «Only what\'s at home» they don\'t play'**
+  String get kostvAwayNoneAtHome;
+
+  /// Kos TV «Toda la música»: a playlist shows only the songs at home because the server plugin failed to give the others; a «Reintentar» button follows
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the songs that aren\'t at home'**
+  String get kostvAwayLoadFailed;
 }
 
 class _AppLocalizationsDelegate

@@ -1,14 +1,22 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:dio/dio.dart';
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
+import 'package:moonfin/data/services/kostv_music_away.dart';
+import 'package:moonfin/data/services/kostv_music_plugin.dart';
+import 'package:moonfin/data/services/stremfin/kostv_stream_song.dart';
 import 'package:moonfin/playback/stremfin_stream_resolver.dart';
 import 'package:moonfin/ui/widgets/music/kostv_now_playing.dart';
 import 'package:moonfin/ui/widgets/music/kostv_now_playing_capsule.dart';
 import 'package:playback_core/playback_core.dart';
+import 'package:server_core/server_core.dart';
+import 'package:server_jellyfin/server_jellyfin.dart';
 
 class _Manager extends Fake implements PlaybackManager {
   @override
@@ -514,4 +522,88 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(turn(), hidden);
   });
+
+  // Kos TV: a song that turned out to be at home takes its place in the
+  // queue with the ♥ the person gave it while it wasn't (read before the
+  // server plugin made it Jellyfin's), and the plugin is told.
+  test('a song come home keeps the ♥ given while it wasn\'t', () async {
+    final routes = _AwayRoutes();
+    final client =
+        JellyfinMediaServerClient(
+            baseUrl: 'https://casa.example',
+            deviceInfo: const DeviceInfo(
+              id: 'device',
+              name: 'Device',
+              appName: 'kOS TV',
+              appVersion: '1.0.0',
+            ),
+          )
+          ..accessToken = 'token'
+          ..userId = 'ana';
+    GetIt.instance.registerSingleton<MediaServerClient>(client);
+    final store = KostvMusicAwayStore(
+      KostvMusicPlugin(dio: Dio()..httpClientAdapter = routes),
+    );
+    KostvMusicAwayStore.instance = store;
+    addTearDown(() => KostvMusicAwayStore.instance = KostvMusicAwayStore());
+    addTearDown(StremfinStreamResolver.debugReset);
+    await store.load(client);
+    expect(store.isFavorite(client, '7'), isTrue);
+
+    KostvNowPlaying.instance.ensureStarted();
+    final stream = kostvStreamItem(
+      deezerId: '7',
+      title: 'Verano',
+      serverId: 'casa',
+    );
+    manager.queueService.setQueue([stream]);
+    StremfinStreamResolver.noteAtHome(stream, _item('j7', 'Audio'));
+    for (var i = 0; i < 100 && store.isFavorite(client, '7'); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    final now = manager.queueService.items.single as AggregatedItem;
+    expect(now.id, 'j7');
+    expect(now.isFavorite, isTrue);
+    expect(routes.arrived, [
+      {'DeezerId': '7', 'JellyfinId': 'j7'},
+    ]);
+    // Its ♥ of a song not at home goes once the plugin took it.
+    expect(store.isFavorite(client, '7'), isFalse);
+  });
+}
+
+/// Kos TV: the server plugin's routes for songs that aren't at home: the
+/// person's ♥ on «7», and the arrivals told.
+class _AwayRoutes implements HttpClientAdapter {
+  final arrived = <Object?>[];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    final path = options.uri.path;
+    if (path.endsWith('/Away/Favorites')) {
+      return ResponseBody.fromString(
+        jsonEncode({
+          'Songs': [
+            {'DeezerId': '7', 'Title': 'Verano'},
+          ],
+        }),
+        200,
+        headers: {
+          Headers.contentTypeHeader: ['application/json'],
+        },
+      );
+    }
+    if (path.endsWith('/Away/Arrived') && requestStream != null) {
+      final bytes = await requestStream.expand((chunk) => chunk).toList();
+      arrived.add(jsonDecode(utf8.decode(bytes)));
+    }
+    return ResponseBody.fromString('', 204);
+  }
+
+  @override
+  void close({bool force = false}) {}
 }
