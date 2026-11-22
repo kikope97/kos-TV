@@ -21669,4 +21669,74 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get kostvMusicAlreadyHome => 'Ya está en casa';
+
+  @override
+  String get kostvMusicTabForYou => 'Para ti';
+
+  @override
+  String get kostvMusicTabAlbums => 'Álbumes';
+
+  @override
+  String get kostvMusicKeepListening => 'Sigue escuchando';
+
+  @override
+  String kostvMusicQuickAlbum(String artist) {
+    return 'Álbum · $artist';
+  }
+
+  @override
+  String kostvMusicQuickList(String tracks) {
+    return 'Lista · $tracks';
+  }
+
+  @override
+  String get kostvMusicQuickListAlone => 'Lista';
+
+  @override
+  String get kostvMusicNewList => 'Nueva lista';
+
+  @override
+  String get kostvMusicListMade => 'Lista creada';
+
+  @override
+  String get kostvMusicNoLists =>
+      'Aún no tienes listas: crea la primera con «Nueva lista».';
+
+  @override
+  String get kostvMusicNoArtists => 'No hay artistas en casa todavía.';
+
+  @override
+  String get kostvMusicNoAlbums => 'No hay álbumes en casa todavía.';
+
+  @override
+  String get kostvMusicSortRecent => 'Escuchado hace poco';
+
+  @override
+  String get kostvMusicSortAz => 'A–Z';
+
+  @override
+  String get kostvMusicTopResult => 'Lo mejor';
+
+  @override
+  String get kostvMusicFilterAll => 'Todo';
+
+  @override
+  String get kostvMusicFilterLists => 'Listas';
+
+  @override
+  String get kostvMusicArtistsAndAlbums => 'Artistas y álbumes';
+
+  @override
+  String get kostvMusicKindArtist => 'Artista';
+
+  @override
+  String kostvMusicKindSong(String artist) {
+    return 'Canción · $artist';
+  }
+
+  @override
+  String get kostvMusicDiscoveryKicker => 'Cada lunes';
+
+  @override
+  String get kostvMusicSearchClose => 'Cerrar la búsqueda';
 }

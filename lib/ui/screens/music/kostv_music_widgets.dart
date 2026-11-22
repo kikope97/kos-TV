@@ -868,6 +868,9 @@ class KostvMusicShelf extends StatelessWidget {
 
 /// A mix's own art: a gradient in one of a few colours, «Mezcla» and the
 /// artist's name, as the streaming apps make theirs.
+/// Kos TV: the music design's mix card (`docs/diseno-musica`): the colour of
+/// the mix, the artist's picture in a circle and the name in the brand's
+/// letters, with a stripe of its colour at the foot.
 class KostvMusicMixArt extends StatelessWidget {
   const KostvMusicMixArt({
     super.key,
@@ -882,81 +885,177 @@ class KostvMusicMixArt extends StatelessWidget {
   final double size;
   final String? picture;
 
-  static const _colors = [
-    [Color(0xFFFA2D55), Color(0xFF8E1B6E)],
-    [Color(0xFF5E5CE6), Color(0xFF1E3A8A)],
-    [Color(0xFF30D158), Color(0xFF0E5F5C)],
-    [Color(0xFFFF9F0A), Color(0xFFB4235F)],
-  ];
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return _KostvMixCard(
+      colors: kostvMixColors(index),
+      size: size,
+      pictures: [?picture],
+      kicker: l10n.kostvMusicMixLabel,
+      label: name,
+    );
+  }
+}
+
+/// Kos TV: the colours of the mix cards, as the design draws them (a
+/// light and a deep one of each).
+const _kostvMixColors = [
+  [Color(0xFFE33AD6), Color(0xFF5B0F30)],
+  [Color(0xFF3BA9F2), Color(0xFF2A1561)],
+  [Color(0xFF9BF23A), Color(0xFF0E5A3C)],
+  [Color(0xFFF2A33A), Color(0xFF3B5A0E)],
+  [Color(0xFF36E58C), Color(0xFF0C2B5E)],
+  [Color(0xFFF2456B), Color(0xFF6A4A12)],
+];
+
+/// Kos TV: the two colours of the [index]th mix card (from 0).
+List<Color> kostvMixColors(int index) =>
+    _kostvMixColors[index % _kostvMixColors.length];
+
+/// Kos TV: a mix card's drawing: its colour, up to two of its artists'
+/// pictures in circles, its name at the foot in Outfit and a stripe of its
+/// colour under it. Drawn to its size: the device's larger text doesn't
+/// push the words out of it.
+class _KostvMixCard extends StatelessWidget {
+  const _KostvMixCard({
+    required this.colors,
+    required this.size,
+    required this.pictures,
+    required this.label,
+    this.kicker,
+  });
+
+  final List<Color> colors;
+  final double size;
+  final List<String> pictures;
+  final String label;
+  final String? kicker;
+
+  Widget _portrait(String? url, double d) {
+    final empty = DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: RadialGradient(
+          center: const Alignment(-0.4, -0.6),
+          colors: [
+            Colors.white.withValues(alpha: 0.30),
+            Colors.black.withValues(alpha: 0.25),
+          ],
+        ),
+      ),
+      child: Icon(
+        Icons.person_rounded,
+        size: d * 0.62,
+        color: Colors.black.withValues(alpha: 0.35),
+      ),
+    );
+    return Container(
+      width: d,
+      height: d,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: d * 0.18,
+            offset: Offset(0, d * 0.05),
+          ),
+        ],
+      ),
+      child: ClipOval(
+        child: url == null || url.isEmpty
+            ? empty
+            : BoundedNetworkImage(
+                imageUrl: url,
+                fit: BoxFit.cover,
+                maxWidth: 400,
+                errorBuilder: (context, _, _) => empty,
+              ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final colors = _colors[index % _colors.length];
-    final l10n = AppLocalizations.of(context);
-    return ClipRRect(
-      borderRadius: AppRadius.circular(10),
-      child: SizedBox.square(
-        dimension: size,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: colors,
-                ),
-              ),
-            ),
-            if (picture != null)
-              // Kos TV: the 35 % painted with the picture itself, not an
-              // Opacity layer of its own for every mix (redrawn with the
-              // focus animation, and off screen on the web).
-              BoundedNetworkImage(
-                imageUrl: picture!,
-                fit: BoxFit.cover,
-                colorFilter: const ColorFilter.mode(
-                  Color(0x59FFFFFF),
-                  BlendMode.modulate,
-                ),
-                errorBuilder: (context, _, _) => const SizedBox.shrink(),
-              ),
-            Padding(
-              padding: EdgeInsets.all(size * 0.08),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.graphic_eq_rounded,
-                    color: Colors.white,
-                    size: size * 0.16,
-                  ),
-                  const Spacer(),
-                  Text(
-                    l10n.kostvMusicMixLabel.toUpperCase(),
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontSize: size * 0.07,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
+    final big = size * 0.44;
+    final small = size * 0.30;
+    final shadow = [
+      Shadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 12),
+    ];
+    return MediaQuery.withNoTextScaling(
+      child: ClipRRect(
+        borderRadius: AppRadius.circular(KostvMusicTokens.radiusCover),
+        child: SizedBox.square(
+          dimension: size,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: const Alignment(-0.6, -1),
+                      end: const Alignment(0.6, 1),
+                      colors: colors,
                     ),
                   ),
-                  Text(
-                    name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: size * 0.12,
-                      fontWeight: FontWeight.w900,
-                      height: 1.05,
-                    ),
-                  ),
-                ],
+                ),
               ),
-            ),
-          ],
+              Positioned(
+                left: size * 0.10,
+                top: size * 0.10,
+                child: _portrait(pictures.firstOrNull, big),
+              ),
+              if (pictures.length > 1)
+                Positioned(
+                  left: size * 0.48,
+                  top: size * 0.20,
+                  child: _portrait(pictures[1], small),
+                ),
+              Positioned(
+                left: size * 0.09,
+                right: size * 0.09,
+                bottom: size * 0.11,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (kicker != null)
+                      Text(
+                        kicker!.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontFamily: KostvMusicType.titleFamily,
+                          fontWeight: FontWeight.w300,
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: size * 0.065,
+                          letterSpacing: size * 0.01,
+                          shadows: shadow,
+                        ),
+                      ),
+                    Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: KostvMusicType.title(
+                        size * 0.13,
+                        color: Colors.white,
+                      ).copyWith(shadows: shadow),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: (size * 0.03).clamp(3, 6),
+                child: ColoredBox(
+                  color: Color.lerp(colors.first, Colors.white, 0.18)!,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -971,9 +1070,9 @@ double kostvMusicSongRowHeight(BuildContext context, bool phone) {
   return base + (grown > 0 ? grown : 0);
 }
 
-/// Kos TV: a daily mix's cover: its colour, a mosaic of the pictures of
-/// three of its artists, and «Mix diario» with its number, as the streaming
-/// apps draw theirs.
+/// Kos TV: a daily mix's cover: its colour, two of its artists' pictures
+/// in circles and its name («Mix diario 1») at the foot, as the music
+/// design draws the mix cards.
 class KostvDailyMixArt extends StatelessWidget {
   const KostvDailyMixArt({
     super.key,
@@ -986,102 +1085,17 @@ class KostvDailyMixArt extends StatelessWidget {
   final int number;
   final double size;
 
-  /// Up to three; fewer leave their place in the mix's colour.
+  /// Its artists' pictures (the first two are drawn).
   final List<String> pictures;
-
-  static const _colors = [
-    [Color(0xFFFA2D55), Color(0xFF8E1B6E)],
-    [Color(0xFF5E5CE6), Color(0xFF1E3A8A)],
-    [Color(0xFF30D158), Color(0xFF0E5F5C)],
-    [Color(0xFFFF9F0A), Color(0xFFB4235F)],
-  ];
 
   @override
   Widget build(BuildContext context) {
-    final colors = _colors[(number - 1) % _colors.length];
     final l10n = AppLocalizations.of(context);
-    final pad = size * 0.07;
-    final gap = size * 0.025;
-    final mosaic = size * 0.56;
-    final inner = size - pad * 2;
-    final small = (mosaic - gap) / 2;
-    final empty = ColoredBox(color: Colors.black.withValues(alpha: 0.18));
-    Widget tile(int i, double width, double height) => ClipRRect(
-      borderRadius: AppRadius.circular(size * 0.035),
-      child: SizedBox(
-        width: width,
-        height: height,
-        child: i < pictures.length
-            ? BoundedNetworkImage(
-                imageUrl: pictures[i],
-                fit: BoxFit.cover,
-                maxWidth: 400,
-                errorBuilder: (context, _, _) => empty,
-              )
-            : empty,
-      ),
-    );
-    // Drawn to the cover's size: the device's larger text doesn't push the
-    // words out of it.
-    return MediaQuery.withNoTextScaling(
-      child: ClipRRect(
-        borderRadius: AppRadius.circular(10),
-        child: SizedBox.square(
-          dimension: size,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: colors,
-              ),
-            ),
-            child: Padding(
-              padding: EdgeInsets.all(pad),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      tile(0, inner - small - gap, mosaic),
-                      SizedBox(width: gap),
-                      Column(
-                        children: [
-                          tile(1, small, small),
-                          SizedBox(height: gap),
-                          tile(2, small, small),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Text(
-                    l10n.kostvMusicDailyMixLabel.toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontSize: size * 0.07,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                      height: 1.1,
-                    ),
-                  ),
-                  Text(
-                    '$number',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: size * 0.15,
-                      fontWeight: FontWeight.w900,
-                      height: 1,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    return _KostvMixCard(
+      colors: kostvMixColors(number - 1),
+      size: size,
+      pictures: pictures,
+      label: l10n.kostvMusicDailyMix(number),
     );
   }
 }
