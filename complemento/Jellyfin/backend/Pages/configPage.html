@@ -14586,6 +14586,12 @@
                                 if (response.status === 409 && typeof payload.Received === 'number') {
                                     return send(payload.Received, chunk);
                                 }
+                                // kOS TV: a 413 that isn't the plugin's (no Error: a reverse proxy
+                                // in front that takes less, nginx takes 1 MB by default) goes on
+                                // in smaller chunks, down to 256 KB.
+                                if (response.status === 413 && !payload.Error && chunk > 256 * 1024) {
+                                    return send(offset, Math.max(256 * 1024, Math.floor(chunk / 2)));
+                                }
                                 throw new Error(payload.Error || ('El servidor ha respondido ' + response.status + '.'));
                             });
                         }, function() {

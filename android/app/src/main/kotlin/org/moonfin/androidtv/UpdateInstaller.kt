@@ -74,7 +74,8 @@ object UpdateInstaller {
 
     /**
      * Kos TV: whether the APK at [path] (the file [downloadPath] names) is
-     * signed with exactly the certificates of the app installed. Checked
+     * signed with the certificates of the app installed (or one of its
+     * signing lineage, see below). Checked
      * before the installer opens, so an APK signed otherwise is refused with
      * a clear message instead of an installer error. False whenever it can't
      * tell. Parsing a 100 MB APK takes a moment: call it off the main thread.
@@ -88,7 +89,14 @@ object UpdateInstaller {
             val pm = context.packageManager
             val installed = certificates(pm, context.packageName, null)
             val downloaded = certificates(pm, null, file.absolutePath)
-            !installed.isNullOrEmpty() && installed == downloaded
+            // Kos TV: the same certificates, or (a key rotated with APK
+            // Signature Scheme v3) one of the installed app's lineage: on
+            // Android 9 to 12 an APK file only gives its oldest signer
+            // (GET_SIGNATURES) while the app installed gives its whole
+            // history. Another key shares none, and Android checks the
+            // rotation itself when installing.
+            !installed.isNullOrEmpty() && !downloaded.isNullOrEmpty() &&
+                (installed == downloaded || installed.any { it in downloaded })
         } catch (_: Exception) {
             false
         }

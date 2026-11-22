@@ -87,9 +87,13 @@ public class KostvUpdatesTests : IDisposable
         var half = bytes.Length / 2;
         Assert.Equal(half, await _store.AppendAsync(upload.Id, 0, new MemoryStream(bytes[..half])));
 
-        // A chunk cut off half-way: what it wrote doesn't count.
-        await Assert.ThrowsAsync<IOException>(() => _store.AppendAsync(upload.Id, half, new BreakingStream(bytes[half..], 1000)));
+        // A chunk cut off half-way: what it wrote doesn't count, and the page is told where
+        // it stands (in Spanish, not a bare 500).
+        var cut = await Assert.ThrowsAsync<KostvUpdateException>(() => _store.AppendAsync(upload.Id, half, new BreakingStream(bytes[half..], 1000)));
+        Assert.Equal(507, cut.Status);
+        Assert.Equal(half, cut.Received);
         Assert.Equal(half, _store.UploadStatus(upload.Id).Received);
+        Assert.Equal(half, new FileInfo(Path.Combine(_root, "uploads", upload.Id + ".part")).Length);
 
         // The page sends from a wrong place: told where to go on from.
         var refused = await Assert.ThrowsAsync<KostvUpdateException>(() => _store.AppendAsync(upload.Id, 0, new MemoryStream(bytes[..10])));
@@ -118,6 +122,19 @@ public class KostvUpdatesTests : IDisposable
         Assert.Equal(409, (await Assert.ThrowsAsync<KostvUpdateException>(() => _store.FinishUploadAsync(upload.Id))).Status);
 
         Assert.Equal(404, Assert.Throws<KostvUpdateException>(() => _store.UploadStatus("../../etc/passwd")).Status);
+    }
+
+    [Fact]
+    public async Task TestBuild_IsWarnedAbout()
+    {
+        // A GitHub test build (code 102100003, 1.21.0-prueba.3): allowed, but the admin is told the release
+        // 1.21.0 couldn't go on top of it afterwards.
+        var test = await Upload(KostvUpdates.KindTv, Apk(KostvUpdates.KindTv, 102100003, "1.21.0"));
+        Assert.True(test.Ok, string.Join(" | ", test.Errors));
+        Assert.Contains(test.Warnings, w => w.Contains("versión de prueba"));
+
+        var release = await Upload(KostvUpdates.KindPhone, Apk(KostvUpdates.KindPhone, 102100000, "1.21.0"));
+        Assert.DoesNotContain(release.Warnings, w => w.Contains("versión de prueba"));
     }
 
     [Fact]

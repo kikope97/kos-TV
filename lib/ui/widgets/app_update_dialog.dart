@@ -389,53 +389,126 @@ Future<void> _downloadTo(
   String? expectedSha256,
 }) async {
   if (await file.exists()) await file.delete();
-  final client = HttpClient()..connectionTimeout = const Duration(seconds: 15);
+  // Kos TV: the bytes as they are on the server (no gzip), so a download cut
+  // off halfway goes on from where it stopped with a Range request.
+  final client = HttpClient()
+    ..connectionTimeout = const Duration(seconds: 15)
+    ..autoUncompress = false;
+  var received = 0;
+  // Kos TV: hashed as it comes, so a 100 MB file isn't read a second time.
+  Digest? digest;
+  final hasher = sha256.startChunkedConversion(
+    ChunkedConversionSink<Digest>.withCallback((d) => digest = d.single),
+  );
+  final sink = file.openWrite();
   try {
-    final request = await client.getUrl(uri);
-    // Kos TV: the session's token goes to the home server only, never on to
-    // wherever a redirect might lead.
-    request.followRedirects = false;
-    headers.forEach(request.headers.set);
-    final response = await request.close().timeout(_quiet);
-    if (response.statusCode != 200) {
-      throw HttpException('status ${response.statusCode}', uri: uri);
-    }
-    final total = response.contentLength > 0
-        ? response.contentLength
-        : (expectedSize ?? 0);
-    var received = 0;
-    // Kos TV: hashed as it comes, so a 100 MB file isn't read a second time.
-    Digest? digest;
-    final hasher = sha256.startChunkedConversion(
-      ChunkedConversionSink<Digest>.withCallback((d) => digest = d.single),
-    );
-    final sink = file.openWrite();
-    try {
-      await for (final chunk in response.timeout(_quiet)) {
-        sink.add(chunk);
-        hasher.add(chunk);
-        received += chunk.length;
-        if (total > 0) progress.value = received / total;
+    var total = expectedSize ?? 0;
+    String? entityTag;
+    var resumes = 0;
+    while (true) {
+      final from = received;
+      try {
+        final request = await client.getUrl(uri);
+        // Kos TV: the session's token goes to the home server only, never on
+        // to wherever a redirect might lead.
+        request.followRedirects = false;
+        headers.forEach(request.headers.set);
+        if (from > 0) {
+          request.headers.set(HttpHeaders.rangeHeader, 'bytes=$from-');
+          // The same file, or the whole of another one (refused below).
+          if (entityTag != null) {
+            request.headers.set(HttpHeaders.ifRangeHeader, entityTag);
+          }
+        }
+        final response = await request.close().timeout(_quiet);
+        if (from == 0 && response.statusCode != 200) {
+          throw _UpdateDownloadStatus(response.statusCode);
+        }
+        if (from > 0 &&
+            (response.statusCode != 206 ||
+                !rangeResumes(
+                  response.headers.value(HttpHeaders.contentRangeHeader),
+                  from: from,
+                  total: total,
+                ))) {
+          throw _UpdateDownloadStatus(response.statusCode);
+        }
+        if (from == 0) {
+          if (response.contentLength > 0) total = response.contentLength;
+          entityTag = response.headers.value(HttpHeaders.etagHeader);
+        }
+        await for (final chunk in response.timeout(_quiet)) {
+          sink.add(chunk);
+          hasher.add(chunk);
+          received += chunk.length;
+          if (total > 0) progress.value = received / total;
+        }
+        if (response.contentLength > 0 &&
+            received - from != response.contentLength) {
+          throw HttpException('incomplete download', uri: uri);
+        }
+        break;
+      } on _UpdateDownloadStatus {
+        rethrow;
+      } catch (e) {
+        // Kos TV: the wifi of a TV drops for a moment halfway through 100 MB:
+        // it goes on from what came (a few times in a row without anything
+        // new; each time something comes, the count starts again). Nothing
+        // came yet: it fails as before.
+        if (received == 0) rethrow;
+        if (received > from) resumes = 0;
+        if (++resumes > _maxResumes) rethrow;
+        debugPrint('Update download cut off at $received bytes ($e): resuming');
+        await Future<void>.delayed(updateResumeDelay * resumes);
       }
-      await sink.flush();
-    } finally {
-      await sink.close();
-      hasher.close();
     }
-    if (response.contentLength > 0 && received != response.contentLength) {
-      throw HttpException('incomplete download', uri: uri);
-    }
-    // Kos TV: what the plugin says the file is: anything else isn't
-    // installed.
-    if (expectedSize != null && received != expectedSize) {
-      throw _UpdateMismatch('size $received, expected $expectedSize');
-    }
-    if (expectedSha256 != null && digest.toString() != expectedSha256) {
-      throw _UpdateMismatch('sha256 $digest, expected $expectedSha256');
-    }
+    await sink.flush();
   } finally {
+    await sink.close();
+    hasher.close();
     client.close(force: true);
   }
+  // Kos TV: what the plugin says the file is: anything else isn't
+  // installed.
+  if (expectedSize != null && received != expectedSize) {
+    throw _UpdateMismatch('size $received, expected $expectedSize');
+  }
+  if (expectedSha256 != null && digest.toString() != expectedSha256) {
+    throw _UpdateMismatch('sha256 $digest, expected $expectedSha256');
+  }
+}
+
+/// Kos TV: how many times in a row a download cut off is resumed without
+/// anything new coming, and how long it waits before each (longer each
+/// time).
+const _maxResumes = 5;
+@visibleForTesting
+Duration updateResumeDelay = const Duration(seconds: 2);
+
+/// Kos TV: whether a `206`'s [contentRange] (`bytes 1000-4095/4096`) goes
+/// on [from] the bytes already downloaded, of a file of [total] bytes when
+/// that is known (0 when it isn't).
+@visibleForTesting
+bool rangeResumes(String? contentRange, {required int from, int total = 0}) {
+  final match = RegExp(
+    r'^bytes\s+(\d+)-(\d+)/(\d+|\*)$',
+  ).firstMatch(contentRange?.trim() ?? '');
+  if (match == null) return false;
+  final start = int.tryParse(match.group(1)!);
+  final size = int.tryParse(match.group(3)!);
+  if (start != from) return false;
+  return total <= 0 || size == null || size == total;
+}
+
+/// Kos TV: the server answered the download with [status] (a version
+/// retired meanwhile, a session gone): not retried.
+class _UpdateDownloadStatus implements Exception {
+  _UpdateDownloadStatus(this.status);
+
+  final int status;
+
+  @override
+  String toString() => 'Update download answered $status';
 }
 
 /// Kos TV: the download isn't the file the plugin lists.

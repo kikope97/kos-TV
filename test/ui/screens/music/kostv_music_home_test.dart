@@ -19,6 +19,8 @@ import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_client.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_models.dart';
+import 'package:moonfin/data/services/stremfin/stremfin_music_memory.dart';
+import 'package:moonfin/data/services/kostv_music_plugin.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_album_play.dart';
 import 'package:moonfin/ui/screens/music/kostv_music_home_parts.dart';
@@ -253,7 +255,13 @@ class _Mixes implements InstantMixApi {
 /// own songs: «ES 1», «LAT 1», «POP 1», «MX 1», «US 1») and «Para ti» with
 /// an album for each artist asked about, and what it was asked.
 class _Requests {
+  _Requests({this.memory});
+
   final calls = <String>[];
+
+  /// Kos TV: what the page kept on the device last time (the week's
+  /// discovery, for one).
+  final StremfinMusicMemory? memory;
 
   late final adapter = FakeStremfinAdapter(answer);
 
@@ -262,6 +270,7 @@ class _Requests {
       dio: Dio()..httpClientAdapter = adapter,
       baseUrl: 'https://requests.example.org/api/v1',
       token: () => 'token',
+      musicMemory: memory,
     ),
     watchLifecycle: false,
   );
@@ -976,9 +985,10 @@ void main() {
       WidgetTester tester,
       List<Map<String, dynamic>> songs, {
       bool router = false,
+      StremfinMusicMemory? memory,
     }) async {
       items.songs = songs;
-      final requests = _Requests();
+      final requests = _Requests(memory: memory);
       final service = requests.service();
       GetIt.instance.registerSingleton<StremfinService>(service);
       addTearDown(service.dispose);
@@ -1208,6 +1218,43 @@ void main() {
         'm2',
         'm3',
       ]);
+      await leave(tester);
+    });
+    testWidgets('«Descubrimiento semanal»: the focus frame of its card is as '
+        'tall as the card, not as its row of four songs', (tester) async {
+      PlatformDetection.setInterfaceLayout(InterfaceLayout.desktop);
+      // Kos TV: this week's discovery, as the page kept it last time.
+      final memory = StremfinMusicMemory();
+      memory.write(StremfinMusicMemory.scopeOf('token'), 'note:discovery', {
+        'Week': kostvIsoWeek(DateTime.now()),
+        'Songs': [
+          for (var i = 0; i < 8; i++)
+            {
+              'title': 'Semana $i',
+              'artist': 'Artista $i',
+              'deezer_id': 'w$i',
+              'in_jellyfin': true,
+              'jellyfin_id': 'j$i',
+            },
+        ],
+      });
+      await openFor(tester, latina, memory: memory);
+      final card = find.byKey(const ValueKey('discovery-card'));
+      expect(card, findsOneWidget);
+      await tester.ensureVisible(card);
+      await tester.pump(const Duration(milliseconds: 300));
+      final frame = find.descendant(
+        of: card,
+        matching: find.byType(KostvFocusFrame),
+      );
+      final art = find.descendant(
+        of: card,
+        matching: find.byType(KostvDiscoveryArt),
+      );
+      final side = tester.widget<KostvDiscoveryArt>(art).size;
+      expect(tester.getSize(art).height, side);
+      expect(tester.getSize(frame).height, side);
+      expect(tester.getSize(frame).width, side);
       await leave(tester);
     });
   });
