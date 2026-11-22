@@ -78,6 +78,18 @@ usamos.
 
 ## Publicar una versión
 
+**Desde la versión «puente» (la primera con el actualizador por el complemento,
+ver `docs/actualizaciones-servidor.md`), la familia se actualiza solo por el
+complemento**: las apps ya no miran GitHub. La publicación de GitHub queda como
+canal beta del dueño (APK que instala a mano) y como sitio del que el dueño se
+baja los dos APK para subirlos en *Panel > Complementos > kOS TV >
+Actualizaciones de la app* (con sus notas). Dile siempre que, para que llegue a
+la familia, hay que subirlos ahí; nunca subas ni recomiendes subir un APK de
+prueba (el panel avisa). La versión puente sí se publica por GitHub como versión
+normal, una sola vez, y antes hay que publicar e instalar el complemento que trae
+«Actualizaciones de la app». Los pasos de abajo siguen valiendo para compilar y
+publicar en GitHub.
+
 Publica tú las versiones: el usuario no entra en GitHub a hacerlo.
 
 **Publica solo cuando el usuario diga expresamente que publiques una versión
