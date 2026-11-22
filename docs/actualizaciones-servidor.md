@@ -14,6 +14,16 @@ Fecha: 2026-11-22. Es solo un plan: no se ha tocado nada del repositorio.
 
 ---
 
+## Contrato app ↔ complemento (2026-11-22)
+
+Todo bajo `/Moonfin/Kostv/Update`, con la sesión de Jellyfin de la persona (cabecera de token de siempre).
+
+- `GET /Moonfin/Kostv/Update?kind=tv|phone&versionCode=<N>` → `200` con `{ "Available": true, "VersionName": "1.21.0", "VersionCode": 102100000, "Notes": "…", "Date": "2026-11-23T10:00:00Z", "Size": 125000000, "Sha256": "<hex>", "Url": "/Moonfin/Kostv/Update/Download/<id>/<kind>.apk" }` si hay una versión publicada, no retirada y mayor que `N`; si no, `200` con `{ "Available": false }`. `400` si `kind` no vale. Un complemento sin esto responde `404`: la app entonces no ofrece nada.
+- `GET <Url>` (relativa al servidor) → el APK (`application/vnd.android.package-archive`), con `Range`/`206`, `Content-Length` y `ETag`; misma cabecera de token. `404` si se retiró o borró entretanto.
+- La app comprueba `Sha256` y que el APK esté firmado con el mismo certificado que la app instalada antes de abrir el instalador.
+- Cuándo pregunta la app: como ahora (al abrir y al volver a primer plano, como mucho cada 6 h; nunca durante la apertura ni reproduciendo). Ninguna llamada a GitHub.
+- Enlace temporal para aparatos nuevos (no lo usa la app): `GET /Moonfin/Kostv/Update/Install/<token>/<kind>.apk`, sin sesión, válido 30 min, generado en el panel.
+
 ## En pocas palabras (para leer primero)
 
 **Qué pasa hoy.** Cada versión se compila en GitHub, que la firma con la clave de
