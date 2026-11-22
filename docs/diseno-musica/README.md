@@ -2,6 +2,8 @@
 
 **Aprobado por el usuario el 2026-11-22**, con las tres recomendaciones: botón de reproducir con el degradado de kOS, filas sin botón propio (el número pasa a ▶ con el foco) y pestañas arriba en el inicio de Música del móvil. Todo se ve igual esté o no en casa; solo el álbum y el reproductor lo explican.
 
+**Cambio del 2026-11-22 (pedido por el usuario):** las pestañas **Para ti · Tus listas · Artistas · Álbumes** van en las tres versiones, no solo en el móvil: en la tele y el ordenador, debajo del título «Música» (en la tele, a la izquierda y con el buscador a la derecha; se llega a ellas con el mando desde el buscador o subiendo desde la primera estantería, y cambian de pestaña con OK). Las maquetas de la tele y el ordenador no las llevan todavía: mandan estas líneas. «Tus listas» abre tus listas (con «Nueva lista» al principio), «Artistas» y «Álbumes» lo de casa ordenado (lo último escuchado primero, y A–Z).
+
 Maquetas en esta carpeta (JPG a 1x; se regeneran con `node maquetas/render.js`). Empieza por `componentes.jpg`: ahí están todas las piezas juntas.
 
 | Pantalla | Tele (1280×720) | Móvil (393×852) | Ordenador (1440×900) |
