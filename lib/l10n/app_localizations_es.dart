@@ -4675,15 +4675,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String get showDownloadsButton => 'Mostrar botón de Descargas';
 
   @override
-  String get showLibrariesInToolbar =>
-      'Mostrar bibliotecas en la barra de herramientas';
+  String get showLibrariesInToolbar => 'Mostrar Bibliotecas en el menú';
 
   @override
   String get showLibrariesIndividually => 'Mostrar bibliotecas por separado';
 
   @override
   String get showLibrariesIndividuallySubtitle =>
-      'Muestra cada biblioteca como un botón propio en la barra de navegación en lugar de en el menú Bibliotecas';
+      'Cada biblioteca sale como una pestaña propia del menú, en lugar de dentro de Bibliotecas';
 
   @override
   String get gray => 'Gris';
@@ -11411,7 +11410,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsShowGenresButtonInNavigation =>
-      'Mostrar el botón de géneros en la barra de navegación';
+      'Muestra Géneros en el menú';
 
   @override
   String get settingsShowFavoritesButtonInNavigation =>
@@ -11419,11 +11418,11 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get settingsShowLiveTvButtonInNavigation =>
-      'Mostrar el botón de TV en directo en la barra de navegación cuando el servidor tenga una biblioteca de TV en directo';
+      'Muestra TV en directo en el menú cuando el servidor tenga una biblioteca de TV en directo';
 
   @override
   String get settingsShowLibrariesButtonInNavigation =>
-      'Mostrar el botón de bibliotecas en la barra de navegación';
+      'Muestra Bibliotecas en el menú';
 
   @override
   String get settingsLibraryVisibilitySubtitle =>
@@ -11806,8 +11805,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsSyncplayButton => 'Botón de Ver juntos';
 
   @override
-  String get settingsSyncplayButtonSubtitle =>
-      'Mostrar el botón de Ver juntos en la barra de navegación';
+  String get settingsSyncplayButtonSubtitle => 'Muestra Ver juntos en el menú';
 
   @override
   String get settingsSyncplayAdvancedCorrection => 'Corrección avanzada';
@@ -15803,7 +15801,7 @@ class AppLocalizationsEs extends AppLocalizations {
       'Sincronización con el complemento del servidor y perfiles de personalización';
 
   @override
-  String get navigationBar => 'Barra de navegación';
+  String get navigationBar => 'Menú';
 
   @override
   String get homeRows => 'Filas';
@@ -17025,7 +17023,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get showCalendarButtonSubtitle =>
-      'Muestra el calendario de próximos episodios y películas en la barra de navegación';
+      'Muestra el calendario de próximos episodios y películas en el menú';
 
   @override
   String get calendarFullCalendar => 'Calendario completo';

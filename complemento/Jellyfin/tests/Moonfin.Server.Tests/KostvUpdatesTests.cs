@@ -124,6 +124,68 @@ public class KostvUpdatesTests : IDisposable
         Assert.Equal(404, Assert.Throws<KostvUpdateException>(() => _store.UploadStatus("../../etc/passwd")).Status);
     }
 
+    /// <summary>A body that cancels its own upload as soon as the server starts reading it.</summary>
+    private sealed class CancellingStream(byte[] data, Action onFirstRead) : MemoryStream(data)
+    {
+        private bool _fired;
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            if (!_fired)
+            {
+                _fired = true;
+                onFirstRead();
+            }
+
+            return base.ReadAsync(buffer, cancellationToken);
+        }
+    }
+
+    [Fact]
+    public async Task Upload_CancelledWhileAChunkArrives_StaysGone()
+    {
+        var upload = _store.StartUpload(KostvUpdates.KindTv, 100);
+        var uploads = Path.Combine(_root, "uploads");
+
+        // «Vaciar» (or another tab) while a chunk is on its way: the chunk is refused in
+        // Spanish and the upload doesn't come back without its data.
+        var gone = await Assert.ThrowsAsync<KostvUpdateException>(() =>
+            _store.AppendAsync(upload.Id, 0, new CancellingStream(new byte[60], () => _store.CancelUpload(upload.Id))));
+        Assert.Equal(404, gone.Status);
+        Assert.Contains("ya no existe", gone.Message);
+        Assert.Empty(Directory.GetFiles(uploads, "*.json"));
+        Assert.Equal(404, Assert.Throws<KostvUpdateException>(() => _store.UploadStatus(upload.Id)).Status);
+
+        // The next chunk and the finish say the same, never a bare 500.
+        Assert.Equal(404, (await Assert.ThrowsAsync<KostvUpdateException>(() => _store.AppendAsync(upload.Id, 0, new MemoryStream(new byte[10])))).Status);
+        Assert.Equal(404, (await Assert.ThrowsAsync<KostvUpdateException>(() => _store.FinishUploadAsync(upload.Id))).Status);
+    }
+
+    [Fact]
+    public async Task Upload_PartFileGone_IsExplained()
+    {
+        var upload = _store.StartUpload(KostvUpdates.KindTv, 100);
+        await _store.AppendAsync(upload.Id, 0, new MemoryStream(new byte[100]));
+        File.Delete(Path.Combine(_root, "uploads", upload.Id + ".part"));
+
+        Assert.Equal(404, (await Assert.ThrowsAsync<KostvUpdateException>(() => _store.FinishUploadAsync(upload.Id))).Status);
+    }
+
+    [Fact]
+    public async Task Upload_MadeUpIds_LeaveNoLockBehind()
+    {
+        foreach (var id in new[] { "../../etc/passwd", "nada", new string('z', 32), string.Empty })
+        {
+            Assert.Equal(404, (await Assert.ThrowsAsync<KostvUpdateException>(() => _store.AppendAsync(id, 0, new MemoryStream(new byte[1])))).Status);
+            Assert.Equal(404, (await Assert.ThrowsAsync<KostvUpdateException>(() => _store.FinishUploadAsync(id))).Status);
+        }
+
+        var locks = (System.Collections.ICollection)typeof(KostvUpdates)
+            .GetField("_uploadLocks", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .GetValue(_store)!;
+        Assert.Empty(locks);
+    }
+
     [Fact]
     public async Task TestBuild_IsWarnedAbout()
     {

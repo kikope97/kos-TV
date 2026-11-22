@@ -306,15 +306,31 @@ public sealed class KostvUpdates
 
     private string MetaPath(string id) => Path.Combine(UploadsDir, id + ".json");
 
-    private KostvUpload LoadUpload(string id)
+    private const string UploadGone = "Esa subida ya no existe: vuelve a elegir el archivo.";
+
+    /// <summary>
+    /// The lock of one upload. An id that can't be one is refused first, so a made-up id
+    /// never leaves a lock behind.
+    /// </summary>
+    private SemaphoreSlim UploadGate(string id)
     {
-        if (!IsId(id) || !File.Exists(MetaPath(id)))
+        if (!IsId(id ?? string.Empty))
         {
-            throw new KostvUpdateException(404, "Esa subida ya no existe: vuelve a elegir el archivo.");
+            throw new KostvUpdateException(404, UploadGone);
         }
 
-        return JsonSerializer.Deserialize<KostvUpload>(File.ReadAllText(MetaPath(id)))
-            ?? throw new KostvUpdateException(404, "Esa subida ya no existe: vuelve a elegir el archivo.");
+        return _uploadLocks.GetOrAdd(id!, _ => new SemaphoreSlim(1, 1));
+    }
+
+    private KostvUpload LoadUpload(string id)
+    {
+        if (!IsId(id ?? string.Empty) || !File.Exists(MetaPath(id!)))
+        {
+            throw new KostvUpdateException(404, UploadGone);
+        }
+
+        return JsonSerializer.Deserialize<KostvUpload>(File.ReadAllText(MetaPath(id!)))
+            ?? throw new KostvUpdateException(404, UploadGone);
     }
 
     private void SaveUpload(KostvUpload upload)
@@ -358,7 +374,7 @@ public sealed class KostvUpdates
     /// </summary>
     public async Task<long> AppendAsync(string id, long offset, Stream body, CancellationToken cancellationToken = default)
     {
-        var gate = _uploadLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
+        var gate = UploadGate(id);
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -373,7 +389,18 @@ public sealed class KostvUpdates
                 throw new KostvUpdateException(409, "La subida no va por ahí: sigue desde lo que ya tiene el servidor.", upload.Received);
             }
 
-            await using (var file = new FileStream(PartPath(id), FileMode.Open, FileAccess.Write, FileShare.None))
+            FileStream opened;
+            try
+            {
+                opened = new FileStream(PartPath(id), FileMode.Open, FileAccess.Write, FileShare.None);
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                // kOS TV: cancelled (or cleaned up) between reading it and writing to it.
+                throw new KostvUpdateException(404, UploadGone);
+            }
+
+            await using (var file = opened)
             {
                 // Anything a cut-off chunk left past the last good offset goes.
                 file.SetLength(upload.Received);
@@ -413,6 +440,13 @@ public sealed class KostvUpdates
                 upload.Received += written;
             }
 
+            // kOS TV: cancelled while this chunk was on its way («Vaciar», another tab): its
+            // description must not come back without its data.
+            if (!File.Exists(MetaPath(id)))
+            {
+                throw new KostvUpdateException(404, UploadGone);
+            }
+
             SaveUpload(upload);
             return upload.Received;
         }
@@ -428,7 +462,7 @@ public sealed class KostvUpdates
     /// </summary>
     public async Task<KostvUploadCheck> FinishUploadAsync(string id, CancellationToken cancellationToken = default)
     {
-        var gate = _uploadLocks.GetOrAdd(id, _ => new SemaphoreSlim(1, 1));
+        var gate = UploadGate(id);
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -445,9 +479,14 @@ public sealed class KostvUpdates
 
             var path = PartPath(id);
             string sha;
-            await using (var file = File.OpenRead(path))
+            try
             {
+                await using var file = File.OpenRead(path);
                 sha = Convert.ToHexString(await SHA256.HashDataAsync(file, cancellationToken).ConfigureAwait(false)).ToLowerInvariant();
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                throw new KostvUpdateException(404, UploadGone);
             }
 
             var check = new KostvUploadCheck { UploadId = id, Kind = upload.Kind, Size = upload.Size, Sha256 = sha };
@@ -468,6 +507,11 @@ public sealed class KostvUpdates
             catch (KostvApkException ex)
             {
                 check.Errors.Add(ex.Message);
+            }
+
+            if (!File.Exists(MetaPath(id)))
+            {
+                throw new KostvUpdateException(404, UploadGone);
             }
 
             upload.Check = check;

@@ -54,7 +54,7 @@ public class KostvMusicAwayController : ControllerBase
         return userId.HasValue && user != null ? (userId.Value, user) : null;
     }
 
-    private ActionResult NotSignedIn() => Unauthorized(new { Error = "User not authenticated" });
+    private ActionResult NotSignedIn() => Unauthorized(new { Error = "No has iniciado sesión." });
 
     private ContentResult Json(object value) => Content(JsonSerializer.Serialize(value, OutputOptions), "application/json");
 
@@ -116,7 +116,7 @@ public class KostvMusicAwayController : ControllerBase
 
         if (!Guid.TryParse(playlistId, out var id))
         {
-            return NotFound(new { Error = "Playlist not found." });
+            return NotFound(new { Error = "Esa lista no existe." });
         }
 
         // kOS TV: the server couldn't say (busy): not «not there», so the app says it failed.
@@ -127,7 +127,7 @@ public class KostvMusicAwayController : ControllerBase
 
         if (playlist == null || KostvMusicAway.AccessOf(playlist, caller.Id) == KostvPlaylistAccess.None)
         {
-            return NotFound(new { Error = "Playlist not found." });
+            return NotFound(new { Error = "Esa lista no existe." });
         }
 
         // kOS TV: those after an element taken out (also in another app) in their place again.
@@ -135,7 +135,7 @@ public class KostvMusicAwayController : ControllerBase
         return Json(EntriesOf(KostvMusicAway.JellyfinIdsOf(playlist), entries));
     }
 
-    private ObjectResult Unavailable() => StatusCode(StatusCodes.Status503ServiceUnavailable, new { Error = "The playlist could not be read now." });
+    private ObjectResult Unavailable() => StatusCode(StatusCodes.Status503ServiceUnavailable, new { Error = "Ahora no se puede leer la lista. Prueba dentro de un momento." });
 
     /// <summary>
     /// kOS TV: which of the server's playlists <c>{ "Ids": [...] }</c> the caller may change (theirs,
@@ -155,7 +155,7 @@ public class KostvMusicAwayController : ControllerBase
 
         if (Property(body, "Ids") is not { ValueKind: JsonValueKind.Array } list || list.GetArrayLength() > MaxEditableIds)
         {
-            return BadRequest(new { Error = $"Ids is a list of up to {MaxEditableIds} ids." });
+            return BadRequest(new { Error = $"Ids es una lista de hasta {MaxEditableIds} identificadores." });
         }
 
         var editable = new List<string>();
@@ -163,7 +163,7 @@ public class KostvMusicAwayController : ControllerBase
         {
             if (element.ValueKind != JsonValueKind.String || !Guid.TryParse(element.GetString(), out var id) || id == Guid.Empty)
             {
-                return BadRequest(new { Error = "Each of Ids is an id." });
+                return BadRequest(new { Error = "Cada elemento de Ids es un identificador." });
             }
 
             var key = id.ToString("N");
@@ -203,7 +203,7 @@ public class KostvMusicAwayController : ControllerBase
 
         if (Property(body, "Songs") is not { ValueKind: JsonValueKind.Array } list || list.GetArrayLength() is 0 or > KostvAwayStore.MaxPerPlaylist)
         {
-            return BadRequest(new { Error = $"Songs is a list of 1 to {KostvAwayStore.MaxPerPlaylist} songs." });
+            return BadRequest(new { Error = $"Songs es una lista de 1 a {KostvAwayStore.MaxPerPlaylist} canciones." });
         }
 
         var songs = new List<KostvAwaySong>();
@@ -228,7 +228,7 @@ public class KostvMusicAwayController : ControllerBase
                 after = said.ValueKind == JsonValueKind.String ? KostvAwayOrder.NormalizeId(said.GetString()) : null;
                 if (after == null)
                 {
-                    return BadRequest(new { Error = "After is an id, stremfin:<DeezerId> or null." });
+                    return BadRequest(new { Error = "After es un identificador, stremfin:<DeezerId> o null." });
                 }
             }
         }
@@ -240,13 +240,13 @@ public class KostvMusicAwayController : ControllerBase
             // Read again under the lock: what is in it now.
             if (_away.PlaylistOf(id) is not { } playlist)
             {
-                return NotFound(new { Error = "Playlist not found." });
+                return NotFound(new { Error = "Esa lista no existe." });
             }
 
             // kOS TV: songs only in a playlist of music: one of videos wouldn't show them.
             if (!KostvMusicAway.IsForMusic(playlist))
             {
-                return BadRequest(new { Error = "Songs not at home go only in a playlist of music." });
+                return BadRequest(new { Error = "Las canciones que no están en casa solo van en listas de música." });
             }
 
             var jellyfin = KostvMusicAway.JellyfinIdsOf(playlist);
@@ -255,14 +255,14 @@ public class KostvMusicAwayController : ControllerBase
             switch (KostvAwayOrder.Insert(entries, jellyfin, songs, afterSaid, after, Store.Now))
             {
                 case KostvAwayOrder.InsertRefusal.TooMany:
-                    return BadRequest(new { Error = $"A playlist keeps up to {KostvAwayStore.MaxPerPlaylist} songs not at home." });
+                    return BadRequest(new { Error = $"Una lista guarda como mucho {KostvAwayStore.MaxPerPlaylist} canciones que no están en casa." });
                 case KostvAwayOrder.InsertRefusal.AfterItself:
-                    return BadRequest(new { Error = "After can't be one of the songs added." });
+                    return BadRequest(new { Error = "After no puede ser una de las canciones que se añaden." });
             }
 
             if (!Store.SaveEntries(id, entries, KostvAwayOrder.Merged(jellyfin, entries)))
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { Error = "The songs could not be stored." });
+                return StatusCode(StatusCodes.Status500InternalServerError, new { Error = "No se han podido guardar las canciones." });
             }
 
             return Json(EntriesOf(jellyfin, entries));
@@ -295,7 +295,7 @@ public class KostvMusicAwayController : ControllerBase
 
         if (DeezerIdOf(deezerId) is not { } song)
         {
-            return BadRequest(new { Error = "deezerId is a Deezer id, or stremfin:<DeezerId>." });
+            return BadRequest(new { Error = "deezerId es un identificador de Deezer o stremfin:<DeezerId>." });
         }
 
         var gate = Store.PlaylistLock(id);
@@ -307,7 +307,7 @@ public class KostvMusicAwayController : ControllerBase
             KostvAwayOrder.Reanchor(entries, jellyfin, lastOrder);
             if (KostvAwayOrder.Remove(entries, song) && !Store.SaveEntries(id, entries, KostvAwayOrder.Merged(jellyfin, entries)))
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { Error = "The song could not be taken out." });
+                return StatusCode(StatusCodes.Status500InternalServerError, new { Error = "No se ha podido quitar la canción." });
             }
 
             return NoContent();
@@ -344,7 +344,7 @@ public class KostvMusicAwayController : ControllerBase
 
         if (Property(body, "Ids") is not { ValueKind: JsonValueKind.Array } list || list.GetArrayLength() > MaxOrderIds)
         {
-            return BadRequest(new { Error = $"Ids is a list of up to {MaxOrderIds} ids." });
+            return BadRequest(new { Error = $"Ids es una lista de hasta {MaxOrderIds} identificadores." });
         }
 
         var ids = new List<string>();
@@ -352,7 +352,7 @@ public class KostvMusicAwayController : ControllerBase
         {
             if ((element.ValueKind == JsonValueKind.String ? KostvAwayOrder.NormalizeId(element.GetString()) : null) is not { } key)
             {
-                return BadRequest(new { Error = "Each of Ids is an id or stremfin:<DeezerId>." });
+                return BadRequest(new { Error = "Cada elemento de Ids es un identificador o stremfin:<DeezerId>." });
             }
 
             ids.Add(key);
@@ -373,7 +373,7 @@ public class KostvMusicAwayController : ControllerBase
             var now = _away.PlaylistOf(id) ?? playlist!;
             return Store.SaveEntries(id, entries, KostvAwayOrder.Merged(KostvMusicAway.JellyfinIdsOf(now), entries))
                 ? NoContent()
-                : StatusCode(StatusCodes.Status500InternalServerError, new { Error = "The order could not be stored." });
+                : StatusCode(StatusCodes.Status500InternalServerError, new { Error = "No se ha podido guardar el orden." });
         }
         finally
         {
@@ -389,7 +389,7 @@ public class KostvMusicAwayController : ControllerBase
         playlist = null;
         if (!Guid.TryParse(playlistId, out id) || id == Guid.Empty)
         {
-            return NotFound(new { Error = "Playlist not found." });
+            return NotFound(new { Error = "Esa lista no existe." });
         }
 
         // kOS TV: the server couldn't say (busy): not «not there».
@@ -401,8 +401,8 @@ public class KostvMusicAwayController : ControllerBase
         return KostvMusicAway.AccessOf(playlist, userId) switch
         {
             KostvPlaylistAccess.Edit => null,
-            KostvPlaylistAccess.Read => StatusCode(StatusCodes.Status403Forbidden, new { Error = "Only who may change the playlist." }),
-            _ => NotFound(new { Error = "Playlist not found." })
+            KostvPlaylistAccess.Read => StatusCode(StatusCodes.Status403Forbidden, new { Error = "Solo puede hacerlo quien puede cambiar la lista." }),
+            _ => NotFound(new { Error = "Esa lista no existe." })
         };
     }
 
@@ -444,8 +444,8 @@ public class KostvMusicAwayController : ControllerBase
         return Store.AddFavorite(caller.Id, song) switch
         {
             KostvAwayStore.FavoriteResult.Stored => NoContent(),
-            KostvAwayStore.FavoriteResult.TooMany => BadRequest(new { Error = $"Up to {KostvAwayStore.MaxFavorites} hearts on songs not at home." }),
-            _ => StatusCode(StatusCodes.Status500InternalServerError, new { Error = "The heart could not be stored." })
+            KostvAwayStore.FavoriteResult.TooMany => BadRequest(new { Error = $"Como mucho {KostvAwayStore.MaxFavorites} ♥ en canciones que no están en casa." }),
+            _ => StatusCode(StatusCodes.Status500InternalServerError, new { Error = "No se ha podido guardar el ♥." })
         };
     }
 
@@ -464,12 +464,12 @@ public class KostvMusicAwayController : ControllerBase
 
         if (DeezerIdOf(deezerId) is not { } song)
         {
-            return BadRequest(new { Error = "deezerId is a Deezer id, or stremfin:<DeezerId>." });
+            return BadRequest(new { Error = "deezerId es un identificador de Deezer o stremfin:<DeezerId>." });
         }
 
         return Store.RemoveFavorite(caller.Id, song)
             ? NoContent()
-            : StatusCode(StatusCodes.Status500InternalServerError, new { Error = "The heart could not be taken off." });
+            : StatusCode(StatusCodes.Status500InternalServerError, new { Error = "No se ha podido quitar el ♥." });
     }
 
     // ---------------------------------------------------------------- come home
@@ -496,14 +496,14 @@ public class KostvMusicAwayController : ControllerBase
         var jellyfinSaid = Property(body, "JellyfinId") is { ValueKind: JsonValueKind.String } j ? j.GetString() : null;
         if (deezerId == null || !Guid.TryParse(jellyfinSaid, out var jellyfinId) || jellyfinId == Guid.Empty)
         {
-            return BadRequest(new { Error = "DeezerId (digits) and JellyfinId (an id) are needed." });
+            return BadRequest(new { Error = "Hacen falta DeezerId (cifras) y JellyfinId (un identificador)." });
         }
 
         // Kos TV: only a song of the library the caller may see, so no one can put in the others'
         // playlists what they don't know is there.
         if (_away.ItemOf(jellyfinId) is not Audio item || !_away.Sees(item, caller.User))
         {
-            return NotFound(new { Error = "Song not found." });
+            return NotFound(new { Error = "Esa canción no existe." });
         }
 
         await _away.ArriveOnceAsync(deezerId, item).ConfigureAwait(false);
@@ -536,7 +536,7 @@ public class KostvMusicAwayController : ControllerBase
     /// </summary>
     internal static KostvAwaySong? SongOf(JsonElement body, out string error)
     {
-        error = $"A song has its DeezerId (digits, up to {KostvMusicEvent.MaxDeezerIdLength}) and its Title, and may have an Artist and an Album (text; longer than {MaxTextLength}, cut), an AlbumDeezerId and an ArtistDeezerId (digits), a Cover (an http or https address of up to {MaxCoverLength}), a Duration (seconds, 0 to {KostvMusicController.MaxStreamSeconds}) and Explicit (true or false).";
+        error = $"Una canción lleva su DeezerId (cifras, hasta {KostvMusicEvent.MaxDeezerIdLength}) y su Title, y puede llevar Artist y Album (texto; lo que pase de {MaxTextLength} se corta), AlbumDeezerId y ArtistDeezerId (cifras), Cover (una dirección http o https de hasta {MaxCoverLength}), Duration (segundos, de 0 a {KostvMusicController.MaxStreamSeconds}) y Explicit (true o false).";
         if (body.ValueKind != JsonValueKind.Object)
         {
             return null;
