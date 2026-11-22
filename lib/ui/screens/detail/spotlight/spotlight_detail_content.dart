@@ -10,6 +10,7 @@ import 'package:moonfin_design/moonfin_design.dart';
 import 'package:playback_core/playback_core.dart';
 
 import '../../../../data/models/aggregated_item.dart';
+import '../../../../data/services/kostv_music_away.dart';
 import '../../../../data/repositories/tmdb_repository.dart';
 import '../../../../data/services/plugin_sync_service.dart';
 import '../../../../data/viewmodels/item_detail_view_model.dart';
@@ -304,7 +305,14 @@ class _SpotlightDetailContentState extends State<SpotlightDetailContent> {
       playFromChapter: (position) =>
           _closeModalThen(() => widget.onPlayFromChapter?.call(position)),
       playExtra: (extra) => _closeModalThen(() => _playItems([extra], 0)),
-      playTrack: (index) => _closeModalThen(() => _playItems(_vm.tracks, index)),
+      playTrack: (index) => _closeModalThen(() {
+        // Kos TV: a playlist without what can't sound and what the person
+        // doesn't want to hear.
+        final play = _vm.item?.type == 'Playlist'
+            ? kostvPlaylistToPlay(_vm.tracks, startIndex: index)
+            : (tracks: _vm.tracks, startIndex: index);
+        unawaited(_playItems(play.tracks, play.startIndex));
+      }),
       playPlaylistTrack: (index) =>
           _closeModalThen(() => _playItems(_vm.playlistItems, index)),
       trackFocusNode: (id) =>

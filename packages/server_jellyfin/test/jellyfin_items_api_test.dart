@@ -241,4 +241,29 @@ void main() {
       'IsPublic': false,
     });
   });
+
+  test('Kos TV: an empty playlist says it is for music', () async {
+    RequestOptions? request;
+    final dio = Dio()
+      ..interceptors.add(
+        _FakeServer((options, handler) {
+          request = options;
+          handler.resolve(
+            Response(requestOptions: options, data: <String, dynamic>{}),
+          );
+        }),
+      );
+
+    await JellyfinItemsApi(
+      dio,
+      () => 'user-1',
+    ).createPlaylist(name: 'Mix', itemIds: const [], mediaType: 'Audio');
+
+    expect(request?.data, {
+      'Name': 'Mix',
+      'Ids': <String>[],
+      'MediaType': 'Audio',
+      'IsPublic': false,
+    });
+  });
 }

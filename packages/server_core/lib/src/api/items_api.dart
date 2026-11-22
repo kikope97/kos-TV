@@ -175,9 +175,12 @@ abstract class ItemsApi {
     String? fields,
   });
 
+  /// Kos TV: [mediaType] (`Audio`) for a playlist made empty, which
+  /// Jellyfin can't tell from its items.
   Future<Map<String, dynamic>> createPlaylist({
     required String name,
     List<String>? itemIds,
+    String? mediaType,
   });
 
   Future<Map<String, dynamic>> createCollection({

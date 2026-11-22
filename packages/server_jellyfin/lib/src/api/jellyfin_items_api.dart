@@ -471,10 +471,16 @@ class JellyfinItemsApi implements ItemsApi {
   Future<Map<String, dynamic>> createPlaylist({
     required String name,
     List<String>? itemIds,
+    String? mediaType,
   }) async {
     final response = await _dio.post(
       '/Playlists',
-      data: {'Name': name, 'Ids': ?itemIds, 'IsPublic': false},
+      data: {
+        'Name': name,
+        'Ids': ?itemIds,
+        'MediaType': ?mediaType,
+        'IsPublic': false,
+      },
     );
     return response.data as Map<String, dynamic>;
   }

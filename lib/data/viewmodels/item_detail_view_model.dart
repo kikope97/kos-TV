@@ -14,6 +14,8 @@ import '../models/aggregated_item.dart';
 import '../models/lyrics.dart';
 import '../services/blocked_content_gate.dart';
 import '../services/kostv_collections.dart';
+import '../services/kostv_music_away.dart';
+import '../services/stremfin/kostv_stream_song.dart';
 import '../services/row_data_source.dart';
 import '../services/series_track_sync.dart';
 import '../services/socket_handler.dart';
@@ -1376,7 +1378,11 @@ class ItemDetailViewModel extends ChangeNotifier {
               fields: 'PrimaryImageAspectRatio,BasicSyncInfo',
             );
       final items = (data['Items'] as List?) ?? [];
-      _tracks = _mapItems(items);
+      var tracks = _mapItems(items);
+      // Kos TV: a music playlist's songs that aren't at home, in their
+      // places (the server plugin keeps them for Jellyfin).
+      if (_item?.type == 'Playlist') tracks = await _withAway(tracks);
+      _tracks = tracks;
       _tracksFailed = false;
       notifyListeners();
     } catch (_) {
@@ -1386,6 +1392,17 @@ class ItemDetailViewModel extends ChangeNotifier {
       }
     }
   }
+
+  /// Kos TV: [home] (a playlist's songs in Jellyfin) with the ones that
+  /// aren't at home merged in, by the server plugin's `After`.
+  Future<List<AggregatedItem>> _withAway(List<AggregatedItem> home) =>
+      kostvPlaylistWithAway(
+        _client,
+        itemId,
+        home,
+        serverId: _serverId ?? _client.baseUrl,
+        mediaType: _item?.rawData['MediaType'],
+      );
 
   Future<void> _loadLyrics() async {
     try {
@@ -1413,6 +1430,21 @@ class ItemDetailViewModel extends ChangeNotifier {
       return !(sameId && sameEntry);
     }).toList();
     notifyListeners();
+
+    // Kos TV: one that isn't at home is the server plugin's.
+    final deezerId = kostvStreamDeezerId(track);
+    if (deezerId != null) {
+      final done = await KostvMusicAwayStore.instance.removeFromPlaylist(
+        _client,
+        itemId,
+        deezerId,
+      );
+      if (!done) {
+        _tracks = previousTracks;
+        notifyListeners();
+      }
+      return;
+    }
 
     try {
       await _client.itemsApi.removeFromPlaylist(itemId, [entryId]);
@@ -1445,12 +1477,32 @@ class ItemDetailViewModel extends ChangeNotifier {
     _tracks = reordered;
     notifyListeners();
 
+    // Kos TV: with songs that aren't at home in it, Jellyfin moves its own
+    // among its own, and the server plugin is told the whole order.
+    final away = reordered.any(isKostvStream);
     try {
-      await _client.itemsApi.movePlaylistItem(itemId, entryId, targetIndex);
+      if (!isKostvStream(moved)) {
+        final homeBefore = kostvHomeIndexAt(previousTracks, oldIndex);
+        final homeAfter = away
+            ? kostvHomeIndexAt(reordered, targetIndex)
+            : targetIndex;
+        if (!away || homeAfter != homeBefore) {
+          await _client.itemsApi.movePlaylistItem(itemId, entryId, homeAfter);
+        }
+      }
+      if (away &&
+          !await KostvMusicAwayStore.instance.order(
+            _client,
+            itemId,
+            reordered,
+          )) {
+        throw StateError('the order was not kept');
+      }
       await _loadTracks();
     } catch (_) {
       _tracks = previousTracks;
       notifyListeners();
+      if (away) unawaited(_loadTracks());
     }
   }
 

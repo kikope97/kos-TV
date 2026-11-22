@@ -5,12 +5,16 @@ import 'package:go_router/go_router.dart';
 import 'package:moonfin_design/moonfin_design.dart';
 
 import '../../../data/models/aggregated_item.dart';
+import '../../../data/services/kostv_music_away.dart';
 import '../../../data/services/kostv_music_plugin.dart';
+import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../data/viewmodels/music_browse_view_model.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../util/focus/row_focus_coordinator.dart';
 import '../../../util/playback_time_label.dart';
 import '../../navigation/destinations.dart';
+import '../music/kostv_music_actions.dart'
+    show kostvMusicSay, showKostvMusicSongMenu;
 import '../../widgets/music/music_navigation.dart';
 import '../../widgets/music/music_widgets.dart';
 import 'music_category_screen.dart';
@@ -99,6 +103,29 @@ class _MusicPlaylistsScreenState
         _tracksLoading = false;
       });
     }());
+  }
+
+  /// Kos TV: the list as it plays (without the songs that can't sound now
+  /// and what the person doesn't want to hear), from the song at [index].
+  void _play(int index, {bool shuffle = false}) {
+    final picked = index >= 0;
+    if (picked && !kostvAwayPlayable(_tracks[index])) {
+      kostvMusicSay(context, AppLocalizations.of(context).kostvAwayHomeOnly);
+      return;
+    }
+    final play = kostvPlaylistToPlay(
+      _tracks,
+      startIndex: picked ? index : 0,
+      picked: picked,
+    );
+    unawaited(
+      playMusicTracks(
+        context,
+        shuffle ? (List.of(play.tracks)..shuffle()) : play.tracks,
+        startIndex: shuffle ? 0 : play.startIndex,
+        source: KostvMusicSource.playlist,
+      ),
+    );
   }
 
   void _open(AggregatedItem playlist) => context.push(
@@ -255,7 +282,7 @@ class _MusicPlaylistsScreenState
                         icon: Icons.play_arrow_rounded,
                         label: l10n.play,
                         primary: true,
-                        onTap: () => unawaited(playMusicTracks(context, _tracks, source: KostvMusicSource.playlist)),
+                        onTap: () => _play(-1),
                         onNavigateLeft: back,
                         onNavigateDown: down,
                       ),
@@ -263,9 +290,7 @@ class _MusicPlaylistsScreenState
                         focusNode: node('detail:shuffle'),
                         icon: Icons.shuffle_rounded,
                         label: l10n.shuffle,
-                        onTap: () => unawaited(
-                          playMusicTracks(context, List.of(_tracks)..shuffle(), source: KostvMusicSource.playlist),
-                        ),
+                        onTap: () => _play(-1, shuffle: true),
                         onNavigateDown: down,
                       ),
                       MusicPillButton(
@@ -297,9 +322,20 @@ class _MusicPlaylistsScreenState
               imageUrl: musicImageUrl(_tracks[i], maxHeight: 120),
               trailing: musicRunTime(_tracks[i]),
               focusNode: node('detailTrack:$i'),
-              onTap: () => unawaited(
-                playMusicTracks(context, _tracks, startIndex: i, source: KostvMusicSource.playlist),
-              ),
+              // Kos TV: a song that isn't at home, with its cloud (in grey
+              // when it can't sound now) and its menu.
+              away: isKostvStream(_tracks[i]),
+              dimmed: !kostvAwayPlayable(_tracks[i]),
+              onLongPress: isKostvStream(_tracks[i])
+                  ? () => unawaited(
+                      showKostvMusicSongMenu(
+                        context,
+                        item: _tracks[i],
+                        source: KostvMusicSource.playlist,
+                      ),
+                    )
+                  : null,
+              onTap: () => _play(i),
               edges: MusicGridEdges(
                 up: i == 0 ? node('detail:play').requestFocus : null,
                 down: i == _tracks.length - 1 ? () {} : null,

@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 import 'package:server_core/server_core.dart';
 
 import '../../l10n/current_app_localizations.dart';
+import '../services/stremfin/kostv_stream_song.dart';
 import '../../preference/user_preferences.dart';
 import '../models/aggregated_item.dart';
 import '../models/home_row.dart';
@@ -360,6 +361,8 @@ String? musicItemImageUrl(
   AggregatedItem item, {
   int maxHeight = 300,
 }) {
+  // Kos TV: a song that isn't at home has the requests service's cover.
+  if (isKostvStream(item)) return KostvStreamInfo.of(item)?.cover;
   final albumPrimaryTag = item.rawData['AlbumPrimaryImageTag'] as String?;
   final albumId = item.rawData['AlbumId']?.toString();
   if (item.type == 'Audio' && albumPrimaryTag != null && albumId != null) {

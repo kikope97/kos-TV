@@ -11,9 +11,11 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/services/kostv_music.dart';
+import '../../../data/services/kostv_music_away.dart';
 import '../../../data/services/kostv_music_catalog.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
+import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
 import '../../../playback/kostv_stream_playback.dart';
 import '../../../data/services/stremfin/stremfin_service.dart';
@@ -30,6 +32,7 @@ import '../../widgets/navigation_layout.dart';
 import '../calendar/calendar_common.dart';
 import 'kostv_music_actions.dart';
 import 'kostv_music_links.dart';
+import 'kostv_stream_widgets.dart' show KostvStreamMark;
 import 'kostv_music_widgets.dart';
 import '../../../util/kostv_browser_menu.dart';
 
@@ -282,9 +285,32 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
 
   Future<void> _reloadFavorites() async {
     try {
-      _favorites = await _music.favoriteSongs();
+      _favorites = await _favoriteSongs();
       _refresh();
     } catch (_) {}
+  }
+
+  /// Kos TV: «Tus favoritas»: the home server's ♥ with those of songs that
+  /// aren't at home (the server plugin's), by date.
+  Future<List<AggregatedItem>> _favoriteSongs() async {
+    final client = GetIt.instance.isRegistered<MediaServerClient>()
+        ? GetIt.instance<MediaServerClient>()
+        : null;
+    final store = KostvMusicAwayStore.instance;
+    final away = client == null
+        ? Future.value(const <KostvAwayFavorite>[])
+        : store
+              .load(client)
+              .timeout(const Duration(seconds: 4))
+              .catchError((Object _) => store.favoritesOf(client));
+    final home = await _music.favoriteSongs();
+    if (client == null) return home;
+    return kostvMergeFavorites(
+      home,
+      await away,
+      serverId: client.baseUrl,
+      hideExplicit: kostvAwayHidesExplicit(),
+    );
   }
 
   @override
@@ -376,7 +402,7 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
 
     final home = Future.wait([
       part(() async => _recent = await _music.recentAlbums()),
-      part(() async => _favorites = await _music.favoriteSongs()),
+      part(() async => _favorites = await _favoriteSongs()),
       part(() async => _playlists = await _music.playlists()),
       part(() async => _newAtHome = await _music.newAlbums()),
       part(() async => _taste = await _tasteLoad),
@@ -1558,30 +1584,53 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
                       i < songs.length && i < (column + 1) * perColumn;
                       i++
                     )
-                      KostvMusicSongRow(
-                        title: songs[i].name,
-                        artist: [
-                          ...songs[i].artists.take(2),
-                          ?songs[i].album,
-                        ].join(' · '),
-                        artistLinks: _homeSongLinks(context, songs[i]),
-                        cover: kostvMusicImageOf(songs[i]),
-                        atHome: true,
-                        onTap: () => unawaited(
-                          kostvMusicOnce(
-                            () => playMusicTracks(
+                      Opacity(
+                        // Kos TV: one that isn't at home, with «Solo la de
+                        // casa»: in grey (it doesn't sound).
+                        opacity: kostvAwayPlayable(songs[i]) ? 1 : 0.45,
+                        child: KostvMusicSongRow(
+                          title: songs[i].name,
+                          artist: [
+                            ...songs[i].artists.take(2),
+                            ?songs[i].album,
+                          ].join(' · '),
+                          artistLinks: _homeSongLinks(context, songs[i]),
+                          cover: kostvMusicImageOf(songs[i]),
+                          atHome: !isKostvStream(songs[i]),
+                          // Kos TV: the cloud of one that isn't at home.
+                          trailing: isKostvStream(songs[i])
+                              ? KostvStreamMark(
+                                  size: KostvMusicSizes.phone ? 22 : 24,
+                                )
+                              : null,
+                          onTap: () => unawaited(
+                            kostvMusicOnce(() async {
+                              if (!kostvAwayPlayable(songs[i])) {
+                                kostvMusicSay(
+                                  context,
+                                  AppLocalizations.of(context)
+                                      .kostvAwayHomeOnly,
+                                );
+                                return;
+                              }
+                              final play = kostvPlaylistToPlay(
+                                songs,
+                                startIndex: i,
+                              );
+                              await playMusicTracks(
+                                context,
+                                play.tracks,
+                                startIndex: play.startIndex,
+                                source: KostvMusicSource.favorites,
+                              );
+                            }),
+                          ),
+                          onLongPress: () => unawaited(
+                            showKostvMusicSongMenu(
                               context,
-                              songs,
-                              startIndex: i,
+                              item: songs[i],
                               source: KostvMusicSource.favorites,
                             ),
-                          ),
-                        ),
-                        onLongPress: () => unawaited(
-                          showKostvMusicSongMenu(
-                            context,
-                            item: songs[i],
-                            source: KostvMusicSource.favorites,
                           ),
                         ),
                       ),

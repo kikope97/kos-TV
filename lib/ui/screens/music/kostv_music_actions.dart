@@ -9,6 +9,7 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/repositories/item_mutation_repository.dart';
 import '../../../data/services/kostv_music.dart';
+import '../../../data/services/kostv_music_away.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_catalog.dart';
 import '../../../data/services/kostv_music_plugin.dart';
@@ -23,6 +24,7 @@ import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/kostv_now_playing.dart';
 import '../../widgets/music/kostv_stream_play.dart';
 import '../../widgets/music/music_navigation.dart';
+import 'kostv_music_away_actions.dart';
 import 'kostv_music_dislike.dart';
 import 'kostv_stream_widgets.dart';
 import 'kostv_music_widgets.dart';
@@ -77,6 +79,8 @@ KostvMusicBadge kostvMusicBadgeOf(StremfinAlbum album) {
 
 /// The cover of one of the home server's items (a song shows its album's).
 String? kostvMusicImageOf(AggregatedItem item) {
+  // Kos TV: one that isn't at home has the requests service's cover.
+  if (isKostvStream(item)) return KostvStreamInfo.of(item)?.cover;
   final client = GetIt.instance<MediaServerClient>();
   final tag = item.primaryImageTag;
   if (tag != null) {
@@ -398,6 +402,17 @@ enum _SongChoice {
   ask,
 }
 
+/// Kos TV: what a playlist's page adds to the menu of one of its songs that
+/// isn't at home: take it out, and move it up or down (null: not offered).
+@immutable
+class KostvAwayListActions {
+  const KostvAwayListActions({this.remove, this.moveUp, this.moveDown});
+
+  final VoidCallback? remove;
+  final VoidCallback? moveUp;
+  final VoidCallback? moveDown;
+}
+
 /// A song's menu (OK held down, a long press or a right click). For one at
 /// home: play it next or at the end of the queue, a station of songs like
 /// it, ♥, add it to a playlist, its album and its artist. For one that
@@ -421,6 +436,7 @@ Future<void> showKostvMusicSongMenu(
   String? fromAlbumDeezerId,
   String source = KostvMusicSource.other,
   Future<StremfinSong?> Function(StremfinSong song)? refresh,
+  KostvAwayListActions? listActions,
 }) => kostvMusicOnce(() async {
   final now = song == null ? null : await _refreshed(context, song, refresh);
   if (!context.mounted || (song != null && now == null)) return;
@@ -431,6 +447,7 @@ Future<void> showKostvMusicSongMenu(
     fromAlbumId: fromAlbumId,
     fromAlbumDeezerId: fromAlbumDeezerId,
     source: source,
+    listActions: listActions,
   );
 });
 
@@ -441,6 +458,7 @@ Future<void> _songMenu(
   String? fromAlbumId,
   String? fromAlbumDeezerId,
   String source = KostvMusicSource.other,
+  KostvAwayListActions? listActions,
 }) async {
   final l10n = AppLocalizations.of(context);
   // Kos TV: a song that isn't at home has a menu of its own.
@@ -450,6 +468,7 @@ Future<void> _songMenu(
       item,
       fromAlbumDeezerId: fromAlbumDeezerId,
       source: source,
+      listActions: listActions,
     );
     return;
   }
@@ -715,6 +734,11 @@ enum _StreamChoice {
   next,
   last,
   radio,
+  love,
+  playlist,
+  remove,
+  moveUp,
+  moveDown,
   dislike,
   undislike,
   dislikeArtist,
@@ -728,14 +752,20 @@ enum _StreamChoice {
 /// queue, a station around it, «No me gusta» (by its Deezer id) and «No me
 /// pongas a …» (when its artist is at home), its album and its artist, and
 /// «Pedir álbum» with how it stands (Pedido, De camino…). Nothing of the
-/// home server's own (♥, playlists): it isn't there. [album] is its album
-/// as the list it comes from knows it.
+/// home server's own: it isn't there. [album] is its album as the list it
+/// comes from knows it.
+///
+/// Kos TV: ♥ and «Añadir a una lista» too when the server plugin keeps them
+/// for songs that aren't at home ([kostvAwayCanKeep]); [listActions] from a
+/// playlist's page. With «Solo la de casa» (a playlist's grey song) it
+/// doesn't offer to play it.
 Future<void> _streamSongMenu(
   BuildContext context,
   AggregatedItem stream, {
   StremfinAlbum? album,
   String? fromAlbumDeezerId,
   String source = KostvMusicSource.other,
+  KostvAwayListActions? listActions,
 }) async {
   final l10n = AppLocalizations.of(context);
   final info = KostvStreamInfo.of(stream)!;
@@ -752,6 +782,7 @@ Future<void> _streamSongMenu(
   try {
     await Future.wait<void>([
       kostvMusicDislikesReady(stream),
+      kostvAwayReady(stream),
       if (albumId != null)
         KostvStreamAlbums.read(albumId).then((found) {
           known = found ?? known;
@@ -770,6 +801,9 @@ Future<void> _streamSongMenu(
   if (!context.mounted) return;
   final canDislike = kostvMusicCanDislike(stream);
   final disliked = canDislike && kostvMusicDisliked(stream.id, stream);
+  final canKeep = kostvAwayCanKeep(stream);
+  final loved = canKeep && kostvAwayLoved(stream);
+  final playable = listActions == null || kostvAwayPlayable(stream);
   final artistToDislike =
       kostvMusicCanDislike() &&
           homeArtist != null &&
@@ -795,21 +829,53 @@ Future<void> _streamSongMenu(
     title: stream.name,
     subtitle: [?artistName, l10n.kostvStreamOutOfHome].join(' · '),
     entries: [
-      KostvMenuEntry(
-        _StreamChoice.next,
-        Icons.playlist_play_rounded,
-        l10n.kostvMusicPlayNext,
-      ),
-      KostvMenuEntry(
-        _StreamChoice.last,
-        Icons.queue_music_rounded,
-        l10n.kostvMusicPlayLast,
-      ),
-      KostvMenuEntry(
-        _StreamChoice.radio,
-        Icons.radio_rounded,
-        l10n.kostvMusicRadio,
-      ),
+      if (playable) ...[
+        KostvMenuEntry(
+          _StreamChoice.next,
+          Icons.playlist_play_rounded,
+          l10n.kostvMusicPlayNext,
+        ),
+        KostvMenuEntry(
+          _StreamChoice.last,
+          Icons.queue_music_rounded,
+          l10n.kostvMusicPlayLast,
+        ),
+        KostvMenuEntry(
+          _StreamChoice.radio,
+          Icons.radio_rounded,
+          l10n.kostvMusicRadio,
+        ),
+      ],
+      if (canKeep) ...[
+        KostvMenuEntry(
+          _StreamChoice.love,
+          loved ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+          loved ? l10n.kostvPlayerUnfavorite : l10n.kostvPlayerFavorite,
+        ),
+        KostvMenuEntry(
+          _StreamChoice.playlist,
+          Icons.playlist_add_rounded,
+          l10n.kostvPlayerAddToPlaylist,
+        ),
+      ],
+      if (listActions?.remove != null)
+        KostvMenuEntry(
+          _StreamChoice.remove,
+          Icons.playlist_remove_rounded,
+          l10n.trackActionDeleteFromPlaylist,
+        ),
+      if (listActions?.moveUp != null)
+        KostvMenuEntry(
+          _StreamChoice.moveUp,
+          Icons.arrow_upward_rounded,
+          l10n.trackActionMoveUp,
+        ),
+      if (listActions?.moveDown != null)
+        KostvMenuEntry(
+          _StreamChoice.moveDown,
+          Icons.arrow_downward_rounded,
+          l10n.trackActionMoveDown,
+        ),
       if (canDislike)
         disliked
             ? KostvMenuEntry(
@@ -845,7 +911,6 @@ Future<void> _streamSongMenu(
     ],
   );
   if (choice == null || !context.mounted) return;
-  final queue = GetIt.instance<PlaybackManager>().queueService;
   // Music sounding (an audiobook's queue isn't one to add songs to).
   final musicPlaying = KostvNowPlaying.instance.item?.type == 'Audio';
   switch (choice) {
@@ -855,6 +920,7 @@ Future<void> _streamSongMenu(
         await playMusicTracks(context, [stream], source: source);
         return;
       }
+      final queue = GetIt.instance<PlaybackManager>().queueService;
       if (choice == _StreamChoice.next) {
         queue.insertNext(stream);
         kostvMusicSay(context, l10n.kostvMusicAddedNext);
@@ -864,6 +930,16 @@ Future<void> _streamSongMenu(
       }
     case _StreamChoice.radio:
       await playKostvStation(context, stream);
+    case _StreamChoice.love:
+      await kostvAwayToggleLove(context, stream);
+    case _StreamChoice.playlist:
+      await kostvAwayAddToPlaylist(context, stream);
+    case _StreamChoice.remove:
+      listActions!.remove!();
+    case _StreamChoice.moveUp:
+      listActions!.moveUp!();
+    case _StreamChoice.moveDown:
+      listActions!.moveDown!();
     case _StreamChoice.dislike:
       await kostvDislikeSong(context, stream);
     case _StreamChoice.undislike:

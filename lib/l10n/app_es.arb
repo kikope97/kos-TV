@@ -15954,5 +15954,17 @@
     "kostvStreamStationEmpty": "No hay canciones para esta emisora ahora mismo",
     "@kostvStreamStationEmpty": {"description": "Kos TV «Toda la música»: «Crear emisora» found nothing"},
     "kostvSyncPlayErrorOutOfHomeSong": "Lo que suena no está en casa, y las canciones que no están en casa no se pueden escuchar juntos.",
-    "@kostvSyncPlayErrorOutOfHomeSong": {"description": "Kos TV Watch together: the song playing is not on the home server (heard through the requests service), so it is not shared with the group"}
+    "@kostvSyncPlayErrorOutOfHomeSong": {"description": "Kos TV Watch together: the song playing is not on the home server (heard through the requests service), so it is not shared with the group"},
+    "kostvAwayAddedAskAlbum": "Añadida. ¿Pedir el álbum para tenerla en casa?",
+    "@kostvAwayAddedAskAlbum": {"description": "Kos TV «Toda la música»: a song that is not at home was added to a playlist or got a ♥; the notice offers to ask for its album"},
+    "kostvAwayAdded": "Añadida a la lista",
+    "@kostvAwayAdded": {"description": "Kos TV «Toda la música»: a song that is not at home was added to a playlist (its album can't be asked for)"},
+    "kostvAwayHomeOnly": "No está en casa: con «Solo la de casa» no suena",
+    "@kostvAwayHomeOnly": {"description": "Kos TV «Toda la música»: a song of a playlist that is not at home, picked with «Solo la de casa»"},
+    "kostvAwayNotAllowed": "No puedes cambiar esta lista",
+    "@kostvAwayNotAllowed": {"description": "Kos TV «Toda la música»: the server plugin turned down adding to a playlist the person can't edit (403)"},
+    "kostvAwayPlaylistFull": "Esta lista ya tiene 500 canciones que no están en casa: no caben más",
+    "@kostvAwayPlaylistFull": {"description": "Kos TV «Toda la música»: the server plugin keeps at most 500 songs that are not at home per playlist"},
+    "kostvAwayFavoritesFull": "Ya tienes 2000 favoritas que no están en casa: quita alguna para añadir más",
+    "@kostvAwayFavoritesFull": {"description": "Kos TV «Toda la música»: the server plugin keeps at most 2000 ♥ of songs that are not at home per person"}
 }

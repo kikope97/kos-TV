@@ -36500,6 +36500,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'What\'s playing isn\'t at home, and songs that aren\'t at home can\'t be listened to together.'**
   String get kostvSyncPlayErrorOutOfHomeSong;
+
+  /// Kos TV «Toda la música»: a song that is not at home was added to a playlist or got a ♥; the notice offers to ask for its album
+  ///
+  /// In en, this message translates to:
+  /// **'Added. Ask for the album to have it at home?'**
+  String get kostvAwayAddedAskAlbum;
+
+  /// Kos TV «Toda la música»: a song that is not at home was added to a playlist (its album can't be asked for)
+  ///
+  /// In en, this message translates to:
+  /// **'Added to the playlist'**
+  String get kostvAwayAdded;
+
+  /// Kos TV «Toda la música»: a song of a playlist that is not at home, picked with «Solo la de casa»
+  ///
+  /// In en, this message translates to:
+  /// **'Not at home: with «Only what\'s at home» it doesn\'t play'**
+  String get kostvAwayHomeOnly;
+
+  /// Kos TV «Toda la música»: the server plugin turned down adding to a playlist the person can't edit (403)
+  ///
+  /// In en, this message translates to:
+  /// **'You can\'t change this playlist'**
+  String get kostvAwayNotAllowed;
+
+  /// Kos TV «Toda la música»: the server plugin keeps at most 500 songs that are not at home per playlist
+  ///
+  /// In en, this message translates to:
+  /// **'This playlist already has 500 songs that aren\'t at home: no more fit'**
+  String get kostvAwayPlaylistFull;
+
+  /// Kos TV «Toda la música»: the server plugin keeps at most 2000 ♥ of songs that are not at home per person
+  ///
+  /// In en, this message translates to:
+  /// **'You already have 2000 favourites that aren\'t at home: remove some to add more'**
+  String get kostvAwayFavoritesFull;
 }
 
 class _AppLocalizationsDelegate
