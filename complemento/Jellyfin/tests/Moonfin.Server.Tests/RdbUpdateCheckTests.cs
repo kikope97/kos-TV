@@ -310,6 +310,9 @@ public sealed class RdbUpdateCheckTests : IDisposable
         var store = Store(handler);
 
         var index = await store.GetIndexAsync(Platform, Config(BaseUrl));
+        // GetIndexAsync starts the update check without waiting for it: join that same check
+        // (it is shared, so no second request) before counting the requests it sent.
+        await store.EnsureUpdateCheckedAsync(Platform, Config(BaseUrl));
 
         Assert.NotNull(index);
         Assert.Contains(RdbMatcher.NormalizeName("Alpha"), index!.ByName.Keys);
