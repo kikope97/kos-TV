@@ -14,8 +14,12 @@ public sealed record KostvStationSeed(string Title, string Artist, Guid? HomeId 
 /// <summary>kOS TV: a song of a person's station: at home (<see cref="Home"/>) or not (<see cref="Away"/>).</summary>
 public sealed record KostvStationItem(BaseItem? Home, KostvStationEntry? Away, string Why);
 
-/// <summary>kOS TV: a person's station, as the route gives it.</summary>
-public sealed record KostvStationResult(KostvStationSeed Seed, string? SeedMbid, IReadOnlyList<KostvStationItem> Items, string Source);
+/// <summary>
+/// kOS TV: a person's station, as the route gives it. <see cref="Partial"/>: still being worked
+/// out (asked again in a while, it comes whole); a station of only Deezer's radio is
+/// <c>fallback</c> without being partial.
+/// </summary>
+public sealed record KostvStationResult(KostvStationSeed Seed, string? SeedMbid, IReadOnlyList<KostvStationItem> Items, string Source, bool Partial = false);
 
 /// <summary>
 /// kOS TV: the station of a song (<c>GET /Moonfin/Kostv/Music/Station</c>, see
@@ -27,7 +31,7 @@ public sealed record KostvStationResult(KostvStationSeed Seed, string? SeedMbid,
 /// Deezer id; without their «no me gusta», nor explicit songs not at home for someone with an
 /// age limit; with the variety rules. Nothing of the home's history counts.
 /// </summary>
-public sealed class KostvMusicStation
+public sealed class KostvMusicStation : IDisposable
 {
     /// <summary>The stations worked out are kept this long.</summary>
     public static readonly TimeSpan StationKeep = TimeSpan.FromDays(1);
@@ -50,6 +54,12 @@ public sealed class KostvMusicStation
     // The most stations worked out at once.
     private const int MaxJobs = 8;
 
+    // The most stations kept in memory (being worked out, or that could not be made whole).
+    private const int MaxKeptJobs = 200;
+
+    // Matching to Deezer may be cut short by the time limit once this many can sound.
+    private const int EnoughPlayable = 60;
+
     // A station that could not be made whole is kept in memory this long, not on disk.
     private static readonly TimeSpan PartialKeep = TimeSpan.FromMinutes(30);
 
@@ -63,6 +73,10 @@ public sealed class KostvMusicStation
     private readonly KostvStationDiskCache _cache;
     private readonly ILogger _logger;
     private readonly ConcurrentDictionary<string, Job> _jobs = new(StringComparer.Ordinal);
+
+    // Kos TV: the server stopping cancels what is being worked out (and nothing new starts).
+    private readonly CancellationTokenSource _stopping = new();
+    private volatile bool _disposed;
 
     public KostvMusicStation(KostvStationWeb web, IKostvStationLibrary library, KostvStationDiskCache cache, ILogger logger)
     {
@@ -89,6 +103,18 @@ public sealed class KostvMusicStation
     /// <summary>Whether a person has an age limit (their parental control): nothing explicit from outside.</summary>
     public Func<Guid, bool> AgeLimitedOf { get; set; } = _ => false;
 
+    /// <summary>The server stops: what is being worked out is let go of (not kept half done).</summary>
+    public void Dispose()
+    {
+        if (_disposed)
+        {
+            return;
+        }
+
+        _disposed = true;
+        _stopping.Cancel();
+    }
+
     private sealed class Stored
     {
         public string? Source { get; set; }
@@ -111,6 +137,7 @@ public sealed class KostvMusicStation
         List<KostvStationEntry> entries;
         string source;
         string? seedMbid = seed.Mbid;
+        var partial = false;
         if (StoredOf(key) is { } stored)
         {
             entries = stored.Entries;
@@ -124,6 +151,7 @@ public sealed class KostvMusicStation
             cancellationToken.ThrowIfCancellationRequested();
             (entries, source) = job.Snapshot();
             seedMbid ??= job.SeedMbid;
+            partial = !job.Work.IsCompleted;
         }
         else
         {
@@ -132,11 +160,19 @@ public sealed class KostvMusicStation
         }
 
         var items = ForPerson(userId, user, seed, entries, limit, away);
-        return new KostvStationResult(seed, seedMbid, items, source);
+        return new KostvStationResult(seed, seedMbid, items, source, partial);
     }
 
-    /// <summary>A seed's key: its title and first artist, compared (the same at home and not).</summary>
-    public static string KeyOf(KostvStationSeed seed) => KostvStationRecipe.NormTitle(seed.Title) + "|" + KostvStationRecipe.Primary(seed.Artist);
+    /// <summary>
+    /// A seed's key: its title and first artist, compared (the same at home and not), and the kind
+    /// of version it is (Kos TV: a live one lets other live ones in; the studio one doesn't).
+    /// </summary>
+    public static string KeyOf(KostvStationSeed seed)
+    {
+        var key = KostvStationRecipe.NormTitle(seed.Title) + "|" + KostvStationRecipe.Primary(seed.Artist);
+        var versions = KostvStationRecipe.VersionsOf(seed.Title);
+        return versions.Count == 0 ? key : key + "|" + string.Join(",", versions.Order(StringComparer.Ordinal));
+    }
 
     private string Day()
     {
@@ -178,9 +214,20 @@ public sealed class KostvMusicStation
             return job;
         }
 
-        if (_jobs.Count(j => !j.Value.Work.IsCompleted) >= MaxJobs)
+        if (_disposed || _jobs.Count(j => !j.Value.Work.IsCompleted) >= MaxJobs)
         {
             return null;
+        }
+
+        // Kos TV: those that could not be made whole are kept a while, but not without end (a
+        // source down for long, many seeds): past the most, the oldest go.
+        if (_jobs.Count >= MaxKeptJobs)
+        {
+            var oldest = _jobs.Where(j => j.Value.Work.IsCompleted).OrderBy(j => j.Value.FinishedAt).Take(_jobs.Count - MaxKeptJobs + 1).Select(j => j.Key).ToList();
+            foreach (var k in oldest)
+            {
+                _jobs.TryRemove(k, out _);
+            }
         }
 
         var fresh = new Job(this, key, seed, Day());
@@ -291,6 +338,8 @@ public sealed class KostvMusicStation
         private readonly KostvStationInputs _inputs;
         private readonly Dictionary<string, KostvStationTrack> _matched = new(StringComparer.Ordinal);
         private readonly int _jitterSeed;
+        // Kos TV: not finished from the moment it is made (another request may find it before it starts).
+        private readonly TaskCompletionSource _finished = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private bool _done;
         private bool _failed;
 
@@ -305,7 +354,7 @@ public sealed class KostvMusicStation
             _jitterSeed = BitConverter.ToInt32(SHA256.HashData(Encoding.UTF8.GetBytes(day + "|" + key)), 0);
         }
 
-        public Task Work { get; private set; } = Task.CompletedTask;
+        public Task Work => _finished.Task;
 
         public DateTimeOffset FinishedAt { get; private set; } = DateTimeOffset.MaxValue;
 
@@ -313,12 +362,14 @@ public sealed class KostvMusicStation
 
         public void Start()
         {
-            Work = Task.Run(async () =>
+            var stopping = _owner._stopping.Token;
+            _ = Task.Run(async () =>
             {
-                using var limit = new CancellationTokenSource(_owner.WorkLimit);
+                using var limit = CancellationTokenSource.CreateLinkedTokenSource(stopping);
+                limit.CancelAfter(_owner.WorkLimit);
                 try
                 {
-                    await RunAsync(limit.Token).ConfigureAwait(false);
+                    await RunAsync(limit.Token, stopping).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -337,7 +388,18 @@ public sealed class KostvMusicStation
                 }
                 finally
                 {
-                    Finish();
+                    try
+                    {
+                        Finish(stopping.IsCancellationRequested);
+                    }
+                    catch (Exception ex)
+                    {
+                        _owner._logger.LogWarning(ex, "kOS TV station: a station could not be kept");
+                    }
+                    finally
+                    {
+                        _finished.TrySetResult();
+                    }
                 }
             });
         }
@@ -374,6 +436,10 @@ public sealed class KostvMusicStation
                         entry.DeezerId = track.DeezerId;
                         entry.Explicit = track.Explicit;
                         entry.Album ??= track.Album;
+                        entry.Cover = track.Cover;
+                        entry.Duration = track.Duration;
+                        entry.AlbumDeezerId = track.AlbumDeezerId;
+                        entry.ArtistDeezerId = track.ArtistDeezerId;
                     }
                 }
 
@@ -401,13 +467,20 @@ public sealed class KostvMusicStation
 
         private static string EntryKey(KostvStationEntry entry) => KostvStationRecipe.NormTitle(entry.Title) + "|" + KostvStationRecipe.Primary(entry.Artist);
 
-        private void Finish()
+        private void Finish(bool stopping)
         {
             bool whole;
             lock (_sync)
             {
                 _done = true;
                 whole = !_failed;
+            }
+
+            FinishedAt = _owner.Now();
+            // Kos TV: the server stopping: nothing half done is kept for the day.
+            if (stopping)
+            {
+                return;
             }
 
             var (entries, source) = Snapshot();
@@ -418,11 +491,9 @@ public sealed class KostvMusicStation
                 _owner._cache.Put("emisoras", _day + "|" + _key, 200, JsonSerializer.SerializeToElement(stored, Options));
                 _owner._jobs.TryRemove(_key, out _);
             }
-
-            FinishedAt = _owner.Now();
         }
 
-        private async Task RunAsync(CancellationToken ct)
+        private async Task RunAsync(CancellationToken ct, CancellationToken stopping)
         {
             var web = _owner._web;
             var isrc = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -439,7 +510,7 @@ public sealed class KostvMusicStation
             }
 
             await FillAsync(web, ct).ConfigureAwait(false);
-            await MatchAsync(web, ct).ConfigureAwait(false);
+            await MatchAsync(web, ct, stopping).ConfigureAwait(false);
         }
 
         private async Task DeezerSideAsync(KostvStationWeb web, TaskCompletionSource<string?> isrc, CancellationToken ct)
@@ -455,9 +526,15 @@ public sealed class KostvMusicStation
                     return;
                 }
 
-                var (seedIsrc, year) = KostvStationWeb.DeezerTrackExtra(t);
-                isrc.TrySetResult(seedIsrc);
-                Set(i => i.SeedYear ??= year);
+                // Kos TV: its ISRC and year only when Deezer's song is the seed: the search gives
+                // another song of the artist when Deezer hasn't that one (its radio still is the
+                // artist's, but that song's recordings aren't the seed's).
+                if (_seed.DeezerId != null || KostvStationWeb.IsTitled(KostvStationWeb.DeezerTrack(t)!, _seed.Title))
+                {
+                    var (seedIsrc, year) = KostvStationWeb.DeezerTrackExtra(t);
+                    isrc.TrySetResult(seedIsrc);
+                    Set(i => i.SeedYear ??= year);
+                }
 
                 var related = web.DeezerRelatedAsync(artistId, ct);
                 var radio = web.DeezerArtistListAsync(artistId, "radio", 50, ct);
@@ -643,35 +720,27 @@ public sealed class KostvMusicStation
             Set(i => i.RelatedTop = tops.Select(t => (IReadOnlyList<KostvStationTrack>)t.Tracks).ToList());
         }
 
-        private async Task MatchAsync(KostvStationWeb web, CancellationToken ct)
+        private async Task MatchAsync(KostvStationWeb web, CancellationToken ct, CancellationToken stopping)
         {
-            // In order, those by listening not at home, to Deezer, until enough can sound.
+            // In the station's order, those by listening not at home, to Deezer, until the first so
+            // many of it can sound. Kos TV: counted in order, so the filler after them (which has its
+            // Deezer id already) doesn't stand in for the songs heard with the seed.
             var (plan, _) = Snapshot();
             var playable = 0;
-            var pending = new List<KostvStationEntry>();
-            foreach (var entry in plan)
-            {
-                if (entry.DeezerId != null || _owner.HomeOf(entry).Count > 0)
-                {
-                    playable++;
-                }
-                else
-                {
-                    pending.Add(entry);
-                }
-            }
+            var batch = new List<KostvStationEntry>();
 
-            foreach (var batch in pending.Chunk(3))
+            async Task MatchBatchAsync()
             {
-                if (playable >= PlayableTarget)
+                if (batch.Count == 0)
                 {
-                    break;
+                    return;
                 }
 
                 var found = await Task.WhenAll(batch.Select(e => web.DeezerMatchAsync(e.Title, e.Artist, e.Isrcs, ct))).ConfigureAwait(false);
+                Failed(found.Any(f => f.Failed));
                 lock (_sync)
                 {
-                    for (var i = 0; i < batch.Length; i++)
+                    for (var i = 0; i < batch.Count; i++)
                     {
                         if (found[i].Track is { } track)
                         {
@@ -680,6 +749,43 @@ public sealed class KostvMusicStation
                         }
                     }
                 }
+
+                batch.Clear();
+            }
+
+            try
+            {
+                foreach (var entry in plan)
+                {
+                    if (playable + batch.Count >= PlayableTarget)
+                    {
+                        await MatchBatchAsync().ConfigureAwait(false);
+                        if (playable >= PlayableTarget)
+                        {
+                            break;
+                        }
+                    }
+
+                    if (entry.DeezerId != null || _owner.HomeOf(entry).Count > 0)
+                    {
+                        playable++;
+                    }
+                    else
+                    {
+                        batch.Add(entry);
+                        if (batch.Count == 3)
+                        {
+                            await MatchBatchAsync().ConfigureAwait(false);
+                        }
+                    }
+                }
+
+                await MatchBatchAsync().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (!stopping.IsCancellationRequested && playable >= EnoughPlayable)
+            {
+                // Kos TV: out of time with enough to sound: whole as it is (what wasn't matched
+                // stays out), rather than worked out again every half an hour.
             }
         }
     }

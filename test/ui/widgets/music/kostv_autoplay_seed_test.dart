@@ -4,13 +4,16 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:jellyfin_preference/jellyfin_preference.dart';
 import 'package:moonfin/data/models/aggregated_item.dart';
 import 'package:moonfin/data/services/kostv_music_plugin.dart';
 import 'package:moonfin/data/services/media_server_client_factory.dart';
+import 'package:moonfin/preference/user_preferences.dart';
 import 'package:moonfin/ui/widgets/music/kostv_now_playing.dart';
 import 'package:playback_core/playback_core.dart';
 import 'package:server_core/server_core.dart';
 import 'package:server_jellyfin/server_jellyfin.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _server = 'https://casa.example';
 
@@ -40,9 +43,15 @@ class _Factory extends Fake implements MediaServerClientFactory {
 /// The server plugin's `Station`: [count] songs at home for any seed,
 /// noting the seeds it was asked with.
 class _Plugin implements HttpClientAdapter {
-  _Plugin(this.count, {this.firstCount, this.firstSource});
+  _Plugin(this.count, {this.firstCount, this.firstSource, this.partial});
 
   final int count;
+
+  /// What `Partial` says (null: not said, as a plugin from before it).
+  final bool? partial;
+
+  /// Done while it is being asked (the person meanwhile).
+  void Function()? onAsk;
 
   /// The first answer, when it differs (the plugin's quick one).
   final int? firstCount;
@@ -59,6 +68,7 @@ class _Plugin implements HttpClientAdapter {
       return ResponseBody.fromString('', 404);
     }
     seeds.add(options.uri.queryParameters['seed']);
+    onAsk?.call();
     final first = seeds.length == 1 && firstCount != null;
     final count = first ? firstCount! : this.count;
     return ResponseBody.fromString(
@@ -68,6 +78,7 @@ class _Plugin implements HttpClientAdapter {
             {'Card': _song('st$i', artist: 'a${i % 5}').rawData},
         ],
         'Source': first ? (firstSource ?? 'listenbrainz') : 'listenbrainz',
+        'Partial': ?partial,
       }),
       200,
       headers: {
@@ -257,6 +268,71 @@ void main() {
       manager.queueService.setQueue([other]);
       await music.debugCompleteStation(chosen);
       expect(ids(), ['other']);
+    });
+
+    test('another queue put on while it is being asked: nothing is added to '
+        'it, even with the same song', () async {
+      routes = _Plugin(12);
+      KostvMusicPlugin.instance = KostvMusicPlugin(
+        dio: Dio()..httpClientAdapter = routes,
+      );
+      final chosen = _song('chosen', artist: 'z');
+      music.noteQueueSource(KostvMusicSource.album, [chosen]);
+      manager.queueService.setQueue([chosen]);
+      routes.onAsk = () {
+        music.noteQueueSource(KostvMusicSource.album, [chosen]);
+        manager.queueService.setQueue([chosen]);
+      };
+      await music.debugCompleteStation(chosen);
+      expect(ids(), ['chosen']);
+    });
+
+    test('the ∞\'s own is not completed once the ∞ is turned off', () async {
+      SharedPreferences.setMockInitialValues(const {});
+      final store = PreferenceStore();
+      await store.init();
+      GetIt.instance.registerSingleton<UserPreferences>(UserPreferences(store));
+      final chosen = _song('chosen', artist: 'z');
+      music.noteQueueSource(KostvMusicSource.album, [chosen]);
+      manager.queueService.setQueue([chosen]);
+      routes.onAsk = () => music.autoplay = false;
+      await music.debugCompleteStation(chosen, byAutoplay: true);
+      expect(ids(), ['chosen']);
+    });
+
+    test('still being worked out when asked again: asked once more later, '
+        'not again and again', () async {
+      routes = _Plugin(6, partial: true);
+      KostvMusicPlugin.instance = KostvMusicPlugin(
+        dio: Dio()..httpClientAdapter = routes,
+      );
+      final chosen = _song('chosen', artist: 'z');
+      music.noteQueueSource(KostvMusicSource.album, [chosen]);
+      manager.queueService.setQueue([chosen]);
+      await music.debugCompleteStation(chosen, lastTry: false);
+      expect(ids(), hasLength(7));
+      expect(music.debugCompletingLater, isTrue);
+      // The last try doesn't ask for another.
+      music.noteQueueSource(KostvMusicSource.album, [chosen]);
+      manager.queueService.setQueue([chosen]);
+      expect(music.debugCompletingLater, isFalse);
+      await music.debugCompleteStation(chosen);
+      expect(music.debugCompletingLater, isFalse);
+    });
+
+    test('what a completed station put in meanwhile isn\'t added twice by '
+        'the ∞', () async {
+      final chosen = _song('chosen', artist: 'z');
+      music.noteQueueSource(KostvMusicSource.album, [chosen]);
+      manager.queueService.setQueue([chosen]);
+      routes.onAsk = () {
+        routes.onAsk = null;
+        manager.queueService.addItems([_song('st0', artist: 'a0')]);
+      };
+      await music.debugAutoplay();
+      expect(ids().toSet(), hasLength(ids().length));
+      // The chosen one, the one put in meanwhile, and 25 of the rest.
+      expect(ids(), hasLength(27));
     });
   });
 }

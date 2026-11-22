@@ -45,8 +45,8 @@ public class KostvStationController : ControllerBase
     /// <summary>
     /// The station of <c>seed</c> (a song's id at home, or <c>stremfin:&lt;DeezerId&gt;</c> with its
     /// <c>title</c> and <c>artist</c>, which help): <c>{ "Seed": { "Title", "Artist", "Mbid" },
-    /// "Items": [ { "Card", "Away": { "Title", "Artist", "Album", "DeezerId", "Explicit" }, "Why" } ],
-    /// "Source" }</c>, up to <c>limit</c> songs (50; 1 to 100), only those at home with
+    /// "Items": [ { "Card", "Away": { "Title", "Artist", "Album", "DeezerId", "Explicit", "Cover",
+    /// "Duration", "AlbumDeezerId", "ArtistDeezerId" }, "Why" } ], "Source", "Partial" }</c>, up to <c>limit</c> songs (50; 1 to 100), only those at home with
     /// <c>away=false</c>. A seed at home the caller may not see counts by its <c>title</c> and
     /// <c>artist</c>; without them, as one that can't be told, an empty station (<c>fallback</c>),
     /// never a <c>404</c> (what an older plugin answers). A seed not so is a <c>400</c>.
@@ -95,11 +95,21 @@ public class KostvStationController : ControllerBase
         if (from == null)
         {
             return Content(
-                JsonSerializer.Serialize(new { Seed = new { Title = title, Artist = artist, Mbid = (string?)null }, Items = Array.Empty<object>(), Source = KostvStationSource.Fallback }, OutputOptions),
+                JsonSerializer.Serialize(new { Seed = new { Title = title, Artist = artist, Mbid = (string?)null }, Items = Array.Empty<object>(), Source = KostvStationSource.Fallback, Partial = false }, OutputOptions),
                 "application/json");
         }
 
-        var result = await _station.StationAsync(userId.Value, user, from, limit ?? DefaultLimit, away ?? true, HttpContext.RequestAborted).ConfigureAwait(false);
+        KostvStationResult result;
+        try
+        {
+            result = await _station.StationAsync(userId.Value, user, from, limit ?? DefaultLimit, away ?? true, HttpContext.RequestAborted).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (HttpContext.RequestAborted.IsCancellationRequested)
+        {
+            // Kos TV: the app stopped waiting (its station goes on being worked out for the next time).
+            return new EmptyResult();
+        }
+
         var json = JsonSerializer.Serialize(
             new
             {
@@ -107,10 +117,13 @@ public class KostvStationController : ControllerBase
                 Items = result.Items.Select(i => new
                 {
                     Card = i.Home != null ? _cards.Map(i.Home, user) : null,
-                    Away = i.Away != null ? new { i.Away.Title, i.Away.Artist, i.Away.Album, i.Away.DeezerId, i.Away.Explicit } : null,
+                    Away = i.Away != null
+                        ? new { i.Away.Title, i.Away.Artist, i.Away.Album, i.Away.DeezerId, i.Away.Explicit, i.Away.Cover, i.Away.Duration, i.Away.AlbumDeezerId, i.Away.ArtistDeezerId }
+                        : null,
                     i.Why
                 }).ToList(),
-                result.Source
+                result.Source,
+                result.Partial
             },
             OutputOptions);
         return Content(json, "application/json");

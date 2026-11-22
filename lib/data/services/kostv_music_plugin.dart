@@ -1381,7 +1381,9 @@ class KostvStationAway {
   /// Null when the plugin didn't say.
   final bool? explicit;
 
-  /// Kos TV: what the contract doesn't promise but a plugin may give.
+  /// Kos TV: its album's cover (https only), its length in seconds, and
+  /// its album's and artist's ids on Deezer: a plugin from before them
+  /// doesn't give them.
   final String? cover;
   final int? duration;
   final String? artistDeezerId;
@@ -1443,12 +1445,22 @@ class KostvMusicStation {
     this.source,
     this.seedTitle,
     this.seedArtist,
+    this.partial,
   });
 
   final List<KostvStationEntry> entries;
   final String? source;
   final String? seedTitle;
   final String? seedArtist;
+
+  /// Kos TV: whether the plugin is still working it out (`Partial`); null
+  /// from a plugin that doesn't say (see [unfinished]).
+  final bool? partial;
+
+  /// Kos TV: whether asking again in a while gives more: as the plugin says
+  /// it, or (one that doesn't say) when it came from the fallback. A whole
+  /// station of only Deezer's radio is `fallback` and not partial.
+  bool get unfinished => partial ?? source == 'fallback';
 
   static KostvMusicStation? fromJson(Object? raw, String serverId) {
     if (raw is! Map) return null;
@@ -1457,6 +1469,7 @@ class KostvMusicStation {
     final seed = raw['Seed'];
     return KostvMusicStation(
       source: _text(raw['Source']),
+      partial: raw['Partial'] is bool ? raw['Partial'] as bool : null,
       seedTitle: seed is Map ? _text(seed['Title']) : null,
       seedArtist: seed is Map ? _text(seed['Artist']) : null,
       entries: [

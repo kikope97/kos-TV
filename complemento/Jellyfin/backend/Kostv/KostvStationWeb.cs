@@ -273,10 +273,12 @@ public sealed class KostvStationWeb
         }
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeout.CancelAfter(service == KostvStationHosts.MusicBrainz ? TimeSpan.FromSeconds(Math.Min(4, RequestTimeout.TotalSeconds)) : RequestTimeout);
         try
         {
-            await GateOf(service).WaitAsync(timeout.Token).ConfigureAwait(false);
+            // Kos TV: the wait for its turn isn't the service's time to answer (with several
+            // stations being worked out, the turn may take longer than that).
+            await GateOf(service).WaitAsync(cancellationToken).ConfigureAwait(false);
+            timeout.CancelAfter(service == KostvStationHosts.MusicBrainz ? TimeSpan.FromSeconds(Math.Min(4, RequestTimeout.TotalSeconds)) : RequestTimeout);
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.TryAddWithoutValidation("User-Agent", UserAgent);
             request.Headers.TryAddWithoutValidation("Accept", "application/json");
@@ -359,10 +361,27 @@ public sealed class KostvStationWeb
             return null;
         }
 
-        var album = track.TryGetProperty("album", out var a) ? Text(a, "title") : null;
+        var hasAlbum = track.TryGetProperty("album", out var a) && a.ValueKind == JsonValueKind.Object;
+        var album = hasAlbum ? Text(a, "title") : null;
         bool? isExplicit = track.TryGetProperty("explicit_lyrics", out var e) && e.ValueKind is JsonValueKind.True or JsonValueKind.False ? e.GetBoolean() : null;
-        return new KostvStationTrack(title, artistName, album, DeezerId: id, Explicit: isExplicit, ArtistDeezerId: Number(artist, "id"));
+        // Kos TV: its album's cover (500 px, as the requests service gives them), its length and
+        // its album's id, so a song not at home shows as one in the queue.
+        var cover = hasAlbum ? new[] { "cover_big", "cover_xl", "cover_medium" }.Select(k => Text(a, k)).FirstOrDefault(IsHttps) : null;
+        var duration = Number(track, "duration") is { } d && int.TryParse(d, NumberStyles.None, CultureInfo.InvariantCulture, out var seconds) ? seconds : (int?)null;
+        return new KostvStationTrack(
+            title,
+            artistName,
+            album,
+            DeezerId: id,
+            Explicit: isExplicit,
+            ArtistDeezerId: Number(artist, "id"),
+            Cover: cover,
+            Duration: duration,
+            AlbumDeezerId: hasAlbum ? Number(a, "id") : null);
     }
+
+    private static bool IsHttps(string? url) =>
+        url != null && Uri.TryCreate(url, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
 
     private static List<KostvStationTrack> DeezerTracks(JsonElement? body) =>
         body is { ValueKind: JsonValueKind.Object } b && b.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Array
@@ -379,13 +398,27 @@ public sealed class KostvStationWeb
         return (body is { } b && DeezerTrack(b) != null ? b : null, failed);
     }
 
-    /// <summary>The song of Deezer that a title and an artist are, as the seed: the same artist, its title begun alike.</summary>
+    /// <summary>Whether a song of Deezer's is titled <paramref name="title"/>: its title begun alike (compared).</summary>
+    public static bool IsTitled(KostvStationTrack track, string title)
+    {
+        var want = KostvStationRecipe.NormTitle(title);
+        return want.Length > 0 && KostvStationRecipe.NormTitle(track.Title).StartsWith(want[..Math.Min(12, want.Length)], StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// The song of Deezer that a title and an artist are, as the seed: the same artist, its title
+    /// begun alike; else one of the artist's (for their radio: see <see cref="IsTitled"/>).
+    /// </summary>
     public async Task<(JsonElement? Track, bool Failed)> DeezerSeedAsync(string title, string artist, CancellationToken ct)
     {
         var failed = false;
         var wantArtist = KostvStationRecipe.Norm(artist);
         var wantTitle = KostvStationRecipe.NormTitle(title);
         var start = wantTitle[..Math.Min(12, wantTitle.Length)];
+        // Kos TV: one of its artists, not any name with the seed's inside («Ana» isn't «Juana»);
+        // and the song itself looked for with both searches before any other of the artist's.
+        var seedNames = KostvStationRecipe.CreditNames(artist).ToHashSet(StringComparer.Ordinal);
+        JsonElement? byArtist = null;
         foreach (var q in new[] { $"artist:\"{artist}\" track:\"{title}\"", $"{artist} {title}" })
         {
             var (body, f) = await GetAsync(KostvStationHosts.Deezer, $"{DeezerBase}/search/track?" + Query(("q", q), ("limit", "10")), ct).ConfigureAwait(false);
@@ -402,16 +435,10 @@ public sealed class KostvStationWeb
                 }
             }
 
-            foreach (var t in found)
-            {
-                if (KostvStationRecipe.Norm(DeezerTrack(t)!.Artist).Contains(wantArtist, StringComparison.Ordinal))
-                {
-                    return (t, failed);
-                }
-            }
+            byArtist ??= found.Select(t => (JsonElement?)t).FirstOrDefault(t => KostvStationRecipe.CreditNames(DeezerTrack(t!.Value)!.Artist).Any(seedNames.Contains));
         }
 
-        return (null, failed);
+        return (byArtist, failed);
     }
 
     public async Task<(List<KostvStationTrack> Tracks, bool Failed)> DeezerArtistListAsync(string artistId, string list, int limit, CancellationToken ct)

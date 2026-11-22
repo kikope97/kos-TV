@@ -144,6 +144,8 @@ class KostvNowPlaying extends ChangeNotifier {
     _queueStart = null;
     _stationLater?.cancel();
     _stationLater = null;
+    _queueGeneration++;
+    _autoplaySeed = null;
     _autoplayRetry?.cancel();
     _autoplayRetry = null;
     StremfinStreamResolver.preparing.removeListener(_preparingChanged);
@@ -182,6 +184,7 @@ class KostvNowPlaying extends ChangeNotifier {
         _queueStart = null;
         _stationLater?.cancel();
         _stationLater = null;
+        _queueGeneration++;
       } else if (_sleepAfterSong && before != null && !_personChose()) {
         // «Al acabar la canción»: the next one doesn't go on. One the person
         // chose (skipped to, or another album put on) isn't the song ending:
@@ -800,9 +803,11 @@ class KostvNowPlaying extends ChangeNotifier {
     _queueSource = source;
     automaticItems.clear();
     autoplayItems.clear();
-    // Kos TV: another queue: the last one's station isn't completed.
+    // Kos TV: another queue: the last one's station isn't completed (also
+    // when it is being asked for right now).
     _stationLater?.cancel();
     _stationLater = null;
+    _queueGeneration++;
     _queueStart = tracks.isEmpty
         ? null
         : tracks[startIndex.clamp(0, tracks.length - 1)];
@@ -908,17 +913,44 @@ class KostvNowPlaying extends ChangeNotifier {
   @visibleForTesting
   static Duration stationLaterAfter = const Duration(seconds: 75);
 
+  /// Kos TV: once more, this long after, when it still wasn't whole then
+  /// (the plugin may take up to a minute and a half).
+  @visibleForTesting
+  static Duration stationLastTryAfter = const Duration(seconds: 45);
+
+  /// Kos TV: which queue it is: another one put on (or none) changes it,
+  /// so what was asked for the one before isn't added to it.
+  int _queueGeneration = 0;
+
   /// Kos TV: the plugin answered the station of [seed] with only its first
   /// songs (`Source: fallback`) while it works the whole one out (up to a
   /// minute and a half): asked again once, a while later, quietly, and
   /// what wasn't in the queue goes at its end, as songs that came by
   /// themselves (the ∞'s with [byAutoplay]). Nothing when the queue
-  /// changed meanwhile (another one put on, the seed no longer in it).
-  void completeStationLater(AggregatedItem seed, {bool byAutoplay = false}) {
+  /// changed meanwhile (another one put on, the seed no longer in it, or
+  /// the ∞ turned off for its own). Kos TV: when it still isn't whole then,
+  /// once more a while later ([stationLastTryAfter]).
+  void completeStationLater(AggregatedItem seed, {bool byAutoplay = false}) =>
+      _completeLater(seed, byAutoplay, stationLaterAfter, lastTry: false);
+
+  void _completeLater(
+    AggregatedItem seed,
+    bool byAutoplay,
+    Duration after, {
+    required bool lastTry,
+  }) {
     _stationLater?.cancel();
-    _stationLater = Timer(stationLaterAfter, () {
+    final generation = _queueGeneration;
+    _stationLater = Timer(after, () {
       _stationLater = null;
-      unawaited(_completeStation(seed, byAutoplay).catchError((Object _) {}));
+      unawaited(
+        _completeStation(
+          seed,
+          byAutoplay,
+          generation,
+          lastTry: lastTry,
+        ).catchError((Object _) {}),
+      );
     });
   }
 
@@ -926,13 +958,24 @@ class KostvNowPlaying extends ChangeNotifier {
   Future<void> debugCompleteStation(
     AggregatedItem seed, {
     bool byAutoplay = false,
-  }) => _completeStation(seed, byAutoplay);
+    bool lastTry = true,
+  }) => _completeStation(seed, byAutoplay, _queueGeneration, lastTry: lastTry);
 
-  Future<void> _completeStation(AggregatedItem seed, bool byAutoplay) async {
+  @visibleForTesting
+  bool get debugCompletingLater => _stationLater != null;
+
+  Future<void> _completeStation(
+    AggregatedItem seed,
+    bool byAutoplay,
+    int generation, {
+    required bool lastTry,
+  }) async {
     final manager = _manager;
     if (manager == null) return;
     final queue = manager.queueService;
     bool stillThere() =>
+        generation == _queueGeneration &&
+        (!byAutoplay || autoplay) &&
         queue.items.any((e) => e is AggregatedItem && e.id == seed.id);
     if (!stillThere()) return;
     final client =
@@ -944,14 +987,21 @@ class KostvNowPlaying extends ChangeNotifier {
         .load(client)
         .catchError((Object _) => KostvMusicDislikes.empty);
     final songs = queue.items.whereType<AggregatedItem>().toList();
+    var partial = false;
     final more = await kostvPluginStationFor(
       seed,
       client: client,
       dislikes: dislikes,
       skip: {...songs.map((e) => e.id), seed.id},
       skipKeys: {...songs.map(kostvSongKey), kostvSongKey(seed)},
+      onPartial: () => partial = true,
     );
-    if (more == null || more.isEmpty || !stillThere()) return;
+    if (!stillThere()) return;
+    // Kos TV: still being worked out: what came goes in, and once more.
+    if (partial && !lastTry) {
+      _completeLater(seed, byAutoplay, stationLastTryAfter, lastTry: true);
+    }
+    if (more == null || more.isEmpty) return;
     // What was put in the queue meanwhile isn't put again.
     final now = queue.items.whereType<AggregatedItem>();
     final ids = {...now.map((e) => e.id)};
@@ -1026,7 +1076,15 @@ class KostvNowPlaying extends ChangeNotifier {
         homeLimit: 25,
         client: client,
       );
-      final added = station.take(25).toList();
+      // Kos TV: nor what went into the queue while it was asked (a station
+      // being completed meanwhile).
+      final now = queue.items.whereType<AggregatedItem>();
+      final inQueue = {...now.map((e) => e.id)};
+      final keysInQueue = {...now.map(kostvSongKey)};
+      final added = [
+        for (final song in station)
+          if (inQueue.add(song.id) && keysInQueue.add(kostvSongKey(song))) song,
+      ].take(25).toList();
       // Still the same song, and the person didn't change their mind.
       if (added.isNotEmpty && autoplay && item?.id == current.id) {
         autoplayItems.addAll(added);

@@ -234,8 +234,13 @@ inteligente, ver juntos, avisos, PIN de perfiles…
     por artista cada 25 y el de la semilla de vuelta cada 8. Ritmo propio (2 peticiones/s a cada
     servicio, 1/s a MusicBrainz, User-Agent `kOS-TV-complemento/<versión>`); respuestas guardadas 30
     días y la emisora del día, 1 día, en `kostv-emisoras/` (64 MB como mucho). Contesta en 5 s
-    como mucho: si no está, lo que haya con `Source: "fallback"` y la termina por detrás. En el
-    panel, opcionales: token de ListenBrainz y clave de Last.fm (`track.getSimilar` solo con ella).
+    como mucho: si no está, lo que haya con `Source: "fallback"` y `Partial: true`, y la termina
+    por detrás. Lo de fuera lleva su portada (`https`), duración, disco y artista de Deezer y si es
+    explícita. Se casa con Deezer en el orden de la emisora (lo escuchado junto a la semilla antes
+    que el relleno); sin tiempo para más, con 60 que suenen ya vale. Una semilla en directo (o
+    remezcla…) es otra emisora que la de estudio. Al apagar el servidor se deja lo que se está
+    calculando. En el panel, opcionales: token de ListenBrainz y clave de Last.fm
+    (`track.getSimilar` solo con ella).
 - **El botón Descubrir se sincroniza** como los demás (`showDiscoverButton`), con
   su valor por defecto en la página.
 - **La marca del paso a la ficha de kOS TV se sincroniza** junto al estilo de la

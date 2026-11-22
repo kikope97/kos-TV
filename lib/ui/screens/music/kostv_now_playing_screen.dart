@@ -15,6 +15,8 @@ import 'package:server_core/server_core.dart' show MediaServerClient;
 import '../../../data/models/aggregated_item.dart';
 import '../../../data/models/lyrics.dart';
 import '../../../data/services/kostv_music_away.dart';
+import '../../../data/services/kostv_music_catalog.dart'
+    show kostvMusicCatalogAll;
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
 import '../../../data/services/media_server_client_factory.dart';
@@ -3026,7 +3028,11 @@ class _QueuePanel extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    l10n.kostvPlayerAutoplayHint,
+                    // Kos TV: with «Toda la música» it goes on with what
+                    // isn't at home too.
+                    kostvMusicCatalogAll()
+                        ? l10n.kostvPlayerAutoplayHintAll
+                        : l10n.kostvPlayerAutoplayHint,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: KostvMusicType.muted(textSize - 3),
