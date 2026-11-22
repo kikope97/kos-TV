@@ -31,8 +31,8 @@ Se actualiza al terminar cada revisión. La siguiente empieza justo aquí.
 | Copia original de kOS TV | upstream `3d87996d2` (2026-11-10): Moonfin 3.0.0 más 658 commits posteriores sin publicar |
 | Último commit de upstream revisado | `a1fa0f9f1` (2026-11-20; revisión corta del 2026-11-21) |
 | Última versión del complemento oficial revisada | 3.1.1.0 (2026-11-19, etiqueta `3.1.1`, commit `afb2e7356`): traída a nuestra copia |
-| Nuestro complemento | «kOS TV» 3.1.1.5, basado en la 3.1.1, publicado el 2026-11-22 con la app 1.20.0 (desde la rama principal) |
-| Complemento instalado en el servidor de casa | el nuestro, en Jellyfin 12.4.0; la última publicada es la 3.1.1.5 |
+| Nuestro complemento | «kOS TV» 3.1.1.6, basado en la 3.1.1, publicado el 2026-11-22 antes que la app 1.21.0 (desde la rama de trabajo) |
+| Complemento instalado en el servidor de casa | el nuestro, en Jellyfin 12.4.0; la última publicada es la 3.1.1.6 |
 | Última revisión | 2026-11-20 |
 | Próxima revisión | a partir del 2026-11-27 |
 
@@ -230,4 +230,10 @@ Copiar este bloque arriba del registro y rellenarlo:
 
 - Publicadas desde `claude/intelligent-albattani-lfpzv9` (app en `18d128b67`; complemento en `70de208f5`, el primer intento falló por una prueba con carrera, ya arreglada): «Para ti» con lo personal primero (una sola sección «Listas de éxitos», «Porque escuchas a…», «Radios de tus artistas») y la radio de una canción con datos públicos (ruta `Station` del complemento: ListenBrainz + filtro de estilo con Deezer; Last.fm opcional), el ∞ sembrado con la última canción elegida y sin intercalar casa/fuera.
 - Stremfin 1.101.0 añade `POST /music/songs/match` y `GET /music/songs/{id}/radio` (pedidos por nosotros); se usarán en la siguiente versión (con «Toda la música», la radio de Stremfin primero y la del complemento detrás).
+- La siguiente revisión del original sigue empezando en `a1fa0f9f1` y el complemento oficial 3.1.1.0.
+
+## 2026-11-22 · Complemento 3.1.1.6 (fuera de la revisión semanal)
+
+- Publicado el complemento 3.1.1.6 (commit `140bce394`) a petición del usuario, antes que la app: pestaña «Actualizaciones de la app», apartado «Instalaciones (últimos 14 días)», emisoras de música con fuentes gratuitas, listas con canciones de fuera y sin las opciones de diseño del menú en el panel.
+- La app 1.21.0 (versión puente) espera a que el menú nuevo quede igual que las maquetas aprobadas.
 - La siguiente revisión del original sigue empezando en `a1fa0f9f1` y el complemento oficial 3.1.1.0.
