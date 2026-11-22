@@ -779,3 +779,70 @@ class StremfinPrefetch {
     );
   }
 }
+
+/// Kos TV: the radio of one song (since 1.101.0, `GET
+/// /music/songs/{id}/radio`): songs like that very song, not its artist's,
+/// each with its whole album, never the seed itself, never two of the same
+/// artist in a row and at most two of one artist in 25.
+@immutable
+class StremfinSongRadio {
+  const StremfinSongRadio({
+    this.seed,
+    this.only,
+    this.songs = const [],
+    this.failed = const [],
+  });
+
+  /// The song the radio comes from, as Deezer knows it.
+  final StremfinSong? seed;
+
+  /// `all`, `missing` or `available`, as the service understood it.
+  final String? only;
+  final List<StremfinSong> songs;
+
+  /// The sources that didn't answer this time (`listenbrainz`,
+  /// `deezer_radio`, `deezer_related`): the list has the rest.
+  final List<String> failed;
+
+  static StremfinSongRadio fromJson(Object? raw) {
+    if (raw is! Map) return const StremfinSongRadio();
+    final songs = raw['songs'];
+    return StremfinSongRadio(
+      seed: StremfinSong.fromJson(raw['seed']),
+      only: _text(raw['only']),
+      songs: [
+        if (songs is List)
+          for (final song in songs) ?StremfinSong.fromJson(song),
+      ],
+      failed: _texts(raw['failed']),
+    );
+  }
+}
+
+/// Kos TV: what `POST /music/songs/match` (since 1.100.0) found: Deezer's
+/// song of each one sent, in the same order and number (null when Deezer
+/// doesn't have it), and the positions Deezer didn't answer for now
+/// ([failed]: null too, but to be asked again later).
+@immutable
+class StremfinSongMatch {
+  const StremfinSongMatch({this.songs = const [], this.failed = const {}});
+
+  final List<StremfinSong?> songs;
+  final Set<int> failed;
+
+  static StremfinSongMatch fromJson(Object? raw) {
+    if (raw is! Map) return const StremfinSongMatch();
+    final songs = raw['songs'];
+    final failed = raw['failed'];
+    return StremfinSongMatch(
+      songs: [
+        if (songs is List)
+          for (final song in songs) StremfinSong.fromJson(song),
+      ],
+      failed: {
+        if (failed is List)
+          for (final at in failed) ?_int(at),
+      },
+    );
+  }
+}

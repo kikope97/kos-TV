@@ -9,6 +9,7 @@ import '../../../data/services/kostv_music.dart';
 import '../../../data/services/kostv_music_catalog.dart';
 import '../../../data/services/kostv_music_dislikes.dart';
 import '../../../data/services/kostv_music_plugin.dart';
+import '../../../data/services/stremfin/kostv_song_radio.dart';
 import '../../../data/services/stremfin/kostv_stream_radio.dart';
 import '../../../data/services/stremfin/kostv_stream_song.dart';
 import '../../../data/services/stremfin/stremfin_models.dart';
@@ -346,15 +347,81 @@ Future<List<AggregatedItem>?> kostvPluginStationFor(
   return items.isEmpty ? null : items;
 }
 
+/// Kos TV: the station of the song [seed] from the requests service's
+/// radio of that song (`docs/musica-radio.md`, «Orden de las fuentes»;
+/// only with «Toda la música»): its Deezer id (its own for one that isn't
+/// at home, matched once for one at home), its radio in its order, what is
+/// at home from home (one the home server doesn't give the person, left
+/// out) and the rest through the service ([kostvStationFromSongRadio]).
+/// Null when it can't give one (a service before it, resting, too many
+/// asked, not answering, a song Deezer doesn't have, nothing that can
+/// sound): the server plugin's station then.
+///
+/// Kos TV: the endless play (∞) gives the song sounding as [then]: when the
+/// radio of [seed] (kept from the station's start: no call) has nothing
+/// left that isn't in the queue, the radio of [then] goes on (the
+/// service's advice). One call to the service's radio at most each time.
+Future<List<AggregatedItem>?> kostvSongRadioStationFor(
+  AggregatedItem seed, {
+  required MediaServerClient client,
+  KostvMusicDislikes dislikes = KostvMusicDislikes.empty,
+  Set<String> skip = const {},
+  Set<String> skipKeys = const {},
+  AggregatedItem? then,
+  bool? hideExplicit,
+  KostvSongRadio? radio,
+  Future<List<AggregatedItem>> Function(List<String> ids)? homeItems,
+}) async {
+  final songRadio = radio ?? KostvSongRadio.instance;
+  if (!songRadio.usable) return null;
+  final hide = hideExplicit ?? _hidesExplicit();
+  var asked = false;
+  for (final from in [seed, if (then != null && then.id != seed.id) then]) {
+    if (from.type != 'Audio' || from.isAudiobook) continue;
+    final deezerId = await songRadio.deezerIdOf(
+      from,
+      artist: _seedArtist(from),
+    );
+    if (deezerId == null || deezerId.isEmpty) continue;
+    final kept = songRadio.keeps(deezerId);
+    // Kos TV: one call each time; another song's only when free.
+    if (!kept && asked) break;
+    final List<StremfinSong> songs;
+    try {
+      if (!kept) asked = true;
+      songs = await songRadio.songs(deezerId);
+    } catch (_) {
+      continue;
+    }
+    final items = await kostvStationFromSongRadio(
+      songs,
+      serverId: client.baseUrl,
+      hideExplicit: hide,
+      homeItems: homeItems ?? KostvMusicService(client).songs,
+      dislikes: dislikes,
+      seed: from,
+      skip: {...skip, seed.id},
+      skipKeys: {...skipKeys, kostvSongKey(seed)},
+    );
+    if (items.isNotEmpty) return items;
+  }
+  return null;
+}
+
 /// Kos TV: the songs of the station of the song [seed] (not the seed
-/// itself), for «Crear emisora» and the endless play (∞): the server
-/// plugin's ([kostvPluginStationFor]) when it has it; otherwise as before,
-/// with the requests service's radio of its artists in its order and the
-/// home server's mix after it ([kostvStationFor], when
+/// itself), for «Crear emisora» and the endless play (∞)
+/// (`docs/musica-radio.md`, «Orden de las fuentes»): with «Toda la
+/// música», the requests service's radio of that song first
+/// ([kostvSongRadioStationFor]; [then], the song sounding for the ∞); then
+/// (with «Solo la de casa», first) the server plugin's
+/// ([kostvPluginStationFor]) when it has it; otherwise as before, with the
+/// requests service's radio of its artists in its order and the home
+/// server's mix after it ([kostvStationFor], when
 /// [kostvStationWantsRadio]) or, with «Solo la de casa» and a seed at home,
 /// the home server's mix alone ([homeLimit] of it). Throws when nothing
 /// answered and so nothing came (to be asked again). [onPartial]: the
-/// plugin's station isn't whole yet (see [kostvPluginStationFor]).
+/// plugin's station isn't whole yet (see [kostvPluginStationFor]; a song's
+/// radio is whole at its first answer).
 Future<List<AggregatedItem>> kostvSongStation(
   AggregatedItem seed, {
   Set<String> skip = const {},
@@ -362,9 +429,21 @@ Future<List<AggregatedItem>> kostvSongStation(
   int homeLimit = 60,
   MediaServerClient? client,
   void Function()? onPartial,
+  AggregatedItem? then,
 }) async {
   final server = client ?? _homeClient();
   final dislikes = await _dislikesOf(server);
+  if (server != null && kostvMusicCatalogAll()) {
+    final fromRadio = await kostvSongRadioStationFor(
+      seed,
+      client: server,
+      dislikes: dislikes,
+      skip: skip,
+      skipKeys: skipKeys,
+      then: then,
+    ).catchError((Object _) => null);
+    if (fromRadio != null) return fromRadio;
+  }
   if (server != null) {
     final fromPlugin = await kostvPluginStationFor(
       seed,
@@ -455,14 +534,27 @@ Future<AggregatedItem?> kostvArtistSeedSong(
       homeItems: homeItems,
     );
     final item = queue.items.firstOrNull;
-    if (item != null && !dislikes.songOut(item)) return item;
+    if (item != null && !dislikes.songOut(item)) {
+      // Kos TV: its Deezer id is known: its song radio needs no matching.
+      KostvSongRadio.instance.note(song);
+      return item;
+    }
   }
   return null;
 }
 
-/// Kos TV: an artist's station made by the server plugin from [seed] (one
-/// of the artist's songs): the seed first, its station after it. Null when
-/// the plugin can't give one (the app's own station then).
+/// Kos TV: whether an artist's station can start from one of their songs:
+/// the server plugin has stations, or (with «Toda la música») the requests
+/// service has a song's radio.
+bool _seedStationPossible(MediaServerClient server) =>
+    !KostvMusicPlugin.instance.knownMissing(server, 'Station') ||
+    (kostvMusicCatalogAll() && KostvSongRadio.instance.usable);
+
+/// Kos TV: an artist's station made from [seed] (one of the artist's
+/// songs) as a song's: with «Toda la música», the requests service's radio
+/// of it ([kostvSongRadioStationFor]); otherwise, or when it can't, the
+/// server plugin's. The seed first, its station after it. Null when
+/// neither can give one (the app's own station then).
 Future<List<AggregatedItem>?> _pluginArtistStation(
   AggregatedItem? seed,
   MediaServerClient? server,
@@ -470,6 +562,14 @@ Future<List<AggregatedItem>?> _pluginArtistStation(
   void Function()? onPartial,
 }) async {
   if (seed == null || server == null) return null;
+  if (kostvMusicCatalogAll()) {
+    final fromRadio = await kostvSongRadioStationFor(
+      seed,
+      client: server,
+      dislikes: dislikes,
+    ).catchError((Object _) => null);
+    if (fromRadio != null) return [seed, ...fromRadio];
+  }
   final station = await kostvPluginStationFor(
     seed,
     client: server,
@@ -503,7 +603,7 @@ Future<void> playKostvArtistStation(
     var top = topSongs;
     if (top == null &&
         server != null &&
-        !KostvMusicPlugin.instance.knownMissing(server, 'Station') &&
+        _seedStationPossible(server) &&
         GetIt.instance.isRegistered<StremfinService>()) {
       top = await GetIt.instance<StremfinService>()
           .musicArtist(artist.deezerId, keep: true)
@@ -580,9 +680,7 @@ Future<void> playKostvHomeArtistStation(
   try {
     final dislikes = await _dislikesOf(server);
     final all = kostvMusicCatalogAll();
-    final seed =
-        music == null ||
-            KostvMusicPlugin.instance.knownMissing(server!, 'Station')
+    final seed = music == null || !_seedStationPossible(server!)
         ? null
         : await music
               .artistSongs(artistId)
