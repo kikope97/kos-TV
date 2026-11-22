@@ -21369,4 +21369,21 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get kostvMenuButtonsSubtitle => 'Which buttons the menu shows';
+
+  @override
+  String get kostvMenuSendToTv => 'Send to TV';
+
+  @override
+  String kostvMenuTitlesCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count titles',
+      one: '1 title',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get kostvMenuRequestsShort => 'Requests';
 }

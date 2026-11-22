@@ -194,8 +194,14 @@ class _QuickReturnWrapperState extends State<QuickReturnWrapper>
 
     // Only screens that really show the bottom navbar have the scope, and its
     // height already counts the system inset.
-    final barInset =
-        widget.hideNavbar ? null : BottomNavInsetScope.maybeOf(context);
+    final barInset = widget.hideNavbar
+        ? null
+        : BottomNavInsetScope.maybeOf(context);
+    // Kos TV: on the pages the glass bar leads to, tapping the page's tab
+    // goes back to the top; a button there sat on the gathered bar.
+    if (barInset != null && BottomNavInsetScope.returnsToTop(context)) {
+      return widget.child;
+    }
 
     return Stack(
       fit: StackFit.expand,

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 /// Kos TV: sizes of the glass bar (docs/diseno-menu, the phone's «cristal
@@ -13,14 +15,22 @@ abstract final class BottomNavMetrics {
   /// Between the bar and Search, and between the mini player and the bar.
   static const double gap = 10;
 
+  /// The tablet's: between the mini player and the bar.
+  static const double tabletGap = 12;
+
   /// The gathered bar: the page's tab and Search are circles this size.
   static const double collapsedSize = 54;
 
   /// The mini player above the open bar.
   static const double accessoryHeight = 54;
 
-  /// Above the screen's edge where the system reports no inset of its own.
-  static const double floatingInset = 16;
+  /// The tablet's mini player.
+  static const double tabletAccessoryHeight = 56;
+
+  /// From the screen's edge to the bar (24 on a phone, 26 on a tablet in
+  /// the mockups, the gesture line included).
+  static const double floatingInset = 24;
+  static const double tabletFloatingInset = 26;
 
   static const double iconSize = 23;
   static const double avatarSize = 24;
@@ -35,8 +45,10 @@ abstract final class BottomNavMetrics {
   /// Whether the window is a tablet's.
   static bool isTablet(Size size) => size.shortestSide >= tabletBreakpoint;
 
-  static double floatingBottomGap(double bottomInset) =>
-      bottomInset > 0 ? bottomInset + 8 : floatingInset;
+  static double floatingBottomGap(double bottomInset, {bool tablet = false}) {
+    final floor = tablet ? tabletFloatingInset : floatingInset;
+    return bottomInset > 0 ? math.max(floor, bottomInset + 4) : floor;
+  }
 
   /// Room the bar takes along the bottom of the screen, system inset and mini
   /// player included. The bar reports its open height even while gathered,
@@ -45,8 +57,11 @@ abstract final class BottomNavMetrics {
   static double heightFor({
     required double bottomInset,
     required bool miniPlayer,
+    bool tablet = false,
   }) =>
       barHeight +
-      floatingBottomGap(bottomInset) +
-      (miniPlayer ? accessoryHeight + gap : 0);
+      floatingBottomGap(bottomInset, tablet: tablet) +
+      (miniPlayer
+          ? (tablet ? tabletAccessoryHeight + tabletGap : accessoryHeight + gap)
+          : 0);
 }

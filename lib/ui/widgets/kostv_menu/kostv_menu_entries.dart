@@ -16,6 +16,7 @@ import '../../screens/settings/settings_side_panel.dart';
 import '../../screens/watch_party/watch_together_route.dart';
 import '../friends_nav_slot.dart';
 import '../music/design/kostv_music_tokens.dart';
+import '../music/kostv_now_playing.dart';
 import '../overlay_sheet.dart';
 import '../remote_control_dialog.dart';
 import '../server_messages_dialog.dart';
@@ -319,30 +320,53 @@ Future<void> showKostvMenuPopup({
   Widget? header,
   double width = 300,
   bool alignEnd = false,
+  Offset? at,
+  double scale = 1,
 }) async {
   KostvMenuEntry? picked;
   await showFocusRestoringDialog<void>(
     context: context,
-    barrierColor: Colors.black.withValues(alpha: 0.45),
+    // The page is dimmed 45 % (tele_A_mas); on the TV the menu dims it
+    // under its bar, which stays lit.
+    barrierColor: PlatformDetection.isTV
+        ? Colors.transparent
+        : Colors.black.withValues(alpha: 0.45),
     useSafeArea: false,
     builder: (dialogContext) {
+      // On a computer the page's glass mini player stays under the card:
+      // the floating one stays away.
+      if (!PlatformDetection.isTV) {
+        KostvNowPlayingRouteObserver.instance.setBottomBar(
+          ModalRoute.of(dialogContext),
+          true,
+        );
+      }
       final screen = MediaQuery.sizeOf(dialogContext);
-      var left = alignEnd ? anchor.right - width : anchor.left - 8;
-      left = left.clamp(16.0, screen.width - width - 16);
+      final drawn = width * scale;
+      var left = at?.dx ?? (alignEnd ? anchor.right - drawn : anchor.left - 8);
+      left = left.clamp(16.0, screen.width - drawn - 16);
+      final card = KostvMenuCard(
+        header: header,
+        entries: entries,
+        onSelected: (entry) {
+          picked = entry;
+          Navigator.of(dialogContext).pop();
+        },
+      );
       return Stack(
         children: [
           Positioned(
             left: left,
-            top: anchor.bottom + 10,
+            top: at?.dy ?? anchor.bottom + 10,
             width: width,
-            child: KostvMenuCard(
-              header: header,
-              entries: entries,
-              onSelected: (entry) {
-                picked = entry;
-                Navigator.of(dialogContext).pop();
-              },
-            ),
+            // The TV draws the mockup's card on its own canvas.
+            child: scale == 1
+                ? card
+                : Transform.scale(
+                    scale: scale,
+                    alignment: Alignment.topLeft,
+                    child: card,
+                  ),
           ),
         ],
       );
@@ -373,6 +397,8 @@ class KostvMenuCard extends StatelessWidget {
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: const Color(0xF01E1E26),
+          // .menu: inset 0 0 0 1px rgba(255,255,255,.08),
+          // 0 24px 60px rgba(0,0,0,.6).
           borderRadius: BorderRadius.circular(18),
           border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
           boxShadow: const [
@@ -544,7 +570,7 @@ class _KostvMenuRowState extends State<KostvMenuRow> {
                             ? const Color(0xFF333333)
                             : KostvMusicTokens.muted,
                         fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w500,
                       ),
                     )
                   else if (entry.count > 0)

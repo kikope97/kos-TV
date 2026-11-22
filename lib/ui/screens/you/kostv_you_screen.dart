@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
+import '../../../data/services/kostv_my_list.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../preference/bottom_nav_tabs.dart';
 import '../../navigation/destinations.dart';
@@ -12,6 +14,7 @@ import '../../widgets/kostv_menu/kostv_glass.dart';
 import '../../widgets/kostv_menu/kostv_menu_entries.dart';
 import '../../widgets/kostv_menu/kostv_more_sheet.dart';
 import '../../widgets/kostv_menu/kostv_nav_avatar.dart';
+import '../../widgets/kostv_menu/kostv_page_header.dart';
 import '../../widgets/music/design/kostv_music_tokens.dart';
 import '../../widgets/navigation_layout.dart';
 import '../../widgets/settings/settings_panel.dart';
@@ -39,6 +42,14 @@ class _KostvYouScreenState extends State<KostvYouScreen> {
   void initState() {
     super.initState();
     _menu.addListener(_onChanged);
+    // How many titles wait on «Quiero verlo», for its tile.
+    final getIt = GetIt.instance;
+    if (getIt.isRegistered<KostvMyListService>()) {
+      final list = getIt<KostvMyListService>();
+      if (list.available) {
+        list.load().then((_) => _onChanged()).ignore();
+      }
+    }
   }
 
   void _onChanged() {
@@ -130,18 +141,27 @@ class _KostvYouScreenState extends State<KostvYouScreen> {
       backgroundColor: KostvMusicTokens.background,
       body: NavigationLayout(
         activeRoute: Destinations.kostvYou,
+        largeHeader: true,
         child: Stack(
           fit: StackFit.expand,
           children: [
             const _YouBackdrop(),
-            SafeArea(
-              bottom: false,
-              child: BottomNavPadded(
-                fallback: 24,
-                builder: (context, bottom) => ListView(
-                  key: const ValueKey('kostvYouList'),
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, bottom),
-                  children: [
+            // movil_cristal_tu: «Tú» and the cog are the menu's large
+            // header; the person starts under it.
+            BottomNavPadded(
+              fallback: 24,
+              builder: (context, bottom) => ListView(
+                key: const ValueKey('kostvYouList'),
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  NavigationLayout.usesBottomNavbar
+                      ? KostvPageHeader.room(context)
+                      : MediaQuery.paddingOf(context).top + 16,
+                  16,
+                  bottom,
+                ),
+                children: [
+                  if (!NavigationLayout.usesBottomNavbar) ...[
                     Row(
                       children: [
                         Expanded(
@@ -150,32 +170,37 @@ class _KostvYouScreenState extends State<KostvYouScreen> {
                             style: KostvMusicType.title(34),
                           ),
                         ),
-                        _GlassCircle(
+                        KostvGlassRoundButton(
                           key: const ValueKey('kostvYouSettings'),
-                          icon: Icons.settings_rounded,
+                          size: 42,
                           label: l10n.settings,
                           onTap: _settings,
+                          child: const Icon(
+                            Icons.settings_rounded,
+                            size: 20,
+                            color: Colors.white,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 14),
-                    _PersonRow(menu: menu),
-                    if (menu.requestsVisible) ...[
-                      const SizedBox(height: 20),
-                      _RequestsCard(menu: menu),
-                    ],
-                    const SizedBox(height: 12),
-                    _QuickTiles(menu: menu, open: _open),
-                    if (atHome.isNotEmpty) ...[
-                      _Heading(l10n.kostvMenuAtHome),
-                      _Group(entries: atHome),
-                    ],
-                    if (extras.isNotEmpty) ...[
-                      _Heading(l10n.more),
-                      _Group(entries: extras),
-                    ],
                   ],
-                ),
+                  _PersonRow(menu: menu),
+                  if (menu.requestsVisible) ...[
+                    const SizedBox(height: 20),
+                    _RequestsCard(menu: menu),
+                  ],
+                  const SizedBox(height: 12),
+                  _QuickTiles(menu: menu, open: _open),
+                  if (atHome.isNotEmpty) ...[
+                    _Heading(l10n.kostvMenuAtHome),
+                    _Group(entries: atHome),
+                  ],
+                  if (extras.isNotEmpty) ...[
+                    _Heading(l10n.more),
+                    _Group(entries: extras),
+                  ],
+                ],
               ),
             ),
           ],
@@ -235,14 +260,22 @@ class _PersonRow extends StatelessWidget {
     final l10n = AppLocalizations.of(context);
     return Row(
       children: [
-        KostvNavAvatar(
-          size: 66,
-          imageUrl: menu.userImageUrl,
-          name: menu.userName,
-          ring: true,
-          spinning: menu.requestsWorking,
+        // The face is 66; its ring reaches past it, over the margin.
+        SizedBox.square(
+          dimension: 66,
+          child: OverflowBox(
+            maxWidth: 76,
+            maxHeight: 76,
+            child: KostvNavAvatar(
+              size: 66,
+              imageUrl: menu.userImageUrl,
+              name: menu.userName,
+              ring: true,
+              spinning: menu.requestsWorking,
+            ),
+          ),
         ),
-        const SizedBox(width: 14),
+        const SizedBox(width: 16),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -391,6 +424,16 @@ class _RequestsCard extends StatelessWidget {
   }
 }
 
+/// What waits on the person's list (to start and part way through), or null
+/// while it hasn't been read.
+int? _myListCount() {
+  final getIt = GetIt.instance;
+  if (!getIt.isRegistered<KostvMyListService>()) return null;
+  final page = getIt<KostvMyListService>().page;
+  if (page == null) return null;
+  return page.watching.length + page.toStart.length;
+}
+
 class _QuickTiles extends StatelessWidget {
   const _QuickTiles({required this.menu, required this.open});
 
@@ -406,6 +449,11 @@ class _QuickTiles extends StatelessWidget {
           key: const ValueKey('kostvYouMyList'),
           icon: Icons.bookmark_rounded,
           label: l10n.kostvMyList,
+          // How many titles wait on the list, once it has been read.
+          detail: switch (_myListCount()) {
+            final n? when n > 0 => l10n.kostvMenuTitlesCount(n),
+            _ => null,
+          },
           onTap: () => open(Destinations.myList),
         ),
       _QuickTile(
@@ -466,7 +514,6 @@ class _QuickTile extends StatelessWidget {
         onTap: onTap,
         child: KostvGlass(
           radius: 20,
-          shadow: false,
           child: Padding(
             padding: const EdgeInsets.all(13),
             child: Column(
@@ -533,7 +580,6 @@ class _Group extends StatelessWidget {
   Widget build(BuildContext context) {
     return KostvGlass(
       radius: 22,
-      shadow: false,
       child: Material(
         type: MaterialType.transparency,
         child: Column(
@@ -546,44 +592,6 @@ class _Group extends StatelessWidget {
                 onTap: () => entries[i].onSelected(context),
               ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _GlassCircle extends StatelessWidget {
-  const _GlassCircle({
-    super.key,
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      excludeSemantics: true,
-      child: Tooltip(
-        message: label,
-        excludeFromSemantics: true,
-        child: GestureDetector(
-          onTap: onTap,
-          child: SizedBox(
-            width: 42,
-            height: 42,
-            child: KostvGlass(
-              child: Center(
-                child: Icon(icon, size: 20, color: KostvMusicTokens.ink),
-              ),
-            ),
-          ),
         ),
       ),
     );

@@ -2,13 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:moonfin_design/moonfin_design.dart';
 
+import '../../l10n/app_localizations.dart';
 import '../../util/platform_detection.dart';
 import '../navigation/destinations.dart';
 import '../navigation/route_lifecycle_observer.dart';
 import 'bottom_nav/bottom_navbar.dart';
+import 'bottom_nav/bottom_mini_player.dart';
+import 'bottom_nav/bottom_nav_metrics.dart';
 import 'download_progress_bar.dart';
+import 'kostv_menu/kostv_glass.dart';
+import 'kostv_menu/kostv_page_header.dart';
 import 'music/kostv_now_playing.dart';
 import 'top_toolbar.dart';
 
@@ -26,6 +30,11 @@ class NavigationLayout extends StatefulWidget {
   /// Keep the top bar whole instead of gathering it into its pill as the
   /// content scrolls. No effect off-TV, where the bar never gathers.
   final bool pinTopToolbar;
+
+  /// Kos TV: the page is one the glass bar leads to (Inicio, Descubrir,
+  /// Música, Tú), not one opened inside it: on phones and tablets it has
+  /// the menu's large header (docs/diseno-menu).
+  final bool largeHeader;
 
   /// Whether the menu is the glass bar at the bottom: phones and tablets,
   /// and the web in a narrow window.
@@ -115,6 +124,7 @@ class NavigationLayout extends StatefulWidget {
     this.showBackButton = false,
     this.showNavigationChrome = true,
     this.pinTopToolbar = false,
+    this.largeHeader = false,
   });
 
   @override
@@ -149,6 +159,28 @@ class _NavigationLayoutState extends State<NavigationLayout>
   // way up. The flag only flips at the thresholds, so scrolling rebuilds
   // nothing.
   final _bottomMinimized = ValueNotifier<bool>(false);
+
+  // Kos TV: how far the page is scrolled, for its large header.
+  final _headerOffset = ValueNotifier<double>(0);
+
+  // Kos TV: the page's own list, to take it back to the top when its tab is
+  // tapped again.
+  BuildContext? _pageScrollable;
+
+  void _scrollPageToTop() {
+    final scrollable = _pageScrollable;
+    if (scrollable == null || !scrollable.mounted) return;
+    final position = Scrollable.maybeOf(scrollable)?.position;
+    if (position == null || position.pixels <= position.minScrollExtent) {
+      return;
+    }
+    position.animateTo(
+      position.minScrollExtent,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   bool _userScrolling = false;
   double _scrollTravel = 0;
   ModalRoute<dynamic>? _observedRoute;
@@ -175,6 +207,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.activeRoute != widget.activeRoute) {
       _expandBottomBar();
+      _headerOffset.value = 0;
       _scrolledScrollables.clear();
       _contentScrolled.value = false;
       _tvScrollOffset = 0;
@@ -250,6 +283,18 @@ class _NavigationLayoutState extends State<NavigationLayout>
     }
 
     final metrics = n.metrics;
+    // The page's own list (not one inside it) moves its large header.
+    if (n.depth == 0) {
+      _pageScrollable = n.context;
+      final offset = (metrics.pixels - metrics.minScrollExtent).clamp(
+        0.0,
+        120.0,
+      );
+      if ((offset - _headerOffset.value).abs() >= 0.5 ||
+          (offset == 0) != (_headerOffset.value == 0)) {
+        _headerOffset.value = offset;
+      }
+    }
     if (metrics.pixels <= metrics.minScrollExtent + 8) {
       _expandBottomBar();
       return false;
@@ -274,6 +319,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
     if (_observedRoute != null) routeLifecycleObserver.unsubscribe(this);
     TopToolbar.isFocusedNotifier.removeListener(_updateToolbarCollapsed);
     _bottomMinimized.dispose();
+    _headerOffset.dispose();
     _toolbarCollapsed.dispose();
     _contentScrolled.dispose();
     WidgetsBinding.instance.removeObserver(this);
@@ -297,9 +343,10 @@ class _NavigationLayoutState extends State<NavigationLayout>
     final bottom = NavigationLayout.usesBottomNavbar;
     // Kos TV: the bottom bar carries its own music player, so the floating
     // one steps aside on its pages.
+    // On a computer the menu's own glass accessory plays it too.
     KostvNowPlayingRouteObserver.instance.setBottomBar(
       ModalRoute.of(context),
-      bottom,
+      bottom || _desktopPlayer,
     );
     final layout = bottom ? _buildBottomBar() : _buildToolbar();
     // Grouping only pays off when the tier draws real backdrop blurs, the
@@ -307,9 +354,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerHover: (_) => NavigationLayout._wakeTrailerChrome(),
-      child: GlassSettings.blursBackdrop
-          ? BackdropGroup(child: layout)
-          : layout,
+      child: kostvGlassBlurs ? BackdropGroup(child: layout) : layout,
     );
   }
 
@@ -324,19 +369,80 @@ class _NavigationLayoutState extends State<NavigationLayout>
     ),
   );
 
+  /// Kos TV: the large header of the pages the glass bar leads to
+  /// (docs/diseno-menu): its title and its buttons.
+  ({String title, KostvPageHeaderActions actions})? _header(
+    AppLocalizations l10n,
+  ) => switch (widget.activeRoute) {
+    Destinations.home => (
+      title: l10n.home,
+      actions: KostvPageHeaderActions.castAndInbox,
+    ),
+    Destinations.kostvDiscover => (
+      title: l10n.kostvDiscover,
+      actions: KostvPageHeaderActions.castAndInbox,
+    ),
+    Destinations.kostvMusic => (
+      title: l10n.kostvMusic,
+      actions: KostvPageHeaderActions.castAndInbox,
+    ),
+    Destinations.kostvYou => (
+      title: l10n.navYou,
+      actions: KostvPageHeaderActions.settings,
+    ),
+    _ => null,
+  };
+
   Widget _buildBottomBar() {
     final content = _content;
+    final header = widget.showNavigationChrome && widget.largeHeader
+        ? _header(AppLocalizations.of(context))
+        : null;
+    final tablet = BottomNavMetrics.isTablet(MediaQuery.sizeOf(context));
     return Stack(
       children: [
         Positioned.fill(
           child: BottomNavInsetScope(
             height: BottomNavbar.heightFor(context),
+            tabReturnsToTop: widget.largeHeader,
             child: NotificationListener<ScrollNotification>(
               onNotification: _onBottomScroll,
               child: content,
             ),
           ),
         ),
+        if (header != null)
+          Positioned.fill(
+            child: KostvPageHeader(
+              key: ValueKey('kostvPageHeader-${widget.activeRoute}'),
+              title: header.title,
+              actions: header.actions,
+              offset: _headerOffset,
+            ),
+          ),
+        // The rows fade a little towards the glass bar (fadeBottom).
+        if (widget.showNavigationChrome)
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: tablet ? 200 : 150,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                key: const ValueKey('kostvBarFade'),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      Color(tablet ? 0x9906060A : 0x8C06060A),
+                      const Color(0x0006060A),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
         Positioned(
           left: 0,
           right: 0,
@@ -354,6 +460,7 @@ class _NavigationLayoutState extends State<NavigationLayout>
                 chromeVisible: widget.showNavigationChrome,
                 minimized: _bottomMinimized,
                 onExpand: _expandBottomBar,
+                onScrollToTop: _scrollPageToTop,
                 // The download progress bar pads the system inset itself,
                 // which it no longer touches once the bar sits under it.
                 header: MediaQuery.removePadding(
@@ -374,6 +481,11 @@ class _NavigationLayoutState extends State<NavigationLayout>
       ],
     );
   }
+
+  /// Kos TV: a computer's mini player is the menu's glass accessory, at the
+  /// bottom right (ordenador_cristal).
+  bool get _desktopPlayer =>
+      !NavigationLayout.usesBottomNavbar && !PlatformDetection.isTV;
 
   Widget _buildToolbar() {
     final isTV = PlatformDetection.isTV;
@@ -415,7 +527,57 @@ class _NavigationLayoutState extends State<NavigationLayout>
             children: [
               Positioned.fill(child: body),
               if (!isTV) _buildScrollShade(TopToolbar.heightFor(context)),
+              // Kos TV: with the menu in use the page dims a little
+              // (tele_A_foco).
+              if (isTV)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: ListenableBuilder(
+                      listenable: Listenable.merge([
+                        TopToolbar.litNotifier,
+                        TopToolbar.openNotifier,
+                      ]),
+                      builder: (context, _) {
+                        final dim = !widget.showNavigationChrome
+                            ? 0.0
+                            : TopToolbar.openNotifier.value
+                            ? 0.45
+                            : TopToolbar.litNotifier.value
+                            ? 0.25
+                            : 0.0;
+                        return TweenAnimationBuilder<double>(
+                          tween: Tween<double>(end: dim),
+                          duration: const Duration(milliseconds: 200),
+                          builder: (context, a, _) => a <= 0
+                              ? const SizedBox.expand()
+                              : ColoredBox(
+                                  color: Colors.black.withValues(alpha: a),
+                                ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
               Positioned(left: 0, right: 0, top: 0, child: toolbar),
+              if (_desktopPlayer)
+                Positioned(
+                  right: 28,
+                  bottom: 24,
+                  width: 372,
+                  height: 60,
+                  child: ListenableBuilder(
+                    listenable: KostvNowPlaying.instance..ensureStarted(),
+                    builder: (context, _) => bottomMiniPlayerHasTrack()
+                        ? const KostvGlass(
+                            key: ValueKey('kostvDesktopPlayer'),
+                            child: BottomMiniPlayer(
+                              height: 60,
+                              variant: BottomMiniPlayerVariant.capsule,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ),
               if (widget.showBackButton &&
                   !isTV &&
                   !widget.showNavigationChrome)

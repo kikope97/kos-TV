@@ -14,6 +14,7 @@ import '../../../preference/user_preferences.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
+import '../../widgets/kostv_menu/kostv_page_header.dart';
 import '../../widgets/bottom_nav/bottom_navbar.dart';
 import '../../widgets/focus/hub_focus_memory.dart';
 import '../../widgets/focus/locked_focus_row.dart';
@@ -597,6 +598,7 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
       backgroundColor: AppColorScheme.background,
       body: NavigationLayout(
         activeRoute: Destinations.kostvDiscover,
+        largeHeader: true,
         // The spotlight stays put; so does the bar over it.
         pinTopToolbar: !phone,
         child: _withInitialFocus(
@@ -980,7 +982,11 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
   // ------------------------------------------------------------ phone
 
   Widget _phone(AppLocalizations l10n) {
-    final insets = calendarChromeInsets(context);
+    // Kos TV: a tablet keeps 32 px from the sides, as its header.
+    final base = calendarChromeInsets(context);
+    final insets = KostvPageHeader.isTablet(context)
+        ? base.copyWith(left: 32, right: 32)
+        : base;
     final width = MediaQuery.sizeOf(context).width;
     final usable = width - insets.left - insets.right;
     // About three posters and a bit across a phone, more on a tablet.
@@ -998,7 +1004,11 @@ class _KostvDiscoverScreenState extends State<KostvDiscoverScreen> {
       fallback: 48,
       builder: (context, bottom) => ListView(
         controller: _scrollController,
-        padding: EdgeInsets.only(top: insets.top, bottom: bottom),
+        // Kos TV: under the menu's large header («Descubrir»).
+        padding: EdgeInsets.only(
+          top: KostvPageHeader.room(context),
+          bottom: bottom,
+        ),
         children: [
           _buildPills(
             height: 38,

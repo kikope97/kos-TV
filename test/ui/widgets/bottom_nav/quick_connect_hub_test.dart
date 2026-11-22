@@ -1,6 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/services/media_server_client_factory.dart';
+import 'package:moonfin/l10n/app_localizations.dart';
+import 'package:moonfin/ui/screens/you/kostv_you_screen.dart';
 import 'package:server_core/server_core.dart';
 
 import 'bottom_nav_fakes.dart';
@@ -32,10 +35,14 @@ void main() {
     await getIt.unregister<MediaServerClientFactory>();
     getIt.registerSingleton<MediaServerClientFactory>(_Factory(client));
     usePhoneView(tester);
-    await tester.pumpWidget(bottomNavApp());
-    await tester.pump();
-    // Kos TV: «Más», a long press on «Tú».
-    await tester.longPress(find.text('You'));
+    // Kos TV: on the «Tú» page (the «Más» sheet keeps to the places).
+    await tester.pumpWidget(
+      MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: const KostvYouScreen(),
+      ),
+    );
     await tester.pumpAndSettle();
   }
 
@@ -52,5 +59,4 @@ void main() {
     expect(find.text('Quick Connect'), findsOneWidget);
     expect(find.text('Approve a sign-in'), findsNothing);
   });
-
 }

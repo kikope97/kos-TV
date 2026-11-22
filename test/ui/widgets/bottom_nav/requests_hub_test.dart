@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:moonfin/data/services/stremfin/stremfin_service.dart';
+import 'package:moonfin/ui/widgets/kostv_menu/kostv_more_sheet.dart';
 
 import '../../screens/discover/fake_stremfin_life.dart';
 import 'bottom_nav_fakes.dart';
@@ -37,8 +38,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await settle(tester);
 
-    expect(find.text('My requests'), findsOneWidget);
-    expect(find.text('1'), findsOneWidget);
+    // On its tile in the sheet (the page's header shows it on its tray).
+    final sheet = find.byType(KostvMoreSheet);
+    expect(
+      find.descendant(of: sheet, matching: find.text('Requests')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: sheet, matching: find.text('1')),
+      findsOneWidget,
+    );
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
@@ -51,7 +60,7 @@ void main() {
     await tester.pump();
     await tester.longPress(find.text('You'));
     await tester.pumpAndSettle();
-    expect(find.text('My requests'), findsNothing);
+    expect(find.text('Requests'), findsNothing);
     expect(find.text('Settings'), findsOneWidget);
   });
 }

@@ -4,6 +4,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../navigation/kostv_menu_controller.dart';
 import '../bottom_nav/bottom_nav_destinations.dart';
 import '../music/design/kostv_music_tokens.dart';
+import '../music/kostv_now_playing.dart';
 import 'kostv_glass.dart';
 import 'kostv_menu_entries.dart';
 import 'kostv_nav_avatar.dart';
@@ -24,16 +25,24 @@ Future<void> showKostvMoreSheet({
     elevation: 0,
     isScrollControlled: true,
     barrierColor: Colors.black.withValues(alpha: 0.38),
-    builder: (sheetContext) => ListenableBuilder(
-      listenable: menu,
-      builder: (_, _) => KostvMoreSheet(
-        menu: menu,
-        onSelected: (entry) {
-          picked = entry;
-          Navigator.of(sheetContext).pop();
-        },
-      ),
-    ),
+    builder: (sheetContext) {
+      // The bar's own mini player is under the sheet: the floating one
+      // stays away (it would lift the sheet off the bottom too).
+      KostvNowPlayingRouteObserver.instance.setBottomBar(
+        ModalRoute.of(sheetContext),
+        true,
+      );
+      return ListenableBuilder(
+        listenable: menu,
+        builder: (_, _) => KostvMoreSheet(
+          menu: menu,
+          onSelected: (entry) {
+            picked = entry;
+            Navigator.of(sheetContext).pop();
+          },
+        ),
+      );
+    },
   );
   final entry = picked;
   if (entry != null && context.mounted) entry.onSelected(context);
@@ -59,7 +68,22 @@ class KostvMoreSheet extends StatelessWidget {
       menu,
       openPage: openBottomNavPage,
     );
-    final tiles = entries.tiles;
+    // movil_cristal_hoja: the places that aren't on the bar and the
+    // requests; the rest of what is each person's is on the «Tú» page.
+    const places = {
+      'libraries',
+      'genres',
+      'liveTv',
+      'calendar',
+      'myList',
+      'discover',
+      'music',
+      'requests',
+    };
+    final tiles = [
+      for (final t in entries.tiles)
+        if (places.contains(t.id)) t,
+    ];
     return Padding(
       padding: EdgeInsets.fromLTRB(
         8 + media.padding.left,
@@ -78,7 +102,7 @@ class KostvMoreSheet extends StatelessWidget {
             heavy: true,
             radius: 36,
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 40),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -109,7 +133,7 @@ class KostvMoreSheet extends StatelessWidget {
                             width: 36,
                             height: 36,
                             child: KostvGlass(
-                              shadow: false,
+                              nested: true,
                               child: Center(
                                 child: Icon(
                                   Icons.close_rounded,
@@ -146,6 +170,7 @@ class KostvMoreSheet extends StatelessWidget {
                   KostvGlass(
                     radius: 20,
                     shadow: false,
+                    nested: true,
                     child: Column(
                       children: [
                         for (var i = 0; i < entries.rows.length; i++)
@@ -191,6 +216,7 @@ class _Tile extends StatelessWidget {
         child: KostvGlass(
           radius: 20,
           shadow: false,
+          nested: true,
           child: SizedBox(
             height: 86,
             child: Stack(
@@ -201,10 +227,13 @@ class _Tile extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        entry.iconWidget(24, KostvMusicTokens.ink),
+                        entry.iconWidget(24, Colors.white),
                         const SizedBox(height: 6),
                         Text(
-                          entry.label,
+                          entry.id == 'requests'
+                              ? AppLocalizations.of(context)
+                                    .kostvMenuRequestsShort
+                              : entry.label,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,

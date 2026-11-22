@@ -6,6 +6,8 @@ import 'package:moonfin_design/moonfin_design.dart';
 import '../../../data/models/media_bar_slide_item.dart';
 import '../../../l10n/app_localizations.dart';
 import '../bounded_network_image.dart';
+import '../kostv_menu/kostv_page_header.dart';
+import '../navigation_layout.dart';
 import 'gallery_glow.dart';
 import 'media_bar_new_release_label.dart';
 import 'media_bar_text.dart';
@@ -95,7 +97,11 @@ class _GalleryCoverflowState extends State<GalleryCoverflow> {
       widget.items.length - 1,
     )];
     final glow = glowColorForGenres(active.genres);
-    final topInset = MediaQuery.paddingOf(context).top;
+    // Kos TV: under the menu's large header («Inicio») on the glass bar's
+    // pages.
+    final topInset = NavigationLayout.usesBottomNavbar
+        ? KostvPageHeader.room(context) - 8
+        : MediaQuery.paddingOf(context).top;
 
     return Stack(
       fit: StackFit.expand,

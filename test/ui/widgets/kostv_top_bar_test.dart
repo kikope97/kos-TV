@@ -54,6 +54,8 @@ void main() {
 
   tearDown(() async {
     TopToolbar.isFocusedNotifier.value = false;
+    TopToolbar.litNotifier.value = false;
+    TopToolbar.openNotifier.value = false;
     await tearDownBottomNav();
   });
 
@@ -231,6 +233,63 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Genres'), findsNothing);
     expect(focused(), 'TopToolbarMore');
+  });
+
+  testWidgets('TV: the menu in use lights up, the focused tab grows and the '
+      'page dims, more with «Más» open (tele_A_foco, tele_A_mas)', (
+    tester,
+  ) async {
+    await pumpBar(tester);
+    expect(TopToolbar.litNotifier.value, isFalse);
+    NavigationLayout.focusNavbar();
+    await tester.pump();
+    await press(tester, LogicalKeyboardKey.arrowRight);
+    await tester.pumpAndSettle();
+    expect(TopToolbar.litNotifier.value, isTrue);
+
+    double scaleOf(String key) => tester
+        .widget<AnimatedScale>(
+          find
+              .descendant(
+                of: find.byKey(ValueKey(key)),
+                matching: find.byType(AnimatedScale),
+              )
+              .first,
+        )
+        .scale;
+    expect(scaleOf('toolbar_music'), 1.06);
+    expect(scaleOf('toolbar_home'), 1);
+
+    Color? dim() {
+      final boxes = tester
+          .widgetList<ColoredBox>(find.byType(ColoredBox))
+          .where((b) => b.color.r == 0 && b.color.a > 0.2 && b.color.a < 0.5)
+          .toList();
+      return boxes.isEmpty ? null : boxes.last.color;
+    }
+
+    expect(dim()?.a, closeTo(0.25, 0.01));
+
+    for (var i = 0; i < 8; i++) {
+      await press(tester, LogicalKeyboardKey.arrowRight);
+    }
+    await press(tester, LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(TopToolbar.openNotifier.value, isTrue);
+    expect(dim()?.a, closeTo(0.45, 0.01));
+    // «Más» keeps the white capsule (grown) while its card is open.
+    expect(scaleOf('toolbar_more'), 1.06);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(TopToolbar.openNotifier.value, isFalse);
+    expect(focused(), 'TopToolbarMore');
+
+    // Down into the page: the menu is at rest, the page no longer dimmed.
+    await press(tester, LogicalKeyboardKey.arrowDown);
+    await tester.pumpAndSettle();
+    expect(TopToolbar.litNotifier.value, isFalse);
+    expect(dim(), isNull);
   });
 
   testWidgets('choosing in «Más» opens the page', (tester) async {

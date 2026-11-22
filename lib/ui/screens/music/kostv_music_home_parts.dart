@@ -7,6 +7,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../../preference/user_preferences.dart';
 import '../../../util/focus/dpad_keys.dart';
 import '../../../util/platform_detection.dart';
+import '../../widgets/kostv_menu/kostv_glass.dart';
 import '../../widgets/music/design/kostv_music_design.dart';
 import 'kostv_music_widgets.dart';
 
@@ -157,7 +158,12 @@ class KostvMusicChoiceRow<T> extends StatelessWidget {
     this.onKey,
     this.solid = false,
     this.size = KostvPillSize.s,
+    this.glass = false,
   });
+
+  /// Kos TV: the glass chips of the menu's pages on phones and tablets
+  /// (movil_cristal_musica): glass, the picked one lighter and bold.
+  final bool glass;
 
   final List<T> values;
   final T selected;
@@ -193,17 +199,57 @@ class KostvMusicChoiceRow<T> extends StatelessWidget {
                   centerVertically: false,
                   onTap: () => onSelect(value),
                   onKey: onKey == null ? null : (event) => onKey!(value, event),
-                  builder: (context, lit) => _ChoicePill(
-                    label: label(value),
-                    picked: value == selected,
-                    lit: lit,
-                    solid: solid,
-                    size: size,
-                  ),
+                  builder: (context, lit) => glass && !lit
+                      ? _GlassChoice(
+                          label: label(value),
+                          picked: value == selected,
+                        )
+                      : _ChoicePill(
+                          label: label(value),
+                          picked: value == selected,
+                          lit: lit,
+                          solid: solid,
+                          size: size,
+                        ),
                 ),
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A chip of glass: 34 high on a phone (38 on a tablet), the picked one
+/// with a lighter fill.
+class _GlassChoice extends StatelessWidget {
+  const _GlassChoice({required this.label, required this.picked});
+
+  final String label;
+  final bool picked;
+
+  @override
+  Widget build(BuildContext context) {
+    final tablet = MediaQuery.sizeOf(context).shortestSide >= 600;
+    return SizedBox(
+      height: tablet ? 38 : 34,
+      child: KostvGlass(
+        fill: picked ? Colors.white.withValues(alpha: 0.22) : null,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: tablet ? 18 : 15),
+          child: Center(
+            widthFactor: 1,
+            child: Text(
+              label,
+              maxLines: 1,
+              style: TextStyle(
+                color: KostvMusicTokens.ink,
+                fontSize: tablet ? 15 : 14,
+                fontWeight: picked ? FontWeight.w700 : FontWeight.w500,
+              ),
+            ),
+          ),
         ),
       ),
     );

@@ -959,13 +959,9 @@ void main() {
       // Only the accesses, without the heading (the design's).
       expect(find.text('Sigue escuchando'), findsNothing);
       expect(find.byType(KostvMusicQuickTile), findsWidgets);
-      // Music's own magnifier, not the one of the menu's glass bar.
-      await tester.tap(
-        find.descendant(
-          of: find.byType(KostvMusicScreen),
-          matching: find.byTooltip('Buscar'),
-        ).first,
-      );
+      // Kos TV: the glass bar's round Search opens Music's own search on
+      // this page (its large header has «Música» and the house's buttons).
+      await tester.tap(find.byKey(const ValueKey('kostvBarSearch')));
       await tester.pump(const Duration(milliseconds: 300));
       expect(find.byType(TextField), findsOneWidget);
       await tester.enterText(find.byType(TextField), 'luna');

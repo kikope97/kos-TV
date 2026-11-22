@@ -16,6 +16,7 @@ import '../../util/focus/dpad_keys.dart';
 import '../../util/focus/input_mode_tracker.dart';
 import '../../util/game_library.dart';
 import '../../util/platform_detection.dart';
+import '../../util/tv_ui_scale.dart';
 import '../navigation/destinations.dart';
 import '../navigation/home_refresh_bus.dart';
 import '../navigation/kostv_menu_controller.dart';
@@ -32,14 +33,22 @@ import 'music/kostv_now_playing_capsule.dart' show KostvEqualizerBars;
 import 'nav_capsule.dart';
 import 'navigation_layout.dart';
 
-const _kToolbarHeightTV = 96.0;
+/// Kos TV: a length of the approved TV mockups (docs/diseno-menu, drawn on a
+/// screen 1280 wide) on the TV's design canvas, so the bar is the mockup's
+/// on any TV.
+double kostvTvMk(double px) => px * kTvDesignWidth / 1280;
+double _mk(double px) => kostvTvMk(px);
+
+final double _kToolbarHeightTV = _mk(96);
 const _kToolbarHeightDesktop = 80.0;
 // The top room pages keep on phones, under the status bar, for their own
 // back button and title (their menu is the glass bar at the bottom).
 const _kTopRoomMobile = 60.0;
-const _kOverscanH = 56.0;
+final double _kOverscanH = _mk(56);
 const _kDesktopH = 40.0;
-const _kTabHeightTV = 44.0;
+// The computer's row sits 22 px from the top (ordenador_cristal).
+const _kDesktopTop = 22.0;
+final double _kTabHeightTV = _mk(44);
 const _kTabHeightDesktop = 40.0;
 
 /// Kos TV: the menu of the TV and the computer: the approved design A
@@ -66,6 +75,15 @@ class TopToolbar extends StatefulWidget {
   static final ValueNotifier<bool> isFocusedNotifier = ValueNotifier<bool>(
     false,
   );
+
+  /// Kos TV: true while the TV's menu is in use (the focus in it, or «Más»
+  /// or «Tú» open from it): its glass lights up and the page dims a little
+  /// (tele_A_foco).
+  static final ValueNotifier<bool> litNotifier = ValueNotifier<bool>(false);
+
+  /// Kos TV: true while «Más» or «Tú» is open from the TV's menu: the page
+  /// dims further (45 %, tele_A_mas), the bar itself not.
+  static final ValueNotifier<bool> openNotifier = ValueNotifier<bool>(false);
 
   const TopToolbar({
     super.key,
@@ -232,8 +250,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     final focused = FocusManager.instance.primaryFocus;
     final own = _menuNode(route);
     if (focused == null || focused == own) return;
-    final inMenu =
-        focused == _homeFocus || _menuFocus.values.contains(focused);
+    final inMenu = focused == _homeFocus || _menuFocus.values.contains(focused);
     if (!inMenu || own.context == null || !own.canRequestFocus) return;
     _restTimer?.cancel();
     own.requestFocus();
@@ -263,6 +280,10 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     // route's toolbar can't wipe the state of the one the user is on.
     if (_toolbarHadFocus) {
       TopToolbar.isFocusedNotifier.value = false;
+    }
+    if (_toolbarHadFocus || _open != null) {
+      TopToolbar.litNotifier.value = false;
+      TopToolbar.openNotifier.value = false;
     }
     NavigationLayout.chromeFocusRoots.remove(_toolbarScopeNode);
     FocusManager.instance.removeListener(_trackPreviousFocus);
@@ -586,7 +607,17 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   Rect? _rectOf(GlobalKey key) {
     final box = key.currentContext?.findRenderObject();
     if (box is! RenderBox || !box.attached || !box.hasSize) return null;
-    return box.localToGlobal(Offset.zero) & box.size;
+    // Where the menu's card is laid: the overlay's own space (on a TV, the
+    // design canvas, not the scaled screen).
+    final overlay = Overlay.maybeOf(
+      context,
+      rootOverlay: true,
+    )?.context.findRenderObject();
+    return box.localToGlobal(
+          Offset.zero,
+          ancestor: overlay is RenderBox ? overlay : null,
+        ) &
+        box.size;
   }
 
   void _openPage(BuildContext context, String route) {
@@ -597,15 +628,42 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     }
   }
 
-  /// «Tú»: the person's menu, under the avatar.
+  /// Which of the menu's cards is open from it: 'you', 'more' or none.
+  String? _open;
+
+  void _setOpen(String? which) {
+    if (!mounted) return;
+    setState(() => _open = which);
+    _updateLit();
+  }
+
+  void _updateLit() {
+    final lit = PlatformDetection.isTV && (_focusInside || _open != null);
+    if (TopToolbar.litNotifier.value != lit) {
+      TopToolbar.litNotifier.value = lit;
+    }
+    final open = PlatformDetection.isTV && _open != null;
+    if (TopToolbar.openNotifier.value != open) {
+      TopToolbar.openNotifier.value = open;
+    }
+  }
+
+  /// «Tú»: the person's menu, under the avatar (tele_A_perfil: 8 px left of
+  /// the face and 26 px under it).
   Future<void> _showYou() async {
     final anchor = _rectOf(_avatarKey);
     if (anchor == null) return;
+    final tv = PlatformDetection.isTV;
+    final ring = tv ? _mk(5) : 5.0;
+    final face = anchor.deflate(ring);
+    _setOpen('you');
     await showKostvMenuPopup(
       context: context,
       anchor: anchor,
       width: 340,
-      alignEnd: !PlatformDetection.isTV,
+      alignEnd: !tv,
+      at: tv ? Offset(face.left - _mk(8), face.bottom + _mk(26)) : null,
+      scale: tv ? _mk(1) : 1,
       header: KostvMenuYouHeader(menu: _menu),
       entries: kostvYouEntries(
         AppLocalizations.of(context),
@@ -613,21 +671,28 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
         openPage: _openPage,
       ),
     );
+    _setOpen(null);
   }
 
-  /// «Más»: what isn't on the bar, under its button.
+  /// «Más»: what isn't on the bar, under its button (tele_A_mas: 9 px left
+  /// of it and 14 px under it).
   Future<void> _showMore() async {
     final anchor = _rectOf(_moreKey);
     if (anchor == null) return;
+    final tv = PlatformDetection.isTV;
+    _setOpen('more');
     await showKostvMenuPopup(
       context: context,
       anchor: anchor,
+      at: tv ? Offset(anchor.left - _mk(9), anchor.bottom + _mk(14)) : null,
+      scale: tv ? _mk(1) : 1,
       entries: kostvMoreEntries(
         AppLocalizations.of(context),
         _menu,
         openPage: _openPage,
       ),
     );
+    _setOpen(null);
   }
 
   KeyEventResult _onScopeKey(FocusNode _, KeyEvent event) {
@@ -664,6 +729,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
         _toolbarHadFocus = hasFocus;
         TopToolbar.isFocusedNotifier.value = hasFocus;
         if (hasFocus != _focusInside) setState(() => _focusInside = hasFocus);
+        _updateLit();
       },
       onKeyEvent: _onScopeKey,
       child: FocusTraversalGroup(
@@ -675,27 +741,31 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     final collapsed = widget.collapsed;
     return SafeArea(
       bottom: false,
+      // The scrim reaches below the bar: not cut at its height (that cut
+      // was the dark band across the TV).
       child: Stack(
+        clipBehavior: Clip.none,
         children: [
           // The scrim behind the bar, so its white text reads on any
           // artwork.
+          // No band behind the TV's bar: only a soft shade from the top
+          // (.scrim), deeper while the menu is in use; gathered, a short one
+          // behind the pill.
           if (isTV)
             Positioned(
               left: 0,
               right: 0,
               top: -MediaQuery.paddingOf(context).top,
-              height: 150 + MediaQuery.paddingOf(context).top,
+              height: _mk(190) + MediaQuery.paddingOf(context).top,
               child: IgnorePointer(
                 child: collapsed == null
-                    ? const _TopScrim()
+                    ? _TopScrim(lit: _focusInside || _open != null)
                     : ValueListenableBuilder<bool>(
                         valueListenable: collapsed,
-                        builder: (_, gathered, child) => AnimatedOpacity(
-                          opacity: gathered ? 0 : 1,
-                          duration: const Duration(milliseconds: 220),
-                          child: child,
+                        builder: (_, gathered, _) => _TopScrim(
+                          lit: _focusInside || _open != null,
+                          gathered: gathered,
                         ),
-                        child: const _TopScrim(),
                       ),
               ),
             ),
@@ -718,7 +788,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
                   ),
                   Positioned(
                     left: _kOverscanH,
-                    top: 22,
+                    top: _mk(22),
                     right: _kOverscanH,
                     child: IgnorePointer(
                       child: AnimatedOpacity(
@@ -763,21 +833,37 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     final name = _pageName(AppLocalizations.of(context));
     return Row(
       key: const ValueKey('kostvToolbarPill'),
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // .glassbar.row: padding 6px 16px 6px 6px, gap 10px, 600 16px.
         Container(
-          padding: EdgeInsets.fromLTRB(6, 6, name == null ? 6 : 16, 6),
-          decoration: _glassBarDecoration,
+          padding: EdgeInsets.fromLTRB(
+            _mk(6),
+            _mk(6),
+            _mk(name == null ? 6 : 16),
+            _mk(6),
+          ),
+          decoration: _tvGlassDecoration,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _avatarFace(size: 30, badge: 0),
+              // The ring reaches 5 px past the face, over the padding.
+              SizedBox(
+                width: _mk(30),
+                height: _mk(30),
+                child: OverflowBox(
+                  maxWidth: _mk(40),
+                  maxHeight: _mk(40),
+                  child: _avatarFace(size: _mk(30), badge: 0),
+                ),
+              ),
               if (name != null) ...[
-                const SizedBox(width: 10),
+                SizedBox(width: _mk(10)),
                 Text(
                   name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: KostvMusicTokens.ink,
-                    fontSize: 16,
+                    fontSize: _mk(16),
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -786,17 +872,21 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
           ),
         ),
         const Spacer(),
+        // .clk: 20px, 80 % white, 4 px lower than the pill.
         if (_showClock)
-          ValueListenableBuilder<String>(
-            valueListenable: _currentTime,
-            builder: (context, time, _) => Text(
-              time,
-              textDirection: TextDirection.ltr,
-              style: TextStyle(
-                color: KostvMusicTokens.ink.withValues(alpha: 0.8),
-                fontSize: 20,
-                fontWeight: FontWeight.w500,
-                fontFeatures: const [FontFeature.tabularFigures()],
+          Padding(
+            padding: EdgeInsets.only(top: _mk(4)),
+            child: ValueListenableBuilder<String>(
+              valueListenable: _currentTime,
+              builder: (context, time, _) => Text(
+                time,
+                textDirection: TextDirection.ltr,
+                style: TextStyle(
+                  color: KostvMusicTokens.ink.withValues(alpha: 0.8),
+                  fontSize: _mk(20),
+                  fontWeight: FontWeight.w500,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ),
           ),
@@ -804,12 +894,19 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     );
   }
 
-  static final _glassBarDecoration = BoxDecoration(
-    color: const Color(0x9E24242C),
+  /// .glassbar: rgba(36,36,44,.62), a 1 px light edge inside and
+  /// 0 10px 30px rgba(0,0,0,.35). No blur on a TV: the scrim under it does
+  /// the rest.
+  static final _tvGlassDecoration = BoxDecoration(
+    color: const Color(0xA824242C),
     borderRadius: BorderRadius.circular(999),
     border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-    boxShadow: const [
-      BoxShadow(color: Color(0x59000000), blurRadius: 30, offset: Offset(0, 10)),
+    boxShadow: [
+      BoxShadow(
+        color: const Color(0x59000000),
+        blurRadius: _mk(30),
+        offset: Offset(0, _mk(10)),
+      ),
     ],
   );
 
@@ -820,10 +917,15 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
         name: _menu.userName,
         badge: badge,
         ring: true,
+        ringPad: PlatformDetection.isTV ? _mk(5) : 5,
         spinning: _menu.requestsWorking,
         focused:
-            size > 32 &&
-            InputModeTracker.showFocusVisuals(context, _avatarFocus.hasFocus),
+            size > _mk(32) &&
+            (_open == 'you' ||
+                InputModeTracker.showFocusVisuals(
+                  context,
+                  _avatarFocus.hasFocus,
+                )),
       );
 
   /// «Tú»: the avatar, with the news behind it.
@@ -847,7 +949,7 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
             key: _avatarKey,
             onTap: _showYou,
             child: _avatarFace(
-              size: PlatformDetection.isTV ? 44 : 40,
+              size: PlatformDetection.isTV ? _mk(44) : 40,
               badge: _menu.youBadge,
             ),
           ),
@@ -861,70 +963,88 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
     builder: (context, time, _) => Text(
       time,
       textDirection: TextDirection.ltr,
-      style: const TextStyle(
+      style: TextStyle(
         color: KostvMusicTokens.ink,
-        fontSize: 22,
+        fontSize: _mk(22),
         fontWeight: FontWeight.w500,
-        fontFeatures: [FontFeature.tabularFigures()],
+        fontFeatures: const [FontFeature.tabularFigures()],
       ),
     ),
   );
 
+  /// tele_A_reposo: 56 px in from the edges, the avatar, 22 px, the tabs;
+  /// the clock on the right.
   Widget _buildTvBar() {
+    // The avatar's ring reaches 5 px past its face, into that room.
+    final ring = _mk(5);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _kOverscanH),
+      padding: EdgeInsets.fromLTRB(_kOverscanH - ring, 0, _kOverscanH, 0),
       child: Row(
         children: [
           _buildAvatar(),
-          const SizedBox(width: 22),
+          SizedBox(width: _mk(22) - ring),
           Expanded(
             child: Align(
               alignment: AlignmentDirectional.centerStart,
               child: _buildTabs(tv: true),
             ),
           ),
-          if (_showClock) ...[const SizedBox(width: 22), _buildClock()],
+          if (_showClock) ...[SizedBox(width: _mk(22)), _buildClock()],
         ],
       ),
     );
   }
 
+  /// ordenador_cristal: 22 px from the top and 40 from the sides, the logo,
+  /// the tabs in their glass capsule, and Search, the tray and the avatar.
   Widget _buildDesktopBar() {
     final l10n = AppLocalizations.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: _kDesktopH),
-      child: Row(
-        children: [
-          if (_showBackArrow) ...[
-            _RoundButton(
-              icon: Icons.arrow_back_rounded,
-              label: MaterialLocalizations.of(context).backButtonTooltip,
-              onPressed: () => context.popOrHome(),
-            ),
-            const SizedBox(width: 14),
-          ],
-          const KosLogo(height: 34),
-          Expanded(child: Center(child: _buildTabs(tv: false))),
-          _DesktopSearchBox(
-            label: l10n.search,
-            focusNode: _menuNode(Destinations.search),
-            active: _isActive(Destinations.search),
-            onPressed: () => _openFromMenu(Destinations.search),
-          ),
-          if (_menu.requestsVisible) ...[
-            const SizedBox(width: 10),
-            _RoundButton(
-              icon: Icons.inbox_rounded,
-              label: l10n.kostvMenuMyRequests,
-              count: _menu.requestsNews,
-              focusNode: _trayFocus,
-              onPressed: () => showKostvRequestsTray(context),
-            ),
-          ],
-          const SizedBox(width: 12),
-          _buildAvatar(),
-        ],
+      padding: const EdgeInsets.fromLTRB(
+        _kDesktopH,
+        _kDesktopTop,
+        _kDesktopH,
+        0,
       ),
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(height: 50, child: _desktopRow(l10n)),
+      ),
+    );
+  }
+
+  Widget _desktopRow(AppLocalizations l10n) {
+    return Row(
+      children: [
+        if (_showBackArrow) ...[
+          _RoundButton(
+            icon: Icons.arrow_back_rounded,
+            label: MaterialLocalizations.of(context).backButtonTooltip,
+            onPressed: () => context.popOrHome(),
+          ),
+          const SizedBox(width: 14),
+        ],
+        const KosLogo(height: 34),
+        Expanded(child: Center(child: _buildTabs(tv: false))),
+        _DesktopSearchBox(
+          label: l10n.search,
+          focusNode: _menuNode(Destinations.search),
+          active: _isActive(Destinations.search),
+          onPressed: () => _openFromMenu(Destinations.search),
+        ),
+        if (_menu.requestsVisible) ...[
+          const SizedBox(width: 10),
+          _RoundButton(
+            icon: Icons.inbox_rounded,
+            label: l10n.kostvMenuMyRequests,
+            count: _menu.requestsNews,
+            focusNode: _trayFocus,
+            onPressed: () => showKostvRequestsTray(context),
+          ),
+        ],
+        const SizedBox(width: 10),
+        _buildAvatar(),
+      ],
     );
   }
 
@@ -1059,17 +1179,19 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
           label: l10n.more,
           count: menu.moreBadge,
           focusNode: _moreFocus,
+          held: _open == 'more',
           onPressed: _showMore,
         ),
     ];
 
     final row = NavCapsule(
       color: KostvMusicTokens.ink,
+      flat: tv,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var i = 0; i < tabs.length; i++) ...[
-            if (i > 0) SizedBox(width: tv ? 4 : 2),
+            if (i > 0) SizedBox(width: tv ? _mk(4) : 2),
             tabs[i],
           ],
         ],
@@ -1081,26 +1203,26 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
       child: row,
     );
     if (!tv) {
+      // .g.bar: the phone's glass, padding 5px.
       return MouseRegion(
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),
-        child: Container(
-          padding: const EdgeInsets.all(5),
-          decoration: _glassBarDecoration.copyWith(
-            color: _hovered || _focusInside
-                ? const Color(0xC724242C)
-                : const Color(0xA824242C),
-          ),
-          child: scroll,
+        child: KostvGlass(
+          fill: _hovered || _focusInside
+              ? Colors.white.withValues(alpha: 0.04)
+              : null,
+          child: Padding(padding: const EdgeInsets.all(5), child: scroll),
         ),
       );
     }
-    // On the TV the glass is there only while the menu has the focus.
+    // On the TV the glass is there only while the menu is in use
+    // (tele_A_foco, tele_A_mas).
+    final lit = _focusInside || _open != null;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      padding: const EdgeInsets.all(5),
-      decoration: _focusInside
-          ? _glassBarDecoration
+      padding: EdgeInsets.all(_mk(5)),
+      decoration: lit
+          ? _tvGlassDecoration
           : BoxDecoration(
               borderRadius: BorderRadius.circular(999),
               border: Border.all(color: Colors.transparent),
@@ -1110,21 +1232,51 @@ class _TopToolbarState extends State<TopToolbar> with RouteAware {
   }
 }
 
-/// The dark shade from the top of the screen behind the TV's bar.
+/// The dark shade from the top of the screen behind the TV's bar (no band):
+/// `.scrim`, 150 px from 72 % black through 35 % to nothing; 190 px from
+/// 85 % through 40 % while the menu is in use; gathered, 70 px from 70 %.
 class _TopScrim extends StatelessWidget {
-  const _TopScrim();
+  const _TopScrim({required this.lit, this.gathered = false});
+
+  final bool lit;
+  final bool gathered;
 
   @override
-  Widget build(BuildContext context) => const DecoratedBox(
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xB8000000), Color(0x59000000), Color(0x00000000)],
-        stops: [0, 0.55, 1],
+  Widget build(BuildContext context) {
+    final full = _mk(190);
+    final ({double height, double top, double mid, double stop}) shade =
+        gathered
+        ? (height: _mk(70), top: 0.7, mid: 0.35, stop: 0.5)
+        : lit
+        ? (height: full, top: 0.85, mid: 0.4, stop: 0.6)
+        : (height: _mk(150), top: 0.72, mid: 0.35, stop: 0.55);
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: shade.height),
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      builder: (context, height, _) => Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(
+          height: height,
+          width: double.infinity,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.black.withValues(alpha: shade.top),
+                  Colors.black.withValues(alpha: shade.mid),
+                  Colors.black.withValues(alpha: 0),
+                ],
+                stops: [0, shade.stop, 1],
+              ),
+            ),
+          ),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// Kos TV: one tab of the top bar: its name (or an icon: the magnifier and
@@ -1146,7 +1298,11 @@ class _NavTab extends StatefulWidget {
     this.selected = false,
     this.count = 0,
     this.anchorKey,
+    this.held = false,
   });
+
+  /// Its menu is open: it keeps the white capsule meanwhile (tele_A_mas).
+  final bool held;
 
   final bool tv;
   final String label;
@@ -1175,9 +1331,11 @@ class _NavTabState extends State<_NavTab> {
   @override
   Widget build(BuildContext context) {
     final tv = widget.tv;
-    final focusVisible = InputModeTracker.showFocusVisuals(context, _focused);
+    final focusVisible =
+        widget.held || InputModeTracker.showFocusVisuals(context, _focused);
     final height = tv ? _kTabHeightTV : _kTabHeightDesktop;
-    final fontSize = tv ? 18.0 : 15.0;
+    final fontSize = tv ? _mk(18) : 15.0;
+    final iconSize = tv ? _mk(24) : 24.0;
     final base = widget.selected
         ? KostvMusicTokens.ink
         : KostvMusicTokens.ink.withValues(alpha: tv ? 0.62 : 0.8);
@@ -1192,14 +1350,15 @@ class _NavTabState extends State<_NavTab> {
           width: height,
           height: height,
           child: Center(
-            child: widget.iconBuilder?.call(24, color) ??
-                Icon(widget.icon, size: 24, color: color),
+            child:
+                widget.iconBuilder?.call(iconSize, color) ??
+                Icon(widget.icon, size: iconSize, color: color),
           ),
         );
       } else {
         face = Container(
           height: height,
-          padding: EdgeInsets.symmetric(horizontal: tv ? 18 : 16),
+          padding: EdgeInsets.symmetric(horizontal: tv ? _mk(18) : 16),
           alignment: Alignment.center,
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1241,8 +1400,12 @@ class _NavTabState extends State<_NavTab> {
           face,
           if (tv && widget.selected && !_iconOnly)
             Positioned(
-              bottom: 2,
-              child: KostvHereMark(opacity: 1 - cover),
+              bottom: _mk(2),
+              child: KostvHereMark(
+                width: _mk(22),
+                height: _mk(3),
+                opacity: 1 - cover,
+              ),
             ),
           if (widget.count > 0)
             Positioned(
@@ -1283,9 +1446,15 @@ class _NavTabState extends State<_NavTab> {
             child: Tooltip(
               message: _iconOnly ? widget.label : '',
               excludeFromSemantics: true,
-              child: NavCapsuleTarget(
-                active: focusVisible,
-                builder: (context, cover) => content(cover),
+              // .tab.f: the focused tab grows a little (scale 1.06).
+              child: AnimatedScale(
+                scale: tv && focusVisible ? 1.06 : 1,
+                duration: KostvMusicTokens.focusDuration,
+                curve: KostvMusicTokens.focusCurve,
+                child: NavCapsuleTarget(
+                  active: focusVisible,
+                  builder: (context, cover) => content(cover),
+                ),
               ),
             ),
           ),
@@ -1321,7 +1490,8 @@ class _RoundButtonState extends State<_RoundButton> {
 
   @override
   Widget build(BuildContext context) {
-    final lit = _hovered || InputModeTracker.showFocusVisuals(context, _focused);
+    final lit =
+        _hovered || InputModeTracker.showFocusVisuals(context, _focused);
     return Semantics(
       button: true,
       label: widget.label,
@@ -1348,23 +1518,14 @@ class _RoundButtonState extends State<_RoundButton> {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
+                  SizedBox(
                     width: 44,
                     height: 44,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: lit
-                          ? const Color(0xD93A3A46)
-                          : const Color(0xA824242C),
-                      border: Border.all(
-                        color: Colors.white.withValues(alpha: lit ? 0.3 : 0.12),
+                    child: KostvGlass(
+                      fill: lit ? Colors.white.withValues(alpha: 0.10) : null,
+                      child: Center(
+                        child: Icon(widget.icon, size: 19, color: Colors.white),
                       ),
-                    ),
-                    child: Icon(
-                      widget.icon,
-                      size: 20,
-                      color: KostvMusicTokens.ink,
                     ),
                   ),
                   if (widget.count > 0)
@@ -1432,34 +1593,31 @@ class _DesktopSearchBoxState extends State<_DesktopSearchBox> {
           },
           child: GestureDetector(
             onTap: widget.onPressed,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 150),
+            child: SizedBox(
               width: 220,
               height: 44,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: lit ? const Color(0xD93A3A46) : const Color(0xA824242C),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: lit ? 0.3 : 0.12),
+              child: KostvGlass(
+                fill: lit ? Colors.white.withValues(alpha: 0.10) : null,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.search_rounded,
+                        size: 20,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        widget.label,
+                        style: TextStyle(
+                          color: KostvMusicTokens.ink.withValues(alpha: 0.75),
+                          fontSize: 15,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.search_rounded,
-                    size: 20,
-                    color: KostvMusicTokens.ink,
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    widget.label,
-                    style: TextStyle(
-                      color: KostvMusicTokens.ink.withValues(alpha: 0.75),
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
               ),
             ),
           ),

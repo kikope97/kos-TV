@@ -113,6 +113,7 @@ Widget bottomNavApp({
   bool chrome = true,
   String? activeRoute = '/home',
   Widget child = const SizedBox.expand(),
+  bool largeHeader = false,
 }) =>
     MaterialApp(
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -121,6 +122,7 @@ Widget bottomNavApp({
         body: NavigationLayout(
           activeRoute: activeRoute,
           showNavigationChrome: chrome,
+          largeHeader: largeHeader,
           child: child,
         ),
       ),

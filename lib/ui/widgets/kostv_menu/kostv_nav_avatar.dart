@@ -23,7 +23,11 @@ class KostvNavAvatar extends StatefulWidget {
     this.spinning = false,
     this.dot = false,
     this.focused = false,
+    this.ringPad = 5,
   });
+
+  /// How far the ring reaches past the face (`.av.ring:before`, inset -5px).
+  final double ringPad;
 
   final double size;
   final String? imageUrl;
@@ -132,12 +136,12 @@ class _KostvNavAvatarState extends State<KostvNavAvatar>
         child: face,
       );
     }
-    final ringPad = widget.ring ? size * 0.12 : 0.0;
+    final ringPad = widget.ring ? widget.ringPad : 0.0;
     Widget ring = const SizedBox.shrink();
     if (widget.ring) {
       final painted = CustomPaint(
         size: Size.square(size + ringPad * 2),
-        painter: const _RingPainter(),
+        painter: _RingPainter(face: size),
       );
       final turn = _turn;
       ring = turn == null
@@ -145,7 +149,8 @@ class _KostvNavAvatarState extends State<KostvNavAvatar>
           : RotationTransition(turns: turn, child: painted);
       ring = RepaintBoundary(child: ring);
     }
-    final badgeSize = math.max(16.0, size * 0.45);
+    // .bdg: 20 px on the 44 px avatar, 4 px above it and 6 px past it.
+    final badgeSize = math.max(14.0, size * 20 / 44);
     return AnimatedScale(
       scale: widget.focused ? 1.08 : 1,
       duration: KostvMusicTokens.focusDuration,
@@ -161,24 +166,24 @@ class _KostvNavAvatarState extends State<KostvNavAvatar>
             face,
             if (widget.badge > 0)
               Positioned(
-                top: -4 + ringPad * 0.3,
-                right: -6 + ringPad * 0.3,
+                top: ringPad - badgeSize / 5,
+                right: ringPad - badgeSize * 0.3,
                 child: KostvMenuCount(count: widget.badge, size: badgeSize),
               )
             else if (widget.dot)
+              // .dot: 9 px, 1 px above and 3 px past, with a dark edge.
               Positioned(
                 top: ringPad - 1,
                 right: ringPad - 3,
                 child: Container(
-                  width: math.max(8, size * 0.36),
-                  height: math.max(8, size * 0.36),
-                  decoration: BoxDecoration(
+                  width: 9,
+                  height: 9,
+                  decoration: const BoxDecoration(
                     color: kostvMenuBadgeColor,
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.black.withValues(alpha: 0.45),
-                      width: 2,
-                    ),
+                    boxShadow: [
+                      BoxShadow(color: Color(0x73000000), spreadRadius: 2),
+                    ],
                   ),
                 ),
               ),
@@ -191,11 +196,17 @@ class _KostvNavAvatarState extends State<KostvNavAvatar>
 
 /// The kOS gradient round the avatar, fading out on its last quarter.
 class _RingPainter extends CustomPainter {
-  const _RingPainter();
+  const _RingPainter({required this.face});
+
+  final double face;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final stroke = size.width * 0.055;
+    // conic-gradient masked by radial-gradient(circle, transparent 62%,
+    // #000 63%): from 62 % of the farthest corner out to the edge.
+    final outer = size.width / 2;
+    final inner = math.max(face / 2, size.width * math.sqrt2 / 2 * 0.625);
+    final stroke = math.max(1.5, outer - inner);
     final rect = Offset.zero & size;
     final paint = Paint()
       ..style = PaintingStyle.stroke
@@ -212,11 +223,11 @@ class _RingPainter extends CustomPainter {
         ],
         stops: [0, 0.35, 0.6, 0.75],
       ).createShader(rect);
-    canvas.drawCircle(rect.center, (size.width - stroke) / 2, paint);
+    canvas.drawCircle(rect.center, outer - stroke / 2, paint);
   }
 
   @override
-  bool shouldRepaint(_RingPainter oldDelegate) => false;
+  bool shouldRepaint(_RingPainter oldDelegate) => oldDelegate.face != face;
 }
 
 /// Kos TV: a count in the menu's pink.
@@ -226,22 +237,28 @@ class KostvMenuCount extends StatelessWidget {
     required this.count,
     this.size = 20,
     this.outlined = true,
+    this.outline = KostvMusicTokens.background,
   });
 
   final int count;
   final double size;
   final bool outlined;
 
+  /// The 2 px edge round it (box-shadow 0 0 0 2px), outside its size.
+  final Color outline;
+
   @override
   Widget build(BuildContext context) {
+    // .bdg: min-width 20px, height 20px, padding 0 5px, 700 12px.
     return Container(
       constraints: BoxConstraints(minWidth: size, minHeight: size),
+      height: size,
       padding: EdgeInsets.symmetric(horizontal: size * 0.25),
       decoration: BoxDecoration(
         color: kostvMenuBadgeColor,
         borderRadius: BorderRadius.circular(size / 2),
-        border: outlined
-            ? Border.all(color: KostvMusicTokens.background, width: 2)
+        boxShadow: outlined
+            ? [BoxShadow(color: outline, spreadRadius: size / 10)]
             : null,
       ),
       alignment: Alignment.center,
@@ -249,7 +266,7 @@ class KostvMenuCount extends StatelessWidget {
         count > 99 ? '99+' : '$count',
         style: TextStyle(
           color: KostvMusicTokens.background,
-          fontSize: size * 0.56,
+          fontSize: size * 0.6,
           fontWeight: FontWeight.w700,
           height: 1,
           decoration: TextDecoration.none,

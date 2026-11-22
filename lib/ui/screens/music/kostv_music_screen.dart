@@ -22,6 +22,8 @@ import '../../../util/focus/dpad_keys.dart';
 import '../../../util/focus/input_mode_tracker.dart';
 import '../../../util/platform_detection.dart';
 import '../../navigation/destinations.dart';
+import '../../widgets/bottom_nav/bottom_navbar.dart';
+import '../../widgets/kostv_menu/kostv_page_header.dart';
 import '../../widgets/music/kostv_music_menu.dart';
 import '../../widgets/music/kostv_now_playing.dart';
 import '../../widgets/music/design/kostv_music_design.dart';
@@ -279,6 +281,8 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   @override
   void initState() {
     super.initState();
+    // Kos TV: on this page the glass bar's Search is this page's own.
+    BottomNavbar.pageSearch[Destinations.kostvMusic] = _openSearch;
     _search.addListener(_onQuery);
     kostvMusicFavoritesChanged.addListener(_reloadFavorites);
     // With a mouse, the right click is the songs' menu, not the browser's.
@@ -399,6 +403,12 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
 
   @override
   void dispose() {
+    if (identical(
+      BottomNavbar.pageSearch[Destinations.kostvMusic],
+      _openSearch,
+    )) {
+      BottomNavbar.pageSearch.remove(Destinations.kostvMusic);
+    }
     _debounce?.cancel();
     _refreshing?.cancel();
     _momentTurn?.cancel();
@@ -1445,7 +1455,13 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
   /// web) with the menu at the top; with it at the side, past its rail.
   EdgeInsets _insets(BuildContext context) {
     final base = calendarChromeInsets(context);
-    if (KostvMusicSizes.phone) return base;
+    if (KostvMusicSizes.phone) {
+      // Kos TV: a tablet keeps 32 px from the sides, as its header
+      // (tableta_musica).
+      return KostvPageHeader.isTablet(context)
+          ? base.copyWith(left: 32, right: 32)
+          : base;
+    }
     final side = base.left > 60;
     return EdgeInsets.only(
       top: base.top,
@@ -1485,26 +1501,47 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
         backgroundColor: KostvMusicTokens.background,
         body: NavigationLayout(
           activeRoute: Destinations.kostvMusic,
+          largeHeader: true,
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Kos TV: a faint glow of the brand's violet from the top.
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment(-0.7, -1.1),
-                    radius: 1.2,
-                    colors: [Color(0x388F6BFF), Color(0x008F6BFF)],
+              // Kos TV: a faint glow of the brand's violet from the top; under
+              // the glass bar, the mockup's pink and cyan
+              // (movil_cristal_musica), which the glass picks up.
+              if (_menuHeader) ...[
+                const _GlowEllipse(
+                  center: Alignment(-0.6, -1),
+                  width: 1.0,
+                  height: 0.45,
+                  color: Color(0x8CE33AD6),
+                ),
+                const _GlowEllipse(
+                  center: Alignment(1, -0.6),
+                  width: 0.8,
+                  height: 0.4,
+                  color: Color(0x4D4FD8FF),
+                ),
+              ] else
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      center: Alignment(-0.7, -1.1),
+                      radius: 1.2,
+                      colors: [Color(0x388F6BFF), Color(0x008F6BFF)],
+                    ),
                   ),
                 ),
-              ),
               CustomScrollView(
                 controller: _scroll,
                 slivers: [
                   SliverPadding(
                     padding: EdgeInsets.fromLTRB(
                       insets.left,
-                      insets.top + (phone ? 4 : 10),
+                      // Kos TV: under the glass bar's pages, the large
+                      // header («Música» and its buttons) is the menu's.
+                      _menuHeader
+                          ? KostvPageHeader.room(context)
+                          : insets.top + (phone ? 4 : 10),
                       insets.right,
                       0,
                     ),
@@ -1521,6 +1558,10 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       ),
     );
   }
+
+  /// Kos TV: whether the menu draws this page's large header (the glass bar
+  /// at the bottom).
+  bool get _menuHeader => NavigationLayout.usesBottomNavbar;
 
   /// Kos TV: the page's top: «Música» with the search at its right (a round
   /// button on the phone) and the tabs under it; while searching, only the
@@ -1577,10 +1618,14 @@ class _KostvMusicScreenState extends State<KostvMusicScreen> {
       selected: _tab,
       nodes: _tabNodes,
       size: tv ? KostvPillSize.m : KostvPillSize.s,
+      glass: _menuHeader,
       label: (tab) => kostvMusicTabLabel(l10n, tab),
       onSelect: _selectTab,
       onKey: _onTabKey,
     );
+    // Kos TV: the title is the menu's large header there; Search is the
+    // bar's round button, which opens this page's own.
+    if (_menuHeader) return tabs;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -4168,4 +4213,51 @@ class _Quick {
   final Widget? art;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+}
+
+/// Kos TV: radial-gradient(ellipse W H at X Y, color, transparent 70%).
+class _GlowEllipse extends StatelessWidget {
+  const _GlowEllipse({
+    required this.center,
+    required this.width,
+    required this.height,
+    required this.color,
+  });
+
+  /// Where the ellipse is centred, as an alignment of the page.
+  final Alignment center;
+
+  /// Its radii, as shares of the page's width and height.
+  final double width;
+  final double height;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, box) {
+        final w = box.maxWidth * width;
+        final h = box.maxHeight * height;
+        final c = center.alongSize(box.biggest);
+        return Stack(
+          children: [
+            Positioned(
+              left: c.dx - w,
+              top: c.dy - h,
+              width: w * 2,
+              height: h * 2,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: [color, color.withValues(alpha: 0)],
+                    stops: const [0, 0.7],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
