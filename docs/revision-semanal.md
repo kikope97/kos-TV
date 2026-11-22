@@ -237,3 +237,10 @@ Copiar este bloque arriba del registro y rellenarlo:
 - Publicado el complemento 3.1.1.6 (commit `140bce394`) a petición del usuario, antes que la app: pestaña «Actualizaciones de la app», apartado «Instalaciones (últimos 14 días)», emisoras de música con fuentes gratuitas, listas con canciones de fuera y sin las opciones de diseño del menú en el panel.
 - La app 1.21.0 (versión puente) espera a que el menú nuevo quede igual que las maquetas aprobadas.
 - La siguiente revisión del original sigue empezando en `a1fa0f9f1` y el complemento oficial 3.1.1.0.
+
+## 2026-11-22 · App 1.21.0, versión puente (fuera de la revisión semanal)
+
+- Publicada la app 1.21.0 (commit `762699bbc`), la versión puente: busca sus actualizaciones en el complemento (3.1.1.6), menú nuevo único (tele A, móvil y tableta con barra de cristal, ordenador), sin los diseños antiguos ni sus opciones, radio de canción con Stremfin y arreglo del marco de «Descubrimiento semanal».
+- Desde ahora la familia se actualiza subiendo los APK en *Panel > Complementos > kOS TV > Actualizaciones de la app*; GitHub queda como canal beta.
+- Pendiente de publicar: complemento 3.1.1.7 (panel: ListenBrainz y Last.fm en «Integraciones», «Nueva actualización» rediseñada), cuando el usuario lo diga.
+- La siguiente revisión del original sigue empezando en `a1fa0f9f1` y el complemento oficial 3.1.1.0.
